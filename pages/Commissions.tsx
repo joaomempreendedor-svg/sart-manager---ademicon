@@ -1,8 +1,7 @@
-
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { Commission, CommissionStatus } from '../types';
-import { Trash2, Search, DollarSign, Calendar, Calculator, Save, Table as TableIcon, Car, Home, ChevronLeft, ChevronRight, MapPin, Percent, Filter, XCircle, Crown, Eye, EyeOff } from 'lucide-react';
+import { Trash2, Search, DollarSign, Calendar, Calculator, Save, Table as TableIcon, Car, Home, ChevronLeft, ChevronRight, MapPin, Percent, Filter, XCircle, Crown, Eye, EyeOff, Plus } from 'lucide-react';
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', {
@@ -50,7 +49,7 @@ const getStatusColor = (status: CommissionStatus) => {
 };
 
 export const Commissions = () => {
-  const { commissions, addCommission, updateCommission, deleteCommission, teamMembers, pvs } = useApp();
+  const { commissions, addCommission, updateCommission, deleteCommission, teamMembers, pvs, addPV } = useApp();
   
   // Estado da View
   const [activeTab, setActiveTab] = useState<'calculator' | 'history'>('calculator');
@@ -271,6 +270,14 @@ export const Commissions = () => {
       setSearchTerm('');
   };
 
+  const handleAddPV = () => {
+    const newPVName = prompt("Digite o nome do novo Ponto de Venda (PV):");
+    if (newPVName && newPVName.trim()) {
+      addPV(newPVName.trim());
+      setSelectedPV(newPVName.trim());
+    }
+  };
+
   // Filtros de listas (Consultores, Gestores, Anjos)
   const consultants = teamMembers.filter(m => m.role === 'Consultor' || m.role === 'Autorizado');
   const managers = teamMembers.filter(m => m.role === 'Gestor');
@@ -431,15 +438,20 @@ export const Commissions = () => {
                              </div>
                              <div className="flex-1">
                                 <label className="text-xs text-gray-500 dark:text-gray-400">PV (Ponto de Venda)</label>
-                                <select 
-                                    required
-                                    className="w-full border-gray-300 dark:border-slate-600 rounded-md text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white p-2"
-                                    value={selectedPV}
-                                    onChange={e => setSelectedPV(e.target.value)}
-                                >
-                                    <option value="">Selecione...</option>
-                                    {pvs.map(pv => <option key={pv} value={pv}>{pv}</option>)}
-                                </select>
+                                <div className="flex gap-2">
+                                    <select 
+                                        required
+                                        className="w-full border-gray-300 dark:border-slate-600 rounded-md text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white p-2"
+                                        value={selectedPV}
+                                        onChange={e => setSelectedPV(e.target.value)}
+                                    >
+                                        <option value="">Selecione...</option>
+                                        {pvs.map(pv => <option key={pv} value={pv}>{pv}</option>)}
+                                    </select>
+                                    <button type="button" onClick={handleAddPV} className="p-2 bg-brand-100 text-brand-700 rounded dark:bg-brand-900/30 dark:text-brand-400 hover:bg-brand-200" title="Adicionar novo PV">
+                                        <Plus className="w-5 h-5" />
+                                    </button>
+                                </div>
                              </div>
                         </div>
 

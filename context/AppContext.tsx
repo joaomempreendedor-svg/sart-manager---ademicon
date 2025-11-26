@@ -109,6 +109,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const currentUser = { id: session.user.id, name: `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim() || session.user.email || 'Usuário', email: session.user.email || '' };
         setUser(currentUser);
         if (_event === 'SIGNED_IN') {
+          setInitialLoadComplete(false);
           await fetchData(session.user.id);
         }
       } else {
@@ -146,7 +147,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const toggleConsultantGoal = (candidateId: string, goalId: string) => { const c = getCandidate(candidateId); if(c) { const progress = c.consultantGoalsProgress || {}; updateCandidate(candidateId, { consultantGoalsProgress: { ...progress, [goalId]: !progress[goalId] } }); } };
 
   const addTeamMember = async (member: TeamMember) => { if (!user) return; await supabase.from('team_members').insert({ user_id: user.id, data: member }); setTeamMembers(prev => [...prev, member]); };
-  const deleteTeamMember = async (id: string) => { if (!user) return; await supabase.from('team_members').delete().match({ 'data->>id': id, user_id: user.id }); setTeamMembers(prev => prev.filter(m => m.id !== id)); };
+  const updateTeamMember = async (id: string, updates: Partial<TeamMember>) => { const updatedMembers = teamMembers.map(m => m.id === id ? { ...m, ...updates } : m); setTeamMembers(updatedMembers); const memberToUpdate = updatedMembers.find(m => m.id === id); if (user && memberToUpdate) await supabase.from('team_members').update({ data: memberToUpdate }).match({ 'data->>id': id, user_id: user.id }); };
+  const deleteTeamMember = async (id: string) => { if (!user) return; const { error } = await supabase.from('team_members').delete().match({ 'data->>id': id, user_id: user.id }); if (!error) { setTeamMembers(prev => prev.filter(m => m.id !== id)); } else { console.error("Error deleting team member:", error); } };
   
   const addCommission = async (commission: Commission) => { if (!user) return; await supabase.from('commissions').insert({ user_id: user.id, data: commission }); setCommissions(prev => [commission, ...prev]); };
   const updateCommission = async (id: string, updates: Partial<Commission>) => { const updatedCommissions = commissions.map(c => c.id === id ? { ...c, ...updates } : c); setCommissions(updatedCommissions); const commissionToUpdate = updatedCommissions.find(c => c.id === id); if (user && commissionToUpdate) await supabase.from('commissions').update({ data: commissionToUpdate }).match({ 'data->>id': id, user_id: user.id }); };
@@ -183,7 +185,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   return (
     <AppContext.Provider value={{ 
       user, initialLoadComplete, login, register, logout, candidates, templates, checklistStructure, consultantGoalsStructure, interviewStructure, commissions, supportMaterials, theme, origins, interviewers, pvs, teamMembers,
-      addTeamMember, updateTeamMember: () => {}, deleteTeamMember, toggleTheme, addOrigin, addInterviewer, addPV, addCandidate, updateCandidate, deleteCandidate, toggleChecklistItem, toggleConsultantGoal, setChecklistDueDate, getCandidate, saveTemplate,
+      addTeamMember, updateTeamMember, deleteTeamMember, toggleTheme, addOrigin, addInterviewer, addPV, addCandidate, updateCandidate, deleteCandidate, toggleChecklistItem, toggleConsultantGoal, setChecklistDueDate, getCandidate, saveTemplate,
       addChecklistItem, updateChecklistItem, deleteChecklistItem, moveChecklistItem, resetChecklistToDefault, addGoalItem, updateGoalItem, deleteGoalItem, moveGoalItem, resetGoalsToDefault,
       updateInterviewSection, addInterviewQuestion, updateInterviewQuestion, deleteInterviewQuestion, moveInterviewQuestion, resetInterviewToDefault, addCommission, updateCommission, deleteCommission, addSupportMaterial, deleteSupportMaterial
     }}>

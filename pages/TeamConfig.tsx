@@ -1,14 +1,17 @@
-
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Plus, Trash2, User, Shield, Crown, Star } from 'lucide-react';
-import { TeamRole } from '../types';
+import { Plus, Trash2, User, Shield, Crown, Star, Edit2, Save, X } from 'lucide-react';
+import { TeamMember, TeamRole } from '../types';
 
 export const TeamConfig = () => {
-  const { teamMembers, addTeamMember, deleteTeamMember } = useApp();
+  const { teamMembers, addTeamMember, updateTeamMember, deleteTeamMember } = useApp();
   
   const [newName, setNewName] = useState('');
   const [newRole, setNewRole] = useState<TeamRole>('Consultor');
+
+  const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
+  const [editingName, setEditingName] = useState('');
+  const [editingRole, setEditingRole] = useState<TeamRole>('Consultor');
 
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,6 +22,24 @@ export const TeamConfig = () => {
         role: newRole
       });
       setNewName('');
+    }
+  };
+
+  const startEditing = (member: TeamMember) => {
+    setEditingMember(member);
+    setEditingName(member.name);
+    setEditingRole(member.role);
+  };
+
+  const cancelEditing = () => {
+    setEditingMember(null);
+    setEditingName('');
+  };
+
+  const handleUpdate = () => {
+    if (editingMember && editingName.trim()) {
+      updateTeamMember(editingMember.id, { name: editingName.trim(), role: editingRole });
+      cancelEditing();
     }
   };
 
@@ -97,23 +118,41 @@ export const TeamConfig = () => {
                       ) : (
                           teamMembers.map(member => (
                               <li key={member.id} className="p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-slate-700/30 transition group">
-                                  <div className="flex items-center space-x-4">
-                                      <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-slate-700 flex items-center justify-center text-gray-500 dark:text-gray-400">
-                                          {getRoleIcon(member.role)}
+                                  {editingMember?.id === member.id ? (
+                                    <div className="flex-1 flex items-center gap-2">
+                                      <input type="text" value={editingName} onChange={e => setEditingName(e.target.value)} className="w-full border-gray-300 dark:border-slate-600 rounded-md p-1 text-sm" />
+                                      <select value={editingRole} onChange={e => setEditingRole(e.target.value as TeamRole)} className="border-gray-300 dark:border-slate-600 rounded-md p-1 text-sm">
+                                        <option>Consultor</option><option>Autorizado</option><option>Gestor</option><option>Anjo</option>
+                                      </select>
+                                      <button onClick={handleUpdate} className="p-2 text-green-600 hover:bg-green-50 rounded"><Save className="w-4 h-4" /></button>
+                                      <button onClick={cancelEditing} className="p-2 text-gray-500 hover:bg-gray-100 rounded"><X className="w-4 h-4" /></button>
+                                    </div>
+                                  ) : (
+                                    <>
+                                      <div className="flex items-center space-x-4">
+                                          <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-slate-700 flex items-center justify-center text-gray-500 dark:text-gray-400">
+                                              {getRoleIcon(member.role)}
+                                          </div>
+                                          <div>
+                                              <p className="font-medium text-gray-900 dark:text-white">{member.name}</p>
+                                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${getRoleBadge(member.role)}`}>
+                                                  {member.role}
+                                              </span>
+                                          </div>
                                       </div>
-                                      <div>
-                                          <p className="font-medium text-gray-900 dark:text-white">{member.name}</p>
-                                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${getRoleBadge(member.role)}`}>
-                                              {member.role}
-                                          </span>
+                                      <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button onClick={() => startEditing(member)} className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full">
+                                          <Edit2 className="w-4 h-4" />
+                                        </button>
+                                        <button 
+                                          onClick={() => { if(confirm('Remover este membro da equipe?')) deleteTeamMember(member.id) }}
+                                          className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full"
+                                        >
+                                            <Trash2 className="w-5 h-5" />
+                                        </button>
                                       </div>
-                                  </div>
-                                  <button 
-                                    onClick={() => { if(confirm('Remover este membro da equipe?')) deleteTeamMember(member.id) }}
-                                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition opacity-0 group-hover:opacity-100"
-                                  >
-                                      <Trash2 className="w-5 h-5" />
-                                  </button>
+                                    </>
+                                  )}
                               </li>
                           ))
                       )}
