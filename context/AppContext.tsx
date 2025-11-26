@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { supabase } from '../integrations/supabase/client';
+import { supabase } from '../src/integrations/supabase/client';
 import { Session } from '@supabase/supabase-js';
 import { Candidate, ChecklistTaskState, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, User } from '../types';
 import { CHECKLIST_STAGES as DEFAULT_STAGES } from '../data/checklistData';
