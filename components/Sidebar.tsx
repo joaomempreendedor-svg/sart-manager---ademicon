@@ -1,15 +1,14 @@
 import React from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import { LayoutDashboard, MessageSquare, Settings, FileText, Sun, Moon, Banknote, PlusCircle, Library, TrendingUp, Target, Users, LogOut, User as UserIcon } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
 export const Sidebar = () => {
   const { theme, toggleTheme, user, logout } = useApp();
-  const navigate = useNavigate();
 
   const handleLogout = async () => {
     await logout();
-    navigate('/login');
+    // A navegação será tratada automaticamente pelo RequireAuth
   };
 
   const linkClass = ({ isActive }: { isActive: boolean }) =>

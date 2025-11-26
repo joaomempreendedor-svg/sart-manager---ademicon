@@ -130,6 +130,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
       } else {
         setUser(null);
+        setCandidates([]);
+        setTeamMembers([]);
+        setCommissions([]);
+        setSupportMaterials([]);
+        setChecklistStructure(DEFAULT_STAGES);
+        setConsultantGoalsStructure(DEFAULT_GOALS);
+        setInterviewStructure(INITIAL_INTERVIEW_STRUCTURE);
+        setTemplates({});
+        setOrigins(DEFAULT_APP_CONFIG_DATA.origins);
+        setInterviewers(DEFAULT_APP_CONFIG_DATA.interviewers);
+        setPvs(DEFAULT_APP_CONFIG_DATA.pvs);
         setInitialLoadComplete(true);
       }
     });
@@ -141,7 +152,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const login = async (email: string, pass: string) => { const { error } = await supabase.auth.signInWithPassword({ email, password: pass }); if (error) throw error; };
   const register = async (name: string, email: string, pass: string) => { const nameParts = name.trim().split(' '); const { error } = await supabase.auth.signUp({ email, password: pass, options: { data: { first_name: nameParts[0], last_name: nameParts.slice(1).join(' ') } } }); if (error) throw error; };
-  const logout = async () => { await supabase.auth.signOut(); setUser(null); };
+  const logout = async () => { const { error } = await supabase.auth.signOut(); if (error) { console.error("Error logging out:", error); alert("Ocorreu um erro ao sair."); } };
   const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
 
   const addCandidate = async (candidate: Candidate) => { if (!user) return; const original = [...candidates]; setCandidates(prev => [candidate, ...prev]); try { const { error } = await supabase.from('candidates').insert({ user_id: user.id, data: candidate }); if (error) throw error; } catch (error) { setCandidates(original); alert("Erro ao adicionar."); } };
