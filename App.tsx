@@ -19,9 +19,9 @@ import { Loader2 } from 'lucide-react';
 
 // Protected Route Wrapper
 const RequireAuth = () => {
-  const { user, loadingAuth, loadingData } = useApp();
+  const { user, initialLoadComplete } = useApp();
 
-  if (loadingAuth || loadingData) {
+  if (!initialLoadComplete) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-slate-900">
         <div className="flex flex-col items-center space-y-2">

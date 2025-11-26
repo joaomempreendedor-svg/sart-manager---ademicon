@@ -27,8 +27,7 @@ const DEFAULT_APP_CONFIG_DATA = {
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [loadingAuth, setLoadingAuth] = useState(true);
-  const [loadingData, setLoadingData] = useState(true);
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
 
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
@@ -52,8 +51,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [theme]);
 
   const fetchData = async (userId: string) => {
-    setLoadingData(true);
-    
     // Fetch App Config or create if not exists
     const { data: config, error: configError } = await supabase.from('app_config').select('data').eq('user_id', userId).single();
     if (config) {
@@ -86,8 +83,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setTeamMembers(teamMembersData?.map(item => item.data as TeamMember) || []);
     setCommissions(commissionsData?.map(item => item.data as Commission) || []);
     setSupportMaterials(materialsData?.map(item => item.data as SupportMaterial) || []);
-
-    setLoadingData(false);
+    
+    setInitialLoadComplete(true);
   };
 
   useEffect(() => {
@@ -99,9 +96,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const currentUser = { id: session.user.id, name: `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim() || session.user.email || 'Usuário', email: session.user.email || '' };
         setUser(currentUser);
         await fetchData(session.user.id);
+      } else {
+        setInitialLoadComplete(true);
       }
-      setLoadingAuth(false);
-      if (!session) setLoadingData(false);
     };
     getSession();
 
@@ -121,7 +118,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setCommissions([]);
         setSupportMaterials([]);
       }
-      if (loadingAuth) setLoadingAuth(false);
     });
 
     return () => authListener.subscription.unsubscribe();
@@ -186,7 +182,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   return (
     <AppContext.Provider value={{ 
-      user, loadingAuth, loadingData, login, register, logout, candidates, templates, checklistStructure, consultantGoalsStructure, interviewStructure, commissions, supportMaterials, theme, origins, interviewers, pvs, teamMembers,
+      user, initialLoadComplete, login, register, logout, candidates, templates, checklistStructure, consultantGoalsStructure, interviewStructure, commissions, supportMaterials, theme, origins, interviewers, pvs, teamMembers,
       addTeamMember, updateTeamMember: () => {}, deleteTeamMember, toggleTheme, addOrigin, addInterviewer, addPV, addCandidate, updateCandidate, deleteCandidate, toggleChecklistItem, toggleConsultantGoal, setChecklistDueDate, getCandidate, saveTemplate,
       addChecklistItem, updateChecklistItem, deleteChecklistItem, moveChecklistItem, resetChecklistToDefault, addGoalItem, updateGoalItem, deleteGoalItem, moveGoalItem, resetGoalsToDefault,
       updateInterviewSection, addInterviewQuestion, updateInterviewQuestion, deleteInterviewQuestion, moveInterviewQuestion, resetInterviewToDefault, addCommission, updateCommission, deleteCommission, addSupportMaterial, deleteSupportMaterial
