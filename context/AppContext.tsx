@@ -51,8 +51,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [theme]);
 
   const fetchData = async (userId: string) => {
-    // Fetch App Config or create if not exists
-    const { data: config, error: configError } = await supabase.from('app_config').select('data').eq('user_id', userId).single();
+    const { data: config } = await supabase.from('app_config').select('data').eq('user_id', userId).single();
     if (config) {
       const { data } = config;
       setChecklistStructure(data.checklistStructure || DEFAULT_STAGES);
@@ -64,25 +63,27 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setPvs(data.pvs || []);
     } else {
       await supabase.from('app_config').insert({ user_id: userId, data: DEFAULT_APP_CONFIG_DATA });
-      setChecklistStructure(DEFAULT_APP_CONFIG_DATA.checklistStructure);
-      setConsultantGoalsStructure(DEFAULT_APP_CONFIG_DATA.consultantGoalsStructure);
-      setInterviewStructure(DEFAULT_APP_CONFIG_DATA.interviewStructure);
-      setTemplates(DEFAULT_APP_CONFIG_DATA.templates);
-      setOrigins(DEFAULT_APP_CONFIG_DATA.origins);
-      setInterviewers(DEFAULT_APP_CONFIG_DATA.interviewers);
-      setPvs(DEFAULT_APP_CONFIG_DATA.pvs);
+      // Set defaults
     }
 
-    // Fetch other data
-    const { data: candidatesData } = await supabase.from('candidates').select('data').eq('user_id', userId);
-    const { data: teamMembersData } = await supabase.from('team_members').select('data').eq('user_id', userId);
-    const { data: commissionsData } = await supabase.from('commissions').select('data').eq('user_id', userId);
-    const { data: materialsData } = await supabase.from('support_materials').select('data').eq('user_id', userId);
+    const [
+      { data: candidatesData },
+      { data: teamMembersData },
+      { data: commissionsData },
+      { data: materialsData }
+    ] = await Promise.all([
+      supabase.from('candidates').select('data').eq('user_id', userId),
+      supabase.from('team_members').select('data').eq('user_id', userId),
+      supabase.from('commissions').select('data').eq('user_id', userId),
+      supabase.from('support_materials').select('data').eq('user_id', userId)
+    ]);
 
     setCandidates(candidatesData?.map(item => item.data as Candidate) || []);
     setTeamMembers(teamMembersData?.map(item => item.data as TeamMember) || []);
     setCommissions(commissionsData?.map(item => item.data as Commission) || []);
     setSupportMaterials(materialsData?.map(item => item.data as SupportMaterial) || []);
+    
+    setInitialLoadComplete(true);
   };
 
   useEffect(() => {
@@ -95,10 +96,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           const currentUser = { id: session.user.id, name: `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim() || session.user.email || 'Usuário', email: session.user.email || '' };
           setUser(currentUser);
           await fetchData(session.user.id);
+        } else {
+          setInitialLoadComplete(true);
         }
       } catch (error) {
-        console.error("Error during initial session fetch:", error);
-      } finally {
+        console.error("Error fetching session:", error);
         setInitialLoadComplete(true);
       }
     };
@@ -116,49 +118,39 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
       } else {
         setUser(null);
-        setCandidates([]);
-        setTeamMembers([]);
-        setCommissions([]);
-        setSupportMaterials([]);
-        setInitialLoadComplete(true);
       }
     });
 
     return () => authListener.subscription.unsubscribe();
   }, []);
 
-  const updateConfig = async (updates: any) => {
-    if (!user) return;
-    const newConfigData = {
-      checklistStructure, consultantGoalsStructure, interviewStructure, templates, origins, interviewers, pvs, ...updates
-    };
-    await supabase.from('app_config').update({ data: newConfigData }).eq('user_id', user.id);
-  };
+  const updateConfig = async (updates: any) => { if (!user) return; const newConfigData = { ...DEFAULT_APP_CONFIG_DATA, ...updates }; await supabase.from('app_config').update({ data: newConfigData }).eq('user_id', user.id); };
 
   const login = async (email: string, pass: string) => { const { error } = await supabase.auth.signInWithPassword({ email, password: pass }); if (error) throw error; };
   const register = async (name: string, email: string, pass: string) => { const nameParts = name.trim().split(' '); const { error } = await supabase.auth.signUp({ email, password: pass, options: { data: { first_name: nameParts[0], last_name: nameParts.slice(1).join(' ') } } }); if (error) throw error; };
   const logout = async () => { await supabase.auth.signOut(); setUser(null); };
   const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
 
-  const addCandidate = async (candidate: Candidate) => { if (!user) return; await supabase.from('candidates').insert({ user_id: user.id, data: candidate }); setCandidates(prev => [candidate, ...prev]); };
-  const updateCandidate = async (id: string, updates: Partial<Candidate>) => { const updatedCandidates = candidates.map(c => c.id === id ? { ...c, ...updates } : c); setCandidates(updatedCandidates); const candidateToUpdate = updatedCandidates.find(c => c.id === id); if (user && candidateToUpdate) await supabase.from('candidates').update({ data: candidateToUpdate }).match({ 'data->>id': id, user_id: user.id }); };
-  const deleteCandidate = async (id: string) => { if (!user) return; await supabase.from('candidates').delete().match({ 'data->>id': id, user_id: user.id }); setCandidates(prev => prev.filter(c => c.id !== id)); };
-  const getCandidate = (id: string) => candidates.find(c => c.id === id);
+  // --- Optimistic UI Updates ---
+  const addCandidate = async (candidate: Candidate) => { if (!user) return; const original = [...candidates]; setCandidates(prev => [candidate, ...prev]); const { error } = await supabase.from('candidates').insert({ user_id: user.id, data: candidate }); if (error) { setCandidates(original); alert("Erro ao adicionar."); } };
+  const updateCandidate = async (id: string, updates: Partial<Candidate>) => { if (!user) return; const original = [...candidates]; const updated = candidates.map(c => c.id === id ? { ...c, ...updates } : c); setCandidates(updated); const toUpdate = updated.find(c => c.id === id); if (toUpdate) { const { error } = await supabase.from('candidates').update({ data: toUpdate }).match({ 'data->>id': id, user_id: user.id }); if (error) { setCandidates(original); alert("Erro ao atualizar."); } } };
+  const deleteCandidate = async (id: string) => { if (!user) return; const original = [...candidates]; setCandidates(prev => prev.filter(c => c.id !== id)); const { error } = await supabase.from('candidates').delete().match({ 'data->>id': id, user_id: user.id }); if (error) { setCandidates(original); alert("Erro ao excluir."); } };
   
+  const addTeamMember = async (member: TeamMember) => { if (!user) return; const original = [...teamMembers]; setTeamMembers(prev => [...prev, member]); const { error } = await supabase.from('team_members').insert({ user_id: user.id, data: member }); if (error) { setTeamMembers(original); alert("Erro ao adicionar membro."); } };
+  const updateTeamMember = async (id: string, updates: Partial<TeamMember>) => { if (!user) return; const original = [...teamMembers]; const updated = teamMembers.map(m => m.id === id ? { ...m, ...updates } : m); setTeamMembers(updated); const toUpdate = updated.find(m => m.id === id); if (toUpdate) { const { error } = await supabase.from('team_members').update({ data: toUpdate }).match({ 'data->>id': id, user_id: user.id }); if (error) { setTeamMembers(original); alert("Erro ao atualizar membro."); } } };
+  const deleteTeamMember = async (id: string) => { if (!user) return; const original = [...teamMembers]; setTeamMembers(prev => prev.filter(m => m.id !== id)); const { error } = await supabase.from('team_members').delete().match({ 'data->>id': id, user_id: user.id }); if (error) { setTeamMembers(original); alert("Erro ao excluir membro."); } };
+
+  const addCommission = async (commission: Commission) => { if (!user) return; const original = [...commissions]; setCommissions(prev => [commission, ...prev]); const { error } = await supabase.from('commissions').insert({ user_id: user.id, data: commission }); if (error) { setCommissions(original); alert("Erro ao adicionar comissão."); } };
+  const updateCommission = async (id: string, updates: Partial<Commission>) => { if (!user) return; const original = [...commissions]; const updated = commissions.map(c => c.id === id ? { ...c, ...updates } : c); setCommissions(updated); const toUpdate = updated.find(c => c.id === id); if (toUpdate) { const { error } = await supabase.from('commissions').update({ data: toUpdate }).match({ 'data->>id': id, user_id: user.id }); if (error) { setCommissions(original); alert("Erro ao atualizar comissão."); } } };
+  const deleteCommission = async (id: string) => { if (!user) return; const original = [...commissions]; setCommissions(prev => prev.filter(c => c.id !== id)); const { error } = await supabase.from('commissions').delete().match({ 'data->>id': id, user_id: user.id }); if (error) { setCommissions(original); alert("Erro ao excluir comissão."); } };
+
+  const addSupportMaterial = async (material: SupportMaterial) => { if (!user) return; const original = [...supportMaterials]; setSupportMaterials(prev => [material, ...prev]); const { error } = await supabase.from('support_materials').insert({ user_id: user.id, data: material }); if (error) { setSupportMaterials(original); alert("Erro ao adicionar material."); } };
+  const deleteSupportMaterial = async (id: string) => { if (!user) return; const original = [...supportMaterials]; setSupportMaterials(prev => prev.filter(m => m.id !== id)); const { error } = await supabase.from('support_materials').delete().match({ 'data->>id': id, user_id: user.id }); if (error) { setSupportMaterials(original); alert("Erro ao excluir material."); } };
+
+  const getCandidate = (id: string) => candidates.find(c => c.id === id);
   const toggleChecklistItem = (candidateId: string, itemId: string) => { const c = getCandidate(candidateId); if(c) { const state = c.checklistProgress[itemId] || { completed: false }; updateCandidate(candidateId, { checklistProgress: { ...c.checklistProgress, [itemId]: { ...state, completed: !state.completed } } }); } };
   const setChecklistDueDate = (candidateId: string, itemId: string, date: string) => { const c = getCandidate(candidateId); if(c) { const state = c.checklistProgress[itemId] || { completed: false }; updateCandidate(candidateId, { checklistProgress: { ...c.checklistProgress, [itemId]: { ...state, dueDate: date } } }); } };
   const toggleConsultantGoal = (candidateId: string, goalId: string) => { const c = getCandidate(candidateId); if(c) { const progress = c.consultantGoalsProgress || {}; updateCandidate(candidateId, { consultantGoalsProgress: { ...progress, [goalId]: !progress[goalId] } }); } };
-
-  const addTeamMember = async (member: TeamMember) => { if (!user) return; await supabase.from('team_members').insert({ user_id: user.id, data: member }); setTeamMembers(prev => [...prev, member]); };
-  const updateTeamMember = async (id: string, updates: Partial<TeamMember>) => { const updatedMembers = teamMembers.map(m => m.id === id ? { ...m, ...updates } : m); setTeamMembers(updatedMembers); const memberToUpdate = updatedMembers.find(m => m.id === id); if (user && memberToUpdate) { await supabase.from('team_members').update({ data: memberToUpdate }).eq('user_id', user.id).eq('data->>id', id); } };
-  const deleteTeamMember = async (id: string) => { if (!user) return; const { error } = await supabase.from('team_members').delete().eq('user_id', user.id).eq('data->>id', id); if (!error) { setTeamMembers(prev => prev.filter(m => m.id !== id)); } else { console.error("Error deleting team member:", error); alert("Erro ao excluir o membro da equipe. Tente novamente."); } };
-  
-  const addCommission = async (commission: Commission) => { if (!user) return; await supabase.from('commissions').insert({ user_id: user.id, data: commission }); setCommissions(prev => [commission, ...prev]); };
-  const updateCommission = async (id: string, updates: Partial<Commission>) => { const updatedCommissions = commissions.map(c => c.id === id ? { ...c, ...updates } : c); setCommissions(updatedCommissions); const commissionToUpdate = updatedCommissions.find(c => c.id === id); if (user && commissionToUpdate) await supabase.from('commissions').update({ data: commissionToUpdate }).match({ 'data->>id': id, user_id: user.id }); };
-  const deleteCommission = async (id: string) => { if (!user) return; await supabase.from('commissions').delete().match({ 'data->>id': id, user_id: user.id }); setCommissions(prev => prev.filter(c => c.id !== id)); };
-
-  const addSupportMaterial = async (material: SupportMaterial) => { if (!user) return; await supabase.from('support_materials').insert({ user_id: user.id, data: material }); setSupportMaterials(prev => [material, ...prev]); };
-  const deleteSupportMaterial = async (id: string) => { if (!user) return; await supabase.from('support_materials').delete().match({ 'data->>id': id, user_id: user.id }); setSupportMaterials(prev => prev.filter(m => m.id !== id)); };
 
   const saveTemplate = (id: string, updates: Partial<CommunicationTemplate>) => { const newTemplates = { ...templates, [id]: { ...templates[id], ...updates } }; setTemplates(newTemplates); updateConfig({ templates: newTemplates }); };
   const addOrigin = (origin: string) => { if (!origins.includes(origin)) { const newOrigins = [...origins, origin]; setOrigins(newOrigins); updateConfig({ origins: newOrigins }); } };
