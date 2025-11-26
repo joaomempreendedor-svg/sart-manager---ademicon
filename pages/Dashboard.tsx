@@ -32,7 +32,8 @@ export const Dashboard = () => {
   const activeTeam = teamMembers.length;
 
   // Task Logic
-  const today = new Date().toISOString().split('T')[0];
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
   
   const allPendingTasks = candidates.flatMap(candidate => {
     return (Object.entries(candidate.checklistProgress || {}) as [string, ChecklistTaskState][])
@@ -56,8 +57,14 @@ export const Dashboard = () => {
       });
   });
 
-  const overdueTasks = allPendingTasks.filter(t => t.dueDate < today);
-  const todayTasks = allPendingTasks.filter(t => t.dueDate === today);
+  const overdueTasks = allPendingTasks.filter(t => {
+      const taskDate = new Date(t.dueDate + 'T00:00:00');
+      return taskDate.getTime() < today.getTime();
+  });
+  const todayTasks = allPendingTasks.filter(t => {
+      const taskDate = new Date(t.dueDate + 'T00:00:00');
+      return taskDate.getTime() === today.getTime();
+  });
 
   return (
     <div className="p-8 max-w-7xl mx-auto">
@@ -127,7 +134,7 @@ export const Dashboard = () => {
                                 <p className="text-sm font-medium text-gray-900 dark:text-gray-200">{task.label}</p>
                                 <div className="flex justify-between items-center mt-1">
                                     <span className="text-xs text-gray-500 dark:text-gray-400">Candidato: <span className="font-semibold">{task.candidate.name}</span></span>
-                                    <span className="text-xs text-red-600 dark:text-red-400 font-medium">Venceu: {new Date(task.dueDate).toLocaleDateString()}</span>
+                                    <span className="text-xs text-red-600 dark:text-red-400 font-medium">Venceu: {new Date(task.dueDate + 'T00:00:00').toLocaleDateString()}</span>
                                 </div>
                             </li>
                         ))}
