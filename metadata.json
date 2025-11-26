@@ -1,0 +1,5 @@
+{
+  "name": "SART Manager - Ademicon",
+  "description": "Sistema de gestão de candidatos e consultores para a equipe SART Ademicon. Inclui avaliação de entrevistas, checklist de onboarding e acompanhamento de 90 dias.",
+  "requestFramePermissions": []
+}

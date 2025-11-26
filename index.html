@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SART Manager | Ademicon</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+            },
+            colors: {
+              // OVERRIDE SLATE TO REMOVE BLUE TINT
+              // Using Zinc/Neutral scale for a "True Black" feel
+              slate: {
+                50: '#fafafa',
+                100: '#f4f4f5',
+                200: '#e4e4e7',
+                300: '#d4d4d8',
+                400: '#a1a1aa',
+                500: '#71717a',
+                600: '#52525b',
+                700: '#27272a', // Borders: Dark Gray
+                800: '#18181b', // Cards: Zinc 900 (Neutral Dark)
+                900: '#09090b', // Background: Zinc 950 (Almost Black)
+                950: '#000000', // Pure Black
+              },
+              brand: {
+                50: '#fff5eb',
+                100: '#ffe0c2',
+                200: '#ffcc99',
+                300: '#ffb870',
+                400: '#ffa347',
+                500: '#ff7a00', // Main Ademicon Color
+                600: '#e66e00',
+                700: '#cc6200',
+                800: '#a34e00',
+                900: '#7a3b00',
+              },
+              dark: {
+                bg: '#09090b',       // Zinc 950
+                card: '#18181b',     // Zinc 900
+                border: '#27272a',   // Zinc 800
+                text: '#f4f4f5',     // Zinc 100
+                muted: '#a1a1aa'     // Zinc 400
+              }
+            }
+          }
+        }
+      }
+    </script>
+  <script type="importmap">
+{
+  "imports": {
+    "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.9.6",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.554.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body class="bg-gray-50 text-gray-900 dark:bg-slate-900 dark:text-slate-50 transition-colors duration-200">
+    <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>
