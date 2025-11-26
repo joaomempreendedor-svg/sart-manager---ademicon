@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, MessageSquare, Settings, FileText, Sun, Moon, Banknote, PlusCircle, Library, TrendingUp, Target, Users, LogOut } from 'lucide-react';
+import { LayoutDashboard, MessageSquare, Settings, FileText, Sun, Moon, Banknote, PlusCircle, Library, TrendingUp, Target, Users, LogOut, User as UserIcon } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
 export const Sidebar = () => {
@@ -50,6 +50,10 @@ export const Sidebar = () => {
         <NavLink to="/materials" className={linkClass}>
           <Library className="w-5 h-5" />
           <span>Materiais de Apoio</span>
+        </NavLink>
+        <NavLink to="/profile" className={linkClass}>
+          <UserIcon className="w-5 h-5" />
+          <span>Meu Perfil</span>
         </NavLink>
         
         <div className="pt-4 pb-2">

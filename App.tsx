@@ -14,15 +14,20 @@ import { Materials } from './pages/Materials';
 import { TeamConfig } from './pages/TeamConfig';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
+import { Profile } from './pages/Profile';
+import { Loader2 } from 'lucide-react';
 
 // Protected Route Wrapper
 const RequireAuth = () => {
-  const { user, loadingAuth } = useApp();
+  const { user, loadingAuth, loadingData } = useApp();
 
-  if (loadingAuth) {
+  if (loadingAuth || loadingData) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-slate-900">
-        <p className="text-gray-500 dark:text-gray-400">Carregando...</p>
+        <div className="flex flex-col items-center space-y-2">
+          <Loader2 className="w-8 h-8 text-brand-500 animate-spin" />
+          <p className="text-gray-500 dark:text-gray-400">Carregando dados...</p>
+        </div>
       </div>
     );
   }
@@ -58,6 +63,7 @@ const AppRoutes = () => {
           <Route path="candidate/:id" element={<CandidateDetail />} />
           <Route path="commissions" element={<Commissions />} />
           <Route path="materials" element={<Materials />} />
+          <Route path="profile" element={<Profile />} />
           <Route path="config-team" element={<TeamConfig />} />
           <Route path="config-templates" element={<TemplateConfig />} />
           <Route path="config-process" element={<ChecklistConfig />} />

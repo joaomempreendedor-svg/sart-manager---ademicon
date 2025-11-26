@@ -153,6 +153,7 @@ export interface AppContextType {
   // Auth
   user: User | null;
   loadingAuth: boolean;
+  loadingData: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
