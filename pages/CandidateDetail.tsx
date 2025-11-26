@@ -1,14 +1,13 @@
-
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { ArrowLeft, CheckSquare, FileText, Phone, Calendar, Clock, MessageCircle, Paperclip, CheckCircle2, Target } from 'lucide-react';
+import { ArrowLeft, CheckSquare, FileText, Phone, Calendar, Clock, MessageCircle, Paperclip, CheckCircle2, Target, Trash2 } from 'lucide-react';
 import { CandidateStatus, CommunicationTemplate } from '../types';
 import { MessageViewerModal } from '../components/MessageViewerModal';
 
 export const CandidateDetail = () => {
   const { id } = useParams<{ id: string }>();
-  const { getCandidate, toggleChecklistItem, toggleConsultantGoal, updateCandidate, setChecklistDueDate, templates, checklistStructure, consultantGoalsStructure, interviewStructure } = useApp();
+  const { getCandidate, toggleChecklistItem, toggleConsultantGoal, updateCandidate, deleteCandidate, setChecklistDueDate, templates, checklistStructure, consultantGoalsStructure, interviewStructure } = useApp();
   const navigate = useNavigate();
   const candidate = getCandidate(id || '');
   const [activeTab, setActiveTab] = useState<'interview' | 'checklist' | 'goals'>('checklist');
@@ -22,6 +21,13 @@ export const CandidateDetail = () => {
 
   const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     updateCandidate(candidate.id, { status: e.target.value as CandidateStatus });
+  };
+
+  const handleDelete = async () => {
+    if (candidate && confirm(`Tem certeza que deseja excluir ${candidate.name}? Esta ação não pode ser desfeita.`)) {
+      await deleteCandidate(candidate.id);
+      navigate('/');
+    }
   };
 
   const openMessageModal = (templateId: string) => {
@@ -70,19 +76,28 @@ export const CandidateDetail = () => {
 
           <div className="flex flex-col items-end">
             <label className="text-xs text-gray-500 dark:text-gray-400 font-medium uppercase mb-1">Status Atual</label>
-            <select 
-                value={candidate.status} 
-                onChange={handleStatusChange}
-                className="block w-48 pl-3 pr-10 py-2 text-base border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:outline-none focus:ring-brand-500 focus:border-brand-500 sm:text-sm rounded-md border"
-            >
-                <option>Entrevista</option>
-                <option>Aguardando Prévia</option>
-                <option>Onboarding Online</option>
-                <option>Integração Presencial</option>
-                <option>Acompanhamento 90 Dias</option>
-                <option>Autorizado</option>
-                <option>Reprovado</option>
-            </select>
+            <div className="flex items-center space-x-2">
+                <select 
+                    value={candidate.status} 
+                    onChange={handleStatusChange}
+                    className="block w-48 pl-3 pr-10 py-2 text-base border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:outline-none focus:ring-brand-500 focus:border-brand-500 sm:text-sm rounded-md border"
+                >
+                    <option>Entrevista</option>
+                    <option>Aguardando Prévia</option>
+                    <option>Onboarding Online</option>
+                    <option>Integração Presencial</option>
+                    <option>Acompanhamento 90 Dias</option>
+                    <option>Autorizado</option>
+                    <option>Reprovado</option>
+                </select>
+                <button
+                    onClick={handleDelete}
+                    className="p-2.5 text-red-500 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 rounded-md transition border border-red-100 dark:border-red-900/30"
+                    title="Excluir Candidato"
+                >
+                    <Trash2 className="w-4 h-4" />
+                </button>
+            </div>
           </div>
         </div>
       </div>

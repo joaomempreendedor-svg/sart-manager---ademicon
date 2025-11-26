@@ -186,8 +186,9 @@ export interface AppContextType {
   toggleTheme: () => void;
   
   // Candidate Actions
-  addCandidate: (candidate: Candidate) => void;
+  addCandidate: (candidate: Candidate) => Promise<void>;
   updateCandidate: (id: string, updates: Partial<Candidate>) => void;
+  deleteCandidate: (id: string) => Promise<void>;
   toggleChecklistItem: (candidateId: string, itemId: string) => void;
   toggleConsultantGoal: (candidateId: string, goalId: string) => void;
   setChecklistDueDate: (candidateId: string, itemId: string, date: string) => void;

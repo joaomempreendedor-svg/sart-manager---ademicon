@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
@@ -68,7 +67,7 @@ export const NewCandidate = () => {
       }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     const interviewScores: InterviewScores = {
@@ -94,7 +93,7 @@ export const NewCandidate = () => {
       consultantGoalsProgress: {},
       createdAt: new Date().toISOString(),
     };
-    addCandidate(newCandidate);
+    await addCandidate(newCandidate);
     navigate(`/candidate/${newCandidate.id}`);
   };
 
