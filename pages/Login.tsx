@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
@@ -18,14 +17,10 @@ export const Login = () => {
     setLoading(true);
 
     try {
-      const success = await login(email, password);
-      if (success) {
-        navigate('/');
-      } else {
-        setError('E-mail ou senha inválidos. Tente novamente ou cadastre-se.');
-      }
-    } catch (err) {
-      setError('Ocorreu um erro ao tentar fazer login.');
+      await login(email, password);
+      // A navegação será tratada pelo onAuthStateChange no AppContext
+    } catch (err: any) {
+      setError(err.message || 'E-mail ou senha inválidos.');
     } finally {
       setLoading(false);
     }

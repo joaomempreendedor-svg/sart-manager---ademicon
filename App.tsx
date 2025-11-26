@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { HashRouter, Routes, Route, Outlet, Navigate } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
@@ -18,7 +17,16 @@ import { Register } from './pages/Register';
 
 // Protected Route Wrapper
 const RequireAuth = () => {
-  const { user } = useApp();
+  const { user, loadingAuth } = useApp();
+
+  if (loadingAuth) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-slate-900">
+        <p className="text-gray-500 dark:text-gray-400">Carregando...</p>
+      </div>
+    );
+  }
+
   if (!user) {
     return <Navigate to="/login" replace />;
   }

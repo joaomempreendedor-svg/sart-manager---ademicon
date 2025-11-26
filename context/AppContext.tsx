@@ -1,5 +1,6 @@
-
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import { supabase } from '../integrations/supabase/client';
+import { Session } from '@supabase/supabase-js';
 import { Candidate, ChecklistTaskState, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, User } from '../types';
 import { CHECKLIST_STAGES as DEFAULT_STAGES } from '../data/checklistData';
 import { CONSULTANT_GOALS as DEFAULT_GOALS } from '../data/consultantGoals';
@@ -98,55 +99,83 @@ const DEFAULT_TEAM: TeamMember[] = [
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   // --- AUTHENTICATION STATE ---
-  const [user, setUser] = useState<User | null>(() => {
-    const saved = localStorage.getItem('sart_current_user');
-    return saved ? JSON.parse(saved) : null;
-  });
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [loadingAuth, setLoadingAuth] = useState(true);
 
-  const login = async (email: string, pass: string): Promise<boolean> => {
-    // Simulating API call
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const users = JSON.parse(localStorage.getItem('sart_users') || '[]');
-        const found = users.find((u: any) => u.email === email && u.password === pass);
-        
-        if (found) {
-          const userData = { id: found.id, name: found.name, email: found.email };
-          setUser(userData);
-          localStorage.setItem('sart_current_user', JSON.stringify(userData));
-          resolve(true);
+  useEffect(() => {
+    const getSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setSession(session);
+      if (session) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+        setUser({
+          id: session.user.id,
+          name: `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim() || session.user.email || 'Usuário',
+          email: session.user.email || '',
+        });
+      }
+      setLoadingAuth(false);
+    };
+
+    getSession();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        setSession(session);
+        if (session) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+          setUser({
+            id: session.user.id,
+            name: `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim() || session.user.email || 'Usuário',
+            email: session.user.email || '',
+          });
         } else {
-          resolve(false);
+          setUser(null);
         }
-      }, 500);
-    });
+        if (loadingAuth) setLoadingAuth(false);
+      }
+    );
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
+
+  const login = async (email: string, pass: string) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password: pass });
+    if (error) throw error;
   };
 
-  const register = async (name: string, email: string, pass: string): Promise<boolean> => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const users = JSON.parse(localStorage.getItem('sart_users') || '[]');
-        if (users.find((u: any) => u.email === email)) {
-          resolve(false); // User exists
-          return;
-        }
+  const register = async (name: string, email: string, pass: string) => {
+    const nameParts = name.trim().split(' ');
+    const firstName = nameParts[0];
+    const lastName = nameParts.slice(1).join(' ');
 
-        const newUser = { id: crypto.randomUUID(), name, email, password: pass };
-        users.push(newUser);
-        localStorage.setItem('sart_users', JSON.stringify(users));
-        
-        // Auto login
-        const userData = { id: newUser.id, name: newUser.name, email: newUser.email };
-        setUser(userData);
-        localStorage.setItem('sart_current_user', JSON.stringify(userData));
-        resolve(true);
-      }, 500);
+    const { error } = await supabase.auth.signUp({
+      email,
+      password: pass,
+      options: {
+        data: {
+          first_name: firstName,
+          last_name: lastName,
+        },
+      },
     });
+    if (error) throw error;
   };
 
-  const logout = () => {
+  const logout = async () => {
+    await supabase.auth.signOut();
     setUser(null);
-    localStorage.removeItem('sart_current_user');
   };
 
   // --- EXISTING STATE ---
@@ -638,6 +667,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   return (
     <AppContext.Provider value={{ 
       user,
+      loadingAuth,
       login,
       register,
       logout,

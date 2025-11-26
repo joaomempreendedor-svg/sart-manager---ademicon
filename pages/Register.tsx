@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
@@ -33,14 +32,10 @@ export const Register = () => {
     setLoading(true);
 
     try {
-      const success = await register(name, email, password);
-      if (success) {
-        navigate('/');
-      } else {
-        setError('Este e-mail já está cadastrado.');
-      }
-    } catch (err) {
-      setError('Ocorreu um erro ao criar a conta.');
+      await register(name, email, password);
+      // A navegação será tratada pelo onAuthStateChange no AppContext
+    } catch (err: any) {
+      setError(err.message || 'Ocorreu um erro ao criar a conta.');
     } finally {
       setLoading(false);
     }

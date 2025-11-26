@@ -1,4 +1,3 @@
-
 export type CandidateStatus = 
   | 'Entrevista'
   | 'Aguardando Prévia'
@@ -153,9 +152,10 @@ export interface User {
 export interface AppContextType {
   // Auth
   user: User | null;
-  login: (email: string, password: string) => Promise<boolean>;
-  register: (name: string, email: string, password: string) => Promise<boolean>;
-  logout: () => void;
+  loadingAuth: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  register: (name: string, email: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
 
   candidates: Candidate[];
   templates: Record<string, CommunicationTemplate>;
