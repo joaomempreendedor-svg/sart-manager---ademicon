@@ -1,15 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { TrendingUp, Lock, Mail, Loader2, ArrowRight } from 'lucide-react';
 
 export const Login = () => {
-  const { login } = useApp();
+  const { login, user } = useApp();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      navigate('/', { replace: true });
+    }
+  }, [user, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -18,7 +24,7 @@ export const Login = () => {
 
     try {
       await login(email, password);
-      // A navegação será tratada pelo onAuthStateChange no AppContext
+      // A navegação agora é tratada pelo useEffect acima
     } catch (err: any) {
       setError(err.message || 'E-mail ou senha inválidos.');
     } finally {
