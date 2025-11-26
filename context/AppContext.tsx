@@ -99,24 +99,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   useEffect(() => {
-    const getSession = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        setSession(session);
-        if (session) {
-          const { data: profile } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
-          const currentUser = { id: session.user.id, name: `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim() || session.user.email || 'Usuário', email: session.user.email || '' };
-          setUser(currentUser);
-          await fetchData(session.user.id);
-        } else {
-          setInitialLoadComplete(true);
-        }
-      } catch (error) {
-        console.error("Error fetching session:", error);
-        setInitialLoadComplete(true);
-      }
-    };
-    getSession();
+    setInitialLoadComplete(false);
 
     const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session);
@@ -124,11 +107,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const { data: profile } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
         const currentUser = { id: session.user.id, name: `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim() || session.user.email || 'Usuário', email: session.user.email || '' };
         setUser(currentUser);
-        if (_event === 'SIGNED_IN') {
-          setInitialLoadComplete(false);
+        
+        // Fetch data on initial load or sign in.
+        // For other events like token refresh, data is already present.
+        if (_event === 'INITIAL_SESSION' || _event === 'SIGNED_IN') {
           await fetchData(session.user.id);
+        } else {
+          setInitialLoadComplete(true);
         }
       } else {
+        // User is signed out, clear all data and mark loading as complete.
         setUser(null);
         setCandidates([]);
         setTeamMembers([]);
@@ -145,7 +133,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
     });
 
-    return () => authListener.subscription.unsubscribe();
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
   }, []);
 
   const updateConfig = async (updates: any) => { if (!user) return; const newConfigData = { ...DEFAULT_APP_CONFIG_DATA, ...updates }; await supabase.from('app_config').update({ data: newConfigData }).eq('user_id', user.id); };
