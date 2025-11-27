@@ -101,34 +101,52 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   useEffect(() => {
     setInitialLoadComplete(false);
 
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setSession(session);
-      if (session) {
-        const { data: profile } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
-        const currentUser = { id: session.user.id, name: `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim() || session.user.email || 'Usuário', email: session.user.email || '' };
-        setUser(currentUser);
-        
-        // Fetch data on initial load or sign in.
-        // For other events like token refresh, data is already present.
-        if (_event === 'INITIAL_SESSION' || _event === 'SIGNED_IN') {
-          await fetchData(session.user.id);
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      try {
+        setSession(session);
+        if (session) {
+          const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('first_name, last_name')
+            .eq('id', session.user.id)
+            .single();
+
+          if (profileError) {
+            console.error('Error fetching profile:', profileError);
+            setUser(null);
+            setInitialLoadComplete(true);
+            return;
+          }
+
+          const currentUser = {
+            id: session.user.id,
+            name: `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim() || session.user.email || 'Usuário',
+            email: session.user.email || '',
+          };
+          setUser(currentUser);
+
+          if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
+            await fetchData(session.user.id);
+          } else {
+            setInitialLoadComplete(true);
+          }
         } else {
+          setUser(null);
+          setCandidates([]);
+          setTeamMembers([]);
+          setCommissions([]);
+          setSupportMaterials([]);
+          setChecklistStructure(DEFAULT_STAGES);
+          setConsultantGoalsStructure(DEFAULT_GOALS);
+          setInterviewStructure(INITIAL_INTERVIEW_STRUCTURE);
+          setTemplates({});
+          setOrigins(DEFAULT_APP_CONFIG_DATA.origins);
+          setInterviewers(DEFAULT_APP_CONFIG_DATA.interviewers);
+          setPvs(DEFAULT_APP_CONFIG_DATA.pvs);
           setInitialLoadComplete(true);
         }
-      } else {
-        // User is signed out, clear all data and mark loading as complete.
-        setUser(null);
-        setCandidates([]);
-        setTeamMembers([]);
-        setCommissions([]);
-        setSupportMaterials([]);
-        setChecklistStructure(DEFAULT_STAGES);
-        setConsultantGoalsStructure(DEFAULT_GOALS);
-        setInterviewStructure(INITIAL_INTERVIEW_STRUCTURE);
-        setTemplates({});
-        setOrigins(DEFAULT_APP_CONFIG_DATA.origins);
-        setInterviewers(DEFAULT_APP_CONFIG_DATA.interviewers);
-        setPvs(DEFAULT_APP_CONFIG_DATA.pvs);
+      } catch (error) {
+        console.error("Error in onAuthStateChange handler:", error);
         setInitialLoadComplete(true);
       }
     });
