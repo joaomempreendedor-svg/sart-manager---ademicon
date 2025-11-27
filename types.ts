@@ -122,6 +122,11 @@ export interface Commission {
   receivedValue: number; // Soma ou valor total da nota
   
   isManual?: boolean; // Se verdadeiro, ignora cálculo automático e permite edição manual
+  paymentProof?: {
+    name: string;
+    type: string;
+    content: string; // base64 data url
+  };
 }
 
 export interface SupportMaterial {

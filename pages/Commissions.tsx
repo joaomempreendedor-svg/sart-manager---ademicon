@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { Commission, CommissionStatus } from '../types';
-import { Trash2, Search, DollarSign, Calendar, Calculator, Save, Table as TableIcon, Car, Home, ChevronLeft, ChevronRight, MapPin, Percent, Filter, XCircle, Crown, Eye, EyeOff, Plus } from 'lucide-react';
+import { Trash2, Search, DollarSign, Calendar, Calculator, Save, Table as TableIcon, Car, Home, ChevronLeft, ChevronRight, MapPin, Percent, Filter, XCircle, Crown, Eye, EyeOff, Plus, Upload, Paperclip } from 'lucide-react';
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', {
@@ -258,6 +258,32 @@ export const Commissions = () => {
       // Permite ir até 0
       const newVal = Math.max(0, Math.min(15, current + delta));
       updateCommission(id, { currentInstallment: newVal });
+  };
+
+  const handleProofUpload = (commissionId: string, file: File | undefined) => {
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) { // 2MB limit
+      alert("O arquivo é muito grande. O limite é de 2MB.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const proof = {
+        name: file.name,
+        type: file.type,
+        content: reader.result as string,
+      };
+      updateCommission(commissionId, { paymentProof: proof });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveProof = (commissionId: string) => {
+    if (confirm("Tem certeza que deseja remover o comprovante?")) {
+        updateCommission(commissionId, { paymentProof: undefined });
+    }
   };
 
   const clearFilters = () => {
@@ -830,13 +856,14 @@ export const Commissions = () => {
                                     </div>
                                 </th>
                                 <th className="px-6 py-3 text-center">Status Mês</th>
+                                <th className="px-6 py-3">Comprovante</th>
                                 <th className="px-6 py-3"></th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
                             {filteredHistory.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} className="px-6 py-12 text-center text-gray-400">
+                                    <td colSpan={7} className="px-6 py-12 text-center text-gray-400">
                                         {isAngelMode ? 'Nenhuma venda com Anjo encontrada.' : 'Nenhuma venda encontrada com os filtros selecionados.'}
                                     </td>
                                 </tr>
@@ -929,6 +956,40 @@ export const Commissions = () => {
                                                     <option value="Cancelado">Cancelado</option>
                                                     <option value="Concluído">Concluído</option>
                                                 </select>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                {c.paymentProof ? (
+                                                    <div className="flex items-center space-x-2">
+                                                        <a 
+                                                            href={c.paymentProof.content} 
+                                                            target="_blank" 
+                                                            rel="noopener noreferrer"
+                                                            className="flex items-center text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                                                            title={c.paymentProof.name}
+                                                        >
+                                                            <Paperclip className="w-3 h-3 mr-1" />
+                                                            <span className="truncate max-w-[100px]">{c.paymentProof.name}</span>
+                                                        </a>
+                                                        <button 
+                                                            onClick={() => handleRemoveProof(c.id)}
+                                                            className="text-red-400 hover:text-red-600"
+                                                            title="Remover comprovante"
+                                                        >
+                                                            <XCircle className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <label className="cursor-pointer flex items-center space-x-1 text-xs text-gray-500 hover:text-brand-600 dark:hover:text-brand-400 transition">
+                                                        <Upload className="w-3 h-3" />
+                                                        <span>Anexar</span>
+                                                        <input 
+                                                            type="file" 
+                                                            className="hidden" 
+                                                            accept="image/*,application/pdf"
+                                                            onChange={(e) => handleProofUpload(c.id, e.target.files?.[0])} 
+                                                        />
+                                                    </label>
+                                                )}
                                             </td>
                                             <td className="px-6 py-4 text-right">
                                                 <button 
