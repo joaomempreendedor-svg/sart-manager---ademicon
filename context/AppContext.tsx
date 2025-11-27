@@ -85,16 +85,28 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   useEffect(() => {
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      setInitialLoadComplete(false);
+    const initializeSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         const { data: profile } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
         const currentUser = { id: session.user.id, name: `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim() || session.user.email || 'Usuário', email: session.user.email || '' };
         setUser(currentUser);
         await fetchData(session.user.id);
       } else {
-        resetLocalState();
         setInitialLoadComplete(true);
+      }
+    };
+
+    initializeSession();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        const { data: profile } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+        const currentUser = { id: session.user.id, name: `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim() || session.user.email || 'Usuário', email: session.user.email || '' };
+        setUser(currentUser);
+        await fetchData(session.user.id);
+      } else if (event === 'SIGNED_OUT') {
+        resetLocalState();
       }
     });
 
