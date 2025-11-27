@@ -4,6 +4,7 @@ import { Session } from '@supabase/supabase-js';
 import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, User } from '../types';
 import { CHECKLIST_STAGES as DEFAULT_STAGES } from '../data/checklistData';
 import { CONSULTANT_GOALS as DEFAULT_GOALS } from '../data/consultantGoals';
+import { useDebouncedCallback } from '../hooks/useDebouncedCallback';
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
@@ -26,7 +27,6 @@ const DEFAULT_APP_CONFIG_DATA = {
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
 
   const [candidates, setCandidates] = useState<Candidate[]>([]);
@@ -49,6 +49,68 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     root.classList.toggle('dark', theme === 'dark');
     localStorage.setItem('sart_theme', theme);
   }, [theme]);
+
+  const debouncedUpdateConfig = useDebouncedCallback(async (userId: string, newConfig: any) => {
+    await supabase.from('app_config').update({ data: newConfig }).eq('user_id', userId);
+  }, 1000);
+
+  const updateConfig = (updates: any) => {
+    if (!user) return;
+    const currentConfig = {
+      checklistStructure,
+      consultantGoalsStructure,
+      interviewStructure,
+      templates,
+      origins,
+      interviewers,
+      pvs,
+    };
+    const newConfigData = { ...currentConfig, ...updates };
+    debouncedUpdateConfig(user.id, newConfigData);
+  };
+
+  useEffect(() => {
+    const initialize = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const { data: profile } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+        const currentUser = { id: session.user.id, name: `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim() || session.user.email || 'Usuário', email: session.user.email || '' };
+        setUser(currentUser);
+        await fetchData(session.user.id);
+      } else {
+        setInitialLoadComplete(true);
+      }
+    };
+
+    initialize();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN') {
+        setInitialLoadComplete(false);
+        const { data: profile } = await supabase.from('profiles').select('*').eq('id', session!.user.id).single();
+        const currentUser = { id: session!.user.id, name: `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim() || session!.user.email || 'Usuário', email: session!.user.email || '' };
+        setUser(currentUser);
+        await fetchData(session!.user.id);
+      } else if (event === 'SIGNED_OUT') {
+        setUser(null);
+        setCandidates([]);
+        setTeamMembers([]);
+        setCommissions([]);
+        setSupportMaterials([]);
+        setChecklistStructure(DEFAULT_STAGES);
+        setConsultantGoalsStructure(DEFAULT_GOALS);
+        setInterviewStructure(INITIAL_INTERVIEW_STRUCTURE);
+        setTemplates({});
+        setOrigins(DEFAULT_APP_CONFIG_DATA.origins);
+        setInterviewers(DEFAULT_APP_CONFIG_DATA.interviewers);
+        setPvs(DEFAULT_APP_CONFIG_DATA.pvs);
+      }
+    });
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
 
   const fetchData = async (userId: string) => {
     try {
@@ -98,75 +160,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   };
 
-  useEffect(() => {
-    setInitialLoadComplete(false);
-
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      try {
-        setSession(session);
-        if (session) {
-          const { data: profile, error: profileError } = await supabase
-            .from('profiles')
-            .select('first_name, last_name')
-            .eq('id', session.user.id)
-            .single();
-
-          if (profileError) {
-            console.error('Error fetching profile:', profileError);
-            setUser(null);
-            setInitialLoadComplete(true);
-            return;
-          }
-
-          const currentUser = {
-            id: session.user.id,
-            name: `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim() || session.user.email || 'Usuário',
-            email: session.user.email || '',
-          };
-          setUser(currentUser);
-
-          if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
-            await fetchData(session.user.id);
-          } else {
-            setInitialLoadComplete(true);
-          }
-        } else {
-          setUser(null);
-          setCandidates([]);
-          setTeamMembers([]);
-          setCommissions([]);
-          setSupportMaterials([]);
-          setChecklistStructure(DEFAULT_STAGES);
-          setConsultantGoalsStructure(DEFAULT_GOALS);
-          setInterviewStructure(INITIAL_INTERVIEW_STRUCTURE);
-          setTemplates({});
-          setOrigins(DEFAULT_APP_CONFIG_DATA.origins);
-          setInterviewers(DEFAULT_APP_CONFIG_DATA.interviewers);
-          setPvs(DEFAULT_APP_CONFIG_DATA.pvs);
-          setInitialLoadComplete(true);
-        }
-      } catch (error) {
-        console.error("Error in onAuthStateChange handler:", error);
-        setInitialLoadComplete(true);
-      }
-    });
-
-    return () => {
-      authListener.subscription.unsubscribe();
-    };
-  }, []);
-
-  const updateConfig = async (updates: any) => { if (!user) return; const newConfigData = { ...DEFAULT_APP_CONFIG_DATA, ...updates }; await supabase.from('app_config').update({ data: newConfigData }).eq('user_id', user.id); };
-
   const login = async (email: string, pass: string) => { const { error } = await supabase.auth.signInWithPassword({ email, password: pass }); if (error) throw error; };
   const register = async (name: string, email: string, pass: string) => { const nameParts = name.trim().split(' '); const { error } = await supabase.auth.signUp({ email, password: pass, options: { data: { first_name: nameParts[0], last_name: nameParts.slice(1).join(' ') } } }); if (error) throw error; };
-  const logout = async () => { 
-    const { error } = await supabase.auth.signOut(); 
-    if (error) { 
-      console.error("Error logging out:", error); 
-      alert("Ocorreu um erro ao sair."); 
-    } 
-  };
+  const logout = async () => { const { error } = await supabase.auth.signOut(); if (error) { console.error("Error logging out:", error); alert("Ocorreu um erro ao sair."); } };
   const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
 
   const addCandidate = async (candidate: Candidate) => { if (!user) return; const original = [...candidates]; setCandidates(prev => [candidate, ...prev]); try { const { error } = await supabase.from('candidates').insert({ user_id: user.id, data: candidate }); if (error) throw error; } catch (error) { setCandidates(original); alert("Erro ao adicionar."); } };
@@ -211,7 +207,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const addInterviewQuestion = (sectionId: string, text: string, points: number) => { const newStructure = interviewStructure.map(s => s.id === sectionId ? { ...s, questions: [...s.questions, { id: `q_${Date.now()}`, text, points }] } : s); updateAndPersistStructure(setInterviewStructure, 'interviewStructure', newStructure); };
   const updateInterviewQuestion = (sectionId: string, questionId: string, updates: Partial<InterviewSection['questions'][0]>) => { const newStructure = interviewStructure.map(s => s.id === sectionId ? { ...s, questions: s.questions.map(q => q.id === questionId ? { ...q, ...updates } : q) } : s); updateAndPersistStructure(setInterviewStructure, 'interviewStructure', newStructure); };
   const deleteInterviewQuestion = (sectionId: string, questionId: string) => { const newStructure = interviewStructure.map(s => s.id === sectionId ? { ...s, questions: s.questions.filter(q => q.id !== questionId) } : s); updateAndPersistStructure(setInterviewStructure, 'interviewStructure', newStructure); };
-  const moveInterviewQuestion = (sectionId: string, questionId: string, dir: 'up' | 'down') => { const newStructure = interviewStructure.map(s => { if (s.id !== sectionId) return s; const idx = s.questions.findIndex(q => q.id === questionId); if ((dir === 'up' && idx < 1) || (dir === 'down' && idx >= s.questions.length - 1)) return s; const newQuestions = [...s.questions]; const targetIdx = dir === 'up' ? idx - 1 : idx + 1; [newQuestions[idx], newQuestions[targetIdx]] = [newQuestions[targetIdx], newQuestions[idx]]; return { ...s, questions: newQuestions }; }); updateAndPersistStructure(setInterviewStructure, 'interviewStructure', newStructure); };
+  const moveInterviewQuestion = (sectionId: string, questionId: string, dir: 'up' | 'down') => { const newStructure = interviewStructure.map(s => { if (s.id !== stageId) return s; const idx = s.questions.findIndex(q => q.id === questionId); if ((dir === 'up' && idx < 1) || (dir === 'down' && idx >= s.questions.length - 1)) return s; const newQuestions = [...s.questions]; const targetIdx = dir === 'up' ? idx - 1 : idx + 1; [newQuestions[idx], newQuestions[targetIdx]] = [newQuestions[targetIdx], newQuestions[idx]]; return { ...s, questions: newQuestions }; }); updateAndPersistStructure(setInterviewStructure, 'interviewStructure', newStructure); };
   const resetInterviewToDefault = () => { updateAndPersistStructure(setInterviewStructure, 'interviewStructure', INITIAL_INTERVIEW_STRUCTURE); };
 
   return (
