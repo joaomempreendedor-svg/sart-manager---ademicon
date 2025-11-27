@@ -4,7 +4,7 @@ import { Session } from '@supabase/supabase-js';
 import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, User } from '../types';
 import { CHECKLIST_STAGES as DEFAULT_STAGES } from '../data/checklistData';
 import { CONSULTANT_GOALS as DEFAULT_GOALS } from '../data/consultantGoals';
-import { useDebouncedCallback } from '../hooks/useDebouncedCallback';
+import { useDebouncedCallback } from '../src/hooks/useDebouncedCallback';
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
