@@ -96,10 +96,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           email: session.user.email || '' 
         };
         setUser(currentUser);
-        await fetchData(session.user.id);
+        
+        if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
+          await fetchData(session.user.id);
+          setInitialLoadComplete(true);
+        }
       } else {
         resetLocalState();
-        setInitialLoadComplete(true);
+        if (event === 'INITIAL_SESSION' || event === 'SIGNED_OUT') {
+          setInitialLoadComplete(true);
+        }
       }
     });
 
@@ -151,8 +157,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     } catch (error) {
       console.error("Failed to fetch initial data:", error);
-    } finally {
-      setInitialLoadComplete(true);
     }
   };
 
@@ -210,7 +214,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     <AppContext.Provider value={{ 
       user, initialLoadComplete, login, register, logout, candidates, templates, checklistStructure, consultantGoalsStructure, interviewStructure, commissions, supportMaterials, theme, origins, interviewers, pvs, teamMembers,
       addTeamMember, updateTeamMember, deleteTeamMember, toggleTheme, addOrigin, addInterviewer, addPV, addCandidate, updateCandidate, deleteCandidate, toggleChecklistItem, toggleConsultantGoal, setChecklistDueDate, getCandidate, saveTemplate,
-      addChecklistItem, updateChecklistItem, deleteChecklistItem, moveChecklistItem, resetChecklistToDefault, addGoalItem, updateGoalItem, deleteGoalItem, moveGoalItem, resetGoalsToDefault,
+      addChecklistItem, updateChecklistItem, deleteChecklistItem, moveChecklistItem, resetChecklistToDefault, addGoalItem, updateGoalitem, deleteGoalItem, moveGoalItem, resetGoalsToDefault,
       updateInterviewSection, addInterviewQuestion, updateInterviewQuestion, deleteInterviewQuestion, moveInterviewQuestion, resetInterviewToDefault, addCommission, updateCommission, deleteCommission, addSupportMaterial, deleteSupportMaterial
     }}>
       {children}
