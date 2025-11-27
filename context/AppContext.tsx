@@ -69,41 +69,32 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     debouncedUpdateConfig(user.id, newConfigData);
   };
 
+  const resetLocalState = () => {
+    setUser(null);
+    setCandidates([]);
+    setTeamMembers([]);
+    setCommissions([]);
+    setSupportMaterials([]);
+    setChecklistStructure(DEFAULT_STAGES);
+    setConsultantGoalsStructure(DEFAULT_GOALS);
+    setInterviewStructure(INITIAL_INTERVIEW_STRUCTURE);
+    setTemplates({});
+    setOrigins(DEFAULT_APP_CONFIG_DATA.origins);
+    setInterviewers(DEFAULT_APP_CONFIG_DATA.interviewers);
+    setPvs(DEFAULT_APP_CONFIG_DATA.pvs);
+  };
+
   useEffect(() => {
-    const initialize = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      setInitialLoadComplete(false);
       if (session) {
         const { data: profile } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
         const currentUser = { id: session.user.id, name: `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim() || session.user.email || 'Usuário', email: session.user.email || '' };
         setUser(currentUser);
         await fetchData(session.user.id);
       } else {
+        resetLocalState();
         setInitialLoadComplete(true);
-      }
-    };
-
-    initialize();
-
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN') {
-        setInitialLoadComplete(false);
-        const { data: profile } = await supabase.from('profiles').select('*').eq('id', session!.user.id).single();
-        const currentUser = { id: session!.user.id, name: `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim() || session!.user.email || 'Usuário', email: session!.user.email || '' };
-        setUser(currentUser);
-        await fetchData(session!.user.id);
-      } else if (event === 'SIGNED_OUT') {
-        setUser(null);
-        setCandidates([]);
-        setTeamMembers([]);
-        setCommissions([]);
-        setSupportMaterials([]);
-        setChecklistStructure(DEFAULT_STAGES);
-        setConsultantGoalsStructure(DEFAULT_GOALS);
-        setInterviewStructure(INITIAL_INTERVIEW_STRUCTURE);
-        setTemplates({});
-        setOrigins(DEFAULT_APP_CONFIG_DATA.origins);
-        setInterviewers(DEFAULT_APP_CONFIG_DATA.interviewers);
-        setPvs(DEFAULT_APP_CONFIG_DATA.pvs);
       }
     });
 
@@ -162,7 +153,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const login = async (email: string, pass: string) => { const { error } = await supabase.auth.signInWithPassword({ email, password: pass }); if (error) throw error; };
   const register = async (name: string, email: string, pass: string) => { const nameParts = name.trim().split(' '); const { error } = await supabase.auth.signUp({ email, password: pass, options: { data: { first_name: nameParts[0], last_name: nameParts.slice(1).join(' ') } } }); if (error) throw error; };
-  const logout = async () => { const { error } = await supabase.auth.signOut(); if (error) { console.error("Error logging out:", error); alert("Ocorreu um erro ao sair."); } };
+  const logout = async () => { resetLocalState(); const { error } = await supabase.auth.signOut(); if (error) { console.error("Error logging out:", error); alert("Ocorreu um erro ao sair."); } };
   const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
 
   const addCandidate = async (candidate: Candidate) => { if (!user) return; const original = [...candidates]; setCandidates(prev => [candidate, ...prev]); try { const { error } = await supabase.from('candidates').insert({ user_id: user.id, data: candidate }); if (error) throw error; } catch (error) { setCandidates(original); alert("Erro ao adicionar."); } };
