@@ -146,7 +146,7 @@ export type TeamRole = 'Consultor' | 'Autorizado' | 'Gestor' | 'Anjo';
 export interface TeamMember {
   id: string;
   name: string;
-  role: TeamRole;
+  roles: TeamRole[];
 }
 
 // AUTHENTICATION

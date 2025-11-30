@@ -230,9 +230,9 @@ export const Commissions = () => {
   const clearFilters = () => { setFilterStartDate(''); setFilterEndDate(''); setFilterConsultant(''); setFilterAngel(''); setFilterPV(''); setFilterStatus(''); setSearchTerm(''); };
   const handleAddPV = () => { const newPVName = prompt("Digite o nome do novo Ponto de Venda (PV):"); if (newPVName && newPVName.trim()) { addPV(newPVName.trim()); setSelectedPV(newPVName.trim()); } };
 
-  const consultants = teamMembers.filter(m => m.role === 'Consultor' || m.role === 'Autorizado');
-  const managers = teamMembers.filter(m => m.role === 'Gestor');
-  const angels = teamMembers.filter(m => m.role === 'Anjo');
+  const consultants = teamMembers.filter(m => m.roles.includes('Consultor') || m.roles.includes('Autorizado'));
+  const managers = teamMembers.filter(m => m.roles.includes('Gestor'));
+  const angels = teamMembers.filter(m => m.roles.includes('Anjo'));
 
   const filteredHistory = useMemo(() => commissions.filter(c => {
     if (isAngelMode && !c.angelName) return false;

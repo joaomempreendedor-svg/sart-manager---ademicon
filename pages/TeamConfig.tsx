@@ -3,43 +3,58 @@ import { useApp } from '../context/AppContext';
 import { Plus, Trash2, User, Shield, Crown, Star, Edit2, Save, X } from 'lucide-react';
 import { TeamMember, TeamRole } from '../types';
 
+const ALL_ROLES: TeamRole[] = ['Consultor', 'Autorizado', 'Gestor', 'Anjo'];
+
 export const TeamConfig = () => {
   const { teamMembers, addTeamMember, updateTeamMember, deleteTeamMember } = useApp();
   
   const [newName, setNewName] = useState('');
-  const [newRole, setNewRole] = useState<TeamRole>('Consultor');
+  const [newRoles, setNewRoles] = useState<TeamRole[]>(['Consultor']);
 
   const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
   const [editingName, setEditingName] = useState('');
-  const [editingRole, setEditingRole] = useState<TeamRole>('Consultor');
+  const [editingRoles, setEditingRoles] = useState<TeamRole[]>([]);
+
+  const handleRoleChange = (role: TeamRole, currentRoles: TeamRole[], setRoles: React.Dispatch<React.SetStateAction<TeamRole[]>>) => {
+    const updatedRoles = currentRoles.includes(role)
+      ? currentRoles.filter(r => r !== role)
+      : [...currentRoles, role];
+    setRoles(updatedRoles);
+  };
 
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
-    if (newName.trim()) {
+    if (newName.trim() && newRoles.length > 0) {
       addTeamMember({
         id: crypto.randomUUID(),
         name: newName.trim(),
-        role: newRole
+        roles: newRoles
       });
       setNewName('');
+      setNewRoles(['Consultor']);
+    } else {
+      alert("O nome e pelo menos um cargo são obrigatórios.");
     }
   };
 
   const startEditing = (member: TeamMember) => {
     setEditingMember(member);
     setEditingName(member.name);
-    setEditingRole(member.role);
+    setEditingRoles(member.roles);
   };
 
   const cancelEditing = () => {
     setEditingMember(null);
     setEditingName('');
+    setEditingRoles([]);
   };
 
   const handleUpdate = () => {
-    if (editingMember && editingName.trim()) {
-      updateTeamMember(editingMember.id, { name: editingName.trim(), role: editingRole });
+    if (editingMember && editingName.trim() && editingRoles.length > 0) {
+      updateTeamMember(editingMember.id, { name: editingName.trim(), roles: editingRoles });
       cancelEditing();
+    } else {
+      alert("O nome e pelo menos um cargo são obrigatórios.");
     }
   };
 
@@ -86,17 +101,20 @@ export const TeamConfig = () => {
                           />
                       </div>
                       <div>
-                          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Cargo / Função</label>
-                          <select 
-                            className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500"
-                            value={newRole}
-                            onChange={e => setNewRole(e.target.value as TeamRole)}
-                          >
-                              <option value="Consultor">Consultor</option>
-                              <option value="Autorizado">Autorizado</option>
-                              <option value="Gestor">Gestor</option>
-                              <option value="Anjo">Anjo</option>
-                          </select>
+                          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Cargos / Funções</label>
+                          <div className="space-y-2">
+                            {ALL_ROLES.map(role => (
+                                <label key={role} className="flex items-center space-x-2 cursor-pointer">
+                                    <input 
+                                        type="checkbox"
+                                        checked={newRoles.includes(role)}
+                                        onChange={() => handleRoleChange(role, newRoles, setNewRoles)}
+                                        className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+                                    />
+                                    <span className="text-sm text-gray-700 dark:text-gray-300">{role}</span>
+                                </label>
+                            ))}
+                          </div>
                       </div>
                       <button type="submit" className="w-full flex items-center justify-center space-x-2 bg-brand-600 hover:bg-brand-700 text-white py-2 rounded-lg transition font-medium">
                           <Plus className="w-4 h-4" />
@@ -119,25 +137,36 @@ export const TeamConfig = () => {
                           teamMembers.map(member => (
                               <li key={member.id} className="p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-slate-700/30 transition group">
                                   {editingMember?.id === member.id ? (
-                                    <div className="flex-1 flex items-center gap-2">
-                                      <input type="text" value={editingName} onChange={e => setEditingName(e.target.value)} className="w-full border-gray-300 dark:border-slate-600 rounded-md p-1 text-sm" />
-                                      <select value={editingRole} onChange={e => setEditingRole(e.target.value as TeamRole)} className="border-gray-300 dark:border-slate-600 rounded-md p-1 text-sm">
-                                        <option>Consultor</option><option>Autorizado</option><option>Gestor</option><option>Anjo</option>
-                                      </select>
-                                      <button onClick={handleUpdate} className="p-2 text-green-600 hover:bg-green-50 rounded"><Save className="w-4 h-4" /></button>
-                                      <button onClick={cancelEditing} className="p-2 text-gray-500 hover:bg-gray-100 rounded"><X className="w-4 h-4" /></button>
+                                    <div className="flex-1 flex flex-col gap-3">
+                                      <input type="text" value={editingName} onChange={e => setEditingName(e.target.value)} className="w-full border-gray-300 dark:border-slate-600 rounded-md p-2 text-sm" />
+                                      <div className="grid grid-cols-2 gap-2">
+                                        {ALL_ROLES.map(role => (
+                                            <label key={role} className="flex items-center space-x-2 cursor-pointer">
+                                                <input type="checkbox" checked={editingRoles.includes(role)} onChange={() => handleRoleChange(role, editingRoles, setEditingRoles)} className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
+                                                <span className="text-sm">{role}</span>
+                                            </label>
+                                        ))}
+                                      </div>
+                                      <div className="flex justify-end gap-2 mt-2">
+                                        <button onClick={handleUpdate} className="px-3 py-1 bg-green-100 text-green-700 rounded text-sm font-medium hover:bg-green-200"><Save className="w-4 h-4 inline mr-1" />Salvar</button>
+                                        <button onClick={cancelEditing} className="px-3 py-1 bg-gray-100 text-gray-700 rounded text-sm font-medium hover:bg-gray-200"><X className="w-4 h-4 inline mr-1" />Cancelar</button>
+                                      </div>
                                     </div>
                                   ) : (
                                     <>
                                       <div className="flex items-center space-x-4">
                                           <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-slate-700 flex items-center justify-center text-gray-500 dark:text-gray-400">
-                                              {getRoleIcon(member.role)}
+                                              {getRoleIcon(member.roles[0])}
                                           </div>
                                           <div>
                                               <p className="font-medium text-gray-900 dark:text-white">{member.name}</p>
-                                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${getRoleBadge(member.role)}`}>
-                                                  {member.role}
-                                              </span>
+                                              <div className="flex flex-wrap gap-1 mt-1">
+                                                {member.roles.map(role => (
+                                                    <span key={role} className={`text-xs px-2 py-0.5 rounded-full font-medium ${getRoleBadge(role)}`}>
+                                                        {role}
+                                                    </span>
+                                                ))}
+                                              </div>
                                           </div>
                                       </div>
                                       <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
