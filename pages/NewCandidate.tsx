@@ -2,11 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { Candidate, InterviewScores } from '../types';
-import { Save, ArrowLeft, Plus } from 'lucide-react';
+import { Save, ArrowLeft, Plus, Trash2 } from 'lucide-react';
 
 export const NewCandidate = () => {
   const navigate = useNavigate();
-  const { addCandidate, interviewStructure, origins, interviewers, addOrigin, addInterviewer } = useApp();
+  const { addCandidate, interviewStructure, origins, interviewers, addOrigin, addInterviewer, deleteOrigin, deleteInterviewer } = useApp();
 
   const [formData, setFormData] = useState({
     name: '',
@@ -59,12 +59,38 @@ export const NewCandidate = () => {
       }
   };
 
+  const handleDeleteOrigin = () => {
+    const originToDelete = formData.origin;
+    if (origins.length <= 1) {
+        alert("É necessário manter pelo menos uma origem.");
+        return;
+    }
+    if (confirm(`Tem certeza que deseja remover a origem "${originToDelete}"? Esta ação não pode ser desfeita.`)) {
+        const newOrigins = origins.filter(o => o !== originToDelete);
+        setFormData(prev => ({ ...prev, origin: newOrigins[0] || '' }));
+        deleteOrigin(originToDelete);
+    }
+  };
+
   const handleAddInterviewer = () => {
       const newInterviewer = prompt("Digite o nome do novo entrevistador:");
       if (newInterviewer && newInterviewer.trim()) {
           addInterviewer(newInterviewer.trim());
           setFormData(prev => ({ ...prev, interviewer: newInterviewer.trim() }));
       }
+  };
+
+  const handleDeleteInterviewer = () => {
+    const interviewerToDelete = formData.interviewer;
+    if (interviewers.length <= 1) {
+        alert("É necessário manter pelo menos um entrevistador.");
+        return;
+    }
+    if (confirm(`Tem certeza que deseja remover o entrevistador "${interviewerToDelete}"? Esta ação não pode ser desfeita.`)) {
+        const newInterviewers = interviewers.filter(i => i !== interviewerToDelete);
+        setFormData(prev => ({ ...prev, interviewer: newInterviewers[0] || '' }));
+        deleteInterviewer(interviewerToDelete);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -138,6 +164,9 @@ export const NewCandidate = () => {
                   <button type="button" onClick={handleAddOrigin} className="p-2 bg-brand-100 text-brand-700 rounded dark:bg-brand-900/30 dark:text-brand-400 hover:bg-brand-200" title="Adicionar nova origem">
                       <Plus className="w-5 h-5" />
                   </button>
+                  <button type="button" onClick={handleDeleteOrigin} className="p-2 bg-red-50 text-red-600 rounded dark:bg-red-900/30 dark:text-red-400 hover:bg-red-100" title="Remover origem selecionada">
+                      <Trash2 className="w-5 h-5" />
+                  </button>
               </div>
             </div>
             <div>
@@ -154,6 +183,9 @@ export const NewCandidate = () => {
                   </select>
                    <button type="button" onClick={handleAddInterviewer} className="p-2 bg-brand-100 text-brand-700 rounded dark:bg-brand-900/30 dark:text-brand-400 hover:bg-brand-200" title="Adicionar novo entrevistador">
                       <Plus className="w-5 h-5" />
+                  </button>
+                  <button type="button" onClick={handleDeleteInterviewer} className="p-2 bg-red-50 text-red-600 rounded dark:bg-red-900/30 dark:text-red-400 hover:bg-red-100" title="Remover entrevistador selecionado">
+                      <Trash2 className="w-5 h-5" />
                   </button>
               </div>
             </div>

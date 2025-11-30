@@ -185,7 +185,9 @@ export interface AppContextType {
   deleteTeamMember: (id: string) => void;
 
   addOrigin: (origin: string) => void;
+  deleteOrigin: (origin: string) => void;
   addInterviewer: (interviewer: string) => void;
+  deleteInterviewer: (interviewer: string) => void;
   addPV: (pv: string) => void;
   
   // Theme Action
