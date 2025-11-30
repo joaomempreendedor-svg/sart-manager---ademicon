@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Commission, CommissionStatus, CommissionRule } from '../types';
 import { Trash2, Search, DollarSign, Calendar, Calculator, Save, Table as TableIcon, Car, Home, ChevronLeft, ChevronRight, MapPin, Percent, Filter, XCircle, Crown, Plus, Wand2 } from 'lucide-react';
@@ -29,6 +29,15 @@ const getStatusColor = (status: CommissionStatus) => {
     }
 };
 
+type CustomRuleText = {
+    id: string;
+    startInstallment: string;
+    endInstallment: string;
+    consultantRate: string;
+    managerRate: string;
+    angelRate: string;
+}
+
 export const Commissions = () => {
   const { commissions, addCommission, updateCommission, deleteCommission, teamMembers, pvs, addPV } = useApp();
   
@@ -48,10 +57,26 @@ export const Commissions = () => {
   const [creditValue, setCreditValue] = useState<string>('');
   const [hasAngel, setHasAngel] = useState(false);
   const [isCustomRulesMode, setIsCustomRulesMode] = useState(false);
+  
+  // State for custom rules data (numbers)
   const [customRules, setCustomRules] = useState<CommissionRule[]>([
     { id: crypto.randomUUID(), startInstallment: 1, endInstallment: 15, consultantRate: 0, managerRate: 0, angelRate: 0 }
   ]);
-  
+  // State for custom rules input text (strings)
+  const [customRulesText, setCustomRulesText] = useState<CustomRuleText[]>([]);
+
+  useEffect(() => {
+    setCustomRulesText(customRules.map(rule => ({
+        id: rule.id,
+        startInstallment: String(rule.startInstallment),
+        endInstallment: String(rule.endInstallment),
+        consultantRate: String(rule.consultantRate).replace('.', ','),
+        managerRate: String(rule.managerRate).replace('.', ','),
+        angelRate: String(rule.angelRate).replace('.', ','),
+    })));
+  }, []);
+
+
   // Estado para Salvar Venda
   const [clientName, setClientName] = useState('');
   const [saleDate, setSaleDate] = useState(new Date().toISOString().split('T')[0]);
@@ -173,12 +198,32 @@ export const Commissions = () => {
     alert("Venda registrada com sucesso!");
   };
 
-  const handleUpdateRule = (id: string, field: keyof CommissionRule, value: string) => {
-    const numericValue = parseFloat(value.replace(',', '.')) || 0;
-    setCustomRules(rules => rules.map(r => r.id === id ? { ...r, [field]: numericValue } : r));
+  const handleUpdateRuleText = (id: string, field: keyof CustomRuleText, value: string, isDecimal: boolean) => {
+    const sanitizedValue = isDecimal 
+        ? value.replace(/[^0-9,]/g, '').replace(/,(?=.*,)/g, '')
+        : value.replace(/[^0-9]/g, '');
+
+    setCustomRulesText(rules => rules.map(r => r.id === id ? { ...r, [field]: sanitizedValue } : r));
+
+    const numericValue = isDecimal
+        ? parseFloat(sanitizedValue.replace(',', '.'))
+        : parseInt(sanitizedValue, 10);
+
+    setCustomRules(rules => rules.map(r => r.id === id ? { ...r, [field]: isNaN(numericValue) ? 0 : numericValue } : r));
   };
-  const handleAddRule = () => setCustomRules(rules => [...rules, { id: crypto.randomUUID(), startInstallment: 1, endInstallment: 15, consultantRate: 0, managerRate: 0, angelRate: 0 }]);
-  const handleRemoveRule = (id: string) => setCustomRules(rules => rules.filter(r => r.id !== id));
+
+  const handleAddRule = () => {
+    const newId = crypto.randomUUID();
+    const newRule: CommissionRule = { id: newId, startInstallment: 1, endInstallment: 15, consultantRate: 0, managerRate: 0, angelRate: 0 };
+    const newRuleText: CustomRuleText = { id: newId, startInstallment: '1', endInstallment: '15', consultantRate: '0', managerRate: '0', angelRate: '0' };
+    setCustomRules(rules => [...rules, newRule]);
+    setCustomRulesText(rules => [...rules, newRuleText]);
+  };
+
+  const handleRemoveRule = (id: string) => {
+    setCustomRules(rules => rules.filter(r => r.id !== id));
+    setCustomRulesText(rules => rules.filter(r => r.id !== id));
+  };
 
   const handleUpdateStatus = (id: string, newStatus: CommissionStatus) => { updateCommission(id, { status: newStatus }); };
   const handleUpdateInstallment = (id: string, current: number, delta: number) => { const newVal = Math.max(0, Math.min(15, current + delta)); updateCommission(id, { currentInstallment: newVal }); };
@@ -286,12 +331,16 @@ export const Commissions = () => {
                       <div className="p-4 border-b border-gray-200 dark:border-slate-700 bg-blue-50 dark:bg-blue-900/20">
                         <h3 className="text-sm font-semibold text-blue-800 dark:text-blue-200 mb-2">Editor de Regras Personalizadas</h3>
                         <div className="space-y-2">
-                          {customRules.map((rule, index) => (
+                          {customRulesText.map((rule) => (
                             <div key={rule.id} className="grid grid-cols-12 gap-2 items-center">
-                              <div className="col-span-4 flex items-center gap-1"><input type="number" placeholder="De" value={rule.startInstallment} onChange={e => handleUpdateRule(rule.id, 'startInstallment', e.target.value)} className="w-full p-1.5 text-sm border-gray-300 rounded" /><span className="text-xs">-</span><input type="number" placeholder="Até" value={rule.endInstallment} onChange={e => handleUpdateRule(rule.id, 'endInstallment', e.target.value)} className="w-full p-1.5 text-sm border-gray-300 rounded" /></div>
-                              <div className="col-span-2"><input type="text" placeholder="Cons %" value={String(rule.consultantRate).replace('.',',')} onChange={e => handleUpdateRule(rule.id, 'consultantRate', e.target.value)} className="w-full p-1.5 text-sm border-gray-300 rounded" /></div>
-                              <div className="col-span-2"><input type="text" placeholder="Gestor %" value={String(rule.managerRate).replace('.',',')} onChange={e => handleUpdateRule(rule.id, 'managerRate', e.target.value)} className="w-full p-1.5 text-sm border-gray-300 rounded" /></div>
-                              <div className="col-span-2"><input type="text" placeholder="Anjo %" disabled={!hasAngel} value={String(rule.angelRate).replace('.',',')} onChange={e => handleUpdateRule(rule.id, 'angelRate', e.target.value)} className="w-full p-1.5 text-sm border-gray-300 rounded disabled:bg-gray-100" /></div>
+                              <div className="col-span-4 flex items-center gap-1">
+                                <input type="text" inputMode="numeric" placeholder="De" value={rule.startInstallment} onChange={e => handleUpdateRuleText(rule.id, 'startInstallment', e.target.value, false)} className="w-full p-1.5 text-sm border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 rounded" />
+                                <span className="text-xs">-</span>
+                                <input type="text" inputMode="numeric" placeholder="Até" value={rule.endInstallment} onChange={e => handleUpdateRuleText(rule.id, 'endInstallment', e.target.value, false)} className="w-full p-1.5 text-sm border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 rounded" />
+                              </div>
+                              <div className="col-span-2"><input type="text" inputMode="decimal" placeholder="Cons %" value={rule.consultantRate} onChange={e => handleUpdateRuleText(rule.id, 'consultantRate', e.target.value, true)} className="w-full p-1.5 text-sm border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 rounded" /></div>
+                              <div className="col-span-2"><input type="text" inputMode="decimal" placeholder="Gestor %" value={rule.managerRate} onChange={e => handleUpdateRuleText(rule.id, 'managerRate', e.target.value, true)} className="w-full p-1.5 text-sm border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 rounded" /></div>
+                              <div className="col-span-2"><input type="text" inputMode="decimal" placeholder="Anjo %" disabled={!hasAngel} value={rule.angelRate} onChange={e => handleUpdateRuleText(rule.id, 'angelRate', e.target.value, true)} className="w-full p-1.5 text-sm border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 rounded disabled:bg-gray-100 dark:disabled:bg-slate-800" /></div>
                               <div className="col-span-2 flex justify-end"><button onClick={() => handleRemoveRule(rule.id)} className="p-2 text-gray-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button></div>
                             </div>
                           ))}
