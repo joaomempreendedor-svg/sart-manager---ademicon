@@ -1,40 +1,21 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
-import { Commission, CommissionStatus } from '../types';
-import { Trash2, Search, DollarSign, Calendar, Calculator, Save, Table as TableIcon, Car, Home, ChevronLeft, ChevronRight, MapPin, Percent, Filter, XCircle, Crown, Eye, EyeOff, Plus, Wand2 } from 'lucide-react';
+import { Commission, CommissionStatus, CommissionRule } from '../types';
+import { Trash2, Search, DollarSign, Calendar, Calculator, Save, Table as TableIcon, Car, Home, ChevronLeft, ChevronRight, MapPin, Percent, Filter, XCircle, Crown, Plus, Wand2 } from 'lucide-react';
 
 const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL'
-  }).format(value);
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 };
 
 const formatPercent = (value: number) => {
-  return value.toFixed(4).replace('.', ',') + '%';
+  return (value || 0).toFixed(4).replace('.', ',') + '%';
 };
 
-// --- REGRAS DE NEGÓCIO ---
-const RULES = {
-  consultant: {
-    p1_10: 0.1288,   // 0.1288%
-    p11_13: 0.2374,  // 0.2374%
-    p15: 0.30        // 0.30%
-  },
-  manager: {
-    noAngel: {
-      p1_10: 0.0322,
-      p11_13: 0.0593
-    },
-    withAngel: {
-      p1_10: 0.0194,
-      p11_13: 0.0356
-    }
-  },
-  angel: {
-    p1_10: 0.0128,
-    p11_13: 0.0237
-  }
+// --- REGRAS DE NEGÓCIO PADRÃO ---
+const DEFAULT_RULES = {
+  consultant: { p1_10: 0.1288, p11_13: 0.2374, p15: 0.30 },
+  manager: { noAngel: { p1_10: 0.0322, p11_13: 0.0593 }, withAngel: { p1_10: 0.0194, p11_13: 0.0356 } },
+  angel: { p1_10: 0.0128, p11_13: 0.0237 }
 };
 
 const getStatusColor = (status: CommissionStatus) => {
@@ -51,12 +32,11 @@ const getStatusColor = (status: CommissionStatus) => {
 export const Commissions = () => {
   const { commissions, addCommission, updateCommission, deleteCommission, teamMembers, pvs, addPV } = useApp();
   
-  // Estado da View
   const [activeTab, setActiveTab] = useState<'calculator' | 'history'>('calculator');
   const [searchTerm, setSearchTerm] = useState('');
   const [isAngelMode, setIsAngelMode] = useState(false);
 
-  // Filtros Avançados
+  // Filtros
   const [filterStartDate, setFilterStartDate] = useState('');
   const [filterEndDate, setFilterEndDate] = useState('');
   const [filterConsultant, setFilterConsultant] = useState('');
@@ -67,12 +47,10 @@ export const Commissions = () => {
   // Estado do Simulador
   const [creditValue, setCreditValue] = useState<string>('');
   const [hasAngel, setHasAngel] = useState(false);
-  const [isManualMode, setIsManualMode] = useState(false); // NOVO: Modo Manual
-
-  // NOVO: Estados para valores manuais
-  const [manualConsultantTotal, setManualConsultantTotal] = useState('');
-  const [manualManagerTotal, setManualManagerTotal] = useState('');
-  const [manualAngelTotal, setManualAngelTotal] = useState('');
+  const [isCustomRulesMode, setIsCustomRulesMode] = useState(false);
+  const [customRules, setCustomRules] = useState<CommissionRule[]>([
+    { id: crypto.randomUUID(), startInstallment: 1, endInstallment: 15, consultantRate: 0, managerRate: 0, angelRate: 0 }
+  ]);
   
   // Estado para Salvar Venda
   const [clientName, setClientName] = useState('');
@@ -88,76 +66,83 @@ export const Commissions = () => {
 
   const parseCurrency = (value: string) => parseFloat(value.replace(/\./g, '').replace(',', '.')) || 0;
 
-  // --- LÓGICA DE CÁLCULO ---
   const simulation = useMemo(() => {
     const credit = parseCurrency(creditValue);
     const calc = (pct: number) => credit * (pct / 100);
+    let breakdown: any[] = [];
+    let totals = { consultant: 0, manager: 0, angel: 0, grandTotal: 0 };
 
-    const cons_p1_10_val = calc(RULES.consultant.p1_10);
-    const cons_p11_13_val = calc(RULES.consultant.p11_13);
-    const cons_p15_val = calc(RULES.consultant.p15);
-    const cons_total = (cons_p1_10_val * 10) + (cons_p11_13_val * 3) + cons_p15_val;
+    if (isCustomRulesMode) {
+      customRules.forEach(rule => {
+        const numInstallments = (rule.endInstallment - rule.startInstallment + 1);
+        const consVal = calc(rule.consultantRate) * numInstallments;
+        const manVal = calc(rule.managerRate) * numInstallments;
+        const angelVal = hasAngel ? calc(rule.angelRate) * numInstallments : 0;
+        
+        totals.consultant += consVal;
+        totals.manager += manVal;
+        totals.angel += angelVal;
 
-    const man_rules = hasAngel ? RULES.manager.withAngel : RULES.manager.noAngel;
-    const man_p1_10_val = calc(man_rules.p1_10);
-    const man_p11_13_val = calc(man_rules.p11_13);
-    const man_total = (man_p1_10_val * 10) + (man_p11_13_val * 3);
-
-    let angel_p1_10_val = 0, angel_p11_13_val = 0, angel_total = 0;
-    if (hasAngel) {
-      angel_p1_10_val = calc(RULES.angel.p1_10);
-      angel_p11_13_val = calc(RULES.angel.p11_13);
-      angel_total = (angel_p1_10_val * 10) + (angel_p11_13_val * 3);
+        breakdown.push({
+          label: `Parcelas ${rule.startInstallment} a ${rule.endInstallment}`,
+          count: numInstallments,
+          cons: { rate: rule.consultantRate, val: calc(rule.consultantRate) },
+          man: { rate: rule.managerRate, val: calc(rule.managerRate) },
+          angel: { rate: hasAngel ? rule.angelRate : 0, val: hasAngel ? calc(rule.angelRate) : 0 }
+        });
+      });
+    } else {
+      const manRules = hasAngel ? DEFAULT_RULES.manager.withAngel : DEFAULT_RULES.manager.noAngel;
+      const p1_10 = {
+        label: 'Parcelas 1 a 10', count: 10,
+        cons: { rate: DEFAULT_RULES.consultant.p1_10, val: calc(DEFAULT_RULES.consultant.p1_10) },
+        man: { rate: manRules.p1_10, val: calc(manRules.p1_10) },
+        angel: { rate: hasAngel ? DEFAULT_RULES.angel.p1_10 : 0, val: hasAngel ? calc(DEFAULT_RULES.angel.p1_10) : 0 }
+      };
+      const p11_13 = {
+        label: 'Parcelas 11 a 13', count: 3,
+        cons: { rate: DEFAULT_RULES.consultant.p11_13, val: calc(DEFAULT_RULES.consultant.p11_13) },
+        man: { rate: manRules.p11_13, val: calc(manRules.p11_13) },
+        angel: { rate: hasAngel ? DEFAULT_RULES.angel.p11_13 : 0, val: hasAngel ? calc(DEFAULT_RULES.angel.p11_13) : 0 }
+      };
+      const p15 = {
+        label: 'Parcela 15', count: 1,
+        cons: { rate: DEFAULT_RULES.consultant.p15, val: calc(DEFAULT_RULES.consultant.p15) },
+        man: { rate: 0, val: 0 }, angel: { rate: 0, val: 0 }
+      };
+      breakdown = [p1_10, p11_13, p15];
+      totals.consultant = (p1_10.cons.val * 10) + (p11_13.cons.val * 3) + p15.cons.val;
+      totals.manager = (p1_10.man.val * 10) + (p11_13.man.val * 3);
+      totals.angel = hasAngel ? (p1_10.angel.val * 10) + (p11_13.angel.val * 3) : 0;
     }
-
-    return {
-      credit,
-      breakdown: [
-        { label: 'Parcelas 1 a 10', count: 10, cons: { rate: RULES.consultant.p1_10, val: cons_p1_10_val }, man: { rate: man_rules.p1_10, val: man_p1_10_val }, angel: { rate: hasAngel ? RULES.angel.p1_10 : 0, val: angel_p1_10_val } },
-        { label: 'Parcelas 11 a 13', count: 3, cons: { rate: RULES.consultant.p11_13, val: cons_p11_13_val }, man: { rate: man_rules.p11_13, val: man_p11_13_val }, angel: { rate: hasAngel ? RULES.angel.p11_13 : 0, val: angel_p11_13_val } },
-        { label: 'Parcela 15', count: 1, cons: { rate: RULES.consultant.p15, val: cons_p15_val }, man: { rate: 0, val: 0 }, angel: { rate: 0, val: 0 } }
-      ],
-      totals: { consultant: cons_total, manager: man_total, angel: angel_total, grandTotal: cons_total + man_total + angel_total }
-    };
-  }, [creditValue, hasAngel]);
-
-  const manualTotals = useMemo(() => {
-    const consultant = parseCurrency(manualConsultantTotal);
-    const manager = parseCurrency(manualManagerTotal);
-    const angel = parseCurrency(manualAngelTotal);
-    return { consultant, manager, angel, grandTotal: consultant + manager + angel };
-  }, [manualConsultantTotal, manualManagerTotal, manualAngelTotal]);
-
-  const displayTotals = isManualMode ? manualTotals : simulation.totals;
+    
+    totals.grandTotal = totals.consultant + totals.manager + totals.angel;
+    return { credit, breakdown, totals };
+  }, [creditValue, hasAngel, isCustomRulesMode, customRules]);
 
   const getInstallmentValues = (commission: Commission) => {
     if (commission.status === 'Concluído' || commission.status === 'Cancelado' || (commission.currentInstallment ?? 1) === 0) {
         return { cons: 0, man: 0, angel: 0 };
     }
-
     const installment = commission.currentInstallment ?? 1;
     const taxMultiplier = 1 - ((commission.taxRate || 0) / 100);
-
-    // NOVO: Lógica para comissões manuais
-    if (commission.isManual) {
-        const PAYING_INSTALLMENTS = 14; // 10 (1-10) + 3 (11-13) + 1 (15)
-        if (installment === 14) return { cons: 0, man: 0, angel: 0 }; // Parcela 14 não tem pagamento
-
-        return {
-            cons: (commission.consultantValue / PAYING_INSTALLMENTS) * taxMultiplier,
-            man: (commission.managerValue / PAYING_INSTALLMENTS) * taxMultiplier,
-            angel: (commission.angelValue / PAYING_INSTALLMENTS) * taxMultiplier,
-        };
-    }
-
-    // Lógica original para comissões calculadas
     const credit = commission.value;
     const hasAngel = !!commission.angelName;
     let consRate = 0, manRate = 0, angelRate = 0;
 
-    if (installment <= 10) { consRate = RULES.consultant.p1_10; manRate = hasAngel ? RULES.manager.withAngel.p1_10 : RULES.manager.noAngel.p1_10; if (hasAngel) angelRate = RULES.angel.p1_10; }
-    else if (installment <= 13) { consRate = RULES.consultant.p11_13; manRate = hasAngel ? RULES.manager.withAngel.p11_13 : RULES.manager.noAngel.p11_13; if (hasAngel) angelRate = RULES.angel.p11_13; }
-    else if (installment === 15) { consRate = RULES.consultant.p15; }
+    if (commission.customRules) {
+      const rule = commission.customRules.find(r => installment >= r.startInstallment && installment <= r.endInstallment);
+      if (rule) {
+        consRate = rule.consultantRate;
+        manRate = rule.managerRate;
+        angelRate = hasAngel ? rule.angelRate : 0;
+      }
+    } else {
+      const manRules = hasAngel ? DEFAULT_RULES.manager.withAngel : DEFAULT_RULES.manager.noAngel;
+      if (installment <= 10) { consRate = DEFAULT_RULES.consultant.p1_10; manRate = manRules.p1_10; if (hasAngel) angelRate = DEFAULT_RULES.angel.p1_10; }
+      else if (installment <= 13) { consRate = DEFAULT_RULES.consultant.p11_13; manRate = manRules.p11_13; if (hasAngel) angelRate = DEFAULT_RULES.angel.p11_13; }
+      else if (installment === 15) { consRate = DEFAULT_RULES.consultant.p15; }
+    }
 
     return {
         cons: (credit * (consRate / 100)) * taxMultiplier,
@@ -173,42 +158,27 @@ export const Commissions = () => {
       alert("Preencha todos os dados obrigatórios (Crédito, Cliente, Data, PV, Grupo, Cota, Consultor)");
       return;
     }
-
     const taxValue = parseFloat(taxRateInput.replace(',', '.')) || 0;
-    const totals = isManualMode ? manualTotals : simulation.totals;
-
     const newCommission: Commission = {
-      id: crypto.randomUUID(),
-      date: saleDate,
-      clientName: clientName,
-      type: saleType,
-      group: group,
-      quota: quota,
-      consultant: selectedConsultant,
-      managerName: selectedManager || 'N/A',
-      angelName: hasAngel ? selectedAngel : undefined,
-      pv: selectedPV,
-      value: credit,
-      coefficient: 0,
-      discount: 0,
-      taxRate: taxValue, 
-      netValue: totals.grandTotal * (1 - (taxValue/100)),
-      installments: 15,
-      currentInstallment: 1,
-      status: 'Prox Mês',
-      consultantValue: totals.consultant,
-      managerValue: totals.manager,
-      angelValue: totals.angel,
+      id: crypto.randomUUID(), date: saleDate, clientName, type: saleType, group, quota, consultant: selectedConsultant, managerName: selectedManager || 'N/A', angelName: hasAngel ? selectedAngel : undefined, pv: selectedPV, value: credit, taxRate: taxValue, 
+      netValue: simulation.totals.grandTotal * (1 - (taxValue/100)),
+      installments: 15, currentInstallment: 1, status: 'Prox Mês',
+      consultantValue: simulation.totals.consultant, managerValue: simulation.totals.manager, angelValue: simulation.totals.angel,
       receivedValue: 0,
-      isManual: isManualMode
+      customRules: isCustomRulesMode ? customRules : undefined
     };
-
     addCommission(newCommission);
     setActiveTab('history');
-    
     setClientName(''); setCreditValue(''); setGroup(''); setQuota(''); setSelectedPV('');
     alert("Venda registrada com sucesso!");
   };
+
+  const handleUpdateRule = (id: string, field: keyof CommissionRule, value: string) => {
+    const numericValue = parseFloat(value.replace(',', '.')) || 0;
+    setCustomRules(rules => rules.map(r => r.id === id ? { ...r, [field]: numericValue } : r));
+  };
+  const handleAddRule = () => setCustomRules(rules => [...rules, { id: crypto.randomUUID(), startInstallment: 1, endInstallment: 15, consultantRate: 0, managerRate: 0, angelRate: 0 }]);
+  const handleRemoveRule = (id: string) => setCustomRules(rules => rules.filter(r => r.id !== id));
 
   const handleUpdateStatus = (id: string, newStatus: CommissionStatus) => { updateCommission(id, { status: newStatus }); };
   const handleUpdateInstallment = (id: string, current: number, delta: number) => { const newVal = Math.max(0, Math.min(15, current + delta)); updateCommission(id, { currentInstallment: newVal }); };
@@ -219,26 +189,22 @@ export const Commissions = () => {
   const managers = teamMembers.filter(m => m.role === 'Gestor');
   const angels = teamMembers.filter(m => m.role === 'Anjo');
 
-  const filteredHistory = useMemo(() => {
-    return commissions.filter(c => {
-        if (isAngelMode && !c.angelName) return false;
-        const matchesSearch = searchTerm === '' || c.clientName.toLowerCase().includes(searchTerm.toLowerCase()) || c.consultant.toLowerCase().includes(searchTerm.toLowerCase()) || c.pv.toLowerCase().includes(searchTerm.toLowerCase()) || c.group.includes(searchTerm);
-        const matchesStart = filterStartDate ? c.date >= filterStartDate : true;
-        const matchesEnd = filterEndDate ? c.date <= filterEndDate : true;
-        const matchesConsultant = filterConsultant ? c.consultant === filterConsultant : true;
-        const matchesAngel = filterAngel ? c.angelName === filterAngel : true;
-        const matchesPV = filterPV ? c.pv === filterPV : true;
-        const matchesStatus = filterStatus ? c.status === filterStatus : true;
-        return matchesSearch && matchesStart && matchesEnd && matchesConsultant && matchesAngel && matchesPV && matchesStatus;
-    });
-  }, [commissions, searchTerm, filterStartDate, filterEndDate, filterConsultant, filterAngel, filterPV, filterStatus, isAngelMode]);
+  const filteredHistory = useMemo(() => commissions.filter(c => {
+    if (isAngelMode && !c.angelName) return false;
+    const matchesSearch = searchTerm === '' || c.clientName.toLowerCase().includes(searchTerm.toLowerCase()) || c.consultant.toLowerCase().includes(searchTerm.toLowerCase()) || c.pv.toLowerCase().includes(searchTerm.toLowerCase()) || c.group.includes(searchTerm);
+    const matchesStart = filterStartDate ? c.date >= filterStartDate : true;
+    const matchesEnd = filterEndDate ? c.date <= filterEndDate : true;
+    const matchesConsultant = filterConsultant ? c.consultant === filterConsultant : true;
+    const matchesAngel = filterAngel ? c.angelName === filterAngel : true;
+    const matchesPV = filterPV ? c.pv === filterPV : true;
+    const matchesStatus = filterStatus ? c.status === filterStatus : true;
+    return matchesSearch && matchesStart && matchesEnd && matchesConsultant && matchesAngel && matchesPV && matchesStatus;
+  }), [commissions, searchTerm, filterStartDate, filterEndDate, filterConsultant, filterAngel, filterPV, filterStatus, isAngelMode]);
 
-  const filteredTotals = useMemo(() => {
-      return filteredHistory.reduce((acc, c) => {
-          const monthVals = getInstallmentValues(c);
-          return { totalSold: acc.totalSold + c.value, totalCons: acc.totalCons + monthVals.cons, totalMan: acc.totalMan + monthVals.man, totalAngel: acc.totalAngel + monthVals.angel };
-      }, { totalSold: 0, totalCons: 0, totalMan: 0, totalAngel: 0 });
-  }, [filteredHistory]);
+  const filteredTotals = useMemo(() => filteredHistory.reduce((acc, c) => {
+    const monthVals = getInstallmentValues(c);
+    return { totalSold: acc.totalSold + c.value, totalCons: acc.totalCons + monthVals.cons, totalMan: acc.totalMan + monthVals.man, totalAngel: acc.totalAngel + monthVals.angel };
+  }, { totalSold: 0, totalCons: 0, totalMan: 0, totalAngel: 0 }), [filteredHistory]);
 
   const formatAndSetCurrency = (setter: React.Dispatch<React.SetStateAction<string>>) => (e: React.ChangeEvent<HTMLInputElement>) => {
     let v = e.target.value.replace(/\D/g, '');
@@ -250,7 +216,6 @@ export const Commissions = () => {
 
   return (
     <div className="p-8 max-w-7xl mx-auto min-h-screen pb-20">
-      
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Central de Comissões</h1>
@@ -276,33 +241,14 @@ export const Commissions = () => {
                             <div><span className="block font-medium text-gray-900 dark:text-white">Existe Anjo?</span><span className="text-xs text-gray-500 dark:text-gray-400">Altera regras do Gestor</span></div>
                             <label className="relative inline-flex items-center cursor-pointer"><input type="checkbox" className="sr-only peer" checked={hasAngel} onChange={() => setHasAngel(!hasAngel)} /><div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-600 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-brand-500"></div></label>
                         </div>
-                        {/* NOVO: Seletor de Modo Manual */}
                         <div className="flex items-center justify-between p-4 border border-blue-200 dark:border-blue-800 rounded-lg bg-blue-50 dark:bg-blue-900/20">
-                            <div><span className="block font-medium text-blue-900 dark:text-blue-200">Cálculo Manual?</span><span className="text-xs text-blue-600 dark:text-blue-400">Insira os valores totais</span></div>
-                            <label className="relative inline-flex items-center cursor-pointer"><input type="checkbox" className="sr-only peer" checked={isManualMode} onChange={() => setIsManualMode(!isManualMode)} /><div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-600 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-500"></div></label>
+                            <div><span className="block font-medium text-blue-900 dark:text-blue-200">Personalizar Regras?</span><span className="text-xs text-blue-600 dark:text-blue-400">Definir coeficientes por faixa</span></div>
+                            <label className="relative inline-flex items-center cursor-pointer"><input type="checkbox" className="sr-only peer" checked={isCustomRulesMode} onChange={() => setIsCustomRulesMode(!isCustomRulesMode)} /><div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-600 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-500"></div></label>
                         </div>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 gap-4">
-                     <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-4 rounded-xl text-white shadow-lg shadow-blue-500/20">
-                        <p className="text-blue-100 text-xs font-bold uppercase">Total Consultor (Bruto)</p>
-                        <p className="text-2xl font-bold mt-1">{formatCurrency(displayTotals.consultant)}</p>
-                        {!isManualMode && <p className="text-xs opacity-80 mt-1">~{((displayTotals.consultant / simulation.credit) * 100 || 0).toFixed(2)}% do crédito</p>}
-                     </div>
-                     <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm">
-                        <p className="text-gray-500 dark:text-gray-400 text-xs font-bold uppercase">Total Gestor (Bruto)</p>
-                        <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{formatCurrency(displayTotals.manager)}</p>
-                     </div>
-                     {hasAngel && (
-                        <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-yellow-200 dark:border-yellow-900/50 shadow-sm">
-                            <p className="text-yellow-600 dark:text-yellow-400 text-xs font-bold uppercase">Total Anjo (Bruto)</p>
-                            <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{formatCurrency(displayTotals.angel)}</p>
-                        </div>
-                     )}
-                </div>
-
-                 <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm">
+                <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm">
                     <h3 className="font-bold text-gray-900 dark:text-white mb-4">Salvar Venda</h3>
                     <form onSubmit={handleSaveCommission} className="space-y-3">
                         <input required placeholder="Nome do Cliente" className="w-full border-gray-300 dark:border-slate-600 rounded-md text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white p-2" value={clientName} onChange={e => setClientName(e.target.value)} />
@@ -332,48 +278,57 @@ export const Commissions = () => {
             <div className="lg:col-span-2">
                 <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden h-full">
                     <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50 flex justify-between items-center">
-                        <h2 className="font-bold text-gray-900 dark:text-white">Detalhamento por Parcela (Valores Brutos)</h2>
+                        <h2 className="font-bold text-gray-900 dark:text-white">Detalhamento da Simulação (Valores Brutos)</h2>
                         <span className="text-xs text-gray-500 dark:text-gray-400 bg-white dark:bg-slate-800 px-2 py-1 rounded border border-gray-200 dark:border-slate-600">Base: {creditValue || 'R$ 0,00'}</span>
                     </div>
+                    
+                    {isCustomRulesMode && (
+                      <div className="p-4 border-b border-gray-200 dark:border-slate-700 bg-blue-50 dark:bg-blue-900/20">
+                        <h3 className="text-sm font-semibold text-blue-800 dark:text-blue-200 mb-2">Editor de Regras Personalizadas</h3>
+                        <div className="space-y-2">
+                          {customRules.map((rule, index) => (
+                            <div key={rule.id} className="grid grid-cols-12 gap-2 items-center">
+                              <div className="col-span-4 flex items-center gap-1"><input type="number" placeholder="De" value={rule.startInstallment} onChange={e => handleUpdateRule(rule.id, 'startInstallment', e.target.value)} className="w-full p-1.5 text-sm border-gray-300 rounded" /><span className="text-xs">-</span><input type="number" placeholder="Até" value={rule.endInstallment} onChange={e => handleUpdateRule(rule.id, 'endInstallment', e.target.value)} className="w-full p-1.5 text-sm border-gray-300 rounded" /></div>
+                              <div className="col-span-2"><input type="text" placeholder="Cons %" value={String(rule.consultantRate).replace('.',',')} onChange={e => handleUpdateRule(rule.id, 'consultantRate', e.target.value)} className="w-full p-1.5 text-sm border-gray-300 rounded" /></div>
+                              <div className="col-span-2"><input type="text" placeholder="Gestor %" value={String(rule.managerRate).replace('.',',')} onChange={e => handleUpdateRule(rule.id, 'managerRate', e.target.value)} className="w-full p-1.5 text-sm border-gray-300 rounded" /></div>
+                              <div className="col-span-2"><input type="text" placeholder="Anjo %" disabled={!hasAngel} value={String(rule.angelRate).replace('.',',')} onChange={e => handleUpdateRule(rule.id, 'angelRate', e.target.value)} className="w-full p-1.5 text-sm border-gray-300 rounded disabled:bg-gray-100" /></div>
+                              <div className="col-span-2 flex justify-end"><button onClick={() => handleRemoveRule(rule.id)} className="p-2 text-gray-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button></div>
+                            </div>
+                          ))}
+                        </div>
+                        <button onClick={handleAddRule} className="text-xs text-blue-600 font-semibold mt-2 flex items-center"><Plus className="w-3 h-3 mr-1" />Adicionar Faixa</button>
+                      </div>
+                    )}
+
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm text-left">
                             <thead className="text-xs text-gray-500 dark:text-gray-400 uppercase bg-gray-50 dark:bg-slate-700 border-b border-gray-200 dark:border-slate-600">
                                 <tr>
-                                    <th className="px-6 py-3">{isManualMode ? 'Total Bruto' : 'Parcela'}</th>
-                                    <th className="px-6 py-3 bg-blue-50/50 dark:bg-blue-900/10 text-blue-800 dark:text-blue-300"><div className="flex flex-col"><span>Consultor</span><span className="text-[10px] opacity-70">{isManualMode ? 'Valor Total' : 'Coeficiente'}</span></div></th>
-                                    <th className="px-6 py-3"><div className="flex flex-col"><span>Gestor</span><span className="text-[10px] opacity-70">{isManualMode ? 'Valor Total' : 'Coeficiente'}</span></div></th>
-                                    {hasAngel && (<th className="px-6 py-3 bg-yellow-50/50 dark:bg-yellow-900/10 text-yellow-800 dark:text-yellow-300"><div className="flex flex-col"><span>Anjo</span><span className="text-[10px] opacity-70">{isManualMode ? 'Valor Total' : 'Coeficiente'}</span></div></th>)}
+                                    <th className="px-6 py-3">Parcela</th>
+                                    <th className="px-6 py-3 bg-blue-50/50 dark:bg-blue-900/10 text-blue-800 dark:text-blue-300"><div className="flex flex-col"><span>Consultor</span><span className="text-[10px] opacity-70">Coeficiente</span></div></th>
+                                    <th className="px-6 py-3"><div className="flex flex-col"><span>Gestor</span><span className="text-[10px] opacity-70">Coeficiente</span></div></th>
+                                    {hasAngel && (<th className="px-6 py-3 bg-yellow-50/50 dark:bg-yellow-900/10 text-yellow-800 dark:text-yellow-300"><div className="flex flex-col"><span>Anjo</span><span className="text-[10px] opacity-70">Coeficiente</span></div></th>)}
                                     <th className="px-6 py-3 text-right font-bold text-gray-900 dark:text-white">Total Pago</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100 dark:divide-slate-700 text-gray-700 dark:text-gray-300">
-                                {isManualMode ? (
-                                    <tr className="bg-blue-50/20 dark:bg-blue-900/10">
-                                        <td className="px-6 py-4 font-medium">Valores Totais</td>
-                                        <td className="px-6 py-4"><input type="text" placeholder="0,00" value={manualConsultantTotal} onChange={formatAndSetCurrency(setManualConsultantTotal)} className="w-full p-2 rounded border border-blue-200 bg-white dark:bg-slate-700 dark:border-slate-600" /></td>
-                                        <td className="px-6 py-4"><input type="text" placeholder="0,00" value={manualManagerTotal} onChange={formatAndSetCurrency(setManualManagerTotal)} className="w-full p-2 rounded border border-gray-200 bg-white dark:bg-slate-700 dark:border-slate-600" /></td>
-                                        {hasAngel && <td className="px-6 py-4"><input type="text" placeholder="0,00" value={manualAngelTotal} onChange={formatAndSetCurrency(setManualAngelTotal)} className="w-full p-2 rounded border border-yellow-200 bg-white dark:bg-slate-700 dark:border-slate-600" /></td>}
-                                        <td className="px-6 py-4 text-right font-bold text-gray-900 dark:text-white">{formatCurrency(manualTotals.grandTotal)}</td>
+                                {simulation.breakdown.map((row, idx) => (
+                                    <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-slate-700/30">
+                                        <td className="px-6 py-4 font-medium">{row.label}<div className="text-xs text-gray-400 font-normal mt-0.5">{row.count}x parcelas</div></td>
+                                        <td className="px-6 py-4 bg-blue-50/30 dark:bg-blue-900/5 text-blue-900 dark:text-blue-100 font-medium"><div>{formatCurrency(row.cons.val)}</div><div className="text-xs text-blue-500 mt-1">{formatPercent(row.cons.rate)}</div></td>
+                                        <td className="px-6 py-4">{row.man.val > 0 ? ( <><div>{formatCurrency(row.man.val)}</div><div className="text-xs text-gray-500 mt-1">{formatPercent(row.man.rate)}</div></> ) : <span className="text-gray-400">-</span>}</td>
+                                        {hasAngel && (<td className="px-6 py-4 bg-yellow-50/30 dark:bg-yellow-900/5 text-yellow-900 dark:text-yellow-100">{row.angel.val > 0 ? ( <><div>{formatCurrency(row.angel.val)}</div><div className="text-xs text-yellow-600 dark:text-yellow-400 mt-1">{formatPercent(row.angel.rate)}</div></> ) : <span className="text-gray-400">-</span>}</td>)}
+                                        <td className="px-6 py-4 text-right font-bold text-gray-900 dark:text-white">{formatCurrency(row.cons.val + row.man.val + row.angel.val)}<div className="text-xs text-gray-400 font-normal mt-0.5">por parcela</div></td>
                                     </tr>
-                                ) : (
-                                    simulation.breakdown.map((row, idx) => (
-                                        <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-slate-700/30">
-                                            <td className="px-6 py-4 font-medium">{row.label}<div className="text-xs text-gray-400 font-normal mt-0.5">{row.count}x parcelas</div></td>
-                                            <td className="px-6 py-4 bg-blue-50/30 dark:bg-blue-900/5 text-blue-900 dark:text-blue-100 font-medium"><div>{formatCurrency(row.cons.val)}</div><div className="text-xs text-blue-500 mt-1">{formatPercent(row.cons.rate)}</div></td>
-                                            <td className="px-6 py-4">{row.man.val > 0 ? ( <><div>{formatCurrency(row.man.val)}</div><div className="text-xs text-gray-500 mt-1">{formatPercent(row.man.rate)}</div></> ) : <span className="text-gray-400">-</span>}</td>
-                                            {hasAngel && (<td className="px-6 py-4 bg-yellow-50/30 dark:bg-yellow-900/5 text-yellow-900 dark:text-yellow-100">{row.angel.val > 0 ? ( <><div>{formatCurrency(row.angel.val)}</div><div className="text-xs text-yellow-600 dark:text-yellow-400 mt-1">{formatPercent(row.angel.rate)}</div></> ) : <span className="text-gray-400">-</span>}</td>)}
-                                            <td className="px-6 py-4 text-right font-bold text-gray-900 dark:text-white">{formatCurrency(row.cons.val + row.man.val + row.angel.val)}<div className="text-xs text-gray-400 font-normal mt-0.5">por parcela</div></td>
-                                        </tr>
-                                    ))
-                                )}
+                                ))}
                             </tbody>
                             <tfoot className="bg-gray-100 dark:bg-slate-800 border-t-2 border-gray-200 dark:border-slate-600 font-bold">
                                 <tr>
-                                    <td className="px-6 py-4 text-gray-900 dark:text-white">TOTAIS {isManualMode ? '' : '(15 Parc.)'}</td>
-                                    <td className="px-6 py-4 text-blue-700 dark:text-blue-300">{formatCurrency(displayTotals.consultant)}</td>
-                                    <td className="px-6 py-4 text-gray-900 dark:text-white">{formatCurrency(displayTotals.manager)}</td>
-                                    {hasAngel && <td className="px-6 py-4 text-yellow-700 dark:text-yellow-300">{formatCurrency(displayTotals.angel)}</td>}
-                                    <td className="px-6 py-4 text-right text-lg text-green-600 dark:text-green-400">{formatCurrency(displayTotals.grandTotal)}</td>
+                                    <td className="px-6 py-4 text-gray-900 dark:text-white">TOTAIS</td>
+                                    <td className="px-6 py-4 text-blue-700 dark:text-blue-300">{formatCurrency(simulation.totals.consultant)}</td>
+                                    <td className="px-6 py-4 text-gray-900 dark:text-white">{formatCurrency(simulation.totals.manager)}</td>
+                                    {hasAngel && <td className="px-6 py-4 text-yellow-700 dark:text-yellow-300">{formatCurrency(simulation.totals.angel)}</td>}
+                                    <td className="px-6 py-4 text-right text-lg text-green-600 dark:text-green-400">{formatCurrency(simulation.totals.grandTotal)}</td>
                                 </tr>
                             </tfoot>
                         </table>
@@ -430,7 +385,7 @@ export const Commissions = () => {
                                         <tr key={c.id} className="hover:bg-gray-50 dark:hover:bg-slate-700/30 transition">
                                             <td className="px-6 py-4 whitespace-nowrap"><div className="flex items-center text-gray-900 dark:text-white"><Calendar className="w-4 h-4 mr-2 text-gray-400" />{new Date(c.date).toLocaleDateString()}</div><div className="flex items-center text-gray-400 dark:text-gray-500 text-xs mt-1 ml-6"><MapPin className="w-3 h-3 mr-1" />{c.pv}</div></td>
                                             <td className="px-6 py-4">
-                                                <div className="font-bold text-gray-900 dark:text-white flex items-center">{c.clientName} {c.isManual && <Wand2 className="w-3 h-3 ml-2 text-blue-400" title="Comissão Manual" />}</div>
+                                                <div className="font-bold text-gray-900 dark:text-white flex items-center">{c.clientName} {c.customRules && <Wand2 className="w-3 h-3 ml-2 text-blue-400" title="Regras de Comissão Personalizadas" />}</div>
                                                 <div className="text-xs text-gray-500 mb-1">{formatCurrency(c.value)}</div>
                                                 <div className="flex flex-col text-xs space-y-1"><span className="flex items-center text-gray-600 dark:text-gray-300">{c.type === 'Veículo' ? <Car className="w-3 h-3 mr-1" /> : <Home className="w-3 h-3 mr-1" />}{c.group} / {c.quota}</span>{!isAngelMode && <span className="text-gray-400">Imp: {c.taxRate}%</span>}</div>
                                             </td>

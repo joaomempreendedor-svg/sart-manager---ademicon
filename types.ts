@@ -92,6 +92,15 @@ export interface GoalStage {
 
 export type CommissionStatus = 'Pago' | 'Atraso' | 'Cancelado' | 'Concluído' | 'Prox Mês';
 
+export interface CommissionRule {
+  id: string;
+  startInstallment: number;
+  endInstallment: number;
+  consultantRate: number;
+  managerRate: number;
+  angelRate: number;
+}
+
 export interface Commission {
   id: string;
   date: string; // YYYY-MM-DD
@@ -105,10 +114,8 @@ export interface Commission {
   
   pv: string; // e.g. 'SOARES E MORAES'
   value: number; // Valor Vendido / Crédito Base
-  coefficient: number; // Coeficiente
   
   // Financials
-  discount: number; // Desconto % (Geral)
   taxRate: number; // Imposto % (Descontado da comissão final)
   netValue: number; // Total Líquido R$
   installments: number; // Número de Parcelas Total
@@ -121,7 +128,7 @@ export interface Commission {
   angelValue: number; // Valor para o anjo
   receivedValue: number; // Soma ou valor total da nota
   
-  isManual?: boolean; // Se verdadeiro, ignora cálculo automático e permite edição manual
+  customRules?: CommissionRule[]; // Se presente, ignora cálculo padrão
 }
 
 export interface SupportMaterial {
