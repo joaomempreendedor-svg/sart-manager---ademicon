@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useApp } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 import { TrendingUp, Lock, Mail, User, Loader2, ArrowRight } from 'lucide-react';
 
 export const Register = () => {
-  const { register, user } = useApp();
+  const { register, user } = useAuth();
   const navigate = useNavigate();
   
   const [name, setName] = useState('');

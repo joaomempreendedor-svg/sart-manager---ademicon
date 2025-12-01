@@ -1,6 +1,7 @@
 import React from 'react';
 import { HashRouter, Routes, Route, Outlet, Navigate } from 'react-router-dom';
-import { AppProvider, useApp } from './context/AppContext';
+import { AppProvider } from './context/AppContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { Sidebar } from './components/Sidebar';
 import { Dashboard } from './pages/Dashboard';
 import { NewCandidate } from './pages/NewCandidate';
@@ -19,14 +20,14 @@ import { Loader2 } from 'lucide-react';
 
 // Protected Route Wrapper
 const RequireAuth = () => {
-  const { user, initialLoadComplete } = useApp();
+  const { user, isLoading } = useAuth();
 
-  if (!initialLoadComplete) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-slate-900">
         <div className="flex flex-col items-center space-y-2">
           <Loader2 className="w-8 h-8 text-brand-500 animate-spin" />
-          <p className="text-gray-500 dark:text-gray-400">Carregando dados...</p>
+          <p className="text-gray-500 dark:text-gray-400">Verificando sessão...</p>
         </div>
       </div>
     );
@@ -77,11 +78,13 @@ const AppRoutes = () => {
 
 const App = () => {
   return (
-    <AppProvider>
-      <HashRouter>
-        <AppRoutes />
-      </HashRouter>
-    </AppProvider>
+    <AuthProvider>
+      <AppProvider>
+        <HashRouter>
+          <AppRoutes />
+        </HashRouter>
+      </AppProvider>
+    </AuthProvider>
   );
 };
 

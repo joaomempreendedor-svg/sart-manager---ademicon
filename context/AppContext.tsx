@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { supabase } from '../src/integrations/supabase/client';
-import { Session } from '@supabase/supabase-js';
+import { useAuth } from './AuthContext';
 import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, User, InstallmentStatus, CommissionStatus } from '../types';
 import { CHECKLIST_STAGES as DEFAULT_STAGES } from '../data/checklistData';
 import { CONSULTANT_GOALS as DEFAULT_GOALS } from '../data/consultantGoals';
@@ -34,8 +34,8 @@ const getOverallStatus = (details: Record<string, InstallmentStatus>): Commissio
 };
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+  const auth = useAuth();
+  const user = auth.user;
 
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
@@ -78,7 +78,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const resetLocalState = () => {
-    setUser(null);
     setCandidates([]);
     setTeamMembers([]);
     setCommissions([]);
@@ -93,132 +92,78 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   useEffect(() => {
-    const initializeSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        const { data: profile } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
-        const currentUser = { 
-          id: session.user.id, 
-          name: `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim() || session.user.email || 'Usuário', 
-          email: session.user.email || '' 
-        };
-        setUser(currentUser);
-        await fetchData(session.user.id);
-      }
-      setInitialLoadComplete(true);
-    };
+    const fetchData = async (userId: string) => {
+      try {
+        const [
+          { data: configResult },
+          { data: candidatesData },
+          { data: teamMembersData },
+          { data: commissionsData },
+          { data: materialsData }
+        ] = await Promise.all([
+          supabase.from('app_config').select('data').eq('user_id', userId).single(),
+          supabase.from('candidates').select('data').eq('user_id', userId),
+          supabase.from('team_members').select('data').eq('user_id', userId),
+          supabase.from('commissions').select('data').eq('user_id', userId),
+          supabase.from('support_materials').select('data').eq('user_id', userId)
+        ]);
 
-    initializeSession();
-
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session) {
-        const { data: profile } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
-        const currentUser = { 
-          id: session.user.id, 
-          name: `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim() || session.user.email || 'Usuário', 
-          email: session.user.email || '' 
-        };
-        setUser(currentUser);
-        if (_event === 'SIGNED_IN') {
-          await fetchData(session.user.id);
+        if (configResult) {
+          const { data } = configResult;
+          setChecklistStructure(data.checklistStructure || DEFAULT_STAGES);
+          setConsultantGoalsStructure(data.consultantGoalsStructure || DEFAULT_GOALS);
+          setInterviewStructure(data.interviewStructure || INITIAL_INTERVIEW_STRUCTURE);
+          setTemplates(data.templates || {});
+          setOrigins(data.origins || []);
+          setInterviewers(data.interviewers || []);
+          setPvs(data.pvs || []);
+        } else {
+          await supabase.from('app_config').insert({ user_id: userId, data: DEFAULT_APP_CONFIG_DATA });
+          setChecklistStructure(DEFAULT_APP_CONFIG_DATA.checklistStructure);
+          setConsultantGoalsStructure(DEFAULT_APP_CONFIG_DATA.consultantGoalsStructure);
+          setInterviewStructure(DEFAULT_APP_CONFIG_DATA.interviewStructure);
+          setTemplates(DEFAULT_APP_CONFIG_DATA.templates);
+          setOrigins(DEFAULT_APP_CONFIG_DATA.origins);
+          setInterviewers(DEFAULT_APP_CONFIG_DATA.interviewers);
+          setPvs(DEFAULT_APP_CONFIG_DATA.pvs);
         }
-      } else {
-        resetLocalState();
-      }
-    });
 
-    return () => {
-      authListener.subscription.unsubscribe();
-    };
-  }, []);
+        setCandidates(candidatesData?.map(item => item.data as Candidate) || []);
+        
+        const rawTeamMembers = teamMembersData?.map(item => item.data) || [];
+        const normalizedTeamMembers = rawTeamMembers.map(member => {
+          const m = member as any;
+          if (m.isActive === undefined) { m.isActive = true; }
+          if (m.role && !m.roles) { m.roles = [m.role]; delete m.role; }
+          if (!Array.isArray(m.roles)) { m.roles = []; }
+          return m as TeamMember;
+        });
+        setTeamMembers(normalizedTeamMembers);
 
-  const fetchData = async (userId: string) => {
-    try {
-      const [
-        { data: configResult },
-        { data: candidatesData },
-        { data: teamMembersData },
-        { data: commissionsData },
-        { data: materialsData }
-      ] = await Promise.all([
-        supabase.from('app_config').select('data').eq('user_id', userId).single(),
-        supabase.from('candidates').select('data').eq('user_id', userId),
-        supabase.from('team_members').select('data').eq('user_id', userId),
-        supabase.from('commissions').select('data').eq('user_id', userId),
-        supabase.from('support_materials').select('data').eq('user_id', userId)
-      ]);
-
-      if (configResult) {
-        const { data } = configResult;
-        setChecklistStructure(data.checklistStructure || DEFAULT_STAGES);
-        setConsultantGoalsStructure(data.consultantGoalsStructure || DEFAULT_GOALS);
-        setInterviewStructure(data.interviewStructure || INITIAL_INTERVIEW_STRUCTURE);
-        setTemplates(data.templates || {});
-        setOrigins(data.origins || []);
-        setInterviewers(data.interviewers || []);
-        setPvs(data.pvs || []);
-      } else {
-        await supabase.from('app_config').insert({ user_id: userId, data: DEFAULT_APP_CONFIG_DATA });
-        setChecklistStructure(DEFAULT_APP_CONFIG_DATA.checklistStructure);
-        setConsultantGoalsStructure(DEFAULT_APP_CONFIG_DATA.consultantGoalsStructure);
-        setInterviewStructure(DEFAULT_APP_CONFIG_DATA.interviewStructure);
-        setTemplates(DEFAULT_APP_CONFIG_DATA.templates);
-        setOrigins(DEFAULT_APP_CONFIG_DATA.origins);
-        setInterviewers(DEFAULT_APP_CONFIG_DATA.interviewers);
-        setPvs(DEFAULT_APP_CONFIG_DATA.pvs);
-      }
-
-      setCandidates(candidatesData?.map(item => item.data as Candidate) || []);
-      
-      const rawTeamMembers = teamMembersData?.map(item => item.data) || [];
-      const normalizedTeamMembers = rawTeamMembers.map(member => {
-        const m = member as any;
-        if (m.isActive === undefined) {
-          m.isActive = true;
-        }
-        if (m.role && !m.roles) {
-          m.roles = [m.role];
-          delete m.role;
-        }
-        if (!Array.isArray(m.roles)) {
-            m.roles = [];
-        }
-        return m as TeamMember;
-      });
-      setTeamMembers(normalizedTeamMembers);
-
-      const rawCommissions = commissionsData?.map(item => item.data as any) || [];
-      const normalizedCommissions = rawCommissions.map(c => {
-        if (!c.installmentDetails) {
-          const details: Record<string, InstallmentStatus> = {};
-          const current = c.currentInstallment || 1;
-          for (let i = 1; i <= 15; i++) {
-            if (i < current) {
-              details[i] = 'Pago';
-            } else if (i === current) {
-              if (c.status === 'Atraso') details[i] = 'Atraso';
-              else if (c.status === 'Pago') details[i] = 'Pago';
-              else details[i] = 'Pendente';
-            } else {
-              details[i] = 'Pendente';
-            }
+        const rawCommissions = commissionsData?.map(item => item.data as any) || [];
+        const normalizedCommissions = rawCommissions.map(c => {
+          if (!c.installmentDetails) {
+            const details: Record<string, InstallmentStatus> = {};
+            for (let i = 1; i <= 15; i++) { details[i] = 'Pendente'; }
+            c.installmentDetails = details;
           }
-          c.installmentDetails = details;
-        }
-        delete c.currentInstallment;
-        return c as Commission;
-      });
-      setCommissions(normalizedCommissions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-      setSupportMaterials(materialsData?.map(item => item.data as SupportMaterial) || []);
+          return c as Commission;
+        });
+        setCommissions(normalizedCommissions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+        setSupportMaterials(materialsData?.map(item => item.data as SupportMaterial) || []);
 
-    } catch (error) {
-      console.error("Failed to fetch initial data:", error);
+      } catch (error) {
+        console.error("Failed to fetch initial data:", error);
+      }
+    };
+
+    if (user) {
+      fetchData(user.id);
+    } else {
+      resetLocalState();
     }
-  };
+  }, [user]);
 
-  const login = async (email: string, pass: string) => { const { error } = await supabase.auth.signInWithPassword({ email, password: pass }); if (error) throw error; };
-  const register = async (name: string, email: string, pass: string) => { const nameParts = name.trim().split(' '); const { error } = await supabase.auth.signUp({ email, password: pass, options: { data: { first_name: nameParts[0], last_name: nameParts.slice(1).join(' ') } } }); if (error) throw error; };
-  const logout = async () => { resetLocalState(); const { error } = await supabase.auth.signOut(); if (error) { console.error("Error logging out:", error); alert("Ocorreu um erro ao sair."); } };
   const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
 
   const addCandidate = async (candidate: Candidate) => { if (!user) return; const { error } = await supabase.from('candidates').insert({ user_id: user.id, data: candidate }); if (error) { alert("Erro ao adicionar candidato."); throw error; } setCandidates(prev => [candidate, ...prev]); };
@@ -271,7 +216,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   return (
     <AppContext.Provider value={{ 
-      user, initialLoadComplete, login, register, logout, candidates, templates, checklistStructure, consultantGoalsStructure, interviewStructure, commissions, supportMaterials, theme, origins, interviewers, pvs, teamMembers,
+      ...auth,
+      initialLoadComplete: auth.isLoading,
+      candidates, templates, checklistStructure, consultantGoalsStructure, interviewStructure, commissions, supportMaterials, theme, origins, interviewers, pvs, teamMembers,
       addTeamMember, updateTeamMember, deleteTeamMember, toggleTheme, addOrigin, deleteOrigin, addInterviewer, deleteInterviewer, addPV, addCandidate, updateCandidate, deleteCandidate, toggleChecklistItem, toggleConsultantGoal, setChecklistDueDate, getCandidate, saveTemplate,
       addChecklistItem, updateChecklistItem, deleteChecklistItem, moveChecklistItem, resetChecklistToDefault, addGoalItem, updateGoalItem, deleteGoalItem, moveGoalItem, resetGoalsToDefault,
       updateInterviewSection, addInterviewQuestion, updateInterviewQuestion, deleteInterviewQuestion, moveInterviewQuestion, resetInterviewToDefault, addCommission, updateCommission, deleteCommission, updateInstallmentStatus, addSupportMaterial, deleteSupportMaterial
