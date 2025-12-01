@@ -7,6 +7,7 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   isLoading: boolean;
+  isConnectionReady: boolean;
   login: (email: string, pass: string) => Promise<void>;
   register: (name: string, email: string, pass: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -18,8 +19,25 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isConnectionReady, setIsConnectionReady] = useState(false);
 
   useEffect(() => {
+    // 1. Protocolo de Despertar: Pinga o banco de dados para acordá-lo.
+    const initializeConnection = async () => {
+      try {
+        // Uma query leve para "acordar" o banco de dados.
+        await supabase.from('profiles').select('id').limit(1);
+      } catch (error) {
+        console.error("Database wake-up call failed, but proceeding. Auth will handle connectivity.", error);
+      } finally {
+        // Confirma que a tentativa de conexão foi feita.
+        setIsConnectionReady(true);
+      }
+    };
+
+    initializeConnection();
+
+    // 2. Gerenciamento de Autenticação
     const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session);
       if (session) {
@@ -73,6 +91,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     user,
     session,
     isLoading,
+    isConnectionReady,
     login,
     register,
     logout,
