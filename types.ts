@@ -197,11 +197,11 @@ export interface AppContextType {
   
   // Candidate Actions
   addCandidate: (candidate: Candidate) => Promise<void>;
-  updateCandidate: (id: string, updates: Partial<Candidate>) => void;
+  updateCandidate: (id: string, updates: Partial<Candidate>) => Promise<void>;
   deleteCandidate: (id: string) => Promise<void>;
-  toggleChecklistItem: (candidateId: string, itemId: string) => void;
-  toggleConsultantGoal: (candidateId: string, goalId: string) => void;
-  setChecklistDueDate: (candidateId: string, itemId: string, date: string) => void;
+  toggleChecklistItem: (candidateId: string, itemId: string) => Promise<void>;
+  toggleConsultantGoal: (candidateId: string, goalId: string) => Promise<void>;
+  setChecklistDueDate: (candidateId: string, itemId: string, date: string) => Promise<void>;
   getCandidate: (id: string) => Candidate | undefined;
   
   // Template Actions

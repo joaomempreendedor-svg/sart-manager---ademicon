@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Commission, CommissionStatus, CommissionRule, InstallmentStatus } from '../types';
-import { Trash2, Search, DollarSign, Calendar, Calculator, Save, Table as TableIcon, Car, Home, ChevronDown, MapPin, Percent, Filter, XCircle, Crown, Plus, Wand2 } from 'lucide-react';
+import { Trash2, Search, DollarSign, Calendar, Calculator, Save, Table as TableIcon, Car, Home, ChevronDown, MapPin, Percent, Filter, XCircle, Crown, Plus, Wand2, Loader2 } from 'lucide-react';
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -52,6 +52,7 @@ export const Commissions = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isAngelMode, setIsAngelMode] = useState(false);
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Filtros
   const [filterStartDate, setFilterStartDate] = useState('');
@@ -182,9 +183,11 @@ export const Commissions = () => {
 
   const handleSaveCommission = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSaving(true);
     const credit = parseCurrency(creditValue);
     if (!credit || !clientName || !selectedConsultant || !group || !quota || !selectedPV) {
       alert("Preencha todos os dados obrigatórios (Crédito, Cliente, Data, PV, Grupo, Cota, Prévia/Autorizado)");
+      setIsSaving(false);
       return;
     }
     const taxValue = parseFloat(taxRateInput.replace(',', '.')) || 0;
@@ -208,6 +211,8 @@ export const Commissions = () => {
     } catch (error) {
         console.error("Failed to save commission:", error);
         alert("Ocorreu um erro ao salvar a venda. Por favor, tente novamente.");
+    } finally {
+        setIsSaving(false);
     }
   };
 
@@ -336,7 +341,9 @@ export const Commissions = () => {
                             <select className="w-full border-gray-300 dark:border-slate-600 rounded-md text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white p-2 mb-2" value={selectedManager} onChange={e => setSelectedManager(e.target.value)}><option value="">Selecione o Gestor</option>{managers.map(m => <option key={m.id} value={m.name}>{m.name}</option>)}</select>
                             {hasAngel && (<select required className="w-full border-gray-300 dark:border-slate-600 rounded-md text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white p-2" value={selectedAngel} onChange={e => setSelectedAngel(e.target.value)}><option value="">Selecione o Anjo</option>{angels.map(a => <option key={a.id} value={a.name}>{a.name}</option>)}</select>)}
                         </div>
-                        <button type="submit" className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-2 rounded-lg flex items-center justify-center space-x-2 transition shadow-lg shadow-green-600/20"><Save className="w-4 h-4" /><span>Registrar Venda</span></button>
+                        <button type="submit" disabled={isSaving} className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-2 rounded-lg flex items-center justify-center space-x-2 transition shadow-lg shadow-green-600/20 disabled:opacity-50 disabled:cursor-not-allowed">
+                            {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Save className="w-4 h-4" /><span>Registrar Venda</span></>}
+                        </button>
                     </form>
                  </div>
             </div>
@@ -487,7 +494,7 @@ export const Commissions = () => {
                                                         {Object.entries(c.installmentDetails).map(([num, status]) => (
                                                             <div key={num} className="text-center p-2 rounded-md border bg-white dark:bg-slate-700">
                                                                 <div className="text-xs text-gray-400">Parcela {num}</div>
-                                                                <select value={status} onChange={e => updateInstallmentStatus(c.id, parseInt(num), e.target.value as InstallmentStatus)} className={`mt-1 w-full text-xs font-bold py-1 px-2 rounded border cursor-pointer focus:outline-none ${getInstallmentStatusColor(status)}`}>
+                                                                <select value={status} onChange={async (e) => await updateInstallmentStatus(c.id, parseInt(num), e.target.value as InstallmentStatus)} className={`mt-1 w-full text-xs font-bold py-1 px-2 rounded border cursor-pointer focus:outline-none ${getInstallmentStatusColor(status)}`}>
                                                                     <option value="Pendente">Pendente</option>
                                                                     <option value="Pago">Pago</option>
                                                                     <option value="Atraso">Atraso</option>

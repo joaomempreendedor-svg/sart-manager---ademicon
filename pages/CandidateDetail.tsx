@@ -185,7 +185,7 @@ export const CandidateDetail = () => {
                                 id={item.id}
                                 type="checkbox"
                                 checked={!!state.completed}
-                                onChange={() => toggleChecklistItem(candidate.id, item.id)}
+                                onChange={async () => await toggleChecklistItem(candidate.id, item.id)}
                                 className="focus:ring-brand-500 h-5 w-5 text-brand-600 border-gray-300 dark:border-slate-500 rounded cursor-pointer dark:bg-slate-600"
                               />
                             </div>
@@ -219,7 +219,7 @@ export const CandidateDetail = () => {
                                   <input 
                                     type="date"
                                     value={state.dueDate || ''}
-                                    onChange={(e) => setChecklistDueDate(candidate.id, item.id, e.target.value)}
+                                    onChange={async (e) => await setChecklistDueDate(candidate.id, item.id, e.target.value)}
                                     className={`pl-8 pr-2 py-1 text-xs border rounded-md focus:outline-none focus:ring-1 focus:ring-brand-500 ${state.dueDate ? 'border-brand-200 bg-brand-50 text-brand-700 dark:bg-brand-900/20 dark:border-brand-800 dark:text-brand-400' : 'border-gray-200 bg-white text-gray-400 dark:bg-slate-700 dark:border-slate-600 dark:text-gray-500'}`}
                                   />
                               </div>
@@ -271,7 +271,7 @@ export const CandidateDetail = () => {
                                 {stage.items.map(item => {
                                     const checked = progress[item.id] || false;
                                     return (
-                                        <li key={item.id} className="flex items-start space-x-3 p-2 rounded hover:bg-black/5 dark:hover:bg-white/5 transition cursor-pointer" onClick={() => toggleConsultantGoal(candidate.id, item.id)}>
+                                        <li key={item.id} className="flex items-start space-x-3 p-2 rounded hover:bg-black/5 dark:hover:bg-white/5 transition cursor-pointer" onClick={async () => await toggleConsultantGoal(candidate.id, item.id)}>
                                             <div className={`mt-0.5 w-5 h-5 rounded border flex items-center justify-center transition-colors ${checked ? 'bg-green-500 border-green-500 text-white' : 'bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-500'}`}>
                                                 {checked && <CheckSquare className="w-3.5 h-3.5" />}
                                             </div>
