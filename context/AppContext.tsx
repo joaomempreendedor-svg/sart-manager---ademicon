@@ -161,7 +161,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
 
       setCandidates(candidatesData?.map(item => item.data as Candidate) || []);
-      setTeamMembers(teamMembersData?.map(item => item.data as TeamMember) || []);
+      
+      const rawTeamMembers = teamMembersData?.map(item => item.data) || [];
+      const normalizedTeamMembers = rawTeamMembers.map(member => {
+        const m = member as any;
+        if (m.role && !m.roles) {
+          return { id: m.id, name: m.name, roles: [m.role] };
+        }
+        if (!Array.isArray(m.roles)) {
+            m.roles = [];
+        }
+        return m as TeamMember;
+      });
+      setTeamMembers(normalizedTeamMembers);
+
       setCommissions(commissionsData?.map(item => item.data as Commission) || []);
       setSupportMaterials(materialsData?.map(item => item.data as SupportMaterial) || []);
 
