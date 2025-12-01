@@ -43,6 +43,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const auth = useAuth();
   const user = auth.user;
 
+  const [isDataLoading, setIsDataLoading] = useState(true);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [commissions, setCommissions] = useState<Commission[]>([]);
@@ -99,6 +100,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   useEffect(() => {
     const fetchData = async (userId: string) => {
+      setIsDataLoading(true);
       try {
         const [
           { data: configResult, error: configError },
@@ -168,6 +170,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       } catch (error) {
         console.error("Failed to fetch initial data:", error);
+      } finally {
+        setIsDataLoading(false);
       }
     };
 
@@ -175,6 +179,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       fetchData(user.id);
     } else {
       resetLocalState();
+      setIsDataLoading(false);
     }
   }, [user]);
 
@@ -232,6 +237,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     <AppContext.Provider value={{ 
       ...auth,
       isLoading: auth.isLoading,
+      isDataLoading,
       candidates, templates, checklistStructure, consultantGoalsStructure, interviewStructure, commissions, supportMaterials, theme, origins, interviewers, pvs, teamMembers,
       addTeamMember, updateTeamMember, deleteTeamMember, toggleTheme, addOrigin, deleteOrigin, addInterviewer, deleteInterviewer, addPV, addCandidate, updateCandidate, deleteCandidate, toggleChecklistItem, toggleConsultantGoal, setChecklistDueDate, getCandidate, saveTemplate,
       addChecklistItem, updateChecklistItem, deleteChecklistItem, moveChecklistItem, resetChecklistToDefault, addGoalItem, updateGoalItem, deleteGoalItem, moveGoalItem, resetGoalsToDefault,
