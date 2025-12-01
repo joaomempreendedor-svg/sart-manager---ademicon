@@ -19,8 +19,8 @@ export const CandidateDetail = () => {
     return <div className="p-8 text-gray-500 dark:text-gray-400">Candidato não encontrado.</div>;
   }
 
-  const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    updateCandidate(candidate.id, { status: e.target.value as CandidateStatus });
+  const handleStatusChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    await updateCandidate(candidate.id, { status: e.target.value as CandidateStatus });
   };
 
   const handleDelete = async () => {
