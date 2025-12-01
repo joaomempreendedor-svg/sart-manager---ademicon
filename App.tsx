@@ -16,19 +16,19 @@ import { TeamConfig } from './pages/TeamConfig';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
 import { Profile } from './pages/Profile';
-import { Loader2, WifiOff } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 // Protected Route Wrapper
 const RequireAuth = () => {
-  const { user, isLoading, isConnectionReady } = useAuth();
+  const { user, isLoading } = useAuth();
 
-  if (isLoading || !isConnectionReady) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-slate-900">
         <div className="flex flex-col items-center space-y-2">
           <Loader2 className="w-8 h-8 text-brand-500 animate-spin" />
           <p className="text-gray-500 dark:text-gray-400">
-            {!isConnectionReady ? 'Conectando ao servidor...' : 'Verificando sessão...'}
+            Verificando sessão...
           </p>
         </div>
       </div>
