@@ -101,18 +101,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const fetchData = async (userId: string) => {
       try {
         const [
-          { data: configResult },
-          { data: candidatesData },
-          { data: teamMembersData },
-          { data: commissionsData },
-          { data: materialsData }
+          { data: configResult, error: configError },
+          { data: candidatesData, error: candidatesError },
+          { data: teamMembersData, error: teamMembersError },
+          { data: commissionsData, error: commissionsError },
+          { data: materialsData, error: materialsError }
         ] = await Promise.all([
-          supabase.from('app_config').select('data').eq('user_id', userId).single(),
+          supabase.from('app_config').select('data').eq('user_id', userId).maybeSingle(),
           supabase.from('candidates').select('data').eq('user_id', userId),
           supabase.from('team_members').select('data').eq('user_id', userId),
           supabase.from('commissions').select('data').eq('user_id', userId),
           supabase.from('support_materials').select('data').eq('user_id', userId)
         ]);
+
+        if (configError) throw configError;
+        if (candidatesError) throw candidatesError;
+        if (teamMembersError) throw teamMembersError;
+        if (commissionsError) throw commissionsError;
+        if (materialsError) throw materialsError;
 
         if (configResult) {
           const { data } = configResult;
@@ -174,21 +180,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
 
-  const addCandidate = async (candidate: Candidate) => { if (!user) return; try { const { error } = await supabase.from('candidates').insert({ user_id: user.id, data: candidate }); if (error) throw error; setCandidates(prev => [candidate, ...prev]); } catch (error) { handleApiError(error, 'candidato'); } };
-  const updateCandidate = async (id: string, updates: Partial<Candidate>) => { if (!user) return; const c = candidates.find(c => c.id === id); if (!c) return; const updated = { ...c, ...updates }; try { const { error } = await supabase.from('candidates').update({ data: updated }).match({ 'data->>id': id, user_id: user.id }); if (error) throw error; setCandidates(prev => prev.map(p => p.id === id ? updated : p)); } catch (error) { handleApiError(error, 'candidato'); } };
-  const deleteCandidate = async (id: string) => { if (!user) return; try { const { error } = await supabase.from('candidates').delete().match({ 'data->>id': id, user_id: user.id }); if (error) throw error; setCandidates(prev => prev.filter(c => c.id !== id)); } catch (error) { handleApiError(error, 'candidato'); } };
+  const addCandidate = async (candidate: Candidate) => { if (!user) return; setCandidates(prev => [candidate, ...prev]); try { const { error } = await supabase.from('candidates').insert({ user_id: user.id, data: candidate }); if (error) throw error; } catch (error) { handleApiError(error, 'candidato'); } };
+  const updateCandidate = async (id: string, updates: Partial<Candidate>) => { if (!user) return; const c = candidates.find(c => c.id === id); if (!c) return; const updated = { ...c, ...updates }; setCandidates(prev => prev.map(p => p.id === id ? updated : p)); try { const { error } = await supabase.from('candidates').update({ data: updated }).match({ 'data->>id': id, user_id: user.id }); if (error) throw error; } catch (error) { handleApiError(error, 'candidato'); } };
+  const deleteCandidate = async (id: string) => { if (!user) return; setCandidates(prev => prev.filter(c => c.id !== id)); try { const { error } = await supabase.from('candidates').delete().match({ 'data->>id': id, user_id: user.id }); if (error) throw error; } catch (error) { handleApiError(error, 'candidato'); } };
   
-  const addTeamMember = async (member: TeamMember) => { if (!user) return; try { const { error } = await supabase.from('team_members').insert({ user_id: user.id, data: member }); if (error) throw error; setTeamMembers(prev => [...prev, member]); } catch (error) { handleApiError(error, 'membro da equipe'); } };
-  const updateTeamMember = async (id: string, updates: Partial<TeamMember>) => { if (!user) return; const m = teamMembers.find(m => m.id === id); if (!m) return; const updated = { ...m, ...updates }; try { const { error } = await supabase.from('team_members').update({ data: updated }).match({ 'data->>id': id, user_id: user.id }); if (error) throw error; setTeamMembers(prev => prev.map(p => p.id === id ? updated : p)); } catch (error) { handleApiError(error, 'membro da equipe'); } };
-  const deleteTeamMember = async (id: string) => { if (!user) return; try { const { error } = await supabase.from('team_members').delete().match({ 'data->>id': id, user_id: user.id }); if (error) throw error; setTeamMembers(prev => prev.filter(m => m.id !== id)); } catch (error) { handleApiError(error, 'membro da equipe'); } };
+  const addTeamMember = async (member: TeamMember) => { if (!user) return; setTeamMembers(prev => [...prev, member]); try { const { error } = await supabase.from('team_members').insert({ user_id: user.id, data: member }); if (error) throw error; } catch (error) { handleApiError(error, 'membro da equipe'); } };
+  const updateTeamMember = async (id: string, updates: Partial<TeamMember>) => { if (!user) return; const m = teamMembers.find(m => m.id === id); if (!m) return; const updated = { ...m, ...updates }; setTeamMembers(prev => prev.map(p => p.id === id ? updated : p)); try { const { error } = await supabase.from('team_members').update({ data: updated }).match({ 'data->>id': id, user_id: user.id }); if (error) throw error; } catch (error) { handleApiError(error, 'membro da equipe'); } };
+  const deleteTeamMember = async (id: string) => { if (!user) return; setTeamMembers(prev => prev.filter(m => m.id !== id)); try { const { error } = await supabase.from('team_members').delete().match({ 'data->>id': id, user_id: user.id }); if (error) throw error; } catch (error) { handleApiError(error, 'membro da equipe'); } };
 
-  const addCommission = async (commission: Commission) => { if (!user) return; try { const { error } = await supabase.from('commissions').insert({ user_id: user.id, data: commission }); if (error) throw error; setCommissions(prev => [commission, ...prev].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())); } catch (error) { handleApiError(error, 'comissão'); } };
-  const updateCommission = async (id: string, updates: Partial<Commission>) => { if (!user) return; const c = commissions.find(c => c.id === id); if (!c) return; const updated = { ...c, ...updates }; try { const { error } = await supabase.from('commissions').update({ data: updated }).match({ 'data->>id': id, user_id: user.id }); if (error) throw error; setCommissions(prev => prev.map(p => p.id === id ? updated : p).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())); } catch (error) { handleApiError(error, 'comissão'); } };
-  const deleteCommission = async (id: string) => { if (!user) return; try { const { error } = await supabase.from('commissions').delete().match({ 'data->>id': id, user_id: user.id }); if (error) throw error; setCommissions(prev => prev.filter(c => c.id !== id)); } catch (error) { handleApiError(error, 'comissão'); } };
+  const addCommission = async (commission: Commission) => { if (!user) return; setCommissions(prev => [commission, ...prev].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())); try { const { error } = await supabase.from('commissions').insert({ user_id: user.id, data: commission }); if (error) throw error; } catch (error) { handleApiError(error, 'comissão'); } };
+  const updateCommission = async (id: string, updates: Partial<Commission>) => { if (!user) return; const c = commissions.find(c => c.id === id); if (!c) return; const updated = { ...c, ...updates }; setCommissions(prev => prev.map(p => p.id === id ? updated : p).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())); try { const { error } = await supabase.from('commissions').update({ data: updated }).match({ 'data->>id': id, user_id: user.id }); if (error) throw error; } catch (error) { handleApiError(error, 'comissão'); } };
+  const deleteCommission = async (id: string) => { if (!user) return; setCommissions(prev => prev.filter(c => c.id !== id)); try { const { error } = await supabase.from('commissions').delete().match({ 'data->>id': id, user_id: user.id }); if (error) throw error; } catch (error) { handleApiError(error, 'comissão'); } };
   const updateInstallmentStatus = async (commissionId: string, installmentNumber: number, status: InstallmentStatus) => { const commission = commissions.find(c => c.id === commissionId); if (commission) { const newDetails = { ...commission.installmentDetails, [installmentNumber]: status }; const newOverallStatus = getOverallStatus(newDetails); await updateCommission(commissionId, { installmentDetails: newDetails, status: newOverallStatus }); } };
 
-  const addSupportMaterial = async (material: SupportMaterial) => { if (!user) return; try { const { error } = await supabase.from('support_materials').insert({ user_id: user.id, data: material }); if (error) throw error; setSupportMaterials(prev => [material, ...prev]); } catch (error) { handleApiError(error, 'material'); } };
-  const deleteSupportMaterial = async (id: string) => { if (!user) return; try { const { error } = await supabase.from('support_materials').delete().match({ 'data->>id': id, user_id: user.id }); if (error) throw error; setSupportMaterials(prev => prev.filter(m => m.id !== id)); } catch (error) { handleApiError(error, 'material'); } };
+  const addSupportMaterial = async (material: SupportMaterial) => { if (!user) return; setSupportMaterials(prev => [material, ...prev]); try { const { error } = await supabase.from('support_materials').insert({ user_id: user.id, data: material }); if (error) throw error; } catch (error) { handleApiError(error, 'material'); } };
+  const deleteSupportMaterial = async (id: string) => { if (!user) return; setSupportMaterials(prev => prev.filter(m => m.id !== id)); try { const { error } = await supabase.from('support_materials').delete().match({ 'data->>id': id, user_id: user.id }); if (error) throw error; } catch (error) { handleApiError(error, 'material'); } };
 
   const getCandidate = (id: string) => candidates.find(c => c.id === id);
   const toggleChecklistItem = async (candidateId: string, itemId: string) => { const c = getCandidate(candidateId); if(c) { const state = c.checklistProgress[itemId] || { completed: false }; await updateCandidate(candidateId, { checklistProgress: { ...c.checklistProgress, [itemId]: { ...state, completed: !state.completed } } }); } };

@@ -20,17 +20,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // This is called once on initial load.
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      // The onAuthStateChange listener will handle the user state and loading.
-      // We set loading to false here only if there's no session, otherwise the listener will do it.
-      if (!session) {
-        setIsLoading(false);
-      }
-    });
-
     const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      setIsLoading(true);
       try {
         setSession(session);
         if (session) {
@@ -38,20 +29,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             .from('profiles')
             .select('first_name, last_name')
             .eq('id', session.user.id)
-            .single();
+            .maybeSingle();
 
-          // Log error but don't block auth if profile is missing
-          if (error && error.code !== 'PGRST116') { // PGRST116: "exact one row not found"
+          if (error) {
             console.error('Error fetching profile:', error.message);
           }
 
-          const name = profile 
+          const name = profile && (profile.first_name || profile.last_name)
             ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() 
             : session.user.email?.split('@')[0] || 'Usuário';
 
           const currentUser = { 
             id: session.user.id, 
-            name: name || session.user.email || 'Usuário',
+            name: name,
             email: session.user.email || '' 
           };
           setUser(currentUser);
@@ -62,7 +52,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         console.error("Error in onAuthStateChange handler:", e);
         setUser(null);
       } finally {
-        // Ensure loading is set to false after the logic runs.
         setIsLoading(false);
       }
     });
