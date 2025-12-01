@@ -20,9 +20,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setIsLoading(true);
+    const fetchSession = async () => {
       try {
+        const { data: { session } } = await supabase.auth.getSession();
         setSession(session);
         if (session) {
           const { data: profile, error } = await supabase
@@ -31,29 +31,45 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             .eq('id', session.user.id)
             .maybeSingle();
 
-          if (error) {
-            console.error('Error fetching profile:', error.message);
-          }
+          if (error) console.error('Error fetching profile on initial load:', error.message);
 
           const name = profile && (profile.first_name || profile.last_name)
-            ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() 
+            ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim()
             : session.user.email?.split('@')[0] || 'Usuário';
-
-          const currentUser = { 
-            id: session.user.id, 
-            name: name,
-            email: session.user.email || '' 
-          };
-          setUser(currentUser);
+          
+          setUser({ id: session.user.id, name, email: session.user.email || '' });
         } else {
           setUser(null);
         }
       } catch (e) {
-        console.error("Error in onAuthStateChange handler:", e);
+        console.error("Error fetching initial session:", e);
         setUser(null);
       } finally {
         setIsLoading(false);
       }
+    };
+
+    fetchSession();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      setSession(session);
+       if (session) {
+          const { data: profile, error } = await supabase
+            .from('profiles')
+            .select('first_name, last_name')
+            .eq('id', session.user.id)
+            .maybeSingle();
+
+          if (error) console.error('Error fetching profile on auth change:', error.message);
+
+          const name = profile && (profile.first_name || profile.last_name)
+            ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim()
+            : session.user.email?.split('@')[0] || 'Usuário';
+          
+          setUser({ id: session.user.id, name, email: session.user.email || '' });
+        } else {
+          setUser(null);
+        }
     });
 
     return () => {
