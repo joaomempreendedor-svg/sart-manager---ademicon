@@ -181,7 +181,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       resetLocalState();
       setIsDataLoading(false);
     }
-  }, [user]);
+  }, [user?.id]);
 
   const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
 
