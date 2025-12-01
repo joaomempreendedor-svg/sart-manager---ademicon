@@ -133,7 +133,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           setPvs(data.pvs || []);
         } else {
           await supabase.from('app_config').insert({ user_id: userId, data: DEFAULT_APP_CONFIG_DATA });
-          // Set defaults locally
           const { checklistStructure, consultantGoalsStructure, interviewStructure, templates, origins, interviewers, pvs } = DEFAULT_APP_CONFIG_DATA;
           setChecklistStructure(checklistStructure);
           setConsultantGoalsStructure(consultantGoalsStructure);
@@ -145,8 +144,28 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
 
         setCandidates(candidatesData?.map(item => item.data as Candidate) || []);
-        setTeamMembers(teamMembersData?.map(item => item.data as TeamMember) || []);
-        setCommissions(commissionsData?.map(item => item.data as Commission).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) || []);
+        
+        const rawTeamMembers = teamMembersData?.map(item => item.data) || [];
+        const normalizedTeamMembers = rawTeamMembers.map(member => {
+          const m = member as any;
+          if (m.isActive === undefined) { m.isActive = true; }
+          if (m.role && !m.roles) { m.roles = [m.role]; delete m.role; }
+          if (!Array.isArray(m.roles)) { m.roles = []; }
+          return m as TeamMember;
+        });
+        setTeamMembers(normalizedTeamMembers);
+
+        const rawCommissions = commissionsData?.map(item => item.data as any) || [];
+        const normalizedCommissions = rawCommissions.map(c => {
+          if (!c.installmentDetails) {
+            const details: Record<string, InstallmentStatus> = {};
+            for (let i = 1; i <= 15; i++) { details[i] = 'Pendente'; }
+            c.installmentDetails = details;
+          }
+          return c as Commission;
+        });
+        setCommissions(normalizedCommissions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+        
         setSupportMaterials(materialsData?.map(item => item.data as SupportMaterial) || []);
 
       } catch (error) {
