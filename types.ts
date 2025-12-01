@@ -141,12 +141,13 @@ export interface SupportMaterial {
 }
 
 // TEAM MANAGEMENT
-export type TeamRole = 'Consultor' | 'Autorizado' | 'Gestor' | 'Anjo';
+export type TeamRole = 'Prévia' | 'Autorizado' | 'Gestor' | 'Anjo';
 
 export interface TeamMember {
   id: string;
   name: string;
   roles: TeamRole[];
+  isActive: boolean;
 }
 
 // AUTHENTICATION

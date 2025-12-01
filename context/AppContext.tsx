@@ -165,8 +165,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const rawTeamMembers = teamMembersData?.map(item => item.data) || [];
       const normalizedTeamMembers = rawTeamMembers.map(member => {
         const m = member as any;
+        if (m.isActive === undefined) {
+          m.isActive = true;
+        }
         if (m.role && !m.roles) {
-          return { id: m.id, name: m.name, roles: [m.role] };
+          m.roles = [m.role];
+          delete m.role;
         }
         if (!Array.isArray(m.roles)) {
             m.roles = [];

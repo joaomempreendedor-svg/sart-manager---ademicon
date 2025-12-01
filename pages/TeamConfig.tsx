@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Plus, Trash2, User, Shield, Crown, Star, Edit2, Save, X } from 'lucide-react';
+import { Plus, Trash2, User, Shield, Crown, Star, Edit2, Save, X, Archive, UserCheck } from 'lucide-react';
 import { TeamMember, TeamRole } from '../types';
 
-const ALL_ROLES: TeamRole[] = ['Consultor', 'Autorizado', 'Gestor', 'Anjo'];
+const ALL_ROLES: TeamRole[] = ['Prévia', 'Autorizado', 'Gestor', 'Anjo'];
 
 export const TeamConfig = () => {
   const { teamMembers, addTeamMember, updateTeamMember, deleteTeamMember } = useApp();
   
   const [newName, setNewName] = useState('');
-  const [newRoles, setNewRoles] = useState<TeamRole[]>(['Consultor']);
+  const [newRoles, setNewRoles] = useState<TeamRole[]>(['Prévia']);
 
   const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
   const [editingName, setEditingName] = useState('');
@@ -28,10 +28,11 @@ export const TeamConfig = () => {
       addTeamMember({
         id: crypto.randomUUID(),
         name: newName.trim(),
-        roles: newRoles
+        roles: newRoles,
+        isActive: true,
       });
       setNewName('');
-      setNewRoles(['Consultor']);
+      setNewRoles(['Prévia']);
     } else {
       alert("O nome e pelo menos um cargo são obrigatórios.");
     }
@@ -135,7 +136,7 @@ export const TeamConfig = () => {
                           <li className="p-8 text-center text-gray-500 dark:text-gray-400">Nenhum membro cadastrado.</li>
                       ) : (
                           teamMembers.map(member => (
-                              <li key={member.id} className="p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-slate-700/30 transition group">
+                              <li key={member.id} className={`p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-slate-700/30 transition group ${!member.isActive ? 'opacity-60' : ''}`}>
                                   {editingMember?.id === member.id ? (
                                     <div className="flex-1 flex flex-col gap-3">
                                       <input type="text" value={editingName} onChange={e => setEditingName(e.target.value)} className="w-full border-gray-300 dark:border-slate-600 rounded-md p-2 text-sm" />
@@ -166,10 +167,14 @@ export const TeamConfig = () => {
                                                         {role}
                                                     </span>
                                                 ))}
+                                                {!member.isActive && <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300">Inativo</span>}
                                               </div>
                                           </div>
                                       </div>
                                       <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button onClick={() => updateTeamMember(member.id, { isActive: !member.isActive })} className={`p-2 rounded-full ${member.isActive ? 'text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20' : 'text-gray-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20'}`} title={member.isActive ? 'Inativar' : 'Ativar'}>
+                                            {member.isActive ? <Archive className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
+                                        </button>
                                         <button onClick={() => startEditing(member)} className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full">
                                           <Edit2 className="w-4 h-4" />
                                         </button>
