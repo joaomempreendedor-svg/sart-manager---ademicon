@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { supabase } from '../src/integrations/supabase/client';
 import { Session } from '@supabase/supabase-js';
-import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, User, InstallmentStatus } from '../types';
+import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, User, InstallmentStatus, CommissionStatus } from '../types';
 import { CHECKLIST_STAGES as DEFAULT_STAGES } from '../data/checklistData';
 import { CONSULTANT_GOALS as DEFAULT_GOALS } from '../data/consultantGoals';
 import { useDebouncedCallback } from '../src/hooks/useDebouncedCallback';
@@ -23,6 +23,14 @@ const DEFAULT_APP_CONFIG_DATA = {
   origins: ['Indicação', 'Prospecção', 'Tráfego Linkedin'],
   interviewers: ['João Müller'],
   pvs: ['SOARES E MORAES', 'SART INVESTIMENTOS', 'KR CONSÓRCIOS', 'SOLOM INVESTIMENTOS'],
+};
+
+const getOverallStatus = (details: Record<string, InstallmentStatus>): CommissionStatus => {
+    const statuses = Object.values(details);
+    if (statuses.every(s => s === 'Pago' || s === 'Cancelado')) return 'Concluído';
+    if (statuses.some(s => s === 'Atraso')) return 'Atraso';
+    if (statuses.every(s => s === 'Cancelado')) return 'Cancelado';
+    return 'Em Andamento';
 };
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -221,10 +229,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const updateTeamMember = async (id: string, updates: Partial<TeamMember>) => { if (!user) return; const original = [...teamMembers]; const updated = teamMembers.map(m => m.id === id ? { ...m, ...updates } : m); setTeamMembers(updated); const toUpdate = updated.find(m => m.id === id); if (toUpdate) { try { const { error } = await supabase.from('team_members').update({ data: toUpdate }).match({ 'data->>id': id, user_id: user.id }); if (error) throw error; } catch (error) { setTeamMembers(original); alert("Erro ao atualizar membro."); } } };
   const deleteTeamMember = async (id: string) => { if (!user) return; const original = [...teamMembers]; setTeamMembers(prev => prev.filter(m => m.id !== id)); try { const { error } = await supabase.from('team_members').delete().match({ 'data->>id': id, user_id: user.id }); if (error) throw error; } catch (error) { setTeamMembers(original); alert("Erro ao excluir membro."); } };
 
-  const addCommission = async (commission: Commission) => { if (!user) return; const original = [...commissions]; setCommissions(prev => [commission, ...prev]); try { const { error } = await supabase.from('commissions').insert({ user_id: user.id, data: commission }); if (error) throw error; } catch (error) { setCommissions(original); alert("Erro ao adicionar comissão."); } };
-  const updateCommission = async (id: string, updates: Partial<Commission>) => { if (!user) return; const original = [...commissions]; const updated = commissions.map(c => c.id === id ? { ...c, ...updates } : c); setCommissions(updated); const toUpdate = updated.find(c => c.id === id); if (toUpdate) { try { const { error } = await supabase.from('commissions').update({ data: toUpdate }).match({ 'data->>id': id, user_id: user.id }); if (error) throw error; } catch (error) { setCommissions(original); alert("Erro ao atualizar comissão."); } } };
+  const addCommission = async (commission: Commission) => { if (!user) return; const original = [...commissions]; setCommissions(prev => [commission, ...prev]); try { const { error } = await supabase.from('commissions').insert({ user_id: user.id, data: commission }); if (error) { console.error("Supabase insert error:", error); throw error; } } catch (error) { setCommissions(original); alert("Erro ao adicionar comissão."); } };
+  const updateCommission = async (id: string, updates: Partial<Commission>) => { if (!user) return; const original = [...commissions]; const updated = commissions.map(c => c.id === id ? { ...c, ...updates } : c); setCommissions(updated); const toUpdate = updated.find(c => c.id === id); if (toUpdate) { try { const { error } = await supabase.from('commissions').update({ data: toUpdate }).match({ 'data->>id': id, user_id: user.id }); if (error) { console.error("Supabase update error:", error); throw error; } } catch (error) { setCommissions(original); alert("Erro ao atualizar comissão."); } } };
   const deleteCommission = async (id: string) => { if (!user) return; const original = [...commissions]; setCommissions(prev => prev.filter(c => c.id !== id)); try { const { error } = await supabase.from('commissions').delete().match({ 'data->>id': id, user_id: user.id }); if (error) throw error; } catch (error) { setCommissions(original); alert("Erro ao excluir comissão."); } };
-  const updateInstallmentStatus = (commissionId: string, installmentNumber: number, status: InstallmentStatus) => { const commission = commissions.find(c => c.id === commissionId); if (commission) { const newDetails = { ...commission.installmentDetails, [installmentNumber]: status }; updateCommission(commissionId, { installmentDetails: newDetails }); } };
+  const updateInstallmentStatus = async (commissionId: string, installmentNumber: number, status: InstallmentStatus) => { const commission = commissions.find(c => c.id === commissionId); if (commission) { const newDetails = { ...commission.installmentDetails, [installmentNumber]: status }; const newOverallStatus = getOverallStatus(newDetails); await updateCommission(commissionId, { installmentDetails: newDetails, status: newOverallStatus }); } };
 
   const addSupportMaterial = async (material: SupportMaterial) => { if (!user) return; const original = [...supportMaterials]; setSupportMaterials(prev => [material, ...prev]); try { const { error } = await supabase.from('support_materials').insert({ user_id: user.id, data: material }); if (error) throw error; } catch (error) { setSupportMaterials(original); alert("Erro ao adicionar material."); } };
   const deleteSupportMaterial = async (id: string) => { if (!user) return; const original = [...supportMaterials]; setSupportMaterials(prev => prev.filter(m => m.id !== id)); try { const { error } = await supabase.from('support_materials').delete().match({ 'data->>id': id, user_id: user.id }); if (error) throw error; } catch (error) { setSupportMaterials(original); alert("Erro ao excluir material."); } };

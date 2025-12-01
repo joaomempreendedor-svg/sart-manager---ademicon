@@ -182,9 +182,9 @@ export interface AppContextType {
   
   // Team Management
   teamMembers: TeamMember[];
-  addTeamMember: (member: TeamMember) => void;
-  updateTeamMember: (id: string, updates: Partial<TeamMember>) => void;
-  deleteTeamMember: (id: string) => void;
+  addTeamMember: (member: TeamMember) => Promise<void>;
+  updateTeamMember: (id: string, updates: Partial<TeamMember>) => Promise<void>;
+  deleteTeamMember: (id: string) => Promise<void>;
 
   addOrigin: (origin: string) => void;
   deleteOrigin: (origin: string) => void;
@@ -230,8 +230,12 @@ export interface AppContextType {
   resetInterviewToDefault: () => void;
 
   // Commission Actions
-  addCommission: (commission: Commission) => void;
-  updateCommission: (id: string, updates: Partial<Commission>) => void;
-  deleteCommission: (id: string) => void;
-  updateInstallmentStatus: (commissionId: string, installmentNumber: number, status: InstallmentStatus) => void;
+  addCommission: (commission: Commission) => Promise<void>;
+  updateCommission: (id: string, updates: Partial<Commission>) => Promise<void>;
+  deleteCommission: (id: string) => Promise<void>;
+  updateInstallmentStatus: (commissionId: string, installmentNumber: number, status: InstallmentStatus) => Promise<void>;
+
+  // Support Material Actions
+  addSupportMaterial: (material: SupportMaterial) => Promise<void>;
+  deleteSupportMaterial: (id: string) => Promise<void>;
 }
