@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useMemo, useCallback } from 'react';
 import { supabase } from '../src/integrations/supabase/client';
 import { Session } from '@supabase/supabase-js';
 import { User } from '../types';
@@ -77,12 +77,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
   }, []);
 
-  const login = async (email: string, pass: string) => {
+  const login = useCallback(async (email: string, pass: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password: pass });
     if (error) throw error;
-  };
+  }, []);
 
-  const register = async (name: string, email: string, pass: string) => {
+  const register = useCallback(async (name: string, email: string, pass: string) => {
     const nameParts = name.trim().split(' ');
     const { error } = await supabase.auth.signUp({
       email,
@@ -95,24 +95,24 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
     });
     if (error) throw error;
-  };
+  }, []);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     const { error } = await supabase.auth.signOut();
     if (error) {
       console.error("Error logging out:", error);
       alert("Ocorreu um erro ao sair.");
     }
-  };
+  }, []);
 
-  const value = {
+  const value = useMemo(() => ({
     user,
     session,
     isLoading,
     login,
     register,
     logout,
-  };
+  }), [user, session, isLoading, login, register, logout]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
