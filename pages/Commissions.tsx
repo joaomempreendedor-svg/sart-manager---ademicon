@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { Commission, CommissionStatus, CommissionRule } from '../types';
-import { Trash2, Search, DollarSign, Calendar, Calculator, Save, Table as TableIcon, Car, Home, ChevronLeft, ChevronRight, MapPin, Percent, Filter, XCircle, Crown, Plus, Wand2 } from 'lucide-react';
+import { Commission, CommissionStatus, CommissionRule, InstallmentStatus } from '../types';
+import { Trash2, Search, DollarSign, Calendar, Calculator, Save, Table as TableIcon, Car, Home, ChevronDown, MapPin, Percent, Filter, XCircle, Crown, Plus, Wand2 } from 'lucide-react';
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -18,12 +18,19 @@ const DEFAULT_RULES = {
   angel: { p1_10: 0.0128, p11_13: 0.0237 }
 };
 
-const getStatusColor = (status: CommissionStatus) => {
+const getOverallStatus = (details: Record<string, InstallmentStatus>): CommissionStatus => {
+    const statuses = Object.values(details);
+    if (statuses.every(s => s === 'Pago' || s === 'Cancelado')) return 'Concluído';
+    if (statuses.some(s => s === 'Atraso')) return 'Atraso';
+    if (statuses.every(s => s === 'Cancelado')) return 'Cancelado';
+    return 'Em Andamento';
+};
+
+const getInstallmentStatusColor = (status: InstallmentStatus) => {
     switch(status) {
         case 'Pago': return 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800';
         case 'Atraso': return 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800';
-        case 'Prox Mês': return 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800';
-        case 'Concluído': return 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600';
+        case 'Pendente': return 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800';
         case 'Cancelado': return 'bg-gray-200 text-gray-500 border-gray-300 dark:bg-gray-800 dark:text-gray-500';
         default: return 'bg-gray-100 text-gray-800';
     }
@@ -39,11 +46,12 @@ type CustomRuleText = {
 }
 
 export const Commissions = () => {
-  const { commissions, addCommission, updateCommission, deleteCommission, teamMembers, pvs, addPV } = useApp();
+  const { commissions, addCommission, updateCommission, deleteCommission, teamMembers, pvs, addPV, updateInstallmentStatus } = useApp();
   
   const [activeTab, setActiveTab] = useState<'calculator' | 'history'>('calculator');
   const [searchTerm, setSearchTerm] = useState('');
   const [isAngelMode, setIsAngelMode] = useState(false);
+  const [expandedRow, setExpandedRow] = useState<string | null>(null);
 
   // Filtros
   const [filterStartDate, setFilterStartDate] = useState('');
@@ -145,11 +153,7 @@ export const Commissions = () => {
     return { credit, breakdown, totals };
   }, [creditValue, hasAngel, isCustomRulesMode, customRules]);
 
-  const getInstallmentValues = (commission: Commission) => {
-    if (commission.status === 'Concluído' || commission.status === 'Cancelado' || (commission.currentInstallment ?? 1) === 0) {
-        return { cons: 0, man: 0, angel: 0 };
-    }
-    const installment = commission.currentInstallment ?? 1;
+  const getInstallmentValues = (commission: Commission, installment: number) => {
     const taxMultiplier = 1 - ((commission.taxRate || 0) / 100);
     const credit = commission.value;
     const hasAngel = !!commission.angelName;
@@ -180,14 +184,17 @@ export const Commissions = () => {
     e.preventDefault();
     const credit = parseCurrency(creditValue);
     if (!credit || !clientName || !selectedConsultant || !group || !quota || !selectedPV) {
-      alert("Preencha todos os dados obrigatórios (Crédito, Cliente, Data, PV, Grupo, Cota, Consultor)");
+      alert("Preencha todos os dados obrigatórios (Crédito, Cliente, Data, PV, Grupo, Cota, Prévia/Autorizado)");
       return;
     }
     const taxValue = parseFloat(taxRateInput.replace(',', '.')) || 0;
+    const initialInstallments: Record<string, InstallmentStatus> = {};
+    for (let i = 1; i <= 15; i++) { initialInstallments[i] = 'Pendente'; }
+
     const newCommission: Commission = {
       id: crypto.randomUUID(), date: saleDate, clientName, type: saleType, group, quota, consultant: selectedConsultant, managerName: selectedManager || 'N/A', angelName: hasAngel ? selectedAngel : undefined, pv: selectedPV, value: credit, taxRate: taxValue, 
       netValue: simulation.totals.grandTotal * (1 - (taxValue/100)),
-      installments: 15, currentInstallment: 1, status: 'Prox Mês',
+      installments: 15, status: 'Em Andamento', installmentDetails: initialInstallments,
       consultantValue: simulation.totals.consultant, managerValue: simulation.totals.manager, angelValue: simulation.totals.angel,
       receivedValue: 0,
       customRules: isCustomRulesMode ? customRules : undefined
@@ -225,8 +232,6 @@ export const Commissions = () => {
     setCustomRulesText(rules => rules.filter(r => r.id !== id));
   };
 
-  const handleUpdateStatus = (id: string, newStatus: CommissionStatus) => { updateCommission(id, { status: newStatus }); };
-  const handleUpdateInstallment = (id: string, current: number, delta: number) => { const newVal = Math.max(0, Math.min(15, current + delta)); updateCommission(id, { currentInstallment: newVal }); };
   const clearFilters = () => { setFilterStartDate(''); setFilterEndDate(''); setFilterConsultant(''); setFilterAngel(''); setFilterPV(''); setFilterStatus(''); setSearchTerm(''); };
   const handleAddPV = () => { const newPVName = prompt("Digite o nome do novo Ponto de Venda (PV):"); if (newPVName && newPVName.trim()) { addPV(newPVName.trim()); setSelectedPV(newPVName.trim()); } };
 
@@ -237,19 +242,28 @@ export const Commissions = () => {
 
   const filteredHistory = useMemo(() => commissions.filter(c => {
     if (isAngelMode && !c.angelName) return false;
+    const overallStatus = getOverallStatus(c.installmentDetails);
     const matchesSearch = searchTerm === '' || c.clientName.toLowerCase().includes(searchTerm.toLowerCase()) || c.consultant.toLowerCase().includes(searchTerm.toLowerCase()) || c.pv.toLowerCase().includes(searchTerm.toLowerCase()) || c.group.includes(searchTerm);
     const matchesStart = filterStartDate ? c.date >= filterStartDate : true;
     const matchesEnd = filterEndDate ? c.date <= filterEndDate : true;
     const matchesConsultant = filterConsultant ? c.consultant === filterConsultant : true;
     const matchesAngel = filterAngel ? c.angelName === filterAngel : true;
     const matchesPV = filterPV ? c.pv === filterPV : true;
-    const matchesStatus = filterStatus ? c.status === filterStatus : true;
+    const matchesStatus = filterStatus ? overallStatus === filterStatus : true;
     return matchesSearch && matchesStart && matchesEnd && matchesConsultant && matchesAngel && matchesPV && matchesStatus;
   }), [commissions, searchTerm, filterStartDate, filterEndDate, filterConsultant, filterAngel, filterPV, filterStatus, isAngelMode]);
 
   const filteredTotals = useMemo(() => filteredHistory.reduce((acc, c) => {
-    const monthVals = getInstallmentValues(c);
-    return { totalSold: acc.totalSold + c.value, totalCons: acc.totalCons + monthVals.cons, totalMan: acc.totalMan + monthVals.man, totalAngel: acc.totalAngel + monthVals.angel };
+    let monthCons = 0, monthMan = 0, monthAngel = 0;
+    Object.entries(c.installmentDetails).forEach(([num, status]) => {
+        if (status === 'Pago' || status === 'Atraso') { // Consider both for monthly total
+            const values = getInstallmentValues(c, parseInt(num));
+            monthCons += values.cons;
+            monthMan += values.man;
+            monthAngel += values.angel;
+        }
+    });
+    return { totalSold: acc.totalSold + c.value, totalCons: acc.totalCons + monthCons, totalMan: acc.totalMan + monthMan, totalAngel: acc.totalAngel + monthAngel };
   }, { totalSold: 0, totalCons: 0, totalMan: 0, totalAngel: 0 }), [filteredHistory]);
 
   const formatAndSetCurrency = (setter: React.Dispatch<React.SetStateAction<string>>) => (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -405,7 +419,7 @@ export const Commissions = () => {
                     <div className="col-span-1"><label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Prévia/Autorizado</label><select className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2.5 text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500" value={filterConsultant} onChange={e => setFilterConsultant(e.target.value)}><option value="">Todos</option>{teamMembers.map(m => (<option key={m.id} value={m.name}>{m.name}</option>))}</select></div>
                     <div className="col-span-1"><label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Anjo (Participação)</label><select className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2.5 text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500" value={filterAngel} onChange={e => setFilterAngel(e.target.value)}><option value="">Todos</option>{angels.map(m => (<option key={m.id} value={m.name}>{m.name}</option>))}</select></div>
                     <div className="col-span-1"><label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Ponto de Venda (PV)</label><select className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2.5 text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500" value={filterPV} onChange={e => setFilterPV(e.target.value)}><option value="">Todos</option>{pvs.map(pv => (<option key={pv} value={pv}>{pv}</option>))}</select></div>
-                    <div className="col-span-1"><label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Status Mês</label><select className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2.5 text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}><option value="">Todos</option><option value="Prox Mês">Prox Mês</option><option value="Pago">Pago</option><option value="Atraso">Atraso</option><option value="Concluído">Concluído</option><option value="Cancelado">Cancelado</option></select></div>
+                    <div className="col-span-1"><label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Status Geral</label><select className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2.5 text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}><option value="">Todos</option><option value="Em Andamento">Em Andamento</option><option value="Atraso">Atraso</option><option value="Concluído">Concluído</option><option value="Cancelado">Cancelado</option></select></div>
                 </div>
             </div>
 
@@ -421,34 +435,65 @@ export const Commissions = () => {
                     <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300">
                         <thead className={`text-gray-900 dark:text-white font-medium uppercase tracking-wider text-xs ${isAngelMode ? 'bg-yellow-50/50 dark:bg-yellow-900/10' : 'bg-gray-50 dark:bg-slate-700/50'}`}>
                             <tr>
-                                <th className="px-6 py-3">Data Venda</th><th className="px-6 py-3">Cliente / Detalhes</th><th className="px-6 py-3">Parcela Atual</th>
-                                <th className={`px-6 py-3 w-48 ${isAngelMode ? 'bg-yellow-100/50 text-yellow-900 dark:bg-yellow-900/40 dark:text-yellow-100' : 'bg-blue-50/50 dark:bg-blue-900/10'}`}><div className="flex flex-col"><span>{isAngelMode ? 'Pagamento Anjo' : 'Recebimento Líquido'}</span><span className="text-[10px] normal-case opacity-70">Descontado Imposto</span></div></th>
-                                <th className="px-6 py-3 text-center">Status Mês</th><th className="px-6 py-3"></th>
+                                <th className="px-6 py-3">Cliente / Detalhes</th><th className="px-6 py-3">Progresso</th>
+                                <th className={`px-6 py-3 w-48 ${isAngelMode ? 'bg-yellow-100/50 text-yellow-900 dark:bg-yellow-900/40 dark:text-yellow-100' : 'bg-blue-50/50 dark:bg-blue-900/10'}`}><div className="flex flex-col"><span>{isAngelMode ? 'Pagamento Anjo' : 'Recebimento Líquido'}</span><span className="text-[10px] normal-case opacity-70">Mês Atual (Pago/Atraso)</span></div></th>
+                                <th className="px-6 py-3 text-center">Ações</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
+                        <tbody>
                             {filteredHistory.length === 0 ? (<tr><td colSpan={6} className="px-6 py-12 text-center text-gray-400">{isAngelMode ? 'Nenhuma venda com Anjo encontrada.' : 'Nenhuma venda encontrada com os filtros selecionados.'}</td></tr>) : (
                                 filteredHistory.map(c => {
-                                    const monthlyValues = getInstallmentValues(c);
-                                    const currentInstallment = c.currentInstallment ?? 1;
+                                    const paidCount = Object.values(c.installmentDetails).filter(s => s === 'Pago').length;
+                                    const monthlyValues = Object.entries(c.installmentDetails).reduce((acc, [num, status]) => {
+                                        if (status === 'Pago' || status === 'Atraso') {
+                                            const values = getInstallmentValues(c, parseInt(num));
+                                            acc.cons += values.cons;
+                                            acc.man += values.man;
+                                            acc.angel += values.angel;
+                                        }
+                                        return acc;
+                                    }, { cons: 0, man: 0, angel: 0 });
+
                                     return (
-                                        <tr key={c.id} className="hover:bg-gray-50 dark:hover:bg-slate-700/30 transition">
-                                            <td className="px-6 py-4 whitespace-nowrap"><div className="flex items-center text-gray-900 dark:text-white"><Calendar className="w-4 h-4 mr-2 text-gray-400" />{new Date(c.date).toLocaleDateString()}</div><div className="flex items-center text-gray-400 dark:text-gray-500 text-xs mt-1 ml-6"><MapPin className="w-3 h-3 mr-1" />{c.pv}</div></td>
+                                        <React.Fragment key={c.id}>
+                                        <tr className="border-b border-gray-100 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700/30 transition">
                                             <td className="px-6 py-4">
                                                 <div className="font-bold text-gray-900 dark:text-white flex items-center">{c.clientName} {c.customRules && <Wand2 className="w-3 h-3 ml-2 text-blue-400" title="Regras de Comissão Personalizadas" />}</div>
                                                 <div className="text-xs text-gray-500 mb-1">{formatCurrency(c.value)}</div>
-                                                <div className="flex flex-col text-xs space-y-1"><span className="flex items-center text-gray-600 dark:text-gray-300">{c.type === 'Veículo' ? <Car className="w-3 h-3 mr-1" /> : <Home className="w-3 h-3 mr-1" />}{c.group} / {c.quota}</span>{!isAngelMode && <span className="text-gray-400">Imp: {c.taxRate}%</span>}</div>
+                                                <div className="flex flex-col text-xs space-y-1"><span className="flex items-center text-gray-600 dark:text-gray-300">{c.type === 'Veículo' ? <Car className="w-3 h-3 mr-1" /> : <Home className="w-3 h-3 mr-1" />}{c.group} / {c.quota}</span><span className="text-gray-400">PV: {c.pv}</span></div>
                                             </td>
-                                            <td className="px-6 py-4"><div className="flex items-center justify-start space-x-2"><button onClick={() => handleUpdateInstallment(c.id, currentInstallment, -1)} className="p-1 rounded hover:bg-gray-200 dark:hover:bg-slate-600 text-gray-500 disabled:opacity-30" disabled={currentInstallment <= 0}><ChevronLeft className="w-4 h-4" /></button><span className={`font-mono font-medium w-12 text-center ${currentInstallment === 0 ? 'text-gray-400' : 'text-gray-900 dark:text-white'}`}>{currentInstallment} / 15</span><button onClick={() => handleUpdateInstallment(c.id, currentInstallment, 1)} className="p-1 rounded hover:bg-gray-200 dark:hover:bg-slate-600 text-gray-500 disabled:opacity-30" disabled={currentInstallment >= 15}><ChevronRight className="w-4 h-4" /></button></div>{currentInstallment === 0 && <span className="text-[10px] text-gray-400 block mt-1 ml-1">Aguardando...</span>}</td>
+                                            <td className="px-6 py-4"><div className="font-mono font-medium text-gray-900 dark:text-white">{paidCount} / 15</div><div className="text-xs text-gray-400">Parcelas Pagas</div></td>
                                             <td className={`px-6 py-4 border-l border-r border-gray-100 dark:border-slate-700/50 ${isAngelMode ? 'bg-yellow-50/20 dark:bg-yellow-900/10' : 'bg-blue-50/20 dark:bg-blue-900/5'}`}>
                                                 <div className="space-y-1.5 text-xs">
                                                     {!isAngelMode && (<><div className="flex justify-between items-center"><span className="text-blue-600 dark:text-blue-400 font-medium truncate w-20" title={c.consultant}>{c.consultant.split(' ')[0]}</span><span className={`font-bold ${monthlyValues.cons === 0 ? 'text-gray-400' : 'text-gray-900 dark:text-white'}`}>{formatCurrency(monthlyValues.cons)}</span></div><div className="flex justify-between items-center"><span className="text-gray-500 dark:text-gray-400 truncate w-20" title={c.managerName}>{c.managerName.split(' ')[0]}</span><span className={`font-medium ${monthlyValues.man === 0 ? 'text-gray-400' : 'text-gray-700 dark:text-gray-300'}`}>{formatCurrency(monthlyValues.man)}</span></div></>)}
                                                     {c.angelName && (<div className="flex justify-between items-center"><span className="text-yellow-600 dark:text-yellow-400 truncate w-20 font-bold" title={c.angelName}>{c.angelName.split(' ')[0]}</span><span className={`font-bold text-sm ${monthlyValues.angel === 0 ? 'text-gray-400' : 'text-yellow-700 dark:text-yellow-300'}`}>{formatCurrency(monthlyValues.angel)}</span></div>)}
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4 text-center"><select value={c.status} onChange={(e) => handleUpdateStatus(c.id, e.target.value as CommissionStatus)} className={`text-xs font-bold py-1 px-3 rounded-full border cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-1 ${getStatusColor(c.status)}`}><option value="Prox Mês">Prox Mês</option><option value="Pago">Pago</option><option value="Atraso">Atraso</option><option value="Cancelado">Cancelado</option><option value="Concluído">Concluído</option></select></td>
-                                            <td className="px-6 py-4 text-right"><button onClick={() => { if(confirm('Excluir este registro?')) deleteCommission(c.id) }} className="text-red-400 hover:text-red-600 p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition"><Trash2 className="w-4 h-4" /></button></td>
+                                            <td className="px-6 py-4 text-center">
+                                                <button onClick={() => setExpandedRow(expandedRow === c.id ? null : c.id)} className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-slate-600 text-gray-500 flex items-center text-xs font-medium"><ChevronDown className={`w-4 h-4 mr-1 transition-transform ${expandedRow === c.id ? 'rotate-180' : ''}`} />Detalhes</button>
+                                                <button onClick={() => { if(confirm('Excluir este registro?')) deleteCommission(c.id) }} className="text-red-400 hover:text-red-600 p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition mt-1"><Trash2 className="w-4 h-4" /></button>
+                                            </td>
                                         </tr>
+                                        {expandedRow === c.id && (
+                                            <tr className="bg-gray-50 dark:bg-slate-800">
+                                                <td colSpan={4} className="p-4">
+                                                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+                                                        {Object.entries(c.installmentDetails).map(([num, status]) => (
+                                                            <div key={num} className="text-center p-2 rounded-md border bg-white dark:bg-slate-700">
+                                                                <div className="text-xs text-gray-400">Parcela {num}</div>
+                                                                <select value={status} onChange={e => updateInstallmentStatus(c.id, parseInt(num), e.target.value as InstallmentStatus)} className={`mt-1 w-full text-xs font-bold py-1 px-2 rounded border cursor-pointer focus:outline-none ${getInstallmentStatusColor(status)}`}>
+                                                                    <option value="Pendente">Pendente</option>
+                                                                    <option value="Pago">Pago</option>
+                                                                    <option value="Atraso">Atraso</option>
+                                                                    <option value="Cancelado">Cancelado</option>
+                                                                </select>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        )}
+                                        </React.Fragment>
                                     );
                                 })
                             )}

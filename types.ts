@@ -90,7 +90,8 @@ export interface GoalStage {
   items: GoalItem[];
 }
 
-export type CommissionStatus = 'Pago' | 'Atraso' | 'Cancelado' | 'Concluído' | 'Prox Mês';
+export type CommissionStatus = 'Em Andamento' | 'Atraso' | 'Concluído' | 'Cancelado';
+export type InstallmentStatus = 'Pendente' | 'Pago' | 'Atraso' | 'Cancelado';
 
 export interface CommissionRule {
   id: string;
@@ -119,8 +120,8 @@ export interface Commission {
   taxRate: number; // Imposto % (Descontado da comissão final)
   netValue: number; // Total Líquido R$
   installments: number; // Número de Parcelas Total
-  currentInstallment?: number; // Parcela Atual (1 a 15)
   status: CommissionStatus;
+  installmentDetails: Record<string, InstallmentStatus>; // e.g. { '1': 'Pago', '2': 'Pendente' }
   
   // Split Values (Calculated per installment rules - Tax)
   consultantValue: number; // Valor para o consultor
@@ -232,8 +233,5 @@ export interface AppContextType {
   addCommission: (commission: Commission) => void;
   updateCommission: (id: string, updates: Partial<Commission>) => void;
   deleteCommission: (id: string) => void;
-
-  // Support Material Actions
-  addSupportMaterial: (material: SupportMaterial) => void;
-  deleteSupportMaterial: (id: string) => void;
+  updateInstallmentStatus: (commissionId: string, installmentNumber: number, status: InstallmentStatus) => void;
 }

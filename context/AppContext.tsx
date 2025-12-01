@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { supabase } from '../src/integrations/supabase/client';
 import { Session } from '@supabase/supabase-js';
-import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, User } from '../types';
+import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, User, InstallmentStatus } from '../types';
 import { CHECKLIST_STAGES as DEFAULT_STAGES } from '../data/checklistData';
 import { CONSULTANT_GOALS as DEFAULT_GOALS } from '../data/consultantGoals';
 import { useDebouncedCallback } from '../src/hooks/useDebouncedCallback';
@@ -179,7 +179,28 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       });
       setTeamMembers(normalizedTeamMembers);
 
-      setCommissions(commissionsData?.map(item => item.data as Commission) || []);
+      const rawCommissions = commissionsData?.map(item => item.data as any) || [];
+      const normalizedCommissions = rawCommissions.map(c => {
+        if (!c.installmentDetails) {
+          const details: Record<string, InstallmentStatus> = {};
+          const current = c.currentInstallment || 1;
+          for (let i = 1; i <= 15; i++) {
+            if (i < current) {
+              details[i] = 'Pago';
+            } else if (i === current) {
+              if (c.status === 'Atraso') details[i] = 'Atraso';
+              else if (c.status === 'Pago') details[i] = 'Pago';
+              else details[i] = 'Pendente';
+            } else {
+              details[i] = 'Pendente';
+            }
+          }
+          c.installmentDetails = details;
+        }
+        delete c.currentInstallment;
+        return c as Commission;
+      });
+      setCommissions(normalizedCommissions);
       setSupportMaterials(materialsData?.map(item => item.data as SupportMaterial) || []);
 
     } catch (error) {
@@ -203,6 +224,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const addCommission = async (commission: Commission) => { if (!user) return; const original = [...commissions]; setCommissions(prev => [commission, ...prev]); try { const { error } = await supabase.from('commissions').insert({ user_id: user.id, data: commission }); if (error) throw error; } catch (error) { setCommissions(original); alert("Erro ao adicionar comissão."); } };
   const updateCommission = async (id: string, updates: Partial<Commission>) => { if (!user) return; const original = [...commissions]; const updated = commissions.map(c => c.id === id ? { ...c, ...updates } : c); setCommissions(updated); const toUpdate = updated.find(c => c.id === id); if (toUpdate) { try { const { error } = await supabase.from('commissions').update({ data: toUpdate }).match({ 'data->>id': id, user_id: user.id }); if (error) throw error; } catch (error) { setCommissions(original); alert("Erro ao atualizar comissão."); } } };
   const deleteCommission = async (id: string) => { if (!user) return; const original = [...commissions]; setCommissions(prev => prev.filter(c => c.id !== id)); try { const { error } = await supabase.from('commissions').delete().match({ 'data->>id': id, user_id: user.id }); if (error) throw error; } catch (error) { setCommissions(original); alert("Erro ao excluir comissão."); } };
+  const updateInstallmentStatus = (commissionId: string, installmentNumber: number, status: InstallmentStatus) => { const commission = commissions.find(c => c.id === commissionId); if (commission) { const newDetails = { ...commission.installmentDetails, [installmentNumber]: status }; updateCommission(commissionId, { installmentDetails: newDetails }); } };
 
   const addSupportMaterial = async (material: SupportMaterial) => { if (!user) return; const original = [...supportMaterials]; setSupportMaterials(prev => [material, ...prev]); try { const { error } = await supabase.from('support_materials').insert({ user_id: user.id, data: material }); if (error) throw error; } catch (error) { setSupportMaterials(original); alert("Erro ao adicionar material."); } };
   const deleteSupportMaterial = async (id: string) => { if (!user) return; const original = [...supportMaterials]; setSupportMaterials(prev => prev.filter(m => m.id !== id)); try { const { error } = await supabase.from('support_materials').delete().match({ 'data->>id': id, user_id: user.id }); if (error) throw error; } catch (error) { setSupportMaterials(original); alert("Erro ao excluir material."); } };
@@ -244,7 +266,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       user, initialLoadComplete, login, register, logout, candidates, templates, checklistStructure, consultantGoalsStructure, interviewStructure, commissions, supportMaterials, theme, origins, interviewers, pvs, teamMembers,
       addTeamMember, updateTeamMember, deleteTeamMember, toggleTheme, addOrigin, deleteOrigin, addInterviewer, deleteInterviewer, addPV, addCandidate, updateCandidate, deleteCandidate, toggleChecklistItem, toggleConsultantGoal, setChecklistDueDate, getCandidate, saveTemplate,
       addChecklistItem, updateChecklistItem, deleteChecklistItem, moveChecklistItem, resetChecklistToDefault, addGoalItem, updateGoalItem, deleteGoalItem, moveGoalItem, resetGoalsToDefault,
-      updateInterviewSection, addInterviewQuestion, updateInterviewQuestion, deleteInterviewQuestion, moveInterviewQuestion, resetInterviewToDefault, addCommission, updateCommission, deleteCommission, addSupportMaterial, deleteSupportMaterial
+      updateInterviewSection, addInterviewQuestion, updateInterviewQuestion, deleteInterviewQuestion, moveInterviewQuestion, resetInterviewToDefault, addCommission, updateCommission, deleteCommission, updateInstallmentStatus, addSupportMaterial, deleteSupportMaterial
     }}>
       {children}
     </AppContext.Provider>
