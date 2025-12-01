@@ -29,7 +29,7 @@ export const Dashboard = () => {
   const totalCandidates = candidates.length;
   const authorized = candidates.filter(c => c.status === 'Autorizado').length;
   const inTraining = candidates.filter(c => c.status === 'Acompanhamento 90 Dias').length;
-  const activeTeam = teamMembers.length;
+  const activeTeam = teamMembers.filter(m => m.isActive).length;
 
   // Task Logic
   const today = new Date();
