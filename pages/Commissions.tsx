@@ -180,7 +180,7 @@ export const Commissions = () => {
     };
   };
 
-  const handleSaveCommission = (e: React.FormEvent) => {
+  const handleSaveCommission = async (e: React.FormEvent) => {
     e.preventDefault();
     const credit = parseCurrency(creditValue);
     if (!credit || !clientName || !selectedConsultant || !group || !quota || !selectedPV) {
@@ -199,10 +199,16 @@ export const Commissions = () => {
       receivedValue: 0,
       customRules: isCustomRulesMode ? customRules : undefined
     };
-    addCommission(newCommission);
-    setActiveTab('history');
-    setClientName(''); setCreditValue(''); setGroup(''); setQuota(''); setSelectedPV('');
-    alert("Venda registrada com sucesso!");
+    
+    try {
+        await addCommission(newCommission);
+        setActiveTab('history');
+        setClientName(''); setCreditValue(''); setGroup(''); setQuota(''); setSelectedPV('');
+        alert("Venda registrada com sucesso!");
+    } catch (error) {
+        console.error("Failed to save commission:", error);
+        alert("Ocorreu um erro ao salvar a venda. Por favor, tente novamente.");
+    }
   };
 
   const handleUpdateRuleText = (id: string, field: keyof CustomRuleText, value: string, isDecimal: boolean) => {
@@ -471,7 +477,7 @@ export const Commissions = () => {
                                             </td>
                                             <td className="px-6 py-4 text-center">
                                                 <button onClick={() => setExpandedRow(expandedRow === c.id ? null : c.id)} className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-slate-600 text-gray-500 flex items-center text-xs font-medium"><ChevronDown className={`w-4 h-4 mr-1 transition-transform ${expandedRow === c.id ? 'rotate-180' : ''}`} />Detalhes</button>
-                                                <button onClick={() => { if(confirm('Excluir este registro?')) deleteCommission(c.id) }} className="text-red-400 hover:text-red-600 p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition mt-1"><Trash2 className="w-4 h-4" /></button>
+                                                <button onClick={async () => { if(confirm('Excluir este registro?')) await deleteCommission(c.id) }} className="text-red-400 hover:text-red-600 p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition mt-1"><Trash2 className="w-4 h-4" /></button>
                                             </td>
                                         </tr>
                                         {expandedRow === c.id && (

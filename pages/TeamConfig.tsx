@@ -22,17 +22,21 @@ export const TeamConfig = () => {
     setRoles(updatedRoles);
   };
 
-  const handleAdd = (e: React.FormEvent) => {
+  const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newName.trim() && newRoles.length > 0) {
-      addTeamMember({
-        id: crypto.randomUUID(),
-        name: newName.trim(),
-        roles: newRoles,
-        isActive: true,
-      });
-      setNewName('');
-      setNewRoles(['Prévia']);
+      try {
+        await addTeamMember({
+          id: crypto.randomUUID(),
+          name: newName.trim(),
+          roles: newRoles,
+          isActive: true,
+        });
+        setNewName('');
+        setNewRoles(['Prévia']);
+      } catch (error) {
+        alert("Falha ao adicionar membro.");
+      }
     } else {
       alert("O nome e pelo menos um cargo são obrigatórios.");
     }
@@ -50,10 +54,14 @@ export const TeamConfig = () => {
     setEditingRoles([]);
   };
 
-  const handleUpdate = () => {
+  const handleUpdate = async () => {
     if (editingMember && editingName.trim() && editingRoles.length > 0) {
-      updateTeamMember(editingMember.id, { name: editingName.trim(), roles: editingRoles });
-      cancelEditing();
+      try {
+        await updateTeamMember(editingMember.id, { name: editingName.trim(), roles: editingRoles });
+        cancelEditing();
+      } catch (error) {
+        alert("Falha ao atualizar membro.");
+      }
     } else {
       alert("O nome e pelo menos um cargo são obrigatórios.");
     }
@@ -172,14 +180,14 @@ export const TeamConfig = () => {
                                           </div>
                                       </div>
                                       <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button onClick={() => updateTeamMember(member.id, { isActive: !member.isActive })} className={`p-2 rounded-full ${member.isActive ? 'text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20' : 'text-gray-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20'}`} title={member.isActive ? 'Inativar' : 'Ativar'}>
+                                        <button onClick={async () => await updateTeamMember(member.id, { isActive: !member.isActive })} className={`p-2 rounded-full ${member.isActive ? 'text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20' : 'text-gray-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20'}`} title={member.isActive ? 'Inativar' : 'Ativar'}>
                                             {member.isActive ? <Archive className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
                                         </button>
                                         <button onClick={() => startEditing(member)} className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full">
                                           <Edit2 className="w-4 h-4" />
                                         </button>
                                         <button 
-                                          onClick={() => { if(confirm('Remover este membro da equipe?')) deleteTeamMember(member.id) }}
+                                          onClick={async () => { if(confirm('Remover este membro da equipe?')) await deleteTeamMember(member.id) }}
                                           className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full"
                                         >
                                             <Trash2 className="w-5 h-5" />
