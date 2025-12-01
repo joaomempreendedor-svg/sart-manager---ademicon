@@ -33,6 +33,24 @@ const getOverallStatus = (details: Record<string, InstallmentStatus>): Commissio
     return 'Em Andamento';
 };
 
+// Helper function to call the edge function
+const callDataManager = async (operation: 'insert' | 'update' | 'delete' | 'update_config', tableName: string, payload: { data?: any, id?: string }) => {
+    const response = await supabase.functions.invoke('data-manager', {
+        body: { tableName, operation, ...payload },
+    });
+
+    if (response.error) {
+        console.error(`Edge function network error for ${tableName}/${operation}:`, response.error);
+        throw new Error(`Erro de comunicação: ${response.error.message}`);
+    }
+    if (response.data.error) {
+        console.error(`Server-side error for ${tableName}/${operation}:`, response.data.error);
+        throw new Error(`Erro no servidor: ${response.data.error}`);
+    }
+
+    return response.data;
+};
+
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const auth = useAuth();
   const user = auth.user;
@@ -58,23 +76,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     localStorage.setItem('sart_theme', theme);
   }, [theme]);
 
-  const debouncedUpdateConfig = useDebouncedCallback(async (userId: string, newConfig: any) => {
-    await supabase.from('app_config').update({ data: newConfig }).eq('user_id', userId);
-  }, 1000);
+  const debouncedUpdateConfig = useDebouncedCallback(async (newConfig: any) => {
+    try {
+      await callDataManager('update_config', 'app_config', { data: newConfig });
+    } catch (error) {
+      console.error("Failed to save config:", error);
+    }
+  }, 1500);
 
   const updateConfig = (updates: any) => {
     if (!user) return;
-    const currentConfig = {
-      checklistStructure,
-      consultantGoalsStructure,
-      interviewStructure,
-      templates,
-      origins,
-      interviewers,
-      pvs,
-    };
+    const currentConfig = { checklistStructure, consultantGoalsStructure, interviewStructure, templates, origins, interviewers, pvs };
     const newConfigData = { ...currentConfig, ...updates };
-    debouncedUpdateConfig(user.id, newConfigData);
+    debouncedUpdateConfig(newConfigData);
   };
 
   const resetLocalState = () => {
@@ -119,37 +133,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           setPvs(data.pvs || []);
         } else {
           await supabase.from('app_config').insert({ user_id: userId, data: DEFAULT_APP_CONFIG_DATA });
-          setChecklistStructure(DEFAULT_APP_CONFIG_DATA.checklistStructure);
-          setConsultantGoalsStructure(DEFAULT_APP_CONFIG_DATA.consultantGoalsStructure);
-          setInterviewStructure(DEFAULT_APP_CONFIG_DATA.interviewStructure);
-          setTemplates(DEFAULT_APP_CONFIG_DATA.templates);
-          setOrigins(DEFAULT_APP_CONFIG_DATA.origins);
-          setInterviewers(DEFAULT_APP_CONFIG_DATA.interviewers);
-          setPvs(DEFAULT_APP_CONFIG_DATA.pvs);
+          // Set defaults locally
+          const { checklistStructure, consultantGoalsStructure, interviewStructure, templates, origins, interviewers, pvs } = DEFAULT_APP_CONFIG_DATA;
+          setChecklistStructure(checklistStructure);
+          setConsultantGoalsStructure(consultantGoalsStructure);
+          setInterviewStructure(interviewStructure);
+          setTemplates(templates);
+          setOrigins(origins);
+          setInterviewers(interviewers);
+          setPvs(pvs);
         }
 
         setCandidates(candidatesData?.map(item => item.data as Candidate) || []);
-        
-        const rawTeamMembers = teamMembersData?.map(item => item.data) || [];
-        const normalizedTeamMembers = rawTeamMembers.map(member => {
-          const m = member as any;
-          if (m.isActive === undefined) { m.isActive = true; }
-          if (m.role && !m.roles) { m.roles = [m.role]; delete m.role; }
-          if (!Array.isArray(m.roles)) { m.roles = []; }
-          return m as TeamMember;
-        });
-        setTeamMembers(normalizedTeamMembers);
-
-        const rawCommissions = commissionsData?.map(item => item.data as any) || [];
-        const normalizedCommissions = rawCommissions.map(c => {
-          if (!c.installmentDetails) {
-            const details: Record<string, InstallmentStatus> = {};
-            for (let i = 1; i <= 15; i++) { details[i] = 'Pendente'; }
-            c.installmentDetails = details;
-          }
-          return c as Commission;
-        });
-        setCommissions(normalizedCommissions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+        setTeamMembers(teamMembersData?.map(item => item.data as TeamMember) || []);
+        setCommissions(commissionsData?.map(item => item.data as Commission).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) || []);
         setSupportMaterials(materialsData?.map(item => item.data as SupportMaterial) || []);
 
       } catch (error) {
@@ -166,21 +163,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
 
-  const addCandidate = async (candidate: Candidate) => { if (!user) return; const { error } = await supabase.from('candidates').insert({ user_id: user.id, data: candidate }); if (error) { alert("Erro ao adicionar candidato."); throw error; } setCandidates(prev => [candidate, ...prev]); };
-  const updateCandidate = async (id: string, updates: Partial<Candidate>) => { if (!user) return; const candidateToUpdate = candidates.find(c => c.id === id); if (!candidateToUpdate) return; const updatedCandidate = { ...candidateToUpdate, ...updates }; const { error } = await supabase.from('candidates').update({ data: updatedCandidate }).match({ 'data->>id': id, user_id: user.id }); if (error) { alert("Erro ao atualizar candidato."); throw error; } setCandidates(prev => prev.map(c => c.id === id ? updatedCandidate : c)); };
-  const deleteCandidate = async (id: string) => { if (!user) return; const { error } = await supabase.from('candidates').delete().match({ 'data->>id': id, user_id: user.id }); if (error) { alert("Erro ao excluir candidato."); throw error; } setCandidates(prev => prev.filter(c => c.id !== id)); };
-  
-  const addTeamMember = async (member: TeamMember) => { if (!user) return; const { error } = await supabase.from('team_members').insert({ user_id: user.id, data: member }); if (error) { alert("Erro ao adicionar membro."); throw error; } setTeamMembers(prev => [...prev, member]); };
-  const updateTeamMember = async (id: string, updates: Partial<TeamMember>) => { if (!user) return; const memberToUpdate = teamMembers.find(m => m.id === id); if (!memberToUpdate) return; const updatedMember = { ...memberToUpdate, ...updates }; const { error } = await supabase.from('team_members').update({ data: updatedMember }).match({ 'data->>id': id, user_id: user.id }); if (error) { alert("Erro ao atualizar membro."); throw error; } setTeamMembers(prev => prev.map(m => m.id === id ? updatedMember : m)); };
-  const deleteTeamMember = async (id: string) => { if (!user) return; const { error } = await supabase.from('team_members').delete().match({ 'data->>id': id, user_id: user.id }); if (error) { alert("Erro ao excluir membro."); throw error; } setTeamMembers(prev => prev.filter(m => m.id !== id)); };
+  const handleApiError = (error: any, entity: string) => {
+    alert(`Erro ao gerenciar ${entity}: ${error.message}`);
+    throw error;
+  };
 
-  const addCommission = async (commission: Commission) => { if (!user) return; const { error } = await supabase.from('commissions').insert({ user_id: user.id, data: commission }); if (error) { alert("Erro ao adicionar comissão."); throw error; } setCommissions(prev => [commission, ...prev].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())); };
-  const updateCommission = async (id: string, updates: Partial<Commission>) => { if (!user) return; const commissionToUpdate = commissions.find(c => c.id === id); if (!commissionToUpdate) return; const updatedCommission = { ...commissionToUpdate, ...updates }; const { error } = await supabase.from('commissions').update({ data: updatedCommission }).match({ 'data->>id': id, user_id: user.id }); if (error) { alert("Erro ao atualizar comissão."); throw error; } setCommissions(prev => prev.map(c => c.id === id ? updatedCommission : c).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())); };
-  const deleteCommission = async (id: string) => { if (!user) return; const { error } = await supabase.from('commissions').delete().match({ 'data->>id': id, user_id: user.id }); if (error) { alert("Erro ao excluir comissão."); throw error; } setCommissions(prev => prev.filter(c => c.id !== id)); };
+  const addCandidate = async (candidate: Candidate) => { try { const result = await callDataManager('insert', 'candidates', { data: candidate }); setCandidates(prev => [result.data, ...prev]); } catch (error) { handleApiError(error, 'candidato'); } };
+  const updateCandidate = async (id: string, updates: Partial<Candidate>) => { const c = candidates.find(c => c.id === id); if (!c) return; const updated = { ...c, ...updates }; try { await callDataManager('update', 'candidates', { id, data: updated }); setCandidates(prev => prev.map(p => p.id === id ? updated : p)); } catch (error) { handleApiError(error, 'candidato'); } };
+  const deleteCandidate = async (id: string) => { try { await callDataManager('delete', 'candidates', { id }); setCandidates(prev => prev.filter(c => c.id !== id)); } catch (error) { handleApiError(error, 'candidato'); } };
+  
+  const addTeamMember = async (member: TeamMember) => { try { const result = await callDataManager('insert', 'team_members', { data: member }); setTeamMembers(prev => [...prev, result.data]); } catch (error) { handleApiError(error, 'membro da equipe'); } };
+  const updateTeamMember = async (id: string, updates: Partial<TeamMember>) => { const m = teamMembers.find(m => m.id === id); if (!m) return; const updated = { ...m, ...updates }; try { await callDataManager('update', 'team_members', { id, data: updated }); setTeamMembers(prev => prev.map(p => p.id === id ? updated : p)); } catch (error) { handleApiError(error, 'membro da equipe'); } };
+  const deleteTeamMember = async (id: string) => { try { await callDataManager('delete', 'team_members', { id }); setTeamMembers(prev => prev.filter(m => m.id !== id)); } catch (error) { handleApiError(error, 'membro da equipe'); } };
+
+  const addCommission = async (commission: Commission) => { try { const result = await callDataManager('insert', 'commissions', { data: commission }); setCommissions(prev => [result.data, ...prev].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())); } catch (error) { handleApiError(error, 'comissão'); } };
+  const updateCommission = async (id: string, updates: Partial<Commission>) => { const c = commissions.find(c => c.id === id); if (!c) return; const updated = { ...c, ...updates }; try { await callDataManager('update', 'commissions', { id, data: updated }); setCommissions(prev => prev.map(p => p.id === id ? updated : p).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())); } catch (error) { handleApiError(error, 'comissão'); } };
+  const deleteCommission = async (id: string) => { try { await callDataManager('delete', 'commissions', { id }); setCommissions(prev => prev.filter(c => c.id !== id)); } catch (error) { handleApiError(error, 'comissão'); } };
   const updateInstallmentStatus = async (commissionId: string, installmentNumber: number, status: InstallmentStatus) => { const commission = commissions.find(c => c.id === commissionId); if (commission) { const newDetails = { ...commission.installmentDetails, [installmentNumber]: status }; const newOverallStatus = getOverallStatus(newDetails); await updateCommission(commissionId, { installmentDetails: newDetails, status: newOverallStatus }); } };
 
-  const addSupportMaterial = async (material: SupportMaterial) => { if (!user) return; const { error } = await supabase.from('support_materials').insert({ user_id: user.id, data: material }); if (error) { alert("Erro ao adicionar material."); throw error; } setSupportMaterials(prev => [material, ...prev]); };
-  const deleteSupportMaterial = async (id: string) => { if (!user) return; const { error } = await supabase.from('support_materials').delete().match({ 'data->>id': id, user_id: user.id }); if (error) { alert("Erro ao excluir material."); throw error; } setSupportMaterials(prev => prev.filter(m => m.id !== id)); };
+  const addSupportMaterial = async (material: SupportMaterial) => { try { const result = await callDataManager('insert', 'support_materials', { data: material }); setSupportMaterials(prev => [result.data, ...prev]); } catch (error) { handleApiError(error, 'material'); } };
+  const deleteSupportMaterial = async (id: string) => { try { await callDataManager('delete', 'support_materials', { id }); setSupportMaterials(prev => prev.filter(m => m.id !== id)); } catch (error) { handleApiError(error, 'material'); } };
 
   const getCandidate = (id: string) => candidates.find(c => c.id === id);
   const toggleChecklistItem = async (candidateId: string, itemId: string) => { const c = getCandidate(candidateId); if(c) { const state = c.checklistProgress[itemId] || { completed: false }; await updateCandidate(candidateId, { checklistProgress: { ...c.checklistProgress, [itemId]: { ...state, completed: !state.completed } } }); } };
