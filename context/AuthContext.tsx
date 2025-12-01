@@ -20,21 +20,51 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    setIsLoading(true);
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    // This is called once on initial load.
+    supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      if (session) {
-        const { data: profile } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
-        const currentUser = { 
-          id: session.user.id, 
-          name: `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim() || session.user.email || 'Usuário', 
-          email: session.user.email || '' 
-        };
-        setUser(currentUser);
-      } else {
-        setUser(null);
+      // The onAuthStateChange listener will handle the user state and loading.
+      // We set loading to false here only if there's no session, otherwise the listener will do it.
+      if (!session) {
+        setIsLoading(false);
       }
-      setIsLoading(false);
+    });
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      try {
+        setSession(session);
+        if (session) {
+          const { data: profile, error } = await supabase
+            .from('profiles')
+            .select('first_name, last_name')
+            .eq('id', session.user.id)
+            .single();
+
+          // Log error but don't block auth if profile is missing
+          if (error && error.code !== 'PGRST116') { // PGRST116: "exact one row not found"
+            console.error('Error fetching profile:', error.message);
+          }
+
+          const name = profile 
+            ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() 
+            : session.user.email?.split('@')[0] || 'Usuário';
+
+          const currentUser = { 
+            id: session.user.id, 
+            name: name || session.user.email || 'Usuário',
+            email: session.user.email || '' 
+          };
+          setUser(currentUser);
+        } else {
+          setUser(null);
+        }
+      } catch (e) {
+        console.error("Error in onAuthStateChange handler:", e);
+        setUser(null);
+      } finally {
+        // Ensure loading is set to false after the logic runs.
+        setIsLoading(false);
+      }
     });
 
     return () => {
