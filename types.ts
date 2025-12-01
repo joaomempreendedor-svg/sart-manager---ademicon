@@ -35,7 +35,8 @@ export interface ChecklistTaskState {
 }
 
 export interface Candidate {
-  id: string;
+  id: string; // Client-side UUID
+  db_id?: string; // Database primary key
   name: string;
   phone: string;
   interviewDate: string;
@@ -103,7 +104,8 @@ export interface CommissionRule {
 }
 
 export interface Commission {
-  id: string;
+  id: string; // Client-side UUID
+  db_id?: string; // Database primary key
   date: string; // YYYY-MM-DD
   clientName: string;
   type: 'Imóvel' | 'Veículo';
@@ -133,7 +135,8 @@ export interface Commission {
 }
 
 export interface SupportMaterial {
-  id: string;
+  id: string; // Client-side UUID
+  db_id?: string; // Database primary key
   title: string;
   category: string;
   type: 'pdf' | 'image';
@@ -145,7 +148,8 @@ export interface SupportMaterial {
 export type TeamRole = 'Prévia' | 'Autorizado' | 'Gestor' | 'Anjo';
 
 export interface TeamMember {
-  id: string;
+  id: string; // Client-side UUID
+  db_id?: string; // Database primary key
   name: string;
   roles: TeamRole[];
   isActive: boolean;
