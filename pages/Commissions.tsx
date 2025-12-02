@@ -193,7 +193,6 @@ export const Commissions = () => {
 
   const handleSaveCommission = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isSaving) return;
 
     const errors = [];
     const credit = parseCurrency(creditValue);
@@ -225,15 +224,16 @@ export const Commissions = () => {
         customRules: isCustomRulesMode ? customRules : undefined
       };
       
-      await addCommission(payload);
+      const result = await addCommission(payload);
+      console.log("SALVO:", result);
       
       alert("Venda registrada com sucesso!");
       resetCalculatorForm();
       setActiveTab('history');
 
     } catch (error: any) {
-      console.error("Falha ao registrar a venda:", error);
-      alert(`Falha ao registrar a venda:\n\n${error.message || "Ocorreu um erro desconhecido."}`);
+      console.error("ERRO REAL:", error);
+      alert(error.message || "Falha ao salvar");
     } finally {
       setIsSaving(false);
     }
