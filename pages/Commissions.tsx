@@ -196,7 +196,7 @@ export const Commissions = () => {
     if (isSaving) return;
 
     setIsSaving(true);
-    console.log("INICIAR SUBMIT");
+    console.log("handleSaveCommission: Iniciando submissão do formulário...");
     
     try {
       const errors = [];
@@ -226,26 +226,18 @@ export const Commissions = () => {
         customRules: isCustomRulesMode ? customRules : undefined
       };
       
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error("A requisição demorou muito para responder (timeout). Tente novamente.")), 8000)
-      );
-
-      await Promise.race([
-        addCommission(payload),
-        timeoutPromise
-      ]);
+      await addCommission(payload);
       
-      console.log("SUCESSO");
+      console.log("handleSaveCommission: Sucesso!");
       alert("Venda registrada com sucesso!");
       resetCalculatorForm();
       setActiveTab('history');
 
     } catch (error: any) {
-      console.log("ERRO");
-      console.error("ERRO AO SALVAR VENDA:", error);
-      alert(error.message || 'Ocorreu um erro desconhecido ao salvar a venda.');
+      console.error("handleSaveCommission: Erro capturado na UI.", error);
+      alert(`Falha ao registrar a venda:\n\n${error.message}`);
     } finally {
-      console.log("FINALIZANDO LOADING");
+      console.log("handleSaveCommission: Finalizando, resetando estado de 'saving'.");
       setIsSaving(false);
     }
   };

@@ -193,50 +193,58 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const updateTeamMember = useCallback(async (id: string, updates: Partial<TeamMember>) => { if (!user) throw new Error("Usuário não autenticado."); const m = teamMembers.find(m => m.id === id); if (!m || !m.db_id) throw new Error("Membro não encontrado"); const updated = { ...m, ...updates }; const { db_id, ...dataToUpdate } = updated; const { error } = await supabase.from('team_members').update({ data: dataToUpdate }).match({ id: m.db_id, user_id: user.id }); if (error) { console.error(error); throw error; } setTeamMembers(prev => prev.map(p => p.id === id ? updated : p)); }, [user, teamMembers]);
   const deleteTeamMember = useCallback(async (id: string) => { if (!user) throw new Error("Usuário não autenticado."); const m = teamMembers.find(m => m.id === id); if (!m || !m.db_id) throw new Error("Membro não encontrado"); const { error } = await supabase.from('team_members').delete().match({ id: m.db_id, user_id: user.id }); if (error) { console.error(error); throw error; } setTeamMembers(prev => prev.filter(p => p.id !== id)); }, [user, teamMembers]);
 
-  const addCommission = useCallback(async (commission: Commission) => {
+  const addCommission = useCallback(async (commission: Commission): Promise<Commission> => {
     if (!user) throw new Error("Usuário não autenticado.");
-  
-    // ✅ NORMALIZA O PAYLOAD
-    const cleanCommission: Commission = {
-      ...commission,
-      customRules: commission.customRules?.length ? commission.customRules : undefined,
-      angelName: commission.angelName || undefined,
-      managerName: commission.managerName || 'N/A',
-      installmentDetails: JSON.parse(JSON.stringify(commission.installmentDetails)), // força serialização limpa
-    };
-  
-    const payload = {
-      user_id: user.id,
-      data: cleanCommission
-    };
-  
-    console.log("✅ DADOS FINAL PARA INSERT:", payload);
-  
+
+    console.log("addCommission: Iniciando salvamento...");
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 segundos de timeout
+
     try {
+      const cleanCommission: Commission = {
+        ...commission,
+        customRules: commission.customRules?.length ? commission.customRules : undefined,
+        angelName: commission.angelName || undefined,
+        managerName: commission.managerName || 'N/A',
+      };
+
       const { data, error } = await supabase
         .from('commissions')
-        .insert(payload)
+        .insert({ user_id: user.id, data: cleanCommission })
         .select('id')
-        .single();
-  
-      console.log("✅ SUPABASE RESPONDEU:", { data, error });
-  
+        .single({ signal: controller.signal });
+
       if (error) {
+        if (error.name === 'AbortError') {
+          console.error("addCommission: Erro de timeout do Supabase.");
+          throw new Error("A operação demorou muito e foi cancelada (timeout). Verifique sua conexão.");
+        }
+        console.error("addCommission: Erro do Supabase ao inserir.", error);
         throw error;
       }
-  
-      if (data) {
-        setCommissions(prev =>
-          [{ ...cleanCommission, db_id: data.id }, ...prev]
-            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-        );
+
+      if (!data || !data.id) {
+        console.error("addCommission: Supabase não retornou o ID do registro inserido.");
+        throw new Error("Falha ao confirmar o salvamento do registro no banco de dados.");
       }
-  
-      return true;
-  
+
+      console.log("addCommission: Registro salvo com sucesso no DB. ID:", data.id);
+      const newCommissionWithDbId = { ...cleanCommission, db_id: data.id };
+
+      setCommissions(prev =>
+        [newCommissionWithDbId, ...prev]
+          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      );
+      
+      return newCommissionWithDbId;
+
     } catch (error: any) {
-      console.error("🔥 ERRO REAL DO SUPABASE:", error);
-      throw new Error(error?.message || "Erro ao salvar venda.");
+      console.error("addCommission: Capturado erro no bloco catch.", error);
+      // Re-lança o erro para que a UI possa tratá-lo
+      throw new Error(error.message || "Ocorreu um erro desconhecido ao salvar a venda.");
+    } finally {
+      console.log("addCommission: Limpando timeout.");
+      clearTimeout(timeoutId);
     }
   }, [user]);
 
