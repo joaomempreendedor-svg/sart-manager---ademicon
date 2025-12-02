@@ -196,33 +196,42 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const addCommission = useCallback(async (commission: Commission): Promise<Commission> => {
     if (!user) throw new Error("Usuário não autenticado.");
   
-    console.log("addCommission: salvando...");
-  
     const cleanCommission: Commission = {
       ...commission,
       customRules: commission.customRules?.length ? commission.customRules : undefined,
       angelName: commission.angelName || undefined,
       managerName: commission.managerName || 'N/A',
     };
-  
-    const { data, error } = await supabase
-      .from('commissions')
-      .insert({ user_id: user.id, data: cleanCommission })
-      .select('id')
-      .single();
-  
-    if (error) {
-      console.error("Erro Supabase:", error);
-      throw new Error(error.message);
-    }
-  
-    const newItem = { ...cleanCommission, db_id: data.id };
-  
+    
+    // O novo item não terá um db_id imediatamente.
+    // Isso é uma consequência de não usar .select() conforme solicitado.
+    const newItem = { ...cleanCommission, db_id: undefined };
+
+    // Atualiza a UI manualmente (otimismo)
     setCommissions(prev =>
       [newItem, ...prev].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     );
   
-    return newItem;
+    try {
+      // Insere no banco de dados sem esperar o retorno do ID
+      const { error } = await supabase
+        .from('commissions')
+        .insert({ user_id: user.id, data: cleanCommission });
+  
+      if (error) {
+        // Se a inserção falhar, o erro será lançado para o catch do formulário
+        throw error;
+      }
+  
+      // Retorna o item (sem db_id) para satisfazer a assinatura da função
+      return newItem;
+    } catch (error: any) {
+      console.error("Erro Supabase ao inserir comissão, revertendo UI:", error);
+      // Reverte a atualização otimista em caso de falha
+      setCommissions(prev => prev.filter(c => c.id !== commission.id));
+      // Lança o erro novamente para que o formulário possa tratá-lo (ex: exibir um alerta)
+      throw new Error(error.message);
+    }
   }, [user]);
 
   const updateCommission = useCallback(async (id: string, updates: Partial<Commission>) => {
