@@ -236,7 +236,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       console.error("addCommission FAILED:", err);
       throw new Error(err.message || "Erro ao salvar comissão");
     }
-  }, [user]);
+  }, [user, commissions]);
 
   const updateCommission = useCallback(async (id: string, updates: Partial<Commission>) => {
     if (!user) throw new Error("Usuário não autenticado.");
