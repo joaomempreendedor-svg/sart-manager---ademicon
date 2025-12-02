@@ -3,6 +3,25 @@ import { supabase } from '../src/integrations/supabase/client';
 import { Session } from '@supabase/supabase-js';
 import { User } from '../types';
 
+// Helper for shallow comparison to prevent unnecessary re-renders
+const shallowEqual = (objA: any, objB: any): boolean => {
+  if (objA === objB) return true;
+  if (!objA || !objB || typeof objA !== 'object' || typeof objB !== 'object') return false;
+
+  const keysA = Object.keys(objA);
+  const keysB = Object.keys(objB);
+
+  if (keysA.length !== keysB.length) return false;
+
+  for (const key of keysA) {
+    if (!objB.hasOwnProperty(key) || objA[key] !== objB[key]) {
+      return false;
+    }
+  }
+
+  return true;
+};
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
@@ -45,7 +64,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => {
     setIsLoading(true);
     
-    // Check initial session right away to speed up loading
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session) {
         const userProfile = await fetchUserProfile(session);
@@ -59,13 +77,27 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       async (_event, session) => {
         if (session) {
           const userProfile = await fetchUserProfile(session);
-          setUser(userProfile);
-          setSession(session);
+          
+          // Only update state if the user object has actually changed
+          setUser(currentUser => {
+            if (!shallowEqual(currentUser, userProfile)) {
+              return userProfile;
+            }
+            return currentUser;
+          });
+
+          // Only update state if the session token has changed
+          setSession(currentSession => {
+            if (currentSession?.access_token !== session.access_token) {
+              return session;
+            }
+            return currentSession;
+          });
+
         } else {
           setUser(null);
           setSession(null);
         }
-        // Ensure loading is false after any auth change
         setIsLoading(false);
       }
     );
