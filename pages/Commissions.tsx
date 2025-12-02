@@ -67,24 +67,8 @@ export const Commissions = () => {
   const [hasAngel, setHasAngel] = useState(false);
   const [isCustomRulesMode, setIsCustomRulesMode] = useState(false);
   
-  // State for custom rules data (numbers)
-  const [customRules, setCustomRules] = useState<CommissionRule[]>([
-    { id: crypto.randomUUID(), startInstallment: 1, endInstallment: 15, consultantRate: 0, managerRate: 0, angelRate: 0 }
-  ]);
-  // State for custom rules input text (strings)
+  const [customRules, setCustomRules] = useState<CommissionRule[]>([]);
   const [customRulesText, setCustomRulesText] = useState<CustomRuleText[]>([]);
-
-  useEffect(() => {
-    setCustomRulesText(customRules.map(rule => ({
-        id: rule.id,
-        startInstallment: String(rule.startInstallment),
-        endInstallment: String(rule.endInstallment),
-        consultantRate: String(rule.consultantRate).replace('.', ','),
-        managerRate: String(rule.managerRate).replace('.', ','),
-        angelRate: String(rule.angelRate).replace('.', ','),
-    })));
-  }, []);
-
 
   // Estado para Salvar Venda
   const [clientName, setClientName] = useState('');
@@ -97,6 +81,32 @@ export const Commissions = () => {
   const [selectedManager, setSelectedManager] = useState('');
   const [selectedAngel, setSelectedAngel] = useState('');
   const [taxRateInput, setTaxRateInput] = useState('6');
+
+  const resetCalculatorForm = () => {
+    setCreditValue('');
+    setClientName('');
+    setSaleDate(new Date().toISOString().split('T')[0]);
+    setSaleType('Imóvel');
+    setGroup('');
+    setQuota('');
+    setSelectedPV('');
+    setSelectedConsultant('');
+    setSelectedManager('');
+    setSelectedAngel('');
+    setTaxRateInput('6');
+    setHasAngel(false);
+    setIsCustomRulesMode(false);
+    
+    const defaultRuleId = crypto.randomUUID();
+    const defaultRule = { id: defaultRuleId, startInstallment: 1, endInstallment: 15, consultantRate: 0, managerRate: 0, angelRate: 0 };
+    const defaultRuleText = { id: defaultRuleId, startInstallment: '1', endInstallment: '15', consultantRate: '0', managerRate: '0', angelRate: '0' };
+    setCustomRules([defaultRule]);
+    setCustomRulesText([defaultRuleText]);
+  };
+
+  useEffect(() => {
+    resetCalculatorForm();
+  }, []);
 
   const parseCurrency = (value: string) => parseFloat(value.replace(/\./g, '').replace(',', '.')) || 0;
 
@@ -206,7 +216,7 @@ export const Commissions = () => {
     try {
         await addCommission(newCommission);
         setActiveTab('history');
-        setClientName(''); setCreditValue(''); setGroup(''); setQuota(''); setSelectedPV('');
+        resetCalculatorForm();
         alert("Venda registrada com sucesso!");
     } catch (error: any) {
         console.error("Failed to save commission:", error);
