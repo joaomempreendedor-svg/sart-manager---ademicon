@@ -202,35 +202,39 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       angelName: commission.angelName || undefined,
       managerName: commission.managerName || 'N/A',
     };
-    
-    // O novo item não terá um db_id imediatamente.
-    // Isso é uma consequência de não usar .select() conforme solicitado.
-    const newItem = { ...cleanCommission, db_id: undefined };
-
-    // Atualiza a UI manualmente (otimismo)
+  
+    // ID temporário da UI
+    const tempId = `temp-${crypto.randomUUID()}`;
+    const newItem = { ...cleanCommission, db_id: tempId };
+  
+    // Atualização otimista
     setCommissions(prev =>
       [newItem, ...prev].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     );
   
     try {
-      // Insere no banco de dados sem esperar o retorno do ID
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('commissions')
-        .insert({ user_id: user.id, data: cleanCommission });
+        .insert({ user_id: user.id, data: cleanCommission })
+        .select('id')
+        .single();
   
-      if (error) {
-        // Se a inserção falhar, o erro será lançado para o catch do formulário
-        throw error;
-      }
+      if (error) throw error;
   
-      // Retorna o item (sem db_id) para satisfazer a assinatura da função
-      return newItem;
+      // Substitui o temporário pelo real
+      setCommissions(prev =>
+        prev.map(c =>
+          c.db_id === tempId ? { ...c, db_id: data.id } : c
+        )
+      );
+  
+      return { ...newItem, db_id: data.id };
+  
     } catch (error: any) {
-      console.error("Erro Supabase ao inserir comissão, revertendo UI:", error);
-      // Reverte a atualização otimista em caso de falha
-      setCommissions(prev => prev.filter(c => c.id !== commission.id));
-      // Lança o erro novamente para que o formulário possa tratá-lo (ex: exibir um alerta)
-      throw new Error(error.message);
+      // Remove o item falso em erro
+      setCommissions(prev => prev.filter(c => c.db_id !== tempId));
+      console.error("Erro Supabase:", error);
+      throw new Error(error.message || "Erro ao salvar comissão");
     }
   }, [user]);
 
