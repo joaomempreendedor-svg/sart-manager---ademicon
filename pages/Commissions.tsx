@@ -197,11 +197,16 @@ export const Commissions = () => {
 
     setIsSaving(true);
     try {
+      // Validação Detalhada
       const credit = parseCurrency(creditValue);
-      if (!credit || !clientName || !selectedConsultant || !group || !quota || !selectedPV) {
-        throw new Error("Preencha todos os dados obrigatórios (Crédito, Cliente, Data, PV, Grupo, Cota, Prévia/Autorizado)");
-      }
-      
+      if (!credit) throw new Error("O 'Valor do Crédito' é obrigatório e deve ser maior que zero.");
+      if (!clientName.trim()) throw new Error("O 'Nome do Cliente' é obrigatório.");
+      if (!saleDate) throw new Error("A 'Data da Venda' é obrigatória.");
+      if (!selectedPV) throw new Error("O 'Ponto de Venda (PV)' é obrigatório.");
+      if (!group.trim()) throw new Error("O 'Grupo' é obrigatório.");
+      if (!quota.trim()) throw new Error("A 'Cota' é obrigatória.");
+      if (!selectedConsultant) throw new Error("É obrigatório selecionar o 'Prévia/Autorizado'.");
+
       const taxValue = parseFloat(taxRateInput.replace(',', '.')) || 0;
       const initialInstallments: Record<string, InstallmentStatus> = {};
       for (let i = 1; i <= 15; i++) { initialInstallments[i] = 'Pendente'; }
@@ -217,17 +222,15 @@ export const Commissions = () => {
       
       await addCommission(newCommission);
       
-      // Success path: Stop loading first, then show message and navigate
-      setIsSaving(false);
       alert("Venda registrada com sucesso!");
       resetCalculatorForm();
       setActiveTab('history');
 
     } catch (error: any) {
-      // Error path: Stop loading, then show error
-      setIsSaving(false);
       console.error("Failed to save commission:", error);
-      alert(`Ocorreu um erro ao salvar a venda: ${error.message || 'Ocorreu um erro desconhecido.'}`);
+      alert(`Ocorreu um erro ao salvar a venda: ${error.message}`);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -345,7 +348,13 @@ export const Commissions = () => {
                 </div>
 
                 <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm">
-                    <h3 className="font-bold text-gray-900 dark:text-white mb-4">Salvar Venda</h3>
+                    <div className="flex justify-between items-center mb-4">
+                        <h3 className="font-bold text-gray-900 dark:text-white">Salvar Venda</h3>
+                        <button type="button" onClick={resetCalculatorForm} className="flex items-center space-x-1 text-xs text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 font-medium px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition">
+                            <XCircle className="w-3 h-3" />
+                            <span>Limpar</span>
+                        </button>
+                    </div>
                     <form onSubmit={handleSaveCommission} className="space-y-3">
                         <input required placeholder="Nome do Cliente" className="w-full border-gray-300 dark:border-slate-600 rounded-md text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white p-2" value={clientName} onChange={e => setClientName(e.target.value)} />
                          <div className="flex space-x-2">
