@@ -226,7 +226,14 @@ export const Commissions = () => {
         customRules: isCustomRulesMode ? customRules : undefined
       };
       
-      await addCommission(payload);
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error("A requisição demorou muito para responder (timeout). Tente novamente.")), 8000)
+      );
+
+      await Promise.race([
+        addCommission(payload),
+        timeoutPromise
+      ]);
       
       console.log("SUCESSO");
       alert("Venda registrada com sucesso!");
