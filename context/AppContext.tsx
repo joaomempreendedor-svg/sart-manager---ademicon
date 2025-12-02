@@ -195,28 +195,48 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const addCommission = useCallback(async (commission: Commission) => {
     if (!user) throw new Error("Usuário não autenticado.");
-    const payload = { user_id: user.id, data: commission };
-    console.log("INICIANDO INSERT", payload);
+  
+    // ✅ NORMALIZA O PAYLOAD
+    const cleanCommission: Commission = {
+      ...commission,
+      customRules: commission.customRules?.length ? commission.customRules : undefined,
+      angelName: commission.angelName || undefined,
+      managerName: commission.managerName || 'N/A',
+      installmentDetails: JSON.parse(JSON.stringify(commission.installmentDetails)), // força serialização limpa
+    };
+  
+    const payload = {
+      user_id: user.id,
+      data: cleanCommission
+    };
+  
+    console.log("✅ DADOS FINAL PARA INSERT:", payload);
+  
     try {
       const { data, error } = await supabase
         .from('commissions')
         .insert(payload)
         .select('id')
         .single();
-      
-      console.log("RESPOSTA SUPABASE", data, error);
-
+  
+      console.log("✅ SUPABASE RESPONDEU:", { data, error });
+  
       if (error) {
         throw error;
       }
+  
       if (data) {
-        setCommissions(prev => [{ ...commission, db_id: data.id }, ...prev].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+        setCommissions(prev =>
+          [{ ...cleanCommission, db_id: data.id }, ...prev]
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        );
       }
-    } catch (error) {
-      console.error("ERRO REAL SUPABASE:", error);
-      throw error;
-    } finally {
-      console.log("INSERT FINALIZADO");
+  
+      return true;
+  
+    } catch (error: any) {
+      console.error("🔥 ERRO REAL DO SUPABASE:", error);
+      throw new Error(error?.message || "Erro ao salvar venda.");
     }
   }, [user]);
 
