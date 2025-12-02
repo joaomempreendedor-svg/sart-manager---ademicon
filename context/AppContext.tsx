@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
 import { supabase } from '../src/integrations/supabase/client';
 import { useAuth } from './AuthContext';
 import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, CommissionStatus } from '../types';
@@ -36,6 +36,7 @@ const getOverallStatus = (details: Record<string, InstallmentStatus>): Commissio
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const auth = useAuth();
   const { user } = auth;
+  const fetchedUserIdRef = useRef<string | null>(null);
 
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
@@ -169,9 +170,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
     };
 
-    if (user) {
+    if (user && user.id !== fetchedUserIdRef.current) {
+      fetchedUserIdRef.current = user.id;
       fetchData(user.id);
-    } else {
+    } else if (!user) {
+      fetchedUserIdRef.current = null;
       resetLocalState();
       setIsDataLoading(false);
     }
