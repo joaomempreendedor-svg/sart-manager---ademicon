@@ -44,20 +44,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   useEffect(() => {
-    // 1. Handle initial session on component mount
-    const checkInitialSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        const userProfile = await fetchUserProfile(session);
-        setUser(userProfile);
-        setSession(session);
-      }
-      setIsLoading(false);
-    };
-    
-    checkInitialSession();
-
-    // 2. Listen for subsequent auth state changes
+    setIsLoading(true);
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         if (session) {
@@ -68,10 +55,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           setUser(null);
           setSession(null);
         }
+        setIsLoading(false);
       }
     );
 
-    // 3. Cleanup subscription on unmount
     return () => {
       subscription.unsubscribe();
     };
