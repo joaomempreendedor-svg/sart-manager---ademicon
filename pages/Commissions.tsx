@@ -193,36 +193,38 @@ export const Commissions = () => {
 
   const handleSaveCommission = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSaving(true);
-    const credit = parseCurrency(creditValue);
-    if (!credit || !clientName || !selectedConsultant || !group || !quota || !selectedPV) {
-      alert("Preencha todos os dados obrigatórios (Crédito, Cliente, Data, PV, Grupo, Cota, Prévia/Autorizado)");
-      setIsSaving(false);
-      return;
-    }
-    const taxValue = parseFloat(taxRateInput.replace(',', '.')) || 0;
-    const initialInstallments: Record<string, InstallmentStatus> = {};
-    for (let i = 1; i <= 15; i++) { initialInstallments[i] = 'Pendente'; }
+    if (isSaving) return; // Previne duplo clique
 
-    const newCommission: Commission = {
-      id: crypto.randomUUID(), date: saleDate, clientName, type: saleType, group, quota, consultant: selectedConsultant, managerName: selectedManager || 'N/A', angelName: hasAngel ? selectedAngel : undefined, pv: selectedPV, value: credit, taxRate: taxValue, 
-      netValue: simulation.totals.grandTotal * (1 - (taxValue/100)),
-      installments: 15, status: 'Em Andamento', installmentDetails: initialInstallments,
-      consultantValue: simulation.totals.consultant, managerValue: simulation.totals.manager, angelValue: simulation.totals.angel,
-      receivedValue: 0,
-      customRules: isCustomRulesMode ? customRules : undefined
-    };
-    
+    setIsSaving(true);
     try {
-        await addCommission(newCommission);
-        alert("Venda registrada com sucesso!");
-        resetCalculatorForm();
-        setActiveTab('history');
+      const credit = parseCurrency(creditValue);
+      if (!credit || !clientName || !selectedConsultant || !group || !quota || !selectedPV) {
+        throw new Error("Preencha todos os dados obrigatórios (Crédito, Cliente, Data, PV, Grupo, Cota, Prévia/Autorizado)");
+      }
+      
+      const taxValue = parseFloat(taxRateInput.replace(',', '.')) || 0;
+      const initialInstallments: Record<string, InstallmentStatus> = {};
+      for (let i = 1; i <= 15; i++) { initialInstallments[i] = 'Pendente'; }
+
+      const newCommission: Commission = {
+        id: crypto.randomUUID(), date: saleDate, clientName, type: saleType, group, quota, consultant: selectedConsultant, managerName: selectedManager || 'N/A', angelName: hasAngel ? selectedAngel : undefined, pv: selectedPV, value: credit, taxRate: taxValue, 
+        netValue: simulation.totals.grandTotal * (1 - (taxValue/100)),
+        installments: 15, status: 'Em Andamento', installmentDetails: initialInstallments,
+        consultantValue: simulation.totals.consultant, managerValue: simulation.totals.manager, angelValue: simulation.totals.angel,
+        receivedValue: 0,
+        customRules: isCustomRulesMode ? customRules : undefined
+      };
+      
+      await addCommission(newCommission);
+      
+      alert("Venda registrada com sucesso!");
+      resetCalculatorForm();
+      setActiveTab('history');
     } catch (error: any) {
-        console.error("Failed to save commission:", error);
-        alert(`Ocorreu um erro ao salvar a venda: ${error.message}`);
+      console.error("Failed to save commission:", error);
+      alert(`Ocorreu um erro ao salvar a venda: ${error.message}`);
     } finally {
-        setIsSaving(false);
+      setIsSaving(false);
     }
   };
 
