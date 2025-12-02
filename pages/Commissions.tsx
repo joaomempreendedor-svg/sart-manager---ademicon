@@ -193,9 +193,12 @@ export const Commissions = () => {
 
   const handleSaveCommission = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isSaving) return; // Previne duplo clique
+    if (isSaving) return;
 
     setIsSaving(true);
+    let success = false;
+    let errorMessage = '';
+
     try {
       const credit = parseCurrency(creditValue);
       if (!credit || !clientName || !selectedConsultant || !group || !quota || !selectedPV) {
@@ -216,15 +219,20 @@ export const Commissions = () => {
       };
       
       await addCommission(newCommission);
-      
-      alert("Venda registrada com sucesso!");
-      resetCalculatorForm();
-      setActiveTab('history');
+      success = true;
     } catch (error: any) {
       console.error("Failed to save commission:", error);
-      alert(`Ocorreu um erro ao salvar a venda: ${error.message}`);
+      errorMessage = error.message || 'Ocorreu um erro desconhecido.';
     } finally {
       setIsSaving(false);
+      
+      if (success) {
+        alert("Venda registrada com sucesso!");
+        resetCalculatorForm();
+        setActiveTab('history');
+      } else if (errorMessage) {
+        alert(`Ocorreu um erro ao salvar a venda: ${errorMessage}`);
+      }
     }
   };
 
