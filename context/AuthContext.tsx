@@ -76,9 +76,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         if (session) {
+          // Explicitly set the session for the client to ensure all subsequent
+          // requests use the new token, preventing hangs on data fetch or save.
+          await supabase.auth.setSession(session);
           const userProfile = await fetchUserProfile(session);
           
-          // Only update state if the user object has actually changed
           setUser(currentUser => {
             if (!shallowEqual(currentUser, userProfile)) {
               return userProfile;
@@ -86,7 +88,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             return currentUser;
           });
 
-          // Only update state if the session token has changed
           setSession(currentSession => {
             if (currentSession?.access_token !== session.access_token) {
               return session;
