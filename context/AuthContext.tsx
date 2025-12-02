@@ -28,7 +28,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     if (error) {
       console.error('Error fetching profile:', error.message);
-      // Fallback user data if profile fetch fails
       return {
         id: session.user.id,
         name: session.user.email?.split('@')[0] || 'Usuário',
@@ -45,6 +44,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   useEffect(() => {
     setIsLoading(true);
+    
+    // Check initial session right away to speed up loading
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session) {
+        const userProfile = await fetchUserProfile(session);
+        setUser(userProfile);
+        setSession(session);
+      }
+      setIsLoading(false);
+    });
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         if (session) {
@@ -55,6 +65,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           setUser(null);
           setSession(null);
         }
+        // Ensure loading is false after any auth change
         setIsLoading(false);
       }
     );
