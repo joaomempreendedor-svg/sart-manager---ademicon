@@ -65,25 +65,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   useEffect(() => {
-    setIsLoading(true);
-    
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (session) {
-        const userProfile = await fetchUserProfile(session);
-        setUser(userProfile);
-        setSession(session);
-      }
-      setIsLoading(false);
-    });
-
+    // onAuthStateChange is the single source of truth.
+    // It fires immediately with the current session, so getSession() is redundant.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         if (session) {
-          // Explicitly set the session for the client to ensure all subsequent
-          // requests use the new token, preventing hangs on data fetch or save.
-          await supabase.auth.setSession(session);
           const userProfile = await fetchUserProfile(session);
           
+          // Use functional updates to prevent re-renders if user data hasn't changed
           setUser(currentUser => {
             if (!shallowEqual(currentUser, userProfile)) {
               return userProfile;
@@ -102,6 +91,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           setUser(null);
           setSession(null);
         }
+        // Once the session is determined (or confirmed null), loading is finished.
         setIsLoading(false);
       }
     );
@@ -147,6 +137,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     register,
     logout,
   }), [user, session, isLoading, login, register, logout]);
+
+  console.log("AUTH CTX -> isLoading:", isLoading, "user:", user);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

@@ -23,6 +23,8 @@ const RequireAuth = () => {
   const auth = useAuth();
   const { isDataLoading } = useApp();
 
+  console.log("UI -> auth.isLoading / isDataLoading", auth.isLoading, isDataLoading);
+
   if (auth.isLoading || isDataLoading) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-slate-900">
