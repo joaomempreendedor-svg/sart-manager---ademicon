@@ -20,24 +20,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // 1. Fetch the initial session to hydrate the state quickly.
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      // The listener will handle the profile fetching and loading state.
-    });
-
-    // 2. Set up a listener for all subsequent auth events.
+    // This effect runs only once to set up the auth listener.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event: AuthChangeEvent, session: Session | null) => {
         
-        // On SIGNED_OUT, explicitly clear the user state.
         if (event === 'SIGNED_OUT') {
+          // Explicitly handle logout: clear user and session.
           setUser(null);
           setSession(null);
-        } 
-        // For any other event, if a session exists, update the user profile.
-        // This handles SIGNED_IN, TOKEN_REFRESHED, and the initial INITIAL_SESSION event.
-        else if (session) {
+        } else if (session) {
+          // Handle SIGNED_IN, TOKEN_REFRESHED, USER_UPDATED, and INITIAL_SESSION with a valid session.
+          // This prevents clearing the user on temporary null sessions during token refreshes.
           setSession(session);
           const { data: profile, error } = await supabase
             .from('profiles')
@@ -46,7 +39,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             .maybeSingle();
 
           if (error) {
-            console.error('Error fetching profile on auth change:', error.message);
+            console.error('Error fetching profile:', error.message);
           }
 
           const name = profile && (profile.first_name || profile.last_name)
@@ -55,13 +48,25 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           
           setUser({ id: session.user.id, name, email: session.user.email || '' });
         }
-        
-        // The initial loading is complete after the first auth event is processed.
-        setIsLoading(false);
+
+        // The initial session check is complete after the first event,
+        // allowing the rest of the app to render. This is crucial to stop the loading state.
+        if (event === 'INITIAL_SESSION') {
+            setIsLoading(false);
+        }
       }
     );
 
-    // 3. Cleanup the subscription on unmount.
+    // Immediately check for an existing session to speed up the initial load.
+    // The listener above will still run for INITIAL_SESSION, but this can
+    // prevent a flicker on fast connections if there's no session.
+    supabase.auth.getSession().then(({ data: { session } }) => {
+        if (!session) {
+            setIsLoading(false);
+        }
+    });
+
+    // Cleanup the subscription on unmount.
     return () => {
       subscription.unsubscribe();
     };
