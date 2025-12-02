@@ -196,6 +196,7 @@ export const Commissions = () => {
     if (isSaving) return;
 
     setIsSaving(true);
+    console.log("INICIAR SUBMIT");
     
     try {
       const errors = [];
@@ -225,19 +226,19 @@ export const Commissions = () => {
         customRules: isCustomRulesMode ? customRules : undefined
       };
       
-      console.log("DADOS DA VENDA:", payload);
-      
       await addCommission(payload);
       
+      console.log("SUCESSO");
       alert("Venda registrada com sucesso!");
       resetCalculatorForm();
       setActiveTab('history');
 
     } catch (error: any) {
+      console.log("ERRO");
       console.error("ERRO AO SALVAR VENDA:", error);
       alert(error.message || 'Ocorreu um erro desconhecido ao salvar a venda.');
     } finally {
-      console.log("FINALIZOU O SAVE");
+      console.log("FINALIZANDO LOADING");
       setIsSaving(false);
     }
   };
