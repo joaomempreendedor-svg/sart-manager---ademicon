@@ -224,15 +224,17 @@ export const Commissions = () => {
       console.error("Failed to save commission:", error);
       errorMessage = error.message || 'Ocorreu um erro desconhecido.';
     } finally {
+      // Apenas atualize o estado de carregamento aqui para evitar condições de corrida
       setIsSaving(false);
-      
-      if (success) {
-        alert("Venda registrada com sucesso!");
-        resetCalculatorForm();
-        setActiveTab('history');
-      } else if (errorMessage) {
-        alert(`Ocorreu um erro ao salvar a venda: ${errorMessage}`);
-      }
+    }
+
+    // Lide com os efeitos colaterais da UI DEPOIS que o estado de carregamento for garantido
+    if (success) {
+      alert("Venda registrada com sucesso!");
+      resetCalculatorForm();
+      setActiveTab('history');
+    } else if (errorMessage) {
+      alert(`Ocorreu um erro ao salvar a venda: ${errorMessage}`);
     }
   };
 
