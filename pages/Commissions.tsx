@@ -195,28 +195,28 @@ export const Commissions = () => {
     e.preventDefault();
     if (isSaving) return;
 
-    const errors = [];
-    const credit = parseCurrency(creditValue);
-    if (!credit) errors.push("Valor do Crédito");
-    if (!clientName.trim()) errors.push("Nome do Cliente");
-    if (!saleDate) errors.push("Data da Venda");
-    if (!selectedPV) errors.push("Ponto de Venda (PV)");
-    if (!group.trim()) errors.push("Grupo");
-    if (!quota.trim()) errors.push("Cota");
-    if (!selectedConsultant) errors.push("Prévia/Autorizado");
-
-    if (errors.length > 0) {
-        alert(`Por favor, preencha os seguintes campos obrigatórios:\n\n- ${errors.join('\n- ')}`);
-        return;
-    }
-
     setIsSaving(true);
+    
     try {
+      const errors = [];
+      const credit = parseCurrency(creditValue);
+      if (!credit) errors.push("Valor do Crédito");
+      if (!clientName.trim()) errors.push("Nome do Cliente");
+      if (!saleDate) errors.push("Data da Venda");
+      if (!selectedPV) errors.push("Ponto de Venda (PV)");
+      if (!group.trim()) errors.push("Grupo");
+      if (!quota.trim()) errors.push("Cota");
+      if (!selectedConsultant) errors.push("Prévia/Autorizado");
+
+      if (errors.length > 0) {
+          throw new Error(`Por favor, preencha os seguintes campos obrigatórios:\n\n- ${errors.join('\n- ')}`);
+      }
+
       const taxValue = parseFloat(taxRateInput.replace(',', '.')) || 0;
       const initialInstallments: Record<string, InstallmentStatus> = {};
       for (let i = 1; i <= 15; i++) { initialInstallments[i] = 'Pendente'; }
 
-      const newCommission: Commission = {
+      const payload: Commission = {
         id: crypto.randomUUID(), date: saleDate, clientName, type: saleType, group, quota, consultant: selectedConsultant, managerName: selectedManager || 'N/A', angelName: hasAngel ? selectedAngel : undefined, pv: selectedPV, value: credit, taxRate: taxValue, 
         netValue: simulation.totals.grandTotal * (1 - (taxValue/100)),
         installments: 15, status: 'Em Andamento', installmentDetails: initialInstallments,
@@ -225,16 +225,19 @@ export const Commissions = () => {
         customRules: isCustomRulesMode ? customRules : undefined
       };
       
-      await addCommission(newCommission);
+      console.log("DADOS DA VENDA:", payload);
+      
+      await addCommission(payload);
       
       alert("Venda registrada com sucesso!");
       resetCalculatorForm();
       setActiveTab('history');
 
     } catch (error: any) {
-      console.error("Failed to save commission:", error);
-      alert(`Ocorreu um erro ao salvar a venda: ${error.message}`);
+      console.error("ERRO AO SALVAR VENDA:", error);
+      alert(error.message || 'Ocorreu um erro desconhecido ao salvar a venda.');
     } finally {
+      console.log("FINALIZOU O SAVE");
       setIsSaving(false);
     }
   };
