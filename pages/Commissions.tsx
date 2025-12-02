@@ -196,9 +196,6 @@ export const Commissions = () => {
     if (isSaving) return;
 
     setIsSaving(true);
-    let success = false;
-    let errorMessage = '';
-
     try {
       const credit = parseCurrency(creditValue);
       if (!credit || !clientName || !selectedConsultant || !group || !quota || !selectedPV) {
@@ -219,20 +216,18 @@ export const Commissions = () => {
       };
       
       await addCommission(newCommission);
-      success = true;
-    } catch (error: any) {
-      console.error("Failed to save commission:", error);
-      errorMessage = error.message || 'Ocorreu um erro desconhecido.';
-    } finally {
-      setIsSaving(false);
       
-      if (success) {
-        alert("Venda registrada com sucesso!");
-        resetCalculatorForm();
-        setActiveTab('history');
-      } else if (errorMessage) {
-        alert(`Ocorreu um erro ao salvar a venda: ${errorMessage}`);
-      }
+      // Success path: Stop loading first, then show message and navigate
+      setIsSaving(false);
+      alert("Venda registrada com sucesso!");
+      resetCalculatorForm();
+      setActiveTab('history');
+
+    } catch (error: any) {
+      // Error path: Stop loading, then show error
+      setIsSaving(false);
+      console.error("Failed to save commission:", error);
+      alert(`Ocorreu um erro ao salvar a venda: ${error.message || 'Ocorreu um erro desconhecido.'}`);
     }
   };
 
