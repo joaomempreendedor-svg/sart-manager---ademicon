@@ -195,24 +195,23 @@ export const Commissions = () => {
     e.preventDefault();
     if (isSaving) return;
 
+    const errors = [];
+    const credit = parseCurrency(creditValue);
+    if (!credit) errors.push("Valor do Crédito");
+    if (!clientName.trim()) errors.push("Nome do Cliente");
+    if (!saleDate) errors.push("Data da Venda");
+    if (!selectedPV) errors.push("Ponto de Venda (PV)");
+    if (!group.trim()) errors.push("Grupo");
+    if (!quota.trim()) errors.push("Cota");
+    if (!selectedConsultant) errors.push("Prévia/Autorizado");
+
+    if (errors.length > 0) {
+        alert(`Por favor, preencha os seguintes campos obrigatórios:\n\n- ${errors.join('\n- ')}`);
+        return;
+    }
+
     setIsSaving(true);
-    console.log("handleSaveCommission: Iniciando submissão do formulário...");
-    
     try {
-      const errors = [];
-      const credit = parseCurrency(creditValue);
-      if (!credit) errors.push("Valor do Crédito");
-      if (!clientName.trim()) errors.push("Nome do Cliente");
-      if (!saleDate) errors.push("Data da Venda");
-      if (!selectedPV) errors.push("Ponto de Venda (PV)");
-      if (!group.trim()) errors.push("Grupo");
-      if (!quota.trim()) errors.push("Cota");
-      if (!selectedConsultant) errors.push("Prévia/Autorizado");
-
-      if (errors.length > 0) {
-          throw new Error(`Por favor, preencha os seguintes campos obrigatórios:\n\n- ${errors.join('\n- ')}`);
-      }
-
       const taxValue = parseFloat(taxRateInput.replace(',', '.')) || 0;
       const initialInstallments: Record<string, InstallmentStatus> = {};
       for (let i = 1; i <= 15; i++) { initialInstallments[i] = 'Pendente'; }
@@ -228,16 +227,14 @@ export const Commissions = () => {
       
       await addCommission(payload);
       
-      console.log("handleSaveCommission: Sucesso!");
       alert("Venda registrada com sucesso!");
       resetCalculatorForm();
       setActiveTab('history');
 
     } catch (error: any) {
-      console.error("handleSaveCommission: Erro capturado na UI.", error);
-      alert(`Falha ao registrar a venda:\n\n${error.message}`);
+      console.error("Falha ao registrar a venda:", error);
+      alert(`Falha ao registrar a venda:\n\n${error.message || "Ocorreu um erro desconhecido."}`);
     } finally {
-      console.log("handleSaveCommission: Finalizando, resetando estado de 'saving'.");
       setIsSaving(false);
     }
   };
