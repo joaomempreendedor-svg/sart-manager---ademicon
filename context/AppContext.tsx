@@ -95,7 +95,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   useEffect(() => {
     const fetchData = async (userId: string) => {
-      setIsDataLoading(true);
       try {
         const [
           { data: configResult, error: configError },
@@ -172,6 +171,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     if (user && user.id !== fetchedUserIdRef.current) {
       fetchedUserIdRef.current = user.id;
+      setIsDataLoading(true);
       fetchData(user.id);
     } else if (!user) {
       fetchedUserIdRef.current = null;
@@ -181,7 +181,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       // user exists, but has already been loaded
       setIsDataLoading(false);
     }
-  }, [user]);
+  }, [user?.id]);
 
   const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
 
