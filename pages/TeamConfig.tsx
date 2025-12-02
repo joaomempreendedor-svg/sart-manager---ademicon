@@ -75,6 +75,24 @@ export const TeamConfig = () => {
     }
   };
 
+  const handleDelete = async (id: string) => {
+    if (window.confirm('Tem certeza que deseja remover este membro da equipe?')) {
+      try {
+        await deleteTeamMember(id);
+      } catch (error: any) {
+        alert(`Falha ao remover membro: ${error.message}`);
+      }
+    }
+  };
+
+  const handleToggleActive = async (member: TeamMember) => {
+    try {
+      await updateTeamMember(member.id, { isActive: !member.isActive });
+    } catch (error: any) {
+      alert(`Falha ao alterar status do membro: ${error.message}`);
+    }
+  };
+
   const getRoleIcon = (role: TeamRole) => {
       switch(role) {
           case 'Gestor': return <Crown className="w-4 h-4 text-blue-500" />;
@@ -191,14 +209,14 @@ export const TeamConfig = () => {
                                           </div>
                                       </div>
                                       <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button onClick={async () => await updateTeamMember(member.id, { isActive: !member.isActive })} className={`p-2 rounded-full ${member.isActive ? 'text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20' : 'text-gray-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20'}`} title={member.isActive ? 'Inativar' : 'Ativar'}>
+                                        <button onClick={() => handleToggleActive(member)} className={`p-2 rounded-full ${member.isActive ? 'text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20' : 'text-gray-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20'}`} title={member.isActive ? 'Inativar' : 'Ativar'}>
                                             {member.isActive ? <Archive className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
                                         </button>
                                         <button onClick={() => startEditing(member)} className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full">
                                           <Edit2 className="w-4 h-4" />
                                         </button>
                                         <button 
-                                          onClick={async () => { if(confirm('Remover este membro da equipe?')) await deleteTeamMember(member.id) }}
+                                          onClick={() => handleDelete(member.id)}
                                           className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full"
                                         >
                                             <Trash2 className="w-5 h-5" />

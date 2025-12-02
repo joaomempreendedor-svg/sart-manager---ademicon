@@ -14,55 +14,70 @@ export const Profile = () => {
   const [loadingPassword, setLoadingPassword] = useState(false);
   const [profileMessage, setProfileMessage] = useState('');
   const [passwordMessage, setPasswordMessage] = useState('');
+  const [profileError, setProfileError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
 
   const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoadingProfile(true);
     setProfileMessage('');
+    setProfileError('');
 
     if (!user) return;
 
-    const { error } = await supabase
-      .from('profiles')
-      .update({ first_name: firstName, last_name: lastName })
-      .eq('id', user.id);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ first_name: firstName, last_name: lastName })
+        .eq('id', user.id);
 
-    if (error) {
-      setProfileMessage('Erro ao atualizar o perfil.');
-    } else {
+      if (error) throw error;
+      
       setProfileMessage('Perfil atualizado com sucesso!');
+    } catch (error: any) {
+      setProfileError(error.message || 'Erro ao atualizar o perfil.');
+    } finally {
+      setLoadingProfile(false);
+      setTimeout(() => {
+        setProfileMessage('');
+        setProfileError('');
+      }, 3000);
     }
-    setLoadingProfile(false);
-    setTimeout(() => setProfileMessage(''), 3000);
   };
 
   const handlePasswordUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoadingPassword(true);
     setPasswordMessage('');
+    setPasswordError('');
 
     if (password !== confirmPassword) {
-      setPasswordMessage('As senhas não coincidem.');
+      setPasswordError('As senhas não coincidem.');
       setLoadingPassword(false);
       return;
     }
     if (password.length < 6) {
-      setPasswordMessage('A senha deve ter no mínimo 6 caracteres.');
+      setPasswordError('A senha deve ter no mínimo 6 caracteres.');
       setLoadingPassword(false);
       return;
     }
 
-    const { error } = await supabase.auth.updateUser({ password });
+    try {
+      const { error } = await supabase.auth.updateUser({ password });
+      if (error) throw error;
 
-    if (error) {
-      setPasswordMessage('Erro ao atualizar a senha.');
-    } else {
       setPasswordMessage('Senha atualizada com sucesso!');
       setPassword('');
       setConfirmPassword('');
+    } catch (error: any) {
+      setPasswordError(error.message || 'Erro ao atualizar a senha.');
+    } finally {
+      setLoadingPassword(false);
+      setTimeout(() => {
+        setPasswordMessage('');
+        setPasswordError('');
+      }, 3000);
     }
-    setLoadingPassword(false);
-    setTimeout(() => setPasswordMessage(''), 3000);
   };
 
   return (
@@ -93,6 +108,7 @@ export const Profile = () => {
               <input type="text" value={lastName} onChange={e => setLastName(e.target.value)} className="mt-1 w-full border-gray-300 dark:border-slate-600 rounded-md p-2 border bg-white dark:bg-slate-700" />
             </div>
             {profileMessage && <p className="text-sm text-green-600 dark:text-green-400">{profileMessage}</p>}
+            {profileError && <p className="text-sm text-red-600 dark:text-red-400">{profileError}</p>}
             <button type="submit" disabled={loadingProfile} className="w-full flex justify-center items-center space-x-2 bg-brand-600 text-white py-2 rounded-lg hover:bg-brand-700 disabled:opacity-50">
               {loadingProfile ? <Loader2 className="animate-spin" /> : <Save className="w-4 h-4" />}
               <span>Salvar Alterações</span>
@@ -113,6 +129,7 @@ export const Profile = () => {
               <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className="mt-1 w-full border-gray-300 dark:border-slate-600 rounded-md p-2 border bg-white dark:bg-slate-700" />
             </div>
             {passwordMessage && <p className="text-sm text-green-600 dark:text-green-400">{passwordMessage}</p>}
+            {passwordError && <p className="text-sm text-red-600 dark:text-red-400">{passwordError}</p>}
             <button type="submit" disabled={loadingPassword} className="w-full flex justify-center items-center space-x-2 bg-gray-700 text-white py-2 rounded-lg hover:bg-gray-800 disabled:opacity-50">
               {loadingPassword ? <Loader2 className="animate-spin" /> : <Lock className="w-4 h-4" />}
               <span>Atualizar Senha</span>

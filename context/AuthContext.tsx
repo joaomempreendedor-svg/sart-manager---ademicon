@@ -39,26 +39,29 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchUserProfile = async (session: Session): Promise<User | null> => {
-    const { data: profile, error } = await supabase
-      .from('profiles')
-      .select('first_name, last_name')
-      .eq('id', session.user.id)
-      .maybeSingle();
+    try {
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('first_name, last_name')
+        .eq('id', session.user.id)
+        .maybeSingle();
 
-    if (error) {
+      if (error) throw error;
+
+      const name = profile && (profile.first_name || profile.last_name)
+        ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim()
+        : session.user.email?.split('@')[0] || 'Usuário';
+        
+      return { id: session.user.id, name, email: session.user.email || '' };
+    } catch (error: any) {
       console.error('Error fetching profile:', error.message);
+      // Fallback user object on profile fetch failure
       return {
         id: session.user.id,
         name: session.user.email?.split('@')[0] || 'Usuário',
         email: session.user.email || '',
       };
     }
-
-    const name = profile && (profile.first_name || profile.last_name)
-      ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim()
-      : session.user.email?.split('@')[0] || 'Usuário';
-      
-    return { id: session.user.id, name, email: session.user.email || '' };
   };
 
   useEffect(() => {
