@@ -195,18 +195,23 @@ export const Commissions = () => {
     e.preventDefault();
     if (isSaving) return;
 
+    const errors = [];
+    const credit = parseCurrency(creditValue);
+    if (!credit) errors.push("Valor do Crédito");
+    if (!clientName.trim()) errors.push("Nome do Cliente");
+    if (!saleDate) errors.push("Data da Venda");
+    if (!selectedPV) errors.push("Ponto de Venda (PV)");
+    if (!group.trim()) errors.push("Grupo");
+    if (!quota.trim()) errors.push("Cota");
+    if (!selectedConsultant) errors.push("Prévia/Autorizado");
+
+    if (errors.length > 0) {
+        alert(`Por favor, preencha os seguintes campos obrigatórios:\n\n- ${errors.join('\n- ')}`);
+        return;
+    }
+
     setIsSaving(true);
     try {
-      // Validação Detalhada
-      const credit = parseCurrency(creditValue);
-      if (!credit) throw new Error("O 'Valor do Crédito' é obrigatório e deve ser maior que zero.");
-      if (!clientName.trim()) throw new Error("O 'Nome do Cliente' é obrigatório.");
-      if (!saleDate) throw new Error("A 'Data da Venda' é obrigatória.");
-      if (!selectedPV) throw new Error("O 'Ponto de Venda (PV)' é obrigatório.");
-      if (!group.trim()) throw new Error("O 'Grupo' é obrigatório.");
-      if (!quota.trim()) throw new Error("A 'Cota' é obrigatória.");
-      if (!selectedConsultant) throw new Error("É obrigatório selecionar o 'Prévia/Autorizado'.");
-
       const taxValue = parseFloat(taxRateInput.replace(',', '.')) || 0;
       const initialInstallments: Record<string, InstallmentStatus> = {};
       for (let i = 1; i <= 15; i++) { initialInstallments[i] = 'Pendente'; }
@@ -352,7 +357,7 @@ export const Commissions = () => {
                         <h3 className="font-bold text-gray-900 dark:text-white">Salvar Venda</h3>
                         <button type="button" onClick={resetCalculatorForm} className="flex items-center space-x-1 text-xs text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 font-medium px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition">
                             <XCircle className="w-3 h-3" />
-                            <span>Limpar</span>
+                            <span>Limpar Formulário</span>
                         </button>
                     </div>
                     <form onSubmit={handleSaveCommission} className="space-y-3">
