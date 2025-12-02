@@ -215,9 +215,9 @@ export const Commissions = () => {
     
     try {
         await addCommission(newCommission);
-        setActiveTab('history');
-        resetCalculatorForm();
         alert("Venda registrada com sucesso!");
+        resetCalculatorForm();
+        setActiveTab('history');
     } catch (error: any) {
         console.error("Failed to save commission:", error);
         alert(`Ocorreu um erro ao salvar a venda: ${error.message}`);
