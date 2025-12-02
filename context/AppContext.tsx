@@ -177,6 +177,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       fetchedUserIdRef.current = null;
       resetLocalState();
       setIsDataLoading(false);
+    } else {
+      // user exists, but has already been loaded
+      setIsDataLoading(false);
     }
   }, [user]);
 
