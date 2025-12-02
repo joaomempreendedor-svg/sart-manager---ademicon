@@ -208,9 +208,9 @@ export const Commissions = () => {
         setActiveTab('history');
         setClientName(''); setCreditValue(''); setGroup(''); setQuota(''); setSelectedPV('');
         alert("Venda registrada com sucesso!");
-    } catch (error) {
+    } catch (error: any) {
         console.error("Failed to save commission:", error);
-        alert("Ocorreu um erro ao salvar a venda. Por favor, tente novamente.");
+        alert(`Ocorreu um erro ao salvar a venda: ${error.message}`);
     } finally {
         setIsSaving(false);
     }
