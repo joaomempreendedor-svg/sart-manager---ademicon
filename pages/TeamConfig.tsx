@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Plus, Trash2, User, Shield, Crown, Star, Edit2, Save, X, Archive, UserCheck } from 'lucide-react';
+import { Plus, Trash2, User, Shield, Crown, Star, Edit2, Save, X, Archive, UserCheck, Loader2 } from 'lucide-react';
 import { TeamMember, TeamRole } from '../types';
 
 const ALL_ROLES: TeamRole[] = ['Prévia', 'Autorizado', 'Gestor', 'Anjo'];
@@ -10,10 +10,12 @@ export const TeamConfig = () => {
   
   const [newName, setNewName] = useState('');
   const [newRoles, setNewRoles] = useState<TeamRole[]>(['Prévia']);
+  const [isAdding, setIsAdding] = useState(false);
 
   const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
   const [editingName, setEditingName] = useState('');
   const [editingRoles, setEditingRoles] = useState<TeamRole[]>([]);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const handleRoleChange = (role: TeamRole, currentRoles: TeamRole[], setRoles: React.Dispatch<React.SetStateAction<TeamRole[]>>) => {
     const updatedRoles = currentRoles.includes(role)
@@ -24,21 +26,24 @@ export const TeamConfig = () => {
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (newName.trim() && newRoles.length > 0) {
-      try {
-        await addTeamMember({
-          id: crypto.randomUUID(),
-          name: newName.trim(),
-          roles: newRoles,
-          isActive: true,
-        });
-        setNewName('');
-        setNewRoles(['Prévia']);
-      } catch (error) {
-        alert("Falha ao adicionar membro.");
-      }
-    } else {
+    if (!newName.trim() || newRoles.length === 0) {
       alert("O nome e pelo menos um cargo são obrigatórios.");
+      return;
+    }
+    setIsAdding(true);
+    try {
+      await addTeamMember({
+        id: crypto.randomUUID(),
+        name: newName.trim(),
+        roles: newRoles,
+        isActive: true,
+      });
+      setNewName('');
+      setNewRoles(['Prévia']);
+    } catch (error: any) {
+      alert(`Falha ao adicionar membro: ${error.message}`);
+    } finally {
+      setIsAdding(false);
     }
   };
 
@@ -55,15 +60,18 @@ export const TeamConfig = () => {
   };
 
   const handleUpdate = async () => {
-    if (editingMember && editingName.trim() && editingRoles.length > 0) {
-      try {
-        await updateTeamMember(editingMember.id, { name: editingName.trim(), roles: editingRoles });
-        cancelEditing();
-      } catch (error) {
-        alert("Falha ao atualizar membro.");
-      }
-    } else {
+    if (!editingMember || !editingName.trim() || editingRoles.length === 0) {
       alert("O nome e pelo menos um cargo são obrigatórios.");
+      return;
+    }
+    setIsUpdating(true);
+    try {
+      await updateTeamMember(editingMember.id, { name: editingName.trim(), roles: editingRoles });
+      cancelEditing();
+    } catch (error: any) {
+      alert(`Falha ao atualizar membro: ${error.message}`);
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -125,9 +133,9 @@ export const TeamConfig = () => {
                             ))}
                           </div>
                       </div>
-                      <button type="submit" className="w-full flex items-center justify-center space-x-2 bg-brand-600 hover:bg-brand-700 text-white py-2 rounded-lg transition font-medium">
-                          <Plus className="w-4 h-4" />
-                          <span>Adicionar</span>
+                      <button type="submit" disabled={isAdding} className="w-full flex items-center justify-center space-x-2 bg-brand-600 hover:bg-brand-700 text-white py-2 rounded-lg transition font-medium disabled:opacity-50">
+                          {isAdding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                          <span>{isAdding ? 'Adicionando...' : 'Adicionar'}</span>
                       </button>
                   </form>
               </div>
@@ -157,7 +165,10 @@ export const TeamConfig = () => {
                                         ))}
                                       </div>
                                       <div className="flex justify-end gap-2 mt-2">
-                                        <button onClick={handleUpdate} className="px-3 py-1 bg-green-100 text-green-700 rounded text-sm font-medium hover:bg-green-200"><Save className="w-4 h-4 inline mr-1" />Salvar</button>
+                                        <button onClick={handleUpdate} disabled={isUpdating} className="px-3 py-1 bg-green-100 text-green-700 rounded text-sm font-medium hover:bg-green-200 disabled:opacity-50">
+                                            {isUpdating ? <Loader2 className="w-4 h-4 inline mr-1 animate-spin" /> : <Save className="w-4 h-4 inline mr-1" />}
+                                            Salvar
+                                        </button>
                                         <button onClick={cancelEditing} className="px-3 py-1 bg-gray-100 text-gray-700 rounded text-sm font-medium hover:bg-gray-200"><X className="w-4 h-4 inline mr-1" />Cancelar</button>
                                       </div>
                                     </div>

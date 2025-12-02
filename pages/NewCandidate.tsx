@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { Candidate, InterviewScores } from '../types';
-import { Save, ArrowLeft, Plus, Trash2 } from 'lucide-react';
+import { Save, ArrowLeft, Plus, Trash2, Loader2 } from 'lucide-react';
 
 export const NewCandidate = () => {
   const navigate = useNavigate();
@@ -19,6 +19,7 @@ export const NewCandidate = () => {
   const [scores, setScores] = useState<Record<string, number>>({});
   const [checkedQuestions, setCheckedQuestions] = useState<Record<string, boolean>>({});
   const [notes, setNotes] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     const initialScores: Record<string, number> = {};
@@ -95,6 +96,7 @@ export const NewCandidate = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSaving(true);
     
     const interviewScores: InterviewScores = {
       basicProfile: scores['basicProfile'] || 0,
@@ -119,8 +121,15 @@ export const NewCandidate = () => {
       consultantGoalsProgress: {},
       createdAt: new Date().toISOString(),
     };
-    await addCandidate(newCandidate);
-    navigate(`/candidate/${newCandidate.id}`);
+
+    try {
+      await addCandidate(newCandidate);
+      navigate(`/candidate/${newCandidate.id}`);
+    } catch (error: any) {
+      alert(`Erro ao salvar candidato: ${error.message}`);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const totalScore = (Object.values(scores) as number[]).reduce((a, b) => a + b, 0);
@@ -245,8 +254,8 @@ export const NewCandidate = () => {
          </section>
 
         <div className="flex justify-end pt-4">
-            <button type="submit" className="flex items-center space-x-2 bg-brand-500 hover:bg-brand-600 text-white px-8 py-3 rounded-lg transition font-medium shadow-lg shadow-brand-500/30">
-                <Save className="w-5 h-5" />
+            <button type="submit" disabled={isSaving} className="flex items-center space-x-2 bg-brand-500 hover:bg-brand-600 text-white px-8 py-3 rounded-lg transition font-medium shadow-lg shadow-brand-500/30 disabled:opacity-50 disabled:cursor-not-allowed">
+                {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
                 <span>Salvar Avaliação</span>
             </button>
         </div>
