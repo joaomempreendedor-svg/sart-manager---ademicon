@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useMemo, useCallback } from 'react';
 import { supabase } from '../src/integrations/supabase/client';
-import { Session, AuthChangeEvent } from '@supabase/supabase-js';
+import { Session } from '@supabase/supabase-js';
 import { User } from '../types';
 
 interface AuthContextType {
@@ -19,54 +19,59 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const fetchUserProfile = async (session: Session): Promise<User | null> => {
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('first_name, last_name')
+      .eq('id', session.user.id)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error fetching profile:', error.message);
+      // Fallback user data if profile fetch fails
+      return {
+        id: session.user.id,
+        name: session.user.email?.split('@')[0] || 'Usuário',
+        email: session.user.email || '',
+      };
+    }
+
+    const name = profile && (profile.first_name || profile.last_name)
+      ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim()
+      : session.user.email?.split('@')[0] || 'Usuário';
+      
+    return { id: session.user.id, name, email: session.user.email || '' };
+  };
+
   useEffect(() => {
-    // This effect runs only once to set up the auth listener.
+    // 1. Handle initial session on component mount
+    const checkInitialSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const userProfile = await fetchUserProfile(session);
+        setUser(userProfile);
+        setSession(session);
+      }
+      setIsLoading(false);
+    };
+    
+    checkInitialSession();
+
+    // 2. Listen for subsequent auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event: AuthChangeEvent, session: Session | null) => {
-        
-        if (event === 'SIGNED_OUT') {
-          // Explicitly handle logout: clear user and session.
+      async (_event, session) => {
+        if (session) {
+          const userProfile = await fetchUserProfile(session);
+          setUser(userProfile);
+          setSession(session);
+        } else {
           setUser(null);
           setSession(null);
-        } else if (session) {
-          // Handle SIGNED_IN, TOKEN_REFRESHED, USER_UPDATED, and INITIAL_SESSION with a valid session.
-          // This prevents clearing the user on temporary null sessions during token refreshes.
-          setSession(session);
-          const { data: profile, error } = await supabase
-            .from('profiles')
-            .select('first_name, last_name')
-            .eq('id', session.user.id)
-            .maybeSingle();
-
-          if (error) {
-            console.error('Error fetching profile:', error.message);
-          }
-
-          const name = profile && (profile.first_name || profile.last_name)
-            ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim()
-            : session.user.email?.split('@')[0] || 'Usuário';
-          
-          setUser({ id: session.user.id, name, email: session.user.email || '' });
-        }
-
-        // The initial session check is complete after the first event,
-        // allowing the rest of the app to render. This is crucial to stop the loading state.
-        if (event === 'INITIAL_SESSION') {
-            setIsLoading(false);
         }
       }
     );
 
-    // Immediately check for an existing session to speed up the initial load.
-    // The listener above will still run for INITIAL_SESSION, but this can
-    // prevent a flicker on fast connections if there's no session.
-    supabase.auth.getSession().then(({ data: { session } }) => {
-        if (!session) {
-            setIsLoading(false);
-        }
-    });
-
-    // Cleanup the subscription on unmount.
+    // 3. Cleanup subscription on unmount
     return () => {
       subscription.unsubscribe();
     };
