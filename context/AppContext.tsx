@@ -195,11 +195,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const addCommission = useCallback(async (commission: Commission): Promise<Commission> => {
     if (!user) throw new Error("Usuário não autenticado.");
-
-    console.log("addCommission: Iniciando salvamento...");
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 segundos de timeout
-
+  
+    console.log("addCommission: iniciando commit...");
+  
     try {
       const cleanCommission: Commission = {
         ...commission,
@@ -207,44 +205,36 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         angelName: commission.angelName || undefined,
         managerName: commission.managerName || 'N/A',
       };
-
+  
       const { data, error } = await supabase
         .from('commissions')
         .insert({ user_id: user.id, data: cleanCommission })
         .select('id')
-        .single({ signal: controller.signal });
-
+        .single();
+  
       if (error) {
-        if (error.name === 'AbortError') {
-          console.error("addCommission: Erro de timeout do Supabase.");
-          throw new Error("A operação demorou muito e foi cancelada (timeout). Verifique sua conexão.");
-        }
-        console.error("addCommission: Erro do Supabase ao inserir.", error);
-        throw error;
+        console.error("Supabase insert error:", error);
+        throw new Error(error.message);
       }
-
-      if (!data || !data.id) {
-        console.error("addCommission: Supabase não retornou o ID do registro inserido.");
-        throw new Error("Falha ao confirmar o salvamento do registro no banco de dados.");
+  
+      if (!data?.id) {
+        throw new Error("Supabase não retornou ID do insert.");
       }
-
-      console.log("addCommission: Registro salvo com sucesso no DB. ID:", data.id);
+  
+      console.log("Registro salvo:", data.id);
+  
       const newCommissionWithDbId = { ...cleanCommission, db_id: data.id };
-
+  
       setCommissions(prev =>
         [newCommissionWithDbId, ...prev]
           .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
       );
       
       return newCommissionWithDbId;
-
-    } catch (error: any) {
-      console.error("addCommission: Capturado erro no bloco catch.", error);
-      // Re-lança o erro para que a UI possa tratá-lo
-      throw new Error(error.message || "Ocorreu um erro desconhecido ao salvar a venda.");
-    } finally {
-      console.log("addCommission: Limpando timeout.");
-      clearTimeout(timeoutId);
+  
+    } catch (err: any) {
+      console.error("addCommission FAILED:", err);
+      throw new Error(err.message || "Erro ao salvar comissão");
     }
   }, [user]);
 
