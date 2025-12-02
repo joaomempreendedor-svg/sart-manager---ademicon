@@ -193,9 +193,75 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const updateTeamMember = useCallback(async (id: string, updates: Partial<TeamMember>) => { if (!user) throw new Error("Usuário não autenticado."); const m = teamMembers.find(m => m.id === id); if (!m || !m.db_id) throw new Error("Membro não encontrado"); const updated = { ...m, ...updates }; const { db_id, ...dataToUpdate } = updated; const { error } = await supabase.from('team_members').update({ data: dataToUpdate }).match({ id: m.db_id, user_id: user.id }); if (error) { console.error(error); throw error; } setTeamMembers(prev => prev.map(p => p.id === id ? updated : p)); }, [user, teamMembers]);
   const deleteTeamMember = useCallback(async (id: string) => { if (!user) throw new Error("Usuário não autenticado."); const m = teamMembers.find(m => m.id === id); if (!m || !m.db_id) throw new Error("Membro não encontrado"); const { error } = await supabase.from('team_members').delete().match({ id: m.db_id, user_id: user.id }); if (error) { console.error(error); throw error; } setTeamMembers(prev => prev.filter(p => p.id !== id)); }, [user, teamMembers]);
 
-  const addCommission = useCallback(async (commission: Commission) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('commissions').insert({ user_id: user.id, data: commission }).select('id').single(); if (error) { console.error(error); throw error; } if (data) { setCommissions(prev => [{ ...commission, db_id: data.id }, ...prev].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())); } }, [user]);
-  const updateCommission = useCallback(async (id: string, updates: Partial<Commission>) => { if (!user) throw new Error("Usuário não autenticado."); const c = commissions.find(c => c.id === id); if (!c || !c.db_id) throw new Error("Comissão não encontrada"); const updated = { ...c, ...updates }; const { db_id, ...dataToUpdate } = updated; const { error } = await supabase.from('commissions').update({ data: dataToUpdate }).match({ id: c.db_id, user_id: user.id }); if (error) { console.error(error); throw error; } setCommissions(prev => prev.map(p => p.id === id ? updated : p).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())); }, [user, commissions]);
-  const deleteCommission = useCallback(async (id: string) => { if (!user) throw new Error("Usuário não autenticado."); const c = commissions.find(c => c.id === id); if (!c || !c.db_id) throw new Error("Comissão não encontrada"); const { error } = await supabase.from('commissions').delete().match({ id: c.db_id, user_id: user.id }); if (error) { console.error(error); throw error; } setCommissions(prev => prev.filter(p => p.id !== id)); }, [user, commissions]);
+  const addCommission = useCallback(async (commission: Commission) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const payload = { user_id: user.id, data: commission };
+    console.log("INICIANDO INSERT", payload);
+    try {
+      const { data, error } = await supabase
+        .from('commissions')
+        .insert(payload)
+        .select('id')
+        .single();
+      
+      console.log("RESPOSTA SUPABASE", data, error);
+
+      if (error) {
+        throw error;
+      }
+      if (data) {
+        setCommissions(prev => [{ ...commission, db_id: data.id }, ...prev].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+      }
+    } catch (error) {
+      console.error("ERRO REAL SUPABASE:", error);
+      throw error;
+    } finally {
+      console.log("INSERT FINALIZADO");
+    }
+  }, [user]);
+
+  const updateCommission = useCallback(async (id: string, updates: Partial<Commission>) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const commissionToUpdate = commissions.find(c => c.id === id);
+    if (!commissionToUpdate || !commissionToUpdate.db_id) throw new Error("Comissão não encontrada para atualização.");
+    
+    const updatedCommission = { ...commissionToUpdate, ...updates };
+    const { db_id, ...dataToUpdate } = updatedCommission;
+
+    try {
+      const { error } = await supabase
+        .from('commissions')
+        .update({ data: dataToUpdate })
+        .match({ id: commissionToUpdate.db_id, user_id: user.id });
+
+      if (error) throw error;
+
+      setCommissions(prev => prev.map(p => p.id === id ? updatedCommission : p).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+    } catch (error) {
+      console.error("ERRO AO ATUALIZAR COMISSÃO:", error);
+      throw error;
+    }
+  }, [user, commissions]);
+
+  const deleteCommission = useCallback(async (id: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const commissionToDelete = commissions.find(c => c.id === id);
+    if (!commissionToDelete || !commissionToDelete.db_id) throw new Error("Comissão não encontrada para exclusão.");
+
+    try {
+      const { error } = await supabase
+        .from('commissions')
+        .delete()
+        .match({ id: commissionToDelete.db_id, user_id: user.id });
+
+      if (error) throw error;
+
+      setCommissions(prev => prev.filter(p => p.id !== id));
+    } catch (error) {
+      console.error("ERRO AO DELETAR COMISSÃO:", error);
+      throw error;
+    }
+  }, [user, commissions]);
   
   const addSupportMaterial = useCallback(async (material: SupportMaterial) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('support_materials').insert({ user_id: user.id, data: material }).select('id').single(); if (error) { console.error(error); throw error; } if (data) { setSupportMaterials(prev => [{ ...material, db_id: data.id }, ...prev]); } }, [user]);
   const deleteSupportMaterial = useCallback(async (id: string) => { if (!user) throw new Error("Usuário não autenticado."); const m = supportMaterials.find(m => m.id === id); if (!m || !m.db_id) throw new Error("Material não encontrado"); const { error } = await supabase.from('support_materials').delete().match({ id: m.db_id, user_id: user.id }); if (error) { console.error(error); throw error; } setSupportMaterials(prev => prev.filter(p => p.id !== id)); }, [user, supportMaterials]);
