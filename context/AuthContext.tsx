@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useMemo, useCallback } from 'react';
 import { supabase } from '../src/integrations/supabase/client';
-import { Session } from '@supabase/supabase-js';
+import { Session, AuthChangeEvent } from '@supabase/supabase-js';
 import { User } from '../types';
 
 interface AuthContextType {
@@ -20,60 +20,50 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchSession = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        setSession(session);
-        if (session) {
-          const { data: profile, error } = await supabase
-            .from('profiles')
-            .select('first_name, last_name')
-            .eq('id', session.user.id)
-            .maybeSingle();
-
-          if (error) console.error('Error fetching profile on initial load:', error.message);
-
-          const name = profile && (profile.first_name || profile.last_name)
-            ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim()
-            : session.user.email?.split('@')[0] || 'Usuário';
-          
-          setUser({ id: session.user.id, name, email: session.user.email || '' });
-        } else {
-          setUser(null);
-        }
-      } catch (e) {
-        console.error("Error fetching initial session:", e);
-        setUser(null);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchSession();
-
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    // 1. Fetch the initial session to hydrate the state quickly.
+    supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-       if (session) {
-          const { data: profile, error } = await supabase
-            .from('profiles')
-            .select('first_name, last_name')
-            .eq('id', session.user.id)
-            .maybeSingle();
-
-          if (error) console.error('Error fetching profile on auth change:', error.message);
-
-          const name = profile && (profile.first_name || profile.last_name)
-            ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim()
-            : session.user.email?.split('@')[0] || 'Usuário';
-          
-          setUser({ id: session.user.id, name, email: session.user.email || '' });
-        } else {
-          setUser(null);
-        }
+      // The listener will handle the profile fetching and loading state.
     });
 
+    // 2. Set up a listener for all subsequent auth events.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event: AuthChangeEvent, session: Session | null) => {
+        
+        // On SIGNED_OUT, explicitly clear the user state.
+        if (event === 'SIGNED_OUT') {
+          setUser(null);
+          setSession(null);
+        } 
+        // For any other event, if a session exists, update the user profile.
+        // This handles SIGNED_IN, TOKEN_REFRESHED, and the initial INITIAL_SESSION event.
+        else if (session) {
+          setSession(session);
+          const { data: profile, error } = await supabase
+            .from('profiles')
+            .select('first_name, last_name')
+            .eq('id', session.user.id)
+            .maybeSingle();
+
+          if (error) {
+            console.error('Error fetching profile on auth change:', error.message);
+          }
+
+          const name = profile && (profile.first_name || profile.last_name)
+            ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim()
+            : session.user.email?.split('@')[0] || 'Usuário';
+          
+          setUser({ id: session.user.id, name, email: session.user.email || '' });
+        }
+        
+        // The initial loading is complete after the first auth event is processed.
+        setIsLoading(false);
+      }
+    );
+
+    // 3. Cleanup the subscription on unmount.
     return () => {
-      authListener.subscription.unsubscribe();
+      subscription.unsubscribe();
     };
   }, []);
 
