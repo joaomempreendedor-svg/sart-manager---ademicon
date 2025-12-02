@@ -196,47 +196,34 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const addCommission = useCallback(async (commission: Commission): Promise<Commission> => {
     if (!user) throw new Error("Usuário não autenticado.");
   
-    console.log("addCommission: iniciando commit...");
+    console.log("addCommission: salvando...");
   
-    try {
-      const cleanCommission: Commission = {
-        ...commission,
-        customRules: commission.customRules?.length ? commission.customRules : undefined,
-        angelName: commission.angelName || undefined,
-        managerName: commission.managerName || 'N/A',
-      };
+    const cleanCommission: Commission = {
+      ...commission,
+      customRules: commission.customRules?.length ? commission.customRules : undefined,
+      angelName: commission.angelName || undefined,
+      managerName: commission.managerName || 'N/A',
+    };
   
-      const { data, error } = await supabase
-        .from('commissions')
-        .insert({ user_id: user.id, data: cleanCommission })
-        .select('id')
-        .single();
+    const { data, error } = await supabase
+      .from('commissions')
+      .insert({ user_id: user.id, data: cleanCommission })
+      .select('id')
+      .single();
   
-      if (error) {
-        console.error("Supabase insert error:", error);
-        throw new Error(error.message);
-      }
-  
-      if (!data?.id) {
-        throw new Error("Supabase não retornou ID do insert.");
-      }
-  
-      console.log("Registro salvo:", data.id);
-  
-      const newCommissionWithDbId = { ...cleanCommission, db_id: data.id };
-  
-      setCommissions(prev =>
-        [newCommissionWithDbId, ...prev]
-          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-      );
-      
-      return newCommissionWithDbId;
-  
-    } catch (err: any) {
-      console.error("addCommission FAILED:", err);
-      throw new Error(err.message || "Erro ao salvar comissão");
+    if (error) {
+      console.error("Erro Supabase:", error);
+      throw new Error(error.message);
     }
-  }, [user, commissions]);
+  
+    const newItem = { ...cleanCommission, db_id: data.id };
+  
+    setCommissions(prev =>
+      [newItem, ...prev].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    );
+  
+    return newItem;
+  }, [user]);
 
   const updateCommission = useCallback(async (id: string, updates: Partial<Commission>) => {
     if (!user) throw new Error("Usuário não autenticado.");
