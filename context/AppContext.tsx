@@ -1,4 +1,4 @@
-import React, from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '../src/integrations/supabase/client';
 import { useAuth } from './AuthContext';
 import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, CommissionStatus } from '../types';
