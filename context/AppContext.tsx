@@ -95,9 +95,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const refetchCommissions = useCallback(async () => {
-    if (!user || isFetchingRef.current) return;
-  
+    if (!user) return;
+    
+    // ✅ CORREÇÃO: Evitar múltiplas chamadas simultâneas
+    if (isFetchingRef.current) {
+      console.log('[refetchCommissions] Já está em execução, ignorando chamada duplicada');
+      return;
+    }
+    
     isFetchingRef.current = true;
+    const fetchId = Date.now();
+    console.log(`[${new Date().toISOString()}] REFETCH_COMMISSIONS_START #${fetchId}`);
   
     try {
       const { data, error } = await supabase
@@ -107,7 +115,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         .order("created_at", { ascending: false });
   
       if (error) {
-        console.error("Erro no refetchCommissions:", error);
+        console.error(`[${new Date().toISOString()}] REFETCH_COMMISSIONS_ERROR #${fetchId}:`, error);
         return;
       }
   
@@ -127,12 +135,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         };
       });
   
+      console.log(`[${new Date().toISOString()}] REFETCH_COMMISSIONS_SUCCESS #${fetchId}:`, normalized.length, 'itens');
       setCommissions(normalized);
   
     } catch (err) {
-      console.error("Erro crítico no refetchCommissions:", err);
+      console.error(`[${new Date().toISOString()}] REFETCH_COMMISSIONS_CRITICAL_ERROR #${fetchId}:`, err);
     } finally {
-      isFetchingRef.current = false;
+      // ✅ CORREÇÃO: Garantir que sempre libere o lock
+      setTimeout(() => {
+        isFetchingRef.current = false;
+        console.log(`[${new Date().toISOString()}] REFETCH_COMMISSIONS_COMPLETE #${fetchId}`);
+      }, 100);
     }
   }, [user]);
 
