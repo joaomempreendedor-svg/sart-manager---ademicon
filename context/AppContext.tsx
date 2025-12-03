@@ -37,6 +37,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const auth = useAuth();
   const { user } = auth;
   const fetchedUserIdRef = useRef<string | null>(null);
+  const isFetchingRef = useRef(false);
 
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
@@ -94,7 +95,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const refetchCommissions = useCallback(async () => {
-    if (!user) return;
+    if (!user || isFetchingRef.current) return;
+  
+    isFetchingRef.current = true;
   
     try {
       const { data, error } = await supabase
@@ -128,6 +131,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   
     } catch (err) {
       console.error("Erro crítico no refetchCommissions:", err);
+    } finally {
+      isFetchingRef.current = false;
     }
   }, [user]);
 
@@ -228,22 +233,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       managerName: commission.managerName || 'N/A',
     };
   
-    try {
-      const { data, error } = await supabase
-        .from('commissions')
-        .insert({ user_id: user.id, data: cleanCommission })
-        .select('id')
-        .single();
-  
-      if (error) throw error;
-  
-      refetchCommissions();
-  
-      return { ...cleanCommission, db_id: data.id };
-    } catch (error) {
+    const { data, error } = await supabase
+      .from('commissions')
+      .insert({ user_id: user.id, data: cleanCommission })
+      .select('id')
+      .single();
+
+    if (error) {
       console.error("Erro ao salvar comissão:", error);
       throw error;
     }
+
+    refetchCommissions();
+
+    return { ...cleanCommission, db_id: data.id };
   }, [user, refetchCommissions]);
 
   const updateCommission = useCallback(async (id: string, updates: Partial<Commission>) => {
@@ -254,19 +257,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const updatedCommission = { ...commissionToUpdate, ...updates };
     const { db_id, ...dataToUpdate } = updatedCommission;
 
-    try {
-      const { error } = await supabase
-        .from('commissions')
-        .update({ data: dataToUpdate })
-        .match({ id: commissionToUpdate.db_id, user_id: user.id });
+    const { error } = await supabase
+      .from('commissions')
+      .update({ data: dataToUpdate })
+      .match({ id: commissionToUpdate.db_id, user_id: user.id });
 
-      if (error) throw error;
-
-      refetchCommissions();
-    } catch (error) {
+    if (error) {
       console.error("ERRO AO ATUALIZAR COMISSÃO:", error);
       throw error;
     }
+
+    refetchCommissions();
   }, [user, commissions, refetchCommissions]);
 
   const deleteCommission = useCallback(async (id: string) => {
@@ -274,19 +275,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const commissionToDelete = commissions.find(c => c.id === id);
     if (!commissionToDelete || !commissionToDelete.db_id) throw new Error("Comissão não encontrada para exclusão.");
 
-    try {
-      const { error } = await supabase
-        .from('commissions')
-        .delete()
-        .match({ id: commissionToDelete.db_id, user_id: user.id });
+    const { error } = await supabase
+      .from('commissions')
+      .delete()
+      .match({ id: commissionToDelete.db_id, user_id: user.id });
 
-      if (error) throw error;
-
-      refetchCommissions();
-    } catch (error) {
+    if (error) {
       console.error("ERRO AO DELETAR COMISSÃO:", error);
       throw error;
     }
+
+    refetchCommissions();
   }, [user, commissions, refetchCommissions]);
   
   const addSupportMaterial = useCallback(async (material: SupportMaterial) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('support_materials').insert({ user_id: user.id, data: material }).select('id').single(); if (error) { console.error(error); throw error; } if (data) { setSupportMaterials(prev => [{ ...material, db_id: data.id }, ...prev]); } }, [user]);
