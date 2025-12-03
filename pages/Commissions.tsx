@@ -224,15 +224,13 @@ export const Commissions = () => {
         customRules: isCustomRulesMode ? customRules : undefined
       };
       
-      const result = await addCommission(payload);
-      console.log("SALVO:", result);
+      await addCommission(payload);
       
       alert("Venda registrada com sucesso!");
       resetCalculatorForm();
       setActiveTab('history');
 
     } catch (error: any) {
-      console.error("ERRO REAL:", error);
       alert(error.message || "Falha ao salvar");
     } finally {
       setIsSaving(false);

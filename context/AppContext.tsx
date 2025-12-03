@@ -37,7 +37,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const auth = useAuth();
   const { user } = auth;
   const fetchedUserIdRef = useRef<string | null>(null);
-  const isFetchingRef = useRef(false);
 
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
@@ -95,9 +94,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const refetchCommissions = useCallback(async () => {
-    if (!user || isFetchingRef.current) return;
-  
-    isFetchingRef.current = true;
+    if (!user) return;
   
     try {
       const { data, error } = await supabase
@@ -131,8 +128,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   
     } catch (err) {
       console.error("Erro crítico no refetchCommissions:", err);
-    } finally {
-      isFetchingRef.current = false;
     }
   }, [user]);
 
