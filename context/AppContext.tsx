@@ -37,6 +37,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const auth = useAuth();
   const { user } = auth;
   const fetchedUserIdRef = useRef<string | null>(null);
+  const isFetchingRef = useRef(false);
 
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
@@ -94,7 +95,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const refetchCommissions = useCallback(async () => {
-    if (!user) return;
+    if (!user || isFetchingRef.current) return;
+  
+    isFetchingRef.current = true;
   
     try {
       const { data, error } = await supabase
@@ -128,6 +131,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   
     } catch (err) {
       console.error("Erro crítico no refetchCommissions:", err);
+    } finally {
+      isFetchingRef.current = false;
     }
   }, [user]);
 
@@ -186,7 +191,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         
         setSupportMaterials(materialsData?.map(item => ({ ...(item.data as SupportMaterial), db_id: item.id })) || []);
         
-        await refetchCommissions();
+        refetchCommissions();
 
       } catch (error) {
         console.error("Failed to fetch initial data:", error);
@@ -237,7 +242,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   
       if (error) throw error;
   
-      await refetchCommissions();
+      refetchCommissions();
   
       return { ...cleanCommission, db_id: data.id };
     } catch (error) {
@@ -262,7 +267,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       if (error) throw error;
 
-      await refetchCommissions();
+      refetchCommissions();
     } catch (error) {
       console.error("ERRO AO ATUALIZAR COMISSÃO:", error);
       throw error;
@@ -282,7 +287,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       if (error) throw error;
 
-      await refetchCommissions();
+      refetchCommissions();
     } catch (error) {
       console.error("ERRO AO DELETAR COMISSÃO:", error);
       throw error;
