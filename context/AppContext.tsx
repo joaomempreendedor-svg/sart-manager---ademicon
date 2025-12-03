@@ -25,6 +25,27 @@ const DEFAULT_APP_CONFIG_DATA = {
   pvs: ['SOARES E MORAES', 'SART INVESTIMENTOS', 'KR CONSÓRCIOS', 'SOLOM INVESTIMENTOS'],
 };
 
+// ⚠️ CONFIGURAÇÃO DOS DIAS DE CORTE POR MÊS ⚠️
+const MONTHLY_CUTOFF_DAYS: Record<number, number> = {
+  1: 19, 2: 18, 3: 19, 4: 19, 5: 19, 6: 17, 7: 19, 8: 19, 9: 19, 10: 19, 11: 19, 12: 19,
+};
+
+const calculateCompetenceMonth = (paidDate: string): string => {
+  const date = new Date(paidDate + 'T00:00:00');
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  const cutoffDay = MONTHLY_CUTOFF_DAYS[month] || 19;
+  let competenceDate = new Date(date);
+  if (day <= cutoffDay) {
+    competenceDate.setMonth(competenceDate.getMonth() + 1);
+  } else {
+    competenceDate.setMonth(competenceDate.getMonth() + 2);
+  }
+  const compYear = competenceDate.getFullYear();
+  const compMonth = String(competenceDate.getMonth() + 1).padStart(2, '0');
+  return `${compYear}-${compMonth}`;
+};
+
 const getOverallStatus = (details: Record<string, InstallmentInfo>): CommissionStatus => {
     const statuses = Object.values(details).map(info => info.status);
     if (statuses.every(s => s === 'Pago' || s === 'Cancelado')) return 'Concluído';
@@ -412,7 +433,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       } catch (error: any) {
         console.log("⚠️ Background sync falhou, mantendo local. Erro:", error.message);
         
-        const pending = JSON.parse(localStorage.getItem('pending_commissions') || '[]');
+        const pending = JSON.parse(localStorage.getItem('pending_commissions') || '[]')
         
         const alreadyExists = pending.some((p: any) => p._localId === localId);
         if (!alreadyExists) {
@@ -484,37 +505,43 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     commissionId: string, 
     installmentNumber: number, 
     status: InstallmentStatus,
-    paidDate?: string
+    paidDate?: string,
+    saleType?: 'Imóvel' | 'Veículo'
   ) => {
-    console.log(`🔄 Atualizando parcela ${installmentNumber} para ${status}${paidDate ? ` em ${paidDate}` : ''}`);
+    console.log(`🔄 Atualizando parcela ${installmentNumber} para ${status}`);
     
     const commission = commissions.find(c => c.id === commissionId);
     if (!commission) {
       console.error("Comissão não encontrada");
       return;
     }
-
-    const newPaidDate = status === 'Pago' 
-      ? (paidDate || new Date().toISOString().split('T')[0])
-      : undefined;
-  
+    
+    let competenceMonth: string | undefined;
+    let finalPaidDate = paidDate || new Date().toISOString().split('T')[0];
+    
+    if (status === 'Pago' && finalPaidDate) {
+      competenceMonth = calculateCompetenceMonth(finalPaidDate);
+      console.log(`📅 Competência calculada: ${competenceMonth} para pagamento em ${finalPaidDate}`);
+    }
+    
     const newDetails = { 
       ...commission.installmentDetails, 
       [installmentNumber]: {
         status,
-        ...(newPaidDate && { paidDate: newPaidDate })
+        ...(finalPaidDate && { paidDate: finalPaidDate }),
+        ...(competenceMonth && { competenceMonth })
       }
     };
-  
+    
     const newOverallStatus = getOverallStatus(newDetails);
-  
+    
     try {
       const updatedCommission = { 
         ...commission, 
         installmentDetails: newDetails,
         status: newOverallStatus
       };
-
+  
       setCommissions(prev => 
         prev.map(c => 
           c.id === commissionId 
@@ -525,7 +552,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   
       if (commission.db_id && user) {
         const { db_id, criado_em, _synced, ...dataToUpdate } = updatedCommission;
-
+  
         const { error } = await supabase
           .from('commissions')
           .update({ data: dataToUpdate })

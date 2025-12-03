@@ -96,7 +96,8 @@ export type InstallmentStatus = 'Pendente' | 'Pago' | 'Atraso' | 'Cancelado';
 
 export interface InstallmentInfo {
   status: InstallmentStatus;
-  paidDate?: string; // YYYY-MM-DD - data real do pagamento (apenas para status 'Pago')
+  paidDate?: string; // YYYY-MM-DD - Data real do pagamento
+  competenceMonth?: string; // YYYY-MM - Mês que a comissão entra (calculado)
 }
 
 export interface CommissionRule {
@@ -167,6 +168,19 @@ export interface User {
   id: string;
   name: string;
   email: string;
+}
+
+// NOVO: Interface para relatório
+export interface CommissionReport {
+  month: string; // YYYY-MM
+  totalSold: number;
+  totalCommissions: {
+    consultant: number;
+    manager: number;
+    angel: number;
+    total: number;
+  };
+  commissions: Commission[]; // Comissões daquele mês
 }
 
 export interface AppContextType {
@@ -245,7 +259,7 @@ export interface AppContextType {
   addCommission: (commission: Commission) => Promise<Commission>;
   updateCommission: (id: string, updates: Partial<Commission>) => Promise<void>;
   deleteCommission: (id: string) => Promise<void>;
-  updateInstallmentStatus: (commissionId: string, installmentNumber: number, status: InstallmentStatus, paidDate?: string) => Promise<void>;
+  updateInstallmentStatus: (commissionId: string, installmentNumber: number, status: InstallmentStatus, paidDate?: string, saleType?: 'Imóvel' | 'Veículo') => Promise<void>;
 
   // Support Material Actions
   addSupportMaterial: (material: SupportMaterial) => Promise<void>;

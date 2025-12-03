@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { Commission, CommissionStatus, CommissionRule, InstallmentStatus, InstallmentInfo } from '../types';
-import { Trash2, Search, DollarSign, Calendar, Calculator, Save, Table as TableIcon, Car, Home, ChevronDown, MapPin, Percent, Filter, XCircle, Crown, Plus, Wand2, Loader2 } from 'lucide-react';
+import { Commission, CommissionStatus, CommissionRule, InstallmentStatus, InstallmentInfo, CommissionReport } from '../types';
+import { Trash2, Search, DollarSign, Calendar, Calculator, Save, Table as TableIcon, Car, Home, ChevronDown, MapPin, Percent, Filter, XCircle, Crown, Plus, Wand2, Loader2, FileText, Download } from 'lucide-react';
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -16,6 +16,27 @@ const DEFAULT_RULES = {
   consultant: { p1_10: 0.1288, p11_13: 0.2374, p15: 0.30 },
   manager: { noAngel: { p1_10: 0.0322, p11_13: 0.0593 }, withAngel: { p1_10: 0.0194, p11_13: 0.0356 } },
   angel: { p1_10: 0.0128, p11_13: 0.0237 }
+};
+
+// ⚠️ CONFIGURAÇÃO DOS DIAS DE CORTE POR MÊS ⚠️
+const MONTHLY_CUTOFF_DAYS: Record<number, number> = {
+  1: 19, 2: 18, 3: 19, 4: 19, 5: 19, 6: 17, 7: 19, 8: 19, 9: 19, 10: 19, 11: 19, 12: 19,
+};
+
+const calculateCompetenceMonth = (paidDate: string): string => {
+  const date = new Date(paidDate + 'T00:00:00');
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  const cutoffDay = MONTHLY_CUTOFF_DAYS[month] || 19;
+  let competenceDate = new Date(date);
+  if (day <= cutoffDay) {
+    competenceDate.setMonth(competenceDate.getMonth() + 1);
+  } else {
+    competenceDate.setMonth(competenceDate.getMonth() + 2);
+  }
+  const compYear = competenceDate.getFullYear();
+  const compMonth = String(competenceDate.getMonth() + 1).padStart(2, '0');
+  return `${compYear}-${compMonth}`;
 };
 
 const getOverallStatus = (details: Record<string, InstallmentInfo>): CommissionStatus => {
@@ -48,7 +69,7 @@ type CustomRuleText = {
 export const Commissions = () => {
   const { commissions, addCommission, updateCommission, deleteCommission, teamMembers, pvs, addPV, updateInstallmentStatus } = useApp();
   
-  const [activeTab, setActiveTab] = useState<'calculator' | 'history'>('calculator');
+  const [activeTab, setActiveTab] = useState<'calculator' | 'history' | 'reports'>('calculator');
   const [searchTerm, setSearchTerm] = useState('');
   const [isAngelMode, setIsAngelMode] = useState(false);
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
@@ -85,9 +106,15 @@ export const Commissions = () => {
   const [editingInstallment, setEditingInstallment] = useState<{
     commissionId: string;
     number: number;
-    currentStatus: InstallmentStatus;
+    clientName: string;
+    saleType: 'Imóvel' | 'Veículo';
   } | null>(null);
   const [paymentDate, setPaymentDate] = useState('');
+  const [calculatedCompetence, setCalculatedCompetence] = useState('');
+
+  // Relatórios
+  const [reportMonth, setReportMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [reportData, setReportData] = useState<CommissionReport | null>(null);
 
   const resetCalculatorForm = () => {
     setCreditValue('');
@@ -335,15 +362,25 @@ export const Commissions = () => {
   const handleStatusChange = async (
     commissionId: string, 
     installmentNumber: number, 
-    newStatus: InstallmentStatus
+    newStatus: InstallmentStatus,
+    clientName: string,
+    saleType: 'Imóvel' | 'Veículo'
   ) => {
     if (newStatus === 'Pago') {
-      setEditingInstallment({ commissionId, number: installmentNumber, currentStatus: newStatus });
-      setPaymentDate(new Date().toISOString().split('T')[0]);
+      const today = new Date().toISOString().split('T')[0];
+      setEditingInstallment({ commissionId, number: installmentNumber, clientName, saleType });
+      setPaymentDate(today);
+      setCalculatedCompetence(calculateCompetenceMonth(today));
     } else {
       await updateInstallmentStatus(commissionId, installmentNumber, newStatus);
     }
   };
+
+  useEffect(() => {
+    if (paymentDate && editingInstallment) {
+      setCalculatedCompetence(calculateCompetenceMonth(paymentDate));
+    }
+  }, [paymentDate, editingInstallment]);
 
   const confirmPayment = async () => {
     if (!editingInstallment) return;
@@ -351,10 +388,51 @@ export const Commissions = () => {
       editingInstallment.commissionId, 
       editingInstallment.number, 
       'Pago',
-      paymentDate
+      paymentDate,
+      editingInstallment.saleType
     );
     setEditingInstallment(null);
     setPaymentDate('');
+    setCalculatedCompetence('');
+  };
+
+  const formatMonthYear = (monthStr: string) => {
+    const [year, month] = monthStr.split('-');
+    const date = new Date(parseInt(year), parseInt(month) - 1, 1);
+    return date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  };
+
+  const generateReport = () => {
+    const monthCommissions = commissions.filter(commission => 
+      Object.values(commission.installmentDetails).some(info => 
+        info.status === 'Pago' && info.competenceMonth === reportMonth
+      )
+    );
+    
+    const report: CommissionReport = {
+      month: reportMonth,
+      totalSold: monthCommissions.reduce((sum, c) => sum + c.value, 0),
+      totalCommissions: { consultant: 0, manager: 0, angel: 0, total: 0 },
+      commissions: monthCommissions
+    };
+    
+    monthCommissions.forEach(commission => {
+      Object.entries(commission.installmentDetails).forEach(([num, info]) => {
+        if (info.status === 'Pago' && info.competenceMonth === reportMonth) {
+          const values = getInstallmentValues(commission, parseInt(num));
+          report.totalCommissions.consultant += values.cons;
+          report.totalCommissions.manager += values.man;
+          report.totalCommissions.angel += values.angel;
+        }
+      });
+    });
+    
+    report.totalCommissions.total = 
+      report.totalCommissions.consultant + 
+      report.totalCommissions.manager + 
+      report.totalCommissions.angel;
+    
+    setReportData(report);
   };
 
   return (
@@ -367,6 +445,7 @@ export const Commissions = () => {
         <div className="bg-white dark:bg-slate-800 p-1 rounded-lg border border-gray-200 dark:border-slate-700 flex">
             <button onClick={() => setActiveTab('calculator')} className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition ${activeTab === 'calculator' ? 'bg-brand-500 text-white shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'}`}><Calculator className="w-4 h-4 mr-2" />Simulador</button>
             <button onClick={() => setActiveTab('history')} className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition ${activeTab === 'history' ? 'bg-brand-500 text-white shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'}`}><TableIcon className="w-4 h-4 mr-2" />Histórico</button>
+            <button onClick={() => setActiveTab('reports')} className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition ${activeTab === 'reports' ? 'bg-purple-500 text-white shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'}`}><FileText className="w-4 h-4 mr-2" />Relatórios</button>
         </div>
       </div>
 
@@ -595,11 +674,19 @@ export const Commissions = () => {
                                                 <td colSpan={4} className="p-4">
                                                     <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
                                                         {Object.entries(c.installmentDetails).map(([num, info]) => {
-                                                            const status = info.status || 'Pendente';
+                                                            const installmentInfo = info as InstallmentInfo;
+                                                            const status = installmentInfo?.status || 'Pendente';
                                                             return (
                                                             <div key={num} className="text-center p-2 rounded-md border bg-white dark:bg-slate-700">
-                                                                <div className="text-xs text-gray-400">Parcela {num}</div>
-                                                                <select value={status} onChange={async (e) => await handleStatusChange(c.id, parseInt(num), e.target.value as InstallmentStatus)} className={`mt-1 w-full text-xs font-bold py-1 px-2 rounded border cursor-pointer focus:outline-none ${getInstallmentStatusColor(status)}`}>
+                                                                <div className="text-xs text-gray-400">
+                                                                    Parcela {num}
+                                                                    {installmentInfo.competenceMonth && (
+                                                                    <div className="text-[10px] text-purple-600 dark:text-purple-400 font-semibold">
+                                                                        Comp: {installmentInfo.competenceMonth.slice(5,7)}/{installmentInfo.competenceMonth.slice(2,4)}
+                                                                    </div>
+                                                                    )}
+                                                                </div>
+                                                                <select value={status} onChange={async (e) => await handleStatusChange(c.id, parseInt(num), e.target.value as InstallmentStatus, c.clientName, c.type)} className={`mt-1 w-full text-xs font-bold py-1 px-2 rounded border cursor-pointer focus:outline-none ${getInstallmentStatusColor(status)}`}>
                                                                     <option value="Pendente">Pendente</option>
                                                                     <option value="Pago">Pago</option>
                                                                     <option value="Atraso">Atraso</option>
@@ -621,33 +708,63 @@ export const Commissions = () => {
             </div>
         </div>
       )}
+      {activeTab === 'reports' && (
+        <div className="animate-fade-in">
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm mb-6">
+            <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">Relatório por Mês de Competência</h2>
+            <div className="flex items-end gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Selecione o Mês:</label>
+                <input type="month" value={reportMonth} onChange={(e) => setReportMonth(e.target.value)} className="border border-gray-300 dark:border-slate-600 rounded-lg p-2 bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
+              </div>
+              <button onClick={generateReport} className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition font-medium">
+                Gerar Relatório
+              </button>
+            </div>
+          </div>
+          
+          {reportData && (
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm animate-fade-in">
+              <h3 className="text-lg font-bold mb-4 text-gray-900 dark:text-white">
+                Comissões de {formatMonthYear(reportData.month)}
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg"><div className="text-sm text-blue-600 dark:text-blue-300">Total Vendido</div><div className="text-2xl font-bold text-blue-900 dark:text-blue-100">{formatCurrency(reportData.totalSold)}</div></div>
+                <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg"><div className="text-sm text-green-600 dark:text-green-300">Prévias/Autorizados</div><div className="text-2xl font-bold text-green-900 dark:text-green-100">{formatCurrency(reportData.totalCommissions.consultant)}</div></div>
+                <div className="bg-gray-100 dark:bg-slate-700 p-4 rounded-lg"><div className="text-sm text-gray-600 dark:text-gray-300">Gestores</div><div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{formatCurrency(reportData.totalCommissions.manager)}</div></div>
+                <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg"><div className="text-sm text-yellow-600 dark:text-yellow-300">Anjos</div><div className="text-2xl font-bold text-yellow-900 dark:text-yellow-100">{formatCurrency(reportData.totalCommissions.angel)}</div></div>
+              </div>
+              <table className="w-full text-sm">
+                <thead className="text-left text-gray-500 dark:text-gray-400"><tr className="border-b dark:border-slate-700"><th className="pb-2">Cliente</th><th className="pb-2">Prévia/Autorizado</th><th className="pb-2">Parcelas Pagas</th><th className="pb-2 text-right">Comissão (Mês)</th></tr></thead>
+                <tbody>
+                  {reportData.commissions.map(commission => (
+                    <tr key={commission.id} className="border-b dark:border-slate-700"><td className="py-2">{commission.clientName}</td><td>{commission.consultant}</td><td>{Object.values(commission.installmentDetails).filter(info => info.status === 'Pago' && info.competenceMonth === reportData.month).length} parcela(s)</td><td className="text-right font-medium">{formatCurrency(Object.entries(commission.installmentDetails).filter(([_, info]) => info.status === 'Pago' && info.competenceMonth === reportData.month).reduce((sum, [num, _]) => sum + getInstallmentValues(commission, parseInt(num)).cons + getInstallmentValues(commission, parseInt(num)).man + getInstallmentValues(commission, parseInt(num)).angel, 0))}</td></tr>
+                  ))}
+                </tbody>
+              </table>
+              <button className="mt-6 flex items-center text-purple-600 dark:text-purple-400 font-medium hover:text-purple-700 dark:hover:text-purple-300"><Download className="w-4 h-4 mr-2" />Exportar para Excel</button>
+            </div>
+          )}
+        </div>
+      )}
       {editingInstallment && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-slate-800 p-6 rounded-xl max-w-sm w-full shadow-lg">
-            <h3 className="text-lg font-bold mb-4 text-gray-900 dark:text-white">Confirmar Pagamento</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
-              Parcela {editingInstallment.number} - Definir data de pagamento:
-            </p>
-            <input
-              type="date"
-              value={paymentDate}
-              onChange={(e) => setPaymentDate(e.target.value)}
-              className="w-full p-2 border rounded mb-4 bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-gray-900 dark:text-white"
-              max={new Date().toISOString().split('T')[0]}
-            />
-            <div className="flex gap-2">
-              <button
-                onClick={confirmPayment}
-                className="flex-1 bg-green-600 text-white py-2 rounded hover:bg-green-700 transition font-medium"
-              >
-                Confirmar
-              </button>
-              <button
-                onClick={() => setEditingInstallment(null)}
-                className="flex-1 bg-gray-200 dark:bg-slate-600 text-gray-800 dark:text-gray-200 py-2 rounded hover:bg-gray-300 dark:hover:bg-slate-500 transition font-medium"
-              >
-                Cancelar
-              </button>
+            <h3 className="text-lg font-bold mb-1 text-gray-900 dark:text-white">Confirmar Pagamento</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Parcela {editingInstallment.number} de {editingInstallment.clientName}</p>
+            <div className="space-y-4">
+                <div>
+                    <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Data de Pagamento</label>
+                    <input type="date" value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} className="w-full p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-gray-900 dark:text-white" max={new Date().toISOString().split('T')[0]} />
+                </div>
+                <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg text-center">
+                    <p className="text-xs text-purple-800 dark:text-purple-300 font-medium">Mês de Competência Calculado</p>
+                    <p className="font-bold text-purple-900 dark:text-purple-100">{calculatedCompetence ? formatMonthYear(calculatedCompetence) : '...'}</p>
+                </div>
+            </div>
+            <div className="flex gap-2 mt-6">
+              <button onClick={confirmPayment} className="flex-1 bg-green-600 text-white py-2 rounded hover:bg-green-700 transition font-medium">Confirmar</button>
+              <button onClick={() => setEditingInstallment(null)} className="flex-1 bg-gray-200 dark:bg-slate-600 text-gray-800 dark:text-gray-200 py-2 rounded hover:bg-gray-300 dark:hover:bg-slate-500 transition font-medium">Cancelar</button>
             </div>
           </div>
         </div>
