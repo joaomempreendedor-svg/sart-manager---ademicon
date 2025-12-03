@@ -94,6 +94,36 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setPvs(DEFAULT_APP_CONFIG_DATA.pvs);
   };
 
+  const refetchCommissions = useCallback(async () => {
+    if (!user) return;
+    const { data, error } = await supabase
+      .from('commissions')
+      .select('id, data')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+  
+    if (error) {
+        console.error("Error refetching commissions:", error);
+        return;
+    }
+  
+    if (data) {
+      const normalizedCommissions = data.map(item => {
+          const commissionData = item.data as Commission;
+          if (!commissionData.installmentDetails) {
+              const details: Record<string, InstallmentStatus> = {};
+              for (let i = 1; i <= 15; i++) { details[i] = 'Pendente'; }
+              commissionData.installmentDetails = details;
+          }
+          return {
+              ...commissionData,
+              db_id: item.id
+          };
+      });
+      setCommissions(normalizedCommissions);
+    }
+  }, [user]);
+
   useEffect(() => {
     const fetchData = async (userId: string) => {
       try {
@@ -101,20 +131,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           { data: configResult, error: configError },
           { data: candidatesData, error: candidatesError },
           { data: teamMembersData, error: teamMembersError },
-          { data: commissionsData, error: commissionsError },
           { data: materialsData, error: materialsError }
         ] = await Promise.all([
           supabase.from('app_config').select('data').eq('user_id', userId).maybeSingle(),
           supabase.from('candidates').select('id, data').eq('user_id', userId),
           supabase.from('team_members').select('id, data').eq('user_id', userId),
-          supabase.from('commissions').select('id, data').eq('user_id', userId),
           supabase.from('support_materials').select('id, data').eq('user_id', userId)
         ]);
 
         if (configError) throw configError;
         if (candidatesError) throw candidatesError;
         if (teamMembersError) throw teamMembersError;
-        if (commissionsError) throw commissionsError;
         if (materialsError) throw materialsError;
 
         if (configResult) {
@@ -149,19 +176,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           return m as TeamMember;
         });
         setTeamMembers(normalizedTeamMembers);
-
-        const rawCommissions = commissionsData?.map(item => ({ ...(item.data as Commission), db_id: item.id })) || [];
-        const normalizedCommissions = rawCommissions.map(c => {
-          if (!c.installmentDetails) {
-            const details: Record<string, InstallmentStatus> = {};
-            for (let i = 1; i <= 15; i++) { details[i] = 'Pendente'; }
-            c.installmentDetails = details;
-          }
-          return c as Commission;
-        });
-        setCommissions(normalizedCommissions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
         
         setSupportMaterials(materialsData?.map(item => ({ ...(item.data as SupportMaterial), db_id: item.id })) || []);
+        
+        await refetchCommissions();
 
       } catch (error) {
         console.error("Failed to fetch initial data:", error);
@@ -179,10 +197,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       resetLocalState();
       setIsDataLoading(false);
     } else {
-      // user exists, but has already been loaded
       setIsDataLoading(false);
     }
-  }, [user?.id]);
+  }, [user?.id, refetchCommissions]);
 
   const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
 
@@ -216,13 +233,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   
       if (error) throw error;
   
-      const newItem = { ...cleanCommission, db_id: data.id };
+      await refetchCommissions();
   
-      setCommissions(prev =>
-        [newItem, ...prev].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-      );
-  
-      return newItem;
+      return { ...cleanCommission, db_id: data.id };
   
     } catch (error: any) {
       console.error("Erro Supabase:", error);
@@ -230,7 +243,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     } finally {
       isSavingRef.current = false;
     }
-  }, [user]);
+  }, [user, refetchCommissions]);
 
   const updateCommission = useCallback(async (id: string, updates: Partial<Commission>) => {
     if (!user) throw new Error("Usuário não autenticado.");
@@ -248,12 +261,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       if (error) throw error;
 
-      setCommissions(prev => prev.map(p => p.id === id ? updatedCommission : p).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+      await refetchCommissions();
     } catch (error) {
       console.error("ERRO AO ATUALIZAR COMISSÃO:", error);
       throw error;
     }
-  }, [user, commissions]);
+  }, [user, commissions, refetchCommissions]);
 
   const deleteCommission = useCallback(async (id: string) => {
     if (!user) throw new Error("Usuário não autenticado.");
@@ -268,12 +281,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       if (error) throw error;
 
-      setCommissions(prev => prev.filter(p => p.id !== id));
+      await refetchCommissions();
     } catch (error) {
       console.error("ERRO AO DELETAR COMISSÃO:", error);
       throw error;
     }
-  }, [user, commissions]);
+  }, [user, commissions, refetchCommissions]);
   
   const addSupportMaterial = useCallback(async (material: SupportMaterial) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('support_materials').insert({ user_id: user.id, data: material }).select('id').single(); if (error) { console.error(error); throw error; } if (data) { setSupportMaterials(prev => [{ ...material, db_id: data.id }, ...prev]); } }, [user]);
   const deleteSupportMaterial = useCallback(async (id: string) => { if (!user) throw new Error("Usuário não autenticado."); const m = supportMaterials.find(m => m.id === id); if (!m || !m.db_id) throw new Error("Material não encontrado"); const { error } = await supabase.from('support_materials').delete().match({ id: m.db_id, user_id: user.id }); if (error) { console.error(error); throw error; } setSupportMaterials(prev => prev.filter(p => p.id !== id)); }, [user, supportMaterials]);
