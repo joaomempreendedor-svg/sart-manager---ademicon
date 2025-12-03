@@ -96,39 +96,38 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const refetchCommissions = useCallback(async () => {
     if (!user) return;
   
-    const { data, error } = await supabase
-      .from('commissions')
-      .select('id, data, criado_em')
-      .eq('user_id', user.id)
-      .order('criado_em', { ascending: false });
+    try {
+      const { data, error } = await supabase
+        .from("commissions")
+        .select("id, data, criado_em")
+        .eq("user_id", user.id)
+        .order("criado_em", { ascending: false });
   
-    if (error) {
-      console.error("Error refetching commissions:", error);
-      return;
-    }
+      if (error) {
+        console.error("Erro no refetchCommissions:", error);
+        return;
+      }
   
-    if (data) {
-      const normalizedCommissions = data.map(item => {
+      const normalized: Commission[] = (data || []).map(item => {
         const commission = item.data as Commission;
   
         if (!commission.installmentDetails) {
           const details: Record<string, InstallmentStatus> = {};
-          for (let i = 1; i <= 15; i++) { (details as any)[i] = 'Pendente'; }
+          for (let i = 1; i <= 15; i++) details[i.toString()] = "Pendente";
           commission.installmentDetails = details;
         }
   
         return {
           ...commission,
           db_id: item.id,
-          criado_em: item.criado_em
+          criado_em: item.criado_em,
         };
       });
   
-      setCommissions(
-        normalizedCommissions.sort(
-          (a, b) => new Date(b.criado_em).getTime() - new Date(a.criado_em).getTime()
-        )
-      );
+      setCommissions(normalized);
+  
+    } catch (err) {
+      console.error("Erro crítico no refetchCommissions:", err);
     }
   }, [user]);
 
@@ -229,18 +228,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       managerName: commission.managerName || 'N/A',
     };
   
-    const insertPromise = supabase
-      .from('commissions')
-      .insert({ user_id: user.id, data: cleanCommission })
-      .select('id')
-      .single();
-  
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error("Timeout ao salvar comissão")), 12000);
-    });
-  
     try {
-      const { data, error } = await Promise.race([insertPromise, timeoutPromise]) as any;
+      const { data, error } = await supabase
+        .from('commissions')
+        .insert({ user_id: user.id, data: cleanCommission })
+        .select('id')
+        .single();
   
       if (error) throw error;
   
@@ -248,7 +241,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   
       return { ...cleanCommission, db_id: data.id };
     } catch (error) {
-      console.error("Erro real:", error);
+      console.error("Erro ao salvar comissão:", error);
       throw error;
     }
   }, [user, refetchCommissions]);
