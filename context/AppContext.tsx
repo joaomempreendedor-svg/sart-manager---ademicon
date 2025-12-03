@@ -222,23 +222,25 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const addCommission = useCallback(async (commission: Commission): Promise<Commission> => {
     if (!user) throw new Error("Usuário não autenticado.");
   
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 12000);
+    const cleanCommission: Commission = {
+      ...commission,
+      customRules: commission.customRules?.length ? commission.customRules : undefined,
+      angelName: commission.angelName || undefined,
+      managerName: commission.managerName || 'N/A',
+    };
+  
+    const insertPromise = supabase
+      .from('commissions')
+      .insert({ user_id: user.id, data: cleanCommission })
+      .select('id')
+      .single();
+  
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error("Timeout ao salvar comissão")), 12000);
+    });
   
     try {
-      const cleanCommission: Commission = {
-        ...commission,
-        customRules: commission.customRules?.length ? commission.customRules : undefined,
-        angelName: commission.angelName || undefined,
-        managerName: commission.managerName || 'N/A',
-      };
-  
-      const { data, error } = await supabase
-        .from('commissions')
-        .insert({ user_id: user.id, data: cleanCommission })
-        .select('id')
-        .single()
-        .abortSignal(controller.signal);
+      const { data, error } = await Promise.race([insertPromise, timeoutPromise]) as any;
   
       if (error) throw error;
   
@@ -246,10 +248,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   
       return { ...cleanCommission, db_id: data.id };
     } catch (error) {
-      console.error("Erro real ao salvar comissão:", error);
+      console.error("Erro real:", error);
       throw error;
-    } finally {
-      clearTimeout(timeout);
     }
   }, [user, refetchCommissions]);
 
