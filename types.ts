@@ -133,6 +133,7 @@ export interface Commission {
   
   customRules?: CommissionRule[]; // Se presente, ignora cálculo padrão
   criado_em?: string; // Timestamp from Supabase
+  _synced?: boolean;
 }
 
 export interface SupportMaterial {

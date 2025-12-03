@@ -309,94 +309,104 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const addCommission = useCallback(async (commission: Commission): Promise<Commission> => {
     if (!user) throw new Error("Usuário não autenticado.");
   
-    console.log("⏱️ addCommission iniciado - timeout aumentado para 30s");
+    console.log("⚡ SALVAMENTO ULTRA-RÁPIDO INICIADO");
   
-    const cleanCommission: Commission = {
-      ...commission,
-      customRules: commission.customRules?.length ? commission.customRules : undefined,
-      angelName: commission.angelName || undefined,
-      managerName: commission.managerName || 'N/A',
-    };
+    // 1. GERAR ID LOCAL (INSTANTÂNEO)
+    const localId = `local_${Date.now()}`;
     
-    const payload = { user_id: user.id, data: cleanCommission };
+    // 2. CRIAR VERSÃO LOCAL
+    const localCommission: Commission = {
+      ...commission,
+      db_id: localId,
+      criado_em: new Date().toISOString()
+    };
   
-    try {
-      // ✅ TIMEOUT AUMENTADO PARA 30 SEGUNDOS
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Timeout: Supabase demorou mais de 30 segundos')), 30000)
-      );
+    // 3. ATUALIZAR UI IMEDIATAMENTE (0ms de espera)
+    setCommissions(prev => [localCommission, ...prev]);
+    
+    // 4. MOSTRAR CONFIRMAÇÃO RÁPIDA
+    setTimeout(() => {
+      alert(`✅ VENDA REGISTRADA!\n\nCliente: ${commission.clientName}\nValor: R$ ${commission.value.toLocaleString()}\nID: ${localId}\n\nA sincronização ocorrerá em segundo plano.`);
+    }, 50);
   
-      const insertPromise = supabase
-        .from('commissions')
-        .insert(payload)
-        .select('id, created_at')
-        .maybeSingle();
-  
-      console.log("📤 Enviando dados...");
-      const { data, error } = await Promise.race([insertPromise, timeoutPromise]) as any;
-  
-      if (error) {
-        console.error("❌ Erro Supabase:", error);
-        throw error;
-      }
-      
-      if (!data) {
-        throw new Error('Nenhum dado retornado');
-      }
-  
-      console.log("✅ Sucesso! ID:", data.id);
-      
-      const newCommissionWithDbId = { 
-        ...cleanCommission, 
-        db_id: data.id.toString(),
-        criado_em: data.created_at
-      };
-      
-      // Atualização otimista
-      setCommissions(prev => [newCommissionWithDbId, ...prev]);
-      
-      // ✅ ALERTA DE SUCESSO VISÍVEL
-      setTimeout(() => {
-        if (window.confirm(`🎉 VENDA REGISTRADA COM SUCESSO!\n\nCliente: ${commission.clientName}\nValor: R$ ${commission.value.toLocaleString()}\nID: ${data.id}\n\nOK para continuar.`)) {
-          // Nada, só fecha
-        }
-      }, 300);
-      
-      return newCommissionWithDbId;
-  
-    } catch (error: any) {
-      console.error("💥 Erro:", error.message);
-      
-      // ✅ SALVAR LOCALMENTE COM FEEDBACK CLARO
-      const localId = `local_${Date.now()}`;
-      const pendingCommissions = JSON.parse(localStorage.getItem('pending_commissions') || '[]');
-      pendingCommissions.push({
-        ...commission,
-        _id: localId,
-        _timestamp: new Date().toISOString(),
-        _error: error.message
-      });
-      localStorage.setItem('pending_commissions', JSON.stringify(pendingCommissions));
-      
-      // Atualizar UI
-      const tempCommissionWithId = { 
-        ...commission, 
-        db_id: localId
-      };
-      setCommissions(prev => [tempCommissionWithId, ...prev]);
-      
-      // ✅ ALERTA AMIGÁVEL
-      setTimeout(() => {
-        alert(
-          `⚠️ CONEXÃO LENTA DETECTADA\n\n` +
-          `Sua venda foi salva LOCALMENTE (ID: ${localId}).\n` +
-          `Quando a conexão melhorar, sincronizará automaticamente.\n\n` +
-          `Pode continuar trabalhando normalmente!`
+    // 5. SINCRONIZAR EM BACKGROUND (2 segundos depois)
+    setTimeout(async () => {
+      try {
+        console.log("🔄 Iniciando sincronização em background...");
+        
+        const cleanCommission = {
+          ...commission,
+          customRules: commission.customRules?.length ? commission.customRules : undefined,
+          angelName: commission.angelName || undefined,
+          managerName: commission.managerName || 'N/A',
+        };
+        
+        const payload = { user_id: user.id, data: cleanCommission };
+        
+        // Timeout curto para background (10s)
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Background sync timeout')), 10000)
         );
-      }, 300);
-      
-      throw new Error(`Salvo localmente (ID: ${localId}). Conexão lenta.`);
-    }
+  
+        const insertPromise = supabase
+          .from('commissions')
+          .insert(payload)
+          .select('id, created_at')
+          .maybeSingle();
+  
+        const { data, error } = await Promise.race([insertPromise, timeoutPromise]) as any;
+  
+        if (error) throw error;
+        
+        if (data && data.id) {
+          console.log("🎉 Sincronizado com sucesso! ID real:", data.id);
+          
+          // ATUALIZAR SILENCIOSAMENTE COM ID REAL
+          setCommissions(prev => 
+            prev.map(c => 
+              c.db_id === localId 
+                ? { 
+                    ...c, 
+                    db_id: data.id.toString(), 
+                    criado_em: data.created_at,
+                    _synced: true 
+                  }
+                : c
+            )
+          );
+          
+          // REMOVER DO LOCALSTORAGE
+          const pending = JSON.parse(localStorage.getItem('pending_commissions') || '[]')
+            .filter((p: any) => p._localId !== localId);
+          localStorage.setItem('pending_commissions', JSON.stringify(pending));
+          
+        } else {
+          throw new Error('Nenhum ID retornado');
+        }
+        
+      } catch (error: any) {
+        console.log("⚠️ Background sync falhou, mantendo local. Erro:", error.message);
+        
+        // SALVAR NO LOCALSTORAGE PARA TENTAR DEPOIS
+        const pending = JSON.parse(localStorage.getItem('pending_commissions') || '[]');
+        
+        // Verificar se já não está salvo
+        const alreadyExists = pending.some((p: any) => p._localId === localId);
+        if (!alreadyExists) {
+          pending.push({
+            ...commission,
+            _localId: localId,
+            _timestamp: new Date().toISOString(),
+            _error: error.message,
+            _attempts: 1
+          });
+          localStorage.setItem('pending_commissions', JSON.stringify(pending));
+        }
+      }
+    }, 2000); // Esperar 2 segundos antes de tentar
+  
+    // 6. RETORNAR IMEDIATAMENTE (não espera sync)
+    return localCommission;
   }, [user]);
 
   const updateCommission = useCallback(async (id: string, updates: Partial<Commission>) => {
@@ -481,6 +491,55 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const deleteInterviewQuestion = useCallback((sectionId: string, questionId: string) => { const newStructure = interviewStructure.map(s => s.id === sectionId ? { ...s, questions: s.questions.filter(q => q.id !== questionId) } : s); updateAndPersistStructure(setInterviewStructure, 'interviewStructure', newStructure); }, [interviewStructure, updateAndPersistStructure]);
   const moveInterviewQuestion = useCallback((sectionId: string, questionId: string, dir: 'up' | 'down') => { const newStructure = interviewStructure.map(s => { if (s.id !== sectionId) return s; const idx = s.questions.findIndex(q => q.id === questionId); if ((dir === 'up' && idx < 1) || (dir === 'down' && idx >= s.questions.length - 1)) return s; const newQuestions = [...s.questions]; const targetIdx = dir === 'up' ? idx - 1 : idx + 1; [newQuestions[idx], newQuestions[targetIdx]] = [newQuestions[targetIdx], newQuestions[idx]]; return { ...s, questions: newQuestions }; }); updateAndPersistStructure(setInterviewStructure, 'interviewStructure', newStructure); }, [interviewStructure, updateAndPersistStructure]);
   const resetInterviewToDefault = useCallback(() => { updateAndPersistStructure(setInterviewStructure, 'interviewStructure', INITIAL_INTERVIEW_STRUCTURE); }, [updateAndPersistStructure]);
+
+  // SINCRONIZAÇÃO AUTOMÁTICA A CADA 2 MINUTOS
+  useEffect(() => {
+    if (!user) return;
+    
+    const syncPendingCommissions = async () => {
+      const pending = JSON.parse(localStorage.getItem('pending_commissions') || '[]');
+      if (pending.length === 0) return;
+      
+      console.log(`⏰ Sincronização periódica: ${pending.length} pendentes`);
+      
+      for (const item of pending) {
+        try {
+          const { _localId, _timestamp, _attempts, ...cleanData } = item;
+          
+          const { data, error } = await supabase
+            .from('commissions')
+            .insert({ user_id: user.id, data: cleanData })
+            .select('id, created_at')
+            .maybeSingle();
+            
+          if (!error && data) {
+            // Atualizar estado
+            setCommissions(prev => 
+              prev.map(c => 
+                c.db_id === _localId 
+                  ? { ...c, db_id: data.id.toString(), criado_em: data.created_at }
+                  : c
+              )
+            );
+            
+            // Remover do localStorage
+            const updated = pending.filter((p: any) => p._localId !== _localId);
+            localStorage.setItem('pending_commissions', JSON.stringify(updated));
+          }
+        } catch (error) {
+          console.log(`❌ Falha ao sincronizar ${item._localId}`);
+        }
+      }
+    };
+    
+    // Executar a cada 2 minutos
+    const interval = setInterval(syncPendingCommissions, 2 * 60 * 1000);
+    
+    // Executar também quando usuário fizer login
+    setTimeout(syncPendingCommissions, 5000);
+    
+    return () => clearInterval(interval);
+  }, [user]);
 
   return (
     <AppContext.Provider value={{ 
