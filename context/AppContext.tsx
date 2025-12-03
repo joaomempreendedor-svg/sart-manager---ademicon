@@ -37,7 +37,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const auth = useAuth();
   const { user } = auth;
   const fetchedUserIdRef = useRef<string | null>(null);
-  const isSavingRef = useRef(false);
 
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
@@ -222,9 +221,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const addCommission = useCallback(async (commission: Commission): Promise<Commission> => {
     if (!user) throw new Error("Usuário não autenticado.");
-    if (isSavingRef.current) throw new Error("Uma venda já está sendo salva. Aguarde.");
   
-    isSavingRef.current = true;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 12000);
   
     try {
       const cleanCommission: Commission = {
@@ -238,19 +237,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         .from('commissions')
         .insert({ user_id: user.id, data: cleanCommission })
         .select('id')
-        .single();
+        .single()
+        .abortSignal(controller.signal);
   
       if (error) throw error;
   
       await refetchCommissions();
   
       return { ...cleanCommission, db_id: data.id };
-  
-    } catch (error: any) {
-      console.error("Erro Supabase:", error);
-      throw new Error(error.message || "Erro ao salvar comissão");
+    } catch (error) {
+      console.error("Erro real ao salvar comissão:", error);
+      throw error;
     } finally {
-      isSavingRef.current = false;
+      clearTimeout(timeout);
     }
   }, [user, refetchCommissions]);
 
