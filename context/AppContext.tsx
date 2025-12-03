@@ -96,31 +96,40 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const refetchCommissions = useCallback(async () => {
     if (!user) return;
+  
     const { data, error } = await supabase
       .from('commissions')
-      .select('id, data')
+      .select('id, data, criado_em')
       .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
+      .order('criado_em', { ascending: false });
   
     if (error) {
-        console.error("Error refetching commissions:", error);
-        return;
+      console.error("Error refetching commissions:", error);
+      return;
     }
   
     if (data) {
       const normalizedCommissions = data.map(item => {
-          const commissionData = item.data as Commission;
-          if (!commissionData.installmentDetails) {
-              const details: Record<string, InstallmentStatus> = {};
-              for (let i = 1; i <= 15; i++) { details[i] = 'Pendente'; }
-              commissionData.installmentDetails = details;
-          }
-          return {
-              ...commissionData,
-              db_id: item.id
-          };
+        const commission = item.data as Commission;
+  
+        if (!commission.installmentDetails) {
+          const details: Record<string, InstallmentStatus> = {};
+          for (let i = 1; i <= 15; i++) { (details as any)[i] = 'Pendente'; }
+          commission.installmentDetails = details;
+        }
+  
+        return {
+          ...commission,
+          db_id: item.id,
+          criado_em: item.criado_em
+        };
       });
-      setCommissions(normalizedCommissions);
+  
+      setCommissions(
+        normalizedCommissions.sort(
+          (a, b) => new Date(b.criado_em).getTime() - new Date(a.criado_em).getTime()
+        )
+      );
     }
   }, [user]);
 

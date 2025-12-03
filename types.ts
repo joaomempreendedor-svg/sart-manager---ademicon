@@ -132,6 +132,7 @@ export interface Commission {
   receivedValue: number; // Soma ou valor total da nota
   
   customRules?: CommissionRule[]; // Se presente, ignora cálculo padrão
+  criado_em?: string; // Timestamp from Supabase
 }
 
 export interface SupportMaterial {
@@ -235,7 +236,7 @@ export interface AppContextType {
   resetInterviewToDefault: () => void;
 
   // Commission Actions
-  addCommission: (commission: Commission) => Promise<void>;
+  addCommission: (commission: Commission) => Promise<Commission>;
   updateCommission: (id: string, updates: Partial<Commission>) => Promise<void>;
   deleteCommission: (id: string) => Promise<void>;
   updateInstallmentStatus: (commissionId: string, installmentNumber: number, status: InstallmentStatus) => Promise<void>;
