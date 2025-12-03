@@ -33,6 +33,29 @@ const getOverallStatus = (details: Record<string, InstallmentStatus>): Commissio
     return 'Em Andamento';
 };
 
+const clearStaleAuth = () => {
+  const token = localStorage.getItem('supabase.auth.token');
+  if (token) {
+    try {
+      const parsed = JSON.parse(token);
+      const expiry = parsed.expires_at ? new Date(parsed.expires_at * 1000) : null;
+      
+      if (expiry && expiry < new Date()) {
+        console.log('🗑️ Token expirado encontrado, limpando...');
+        localStorage.removeItem('supabase.auth.token');
+        localStorage.removeItem('supabase.auth.refreshToken');
+        return true;
+      }
+    } catch (e) {
+      console.log('🗑️ Token corrompido, limpando...');
+      localStorage.removeItem('supabase.auth.token');
+      localStorage.removeItem('supabase.auth.refreshToken');
+      return true;
+    }
+  }
+  return false;
+};
+
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const auth = useAuth();
   const { user } = auth;
@@ -81,6 +104,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [user, checklistStructure, consultantGoalsStructure, interviewStructure, templates, origins, interviewers, pvs, debouncedUpdateConfig]);
 
   const resetLocalState = () => {
+    console.log('🧹 Resetting local state...');
     setCandidates([]);
     setTeamMembers([]);
     setCommissions([]);
@@ -92,12 +116,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setOrigins(DEFAULT_APP_CONFIG_DATA.origins);
     setInterviewers(DEFAULT_APP_CONFIG_DATA.interviewers);
     setPvs(DEFAULT_APP_CONFIG_DATA.pvs);
+    setIsDataLoading(false);
   };
 
   const refetchCommissions = useCallback(async () => {
     if (!user) return;
     
-    // ✅ CORREÇÃO: Evitar múltiplas chamadas simultâneas
     if (isFetchingRef.current) {
       console.log('[refetchCommissions] Já está em execução, ignorando chamada duplicada');
       return;
@@ -141,7 +165,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     } catch (err) {
       console.error(`[${new Date().toISOString()}] REFETCH_COMMISSIONS_CRITICAL_ERROR #${fetchId}:`, err);
     } finally {
-      // ✅ CORREÇÃO: Garantir que sempre libere o lock
       setTimeout(() => {
         isFetchingRef.current = false;
         console.log(`[${new Date().toISOString()}] REFETCH_COMMISSIONS_COMPLETE #${fetchId}`);
@@ -150,7 +173,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [user]);
 
   useEffect(() => {
+    clearStaleAuth();
+
     const fetchData = async (userId: string) => {
+      const timeoutId = setTimeout(() => {
+        console.error('⏰ TIMEOUT: fetchData demorou mais de 15 segundos');
+        setIsDataLoading(false);
+      }, 15000);
+
       try {
         const [
           { data: configResult, error: configError },
@@ -164,10 +194,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           supabase.from('support_materials').select('id, data').eq('user_id', userId)
         ]);
 
-        if (configError) throw configError;
-        if (candidatesError) throw candidatesError;
-        if (teamMembersError) throw teamMembersError;
-        if (materialsError) throw materialsError;
+        if (configError) console.error("Config error:", configError);
+        if (candidatesError) console.error("Candidates error:", candidatesError);
+        if (teamMembersError) console.error("Team error:", teamMembersError);
+        if (materialsError) console.error("Materials error:", materialsError);
 
         if (configResult) {
           const { data } = configResult;
@@ -206,7 +236,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         
         refetchCommissions();
 
-        // ✅ ADICIONAR: Sistema de recuperação de comissões pendentes
         const recoverPendingCommissions = async () => {
           try {
             const pending = JSON.parse(localStorage.getItem('pending_commissions') || '[]');
@@ -218,7 +247,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               try {
                 console.log(`[RECOVERY] Tentando sincronizar comissão: ${pendingCommission._id}`);
                 
-                // Remover campos internos antes de enviar
                 const { _id, _timestamp, _retryCount, ...cleanCommission } = pendingCommission;
                 
                 const payload = { user_id: user.id, data: cleanCommission };
@@ -233,12 +261,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 
                 console.log(`[RECOVERY] Comissão ${_id} sincronizada com sucesso!`);
                 
-                // Remover do localStorage
                 const updatedPending = JSON.parse(localStorage.getItem('pending_commissions') || '[]')
                   .filter((pc: any) => pc._id !== _id);
                 localStorage.setItem('pending_commissions', JSON.stringify(updatedPending));
                 
-                // Atualizar estado local
                 const newCommissionWithDbId = { 
                   ...cleanCommission, 
                   db_id: data.id,
@@ -246,7 +272,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 };
                 
                 setCommissions(prev => {
-                  // Remover versão temporária se existir
                   const filtered = prev.filter(c => c.db_id !== `temp_${_id}`);
                   return [newCommissionWithDbId, ...filtered];
                 });
@@ -254,7 +279,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               } catch (error) {
                 console.error(`[RECOVERY] Falha ao sincronizar comissão ${pendingCommission._id}:`, error);
                 
-                // Incrementar contador de tentativas
                 const updatedPending = JSON.parse(localStorage.getItem('pending_commissions') || '[]')
                   .map((pc: any) => 
                     pc._id === pendingCommission._id 
@@ -269,16 +293,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           }
         };
 
-        // Executar recuperação quando o usuário fizer login
         if (user) {
           setTimeout(() => {
             recoverPendingCommissions();
-          }, 3000); // Aguardar 3 segundos após login
+          }, 3000);
         }
 
       } catch (error) {
         console.error("Failed to fetch initial data:", error);
       } finally {
+        clearTimeout(timeoutId);
         setIsDataLoading(false);
       }
     };
@@ -290,7 +314,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     } else if (!user) {
       fetchedUserIdRef.current = null;
       resetLocalState();
-      setIsDataLoading(false);
     } else {
       setIsDataLoading(false);
     }
@@ -311,25 +334,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   
     console.log("⚡ SALVAMENTO ULTRA-RÁPIDO INICIADO");
   
-    // 1. GERAR ID LOCAL (INSTANTÂNEO)
     const localId = `local_${Date.now()}`;
     
-    // 2. CRIAR VERSÃO LOCAL
     const localCommission: Commission = {
       ...commission,
       db_id: localId,
       criado_em: new Date().toISOString()
     };
   
-    // 3. ATUALIZAR UI IMEDIATAMENTE (0ms de espera)
     setCommissions(prev => [localCommission, ...prev]);
     
-    // 4. MOSTRAR CONFIRMAÇÃO RÁPIDA
     setTimeout(() => {
       alert(`✅ VENDA REGISTRADA!\n\nCliente: ${commission.clientName}\nValor: R$ ${commission.value.toLocaleString()}\nID: ${localId}\n\nA sincronização ocorrerá em segundo plano.`);
     }, 50);
   
-    // 5. SINCRONIZAR EM BACKGROUND (2 segundos depois)
     setTimeout(async () => {
       try {
         console.log("🔄 Iniciando sincronização em background...");
@@ -343,7 +361,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         
         const payload = { user_id: user.id, data: cleanCommission };
         
-        // Timeout curto para background (10s)
         const timeoutPromise = new Promise((_, reject) => 
           setTimeout(() => reject(new Error('Background sync timeout')), 10000)
         );
@@ -361,7 +378,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (data && data.id) {
           console.log("🎉 Sincronizado com sucesso! ID real:", data.id);
           
-          // ATUALIZAR SILENCIOSAMENTE COM ID REAL
           setCommissions(prev => 
             prev.map(c => 
               c.db_id === localId 
@@ -375,7 +391,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             )
           );
           
-          // REMOVER DO LOCALSTORAGE
           const pending = JSON.parse(localStorage.getItem('pending_commissions') || '[]')
             .filter((p: any) => p._localId !== localId);
           localStorage.setItem('pending_commissions', JSON.stringify(pending));
@@ -387,10 +402,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       } catch (error: any) {
         console.log("⚠️ Background sync falhou, mantendo local. Erro:", error.message);
         
-        // SALVAR NO LOCALSTORAGE PARA TENTAR DEPOIS
-        const pending = JSON.parse(localStorage.getItem('pending_commissions') || '[]')
+        const pending = JSON.parse(localStorage.getItem('pending_commissions') || '[]');
         
-        // Verificar se já não está salvo
         const alreadyExists = pending.some((p: any) => p._localId === localId);
         if (!alreadyExists) {
           pending.push({
@@ -403,9 +416,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           localStorage.setItem('pending_commissions', JSON.stringify(pending));
         }
       }
-    }, 2000); // Esperar 2 segundos antes de tentar
+    }, 2000);
   
-    // 6. RETORNAR IMEDIATAMENTE (não espera sync)
     return localCommission;
   }, [user]);
 
@@ -471,19 +483,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       return;
     }
   
-    // 1. Criar novos detalhes
     const newDetails = { 
       ...commission.installmentDetails, 
       [installmentNumber]: status 
-    };
-  
-    // 2. Calcular novo status geral
-    const getOverallStatus = (details: Record<string, InstallmentStatus>): CommissionStatus => {
-      const statuses = Object.values(details);
-      if (statuses.every(s => s === 'Pago' || s === 'Cancelado')) return 'Concluído';
-      if (statuses.some(s => s === 'Atraso')) return 'Atraso';
-      if (statuses.every(s => s === 'Cancelado')) return 'Cancelado';
-      return 'Em Andamento';
     };
   
     const newOverallStatus = getOverallStatus(newDetails);
@@ -495,7 +497,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         status: newOverallStatus
       };
 
-      // 3. Atualizar estado local primeiro
       setCommissions(prev => 
         prev.map(c => 
           c.id === commissionId 
@@ -504,7 +505,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         )
       );
   
-      // 4. Salvar no Supabase se tiver db_id
       if (commission.db_id && user) {
         const { db_id, criado_em, _synced, ...dataToUpdate } = updatedCommission;
 
@@ -556,7 +556,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const moveInterviewQuestion = useCallback((sectionId: string, questionId: string, dir: 'up' | 'down') => { const newStructure = interviewStructure.map(s => { if (s.id !== sectionId) return s; const idx = s.questions.findIndex(q => q.id === questionId); if ((dir === 'up' && idx < 1) || (dir === 'down' && idx >= s.questions.length - 1)) return s; const newQuestions = [...s.questions]; const targetIdx = dir === 'up' ? idx - 1 : idx + 1; [newQuestions[idx], newQuestions[targetIdx]] = [newQuestions[targetIdx], newQuestions[idx]]; return { ...s, questions: newQuestions }; }); updateAndPersistStructure(setInterviewStructure, 'interviewStructure', newStructure); }, [interviewStructure, updateAndPersistStructure]);
   const resetInterviewToDefault = useCallback(() => { updateAndPersistStructure(setInterviewStructure, 'interviewStructure', INITIAL_INTERVIEW_STRUCTURE); }, [updateAndPersistStructure]);
 
-  // SINCRONIZAÇÃO AUTOMÁTICA A CADA 2 MINUTOS
   useEffect(() => {
     if (!user) return;
     
@@ -577,7 +576,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             .maybeSingle();
             
           if (!error && data) {
-            // Atualizar estado
             setCommissions(prev => 
               prev.map(c => 
                 c.db_id === _localId 
@@ -586,7 +584,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               )
             );
             
-            // Remover do localStorage
             const updated = pending.filter((p: any) => p._localId !== _localId);
             localStorage.setItem('pending_commissions', JSON.stringify(updated));
           }
@@ -596,10 +593,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
     };
     
-    // Executar a cada 2 minutos
     const interval = setInterval(syncPendingCommissions, 2 * 60 * 1000);
     
-    // Executar também quando usuário fizer login
     setTimeout(syncPendingCommissions, 5000);
     
     return () => clearInterval(interval);

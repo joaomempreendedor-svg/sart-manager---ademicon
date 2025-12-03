@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, Outlet, Navigate } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -22,8 +22,38 @@ import { Loader2 } from 'lucide-react';
 const RequireAuth = () => {
   const auth = useAuth();
   const { isDataLoading } = useApp();
+  
+  const [timedOut, setTimedOut] = useState(false);
+  
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (auth.isLoading || isDataLoading) {
+        console.error('⏰ Timeout no carregamento - limpando estado');
+        setTimedOut(true);
+        // Forçar logout se preso
+        localStorage.removeItem('supabase.auth.token');
+        window.location.reload();
+      }
+    }, 20000);
+    
+    return () => clearTimeout(timer);
+  }, [auth.isLoading, isDataLoading]);
 
-  console.log("UI -> auth.isLoading / isDataLoading", auth.isLoading, isDataLoading);
+  if (timedOut) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-slate-900">
+        <div className="text-center">
+          <p className="text-red-500 font-medium">⏰ Tempo de carregamento excedido</p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="mt-4 px-4 py-2 bg-brand-500 text-white rounded hover:bg-brand-600"
+          >
+            Recarregar página
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (auth.isLoading || isDataLoading) {
     return (
@@ -33,6 +63,9 @@ const RequireAuth = () => {
           <p className="text-gray-500 dark:text-gray-400">
             Carregando dados...
           </p>
+          <div className="w-48 h-1 bg-gray-200 rounded-full overflow-hidden">
+            <div className="h-full bg-brand-500 animate-pulse" style={{ width: '70%' }}></div>
+          </div>
         </div>
       </div>
     );
