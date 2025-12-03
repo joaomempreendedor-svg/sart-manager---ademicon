@@ -102,7 +102,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     try {
       const { data, error } = await supabase
         .from("commissions")
-        .select("*")
+        .select("id, data, created_at")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
   
@@ -257,11 +257,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const commissionToUpdate = commissions.find(c => c.id === id);
     if (!commissionToUpdate || !commissionToUpdate.db_id) throw new Error("Comissão não encontrada para atualização.");
     
-    const updatedCommission = { ...commissionToUpdate, ...updates };
-    const { db_id, created_at, ...dataToUpdate } = updatedCommission;
+    const originalData = { ...commissionToUpdate };
+    delete (originalData as any).db_id;
+    delete (originalData as any).created_at;
 
-    const payload = { data: dataToUpdate };
-    console.log(`[${new Date().toISOString()}] UPDATE_COMMISSION_START`, { id: commissionToUpdate.db_id, payload });
+    const newData = { ...originalData, ...updates };
+    const payload = { data: newData };
 
     const { error } = await supabase
       .from('commissions')
@@ -273,7 +274,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       throw error;
     }
 
-    console.log(`[${new Date().toISOString()}] UPDATE_COMMISSION_SUCCESS`, { id: commissionToUpdate.db_id });
     await refetchCommissions();
   }, [user, commissions, refetchCommissions]);
 
