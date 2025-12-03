@@ -384,16 +384,30 @@ export const Commissions = () => {
 
   const confirmPayment = async () => {
     if (!editingInstallment) return;
-    await updateInstallmentStatus(
-      editingInstallment.commissionId, 
-      editingInstallment.number, 
-      'Pago',
-      paymentDate,
-      editingInstallment.saleType
-    );
+  
+    // 1. Store data and close modal immediately for better UX
+    const installmentToUpdate = { ...editingInstallment };
+    const dateOfPayment = paymentDate;
     setEditingInstallment(null);
-    setPaymentDate('');
-    setCalculatedCompetence('');
+  
+    try {
+      // 2. Process the update in the background
+      await updateInstallmentStatus(
+        installmentToUpdate.commissionId,
+        installmentToUpdate.number,
+        'Pago',
+        dateOfPayment,
+        installmentToUpdate.saleType
+      );
+  
+      // 3. Clean up remaining states on success
+      setPaymentDate('');
+      setCalculatedCompetence('');
+  
+    } catch (error) {
+      console.error("Erro ao confirmar pagamento:", error);
+      alert("Erro ao salvar o pagamento. Por favor, verifique o histórico e tente novamente.");
+    }
   };
 
   const formatMonthYear = (monthStr: string) => {
@@ -764,7 +778,7 @@ export const Commissions = () => {
             </div>
             <div className="flex gap-2 mt-6">
               <button onClick={confirmPayment} className="flex-1 bg-green-600 text-white py-2 rounded hover:bg-green-700 transition font-medium">Confirmar</button>
-              <button onClick={() => setEditingInstallment(null)} className="flex-1 bg-gray-200 dark:bg-slate-600 text-gray-800 dark:text-gray-200 py-2 rounded hover:bg-gray-300 dark:hover:bg-slate-500 transition font-medium">Cancelar</button>
+              <button onClick={() => { setEditingInstallment(null); setPaymentDate(''); setCalculatedCompetence(''); }} className="flex-1 bg-gray-200 dark:bg-slate-600 text-gray-800 dark:text-gray-200 py-2 rounded hover:bg-gray-300 dark:hover:bg-slate-500 transition font-medium">Cancelar</button>
             </div>
           </div>
         </div>
