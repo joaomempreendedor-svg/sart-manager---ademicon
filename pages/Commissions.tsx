@@ -387,9 +387,31 @@ export const Commissions = () => {
                             <select className="w-full border-gray-300 dark:border-slate-600 rounded-md text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white p-2 mb-2" value={selectedManager} onChange={e => setSelectedManager(e.target.value)}><option value="">Selecione o Gestor</option>{managers.map(m => <option key={m.id} value={m.name}>{m.name}</option>)}</select>
                             {hasAngel && (<select required className="w-full border-gray-300 dark:border-slate-600 rounded-md text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white p-2" value={selectedAngel} onChange={e => setSelectedAngel(e.target.value)}><option value="">Selecione o Anjo</option>{angels.map(a => <option key={a.id} value={a.name}>{a.name}</option>)}</select>)}
                         </div>
-                        <button type="submit" disabled={isSaving} className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-2 rounded-lg flex items-center justify-center space-x-2 transition shadow-lg shadow-green-600/20 disabled:opacity-50 disabled:cursor-not-allowed">
-                            {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Save className="w-4 h-4" /><span>Registrar Venda</span></>}
+                        <button 
+                          type="submit" 
+                          disabled={isSaving}
+                          className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-3 rounded-lg flex items-center justify-center space-x-2 transition shadow-lg shadow-green-600/20 disabled:opacity-50 disabled:cursor-not-allowed relative"
+                        >
+                          {isSaving ? (
+                            <>
+                              <Loader2 className="w-5 h-5 animate-spin" />
+                              <span>Salvando...</span>
+                              <div className="absolute bottom-0 left-0 right-0 h-1 bg-green-800">
+                                <div className="h-full bg-green-300 animate-pulse"></div>
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <Save className="w-5 h-5" />
+                              <span>Registrar Venda</span>
+                            </>
+                          )}
                         </button>
+                        {isSaving && (
+                          <div className="mt-2 text-xs text-gray-500 dark:text-gray-400 text-center animate-pulse">
+                            ⚡ Salvando no banco de dados... Não feche esta página.
+                          </div>
+                        )}
                     </form>
                  </div>
             </div>
