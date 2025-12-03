@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
 import { supabase } from '../src/integrations/supabase/client';
 import { useAuth } from './AuthContext';
-import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, CommissionStatus } from '../types';
+import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, CommissionStatus, InstallmentInfo } from '../types';
 import { CHECKLIST_STAGES as DEFAULT_STAGES } from '../data/checklistData';
 import { CONSULTANT_GOALS as DEFAULT_GOALS } from '../data/consultantGoals';
 import { useDebouncedCallback } from '../src/hooks/useDebouncedCallback';
@@ -25,8 +25,8 @@ const DEFAULT_APP_CONFIG_DATA = {
   pvs: ['SOARES E MORAES', 'SART INVESTIMENTOS', 'KR CONSÓRCIOS', 'SOLOM INVESTIMENTOS'],
 };
 
-const getOverallStatus = (details: Record<string, InstallmentStatus>): CommissionStatus => {
-    const statuses = Object.values(details);
+const getOverallStatus = (details: Record<string, InstallmentInfo>): CommissionStatus => {
+    const statuses = Object.values(details).map(info => info.status);
     if (statuses.every(s => s === 'Pago' || s === 'Cancelado')) return 'Concluído';
     if (statuses.some(s => s === 'Atraso')) return 'Atraso';
     if (statuses.every(s => s === 'Cancelado')) return 'Cancelado';
@@ -147,9 +147,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const commission = item.data as Commission;
   
         if (!commission.installmentDetails) {
-          const details: Record<string, InstallmentStatus> = {};
-          for (let i = 1; i <= 15; i++) details[i.toString()] = "Pendente";
+          const details: Record<string, InstallmentInfo> = {};
+          for (let i = 1; i <= 15; i++) details[i.toString()] = { status: "Pendente" };
           commission.installmentDetails = details;
+        } else {
+            // Data migration for old string format
+            const firstKey = Object.keys(commission.installmentDetails)[0];
+            if (firstKey && typeof (commission.installmentDetails as any)[firstKey] === 'string') {
+                const migratedDetails: Record<string, InstallmentInfo> = {};
+                Object.entries(commission.installmentDetails).forEach(([key, value]) => {
+                    migratedDetails[key] = { status: value as InstallmentStatus };
+                });
+                commission.installmentDetails = migratedDetails;
+            }
         }
   
         return {
@@ -473,19 +483,27 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const updateInstallmentStatus = useCallback(async (
     commissionId: string, 
     installmentNumber: number, 
-    status: InstallmentStatus
+    status: InstallmentStatus,
+    paidDate?: string
   ) => {
-    console.log(`🔄 Atualizando parcela ${installmentNumber} para ${status}`);
+    console.log(`🔄 Atualizando parcela ${installmentNumber} para ${status}${paidDate ? ` em ${paidDate}` : ''}`);
     
     const commission = commissions.find(c => c.id === commissionId);
     if (!commission) {
       console.error("Comissão não encontrada");
       return;
     }
+
+    const newPaidDate = status === 'Pago' 
+      ? (paidDate || new Date().toISOString().split('T')[0])
+      : undefined;
   
     const newDetails = { 
       ...commission.installmentDetails, 
-      [installmentNumber]: status 
+      [installmentNumber]: {
+        status,
+        ...(newPaidDate && { paidDate: newPaidDate })
+      }
     };
   
     const newOverallStatus = getOverallStatus(newDetails);

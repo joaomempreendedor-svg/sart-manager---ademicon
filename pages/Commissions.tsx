@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { Commission, CommissionStatus, CommissionRule, InstallmentStatus } from '../types';
+import { Commission, CommissionStatus, CommissionRule, InstallmentStatus, InstallmentInfo } from '../types';
 import { Trash2, Search, DollarSign, Calendar, Calculator, Save, Table as TableIcon, Car, Home, ChevronDown, MapPin, Percent, Filter, XCircle, Crown, Plus, Wand2, Loader2 } from 'lucide-react';
 
 const formatCurrency = (value: number) => {
@@ -18,8 +18,8 @@ const DEFAULT_RULES = {
   angel: { p1_10: 0.0128, p11_13: 0.0237 }
 };
 
-const getOverallStatus = (details: Record<string, InstallmentStatus>): CommissionStatus => {
-    const statuses = Object.values(details);
+const getOverallStatus = (details: Record<string, InstallmentInfo>): CommissionStatus => {
+    const statuses = Object.values(details).map(info => info.status);
     if (statuses.every(s => s === 'Pago' || s === 'Cancelado')) return 'Concluído';
     if (statuses.some(s => s === 'Atraso')) return 'Atraso';
     if (statuses.every(s => s === 'Cancelado')) return 'Cancelado';
@@ -81,6 +81,13 @@ export const Commissions = () => {
   const [selectedManager, setSelectedManager] = useState('');
   const [selectedAngel, setSelectedAngel] = useState('');
   const [taxRateInput, setTaxRateInput] = useState('6');
+
+  const [editingInstallment, setEditingInstallment] = useState<{
+    commissionId: string;
+    number: number;
+    currentStatus: InstallmentStatus;
+  } | null>(null);
+  const [paymentDate, setPaymentDate] = useState('');
 
   const resetCalculatorForm = () => {
     setCreditValue('');
@@ -212,8 +219,8 @@ export const Commissions = () => {
     setIsSaving(true);
     try {
       const taxValue = parseFloat(taxRateInput.replace(',', '.')) || 0;
-      const initialInstallments: Record<string, InstallmentStatus> = {};
-      for (let i = 1; i <= 15; i++) { initialInstallments[i] = 'Pendente'; }
+      const initialInstallments: Record<string, InstallmentInfo> = {};
+      for (let i = 1; i <= 15; i++) { initialInstallments[i] = { status: 'Pendente' }; }
 
       const payload: Commission = {
         id: crypto.randomUUID(), date: saleDate, clientName, type: saleType, group, quota, consultant: selectedConsultant, managerName: selectedManager || 'N/A', angelName: hasAngel ? selectedAngel : undefined, pv: selectedPV, value: credit, taxRate: taxValue, 
@@ -306,13 +313,13 @@ export const Commissions = () => {
 
   const filteredTotals = useMemo(() => filteredHistory.reduce((acc, c) => {
     let monthCons = 0, monthMan = 0, monthAngel = 0;
-    Object.entries(c.installmentDetails).forEach(([num, status]) => {
-        if (status === 'Pago' || status === 'Atraso') { // Consider both for monthly total
-            const values = getInstallmentValues(c, parseInt(num));
-            monthCons += values.cons;
-            monthMan += values.man;
-            monthAngel += values.angel;
-        }
+    Object.entries(c.installmentDetails).forEach(([num, info]) => {
+      if (info.status === 'Pago') {
+        const values = getInstallmentValues(c, parseInt(num));
+        monthCons += values.cons;
+        monthMan += values.man;
+        monthAngel += values.angel;
+      }
     });
     return { totalSold: acc.totalSold + c.value, totalCons: acc.totalCons + monthCons, totalMan: acc.totalMan + monthMan, totalAngel: acc.totalAngel + monthAngel };
   }, { totalSold: 0, totalCons: 0, totalMan: 0, totalAngel: 0 }), [filteredHistory]);
@@ -323,6 +330,31 @@ export const Commissions = () => {
     v = v.replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.');
     if (v === 'NaN,NaN') v = '';
     setter(v);
+  };
+
+  const handleStatusChange = async (
+    commissionId: string, 
+    installmentNumber: number, 
+    newStatus: InstallmentStatus
+  ) => {
+    if (newStatus === 'Pago') {
+      setEditingInstallment({ commissionId, number: installmentNumber, currentStatus: newStatus });
+      setPaymentDate(new Date().toISOString().split('T')[0]);
+    } else {
+      await updateInstallmentStatus(commissionId, installmentNumber, newStatus);
+    }
+  };
+
+  const confirmPayment = async () => {
+    if (!editingInstallment) return;
+    await updateInstallmentStatus(
+      editingInstallment.commissionId, 
+      editingInstallment.number, 
+      'Pago',
+      paymentDate
+    );
+    setEditingInstallment(null);
+    setPaymentDate('');
   };
 
   return (
@@ -520,16 +552,16 @@ export const Commissions = () => {
                         <thead className={`text-gray-900 dark:text-white font-medium uppercase tracking-wider text-xs ${isAngelMode ? 'bg-yellow-50/50 dark:bg-yellow-900/10' : 'bg-gray-50 dark:bg-slate-700/50'}`}>
                             <tr>
                                 <th className="px-6 py-3">Cliente / Detalhes</th><th className="px-6 py-3">Progresso</th>
-                                <th className={`px-6 py-3 w-48 ${isAngelMode ? 'bg-yellow-100/50 text-yellow-900 dark:bg-yellow-900/40 dark:text-yellow-100' : 'bg-blue-50/50 dark:bg-blue-900/10'}`}><div className="flex flex-col"><span>{isAngelMode ? 'Pagamento Anjo' : 'Recebimento Líquido'}</span><span className="text-[10px] normal-case opacity-70">Mês Atual (Pago/Atraso)</span></div></th>
+                                <th className={`px-6 py-3 w-48 ${isAngelMode ? 'bg-yellow-100/50 text-yellow-900 dark:bg-yellow-900/40 dark:text-yellow-100' : 'bg-blue-50/50 dark:bg-blue-900/10'}`}><div className="flex flex-col"><span>{isAngelMode ? 'Pagamento Anjo' : 'Recebimento Líquido'}</span><span className="text-[10px] normal-case opacity-70">Mês Atual (Pago)</span></div></th>
                                 <th className="px-6 py-3 text-center">Ações</th>
                             </tr>
                         </thead>
                         <tbody>
                             {filteredHistory.length === 0 ? (<tr><td colSpan={6} className="px-6 py-12 text-center text-gray-400">{isAngelMode ? 'Nenhuma venda com Anjo encontrada.' : 'Nenhuma venda encontrada com os filtros selecionados.'}</td></tr>) : (
                                 filteredHistory.map(c => {
-                                    const paidCount = Object.values(c.installmentDetails).filter(s => s === 'Pago').length;
-                                    const monthlyValues = Object.entries(c.installmentDetails).reduce((acc, [num, status]) => {
-                                        if (status === 'Pago' || status === 'Atraso') {
+                                    const paidCount = Object.values(c.installmentDetails).filter(s => s.status === 'Pago').length;
+                                    const monthlyValues = Object.entries(c.installmentDetails).reduce((acc, [num, info]) => {
+                                        if (info.status === 'Pago') {
                                             const values = getInstallmentValues(c, parseInt(num));
                                             acc.cons += values.cons;
                                             acc.man += values.man;
@@ -562,17 +594,19 @@ export const Commissions = () => {
                                             <tr className="bg-gray-50 dark:bg-slate-800">
                                                 <td colSpan={4} className="p-4">
                                                     <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
-                                                        {Object.entries(c.installmentDetails).map(([num, status]) => (
+                                                        {Object.entries(c.installmentDetails).map(([num, info]) => {
+                                                            const status = info.status || 'Pendente';
+                                                            return (
                                                             <div key={num} className="text-center p-2 rounded-md border bg-white dark:bg-slate-700">
                                                                 <div className="text-xs text-gray-400">Parcela {num}</div>
-                                                                <select value={status} onChange={async (e) => await updateInstallmentStatus(c.id, parseInt(num), e.target.value as InstallmentStatus)} className={`mt-1 w-full text-xs font-bold py-1 px-2 rounded border cursor-pointer focus:outline-none ${getInstallmentStatusColor(status)}`}>
+                                                                <select value={status} onChange={async (e) => await handleStatusChange(c.id, parseInt(num), e.target.value as InstallmentStatus)} className={`mt-1 w-full text-xs font-bold py-1 px-2 rounded border cursor-pointer focus:outline-none ${getInstallmentStatusColor(status)}`}>
                                                                     <option value="Pendente">Pendente</option>
                                                                     <option value="Pago">Pago</option>
                                                                     <option value="Atraso">Atraso</option>
                                                                     <option value="Cancelado">Cancelado</option>
                                                                 </select>
                                                             </div>
-                                                        ))}
+                                                        )})}
                                                     </div>
                                                 </td>
                                             </tr>
@@ -585,6 +619,37 @@ export const Commissions = () => {
                     </table>
                 </div>
             </div>
+        </div>
+      )}
+      {editingInstallment && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-xl max-w-sm w-full shadow-lg">
+            <h3 className="text-lg font-bold mb-4 text-gray-900 dark:text-white">Confirmar Pagamento</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
+              Parcela {editingInstallment.number} - Definir data de pagamento:
+            </p>
+            <input
+              type="date"
+              value={paymentDate}
+              onChange={(e) => setPaymentDate(e.target.value)}
+              className="w-full p-2 border rounded mb-4 bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-gray-900 dark:text-white"
+              max={new Date().toISOString().split('T')[0]}
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={confirmPayment}
+                className="flex-1 bg-green-600 text-white py-2 rounded hover:bg-green-700 transition font-medium"
+              >
+                Confirmar
+              </button>
+              <button
+                onClick={() => setEditingInstallment(null)}
+                className="flex-1 bg-gray-200 dark:bg-slate-600 text-gray-800 dark:text-gray-200 py-2 rounded hover:bg-gray-300 dark:hover:bg-slate-500 transition font-medium"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
