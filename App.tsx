@@ -3,6 +3,7 @@ import { HashRouter, Routes, Route, Outlet, Navigate } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Sidebar } from './components/Sidebar';
+import { Header } from './components/Header';
 import { Dashboard } from './pages/Dashboard';
 import { NewCandidate } from './pages/NewCandidate';
 import { CandidateDetail } from './pages/CandidateDetail';
@@ -24,63 +25,39 @@ const RequireAuth = () => {
   const auth = useAuth();
   const { isDataLoading } = useApp();
   
-  // Estado local para controle preciso
   const [loadState, setLoadState] = useState<'checking' | 'loading' | 'ready' | 'timeout' | 'error'>('checking');
   const [retryCount, setRetryCount] = useState(0);
   
-  // Efeito principal com timeout AGGRESSIVO
   useEffect(() => {
-    console.log(`🔄 RequireAuth State: auth=${auth.isLoading}, data=${isDataLoading}, loadState=${loadState}`);
-    
-    // SE já tem usuário e dados não estão carregando → PRONTO
     if (auth.user && !isDataLoading) {
-      console.log('✅ Tudo carregado, liberando acesso');
       setLoadState('ready');
       return;
     }
-    
-    // SE não tem usuário mas auth não está carregando → IR PARA LOGIN
     if (!auth.user && !auth.isLoading) {
-      console.log('🔒 Nenhum usuário, redirecionando para login');
-      setLoadState('ready'); // Vai redirecionar no render
+      setLoadState('ready');
       return;
     }
-    
-    // SE está preso no loading → TIMEOUT RÁPIDO (8 segundos)
     const timeout = setTimeout(() => {
-      console.error('⏰ TIMEOUT RÁPIDO: Carregamento preso há 8 segundos');
       setLoadState('timeout');
-      
-      // Limpar tokens problemáticos
       localStorage.removeItem('supabase.auth.token');
       localStorage.removeItem('supabase.auth.refreshToken');
-      
     }, 8000);
-    
     return () => clearTimeout(timeout);
   }, [auth.user, auth.isLoading, isDataLoading, loadState]);
   
-  // Botão de retry
   const handleForceRetry = () => {
-    console.log('🔄 Retry forçado pelo usuário');
     setRetryCount(prev => prev + 1);
     setLoadState('checking');
-    
-    // Limpar completamente
     localStorage.removeItem('supabase.auth.token');
     localStorage.removeItem('supabase.auth.refreshToken');
-    
-    // Recarregar
     setTimeout(() => window.location.reload(), 500);
   };
   
-  // Botão de login manual
   const handleGoToLogin = () => {
     localStorage.clear();
     window.location.href = '/login';
   };
 
-  // RENDER STATES
   if (loadState === 'timeout') {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-slate-900 p-4">
@@ -95,74 +72,48 @@ const RequireAuth = () => {
             O sistema detectou um problema ao carregar seus dados. Isso geralmente ocorre com conexões instáveis ou sessões expiradas.
           </p>
           <div className="space-y-3">
-            <button 
-              onClick={handleForceRetry}
-              className="w-full py-3 bg-brand-500 text-white font-medium rounded-lg hover:bg-brand-600 transition"
-            >
-              🔄 Tentar Novamente
-            </button>
-            <button 
-              onClick={handleGoToLogin}
-              className="w-full py-3 bg-gray-100 dark:bg-slate-700 text-gray-800 dark:text-gray-200 font-medium rounded-lg hover:bg-gray-200 dark:hover:bg-slate-600 transition"
-            >
-              🔑 Fazer Login Novamente
-            </button>
-            <button 
-              onClick={() => window.location.reload()}
-              className="w-full py-3 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300 font-medium rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition"
-            >
-              ↻ Recarregar Página
-            </button>
+            <button onClick={handleForceRetry} className="w-full py-3 bg-brand-500 text-white font-medium rounded-lg hover:bg-brand-600 transition">🔄 Tentar Novamente</button>
+            <button onClick={handleGoToLogin} className="w-full py-3 bg-gray-100 dark:bg-slate-700 text-gray-800 dark:text-gray-200 font-medium rounded-lg hover:bg-gray-200 dark:hover:bg-slate-600 transition">🔑 Fazer Login Novamente</button>
+            <button onClick={() => window.location.reload()} className="w-full py-3 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300 font-medium rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition">↻ Recarregar Página</button>
           </div>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-6">
-            Tentativa #{retryCount + 1} • ID: {auth.user?.id?.substring(0, 8) || 'none'}
-          </p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-6">Tentativa #{retryCount + 1} • ID: {auth.user?.id?.substring(0, 8) || 'none'}</p>
         </div>
       </div>
     );
   }
   
-  // Loading normal
   if (auth.isLoading || isDataLoading || loadState === 'checking') {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-slate-900">
         <div className="flex flex-col items-center space-y-4">
-          <div className="relative">
-            <Loader2 className="w-12 h-12 text-brand-500 animate-spin" />
-            <div className="absolute inset-0 border-4 border-transparent border-t-brand-500 rounded-full animate-spin"></div>
-          </div>
-          <div className="text-center">
-            <p className="text-gray-700 dark:text-gray-300 font-medium">Carregando SART Manager</p>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-              {auth.isLoading ? 'Verificando autenticação...' : 'Carregando seus dados...'}
-            </p>
-          </div>
-          {/* Progress bar animada */}
-          <div className="w-64 h-2 bg-gray-200 dark:bg-slate-700 rounded-full overflow-hidden">
-            <div className="h-full bg-gradient-to-r from-brand-400 to-brand-600 animate-pulse" style={{ width: '65%' }}></div>
-          </div>
-          {/* Timer discreto */}
+          <div className="relative"><Loader2 className="w-12 h-12 text-brand-500 animate-spin" /><div className="absolute inset-0 border-4 border-transparent border-t-brand-500 rounded-full animate-spin"></div></div>
+          <div className="text-center"><p className="text-gray-700 dark:text-gray-300 font-medium">Carregando SART Manager</p><p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{auth.isLoading ? 'Verificando autenticação...' : 'Carregando seus dados...'}</p></div>
+          <div className="w-64 h-2 bg-gray-200 dark:bg-slate-700 rounded-full overflow-hidden"><div className="h-full bg-gradient-to-r from-brand-400 to-brand-600 animate-pulse" style={{ width: '65%' }}></div></div>
           <p className="text-xs text-gray-400">Tentativa automática em: <span className="font-mono">8s</span></p>
         </div>
       </div>
     );
   }
   
-  // Se não tem usuário → login
   if (!auth.user) {
     return <Navigate to="/login" replace />;
   }
   
-  // Tudo OK!
   return <Outlet />;
 };
 
 const Layout = () => {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-slate-900 flex font-sans text-gray-900 dark:text-gray-100 transition-colors duration-200">
-      <Sidebar />
-      <div className="flex-1 ml-64">
-        <Outlet />
+      <Sidebar isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar} />
+      <div className="flex-1 md:ml-64 flex flex-col">
+        <Header isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar} />
+        <main className="flex-1">
+          <Outlet />
+        </main>
       </div>
     </div>
   );
@@ -173,8 +124,6 @@ const AppRoutes = () => {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
-
-      {/* Protected Routes */}
       <Route element={<RequireAuth />}>
         <Route path="/" element={<Layout />}>
           <Route index element={<Dashboard />} />
