@@ -388,7 +388,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         console.log("⚠️ Background sync falhou, mantendo local. Erro:", error.message);
         
         // SALVAR NO LOCALSTORAGE PARA TENTAR DEPOIS
-        const pending = JSON.parse(localStorage.getItem('pending_commissions') || '[]');
+        const pending = JSON.parse(localStorage.getItem('pending_commissions') || '[]')
         
         // Verificar se já não está salvo
         const alreadyExists = pending.some((p: any) => p._localId === localId);
@@ -458,7 +458,71 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const addSupportMaterial = useCallback(async (material: SupportMaterial) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('support_materials').insert({ user_id: user.id, data: material }).select('id').single(); if (error) { console.error(error); throw error; } if (data) { setSupportMaterials(prev => [{ ...material, db_id: data.id }, ...prev]); } }, [user]);
   const deleteSupportMaterial = useCallback(async (id: string) => { if (!user) throw new Error("Usuário não autenticado."); const m = supportMaterials.find(m => m.id === id); if (!m || !m.db_id) throw new Error("Material não encontrado"); const { error } = await supabase.from('support_materials').delete().match({ id: m.db_id, user_id: user.id }); if (error) { console.error(error); throw error; } setSupportMaterials(prev => prev.filter(p => p.id !== id)); }, [user, supportMaterials]);
 
-  const updateInstallmentStatus = useCallback(async (commissionId: string, installmentNumber: number, status: InstallmentStatus) => { const commission = commissions.find(c => c.id === commissionId); if (commission) { const newDetails = { ...commission.installmentDetails, [installmentNumber]: status }; const newOverallStatus = getOverallStatus(newDetails); await updateCommission(commissionId, { installmentDetails: newDetails, status: newOverallStatus }); } }, [commissions, updateCommission]);
+  const updateInstallmentStatus = useCallback(async (
+    commissionId: string, 
+    installmentNumber: number, 
+    status: InstallmentStatus
+  ) => {
+    console.log(`🔄 Atualizando parcela ${installmentNumber} para ${status}`);
+    
+    const commission = commissions.find(c => c.id === commissionId);
+    if (!commission) {
+      console.error("Comissão não encontrada");
+      return;
+    }
+  
+    // 1. Criar novos detalhes
+    const newDetails = { 
+      ...commission.installmentDetails, 
+      [installmentNumber]: status 
+    };
+  
+    // 2. Calcular novo status geral
+    const getOverallStatus = (details: Record<string, InstallmentStatus>): CommissionStatus => {
+      const statuses = Object.values(details);
+      if (statuses.every(s => s === 'Pago' || s === 'Cancelado')) return 'Concluído';
+      if (statuses.some(s => s === 'Atraso')) return 'Atraso';
+      if (statuses.every(s => s === 'Cancelado')) return 'Cancelado';
+      return 'Em Andamento';
+    };
+  
+    const newOverallStatus = getOverallStatus(newDetails);
+  
+    try {
+      const updatedCommission = { 
+        ...commission, 
+        installmentDetails: newDetails,
+        status: newOverallStatus
+      };
+
+      // 3. Atualizar estado local primeiro
+      setCommissions(prev => 
+        prev.map(c => 
+          c.id === commissionId 
+            ? updatedCommission
+            : c
+        )
+      );
+  
+      // 4. Salvar no Supabase se tiver db_id
+      if (commission.db_id && user) {
+        const { db_id, criado_em, _synced, ...dataToUpdate } = updatedCommission;
+
+        const { error } = await supabase
+          .from('commissions')
+          .update({ data: dataToUpdate })
+          .eq('id', commission.db_id)
+          .eq('user_id', user.id);
+  
+        if (error) throw error;
+        console.log("✅ Status salvo no banco");
+      }
+  
+    } catch (error: any) {
+      console.error("Erro ao salvar status:", error);
+      alert("Erro ao salvar status da parcela. Tente novamente.");
+    }
+  }, [commissions, user]);
 
   const getCandidate = useCallback((id: string) => candidates.find(c => c.id === id), [candidates]);
   const toggleChecklistItem = useCallback(async (candidateId: string, itemId: string) => { const c = getCandidate(candidateId); if(c) { const state = c.checklistProgress[itemId] || { completed: false }; await updateCandidate(candidateId, { checklistProgress: { ...c.checklistProgress, [itemId]: { ...state, completed: !state.completed } } }); } }, [getCandidate, updateCandidate]);
