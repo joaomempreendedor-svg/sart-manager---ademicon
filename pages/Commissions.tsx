@@ -282,18 +282,27 @@ export const Commissions = () => {
   const managers = activeMembers.filter(m => m.roles.includes('Gestor'));
   const angels = activeMembers.filter(m => m.roles.includes('Anjo'));
 
-  const filteredHistory = useMemo(() => commissions.filter(c => {
-    if (isAngelMode && !c.angelName) return false;
-    const overallStatus = getOverallStatus(c.installmentDetails);
-    const matchesSearch = searchTerm === '' || c.clientName.toLowerCase().includes(searchTerm.toLowerCase()) || c.consultant.toLowerCase().includes(searchTerm.toLowerCase()) || c.pv.toLowerCase().includes(searchTerm.toLowerCase()) || c.group.includes(searchTerm);
-    const matchesStart = filterStartDate ? c.date >= filterStartDate : true;
-    const matchesEnd = filterEndDate ? c.date <= filterEndDate : true;
-    const matchesConsultant = filterConsultant ? c.consultant === filterConsultant : true;
-    const matchesAngel = filterAngel ? c.angelName === filterAngel : true;
-    const matchesPV = filterPV ? c.pv === filterPV : true;
-    const matchesStatus = filterStatus ? overallStatus === filterStatus : true;
-    return matchesSearch && matchesStart && matchesEnd && matchesConsultant && matchesAngel && matchesPV && matchesStatus;
-  }), [commissions, searchTerm, filterStartDate, filterEndDate, filterConsultant, filterAngel, filterPV, filterStatus, isAngelMode]);
+  const filteredHistory = useMemo(() => {
+    const startFilterDate = filterStartDate ? new Date(filterStartDate + 'T00:00:00') : null;
+    const endFilterDate = filterEndDate ? new Date(filterEndDate + 'T00:00:00') : null;
+
+    return commissions.filter(c => {
+      if (isAngelMode && !c.angelName) return false;
+      
+      const commissionDate = new Date(c.date + 'T00:00:00');
+      const overallStatus = getOverallStatus(c.installmentDetails);
+
+      const matchesSearch = searchTerm === '' || c.clientName.toLowerCase().includes(searchTerm.toLowerCase()) || c.consultant.toLowerCase().includes(searchTerm.toLowerCase()) || c.pv.toLowerCase().includes(searchTerm.toLowerCase()) || c.group.includes(searchTerm);
+      const matchesStart = !startFilterDate || commissionDate >= startFilterDate;
+      const matchesEnd = !endFilterDate || commissionDate <= endFilterDate;
+      const matchesConsultant = filterConsultant ? c.consultant === filterConsultant : true;
+      const matchesAngel = filterAngel ? c.angelName === filterAngel : true;
+      const matchesPV = filterPV ? c.pv === filterPV : true;
+      const matchesStatus = filterStatus ? overallStatus === filterStatus : true;
+      
+      return matchesSearch && matchesStart && matchesEnd && matchesConsultant && matchesAngel && matchesPV && matchesStatus;
+    });
+  }, [commissions, searchTerm, filterStartDate, filterEndDate, filterConsultant, filterAngel, filterPV, filterStatus, isAngelMode]);
 
   const filteredTotals = useMemo(() => filteredHistory.reduce((acc, c) => {
     let monthCons = 0, monthMan = 0, monthAngel = 0;

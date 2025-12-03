@@ -85,7 +85,7 @@ export const CandidateDetail = () => {
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{candidate.name}</h1>
               <div className="flex items-center space-x-4 text-sm text-gray-500 dark:text-gray-400 mt-1">
                  <span className="flex items-center"><Phone className="w-3 h-3 mr-1" /> {candidate.phone}</span>
-                 <span className="flex items-center"><Calendar className="w-3 h-3 mr-1" /> Entrevista: {new Date(candidate.interviewDate).toLocaleDateString()}</span>
+                 <span className="flex items-center"><Calendar className="w-3 h-3 mr-1" /> Entrevista: {new Date(candidate.interviewDate + 'T00:00:00').toLocaleDateString()}</span>
               </div>
             </div>
           </div>

@@ -222,7 +222,7 @@ export const Dashboard = () => {
                       </td>
                       <td className="px-6 py-4 flex items-center space-x-2">
                          <Calendar className="w-4 h-4 text-gray-400" />
-                         <span>{new Date(c.interviewDate).toLocaleDateString()}</span>
+                         <span>{new Date(c.interviewDate + 'T00:00:00').toLocaleDateString()}</span>
                       </td>
                       <td className="px-6 py-4">
                         <span className={`font-bold ${totalScore >= 70 ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`}>
