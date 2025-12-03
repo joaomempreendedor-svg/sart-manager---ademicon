@@ -2,6 +2,7 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { LayoutDashboard, MessageSquare, Settings, FileText, Sun, Moon, Banknote, PlusCircle, Library, TrendingUp, Target, Users, LogOut, User as UserIcon, Calendar } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 
 interface SidebarProps {
   isSidebarOpen: boolean;
@@ -9,7 +10,8 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ isSidebarOpen, toggleSidebar }) => {
-  const { theme, toggleTheme, user, logout } = useApp();
+  const { theme, toggleTheme } = useApp();
+  const { user, logout } = useAuth();
 
   const handleLogout = async () => {
     await logout();

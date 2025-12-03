@@ -60,8 +60,7 @@ const clearStaleAuth = () => {
 };
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const auth = useAuth();
-  const { user } = auth;
+  const { user } = useAuth();
   const fetchedUserIdRef = useRef<string | null>(null);
   const isFetchingRef = useRef(false);
 
@@ -659,7 +658,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!user) return;
     
     const syncPendingCommissions = async () => {
-      const pending = JSON.parse(localStorage.getItem('pending_commissions') || '[]');
+      const pending = JSON.parse(localStorage.getItem('pending_commissions') || '[]') as any[];
       if (pending.length === 0) return;
       
       for (const item of pending) {
@@ -699,8 +698,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   return (
     <AppContext.Provider value={{ 
-      ...auth,
-      isLoading: auth.isLoading,
       isDataLoading,
       candidates, templates, checklistStructure, consultantGoalsStructure, interviewStructure, commissions, supportMaterials, theme, origins, interviewers, pvs, teamMembers, cutoffPeriods,
       addCutoffPeriod, updateCutoffPeriod, deleteCutoffPeriod,

@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { useApp } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 import { supabase } from '../src/integrations/supabase/client';
 import { User, Mail, Lock, Save, Loader2 } from 'lucide-react';
 
 export const Profile = () => {
-  const { user } = useApp();
+  const { user } = useAuth();
   const [firstName, setFirstName] = useState(user?.name.split(' ')[0] || '');
   const [lastName, setLastName] = useState(user?.name.split(' ').slice(1).join(' ') || '');
   const [password, setPassword] = useState('');

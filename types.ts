@@ -193,50 +193,32 @@ export interface CutoffPeriod {
 }
 
 export interface AppContextType {
-  // Auth
-  user: User | null;
-  isLoading: boolean;
   isDataLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string) => Promise<void>;
-  logout: () => Promise<void>;
-
   candidates: Candidate[];
   templates: Record<string, CommunicationTemplate>;
   checklistStructure: ChecklistStage[];
-  consultantGoalsStructure: GoalStage[]; // New Dynamic Structure
+  consultantGoalsStructure: GoalStage[];
   interviewStructure: InterviewSection[];
   commissions: Commission[];
   supportMaterials: SupportMaterial[];
   theme: 'light' | 'dark';
-  
-  // Dynamic Lists
   origins: string[];
   interviewers: string[];
   pvs: string[];
-  
-  // Team Management
   teamMembers: TeamMember[];
-  addTeamMember: (member: TeamMember) => Promise<void>;
-  updateTeamMember: (id: string, updates: Partial<TeamMember>) => Promise<void>;
-  deleteTeamMember: (id: string) => Promise<void>;
-
-  // Cutoff Periods
   cutoffPeriods: CutoffPeriod[];
   addCutoffPeriod: (period: CutoffPeriod) => Promise<void>;
   updateCutoffPeriod: (id: string, updates: Partial<CutoffPeriod>) => Promise<void>;
   deleteCutoffPeriod: (id: string) => Promise<void>;
-
+  addTeamMember: (member: TeamMember) => Promise<void>;
+  updateTeamMember: (id: string, updates: Partial<TeamMember>) => Promise<void>;
+  deleteTeamMember: (id: string) => Promise<void>;
   addOrigin: (origin: string) => void;
   deleteOrigin: (origin: string) => void;
   addInterviewer: (interviewer: string) => void;
   deleteInterviewer: (interviewer: string) => void;
   addPV: (pv: string) => void;
-  
-  // Theme Action
   toggleTheme: () => void;
-  
-  // Candidate Actions
   addCandidate: (candidate: Candidate) => Promise<void>;
   updateCandidate: (id: string, updates: Partial<Candidate>) => Promise<void>;
   deleteCandidate: (id: string) => Promise<void>;
@@ -244,39 +226,27 @@ export interface AppContextType {
   toggleConsultantGoal: (candidateId: string, goalId: string) => Promise<void>;
   setChecklistDueDate: (candidateId: string, itemId: string, date: string) => Promise<void>;
   getCandidate: (id: string) => Candidate | undefined;
-  
-  // Template Actions
   saveTemplate: (id: string, template: Partial<CommunicationTemplate>) => void;
-
-  // Structure Actions (Checklist)
   addChecklistItem: (stageId: string, label: string) => void;
   updateChecklistItem: (stageId: string, itemId: string, label: string) => void;
   deleteChecklistItem: (stageId: string, itemId: string) => void;
   moveChecklistItem: (stageId: string, itemId: string, direction: 'up' | 'down') => void;
   resetChecklistToDefault: () => void;
-
-  // Structure Actions (Consultant Goals)
   addGoalItem: (stageId: string, label: string) => void;
   updateGoalItem: (stageId: string, itemId: string, label: string) => void;
   deleteGoalItem: (stageId: string, itemId: string) => void;
   moveGoalItem: (stageId: string, itemId: string, direction: 'up' | 'down') => void;
   resetGoalsToDefault: () => void;
-
-  // Structure Actions (Interview)
   updateInterviewSection: (sectionId: string, updates: Partial<InterviewSection>) => void;
   addInterviewQuestion: (sectionId: string, text: string, points: number) => void;
   updateInterviewQuestion: (sectionId: string, questionId: string, updates: Partial<InterviewQuestion>) => void;
   deleteInterviewQuestion: (sectionId: string, questionId: string) => void;
   moveInterviewQuestion: (sectionId: string, questionId: string, direction: 'up' | 'down') => void;
   resetInterviewToDefault: () => void;
-
-  // Commission Actions
   addCommission: (commission: Commission) => Promise<Commission>;
   updateCommission: (id: string, updates: Partial<Commission>) => Promise<void>;
   deleteCommission: (id: string) => Promise<void>;
   updateInstallmentStatus: (commissionId: string, installmentNumber: number, status: InstallmentStatus, paidDate?: string, saleType?: 'Imóvel' | 'Veículo') => Promise<void>;
-
-  // Support Material Actions
   addSupportMaterial: (material: Omit<SupportMaterial, 'id' | 'url'>, file: File) => Promise<void>;
   deleteSupportMaterial: (id: string) => Promise<void>;
 }
