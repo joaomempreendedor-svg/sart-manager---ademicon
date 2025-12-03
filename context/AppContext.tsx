@@ -309,90 +309,94 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const addCommission = useCallback(async (commission: Commission): Promise<Commission> => {
     if (!user) throw new Error("Usuário não autenticado.");
   
-    // ✅ VERSÃO CORRIGIDA COM RETRY E TIMEOUT
-    const MAX_RETRIES = 3;
-    let lastError: any = null;
-    const operationId = `addCommission_${Date.now()}`;
+    console.log("⏱️ addCommission iniciado - timeout aumentado para 30s");
   
-    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-      try {
-        console.log(`[${new Date().toISOString()}] ${operationId} - Tentativa ${attempt}/${MAX_RETRIES}`);
-  
-        const cleanCommission: Commission = {
-          ...commission,
-          customRules: commission.customRules?.length ? commission.customRules : undefined,
-          angelName: commission.angelName || undefined,
-          managerName: commission.managerName || 'N/A',
-        };
-        
-        const payload = { user_id: user.id, data: cleanCommission };
-  
-        // Timeout de 15 segundos
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Timeout: Operação demorou mais de 15 segundos')), 15000)
-        );
-  
-        const insertPromise = supabase
-          .from('commissions')
-          .insert(payload)
-          .select('id, created_at')
-          .maybeSingle();
-  
-        const { data, error } = await Promise.race([insertPromise, timeoutPromise]) as any;
-  
-        if (error) throw error;
-        if (!data) throw new Error('Nenhum dado retornado do banco de dados');
-  
-        console.log(`[${new Date().toISOString()}] ${operationId} - Sucesso na tentativa ${attempt}`);
-  
-        const newCommissionWithDbId = { 
-          ...cleanCommission, 
-          db_id: data.id,
-          criado_em: data.created_at
-        };
-        
-        // ✅ ATUALIZAÇÃO OTIMISTA IMEDIATA
-        setCommissions(prev => {
-          // Verificar se já não foi adicionado (evitar duplicação)
-          if (prev.some(c => c.id === newCommissionWithDbId.id)) {
-            return prev;
-          }
-          return [newCommissionWithDbId, ...prev];
-        });
-        
-        return newCommissionWithDbId;
-  
-      } catch (error: any) {
-        lastError = error;
-        console.error(`[${new Date().toISOString()}] ${operationId} - Erro na tentativa ${attempt}:`, error.message);
-        
-        if (attempt < MAX_RETRIES) {
-          // Espera crescente: 1s, 2s, 4s...
-          await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
-        }
-      }
-    }
-    
-    // ✅ SALVAR LOCALMENTE SE TODAS TENTATIVAS FALHAREM
-    console.warn(`[${new Date().toISOString()}] ${operationId} - Salvando localmente após ${MAX_RETRIES} falhas`);
-    
-    const pendingCommissions = JSON.parse(localStorage.getItem('pending_commissions') || '[]');
-    pendingCommissions.push({
+    const cleanCommission: Commission = {
       ...commission,
-      _id: operationId,
-      _timestamp: new Date().toISOString(),
-      _retryCount: 0
-    });
-    localStorage.setItem('pending_commissions', JSON.stringify(pendingCommissions));
-    
-    // ❗ ATENÇÃO: Mesmo falhando, ainda atualizamos o estado local para UI
-    const tempCommissionWithId = { 
-      ...commission, 
-      db_id: `temp_${operationId}` // ID temporário
+      customRules: commission.customRules?.length ? commission.customRules : undefined,
+      angelName: commission.angelName || undefined,
+      managerName: commission.managerName || 'N/A',
     };
-    setCommissions(prev => [tempCommissionWithId, ...prev]);
     
-    throw new Error(`Não foi possível salvar a comissão. Os dados foram salvos localmente e serão sincronizados quando a conexão voltar. (ID: ${operationId})`);
+    const payload = { user_id: user.id, data: cleanCommission };
+  
+    try {
+      // ✅ TIMEOUT AUMENTADO PARA 30 SEGUNDOS
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout: Supabase demorou mais de 30 segundos')), 30000)
+      );
+  
+      const insertPromise = supabase
+        .from('commissions')
+        .insert(payload)
+        .select('id, created_at')
+        .maybeSingle();
+  
+      console.log("📤 Enviando dados...");
+      const { data, error } = await Promise.race([insertPromise, timeoutPromise]) as any;
+  
+      if (error) {
+        console.error("❌ Erro Supabase:", error);
+        throw error;
+      }
+      
+      if (!data) {
+        throw new Error('Nenhum dado retornado');
+      }
+  
+      console.log("✅ Sucesso! ID:", data.id);
+      
+      const newCommissionWithDbId = { 
+        ...cleanCommission, 
+        db_id: data.id.toString(),
+        criado_em: data.created_at
+      };
+      
+      // Atualização otimista
+      setCommissions(prev => [newCommissionWithDbId, ...prev]);
+      
+      // ✅ ALERTA DE SUCESSO VISÍVEL
+      setTimeout(() => {
+        if (window.confirm(`🎉 VENDA REGISTRADA COM SUCESSO!\n\nCliente: ${commission.clientName}\nValor: R$ ${commission.value.toLocaleString()}\nID: ${data.id}\n\nOK para continuar.`)) {
+          // Nada, só fecha
+        }
+      }, 300);
+      
+      return newCommissionWithDbId;
+  
+    } catch (error: any) {
+      console.error("💥 Erro:", error.message);
+      
+      // ✅ SALVAR LOCALMENTE COM FEEDBACK CLARO
+      const localId = `local_${Date.now()}`;
+      const pendingCommissions = JSON.parse(localStorage.getItem('pending_commissions') || '[]');
+      pendingCommissions.push({
+        ...commission,
+        _id: localId,
+        _timestamp: new Date().toISOString(),
+        _error: error.message
+      });
+      localStorage.setItem('pending_commissions', JSON.stringify(pendingCommissions));
+      
+      // Atualizar UI
+      const tempCommissionWithId = { 
+        ...commission, 
+        db_id: localId
+      };
+      setCommissions(prev => [tempCommissionWithId, ...prev]);
+      
+      // ✅ ALERTA AMIGÁVEL
+      setTimeout(() => {
+        alert(
+          `⚠️ CONEXÃO LENTA DETECTADA\n\n` +
+          `Sua venda foi salva LOCALMENTE (ID: ${localId}).\n` +
+          `Quando a conexão melhorar, sincronizará automaticamente.\n\n` +
+          `Pode continuar trabalhando normalmente!`
+        );
+      }, 300);
+      
+      throw new Error(`Salvo localmente (ID: ${localId}). Conexão lenta.`);
+    }
   }, [user]);
 
   const updateCommission = useCallback(async (id: string, updates: Partial<Commission>) => {
