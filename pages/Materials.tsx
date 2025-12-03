@@ -1,7 +1,6 @@
-
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Upload, Search, FileText, Image as ImageIcon, Trash2, Download, Plus } from 'lucide-react';
+import { Upload, Search, FileText, Image as ImageIcon, Trash2, Download, Plus, Loader2 } from 'lucide-react';
 import { SupportMaterial } from '../types';
 
 export const Materials = () => {
@@ -10,38 +9,42 @@ export const Materials = () => {
   const [titleInput, setTitleInput] = useState('');
   const [categoryInput, setCategoryInput] = useState('');
   const [isUploading, setIsUploading] = useState(false);
+  const [isAdding, setIsAdding] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setSelectedFile(file);
+  };
 
-    if (file.size > 5 * 1024 * 1024) {
-      alert("Aviso: Limite de 5MB.");
+  const handleAddMaterial = async () => {
+    if (!selectedFile) {
+      alert("Por favor, selecione um arquivo.");
       return;
     }
-
-    const category = categoryInput.trim() || 'Geral';
-    // Use the manual title if provided, otherwise fallback to filename
-    const finalTitle = titleInput.trim() || file.name.split('.')[0];
-
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const base64 = reader.result as string;
-      const newMaterial: SupportMaterial = {
-        id: crypto.randomUUID(),
-        title: finalTitle,
-        fileName: file.name,
-        category: category,
-        type: file.type.includes('image') ? 'image' : 'pdf',
-        content: base64
-      };
+    setIsAdding(true);
+    try {
+      const category = categoryInput.trim() || 'Geral';
+      const finalTitle = titleInput.trim() || selectedFile.name.split('.').slice(0, -1).join('.');
       
-      addSupportMaterial(newMaterial);
+      await addSupportMaterial({
+        title: finalTitle,
+        fileName: selectedFile.name,
+        category: category,
+        type: selectedFile.type.includes('image') ? 'image' : 'pdf',
+      }, selectedFile);
+
+      // Reset form
       setIsUploading(false);
       setCategoryInput('');
       setTitleInput('');
-    };
-    reader.readAsDataURL(file);
+      setSelectedFile(null);
+    } catch (error: any) {
+      alert(`Erro ao fazer upload: ${error.message}`);
+    } finally {
+      setIsAdding(false);
+    }
   };
 
   const filteredMaterials = supportMaterials.filter(m => 
@@ -90,35 +93,43 @@ export const Materials = () => {
       {isUploading && (
         <div className="mb-8 bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm animate-fade-in">
             <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Adicionar Novo Material</h3>
-            <div className="flex flex-col md:flex-row gap-4 items-end">
-                <div className="flex-1 w-full">
-                    <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Nome do Material</label>
-                    <input 
-                        type="text" 
-                        placeholder="Ex: Tabela de Vendas 2024"
-                        className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500"
-                        value={titleInput}
-                        onChange={(e) => setTitleInput(e.target.value)}
-                    />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Nome do Material</label>
+                        <input 
+                            type="text" 
+                            placeholder="Ex: Tabela de Vendas 2024"
+                            className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500"
+                            value={titleInput}
+                            onChange={(e) => setTitleInput(e.target.value)}
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Categoria</label>
+                        <input 
+                            type="text" 
+                            placeholder="Ex: Tabelas, Scripts"
+                            className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500"
+                            value={categoryInput}
+                            onChange={(e) => setCategoryInput(e.target.value)}
+                        />
+                    </div>
                 </div>
-                <div className="flex-1 w-full">
-                    <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Categoria</label>
-                    <input 
-                        type="text" 
-                        placeholder="Ex: Tabelas, Scripts"
-                        className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500"
-                        value={categoryInput}
-                        onChange={(e) => setCategoryInput(e.target.value)}
-                    />
-                </div>
-                <div className="flex-1 w-full">
+                <div className="w-full">
                     <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Arquivo (PDF ou Imagem)</label>
                     <label className="flex items-center justify-center px-4 py-2 border border-gray-300 dark:border-slate-600 border-dashed rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/50 transition bg-white dark:bg-slate-700">
                         <Upload className="w-4 h-4 mr-2 text-gray-500" />
-                        <span className="text-sm text-gray-600 dark:text-gray-300">Selecionar arquivo...</span>
-                        <input type="file" className="hidden" accept="image/*,application/pdf" onChange={handleFileUpload} />
+                        <span className="text-sm text-gray-600 dark:text-gray-300 truncate">{selectedFile ? selectedFile.name : 'Selecionar arquivo...'}</span>
+                        <input type="file" className="hidden" accept="image/*,application/pdf" onChange={handleFileSelect} />
                     </label>
                 </div>
+            </div>
+            <div className="mt-4 flex justify-end">
+                <button onClick={handleAddMaterial} disabled={isAdding || !selectedFile} className="px-6 py-2 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2">
+                    {isAdding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                    <span>{isAdding ? 'Enviando...' : 'Adicionar Material'}</span>
+                </button>
             </div>
         </div>
       )}
@@ -140,14 +151,16 @@ export const Materials = () => {
                               <div key={material.id} className="group bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm hover:shadow-md transition overflow-hidden flex flex-col">
                                   <div className="h-32 bg-gray-100 dark:bg-slate-700/50 flex items-center justify-center relative overflow-hidden">
                                       {material.type === 'image' ? (
-                                          <img src={material.content} alt={material.title} className="w-full h-full object-cover" />
+                                          <img src={material.url} alt={material.title} className="w-full h-full object-cover" />
                                       ) : (
                                           <FileText className="w-12 h-12 text-red-400" />
                                       )}
                                       <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity gap-2">
                                           <a 
-                                              href={material.content} 
+                                              href={material.url} 
                                               download={material.fileName}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
                                               className="p-2 bg-white text-gray-900 rounded-full hover:bg-gray-100 transition"
                                               title="Baixar"
                                           >

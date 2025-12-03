@@ -46,13 +46,11 @@ const clearStaleAuth = () => {
       const expiry = parsed.expires_at ? new Date(parsed.expires_at * 1000) : null;
       
       if (expiry && expiry < new Date()) {
-        console.log('🗑️ Token expirado encontrado, limpando...');
         localStorage.removeItem('supabase.auth.token');
         localStorage.removeItem('supabase.auth.refreshToken');
         return true;
       }
     } catch (e) {
-      console.log('🗑️ Token corrompido, limpando...');
       localStorage.removeItem('supabase.auth.token');
       localStorage.removeItem('supabase.auth.refreshToken');
       return true;
@@ -99,7 +97,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   
     // Fallback to old hardcoded logic if no period is found
-    console.warn(`[Competence] No custom period found for ${paidDate}. Using fallback logic.`);
     const month = date.getMonth() + 1;
     const day = date.getDate();
     const cutoffDay = MONTHLY_CUTOFF_DAYS[month] || 19;
@@ -140,7 +137,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [user, checklistStructure, consultantGoalsStructure, interviewStructure, templates, origins, interviewers, pvs, debouncedUpdateConfig]);
 
   const resetLocalState = () => {
-    console.log('🧹 Resetting local state...');
     setCandidates([]);
     setTeamMembers([]);
     setCommissions([]);
@@ -160,13 +156,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!user) return;
     
     if (isFetchingRef.current) {
-      console.log('[refetchCommissions] Já está em execução, ignorando chamada duplicada');
       return;
     }
     
     isFetchingRef.current = true;
-    const fetchId = Date.now();
-    console.log(`[${new Date().toISOString()}] REFETCH_COMMISSIONS_START #${fetchId}`);
   
     try {
       const { data, error } = await supabase
@@ -176,7 +169,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         .order("created_at", { ascending: false });
   
       if (error) {
-        console.error(`[${new Date().toISOString()}] REFETCH_COMMISSIONS_ERROR #${fetchId}:`, error);
+        console.error(error);
         return;
       }
   
@@ -206,15 +199,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         };
       });
   
-      console.log(`[${new Date().toISOString()}] REFETCH_COMMISSIONS_SUCCESS #${fetchId}:`, normalized.length, 'itens');
       setCommissions(normalized);
   
     } catch (err) {
-      console.error(`[${new Date().toISOString()}] REFETCH_COMMISSIONS_CRITICAL_ERROR #${fetchId}:`, err);
+      console.error(err);
     } finally {
       setTimeout(() => {
         isFetchingRef.current = false;
-        console.log(`[${new Date().toISOString()}] REFETCH_COMMISSIONS_COMPLETE #${fetchId}`);
       }, 100);
     }
   }, [user]);
@@ -292,12 +283,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             const pending = JSON.parse(localStorage.getItem('pending_commissions') || '[]');
             if (pending.length === 0) return;
             
-            console.log(`[RECOVERY] Encontradas ${pending.length} comissões pendentes para sincronizar`);
-            
             for (const pendingCommission of pending) {
               try {
-                console.log(`[RECOVERY] Tentando sincronizar comissão: ${pendingCommission._id}`);
-                
                 const { _id, _timestamp, _retryCount, ...cleanCommission } = pendingCommission;
                 
                 const payload = { user_id: user.id, data: cleanCommission };
@@ -309,8 +296,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                   .maybeSingle();
                   
                 if (error) throw error;
-                
-                console.log(`[RECOVERY] Comissão ${_id} sincronizada com sucesso!`);
                 
                 const updatedPending = JSON.parse(localStorage.getItem('pending_commissions') || '[]')
                   .filter((pc: any) => pc._id !== _id);
@@ -387,8 +372,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const addCommission = useCallback(async (commission: Commission): Promise<Commission> => {
     if (!user) throw new Error("Usuário não autenticado.");
   
-    console.log("⚡ SALVAMENTO ULTRA-RÁPIDO INICIADO");
-  
     const localId = `local_${Date.now()}`;
     
     const localCommission: Commission = {
@@ -405,8 +388,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   
     setTimeout(async () => {
       try {
-        console.log("🔄 Iniciando sincronização em background...");
-        
         const cleanCommission = {
           ...commission,
           customRules: commission.customRules?.length ? commission.customRules : undefined,
@@ -431,8 +412,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (error) throw error;
         
         if (data && data.id) {
-          console.log("🎉 Sincronizado com sucesso! ID real:", data.id);
-          
           setCommissions(prev => 
             prev.map(c => 
               c.db_id === localId 
@@ -455,8 +434,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
         
       } catch (error: any) {
-        console.log("⚠️ Background sync falhou, mantendo local. Erro:", error.message);
-        
         const pending = JSON.parse(localStorage.getItem('pending_commissions') || '[]')
         
         const alreadyExists = pending.some((p: any) => p._localId === localId);
@@ -494,7 +471,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       .match({ id: commissionToUpdate.db_id, user_id: user.id });
 
     if (error) {
-      console.error(`[${new Date().toISOString()}] UPDATE_COMMISSION_ERROR`, { id: commissionToUpdate.db_id, error: error.message, payload });
+      console.error(error);
       throw error;
     }
 
@@ -506,24 +483,80 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const commissionToDelete = commissions.find(c => c.id === id);
     if (!commissionToDelete || !commissionToDelete.db_id) throw new Error("Comissão não encontrada para exclusão.");
 
-    console.log(`[${new Date().toISOString()}] DELETE_COMMISSION_START`, { id: commissionToDelete.db_id });
-
     const { error } = await supabase
       .from('commissions')
       .delete()
       .match({ id: commissionToDelete.db_id, user_id: user.id });
 
     if (error) {
-      console.error(`[${new Date().toISOString()}] DELETE_COMMISSION_ERROR`, { id: commissionToDelete.db_id, error: error.message });
+      console.error(error);
       throw error;
     }
 
-    console.log(`[${new Date().toISOString()}] DELETE_COMMISSION_SUCCESS`, { id: commissionToDelete.db_id });
     await refetchCommissions();
   }, [user, commissions, refetchCommissions]);
   
-  const addSupportMaterial = useCallback(async (material: SupportMaterial) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('support_materials').insert({ user_id: user.id, data: material }).select('id').single(); if (error) { console.error(error); throw error; } if (data) { setSupportMaterials(prev => [{ ...material, db_id: data.id }, ...prev]); } }, [user]);
-  const deleteSupportMaterial = useCallback(async (id: string) => { if (!user) throw new Error("Usuário não autenticado."); const m = supportMaterials.find(m => m.id === id); if (!m || !m.db_id) throw new Error("Material não encontrado"); const { error } = await supabase.from('support_materials').delete().match({ id: m.db_id, user_id: user.id }); if (error) { console.error(error); throw error; } setSupportMaterials(prev => prev.filter(p => p.id !== id)); }, [user, supportMaterials]);
+  const addSupportMaterial = useCallback(async (materialData: Omit<SupportMaterial, 'id' | 'url'>, file: File) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    
+    // 1. Upload file to Supabase Storage
+    const filePath = `public/${crypto.randomUUID()}-${file.name}`;
+    const { error: uploadError } = await supabase.storage
+      .from('support_materials')
+      .upload(filePath, file);
+    if (uploadError) throw uploadError;
+
+    // 2. Get public URL of the uploaded file
+    const { data: urlData } = supabase.storage
+      .from('support_materials')
+      .getPublicUrl(filePath);
+    if (!urlData) throw new Error("Não foi possível obter a URL pública do arquivo.");
+
+    // 3. Create the full material object
+    const newMaterial: SupportMaterial = {
+      ...materialData,
+      id: crypto.randomUUID(),
+      url: urlData.publicUrl,
+    };
+
+    // 4. Save material metadata to the database
+    const { data: dbData, error: dbError } = await supabase
+      .from('support_materials')
+      .insert({ user_id: user.id, data: newMaterial })
+      .select('id')
+      .single();
+    if (dbError) {
+      // Cleanup storage if db insert fails
+      await supabase.storage.from('support_materials').remove([filePath]);
+      throw dbError;
+    }
+
+    // 5. Update local state
+    setSupportMaterials(prev => [{ ...newMaterial, db_id: dbData.id }, ...prev]);
+  }, [user]);
+
+  const deleteSupportMaterial = useCallback(async (id: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const m = supportMaterials.find(m => m.id === id);
+    if (!m || !m.db_id) throw new Error("Material não encontrado");
+
+    // 1. Delete file from Supabase Storage
+    const filePath = m.url.split('/support_materials/')[1];
+    const { error: storageError } = await supabase.storage
+      .from('support_materials')
+      .remove([filePath]);
+    if (storageError) console.error("Erro ao deletar do storage (pode já ter sido removido):", storageError.message);
+
+    // 2. Delete metadata from the database
+    const { error: dbError } = await supabase
+      .from('support_materials')
+      .delete()
+      .match({ id: m.db_id, user_id: user.id });
+    if (dbError) throw dbError;
+
+    // 3. Update local state
+    setSupportMaterials(prev => prev.filter(p => p.id !== id));
+  }, [user, supportMaterials]);
 
   const updateInstallmentStatus = useCallback(async (
     commissionId: string, 
@@ -532,8 +565,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     paidDate?: string,
     saleType?: 'Imóvel' | 'Veículo'
   ) => {
-    console.log(`🔄 Atualizando parcela ${installmentNumber} para ${status}`);
-    
     const commission = commissions.find(c => c.id === commissionId);
     if (!commission) {
       console.error("Comissão não encontrada");
@@ -545,7 +576,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     
     if (status === 'Pago' && finalPaidDate) {
       competenceMonth = calculateCompetenceMonth(finalPaidDate);
-      console.log(`📅 Competência calculada: ${competenceMonth} para pagamento em ${finalPaidDate}`);
     }
     
     const newDetails = { 
@@ -584,12 +614,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           .eq('user_id', user.id);
   
         if (error) throw error;
-        console.log("✅ Status salvo no banco");
       }
   
     } catch (error: any) {
       console.error("Erro ao salvar status:", error);
       alert("Erro ao salvar status da parcela. Tente novamente.");
+      throw error;
     }
   }, [commissions, user, calculateCompetenceMonth]);
 
@@ -631,8 +661,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const syncPendingCommissions = async () => {
       const pending = JSON.parse(localStorage.getItem('pending_commissions') || '[]');
       if (pending.length === 0) return;
-      
-      console.log(`⏰ Sincronização periódica: ${pending.length} pendentes`);
       
       for (const item of pending) {
         try {

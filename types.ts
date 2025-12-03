@@ -148,7 +148,7 @@ export interface SupportMaterial {
   title: string;
   category: string;
   type: 'pdf' | 'image';
-  content: string; // Base64
+  url: string; // URL from Supabase Storage
   fileName: string;
 }
 
@@ -277,6 +277,6 @@ export interface AppContextType {
   updateInstallmentStatus: (commissionId: string, installmentNumber: number, status: InstallmentStatus, paidDate?: string, saleType?: 'Imóvel' | 'Veículo') => Promise<void>;
 
   // Support Material Actions
-  addSupportMaterial: (material: SupportMaterial) => Promise<void>;
+  addSupportMaterial: (material: Omit<SupportMaterial, 'id' | 'url'>, file: File) => Promise<void>;
   deleteSupportMaterial: (id: string) => Promise<void>;
 }
