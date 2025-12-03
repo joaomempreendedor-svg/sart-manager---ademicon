@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, MessageSquare, Settings, FileText, Sun, Moon, Banknote, PlusCircle, Library, TrendingUp, Target, Users, LogOut, User as UserIcon } from 'lucide-react';
+import { LayoutDashboard, MessageSquare, Settings, FileText, Sun, Moon, Banknote, PlusCircle, Library, TrendingUp, Target, Users, LogOut, User as UserIcon, Calendar } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
 export const Sidebar = () => {
@@ -77,6 +77,10 @@ export const Sidebar = () => {
         <NavLink to="/config-templates" className={linkClass}>
           <MessageSquare className="w-5 h-5" />
           <span>Configurar Mensagens</span>
+        </NavLink>
+        <NavLink to="/config-cutoff" className={linkClass}>
+          <Calendar className="w-5 h-5" />
+          <span>Períodos de Corte</span>
         </NavLink>
       </nav>
 

@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
 import { supabase } from '../src/integrations/supabase/client';
 import { useAuth } from './AuthContext';
-import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, CommissionStatus, InstallmentInfo } from '../types';
+import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, CommissionStatus, InstallmentInfo, CutoffPeriod } from '../types';
 import { CHECKLIST_STAGES as DEFAULT_STAGES } from '../data/checklistData';
 import { CONSULTANT_GOALS as DEFAULT_GOALS } from '../data/consultantGoals';
 import { useDebouncedCallback } from '../src/hooks/useDebouncedCallback';
@@ -25,25 +25,9 @@ const DEFAULT_APP_CONFIG_DATA = {
   pvs: ['SOARES E MORAES', 'SART INVESTIMENTOS', 'KR CONSÓRCIOS', 'SOLOM INVESTIMENTOS'],
 };
 
-// ⚠️ CONFIGURAÇÃO DOS DIAS DE CORTE POR MÊS ⚠️
+// ⚠️ CONFIGURAÇÃO DOS DIAS DE CORTE POR MÊS (FALLBACK) ⚠️
 const MONTHLY_CUTOFF_DAYS: Record<number, number> = {
   1: 19, 2: 18, 3: 19, 4: 19, 5: 19, 6: 17, 7: 19, 8: 19, 9: 19, 10: 19, 11: 19, 12: 19,
-};
-
-const calculateCompetenceMonth = (paidDate: string): string => {
-  const date = new Date(paidDate + 'T00:00:00');
-  const month = date.getMonth() + 1;
-  const day = date.getDate();
-  const cutoffDay = MONTHLY_CUTOFF_DAYS[month] || 19;
-  let competenceDate = new Date(date);
-  if (day <= cutoffDay) {
-    competenceDate.setMonth(competenceDate.getMonth() + 1);
-  } else {
-    competenceDate.setMonth(competenceDate.getMonth() + 2);
-  }
-  const compYear = competenceDate.getFullYear();
-  const compMonth = String(competenceDate.getMonth() + 1).padStart(2, '0');
-  return `${compYear}-${compMonth}`;
 };
 
 const getOverallStatus = (details: Record<string, InstallmentInfo>): CommissionStatus => {
@@ -88,6 +72,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [commissions, setCommissions] = useState<Commission[]>([]);
   const [supportMaterials, setSupportMaterials] = useState<SupportMaterial[]>([]);
+  const [cutoffPeriods, setCutoffPeriods] = useState<CutoffPeriod[]>([]);
   
   const [checklistStructure, setChecklistStructure] = useState<ChecklistStage[]>(DEFAULT_STAGES);
   const [consultantGoalsStructure, setConsultantGoalsStructure] = useState<GoalStage[]>(DEFAULT_GOALS);
@@ -98,6 +83,36 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [pvs, setPvs] = useState<string[]>([]);
   
   const [theme, setTheme] = useState<'light' | 'dark'>(() => (localStorage.getItem('sart_theme') as 'light' | 'dark') || 'light');
+
+  const calculateCompetenceMonth = useCallback((paidDate: string): string => {
+    const date = new Date(paidDate + 'T00:00:00');
+    
+    // Prioritize custom cutoff periods
+    const period = cutoffPeriods.find(p => {
+      const start = new Date(p.startDate + 'T00:00:00');
+      const end = new Date(p.endDate + 'T00:00:00');
+      return date >= start && date <= end;
+    });
+  
+    if (period) {
+      return period.competenceMonth;
+    }
+  
+    // Fallback to old hardcoded logic if no period is found
+    console.warn(`[Competence] No custom period found for ${paidDate}. Using fallback logic.`);
+    const month = date.getMonth() + 1;
+    const day = date.getDate();
+    const cutoffDay = MONTHLY_CUTOFF_DAYS[month] || 19;
+    let competenceDate = new Date(date);
+    if (day <= cutoffDay) {
+      competenceDate.setMonth(competenceDate.getMonth() + 1);
+    } else {
+      competenceDate.setMonth(competenceDate.getMonth() + 2);
+    }
+    const compYear = competenceDate.getFullYear();
+    const compMonth = String(competenceDate.getMonth() + 1).padStart(2, '0');
+    return `${compYear}-${compMonth}`;
+  }, [cutoffPeriods]);
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -130,6 +145,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setTeamMembers([]);
     setCommissions([]);
     setSupportMaterials([]);
+    setCutoffPeriods([]);
     setChecklistStructure(DEFAULT_STAGES);
     setConsultantGoalsStructure(DEFAULT_GOALS);
     setInterviewStructure(INITIAL_INTERVIEW_STRUCTURE);
@@ -217,18 +233,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           { data: configResult, error: configError },
           { data: candidatesData, error: candidatesError },
           { data: teamMembersData, error: teamMembersError },
-          { data: materialsData, error: materialsError }
+          { data: materialsData, error: materialsError },
+          { data: cutoffData, error: cutoffError }
         ] = await Promise.all([
           supabase.from('app_config').select('data').eq('user_id', userId).maybeSingle(),
           supabase.from('candidates').select('id, data').eq('user_id', userId),
           supabase.from('team_members').select('id, data').eq('user_id', userId),
-          supabase.from('support_materials').select('id, data').eq('user_id', userId)
+          supabase.from('support_materials').select('id, data').eq('user_id', userId),
+          supabase.from('cutoff_periods').select('id, data').eq('user_id', userId)
         ]);
 
         if (configError) console.error("Config error:", configError);
         if (candidatesError) console.error("Candidates error:", candidatesError);
         if (teamMembersError) console.error("Team error:", teamMembersError);
         if (materialsError) console.error("Materials error:", materialsError);
+        if (cutoffError) console.error("Cutoff Periods error:", cutoffError);
 
         if (configResult) {
           const { data } = configResult;
@@ -264,6 +283,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setTeamMembers(normalizedTeamMembers);
         
         setSupportMaterials(materialsData?.map(item => ({ ...(item.data as SupportMaterial), db_id: item.id })) || []);
+        setCutoffPeriods(cutoffData?.map(item => ({ ...(item.data as CutoffPeriod), db_id: item.id })) || []);
         
         refetchCommissions();
 
@@ -359,6 +379,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const addTeamMember = useCallback(async (member: TeamMember) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('team_members').insert({ user_id: user.id, data: member }).select('id').single(); if (error) { console.error(error); throw error; } if (data) { setTeamMembers(prev => [...prev, { ...member, db_id: data.id }]); } }, [user]);
   const updateTeamMember = useCallback(async (id: string, updates: Partial<TeamMember>) => { if (!user) throw new Error("Usuário não autenticado."); const m = teamMembers.find(m => m.id === id); if (!m || !m.db_id) throw new Error("Membro não encontrado"); const updated = { ...m, ...updates }; const { db_id, ...dataToUpdate } = updated; const { error } = await supabase.from('team_members').update({ data: dataToUpdate }).match({ id: m.db_id, user_id: user.id }); if (error) { console.error(error); throw error; } setTeamMembers(prev => prev.map(p => p.id === id ? updated : p)); }, [user, teamMembers]);
   const deleteTeamMember = useCallback(async (id: string) => { if (!user) throw new Error("Usuário não autenticado."); const m = teamMembers.find(m => m.id === id); if (!m || !m.db_id) throw new Error("Membro não encontrado"); const { error } = await supabase.from('team_members').delete().match({ id: m.db_id, user_id: user.id }); if (error) { console.error(error); throw error; } setTeamMembers(prev => prev.filter(p => p.id !== id)); }, [user, teamMembers]);
+
+  const addCutoffPeriod = useCallback(async (period: CutoffPeriod) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('cutoff_periods').insert({ user_id: user.id, data: period }).select('id').single(); if (error) throw error; if (data) setCutoffPeriods(prev => [...prev, { ...period, db_id: data.id }]); }, [user]);
+  const updateCutoffPeriod = useCallback(async (id: string, updates: Partial<CutoffPeriod>) => { if (!user) throw new Error("Usuário não autenticado."); const p = cutoffPeriods.find(p => p.id === id); if (!p || !p.db_id) throw new Error("Período não encontrado"); const updated = { ...p, ...updates }; const { db_id, ...dataToUpdate } = updated; const { error } = await supabase.from('cutoff_periods').update({ data: dataToUpdate }).match({ id: p.db_id, user_id: user.id }); if (error) throw error; setCutoffPeriods(prev => prev.map(item => item.id === id ? updated : item)); }, [user, cutoffPeriods]);
+  const deleteCutoffPeriod = useCallback(async (id: string) => { if (!user) throw new Error("Usuário não autenticado."); const p = cutoffPeriods.find(p => p.id === id); if (!p || !p.db_id) throw new Error("Período não encontrado"); const { error } = await supabase.from('cutoff_periods').delete().match({ id: p.db_id, user_id: user.id }); if (error) throw error; setCutoffPeriods(prev => prev.filter(item => item.id !== id)); }, [user, cutoffPeriods]);
 
   const addCommission = useCallback(async (commission: Commission): Promise<Commission> => {
     if (!user) throw new Error("Usuário não autenticado.");
@@ -567,7 +591,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       console.error("Erro ao salvar status:", error);
       alert("Erro ao salvar status da parcela. Tente novamente.");
     }
-  }, [commissions, user]);
+  }, [commissions, user, calculateCompetenceMonth]);
 
   const getCandidate = useCallback((id: string) => candidates.find(c => c.id === id), [candidates]);
   const toggleChecklistItem = useCallback(async (candidateId: string, itemId: string) => { const c = getCandidate(candidateId); if(c) { const state = c.checklistProgress[itemId] || { completed: false }; await updateCandidate(candidateId, { checklistProgress: { ...c.checklistProgress, [itemId]: { ...state, completed: !state.completed } } }); } }, [getCandidate, updateCandidate]);
@@ -650,7 +674,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       ...auth,
       isLoading: auth.isLoading,
       isDataLoading,
-      candidates, templates, checklistStructure, consultantGoalsStructure, interviewStructure, commissions, supportMaterials, theme, origins, interviewers, pvs, teamMembers,
+      candidates, templates, checklistStructure, consultantGoalsStructure, interviewStructure, commissions, supportMaterials, theme, origins, interviewers, pvs, teamMembers, cutoffPeriods,
+      addCutoffPeriod, updateCutoffPeriod, deleteCutoffPeriod,
       addTeamMember, updateTeamMember, deleteTeamMember, toggleTheme, addOrigin, deleteOrigin, addInterviewer, deleteInterviewer, addPV, addCandidate, updateCandidate, deleteCandidate, toggleChecklistItem, toggleConsultantGoal, setChecklistDueDate, getCandidate, saveTemplate,
       addChecklistItem, updateChecklistItem, deleteChecklistItem, moveChecklistItem, resetChecklistToDefault, addGoalItem, updateGoalItem, deleteGoalItem, moveGoalItem, resetGoalsToDefault,
       updateInterviewSection, addInterviewQuestion, updateInterviewQuestion, deleteInterviewQuestion, moveInterviewQuestion, resetInterviewToDefault, addCommission, updateCommission, deleteCommission, updateInstallmentStatus, addSupportMaterial, deleteSupportMaterial

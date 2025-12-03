@@ -183,6 +183,15 @@ export interface CommissionReport {
   commissions: Commission[]; // Comissões daquele mês
 }
 
+export interface CutoffPeriod {
+  id: string; // Client-side UUID
+  db_id?: string; // Database primary key
+  name: string;
+  startDate: string; // YYYY-MM-DD
+  endDate: string;   // YYYY-MM-DD
+  competenceMonth: string; // YYYY-MM
+}
+
 export interface AppContextType {
   // Auth
   user: User | null;
@@ -211,6 +220,12 @@ export interface AppContextType {
   addTeamMember: (member: TeamMember) => Promise<void>;
   updateTeamMember: (id: string, updates: Partial<TeamMember>) => Promise<void>;
   deleteTeamMember: (id: string) => Promise<void>;
+
+  // Cutoff Periods
+  cutoffPeriods: CutoffPeriod[];
+  addCutoffPeriod: (period: CutoffPeriod) => Promise<void>;
+  updateCutoffPeriod: (id: string, updates: Partial<CutoffPeriod>) => Promise<void>;
+  deleteCutoffPeriod: (id: string) => Promise<void>;
 
   addOrigin: (origin: string) => void;
   deleteOrigin: (origin: string) => void;

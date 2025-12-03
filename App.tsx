@@ -16,6 +16,7 @@ import { TeamConfig } from './pages/TeamConfig';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
 import { Profile } from './pages/Profile';
+import { CutoffConfig } from './pages/CutoffConfig';
 import { Loader2 } from 'lucide-react';
 
 // Protected Route Wrapper - VERSÃO ANTI-LOOP
@@ -187,6 +188,7 @@ const AppRoutes = () => {
           <Route path="config-process" element={<ChecklistConfig />} />
           <Route path="config-goals" element={<GoalsConfig />} />
           <Route path="config-interview" element={<InterviewConfig />} />
+          <Route path="config-cutoff" element={<CutoffConfig />} />
         </Route>
       </Route>
     </Routes>
