@@ -206,6 +206,76 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         
         refetchCommissions();
 
+        // ✅ ADICIONAR: Sistema de recuperação de comissões pendentes
+        const recoverPendingCommissions = async () => {
+          try {
+            const pending = JSON.parse(localStorage.getItem('pending_commissions') || '[]');
+            if (pending.length === 0) return;
+            
+            console.log(`[RECOVERY] Encontradas ${pending.length} comissões pendentes para sincronizar`);
+            
+            for (const pendingCommission of pending) {
+              try {
+                console.log(`[RECOVERY] Tentando sincronizar comissão: ${pendingCommission._id}`);
+                
+                // Remover campos internos antes de enviar
+                const { _id, _timestamp, _retryCount, ...cleanCommission } = pendingCommission;
+                
+                const payload = { user_id: user.id, data: cleanCommission };
+                
+                const { data, error } = await supabase
+                  .from('commissions')
+                  .insert(payload)
+                  .select('id, created_at')
+                  .maybeSingle();
+                  
+                if (error) throw error;
+                
+                console.log(`[RECOVERY] Comissão ${_id} sincronizada com sucesso!`);
+                
+                // Remover do localStorage
+                const updatedPending = JSON.parse(localStorage.getItem('pending_commissions') || '[]')
+                  .filter((pc: any) => pc._id !== _id);
+                localStorage.setItem('pending_commissions', JSON.stringify(updatedPending));
+                
+                // Atualizar estado local
+                const newCommissionWithDbId = { 
+                  ...cleanCommission, 
+                  db_id: data.id,
+                  criado_em: data.created_at
+                };
+                
+                setCommissions(prev => {
+                  // Remover versão temporária se existir
+                  const filtered = prev.filter(c => c.db_id !== `temp_${_id}`);
+                  return [newCommissionWithDbId, ...filtered];
+                });
+                
+              } catch (error) {
+                console.error(`[RECOVERY] Falha ao sincronizar comissão ${pendingCommission._id}:`, error);
+                
+                // Incrementar contador de tentativas
+                const updatedPending = JSON.parse(localStorage.getItem('pending_commissions') || '[]')
+                  .map((pc: any) => 
+                    pc._id === pendingCommission._id 
+                      ? { ...pc, _retryCount: (pc._retryCount || 0) + 1 } 
+                      : pc
+                  );
+                localStorage.setItem('pending_commissions', JSON.stringify(updatedPending));
+              }
+            }
+          } catch (error) {
+            console.error('[RECOVERY] Erro no processo de recuperação:', error);
+          }
+        };
+
+        // Executar recuperação quando o usuário fizer login
+        if (user) {
+          setTimeout(() => {
+            recoverPendingCommissions();
+          }, 3000); // Aguardar 3 segundos após login
+        }
+
       } catch (error) {
         console.error("Failed to fetch initial data:", error);
       } finally {
