@@ -123,7 +123,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         return {
           ...commission,
           db_id: item.id,
-          created_at: item.created_at,
+          criado_em: item.created_at,
         };
       });
   
@@ -259,7 +259,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     
     const originalData = { ...commissionToUpdate };
     delete (originalData as any).db_id;
-    delete (originalData as any).created_at;
+    delete (originalData as any).criado_em;
 
     const newData = { ...originalData, ...updates };
     const payload = { data: newData };

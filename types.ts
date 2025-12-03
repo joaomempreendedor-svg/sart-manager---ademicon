@@ -132,7 +132,7 @@ export interface Commission {
   receivedValue: number; // Soma ou valor total da nota
   
   customRules?: CommissionRule[]; // Se presente, ignora cálculo padrão
-  created_at?: string; // Timestamp from Supabase
+  criado_em?: string; // Timestamp from Supabase
 }
 
 export interface SupportMaterial {
