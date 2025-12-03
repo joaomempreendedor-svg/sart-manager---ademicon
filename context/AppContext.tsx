@@ -196,54 +196,37 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const addCommission = useCallback(async (commission: Commission): Promise<Commission> => {
     if (!user) throw new Error("Usuário não autenticado.");
-    if (isSavingRef.current) {
-      console.warn("Save already in progress, preventing duplicate submission.");
-      throw new Error("Uma venda já está sendo salva. Aguarde.");
-    }
-
+    if (isSavingRef.current) throw new Error("Uma venda já está sendo salva. Aguarde.");
+  
     isSavingRef.current = true;
-
-    const cleanCommission: Commission = {
-      ...commission,
-      customRules: commission.customRules?.length ? commission.customRules : undefined,
-      angelName: commission.angelName || undefined,
-      managerName: commission.managerName || 'N/A',
-    };
-
-    // Usar o ID do lado do cliente para a atualização otimista
-    const clientSideId = commission.id;
-    const newItem = { ...cleanCommission, db_id: clientSideId }; // Usar ID do cliente como db_id temporário
-
-    // Atualização otimista
-    setCommissions(prev =>
-      [newItem, ...prev].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    );
-
+  
     try {
+      const cleanCommission: Commission = {
+        ...commission,
+        customRules: commission.customRules?.length ? commission.customRules : undefined,
+        angelName: commission.angelName || undefined,
+        managerName: commission.managerName || 'N/A',
+      };
+  
       const { data, error } = await supabase
         .from('commissions')
         .insert({ user_id: user.id, data: cleanCommission })
         .select('id')
         .single();
-
-      if (error) {
-        throw error;
-      }
-
-      // Substitui o ID temporário pelo ID real do banco de dados
+  
+      if (error) throw error;
+  
+      const newItem = { ...cleanCommission, db_id: data.id };
+  
       setCommissions(prev =>
-        prev.map(c =>
-          c.id === clientSideId ? { ...c, db_id: data.id } : c
-        )
+        [newItem, ...prev].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
       );
-
-      return { ...newItem, db_id: data.id };
-
+  
+      return newItem;
+  
     } catch (error: any) {
-      // Reverte a UI em caso de erro
-      setCommissions(prev => prev.filter(c => c.id !== clientSideId));
-      console.error("Erro ao salvar comissão, revertendo UI:", error);
-      throw error; // Re-lança o erro para o formulário
+      console.error("Erro Supabase:", error);
+      throw new Error(error.message || "Erro ao salvar comissão");
     } finally {
       isSavingRef.current = false;
     }
