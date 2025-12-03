@@ -102,7 +102,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     try {
       const { data, error } = await supabase
         .from("commissions")
-        .select("id, data, created_at")
+        .select("*")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
   
@@ -258,7 +258,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!commissionToUpdate || !commissionToUpdate.db_id) throw new Error("Comissão não encontrada para atualização.");
     
     const updatedCommission = { ...commissionToUpdate, ...updates };
-    const { db_id, ...dataToUpdate } = updatedCommission;
+    const { db_id, created_at, ...dataToUpdate } = updatedCommission;
 
     const payload = { data: dataToUpdate };
     console.log(`[${new Date().toISOString()}] UPDATE_COMMISSION_START`, { id: commissionToUpdate.db_id, payload });
