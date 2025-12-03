@@ -232,21 +232,33 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       angelName: commission.angelName || undefined,
       managerName: commission.managerName || 'N/A',
     };
-  
-    const { data, error } = await supabase
-      .from('commissions')
-      .insert({ user_id: user.id, data: cleanCommission })
-      .select('id')
-      .single();
+    
+    const payload = { user_id: user.id, data: cleanCommission };
+    console.log(`[${new Date().toISOString()}] ADD_COMMISSION_START`, { payload });
 
-    if (error) {
-      console.error("Erro ao salvar comissão:", error);
-      throw error;
+    try {
+      const supabasePromise = supabase
+        .from('commissions')
+        .insert(payload)
+        .select('id')
+        .single();
+
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error("Timeout ao salvar comissão")), 10000)
+      );
+
+      const { data, error } = await Promise.race([supabasePromise, timeoutPromise]) as { data: { id: string } | null, error: any };
+
+      if (error) throw error;
+
+      console.log(`[${new Date().toISOString()}] ADD_COMMISSION_SUCCESS`, { response: data });
+      refetchCommissions();
+      return { ...cleanCommission, db_id: data!.id };
+
+    } catch (error: any) {
+      console.error(`[${new Date().toISOString()}] ADD_COMMISSION_ERROR`, { error: error.message, payload });
+      throw error; // Re-throw to be caught by the UI component
     }
-
-    refetchCommissions();
-
-    return { ...cleanCommission, db_id: data.id };
   }, [user, refetchCommissions]);
 
   const updateCommission = useCallback(async (id: string, updates: Partial<Commission>) => {
@@ -257,17 +269,29 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const updatedCommission = { ...commissionToUpdate, ...updates };
     const { db_id, ...dataToUpdate } = updatedCommission;
 
-    const { error } = await supabase
-      .from('commissions')
-      .update({ data: dataToUpdate })
-      .match({ id: commissionToUpdate.db_id, user_id: user.id });
+    const payload = { data: dataToUpdate };
+    console.log(`[${new Date().toISOString()}] UPDATE_COMMISSION_START`, { id: commissionToUpdate.db_id, payload });
 
-    if (error) {
-      console.error("ERRO AO ATUALIZAR COMISSÃO:", error);
+    try {
+      const supabasePromise = supabase
+        .from('commissions')
+        .update(payload)
+        .match({ id: commissionToUpdate.db_id, user_id: user.id });
+
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error("Timeout ao atualizar comissão")), 10000)
+      );
+
+      const { error } = await Promise.race([supabasePromise, timeoutPromise]) as { error: any };
+
+      if (error) throw error;
+
+      console.log(`[${new Date().toISOString()}] UPDATE_COMMISSION_SUCCESS`, { id: commissionToUpdate.db_id });
+      refetchCommissions();
+    } catch (error: any) {
+      console.error(`[${new Date().toISOString()}] UPDATE_COMMISSION_ERROR`, { id: commissionToUpdate.db_id, error: error.message, payload });
       throw error;
     }
-
-    refetchCommissions();
   }, [user, commissions, refetchCommissions]);
 
   const deleteCommission = useCallback(async (id: string) => {
@@ -275,17 +299,28 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const commissionToDelete = commissions.find(c => c.id === id);
     if (!commissionToDelete || !commissionToDelete.db_id) throw new Error("Comissão não encontrada para exclusão.");
 
-    const { error } = await supabase
-      .from('commissions')
-      .delete()
-      .match({ id: commissionToDelete.db_id, user_id: user.id });
+    console.log(`[${new Date().toISOString()}] DELETE_COMMISSION_START`, { id: commissionToDelete.db_id });
 
-    if (error) {
-      console.error("ERRO AO DELETAR COMISSÃO:", error);
+    try {
+      const supabasePromise = supabase
+        .from('commissions')
+        .delete()
+        .match({ id: commissionToDelete.db_id, user_id: user.id });
+
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error("Timeout ao excluir comissão")), 10000)
+      );
+
+      const { error } = await Promise.race([supabasePromise, timeoutPromise]) as { error: any };
+
+      if (error) throw error;
+
+      console.log(`[${new Date().toISOString()}] DELETE_COMMISSION_SUCCESS`, { id: commissionToDelete.db_id });
+      refetchCommissions();
+    } catch (error: any) {
+      console.error(`[${new Date().toISOString()}] DELETE_COMMISSION_ERROR`, { id: commissionToDelete.db_id, error: error.message });
       throw error;
     }
-
-    refetchCommissions();
   }, [user, commissions, refetchCommissions]);
   
   const addSupportMaterial = useCallback(async (material: SupportMaterial) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('support_materials').insert({ user_id: user.id, data: material }).select('id').single(); if (error) { console.error(error); throw error; } if (data) { setSupportMaterials(prev => [{ ...material, db_id: data.id }, ...prev]); } }, [user]);
