@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useMemo, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Session, AuthError } from '@supabase/supabase-js';
+import { Session } from '@supabase/supabase-js';
 import { User } from '@/types';
 
 interface AuthContextType {
@@ -47,31 +47,29 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => {
     let isMounted = true;
 
-    const initializeAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (isMounted && session) {
-        const userProfile = await fetchUserProfile(session);
+    const updateUserState = async (currentSession: Session | null) => {
+      if (!isMounted) return;
+
+      if (currentSession) {
+        const userProfile = await fetchUserProfile(currentSession);
         setUser(userProfile);
-        setSession(session);
+        setSession(currentSession);
+      } else {
+        setUser(null);
+        setSession(null);
       }
       setIsLoading(false);
     };
 
-    initializeAuth();
+    // Check initial session on mount
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      updateUserState(session);
+    });
 
+    // Set up the listener for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, newSession) => {
-        if (isMounted) {
-          if (newSession) {
-            const userProfile = await fetchUserProfile(newSession);
-            setUser(userProfile);
-            setSession(newSession);
-          } else {
-            setUser(null);
-            setSession(null);
-          }
-          if (isLoading) setIsLoading(false);
-        }
+      (_event, newSession) => {
+        updateUserState(newSession);
       }
     );
 
@@ -79,7 +77,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       isMounted = false;
       subscription.unsubscribe();
     };
-  }, [fetchUserProfile, isLoading]);
+  }, [fetchUserProfile]);
 
   const login = useCallback(async (email, password) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
