@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useMemo, useCallback } from 'react';
-import { supabase } from '../src/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/client';
 import { Session } from '@supabase/supabase-js';
-import { User } from '../types';
+import { User } from '@/types';
 
 // Helper for shallow comparison to prevent unnecessary re-renders
 const shallowEqual = (objA: any, objB: any): boolean => {

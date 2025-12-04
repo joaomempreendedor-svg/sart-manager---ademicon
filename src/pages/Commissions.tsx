@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { useApp } from '../context/AppContext';
-import { Commission, CommissionStatus, CommissionRule, InstallmentStatus, InstallmentInfo, CommissionReport } from '../types';
+import { useApp } from '@/context/AppContext';
+import { Commission, CommissionStatus, CommissionRule, InstallmentStatus, InstallmentInfo, CommissionReport } from '@/types';
 import { Trash2, Search, DollarSign, Calendar, Calculator, Save, Table as TableIcon, Car, Home, ChevronDown, MapPin, Percent, Filter, XCircle, Crown, Plus, Wand2, Loader2, FileText, Download } from 'lucide-react';
 
 const formatCurrency = (value: number) => {

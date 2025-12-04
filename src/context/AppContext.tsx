@@ -1,10 +1,10 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
-import { supabase } from '../src/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
-import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, CommissionStatus, InstallmentInfo, CutoffPeriod } from '../types';
-import { CHECKLIST_STAGES as DEFAULT_STAGES } from '../data/checklistData';
-import { CONSULTANT_GOALS as DEFAULT_GOALS } from '../data/consultantGoals';
-import { useDebouncedCallback } from '../src/hooks/useDebouncedCallback';
+import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, CommissionStatus, InstallmentInfo, CutoffPeriod } from '@/types';
+import { CHECKLIST_STAGES as DEFAULT_STAGES } from '@/data/checklistData';
+import { CONSULTANT_GOALS as DEFAULT_GOALS } from '@/data/consultantGoals';
+import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 

@@ -1,9 +1,9 @@
 import React from 'react';
-import { useApp } from '../context/AppContext';
+import { useApp } from '@/context/AppContext';
 import { useNavigate } from 'react-router-dom';
 import { ChevronRight, User, Calendar, CheckCircle2, TrendingUp, AlertCircle, Clock, Users } from 'lucide-react';
-import { CandidateStatus, ChecklistTaskState } from '../types';
-import { TableSkeleton } from '@/src/components/TableSkeleton';
+import { CandidateStatus, ChecklistTaskState } from '@/types';
+import { TableSkeleton } from '@/components/TableSkeleton';
 
 const StatusBadge = ({ status }: { status: CandidateStatus }) => {
   const colors = {
