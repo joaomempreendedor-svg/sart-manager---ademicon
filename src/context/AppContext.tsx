@@ -498,8 +498,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const addSupportMaterial = useCallback(async (materialData: Omit<SupportMaterial, 'id' | 'url'>, file: File) => {
     if (!user) throw new Error("Usuário não autenticado.");
     
+    // Sanitize file name to remove special characters that are invalid for Supabase Storage paths
+    const sanitizedFileName = file.name
+      .normalize('NFD') // Decompose accented characters
+      .replace(/[\u0300-\u036f]/g, '') // Remove diacritical marks
+      .replace(/[^\w\s.-]/g, '') // Remove non-word characters (except spaces, dots, hyphens)
+      .replace(/\s+/g, '_'); // Replace spaces with underscores
+
     // 1. Upload file to Supabase Storage
-    const filePath = `public/${crypto.randomUUID()}-${file.name}`;
+    const filePath = `public/${crypto.randomUUID()}-${sanitizedFileName}`;
     const { error: uploadError } = await supabase.storage
       .from('support_materials')
       .upload(filePath, file);
