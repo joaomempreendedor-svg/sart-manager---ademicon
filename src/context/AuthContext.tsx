@@ -1,12 +1,14 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useMemo, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Session } from '@supabase/supabase-js';
+import { Session, AuthError } from '@supabase/supabase-js';
 import { User } from '@/types';
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   isLoading: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -46,16 +48,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     let isMounted = true;
 
     const initializeAuth = async () => {
-      // First, check for an active session
       const { data: { session } } = await supabase.auth.getSession();
       if (isMounted && session) {
         const userProfile = await fetchUserProfile(session);
         setUser(userProfile);
         setSession(session);
-        setIsLoading(false);
-      } else {
-        setIsLoading(false);
       }
+      setIsLoading(false);
     };
 
     initializeAuth();
@@ -71,7 +70,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setUser(null);
             setSession(null);
           }
-          // Ensure loading is false after the first check
           if (isLoading) setIsLoading(false);
         }
       }
@@ -83,20 +81,40 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
   }, [fetchUserProfile, isLoading]);
 
+  const login = useCallback(async (email, password) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+  }, []);
+
+  const register = useCallback(async (name, email, password) => {
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          first_name: name.split(' ')[0],
+          last_name: name.split(' ').slice(1).join(' '),
+        }
+      }
+    });
+    if (error) throw error;
+  }, []);
+
   const logout = useCallback(async () => {
     const { error } = await supabase.auth.signOut();
     if (error) {
       console.error("Error logging out:", error);
     }
-    // State will be cleared by onAuthStateChange
   }, []);
 
   const value = useMemo(() => ({
     user,
     session,
     isLoading,
+    login,
+    register,
     logout,
-  }), [user, session, isLoading, logout]);
+  }), [user, session, isLoading, login, register, logout]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
