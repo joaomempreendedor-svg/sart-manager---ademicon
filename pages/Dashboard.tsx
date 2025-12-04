@@ -3,6 +3,7 @@ import { useApp } from '../context/AppContext';
 import { useNavigate } from 'react-router-dom';
 import { ChevronRight, User, Calendar, CheckCircle2, TrendingUp, AlertCircle, Clock, Users } from 'lucide-react';
 import { CandidateStatus, ChecklistTaskState } from '../types';
+import { TableSkeleton } from '../components/TableSkeleton';
 
 const StatusBadge = ({ status }: { status: CandidateStatus }) => {
   const colors = {
@@ -23,7 +24,7 @@ const StatusBadge = ({ status }: { status: CandidateStatus }) => {
 };
 
 export const Dashboard = () => {
-  const { candidates, checklistStructure, teamMembers } = useApp();
+  const { candidates, checklistStructure, teamMembers, isDataLoading } = useApp();
   const navigate = useNavigate();
 
   const totalCandidates = candidates.length;
@@ -180,68 +181,74 @@ export const Dashboard = () => {
             + Nova Entrevista
           </button>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300">
-            <thead className="bg-gray-50 dark:bg-slate-700/50 text-gray-900 dark:text-white font-medium">
-              <tr>
-                <th className="px-6 py-3">Nome</th>
-                <th className="px-6 py-3">Data Entrevista</th>
-                <th className="px-6 py-3">Nota</th>
-                <th className="px-6 py-3">Status</th>
-                <th className="px-6 py-3"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
-              {candidates.length === 0 ? (
+        {isDataLoading ? (
+          <div className="p-6">
+            <TableSkeleton />
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300">
+              <thead className="bg-gray-50 dark:bg-slate-700/50 text-gray-900 dark:text-white font-medium">
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-gray-400">
-                    Nenhum candidato cadastrado ainda.
-                  </td>
+                  <th className="px-6 py-3">Nome</th>
+                  <th className="px-6 py-3">Data Entrevista</th>
+                  <th className="px-6 py-3">Nota</th>
+                  <th className="px-6 py-3">Status</th>
+                  <th className="px-6 py-3"></th>
                 </tr>
-              ) : (
-                candidates.map((c) => {
-                  const totalScore = 
-                    c.interviewScores.basicProfile + 
-                    c.interviewScores.commercialSkills + 
-                    c.interviewScores.behavioralProfile + 
-                    c.interviewScores.jobFit;
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
+                {candidates.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-8 text-center text-gray-400">
+                      Nenhum candidato cadastrado ainda.
+                    </td>
+                  </tr>
+                ) : (
+                  candidates.map((c) => {
+                    const totalScore = 
+                      c.interviewScores.basicProfile + 
+                      c.interviewScores.commercialSkills + 
+                      c.interviewScores.behavioralProfile + 
+                      c.interviewScores.jobFit;
 
-                  return (
-                    <tr 
-                      key={c.id} 
-                      onClick={() => navigate(`/candidate/${c.id}`)}
-                      className="hover:bg-gray-50 dark:hover:bg-slate-700/50 cursor-pointer transition-colors"
-                    >
-                      <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">
-                        <div className="flex items-center space-x-3">
-                            <div className="w-8 h-8 rounded-full bg-brand-100 dark:bg-brand-900/40 flex items-center justify-center text-brand-700 dark:text-brand-400 font-bold text-xs">
-                                {c.name.substring(0,2).toUpperCase()}
-                            </div>
-                            <span>{c.name}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 flex items-center space-x-2">
-                         <Calendar className="w-4 h-4 text-gray-400" />
-                         <span>{new Date(c.interviewDate + 'T00:00:00').toLocaleDateString()}</span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={`font-bold ${totalScore >= 70 ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`}>
-                            {totalScore}/100
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <StatusBadge status={c.status} />
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <ChevronRight className="w-5 h-5 text-gray-400" />
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+                    return (
+                      <tr 
+                        key={c.id} 
+                        onClick={() => navigate(`/candidate/${c.id}`)}
+                        className="hover:bg-gray-50 dark:hover:bg-slate-700/50 cursor-pointer transition-colors"
+                      >
+                        <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">
+                          <div className="flex items-center space-x-3">
+                              <div className="w-8 h-8 rounded-full bg-brand-100 dark:bg-brand-900/40 flex items-center justify-center text-brand-700 dark:text-brand-400 font-bold text-xs">
+                                  {c.name.substring(0,2).toUpperCase()}
+                              </div>
+                              <span>{c.name}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 flex items-center space-x-2">
+                           <Calendar className="w-4 h-4 text-gray-400" />
+                           <span>{new Date(c.interviewDate + 'T00:00:00').toLocaleDateString()}</span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`font-bold ${totalScore >= 70 ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`}>
+                              {totalScore}/100
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <StatusBadge status={c.status} />
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <ChevronRight className="w-5 h-5 text-gray-400" />
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -65,34 +65,42 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        if (session) {
-          const userProfile = await fetchUserProfile(session);
-          
-          setUser(currentUser => {
-            if (!shallowEqual(currentUser, userProfile)) {
-              return userProfile;
-            }
-            return currentUser;
-          });
+    let isMounted = true;
+    setIsLoading(true);
 
-          setSession(currentSession => {
-            if (currentSession?.access_token !== session.access_token) {
-              return session;
-            }
-            return currentSession;
-          });
-
-        } else {
-          setUser(null);
-          setSession(null);
-        }
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (isMounted && session) {
+        const userProfile = await fetchUserProfile(session);
+        setUser(userProfile);
+        setSession(session);
+      }
+      if (isMounted) {
         setIsLoading(false);
+      }
+    };
+
+    checkSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (_event, newSession) => {
+        if (isMounted) {
+          if (newSession) {
+            const userProfile = await fetchUserProfile(newSession);
+            setUser(currentUser => shallowEqual(currentUser, userProfile) ? currentUser : userProfile);
+            setSession(currentSession => currentSession?.access_token !== newSession.access_token ? newSession : currentSession);
+          } else {
+            setUser(null);
+            setSession(null);
+          }
+          // Subsequent changes don't affect the initial loading state
+          if (isLoading) setIsLoading(false);
+        }
       }
     );
 
     return () => {
+      isMounted = false;
       subscription.unsubscribe();
     };
   }, []);
