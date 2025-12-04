@@ -66,6 +66,12 @@ type CustomRuleText = {
     angelRate: string;
 }
 
+interface DetailedInstallment {
+  commission: Commission;
+  installmentNumber: string;
+  values: { cons: number; man: number; angel: number; };
+}
+
 export const Commissions = () => {
   const { commissions, addCommission, updateCommission, deleteCommission, teamMembers, pvs, addPV, updateInstallmentStatus } = useApp();
   
@@ -114,7 +120,13 @@ export const Commissions = () => {
 
   // Relatórios
   const [reportMonth, setReportMonth] = useState(new Date().toISOString().slice(0, 7));
-  const [reportData, setReportData] = useState<CommissionReport | null>(null);
+  const [reportConsultant, setReportConsultant] = useState('');
+  const [reportManager, setReportManager] = useState('');
+  const [reportData, setReportData] = useState<{
+    month: string;
+    totalCommissions: { consultant: number; manager: number; angel: number; total: number; };
+    detailedInstallments: DetailedInstallment[];
+  } | null>(null);
 
   const resetCalculatorForm = () => {
     setCreditValue('');
@@ -415,36 +427,38 @@ export const Commissions = () => {
   };
 
   const generateReport = () => {
-    const monthCommissions = commissions.filter(commission => 
-      Object.values(commission.installmentDetails).some(info => 
-        info.status === 'Pago' && info.competenceMonth === reportMonth
-      )
-    );
-    
-    const report: CommissionReport = {
-      month: reportMonth,
-      totalSold: monthCommissions.reduce((sum, c) => sum + c.value, 0),
-      totalCommissions: { consultant: 0, manager: 0, angel: 0, total: 0 },
-      commissions: monthCommissions
-    };
-    
-    monthCommissions.forEach(commission => {
+    const filteredCommissions = commissions.filter(c => {
+      if (reportConsultant && c.consultant !== reportConsultant) return false;
+      if (reportManager && c.managerName !== reportManager) return false;
+      return true;
+    });
+
+    const detailedInstallments: DetailedInstallment[] = [];
+    const totalCommissions = { consultant: 0, manager: 0, angel: 0, total: 0 };
+
+    filteredCommissions.forEach(commission => {
       Object.entries(commission.installmentDetails).forEach(([num, info]) => {
         if (info.status === 'Pago' && info.competenceMonth === reportMonth) {
           const values = getInstallmentValues(commission, parseInt(num));
-          report.totalCommissions.consultant += values.cons;
-          report.totalCommissions.manager += values.man;
-          report.totalCommissions.angel += values.angel;
+          detailedInstallments.push({
+            commission,
+            installmentNumber: num,
+            values,
+          });
+          totalCommissions.consultant += values.cons;
+          totalCommissions.manager += values.man;
+          totalCommissions.angel += values.angel;
         }
       });
     });
+
+    totalCommissions.total = totalCommissions.consultant + totalCommissions.manager + totalCommissions.angel;
     
-    report.totalCommissions.total = 
-      report.totalCommissions.consultant + 
-      report.totalCommissions.manager + 
-      report.totalCommissions.angel;
-    
-    setReportData(report);
+    setReportData({
+      month: reportMonth,
+      totalCommissions,
+      detailedInstallments,
+    });
   };
 
   return (
@@ -726,10 +740,18 @@ export const Commissions = () => {
         <div className="animate-fade-in">
           <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm mb-6">
             <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">Relatório por Mês de Competência</h2>
-            <div className="flex items-end gap-4">
+            <div className="flex flex-col md:flex-row items-end gap-4">
               <div>
                 <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Selecione o Mês:</label>
                 <input type="month" value={reportMonth} onChange={(e) => setReportMonth(e.target.value)} className="border border-gray-300 dark:border-slate-600 rounded-lg p-2 bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
+              </div>
+              <div className="flex-1">
+                <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Filtrar por Consultor:</label>
+                <select value={reportConsultant} onChange={e => setReportConsultant(e.target.value)} className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2 bg-white dark:bg-slate-700 text-gray-900 dark:text-white"><option value="">Todos</option>{consultants.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}</select>
+              </div>
+              <div className="flex-1">
+                <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Filtrar por Gestor:</label>
+                <select value={reportManager} onChange={e => setReportManager(e.target.value)} className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2 bg-white dark:bg-slate-700 text-gray-900 dark:text-white"><option value="">Todos</option>{managers.map(m => <option key={m.id} value={m.name}>{m.name}</option>)}</select>
               </div>
               <button onClick={generateReport} className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition font-medium">
                 Gerar Relatório
@@ -743,19 +765,28 @@ export const Commissions = () => {
                 Comissões de {formatMonthYear(reportData.month)}
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg"><div className="text-sm text-blue-600 dark:text-blue-300">Total Vendido</div><div className="text-2xl font-bold text-blue-900 dark:text-blue-100">{formatCurrency(reportData.totalSold)}</div></div>
                 <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg"><div className="text-sm text-green-600 dark:text-green-300">Prévias/Autorizados</div><div className="text-2xl font-bold text-green-900 dark:text-green-100">{formatCurrency(reportData.totalCommissions.consultant)}</div></div>
                 <div className="bg-gray-100 dark:bg-slate-700 p-4 rounded-lg"><div className="text-sm text-gray-600 dark:text-gray-300">Gestores</div><div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{formatCurrency(reportData.totalCommissions.manager)}</div></div>
                 <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg"><div className="text-sm text-yellow-600 dark:text-yellow-300">Anjos</div><div className="text-2xl font-bold text-yellow-900 dark:text-yellow-100">{formatCurrency(reportData.totalCommissions.angel)}</div></div>
+                <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg"><div className="text-sm text-purple-600 dark:text-purple-300">Total do Mês</div><div className="text-2xl font-bold text-purple-900 dark:text-purple-100">{formatCurrency(reportData.totalCommissions.total)}</div></div>
               </div>
-              <table className="w-full text-sm">
-                <thead className="text-left text-gray-500 dark:text-gray-400"><tr className="border-b dark:border-slate-700"><th className="pb-2">Cliente</th><th className="pb-2">Prévia/Autorizado</th><th className="pb-2">Parcelas Pagas</th><th className="pb-2 text-right">Comissão (Mês)</th></tr></thead>
-                <tbody>
-                  {reportData.commissions.map(commission => (
-                    <tr key={commission.id} className="border-b dark:border-slate-700"><td className="py-2">{commission.clientName}</td><td>{commission.consultant}</td><td>{Object.values(commission.installmentDetails).filter(info => info.status === 'Pago' && info.competenceMonth === reportData.month).length} parcela(s)</td><td className="text-right font-medium">{formatCurrency(Object.entries(commission.installmentDetails).filter(([_, info]) => info.status === 'Pago' && info.competenceMonth === reportData.month).reduce((sum, [num, _]) => sum + getInstallmentValues(commission, parseInt(num)).cons + getInstallmentValues(commission, parseInt(num)).man + getInstallmentValues(commission, parseInt(num)).angel, 0))}</td></tr>
-                  ))}
-                </tbody>
-              </table>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="text-left text-gray-500 dark:text-gray-400"><tr className="border-b dark:border-slate-700"><th className="py-2">Cliente</th><th className="py-2">Consultor</th><th className="py-2">Parcela</th><th className="py-2 text-right">Valor (Consultor)</th><th className="py-2 text-right">Valor (Gestor)</th><th className="py-2 text-right">Valor (Anjo)</th></tr></thead>
+                  <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
+                    {reportData.detailedInstallments.map((item, index) => (
+                      <tr key={index} className="hover:bg-gray-50 dark:hover:bg-slate-700/50">
+                        <td className="py-2 font-medium text-gray-800 dark:text-gray-200">{item.commission.clientName}</td>
+                        <td>{item.commission.consultant}</td>
+                        <td>{item.installmentNumber}</td>
+                        <td className="text-right font-mono">{formatCurrency(item.values.cons)}</td>
+                        <td className="text-right font-mono">{formatCurrency(item.values.man)}</td>
+                        <td className="text-right font-mono">{formatCurrency(item.values.angel)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
               <button className="mt-6 flex items-center text-purple-600 dark:text-purple-400 font-medium hover:text-purple-700 dark:hover:text-purple-300"><Download className="w-4 h-4 mr-2" />Exportar para Excel</button>
             </div>
           )}
