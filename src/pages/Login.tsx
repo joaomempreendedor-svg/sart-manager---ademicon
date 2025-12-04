@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '@/context/AuthContext';
 import { TrendingUp, Lock, Mail, Loader2, ArrowRight } from 'lucide-react';
 
 export const Login = () => {

@@ -1,6 +1,5 @@
-
 import React, { useState } from 'react';
-import { useApp } from '../context/AppContext';
+import { useApp } from '@/context/AppContext';
 import { Edit2, Trash2, Plus, ArrowUp, ArrowDown, Save, X, RotateCcw } from 'lucide-react';
 
 export const GoalsConfig = () => {

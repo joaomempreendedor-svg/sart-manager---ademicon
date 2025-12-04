@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { useApp } from '../context/AppContext';
+import { useApp } from '@/context/AppContext';
 import { Upload, Search, FileText, Image as ImageIcon, Trash2, Download, Plus, Loader2 } from 'lucide-react';
-import { SupportMaterial } from '../types';
+import { SupportMaterial } from '@/types';
 
 export const Materials = () => {
   const { supportMaterials, addSupportMaterial, deleteSupportMaterial } = useApp();

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { useApp } from '../context/AppContext';
+import { useApp } from '@/context/AppContext';
 import { Plus, Trash2, User, Shield, Crown, Star, Edit2, Save, X, Archive, UserCheck, Loader2 } from 'lucide-react';
-import { TeamMember, TeamRole } from '../types';
+import { TeamMember, TeamRole } from '@/types';
 
 const ALL_ROLES: TeamRole[] = ['Prévia', 'Autorizado', 'Gestor', 'Anjo'];
 

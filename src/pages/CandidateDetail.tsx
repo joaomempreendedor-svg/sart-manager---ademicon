@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useApp } from '../context/AppContext';
+import { useApp } from '@/context/AppContext';
 import { ArrowLeft, CheckSquare, FileText, Phone, Calendar, Clock, MessageCircle, Paperclip, CheckCircle2, Target, Trash2, CalendarPlus } from 'lucide-react';
-import { CandidateStatus, CommunicationTemplate } from '../types';
-import { MessageViewerModal } from '../components/MessageViewerModal';
+import { CandidateStatus, CommunicationTemplate } from '@/types';
+import { MessageViewerModal } from '@/components/MessageViewerModal';
 
 export const CandidateDetail = () => {
   const { id } = useParams<{ id: string }>();

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { useApp } from '../context/AppContext';
+import { useApp } from '@/context/AppContext';
 import { Upload, FileText, Image as ImageIcon, CheckCircle2, MessageSquare, Paperclip, Search } from 'lucide-react';
-import { ChecklistItem } from '../types';
+import { ChecklistItem } from '@/types';
 
 export const TemplateConfig = () => {
   const { templates, saveTemplate, checklistStructure } = useApp();

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { useAuth } from '../context/AuthContext';
-import { supabase } from '../src/integrations/supabase/client';
+import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { User, Mail, Lock, Save, Loader2 } from 'lucide-react';
 
 export const Profile = () => {

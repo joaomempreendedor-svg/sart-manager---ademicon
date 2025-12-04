@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useApp } from '../context/AppContext';
+import { useApp } from '@/context/AppContext';
 import { Edit2, Trash2, Plus, Save, X, HelpCircle, ArrowUp, ArrowDown, RotateCcw } from 'lucide-react';
 
 export const InterviewConfig = () => {

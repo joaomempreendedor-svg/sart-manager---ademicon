@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { useApp } from '../context/AppContext';
-import { CutoffPeriod } from '../types';
+import { useApp } from '@/context/AppContext';
+import { CutoffPeriod } from '@/types';
 import { Plus, Trash2, Edit2, Save, X, Calendar, AlertTriangle } from 'lucide-react';
 
 export const CutoffConfig = () => {

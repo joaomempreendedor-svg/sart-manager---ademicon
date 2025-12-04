@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { HashRouter, Routes, Route, Outlet, Navigate } from 'react-router-dom';
 import { AppProvider, useApp } from '@/context/AppContext';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
