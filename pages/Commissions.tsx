@@ -338,18 +338,16 @@ export const Commissions = () => {
     });
   }, [commissions, searchTerm, filterStartDate, filterEndDate, filterConsultant, filterAngel, filterPV, filterStatus, isAngelMode]);
 
-  const filteredTotals = useMemo(() => filteredHistory.reduce((acc, c) => {
-    let monthCons = 0, monthMan = 0, monthAngel = 0;
-    Object.entries(c.installmentDetails).forEach(([num, info]) => {
-      if (info.status === 'Pago') {
-        const values = getInstallmentValues(c, parseInt(num));
-        monthCons += values.cons;
-        monthMan += values.man;
-        monthAngel += values.angel;
-      }
-    });
-    return { totalSold: acc.totalSold + c.value, totalCons: acc.totalCons + monthCons, totalMan: acc.totalMan + monthMan, totalAngel: acc.totalAngel + monthAngel };
-  }, { totalSold: 0, totalCons: 0, totalMan: 0, totalAngel: 0 }), [filteredHistory]);
+  const summaryStats = useMemo(() => {
+    return filteredHistory.reduce((acc, c) => {
+        const status = getOverallStatus(c.installmentDetails);
+        if (status === 'Em Andamento') acc.inProgress++;
+        else if (status === 'Atraso') acc.delayed++;
+        else if (status === 'Concluído') acc.completed++;
+        acc.totalValue += c.value;
+        return acc;
+    }, { inProgress: 0, delayed: 0, completed: 0, totalValue: 0 });
+  }, [filteredHistory]);
 
   const formatAndSetCurrency = (setter: React.Dispatch<React.SetStateAction<string>>) => (e: React.ChangeEvent<HTMLInputElement>) => {
     let v = e.target.value.replace(/\D/g, '');
@@ -632,60 +630,54 @@ export const Commissions = () => {
                 </div>
             </div>
 
-            <div className={`grid grid-cols-1 ${isAngelMode ? 'md:grid-cols-2' : 'md:grid-cols-2 lg:grid-cols-4'} gap-4`}>
-                 <div className="bg-brand-500 text-white p-4 rounded-xl shadow-md"><p className="text-blue-100 text-xs font-bold uppercase">Total Vendas (Seleção)</p><p className="text-2xl font-bold mt-1">{formatCurrency(filteredTotals.totalSold)}</p></div>
-                 {!isAngelMode && (<><div className="bg-blue-600 text-white p-4 rounded-xl shadow-md"><p className="text-blue-100 text-xs font-bold uppercase">Liq. Prévias/Autorizados (Mês)</p><p className="text-2xl font-bold mt-1">{formatCurrency(filteredTotals.totalCons)}</p></div><div className="bg-gray-700 text-white p-4 rounded-xl shadow-md"><p className="text-gray-300 text-xs font-bold uppercase">Liq. Gestores (Mês)</p><p className="text-2xl font-bold mt-1">{formatCurrency(filteredTotals.totalMan)}</p></div></>)}
-                 <div className={`text-white p-4 rounded-xl shadow-md ${isAngelMode ? 'bg-yellow-500 ring-4 ring-yellow-200 dark:ring-yellow-900/50 scale-105' : 'bg-yellow-600'}`}><p className="text-yellow-100 text-xs font-bold uppercase flex items-center">{isAngelMode && <Crown className="w-4 h-4 mr-2" />}Liq. Anjos (Mês)</p><p className="text-3xl font-bold mt-1">{formatCurrency(filteredTotals.totalAngel)}</p></div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm"><div className="text-sm text-gray-500 dark:text-gray-400">Vendas em Andamento</div><div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{summaryStats.inProgress}</div></div>
+                <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm"><div className="text-sm text-gray-500 dark:text-gray-400">Com Atraso</div><div className="text-2xl font-bold text-red-600 dark:text-red-400">{summaryStats.delayed}</div></div>
+                <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm"><div className="text-sm text-gray-500 dark:text-gray-400">Concluídas</div><div className="text-2xl font-bold text-green-600 dark:text-green-400">{summaryStats.completed}</div></div>
+                <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm"><div className="text-sm text-gray-500 dark:text-gray-400">Valor Total (Filtro)</div><div className="text-2xl font-bold text-gray-800 dark:text-gray-200">{formatCurrency(summaryStats.totalValue)}</div></div>
             </div>
 
-            <div className={`bg-white dark:bg-slate-800 rounded-xl border shadow-sm overflow-hidden ${isAngelMode ? 'border-yellow-300 dark:border-yellow-700/50' : 'border-gray-200 dark:border-slate-700'}`}>
-                {isAngelMode && (<div className="bg-yellow-50 dark:bg-yellow-900/20 px-6 py-2 text-xs text-yellow-800 dark:text-yellow-200 font-bold border-b border-yellow-100 dark:border-yellow-900/30 text-center uppercase tracking-wider">Visualização Exclusiva de Pagamentos para Investidores (Anjos)</div>)}
+            <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300">
-                        <thead className={`text-gray-900 dark:text-white font-medium uppercase tracking-wider text-xs ${isAngelMode ? 'bg-yellow-50/50 dark:bg-yellow-900/10' : 'bg-gray-50 dark:bg-slate-700/50'}`}>
+                        <thead className="bg-gray-50 dark:bg-slate-700/50 text-gray-500 dark:text-gray-400 text-xs uppercase">
                             <tr>
-                                <th className="px-6 py-3">Cliente / Detalhes</th><th className="px-6 py-3">Progresso</th>
-                                <th className={`px-6 py-3 w-48 ${isAngelMode ? 'bg-yellow-100/50 text-yellow-900 dark:bg-yellow-900/40 dark:text-yellow-100' : 'bg-blue-50/50 dark:bg-blue-900/10'}`}><div className="flex flex-col"><span>{isAngelMode ? 'Pagamento Anjo' : 'Recebimento Líquido'}</span><span className="text-[10px] normal-case opacity-70">Mês Atual (Pago)</span></div></th>
-                                <th className="px-6 py-3 text-center">Ações</th>
+                                <th className="px-4 py-3">Data</th>
+                                <th className="px-4 py-3">Cliente / Produto</th>
+                                <th className="px-4 py-3">Equipe</th>
+                                <th className="px-4 py-3">Valor do Crédito</th>
+                                <th className="px-4 py-3">Progresso & Status</th>
+                                <th className="px-4 py-3 text-right">Ações</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            {filteredHistory.length === 0 ? (<tr><td colSpan={6} className="px-6 py-12 text-center text-gray-400">{isAngelMode ? 'Nenhuma venda com Anjo encontrada.' : 'Nenhuma venda encontrada com os filtros selecionados.'}</td></tr>) : (
+                        <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
+                            {filteredHistory.length === 0 ? (<tr><td colSpan={6} className="px-6 py-12 text-center text-gray-400">Nenhuma venda encontrada.</td></tr>) : (
                                 filteredHistory.map(c => {
                                     const paidCount = Object.values(c.installmentDetails).filter(s => s.status === 'Pago').length;
-                                    const monthlyValues = Object.entries(c.installmentDetails).reduce((acc, [num, info]) => {
-                                        if (info.status === 'Pago') {
-                                            const values = getInstallmentValues(c, parseInt(num));
-                                            acc.cons += values.cons;
-                                            acc.man += values.man;
-                                            acc.angel += values.angel;
-                                        }
-                                        return acc;
-                                    }, { cons: 0, man: 0, angel: 0 });
+                                    const totalInstallments = 15;
+                                    const progressPercent = (paidCount / totalInstallments) * 100;
+                                    const status = getOverallStatus(c.installmentDetails);
+                                    const statusColors: Record<CommissionStatus, string> = {
+                                        'Em Andamento': 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
+                                        'Atraso': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
+                                        'Concluído': 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
+                                        'Cancelado': 'bg-gray-100 text-gray-800 dark:bg-slate-700 dark:text-gray-300'
+                                    };
+                                    const progressColor = progressPercent === 100 ? 'bg-green-500' : progressPercent > 50 ? 'bg-blue-500' : 'bg-yellow-500';
 
                                     return (
                                         <React.Fragment key={c.id}>
-                                        <tr className="border-b border-gray-100 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700/30 transition">
-                                            <td className="px-6 py-4">
-                                                <div className="font-bold text-gray-900 dark:text-white flex items-center">{c.clientName} {c.customRules && <Wand2 className="w-3 h-3 ml-2 text-blue-400" title="Regras de Comissão Personalizadas" />}</div>
-                                                <div className="text-xs text-gray-500 mb-1">{formatCurrency(c.value)}</div>
-                                                <div className="flex flex-col text-xs space-y-1"><span className="flex items-center text-gray-600 dark:text-gray-300">{c.type === 'Veículo' ? <Car className="w-3 h-3 mr-1" /> : <Home className="w-3 h-3 mr-1" />}{c.group} / {c.quota}</span><span className="text-gray-400">PV: {c.pv}</span></div>
-                                            </td>
-                                            <td className="px-6 py-4"><div className="font-mono font-medium text-gray-900 dark:text-white">{paidCount} / 15</div><div className="text-xs text-gray-400">Parcelas Pagas</div></td>
-                                            <td className={`px-6 py-4 border-l border-r border-gray-100 dark:border-slate-700/50 ${isAngelMode ? 'bg-yellow-50/20 dark:bg-yellow-900/10' : 'bg-blue-50/20 dark:bg-blue-900/5'}`}>
-                                                <div className="space-y-1.5 text-xs">
-                                                    {!isAngelMode && (<><div className="flex justify-between items-center"><span className="text-blue-600 dark:text-blue-400 font-medium truncate w-20" title={c.consultant}>{c.consultant.split(' ')[0]}</span><span className={`font-bold ${monthlyValues.cons === 0 ? 'text-gray-400' : 'text-gray-900 dark:text-white'}`}>{formatCurrency(monthlyValues.cons)}</span></div><div className="flex justify-between items-center"><span className="text-gray-500 dark:text-gray-400 truncate w-20" title={c.managerName}>{c.managerName.split(' ')[0]}</span><span className={`font-medium ${monthlyValues.man === 0 ? 'text-gray-400' : 'text-gray-700 dark:text-gray-300'}`}>{formatCurrency(monthlyValues.man)}</span></div></>)}
-                                                    {c.angelName && (<div className="flex justify-between items-center"><span className="text-yellow-600 dark:text-yellow-400 truncate w-20 font-bold" title={c.angelName}>{c.angelName.split(' ')[0]}</span><span className={`font-bold text-sm ${monthlyValues.angel === 0 ? 'text-gray-400' : 'text-yellow-700 dark:text-yellow-300'}`}>{formatCurrency(monthlyValues.angel)}</span></div>)}
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4 text-center">
-                                                <button onClick={() => setExpandedRow(expandedRow === c.id ? null : c.id)} className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-slate-600 text-gray-500 flex items-center text-xs font-medium"><ChevronDown className={`w-4 h-4 mr-1 transition-transform ${expandedRow === c.id ? 'rotate-180' : ''}`} />Detalhes</button>
-                                                <button onClick={() => handleDeleteCommission(c.id)} className="text-red-400 hover:text-red-600 p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition mt-1"><Trash2 className="w-4 h-4" /></button>
-                                            </td>
+                                        <tr className="hover:bg-gray-50 dark:hover:bg-slate-700/30 transition">
+                                            <td className="px-4 py-3 align-top"><div className="text-sm font-medium text-gray-900 dark:text-white">{new Date(c.date + 'T00:00:00').toLocaleDateString('pt-BR')}</div><div className="text-xs text-gray-500">{new Date(c.date + 'T00:00:00').toLocaleDateString('pt-BR', { weekday: 'long' })}</div></td>
+                                            <td className="px-4 py-3 align-top"><div className="font-bold text-gray-900 dark:text-white flex items-center">{c.clientName}{c.angelName && <Crown className="w-3.5 h-3.5 text-yellow-500 ml-2" title={`Anjo: ${c.angelName}`} />}</div><div className="text-xs text-gray-500">{c.group} / {c.quota} <span className={`ml-2 text-xs px-2 py-0.5 rounded-full ${c.type === 'Imóvel' ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300' : 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300'}`}>{c.type === 'Imóvel' ? '🏠' : '🚗'} {c.type}</span></div></td>
+                                            <td className="px-4 py-3 align-top text-xs space-y-1"><div className="flex items-center" title={`Consultor: ${c.consultant}`}><div className="w-2 h-2 bg-blue-500 rounded-full mr-2 shrink-0"></div><span className="truncate">{c.consultant}</span></div>{c.managerName && c.managerName !== 'N/A' && <div className="flex items-center text-gray-500" title={`Gestor: ${c.managerName}`}><div className="w-2 h-2 bg-gray-400 rounded-full mr-2 shrink-0"></div><span className="truncate">{c.managerName}</span></div>}{c.angelName && <div className="flex items-center text-yellow-700 dark:text-yellow-400" title={`Anjo: ${c.angelName}`}><div className="w-2 h-2 bg-yellow-500 rounded-full mr-2 shrink-0"></div><span className="truncate">{c.angelName}</span></div>}</td>
+                                            <td className="px-4 py-3 align-top"><div className="text-base font-bold text-gray-900 dark:text-white">{formatCurrency(c.value)}</div><div className="text-xs text-gray-500">PV: {c.pv}</div></td>
+                                            <td className="px-4 py-3 align-top"><div className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${statusColors[status]}`}>{status}</div><div className="mt-2"><div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-1"><span>{paidCount}/{totalInstallments}</span><span>{Math.round(progressPercent)}%</span></div><div className="w-full bg-gray-200 dark:bg-slate-600 rounded-full h-1.5"><div className={`h-1.5 rounded-full ${progressColor}`} style={{ width: `${progressPercent}%` }}></div></div></div></td>
+                                            <td className="px-4 py-3 text-right align-top"><button onClick={() => setExpandedRow(expandedRow === c.id ? null : c.id)} className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-slate-600 text-gray-500"><ChevronDown className={`w-5 h-5 transition-transform ${expandedRow === c.id ? 'rotate-180' : ''}`} /></button></td>
                                         </tr>
                                         {expandedRow === c.id && (
                                             <tr className="bg-gray-50 dark:bg-slate-800">
-                                                <td colSpan={4} className="p-4">
+                                                <td colSpan={6} className="p-4">
                                                     <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
                                                         {Object.entries(c.installmentDetails).map(([num, info]) => {
                                                             const installmentInfo = info as InstallmentInfo;

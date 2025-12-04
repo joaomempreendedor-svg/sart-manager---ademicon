@@ -47,6 +47,16 @@ export const Materials = () => {
     }
   };
 
+  const handleDelete = async (id: string, title: string) => {
+    if (window.confirm(`Tem certeza que deseja excluir o material "${title}"?`)) {
+      try {
+        await deleteSupportMaterial(id);
+      } catch (error: any) {
+        alert(`Erro ao excluir: ${error.message}`);
+      }
+    }
+  };
+
   const filteredMaterials = supportMaterials.filter(m => 
     m.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     m.category.toLowerCase().includes(searchTerm.toLowerCase())
@@ -167,7 +177,7 @@ export const Materials = () => {
                                               <Download className="w-5 h-5" />
                                           </a>
                                           <button 
-                                              onClick={() => deleteSupportMaterial(material.id)}
+                                              onClick={() => handleDelete(material.id, material.title)}
                                               className="p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition"
                                               title="Excluir"
                                           >
