@@ -644,7 +644,7 @@ export const Commissions = () => {
                             <tr>
                                 <th className="px-4 py-3">Data</th>
                                 <th className="px-4 py-3">Cliente / Produto</th>
-                                <th className="px-4 py-3">Equipe</th>
+                                <th className="px-4 py-3">Consultor & Equipe</th>
                                 <th className="px-4 py-3">Valor do Crédito</th>
                                 <th className="px-4 py-3">Progresso & Status</th>
                                 <th className="px-4 py-3 text-right">Ações</th>
@@ -682,6 +682,7 @@ export const Commissions = () => {
                                                         {Object.entries(c.installmentDetails).map(([num, info]) => {
                                                             const installmentInfo = info as InstallmentInfo;
                                                             const status = installmentInfo?.status || 'Pendente';
+                                                            const values = getInstallmentValues(c, parseInt(num));
                                                             return (
                                                             <div key={num} className="text-center p-2 rounded-md border bg-white dark:bg-slate-700">
                                                                 <div className="text-xs text-gray-400">
@@ -698,6 +699,13 @@ export const Commissions = () => {
                                                                     <option value="Atraso">Atraso</option>
                                                                     <option value="Cancelado">Cancelado</option>
                                                                 </select>
+                                                                {status === 'Pago' && (
+                                                                    <div className="mt-2 text-xs space-y-1 text-left text-gray-600 dark:text-gray-300">
+                                                                        <div className="flex justify-between"><span>Consultor:</span> <span className="font-medium text-gray-800 dark:text-gray-100">{formatCurrency(values.cons)}</span></div>
+                                                                        <div className="flex justify-between"><span>Gestor:</span> <span className="font-medium text-gray-800 dark:text-gray-100">{formatCurrency(values.man)}</span></div>
+                                                                        {c.angelName && <div className="flex justify-between"><span>Anjo:</span> <span className="font-medium text-gray-800 dark:text-gray-100">{formatCurrency(values.angel)}</span></div>}
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         )})}
                                                     </div>
