@@ -70,46 +70,5 @@
   <body class="bg-gray-50 text-gray-900 dark:bg-slate-900 dark:text-slate-50 transition-colors duration-200">
     <div id="root"></div>
   <script type="module" src="/src/main.tsx"></script>
-<script>
-// FIX DEFINITIVO PARA CHROME - Executa antes de qualquer coisa
-(function() {
-  console.log('🔧 Chrome Fix Injectado');
-  
-  // 1. Verificar se é Chrome
-  const isChrome = /Chrome/.test(navigator.userAgent) && /Google Inc/.test(navigator.vendor);
-  
-  if (isChrome) {
-    // 2. Verificar tokens problemáticos IMEDIATAMENTE
-    const token = localStorage.getItem('supabase.auth.token');
-    if (token) {
-      try {
-        const parsed = JSON.parse(token);
-        // Se token expirou ou está mal formado
-        if (!parsed || !parsed.access_token || (parsed.expires_at && parsed.expires_at < Date.now()/1000)) {
-          console.log('🗑️ Chrome Fix: Token inválido detectado, limpando...');
-          localStorage.removeItem('supabase.auth.token');
-          localStorage.removeItem('supabase.auth.refreshToken');
-        }
-      } catch (e) {
-        console.log('🗑️ Chrome Fix: Token corrompido, limpando...');
-        localStorage.removeItem('supabase.auth.token');
-        localStorage.removeItem('supabase.auth.refreshToken');
-      }
-    }
-    
-    // 3. Adicionar listener para loading infinito
-    window.addEventListener('load', function() {
-      setTimeout(function() {
-        const loadingIndicators = document.body.innerText.match(/carregando/i);
-        if (loadingIndicators && document.querySelector('[class*="animate-spin"]')) {
-          console.log('⚠️ Chrome Fix: Loading detectado após 10s, forçando reload...');
-          localStorage.removeItem('supabase.auth.token');
-          window.location.reload();
-        }
-      }, 10000);
-    });
-  }
-})();
-</script>
 </body>
 </html>

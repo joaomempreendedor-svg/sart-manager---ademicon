@@ -3,31 +3,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { Session } from '@supabase/supabase-js';
 import { User } from '@/types';
 
-// Helper for shallow comparison to prevent unnecessary re-renders
-const shallowEqual = (objA: any, objB: any): boolean => {
-  if (objA === objB) return true;
-  if (!objA || !objB || typeof objA !== 'object' || typeof objB !== 'object') return false;
-
-  const keysA = Object.keys(objA);
-  const keysB = Object.keys(objB);
-
-  if (keysA.length !== keysB.length) return false;
-
-  for (const key of keysA) {
-    if (!objB.hasOwnProperty(key) || objA[key] !== objB[key]) {
-      return false;
-    }
-  }
-
-  return true;
-};
-
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   isLoading: boolean;
-  login: (email: string, pass: string) => Promise<void>;
-  register: (name: string, email: string, pass: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -38,7 +17,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchUserProfile = async (session: Session): Promise<User | null> => {
+  const fetchUserProfile = useCallback(async (session: Session): Promise<User | null> => {
     try {
       const { data: profile, error } = await supabase
         .from('profiles')
@@ -55,45 +34,44 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       return { id: session.user.id, name, email: session.user.email || '' };
     } catch (error: any) {
       console.error('Error fetching profile:', error.message);
-      // Fallback user object on profile fetch failure
       return {
         id: session.user.id,
         name: session.user.email?.split('@')[0] || 'Usuário',
         email: session.user.email || '',
       };
     }
-  };
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
-    setIsLoading(true);
 
-    const checkSession = async () => {
+    const initializeAuth = async () => {
+      // First, check for an active session
       const { data: { session } } = await supabase.auth.getSession();
       if (isMounted && session) {
         const userProfile = await fetchUserProfile(session);
         setUser(userProfile);
         setSession(session);
-      }
-      if (isMounted) {
+        setIsLoading(false);
+      } else {
         setIsLoading(false);
       }
     };
 
-    checkSession();
+    initializeAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, newSession) => {
         if (isMounted) {
           if (newSession) {
             const userProfile = await fetchUserProfile(newSession);
-            setUser(currentUser => shallowEqual(currentUser, userProfile) ? currentUser : userProfile);
-            setSession(currentSession => currentSession?.access_token !== newSession.access_token ? newSession : currentSession);
+            setUser(userProfile);
+            setSession(newSession);
           } else {
             setUser(null);
             setSession(null);
           }
-          // Subsequent changes don't affect the initial loading state
+          // Ensure loading is false after the first check
           if (isLoading) setIsLoading(false);
         }
       }
@@ -103,44 +81,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       isMounted = false;
       subscription.unsubscribe();
     };
-  }, []);
-
-  const login = useCallback(async (email: string, pass: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password: pass });
-    if (error) throw error;
-  }, []);
-
-  const register = useCallback(async (name: string, email: string, pass: string) => {
-    const nameParts = name.trim().split(' ');
-    const { error } = await supabase.auth.signUp({
-      email,
-      password: pass,
-      options: {
-        data: {
-          first_name: nameParts[0],
-          last_name: nameParts.slice(1).join(' ')
-        }
-      }
-    });
-    if (error) throw error;
-  }, []);
+  }, [fetchUserProfile, isLoading]);
 
   const logout = useCallback(async () => {
     const { error } = await supabase.auth.signOut();
     if (error) {
       console.error("Error logging out:", error);
-      alert("Ocorreu um erro ao sair.");
     }
+    // State will be cleared by onAuthStateChange
   }, []);
 
   const value = useMemo(() => ({
     user,
     session,
     isLoading,
-    login,
-    register,
     logout,
-  }), [user, session, isLoading, login, register, logout]);
+  }), [user, session, isLoading, logout]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
