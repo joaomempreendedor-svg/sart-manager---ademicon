@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '@/context/AppContext';
 import { Commission, CommissionStatus, CommissionRule, InstallmentStatus, InstallmentInfo, CommissionReport } from '@/types';
 import { Trash2, Search, DollarSign, Calendar, Calculator, Save, Table as TableIcon, Car, Home, ChevronDown, MapPin, Percent, Filter, XCircle, Crown, Plus, Wand2, Loader2, FileText, Download } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -461,6 +462,52 @@ export const Commissions = () => {
     });
   };
 
+  const handleExportToExcel = () => {
+    if (!reportData || reportData.detailedInstallments.length === 0) {
+      alert("Não há dados para exportar. Gere um relatório primeiro.");
+      return;
+    }
+
+    const dataToExport = reportData.detailedInstallments.map(item => ({
+      'Cliente': item.commission.clientName,
+      'Consultor': item.commission.consultant,
+      'Gestor': item.commission.managerName,
+      'Anjo': item.commission.angelName || 'N/A',
+      'Parcela': parseInt(item.installmentNumber),
+      'Valor (Consultor)': item.values.cons,
+      'Valor (Gestor)': item.values.man,
+      'Valor (Anjo)': item.values.angel,
+      'Data Venda': new Date(item.commission.date + 'T00:00:00').toLocaleDateString('pt-BR'),
+      'Mês Competência': formatMonthYear(item.commission.installmentDetails[item.installmentNumber].competenceMonth!),
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    
+    const currencyFormat = 'R$ #,##0.00';
+    const currencyCols = ['F', 'G', 'H'];
+    
+    worksheet['!cols'] = [
+        { wch: 25 }, { wch: 25 }, { wch: 25 }, { wch: 25 }, { wch: 10 },
+        { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 15 }, { wch: 20 },
+    ];
+
+    Object.keys(worksheet).forEach(cellRef => {
+        if (cellRef[0] === '!') return;
+        const col = cellRef.replace(/[0-9]/g, '');
+        if (currencyCols.includes(col)) {
+            const cell = worksheet[cellRef];
+            if (cell.t === 'n') {
+                cell.z = currencyFormat;
+            }
+        }
+    });
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Comissões");
+
+    XLSX.writeFile(workbook, `Relatorio_Comissoes_${reportData.month}.xlsx`);
+  };
+
   return (
     <div className="p-8 max-w-7xl mx-auto min-h-screen pb-20">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
@@ -808,12 +855,14 @@ export const Commissions = () => {
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="text-left text-gray-500 dark:text-gray-400"><tr className="border-b dark:border-slate-700"><th className="py-2">Cliente</th><th className="py-2">Consultor</th><th className="py-2">Parcela</th><th className="py-2 text-right">Valor (Consultor)</th><th className="py-2 text-right">Valor (Gestor)</th><th className="py-2 text-right">Valor (Anjo)</th></tr></thead>
+                  <thead className="text-left text-gray-500 dark:text-gray-400"><tr className="border-b dark:border-slate-700"><th className="py-2">Cliente</th><th className="py-2">Consultor</th><th className="py-2">Gestor</th><th className="py-2">Anjo</th><th className="py-2">Parcela</th><th className="py-2 text-right">Valor (Consultor)</th><th className="py-2 text-right">Valor (Gestor)</th><th className="py-2 text-right">Valor (Anjo)</th></tr></thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
                     {reportData.detailedInstallments.map((item, index) => (
                       <tr key={index} className="hover:bg-gray-50 dark:hover:bg-slate-700/50">
                         <td className="py-2 font-medium text-gray-800 dark:text-gray-200">{item.commission.clientName}</td>
                         <td>{item.commission.consultant}</td>
+                        <td>{item.commission.managerName}</td>
+                        <td>{item.commission.angelName || 'N/A'}</td>
                         <td>{item.installmentNumber}</td>
                         <td className="text-right font-mono">{formatCurrency(item.values.cons)}</td>
                         <td className="text-right font-mono">{formatCurrency(item.values.man)}</td>
@@ -823,7 +872,7 @@ export const Commissions = () => {
                   </tbody>
                 </table>
               </div>
-              <button className="mt-6 flex items-center text-purple-600 dark:text-purple-400 font-medium hover:text-purple-700 dark:hover:text-purple-300"><Download className="w-4 h-4 mr-2" />Exportar para Excel</button>
+              <button onClick={handleExportToExcel} className="mt-6 flex items-center text-purple-600 dark:text-purple-400 font-medium hover:text-purple-700 dark:hover:text-purple-300"><Download className="w-4 h-4 mr-2" />Exportar para Excel</button>
             </div>
           )}
         </div>
