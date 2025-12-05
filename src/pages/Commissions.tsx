@@ -123,6 +123,7 @@ export const Commissions = () => {
   const [reportMonth, setReportMonth] = useState(new Date().toISOString().slice(0, 7));
   const [reportConsultant, setReportConsultant] = useState('');
   const [reportManager, setReportManager] = useState('');
+  const [reportAngel, setReportAngel] = useState('');
   const [reportData, setReportData] = useState<{
     month: string;
     totalCommissions: { consultant: number; manager: number; angel: number; total: number; };
@@ -431,6 +432,7 @@ export const Commissions = () => {
     const filteredCommissions = commissions.filter(c => {
       if (reportConsultant && c.consultant !== reportConsultant) return false;
       if (reportManager && c.managerName !== reportManager) return false;
+      if (reportAngel && c.angelName !== reportAngel) return false;
       return true;
     });
 
@@ -823,7 +825,7 @@ export const Commissions = () => {
         <div className="animate-fade-in">
           <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm mb-6">
             <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">Relatório por Mês de Competência</h2>
-            <div className="flex flex-col md:flex-row items-end gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
               <div>
                 <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Selecione o Mês:</label>
                 <input type="month" value={reportMonth} onChange={(e) => setReportMonth(e.target.value)} className="border border-gray-300 dark:border-slate-600 rounded-lg p-2 bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
@@ -835,6 +837,10 @@ export const Commissions = () => {
               <div className="flex-1">
                 <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Filtrar por Gestor:</label>
                 <select value={reportManager} onChange={e => setReportManager(e.target.value)} className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2 bg-white dark:bg-slate-700 text-gray-900 dark:text-white"><option value="">Todos</option>{managers.map(m => <option key={m.id} value={m.name}>{m.name}</option>)}</select>
+              </div>
+              <div className="flex-1">
+                <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Filtrar por Anjo:</label>
+                <select value={reportAngel} onChange={e => setReportAngel(e.target.value)} className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2 bg-white dark:bg-slate-700 text-gray-900 dark:text-white"><option value="">Todos</option>{angels.map(a => <option key={a.id} value={a.name}>{a.name}</option>)}</select>
               </div>
               <button onClick={generateReport} className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition font-medium">
                 Gerar Relatório
