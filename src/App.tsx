@@ -94,7 +94,7 @@ const Layout = () => {
 };
 
 const AppRoutes = () => {
-  const { user, isLoading } = useAuth();
+  const { isLoading } = useAuth();
 
   if (isLoading) {
     return <AppLoader />;
@@ -102,8 +102,8 @@ const AppRoutes = () => {
 
   return (
     <Routes>
-      <Route path="/login" element={user ? <Navigate to="/" /> : <Login />} />
-      <Route path="/register" element={user ? <Navigate to="/" /> : <Register />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
       <Route path="/update-password" element={<UpdatePassword />} />
       <Route element={<RequireAuth />}>
         <Route path="/" element={<Layout />}>
@@ -129,13 +129,13 @@ const AppRoutes = () => {
 
 const App = () => {
   return (
-    <AuthProvider>
-      <AppProvider>
-        <HashRouter>
+    <HashRouter>
+      <AuthProvider>
+        <AppProvider>
           <AppRoutes />
-        </HashRouter>
-      </AppProvider>
-    </AuthProvider>
+        </AppProvider>
+      </AuthProvider>
+    </HashRouter>
   );
 };
 
