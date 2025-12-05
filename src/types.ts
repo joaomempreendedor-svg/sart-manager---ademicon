@@ -152,6 +152,15 @@ export interface SupportMaterial {
   fileName: string;
 }
 
+export interface ImportantLink {
+  id: string; // Client-side UUID
+  db_id?: string; // Database primary key
+  title: string;
+  url: string;
+  description: string;
+  category: string;
+}
+
 // TEAM MANAGEMENT
 export type TeamRole = 'Prévia' | 'Autorizado' | 'Gestor' | 'Anjo';
 
@@ -201,6 +210,7 @@ export interface AppContextType {
   interviewStructure: InterviewSection[];
   commissions: Commission[];
   supportMaterials: SupportMaterial[];
+  importantLinks: ImportantLink[];
   theme: 'light' | 'dark';
   origins: string[];
   interviewers: string[];
@@ -249,4 +259,7 @@ export interface AppContextType {
   updateInstallmentStatus: (commissionId: string, installmentNumber: number, status: InstallmentStatus, paidDate?: string, saleType?: 'Imóvel' | 'Veículo') => Promise<void>;
   addSupportMaterial: (material: Omit<SupportMaterial, 'id' | 'url'>, file: File) => Promise<void>;
   deleteSupportMaterial: (id: string) => Promise<void>;
+  addImportantLink: (link: ImportantLink) => Promise<void>;
+  updateImportantLink: (id: string, updates: Partial<ImportantLink>) => Promise<void>;
+  deleteImportantLink: (id: string) => Promise<void>;
 }

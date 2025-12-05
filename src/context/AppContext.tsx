@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
-import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, CommissionStatus, InstallmentInfo, CutoffPeriod } from '@/types';
+import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, CommissionStatus, InstallmentInfo, CutoffPeriod, ImportantLink } from '@/types';
 import { CHECKLIST_STAGES as DEFAULT_STAGES } from '@/data/checklistData';
 import { CONSULTANT_GOALS as DEFAULT_GOALS } from '@/data/consultantGoals';
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
@@ -69,6 +69,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [commissions, setCommissions] = useState<Commission[]>([]);
   const [supportMaterials, setSupportMaterials] = useState<SupportMaterial[]>([]);
+  const [importantLinks, setImportantLinks] = useState<ImportantLink[]>([]);
   const [cutoffPeriods, setCutoffPeriods] = useState<CutoffPeriod[]>([]);
   
   const [checklistStructure, setChecklistStructure] = useState<ChecklistStage[]>(DEFAULT_STAGES);
@@ -140,6 +141,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setTeamMembers([]);
     setCommissions([]);
     setSupportMaterials([]);
+    setImportantLinks([]);
     setCutoffPeriods([]);
     setChecklistStructure(DEFAULT_STAGES);
     setConsultantGoalsStructure(DEFAULT_GOALS);
@@ -224,13 +226,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           { data: candidatesData, error: candidatesError },
           { data: teamMembersData, error: teamMembersError },
           { data: materialsData, error: materialsError },
-          { data: cutoffData, error: cutoffError }
+          { data: cutoffData, error: cutoffError },
+          { data: linksData, error: linksError }
         ] = await Promise.all([
           supabase.from('app_config').select('data').eq('user_id', userId).maybeSingle(),
           supabase.from('candidates').select('id, data').eq('user_id', userId),
           supabase.from('team_members').select('id, data').eq('user_id', userId),
           supabase.from('support_materials').select('id, data').eq('user_id', userId),
-          supabase.from('cutoff_periods').select('id, data').eq('user_id', userId)
+          supabase.from('cutoff_periods').select('id, data').eq('user_id', userId),
+          supabase.from('important_links').select('id, data').eq('user_id', userId)
         ]);
 
         if (configError) console.error("Config error:", configError);
@@ -238,6 +242,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (teamMembersError) console.error("Team error:", teamMembersError);
         if (materialsError) console.error("Materials error:", materialsError);
         if (cutoffError) console.error("Cutoff Periods error:", cutoffError);
+        if (linksError) console.error("Important Links error:", linksError);
 
         if (configResult) {
           const { data } = configResult;
@@ -273,6 +278,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setTeamMembers(normalizedTeamMembers);
         
         setSupportMaterials(materialsData?.map(item => ({ ...(item.data as SupportMaterial), db_id: item.id })) || []);
+        setImportantLinks(linksData?.map(item => ({ ...(item.data as ImportantLink), db_id: item.id })) || []);
         setCutoffPeriods(cutoffData?.map(item => ({ ...(item.data as CutoffPeriod), db_id: item.id })) || []);
         
         refetchCommissions();
@@ -564,6 +570,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setSupportMaterials(prev => prev.filter(p => p.id !== id));
   }, [user, supportMaterials]);
 
+  const addImportantLink = useCallback(async (link: ImportantLink) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('important_links').insert({ user_id: user.id, data: link }).select('id').single(); if (error) throw error; if (data) setImportantLinks(prev => [...prev, { ...link, db_id: data.id }]); }, [user]);
+  const updateImportantLink = useCallback(async (id: string, updates: Partial<ImportantLink>) => { if (!user) throw new Error("Usuário não autenticado."); const l = importantLinks.find(l => l.id === id); if (!l || !l.db_id) throw new Error("Link não encontrado"); const updated = { ...l, ...updates }; const { db_id, ...dataToUpdate } = updated; const { error } = await supabase.from('important_links').update({ data: dataToUpdate }).match({ id: l.db_id, user_id: user.id }); if (error) throw error; setImportantLinks(prev => prev.map(p => p.id === id ? updated : p)); }, [user, importantLinks]);
+  const deleteImportantLink = useCallback(async (id: string) => { if (!user) throw new Error("Usuário não autenticado."); const l = importantLinks.find(l => l.id === id); if (!l || !l.db_id) throw new Error("Link não encontrado"); const { error } = await supabase.from('important_links').delete().match({ id: l.db_id, user_id: user.id }); if (error) throw error; setImportantLinks(prev => prev.filter(p => p.id !== id)); }, [user, importantLinks]);
+
   const updateInstallmentStatus = useCallback(async (
     commissionId: string, 
     installmentNumber: number, 
@@ -706,11 +716,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   return (
     <AppContext.Provider value={{ 
       isDataLoading,
-      candidates, templates, checklistStructure, consultantGoalsStructure, interviewStructure, commissions, supportMaterials, theme, origins, interviewers, pvs, teamMembers, cutoffPeriods,
+      candidates, templates, checklistStructure, consultantGoalsStructure, interviewStructure, commissions, supportMaterials, importantLinks, theme, origins, interviewers, pvs, teamMembers, cutoffPeriods,
       addCutoffPeriod, updateCutoffPeriod, deleteCutoffPeriod,
       addTeamMember, updateTeamMember, deleteTeamMember, toggleTheme, addOrigin, deleteOrigin, addInterviewer, deleteInterviewer, addPV, addCandidate, updateCandidate, deleteCandidate, toggleChecklistItem, toggleConsultantGoal, setChecklistDueDate, getCandidate, saveTemplate,
       addChecklistItem, updateChecklistItem, deleteChecklistItem, moveChecklistItem, resetChecklistToDefault, addGoalItem, updateGoalItem, deleteGoalItem, moveGoalItem, resetGoalsToDefault,
-      updateInterviewSection, addInterviewQuestion, updateInterviewQuestion, deleteInterviewQuestion, moveInterviewQuestion, resetInterviewToDefault, addCommission, updateCommission, deleteCommission, updateInstallmentStatus, addSupportMaterial, deleteSupportMaterial
+      updateInterviewSection, addInterviewQuestion, updateInterviewQuestion, deleteInterviewQuestion, moveInterviewQuestion, resetInterviewToDefault, addCommission, updateCommission, deleteCommission, updateInstallmentStatus, addSupportMaterial, deleteSupportMaterial,
+      addImportantLink, updateImportantLink, deleteImportantLink
     }}>
       {children}
     </AppContext.Provider>

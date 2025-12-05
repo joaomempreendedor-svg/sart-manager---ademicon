@@ -13,6 +13,7 @@ import { GoalsConfig } from '@/pages/GoalsConfig';
 import { InterviewConfig } from '@/pages/InterviewConfig';
 import { Commissions } from '@/pages/Commissions';
 import { Materials } from '@/pages/Materials';
+import { ImportantLinks } from '@/pages/ImportantLinks';
 import { TeamConfig } from '@/pages/TeamConfig';
 import { Login } from '@/pages/Login';
 import { Register } from '@/pages/Register';
@@ -109,6 +110,7 @@ const AppRoutes = () => {
           <Route path="candidate/:id" element={<CandidateDetail />} />
           <Route path="commissions" element={<Commissions />} />
           <Route path="materials" element={<Materials />} />
+          <Route path="links" element={<ImportantLinks />} />
           <Route path="profile" element={<Profile />} />
           <Route path="config-team" element={<TeamConfig />} />
           <Route path="config-templates" element={<TemplateConfig />} />

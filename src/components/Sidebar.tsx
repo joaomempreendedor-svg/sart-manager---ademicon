@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, MessageSquare, Settings, FileText, Sun, Moon, Banknote, PlusCircle, Library, TrendingUp, Target, Users, LogOut, User as UserIcon, Calendar } from 'lucide-react';
+import { LayoutDashboard, MessageSquare, Settings, FileText, Sun, Moon, Banknote, PlusCircle, Library, TrendingUp, Target, Users, LogOut, User as UserIcon, Calendar, Link as LinkIcon } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 
@@ -64,6 +64,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ isSidebarOpen, toggleSidebar }
           <NavLink to="/materials" className={linkClass} onClick={toggleSidebar}>
             <Library className="w-5 h-5" />
             <span>Materiais de Apoio</span>
+          </NavLink>
+          <NavLink to="/links" className={linkClass} onClick={toggleSidebar}>
+            <LinkIcon className="w-5 h-5" />
+            <span>Links Importantes</span>
           </NavLink>
           <NavLink to="/profile" className={linkClass} onClick={toggleSidebar}>
             <UserIcon className="w-5 h-5" />
