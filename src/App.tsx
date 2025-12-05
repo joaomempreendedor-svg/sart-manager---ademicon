@@ -19,6 +19,7 @@ import { Login } from '@/pages/Login';
 import { Register } from '@/pages/Register';
 import { Profile } from '@/pages/Profile';
 import { CutoffConfig } from '@/pages/CutoffConfig';
+import { UpdatePassword } from '@/pages/UpdatePassword';
 import { Loader2, RefreshCw } from 'lucide-react';
 
 const AppLoader = () => {
@@ -103,6 +104,7 @@ const AppRoutes = () => {
     <Routes>
       <Route path="/login" element={user ? <Navigate to="/" /> : <Login />} />
       <Route path="/register" element={user ? <Navigate to="/" /> : <Register />} />
+      <Route path="/update-password" element={<UpdatePassword />} />
       <Route element={<RequireAuth />}>
         <Route path="/" element={<Layout />}>
           <Route index element={<Dashboard />} />
