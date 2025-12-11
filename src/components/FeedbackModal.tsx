@@ -29,8 +29,8 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose, o
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !notes.trim()) {
-      alert('Título e anotações do feedback são obrigatórios.');
+    if (!title.trim()) {
+      alert('O título do feedback é obrigatório.');
       return;
     }
     setIsSaving(true);
@@ -74,7 +74,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose, o
             <div className="relative">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Anotações</label>
               <MessageSquare className="absolute left-3 top-9 w-4 h-4 text-gray-400" />
-              <textarea value={notes} onChange={e => setNotes(e.target.value)} required rows={5} className="w-full pl-10 p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600" placeholder="Pontos fortes, pontos a melhorar, próximos passos..."></textarea>
+              <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={5} className="w-full pl-10 p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600" placeholder="Anotações (opcional para agendamento)"></textarea>
             </div>
           </div>
           <div className="px-6 py-4 bg-gray-50 dark:bg-slate-700/50 border-t border-gray-100 dark:border-slate-700 flex justify-end">

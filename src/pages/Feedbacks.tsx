@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { Feedback, Candidate, TeamMember } from '@/types';
 import { FeedbackModal } from '@/components/FeedbackModal';
-import { Star, Search, User, Users, Plus, Edit2, Trash2, CalendarPlus } from 'lucide-react';
+import { Star, Search, User, Users, Plus, Edit2, Trash2, CalendarPlus, Clock, MessageSquarePlus } from 'lucide-react';
 
 type Person = (Candidate | TeamMember) & { type: 'candidate' | 'teamMember' };
 
@@ -138,42 +138,52 @@ export const Feedbacks = () => {
                   className="flex items-center space-x-2 bg-brand-500 hover:bg-brand-600 text-white px-4 py-2 rounded-lg transition text-sm font-medium"
                 >
                   <Plus className="w-4 h-4" />
-                  <span>Adicionar Feedback</span>
+                  <span>Agendar Feedback</span>
                 </button>
               </div>
               
               {(selectedPerson.feedbacks && selectedPerson.feedbacks.length > 0) ? (
                 <div className="space-y-4">
-                  {selectedPerson.feedbacks.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(fb => (
-                    <div key={fb.id} className="p-4 border border-gray-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 group">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <p className="font-semibold text-gray-800 dark:text-gray-200">{fb.title}</p>
-                          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                            {new Date(fb.date + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
-                          </p>
-                          <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 whitespace-pre-wrap">{fb.notes}</p>
-                        </div>
-                        <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button onClick={() => handleScheduleOnCalendar(fb)} className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-400 dark:hover:bg-blue-900/20 rounded-md" title="Agendar no Google Calendar">
-                            <CalendarPlus className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => { setEditingFeedback(fb); setIsModalOpen(true); }} className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-400 dark:hover:bg-green-900/20 rounded-md" title="Editar">
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => handleDeleteFeedback(fb.id)} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-400 dark:hover:bg-red-900/20 rounded-md" title="Excluir">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                  {selectedPerson.feedbacks.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(fb => {
+                    const isScheduled = !fb.notes || fb.notes.trim() === '';
+                    return (
+                      <div key={fb.id} className={`p-4 border rounded-lg group ${isScheduled ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800' : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700'}`}>
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <div className="flex items-center space-x-2">
+                              {isScheduled && <Clock className="w-4 h-4 text-yellow-600 dark:text-yellow-400" />}
+                              <p className={`font-semibold ${isScheduled ? 'text-yellow-800 dark:text-yellow-200' : 'text-gray-800 dark:text-gray-200'}`}>{fb.title}</p>
+                            </div>
+                            <p className={`text-xs mt-1 ${isScheduled ? 'text-yellow-600 dark:text-yellow-500' : 'text-gray-400 dark:text-gray-500'}`}>
+                              {new Date(fb.date + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
+                            </p>
+                            {isScheduled ? (
+                              <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-2">Feedback agendado. Adicione as anotações após a conversa.</p>
+                            ) : (
+                              <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 whitespace-pre-wrap">{fb.notes}</p>
+                            )}
+                          </div>
+                          <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onClick={() => handleScheduleOnCalendar(fb)} className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:text-blue-400 dark:hover:bg-blue-900/20 rounded-md" title="Agendar no Google Calendar">
+                              <CalendarPlus className="w-4 h-4" />
+                            </button>
+                            <button onClick={() => { setEditingFeedback(fb); setIsModalOpen(true); }} className={`p-2 rounded-md ${isScheduled ? 'text-yellow-600 hover:bg-yellow-100 dark:hover:bg-yellow-400 dark:hover:bg-yellow-900/20' : 'text-gray-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-400 dark:hover:bg-green-900/20'}`} title={isScheduled ? 'Adicionar Anotações' : 'Editar'}>
+                              {isScheduled ? <MessageSquarePlus className="w-4 h-4" /> : <Edit2 className="w-4 h-4" />}
+                            </button>
+                            <button onClick={() => handleDeleteFeedback(fb.id)} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-400 dark:hover:bg-red-900/20 rounded-md" title="Excluir">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="text-center py-16 border-2 border-dashed border-gray-200 dark:border-slate-700 rounded-xl">
                   <Star className="mx-auto w-12 h-12 text-gray-300 dark:text-slate-600" />
                   <p className="mt-4 text-gray-500 dark:text-gray-400">Nenhum feedback registrado para esta pessoa.</p>
-                  <p className="text-sm text-gray-400">Clique em "Adicionar Feedback" para começar.</p>
+                  <p className="text-sm text-gray-400">Clique em "Agendar Feedback" para começar.</p>
                 </div>
               )}
             </div>
@@ -182,7 +192,7 @@ export const Feedbacks = () => {
               <div className="text-center text-gray-400">
                 <Users className="mx-auto w-12 h-12" />
                 <p className="mt-4">Selecione uma pessoa na lista ao lado</p>
-                <p className="text-sm">para visualizar ou adicionar feedbacks.</p>
+                <p className="text-sm">para visualizar ou agendar feedbacks.</p>
               </div>
             </div>
           )}
