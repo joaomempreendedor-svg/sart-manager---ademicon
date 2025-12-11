@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useNavigate } from 'react-router-dom';
-import { ChevronRight, User, Calendar, CheckCircle2, TrendingUp, AlertCircle, Clock, Users } from 'lucide-react';
+import { ChevronRight, User, Calendar, CheckCircle2, TrendingUp, AlertCircle, Clock, Users, Star, CheckSquare } from 'lucide-react';
 import { CandidateStatus, ChecklistTaskState } from '@/types';
 import { TableSkeleton } from '@/components/TableSkeleton';
+import { ScheduleInterviewModal } from '@/components/ScheduleInterviewModal';
 
 const StatusBadge = ({ status }: { status: CandidateStatus }) => {
   const colors = {
@@ -23,49 +24,110 @@ const StatusBadge = ({ status }: { status: CandidateStatus }) => {
   );
 };
 
+type AgendaItem = {
+  id: string;
+  type: 'task' | 'interview' | 'feedback';
+  title: string;
+  personName: string;
+  personId: string;
+  personType: 'candidate' | 'teamMember';
+  dueDate: string;
+};
+
 export const Dashboard = () => {
   const { candidates, checklistStructure, teamMembers, isDataLoading } = useApp();
   const navigate = useNavigate();
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
 
   const totalCandidates = candidates.length;
   const authorized = candidates.filter(c => c.status === 'Autorizado').length;
   const inTraining = candidates.filter(c => c.status === 'Acompanhamento 90 Dias').length;
   const activeTeam = teamMembers.filter(m => m.isActive).length;
 
-  // Task Logic
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  
-  const allPendingTasks = candidates.flatMap(candidate => {
-    return (Object.entries(candidate.checklistProgress || {}) as [string, ChecklistTaskState][])
-      .filter(([_, state]) => !state.completed && state.dueDate)
-      .map(([taskId, state]) => {
-        // Find label
-        let label = 'Tarefa desconhecida';
-        for (const stage of checklistStructure) {
-           const item = stage.items.find(i => i.id === taskId);
-           if (item) {
-             label = item.label;
-             break;
-           }
-        }
-        return {
-          candidate,
-          taskId,
-          label,
-          dueDate: state.dueDate!
-        };
-      });
-  });
+  const { todayAgenda, overdueTasks } = useMemo(() => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const todayAgendaItems: AgendaItem[] = [];
+    const overdue: AgendaItem[] = [];
 
-  const overdueTasks = allPendingTasks.filter(t => {
-      const taskDate = new Date(t.dueDate + 'T00:00:00');
-      return taskDate.getTime() < today.getTime();
-  });
-  const todayTasks = allPendingTasks.filter(t => {
-      const taskDate = new Date(t.dueDate + 'T00:00:00');
-      return taskDate.getTime() === today.getTime();
-  });
+    // 1. Checklist Tasks
+    candidates.forEach(candidate => {
+      Object.entries(candidate.checklistProgress || {}).forEach(([taskId, state]) => {
+        if (state.dueDate) {
+          const item = checklistStructure.flatMap(s => s.items).find(i => i.id === taskId);
+          if (item) {
+            const agendaItem: AgendaItem = {
+              id: `${candidate.id}-${taskId}`,
+              type: 'task',
+              title: item.label,
+              personName: candidate.name,
+              personId: candidate.id,
+              personType: 'candidate',
+              dueDate: state.dueDate,
+            };
+            if (state.dueDate === todayStr && !state.completed) {
+              todayAgendaItems.push(agendaItem);
+            } else if (state.dueDate < todayStr && !state.completed) {
+              overdue.push(agendaItem);
+            }
+          }
+        }
+      });
+    });
+
+    // 2. Interviews
+    candidates.forEach(candidate => {
+      if (candidate.interviewDate === todayStr) {
+        todayAgendaItems.push({
+          id: `interview-${candidate.id}`,
+          type: 'interview',
+          title: 'Entrevista Agendada',
+          personName: candidate.name,
+          personId: candidate.id,
+          personType: 'candidate',
+          dueDate: candidate.interviewDate,
+        });
+      }
+    });
+
+    // 3. Feedbacks
+    const allPeople = [
+      ...candidates.map(c => ({ ...c, personType: 'candidate' as const })),
+      ...teamMembers.map(m => ({ ...m, personType: 'teamMember' as const }))
+    ];
+    allPeople.forEach(person => {
+      (person.feedbacks || []).forEach(feedback => {
+        if (feedback.date === todayStr) {
+          todayAgendaItems.push({
+            id: `feedback-${person.id}-${feedback.id}`,
+            type: 'feedback',
+            title: 'Sessão de Feedback',
+            personName: person.name,
+            personId: person.id,
+            personType: person.personType,
+            dueDate: feedback.date,
+          });
+        }
+      });
+    });
+
+    return { todayAgenda: todayAgendaItems, overdueTasks: overdue };
+  }, [candidates, teamMembers, checklistStructure]);
+
+  const getAgendaIcon = (type: AgendaItem['type']) => {
+    switch (type) {
+      case 'task': return <CheckSquare className="w-4 h-4 text-blue-600 dark:text-blue-400" />;
+      case 'interview': return <Calendar className="w-4 h-4 text-green-600 dark:text-green-400" />;
+      case 'feedback': return <Star className="w-4 h-4 text-yellow-500 dark:text-yellow-400" />;
+    }
+  };
+
+  const handleAgendaItemClick = (item: AgendaItem) => {
+    if (item.personType === 'candidate') {
+      navigate(`/candidate/${item.personId}`);
+    } else {
+      navigate('/feedbacks'); // Or a future team member detail page
+    }
+  };
 
   return (
     <div className="p-8 max-w-7xl mx-auto">
@@ -130,11 +192,11 @@ export const Dashboard = () => {
                     <div className="p-6 text-center text-gray-400">Nenhuma tarefa atrasada.</div>
                 ) : (
                     <ul className="divide-y divide-gray-100 dark:divide-slate-700">
-                        {overdueTasks.map((task, idx) => (
-                            <li key={idx} onClick={() => navigate(`/candidate/${task.candidate.id}`)} className="p-4 hover:bg-red-50 dark:hover:bg-red-900/10 cursor-pointer transition">
-                                <p className="text-sm font-medium text-gray-900 dark:text-gray-200">{task.label}</p>
+                        {overdueTasks.map((task) => (
+                            <li key={task.id} onClick={() => handleAgendaItemClick(task)} className="p-4 hover:bg-red-50 dark:hover:bg-red-900/10 cursor-pointer transition">
+                                <p className="text-sm font-medium text-gray-900 dark:text-gray-200">{task.title}</p>
                                 <div className="flex justify-between items-center mt-1">
-                                    <span className="text-xs text-gray-500 dark:text-gray-400">Candidato: <span className="font-semibold">{task.candidate.name}</span></span>
+                                    <span className="text-xs text-gray-500 dark:text-gray-400">Pessoa: <span className="font-semibold">{task.personName}</span></span>
                                     <span className="text-xs text-red-600 dark:text-red-400 font-medium">Venceu: {new Date(task.dueDate + 'T00:00:00').toLocaleDateString()}</span>
                                 </div>
                             </li>
@@ -149,19 +211,21 @@ export const Dashboard = () => {
             <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700 flex items-center space-x-2 bg-blue-50 dark:bg-blue-900/20 rounded-t-xl">
                  <Clock className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                  <h2 className="text-lg font-semibold text-blue-800 dark:text-blue-300">Agenda de Hoje</h2>
-                 <span className="bg-blue-200 dark:bg-blue-800 text-blue-800 dark:text-blue-100 text-xs font-bold px-2 py-0.5 rounded-full">{todayTasks.length}</span>
+                 <span className="bg-blue-200 dark:bg-blue-800 text-blue-800 dark:text-blue-100 text-xs font-bold px-2 py-0.5 rounded-full">{todayAgenda.length}</span>
             </div>
             <div className="flex-1 p-0 overflow-y-auto max-h-80 custom-scrollbar">
-                 {todayTasks.length === 0 ? (
+                 {todayAgenda.length === 0 ? (
                     <div className="p-6 text-center text-gray-400">Nenhuma tarefa agendada para hoje.</div>
                 ) : (
                     <ul className="divide-y divide-gray-100 dark:divide-slate-700">
-                        {todayTasks.map((task, idx) => (
-                            <li key={idx} onClick={() => navigate(`/candidate/${task.candidate.id}`)} className="p-4 hover:bg-blue-50 dark:hover:bg-blue-900/10 cursor-pointer transition">
-                                <p className="text-sm font-medium text-gray-900 dark:text-gray-200">{task.label}</p>
-                                <div className="flex justify-between items-center mt-1">
-                                    <span className="text-xs text-gray-500 dark:text-gray-400">Candidato: <span className="font-semibold">{task.candidate.name}</span></span>
-                                    <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">Hoje</span>
+                        {todayAgenda.map((item) => (
+                            <li key={item.id} onClick={() => handleAgendaItemClick(item)} className="p-4 hover:bg-blue-50 dark:hover:bg-blue-900/10 cursor-pointer transition">
+                                <div className="flex items-start space-x-3">
+                                    <div className="mt-0.5">{getAgendaIcon(item.type)}</div>
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-900 dark:text-gray-200">{item.title}</p>
+                                        <span className="text-xs text-gray-500 dark:text-gray-400">Pessoa: <span className="font-semibold">{item.personName}</span></span>
+                                    </div>
                                 </div>
                             </li>
                         ))}
@@ -175,10 +239,10 @@ export const Dashboard = () => {
         <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Todos os Candidatos</h2>
           <button 
-            onClick={() => navigate('/new')}
+            onClick={() => setIsScheduleModalOpen(true)}
             className="text-sm text-brand-600 dark:text-brand-400 font-medium hover:text-brand-700 dark:hover:text-brand-300"
           >
-            + Nova Entrevista
+            + Agendar Entrevista
           </button>
         </div>
         {isDataLoading ? (
@@ -231,8 +295,8 @@ export const Dashboard = () => {
                            <span>{new Date(c.interviewDate + 'T00:00:00').toLocaleDateString()}</span>
                         </td>
                         <td className="px-6 py-4">
-                          <span className={`font-bold ${totalScore >= 70 ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`}>
-                              {totalScore}/100
+                          <span className={`font-bold ${totalScore > 0 ? (totalScore >= 70 ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400') : 'text-gray-400'}`}>
+                              {totalScore > 0 ? `${totalScore}/100` : 'Pendente'}
                           </span>
                         </td>
                         <td className="px-6 py-4">
@@ -250,6 +314,7 @@ export const Dashboard = () => {
           </div>
         )}
       </div>
+      <ScheduleInterviewModal isOpen={isScheduleModalOpen} onClose={() => setIsScheduleModalOpen(false)} />
     </div>
   );
 };

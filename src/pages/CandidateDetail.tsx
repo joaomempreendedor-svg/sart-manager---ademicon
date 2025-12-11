@@ -41,7 +41,6 @@ export const CandidateDetail = () => {
   const handleAddToGoogleCalendar = (taskLabel: string, dueDate: string) => {
     const title = encodeURIComponent(`${taskLabel} - ${candidate.name}`);
     
-    // Format date to YYYYMMDD for Google Calendar URL
     const startDate = new Date(dueDate + 'T00:00:00');
     const endDate = new Date(startDate);
     endDate.setDate(startDate.getDate() + 1);
@@ -84,8 +83,11 @@ export const CandidateDetail = () => {
             <div>
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{candidate.name}</h1>
               <div className="flex items-center space-x-4 text-sm text-gray-500 dark:text-gray-400 mt-1">
-                 <span className="flex items-center"><Phone className="w-3 h-3 mr-1" /> {candidate.phone}</span>
-                 <span className="flex items-center"><Calendar className="w-3 h-3 mr-1" /> Entrevista: {new Date(candidate.interviewDate + 'T00:00:00').toLocaleDateString()}</span>
+                 <span className="flex items-center"><Phone className="w-3 h-3 mr-1" /> {candidate.phone || 'Não informado'}</span>
+                 <div className="flex items-center">
+                    <Calendar className="w-3 h-3 mr-1" /> Entrevista: {new Date(candidate.interviewDate + 'T00:00:00').toLocaleDateString()}
+                    <button onClick={() => handleAddToGoogleCalendar('Entrevista', candidate.interviewDate)} className="ml-2 p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full"><CalendarPlus className="w-4 h-4" /></button>
+                 </div>
               </div>
             </div>
           </div>
