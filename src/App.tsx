@@ -5,7 +5,6 @@ import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { Sidebar } from '@/components/Sidebar';
 import { Header } from '@/components/Header';
 import { Dashboard } from '@/pages/Dashboard';
-import { NewCandidate } from '@/pages/NewCandidate';
 import { CandidateDetail } from '@/pages/CandidateDetail';
 import { TemplateConfig } from '@/pages/TemplateConfig';
 import { ChecklistConfig } from '@/pages/ChecklistConfig';
@@ -116,7 +115,6 @@ const AppRoutes = () => {
       <Route element={<RequireAuth />}>
         <Route path="/" element={<Layout />}>
           <Route index element={<Dashboard />} />
-          <Route path="new" element={<NewCandidate />} />
           <Route path="candidate/:id" element={<CandidateDetail />} />
           <Route path="commissions" element={<Commissions />} />
           <Route path="feedbacks" element={<Feedbacks />} />
