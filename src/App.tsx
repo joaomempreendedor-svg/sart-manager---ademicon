@@ -20,6 +20,7 @@ import { Register } from '@/pages/Register';
 import { Profile } from '@/pages/Profile';
 import { CutoffConfig } from '@/pages/CutoffConfig';
 import { UpdatePassword } from '@/pages/UpdatePassword';
+import { Feedbacks } from '@/pages/Feedbacks';
 import { Loader2, RefreshCw } from 'lucide-react';
 
 const AppLoader = () => {
@@ -111,6 +112,7 @@ const AppRoutes = () => {
           <Route path="new" element={<NewCandidate />} />
           <Route path="candidate/:id" element={<CandidateDetail />} />
           <Route path="commissions" element={<Commissions />} />
+          <Route path="feedbacks" element={<Feedbacks />} />
           <Route path="materials" element={<Materials />} />
           <Route path="links" element={<ImportantLinks />} />
           <Route path="profile" element={<Profile />} />

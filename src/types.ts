@@ -177,6 +177,7 @@ export interface TeamMember {
   name: string;
   roles: TeamRole[];
   isActive: boolean;
+  feedbacks?: Feedback[];
 }
 
 // AUTHENTICATION
@@ -272,4 +273,7 @@ export interface AppContextType {
   addFeedback: (candidateId: string, feedback: Omit<Feedback, 'id'>) => Promise<void>;
   updateFeedback: (candidateId: string, feedback: Feedback) => Promise<void>;
   deleteFeedback: (candidateId: string, feedbackId: string) => Promise<void>;
+  addTeamMemberFeedback: (memberId: string, feedback: Omit<Feedback, 'id'>) => Promise<void>;
+  updateTeamMemberFeedback: (memberId: string, feedback: Feedback) => Promise<void>;
+  deleteTeamMemberFeedback: (memberId: string, feedbackId: string) => Promise<void>;
 }

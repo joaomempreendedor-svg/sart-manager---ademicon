@@ -1,23 +1,19 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
-import { ArrowLeft, CheckSquare, FileText, Phone, Calendar, Clock, MessageCircle, Paperclip, CheckCircle2, Target, Trash2, CalendarPlus, Star, Plus, Edit2 } from 'lucide-react';
-import { CandidateStatus, CommunicationTemplate, Feedback } from '@/types';
+import { ArrowLeft, CheckSquare, FileText, Phone, Calendar, Clock, MessageCircle, Paperclip, CheckCircle2, Target, Trash2, CalendarPlus } from 'lucide-react';
+import { CandidateStatus, CommunicationTemplate } from '@/types';
 import { MessageViewerModal } from '@/components/MessageViewerModal';
-import { FeedbackModal } from '@/components/FeedbackModal';
 
 export const CandidateDetail = () => {
   const { id } = useParams<{ id: string }>();
-  const { getCandidate, toggleChecklistItem, toggleConsultantGoal, updateCandidate, deleteCandidate, setChecklistDueDate, templates, checklistStructure, consultantGoalsStructure, interviewStructure, addFeedback, updateFeedback, deleteFeedback } = useApp();
+  const { getCandidate, toggleChecklistItem, toggleConsultantGoal, updateCandidate, deleteCandidate, setChecklistDueDate, templates, checklistStructure, consultantGoalsStructure, interviewStructure } = useApp();
   const navigate = useNavigate();
   const candidate = getCandidate(id || '');
-  const [activeTab, setActiveTab] = useState<'interview' | 'checklist' | 'goals' | 'feedbacks'>('checklist');
+  const [activeTab, setActiveTab] = useState<'checklist' | 'goals' | 'interview'>('checklist');
   
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<CommunicationTemplate | null>(null);
-
-  const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
-  const [editingFeedback, setEditingFeedback] = useState<Feedback | null>(null);
 
   if (!candidate) {
     return <div className="p-8 text-gray-500 dark:text-gray-400">Candidato não encontrado.</div>;
@@ -56,35 +52,6 @@ export const CandidateDetail = () => {
     
     const url = `https://www.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${dates}`;
     window.open(url, '_blank');
-  };
-
-  const handleScheduleFeedbackOnCalendar = (feedback: Feedback) => {
-    const title = encodeURIComponent(`Sessão de Feedback - ${candidate.name}`);
-    const startDate = new Date(feedback.date + 'T00:00:00');
-    const endDate = new Date(startDate);
-    endDate.setDate(startDate.getDate() + 1);
-
-    const formatDateForGoogle = (date: Date) => date.toISOString().split('T')[0].replace(/-/g, '');
-    
-    const dates = `${formatDateForGoogle(startDate)}/${formatDateForGoogle(endDate)}`;
-    const details = encodeURIComponent(`Anotações:\n${feedback.notes}`);
-    
-    const url = `https://www.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${dates}&details=${details}`;
-    window.open(url, '_blank');
-  };
-
-  const handleSaveFeedback = async (feedbackData: Omit<Feedback, 'id'> | Feedback) => {
-    if ('id' in feedbackData) {
-      await updateFeedback(candidate.id, feedbackData);
-    } else {
-      await addFeedback(candidate.id, feedbackData);
-    }
-  };
-
-  const handleDeleteFeedback = async (feedbackId: string) => {
-    if (confirm('Tem certeza que deseja excluir este feedback?')) {
-      await deleteFeedback(candidate.id, feedbackId);
-    }
   };
 
   const totalScore = Object.entries(candidate.interviewScores)
@@ -170,15 +137,6 @@ export const CandidateDetail = () => {
         >
           <Target className="w-4 h-4" />
           <span>Metas do Consultor</span>
-        </button>
-        <button
-          onClick={() => setActiveTab('feedbacks')}
-          className={`flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
-            activeTab === 'feedbacks' ? 'bg-white dark:bg-slate-700 text-brand-600 dark:text-brand-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
-          }`}
-        >
-          <Star className="w-4 h-4" />
-          <span>Feedbacks</span>
         </button>
         <button
           onClick={() => setActiveTab('interview')}
@@ -329,51 +287,6 @@ export const CandidateDetail = () => {
            </div>
         )}
 
-        {activeTab === 'feedbacks' && (
-          <div className="space-y-6">
-            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Histórico de Feedbacks</h2>
-                <button
-                  onClick={() => { setEditingFeedback(null); setIsFeedbackModalOpen(true); }}
-                  className="flex items-center space-x-2 bg-brand-500 hover:bg-brand-600 text-white px-4 py-2 rounded-lg transition text-sm font-medium"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Adicionar Feedback</span>
-                </button>
-              </div>
-              
-              {(candidate.feedbacks && candidate.feedbacks.length > 0) ? (
-                <div className="space-y-4">
-                  {candidate.feedbacks.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(fb => (
-                    <div key={fb.id} className="p-4 border border-gray-100 dark:border-slate-700 rounded-lg bg-gray-50 dark:bg-slate-700/50 group">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <p className="font-semibold text-gray-800 dark:text-gray-200">Feedback de {new Date(fb.date + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
-                          <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 whitespace-pre-wrap">{fb.notes}</p>
-                        </div>
-                        <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button onClick={() => handleScheduleFeedbackOnCalendar(fb)} className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-400 dark:hover:bg-blue-900/20 rounded-md" title="Agendar no Google Calendar">
-                            <CalendarPlus className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => { setEditingFeedback(fb); setIsFeedbackModalOpen(true); }} className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-400 dark:hover:bg-green-900/20 rounded-md" title="Editar">
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => handleDeleteFeedback(fb.id)} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-400 dark:hover:bg-red-900/20 rounded-md" title="Excluir">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-gray-500 dark:text-gray-400 text-center py-8">Nenhum feedback registrado ainda.</p>
-              )}
-            </div>
-          </div>
-        )}
-
         {activeTab === 'interview' && (
           <div className="bg-white dark:bg-slate-800 p-8 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm">
             <h2 className="text-xl font-bold mb-6 text-gray-900 dark:text-white">Resumo da Avaliação</h2>
@@ -437,13 +350,6 @@ export const CandidateDetail = () => {
             template={selectedTemplate}
           />
       )}
-
-      <FeedbackModal
-        isOpen={isFeedbackModalOpen}
-        onClose={() => setIsFeedbackModalOpen(false)}
-        onSave={handleSaveFeedback}
-        feedback={editingFeedback}
-      />
     </div>
   );
 };
