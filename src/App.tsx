@@ -62,11 +62,18 @@ const AppLoader = () => {
   );
 };
 
+const ProtectedContent = () => {
+  const { isDataLoading } = useApp();
+  if (isDataLoading) {
+    return <AppLoader />;
+  }
+  return <Outlet />;
+};
+
 const RequireAuth = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
-  const { isDataLoading } = useApp();
 
-  if (isAuthLoading || (user && isDataLoading)) {
+  if (isAuthLoading) {
     return <AppLoader />;
   }
 
@@ -74,7 +81,7 @@ const RequireAuth = () => {
     return <Navigate to="/login" replace />;
   }
 
-  return <Outlet />;
+  return <ProtectedContent />;
 };
 
 const Layout = () => {
