@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
-import { ArrowLeft, CheckSquare, FileText, Phone, Calendar, Clock, MessageCircle, Paperclip, CheckCircle2, Target, Trash2, CalendarPlus } from 'lucide-react';
-import { CandidateStatus, CommunicationTemplate } from '@/types';
+import { ArrowLeft, CheckSquare, FileText, Phone, Calendar, Clock, MessageCircle, Paperclip, CheckCircle2, Target, Trash2, CalendarPlus, Save, Loader2 } from 'lucide-react';
+import { CandidateStatus, CommunicationTemplate, InterviewScores } from '@/types';
 import { MessageViewerModal } from '@/components/MessageViewerModal';
 
 export const CandidateDetail = () => {
@@ -10,10 +10,55 @@ export const CandidateDetail = () => {
   const { getCandidate, toggleChecklistItem, toggleConsultantGoal, updateCandidate, deleteCandidate, setChecklistDueDate, templates, checklistStructure, consultantGoalsStructure, interviewStructure } = useApp();
   const navigate = useNavigate();
   const candidate = getCandidate(id || '');
-  const [activeTab, setActiveTab] = useState<'checklist' | 'goals' | 'interview'>('checklist');
   
+  const [activeTab, setActiveTab] = useState<'checklist' | 'goals' | 'interview'>('checklist');
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<CommunicationTemplate | null>(null);
+  
+  // State for interview form
+  const [scores, setScores] = useState<InterviewScores>(candidate?.interviewScores || { basicProfile: 0, commercialSkills: 0, behavioralProfile: 0, jobFit: 0, notes: '' });
+  const [checkedQuestions, setCheckedQuestions] = useState<Record<string, boolean>>(candidate?.checkedQuestions || {});
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (candidate) {
+      setScores(candidate.interviewScores);
+      setCheckedQuestions(candidate.checkedQuestions || {});
+    }
+  }, [candidate]);
+
+  const handleScoreChange = (sectionId: string, value: number) => {
+    setScores(prev => ({ ...prev, [sectionId]: value }));
+  };
+
+  const handleQuestionToggle = (questionId: string, points: number, sectionId: string) => {
+    const isCurrentlyChecked = !!checkedQuestions[questionId];
+    setCheckedQuestions(prev => ({ ...prev, [questionId]: !isCurrentlyChecked }));
+    
+    const currentScore = scores[sectionId] as number || 0;
+    const maxScore = interviewStructure.find(s => s.id === sectionId)?.maxPoints || 0;
+    let newScore = currentScore + (isCurrentlyChecked ? -points : points);
+    if (newScore > maxScore) newScore = maxScore;
+    if (newScore < 0) newScore = 0;
+    
+    setScores(prev => ({ ...prev, [sectionId]: newScore }));
+  };
+
+  const handleSaveInterview = async () => {
+    if (!candidate) return;
+    setIsSaving(true);
+    try {
+      await updateCandidate(candidate.id, {
+        interviewScores: scores,
+        checkedQuestions: checkedQuestions,
+      });
+    } catch (error) {
+      console.error("Failed to save interview:", error);
+      alert("Erro ao salvar avaliação.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   if (!candidate) {
     return <div className="p-8 text-gray-500 dark:text-gray-400">Candidato não encontrado.</div>;
@@ -40,20 +85,16 @@ export const CandidateDetail = () => {
 
   const handleAddToGoogleCalendar = (taskLabel: string, dueDate: string) => {
     const title = encodeURIComponent(`${taskLabel} - ${candidate.name}`);
-    
     const startDate = new Date(dueDate + 'T00:00:00');
     const endDate = new Date(startDate);
     endDate.setDate(startDate.getDate() + 1);
-
     const formatDateForGoogle = (date: Date) => date.toISOString().split('T')[0].replace(/-/g, '');
-    
     const dates = `${formatDateForGoogle(startDate)}/${formatDateForGoogle(endDate)}`;
-    
     const url = `https://www.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${dates}`;
     window.open(url, '_blank');
   };
 
-  const totalScore = Object.entries(candidate.interviewScores)
+  const totalScore = Object.entries(scores)
     .filter(([key]) => key !== 'notes')
     .reduce((sum, [_, val]) => sum + (typeof val === 'number' ? val : 0), 0);
 
@@ -291,54 +332,63 @@ export const CandidateDetail = () => {
 
         {activeTab === 'interview' && (
           <div className="bg-white dark:bg-slate-800 p-8 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm">
-            <h2 className="text-xl font-bold mb-6 text-gray-900 dark:text-white">Resumo da Avaliação</h2>
+            <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Formulário de Avaliação</h2>
+                <div className="flex items-center space-x-2">
+                    <span className={`text-2xl font-bold ${totalScore >= 70 ? 'text-green-600 dark:text-green-400' : 'text-brand-900 dark:text-brand-400'}`}>{totalScore}/100</span>
+                    <button onClick={handleSaveInterview} disabled={isSaving} className="flex items-center space-x-2 bg-brand-600 text-white px-4 py-2 rounded-lg hover:bg-brand-700 disabled:opacity-50">
+                        {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+                        <span>Salvar</span>
+                    </button>
+                </div>
+            </div>
             
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                {interviewStructure.map(section => {
-                    const score = (candidate.interviewScores as any)[section.id] ?? 0;
-                    return (
-                        <div key={section.id} className="p-4 bg-gray-50 dark:bg-slate-700 rounded-lg text-center">
-                            <div className="text-sm text-gray-500 dark:text-gray-400 mb-1 truncate" title={section.title}>{section.title}</div>
-                            <div className="text-2xl font-bold text-gray-900 dark:text-white">{score}/{section.maxPoints}</div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div className="space-y-6">
+                    {interviewStructure.map(section => (
+                        <div key={section.id}>
+                            <h3 className="font-semibold text-gray-800 dark:text-gray-200 mb-3">{section.title}</h3>
+                            <div className="mb-4">
+                                <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-1">
+                                    <span>0</span>
+                                    <span>{section.maxPoints}</span>
+                                </div>
+                                <input 
+                                    type="range" 
+                                    min="0" 
+                                    max={section.maxPoints} 
+                                    value={(scores[section.id] as number) || 0}
+                                    onChange={(e) => handleScoreChange(section.id, parseInt(e.target.value))}
+                                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
+                                />
+                                <div className="text-center font-bold text-brand-600 dark:text-brand-400 mt-1">{(scores[section.id] as number) || 0} pts</div>
+                            </div>
+                            <div className="space-y-2">
+                                {section.questions.map(q => (
+                                    <label key={q.id} className="flex items-center space-x-2 cursor-pointer p-2 rounded hover:bg-gray-50 dark:hover:bg-slate-700/50">
+                                        <input 
+                                            type="checkbox"
+                                            checked={!!checkedQuestions[q.id]}
+                                            onChange={() => handleQuestionToggle(q.id, q.points, section.id)}
+                                            className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+                                        />
+                                        <span className="text-sm text-gray-700 dark:text-gray-300">{q.text} <span className="text-xs text-gray-400">({q.points} pts)</span></span>
+                                    </label>
+                                ))}
+                            </div>
                         </div>
-                    );
-                })}
-            </div>
-            
-            <div className="flex justify-between items-center bg-brand-50 dark:bg-brand-900/20 p-6 rounded-lg mb-8">
-                <span className="text-lg font-medium text-brand-900 dark:text-brand-100">Nota Final Total</span>
-                <span className={`text-4xl font-bold ${totalScore >= 70 ? 'text-green-600 dark:text-green-400' : 'text-brand-900 dark:text-brand-400'}`}>{totalScore}/100</span>
-            </div>
-
-            <div className="mb-6 space-y-6">
-                <h3 className="font-semibold text-gray-900 dark:text-white border-b dark:border-slate-700 pb-2">Detalhamento das Respostas</h3>
-                {interviewStructure.map(section => (
-                    <div key={section.id}>
-                        <h4 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">{section.title}</h4>
-                        <ul className="space-y-2">
-                            {section.questions.map(q => {
-                                const isChecked = candidate.checkedQuestions ? candidate.checkedQuestions[q.id] : false;
-                                return (
-                                    <li key={q.id} className="flex items-start text-sm">
-                                        <div className={`mr-2 mt-0.5 ${isChecked ? 'text-green-600 dark:text-green-400' : 'text-gray-300 dark:text-slate-600'}`}>
-                                            <CheckCircle2 className="w-4 h-4" />
-                                        </div>
-                                        <span className={isChecked ? 'text-gray-900 dark:text-gray-100' : 'text-gray-400 dark:text-gray-500'}>
-                                            {q.text} <span className="text-xs opacity-75">({q.points} pts)</span>
-                                        </span>
-                                    </li>
-                                );
-                            })}
-                        </ul>
-                    </div>
-                ))}
-            </div>
-
-            <div className="mb-6 pt-4 border-t border-gray-100 dark:border-slate-700">
-                <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Anotações do Entrevistador</h3>
-                <p className="text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-slate-700 p-4 rounded-lg border border-gray-100 dark:border-slate-600 whitespace-pre-wrap">
-                    {candidate.interviewScores.notes || 'Nenhuma anotação registrada.'}
-                </p>
+                    ))}
+                </div>
+                <div>
+                    <h3 className="font-semibold text-gray-800 dark:text-gray-200 mb-3">Anotações Gerais</h3>
+                    <textarea 
+                        value={scores.notes}
+                        onChange={(e) => setScores(prev => ({ ...prev, notes: e.target.value }))}
+                        rows={20}
+                        className="w-full p-3 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 focus:ring-brand-500 focus:border-brand-500"
+                        placeholder="Digite aqui as anotações sobre o candidato..."
+                    />
+                </div>
             </div>
           </div>
         )}

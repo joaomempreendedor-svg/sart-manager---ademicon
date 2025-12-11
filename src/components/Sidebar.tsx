@@ -53,10 +53,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isSidebarOpen, toggleSidebar }
             <LayoutDashboard className="w-5 h-5" />
             <span>Dashboard</span>
           </NavLink>
-          <NavLink to="/new" className={linkClass} onClick={toggleSidebar}>
-            <PlusCircle className="w-5 h-5" />
-            <span>Nova Entrevista</span>
-          </NavLink>
           <NavLink to="/commissions" className={linkClass} onClick={toggleSidebar}>
             <Banknote className="w-5 h-5" />
             <span>Comissões</span>
