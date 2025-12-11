@@ -40,7 +40,7 @@ export const Dashboard = () => {
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
 
   const totalCandidates = candidates.length;
-  const authorized = candidates.filter(c => c.status === 'Autorizado').length;
+  const authorized = teamMembers.filter(m => m.isActive && m.roles.includes('Autorizado')).length;
   const inTraining = candidates.filter(c => c.status === 'Acompanhamento 90 Dias').length;
   const activeTeam = teamMembers.filter(m => m.isActive).length;
 
