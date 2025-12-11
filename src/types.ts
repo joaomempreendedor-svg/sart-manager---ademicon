@@ -34,6 +34,12 @@ export interface ChecklistTaskState {
   dueDate?: string; // ISO Date YYYY-MM-DD
 }
 
+export interface Feedback {
+  id: string;
+  date: string; // YYYY-MM-DD
+  notes: string;
+}
+
 export interface Candidate {
   id: string; // Client-side UUID
   db_id?: string; // Database primary key
@@ -47,6 +53,7 @@ export interface Candidate {
   checkedQuestions?: Record<string, boolean>; // questionId -> boolean
   checklistProgress: Record<string, ChecklistTaskState>; // map of taskId -> state
   consultantGoalsProgress: Record<string, boolean>; // map of goalId -> completed
+  feedbacks?: Feedback[];
   createdAt: string;
 }
 
@@ -262,4 +269,7 @@ export interface AppContextType {
   addImportantLink: (link: ImportantLink) => Promise<void>;
   updateImportantLink: (id: string, updates: Partial<ImportantLink>) => Promise<void>;
   deleteImportantLink: (id: string) => Promise<void>;
+  addFeedback: (candidateId: string, feedback: Omit<Feedback, 'id'>) => Promise<void>;
+  updateFeedback: (candidateId: string, feedback: Feedback) => Promise<void>;
+  deleteFeedback: (candidateId: string, feedbackId: string) => Promise<void>;
 }
