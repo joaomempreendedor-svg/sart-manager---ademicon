@@ -73,7 +73,7 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({ 
 
   const handleGoToCandidate = () => {
     if (savedCandidate) {
-      navigate(`/candidate/${savedCandidate.id}`);
+      navigate(`/candidate/${savedCandidate.id}`, { state: { openInterviewTab: true } });
       handleClose();
     }
   };

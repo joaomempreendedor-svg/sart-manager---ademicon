@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
 import { ArrowLeft, CheckSquare, FileText, Phone, Calendar, Clock, MessageCircle, Paperclip, CheckCircle2, Target, Trash2, CalendarPlus, Save, Loader2 } from 'lucide-react';
 import { CandidateStatus, CommunicationTemplate, InterviewScores } from '@/types';
@@ -9,9 +9,12 @@ export const CandidateDetail = () => {
   const { id } = useParams<{ id: string }>();
   const { getCandidate, toggleChecklistItem, toggleConsultantGoal, updateCandidate, deleteCandidate, setChecklistDueDate, templates, checklistStructure, consultantGoalsStructure, interviewStructure } = useApp();
   const navigate = useNavigate();
+  const location = useLocation();
   const candidate = getCandidate(id || '');
   
-  const [activeTab, setActiveTab] = useState<'checklist' | 'goals' | 'interview'>('checklist');
+  const [activeTab, setActiveTab] = useState<'checklist' | 'goals' | 'interview'>(
+    location.state?.openInterviewTab ? 'interview' : 'checklist'
+  );
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<CommunicationTemplate | null>(null);
   
