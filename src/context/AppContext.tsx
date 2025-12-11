@@ -248,7 +248,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           const { data } = configResult;
           setChecklistStructure(data.checklistStructure || DEFAULT_STAGES);
           setConsultantGoalsStructure(data.consultantGoalsStructure || DEFAULT_GOALS);
-          setInterviewStructure(data.interviewStructure || INITIAL_INTERVIEW_STRUCTURE);
+          
+          const loadedInterviewStructure = data.interviewStructure || INITIAL_INTERVIEW_STRUCTURE;
+          const uniqueInterviewSections = Array.from(new Map(loadedInterviewStructure.map((item: InterviewSection) => [item.id, item])).values());
+          setInterviewStructure(uniqueInterviewSections);
+
           setTemplates(data.templates || {});
           setOrigins(data.origins || []);
           setInterviewers(data.interviewers || []);

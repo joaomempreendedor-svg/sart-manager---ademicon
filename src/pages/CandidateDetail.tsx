@@ -338,7 +338,7 @@ export const CandidateDetail = () => {
                     <span className={`text-2xl font-bold ${totalScore >= 70 ? 'text-green-600 dark:text-green-400' : 'text-brand-900 dark:text-brand-400'}`}>{totalScore}/100</span>
                     <button onClick={handleSaveInterview} disabled={isSaving} className="flex items-center space-x-2 bg-brand-600 text-white px-4 py-2 rounded-lg hover:bg-brand-700 disabled:opacity-50">
                         {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-                        <span>Salvar</span>
+                        <span>Salvar Avaliação</span>
                     </button>
                 </div>
             </div>
