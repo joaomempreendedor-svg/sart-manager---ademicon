@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Feedback } from '@/types';
-import { X, Save, Loader2, Calendar, MessageSquare } from 'lucide-react';
+import { X, Save, Loader2, Calendar, MessageSquare, Type } from 'lucide-react';
 
 interface FeedbackModalProps {
   isOpen: boolean;
@@ -11,31 +11,34 @@ interface FeedbackModalProps {
 
 export const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose, onSave, feedback }) => {
   const [date, setDate] = useState('');
+  const [title, setTitle] = useState('');
   const [notes, setNotes] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (feedback) {
       setDate(feedback.date);
+      setTitle(feedback.title);
       setNotes(feedback.notes);
     } else {
       setDate(new Date().toISOString().split('T')[0]);
+      setTitle('');
       setNotes('');
     }
   }, [feedback, isOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!notes.trim()) {
-      alert('As anotações do feedback são obrigatórias.');
+    if (!title.trim() || !notes.trim()) {
+      alert('Título e anotações do feedback são obrigatórios.');
       return;
     }
     setIsSaving(true);
     try {
       if (feedback) {
-        await onSave({ ...feedback, date, notes });
+        await onSave({ ...feedback, date, title, notes });
       } else {
-        await onSave({ date, notes });
+        await onSave({ date, title, notes });
       }
       onClose();
     } catch (error: any) {
@@ -58,6 +61,11 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose, o
         </div>
         <form onSubmit={handleSubmit}>
           <div className="p-6 space-y-4">
+            <div className="relative">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Título do Feedback</label>
+              <Type className="absolute left-3 top-9 w-4 h-4 text-gray-400" />
+              <input type="text" value={title} onChange={e => setTitle(e.target.value)} required className="w-full pl-10 p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600" placeholder="Ex: Feedback Semanal" />
+            </div>
             <div className="relative">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Data do Feedback</label>
               <Calendar className="absolute left-3 top-9 w-4 h-4 text-gray-400" />

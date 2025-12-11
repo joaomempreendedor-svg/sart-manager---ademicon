@@ -38,20 +38,26 @@ export const Feedbacks = () => {
 
     if (selectedPerson.type === 'candidate') {
       if ('id' in feedbackData) {
-        await updateFeedback(selectedPerson.id, feedbackData);
+        await updateFeedback(selectedPerson.id, feedbackData as Feedback);
       } else {
-        await addFeedback(selectedPerson.id, feedbackData);
+        await addFeedback(selectedPerson.id, feedbackData as Omit<Feedback, 'id'>);
       }
     } else { // teamMember
       if ('id' in feedbackData) {
-        await updateTeamMemberFeedback(selectedPerson.id, feedbackData);
+        await updateTeamMemberFeedback(selectedPerson.id, feedbackData as Feedback);
       } else {
-        await addTeamMemberFeedback(selectedPerson.id, feedbackData);
+        await addTeamMemberFeedback(selectedPerson.id, feedbackData as Omit<Feedback, 'id'>);
       }
     }
-    // Refresh selected person to show new feedback
-    const updatedPerson = allPeople.find(p => p.id === selectedPerson.id && p.type === selectedPerson.type);
-    if(updatedPerson) setSelectedPerson(updatedPerson);
+    // This is a workaround to refresh the data, ideally the context update should trigger this
+    const updatedCandidates = candidates.map(c => c.id === selectedPerson.id ? {...c, feedbacks: (c.feedbacks || []).concat([feedbackData as Feedback])} : c);
+    const updatedTeamMembers = teamMembers.map(m => m.id === selectedPerson.id ? {...m, feedbacks: (m.feedbacks || []).concat([feedbackData as Feedback])} : m);
+    const updatedAllPeople: Person[] = [
+        ...updatedCandidates.map(c => ({ ...c, type: 'candidate' as const })),
+        ...updatedTeamMembers.map(m => ({ ...m, type: 'teamMember' as const }))
+    ].sort((a, b) => a.name.localeCompare(b.name));
+    const refreshedPerson = updatedAllPeople.find(p => p.id === selectedPerson.id && p.type === selectedPerson.type);
+    if(refreshedPerson) setSelectedPerson(refreshedPerson);
   };
 
   const handleDeleteFeedback = async (feedbackId: string) => {
@@ -62,13 +68,16 @@ export const Feedbacks = () => {
     } else {
       await deleteTeamMemberFeedback(selectedPerson.id, feedbackId);
     }
-    const updatedPerson = allPeople.find(p => p.id === selectedPerson.id && p.type === selectedPerson.type);
-    if(updatedPerson) setSelectedPerson(updatedPerson);
+    const updatedPerson = {
+        ...selectedPerson,
+        feedbacks: selectedPerson.feedbacks?.filter(f => f.id !== feedbackId)
+    };
+    setSelectedPerson(updatedPerson);
   };
 
   const handleScheduleOnCalendar = (feedback: Feedback) => {
     if (!selectedPerson) return;
-    const title = encodeURIComponent(`Sessão de Feedback - ${selectedPerson.name}`);
+    const title = encodeURIComponent(`${feedback.title} - ${selectedPerson.name}`);
     const startDate = new Date(feedback.date + 'T00:00:00');
     const endDate = new Date(startDate);
     endDate.setDate(startDate.getDate() + 1);
@@ -139,7 +148,10 @@ export const Feedbacks = () => {
                     <div key={fb.id} className="p-4 border border-gray-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 group">
                       <div className="flex justify-between items-start">
                         <div>
-                          <p className="font-semibold text-gray-800 dark:text-gray-200">Feedback de {new Date(fb.date + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
+                          <p className="font-semibold text-gray-800 dark:text-gray-200">{fb.title}</p>
+                          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                            {new Date(fb.date + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
+                          </p>
                           <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 whitespace-pre-wrap">{fb.notes}</p>
                         </div>
                         <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">

@@ -37,6 +37,7 @@ export interface ChecklistTaskState {
 export interface Feedback {
   id: string;
   date: string; // YYYY-MM-DD
+  title: string;
   notes: string;
 }
 
