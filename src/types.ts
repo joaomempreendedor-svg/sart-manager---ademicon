@@ -300,7 +300,7 @@ export interface AppContextType {
   // Novas funções para onboarding
   addOnlineOnboardingSession: (consultantName: string) => Promise<OnboardingSession | null>;
   deleteOnlineOnboardingSession: (sessionId: string) => Promise<void>;
-  addVideoToOnboardingSession: (sessionId: string, title: string, file: File) => Promise<void>;
+  addVideoToOnboardingSession: (sessionId: string, title: string, url: string) => Promise<void>;
   deleteVideoFromOnboardingSession: (videoId: string, videoUrl: string) => Promise<void>;
   markVideoAsCompleted: (videoId: string) => Promise<void>;
 }

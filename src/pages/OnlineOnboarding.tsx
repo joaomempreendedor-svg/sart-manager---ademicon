@@ -19,7 +19,7 @@ export const OnlineOnboarding = () => {
 
   const [isUploading, setIsUploading] = useState(false);
   const [uploadTitle, setUploadTitle] = useState('');
-  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadUrl, setUploadUrl] = useState('');
 
   useEffect(() => {
     if (selectedSession) {
@@ -63,15 +63,14 @@ export const OnlineOnboarding = () => {
 
   const handleAddVideo = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedSession || !uploadFile || !uploadTitle.trim()) return;
+    if (!selectedSession || !uploadUrl.trim() || !uploadTitle.trim()) return;
     setIsUploading(true);
     try {
-      await addVideoToOnboardingSession(selectedSession.id, uploadTitle.trim(), uploadFile);
+      await addVideoToOnboardingSession(selectedSession.id, uploadTitle.trim(), uploadUrl.trim());
       setUploadTitle('');
-      setUploadFile(null);
-      (document.getElementById('video-upload-input') as HTMLInputElement).value = '';
+      setUploadUrl('');
     } catch (error) {
-      alert('Falha ao enviar vídeo.');
+      alert('Falha ao adicionar vídeo.');
     } finally {
       setIsUploading(false);
     }
@@ -158,10 +157,10 @@ export const OnlineOnboarding = () => {
                 <h3 className="font-semibold mb-4">Adicionar Vídeo</h3>
                 <form onSubmit={handleAddVideo} className="space-y-3">
                   <input type="text" placeholder="Título do vídeo" value={uploadTitle} onChange={e => setUploadTitle(e.target.value)} required className="w-full p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600" />
-                  <input id="video-upload-input" type="file" accept="video/mp4,video/quicktime" onChange={e => setUploadFile(e.target.files?.[0] || null)} required className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100" />
+                  <input type="url" placeholder="Link do YouTube (Ex: https://...)" value={uploadUrl} onChange={e => setUploadUrl(e.target.value)} required className="w-full p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600" />
                   <button type="submit" disabled={isUploading} className="flex items-center space-x-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition text-sm font-medium disabled:opacity-50">
-                    {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                    <span>{isUploading ? 'Enviando...' : 'Enviar Vídeo'}</span>
+                    {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                    <span>{isUploading ? 'Adicionando...' : 'Adicionar Vídeo'}</span>
                   </button>
                 </form>
               </div>

@@ -4,6 +4,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { OnboardingSession } from '@/types';
 import { Loader2, CheckCircle2, PlayCircle, TrendingUp } from 'lucide-react';
 
+const getYouTubeID = (url: string): string | null => {
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+  const match = url.match(regExp);
+  return (match && match[2].length === 11) ? match[2] : null;
+};
+
 export const PublicOnboarding = () => {
   const { sessionId } = useParams<{ sessionId: string }>();
   const [session, setSession] = useState<OnboardingSession | null>(null);
@@ -114,36 +120,49 @@ export const PublicOnboarding = () => {
         </div>
 
         <div className="space-y-6">
-          {session.videos.map((video, index) => (
-            <div key={video.id} className="bg-white p-6 rounded-lg shadow-md">
-              <div className="flex flex-col md:flex-row md:items-center justify-between">
-                <div className="flex items-center space-x-4 mb-4 md:mb-0">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg ${completedVideos.has(video.id) ? 'bg-green-500 text-white' : 'bg-brand-500 text-white'}`}>
-                    {completedVideos.has(video.id) ? <CheckCircle2 size={24} /> : index + 1}
+          {session.videos.map((video, index) => {
+            const youtubeId = getYouTubeID(video.video_url);
+            return (
+              <div key={video.id} className="bg-white p-6 rounded-lg shadow-md">
+                <div className="flex flex-col md:flex-row md:items-center justify-between">
+                  <div className="flex items-center space-x-4 mb-4 md:mb-0">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg ${completedVideos.has(video.id) ? 'bg-green-500 text-white' : 'bg-brand-500 text-white'}`}>
+                      {completedVideos.has(video.id) ? <CheckCircle2 size={24} /> : index + 1}
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-800">{video.title}</h3>
                   </div>
-                  <h3 className="text-lg font-semibold text-gray-800">{video.title}</h3>
+                  <button
+                    onClick={() => handleMarkAsCompleted(video.id)}
+                    disabled={completedVideos.has(video.id)}
+                    className={`px-4 py-2 rounded-md font-semibold text-sm flex items-center space-x-2 transition ${
+                      completedVideos.has(video.id)
+                        ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                        : 'bg-green-500 text-white hover:bg-green-600'
+                    }`}
+                  >
+                    {completedVideos.has(video.id) ? <CheckCircle2 size={18} /> : <PlayCircle size={18} />}
+                    <span>{completedVideos.has(video.id) ? 'Concluído' : 'Marcar como Concluído'}</span>
+                  </button>
                 </div>
-                <button
-                  onClick={() => handleMarkAsCompleted(video.id)}
-                  disabled={completedVideos.has(video.id)}
-                  className={`px-4 py-2 rounded-md font-semibold text-sm flex items-center space-x-2 transition ${
-                    completedVideos.has(video.id)
-                      ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                      : 'bg-green-500 text-white hover:bg-green-600'
-                  }`}
-                >
-                  {completedVideos.has(video.id) ? <CheckCircle2 size={18} /> : <PlayCircle size={18} />}
-                  <span>{completedVideos.has(video.id) ? 'Concluído' : 'Marcar como Concluído'}</span>
-                </button>
+                <div className="mt-4 aspect-video bg-black rounded-lg overflow-hidden">
+                  {youtubeId ? (
+                    <iframe
+                      className="w-full h-full"
+                      src={`https://www.youtube.com/embed/${youtubeId}?rel=0`}
+                      title={video.title}
+                      frameBorder="0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    ></iframe>
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-white bg-gray-800">
+                      Link do vídeo inválido.
+                    </div>
+                  )}
+                </div>
               </div>
-              <div className="mt-4 aspect-video bg-black rounded-lg overflow-hidden">
-                <video controls className="w-full h-full" controlsList="nodownload">
-                  <source src={video.video_url} type="video/mp4" />
-                  Seu navegador não suporta o player de vídeo.
-                </video>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </main>
     </div>
