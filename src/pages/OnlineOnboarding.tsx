@@ -1,42 +1,36 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '@/context/AppContext';
-import { OnboardingSession, OnboardingVideo } from '@/types';
-import { Plus, Trash2, Loader2, Link as LinkIcon, Copy, Check, Upload, Video, XCircle } from 'lucide-react';
+import { OnboardingSession, OnboardingVideoTemplate } from '@/types';
+import { Plus, Trash2, Loader2, Link as LinkIcon, Copy, Check, Video, XCircle, ListVideo } from 'lucide-react';
 
 export const OnlineOnboarding = () => {
   const { 
     onboardingSessions, 
+    onboardingTemplateVideos,
     addOnlineOnboardingSession, 
     deleteOnlineOnboardingSession,
-    addVideoToOnboardingSession,
-    deleteVideoFromOnboardingSession
+    addVideoToTemplate,
+    deleteVideoFromTemplate
   } = useApp();
 
   const [newConsultantName, setNewConsultantName] = useState('');
   const [isCreating, setIsCreating] = useState(false);
-  const [selectedSession, setSelectedSession] = useState<OnboardingSession | null>(null);
   const [copiedLink, setCopiedLink] = useState('');
 
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadTitle, setUploadTitle] = useState('');
-  const [uploadUrl, setUploadUrl] = useState('');
-
-  useEffect(() => {
-    if (selectedSession) {
-      const updatedSession = onboardingSessions.find(s => s.id === selectedSession.id);
-      setSelectedSession(updatedSession || null);
-    }
-  }, [onboardingSessions, selectedSession]);
+  const [isAddingVideo, setIsAddingVideo] = useState(false);
+  const [newVideoTitle, setNewVideoTitle] = useState('');
+  const [newVideoUrl, setNewVideoUrl] = useState('');
 
   const handleCreateSession = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newConsultantName.trim()) return;
+    if (onboardingTemplateVideos.length === 0) {
+      alert("Adicione pelo menos um vídeo ao template padrão antes de criar uma sessão.");
+      return;
+    }
     setIsCreating(true);
     try {
-      const newSession = await addOnlineOnboardingSession(newConsultantName.trim());
-      if (newSession) {
-        setSelectedSession(newSession);
-      }
+      await addOnlineOnboardingSession(newConsultantName.trim());
       setNewConsultantName('');
     } catch (error) {
       alert('Falha ao criar sessão.');
@@ -46,11 +40,8 @@ export const OnlineOnboarding = () => {
   };
 
   const handleDeleteSession = async (sessionId: string) => {
-    if (window.confirm("Tem certeza que deseja excluir esta sessão de onboarding? Todos os vídeos serão perdidos.")) {
+    if (window.confirm("Tem certeza que deseja excluir esta sessão de onboarding?")) {
       await deleteOnlineOnboardingSession(sessionId);
-      if (selectedSession?.id === sessionId) {
-        setSelectedSession(null);
-      }
     }
   };
 
@@ -61,24 +52,18 @@ export const OnlineOnboarding = () => {
     setTimeout(() => setCopiedLink(''), 2000);
   };
 
-  const handleAddVideo = async (e: React.FormEvent) => {
+  const handleAddVideoToTemplate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedSession || !uploadUrl.trim() || !uploadTitle.trim()) return;
-    setIsUploading(true);
+    if (!newVideoTitle.trim() || !newVideoUrl.trim()) return;
+    setIsAddingVideo(true);
     try {
-      await addVideoToOnboardingSession(selectedSession.id, uploadTitle.trim(), uploadUrl.trim());
-      setUploadTitle('');
-      setUploadUrl('');
+      await addVideoToTemplate(newVideoTitle.trim(), newVideoUrl.trim());
+      setNewVideoTitle('');
+      setNewVideoUrl('');
     } catch (error) {
-      alert('Falha ao adicionar vídeo.');
+      alert('Falha ao adicionar vídeo ao template.');
     } finally {
-      setIsUploading(false);
-    }
-  };
-
-  const handleDeleteVideo = async (video: OnboardingVideo) => {
-    if (window.confirm(`Tem certeza que deseja excluir o vídeo "${video.title}"?`)) {
-      await deleteVideoFromOnboardingSession(video.id, video.video_url);
+      setIsAddingVideo(false);
     }
   };
 
@@ -90,108 +75,91 @@ export const OnlineOnboarding = () => {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-theme(spacing.16))] max-h-screen overflow-hidden bg-gray-50 dark:bg-slate-900">
-      <div className="bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 px-6 py-4 shrink-0">
-        <h1 className="text-xl font-bold text-gray-900 dark:text-white">Onboarding Online</h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400">Crie e gerencie os treinamentos em vídeo para novos consultores.</p>
+    <div className="p-8 max-w-6xl mx-auto min-h-screen">
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Onboarding Online</h1>
+        <p className="text-gray-500 dark:text-gray-400">Crie e gerencie os treinamentos em vídeo para novos consultores.</p>
       </div>
 
-      <div className="flex flex-1 overflow-hidden">
-        <aside className="w-80 bg-white dark:bg-slate-800 border-r border-gray-200 dark:border-slate-700 overflow-y-auto flex-shrink-0 custom-scrollbar">
-          <div className="p-4 border-b border-gray-100 dark:border-slate-700">
-            <form onSubmit={handleCreateSession} className="space-y-2">
-              <input
-                type="text"
-                value={newConsultantName}
-                onChange={e => setNewConsultantName(e.target.value)}
-                placeholder="Nome do novo consultor"
-                className="w-full p-2 border rounded bg-gray-50 dark:bg-slate-700 border-gray-200 dark:border-slate-600"
-              />
-              <button type="submit" disabled={isCreating} className="w-full flex items-center justify-center space-x-2 bg-brand-500 hover:bg-brand-600 text-white px-4 py-2 rounded-lg transition text-sm font-medium disabled:opacity-50">
-                {isCreating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                <span>Criar Sessão</span>
-              </button>
-            </form>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Gerenciar Template */}
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm space-y-6">
+          <div>
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center"><ListVideo className="w-5 h-5 mr-2 text-brand-500" />Template Padrão de Vídeos</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Esta é a lista de vídeos que será copiada para cada novo consultor.</p>
           </div>
-          <div className="p-2">
-            {onboardingSessions.map(session => (
-              <button
-                key={session.id}
-                onClick={() => setSelectedSession(session)}
-                className={`w-full text-left p-3 rounded-lg flex items-center justify-between transition-colors ${selectedSession?.id === session.id ? 'bg-brand-50 dark:bg-brand-900/20' : 'hover:bg-gray-50 dark:hover:bg-slate-700'}`}
-              >
-                <div>
-                  <p className={`font-medium ${selectedSession?.id === session.id ? 'text-brand-800 dark:text-brand-200' : 'text-gray-800 dark:text-gray-200'}`}>{session.consultant_name}</p>
-                  <p className="text-xs text-gray-400">{new Date(session.created_at).toLocaleDateString()}</p>
+          
+          <div className="space-y-3">
+            {onboardingTemplateVideos.map(video => (
+              <div key={video.id} className="bg-gray-50 dark:bg-slate-700/50 p-3 rounded-lg flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <Video className="w-5 h-5 text-gray-400" />
+                  <span className="font-medium text-sm">{video.title}</span>
                 </div>
-                <div className="text-xs font-bold text-brand-600">{getProgress(session)}%</div>
-              </button>
+                <button onClick={() => deleteVideoFromTemplate(video.id)} className="p-1.5 text-gray-400 hover:text-red-500 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20">
+                  <XCircle className="w-5 h-5" />
+                </button>
+              </div>
+            ))}
+            {onboardingTemplateVideos.length === 0 && (
+              <p className="text-center text-sm text-gray-400 py-4">Nenhum vídeo no template.</p>
+            )}
+          </div>
+
+          <form onSubmit={handleAddVideoToTemplate} className="space-y-3 pt-4 border-t border-gray-100 dark:border-slate-700">
+            <h3 className="font-semibold text-sm">Adicionar Vídeo ao Template</h3>
+            <input type="text" placeholder="Título do vídeo" value={newVideoTitle} onChange={e => setNewVideoTitle(e.target.value)} required className="w-full p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600" />
+            <input type="url" placeholder="Link do YouTube (Ex: https://...)" value={newVideoUrl} onChange={e => setNewVideoUrl(e.target.value)} required className="w-full p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600" />
+            <button type="submit" disabled={isAddingVideo} className="flex items-center space-x-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition text-sm font-medium disabled:opacity-50">
+              {isAddingVideo ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+              <span>{isAddingVideo ? 'Adicionando...' : 'Adicionar Vídeo'}</span>
+            </button>
+          </form>
+        </div>
+
+        {/* Sessões dos Consultores */}
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm space-y-6">
+          <div>
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white">Sessões dos Consultores</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Crie uma sessão para um novo consultor para que ele possa iniciar o treinamento.</p>
+          </div>
+
+          <form onSubmit={handleCreateSession} className="space-y-2">
+            <input
+              type="text"
+              value={newConsultantName}
+              onChange={e => setNewConsultantName(e.target.value)}
+              placeholder="Nome do novo consultor"
+              className="w-full p-2 border rounded bg-gray-50 dark:bg-slate-700 border-gray-200 dark:border-slate-600"
+            />
+            <button type="submit" disabled={isCreating} className="w-full flex items-center justify-center space-x-2 bg-brand-500 hover:bg-brand-600 text-white px-4 py-2 rounded-lg transition text-sm font-medium disabled:opacity-50">
+              {isCreating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+              <span>Criar e Enviar Sessão</span>
+            </button>
+          </form>
+
+          <div className="space-y-3 pt-4 border-t border-gray-100 dark:border-slate-700">
+            {onboardingSessions.map(session => (
+              <div key={session.id} className="bg-gray-50 dark:bg-slate-700/50 p-3 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold">{session.consultant_name}</p>
+                    <p className="text-xs text-gray-400">Criado em: {new Date(session.created_at).toLocaleDateString()}</p>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-xs font-bold text-brand-600">{getProgress(session)}%</span>
+                    <button onClick={() => handleCopyLink(session.id)} className="p-2 bg-gray-200 dark:bg-slate-600 rounded-md hover:bg-gray-300" title="Copiar link">
+                      {copiedLink === session.id ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+                    </button>
+                    <button onClick={() => handleDeleteSession(session.id)} className="p-2 bg-red-50 dark:bg-red-900/20 text-red-600 rounded-md hover:bg-red-100" title="Excluir sessão">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
             ))}
           </div>
-        </aside>
-
-        <main className="flex-1 overflow-y-auto p-8">
-          {selectedSession ? (
-            <div className="space-y-8">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{selectedSession.consultant_name}</h2>
-                <div className="mt-2 flex items-center space-x-2">
-                  <div className="relative flex-1">
-                    <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input
-                      readOnly
-                      value={`${window.location.origin}${window.location.pathname}#/onboarding/${selectedSession.id}`}
-                      className="w-full pl-9 p-2 border rounded bg-gray-100 dark:bg-slate-700 border-gray-200 dark:border-slate-600 text-sm text-gray-500"
-                    />
-                  </div>
-                  <button onClick={() => handleCopyLink(selectedSession.id)} className="p-2 bg-gray-200 dark:bg-slate-600 rounded-md hover:bg-gray-300">
-                    {copiedLink === selectedSession.id ? <Check className="w-5 h-5 text-green-600" /> : <Copy className="w-5 h-5" />}
-                  </button>
-                  <button onClick={() => handleDeleteSession(selectedSession.id)} className="p-2 bg-red-50 dark:bg-red-900/20 text-red-600 rounded-md hover:bg-red-100">
-                    <Trash2 className="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
-
-              <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm">
-                <h3 className="font-semibold mb-4">Adicionar Vídeo</h3>
-                <form onSubmit={handleAddVideo} className="space-y-3">
-                  <input type="text" placeholder="Título do vídeo" value={uploadTitle} onChange={e => setUploadTitle(e.target.value)} required className="w-full p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600" />
-                  <input type="url" placeholder="Link do YouTube (Ex: https://...)" value={uploadUrl} onChange={e => setUploadUrl(e.target.value)} required className="w-full p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600" />
-                  <button type="submit" disabled={isUploading} className="flex items-center space-x-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition text-sm font-medium disabled:opacity-50">
-                    {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                    <span>{isUploading ? 'Adicionando...' : 'Adicionar Vídeo'}</span>
-                  </button>
-                </form>
-              </div>
-
-              <div>
-                <h3 className="font-semibold mb-4">Vídeos do Onboarding ({selectedSession.videos.length})</h3>
-                <div className="space-y-3">
-                  {selectedSession.videos.map(video => (
-                    <div key={video.id} className="bg-white dark:bg-slate-800 p-3 rounded-lg border border-gray-200 dark:border-slate-700 flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <Video className="w-5 h-5 text-gray-400" />
-                        <span className="font-medium">{video.title}</span>
-                        {video.is_completed && <Check className="w-5 h-5 text-green-500" />}
-                      </div>
-                      <button onClick={() => handleDeleteVideo(video)} className="p-1.5 text-gray-400 hover:text-red-500 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20">
-                        <XCircle className="w-5 h-5" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="flex items-center justify-center h-full text-center text-gray-400">
-              <div>
-                <p>Selecione uma sessão ao lado</p>
-                <p className="text-sm">ou crie uma nova para começar.</p>
-              </div>
-            </div>
-          )}
-        </main>
+        </div>
       </div>
     </div>
   );

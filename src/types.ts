@@ -211,6 +211,15 @@ export interface CutoffPeriod {
 }
 
 // NOVOS TIPOS PARA ONBOARDING ONLINE
+export interface OnboardingVideoTemplate {
+  id: string;
+  user_id: string;
+  title: string;
+  video_url: string;
+  order: number;
+  created_at: string;
+}
+
 export interface OnboardingVideo {
   id: string;
   session_id: string;
@@ -245,7 +254,8 @@ export interface AppContextType {
   pvs: string[];
   teamMembers: TeamMember[];
   cutoffPeriods: CutoffPeriod[];
-  onboardingSessions: OnboardingSession[]; // Adicionado
+  onboardingSessions: OnboardingSession[];
+  onboardingTemplateVideos: OnboardingVideoTemplate[];
   addCutoffPeriod: (period: CutoffPeriod) => Promise<void>;
   updateCutoffPeriod: (id: string, updates: Partial<CutoffPeriod>) => Promise<void>;
   deleteCutoffPeriod: (id: string) => Promise<void>;
@@ -300,7 +310,6 @@ export interface AppContextType {
   // Novas funções para onboarding
   addOnlineOnboardingSession: (consultantName: string) => Promise<OnboardingSession | null>;
   deleteOnlineOnboardingSession: (sessionId: string) => Promise<void>;
-  addVideoToOnboardingSession: (sessionId: string, title: string, url: string) => Promise<void>;
-  deleteVideoFromOnboardingSession: (videoId: string, videoUrl: string) => Promise<void>;
-  markVideoAsCompleted: (videoId: string) => Promise<void>;
+  addVideoToTemplate: (title: string, url: string) => Promise<void>;
+  deleteVideoFromTemplate: (videoId: string) => Promise<void>;
 }

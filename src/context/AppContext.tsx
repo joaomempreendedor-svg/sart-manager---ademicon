@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
-import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, CommissionStatus, InstallmentInfo, CutoffPeriod, ImportantLink, Feedback, OnboardingSession, OnboardingVideo } from '@/types';
+import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, CommissionStatus, InstallmentInfo, CutoffPeriod, ImportantLink, Feedback, OnboardingSession, OnboardingVideoTemplate } from '@/types';
 import { CHECKLIST_STAGES as DEFAULT_STAGES } from '@/data/checklistData';
 import { CONSULTANT_GOALS as DEFAULT_GOALS } from '@/data/consultantGoals';
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
@@ -72,6 +72,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [importantLinks, setImportantLinks] = useState<ImportantLink[]>([]);
   const [cutoffPeriods, setCutoffPeriods] = useState<CutoffPeriod[]>([]);
   const [onboardingSessions, setOnboardingSessions] = useState<OnboardingSession[]>([]);
+  const [onboardingTemplateVideos, setOnboardingTemplateVideos] = useState<OnboardingVideoTemplate[]>([]);
   
   const [checklistStructure, setChecklistStructure] = useState<ChecklistStage[]>(DEFAULT_STAGES);
   const [consultantGoalsStructure, setConsultantGoalsStructure] = useState<GoalStage[]>(DEFAULT_GOALS);
@@ -143,6 +144,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setImportantLinks([]);
     setCutoffPeriods([]);
     setOnboardingSessions([]);
+    setOnboardingTemplateVideos([]);
     setChecklistStructure(DEFAULT_STAGES);
     setConsultantGoalsStructure(DEFAULT_GOALS);
     setInterviewStructure(INITIAL_INTERVIEW_STRUCTURE);
@@ -201,7 +203,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           { data: materialsData, error: materialsError },
           { data: cutoffData, error: cutoffError },
           { data: linksData, error: linksError },
-          { data: onboardingData, error: onboardingError }
+          { data: onboardingData, error: onboardingError },
+          { data: templateVideosData, error: templateVideosError }
         ] = await Promise.all([
           supabase.from('app_config').select('data').eq('user_id', userId).maybeSingle(),
           supabase.from('candidates').select('id, data').eq('user_id', userId),
@@ -209,7 +212,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           supabase.from('support_materials').select('id, data').eq('user_id', userId),
           supabase.from('cutoff_periods').select('id, data').eq('user_id', userId),
           supabase.from('important_links').select('id, data').eq('user_id', userId),
-          supabase.from('onboarding_sessions').select('*, videos:onboarding_videos(*)').eq('user_id', userId)
+          supabase.from('onboarding_sessions').select('*, videos:onboarding_videos(*)').eq('user_id', userId),
+          supabase.from('onboarding_video_templates').select('*').eq('user_id', userId).order('order', { ascending: true })
         ]);
 
         if (configError) console.error("Config error:", configError);
@@ -219,6 +223,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (cutoffError) console.error("Cutoff Periods error:", cutoffError);
         if (linksError) console.error("Important Links error:", linksError);
         if (onboardingError) console.error("Onboarding error:", onboardingError);
+        if (templateVideosError) console.error("Onboarding Template error:", templateVideosError);
 
         if (configResult) {
           const { data } = configResult;
@@ -257,6 +262,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setImportantLinks(linksData?.map(item => ({ ...(item.data as ImportantLink), db_id: item.id })) || []);
         setCutoffPeriods(cutoffData?.map(item => ({ ...(item.data as CutoffPeriod), db_id: item.id })) || []);
         setOnboardingSessions((onboardingData as any[])?.map(s => ({...s, videos: s.videos.sort((a:any,b:any) => a.order - b.order)})) || []);
+        setOnboardingTemplateVideos(templateVideosData || []);
         
         refetchCommissions();
 
@@ -361,18 +367,61 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const resetInterviewToDefault = useCallback(() => { updateAndPersistStructure(setInterviewStructure, 'interviewStructure', INITIAL_INTERVIEW_STRUCTURE); }, [updateAndPersistStructure]);
   
   // Funções do Onboarding Online
-  const addOnlineOnboardingSession = useCallback(async (consultantName: string): Promise<OnboardingSession | null> => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('onboarding_sessions').insert({ user_id: user.id, consultant_name: consultantName }).select().single(); if (error) throw error; const newSession = { ...data, videos: [] }; setOnboardingSessions(prev => [newSession, ...prev]); return newSession; }, [user]);
+  const addOnlineOnboardingSession = useCallback(async (consultantName: string): Promise<OnboardingSession | null> => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { data: sessionData, error: sessionError } = await supabase
+      .from('onboarding_sessions')
+      .insert({ user_id: user.id, consultant_name: consultantName })
+      .select()
+      .single();
+    if (sessionError) throw sessionError;
+
+    const videosToInsert = onboardingTemplateVideos.map(templateVideo => ({
+      session_id: sessionData.id,
+      title: templateVideo.title,
+      video_url: templateVideo.video_url,
+      order: templateVideo.order,
+      is_completed: false,
+    }));
+
+    if (videosToInsert.length > 0) {
+      const { error: videosError } = await supabase.from('onboarding_videos').insert(videosToInsert);
+      if (videosError) {
+        // Rollback session creation if videos fail
+        await supabase.from('onboarding_sessions').delete().eq('id', sessionData.id);
+        throw videosError;
+      }
+    }
+    
+    const newSession = { ...sessionData, videos: videosToInsert.map(v => ({...v, id: crypto.randomUUID()})) };
+    setOnboardingSessions(prev => [newSession, ...prev].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
+    return newSession;
+  }, [user, onboardingTemplateVideos]);
+
   const deleteOnlineOnboardingSession = useCallback(async (sessionId: string) => { if (!user) throw new Error("Usuário não autenticado."); const { error } = await supabase.from('onboarding_sessions').delete().match({ id: sessionId, user_id: user.id }); if (error) throw error; setOnboardingSessions(prev => prev.filter(s => s.id !== sessionId)); }, [user]);
-  const addVideoToOnboardingSession = useCallback(async (sessionId: string, title: string, url: string) => { if (!user) throw new Error("Usuário não autenticado."); const session = onboardingSessions.find(s => s.id === sessionId); if (!session) throw new Error("Sessão não encontrada."); const newVideoData = { session_id: sessionId, title, video_url: url, order: session.videos.length + 1 }; const { data: dbData, error: dbError } = await supabase.from('onboarding_videos').insert(newVideoData).select().single(); if (dbError) throw dbError; setOnboardingSessions(prev => prev.map(s => s.id === sessionId ? { ...s, videos: [...s.videos, dbData] } : s)); }, [user, onboardingSessions]);
-  const deleteVideoFromOnboardingSession = useCallback(async (videoId: string, videoUrl: string) => { if (!user) throw new Error("Usuário não autenticado."); const { error } = await supabase.from('onboarding_videos').delete().match({ id: videoId }); if (error) throw error; setOnboardingSessions(prev => prev.map(s => ({ ...s, videos: s.videos.filter(v => v.id !== videoId) }))); }, [user]);
-  const markVideoAsCompleted = useCallback(async (videoId: string) => { setOnboardingSessions(prev => prev.map(s => ({ ...s, videos: s.videos.map(v => v.id === videoId ? { ...v, is_completed: true } : v) }))); }, []);
+  
+  const addVideoToTemplate = useCallback(async (title: string, url: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const newOrder = onboardingTemplateVideos.length > 0 ? Math.max(...onboardingTemplateVideos.map(v => v.order)) + 1 : 1;
+    const newVideoData = { user_id: user.id, title, video_url: url, order: newOrder };
+    const { data, error } = await supabase.from('onboarding_video_templates').insert(newVideoData).select().single();
+    if (error) throw error;
+    setOnboardingTemplateVideos(prev => [...prev, data]);
+  }, [user, onboardingTemplateVideos]);
+
+  const deleteVideoFromTemplate = useCallback(async (videoId: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { error } = await supabase.from('onboarding_video_templates').delete().match({ id: videoId, user_id: user.id });
+    if (error) throw error;
+    setOnboardingTemplateVideos(prev => prev.filter(v => v.id !== videoId));
+  }, [user]);
 
   useEffect(() => { if (!user) return; const syncPendingCommissions = async () => { const pending = JSON.parse(localStorage.getItem('pending_commissions') || '[]') as any[]; if (pending.length === 0) return; for (const item of pending) { try { const { _localId, _timestamp, _attempts, ...cleanData } = item; const { data, error } = await supabase.from('commissions').insert({ user_id: user.id, data: cleanData }).select('id, created_at').maybeSingle(); if (!error && data) { setCommissions(prev => prev.map(c => c.db_id === _localId ? { ...c, db_id: data.id.toString(), criado_em: data.created_at } : c)); const updated = pending.filter((p: any) => p._localId !== _localId); localStorage.setItem('pending_commissions', JSON.stringify(updated)); } } catch (error) { console.log(`❌ Falha ao sincronizar ${item._localId}`); } } }; const interval = setInterval(syncPendingCommissions, 2 * 60 * 1000); setTimeout(syncPendingCommissions, 5000); return () => clearInterval(interval); }, [user]);
 
   return (
     <AppContext.Provider value={{ 
       isDataLoading,
-      candidates, templates, checklistStructure, consultantGoalsStructure, interviewStructure, commissions, supportMaterials, importantLinks, theme, origins, interviewers, pvs, teamMembers, cutoffPeriods, onboardingSessions,
+      candidates, templates, checklistStructure, consultantGoalsStructure, interviewStructure, commissions, supportMaterials, importantLinks, theme, origins, interviewers, pvs, teamMembers, cutoffPeriods, onboardingSessions, onboardingTemplateVideos,
       addCutoffPeriod, updateCutoffPeriod, deleteCutoffPeriod,
       addTeamMember, updateTeamMember, deleteTeamMember, toggleTheme, addOrigin, deleteOrigin, addInterviewer, deleteInterviewer, addPV, addCandidate, updateCandidate, deleteCandidate, toggleChecklistItem, toggleConsultantGoal, setChecklistDueDate, getCandidate, saveTemplate,
       addChecklistItem, updateChecklistItem, deleteChecklistItem, moveChecklistItem, resetChecklistToDefault, addGoalItem, updateGoalItem, deleteGoalItem, moveGoalItem, resetGoalsToDefault,
@@ -380,7 +429,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       addImportantLink, updateImportantLink, deleteImportantLink,
       addFeedback, updateFeedback, deleteFeedback,
       addTeamMemberFeedback, updateTeamMemberFeedback, deleteTeamMemberFeedback,
-      addOnlineOnboardingSession, deleteOnlineOnboardingSession, addVideoToOnboardingSession, deleteVideoFromOnboardingSession, markVideoAsCompleted
+      addOnlineOnboardingSession, deleteOnlineOnboardingSession, addVideoToTemplate, deleteVideoFromTemplate
     }}>
       {children}
     </AppContext.Provider>
