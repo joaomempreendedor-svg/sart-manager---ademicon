@@ -210,6 +210,25 @@ export interface CutoffPeriod {
   competenceMonth: string; // YYYY-MM
 }
 
+// NOVOS TIPOS PARA ONBOARDING ONLINE
+export interface OnboardingVideo {
+  id: string;
+  session_id: string;
+  title: string;
+  video_url: string;
+  order: number;
+  is_completed: boolean;
+}
+
+export interface OnboardingSession {
+  id: string;
+  user_id: string;
+  consultant_name: string;
+  created_at: string;
+  videos: OnboardingVideo[];
+}
+
+
 export interface AppContextType {
   isDataLoading: boolean;
   candidates: Candidate[];
@@ -226,6 +245,7 @@ export interface AppContextType {
   pvs: string[];
   teamMembers: TeamMember[];
   cutoffPeriods: CutoffPeriod[];
+  onboardingSessions: OnboardingSession[]; // Adicionado
   addCutoffPeriod: (period: CutoffPeriod) => Promise<void>;
   updateCutoffPeriod: (id: string, updates: Partial<CutoffPeriod>) => Promise<void>;
   deleteCutoffPeriod: (id: string) => Promise<void>;
@@ -277,4 +297,10 @@ export interface AppContextType {
   addTeamMemberFeedback: (memberId: string, feedback: Omit<Feedback, 'id'>) => Promise<void>;
   updateTeamMemberFeedback: (memberId: string, feedback: Feedback) => Promise<void>;
   deleteTeamMemberFeedback: (memberId: string, feedbackId: string) => Promise<void>;
+  // Novas funções para onboarding
+  addOnlineOnboardingSession: (consultantName: string) => Promise<OnboardingSession | null>;
+  deleteOnlineOnboardingSession: (sessionId: string) => Promise<void>;
+  addVideoToOnboardingSession: (sessionId: string, title: string, file: File) => Promise<void>;
+  deleteVideoFromOnboardingSession: (videoId: string, videoUrl: string) => Promise<void>;
+  markVideoAsCompleted: (videoId: string) => Promise<void>;
 }
