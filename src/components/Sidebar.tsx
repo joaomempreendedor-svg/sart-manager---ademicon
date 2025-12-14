@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, MessageSquare, Settings, FileText, Sun, Moon, Banknote, PlusCircle, Library, TrendingUp, Target, Users, LogOut, User as UserIcon, Calendar, Link as LinkIcon, Star, Video } from 'lucide-react';
+import { LayoutDashboard, MessageSquare, Settings, FileText, Sun, Moon, Banknote, PlusCircle, Library, TrendingUp, Target, Users, LogOut, User as UserIcon, Calendar, Link as LinkIcon, Star, Video, KanbanSquare } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 
@@ -26,7 +26,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isSidebarOpen, toggleSidebar }
 
   return (
     <>
-      {/* Overlay for mobile */}
       {isSidebarOpen && (
         <div 
           className="fixed inset-0 bg-black/50 z-40 md:hidden"
@@ -35,7 +34,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isSidebarOpen, toggleSidebar }
       )}
 
       <div className={`w-64 bg-white dark:bg-slate-900 border-r border-gray-200 dark:border-slate-800 min-h-screen flex flex-col fixed left-0 top-0 transition-transform duration-300 z-50 md:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        {/* Logo Area */}
         <div className="p-6 border-b border-gray-100 dark:border-slate-800 flex justify-center items-center h-24">
           <div className="flex items-center space-x-2">
               <div className="bg-brand-500 text-white p-2 rounded-lg shadow-lg shadow-brand-500/30">
@@ -52,6 +50,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ isSidebarOpen, toggleSidebar }
           <NavLink to="/" className={linkClass} onClick={toggleSidebar}>
             <LayoutDashboard className="w-5 h-5" />
             <span>Dashboard</span>
+          </NavLink>
+          <NavLink to="/crm" className={linkClass} onClick={toggleSidebar}>
+            <KanbanSquare className="w-5 h-5" />
+            <span>CRM</span>
           </NavLink>
           <NavLink to="/onboarding-admin" className={linkClass} onClick={toggleSidebar}>
             <Video className="w-5 h-5" />
@@ -107,7 +109,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isSidebarOpen, toggleSidebar }
           </NavLink>
         </nav>
 
-        {/* Footer & Toggle */}
         <div className="p-4 border-t border-gray-100 dark:border-slate-800 space-y-4">
           <div className="flex gap-2">
               <button 
