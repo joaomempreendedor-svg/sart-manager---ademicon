@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, TrendingUp, LogOut, User as UserIcon, Sun, Moon } from 'lucide-react';
+import { LayoutDashboard, TrendingUp, LogOut, User as UserIcon, Sun, Moon, ListChecks } from 'lucide-react'; // Import ListChecks icon
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 
@@ -54,6 +54,10 @@ export const ConsultorSidebar: React.FC<ConsultorSidebarProps> = ({ isSidebarOpe
           <NavLink to="/consultor/crm" className={linkClass} onClick={toggleSidebar}>
             <TrendingUp className="w-5 h-5" />
             <span>CRM</span>
+          </NavLink>
+          <NavLink to="/consultor/daily-checklist" className={linkClass} onClick={toggleSidebar}> {/* NEW LINK */}
+            <ListChecks className="w-5 h-5" />
+            <span>Checklist do Dia</span>
           </NavLink>
           <NavLink to="/profile" className={linkClass} onClick={toggleSidebar}>
             <UserIcon className="w-5 h-5" />

@@ -17,13 +17,13 @@ import { UpdatePassword } from '@/pages/UpdatePassword';
 import { PublicOnboarding } from '@/pages/PublicOnboarding';
 import { Home } from '@/pages/Home';
 import { Loader2, RefreshCw } from 'lucide-react';
-import { PendingApproval } from '@/pages/PendingApproval'; // NEW IMPORT
+import { PendingApproval } from '@/pages/PendingApproval';
 
 // Gestor Pages
 import { Dashboard } from '@/pages/Dashboard';
 import { CandidateDetail } from '@/pages/CandidateDetail';
 import { TemplateConfig } from '@/pages/TemplateConfig';
-import { ChecklistConfig } from '@/pages/ChecklistConfig'; // Existing, but will be replaced by new one
+import { ChecklistConfig } from '@/pages/ChecklistConfig';
 import { GoalsConfig } from '@/pages/GoalsConfig';
 import { InterviewConfig } from '@/pages/InterviewConfig';
 import { Commissions } from '@/pages/Commissions';
@@ -34,11 +34,12 @@ import { CutoffConfig } from '@/pages/CutoffConfig';
 import { Feedbacks } from '@/pages/Feedbacks';
 import { OnlineOnboarding } from '@/pages/OnlineOnboarding';
 import CrmConfigPage from '@/pages/gestor/CrmConfig';
-import { DailyChecklistConfig } from '@/pages/gestor/DailyChecklistConfig'; // NEW IMPORT
+import { DailyChecklistConfig } from '@/pages/gestor/DailyChecklistConfig';
 
 // Consultor Pages
 import ConsultorDashboard from '@/pages/consultor/Dashboard';
 import CrmPage from '@/pages/consultor/Crm';
+import { DailyChecklist } from '@/pages/consultor/DailyChecklist'; // NEW IMPORT
 
 const AppLoader = () => (
   <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-slate-900">
@@ -48,7 +49,7 @@ const AppLoader = () => (
 
 const RequireAuth: React.FC<{ allowedRoles: UserRole[] }> = ({ allowedRoles }) => {
   const { user, isLoading: isAuthLoading } = useAuth();
-  const { isDataLoading } = useApp(); // isDataLoading from AppContext
+  const { isDataLoading } = useApp();
 
   const location = useLocation();
 
@@ -60,13 +61,11 @@ const RequireAuth: React.FC<{ allowedRoles: UserRole[] }> = ({ allowedRoles }) =
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // Check for inactive consultants
   if (user.role === 'CONSULTOR' && user.isActive === false) {
     return <Navigate to="/pending-approval" replace />;
   }
 
   if (!allowedRoles.includes(user.role)) {
-    // Se não tem a permissão, redireciona para a home, que decidirá a rota correta
     return <Navigate to="/" replace />;
   }
 
@@ -104,7 +103,7 @@ const AppRoutes = () => {
       <Route path="/register" element={<Register />} />
       <Route path="/update-password" element={<UpdatePassword />} />
       <Route path="/onboarding/:sessionId" element={<PublicOnboarding />} />
-      <Route path="/pending-approval" element={<PendingApproval />} /> {/* NEW ROUTE */}
+      <Route path="/pending-approval" element={<PendingApproval />} />
       
       {/* Authenticated Routes */}
       <Route path="/" element={<Home />} />
@@ -121,12 +120,12 @@ const AppRoutes = () => {
           <Route path="onboarding-admin" element={<OnlineOnboarding />} />
           <Route path="config-team" element={<TeamConfig />} />
           <Route path="config-templates" element={<TemplateConfig />} />
-          <Route path="config-process" element={<ChecklistConfig />} /> {/* Keep old for now, will replace */}
+          <Route path="config-process" element={<ChecklistConfig />} />
           <Route path="config-goals" element={<GoalsConfig />} />
           <Route path="config-interview" element={<InterviewConfig />} />
           <Route path="config-cutoff" element={<CutoffConfig />} />
           <Route path="crm-config" element={<CrmConfigPage />} />
-          <Route path="daily-checklist-config" element={<DailyChecklistConfig />} /> {/* NEW ROUTE */}
+          <Route path="daily-checklist-config" element={<DailyChecklistConfig />} />
           <Route path="*" element={<Navigate to="/gestor/dashboard" replace />} />
         </Route>
       </Route>
@@ -136,6 +135,7 @@ const AppRoutes = () => {
         <Route path="/consultor" element={<ConsultorLayout />}>
           <Route path="dashboard" element={<ConsultorDashboard />} />
           <Route path="crm" element={<CrmPage />} />
+          <Route path="daily-checklist" element={<DailyChecklist />} /> {/* NEW ROUTE */}
           <Route path="*" element={<Navigate to="/consultor/dashboard" replace />} />
         </Route>
       </Route>
