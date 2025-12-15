@@ -27,7 +27,7 @@ const ScrollBarComponent = (
     {...props}
   >
     <ScrollAreaPrimitive.ScrollAreaThumb className="relative flex-1 rounded-full bg-gray-300 dark:bg-slate-600" />
-  </ScrollAreaPrimitive.Scrollbar>
+  </ScrollAreaPrimitive.ScrollAreaScrollbar> {/* CORRIGIDO: Era </ScrollAreaPrimitive.Scrollbar> */}
 );
 
 // Envolve a função com React.forwardRef e aplica a asserção de tipo no resultado
