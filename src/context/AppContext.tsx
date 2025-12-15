@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
-import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, CommissionStatus, InstallmentInfo, CutoffPeriod, ImportantLink, Feedback, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField } from '@/types';
+import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, CommissionStatus, InstallmentInfo, CutoffPeriod, ImportantLink, Feedback, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment } from '@/types';
 import { CHECKLIST_STAGES as DEFAULT_STAGES } from '@/data/checklistData';
 import { CONSULTANT_GOALS as DEFAULT_GOALS } from '@/data/consultantGoals';
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
@@ -86,6 +86,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [crmPipelines, setCrmPipelines] = useState<CrmPipeline[]>([]);
   const [crmStages, setCrmStages] = useState<CrmStage[]>([]);
   const [crmFields, setCrmFields] = useState<CrmField[]>([]);
+  const [crmLeads, setCrmLeads] = useState<CrmLead[]>([]); // NOVO: Leads do CRM
+
+  // Módulo 3: Checklist do Dia
+  const [dailyChecklists, setDailyChecklists] = useState<DailyChecklist[]>([]);
+  const [dailyChecklistItems, setDailyChecklistItems] = useState<DailyChecklistItem[]>([]);
+  const [dailyChecklistAssignments, setDailyChecklistAssignments] = useState<DailyChecklistAssignment[]>([]);
+  const [dailyChecklistCompletions, setDailyChecklistCompletions] = useState<DailyChecklistCompletion[]>([]);
+
+  // Módulo 4: Metas de Prospecção
+  const [weeklyTargets, setWeeklyTargets] = useState<WeeklyTarget[]>([]);
+  const [weeklyTargetItems, setWeeklyTargetItems] = useState<WeeklyTargetItem[]>([]);
+  const [weeklyTargetAssignments, setWeeklyTargetAssignments] = useState<WeeklyTargetAssignment[]>([]);
+  const [metricLogs, setMetricLogs] = useState<MetricLog[]>([]);
+
+  // Módulo 5: Materiais de Apoio (v2)
+  const [supportMaterialsV2, setSupportMaterialsV2] = useState<SupportMaterialV2[]>([]);
+  const [supportMaterialAssignments, setSupportMaterialAssignments] = useState<SupportMaterialAssignment[]>([]);
+
 
   const [theme, setTheme] = useState<'light' | 'dark'>(() => (localStorage.getItem('sart_theme') as 'light' | 'dark') || 'light');
 
@@ -160,6 +178,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setCrmPipelines([]);
     setCrmStages([]);
     setCrmFields([]);
+    setCrmLeads([]); // Reset CRM Leads
+    setDailyChecklists([]); // Reset Daily Checklists
+    setDailyChecklistItems([]);
+    setDailyChecklistAssignments([]);
+    setDailyChecklistCompletions([]);
+    setWeeklyTargets([]); // Reset Weekly Targets
+    setWeeklyTargetItems([]);
+    setWeeklyTargetAssignments([]);
+    setMetricLogs([]);
+    setSupportMaterialsV2([]); // Reset Support Materials V2
+    setSupportMaterialAssignments([]);
     setIsDataLoading(false);
   };
 
@@ -216,6 +245,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           { data: pipelinesData, error: pipelinesError },
           { data: stagesData, error: stagesError },
           { data: fieldsData, error: fieldsError },
+          { data: crmLeadsData, error: crmLeadsError }, // Fetch CRM Leads
+          { data: dailyChecklistsData, error: dailyChecklistsError }, // Fetch Daily Checklists
+          { data: dailyChecklistItemsData, error: dailyChecklistItemsError },
+          { data: dailyChecklistAssignmentsData, error: dailyChecklistAssignmentsError },
+          { data: dailyChecklistCompletionsData, error: dailyChecklistCompletionsError },
+          { data: weeklyTargetsData, error: weeklyTargetsError }, // Fetch Weekly Targets
+          { data: weeklyTargetItemsData, error: weeklyTargetItemsError },
+          { data: weeklyTargetAssignmentsData, error: weeklyTargetAssignmentsError },
+          { data: metricLogsData, error: metricLogsError },
+          { data: supportMaterialsV2Data, error: supportMaterialsV2Error }, // Fetch Support Materials V2
+          { data: supportMaterialAssignmentsData, error: supportMaterialAssignmentsError },
         ] = await Promise.all([
           supabase.from('app_config').select('data').eq('user_id', userId).maybeSingle(),
           supabase.from('candidates').select('id, data').eq('user_id', userId),
@@ -228,6 +268,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           supabase.from('crm_pipelines').select('*').eq('user_id', userId),
           supabase.from('crm_stages').select('*').eq('user_id', userId).order('order_index'),
           supabase.from('crm_fields').select('*').eq('user_id', userId),
+          supabase.from('crm_leads').select('*').eq('user_id', userId), // Fetch CRM Leads
+          supabase.from('daily_checklists').select('*').eq('user_id', userId), // Fetch Daily Checklists
+          supabase.from('daily_checklist_items').select('*'),
+          supabase.from('daily_checklist_assignments').select('*'),
+          supabase.from('daily_checklist_completions').select('*'),
+          supabase.from('weekly_targets').select('*').eq('user_id', userId), // Fetch Weekly Targets
+          supabase.from('weekly_target_items').select('*'),
+          supabase.from('weekly_target_assignments').select('*'),
+          supabase.from('metric_logs').select('*'),
+          supabase.from('support_materials_v2').select('*').eq('user_id', userId), // Fetch Support Materials V2
+          supabase.from('support_material_assignments').select('*'),
         ]);
 
         if (configError) console.error("Config error:", configError);
@@ -241,6 +292,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (pipelinesError) console.error("Pipelines error:", pipelinesError);
         if (stagesError) console.error("Stages error:", stagesError);
         if (fieldsError) console.error("Fields error:", fieldsError);
+        if (crmLeadsError) console.error("CRM Leads error:", crmLeadsError);
+        if (dailyChecklistsError) console.error("Daily Checklists error:", dailyChecklistsError);
+        if (dailyChecklistItemsError) console.error("Daily Checklist Items error:", dailyChecklistItemsError);
+        if (dailyChecklistAssignmentsError) console.error("Daily Checklist Assignments error:", dailyChecklistAssignmentsError);
+        if (dailyChecklistCompletionsError) console.error("Daily Checklist Completions error:", dailyChecklistCompletionsError);
+        if (weeklyTargetsError) console.error("Weekly Targets error:", weeklyTargetsError);
+        if (weeklyTargetItemsError) console.error("Weekly Target Items error:", weeklyTargetItemsError);
+        if (weeklyTargetAssignmentsError) console.error("Weekly Target Assignments error:", weeklyTargetAssignmentsError);
+        if (metricLogsError) console.error("Metric Logs error:", metricLogsError);
+        if (supportMaterialsV2Error) console.error("Support Materials V2 error:", supportMaterialsV2Error);
+        if (supportMaterialAssignmentsError) console.error("Support Material Assignments error:", supportMaterialAssignmentsError);
+
 
         if (configResult) {
           const { data } = configResult;
@@ -299,6 +362,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
         setCrmStages(stagesData || []);
         setCrmFields(fieldsData || []);
+        setCrmLeads(crmLeadsData || []); // Set CRM Leads
+        setDailyChecklists(dailyChecklistsData || []); // Set Daily Checklists
+        setDailyChecklistItems(dailyChecklistItemsData || []);
+        setDailyChecklistAssignments(dailyChecklistAssignmentsData || []);
+        setDailyChecklistCompletions(dailyChecklistCompletionsData || []);
+        setWeeklyTargets(weeklyTargetsData || []); // Set Weekly Targets
+        setWeeklyTargetItems(weeklyTargetItemsData || []);
+        setWeeklyTargetAssignments(weeklyTargetAssignmentsData || []);
+        setMetricLogs(metricLogsData || []);
+        setSupportMaterialsV2(supportMaterialsV2Data || []); // Set Support Materials V2
+        setSupportMaterialAssignments(supportMaterialAssignmentsData || []);
         
         refetchCommissions();
 
@@ -453,11 +527,274 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [user]);
 
   // CRM Functions
+  const addCrmLead = useCallback(async (leadData: Omit<CrmLead, 'id' | 'user_id' | 'created_at' | 'updated_at'>): Promise<CrmLead> => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('crm_leads').insert({ ...leadData, user_id: user.id }).select().single();
+    if (error) throw error;
+    setCrmLeads(prev => [...prev, data]);
+    return data;
+  }, [user]);
+
+  const updateCrmLead = useCallback(async (id: string, updates: Partial<CrmLead>) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { error } = await supabase.from('crm_leads').update(updates).eq('id', id).eq('user_id', user.id);
+    if (error) throw error;
+    setCrmLeads(prev => prev.map(lead => lead.id === id ? { ...lead, ...updates } : lead));
+  }, [user]);
+
+  const deleteCrmLead = useCallback(async (id: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { error } = await supabase.from('crm_leads').delete().eq('id', id).eq('user_id', user.id);
+    if (error) throw error;
+    setCrmLeads(prev => prev.filter(lead => lead.id !== id));
+  }, [user]);
+
   const addCrmStage = useCallback(async (stageData: Omit<CrmStage, 'id' | 'user_id' | 'created_at'>) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('crm_stages').insert({ ...stageData, user_id: user.id }).select().single(); if (error) throw error; setCrmStages(prev => [...prev, data].sort((a, b) => a.order_index - b.order_index)); return data; }, [user]);
   const updateCrmStage = useCallback(async (id: string, updates: Partial<CrmStage>) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('crm_stages').update(updates).eq('id', id).select().single(); if (error) throw error; setCrmStages(prev => prev.map(s => s.id === id ? data : s).sort((a, b) => a.order_index - b.order_index)); }, [user]);
   const updateCrmStageOrder = useCallback(async (stages: CrmStage[]) => { if (!user) throw new Error("Usuário não autenticado."); const updates = stages.map((stage, index) => ({ id: stage.id, order_index: index })); const { error } = await supabase.from('crm_stages').upsert(updates); if (error) throw error; setCrmStages(stages.map((s, i) => ({...s, order_index: i}))); }, [user]);
   const addCrmField = useCallback(async (fieldData: Omit<CrmField, 'id' | 'user_id' | 'created_at'>) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('crm_fields').insert({ ...fieldData, user_id: user.id }).select().single(); if (error) throw error; setCrmFields(prev => [...prev, data]); return data; }, [user]);
   const updateCrmField = useCallback(async (id: string, updates: Partial<CrmField>) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('crm_fields').update(updates).eq('id', id).select().single(); if (error) throw error; setCrmFields(prev => prev.map(f => f.id === id ? data : f)); }, [user]);
+
+  // Módulo 3: Funções do Checklist do Dia
+  const addDailyChecklist = useCallback(async (title: string): Promise<DailyChecklist> => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('daily_checklists').insert({ user_id: user.id, title, is_active: true }).select().single();
+    if (error) throw error;
+    setDailyChecklists(prev => [...prev, data]);
+    return data;
+  }, [user]);
+
+  const updateDailyChecklist = useCallback(async (id: string, updates: Partial<DailyChecklist>) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { error } = await supabase.from('daily_checklists').update(updates).eq('id', id).eq('user_id', user.id);
+    if (error) throw error;
+    setDailyChecklists(prev => prev.map(cl => cl.id === id ? { ...cl, ...updates } : cl));
+  }, [user]);
+
+  const deleteDailyChecklist = useCallback(async (id: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { error } = await supabase.from('daily_checklists').delete().eq('id', id).eq('user_id', user.id);
+    if (error) throw error;
+    setDailyChecklists(prev => prev.filter(cl => cl.id !== id));
+    setDailyChecklistItems(prev => prev.filter(item => item.daily_checklist_id !== id));
+    setDailyChecklistAssignments(prev => prev.filter(assign => assign.daily_checklist_id !== id));
+  }, [user]);
+
+  const addDailyChecklistItem = useCallback(async (checklistId: string, text: string, order_index: number): Promise<DailyChecklistItem> => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('daily_checklist_items').insert({ daily_checklist_id: checklistId, text, order_index, is_active: true }).select().single();
+    if (error) throw error;
+    setDailyChecklistItems(prev => [...prev, data].sort((a, b) => a.order_index - b.order_index));
+    return data;
+  }, [user]);
+
+  const updateDailyChecklistItem = useCallback(async (id: string, updates: Partial<DailyChecklistItem>) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { error } = await supabase.from('daily_checklist_items').update(updates).eq('id', id);
+    if (error) throw error;
+    setDailyChecklistItems(prev => prev.map(item => item.id === id ? { ...item, ...updates } : item).sort((a, b) => a.order_index - b.order_index));
+  }, [user]);
+
+  const deleteDailyChecklistItem = useCallback(async (id: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { error } = await supabase.from('daily_checklist_items').delete().eq('id', id);
+    if (error) throw error;
+    setDailyChecklistItems(prev => prev.filter(item => item.id !== id));
+    setDailyChecklistCompletions(prev => prev.filter(comp => comp.daily_checklist_item_id !== id));
+  }, [user]);
+
+  const moveDailyChecklistItem = useCallback(async (checklistId: string, itemId: string, direction: 'up' | 'down') => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const itemsInChecklist = dailyChecklistItems.filter(item => item.daily_checklist_id === checklistId).sort((a, b) => a.order_index - b.order_index);
+    const itemIndex = itemsInChecklist.findIndex(item => item.id === itemId);
+
+    if (itemIndex === -1) return;
+
+    const newOrder = [...itemsInChecklist];
+    const [movedItem] = newOrder.splice(itemIndex, 1);
+    const targetIndex = direction === 'up' ? itemIndex - 1 : itemIndex + 1;
+
+    if (targetIndex < 0 || targetIndex >= newOrder.length + 1) return;
+
+    newOrder.splice(targetIndex, 0, movedItem);
+
+    const updates = newOrder.map((item, index) => ({
+      id: item.id,
+      order_index: index,
+    }));
+
+    const { error } = await supabase.from('daily_checklist_items').upsert(updates);
+    if (error) throw error;
+    setDailyChecklistItems(prev => {
+      const otherItems = prev.filter(item => item.daily_checklist_id !== checklistId);
+      return [...otherItems, ...newOrder].sort((a, b) => a.order_index - b.order_index);
+    });
+  }, [user, dailyChecklistItems]);
+
+  const assignDailyChecklistToConsultant = useCallback(async (checklistId: string, consultantId: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('daily_checklist_assignments').insert({ daily_checklist_id: checklistId, consultant_id: consultantId }).select().single();
+    if (error) throw error;
+    setDailyChecklistAssignments(prev => [...prev, data]);
+  }, [user]);
+
+  const unassignDailyChecklistFromConsultant = useCallback(async (checklistId: string, consultantId: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { error } = await supabase.from('daily_checklist_assignments').delete().match({ daily_checklist_id: checklistId, consultant_id: consultantId });
+    if (error) throw error;
+    setDailyChecklistAssignments(prev => prev.filter(assign => !(assign.daily_checklist_id === checklistId && assign.consultant_id === consultantId)));
+  }, [user]);
+
+  const toggleDailyChecklistCompletion = useCallback(async (itemId: string, date: string, done: boolean) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const existingCompletion = dailyChecklistCompletions.find(c => c.daily_checklist_item_id === itemId && c.consultant_id === user.id && c.date === date);
+
+    if (existingCompletion) {
+      const { error } = await supabase.from('daily_checklist_completions').update({ done, updated_at: new Date().toISOString() }).eq('id', existingCompletion.id);
+      if (error) throw error;
+      setDailyChecklistCompletions(prev => prev.map(c => c.id === existingCompletion.id ? { ...c, done, updated_at: new Date().toISOString() } : c));
+    } else {
+      const { data, error } = await supabase.from('daily_checklist_completions').insert({ daily_checklist_item_id: itemId, consultant_id: user.id, date, done, updated_at: new Date().toISOString() }).select().single();
+      if (error) throw error;
+      setDailyChecklistCompletions(prev => [...prev, data]);
+    }
+  }, [user, dailyChecklistCompletions]);
+
+  // Módulo 4: Funções das Metas de Prospecção
+  const addWeeklyTarget = useCallback(async (title: string, week_start: string, week_end: string): Promise<WeeklyTarget> => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('weekly_targets').insert({ user_id: user.id, title, week_start, week_end, is_active: true }).select().single();
+    if (error) throw error;
+    setWeeklyTargets(prev => [...prev, data]);
+    return data;
+  }, [user]);
+
+  const updateWeeklyTarget = useCallback(async (id: string, updates: Partial<WeeklyTarget>) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { error } = await supabase.from('weekly_targets').update(updates).eq('id', id).eq('user_id', user.id);
+    if (error) throw error;
+    setWeeklyTargets(prev => prev.map(wt => wt.id === id ? { ...wt, ...updates } : wt));
+  }, [user]);
+
+  const deleteWeeklyTarget = useCallback(async (id: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { error } = await supabase.from('weekly_targets').delete().eq('id', id).eq('user_id', user.id);
+    if (error) throw error;
+    setWeeklyTargets(prev => prev.filter(wt => wt.id !== id));
+    setWeeklyTargetItems(prev => prev.filter(item => item.weekly_target_id !== id));
+    setWeeklyTargetAssignments(prev => prev.filter(assign => assign.weekly_target_id !== id));
+  }, [user]);
+
+  const addWeeklyTargetItem = useCallback(async (targetId: string, metric_key: string, label: string, target_value: number, order_index: number): Promise<WeeklyTargetItem> => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('weekly_target_items').insert({ weekly_target_id: targetId, metric_key, label, target_value, order_index, is_active: true }).select().single();
+    if (error) throw error;
+    setWeeklyTargetItems(prev => [...prev, data].sort((a, b) => a.order_index - b.order_index));
+    return data;
+  }, [user]);
+
+  const updateWeeklyTargetItem = useCallback(async (id: string, updates: Partial<WeeklyTargetItem>) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { error } = await supabase.from('weekly_target_items').update(updates).eq('id', id);
+    if (error) throw error;
+    setWeeklyTargetItems(prev => prev.map(item => item.id === id ? { ...item, ...updates } : item).sort((a, b) => a.order_index - b.order_index));
+  }, [user]);
+
+  const deleteWeeklyTargetItem = useCallback(async (id: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { error } = await supabase.from('weekly_target_items').delete().eq('id', id);
+    if (error) throw error;
+    setWeeklyTargetItems(prev => prev.filter(item => item.id !== id));
+  }, [user]);
+
+  const moveWeeklyTargetItem = useCallback(async (targetId: string, itemId: string, direction: 'up' | 'down') => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const itemsInTarget = weeklyTargetItems.filter(item => item.weekly_target_id === targetId).sort((a, b) => a.order_index - b.order_index);
+    const itemIndex = itemsInTarget.findIndex(item => item.id === itemId);
+
+    if (itemIndex === -1) return;
+
+    const newOrder = [...itemsInTarget];
+    const [movedItem] = newOrder.splice(itemIndex, 1);
+    const targetIndex = direction === 'up' ? itemIndex - 1 : itemIndex + 1;
+
+    if (targetIndex < 0 || targetIndex >= newOrder.length + 1) return;
+
+    newOrder.splice(targetIndex, 0, movedItem);
+
+    const updates = newOrder.map((item, index) => ({
+      id: item.id,
+      order_index: index,
+    }));
+
+    const { error } = await supabase.from('weekly_target_items').upsert(updates);
+    if (error) throw error;
+    setWeeklyTargetItems(prev => {
+      const otherItems = prev.filter(item => item.weekly_target_id !== targetId);
+      return [...otherItems, ...newOrder].sort((a, b) => a.order_index - b.order_index);
+    });
+  }, [user, weeklyTargetItems]);
+
+  const assignWeeklyTargetToConsultant = useCallback(async (targetId: string, consultantId: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('weekly_target_assignments').insert({ weekly_target_id: targetId, consultant_id: consultantId }).select().single();
+    if (error) throw error;
+    setWeeklyTargetAssignments(prev => [...prev, data]);
+  }, [user]);
+
+  const unassignWeeklyTargetFromConsultant = useCallback(async (targetId: string, consultantId: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { error } = await supabase.from('weekly_target_assignments').delete().match({ weekly_target_id: targetId, consultant_id: consultantId });
+    if (error) throw error;
+    setWeeklyTargetAssignments(prev => prev.filter(assign => !(assign.weekly_target_id === targetId && assign.consultant_id === consultantId)));
+  }, [user]);
+
+  const addMetricLog = useCallback(async (metric_key: string, value: number, date: string): Promise<MetricLog> => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('metric_logs').insert({ consultant_id: user.id, metric_key, date, value }).select().single();
+    if (error) throw error;
+    setMetricLogs(prev => [...prev, data]);
+    return data;
+  }, [user]);
+
+  // Módulo 5: Funções dos Materiais de Apoio (v2)
+  const addSupportMaterialV2 = useCallback(async (materialData: Omit<SupportMaterialV2, 'id' | 'user_id' | 'created_at'>): Promise<SupportMaterialV2> => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('support_materials_v2').insert({ ...materialData, user_id: user.id }).select().single();
+    if (error) throw error;
+    setSupportMaterialsV2(prev => [...prev, data]);
+    return data;
+  }, [user]);
+
+  const updateSupportMaterialV2 = useCallback(async (id: string, updates: Partial<SupportMaterialV2>) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { error } = await supabase.from('support_materials_v2').update(updates).eq('id', id).eq('user_id', user.id);
+    if (error) throw error;
+    setSupportMaterialsV2(prev => prev.map(mat => mat.id === id ? { ...mat, ...updates } : mat));
+  }, [user]);
+
+  const deleteSupportMaterialV2 = useCallback(async (id: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { error } = await supabase.from('support_materials_v2').delete().eq('id', id).eq('user_id', user.id);
+    if (error) throw error;
+    setSupportMaterialsV2(prev => prev.filter(mat => mat.id !== id));
+    setSupportMaterialAssignments(prev => prev.filter(assign => assign.material_id !== id));
+  }, [user]);
+
+  const assignSupportMaterialToConsultant = useCallback(async (materialId: string, consultantId: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('support_material_assignments').insert({ material_id: materialId, consultant_id: consultantId }).select().single();
+    if (error) throw error;
+    setSupportMaterialAssignments(prev => [...prev, data]);
+  }, [user]);
+
+  const unassignSupportMaterialFromConsultant = useCallback(async (materialId: string, consultantId: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { error } = await supabase.from('support_material_assignments').delete().match({ material_id: materialId, consultant_id: consultantId });
+    if (error) throw error;
+    setSupportMaterialAssignments(prev => prev.filter(assign => !(assign.material_id === materialId && assign.consultant_id === consultantId)));
+  }, [user]);
+
 
   useEffect(() => { if (!user) return; const syncPendingCommissions = async () => { const pending = JSON.parse(localStorage.getItem('pending_commissions') || '[]') as any[]; if (pending.length === 0) return; for (const item of pending) { try { const { _localId, _timestamp, _attempts, ...cleanData } = item; const { data, error } = await supabase.from('commissions').insert({ user_id: user.id, data: cleanData }).select('id, created_at').maybeSingle(); if (!error && data) { setCommissions(prev => prev.map(c => c.db_id === _localId ? { ...c, db_id: data.id.toString(), criado_em: data.created_at } : c)); const updated = pending.filter((p: any) => p._localId !== _localId); localStorage.setItem('pending_commissions', JSON.stringify(updated)); } } catch (error) { console.log(`❌ Falha ao sincronizar ${item._localId}`); } } }; const interval = setInterval(syncPendingCommissions, 2 * 60 * 1000); setTimeout(syncPendingCommissions, 5000); return () => clearInterval(interval); }, [user]);
 
@@ -465,7 +802,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     <AppContext.Provider value={{ 
       isDataLoading,
       candidates, templates, checklistStructure, consultantGoalsStructure, interviewStructure, commissions, supportMaterials, importantLinks, theme, origins, interviewers, pvs, teamMembers, cutoffPeriods, onboardingSessions, onboardingTemplateVideos,
-      crmPipelines, crmStages, crmFields, addCrmStage, updateCrmStage, updateCrmStageOrder, addCrmField, updateCrmField,
+      crmPipelines, crmStages, crmFields, crmLeads, addCrmLead, updateCrmLead, deleteCrmLead, addCrmStage, updateCrmStage, updateCrmStageOrder, addCrmField, updateCrmField,
       addCutoffPeriod, updateCutoffPeriod, deleteCutoffPeriod,
       addTeamMember, updateTeamMember, deleteTeamMember, toggleTheme, addOrigin, deleteOrigin, addInterviewer, deleteInterviewer, addPV, addCandidate, updateCandidate, deleteCandidate, toggleChecklistItem, toggleConsultantGoal, setChecklistDueDate, getCandidate, saveTemplate,
       addChecklistItem, updateChecklistItem, deleteChecklistItem, moveChecklistItem, resetChecklistToDefault, addGoalItem, updateGoalItem, deleteGoalItem, moveGoalItem, resetGoalsToDefault,
@@ -473,7 +810,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       addImportantLink, updateImportantLink, deleteImportantLink,
       addFeedback, updateFeedback, deleteFeedback,
       addTeamMemberFeedback, updateTeamMemberFeedback, deleteTeamMemberFeedback,
-      addOnlineOnboardingSession, deleteOnlineOnboardingSession, addVideoToTemplate, deleteVideoFromTemplate
+      addOnlineOnboardingSession, deleteOnlineOnboardingSession, addVideoToTemplate, deleteVideoFromTemplate,
+      // Módulo 3: Checklist do Dia
+      dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions,
+      addDailyChecklist, updateDailyChecklist, deleteDailyChecklist,
+      addDailyChecklistItem, updateDailyChecklistItem, deleteDailyChecklistItem, moveDailyChecklistItem,
+      assignDailyChecklistToConsultant, unassignDailyChecklistFromConsultant, toggleDailyChecklistCompletion,
+      // Módulo 4: Metas de Prospecção
+      weeklyTargets, weeklyTargetItems, weeklyTargetAssignments, metricLogs,
+      addWeeklyTarget, updateWeeklyTarget, deleteWeeklyTarget,
+      addWeeklyTargetItem, updateWeeklyTargetItem, deleteWeeklyTargetItem, moveWeeklyTargetItem,
+      assignWeeklyTargetToConsultant, unassignWeeklyTargetFromConsultant, addMetricLog,
+      // Módulo 5: Materiais de Apoio (v2)
+      supportMaterialsV2, supportMaterialAssignments,
+      addSupportMaterialV2, updateSupportMaterialV2, deleteSupportMaterialV2,
+      assignSupportMaterialToConsultant, unassignSupportMaterialFromConsultant
     }}>
       {children}
     </AppContext.Provider>
