@@ -35,7 +35,7 @@ import { Feedbacks } from '@/pages/Feedbacks';
 import { OnlineOnboarding } from '@/pages/OnlineOnboarding';
 import CrmConfigPage from '@/pages/gestor/CrmConfig';
 import { DailyChecklistConfig } from '@/pages/gestor/DailyChecklistConfig';
-import { DailyChecklistMonitoring } from '@/pages/gestor/DailyChecklistMonitoring'; // NEW IMPORT
+import { DailyChecklistMonitoring } from '@/pages/gestor/DailyChecklistMonitoring';
 
 // Consultor Pages
 import ConsultorDashboard from '@/pages/consultor/Dashboard';
@@ -67,7 +67,14 @@ const RequireAuth: React.FC<{ allowedRoles: UserRole[] }> = ({ allowedRoles }) =
   }
 
   if (!allowedRoles.includes(user.role)) {
-    return <Navigate to="/" replace />;
+    // Redirect to the appropriate dashboard if role is not allowed for the current route
+    if (user.role === 'GESTOR' || user.role === 'ADMIN') {
+      return <Navigate to="/gestor/dashboard" replace />;
+    }
+    if (user.role === 'CONSULTOR') {
+      return <Navigate to="/consultor/dashboard" replace />;
+    }
+    return <Navigate to="/login" replace />; // Fallback
   }
 
   return <Outlet />;
@@ -127,7 +134,7 @@ const AppRoutes = () => {
           <Route path="config-cutoff" element={<CutoffConfig />} />
           <Route path="crm-config" element={<CrmConfigPage />} />
           <Route path="daily-checklist-config" element={<DailyChecklistConfig />} />
-          <Route path="daily-checklist-monitoring" element={<DailyChecklistMonitoring />} /> {/* NEW ROUTE */}
+          <Route path="daily-checklist-monitoring" element={<DailyChecklistMonitoring />} />
           <Route path="*" element={<Navigate to="/gestor/dashboard" replace />} />
         </Route>
       </Route>
@@ -149,6 +156,8 @@ const AppRoutes = () => {
          </Route>
       </Route>
 
+      {/* Fallback for any unmatched routes */}
+      <Route path="*" element={<Home />} />
     </Routes>
   );
 };

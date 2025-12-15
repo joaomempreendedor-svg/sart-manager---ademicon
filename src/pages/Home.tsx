@@ -14,13 +14,21 @@ export const Home = () => {
     );
   }
 
-  if (user?.role === 'GESTOR' || user?.role === 'ADMIN') {
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (user.role === 'CONSULTOR' && user.isActive === false) {
+    return <Navigate to="/pending-approval" replace />;
+  }
+
+  if (user.role === 'GESTOR' || user.role === 'ADMIN') {
     return <Navigate to="/gestor/dashboard" replace />;
   }
 
-  if (user?.role === 'CONSULTOR') {
+  if (user.role === 'CONSULTOR') {
     return <Navigate to="/consultor/dashboard" replace />;
   }
 
-  return <Navigate to="/login" replace />;
+  return <Navigate to="/login" replace />; // Fallback, should not be reached
 };
