@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
-import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, CommissionStatus, InstallmentInfo, CutoffPeriod, ImportantLink, Feedback, OnboardingSession, OnboardingVideoTemplate } from '@/types';
+import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, CommissionStatus, InstallmentInfo, CutoffPeriod, ImportantLink, Feedback, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField } from '@/types';
 import { CHECKLIST_STAGES as DEFAULT_STAGES } from '@/data/checklistData';
 import { CONSULTANT_GOALS as DEFAULT_GOALS } from '@/data/consultantGoals';
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
@@ -82,6 +82,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [interviewers, setInterviewers] = useState<string[]>([]);
   const [pvs, setPvs] = useState<string[]>([]);
   
+  // CRM State
+  const [crmPipelines, setCrmPipelines] = useState<CrmPipeline[]>([]);
+  const [crmStages, setCrmStages] = useState<CrmStage[]>([]);
+  const [crmFields, setCrmFields] = useState<CrmField[]>([]);
+
   const [theme, setTheme] = useState<'light' | 'dark'>(() => (localStorage.getItem('sart_theme') as 'light' | 'dark') || 'light');
 
   const calculateCompetenceMonth = useCallback((paidDate: string): string => {
@@ -152,6 +157,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setOrigins(DEFAULT_APP_CONFIG_DATA.origins);
     setInterviewers(DEFAULT_APP_CONFIG_DATA.interviewers);
     setPvs(DEFAULT_APP_CONFIG_DATA.pvs);
+    setCrmPipelines([]);
+    setCrmStages([]);
+    setCrmFields([]);
     setIsDataLoading(false);
   };
 
@@ -204,7 +212,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           { data: cutoffData, error: cutoffError },
           { data: linksData, error: linksError },
           { data: onboardingData, error: onboardingError },
-          { data: templateVideosData, error: templateVideosError }
+          { data: templateVideosData, error: templateVideosError },
+          { data: pipelinesData, error: pipelinesError },
+          { data: stagesData, error: stagesError },
+          { data: fieldsData, error: fieldsError },
         ] = await Promise.all([
           supabase.from('app_config').select('data').eq('user_id', userId).maybeSingle(),
           supabase.from('candidates').select('id, data').eq('user_id', userId),
@@ -213,7 +224,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           supabase.from('cutoff_periods').select('id, data').eq('user_id', userId),
           supabase.from('important_links').select('id, data').eq('user_id', userId),
           supabase.from('onboarding_sessions').select('*, videos:onboarding_videos(*)').eq('user_id', userId),
-          supabase.from('onboarding_video_templates').select('*').eq('user_id', userId).order('order', { ascending: true })
+          supabase.from('onboarding_video_templates').select('*').eq('user_id', userId).order('order', { ascending: true }),
+          supabase.from('crm_pipelines').select('*').eq('user_id', userId),
+          supabase.from('crm_stages').select('*').eq('user_id', userId).order('order_index'),
+          supabase.from('crm_fields').select('*').eq('user_id', userId),
         ]);
 
         if (configError) console.error("Config error:", configError);
@@ -224,6 +238,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (linksError) console.error("Important Links error:", linksError);
         if (onboardingError) console.error("Onboarding error:", onboardingError);
         if (templateVideosError) console.error("Onboarding Template error:", templateVideosError);
+        if (pipelinesError) console.error("Pipelines error:", pipelinesError);
+        if (stagesError) console.error("Stages error:", stagesError);
+        if (fieldsError) console.error("Fields error:", fieldsError);
 
         if (configResult) {
           const { data } = configResult;
@@ -263,6 +280,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setCutoffPeriods(cutoffData?.map(item => ({ ...(item.data as CutoffPeriod), db_id: item.id })) || []);
         setOnboardingSessions((onboardingData as any[])?.map(s => ({...s, videos: s.videos.sort((a:any,b:any) => a.order - b.order)})) || []);
         setOnboardingTemplateVideos(templateVideosData || []);
+        setCrmPipelines(pipelinesData || []);
+        setCrmStages(stagesData || []);
+        setCrmFields(fieldsData || []);
         
         refetchCommissions();
 
@@ -416,12 +436,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setOnboardingTemplateVideos(prev => prev.filter(v => v.id !== videoId));
   }, [user]);
 
+  // CRM Functions
+  const addCrmStage = useCallback(async (stageData: Omit<CrmStage, 'id' | 'user_id' | 'created_at'>) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('crm_stages').insert({ ...stageData, user_id: user.id }).select().single(); if (error) throw error; setCrmStages(prev => [...prev, data].sort((a, b) => a.order_index - b.order_index)); return data; }, [user]);
+  const updateCrmStage = useCallback(async (id: string, updates: Partial<CrmStage>) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('crm_stages').update(updates).eq('id', id).select().single(); if (error) throw error; setCrmStages(prev => prev.map(s => s.id === id ? data : s).sort((a, b) => a.order_index - b.order_index)); }, [user]);
+  const updateCrmStageOrder = useCallback(async (stages: CrmStage[]) => { if (!user) throw new Error("Usuário não autenticado."); const updates = stages.map((stage, index) => ({ id: stage.id, order_index: index })); const { error } = await supabase.from('crm_stages').upsert(updates); if (error) throw error; setCrmStages(stages.map((s, i) => ({...s, order_index: i}))); }, [user]);
+  const addCrmField = useCallback(async (fieldData: Omit<CrmField, 'id' | 'user_id' | 'created_at'>) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('crm_fields').insert({ ...fieldData, user_id: user.id }).select().single(); if (error) throw error; setCrmFields(prev => [...prev, data]); return data; }, [user]);
+  const updateCrmField = useCallback(async (id: string, updates: Partial<CrmField>) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('crm_fields').update(updates).eq('id', id).select().single(); if (error) throw error; setCrmFields(prev => prev.map(f => f.id === id ? data : f)); }, [user]);
+
   useEffect(() => { if (!user) return; const syncPendingCommissions = async () => { const pending = JSON.parse(localStorage.getItem('pending_commissions') || '[]') as any[]; if (pending.length === 0) return; for (const item of pending) { try { const { _localId, _timestamp, _attempts, ...cleanData } = item; const { data, error } = await supabase.from('commissions').insert({ user_id: user.id, data: cleanData }).select('id, created_at').maybeSingle(); if (!error && data) { setCommissions(prev => prev.map(c => c.db_id === _localId ? { ...c, db_id: data.id.toString(), criado_em: data.created_at } : c)); const updated = pending.filter((p: any) => p._localId !== _localId); localStorage.setItem('pending_commissions', JSON.stringify(updated)); } } catch (error) { console.log(`❌ Falha ao sincronizar ${item._localId}`); } } }; const interval = setInterval(syncPendingCommissions, 2 * 60 * 1000); setTimeout(syncPendingCommissions, 5000); return () => clearInterval(interval); }, [user]);
 
   return (
     <AppContext.Provider value={{ 
       isDataLoading,
       candidates, templates, checklistStructure, consultantGoalsStructure, interviewStructure, commissions, supportMaterials, importantLinks, theme, origins, interviewers, pvs, teamMembers, cutoffPeriods, onboardingSessions, onboardingTemplateVideos,
+      crmPipelines, crmStages, crmFields, addCrmStage, updateCrmStage, updateCrmStageOrder, addCrmField, updateCrmField,
       addCutoffPeriod, updateCutoffPeriod, deleteCutoffPeriod,
       addTeamMember, updateTeamMember, deleteTeamMember, toggleTheme, addOrigin, deleteOrigin, addInterviewer, deleteInterviewer, addPV, addCandidate, updateCandidate, deleteCandidate, toggleChecklistItem, toggleConsultantGoal, setChecklistDueDate, getCandidate, saveTemplate,
       addChecklistItem, updateChecklistItem, deleteChecklistItem, moveChecklistItem, resetChecklistToDefault, addGoalItem, updateGoalItem, deleteGoalItem, moveGoalItem, resetGoalsToDefault,

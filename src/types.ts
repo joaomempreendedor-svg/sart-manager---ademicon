@@ -304,6 +304,16 @@ export interface AppContextType {
   cutoffPeriods: CutoffPeriod[];
   onboardingSessions: OnboardingSession[];
   onboardingTemplateVideos: OnboardingVideoTemplate[];
+  // CRM State
+  crmPipelines: CrmPipeline[];
+  crmStages: CrmStage[];
+  crmFields: CrmField[];
+  addCrmStage: (stageData: Omit<CrmStage, 'id' | 'user_id' | 'created_at'>) => Promise<CrmStage>;
+  updateCrmStage: (id: string, updates: Partial<CrmStage>) => Promise<void>;
+  updateCrmStageOrder: (stages: CrmStage[]) => Promise<void>;
+  addCrmField: (fieldData: Omit<CrmField, 'id' | 'user_id' | 'created_at'>) => Promise<CrmField>;
+  updateCrmField: (id: string, updates: Partial<CrmField>) => Promise<void>;
+  // End CRM State
   addCutoffPeriod: (period: CutoffPeriod) => Promise<void>;
   updateCutoffPeriod: (id: string, updates: Partial<CutoffPeriod>) => Promise<void>;
   deleteCutoffPeriod: (id: string) => Promise<void>;
