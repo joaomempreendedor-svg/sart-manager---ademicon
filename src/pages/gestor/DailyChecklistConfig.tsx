@@ -1,7 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useApp } from '@/context/AppContext';
 import { DailyChecklist, DailyChecklistItem, TeamMember } from '@/types';
-import { Plus, Edit2, Trash2, ArrowUp, ArrowDown, ToggleLeft, ToggleRight, Users, Check, X } from 'lucide-react';
+import { Plus, Edit2, Trash2, ArrowUp, ArrowDown, ToggleLeft, ToggleRight, Users, Check, X, ListChecks } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -171,6 +171,7 @@ export const DailyChecklistConfig = () => {
   const { 
     dailyChecklists, 
     dailyChecklistItems, 
+    dailyChecklistAssignments, 
     addDailyChecklistItem, 
     updateDailyChecklistItem, 
     deleteDailyChecklistItem, 
