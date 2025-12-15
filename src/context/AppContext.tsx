@@ -87,7 +87,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [crmStages, setCrmStages] = useState<CrmStage[]>([]);
   const [crmFields, setCrmFields] = useState<CrmField[]>([]);
   const [crmLeads, setCrmLeads] = useState<CrmLead[]>([]); // NOVO: Leads do CRM
-  const [crmOwnerUserId, setCrmOwnerUserId] = useState<string | null>(null); // NEW: ID of the user who owns the CRM configuration
 
   // Módulo 3: Checklist do Dia
   const [dailyChecklists, setDailyChecklists] = useState<DailyChecklist[]>([]);
@@ -180,7 +179,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setCrmStages([]);
     setCrmFields([]);
     setCrmLeads([]); // Reset CRM Leads
-    setCrmOwnerUserId(null); // Reset CRM owner
     setDailyChecklists([]); // Reset Daily Checklists
     setDailyChecklistItems([]);
     setDailyChecklistAssignments([]);
@@ -235,29 +233,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setIsDataLoading(false);
       }, 15000);
       try {
-        let effectiveCrmOwnerId = userId; // Default to current user's ID
-
-        if (user?.role === 'CONSULTOR') {
-          const { data: teamMemberProfile, error: teamMemberProfileError } = await supabase
-            .from('team_members')
-            .select('user_id') // This 'user_id' is the Gestor's ID
-            .eq('id', userId) // This 'id' is the consultant's auth.uid()
-            .maybeSingle();
-
-          if (teamMemberProfileError) {
-            console.error("Error fetching team member profile for consultant:", teamMemberProfileError);
-          } else if (teamMemberProfile) {
-            effectiveCrmOwnerId = teamMemberProfile.user_id; // Use the Gestor's ID as the owner
-            console.log(`[AppContext] Consultant ${userId} is linked to Gestor: ${effectiveCrmOwnerId}`);
-          } else {
-            console.warn(`[AppContext] Consultant ${userId} not found in team_members or has no associated Gestor. CRM will not be visible.`);
-            effectiveCrmOwnerId = null; // No Gestor found, so no CRM to display
-          }
-        } else if (user?.role === 'GESTOR' || user?.role === 'ADMIN') {
-          console.log(`[AppContext] User ${userId} is a Gestor/Admin. CRM owner is self.`);
-        }
-        setCrmOwnerUserId(effectiveCrmOwnerId); // Set the CRM owner ID
-
         const [
           { data: configResult, error: configError },
           { data: candidatesData, error: candidatesError },
@@ -267,12 +242,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           { data: linksData, error: linksError },
           { data: onboardingData, error: onboardingError },
           { data: templateVideosData, error: templateVideosError },
-          // Use effectiveCrmOwnerId for CRM related fetches
           { data: pipelinesData, error: pipelinesError },
           { data: stagesData, error: stagesError },
-          { data: fieldsData, error: fieldsDataError },
-          // crmLeads fetch needs to be conditional based on role
-          { data: crmLeadsData, error: crmLeadsError },
+          { data: fieldsData, error: fieldsError },
+          { data: crmLeadsData, error: crmLeadsError }, // Fetch CRM Leads
           { data: dailyChecklistsData, error: dailyChecklistsError }, // Fetch Daily Checklists
           { data: dailyChecklistItemsData, error: dailyChecklistItemsError },
           { data: dailyChecklistAssignmentsData, error: dailyChecklistAssignmentsError },
@@ -292,12 +265,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           supabase.from('important_links').select('id, data').eq('user_id', userId),
           supabase.from('onboarding_sessions').select('*, videos:onboarding_videos(*)').eq('user_id', userId),
           supabase.from('onboarding_video_templates').select('*').eq('user_id', userId).order('order', { ascending: true }),
-          // CRM fetches now use effectiveCrmOwnerId
-          effectiveCrmOwnerId ? supabase.from('crm_pipelines').select('*').eq('user_id', effectiveCrmOwnerId) : Promise.resolve({ data: [], error: null }),
-          effectiveCrmOwnerId ? supabase.from('crm_stages').select('*').eq('user_id', effectiveCrmOwnerId).order('order_index') : Promise.resolve({ data: [], error: null }),
-          effectiveCrmOwnerId ? supabase.from('crm_fields').select('*').eq('user_id', effectiveCrmOwnerId) : Promise.resolve({ data: [], error: null }),
-          // crmLeads fetch needs to be conditional based on role
-          user?.role === 'CONSULTOR' ? supabase.from('crm_leads').select('*').eq('consultant_id', userId) : (effectiveCrmOwnerId ? supabase.from('crm_leads').select('*').eq('user_id', effectiveCrmOwnerId) : Promise.resolve({ data: [], error: null })),
+          supabase.from('crm_pipelines').select('*').eq('user_id', userId),
+          supabase.from('crm_stages').select('*').eq('user_id', userId).order('order_index'),
+          supabase.from('crm_fields').select('*').eq('user_id', userId),
+          supabase.from('crm_leads').select('*').eq('user_id', userId), // Fetch CRM Leads
           supabase.from('daily_checklists').select('*').eq('user_id', userId), // Fetch Daily Checklists
           supabase.from('daily_checklist_items').select('*'),
           supabase.from('daily_checklist_assignments').select('*'),
@@ -320,7 +291,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (templateVideosError) console.error("Onboarding Template error:", templateVideosError);
         if (pipelinesError) console.error("Pipelines error:", pipelinesError);
         if (stagesError) console.error("Stages error:", stagesError);
-        if (fieldsDataError) console.error("Fields error:", fieldsDataError);
+        if (fieldsError) console.error("Fields error:", fieldsError);
         if (crmLeadsError) console.error("CRM Leads error:", crmLeadsError);
         if (dailyChecklistsError) console.error("Daily Checklists error:", dailyChecklistsError);
         if (dailyChecklistItemsError) console.error("Daily Checklist Items error:", dailyChecklistItemsError);
@@ -374,22 +345,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setOnboardingTemplateVideos(templateVideosData || []);
         
         let finalPipelines = pipelinesData || [];
-        if (finalPipelines.length === 0 && effectiveCrmOwnerId) { // Only create default if current user is the owner
-          if (user?.role === 'GESTOR' || user?.role === 'ADMIN') { // Only Gestors/Admins can create default pipelines
-            console.log(`[AppContext] No CRM pipelines found for ${effectiveCrmOwnerId}. Creating default pipeline.`);
-            // Create a default pipeline if none exist
-            const { data: newPipeline, error: insertPipelineError } = await supabase
-              .from('crm_pipelines')
-              .insert({ user_id: userId, name: 'Pipeline Padrão', is_active: true })
-              .select('*')
-              .single();
-            if (insertPipelineError) {
-              console.error("Error inserting default CRM pipeline:", insertPipelineError);
-            } else if (newPipeline) {
-              finalPipelines = [newPipeline];
-            }
-          } else {
-            console.log(`[AppContext] No CRM pipelines found for Gestor ${effectiveCrmOwnerId} linked to consultant ${userId}.`);
+        if (finalPipelines.length === 0) {
+          // Create a default pipeline if none exist
+          const { data: newPipeline, error: insertPipelineError } = await supabase
+            .from('crm_pipelines')
+            .insert({ user_id: userId, name: 'Pipeline Padrão', is_active: true })
+            .select('*')
+            .single();
+          if (insertPipelineError) {
+            console.error("Error inserting default CRM pipeline:", insertPipelineError);
+          } else if (newPipeline) {
+            finalPipelines = [newPipeline];
           }
         }
         setCrmPipelines(finalPipelines);
@@ -455,7 +421,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     } else {
       setIsDataLoading(false);
     }
-  }, [user?.id, user?.role, refetchCommissions]);
+  }, [user?.id, refetchCommissions]);
 
   const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
   const addCandidate = useCallback(async (candidate: Candidate) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('candidates').insert({ user_id: user.id, data: candidate }).select('id').single(); if (error) { console.error(error); throw error; } if (data) { setCandidates(prev => [{ ...candidate, db_id: data.id }, ...prev]); } }, [user]);
@@ -561,30 +527,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [user]);
 
   // CRM Functions
-  const addCrmLead = useCallback(async (leadData: Omit<CrmLead, 'id' | 'created_at' | 'updated_at'>): Promise<CrmLead> => {
+  const addCrmLead = useCallback(async (leadData: Omit<CrmLead, 'id' | 'user_id' | 'created_at' | 'updated_at'>): Promise<CrmLead> => {
     if (!user) throw new Error("Usuário não autenticado.");
-    // Ensure user_id (Gestor's ID) is correctly set from crmOwnerUserId
-    if (!crmOwnerUserId) throw new Error("ID do Gestor do CRM não encontrado.");
-    const payload = { ...leadData, user_id: crmOwnerUserId };
-    const { data, error } = await supabase.from('crm_leads').insert(payload).select().single();
+    const { data, error } = await supabase.from('crm_leads').insert({ ...leadData, user_id: user.id }).select().single();
     if (error) throw error;
     setCrmLeads(prev => [...prev, data]);
     return data;
-  }, [user, crmOwnerUserId]);
+  }, [user]);
 
   const updateCrmLead = useCallback(async (id: string, updates: Partial<CrmLead>) => {
     if (!user) throw new Error("Usuário não autenticado.");
-    // Ensure user_id (Gestor's ID) is correctly set from crmOwnerUserId
-    if (!crmOwnerUserId) throw new Error("ID do Gestor do CRM não encontrado.");
-    const payload = { ...updates, user_id: crmOwnerUserId }; // Ensure user_id is not changed if it's a consultant updating
-    const { error } = await supabase.from('crm_leads').update(payload).eq('id', id).eq('consultant_id', user.id);
+    const { error } = await supabase.from('crm_leads').update(updates).eq('id', id).eq('user_id', user.id);
     if (error) throw error;
     setCrmLeads(prev => prev.map(lead => lead.id === id ? { ...lead, ...updates } : lead));
-  }, [user, crmOwnerUserId]);
+  }, [user]);
 
   const deleteCrmLead = useCallback(async (id: string) => {
     if (!user) throw new Error("Usuário não autenticado.");
-    const { error } = await supabase.from('crm_leads').delete().eq('id', id).eq('consultant_id', user.id);
+    const { error } = await supabase.from('crm_leads').delete().eq('id', id).eq('user_id', user.id);
     if (error) throw error;
     setCrmLeads(prev => prev.filter(lead => lead.id !== id));
   }, [user]);
@@ -842,7 +802,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     <AppContext.Provider value={{ 
       isDataLoading,
       candidates, templates, checklistStructure, consultantGoalsStructure, interviewStructure, commissions, supportMaterials, importantLinks, theme, origins, interviewers, pvs, teamMembers, cutoffPeriods, onboardingSessions, onboardingTemplateVideos,
-      crmPipelines, crmStages, crmFields, crmLeads, addCrmLead, updateCrmLead, deleteCrmLead, addCrmStage, updateCrmStage, updateCrmStageOrder, addCrmField, updateCrmField, crmOwnerUserId,
+      crmPipelines, crmStages, crmFields, crmLeads, addCrmLead, updateCrmLead, deleteCrmLead, addCrmStage, updateCrmStage, updateCrmStageOrder, addCrmField, updateCrmField,
       addCutoffPeriod, updateCutoffPeriod, deleteCutoffPeriod,
       addTeamMember, updateTeamMember, deleteTeamMember, toggleTheme, addOrigin, deleteOrigin, addInterviewer, deleteInterviewer, addPV, addCandidate, updateCandidate, deleteCandidate, toggleChecklistItem, toggleConsultantGoal, setChecklistDueDate, getCandidate, saveTemplate,
       addChecklistItem, updateChecklistItem, deleteChecklistItem, moveChecklistItem, resetChecklistToDefault, addGoalItem, updateGoalItem, deleteGoalItem, moveGoalItem, resetGoalsToDefault,

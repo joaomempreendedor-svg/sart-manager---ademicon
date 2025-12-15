@@ -197,14 +197,12 @@ export interface ImportantLink {
 export type TeamRole = 'Prévia' | 'Autorizado' | 'Gestor' | 'Anjo';
 
 export interface TeamMember {
-  manager_id: string; // ID do gestor
-  consultant_id: string; // ID do usuário do consultor (auth.users.id)
-  name: string; // Nome do consultor (vindo de profiles)
-  email: string; // Email do consultor (vindo de profiles)
+  id: string; // Client-side UUID
+  db_id?: string; // Database primary key
+  name: string;
   roles: TeamRole[];
-  is_active: boolean; // Status ativo dentro da equipe do gestor
-  feedbacks?: Feedback[]; // Feedbacks específicos para este consultor
-  created_at: string;
+  isActive: boolean;
+  feedbacks?: Feedback[];
 }
 
 // AUTHENTICATION
@@ -417,7 +415,6 @@ export interface AppContextType {
   crmStages: CrmStage[];
   crmFields: CrmField[];
   crmLeads: CrmLead[]; // NOVO: Leads do CRM
-  crmOwnerUserId: string | null; // NEW: ID of the user who owns the CRM configuration
   addCrmLead: (leadData: Omit<CrmLead, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => Promise<CrmLead>;
   updateCrmLead: (id: string, updates: Partial<CrmLead>) => Promise<void>;
   deleteCrmLead: (id: string) => Promise<void>;
@@ -430,9 +427,9 @@ export interface AppContextType {
   addCutoffPeriod: (period: CutoffPeriod) => Promise<void>;
   updateCutoffPeriod: (id: string, updates: Partial<CutoffPeriod>) => Promise<void>;
   deleteCutoffPeriod: (id: string) => Promise<void>;
-  addTeamMember: (consultantId: string, roles: TeamRole[]) => Promise<void>;
-  updateTeamMember: (consultantId: string, updates: Partial<Omit<TeamMember, 'manager_id' | 'name' | 'email' | 'created_at'>>) => Promise<void>;
-  deleteTeamMember: (consultantId: string) => Promise<void>;
+  addTeamMember: (member: TeamMember) => Promise<void>;
+  updateTeamMember: (id: string, updates: Partial<TeamMember>) => Promise<void>;
+  deleteTeamMember: (id: string) => Promise<void>;
   addOrigin: (origin: string) => void;
   deleteOrigin: (origin: string) => void;
   addInterviewer: (interviewer: string) => void;
@@ -516,7 +513,7 @@ export interface AppContextType {
   unassignWeeklyTargetFromConsultant: (targetId: string, consultantId: string) => Promise<void>;
   addMetricLog: (metric_key: string, value: number, date: string) => Promise<MetricLog>;
 
-  // NOVO: Estado e funções para Materiais de Apoio (v2)
+  // NOVO: Estado e funções para Materiais de Apoio (links/texto) (Módulo 5)
   supportMaterialsV2: SupportMaterialV2[];
   supportMaterialAssignments: SupportMaterialAssignment[];
   addSupportMaterialV2: (material: Omit<SupportMaterialV2, 'id' | 'user_id' | 'created_at'>) => Promise<SupportMaterialV2>;

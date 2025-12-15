@@ -49,27 +49,27 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
         </div>
         
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-          <NavLink to="/gestor/dashboard" className={linkClass} onClick={toggleSidebar}>
+          <NavLink to="/" className={linkClass} onClick={toggleSidebar}>
             <LayoutDashboard className="w-5 h-5" />
             <span>Dashboard</span>
           </NavLink>
-          <NavLink to="/gestor/onboarding-admin" className={linkClass} onClick={toggleSidebar}>
+          <NavLink to="/onboarding-admin" className={linkClass} onClick={toggleSidebar}>
             <Video className="w-5 h-5" />
             <span>Onboarding Online</span>
           </NavLink>
-          <NavLink to="/gestor/commissions" className={linkClass} onClick={toggleSidebar}>
+          <NavLink to="/commissions" className={linkClass} onClick={toggleSidebar}>
             <Banknote className="w-5 h-5" />
             <span>Comissões</span>
           </NavLink>
-          <NavLink to="/gestor/feedbacks" className={linkClass} onClick={toggleSidebar}>
+          <NavLink to="/feedbacks" className={linkClass} onClick={toggleSidebar}>
             <Star className="w-5 h-5" />
             <span>Feedbacks</span>
           </NavLink>
-          <NavLink to="/gestor/materials" className={linkClass} onClick={toggleSidebar}>
+          <NavLink to="/materials" className={linkClass} onClick={toggleSidebar}>
             <Library className="w-5 h-5" />
             <span>Materiais de Apoio</span>
           </NavLink>
-          <NavLink to="/gestor/links" className={linkClass} onClick={toggleSidebar}>
+          <NavLink to="/links" className={linkClass} onClick={toggleSidebar}>
             <LinkIcon className="w-5 h-5" />
             <span>Links Importantes</span>
           </NavLink>
@@ -81,39 +81,39 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
           <div className="pt-4 pb-2">
             <p className="px-4 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Configurações</p>
           </div>
-          <NavLink to="/gestor/config-team" className={linkClass} onClick={toggleSidebar}>
+          <NavLink to="/config-team" className={linkClass} onClick={toggleSidebar}>
             <Users className="w-5 h-5" />
             <span>Gestão de Equipe</span>
           </NavLink>
-          <NavLink to="/gestor/daily-checklist-config" className={linkClass} onClick={toggleSidebar}>
+          <NavLink to="/daily-checklist-config" className={linkClass} onClick={toggleSidebar}>
             <ListChecks className="w-5 h-5" />
             <span>Config. Checklist Diário</span>
           </NavLink>
-          <NavLink to="/gestor/daily-checklist-monitoring" className={linkClass} onClick={toggleSidebar}> {/* NEW LINK */}
+          <NavLink to="/daily-checklist-monitoring" className={linkClass} onClick={toggleSidebar}> {/* NEW LINK */}
             <ClipboardCheck className="w-5 h-5" />
             <span>Monitorar Checklists</span>
           </NavLink>
-          <NavLink to="/gestor/config-process" className={linkClass} onClick={toggleSidebar}>
+          <NavLink to="/config-process" className={linkClass} onClick={toggleSidebar}>
             <Settings className="w-5 h-5" />
             <span>Editar Processo (Antigo)</span>
           </NavLink>
-          <NavLink to="/gestor/config-goals" className={linkClass} onClick={toggleSidebar}>
+          <NavLink to="/config-goals" className={linkClass} onClick={toggleSidebar}>
             <Target className="w-5 h-5" />
             <span>Configurar Metas</span>
           </NavLink>
-          <NavLink to="/gestor/config-interview" className={linkClass} onClick={toggleSidebar}>
+          <NavLink to="/config-interview" className={linkClass} onClick={toggleSidebar}>
             <FileText className="w-5 h-5" />
             <span>Configurar Entrevista</span>
           </NavLink>
-          <NavLink to="/gestor/config-templates" className={linkClass} onClick={toggleSidebar}>
+          <NavLink to="/config-templates" className={linkClass} onClick={toggleSidebar}>
             <MessageSquare className="w-5 h-5" />
             <span>Configurar Mensagens</span>
           </NavLink>
-          <NavLink to="/gestor/config-cutoff" className={linkClass} onClick={toggleSidebar}>
+          <NavLink to="/config-cutoff" className={linkClass} onClick={toggleSidebar}>
             <Calendar className="w-5 h-5" />
             <span>Períodos de Corte</span>
           </NavLink>
-          <NavLink to="/gestor/crm-config" className={linkClass} onClick={toggleSidebar}>
+          <NavLink to="/crm-config" className={linkClass} onClick={toggleSidebar}>
             <PlusCircle className="w-5 h-5" />
             <span>Configurar CRM</span>
           </NavLink>
