@@ -1,4 +1,4 @@
-export type CandidateStatus = 
+export type CandidateStatus =
   | 'Entrevista'
   | 'Aguardando Prévia'
   | 'Onboarding Online'
@@ -128,23 +128,23 @@ export interface Commission {
   consultant: string;
   managerName: string; // Nome do Gestor
   angelName?: string; // Nome do Anjo (Opcional)
-  
+
   pv: string; // e.g. 'SOARES E MORAES'
   value: number; // Valor Vendido / Crédito Base
-  
+
   // Financials
   taxRate: number; // Imposto % (Descontado da comissão final)
   netValue: number; // Total Líquido R$
   installments: number; // Número de Parcelas Total
   status: CommissionStatus;
   installmentDetails: Record<string, InstallmentInfo>; // e.g. { '1': { status: 'Pago', paidDate: '2024-01-15' } }
-  
+
   // Split Values (Calculated per installment rules - Tax)
   consultantValue: number; // Valor para o consultor
   managerValue: number; // Valor para o gestor
   angelValue: number; // Valor para o anjo
   receivedValue: number; // Soma ou valor total da nota
-  
+
   customRules?: CommissionRule[]; // Se presente, ignora cálculo padrão
   criado_em?: string; // Timestamp from Supabase
   _synced?: boolean;
@@ -159,6 +159,30 @@ export interface SupportMaterial {
   url: string; // URL from Supabase Storage
   fileName: string;
 }
+
+// NOVO: Material de Apoio para links/texto (Módulo 5)
+export type SupportMaterialContentType = 'link' | 'text';
+
+export interface SupportMaterialV2 {
+  id: string; // Client-side UUID
+  db_id?: string; // Database primary key
+  user_id: string; // ID do gestor que criou
+  title: string;
+  description?: string;
+  content_type: SupportMaterialContentType;
+  content: string; // URL se for link, ou o próprio texto se for texto
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface SupportMaterialAssignment {
+  id: string;
+  db_id?: string;
+  material_id: string;
+  consultant_id: string;
+  created_at: string;
+}
+
 
 export interface ImportantLink {
   id: string; // Client-side UUID
@@ -277,12 +301,93 @@ export interface CrmLead {
   id: string;
   consultant_id: string;
   stage_id: string;
-  user_id: string;
+  user_id: string; // ID do gestor que gerencia este lead
   name: string;
-  data: Record<string, any>;
+  data: Record<string, any>; // Campos dinâmicos
   created_at: string;
   updated_at: string;
 }
+
+// NOVO: Tipos para Checklist do Dia (Módulo 3)
+export interface DailyChecklist {
+  id: string;
+  db_id?: string;
+  user_id: string; // ID do gestor
+  title: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface DailyChecklistItem {
+  id: string;
+  db_id?: string;
+  daily_checklist_id: string;
+  text: string;
+  order_index: number;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface DailyChecklistAssignment {
+  id: string;
+  db_id?: string;
+  daily_checklist_id: string;
+  consultant_id: string;
+  created_at: string;
+}
+
+export interface DailyChecklistCompletion {
+  id: string;
+  db_id?: string;
+  daily_checklist_item_id: string;
+  consultant_id: string;
+  date: string; // YYYY-MM-DD
+  done: boolean;
+  updated_at: string;
+}
+
+// NOVO: Tipos para Metas de Prospecção (Módulo 4)
+export interface WeeklyTarget {
+  id: string;
+  db_id?: string;
+  user_id: string; // ID do gestor
+  title: string;
+  week_start: string; // YYYY-MM-DD
+  week_end: string;   // YYYY-MM-DD
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface WeeklyTargetItem {
+  id: string;
+  db_id?: string;
+  weekly_target_id: string;
+  metric_key: string; // Ex: 'whatsapp_msgs'
+  label: string;
+  target_value: number;
+  order_index: number;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface WeeklyTargetAssignment {
+  id: string;
+  db_id?: string;
+  weekly_target_id: string;
+  consultant_id: string;
+  created_at: string;
+}
+
+export interface MetricLog {
+  id: string;
+  db_id?: string;
+  consultant_id: string;
+  metric_key: string;
+  date: string; // YYYY-MM-DD
+  value: number;
+  created_at: string;
+}
+
 // --- FIM DOS NOVOS TIPOS ---
 
 
@@ -294,7 +399,7 @@ export interface AppContextType {
   consultantGoalsStructure: GoalStage[];
   interviewStructure: InterviewSection[];
   commissions: Commission[];
-  supportMaterials: SupportMaterial[];
+  supportMaterials: SupportMaterial[]; // Existing file-based materials
   importantLinks: ImportantLink[];
   theme: 'light' | 'dark';
   origins: string[];
@@ -308,6 +413,10 @@ export interface AppContextType {
   crmPipelines: CrmPipeline[];
   crmStages: CrmStage[];
   crmFields: CrmField[];
+  crmLeads: CrmLead[]; // NOVO: Leads do CRM
+  addCrmLead: (leadData: Omit<CrmLead, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => Promise<CrmLead>;
+  updateCrmLead: (id: string, updates: Partial<CrmLead>) => Promise<void>;
+  deleteCrmLead: (id: string) => Promise<void>;
   addCrmStage: (stageData: Omit<CrmStage, 'id' | 'user_id' | 'created_at'>) => Promise<CrmStage>;
   updateCrmStage: (id: string, updates: Partial<CrmStage>) => Promise<void>;
   updateCrmStageOrder: (stages: CrmStage[]) => Promise<void>;
@@ -370,4 +479,45 @@ export interface AppContextType {
   deleteOnlineOnboardingSession: (sessionId: string) => Promise<void>;
   addVideoToTemplate: (title: string, url: string) => Promise<void>;
   deleteVideoFromTemplate: (videoId: string) => Promise<void>;
+
+  // NOVO: Estado e funções para Checklist do Dia (Módulo 3)
+  dailyChecklists: DailyChecklist[];
+  dailyChecklistItems: DailyChecklistItem[];
+  dailyChecklistAssignments: DailyChecklistAssignment[];
+  dailyChecklistCompletions: DailyChecklistCompletion[];
+  addDailyChecklist: (title: string) => Promise<DailyChecklist>;
+  updateDailyChecklist: (id: string, updates: Partial<DailyChecklist>) => Promise<void>;
+  deleteDailyChecklist: (id: string) => Promise<void>;
+  addDailyChecklistItem: (checklistId: string, text: string, order_index: number) => Promise<DailyChecklistItem>;
+  updateDailyChecklistItem: (id: string, updates: Partial<DailyChecklistItem>) => Promise<void>;
+  deleteDailyChecklistItem: (id: string) => Promise<void>;
+  moveDailyChecklistItem: (checklistId: string, itemId: string, direction: 'up' | 'down') => Promise<void>;
+  assignDailyChecklistToConsultant: (checklistId: string, consultantId: string) => Promise<void>;
+  unassignDailyChecklistFromConsultant: (checklistId: string, consultantId: string) => Promise<void>;
+  toggleDailyChecklistCompletion: (itemId: string, date: string, done: boolean) => Promise<void>;
+
+  // NOVO: Estado e funções para Metas de Prospecção (Módulo 4)
+  weeklyTargets: WeeklyTarget[];
+  weeklyTargetItems: WeeklyTargetItem[];
+  weeklyTargetAssignments: WeeklyTargetAssignment[];
+  metricLogs: MetricLog[];
+  addWeeklyTarget: (title: string, week_start: string, week_end: string) => Promise<WeeklyTarget>;
+  updateWeeklyTarget: (id: string, updates: Partial<WeeklyTarget>) => Promise<void>;
+  deleteWeeklyTarget: (id: string) => Promise<void>;
+  addWeeklyTargetItem: (targetId: string, metric_key: string, label: string, target_value: number, order_index: number) => Promise<WeeklyTargetItem>;
+  updateWeeklyTargetItem: (id: string, updates: Partial<WeeklyTargetItem>) => Promise<void>;
+  deleteWeeklyTargetItem: (id: string) => Promise<void>;
+  moveWeeklyTargetItem: (targetId: string, itemId: string, direction: 'up' | 'down') => Promise<void>;
+  assignWeeklyTargetToConsultant: (targetId: string, consultantId: string) => Promise<void>;
+  unassignWeeklyTargetFromConsultant: (targetId: string, consultantId: string) => Promise<void>;
+  addMetricLog: (metric_key: string, value: number, date: string) => Promise<MetricLog>;
+
+  // NOVO: Estado e funções para Materiais de Apoio (links/texto) (Módulo 5)
+  supportMaterialsV2: SupportMaterialV2[];
+  supportMaterialAssignments: SupportMaterialAssignment[];
+  addSupportMaterialV2: (material: Omit<SupportMaterialV2, 'id' | 'user_id' | 'created_at'>) => Promise<SupportMaterialV2>;
+  updateSupportMaterialV2: (id: string, updates: Partial<SupportMaterialV2>) => Promise<void>;
+  deleteSupportMaterialV2: (id: string) => Promise<void>;
+  assignSupportMaterialToConsultant: (materialId: string, consultantId: string) => Promise<void>;
+  unassignSupportMaterialFromConsultant: (materialId: string, consultantId: string) => Promise<void>;
 }
