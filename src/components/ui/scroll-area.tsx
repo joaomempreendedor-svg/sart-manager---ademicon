@@ -3,16 +3,14 @@ import * as ScrollAreaPrimitive from "@radix-ui/react-scroll-area"
 
 import { cn } from "@/lib/utils"
 
-// Definindo as propriedades do ScrollBar manualmente para evitar o erro de parsing do Babel.
-// Ele estende as propriedades HTML padrão de uma div e adiciona 'orientation'.
-interface ScrollBarProps extends React.HTMLAttributes<HTMLDivElement> {
-  orientation?: "vertical" | "horizontal";
-}
+// Definindo as propriedades do ScrollBar
+interface ScrollBarProps extends React.ComponentPropsWithoutRef<typeof ScrollAreaPrimitive.ScrollAreaScrollbar> {}
 
-const ScrollBar = React.forwardRef<
-  React.ElementRef<typeof ScrollAreaPrimitive.ScrollAreaScrollbar>,
-  ScrollBarProps
->(({ className, orientation = "vertical", ...props }, ref) => (
+// Chamando React.forwardRef sem argumentos genéricos explícitos
+const ScrollBar = React.forwardRef((
+  { className, orientation = "vertical", ...props }: ScrollBarProps, // Props tipadas diretamente aqui
+  ref: React.Ref<React.ElementRef<typeof ScrollAreaPrimitive.ScrollAreaScrollbar>> // Ref tipada diretamente aqui
+) => (
   <ScrollAreaPrimitive.ScrollAreaScrollbar
     ref={ref}
     orientation={orientation}
@@ -28,7 +26,8 @@ const ScrollBar = React.forwardRef<
   >
     <ScrollAreaPrimitive.ScrollAreaThumb className="relative flex-1 rounded-full bg-gray-300 dark:bg-slate-600" />
   </ScrollAreaPrimitive.Scrollbar>
-))
+)) as React.ForwardRefExoticComponent<ScrollBarProps & React.RefAttributes<React.ElementRef<typeof ScrollAreaPrimitive.ScrollAreaScrollbar>>>; // Asserção de tipo no resultado
+
 ScrollBar.displayName = ScrollAreaPrimitive.ScrollAreaScrollbar.displayName
 
 const ScrollArea = React.forwardRef<
