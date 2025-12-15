@@ -52,7 +52,7 @@ const ChecklistModal: React.FC<ChecklistModalProps> = ({ isOpen, onClose, checkl
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px] dark:bg-slate-800 dark:text-white">
+      <DialogContent className="sm:max-w-[425px] bg-white dark:bg-slate-800 dark:text-white"> {/* Adicionado bg-white explicitamente */}
         <DialogHeader>
           <DialogTitle>{checklist ? 'Editar Checklist' : 'Novo Checklist'}</DialogTitle>
           <DialogDescription>
@@ -124,7 +124,7 @@ const AssignmentModal: React.FC<AssignmentModalProps> = ({ isOpen, onClose, chec
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px] dark:bg-slate-800 dark:text-white">
+      <DialogContent className="sm:max-w-[425px] bg-white dark:bg-slate-800 dark:text-white"> {/* Adicionado bg-white explicitamente */}
         <DialogHeader>
           <DialogTitle>Atribuir "{checklist.title}"</DialogTitle>
           <DialogDescription>
