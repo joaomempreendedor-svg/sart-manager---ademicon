@@ -280,7 +280,23 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setCutoffPeriods(cutoffData?.map(item => ({ ...(item.data as CutoffPeriod), db_id: item.id })) || []);
         setOnboardingSessions((onboardingData as any[])?.map(s => ({...s, videos: s.videos.sort((a:any,b:any) => a.order - b.order)})) || []);
         setOnboardingTemplateVideos(templateVideosData || []);
-        setCrmPipelines(pipelinesData || []);
+        
+        let finalPipelines = pipelinesData || [];
+        if (finalPipelines.length === 0) {
+          // Create a default pipeline if none exist
+          const { data: newPipeline, error: insertPipelineError } = await supabase
+            .from('crm_pipelines')
+            .insert({ user_id: userId, name: 'Pipeline Padrão', is_active: true })
+            .select('*')
+            .single();
+          if (insertPipelineError) {
+            console.error("Error inserting default CRM pipeline:", insertPipelineError);
+          } else if (newPipeline) {
+            finalPipelines = [newPipeline];
+          }
+        }
+        setCrmPipelines(finalPipelines);
+
         setCrmStages(stagesData || []);
         setCrmFields(fieldsData || []);
         
