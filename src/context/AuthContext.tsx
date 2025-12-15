@@ -22,23 +22,34 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const fetchUserProfile = useCallback(async (session: Session): Promise<User | null> => {
     try {
-      const { data: profile, error } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('first_name, last_name, role')
         .eq('id', session.user.id)
         .maybeSingle();
 
-      if (error) throw error;
+      if (profileError) throw profileError;
+
+      const { data: teamMemberData, error: teamMemberError } = await supabase
+        .from('team_members')
+        .select('data')
+        .eq('user_id', session.user.id)
+        .maybeSingle();
+
+      if (teamMemberError) console.error("Error fetching team member status:", teamMemberError);
 
       const name = profile && (profile.first_name || profile.last_name)
         ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim()
         : session.user.email?.split('@')[0] || 'Usuário';
         
+      const isActive = teamMemberData ? (teamMemberData.data as any).isActive : true; // Default to true if not found or not a team member
+
       return { 
         id: session.user.id, 
         name, 
         email: session.user.email || '',
-        role: profile?.role || 'CONSULTOR' 
+        role: profile?.role || 'CONSULTOR',
+        isActive: isActive
       };
     } catch (error: any) {
       console.error('Error fetching profile:', error.message);
@@ -47,6 +58,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         name: session.user.email?.split('@')[0] || 'Usuário',
         email: session.user.email || '',
         role: 'CONSULTOR', // Fallback role
+        isActive: false, // Default to inactive on error for safety
       };
     }
   }, []);

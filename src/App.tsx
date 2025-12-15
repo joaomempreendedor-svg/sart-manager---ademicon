@@ -17,6 +17,7 @@ import { UpdatePassword } from '@/pages/UpdatePassword';
 import { PublicOnboarding } from '@/pages/PublicOnboarding';
 import { Home } from '@/pages/Home';
 import { Loader2, RefreshCw } from 'lucide-react';
+import { PendingApproval } from '@/pages/PendingApproval'; // NEW IMPORT
 
 // Gestor Pages
 import { Dashboard } from '@/pages/Dashboard';
@@ -47,7 +48,8 @@ const AppLoader = () => (
 
 const RequireAuth: React.FC<{ allowedRoles: UserRole[] }> = ({ allowedRoles }) => {
   const { user, isLoading: isAuthLoading } = useAuth();
-  const { isDataLoading } = useApp();
+  const { isDataLoading } = useApp(); // isDataLoading from AppContext
+
   const location = useLocation();
 
   if (isAuthLoading || isDataLoading) {
@@ -56,6 +58,11 @@ const RequireAuth: React.FC<{ allowedRoles: UserRole[] }> = ({ allowedRoles }) =
 
   if (!user) {
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  // Check for inactive consultants
+  if (user.role === 'CONSULTOR' && user.isActive === false) {
+    return <Navigate to="/pending-approval" replace />;
   }
 
   if (!allowedRoles.includes(user.role)) {
@@ -97,6 +104,7 @@ const AppRoutes = () => {
       <Route path="/register" element={<Register />} />
       <Route path="/update-password" element={<UpdatePassword />} />
       <Route path="/onboarding/:sessionId" element={<PublicOnboarding />} />
+      <Route path="/pending-approval" element={<PendingApproval />} /> {/* NEW ROUTE */}
       
       {/* Authenticated Routes */}
       <Route path="/" element={<Home />} />
