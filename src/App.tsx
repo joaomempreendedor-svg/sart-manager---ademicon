@@ -22,7 +22,7 @@ import { Loader2, RefreshCw } from 'lucide-react';
 import { Dashboard } from '@/pages/Dashboard';
 import { CandidateDetail } from '@/pages/CandidateDetail';
 import { TemplateConfig } from '@/pages/TemplateConfig';
-import { ChecklistConfig } from '@/pages/ChecklistConfig';
+import { ChecklistConfig } from '@/pages/ChecklistConfig'; // Existing, but will be replaced by new one
 import { GoalsConfig } from '@/pages/GoalsConfig';
 import { InterviewConfig } from '@/pages/InterviewConfig';
 import { Commissions } from '@/pages/Commissions';
@@ -33,6 +33,7 @@ import { CutoffConfig } from '@/pages/CutoffConfig';
 import { Feedbacks } from '@/pages/Feedbacks';
 import { OnlineOnboarding } from '@/pages/OnlineOnboarding';
 import CrmConfigPage from '@/pages/gestor/CrmConfig';
+import { DailyChecklistConfig } from '@/pages/gestor/DailyChecklistConfig'; // NEW IMPORT
 
 // Consultor Pages
 import ConsultorDashboard from '@/pages/consultor/Dashboard';
@@ -112,11 +113,12 @@ const AppRoutes = () => {
           <Route path="onboarding-admin" element={<OnlineOnboarding />} />
           <Route path="config-team" element={<TeamConfig />} />
           <Route path="config-templates" element={<TemplateConfig />} />
-          <Route path="config-process" element={<ChecklistConfig />} />
+          <Route path="config-process" element={<ChecklistConfig />} /> {/* Keep old for now, will replace */}
           <Route path="config-goals" element={<GoalsConfig />} />
           <Route path="config-interview" element={<InterviewConfig />} />
           <Route path="config-cutoff" element={<CutoffConfig />} />
           <Route path="crm-config" element={<CrmConfigPage />} />
+          <Route path="daily-checklist-config" element={<DailyChecklistConfig />} /> {/* NEW ROUTE */}
           <Route path="*" element={<Navigate to="/gestor/dashboard" replace />} />
         </Route>
       </Route>

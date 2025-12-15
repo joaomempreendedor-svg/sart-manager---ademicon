@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, MessageSquare, Settings, FileText, Sun, Moon, Banknote, PlusCircle, Library, TrendingUp, Target, Users, LogOut, User as UserIcon, Calendar, Link as LinkIcon, Star, Video } from 'lucide-react';
+import { LayoutDashboard, MessageSquare, Settings, FileText, Sun, Moon, Banknote, PlusCircle, Library, TrendingUp, Target, Users, LogOut, User as UserIcon, Calendar, Link as LinkIcon, Star, Video, ListChecks } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 
@@ -85,9 +85,13 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
             <Users className="w-5 h-5" />
             <span>Gestão de Equipe</span>
           </NavLink>
+          <NavLink to="/daily-checklist-config" className={linkClass} onClick={toggleSidebar}> {/* NEW LINK */}
+            <ListChecks className="w-5 h-5" />
+            <span>Checklist do Dia</span>
+          </NavLink>
           <NavLink to="/config-process" className={linkClass} onClick={toggleSidebar}>
             <Settings className="w-5 h-5" />
-            <span>Editar Processo</span>
+            <span>Editar Processo (Antigo)</span> {/* Renamed old link */}
           </NavLink>
           <NavLink to="/config-goals" className={linkClass} onClick={toggleSidebar}>
             <Target className="w-5 h-5" />
