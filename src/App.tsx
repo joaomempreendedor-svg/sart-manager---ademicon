@@ -35,11 +35,12 @@ import { Feedbacks } from '@/pages/Feedbacks';
 import { OnlineOnboarding } from '@/pages/OnlineOnboarding';
 import CrmConfigPage from '@/pages/gestor/CrmConfig';
 import { DailyChecklistConfig } from '@/pages/gestor/DailyChecklistConfig';
+import { DailyChecklistMonitoring } from '@/pages/gestor/DailyChecklistMonitoring'; // NEW IMPORT
 
 // Consultor Pages
 import ConsultorDashboard from '@/pages/consultor/Dashboard';
 import CrmPage from '@/pages/consultor/Crm';
-import { DailyChecklist } from '@/pages/consultor/DailyChecklist'; // NEW IMPORT
+import { DailyChecklist } from '@/pages/consultor/DailyChecklist';
 
 const AppLoader = () => (
   <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-slate-900">
@@ -126,6 +127,7 @@ const AppRoutes = () => {
           <Route path="config-cutoff" element={<CutoffConfig />} />
           <Route path="crm-config" element={<CrmConfigPage />} />
           <Route path="daily-checklist-config" element={<DailyChecklistConfig />} />
+          <Route path="daily-checklist-monitoring" element={<DailyChecklistMonitoring />} /> {/* NEW ROUTE */}
           <Route path="*" element={<Navigate to="/gestor/dashboard" replace />} />
         </Route>
       </Route>
@@ -135,7 +137,7 @@ const AppRoutes = () => {
         <Route path="/consultor" element={<ConsultorLayout />}>
           <Route path="dashboard" element={<ConsultorDashboard />} />
           <Route path="crm" element={<CrmPage />} />
-          <Route path="daily-checklist" element={<DailyChecklist />} /> {/* NEW ROUTE */}
+          <Route path="daily-checklist" element={<DailyChecklist />} />
           <Route path="*" element={<Navigate to="/consultor/dashboard" replace />} />
         </Route>
       </Route>
