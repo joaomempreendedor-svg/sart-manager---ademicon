@@ -34,17 +34,23 @@ const ChecklistModal: React.FC<ChecklistModalProps> = ({ isOpen, onClose, checkl
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim()) return;
+    if (!title.trim()) {
+      alert("O título do checklist é obrigatório.");
+      return;
+    }
     setIsSaving(true);
     try {
       if (checklist) {
         await updateDailyChecklist(checklist.id, { title });
+        alert("Checklist atualizado com sucesso!");
       } else {
         await addDailyChecklist(title);
+        alert("Checklist criado com sucesso!");
       }
       onClose();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to save checklist:", error);
+      alert(`Erro ao salvar o checklist: ${error.message || 'Verifique o console para mais detalhes.'}`);
     } finally {
       setIsSaving(false);
     }
@@ -52,7 +58,7 @@ const ChecklistModal: React.FC<ChecklistModalProps> = ({ isOpen, onClose, checkl
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px] bg-white dark:bg-slate-800 dark:text-white"> {/* Adicionado bg-white explicitamente */}
+      <DialogContent className="sm:max-w-[425px] bg-white dark:bg-slate-800 dark:text-white">
         <DialogHeader>
           <DialogTitle>{checklist ? 'Editar Checklist' : 'Novo Checklist'}</DialogTitle>
           <DialogDescription>
@@ -110,11 +116,14 @@ const AssignmentModal: React.FC<AssignmentModalProps> = ({ isOpen, onClose, chec
     try {
       if (isAssigned) {
         await unassignDailyChecklistFromConsultant(checklist.id, consultantId);
+        alert("Atribuição removida com sucesso!");
       } else {
         await assignDailyChecklistToConsultant(checklist.id, consultantId);
+        alert("Atribuição adicionada com sucesso!");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to update assignment:", error);
+      alert(`Erro ao atualizar atribuição: ${error.message || 'Verifique o console para mais detalhes.'}`);
     } finally {
       setIsSaving(false);
     }
@@ -124,7 +133,7 @@ const AssignmentModal: React.FC<AssignmentModalProps> = ({ isOpen, onClose, chec
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px] bg-white dark:bg-slate-800 dark:text-white"> {/* Adicionado bg-white explicitamente */}
+      <DialogContent className="sm:max-w-[425px] bg-white dark:bg-slate-800 dark:text-white">
         <DialogHeader>
           <DialogTitle>Atribuir "{checklist.title}"</DialogTitle>
           <DialogDescription>
@@ -226,6 +235,9 @@ export const DailyChecklistConfig = () => {
       await updateDailyChecklistItem(editingItem.itemId, { text: editItemText.trim() });
       setEditingItem(null);
       setEditItemText('');
+      alert("Item do checklist atualizado com sucesso!");
+    } else {
+      alert("O texto do item do checklist é obrigatório.");
     }
   };
 
@@ -236,17 +248,22 @@ export const DailyChecklistConfig = () => {
       await addDailyChecklistItem(checklistId, newItemText.trim(), newOrderIndex);
       setAddingItemToChecklistId(null);
       setNewItemText('');
+      alert("Novo item adicionado ao checklist com sucesso!");
+    } else {
+      alert("O texto do novo item é obrigatório.");
     }
   };
 
   const handleDeleteItem = async (itemId: string, text: string) => {
     if (window.confirm(`Tem certeza que deseja remover o item "${text}"?`)) {
       await deleteDailyChecklistItem(itemId);
+      alert("Item removido com sucesso!");
     }
   };
 
   const handleMoveItem = async (checklistId: string, itemId: string, direction: 'up' | 'down') => {
     await moveDailyChecklistItem(checklistId, itemId, direction);
+    alert("Item movido com sucesso!");
   };
 
   const sortedChecklists = useMemo(() => {
