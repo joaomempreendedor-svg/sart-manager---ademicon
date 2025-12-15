@@ -24,17 +24,25 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('first_name, last_name, role, is_active') // Fetch is_active
+        .select('first_name, last_name, role')
         .eq('id', session.user.id)
         .maybeSingle();
 
       if (profileError) throw profileError;
 
+      const { data: teamMemberData, error: teamMemberError } = await supabase
+        .from('team_members')
+        .select('data')
+        .eq('user_id', session.user.id)
+        .maybeSingle();
+
+      if (teamMemberError) console.error("Error fetching team member status:", teamMemberError);
+
       const name = profile && (profile.first_name || profile.last_name)
         ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim()
         : session.user.email?.split('@')[0] || 'Usuário';
         
-      const isActive = profile?.is_active ?? true; // Use is_active from profile, default to true
+      const isActive = teamMemberData ? (teamMemberData.data as any).isActive : true; // Default to true if not found or not a team member
 
       return { 
         id: session.user.id, 

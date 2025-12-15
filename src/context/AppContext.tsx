@@ -192,6 +192,39 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setIsDataLoading(false);
   };
 
+  const refetchCommissions = useCallback(async () => {
+    if (!user) return;
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
+    try {
+      const { data, error } = await supabase.from("commissions").select("id, data, created_at").eq("user_id", user.id).order("created_at", { ascending: false });
+      if (error) { console.error(error); return; }
+      const normalized: Commission[] = (data || []).map(item => {
+        const commission = item.data as Commission;
+        if (!commission.installmentDetails) {
+          const details: Record<string, InstallmentInfo> = {};
+          for (let i = 1; i <= 15; i++) details[i.toString()] = { status: "Pendente" };
+          commission.installmentDetails = details;
+        } else {
+            const firstKey = Object.keys(commission.installmentDetails)[0];
+            if (firstKey && typeof (commission.installmentDetails as any)[firstKey] === 'string') {
+                const migratedDetails: Record<string, InstallmentInfo> = {};
+                Object.entries(commission.installmentDetails).forEach(([key, value]) => {
+                    migratedDetails[key] = { status: value as InstallmentStatus };
+                });
+                commission.installmentDetails = migratedDetails;
+            }
+        }
+        return { ...commission, db_id: item.id, criado_em: item.created_at };
+      });
+      setCommissions(normalized);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setTimeout(() => { isFetchingRef.current = false; }, 100);
+    }
+  }, [user]);
+
   useEffect(() => {
     clearStaleAuth();
     const fetchData = async (userId: string) => {
@@ -223,7 +256,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           { data: metricLogsData, error: metricLogsError },
           { data: supportMaterialsV2Data, error: supportMaterialsV2Error }, // Fetch Support Materials V2
           { data: supportMaterialAssignmentsData, error: supportMaterialAssignmentsError },
-          { data: commissionsData, error: commissionsError }, // Fetch Commissions directly here
         ] = await Promise.all([
           supabase.from('app_config').select('data').eq('user_id', userId).maybeSingle(),
           supabase.from('candidates').select('id, data').eq('user_id', userId),
@@ -247,7 +279,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           supabase.from('metric_logs').select('*'),
           supabase.from('support_materials_v2').select('*').eq('user_id', userId), // Fetch Support Materials V2
           supabase.from('support_material_assignments').select('*'),
-          supabase.from("commissions").select("id, data, created_at").eq("user_id", userId).order("created_at", { ascending: false }), // Commissions fetch
         ]);
 
         if (configError) console.error("Config error:", configError);
@@ -272,7 +303,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (metricLogsError) console.error("Metric Logs error:", metricLogsError);
         if (supportMaterialsV2Error) console.error("Support Materials V2 error:", supportMaterialsV2Error);
         if (supportMaterialAssignmentsError) console.error("Support Material Assignments error:", supportMaterialAssignmentsError);
-        if (commissionsError) console.error("Commissions error:", commissionsError);
 
 
         if (configResult) {
@@ -344,26 +374,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setSupportMaterialsV2(supportMaterialsV2Data || []); // Set Support Materials V2
         setSupportMaterialAssignments(supportMaterialAssignmentsData || []);
         
-        // Process commissions data
-        const normalizedCommissions: Commission[] = (commissionsData || []).map(item => {
-          const commission = item.data as Commission;
-          if (!commission.installmentDetails) {
-            const details: Record<string, InstallmentInfo> = {};
-            for (let i = 1; i <= 15; i++) details[i.toString()] = { status: "Pendente" };
-            commission.installmentDetails = details;
-          } else {
-              const firstKey = Object.keys(commission.installmentDetails)[0];
-              if (firstKey && typeof (commission.installmentDetails as any)[firstKey] === 'string') {
-                  const migratedDetails: Record<string, InstallmentInfo> = {};
-                  Object.entries(commission.installmentDetails).forEach(([key, value]) => {
-                      migratedDetails[key] = { status: value as InstallmentStatus };
-                  });
-                  commission.installmentDetails = migratedDetails;
-              }
-          }
-          return { ...commission, db_id: item.id, criado_em: item.created_at };
-        });
-        setCommissions(normalizedCommissions);
+        refetchCommissions();
 
         const recoverPendingCommissions = async () => {
           try {
@@ -410,19 +421,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     } else {
       setIsDataLoading(false);
     }
-  }, [user?.id, user]); // Removed refetchCommissions from dependencies, added user
-  // The `user` object itself is a dependency because `calculateCompetenceMonth` depends on `cutoffPeriods`
-  // which is fetched inside `fetchData`. If `user` changes, `cutoffPeriods` might change,
-  // which would make `calculateCompetenceMonth` unstable if it's not memoized correctly.
-  // However, `calculateCompetenceMonth` is a useCallback with `cutoffPeriods` as dependency,
-  // and `cutoffPeriods` is set by `fetchData`. So, `calculateCompetenceMonth` should be stable
-  // after the initial fetch. The `user` dependency here is mainly to trigger `fetchData`
-  // when the user changes.
-
-  // The `refetchCommissions` function is no longer needed as a separate entity
-  // and its logic is now integrated into `fetchData`.
-  // The `updateCommission` and `deleteCommission` functions now call `fetchData`
-  // to refresh the commissions list after an update/delete.
+  }, [user?.id, refetchCommissions]);
 
   const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
   const addCandidate = useCallback(async (candidate: Candidate) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('candidates').insert({ user_id: user.id, data: candidate }).select('id').single(); if (error) { console.error(error); throw error; } if (data) { setCandidates(prev => [{ ...candidate, db_id: data.id }, ...prev]); } }, [user]);
@@ -432,15 +431,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const updateTeamMember = useCallback(async (id: string, updates: Partial<TeamMember>) => { if (!user) throw new Error("Usuário não autenticado."); const m = teamMembers.find(m => m.id === id); if (!m || !m.db_id) throw new Error("Membro não encontrado"); const updated = { ...m, ...updates }; const { db_id, ...dataToUpdate } = updated; const { error } = await supabase.from('team_members').update({ data: dataToUpdate }).match({ id: m.db_id, user_id: user.id }); if (error) { console.error(error); throw error; } setTeamMembers(prev => prev.map(p => p.id === id ? updated : p)); }, [user, teamMembers]);
   const deleteTeamMember = useCallback(async (id: string) => { if (!user) throw new Error("Usuário não autenticado."); const m = teamMembers.find(m => m.id === id); if (!m || !m.db_id) throw new Error("Membro não encontrado"); const { error } = await supabase.from('team_members').delete().match({ id: m.db_id, user_id: user.id }); if (error) { console.error(error); throw error; } setTeamMembers(prev => prev.filter(p => p.id !== id)); }, [user, teamMembers]);
   const addCutoffPeriod = useCallback(async (period: CutoffPeriod) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('cutoff_periods').insert({ user_id: user.id, data: period }).select('id').single(); if (error) throw error; if (data) setCutoffPeriods(prev => [...prev, { ...period, db_id: data.id }]); }, [user]);
-  const updateCutoffPeriod = useCallback(async (id: string, updates: Partial<CutoffPeriod>) => { if (!user) throw new Error("Usuário não autenticado."); const p = cutoffPeriods.find(p => p.id === id); if (!p || !p.db_id) throw new Error("Período não encontrado"); const updated = { ...p, ...updates }; const { db_id, ...dataToUpdate } = updated; const { error } = await supabase.from('cutoff_periods').update({ data: dataToUpdate }).match({ id: p.db_id, user_id: user.id }); if (error) { console.error(error); throw error; } setCutoffPeriods(prev => prev.map(item => item.id === id ? updated : item)); }, [user, cutoffPeriods]);
+  const updateCutoffPeriod = useCallback(async (id: string, updates: Partial<CutoffPeriod>) => { if (!user) throw new Error("Usuário não autenticado."); const p = cutoffPeriods.find(p => p.id === id); if (!p || !p.db_id) throw new Error("Período não encontrado"); const updated = { ...p, ...updates }; const { db_id, ...dataToUpdate } = updated; const { error } = await supabase.from('cutoff_periods').update({ data: dataToUpdate }).match({ id: p.db_id, user_id: user.id }); if (error) throw error; setCutoffPeriods(prev => prev.map(item => item.id === id ? updated : item)); }, [user, cutoffPeriods]);
   const deleteCutoffPeriod = useCallback(async (id: string) => { if (!user) throw new Error("Usuário não autenticado."); const p = cutoffPeriods.find(p => p.id === id); if (!p || !p.db_id) throw new Error("Período não encontrado"); const { error } = await supabase.from('cutoff_periods').delete().match({ id: p.db_id, user_id: user.id }); if (error) throw error; setCutoffPeriods(prev => prev.filter(item => item.id !== id)); }, [user, cutoffPeriods]);
   const addCommission = useCallback(async (commission: Commission): Promise<Commission> => { if (!user) throw new Error("Usuário não autenticado."); const localId = `local_${Date.now()}`; const localCommission: Commission = { ...commission, db_id: localId, criado_em: new Date().toISOString() }; setCommissions(prev => [localCommission, ...prev]); setTimeout(() => { alert(`✅ VENDA REGISTRADA!\n\nCliente: ${commission.clientName}\nValor: R$ ${commission.value.toLocaleString()}\nID: ${localId}\n\nA sincronização ocorrerá em segundo plano.`); }, 50); setTimeout(async () => { try { const cleanCommission = { ...commission, customRules: commission.customRules?.length ? commission.customRules : undefined, angelName: commission.angelName || undefined, managerName: commission.managerName || 'N/A', }; const payload = { user_id: user.id, data: cleanCommission }; const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Background sync timeout')), 10000)); const insertPromise = supabase.from('commissions').insert(payload).select('id, created_at').maybeSingle(); const { data, error } = await Promise.race([insertPromise, timeoutPromise]) as any; if (error) throw error; if (data && data.id) { setCommissions(prev => prev.map(c => c.db_id === localId ? { ...c, db_id: data.id.toString(), criado_em: data.created_at, _synced: true } : c)); const pending = JSON.parse(localStorage.getItem('pending_commissions') || '[]').filter((p: any) => p._localId !== localId); localStorage.setItem('pending_commissions', JSON.stringify(pending)); } else { throw new Error('Nenhum ID retornado'); } } catch (error: any) { const pending = JSON.parse(localStorage.getItem('pending_commissions') || '[]'); const alreadyExists = pending.some((p: any) => p._localId === localId); if (!alreadyExists) { pending.push({ ...commission, _localId: localId, _timestamp: new Date().toISOString(), _error: error.message, _attempts: 1 }); localStorage.setItem('pending_commissions', JSON.stringify(pending)); } } }, 2000); return localCommission; }, [user]);
-  const updateCommission = useCallback(async (id: string, updates: Partial<Commission>) => { if (!user) throw new Error("Usuário não autenticado."); const commissionToUpdate = commissions.find(c => c.id === id); if (!commissionToUpdate || !commissionToUpdate.db_id) throw new Error("Comissão não encontrada para atualização."); const originalData = { ...commissionToUpdate }; delete (originalData as any).db_id; delete (originalData as any).criado_em; const newData = { ...originalData, ...updates }; const payload = { data: newData }; const { error } = await supabase.from('commissions').update(payload).match({ id: commissionToUpdate.db_id, user_id: user.id }); if (error) { console.error(error); throw error; } // Instead of refetchCommissions(), update local state directly setCommissions(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c)); }, [user, commissions]);
-  const deleteCommission = useCallback(async (id: string) => { if (!user) throw new Error("Usuário não autenticado."); const commissionToDelete = commissions.find(c => c.id === id); if (!commissionToDelete || !commissionToDelete.db_id) throw new Error("Comissão não encontrada para exclusão."); const { error } = await supabase.from('commissions').delete().match({ id: commissionToDelete.db_id, user_id: user.id }); if (error) { console.error(error); throw error; } // Instead of refetchCommissions(), update local state directly setCommissions(prev => prev.filter(p => p.id !== id)); }, [user, commissions]);
+  const updateCommission = useCallback(async (id: string, updates: Partial<Commission>) => { if (!user) throw new Error("Usuário não autenticado."); const commissionToUpdate = commissions.find(c => c.id === id); if (!commissionToUpdate || !commissionToUpdate.db_id) throw new Error("Comissão não encontrada para atualização."); const originalData = { ...commissionToUpdate }; delete (originalData as any).db_id; delete (originalData as any).criado_em; const newData = { ...originalData, ...updates }; const payload = { data: newData }; const { error } = await supabase.from('commissions').update(payload).match({ id: commissionToUpdate.db_id, user_id: user.id }); if (error) { console.error(error); throw error; } await refetchCommissions(); }, [user, commissions, refetchCommissions]);
+  const deleteCommission = useCallback(async (id: string) => { if (!user) throw new Error("Usuário não autenticado."); const commissionToDelete = commissions.find(c => c.id === id); if (!commissionToDelete || !commissionToDelete.db_id) throw new Error("Comissão não encontrada para exclusão."); const { error } = await supabase.from('commissions').delete().match({ id: commissionToDelete.db_id, user_id: user.id }); if (error) { console.error(error); throw error; } await refetchCommissions(); }, [user, commissions, refetchCommissions]);
   const addSupportMaterial = useCallback(async (materialData: Omit<SupportMaterial, 'id' | 'url'>, file: File) => { if (!user) throw new Error("Usuário não autenticado."); const sanitizedFileName = file.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w\s.-]/g, '').replace(/\s+/g, '_'); const filePath = `public/${crypto.randomUUID()}-${sanitizedFileName}`; const { error: uploadError } = await supabase.storage.from('support_materials').upload(filePath, file); if (uploadError) throw uploadError; const { data: urlData } = supabase.storage.from('support_materials').getPublicUrl(filePath); if (!urlData) throw new Error("Não foi possível obter a URL pública do arquivo."); const newMaterial: SupportMaterial = { ...materialData, id: crypto.randomUUID(), url: urlData.publicUrl, }; const { data: dbData, error: dbError } = await supabase.from('support_materials').insert({ user_id: user.id, data: newMaterial }).select('id').single(); if (dbError) { await supabase.storage.from('support_materials').remove([filePath]); throw dbError; } setSupportMaterials(prev => [{ ...newMaterial, db_id: dbData.id }, ...prev]); }, [user]);
   const deleteSupportMaterial = useCallback(async (id: string) => { if (!user) throw new Error("Usuário não autenticado."); const m = supportMaterials.find(m => m.id === id); if (!m || !m.db_id) throw new Error("Material não encontrado"); const filePath = m.url.split('/support_materials/')[1]; const { error: storageError } = await supabase.storage.from('support_materials').remove([filePath]); if (storageError) console.error("Erro ao deletar do storage (pode já ter sido removido):", storageError.message); const { error: dbError } = await supabase.from('support_materials').delete().match({ id: m.db_id, user_id: user.id }); if (dbError) throw dbError; setSupportMaterials(prev => prev.filter(p => p.id !== id)); }, [user, supportMaterials]);
   const addImportantLink = useCallback(async (link: ImportantLink) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('important_links').insert({ user_id: user.id, data: link }).select('id').single(); if (error) throw error; if (data) setImportantLinks(prev => [...prev, { ...link, db_id: data.id }]); }, [user]);
-  const updateImportantLink = useCallback(async (id: string, updates: Partial<ImportantLink>) => { if (!user) throw new Error("Usuário não autenticado."); const l = importantLinks.find(l => l.id === id); if (!l || !l.db_id) throw new Error("Link não encontrado"); const updated = { ...l, ...updates }; const { db_id, ...dataToUpdate } = updated; const { error } = await supabase.from('important_links').update({ data: dataToUpdate }).match({ id: l.db_id, user_id: user.id }); if (error) { console.error(error); throw error; } setImportantLinks(prev => prev.map(p => p.id === id ? updated : p)); }, [user, importantLinks]);
+  const updateImportantLink = useCallback(async (id: string, updates: Partial<ImportantLink>) => { if (!user) throw new Error("Usuário não autenticado."); const l = importantLinks.find(l => l.id === id); if (!l || !l.db_id) throw new Error("Link não encontrado"); const updated = { ...l, ...updates }; const { db_id, ...dataToUpdate } = updated; const { error } = await supabase.from('important_links').update({ data: dataToUpdate }).match({ id: l.db_id, user_id: user.id }); if (error) throw error; setImportantLinks(prev => prev.map(p => p.id === id ? updated : p)); }, [user, importantLinks]);
   const deleteImportantLink = useCallback(async (id: string) => { if (!user) throw new Error("Usuário não autenticado."); const l = importantLinks.find(l => l.id === id); if (!l || !l.db_id) throw new Error("Link não encontrado"); const { error } = await supabase.from('important_links').delete().match({ id: l.db_id, user_id: user.id }); if (error) throw error; setImportantLinks(prev => prev.filter(p => p.id !== id)); }, [user, importantLinks]);
   const updateInstallmentStatus = useCallback(async (commissionId: string, installmentNumber: number, status: InstallmentStatus, paidDate?: string, saleType?: 'Imóvel' | 'Veículo') => { const commission = commissions.find(c => c.id === commissionId); if (!commission) { console.error("Comissão não encontrada"); return; } let competenceMonth: string | undefined; let finalPaidDate = paidDate || new Date().toISOString().split('T')[0]; if (status === 'Pago' && finalPaidDate) { competenceMonth = calculateCompetenceMonth(finalPaidDate); } const newDetails = { ...commission.installmentDetails, [installmentNumber]: { status, ...(finalPaidDate && { paidDate: finalPaidDate }), ...(competenceMonth && { competenceMonth }) } }; const newOverallStatus = getOverallStatus(newDetails); try { const updatedCommission = { ...commission, installmentDetails: newDetails, status: newOverallStatus }; setCommissions(prev => prev.map(c => c.id === commissionId ? updatedCommission : c)); if (commission.db_id && user) { const { db_id, criado_em, _synced, ...dataToUpdate } = updatedCommission; const { error } = await supabase.from('commissions').update({ data: dataToUpdate }).eq('id', commission.db_id).eq('user_id', user.id); if (error) throw error; } } catch (error: any) { console.error("Erro ao salvar status:", error); alert("Erro ao salvar status da parcela. Tente novamente."); throw error; } }, [commissions, user, calculateCompetenceMonth]);
   const getCandidate = useCallback((id: string) => candidates.find(c => c.id === id), [candidates]);

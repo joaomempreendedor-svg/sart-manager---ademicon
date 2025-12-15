@@ -213,7 +213,7 @@ export interface User {
   name: string;
   email: string;
   role: UserRole;
-  isActive: boolean; // Adicionado para controlar o acesso de consultores
+  isActive?: boolean; // Adicionado para controlar o acesso de consultores
 }
 
 // NOVO: Interface para relatório
