@@ -4,7 +4,16 @@ import { Feedback, Candidate, TeamMember } from '@/types';
 import { FeedbackModal } from '@/components/FeedbackModal';
 import { Star, Search, User, Users, Plus, Edit2, Trash2, CalendarPlus, Clock, MessageSquarePlus } from 'lucide-react';
 
-type Person = (Candidate | TeamMember) & { type: 'candidate' | 'teamMember' };
+// Define a Person type that can be either a Candidate or a TeamMember,
+// but for feedbacks, we're primarily interested in the consultant_id (user ID)
+// and their name.
+type FeedbackPerson = {
+  id: string; // This will be the consultant_id (user ID)
+  name: string;
+  email?: string;
+  type: 'candidate' | 'teamMember';
+  feedbacks?: Feedback[];
+};
 
 export const Feedbacks = () => {
   const { 
@@ -19,60 +28,84 @@ export const Feedbacks = () => {
   } = useApp();
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedPerson, setSelectedPerson] = useState<Person | null>(null);
+  const [selectedPerson, setSelectedPerson] = useState<FeedbackPerson | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingFeedback, setEditingFeedback] = useState<Feedback | null>(null);
 
-  const allPeople = useMemo<Person[]>(() => {
-    const candidatePeople: Person[] = candidates.map(c => ({ ...c, type: 'candidate' }));
-    const teamMemberPeople: Person[] = teamMembers.map(m => ({ ...m, type: 'teamMember' }));
-    return [...candidatePeople, ...teamMemberPeople].sort((a, b) => a.name.localeCompare(b.name));
+  const allPeople = useMemo<FeedbackPerson[]>(() => {
+    const candidatePeople: FeedbackPerson[] = candidates.map(c => ({ 
+      id: c.id, // Candidate ID is the user ID for candidates
+      name: c.name, 
+      email: '', // Not directly available on candidate object
+      type: 'candidate', 
+      feedbacks: c.feedbacks 
+    }));
+
+    // For team members, use consultant_id as the primary ID for feedback association
+    const teamMemberPeople: FeedbackPerson[] = teamMembers.map(m => ({ 
+      id: m.consultant_id, 
+      name: m.consultant_name || m.consultant_email || 'Membro da Equipe', 
+      email: m.consultant_email,
+      type: 'teamMember', 
+      feedbacks: m.feedbacks // Feedbacks are now stored on the TeamMember object in AppContext
+    }));
+
+    // Combine and ensure uniqueness by ID (consultant_id)
+    const combinedMap = new Map<string, FeedbackPerson>();
+    [...candidatePeople, ...teamMemberPeople].forEach(person => {
+      if (!combinedMap.has(person.id)) {
+        combinedMap.set(person.id, person);
+      } else {
+        // Merge feedbacks if a person appears as both candidate and team member (unlikely but safe)
+        const existing = combinedMap.get(person.id)!;
+        existing.feedbacks = [...(existing.feedbacks || []), ...(person.feedbacks || [])];
+        if (person.type === 'teamMember') { // Prioritize teamMember info if available
+          existing.name = person.name;
+          existing.email = person.email;
+          existing.type = person.type;
+        }
+      }
+    });
+
+    return Array.from(combinedMap.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [candidates, teamMembers]);
 
   const filteredPeople = useMemo(() => {
-    return allPeople.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
+    return allPeople.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()) || (p.email && p.email.toLowerCase().includes(searchTerm.toLowerCase())));
   }, [allPeople, searchTerm]);
 
   const handleSaveFeedback = async (feedbackData: Omit<Feedback, 'id'> | Feedback) => {
     if (!selectedPerson) return;
 
-    if (selectedPerson.type === 'candidate') {
-      if ('id' in feedbackData) {
-        await updateFeedback(selectedPerson.id, feedbackData as Feedback);
-      } else {
-        await addFeedback(selectedPerson.id, feedbackData as Omit<Feedback, 'id'>);
-      }
-    } else { // teamMember
-      if ('id' in feedbackData) {
-        await updateTeamMemberFeedback(selectedPerson.id, feedbackData as Feedback);
-      } else {
-        await addTeamMemberFeedback(selectedPerson.id, feedbackData as Omit<Feedback, 'id'>);
-      }
+    // The add/update functions in AppContext now handle whether it's a candidate or team member
+    // based on the consultantId (which is selectedPerson.id here).
+    if ('id' in feedbackData) {
+      await updateTeamMemberFeedback(selectedPerson.id, feedbackData as Feedback);
+    } else {
+      await addTeamMemberFeedback(selectedPerson.id, feedbackData as Omit<Feedback, 'id'>);
     }
-    // This is a workaround to refresh the data, ideally the context update should trigger this
-    const updatedCandidates = candidates.map(c => c.id === selectedPerson.id ? {...c, feedbacks: (c.feedbacks || []).concat([feedbackData as Feedback])} : c);
-    const updatedTeamMembers = teamMembers.map(m => m.id === selectedPerson.id ? {...m, feedbacks: (m.feedbacks || []).concat([feedbackData as Feedback])} : m);
-    const updatedAllPeople: Person[] = [
-        ...updatedCandidates.map(c => ({ ...c, type: 'candidate' as const })),
-        ...updatedTeamMembers.map(m => ({ ...m, type: 'teamMember' as const }))
-    ].sort((a, b) => a.name.localeCompare(b.name));
-    const refreshedPerson = updatedAllPeople.find(p => p.id === selectedPerson.id && p.type === selectedPerson.type);
-    if(refreshedPerson) setSelectedPerson(refreshedPerson);
+    
+    // Manually update selectedPerson's feedbacks for immediate UI refresh
+    setSelectedPerson(prev => {
+      if (!prev) return null;
+      const newFeedbacks = 'id' in feedbackData 
+        ? (prev.feedbacks || []).map(f => f.id === feedbackData.id ? feedbackData : f)
+        : [...(prev.feedbacks || []), { id: crypto.randomUUID(), ...feedbackData }]; // Assign a temp ID for new ones
+      return { ...prev, feedbacks: newFeedbacks };
+    });
   };
 
   const handleDeleteFeedback = async (feedbackId: string) => {
     if (!selectedPerson || !confirm('Tem certeza que deseja excluir este feedback?')) return;
 
-    if (selectedPerson.type === 'candidate') {
-      await deleteFeedback(selectedPerson.id, feedbackId);
-    } else {
-      await deleteTeamMemberFeedback(selectedPerson.id, feedbackId);
-    }
-    const updatedPerson = {
-        ...selectedPerson,
-        feedbacks: selectedPerson.feedbacks?.filter(f => f.id !== feedbackId)
-    };
-    setSelectedPerson(updatedPerson);
+    await deleteTeamMemberFeedback(selectedPerson.id, feedbackId);
+    
+    // Manually update selectedPerson's feedbacks for immediate UI refresh
+    setSelectedPerson(prev => {
+      if (!prev) return null;
+      const newFeedbacks = (prev.feedbacks || []).filter(f => f.id !== feedbackId);
+      return { ...prev, feedbacks: newFeedbacks };
+    });
   };
 
   const handleScheduleOnCalendar = (feedback: Feedback) => {

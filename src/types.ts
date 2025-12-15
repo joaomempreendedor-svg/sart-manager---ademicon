@@ -197,12 +197,17 @@ export interface ImportantLink {
 export type TeamRole = 'Prévia' | 'Autorizado' | 'Gestor' | 'Anjo';
 
 export interface TeamMember {
-  id: string; // Client-side UUID
-  db_id?: string; // Database primary key
-  name: string;
+  manager_id: string; // ID do gestor que adicionou este membro (FK to auth.users.id)
+  consultant_id: string; // ID do usuário (consultor) que é membro da equipe (FK to auth.users.id)
   roles: TeamRole[];
-  isActive: boolean;
-  feedbacks?: Feedback[];
+  is_active: boolean;
+  created_at: string; // Timestamp from Supabase
+
+  // Campos adicionais para facilitar o uso no frontend, obtidos via join ou lookup
+  consultant_name?: string; // Nome do consultor (do profiles table)
+  consultant_email?: string; // Email do consultor (do auth.users table)
+  manager_name?: string; // Nome do gestor (do profiles table)
+  feedbacks?: Feedback[]; // Feedbacks são associados ao consultant_id, não à entrada da equipe
 }
 
 // AUTHENTICATION
@@ -406,7 +411,7 @@ export interface AppContextType {
   origins: string[];
   interviewers: string[];
   pvs: string[];
-  teamMembers: TeamMember[];
+  teamMembers: TeamMember[]; // Updated type
   cutoffPeriods: CutoffPeriod[];
   onboardingSessions: OnboardingSession[];
   onboardingTemplateVideos: OnboardingVideoTemplate[];
@@ -427,9 +432,9 @@ export interface AppContextType {
   addCutoffPeriod: (period: CutoffPeriod) => Promise<void>;
   updateCutoffPeriod: (id: string, updates: Partial<CutoffPeriod>) => Promise<void>;
   deleteCutoffPeriod: (id: string) => Promise<void>;
-  addTeamMember: (member: TeamMember) => Promise<void>;
-  updateTeamMember: (id: string, updates: Partial<TeamMember>) => Promise<void>;
-  deleteTeamMember: (id: string) => Promise<void>;
+  addTeamMember: (consultantId: string, roles: TeamRole[], isActive: boolean) => Promise<void>; // Updated signature
+  updateTeamMember: (consultantId: string, updates: Partial<Omit<TeamMember, 'manager_id' | 'consultant_id' | 'created_at'>>) => Promise<void>; // Updated signature
+  deleteTeamMember: (consultantId: string) => Promise<void>; // Updated signature
   addOrigin: (origin: string) => void;
   deleteOrigin: (origin: string) => void;
   addInterviewer: (interviewer: string) => void;

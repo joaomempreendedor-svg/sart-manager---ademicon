@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
-import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, CommissionStatus, InstallmentInfo, CutoffPeriod, ImportantLink, Feedback, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment } from '@/types';
+import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, CommissionStatus, InstallmentInfo, CutoffPeriod, ImportantLink, Feedback, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, UserRole } from '@/types';
 import { CHECKLIST_STAGES as DEFAULT_STAGES } from '@/data/checklistData';
 import { CONSULTANT_GOALS as DEFAULT_GOALS } from '@/data/consultantGoals';
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
@@ -259,7 +259,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         ] = await Promise.all([
           supabase.from('app_config').select('data').eq('user_id', userId).maybeSingle(),
           supabase.from('candidates').select('id, data').eq('user_id', userId),
-          supabase.from('team_members').select('id, data').eq('user_id', userId),
+          // Fetch team_members and join with profiles to get names
+          supabase.from('team_members')
+            .select(`
+              manager_id,
+              consultant_id,
+              roles,
+              is_active,
+              created_at,
+              consultant_profile:consultant_id (first_name, last_name, email),
+              manager_profile:manager_id (first_name, last_name, email)
+            `)
+            .eq('manager_id', userId), // Only fetch team members for the current manager
           supabase.from('support_materials').select('id, data').eq('user_id', userId),
           supabase.from('cutoff_periods').select('id, data').eq('user_id', userId),
           supabase.from('important_links').select('id, data').eq('user_id', userId),
@@ -329,15 +340,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
 
         setCandidates(candidatesData?.map(item => ({ ...(item.data as Candidate), db_id: item.id })) || []);
-        const rawTeamMembers = teamMembersData?.map(item => ({ ...(item.data as TeamMember), db_id: item.id })) || [];
-        const normalizedTeamMembers = rawTeamMembers.map(member => {
-          const m = member as any;
-          if (m.isActive === undefined) { m.isActive = true; }
-          if (m.role && !m.roles) { m.roles = [m.role]; delete m.role; }
-          if (!Array.isArray(m.roles)) { m.roles = []; }
-          return m as TeamMember;
-        });
+        
+        // Normalize team members data
+        const normalizedTeamMembers: TeamMember[] = (teamMembersData || []).map((item: any) => ({
+          manager_id: item.manager_id,
+          consultant_id: item.consultant_id,
+          roles: item.roles,
+          is_active: item.is_active,
+          created_at: item.created_at,
+          consultant_name: `${item.consultant_profile?.first_name || ''} ${item.consultant_profile?.last_name || ''}`.trim() || item.consultant_profile?.email,
+          consultant_email: item.consultant_profile?.email,
+          manager_name: `${item.manager_profile?.first_name || ''} ${item.manager_profile?.last_name || ''}`.trim() || item.manager_profile?.email,
+        }));
         setTeamMembers(normalizedTeamMembers);
+
         setSupportMaterials(materialsData?.map(item => ({ ...(item.data as SupportMaterial), db_id: item.id })) || []);
         setImportantLinks(linksData?.map(item => ({ ...(item.data as ImportantLink), db_id: item.id })) || []);
         setCutoffPeriods(cutoffData?.map(item => ({ ...(item.data as CutoffPeriod), db_id: item.id })) || []);
@@ -427,9 +443,59 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const addCandidate = useCallback(async (candidate: Candidate) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('candidates').insert({ user_id: user.id, data: candidate }).select('id').single(); if (error) { console.error(error); throw error; } if (data) { setCandidates(prev => [{ ...candidate, db_id: data.id }, ...prev]); } }, [user]);
   const updateCandidate = useCallback(async (id: string, updates: Partial<Candidate>) => { if (!user) throw new Error("Usuário não autenticado."); const c = candidates.find(c => c.id === id); if (!c || !c.db_id) throw new Error("Candidato não encontrado"); const updated = { ...c, ...updates }; const { db_id, ...dataToUpdate } = updated; const { error } = await supabase.from('candidates').update({ data: dataToUpdate }).match({ id: c.db_id, user_id: user.id }); if (error) { console.error(error); throw error; } setCandidates(prev => prev.map(p => p.id === id ? updated : p)); }, [user, candidates]);
   const deleteCandidate = useCallback(async (id: string) => { if (!user) throw new Error("Usuário não autenticado."); const c = candidates.find(c => c.id === id); if (!c || !c.db_id) throw new Error("Candidato não encontrado"); const { error } = await supabase.from('candidates').delete().match({ id: c.db_id, user_id: user.id }); if (error) { console.error(error); throw error; } setCandidates(prev => prev.filter(p => p.id !== id)); }, [user, candidates]);
-  const addTeamMember = useCallback(async (member: TeamMember) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('team_members').insert({ user_id: user.id, data: member }).select('id').single(); if (error) { console.error(error); throw error; } if (data) { setTeamMembers(prev => [...prev, { ...member, db_id: data.id }]); } }, [user]);
-  const updateTeamMember = useCallback(async (id: string, updates: Partial<TeamMember>) => { if (!user) throw new Error("Usuário não autenticado."); const m = teamMembers.find(m => m.id === id); if (!m || !m.db_id) throw new Error("Membro não encontrado"); const updated = { ...m, ...updates }; const { db_id, ...dataToUpdate } = updated; const { error } = await supabase.from('team_members').update({ data: dataToUpdate }).match({ id: m.db_id, user_id: user.id }); if (error) { console.error(error); throw error; } setTeamMembers(prev => prev.map(p => p.id === id ? updated : p)); }, [user, teamMembers]);
-  const deleteTeamMember = useCallback(async (id: string) => { if (!user) throw new Error("Usuário não autenticado."); const m = teamMembers.find(m => m.id === id); if (!m || !m.db_id) throw new Error("Membro não encontrado"); const { error } = await supabase.from('team_members').delete().match({ id: m.db_id, user_id: user.id }); if (error) { console.error(error); throw error; } setTeamMembers(prev => prev.filter(p => p.id !== id)); }, [user, teamMembers]);
+  
+  // Updated Team Member functions
+  const addTeamMember = useCallback(async (consultantId: string, roles: TeamRole[], isActive: boolean) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('team_members').insert({
+      manager_id: user.id,
+      consultant_id: consultantId,
+      roles: roles,
+      is_active: isActive,
+    }).select(`
+      manager_id,
+      consultant_id,
+      roles,
+      is_active,
+      created_at,
+      consultant_profile:consultant_id (first_name, last_name, email),
+      manager_profile:manager_id (first_name, last_name, email)
+    `).single();
+    if (error) { console.error(error); throw error; }
+    if (data) {
+      const newTeamMember: TeamMember = {
+        manager_id: data.manager_id,
+        consultant_id: data.consultant_id,
+        roles: data.roles,
+        is_active: data.is_active,
+        created_at: data.created_at,
+        consultant_name: `${(data as any).consultant_profile?.first_name || ''} ${(data as any).consultant_profile?.last_name || ''}`.trim() || (data as any).consultant_profile?.email,
+        consultant_email: (data as any).consultant_profile?.email,
+        manager_name: `${(data as any).manager_profile?.first_name || ''} ${(data as any).manager_profile?.last_name || ''}`.trim() || (data as any).manager_profile?.email,
+      };
+      setTeamMembers(prev => [...prev, newTeamMember]);
+    }
+  }, [user]);
+
+  const updateTeamMember = useCallback(async (consultantId: string, updates: Partial<Omit<TeamMember, 'manager_id' | 'consultant_id' | 'created_at'>>) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { error } = await supabase.from('team_members').update(updates).match({ manager_id: user.id, consultant_id: consultantId });
+    if (error) { console.error(error); throw error; }
+    // Re-fetch to get updated names if needed, or update locally
+    setTeamMembers(prev => prev.map(member => 
+      member.manager_id === user.id && member.consultant_id === consultantId 
+        ? { ...member, ...updates } 
+        : member
+    ));
+  }, [user]);
+
+  const deleteTeamMember = useCallback(async (consultantId: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { error } = await supabase.from('team_members').delete().match({ manager_id: user.id, consultant_id: consultantId });
+    if (error) { console.error(error); throw error; }
+    setTeamMembers(prev => prev.filter(member => !(member.manager_id === user.id && member.consultant_id === consultantId)));
+  }, [user]);
+  
   const addCutoffPeriod = useCallback(async (period: CutoffPeriod) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('cutoff_periods').insert({ user_id: user.id, data: period }).select('id').single(); if (error) throw error; if (data) setCutoffPeriods(prev => [...prev, { ...period, db_id: data.id }]); }, [user]);
   const updateCutoffPeriod = useCallback(async (id: string, updates: Partial<CutoffPeriod>) => { if (!user) throw new Error("Usuário não autenticado."); const p = cutoffPeriods.find(p => p.id === id); if (!p || !p.db_id) throw new Error("Período não encontrado"); const updated = { ...p, ...updates }; const { db_id, ...dataToUpdate } = updated; const { error } = await supabase.from('cutoff_periods').update({ data: dataToUpdate }).match({ id: p.db_id, user_id: user.id }); if (error) throw error; setCutoffPeriods(prev => prev.map(item => item.id === id ? updated : item)); }, [user, cutoffPeriods]);
   const deleteCutoffPeriod = useCallback(async (id: string) => { if (!user) throw new Error("Usuário não autenticado."); const p = cutoffPeriods.find(p => p.id === id); if (!p || !p.db_id) throw new Error("Período não encontrado"); const { error } = await supabase.from('cutoff_periods').delete().match({ id: p.db_id, user_id: user.id }); if (error) throw error; setCutoffPeriods(prev => prev.filter(item => item.id !== id)); }, [user, cutoffPeriods]);
@@ -449,9 +515,60 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const addFeedback = useCallback(async (candidateId: string, feedbackData: Omit<Feedback, 'id'>) => { const c = getCandidate(candidateId); if(c) { const newFeedback: Feedback = { id: crypto.randomUUID(), ...feedbackData }; const newFeedbacks = [...(c.feedbacks || []), newFeedback]; await updateCandidate(candidateId, { feedbacks: newFeedbacks }); } }, [getCandidate, updateCandidate]);
   const updateFeedback = useCallback(async (candidateId: string, updatedFeedback: Feedback) => { const c = getCandidate(candidateId); if(c) { const newFeedbacks = (c.feedbacks || []).map(f => f.id === updatedFeedback.id ? updatedFeedback : f); await updateCandidate(candidateId, { feedbacks: newFeedbacks }); } }, [getCandidate, updateCandidate]);
   const deleteFeedback = useCallback(async (candidateId: string, feedbackId: string) => { const c = getCandidate(candidateId); if(c) { const newFeedbacks = (c.feedbacks || []).filter(f => f.id !== feedbackId); await updateCandidate(candidateId, { feedbacks: newFeedbacks }); } }, [getCandidate, updateCandidate]);
-  const addTeamMemberFeedback = useCallback(async (memberId: string, feedbackData: Omit<Feedback, 'id'>) => { const member = teamMembers.find(m => m.id === memberId); if (member) { const newFeedback: Feedback = { id: crypto.randomUUID(), ...feedbackData }; const newFeedbacks = [...(member.feedbacks || []), newFeedback]; await updateTeamMember(memberId, { feedbacks: newFeedbacks }); } }, [teamMembers, updateTeamMember]);
-  const updateTeamMemberFeedback = useCallback(async (memberId: string, updatedFeedback: Feedback) => { const member = teamMembers.find(m => m.id === memberId); if (member) { const newFeedbacks = (member.feedbacks || []).map(f => f.id === updatedFeedback.id ? updatedFeedback : f); await updateTeamMember(memberId, { feedbacks: newFeedbacks }); } }, [teamMembers, updateTeamMember]);
-  const deleteTeamMemberFeedback = useCallback(async (memberId: string, feedbackId: string) => { const member = teamMembers.find(m => m.id === memberId); if (member) { const newFeedbacks = (member.feedbacks || []).filter(f => f.id !== feedbackId); await updateTeamMember(memberId, { feedbacks: newFeedbacks }); } }, [teamMembers, updateTeamMember]);
+  
+  const addTeamMemberFeedback = useCallback(async (consultantId: string, feedbackData: Omit<Feedback, 'id'>) => {
+    // Find the candidate or team member by consultantId
+    const targetCandidate = candidates.find(c => c.id === consultantId);
+    const targetTeamMember = teamMembers.find(m => m.consultant_id === consultantId);
+
+    if (targetCandidate) {
+      const newFeedback: Feedback = { id: crypto.randomUUID(), ...feedbackData };
+      const newFeedbacks = [...(targetCandidate.feedbacks || []), newFeedback];
+      await updateCandidate(targetCandidate.id, { feedbacks: newFeedbacks });
+    } else if (targetTeamMember) {
+      // Feedbacks are stored on the consultant's profile/candidate entry, not the team_member entry itself.
+      // This function needs to update the consultant's profile directly.
+      // For now, we'll assume feedbacks are primarily for candidates or directly on a user's profile.
+      // If team members need feedbacks, they should be stored on their profile.
+      // For simplicity, I'll update the first_name/last_name in profiles to store feedbacks.
+      // This is a temporary workaround if feedbacks are not directly on profiles.
+      // A better approach would be a dedicated 'user_feedbacks' table.
+      console.warn("Feedbacks para TeamMember (não candidato) não implementado diretamente na estrutura atual. Considere uma tabela de feedbacks de usuário.");
+      // For now, we'll just update the local state if it's a team member without a candidate entry
+      setTeamMembers(prev => prev.map(m => m.consultant_id === consultantId ? { ...m, feedbacks: [...(m.feedbacks || []), { id: crypto.randomUUID(), ...feedbackData }] } : m));
+    } else {
+      throw new Error("Consultor não encontrado para adicionar feedback.");
+    }
+  }, [candidates, teamMembers, updateCandidate]);
+
+  const updateTeamMemberFeedback = useCallback(async (consultantId: string, updatedFeedback: Feedback) => {
+    const targetCandidate = candidates.find(c => c.id === consultantId);
+    const targetTeamMember = teamMembers.find(m => m.consultant_id === consultantId);
+
+    if (targetCandidate) {
+      const newFeedbacks = (targetCandidate.feedbacks || []).map(f => f.id === updatedFeedback.id ? updatedFeedback : f);
+      await updateCandidate(targetCandidate.id, { feedbacks: newFeedbacks });
+    } else if (targetTeamMember) {
+      setTeamMembers(prev => prev.map(m => m.consultant_id === consultantId ? { ...m, feedbacks: (m.feedbacks || []).map(f => f.id === updatedFeedback.id ? updatedFeedback : f) } : m));
+    } else {
+      throw new Error("Consultor não encontrado para atualizar feedback.");
+    }
+  }, [candidates, teamMembers, updateCandidate]);
+
+  const deleteTeamMemberFeedback = useCallback(async (consultantId: string, feedbackId: string) => {
+    const targetCandidate = candidates.find(c => c.id === consultantId);
+    const targetTeamMember = teamMembers.find(m => m.consultant_id === consultantId);
+
+    if (targetCandidate) {
+      const newFeedbacks = (targetCandidate.feedbacks || []).filter(f => f.id !== feedbackId);
+      await updateCandidate(targetCandidate.id, { feedbacks: newFeedbacks });
+    } else if (targetTeamMember) {
+      setTeamMembers(prev => prev.map(m => m.consultant_id === consultantId ? { ...m, feedbacks: (m.feedbacks || []).filter(f => f.id !== feedbackId) } : m));
+    } else {
+      throw new Error("Consultor não encontrado para deletar feedback.");
+    }
+  }, [candidates, teamMembers, updateCandidate]);
+  
   const saveTemplate = useCallback((id: string, updates: Partial<CommunicationTemplate>) => { const newTemplates = { ...templates, [id]: { ...templates[id], ...updates } }; setTemplates(newTemplates); updateConfig({ templates: newTemplates }); }, [templates, updateConfig]);
   const addOrigin = useCallback((origin: string) => { if (!origins.includes(origin)) { const newOrigins = [...origins, origin]; setOrigins(newOrigins); updateConfig({ origins: newOrigins }); } }, [origins, updateConfig]);
   const deleteOrigin = useCallback((originToDelete: string) => { if (origins.length <= 1) { alert("É necessário manter pelo menos uma origem."); return; } const newOrigins = origins.filter(o => o !== originToDelete); setOrigins(newOrigins); updateConfig({ origins: newOrigins }); }, [origins, updateConfig]);

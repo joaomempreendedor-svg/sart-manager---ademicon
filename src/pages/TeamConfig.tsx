@@ -1,21 +1,64 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '@/context/AppContext';
+import { useAuth } from '@/context/AuthContext';
 import { Plus, Trash2, User, Shield, Crown, Star, Edit2, Save, X, Archive, UserCheck, Loader2 } from 'lucide-react';
 import { TeamMember, TeamRole } from '@/types';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 const ALL_ROLES: TeamRole[] = ['Prévia', 'Autorizado', 'Gestor', 'Anjo'];
 
 export const TeamConfig = () => {
+  const { user } = useAuth();
   const { teamMembers, addTeamMember, updateTeamMember, deleteTeamMember } = useApp();
   
-  const [newName, setNewName] = useState('');
+  const [availableConsultants, setAvailableConsultants] = useState<{ id: string; name: string; email: string; }[]>([]);
+  const [selectedNewConsultantId, setSelectedNewConsultantId] = useState('');
   const [newRoles, setNewRoles] = useState<TeamRole[]>(['Prévia']);
   const [isAdding, setIsAdding] = useState(false);
 
   const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
-  const [editingName, setEditingName] = useState('');
   const [editingRoles, setEditingRoles] = useState<TeamRole[]>([]);
   const [isUpdating, setIsUpdating] = useState(false);
+
+  // Fetch available consultants (users with 'CONSULTOR' role not yet in this manager's team)
+  useEffect(() => {
+    const fetchAvailableConsultants = async () => {
+      if (!user) return;
+
+      const { data: profiles, error } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, email, role')
+        .eq('role', 'CONSULTOR');
+
+      if (error) {
+        console.error("Error fetching consultant profiles:", error);
+        return;
+      }
+
+      const currentTeamConsultantIds = new Set(teamMembers.map(m => m.consultant_id));
+
+      const filtered = (profiles || [])
+        .filter(p => !currentTeamConsultantIds.has(p.id))
+        .map(p => ({
+          id: p.id,
+          name: `${p.first_name || ''} ${p.last_name || ''}`.trim() || p.email,
+          email: p.email,
+        }));
+      
+      setAvailableConsultants(filtered);
+      if (filtered.length > 0 && !selectedNewConsultantId) {
+        setSelectedNewConsultantId(filtered[0].id);
+      }
+    };
+
+    fetchAvailableConsultants();
+  }, [user, teamMembers, selectedNewConsultantId]);
 
   const handleRoleChange = (role: TeamRole, currentRoles: TeamRole[], setRoles: React.Dispatch<React.SetStateAction<TeamRole[]>>) => {
     const updatedRoles = currentRoles.includes(role)
@@ -26,19 +69,14 @@ export const TeamConfig = () => {
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newName.trim() || newRoles.length === 0) {
-      alert("O nome e pelo menos um cargo são obrigatórios.");
+    if (!selectedNewConsultantId || newRoles.length === 0) {
+      alert("Selecione um consultor e pelo menos um cargo.");
       return;
     }
     setIsAdding(true);
     try {
-      await addTeamMember({
-        id: crypto.randomUUID(),
-        name: newName.trim(),
-        roles: newRoles,
-        isActive: true,
-      });
-      setNewName('');
+      await addTeamMember(selectedNewConsultantId, newRoles, true);
+      setSelectedNewConsultantId('');
       setNewRoles(['Prévia']);
     } catch (error: any) {
       alert(`Falha ao adicionar membro: ${error.message}`);
@@ -49,24 +87,22 @@ export const TeamConfig = () => {
 
   const startEditing = (member: TeamMember) => {
     setEditingMember(member);
-    setEditingName(member.name);
     setEditingRoles(member.roles);
   };
 
   const cancelEditing = () => {
     setEditingMember(null);
-    setEditingName('');
     setEditingRoles([]);
   };
 
   const handleUpdate = async () => {
-    if (!editingMember || !editingName.trim() || editingRoles.length === 0) {
-      alert("O nome e pelo menos um cargo são obrigatórios.");
+    if (!editingMember || editingRoles.length === 0) {
+      alert("Pelo menos um cargo é obrigatório.");
       return;
     }
     setIsUpdating(true);
     try {
-      await updateTeamMember(editingMember.id, { name: editingName.trim(), roles: editingRoles });
+      await updateTeamMember(editingMember.consultant_id, { roles: editingRoles });
       cancelEditing();
     } catch (error: any) {
       alert(`Falha ao atualizar membro: ${error.message}`);
@@ -75,10 +111,10 @@ export const TeamConfig = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (window.confirm('Tem certeza que deseja remover este membro da equipe?')) {
+  const handleDelete = async (consultantId: string, consultantName: string) => {
+    if (window.confirm(`Tem certeza que deseja remover "${consultantName}" da sua equipe?`)) {
       try {
-        await deleteTeamMember(id);
+        await deleteTeamMember(consultantId);
       } catch (error: any) {
         alert(`Falha ao remover membro: ${error.message}`);
       }
@@ -87,7 +123,7 @@ export const TeamConfig = () => {
 
   const handleToggleActive = async (member: TeamMember) => {
     try {
-      await updateTeamMember(member.id, { isActive: !member.isActive });
+      await updateTeamMember(member.consultant_id, { is_active: !member.is_active });
     } catch (error: any) {
       alert(`Falha ao alterar status do membro: ${error.message}`);
     }
@@ -125,15 +161,23 @@ export const TeamConfig = () => {
                   <h2 className="font-semibold text-gray-900 dark:text-white mb-4">Adicionar Membro</h2>
                   <form onSubmit={handleAdd} className="space-y-4">
                       <div>
-                          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Nome Completo</label>
-                          <input 
-                            type="text" 
-                            required
-                            className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500"
-                            placeholder="Ex: João Silva"
-                            value={newName}
-                            onChange={e => setNewName(e.target.value)}
-                          />
+                          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Consultor</label>
+                          <Select value={selectedNewConsultantId} onValueChange={setSelectedNewConsultantId}>
+                            <SelectTrigger className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
+                              <SelectValue placeholder="Selecione um consultor" />
+                            </SelectTrigger>
+                            <SelectContent className="dark:bg-slate-800 dark:text-white dark:border-slate-700">
+                              {availableConsultants.length === 0 ? (
+                                <p className="p-2 text-sm text-gray-500">Nenhum consultor disponível.</p>
+                              ) : (
+                                availableConsultants.map(consultant => (
+                                  <SelectItem key={consultant.id} value={consultant.id}>
+                                    {consultant.name} ({consultant.email})
+                                  </SelectItem>
+                                ))
+                              )}
+                            </SelectContent>
+                          </Select>
                       </div>
                       <div>
                           <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Cargos / Funções</label>
@@ -151,7 +195,7 @@ export const TeamConfig = () => {
                             ))}
                           </div>
                       </div>
-                      <button type="submit" disabled={isAdding} className="w-full flex items-center justify-center space-x-2 bg-brand-600 hover:bg-brand-700 text-white py-2 rounded-lg transition font-medium disabled:opacity-50">
+                      <button type="submit" disabled={isAdding || !selectedNewConsultantId || newRoles.length === 0} className="w-full flex items-center justify-center space-x-2 bg-brand-600 hover:bg-brand-700 text-white py-2 rounded-lg transition font-medium disabled:opacity-50">
                           {isAdding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
                           <span>{isAdding ? 'Adicionando...' : 'Adicionar'}</span>
                       </button>
@@ -170,10 +214,10 @@ export const TeamConfig = () => {
                           <li className="p-8 text-center text-gray-500 dark:text-gray-400">Nenhum membro cadastrado.</li>
                       ) : (
                           teamMembers.map(member => (
-                              <li key={member.id} className={`p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-slate-700/30 transition group ${!member.isActive ? 'opacity-60' : ''}`}>
-                                  {editingMember?.id === member.id ? (
+                              <li key={member.consultant_id} className={`p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-slate-700/30 transition group ${!member.is_active ? 'opacity-60' : ''}`}>
+                                  {editingMember?.consultant_id === member.consultant_id ? (
                                     <div className="flex-1 flex flex-col gap-3">
-                                      <input type="text" value={editingName} onChange={e => setEditingName(e.target.value)} className="w-full border-gray-300 dark:border-slate-600 rounded-md p-2 text-sm" />
+                                      <p className="font-medium text-gray-900 dark:text-white">{member.consultant_name}</p>
                                       <div className="grid grid-cols-2 gap-2">
                                         {ALL_ROLES.map(role => (
                                             <label key={role} className="flex items-center space-x-2 cursor-pointer">
@@ -197,26 +241,27 @@ export const TeamConfig = () => {
                                               {member.roles && member.roles.length > 0 ? getRoleIcon(member.roles[0]) : <User className="w-4 h-4 text-gray-500" />}
                                           </div>
                                           <div>
-                                              <p className="font-medium text-gray-900 dark:text-white">{member.name}</p>
+                                              <p className="font-medium text-gray-900 dark:text-white">{member.consultant_name}</p>
+                                              <p className="text-xs text-gray-500 dark:text-gray-400">{member.consultant_email}</p>
                                               <div className="flex flex-wrap gap-1 mt-1">
                                                 {member.roles.map(role => (
                                                     <span key={role} className={`text-xs px-2 py-0.5 rounded-full font-medium ${getRoleBadge(role)}`}>
                                                         {role}
                                                     </span>
                                                 ))}
-                                                {!member.isActive && <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300">Inativo</span>}
+                                                {!member.is_active && <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300">Inativo</span>}
                                               </div>
                                           </div>
                                       </div>
                                       <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button onClick={() => handleToggleActive(member)} className={`p-2 rounded-full ${member.isActive ? 'text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20' : 'text-gray-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20'}`} title={member.isActive ? 'Inativar' : 'Ativar'}>
-                                            {member.isActive ? <Archive className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
+                                        <button onClick={() => handleToggleActive(member)} className={`p-2 rounded-full ${member.is_active ? 'text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20' : 'text-gray-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20'}`} title={member.is_active ? 'Inativar' : 'Ativar'}>
+                                            {member.is_active ? <Archive className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
                                         </button>
                                         <button onClick={() => startEditing(member)} className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full">
                                           <Edit2 className="w-4 h-4" />
                                         </button>
                                         <button 
-                                          onClick={() => handleDelete(member.id)}
+                                          onClick={() => handleDelete(member.consultant_id, member.consultant_name || 'Membro')}
                                           className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full"
                                         >
                                             <Trash2 className="w-5 h-5" />
