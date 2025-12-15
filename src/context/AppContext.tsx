@@ -318,8 +318,27 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const updateCandidate = useCallback(async (id: string, updates: Partial<Candidate>) => { if (!user) throw new Error("Usuário não autenticado."); const c = candidates.find(c => c.id === id); if (!c || !c.db_id) throw new Error("Candidato não encontrado"); const updated = { ...c, ...updates }; const { db_id, ...dataToUpdate } = updated; const { error } = await supabase.from('candidates').update({ data: dataToUpdate }).match({ id: c.db_id, user_id: user.id }); if (error) { console.error(error); throw error; } setCandidates(prev => prev.map(p => p.id === id ? updated : p)); }, [user, candidates]);
   const deleteCandidate = useCallback(async (id: string) => { if (!user) throw new Error("Usuário não autenticado."); const c = candidates.find(c => c.id === id); if (!c || !c.db_id) throw new Error("Candidato não encontrado"); const { error } = await supabase.from('candidates').delete().match({ id: c.db_id, user_id: user.id }); if (error) { console.error(error); throw error; } setCandidates(prev => prev.filter(p => p.id !== id)); }, [user, candidates]);
   const addTeamMember = useCallback(async (member: TeamMember) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('team_members').insert({ user_id: user.id, data: member }).select('id').single(); if (error) { console.error(error); throw error; } if (data) { setTeamMembers(prev => [...prev, { ...member, db_id: data.id }]); } }, [user]);
-  const updateTeamMember = useCallback(async (id: string, updates: Partial<TeamMember>) => { if (!user) throw new Error("Usuário não autenticado."); const m = teamMembers.find(m => m.id === id); if (!m || !m.db_id) throw new Error("Membro não encontrado"); const updated = { ...m, ...updates }; const { db_id, ...dataToUpdate } = updated; const { error } = await supabase.from('team_members').update({ data: dataToUpdate }).match({ id: m.db_id, user_id: user.id }); if (error) { console.error(error); throw error; } setTeamMembers(prev => prev.map(p => p.id === id ? updated : p)); }, [user, teamMembers]);
-  const deleteTeamMember = useCallback(async (id: string) => { if (!user) throw new Error("Usuário não autenticado."); const m = teamMembers.find(m => m.id === id); if (!m || !m.db_id) throw new Error("Membro não encontrado"); const { error } = await supabase.from('team_members').delete().match({ id: m.db_id, user_id: user.id }); if (error) { console.error(error); throw error; } setTeamMembers(prev => prev.filter(p => p.id !== id)); }, [user, teamMembers]);
+  const updateTeamMember = useCallback(async (id: string, updates: Partial<TeamMember>) => { 
+    if (!user) throw new Error("Usuário não autenticado."); 
+    const m = teamMembers.find(m => m.id === id); 
+    if (!m || !m.db_id) throw new Error("Membro não encontrado"); 
+    
+    const updatedTeamMemberData = { ...m, ...updates };
+    const { db_id, ...dataToStore } = updatedTeamMemberData; // Extrai db_id antes de armazenar em 'data'
+
+    const { error } = await supabase.from('team_members').update({ data: dataToStore }).match({ id: m.db_id, user_id: user.id }); 
+    if (error) { console.error(error); throw error; } 
+    setTeamMembers(prev => prev.map(p => p.id === id ? updatedTeamMemberData : p)); 
+  }, [user, teamMembers]);
+  const deleteTeamMember = useCallback(async (id: string) => { 
+    if (!user) throw new Error("Usuário não autenticado."); 
+    const m = teamMembers.find(m => m.id === id); 
+    if (!m || !m.db_id) throw new Error("Membro não encontrado"); 
+    
+    const { error } = await supabase.from('team_members').delete().match({ id: m.db_id, user_id: user.id }); 
+    if (error) { console.error(error); throw error; } 
+    setTeamMembers(prev => prev.filter(p => p.id !== id)); 
+  }, [user, teamMembers]);
   const addCutoffPeriod = useCallback(async (period: CutoffPeriod) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('cutoff_periods').insert({ user_id: user.id, data: period }).select('id').single(); if (error) throw error; if (data) setCutoffPeriods(prev => [...prev, { ...period, db_id: data.id }]); }, [user]);
   const updateCutoffPeriod = useCallback(async (id: string, updates: Partial<CutoffPeriod>) => { if (!user) throw new Error("Usuário não autenticado."); const p = cutoffPeriods.find(p => p.id === id); if (!p || !p.db_id) throw new Error("Período não encontrado"); const updated = { ...p, ...updates }; const { db_id, ...dataToUpdate } = updated; const { error } = await supabase.from('cutoff_periods').update({ data: dataToUpdate }).match({ id: p.db_id, user_id: user.id }); if (error) throw error; setCutoffPeriods(prev => prev.map(item => item.id === id ? updated : item)); }, [user, cutoffPeriods]);
   const deleteCutoffPeriod = useCallback(async (id: string) => { if (!user) throw new Error("Usuário não autenticado."); const p = cutoffPeriods.find(p => p.id === id); if (!p || !p.db_id) throw new Error("Período não encontrado"); const { error } = await supabase.from('cutoff_periods').delete().match({ id: p.db_id, user_id: user.id }); if (error) throw error; setCutoffPeriods(prev => prev.filter(item => item.id !== id)); }, [user, cutoffPeriods]);
