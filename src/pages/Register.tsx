@@ -16,6 +16,8 @@ export const Register = () => {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    // Se o usuário já estiver logado (por exemplo, após um refresh ou login manual),
+    // redireciona para a página inicial.
     if (user) {
       navigate('/', { replace: true });
     }
@@ -39,7 +41,9 @@ export const Register = () => {
 
     try {
       await register(name, email, password);
-      // A navegação agora é tratada pelo useEffect acima
+      // Redireciona explicitamente para a página de login após o cadastro bem-sucedido.
+      // Isso garante que o usuário seja levado para o login para acessar o sistema.
+      navigate('/login', { replace: true });
     } catch (err: any) {
       setError(err.message || 'Ocorreu um erro ao criar a conta.');
     } finally {
