@@ -3,10 +3,14 @@ import * as ScrollAreaPrimitive from "@radix-ui/react-scroll-area"
 
 import { cn } from "@/lib/utils"
 
-const ScrollBar = React.forwardRef<
-  React.ElementRef<typeof ScrollAreaPrimitive.ScrollAreaScrollbar>, // Tipo da ref permanece como genérico
-  React.ComponentPropsWithoutRef<typeof ScrollAreaPrimitive.ScrollAreaScrollbar> // Tipo das props permanece como genérico
->(({ className, orientation = "vertical", ...props }, ref) => (
+// 1. Definindo a interface de props para ScrollBar
+interface ScrollBarProps extends React.ComponentPropsWithoutRef<typeof ScrollAreaPrimitive.ScrollAreaScrollbar> {}
+
+// 2. Chamando React.forwardRef sem argumentos genéricos explícitos
+const ScrollBar = React.forwardRef((
+  { className, orientation = "vertical", ...props }: ScrollBarProps, // Props definidas aqui
+  ref: React.Ref<React.ElementRef<typeof ScrollAreaPrimitive.ScrollAreaScrollbar>> // Tipo da ref definida aqui
+) => (
   <ScrollAreaPrimitive.ScrollAreaScrollbar
     ref={ref}
     orientation={orientation}
@@ -22,7 +26,8 @@ const ScrollBar = React.forwardRef<
   >
     <ScrollAreaPrimitive.ScrollAreaThumb className="relative flex-1 rounded-full bg-gray-300 dark:bg-slate-600" />
   </ScrollAreaPrimitive.Scrollbar>
-))
+)) as React.ForwardRefExoticComponent<ScrollBarProps & React.RefAttributes<React.ElementRef<typeof ScrollAreaPrimitive.ScrollAreaScrollbar>>>; // 3. Asserção de tipo no resultado
+
 ScrollBar.displayName = ScrollAreaPrimitive.ScrollAreaScrollbar.displayName
 
 const ScrollArea = React.forwardRef<
