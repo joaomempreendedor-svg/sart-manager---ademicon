@@ -4,12 +4,12 @@ import { LayoutDashboard, MessageSquare, Settings, FileText, Sun, Moon, Banknote
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 
-interface SidebarProps {
+interface GestorSidebarProps {
   isSidebarOpen: boolean;
   toggleSidebar: () => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ isSidebarOpen, toggleSidebar }) => {
+export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, toggleSidebar }) => {
   const { theme, toggleTheme } = useApp();
   const { user, logout } = useAuth();
 
@@ -104,6 +104,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ isSidebarOpen, toggleSidebar }
           <NavLink to="/config-cutoff" className={linkClass} onClick={toggleSidebar}>
             <Calendar className="w-5 h-5" />
             <span>Períodos de Corte</span>
+          </NavLink>
+          <NavLink to="/crm-config" className={linkClass} onClick={toggleSidebar}>
+            <PlusCircle className="w-5 h-5" />
+            <span>Configurar CRM</span>
           </NavLink>
         </nav>
 
