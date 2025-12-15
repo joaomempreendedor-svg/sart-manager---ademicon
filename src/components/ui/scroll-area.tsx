@@ -21,7 +21,7 @@ const ScrollArea = React.forwardRef<
 ))
 ScrollArea.displayName = ScrollAreaPrimitive.Root.displayName
 
-// Definindo o tipo das props explicitamente para evitar o erro de parsing do Babel
+// Definindo o tipo das props explicitamente
 type ScrollBarProps = React.ComponentPropsWithoutRef<typeof ScrollAreaPrimitive.ScrollAreaScrollbar>;
 
 const ScrollBar = React.forwardRef<
