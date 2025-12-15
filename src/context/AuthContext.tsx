@@ -24,7 +24,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       const { data: profile, error } = await supabase
         .from('profiles')
-        .select('first_name, last_name')
+        .select('first_name, last_name, role')
         .eq('id', session.user.id)
         .maybeSingle();
 
@@ -34,13 +34,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim()
         : session.user.email?.split('@')[0] || 'Usuário';
         
-      return { id: session.user.id, name, email: session.user.email || '' };
+      return { 
+        id: session.user.id, 
+        name, 
+        email: session.user.email || '',
+        role: profile?.role || 'CONSULTOR' 
+      };
     } catch (error: any) {
       console.error('Error fetching profile:', error.message);
       return {
         id: session.user.id,
         name: session.user.email?.split('@')[0] || 'Usuário',
         email: session.user.email || '',
+        role: 'CONSULTOR', // Fallback role
       };
     }
   }, []);

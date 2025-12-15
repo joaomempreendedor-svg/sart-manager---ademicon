@@ -20,8 +20,9 @@ import { Profile } from '@/pages/Profile';
 import { CutoffConfig } from '@/pages/CutoffConfig';
 import { UpdatePassword } from '@/pages/UpdatePassword';
 import { Feedbacks } from '@/pages/Feedbacks';
-import { OnlineOnboarding } from '@/pages/OnlineOnboarding'; // Importado
-import { PublicOnboarding } from '@/pages/PublicOnboarding'; // Importado
+import { OnlineOnboarding } from '@/pages/OnlineOnboarding';
+import { PublicOnboarding } from '@/pages/PublicOnboarding';
+import { Home } from '@/pages/Home'; // Importado
 import { Loader2, RefreshCw } from 'lucide-react';
 
 const AppLoader = () => {
@@ -107,25 +108,26 @@ const AppRoutes = () => {
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/update-password" element={<UpdatePassword />} />
-      {/* Rota pública para o onboarding do consultor */}
       <Route path="/onboarding/:sessionId" element={<PublicOnboarding />} />
 
       <Route element={<RequireAuth />}>
-        <Route path="/" element={<Layout />}>
-          <Route index element={<Dashboard />} />
+        <Route path="/" element={<Home />} />
+        <Route element={<Layout />}>
+          <Route path="/dashboard" element={<Dashboard />} />
           <Route path="candidate/:id" element={<CandidateDetail />} />
           <Route path="commissions" element={<Commissions />} />
           <Route path="feedbacks" element={<Feedbacks />} />
           <Route path="materials" element={<Materials />} />
           <Route path="links" element={<ImportantLinks />} />
           <Route path="profile" element={<Profile />} />
-          <Route path="onboarding-admin" element={<OnlineOnboarding />} /> {/* Rota de gestão */}
+          <Route path="onboarding-admin" element={<OnlineOnboarding />} />
           <Route path="config-team" element={<TeamConfig />} />
           <Route path="config-templates" element={<TemplateConfig />} />
           <Route path="config-process" element={<ChecklistConfig />} />
           <Route path="config-goals" element={<GoalsConfig />} />
           <Route path="config-interview" element={<InterviewConfig />} />
           <Route path="config-cutoff" element={<CutoffConfig />} />
+          {/* Adicionar rotas futuras aqui */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Route>

@@ -182,10 +182,13 @@ export interface TeamMember {
 }
 
 // AUTHENTICATION
+export type UserRole = 'GESTOR' | 'CONSULTOR' | 'ADMIN';
+
 export interface User {
   id: string;
   name: string;
   email: string;
+  role: UserRole;
 }
 
 // NOVO: Interface para relatório
@@ -236,6 +239,51 @@ export interface OnboardingSession {
   created_at: string;
   videos: OnboardingVideo[];
 }
+
+// --- NOVOS TIPOS PARA O CRM ---
+export interface CrmPipeline {
+  id: string;
+  user_id: string;
+  name: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface CrmStage {
+  id: string;
+  pipeline_id: string;
+  user_id: string;
+  name: string;
+  order_index: number;
+  is_active: boolean;
+  is_won: boolean;
+  is_lost: boolean;
+  created_at: string;
+}
+
+export interface CrmField {
+  id: string;
+  user_id: string;
+  key: string;
+  label: string;
+  type: 'text' | 'number' | 'select' | 'longtext';
+  is_required: boolean;
+  is_active: boolean;
+  options?: string[];
+  created_at: string;
+}
+
+export interface CrmLead {
+  id: string;
+  consultant_id: string;
+  stage_id: string;
+  user_id: string;
+  name: string;
+  data: Record<string, any>;
+  created_at: string;
+  updated_at: string;
+}
+// --- FIM DOS NOVOS TIPOS ---
 
 
 export interface AppContextType {
