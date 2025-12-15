@@ -87,6 +87,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [crmStages, setCrmStages] = useState<CrmStage[]>([]);
   const [crmFields, setCrmFields] = useState<CrmField[]>([]);
   const [crmLeads, setCrmLeads] = useState<CrmLead[]>([]); // NOVO: Leads do CRM
+  const [crmOwnerUserId, setCrmOwnerUserId] = useState<string | null>(null); // NEW: ID of the user who owns the CRM configuration
 
   // Módulo 3: Checklist do Dia
   const [dailyChecklists, setDailyChecklists] = useState<DailyChecklist[]>([]);
@@ -179,6 +180,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setCrmStages([]);
     setCrmFields([]);
     setCrmLeads([]); // Reset CRM Leads
+    setCrmOwnerUserId(null); // Reset CRM owner
     setDailyChecklists([]); // Reset Daily Checklists
     setDailyChecklistItems([]);
     setDailyChecklistAssignments([]);
@@ -233,6 +235,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setIsDataLoading(false);
       }, 15000);
       try {
+        let effectiveCrmOwnerId = userId; // Default to current user's ID
+
+        if (user?.role === 'CONSULTOR') {
+          const { data: teamMemberProfile, error: teamMemberProfileError } = await supabase
+            .from('team_members')
+            .select('user_id') // This 'user_id' is the Gestor's ID
+            .eq('id', userId) // This 'id' is the consultant's auth.uid()
+            .maybeSingle();
+
+          if (teamMemberProfileError) {
+            console.error("Error fetching team member profile for consultant:", teamMemberProfileError);
+          } else if (teamMemberProfile) {
+            effectiveCrmOwnerId = teamMemberProfile.user_id; // Use the Gestor's ID as the owner
+          } else {
+            console.warn(`Consultant ${userId} not found in team_members or has no associated Gestor. CRM will not be visible.`);
+            effectiveCrmOwnerId = null; // No Gestor found, so no CRM to display
+          }
+        }
+        setCrmOwnerUserId(effectiveCrmOwnerId); // Set the CRM owner ID
+
         const [
           { data: configResult, error: configError },
           { data: candidatesData, error: candidatesError },
@@ -242,10 +264,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           { data: linksData, error: linksError },
           { data: onboardingData, error: onboardingError },
           { data: templateVideosData, error: templateVideosError },
+          // Use effectiveCrmOwnerId for CRM related fetches
           { data: pipelinesData, error: pipelinesError },
           { data: stagesData, error: stagesError },
-          { data: fieldsData, error: fieldsError },
-          { data: crmLeadsData, error: crmLeadsError }, // Fetch CRM Leads
+          { data: fieldsData, error: fieldsDataError },
+          // crmLeads fetch needs to be conditional based on role
+          { data: crmLeadsData, error: crmLeadsError },
           { data: dailyChecklistsData, error: dailyChecklistsError }, // Fetch Daily Checklists
           { data: dailyChecklistItemsData, error: dailyChecklistItemsError },
           { data: dailyChecklistAssignmentsData, error: dailyChecklistAssignmentsError },
@@ -265,10 +289,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           supabase.from('important_links').select('id, data').eq('user_id', userId),
           supabase.from('onboarding_sessions').select('*, videos:onboarding_videos(*)').eq('user_id', userId),
           supabase.from('onboarding_video_templates').select('*').eq('user_id', userId).order('order', { ascending: true }),
-          supabase.from('crm_pipelines').select('*').eq('user_id', userId),
-          supabase.from('crm_stages').select('*').eq('user_id', userId).order('order_index'),
-          supabase.from('crm_fields').select('*').eq('user_id', userId),
-          supabase.from('crm_leads').select('*').eq('user_id', userId), // Fetch CRM Leads
+          // CRM fetches now use effectiveCrmOwnerId
+          effectiveCrmOwnerId ? supabase.from('crm_pipelines').select('*').eq('user_id', effectiveCrmOwnerId) : Promise.resolve({ data: [], error: null }),
+          effectiveCrmOwnerId ? supabase.from('crm_stages').select('*').eq('user_id', effectiveCrmOwnerId).order('order_index') : Promise.resolve({ data: [], error: null }),
+          effectiveCrmOwnerId ? supabase.from('crm_fields').select('*').eq('user_id', effectiveCrmOwnerId) : Promise.resolve({ data: [], error: null }),
+          // crmLeads fetch needs to be conditional based on role
+          user?.role === 'CONSULTOR' ? supabase.from('crm_leads').select('*').eq('consultant_id', userId) : (effectiveCrmOwnerId ? supabase.from('crm_leads').select('*').eq('user_id', effectiveCrmOwnerId) : Promise.resolve({ data: [], error: null })),
           supabase.from('daily_checklists').select('*').eq('user_id', userId), // Fetch Daily Checklists
           supabase.from('daily_checklist_items').select('*'),
           supabase.from('daily_checklist_assignments').select('*'),
@@ -291,7 +317,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (templateVideosError) console.error("Onboarding Template error:", templateVideosError);
         if (pipelinesError) console.error("Pipelines error:", pipelinesError);
         if (stagesError) console.error("Stages error:", stagesError);
-        if (fieldsError) console.error("Fields error:", fieldsError);
+        if (fieldsDataError) console.error("Fields error:", fieldsDataError);
         if (crmLeadsError) console.error("CRM Leads error:", crmLeadsError);
         if (dailyChecklistsError) console.error("Daily Checklists error:", dailyChecklistsError);
         if (dailyChecklistItemsError) console.error("Daily Checklist Items error:", dailyChecklistItemsError);
@@ -345,7 +371,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setOnboardingTemplateVideos(templateVideosData || []);
         
         let finalPipelines = pipelinesData || [];
-        if (finalPipelines.length === 0) {
+        if (finalPipelines.length === 0 && effectiveCrmOwnerId === userId) { // Only create default if current user is the owner
           // Create a default pipeline if none exist
           const { data: newPipeline, error: insertPipelineError } = await supabase
             .from('crm_pipelines')
@@ -421,7 +447,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     } else {
       setIsDataLoading(false);
     }
-  }, [user?.id, refetchCommissions]);
+  }, [user?.id, user?.role, refetchCommissions]);
 
   const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
   const addCandidate = useCallback(async (candidate: Candidate) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('candidates').insert({ user_id: user.id, data: candidate }).select('id').single(); if (error) { console.error(error); throw error; } if (data) { setCandidates(prev => [{ ...candidate, db_id: data.id }, ...prev]); } }, [user]);
@@ -434,7 +460,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const updateCutoffPeriod = useCallback(async (id: string, updates: Partial<CutoffPeriod>) => { if (!user) throw new Error("Usuário não autenticado."); const p = cutoffPeriods.find(p => p.id === id); if (!p || !p.db_id) throw new Error("Período não encontrado"); const updated = { ...p, ...updates }; const { db_id, ...dataToUpdate } = updated; const { error } = await supabase.from('cutoff_periods').update({ data: dataToUpdate }).match({ id: p.db_id, user_id: user.id }); if (error) throw error; setCutoffPeriods(prev => prev.map(item => item.id === id ? updated : item)); }, [user, cutoffPeriods]);
   const deleteCutoffPeriod = useCallback(async (id: string) => { if (!user) throw new Error("Usuário não autenticado."); const p = cutoffPeriods.find(p => p.id === id); if (!p || !p.db_id) throw new Error("Período não encontrado"); const { error } = await supabase.from('cutoff_periods').delete().match({ id: p.db_id, user_id: user.id }); if (error) throw error; setCutoffPeriods(prev => prev.filter(item => item.id !== id)); }, [user, cutoffPeriods]);
   const addCommission = useCallback(async (commission: Commission): Promise<Commission> => { if (!user) throw new Error("Usuário não autenticado."); const localId = `local_${Date.now()}`; const localCommission: Commission = { ...commission, db_id: localId, criado_em: new Date().toISOString() }; setCommissions(prev => [localCommission, ...prev]); setTimeout(() => { alert(`✅ VENDA REGISTRADA!\n\nCliente: ${commission.clientName}\nValor: R$ ${commission.value.toLocaleString()}\nID: ${localId}\n\nA sincronização ocorrerá em segundo plano.`); }, 50); setTimeout(async () => { try { const cleanCommission = { ...commission, customRules: commission.customRules?.length ? commission.customRules : undefined, angelName: commission.angelName || undefined, managerName: commission.managerName || 'N/A', }; const payload = { user_id: user.id, data: cleanCommission }; const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Background sync timeout')), 10000)); const insertPromise = supabase.from('commissions').insert(payload).select('id, created_at').maybeSingle(); const { data, error } = await Promise.race([insertPromise, timeoutPromise]) as any; if (error) throw error; if (data && data.id) { setCommissions(prev => prev.map(c => c.db_id === localId ? { ...c, db_id: data.id.toString(), criado_em: data.created_at, _synced: true } : c)); const pending = JSON.parse(localStorage.getItem('pending_commissions') || '[]').filter((p: any) => p._localId !== localId); localStorage.setItem('pending_commissions', JSON.stringify(pending)); } else { throw new Error('Nenhum ID retornado'); } } catch (error: any) { const pending = JSON.parse(localStorage.getItem('pending_commissions') || '[]'); const alreadyExists = pending.some((p: any) => p._localId === localId); if (!alreadyExists) { pending.push({ ...commission, _localId: localId, _timestamp: new Date().toISOString(), _error: error.message, _attempts: 1 }); localStorage.setItem('pending_commissions', JSON.stringify(pending)); } } }, 2000); return localCommission; }, [user]);
-  const updateCommission = useCallback(async (id: string, updates: Partial<Commission>) => { if (!user) throw new Error("Usuário não autenticado."); const commissionToUpdate = commissions.find(c => c.id === id); if (!commissionToUpdate || !commissionToUpdate.db_id) throw new Error("Comissão não encontrada para atualização."); const originalData = { ...commissionToUpdate }; delete (originalData as any).db_id; delete (originalData as any).criado_em; const newData = { ...originalData, ...updates }; const payload = { data: newData }; const { error } = await supabase.from('commissions').update(payload).match({ id: commissionToUpdate.db_id, user_id: user.id }); if (error) { console.error(error); throw error; } await refetchCommissions(); }, [user, commissions, refetchCommissions]);
+  const updateCommission = useCallback(async (id: string, updates: Partial<Commission>) => { if (!user) throw new Error("Usuário não autenticado."); const commissionToUpdate = commissions.find(c => c.id === commissionId); if (!commissionToUpdate || !commissionToUpdate.db_id) throw new Error("Comissão não encontrada para atualização."); const originalData = { ...commissionToUpdate }; delete (originalData as any).db_id; delete (originalData as any).criado_em; const newData = { ...originalData, ...updates }; const payload = { data: newData }; const { error } = await supabase.from('commissions').update(payload).match({ id: commissionToUpdate.db_id, user_id: user.id }); if (error) { console.error(error); throw error; } await refetchCommissions(); }, [user, commissions, refetchCommissions]);
   const deleteCommission = useCallback(async (id: string) => { if (!user) throw new Error("Usuário não autenticado."); const commissionToDelete = commissions.find(c => c.id === id); if (!commissionToDelete || !commissionToDelete.db_id) throw new Error("Comissão não encontrada para exclusão."); const { error } = await supabase.from('commissions').delete().match({ id: commissionToDelete.db_id, user_id: user.id }); if (error) { console.error(error); throw error; } await refetchCommissions(); }, [user, commissions, refetchCommissions]);
   const addSupportMaterial = useCallback(async (materialData: Omit<SupportMaterial, 'id' | 'url'>, file: File) => { if (!user) throw new Error("Usuário não autenticado."); const sanitizedFileName = file.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w\s.-]/g, '').replace(/\s+/g, '_'); const filePath = `public/${crypto.randomUUID()}-${sanitizedFileName}`; const { error: uploadError } = await supabase.storage.from('support_materials').upload(filePath, file); if (uploadError) throw uploadError; const { data: urlData } = supabase.storage.from('support_materials').getPublicUrl(filePath); if (!urlData) throw new Error("Não foi possível obter a URL pública do arquivo."); const newMaterial: SupportMaterial = { ...materialData, id: crypto.randomUUID(), url: urlData.publicUrl, }; const { data: dbData, error: dbError } = await supabase.from('support_materials').insert({ user_id: user.id, data: newMaterial }).select('id').single(); if (dbError) { await supabase.storage.from('support_materials').remove([filePath]); throw dbError; } setSupportMaterials(prev => [{ ...newMaterial, db_id: dbData.id }, ...prev]); }, [user]);
   const deleteSupportMaterial = useCallback(async (id: string) => { if (!user) throw new Error("Usuário não autenticado."); const m = supportMaterials.find(m => m.id === id); if (!m || !m.db_id) throw new Error("Material não encontrado"); const filePath = m.url.split('/support_materials/')[1]; const { error: storageError } = await supabase.storage.from('support_materials').remove([filePath]); if (storageError) console.error("Erro ao deletar do storage (pode já ter sido removido):", storageError.message); const { error: dbError } = await supabase.from('support_materials').delete().match({ id: m.db_id, user_id: user.id }); if (dbError) throw dbError; setSupportMaterials(prev => prev.filter(p => p.id !== id)); }, [user, supportMaterials]);
@@ -527,24 +553,30 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [user]);
 
   // CRM Functions
-  const addCrmLead = useCallback(async (leadData: Omit<CrmLead, 'id' | 'user_id' | 'created_at' | 'updated_at'>): Promise<CrmLead> => {
+  const addCrmLead = useCallback(async (leadData: Omit<CrmLead, 'id' | 'created_at' | 'updated_at'>): Promise<CrmLead> => {
     if (!user) throw new Error("Usuário não autenticado.");
-    const { data, error } = await supabase.from('crm_leads').insert({ ...leadData, user_id: user.id }).select().single();
+    // Ensure user_id (Gestor's ID) is correctly set from crmOwnerUserId
+    if (!crmOwnerUserId) throw new Error("ID do Gestor do CRM não encontrado.");
+    const payload = { ...leadData, user_id: crmOwnerUserId };
+    const { data, error } = await supabase.from('crm_leads').insert(payload).select().single();
     if (error) throw error;
     setCrmLeads(prev => [...prev, data]);
     return data;
-  }, [user]);
+  }, [user, crmOwnerUserId]);
 
   const updateCrmLead = useCallback(async (id: string, updates: Partial<CrmLead>) => {
     if (!user) throw new Error("Usuário não autenticado.");
-    const { error } = await supabase.from('crm_leads').update(updates).eq('id', id).eq('user_id', user.id);
+    // Ensure user_id (Gestor's ID) is correctly set from crmOwnerUserId
+    if (!crmOwnerUserId) throw new Error("ID do Gestor do CRM não encontrado.");
+    const payload = { ...updates, user_id: crmOwnerUserId }; // Ensure user_id is not changed if it's a consultant updating
+    const { error } = await supabase.from('crm_leads').update(payload).eq('id', id).eq('consultant_id', user.id);
     if (error) throw error;
     setCrmLeads(prev => prev.map(lead => lead.id === id ? { ...lead, ...updates } : lead));
-  }, [user]);
+  }, [user, crmOwnerUserId]);
 
   const deleteCrmLead = useCallback(async (id: string) => {
     if (!user) throw new Error("Usuário não autenticado.");
-    const { error } = await supabase.from('crm_leads').delete().eq('id', id).eq('user_id', user.id);
+    const { error } = await supabase.from('crm_leads').delete().eq('id', id).eq('consultant_id', user.id);
     if (error) throw error;
     setCrmLeads(prev => prev.filter(lead => lead.id !== id));
   }, [user]);
@@ -802,7 +834,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     <AppContext.Provider value={{ 
       isDataLoading,
       candidates, templates, checklistStructure, consultantGoalsStructure, interviewStructure, commissions, supportMaterials, importantLinks, theme, origins, interviewers, pvs, teamMembers, cutoffPeriods, onboardingSessions, onboardingTemplateVideos,
-      crmPipelines, crmStages, crmFields, crmLeads, addCrmLead, updateCrmLead, deleteCrmLead, addCrmStage, updateCrmStage, updateCrmStageOrder, addCrmField, updateCrmField,
+      crmPipelines, crmStages, crmFields, crmLeads, addCrmLead, updateCrmLead, deleteCrmLead, addCrmStage, updateCrmStage, updateCrmStageOrder, addCrmField, updateCrmField, crmOwnerUserId,
       addCutoffPeriod, updateCutoffPeriod, deleteCutoffPeriod,
       addTeamMember, updateTeamMember, deleteTeamMember, toggleTheme, addOrigin, deleteOrigin, addInterviewer, deleteInterviewer, addPV, addCandidate, updateCandidate, deleteCandidate, toggleChecklistItem, toggleConsultantGoal, setChecklistDueDate, getCandidate, saveTemplate,
       addChecklistItem, updateChecklistItem, deleteChecklistItem, moveChecklistItem, resetChecklistToDefault, addGoalItem, updateGoalItem, deleteGoalItem, moveGoalItem, resetGoalsToDefault,

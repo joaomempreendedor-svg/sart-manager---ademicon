@@ -415,6 +415,7 @@ export interface AppContextType {
   crmStages: CrmStage[];
   crmFields: CrmField[];
   crmLeads: CrmLead[]; // NOVO: Leads do CRM
+  crmOwnerUserId: string | null; // NEW: ID of the user who owns the CRM configuration
   addCrmLead: (leadData: Omit<CrmLead, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => Promise<CrmLead>;
   updateCrmLead: (id: string, updates: Partial<CrmLead>) => Promise<void>;
   deleteCrmLead: (id: string) => Promise<void>;

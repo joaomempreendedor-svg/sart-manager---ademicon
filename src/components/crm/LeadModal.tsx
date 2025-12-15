@@ -33,7 +33,7 @@ interface LeadModalProps {
 }
 
 const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields, pipelineStages, consultantId }) => {
-  const { addCrmLead, updateCrmLead, deleteCrmLead } = useApp();
+  const { addCrmLead, updateCrmLead, deleteCrmLead, crmOwnerUserId } = useApp();
   const [formData, setFormData] = useState<Partial<CrmLead>>({
     name: '',
     stage_id: '',
@@ -91,7 +91,7 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
       const payload = {
         ...formData,
         consultant_id: consultantId,
-        user_id: consultantId, // Assuming the consultant is also the user_id for RLS
+        user_id: crmOwnerUserId, // Use the CRM owner's ID (Gestor's ID)
       } as CrmLead;
 
       if (lead) {
