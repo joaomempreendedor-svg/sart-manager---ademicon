@@ -8,10 +8,10 @@ interface ScrollBarProps extends React.ComponentPropsWithoutRef<typeof ScrollAre
 interface ScrollAreaRootProps extends React.ComponentPropsWithoutRef<typeof ScrollAreaPrimitive.Root> {}
 
 // ScrollBar component
-// Removendo *todos* os argumentos genéricos de React.forwardRef
-const ScrollBar = React.forwardRef((
-  { className, orientation = "vertical", ...props }: ScrollBarProps, // Props tipadas diretamente na função
-  ref: React.Ref<React.ElementRef<typeof ScrollAreaPrimitive.ScrollAreaScrollbar>> // Ref tipada diretamente na função
+// Define a função do componente separadamente, com tipagem nos parâmetros
+const ScrollBarComponent = (
+  { className, orientation = "vertical", ...props }: ScrollBarProps,
+  ref: React.Ref<React.ElementRef<typeof ScrollAreaPrimitive.ScrollAreaScrollbar>>
 ) => (
   <ScrollAreaPrimitive.ScrollAreaScrollbar
     ref={ref}
@@ -28,15 +28,18 @@ const ScrollBar = React.forwardRef((
   >
     <ScrollAreaPrimitive.ScrollAreaThumb className="relative flex-1 rounded-full bg-gray-300 dark:bg-slate-600" />
   </ScrollAreaPrimitive.Scrollbar>
-)) as React.ForwardRefExoticComponent<ScrollBarProps & React.RefAttributes<React.ElementRef<typeof ScrollAreaPrimitive.ScrollAreaScrollbar>>>; // Asserção de tipo no resultado final
+);
+
+// Envolve a função com React.forwardRef e aplica a asserção de tipo no resultado
+const ScrollBar = React.forwardRef(ScrollBarComponent) as React.ForwardRefExoticComponent<ScrollBarProps & React.RefAttributes<React.ElementRef<typeof ScrollAreaPrimitive.ScrollAreaScrollbar>>>;
 
 ScrollBar.displayName = ScrollAreaPrimitive.ScrollAreaScrollbar.displayName
 
 // ScrollArea component
-// Removendo *todos* os argumentos genéricos de React.forwardRef
-const ScrollArea = React.forwardRef((
-  { className, children, ...props }: ScrollAreaRootProps, // Props tipadas diretamente na função
-  ref: React.Ref<React.ElementRef<typeof ScrollAreaPrimitive.Root>> // Ref tipada diretamente na função
+// Define a função do componente separadamente, com tipagem nos parâmetros
+const ScrollAreaComponent = (
+  { className, children, ...props }: ScrollAreaRootProps,
+  ref: React.Ref<React.ElementRef<typeof ScrollAreaPrimitive.Root>>
 ) => (
   <ScrollAreaPrimitive.Root
     ref={ref}
@@ -49,7 +52,10 @@ const ScrollArea = React.forwardRef((
     <ScrollBar />
     <ScrollAreaPrimitive.Corner />
   </ScrollAreaPrimitive.Root>
-)) as React.ForwardRefExoticComponent<ScrollAreaRootProps & React.RefAttributes<React.ElementRef<typeof ScrollAreaPrimitive.Root>>>; // Asserção de tipo no resultado final
+);
+
+// Envolve a função com React.forwardRef e aplica a asserção de tipo no resultado
+const ScrollArea = React.forwardRef(ScrollAreaComponent) as React.ForwardRefExoticComponent<ScrollAreaRootProps & React.RefAttributes<React.ElementRef<typeof ScrollAreaPrimitive.Root>>>;
 
 ScrollArea.displayName = ScrollAreaPrimitive.Root.displayName
 
