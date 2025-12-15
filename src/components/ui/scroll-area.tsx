@@ -3,15 +3,12 @@ import * as ScrollAreaPrimitive from "@radix-ui/react-scroll-area"
 
 import { cn } from "@/lib/utils"
 
-// Criando um alias de tipo para as props do ScrollBar
-type ScrollBarProps = React.ComponentPropsWithoutRef<typeof ScrollAreaPrimitive.ScrollAreaScrollbar>;
+// 1. Definindo o tipo das props do ScrollBar de forma mais explícita
+type ScrollBarComponentProps = React.ComponentPropsWithoutRef<typeof ScrollAreaPrimitive.ScrollAreaScrollbar>;
 
-const ScrollBar = React.forwardRef<
-  React.ElementRef<typeof ScrollAreaPrimitive.ScrollAreaScrollbar>,
-  ScrollBarProps // Usando o alias de tipo aqui
->(({ className, orientation = "vertical", ...props }, ref) => (
+// 2. Criando o componente funcional primeiro
+const ScrollBarComponent: React.FC<ScrollBarComponentProps> = ({ className, orientation = "vertical", ...props }) => (
   <ScrollAreaPrimitive.ScrollAreaScrollbar
-    ref={ref}
     orientation={orientation}
     className={cn(
       "flex touch-none select-none transition-colors",
@@ -23,9 +20,16 @@ const ScrollBar = React.forwardRef<
     )}
     {...props}
   >
-    <ScrollAreaPrimitive.ScrollAreaThumb className="relative flex-1 rounded-full bg-border" />
+    {/* 3. Corrigindo a classe Tailwind para o thumb */}
+    <ScrollAreaPrimitive.ScrollAreaThumb className="relative flex-1 rounded-full bg-gray-300 dark:bg-slate-600" />
   </ScrollAreaPrimitive.Scrollbar>
-))
+);
+
+// 4. Passando o componente funcional para React.forwardRef
+const ScrollBar = React.forwardRef<
+  React.ElementRef<typeof ScrollAreaPrimitive.ScrollAreaScrollbar>,
+  ScrollBarComponentProps
+>(ScrollBarComponent); // Usando o componente funcional aqui
 ScrollBar.displayName = ScrollAreaPrimitive.ScrollAreaScrollbar.displayName
 
 const ScrollArea = React.forwardRef<
