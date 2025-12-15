@@ -15,13 +15,11 @@ export const Home = () => {
   }
 
   if (user?.role === 'GESTOR' || user?.role === 'ADMIN') {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/gestor/dashboard" replace />;
   }
 
   if (user?.role === 'CONSULTOR') {
-    // Futuramente, redirecionar para /consultor/dashboard
-    // Por enquanto, vamos mantê-lo no dashboard principal, pois o CRM ainda não foi criado.
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/consultor/dashboard" replace />;
   }
 
   return <Navigate to="/login" replace />;
