@@ -22,36 +22,25 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const fetchUserProfile = useCallback(async (session: Session): Promise<User | null> => {
     try {
-      const { data: profile, error: profileError } = await supabase
+      const { data: profile, error } = await supabase
         .from('profiles')
-        .select('first_name, last_name, role, is_active') // Fetch is_active directly from profiles
+        .select('first_name, last_name')
         .eq('id', session.user.id)
         .maybeSingle();
 
-      if (profileError) throw profileError;
+      if (error) throw error;
 
       const name = profile && (profile.first_name || profile.last_name)
         ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim()
         : session.user.email?.split('@')[0] || 'Usuário';
         
-      // Use is_active from profiles table
-      const isActive = profile?.is_active ?? true; // Default to true if not explicitly set
-
-      return { 
-        id: session.user.id, 
-        name, 
-        email: session.user.email || '',
-        role: profile?.role || 'CONSULTOR',
-        isActive: isActive
-      };
+      return { id: session.user.id, name, email: session.user.email || '' };
     } catch (error: any) {
       console.error('Error fetching profile:', error.message);
       return {
         id: session.user.id,
         name: session.user.email?.split('@')[0] || 'Usuário',
         email: session.user.email || '',
-        role: 'CONSULTOR', // Fallback role
-        isActive: false, // Default to inactive on error for safety
       };
     }
   }, []);

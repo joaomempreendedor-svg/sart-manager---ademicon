@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
-import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, CommissionStatus, InstallmentInfo, CutoffPeriod, ImportantLink, Feedback, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, UserRole } from '@/types';
+import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, CommissionStatus, InstallmentInfo, CutoffPeriod, ImportantLink, Feedback, OnboardingSession, OnboardingVideoTemplate } from '@/types';
 import { CHECKLIST_STAGES as DEFAULT_STAGES } from '@/data/checklistData';
 import { CONSULTANT_GOALS as DEFAULT_GOALS } from '@/data/consultantGoals';
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
@@ -82,29 +82,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [interviewers, setInterviewers] = useState<string[]>([]);
   const [pvs, setPvs] = useState<string[]>([]);
   
-  // CRM State
-  const [crmPipelines, setCrmPipelines] = useState<CrmPipeline[]>([]);
-  const [crmStages, setCrmStages] = useState<CrmStage[]>([]);
-  const [crmFields, setCrmFields] = useState<CrmField[]>([]);
-  const [crmLeads, setCrmLeads] = useState<CrmLead[]>([]); // NOVO: Leads do CRM
-
-  // Módulo 3: Checklist do Dia
-  const [dailyChecklists, setDailyChecklists] = useState<DailyChecklist[]>([]);
-  const [dailyChecklistItems, setDailyChecklistItems] = useState<DailyChecklistItem[]>([]);
-  const [dailyChecklistAssignments, setDailyChecklistAssignments] = useState<DailyChecklistAssignment[]>([]);
-  const [dailyChecklistCompletions, setDailyChecklistCompletions] = useState<DailyChecklistCompletion[]>([]);
-
-  // Módulo 4: Metas de Prospecção
-  const [weeklyTargets, setWeeklyTargets] = useState<WeeklyTarget[]>([]);
-  const [weeklyTargetItems, setWeeklyTargetItems] = useState<WeeklyTargetItem[]>([]);
-  const [weeklyTargetAssignments, setWeeklyTargetAssignments] = useState<WeeklyTargetAssignment[]>([]);
-  const [metricLogs, setMetricLogs] = useState<MetricLog[]>([]);
-
-  // Módulo 5: Materiais de Apoio (v2)
-  const [supportMaterialsV2, setSupportMaterialsV2] = useState<SupportMaterialV2[]>([]);
-  const [supportMaterialAssignments, setSupportMaterialAssignments] = useState<SupportMaterialAssignment[]>([]);
-
-
   const [theme, setTheme] = useState<'light' | 'dark'>(() => (localStorage.getItem('sart_theme') as 'light' | 'dark') || 'light');
 
   const calculateCompetenceMonth = useCallback((paidDate: string): string => {
@@ -175,20 +152,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setOrigins(DEFAULT_APP_CONFIG_DATA.origins);
     setInterviewers(DEFAULT_APP_CONFIG_DATA.interviewers);
     setPvs(DEFAULT_APP_CONFIG_DATA.pvs);
-    setCrmPipelines([]);
-    setCrmStages([]);
-    setCrmFields([]);
-    setCrmLeads([]); // Reset CRM Leads
-    setDailyChecklists([]); // Reset Daily Checklists
-    setDailyChecklistItems([]);
-    setDailyChecklistAssignments([]);
-    setDailyChecklistCompletions([]);
-    setWeeklyTargets([]); // Reset Weekly Targets
-    setWeeklyTargetItems([]);
-    setWeeklyTargetAssignments([]);
-    setMetricLogs([]);
-    setSupportMaterialsV2([]); // Reset Support Materials V2
-    setSupportMaterialAssignments([]);
     setIsDataLoading(false);
   };
 
@@ -241,55 +204,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           { data: cutoffData, error: cutoffError },
           { data: linksData, error: linksError },
           { data: onboardingData, error: onboardingError },
-          { data: templateVideosData, error: templateVideosError },
-          { data: pipelinesData, error: pipelinesError },
-          { data: stagesData, error: stagesError },
-          { data: fieldsData, error: fieldsError },
-          { data: crmLeadsData, error: crmLeadsError }, // Fetch CRM Leads
-          { data: dailyChecklistsData, error: dailyChecklistsError }, // Fetch Daily Checklists
-          { data: dailyChecklistItemsData, error: dailyChecklistItemsError },
-          { data: dailyChecklistAssignmentsData, error: dailyChecklistAssignmentsError },
-          { data: dailyChecklistCompletionsData, error: dailyChecklistCompletionsError },
-          { data: weeklyTargetsData, error: weeklyTargetsError }, // Fetch Weekly Targets
-          { data: weeklyTargetItemsData, error: weeklyTargetItemsError },
-          { data: weeklyTargetAssignmentsData, error: weeklyTargetAssignmentsError },
-          { data: metricLogsData, error: metricLogsError },
-          { data: supportMaterialsV2Data, error: supportMaterialsV2Error }, // Fetch Support Materials V2
-          { data: supportMaterialAssignmentsData, error: supportMaterialAssignmentsError },
+          { data: templateVideosData, error: templateVideosError }
         ] = await Promise.all([
           supabase.from('app_config').select('data').eq('user_id', userId).maybeSingle(),
           supabase.from('candidates').select('id, data').eq('user_id', userId),
-          // Fetch team_members and join with profiles to get names
-          supabase.from('team_members')
-            .select(`
-              manager_id,
-              consultant_id,
-              roles,
-              is_active,
-              created_at,
-              consultant_profile:consultant_id (first_name, last_name, email),
-              manager_profile:manager_id (first_name, last_name, email)
-            `)
-            .eq('manager_id', userId), // Only fetch team members for the current manager
+          supabase.from('team_members').select('id, data').eq('user_id', userId),
           supabase.from('support_materials').select('id, data').eq('user_id', userId),
           supabase.from('cutoff_periods').select('id, data').eq('user_id', userId),
           supabase.from('important_links').select('id, data').eq('user_id', userId),
           supabase.from('onboarding_sessions').select('*, videos:onboarding_videos(*)').eq('user_id', userId),
-          supabase.from('onboarding_video_templates').select('*').eq('user_id', userId).order('order', { ascending: true }),
-          supabase.from('crm_pipelines').select('*').eq('user_id', userId),
-          supabase.from('crm_stages').select('*').eq('user_id', userId).order('order_index'),
-          supabase.from('crm_fields').select('*').eq('user_id', userId),
-          supabase.from('crm_leads').select('*').eq('user_id', userId), // Fetch CRM Leads
-          supabase.from('daily_checklists').select('*').eq('user_id', userId), // Fetch Daily Checklists
-          supabase.from('daily_checklist_items').select('*'),
-          supabase.from('daily_checklist_assignments').select('*'),
-          supabase.from('daily_checklist_completions').select('*'),
-          supabase.from('weekly_targets').select('*').eq('user_id', userId), // Fetch Weekly Targets
-          supabase.from('weekly_target_items').select('*'),
-          supabase.from('weekly_target_assignments').select('*'),
-          supabase.from('metric_logs').select('*'),
-          supabase.from('support_materials_v2').select('*').eq('user_id', userId), // Fetch Support Materials V2
-          supabase.from('support_material_assignments').select('*'),
+          supabase.from('onboarding_video_templates').select('*').eq('user_id', userId).order('order', { ascending: true })
         ]);
 
         if (configError) console.error("Config error:", configError);
@@ -300,21 +224,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (linksError) console.error("Important Links error:", linksError);
         if (onboardingError) console.error("Onboarding error:", onboardingError);
         if (templateVideosError) console.error("Onboarding Template error:", templateVideosError);
-        if (pipelinesError) console.error("Pipelines error:", pipelinesError);
-        if (stagesError) console.error("Stages error:", stagesError);
-        if (fieldsError) console.error("Fields error:", fieldsError);
-        if (crmLeadsError) console.error("CRM Leads error:", crmLeadsError);
-        if (dailyChecklistsError) console.error("Daily Checklists error:", dailyChecklistsError);
-        if (dailyChecklistItemsError) console.error("Daily Checklist Items error:", dailyChecklistItemsError);
-        if (dailyChecklistAssignmentsError) console.error("Daily Checklist Assignments error:", dailyChecklistAssignmentsError);
-        if (dailyChecklistCompletionsError) console.error("Daily Checklist Completions error:", dailyChecklistCompletionsError);
-        if (weeklyTargetsError) console.error("Weekly Targets error:", weeklyTargetsError);
-        if (weeklyTargetItemsError) console.error("Weekly Target Items error:", weeklyTargetItemsError);
-        if (weeklyTargetAssignmentsError) console.error("Weekly Target Assignments error:", weeklyTargetAssignmentsError);
-        if (metricLogsError) console.error("Metric Logs error:", metricLogsError);
-        if (supportMaterialsV2Error) console.error("Support Materials V2 error:", supportMaterialsV2Error);
-        if (supportMaterialAssignmentsError) console.error("Support Material Assignments error:", supportMaterialAssignmentsError);
-
 
         if (configResult) {
           const { data } = configResult;
@@ -340,55 +249,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
 
         setCandidates(candidatesData?.map(item => ({ ...(item.data as Candidate), db_id: item.id })) || []);
-        
-        // Normalize team members data
-        const normalizedTeamMembers: TeamMember[] = (teamMembersData || []).map((item: any) => ({
-          manager_id: item.manager_id,
-          consultant_id: item.consultant_id,
-          roles: item.roles,
-          is_active: item.is_active,
-          created_at: item.created_at,
-          consultant_name: `${item.consultant_profile?.first_name || ''} ${item.consultant_profile?.last_name || ''}`.trim() || item.consultant_profile?.email,
-          consultant_email: item.consultant_profile?.email,
-          manager_name: `${item.manager_profile?.first_name || ''} ${item.manager_profile?.last_name || ''}`.trim() || item.manager_profile?.email,
-        }));
+        const rawTeamMembers = teamMembersData?.map(item => ({ ...(item.data as TeamMember), db_id: item.id })) || [];
+        const normalizedTeamMembers = rawTeamMembers.map(member => {
+          const m = member as any;
+          if (m.isActive === undefined) { m.isActive = true; }
+          if (m.role && !m.roles) { m.roles = [m.role]; delete m.role; }
+          if (!Array.isArray(m.roles)) { m.roles = []; }
+          return m as TeamMember;
+        });
         setTeamMembers(normalizedTeamMembers);
-
         setSupportMaterials(materialsData?.map(item => ({ ...(item.data as SupportMaterial), db_id: item.id })) || []);
         setImportantLinks(linksData?.map(item => ({ ...(item.data as ImportantLink), db_id: item.id })) || []);
         setCutoffPeriods(cutoffData?.map(item => ({ ...(item.data as CutoffPeriod), db_id: item.id })) || []);
         setOnboardingSessions((onboardingData as any[])?.map(s => ({...s, videos: s.videos.sort((a:any,b:any) => a.order - b.order)})) || []);
         setOnboardingTemplateVideos(templateVideosData || []);
-        
-        let finalPipelines = pipelinesData || [];
-        if (finalPipelines.length === 0) {
-          // Create a default pipeline if none exist
-          const { data: newPipeline, error: insertPipelineError } = await supabase
-            .from('crm_pipelines')
-            .insert({ user_id: userId, name: 'Pipeline Padrão', is_active: true })
-            .select('*')
-            .single();
-          if (insertPipelineError) {
-            console.error("Error inserting default CRM pipeline:", insertPipelineError);
-          } else if (newPipeline) {
-            finalPipelines = [newPipeline];
-          }
-        }
-        setCrmPipelines(finalPipelines);
-
-        setCrmStages(stagesData || []);
-        setCrmFields(fieldsData || []);
-        setCrmLeads(crmLeadsData || []); // Set CRM Leads
-        setDailyChecklists(dailyChecklistsData || []); // Set Daily Checklists
-        setDailyChecklistItems(dailyChecklistItemsData || []);
-        setDailyChecklistAssignments(dailyChecklistAssignmentsData || []);
-        setDailyChecklistCompletions(dailyChecklistCompletionsData || []);
-        setWeeklyTargets(weeklyTargetsData || []); // Set Weekly Targets
-        setWeeklyTargetItems(weeklyTargetItemsData || []);
-        setWeeklyTargetAssignments(weeklyTargetAssignmentsData || []);
-        setMetricLogs(metricLogsData || []);
-        setSupportMaterialsV2(supportMaterialsV2Data || []); // Set Support Materials V2
-        setSupportMaterialAssignments(supportMaterialAssignmentsData || []);
         
         refetchCommissions();
 
@@ -443,59 +317,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const addCandidate = useCallback(async (candidate: Candidate) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('candidates').insert({ user_id: user.id, data: candidate }).select('id').single(); if (error) { console.error(error); throw error; } if (data) { setCandidates(prev => [{ ...candidate, db_id: data.id }, ...prev]); } }, [user]);
   const updateCandidate = useCallback(async (id: string, updates: Partial<Candidate>) => { if (!user) throw new Error("Usuário não autenticado."); const c = candidates.find(c => c.id === id); if (!c || !c.db_id) throw new Error("Candidato não encontrado"); const updated = { ...c, ...updates }; const { db_id, ...dataToUpdate } = updated; const { error } = await supabase.from('candidates').update({ data: dataToUpdate }).match({ id: c.db_id, user_id: user.id }); if (error) { console.error(error); throw error; } setCandidates(prev => prev.map(p => p.id === id ? updated : p)); }, [user, candidates]);
   const deleteCandidate = useCallback(async (id: string) => { if (!user) throw new Error("Usuário não autenticado."); const c = candidates.find(c => c.id === id); if (!c || !c.db_id) throw new Error("Candidato não encontrado"); const { error } = await supabase.from('candidates').delete().match({ id: c.db_id, user_id: user.id }); if (error) { console.error(error); throw error; } setCandidates(prev => prev.filter(p => p.id !== id)); }, [user, candidates]);
-  
-  // Updated Team Member functions
-  const addTeamMember = useCallback(async (consultantId: string, roles: TeamRole[], isActive: boolean) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const { data, error } = await supabase.from('team_members').insert({
-      manager_id: user.id,
-      consultant_id: consultantId,
-      roles: roles,
-      is_active: isActive,
-    }).select(`
-      manager_id,
-      consultant_id,
-      roles,
-      is_active,
-      created_at,
-      consultant_profile:consultant_id (first_name, last_name, email),
-      manager_profile:manager_id (first_name, last_name, email)
-    `).single();
-    if (error) { console.error(error); throw error; }
-    if (data) {
-      const newTeamMember: TeamMember = {
-        manager_id: data.manager_id,
-        consultant_id: data.consultant_id,
-        roles: data.roles,
-        is_active: data.is_active,
-        created_at: data.created_at,
-        consultant_name: `${(data as any).consultant_profile?.first_name || ''} ${(data as any).consultant_profile?.last_name || ''}`.trim() || (data as any).consultant_profile?.email,
-        consultant_email: (data as any).consultant_profile?.email,
-        manager_name: `${(data as any).manager_profile?.first_name || ''} ${(data as any).manager_profile?.last_name || ''}`.trim() || (data as any).manager_profile?.email,
-      };
-      setTeamMembers(prev => [...prev, newTeamMember]);
-    }
-  }, [user]);
-
-  const updateTeamMember = useCallback(async (consultantId: string, updates: Partial<Omit<TeamMember, 'manager_id' | 'consultant_id' | 'created_at'>>) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const { error } = await supabase.from('team_members').update(updates).match({ manager_id: user.id, consultant_id: consultantId });
-    if (error) { console.error(error); throw error; }
-    // Re-fetch to get updated names if needed, or update locally
-    setTeamMembers(prev => prev.map(member => 
-      member.manager_id === user.id && member.consultant_id === consultantId 
-        ? { ...member, ...updates } 
-        : member
-    ));
-  }, [user]);
-
-  const deleteTeamMember = useCallback(async (consultantId: string) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const { error } = await supabase.from('team_members').delete().match({ manager_id: user.id, consultant_id: consultantId });
-    if (error) { console.error(error); throw error; }
-    setTeamMembers(prev => prev.filter(member => !(member.manager_id === user.id && member.consultant_id === consultantId)));
-  }, [user]);
-  
+  const addTeamMember = useCallback(async (member: TeamMember) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('team_members').insert({ user_id: user.id, data: member }).select('id').single(); if (error) { console.error(error); throw error; } if (data) { setTeamMembers(prev => [...prev, { ...member, db_id: data.id }]); } }, [user]);
+  const updateTeamMember = useCallback(async (id: string, updates: Partial<TeamMember>) => { if (!user) throw new Error("Usuário não autenticado."); const m = teamMembers.find(m => m.id === id); if (!m || !m.db_id) throw new Error("Membro não encontrado"); const updated = { ...m, ...updates }; const { db_id, ...dataToUpdate } = updated; const { error } = await supabase.from('team_members').update({ data: dataToUpdate }).match({ id: m.db_id, user_id: user.id }); if (error) { console.error(error); throw error; } setTeamMembers(prev => prev.map(p => p.id === id ? updated : p)); }, [user, teamMembers]);
+  const deleteTeamMember = useCallback(async (id: string) => { if (!user) throw new Error("Usuário não autenticado."); const m = teamMembers.find(m => m.id === id); if (!m || !m.db_id) throw new Error("Membro não encontrado"); const { error } = await supabase.from('team_members').delete().match({ id: m.db_id, user_id: user.id }); if (error) { console.error(error); throw error; } setTeamMembers(prev => prev.filter(p => p.id !== id)); }, [user, teamMembers]);
   const addCutoffPeriod = useCallback(async (period: CutoffPeriod) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('cutoff_periods').insert({ user_id: user.id, data: period }).select('id').single(); if (error) throw error; if (data) setCutoffPeriods(prev => [...prev, { ...period, db_id: data.id }]); }, [user]);
   const updateCutoffPeriod = useCallback(async (id: string, updates: Partial<CutoffPeriod>) => { if (!user) throw new Error("Usuário não autenticado."); const p = cutoffPeriods.find(p => p.id === id); if (!p || !p.db_id) throw new Error("Período não encontrado"); const updated = { ...p, ...updates }; const { db_id, ...dataToUpdate } = updated; const { error } = await supabase.from('cutoff_periods').update({ data: dataToUpdate }).match({ id: p.db_id, user_id: user.id }); if (error) throw error; setCutoffPeriods(prev => prev.map(item => item.id === id ? updated : item)); }, [user, cutoffPeriods]);
   const deleteCutoffPeriod = useCallback(async (id: string) => { if (!user) throw new Error("Usuário não autenticado."); const p = cutoffPeriods.find(p => p.id === id); if (!p || !p.db_id) throw new Error("Período não encontrado"); const { error } = await supabase.from('cutoff_periods').delete().match({ id: p.db_id, user_id: user.id }); if (error) throw error; setCutoffPeriods(prev => prev.filter(item => item.id !== id)); }, [user, cutoffPeriods]);
@@ -515,60 +339,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const addFeedback = useCallback(async (candidateId: string, feedbackData: Omit<Feedback, 'id'>) => { const c = getCandidate(candidateId); if(c) { const newFeedback: Feedback = { id: crypto.randomUUID(), ...feedbackData }; const newFeedbacks = [...(c.feedbacks || []), newFeedback]; await updateCandidate(candidateId, { feedbacks: newFeedbacks }); } }, [getCandidate, updateCandidate]);
   const updateFeedback = useCallback(async (candidateId: string, updatedFeedback: Feedback) => { const c = getCandidate(candidateId); if(c) { const newFeedbacks = (c.feedbacks || []).map(f => f.id === updatedFeedback.id ? updatedFeedback : f); await updateCandidate(candidateId, { feedbacks: newFeedbacks }); } }, [getCandidate, updateCandidate]);
   const deleteFeedback = useCallback(async (candidateId: string, feedbackId: string) => { const c = getCandidate(candidateId); if(c) { const newFeedbacks = (c.feedbacks || []).filter(f => f.id !== feedbackId); await updateCandidate(candidateId, { feedbacks: newFeedbacks }); } }, [getCandidate, updateCandidate]);
-  
-  const addTeamMemberFeedback = useCallback(async (consultantId: string, feedbackData: Omit<Feedback, 'id'>) => {
-    // Find the candidate or team member by consultantId
-    const targetCandidate = candidates.find(c => c.id === consultantId);
-    const targetTeamMember = teamMembers.find(m => m.consultant_id === consultantId);
-
-    if (targetCandidate) {
-      const newFeedback: Feedback = { id: crypto.randomUUID(), ...feedbackData };
-      const newFeedbacks = [...(targetCandidate.feedbacks || []), newFeedback];
-      await updateCandidate(targetCandidate.id, { feedbacks: newFeedbacks });
-    } else if (targetTeamMember) {
-      // Feedbacks are stored on the consultant's profile/candidate entry, not the team_member entry itself.
-      // This function needs to update the consultant's profile directly.
-      // For now, we'll assume feedbacks are primarily for candidates or directly on a user's profile.
-      // If team members need feedbacks, they should be stored on their profile.
-      // For simplicity, I'll update the first_name/last_name in profiles to store feedbacks.
-      // This is a temporary workaround if feedbacks are not directly on profiles.
-      // A better approach would be a dedicated 'user_feedbacks' table.
-      console.warn("Feedbacks para TeamMember (não candidato) não implementado diretamente na estrutura atual. Considere uma tabela de feedbacks de usuário.");
-      // For now, we'll just update the local state if it's a team member without a candidate entry
-      setTeamMembers(prev => prev.map(m => m.consultant_id === consultantId ? { ...m, feedbacks: [...(m.feedbacks || []), { id: crypto.randomUUID(), ...feedbackData }] } : m));
-    } else {
-      throw new Error("Consultor não encontrado para adicionar feedback.");
-    }
-  }, [candidates, teamMembers, updateCandidate]);
-
-  const updateTeamMemberFeedback = useCallback(async (consultantId: string, updatedFeedback: Feedback) => {
-    const targetCandidate = candidates.find(c => c.id === consultantId);
-    const targetTeamMember = teamMembers.find(m => m.consultant_id === consultantId);
-
-    if (targetCandidate) {
-      const newFeedbacks = (targetCandidate.feedbacks || []).map(f => f.id === updatedFeedback.id ? updatedFeedback : f);
-      await updateCandidate(targetCandidate.id, { feedbacks: newFeedbacks });
-    } else if (targetTeamMember) {
-      setTeamMembers(prev => prev.map(m => m.consultant_id === consultantId ? { ...m, feedbacks: (m.feedbacks || []).map(f => f.id === updatedFeedback.id ? updatedFeedback : f) } : m));
-    } else {
-      throw new Error("Consultor não encontrado para atualizar feedback.");
-    }
-  }, [candidates, teamMembers, updateCandidate]);
-
-  const deleteTeamMemberFeedback = useCallback(async (consultantId: string, feedbackId: string) => {
-    const targetCandidate = candidates.find(c => c.id === consultantId);
-    const targetTeamMember = teamMembers.find(m => m.consultant_id === consultantId);
-
-    if (targetCandidate) {
-      const newFeedbacks = (targetCandidate.feedbacks || []).filter(f => f.id !== feedbackId);
-      await updateCandidate(targetCandidate.id, { feedbacks: newFeedbacks });
-    } else if (targetTeamMember) {
-      setTeamMembers(prev => prev.map(m => m.consultant_id === consultantId ? { ...m, feedbacks: (m.feedbacks || []).filter(f => f.id !== feedbackId) } : m));
-    } else {
-      throw new Error("Consultor não encontrado para deletar feedback.");
-    }
-  }, [candidates, teamMembers, updateCandidate]);
-  
+  const addTeamMemberFeedback = useCallback(async (memberId: string, feedbackData: Omit<Feedback, 'id'>) => { const member = teamMembers.find(m => m.id === memberId); if (member) { const newFeedback: Feedback = { id: crypto.randomUUID(), ...feedbackData }; const newFeedbacks = [...(member.feedbacks || []), newFeedback]; await updateTeamMember(memberId, { feedbacks: newFeedbacks }); } }, [teamMembers, updateTeamMember]);
+  const updateTeamMemberFeedback = useCallback(async (memberId: string, updatedFeedback: Feedback) => { const member = teamMembers.find(m => m.id === memberId); if (member) { const newFeedbacks = (member.feedbacks || []).map(f => f.id === updatedFeedback.id ? updatedFeedback : f); await updateTeamMember(memberId, { feedbacks: newFeedbacks }); } }, [teamMembers, updateTeamMember]);
+  const deleteTeamMemberFeedback = useCallback(async (memberId: string, feedbackId: string) => { const member = teamMembers.find(m => m.id === memberId); if (member) { const newFeedbacks = (member.feedbacks || []).filter(f => f.id !== feedbackId); await updateTeamMember(memberId, { feedbacks: newFeedbacks }); } }, [teamMembers, updateTeamMember]);
   const saveTemplate = useCallback((id: string, updates: Partial<CommunicationTemplate>) => { const newTemplates = { ...templates, [id]: { ...templates[id], ...updates } }; setTemplates(newTemplates); updateConfig({ templates: newTemplates }); }, [templates, updateConfig]);
   const addOrigin = useCallback((origin: string) => { if (!origins.includes(origin)) { const newOrigins = [...origins, origin]; setOrigins(newOrigins); updateConfig({ origins: newOrigins }); } }, [origins, updateConfig]);
   const deleteOrigin = useCallback((originToDelete: string) => { if (origins.length <= 1) { alert("É necessário manter pelo menos uma origem."); return; } const newOrigins = origins.filter(o => o !== originToDelete); setOrigins(newOrigins); updateConfig({ origins: newOrigins }); }, [origins, updateConfig]);
@@ -643,283 +416,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setOnboardingTemplateVideos(prev => prev.filter(v => v.id !== videoId));
   }, [user]);
 
-  // CRM Functions
-  const addCrmLead = useCallback(async (leadData: Omit<CrmLead, 'id' | 'user_id' | 'created_at' | 'updated_at'>): Promise<CrmLead> => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const { data, error } = await supabase.from('crm_leads').insert({ ...leadData, user_id: user.id }).select().single();
-    if (error) throw error;
-    setCrmLeads(prev => [...prev, data]);
-    return data;
-  }, [user]);
-
-  const updateCrmLead = useCallback(async (id: string, updates: Partial<CrmLead>) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const { error } = await supabase.from('crm_leads').update(updates).eq('id', id).eq('user_id', user.id);
-    if (error) throw error;
-    setCrmLeads(prev => prev.map(lead => lead.id === id ? { ...lead, ...updates } : lead));
-  }, [user]);
-
-  const deleteCrmLead = useCallback(async (id: string) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const { error } = await supabase.from('crm_leads').delete().eq('id', id).eq('user_id', user.id);
-    if (error) throw error;
-    setCrmLeads(prev => prev.filter(lead => lead.id !== id));
-  }, [user]);
-
-  const addCrmStage = useCallback(async (stageData: Omit<CrmStage, 'id' | 'user_id' | 'created_at'>) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('crm_stages').insert({ ...stageData, user_id: user.id }).select().single(); if (error) throw error; setCrmStages(prev => [...prev, data].sort((a, b) => a.order_index - b.order_index)); return data; }, [user]);
-  const updateCrmStage = useCallback(async (id: string, updates: Partial<CrmStage>) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('crm_stages').update(updates).eq('id', id).select().single(); if (error) throw error; setCrmStages(prev => prev.map(s => s.id === id ? data : s).sort((a, b) => a.order_index - b.order_index)); }, [user]);
-  const updateCrmStageOrder = useCallback(async (stages: CrmStage[]) => { if (!user) throw new Error("Usuário não autenticado."); const updates = stages.map((stage, index) => ({ id: stage.id, order_index: index })); const { error } = await supabase.from('crm_stages').upsert(updates); if (error) throw error; setCrmStages(stages.map((s, i) => ({...s, order_index: i}))); }, [user]);
-  const addCrmField = useCallback(async (fieldData: Omit<CrmField, 'id' | 'user_id' | 'created_at'>) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('crm_fields').insert({ ...fieldData, user_id: user.id }).select().single(); if (error) throw error; setCrmFields(prev => [...prev, data]); return data; }, [user]);
-  const updateCrmField = useCallback(async (id: string, updates: Partial<CrmField>) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('crm_fields').update(updates).eq('id', id).select().single(); if (error) throw error; setCrmFields(prev => prev.map(f => f.id === id ? data : f)); }, [user]);
-
-  // Módulo 3: Funções do Checklist do Dia
-  const addDailyChecklist = useCallback(async (title: string): Promise<DailyChecklist> => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const { data, error } = await supabase.from('daily_checklists').insert({ user_id: user.id, title, is_active: true }).select().single();
-    if (error) throw error;
-    setDailyChecklists(prev => [...prev, data]);
-    return data;
-  }, [user]);
-
-  const updateDailyChecklist = useCallback(async (id: string, updates: Partial<DailyChecklist>) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const { error } = await supabase.from('daily_checklists').update(updates).eq('id', id).eq('user_id', user.id);
-    if (error) throw error;
-    setDailyChecklists(prev => prev.map(cl => cl.id === id ? { ...cl, ...updates } : cl));
-  }, [user]);
-
-  const deleteDailyChecklist = useCallback(async (id: string) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const { error } = await supabase.from('daily_checklists').delete().eq('id', id).eq('user_id', user.id);
-    if (error) throw error;
-    setDailyChecklists(prev => prev.filter(cl => cl.id !== id));
-    setDailyChecklistItems(prev => prev.filter(item => item.daily_checklist_id !== id));
-    setDailyChecklistAssignments(prev => prev.filter(assign => assign.daily_checklist_id !== id));
-  }, [user]);
-
-  const addDailyChecklistItem = useCallback(async (checklistId: string, text: string, order_index: number): Promise<DailyChecklistItem> => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const { data, error } = await supabase.from('daily_checklist_items').insert({ daily_checklist_id: checklistId, text, order_index, is_active: true }).select().single();
-    if (error) throw error;
-    setDailyChecklistItems(prev => [...prev, data].sort((a, b) => a.order_index - b.order_index));
-    return data;
-  }, [user]);
-
-  const updateDailyChecklistItem = useCallback(async (id: string, updates: Partial<DailyChecklistItem>) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const { error } = await supabase.from('daily_checklist_items').update(updates).eq('id', id);
-    if (error) throw error;
-    setDailyChecklistItems(prev => prev.map(item => item.id === id ? { ...item, ...updates } : item).sort((a, b) => a.order_index - b.order_index));
-  }, [user]);
-
-  const deleteDailyChecklistItem = useCallback(async (id: string) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const { error } = await supabase.from('daily_checklist_items').delete().eq('id', id);
-    if (error) throw error;
-    setDailyChecklistItems(prev => prev.filter(item => item.id !== id));
-    setDailyChecklistCompletions(prev => prev.filter(comp => comp.daily_checklist_item_id !== id));
-  }, [user]);
-
-  const moveDailyChecklistItem = useCallback(async (checklistId: string, itemId: string, direction: 'up' | 'down') => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const itemsInChecklist = dailyChecklistItems.filter(item => item.daily_checklist_id === checklistId).sort((a, b) => a.order_index - b.order_index);
-    const itemIndex = itemsInChecklist.findIndex(item => item.id === itemId);
-
-    if (itemIndex === -1) return;
-
-    const newOrder = [...itemsInChecklist];
-    const [movedItem] = newOrder.splice(itemIndex, 1);
-    const targetIndex = direction === 'up' ? itemIndex - 1 : itemIndex + 1;
-
-    if (targetIndex < 0 || targetIndex >= newOrder.length + 1) return;
-
-    newOrder.splice(targetIndex, 0, movedItem);
-
-    const updates = newOrder.map((item, index) => ({
-      id: item.id,
-      order_index: index,
-    }));
-
-    const { error } = await supabase.from('daily_checklist_items').upsert(updates);
-    if (error) throw error;
-    setDailyChecklistItems(prev => {
-      const otherItems = prev.filter(item => item.daily_checklist_id !== checklistId);
-      return [...otherItems, ...newOrder].sort((a, b) => a.order_index - b.order_index);
-    });
-  }, [user, dailyChecklistItems]);
-
-  const assignDailyChecklistToConsultant = useCallback(async (checklistId: string, consultantId: string) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const { data, error } = await supabase.from('daily_checklist_assignments').insert({ daily_checklist_id: checklistId, consultant_id: consultantId }).select().single();
-    if (error) throw error;
-    setDailyChecklistAssignments(prev => [...prev, data]);
-  }, [user]);
-
-  const unassignDailyChecklistFromConsultant = useCallback(async (checklistId: string, consultantId: string) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const { error } = await supabase.from('daily_checklist_assignments').delete().match({ daily_checklist_id: checklistId, consultant_id: consultantId });
-    if (error) throw error;
-    setDailyChecklistAssignments(prev => prev.filter(assign => !(assign.daily_checklist_id === checklistId && assign.consultant_id === consultantId)));
-  }, [user]);
-
-  const toggleDailyChecklistCompletion = useCallback(async (itemId: string, date: string, done: boolean) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const existingCompletion = dailyChecklistCompletions.find(c => c.daily_checklist_item_id === itemId && c.consultant_id === user.id && c.date === date);
-
-    if (existingCompletion) {
-      const { error } = await supabase.from('daily_checklist_completions').update({ done, updated_at: new Date().toISOString() }).eq('id', existingCompletion.id);
-      if (error) throw error;
-      setDailyChecklistCompletions(prev => prev.map(c => c.id === existingCompletion.id ? { ...c, done, updated_at: new Date().toISOString() } : c));
-    } else {
-      const { data, error } = await supabase.from('daily_checklist_completions').insert({ daily_checklist_item_id: itemId, consultant_id: user.id, date, done, updated_at: new Date().toISOString() }).select().single();
-      if (error) throw error;
-      setDailyChecklistCompletions(prev => [...prev, data]);
-    }
-  }, [user, dailyChecklistCompletions]);
-
-  // Módulo 4: Funções das Metas de Prospecção
-  const addWeeklyTarget = useCallback(async (title: string, week_start: string, week_end: string): Promise<WeeklyTarget> => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const { data, error } = await supabase.from('weekly_targets').insert({ user_id: user.id, title, week_start, week_end, is_active: true }).select().single();
-    if (error) throw error;
-    setWeeklyTargets(prev => [...prev, data]);
-    return data;
-  }, [user]);
-
-  const updateWeeklyTarget = useCallback(async (id: string, updates: Partial<WeeklyTarget>) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const { error } = await supabase.from('weekly_targets').update(updates).eq('id', id).eq('user_id', user.id);
-    if (error) throw error;
-    setWeeklyTargets(prev => prev.map(wt => wt.id === id ? { ...wt, ...updates } : wt));
-  }, [user]);
-
-  const deleteWeeklyTarget = useCallback(async (id: string) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const { error } = await supabase.from('weekly_targets').delete().eq('id', id).eq('user_id', user.id);
-    if (error) throw error;
-    setWeeklyTargets(prev => prev.filter(wt => wt.id !== id));
-    setWeeklyTargetItems(prev => prev.filter(item => item.weekly_target_id !== id));
-    setWeeklyTargetAssignments(prev => prev.filter(assign => assign.weekly_target_id !== id));
-  }, [user]);
-
-  const addWeeklyTargetItem = useCallback(async (targetId: string, metric_key: string, label: string, target_value: number, order_index: number): Promise<WeeklyTargetItem> => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const { data, error } = await supabase.from('weekly_target_items').insert({ weekly_target_id: targetId, metric_key, label, target_value, order_index, is_active: true }).select().single();
-    if (error) throw error;
-    setWeeklyTargetItems(prev => [...prev, data].sort((a, b) => a.order_index - b.order_index));
-    return data;
-  }, [user]);
-
-  const updateWeeklyTargetItem = useCallback(async (id: string, updates: Partial<WeeklyTargetItem>) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const { error } = await supabase.from('weekly_target_items').update(updates).eq('id', id);
-    if (error) throw error;
-    setWeeklyTargetItems(prev => prev.map(item => item.id === id ? { ...item, ...updates } : item).sort((a, b) => a.order_index - b.order_index));
-  }, [user]);
-
-  const deleteWeeklyTargetItem = useCallback(async (id: string) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const { error } = await supabase.from('weekly_target_items').delete().eq('id', id);
-    if (error) throw error;
-    setWeeklyTargetItems(prev => prev.filter(item => item.id !== id));
-  }, [user]);
-
-  const moveWeeklyTargetItem = useCallback(async (targetId: string, itemId: string, direction: 'up' | 'down') => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const itemsInTarget = weeklyTargetItems.filter(item => item.weekly_target_id === targetId).sort((a, b) => a.order_index - b.order_index);
-    const itemIndex = itemsInTarget.findIndex(item => item.id === itemId);
-
-    if (itemIndex === -1) return;
-
-    const newOrder = [...itemsInTarget];
-    const [movedItem] = newOrder.splice(itemIndex, 1);
-    const targetIndex = direction === 'up' ? itemIndex - 1 : itemIndex + 1;
-
-    if (targetIndex < 0 || targetIndex >= newOrder.length + 1) return;
-
-    newOrder.splice(targetIndex, 0, movedItem);
-
-    const updates = newOrder.map((item, index) => ({
-      id: item.id,
-      order_index: index,
-    }));
-
-    const { error } = await supabase.from('weekly_target_items').upsert(updates);
-    if (error) throw error;
-    setWeeklyTargetItems(prev => {
-      const otherItems = prev.filter(item => item.weekly_target_id !== targetId);
-      return [...otherItems, ...newOrder].sort((a, b) => a.order_index - b.order_index);
-    });
-  }, [user, weeklyTargetItems]);
-
-  const assignWeeklyTargetToConsultant = useCallback(async (targetId: string, consultantId: string) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const { data, error } = await supabase.from('weekly_target_assignments').insert({ weekly_target_id: targetId, consultant_id: consultantId }).select().single();
-    if (error) throw error;
-    setWeeklyTargetAssignments(prev => [...prev, data]);
-  }, [user]);
-
-  const unassignWeeklyTargetFromConsultant = useCallback(async (targetId: string, consultantId: string) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const { error } = await supabase.from('weekly_target_assignments').delete().match({ weekly_target_id: targetId, consultant_id: consultantId });
-    if (error) throw error;
-    setWeeklyTargetAssignments(prev => prev.filter(assign => !(assign.weekly_target_id === targetId && assign.consultant_id === consultantId)));
-  }, [user]);
-
-  const addMetricLog = useCallback(async (metric_key: string, value: number, date: string): Promise<MetricLog> => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const { data, error } = await supabase.from('metric_logs').insert({ consultant_id: user.id, metric_key, date, value }).select().single();
-    if (error) throw error;
-    setMetricLogs(prev => [...prev, data]);
-    return data;
-  }, [user]);
-
-  // Módulo 5: Funções dos Materiais de Apoio (v2)
-  const addSupportMaterialV2 = useCallback(async (materialData: Omit<SupportMaterialV2, 'id' | 'user_id' | 'created_at'>): Promise<SupportMaterialV2> => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const { data, error } = await supabase.from('support_materials_v2').insert({ ...materialData, user_id: user.id }).select().single();
-    if (error) throw error;
-    setSupportMaterialsV2(prev => [...prev, data]);
-    return data;
-  }, [user]);
-
-  const updateSupportMaterialV2 = useCallback(async (id: string, updates: Partial<SupportMaterialV2>) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const { error } = await supabase.from('support_materials_v2').update(updates).eq('id', id).eq('user_id', user.id);
-    if (error) throw error;
-    setSupportMaterialsV2(prev => prev.map(mat => mat.id === id ? { ...mat, ...updates } : mat));
-  }, [user]);
-
-  const deleteSupportMaterialV2 = useCallback(async (id: string) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const { error } = await supabase.from('support_materials_v2').delete().eq('id', id).eq('user_id', user.id);
-    if (error) throw error;
-    setSupportMaterialsV2(prev => prev.filter(mat => mat.id !== id));
-    setSupportMaterialAssignments(prev => prev.filter(assign => assign.material_id !== id));
-  }, [user]);
-
-  const assignSupportMaterialToConsultant = useCallback(async (materialId: string, consultantId: string) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const { data, error } = await supabase.from('support_material_assignments').insert({ material_id: materialId, consultant_id: consultantId }).select().single();
-    if (error) throw error;
-    setSupportMaterialAssignments(prev => [...prev, data]);
-  }, [user]);
-
-  const unassignSupportMaterialFromConsultant = useCallback(async (materialId: string, consultantId: string) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const { error } = await supabase.from('support_material_assignments').delete().match({ material_id: materialId, consultant_id: consultantId });
-    if (error) throw error;
-    setSupportMaterialAssignments(prev => prev.filter(assign => !(assign.material_id === materialId && assign.consultant_id === consultantId)));
-  }, [user]);
-
-
   useEffect(() => { if (!user) return; const syncPendingCommissions = async () => { const pending = JSON.parse(localStorage.getItem('pending_commissions') || '[]') as any[]; if (pending.length === 0) return; for (const item of pending) { try { const { _localId, _timestamp, _attempts, ...cleanData } = item; const { data, error } = await supabase.from('commissions').insert({ user_id: user.id, data: cleanData }).select('id, created_at').maybeSingle(); if (!error && data) { setCommissions(prev => prev.map(c => c.db_id === _localId ? { ...c, db_id: data.id.toString(), criado_em: data.created_at } : c)); const updated = pending.filter((p: any) => p._localId !== _localId); localStorage.setItem('pending_commissions', JSON.stringify(updated)); } } catch (error) { console.log(`❌ Falha ao sincronizar ${item._localId}`); } } }; const interval = setInterval(syncPendingCommissions, 2 * 60 * 1000); setTimeout(syncPendingCommissions, 5000); return () => clearInterval(interval); }, [user]);
 
   return (
     <AppContext.Provider value={{ 
       isDataLoading,
       candidates, templates, checklistStructure, consultantGoalsStructure, interviewStructure, commissions, supportMaterials, importantLinks, theme, origins, interviewers, pvs, teamMembers, cutoffPeriods, onboardingSessions, onboardingTemplateVideos,
-      crmPipelines, crmStages, crmFields, crmLeads, addCrmLead, updateCrmLead, deleteCrmLead, addCrmStage, updateCrmStage, updateCrmStageOrder, addCrmField, updateCrmField,
       addCutoffPeriod, updateCutoffPeriod, deleteCutoffPeriod,
       addTeamMember, updateTeamMember, deleteTeamMember, toggleTheme, addOrigin, deleteOrigin, addInterviewer, deleteInterviewer, addPV, addCandidate, updateCandidate, deleteCandidate, toggleChecklistItem, toggleConsultantGoal, setChecklistDueDate, getCandidate, saveTemplate,
       addChecklistItem, updateChecklistItem, deleteChecklistItem, moveChecklistItem, resetChecklistToDefault, addGoalItem, updateGoalItem, deleteGoalItem, moveGoalItem, resetGoalsToDefault,
@@ -927,21 +429,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       addImportantLink, updateImportantLink, deleteImportantLink,
       addFeedback, updateFeedback, deleteFeedback,
       addTeamMemberFeedback, updateTeamMemberFeedback, deleteTeamMemberFeedback,
-      addOnlineOnboardingSession, deleteOnlineOnboardingSession, addVideoToTemplate, deleteVideoFromTemplate,
-      // Módulo 3: Checklist do Dia
-      dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions,
-      addDailyChecklist, updateDailyChecklist, deleteDailyChecklist,
-      addDailyChecklistItem, updateDailyChecklistItem, deleteDailyChecklistItem, moveDailyChecklistItem,
-      assignDailyChecklistToConsultant, unassignDailyChecklistFromConsultant, toggleDailyChecklistCompletion,
-      // Módulo 4: Metas de Prospecção
-      weeklyTargets, weeklyTargetItems, weeklyTargetAssignments, metricLogs,
-      addWeeklyTarget, updateWeeklyTarget, deleteWeeklyTarget,
-      addWeeklyTargetItem, updateWeeklyTargetItem, deleteWeeklyTargetItem, moveWeeklyTargetItem,
-      assignWeeklyTargetToConsultant, unassignWeeklyTargetFromConsultant, addMetricLog,
-      // Módulo 5: Materiais de Apoio (v2)
-      supportMaterialsV2, supportMaterialAssignments,
-      addSupportMaterialV2, updateSupportMaterialV2, deleteSupportMaterialV2,
-      assignSupportMaterialToConsultant, unassignSupportMaterialFromConsultant
+      addOnlineOnboardingSession, deleteOnlineOnboardingSession, addVideoToTemplate, deleteVideoFromTemplate
     }}>
       {children}
     </AppContext.Provider>

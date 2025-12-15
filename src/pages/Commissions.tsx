@@ -105,9 +105,9 @@ export const Commissions = () => {
   const [group, setGroup] = useState('');
   const [quota, setQuota] = useState('');
   const [selectedPV, setSelectedPV] = useState('');
-  const [selectedConsultantId, setSelectedConsultantId] = useState(''); // Now stores consultant_id
-  const [selectedManagerId, setSelectedManagerId] = useState(''); // Now stores manager_id
-  const [selectedAngelId, setSelectedAngelId] = useState(''); // Now stores consultant_id for angel
+  const [selectedConsultant, setSelectedConsultant] = useState('');
+  const [selectedManager, setSelectedManager] = useState('');
+  const [selectedAngel, setSelectedAngel] = useState('');
   const [taxRateInput, setTaxRateInput] = useState('6');
 
   const [editingInstallment, setEditingInstallment] = useState<{
@@ -121,9 +121,9 @@ export const Commissions = () => {
 
   // Relatórios
   const [reportMonth, setReportMonth] = useState(new Date().toISOString().slice(0, 7));
-  const [reportConsultantId, setReportConsultantId] = useState('');
-  const [reportManagerId, setReportManagerId] = useState('');
-  const [reportAngelId, setReportAngelId] = useState('');
+  const [reportConsultant, setReportConsultant] = useState('');
+  const [reportManager, setReportManager] = useState('');
+  const [reportAngel, setReportAngel] = useState('');
   const [reportData, setReportData] = useState<{
     month: string;
     totalCommissions: { consultant: number; manager: number; angel: number; total: number; };
@@ -138,9 +138,9 @@ export const Commissions = () => {
     setGroup('');
     setQuota('');
     setSelectedPV('');
-    setSelectedConsultantId('');
-    setSelectedManagerId('');
-    setSelectedAngelId('');
+    setSelectedConsultant('');
+    setSelectedManager('');
+    setSelectedAngel('');
     setTaxRateInput('6');
     setHasAngel(false);
     setIsCustomRulesMode(false);
@@ -250,7 +250,7 @@ export const Commissions = () => {
     if (!selectedPV) errors.push("Ponto de Venda (PV)");
     if (!group.trim()) errors.push("Grupo");
     if (!quota.trim()) errors.push("Cota");
-    if (!selectedConsultantId) errors.push("Prévia/Autorizado");
+    if (!selectedConsultant) errors.push("Prévia/Autorizado");
 
     if (errors.length > 0) {
         alert(`Por favor, preencha os seguintes campos obrigatórios:\n\n- ${errors.join('\n- ')}`);
@@ -263,16 +263,8 @@ export const Commissions = () => {
       const initialInstallments: Record<string, InstallmentInfo> = {};
       for (let i = 1; i <= 15; i++) { initialInstallments[i] = { status: 'Pendente' }; }
 
-      const consultantMember = teamMembers.find(m => m.consultant_id === selectedConsultantId);
-      const managerMember = teamMembers.find(m => m.consultant_id === selectedManagerId);
-      const angelMember = teamMembers.find(m => m.consultant_id === selectedAngelId);
-
       const payload: Commission = {
-        id: crypto.randomUUID(), date: saleDate, clientName, type: saleType, group, quota, 
-        consultant: consultantMember?.consultant_name || 'N/A', 
-        managerName: managerMember?.consultant_name || 'N/A', 
-        angelName: hasAngel ? (angelMember?.consultant_name || 'N/A') : undefined, 
-        pv: selectedPV, value: credit, taxRate: taxValue, 
+        id: crypto.randomUUID(), date: saleDate, clientName, type: saleType, group, quota, consultant: selectedConsultant, managerName: selectedManager || 'N/A', angelName: hasAngel ? selectedAngel : undefined, pv: selectedPV, value: credit, taxRate: taxValue, 
         netValue: simulation.totals.grandTotal * (1 - (taxValue/100)),
         installments: 15, status: 'Em Andamento', installmentDetails: initialInstallments,
         consultantValue: simulation.totals.consultant, managerValue: simulation.totals.manager, angelValue: simulation.totals.angel,
@@ -333,9 +325,10 @@ export const Commissions = () => {
   const clearFilters = () => { setFilterStartDate(''); setFilterEndDate(''); setFilterConsultant(''); setFilterAngel(''); setFilterPV(''); setFilterStatus(''); setSearchTerm(''); };
   const handleAddPV = () => { const newPVName = prompt("Digite o nome do novo Ponto de Venda (PV):"); if (newPVName && newPVName.trim()) { addPV(newPVName.trim()); setSelectedPV(newPVName.trim()); } };
 
-  const consultantsList = teamMembers.filter(m => m.is_active && (m.roles.includes('Prévia') || m.roles.includes('Autorizado')));
-  const managersList = teamMembers.filter(m => m.is_active && m.roles.includes('Gestor'));
-  const angelsList = teamMembers.filter(m => m.is_active && m.roles.includes('Anjo'));
+  const activeMembers = teamMembers.filter(m => m.isActive);
+  const consultants = activeMembers.filter(m => m.roles.includes('Prévia') || m.roles.includes('Autorizado'));
+  const managers = activeMembers.filter(m => m.roles.includes('Gestor'));
+  const angels = activeMembers.filter(m => m.roles.includes('Anjo'));
 
   const filteredHistory = useMemo(() => {
     const startFilterDate = filterStartDate ? new Date(filterStartDate + 'T00:00:00') : null;
@@ -437,13 +430,9 @@ export const Commissions = () => {
 
   const generateReport = () => {
     const filteredCommissions = commissions.filter(c => {
-      const consultantMember = teamMembers.find(m => m.consultant_name === c.consultant);
-      const managerMember = teamMembers.find(m => m.consultant_name === c.managerName);
-      const angelMember = teamMembers.find(m => m.consultant_name === c.angelName);
-
-      if (reportConsultantId && consultantMember?.consultant_id !== reportConsultantId) return false;
-      if (reportManagerId && managerMember?.consultant_id !== reportManagerId) return false;
-      if (reportAngelId && angelMember?.consultant_id !== reportAngelId) return false;
+      if (reportConsultant && c.consultant !== reportConsultant) return false;
+      if (reportManager && c.managerName !== reportManager) return false;
+      if (reportAngel && c.angelName !== reportAngel) return false;
       return true;
     });
 
@@ -580,9 +569,9 @@ export const Commissions = () => {
                             <div className="w-1/3 relative"><label className="text-xs text-gray-500 dark:text-gray-400 font-bold text-red-500">Imposto (%)</label><div className="relative"><input type="text" className="w-full border-red-200 dark:border-red-900/50 rounded-md text-sm bg-red-50 dark:bg-red-900/10 text-red-900 dark:text-red-300 p-2 pl-2" value={taxRateInput} onChange={e => setTaxRateInput(e.target.value)} /><Percent className="w-3 h-3 text-red-400 absolute right-2 top-2.5" /></div></div>
                         </div>
                         <div className="pt-2 border-t border-gray-100 dark:border-slate-700">
-                            <select required className="w-full border-gray-300 dark:border-slate-600 rounded-md text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white p-2 mb-2" value={selectedConsultantId} onChange={e => setSelectedConsultantId(e.target.value)}><option value="">Selecione o Prévia/Autorizado</option>{consultantsList.map(c => <option key={c.consultant_id} value={c.consultant_id}>{c.consultant_name}</option>)}</select>
-                            <select className="w-full border-gray-300 dark:border-slate-600 rounded-md text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white p-2 mb-2" value={selectedManagerId} onChange={e => setSelectedManagerId(e.target.value)}><option value="">Selecione o Gestor</option>{managersList.map(m => <option key={m.consultant_id} value={m.consultant_id}>{m.consultant_name}</option>)}</select>
-                            {hasAngel && (<select required className="w-full border-gray-300 dark:border-slate-600 rounded-md text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white p-2" value={selectedAngelId} onChange={e => setSelectedAngelId(e.target.value)}><option value="">Selecione o Anjo</option>{angelsList.map(a => <option key={a.consultant_id} value={a.consultant_id}>{a.consultant_name}</option>)}</select>)}
+                            <select required className="w-full border-gray-300 dark:border-slate-600 rounded-md text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white p-2 mb-2" value={selectedConsultant} onChange={e => setSelectedConsultant(e.target.value)}><option value="">Selecione o Prévia/Autorizado</option>{consultants.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}</select>
+                            <select className="w-full border-gray-300 dark:border-slate-600 rounded-md text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white p-2 mb-2" value={selectedManager} onChange={e => setSelectedManager(e.target.value)}><option value="">Selecione o Gestor</option>{managers.map(m => <option key={m.id} value={m.name}>{m.name}</option>)}</select>
+                            {hasAngel && (<select required className="w-full border-gray-300 dark:border-slate-600 rounded-md text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white p-2" value={selectedAngel} onChange={e => setSelectedAngel(e.target.value)}><option value="">Selecione o Anjo</option>{angels.map(a => <option key={a.id} value={a.name}>{a.name}</option>)}</select>)}
                         </div>
                         <button 
                           type="submit" 
@@ -697,8 +686,8 @@ export const Commissions = () => {
                     <div className="col-span-1"><label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Busca Geral</label><div className="relative"><input type="text" placeholder="Cliente, Grupo..." className="w-full pl-9 border border-gray-300 dark:border-slate-600 rounded-lg p-2.5 text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} /><Search className="w-4 h-4 text-gray-400 absolute left-3 top-3" /></div></div>
                     <div className="col-span-1"><label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">De (Data)</label><input type="date" className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2.5 text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500" value={filterStartDate} onChange={e => setFilterStartDate(e.target.value)} /></div>
                     <div className="col-span-1"><label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Até (Data)</label><input type="date" className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2.5 text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500" value={filterEndDate} onChange={e => setFilterEndDate(e.target.value)} /></div>
-                    <div className="col-span-1"><label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Prévia/Autorizado</label><select className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2.5 text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500" value={filterConsultant} onChange={e => setFilterConsultant(e.target.value)}><option value="">Todos</option>{consultantsList.map(m => (<option key={m.consultant_id} value={m.consultant_name}>{m.consultant_name}</option>))}</select></div>
-                    <div className="col-span-1"><label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Anjo (Participação)</label><select className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2.5 text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500" value={filterAngel} onChange={e => setFilterAngel(e.target.value)}><option value="">Todos</option>{angelsList.map(m => (<option key={m.consultant_id} value={m.consultant_name}>{m.consultant_name}</option>))}</select></div>
+                    <div className="col-span-1"><label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Prévia/Autorizado</label><select className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2.5 text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500" value={filterConsultant} onChange={e => setFilterConsultant(e.target.value)}><option value="">Todos</option>{teamMembers.map(m => (<option key={m.id} value={m.name}>{m.name}</option>))}</select></div>
+                    <div className="col-span-1"><label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Anjo (Participação)</label><select className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2.5 text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500" value={filterAngel} onChange={e => setFilterAngel(e.target.value)}><option value="">Todos</option>{angels.map(m => (<option key={m.id} value={m.name}>{m.name}</option>))}</select></div>
                     <div className="col-span-1"><label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Ponto de Venda (PV)</label><select className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2.5 text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500" value={filterPV} onChange={e => setFilterPV(e.target.value)}><option value="">Todos</option>{pvs.map(pv => (<option key={pv} value={pv}>{pv}</option>))}</select></div>
                     <div className="col-span-1"><label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Status Geral</label><select className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2.5 text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}><option value="">Todos</option><option value="Em Andamento">Em Andamento</option><option value="Atraso">Atraso</option><option value="Concluído">Concluído</option><option value="Cancelado">Cancelado</option></select></div>
                 </div>
@@ -843,15 +832,15 @@ export const Commissions = () => {
               </div>
               <div className="flex-1">
                 <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Filtrar por Consultor:</label>
-                <select value={reportConsultantId} onChange={e => setReportConsultantId(e.target.value)} className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2 bg-white dark:bg-slate-700 text-gray-900 dark:text-white"><option value="">Todos</option>{consultantsList.map(c => <option key={c.consultant_id} value={c.consultant_id}>{c.consultant_name}</option>)}</select>
+                <select value={reportConsultant} onChange={e => setReportConsultant(e.target.value)} className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2 bg-white dark:bg-slate-700 text-gray-900 dark:text-white"><option value="">Todos</option>{consultants.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}</select>
               </div>
               <div className="flex-1">
                 <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Filtrar por Gestor:</label>
-                <select value={reportManagerId} onChange={e => setReportManagerId(e.target.value)} className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2 bg-white dark:bg-slate-700 text-gray-900 dark:text-white"><option value="">Todos</option>{managersList.map(m => <option key={m.consultant_id} value={m.consultant_id}>{m.consultant_name}</option>)}</select>
+                <select value={reportManager} onChange={e => setReportManager(e.target.value)} className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2 bg-white dark:bg-slate-700 text-gray-900 dark:text-white"><option value="">Todos</option>{managers.map(m => <option key={m.id} value={m.name}>{m.name}</option>)}</select>
               </div>
               <div className="flex-1">
                 <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Filtrar por Anjo:</label>
-                <select value={reportAngelId} onChange={e => setReportAngelId(e.target.value)} className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2 bg-white dark:bg-slate-700 text-gray-900 dark:text-white"><option value="">Todos</option>{angelsList.map(a => <option key={a.consultant_id} value={a.consultant_id}>{a.consultant_name}</option>)}</select>
+                <select value={reportAngel} onChange={e => setReportAngel(e.target.value)} className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2 bg-white dark:bg-slate-700 text-gray-900 dark:text-white"><option value="">Todos</option>{angels.map(a => <option key={a.id} value={a.name}>{a.name}</option>)}</select>
               </div>
               <button onClick={generateReport} className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition font-medium">
                 Gerar Relatório
@@ -874,24 +863,18 @@ export const Commissions = () => {
                 <table className="w-full text-sm">
                   <thead className="text-left text-gray-500 dark:text-gray-400"><tr className="border-b dark:border-slate-700"><th className="py-2">Cliente</th><th className="py-2">Consultor</th><th className="py-2">Gestor</th><th className="py-2">Anjo</th><th className="py-2">Parcela</th><th className="py-2 text-right">Valor (Consultor)</th><th className="py-2 text-right">Valor (Gestor)</th><th className="py-2 text-right">Valor (Anjo)</th></tr></thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
-                    {reportData.detailedInstallments.map((item, index) => {
-                      const consultantName = teamMembers.find(m => m.consultant_id === reportConsultantId)?.consultant_name || item.commission.consultant;
-                      const managerName = teamMembers.find(m => m.consultant_id === reportManagerId)?.consultant_name || item.commission.managerName;
-                      const angelName = teamMembers.find(m => m.consultant_id === reportAngelId)?.consultant_name || item.commission.angelName;
-
-                      return (
-                        <tr key={index} className="hover:bg-gray-50 dark:hover:bg-slate-700/50">
-                          <td className="py-2 font-medium text-gray-800 dark:text-gray-200">{item.commission.clientName}</td>
-                          <td>{consultantName}</td>
-                          <td>{managerName}</td>
-                          <td>{angelName || 'N/A'}</td>
-                          <td>{item.installmentNumber}</td>
-                          <td className="text-right font-mono">{formatCurrency(item.values.cons)}</td>
-                          <td className="text-right font-mono">{formatCurrency(item.values.man)}</td>
-                          <td className="text-right font-mono">{formatCurrency(item.values.angel)}</td>
-                        </tr>
-                      );
-                    })}
+                    {reportData.detailedInstallments.map((item, index) => (
+                      <tr key={index} className="hover:bg-gray-50 dark:hover:bg-slate-700/50">
+                        <td className="py-2 font-medium text-gray-800 dark:text-gray-200">{item.commission.clientName}</td>
+                        <td>{item.commission.consultant}</td>
+                        <td>{item.commission.managerName}</td>
+                        <td>{item.commission.angelName || 'N/A'}</td>
+                        <td>{item.installmentNumber}</td>
+                        <td className="text-right font-mono">{formatCurrency(item.values.cons)}</td>
+                        <td className="text-right font-mono">{formatCurrency(item.values.man)}</td>
+                        <td className="text-right font-mono">{formatCurrency(item.values.angel)}</td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>

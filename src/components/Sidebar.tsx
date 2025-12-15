@@ -1,15 +1,15 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, MessageSquare, Settings, FileText, Sun, Moon, Banknote, PlusCircle, Library, TrendingUp, Target, Users, LogOut, User as UserIcon, Calendar, Link as LinkIcon, Star, Video, ListChecks, ClipboardCheck } from 'lucide-react'; // Import ClipboardCheck icon
+import { LayoutDashboard, MessageSquare, Settings, FileText, Sun, Moon, Banknote, PlusCircle, Library, TrendingUp, Target, Users, LogOut, User as UserIcon, Calendar, Link as LinkIcon, Star, Video } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 
-interface GestorSidebarProps {
+interface SidebarProps {
   isSidebarOpen: boolean;
   toggleSidebar: () => void;
 }
 
-export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, toggleSidebar }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ isSidebarOpen, toggleSidebar }) => {
   const { theme, toggleTheme } = useApp();
   const { user, logout } = useAuth();
 
@@ -85,17 +85,9 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
             <Users className="w-5 h-5" />
             <span>Gestão de Equipe</span>
           </NavLink>
-          <NavLink to="/daily-checklist-config" className={linkClass} onClick={toggleSidebar}>
-            <ListChecks className="w-5 h-5" />
-            <span>Config. Checklist Diário</span>
-          </NavLink>
-          <NavLink to="/daily-checklist-monitoring" className={linkClass} onClick={toggleSidebar}> {/* NEW LINK */}
-            <ClipboardCheck className="w-5 h-5" />
-            <span>Monitorar Checklists</span>
-          </NavLink>
           <NavLink to="/config-process" className={linkClass} onClick={toggleSidebar}>
             <Settings className="w-5 h-5" />
-            <span>Editar Processo (Antigo)</span>
+            <span>Editar Processo</span>
           </NavLink>
           <NavLink to="/config-goals" className={linkClass} onClick={toggleSidebar}>
             <Target className="w-5 h-5" />
@@ -112,10 +104,6 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
           <NavLink to="/config-cutoff" className={linkClass} onClick={toggleSidebar}>
             <Calendar className="w-5 h-5" />
             <span>Períodos de Corte</span>
-          </NavLink>
-          <NavLink to="/crm-config" className={linkClass} onClick={toggleSidebar}>
-            <PlusCircle className="w-5 h-5" />
-            <span>Configurar CRM</span>
           </NavLink>
         </nav>
 
