@@ -157,7 +157,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const registerConsultant = useCallback(async (name: string, cpf: string, login: string, password: string) => {
     const { data, error } = await supabase.auth.signUp({
-      email: `${login}@sart.consultor.com`, // Usar um email dummy para o Supabase Auth
+      email: `consultor_${login}@sartmanager.com`, // Alterado o domínio do e-mail dummy
       password,
       options: {
         data: {
