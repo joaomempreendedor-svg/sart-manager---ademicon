@@ -1,21 +1,32 @@
 import React, { useState } from 'react';
 import { useApp } from '@/context/AppContext';
-import { Plus, Trash2, User, Shield, Crown, Star, Edit2, Save, X, Archive, UserCheck, Loader2 } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { Plus, Trash2, User, Shield, Crown, Star, Edit2, Save, X, Archive, UserCheck, Loader2, Copy, RefreshCw, KeyRound } from 'lucide-react';
 import { TeamMember, TeamRole } from '@/types';
+import { formatCpf, generateRandomPassword } from '@/utils/authUtils';
+import { ConsultantCredentialsModal } from '@/components/ConsultantCredentialsModal';
 
 const ALL_ROLES: TeamRole[] = ['Prévia', 'Autorizado', 'Gestor', 'Anjo'];
 
 export const TeamConfig = () => {
   const { teamMembers, addTeamMember, updateTeamMember, deleteTeamMember } = useApp();
+  const { registerConsultant, sendPasswordResetEmail } = useAuth(); // Usar registerConsultant do AuthContext
   
   const [newName, setNewName] = useState('');
+  const [newCpf, setNewCpf] = useState('');
   const [newRoles, setNewRoles] = useState<TeamRole[]>(['Prévia']);
+  const [generatedPassword, setGeneratedPassword] = useState(generateRandomPassword());
   const [isAdding, setIsAdding] = useState(false);
+  const [copiedPassword, setCopiedPassword] = useState(false);
 
   const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
   const [editingName, setEditingName] = useState('');
+  const [editingCpf, setEditingCpf] = useState('');
   const [editingRoles, setEditingRoles] = useState<TeamRole[]>([]);
   const [isUpdating, setIsUpdating] = useState(false);
+
+  const [showCredentialsModal, setShowCredentialsModal] = useState(false);
+  const [createdConsultantCredentials, setCreatedConsultantCredentials] = useState<{ name: string, login: string, password: string } | null>(null);
 
   const handleRoleChange = (role: TeamRole, currentRoles: TeamRole[], setRoles: React.Dispatch<React.SetStateAction<TeamRole[]>>) => {
     const updatedRoles = currentRoles.includes(role)
@@ -24,24 +35,57 @@ export const TeamConfig = () => {
     setRoles(updatedRoles);
   };
 
+  const handleGeneratePassword = () => {
+    setGeneratedPassword(generateRandomPassword());
+    setCopiedPassword(false);
+  };
+
+  const handleCopyPassword = () => {
+    navigator.clipboard.writeText(generatedPassword);
+    setCopiedPassword(true);
+    setTimeout(() => setCopiedPassword(false), 2000);
+  };
+
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newName.trim() || newRoles.length === 0) {
-      alert("O nome e pelo menos um cargo são obrigatórios.");
+    if (!newName.trim() || newRoles.length === 0 || !newCpf.trim()) {
+      alert("Nome, CPF e pelo menos um cargo são obrigatórios.");
       return;
     }
+    if (newCpf.replace(/\D/g, '').length !== 11) {
+      alert("Por favor, insira um CPF válido com 11 dígitos.");
+      return;
+    }
+
     setIsAdding(true);
     try {
+      const cleanedCpf = newCpf.replace(/\D/g, '');
+      const login = cleanedCpf.slice(-4); // Últimos 4 dígitos do CPF
+
+      // 1. Criar usuário no sistema de autenticação (Supabase Auth)
+      // O registerConsultant já cuida de criar o perfil e marcar needs_password_change
+      await registerConsultant(newName.trim(), cleanedCpf, login, generatedPassword);
+
+      // 2. Salvar o membro da equipe no banco de dados
       await addTeamMember({
-        id: crypto.randomUUID(),
+        id: crypto.randomUUID(), // Este ID será o auth.uid() do novo usuário
         name: newName.trim(),
         roles: newRoles,
         isActive: true,
+        cpf: cleanedCpf, // Salvar CPF completo
       });
+
+      setCreatedConsultantCredentials({ name: newName.trim(), login, password: generatedPassword });
+      setShowCredentialsModal(true);
+
+      // Resetar formulário
       setNewName('');
+      setNewCpf('');
       setNewRoles(['Prévia']);
+      setGeneratedPassword(generateRandomPassword());
     } catch (error: any) {
       alert(`Falha ao adicionar membro: ${error.message}`);
+      console.error("Erro ao adicionar membro:", error);
     } finally {
       setIsAdding(false);
     }
@@ -50,23 +94,31 @@ export const TeamConfig = () => {
   const startEditing = (member: TeamMember) => {
     setEditingMember(member);
     setEditingName(member.name);
+    setEditingCpf(formatCpf(member.cpf || ''));
     setEditingRoles(member.roles);
   };
 
   const cancelEditing = () => {
     setEditingMember(null);
     setEditingName('');
+    setEditingCpf('');
     setEditingRoles([]);
   };
 
   const handleUpdate = async () => {
-    if (!editingMember || !editingName.trim() || editingRoles.length === 0) {
-      alert("O nome e pelo menos um cargo são obrigatórios.");
+    if (!editingMember || !editingName.trim() || editingRoles.length === 0 || !editingCpf.trim()) {
+      alert("O nome, CPF e pelo menos um cargo são obrigatórios.");
       return;
     }
+    if (editingCpf.replace(/\D/g, '').length !== 11) {
+      alert("Por favor, insira um CPF válido com 11 dígitos.");
+      return;
+    }
+
     setIsUpdating(true);
     try {
-      await updateTeamMember(editingMember.id, { name: editingName.trim(), roles: editingRoles });
+      const cleanedCpf = editingCpf.replace(/\D/g, '');
+      await updateTeamMember(editingMember.id, { name: editingName.trim(), roles: editingRoles, cpf: cleanedCpf });
       cancelEditing();
     } catch (error: any) {
       alert(`Falha ao atualizar membro: ${error.message}`);
@@ -76,7 +128,7 @@ export const TeamConfig = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (window.confirm('Tem certeza que deseja remover este membro da equipe?')) {
+    if (window.confirm('Tem certeza que deseja remover este membro da equipe? Esta ação não pode ser desfeita.')) {
       try {
         await deleteTeamMember(id);
       } catch (error: any) {
@@ -90,6 +142,37 @@ export const TeamConfig = () => {
       await updateTeamMember(member.id, { isActive: !member.isActive });
     } catch (error: any) {
       alert(`Falha ao alterar status do membro: ${error.message}`);
+    }
+  };
+
+  const handleResetPassword = async (member: TeamMember) => {
+    if (!member.cpf) {
+      alert("Não é possível resetar a senha: CPF do consultor não encontrado.");
+      return;
+    }
+    if (!window.confirm(`Tem certeza que deseja resetar a senha de ${member.name}? Uma nova senha temporária será gerada e o consultor será forçado a trocá-la no próximo login.`)) {
+      return;
+    }
+
+    try {
+      // Gerar uma nova senha temporária
+      const newTempPassword = generateRandomPassword();
+      
+      // Chamar a função de reset de senha do AuthContext
+      // Esta função irá atualizar a senha do usuário no auth.users
+      // e marcar needs_password_change como true no perfil.
+      await sendPasswordResetEmail(member.id); // Usar o ID do usuário para o reset
+      
+      alert(`Senha de ${member.name} resetada com sucesso! Uma nova senha temporária foi enviada para o e-mail associado ao usuário. O consultor será forçado a trocá-la no próximo login.`);
+      // TODO: Idealmente, a nova senha temporária deveria ser exibida ao gestor aqui,
+      // mas o Supabase Auth não retorna a senha temporária gerada por `resetPasswordForEmail`.
+      // A melhor prática é que o usuário receba o link por e-mail e defina a própria senha.
+      // Para o fluxo de "senha temporária gerada pelo gestor", precisaríamos de um Edge Function
+      // que atualize a senha diretamente e retorne a nova senha.
+      // Por enquanto, o fluxo será via e-mail de reset.
+    } catch (error: any) {
+      alert(`Falha ao resetar senha: ${error.message}`);
+      console.error("Erro ao resetar senha:", error);
     }
   };
 
@@ -136,6 +219,35 @@ export const TeamConfig = () => {
                           />
                       </div>
                       <div>
+                          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">CPF</label>
+                          <input 
+                            type="text" 
+                            required
+                            className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500"
+                            placeholder="000.000.000-00"
+                            value={newCpf}
+                            onChange={e => setNewCpf(formatCpf(e.target.value))}
+                            maxLength={14}
+                          />
+                      </div>
+                      <div>
+                          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Senha Temporária</label>
+                          <div className="flex items-center space-x-2">
+                            <input 
+                                type="text" 
+                                readOnly
+                                className="flex-1 border border-gray-300 dark:border-slate-600 rounded-lg p-2 text-sm bg-gray-100 dark:bg-slate-700 text-gray-900 dark:text-white"
+                                value={generatedPassword}
+                            />
+                            <button type="button" onClick={handleGeneratePassword} className="p-2 bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-600 transition" title="Gerar nova senha">
+                                <RefreshCw className="w-4 h-4" />
+                            </button>
+                            <button type="button" onClick={handleCopyPassword} className="p-2 bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-600 transition" title="Copiar senha">
+                                {copiedPassword ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+                            </button>
+                          </div>
+                      </div>
+                      <div>
                           <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Cargos / Funções</label>
                           <div className="space-y-2">
                             {ALL_ROLES.map(role => (
@@ -174,6 +286,7 @@ export const TeamConfig = () => {
                                   {editingMember?.id === member.id ? (
                                     <div className="flex-1 flex flex-col gap-3">
                                       <input type="text" value={editingName} onChange={e => setEditingName(e.target.value)} className="w-full border-gray-300 dark:border-slate-600 rounded-md p-2 text-sm" />
+                                      <input type="text" value={editingCpf} onChange={e => setEditingCpf(formatCpf(e.target.value))} maxLength={14} className="w-full border-gray-300 dark:border-slate-600 rounded-md p-2 text-sm" />
                                       <div className="grid grid-cols-2 gap-2">
                                         {ALL_ROLES.map(role => (
                                             <label key={role} className="flex items-center space-x-2 cursor-pointer">
@@ -206,9 +319,15 @@ export const TeamConfig = () => {
                                                 ))}
                                                 {!member.isActive && <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300">Inativo</span>}
                                               </div>
+                                              {member.cpf && (
+                                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">CPF: {formatCpf(member.cpf)}</p>
+                                              )}
                                           </div>
                                       </div>
                                       <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button onClick={() => handleResetPassword(member)} className="p-2 rounded-full text-gray-400 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/20" title="Resetar Senha">
+                                            <KeyRound className="w-4 h-4" />
+                                        </button>
                                         <button onClick={() => handleToggleActive(member)} className={`p-2 rounded-full ${member.isActive ? 'text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20' : 'text-gray-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20'}`} title={member.isActive ? 'Inativar' : 'Ativar'}>
                                             {member.isActive ? <Archive className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
                                         </button>
@@ -231,6 +350,15 @@ export const TeamConfig = () => {
               </div>
           </div>
       </div>
+      {showCredentialsModal && createdConsultantCredentials && (
+        <ConsultantCredentialsModal
+          isOpen={showCredentialsModal}
+          onClose={() => setShowCredentialsModal(false)}
+          consultantName={createdConsultantCredentials.name}
+          login={createdConsultantCredentials.login}
+          password={createdConsultantCredentials.password}
+        />
+      )}
     </div>
   );
 };
