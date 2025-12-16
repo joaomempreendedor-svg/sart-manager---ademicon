@@ -28,7 +28,7 @@ export const TeamConfig = () => {
   const [isUpdating, setIsUpdating] = useState(false);
 
   const [showCredentialsModal, setShowCredentialsModal] = useState(false);
-  const [createdConsultantCredentials, setCreatedConsultantCredentials] = useState<{ name: string, login: string, password: string } | null>(null);
+  const [createdConsultantCredentials, setCreatedConsultantCredentials] = useState<{ name: string, login: string, password: string, wasExistingUser: boolean } | null>(null); // Adicionado wasExistingUser
 
   const handleRoleChange = (role: TeamRole, currentRoles: TeamRole[], setRoles: React.Dispatch<React.SetStateAction<TeamRole[]>>) => {
     const updatedRoles = currentRoles.includes(role)
@@ -66,14 +66,14 @@ export const TeamConfig = () => {
     setIsAdding(true);
     try {
       const cleanedCpf = newCpf.replace(/\D/g, '');
-      const login = cleanedCpf.slice(-4); // Últimos 4 dígitos do CPF
+      const login = newEmail.trim(); // O login agora é o e-mail
 
       // Usar a nova função addTeamMember do AppContext
       const result = await addTeamMember({
         name: newName.trim(),
         email: newEmail.trim(),
         cpf: cleanedCpf,
-        login: login,
+        login: login, // Passar o email como login
         roles: newRoles,
         isActive: true,
       });
@@ -81,8 +81,9 @@ export const TeamConfig = () => {
       if (result.success) {
         setCreatedConsultantCredentials({ 
           name: result.member.name, 
-          login: result.member.login || '', 
-          password: result.tempPassword || 'Usuário existente, sem senha temporária' 
+          login: result.member.email || '', // Usar o email como login
+          password: result.tempPassword || '', // A senha temporária virá da Edge Function
+          wasExistingUser: result.wasExistingUser || false, // Passar o flag
         });
         setShowCredentialsModal(true);
       } else {
@@ -158,8 +159,8 @@ export const TeamConfig = () => {
   };
 
   const handleResetPassword = async (member: TeamMember) => {
-    if (!member.cpf) {
-      alert("Não é possível resetar a senha: CPF do consultor não encontrado.");
+    if (!member.email) { // Usar o email para resetar
+      alert("Não é possível resetar a senha: E-mail do consultor não encontrado.");
       return;
     }
     if (!window.confirm(`Tem certeza que deseja resetar a senha de ${member.name}? Uma nova senha temporária será gerada e o consultor será forçado a trocá-la no próximo login.`)) {
@@ -168,12 +169,16 @@ export const TeamConfig = () => {
 
     try {
       const newTempPassword = generateRandomPassword();
-      const login = member.cpf.slice(-4); // O login é os últimos 4 dígitos do CPF
-
+      
       await resetConsultantPasswordViaEdge(member.id, newTempPassword);
       
       // Exibir a nova senha temporária no modal
-      setCreatedConsultantCredentials({ name: member.name, login, password: newTempPassword });
+      setCreatedConsultantCredentials({ 
+        name: member.name, 
+        login: member.email, // O login é o email
+        password: newTempPassword, 
+        wasExistingUser: true // Sempre será um usuário existente neste caso
+      });
       setShowCredentialsModal(true);
 
       alert(`Senha de ${member.name} resetada com sucesso! O consultor será forçado a trocá-la no próximo login.`);
@@ -250,23 +255,6 @@ export const TeamConfig = () => {
                             onChange={e => setNewCpf(formatCpf(e.target.value))}
                             maxLength={14}
                           />
-                      </div>
-                      <div>
-                          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Senha Temporária</label>
-                          <div className="flex items-center space-x-2">
-                            <input 
-                                type="text" 
-                                readOnly
-                                className="flex-1 border border-gray-300 dark:border-slate-600 rounded-lg p-2 text-sm bg-gray-100 dark:bg-slate-700 text-gray-900 dark:text-white"
-                                value={generatedPassword}
-                            />
-                            <button type="button" onClick={handleGeneratePassword} className="p-2 bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-600 transition" title="Gerar nova senha">
-                                <RefreshCw className="w-4 h-4" />
-                            </button>
-                            <button type="button" onClick={handleCopyPassword} className="p-2 bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-600 transition" title="Copiar senha">
-                                {copiedPassword ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
-                            </button>
-                          </div>
                       </div>
                       <div>
                           <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Cargos / Funções</label>
@@ -378,6 +366,7 @@ export const TeamConfig = () => {
           consultantName={createdConsultantCredentials.name}
           login={createdConsultantCredentials.login}
           password={createdConsultantCredentials.password}
+          wasExistingUser={createdConsultantCredentials.wasExistingUser} {/* Passar a nova prop */}
         />
       )}
     </div>
