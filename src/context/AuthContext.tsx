@@ -107,29 +107,38 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, [fetchUserProfile]);
 
   const login = useCallback(async (identifier: string, password: string) => {
-    let error;
-    // Check if identifier looks like a 4-digit CPF login
+    let authError: Error | null = null;
+
     if (/^\d{4}$/.test(identifier)) {
-      // Try to sign in using the login field in user_metadata
-      const { data, error: signInError } = await supabase.rpc('sign_in_with_login', {
+      // Attempt login via RPC for CPF
+      const { data: rpcData, error: rpcError } = await supabase.rpc('sign_in_with_login', {
         login_val: identifier,
-        password_val: password,
+        password_val: password, // This password_val is not actually used by the RPC for validation, but passed for consistency
       });
-      if (signInError) {
-        error = signInError;
-      } else if (!data || !data.email) { // RPC now returns email
-        error = new Error("Usuário não encontrado com o login fornecido.");
+
+      if (rpcError) {
+        authError = rpcError;
+      } else if (rpcData && rpcData.access_token && rpcData.refresh_token) {
+        // If RPC returned tokens, it means a session was established or found
+        const { error: setSessionError } = await supabase.auth.setSession({
+          access_token: rpcData.access_token,
+          refresh_token: rpcData.refresh_token,
+        });
+        if (setSessionError) authError = setSessionError;
+      } else if (rpcData && rpcData.email) {
+        // If RPC returned an email, proceed with client-side signInWithPassword
+        const { error: emailSignInError } = await supabase.auth.signInWithPassword({ email: rpcData.email, password });
+        authError = emailSignInError;
       } else {
-        // If RPC call is successful, use the returned email to sign in with password
-        const { error: emailSignInError } = await supabase.auth.signInWithPassword({ email: data.email, password });
-        error = emailSignInError;
+        authError = new Error("Usuário não encontrado com o login fornecido.");
       }
     } else {
-      // Otherwise, assume it's an email
+      // Attempt login via email
       const { error: emailSignInError } = await supabase.auth.signInWithPassword({ email: identifier, password });
-      error = emailSignInError;
+      authError = emailSignInError;
     }
-    if (error) throw error;
+
+    if (authError) throw authError;
   }, []);
 
   const register = useCallback(async (name, email, password) => {
