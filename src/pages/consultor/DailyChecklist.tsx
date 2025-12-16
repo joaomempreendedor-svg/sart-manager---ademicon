@@ -52,42 +52,88 @@ export const DailyChecklist = () => {
   }, [user, dailyChecklists, dailyChecklistAssignments, teamMembers]);
   // --- DEBUG LOGS FIM ---
 
+  // Adicione após o useEffect dos logs:
+  console.log("6. Verificando match de IDs:");
+  console.log("ID do usuário logado:", user?.id);
+  console.log("IDs dos teamMembers:", teamMembers.map(tm => ({ id: tm.id, name: tm.name })));
+
+  const isUserInTeam = teamMembers.some(tm => tm.id === user?.id);
+  console.log("Usuário está na lista de teamMembers?", isUserInTeam);
+
+  if (isUserInTeam) {
+    const userTeamMember = teamMembers.find(tm => tm.id === user?.id);
+    console.log("Detalhes do usuário em teamMembers:", userTeamMember);
+  }
+
   const assignedChecklists = useMemo(() => {
     if (!user) {
-      console.log("5.1. Filtragem: Usuário não logado, retornando checklists vazios.");
+      console.log("5.1. Filtragem: Usuário não logado");
       return [];
     }
-    
-    // Find checklists explicitly assigned to the user
+
+    console.log("5.2. Iniciando filtragem para usuário:", user.id);
+
+    // VERIFICAÇÃO CRÍTICA: O usuário está na lista de teamMembers?
+    const userTeamMember = teamMembers.find(tm => tm.id === user.id);
+    if (!userTeamMember) {
+      console.log("❌ ERRO: Usuário não encontrado em teamMembers!");
+      console.log("IDs disponíveis:", teamMembers.map(tm => tm.id));
+      return [];
+    }
+
+    console.log("5.3. Usuário encontrado em teamMembers:", userTeamMember.name, "Cargos:", userTeamMember.roles);
+
+    // 1. Checklists explicitamente atribuídos ao usuário
     const explicitAssignments = dailyChecklistAssignments
-      .filter(assignment => assignment.consultant_id === user.id)
+      .filter(assignment => {
+        const match = assignment.consultant_id === user.id;
+        if (match) {
+          console.log(`✅ Atribuição encontrada: checklist ${assignment.daily_checklist_id} para usuário ${user.id}`);
+        }
+        return match;
+      })
       .map(assignment => assignment.daily_checklist_id);
 
-    console.log("5.2. Filtragem: Atribuições explícitas para o usuário", user.id, ":", explicitAssignments);
+    console.log("5.4. Atribuições explícitas:", explicitAssignments);
 
-    // Find global checklists (not assigned to anyone specifically)
+    // 2. Checklists GLOBAIS (sem atribuição específica)
     const globalChecklists = dailyChecklists.filter(checklist => {
-      const hasAssignments = dailyChecklistAssignments.some(assignment => assignment.daily_checklist_id === checklist.id);
-      return !hasAssignments; // If no assignments exist for this checklist, it's global
+      const hasAnyAssignment = dailyChecklistAssignments.some(
+        a => a.daily_checklist_id === checklist.id
+      );
+      
+      if (!hasAnyAssignment) {
+        console.log(`🌍 Checklist global: ${checklist.title} (ID: ${checklist.id})`);
+      }
+      
+      return !hasAnyAssignment;
     }).map(checklist => checklist.id);
 
-    console.log("5.3. Filtragem: Checklists globais (sem atribuições específicas):", globalChecklists);
+    console.log("5.5. Checklists globais:", globalChecklists);
 
+    // 3. Combinar ambas as listas
     const relevantChecklistIds = new Set([...explicitAssignments, ...globalChecklists]);
-    console.log("5.4. Filtragem: IDs de checklists relevantes (explícitos + globais):", Array.from(relevantChecklistIds));
+    console.log("5.6. IDs relevantes combinados:", Array.from(relevantChecklistIds));
 
+    // 4. Filtrar checklists ativos
     const finalAssigned = dailyChecklists
-      .filter(checklist => checklist.is_active && relevantChecklistIds.has(checklist.id))
+      .filter(checklist => {
+        const isActive = checklist.is_active;
+        const isRelevant = relevantChecklistIds.has(checklist.id);
+        
+        if (isActive && isRelevant) {
+          console.log(`🎯 Checklist incluído: ${checklist.title} (ativo: ${isActive}, relevante: ${isRelevant})`);
+        }
+        
+        return isActive && isRelevant;
+      })
       .sort((a, b) => a.title.localeCompare(b.title));
-    
-    console.log("5.5. Filtragem: Checklists finais visíveis para o consultor:", finalAssigned.map(cl => ({
-      id: cl.id,
-      title: cl.title,
-      is_active: cl.is_active,
-    })));
+
+    console.log("5.7. CHECKLISTS FINAIS para o consultor:", finalAssigned.map(c => c.title));
+    console.log("5.8. Total de checklists:", finalAssigned.length);
 
     return finalAssigned;
-  }, [dailyChecklists, dailyChecklistAssignments, user]);
+  }, [dailyChecklists, dailyChecklistAssignments, user, teamMembers]);
 
   const getItemsForChecklist = useCallback((checklistId: string) => {
     return dailyChecklistItems
