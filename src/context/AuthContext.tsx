@@ -7,10 +7,12 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (identifier: string, password: string) => Promise<void>; // identifier pode ser email ou login (CPF)
   register: (name: string, email: string, password: string) => Promise<void>;
+  registerConsultant: (name: string, cpf: string, login: string, password: string) => Promise<void>; // Nova função para consultores
   logout: () => Promise<void>;
   sendPasswordResetEmail: (email: string) => Promise<void>;
+  updateUserPassword: (password: string) => Promise<void>; // Nova função para atualizar senha
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -24,7 +26,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('first_name, last_name, role')
+        .select('first_name, last_name, role, login, needs_password_change') // Adicionado login e needs_password_change
         .eq('id', session.user.id)
         .maybeSingle();
 
@@ -33,7 +35,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const { data: teamMemberData, error: teamMemberError } = await supabase
         .from('team_members')
         .select('data')
-        .eq('user_id', session.user.id)
+        .eq('id', session.user.id) // Aqui o ID do team_member é o auth.uid()
         .maybeSingle();
 
       if (teamMemberError) console.error("Error fetching team member status:", teamMemberError);
@@ -49,7 +51,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         name, 
         email: session.user.email || '',
         role: profile?.role || 'CONSULTOR',
-        isActive: isActive
+        isActive: isActive,
+        login: profile?.login, // Adicionado
+        hasLogin: !!profile?.login, // Adicionado
+        needs_password_change: profile?.needs_password_change || false, // Adicionado
       };
     } catch (error: any) {
       console.error('Error fetching profile:', error.message);
@@ -59,6 +64,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         email: session.user.email || '',
         role: 'CONSULTOR', // Fallback role
         isActive: false, // Default to inactive on error for safety
+        hasLogin: false,
+        needs_password_change: false,
       };
     }
   }, []);
@@ -98,8 +105,31 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
   }, [fetchUserProfile]);
 
-  const login = useCallback(async (email, password) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const login = useCallback(async (identifier: string, password: string) => {
+    let error;
+    // Check if identifier looks like a 4-digit CPF login
+    if (/^\d{4}$/.test(identifier)) {
+      // Try to sign in using the login field in user_metadata
+      const { data, error: signInError } = await supabase.rpc('sign_in_with_login', {
+        login_val: identifier,
+        password_val: password,
+      });
+      if (signInError) {
+        error = signInError;
+      } else if (!data || !data.access_token) {
+        error = new Error("Credenciais inválidas ou usuário não encontrado.");
+      } else {
+        // If RPC call is successful, set the session manually
+        await supabase.auth.setSession({
+          access_token: data.access_token,
+          refresh_token: data.refresh_token,
+        });
+      }
+    } else {
+      // Otherwise, assume it's an email
+      const { error: emailSignInError } = await supabase.auth.signInWithPassword({ email: identifier, password });
+      error = emailSignInError;
+    }
     if (error) throw error;
   }, []);
 
@@ -117,6 +147,24 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (error) throw error;
   }, []);
 
+  const registerConsultant = useCallback(async (name: string, cpf: string, login: string, password: string) => {
+    const { data, error } = await supabase.auth.signUp({
+      email: `${login}@sart.consultor.com`, // Usar um email dummy para o Supabase Auth
+      password,
+      options: {
+        data: {
+          first_name: name.split(' ')[0],
+          last_name: name.split(' ').slice(1).join(' '),
+          cpf: cpf, // Armazenar CPF nos metadados do usuário
+          login: login, // Armazenar login nos metadados do usuário
+          needs_password_change: true, // Forçar troca de senha no primeiro login
+        }
+      }
+    });
+    if (error) throw error;
+    // O trigger handle_new_user no Supabase cuidará de criar o perfil e copiar o login/needs_password_change
+  }, []);
+
   const logout = useCallback(async () => {
     const { error } = await supabase.auth.signOut();
     if (error) {
@@ -131,15 +179,27 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (error) throw error;
   }, []);
 
+  const updateUserPassword = useCallback(async (password: string) => {
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) throw error;
+    // Após a troca de senha, marcar needs_password_change como false no perfil
+    if (user?.id) {
+      await supabase.from('profiles').update({ needs_password_change: false }).eq('id', user.id);
+      setUser(prev => prev ? { ...prev, needs_password_change: false } : null);
+    }
+  }, [user]);
+
   const value = useMemo(() => ({
     user,
     session,
     isLoading,
     login,
     register,
+    registerConsultant,
     logout,
     sendPasswordResetEmail,
-  }), [user, session, isLoading, login, register, logout, sendPasswordResetEmail]);
+    updateUserPassword,
+  }), [user, session, isLoading, login, register, registerConsultant, logout, sendPasswordResetEmail, updateUserPassword]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

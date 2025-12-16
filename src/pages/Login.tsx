@@ -6,7 +6,7 @@ import { TrendingUp, Lock, Mail, Loader2, ArrowRight, RotateCcw } from 'lucide-r
 export const Login = () => {
   const { login, user, sendPasswordResetEmail } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState(''); // Pode ser email ou CPF (4 dígitos)
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -25,9 +25,9 @@ export const Login = () => {
     setLoading(true);
 
     try {
-      await login(email, password);
+      await login(identifier, password);
     } catch (err: any) {
-      setError(err.message || 'E-mail ou senha inválidos.');
+      setError(err.message || 'Credenciais inválidas. Verifique seu e-mail/CPF e senha.');
     } finally {
       setLoading(false);
     }
@@ -39,8 +39,15 @@ export const Login = () => {
     setResetMessage('');
     setLoading(true);
     try {
-      await sendPasswordResetEmail(email);
-      setResetMessage(`Se uma conta com o e-mail ${email} existir, um link de recuperação foi enviado.`);
+      // A função de reset de senha do Supabase Auth só funciona com e-mail.
+      // Para consultores com login via CPF, o reset será feito pelo gestor.
+      if (/^\d{4}$/.test(identifier)) {
+        setError('Para redefinir a senha de um login via CPF, por favor, entre em contato com seu gestor.');
+        setLoading(false);
+        return;
+      }
+      await sendPasswordResetEmail(identifier);
+      setResetMessage(`Se uma conta com o e-mail ${identifier} existir, um link de recuperação foi enviado.`);
     } catch (err: any) {
       setError(err.message || 'Falha ao enviar e-mail de recuperação.');
     } finally {
@@ -74,10 +81,10 @@ export const Login = () => {
             <div className="bg-white dark:bg-slate-800 py-8 px-4 shadow-xl rounded-xl sm:px-10 border border-gray-100 dark:border-slate-700">
               <form className="space-y-6" onSubmit={handleResetRequest}>
                 <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Endereço de E-mail</label>
+                  <label htmlFor="identifier" className="block text-sm font-medium text-gray-700 dark:text-gray-300">E-mail</label>
                   <div className="mt-1 relative rounded-md shadow-sm">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Mail className="h-5 w-5 text-gray-400" /></div>
-                    <input id="email" name="email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="focus:ring-brand-500 focus:border-brand-500 block w-full pl-10 sm:text-sm border-gray-300 dark:border-slate-600 rounded-md py-2 dark:bg-slate-700 dark:text-white" placeholder="seu@email.com" />
+                    <input id="identifier" name="identifier" type="text" autoComplete="username" required value={identifier} onChange={(e) => setIdentifier(e.target.value)} className="focus:ring-brand-500 focus:border-brand-500 block w-full pl-10 sm:text-sm border-gray-300 dark:border-slate-600 rounded-md py-2 dark:bg-slate-700 dark:text-white" placeholder="seu@email.com" />
                   </div>
                 </div>
                 {resetMessage && <div className="rounded-md bg-green-50 dark:bg-green-900/20 p-4 text-sm font-medium text-green-800 dark:text-green-200">{resetMessage}</div>}
@@ -102,10 +109,10 @@ export const Login = () => {
             <div className="bg-white dark:bg-slate-800 py-8 px-4 shadow-xl rounded-xl sm:px-10 border border-gray-100 dark:border-slate-700">
               <form className="space-y-6" onSubmit={handleSubmit}>
                 <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Endereço de E-mail</label>
+                  <label htmlFor="identifier" className="block text-sm font-medium text-gray-700 dark:text-gray-300">E-mail ou Últimos 4 dígitos do CPF</label>
                   <div className="mt-1 relative rounded-md shadow-sm">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Mail className="h-5 w-5 text-gray-400" /></div>
-                    <input id="email" name="email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="focus:ring-brand-500 focus:border-brand-500 block w-full pl-10 sm:text-sm border-gray-300 dark:border-slate-600 rounded-md py-2 dark:bg-slate-700 dark:text-white" placeholder="seu@email.com" />
+                    <input id="identifier" name="identifier" type="text" autoComplete="username" required value={identifier} onChange={(e) => setIdentifier(e.target.value)} className="focus:ring-brand-500 focus:border-brand-500 block w-full pl-10 sm:text-sm border-gray-300 dark:border-slate-600 rounded-md py-2 dark:bg-slate-700 dark:text-white" placeholder="seu@email.com ou 1234" />
                   </div>
                 </div>
                 <div>

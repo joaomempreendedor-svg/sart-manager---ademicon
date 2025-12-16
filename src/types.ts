@@ -202,6 +202,7 @@ export interface TeamMember {
   name: string;
   roles: TeamRole[];
   isActive: boolean;
+  cpf?: string; // NOVO: CPF do membro da equipe (criptografado)
   feedbacks?: Feedback[];
 }
 
@@ -214,6 +215,9 @@ export interface User {
   email: string;
   role: UserRole;
   isActive?: boolean; // Adicionado para controlar o acesso de consultores
+  login?: string; // NOVO: Últimos 4 dígitos do CPF para login
+  hasLogin?: boolean; // NOVO: Indica se o usuário tem um login associado (criado pelo gestor)
+  needs_password_change?: boolean; // NOVO: Força a troca de senha no primeiro login
 }
 
 // NOVO: Interface para relatório

@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { User, Mail, Lock, Save, Loader2 } from 'lucide-react';
+import { User, Mail, Lock, Save, Loader2, AlertTriangle, CheckCircle2 } from 'lucide-react';
 
 export const Profile = () => {
-  const { user } = useAuth();
+  const { user, updateUserPassword } = useAuth();
   const [firstName, setFirstName] = useState(user?.name.split(' ')[0] || '');
   const [lastName, setLastName] = useState(user?.name.split(' ').slice(1).join(' ') || '');
   const [password, setPassword] = useState('');
@@ -16,6 +16,13 @@ export const Profile = () => {
   const [passwordMessage, setPasswordMessage] = useState('');
   const [profileError, setProfileError] = useState('');
   const [passwordError, setPasswordError] = useState('');
+
+  useEffect(() => {
+    if (user) {
+      setFirstName(user.name.split(' ')[0] || '');
+      setLastName(user.name.split(' ').slice(1).join(' ') || '');
+    }
+  }, [user]);
 
   const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,9 +70,7 @@ export const Profile = () => {
     }
 
     try {
-      const { error } = await supabase.auth.updateUser({ password });
-      if (error) throw error;
-
+      await updateUserPassword(password); // Usa a nova função do AuthContext
       setPasswordMessage('Senha atualizada com sucesso!');
       setPassword('');
       setConfirmPassword('');
@@ -87,6 +92,18 @@ export const Profile = () => {
         <p className="text-gray-500 dark:text-gray-400">Gerencie suas informações de conta.</p>
       </div>
 
+      {user?.needs_password_change && (
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 p-4 rounded-xl mb-6 flex items-start space-x-3">
+          <AlertTriangle className="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-0.5" />
+          <div>
+            <h3 className="font-semibold text-yellow-800 dark:text-yellow-200">Atenção: Troca de Senha Obrigatória!</h3>
+            <p className="text-sm text-yellow-700 dark:text-yellow-300">
+              Esta é sua primeira vez acessando com a senha temporária. Por favor, defina uma nova senha abaixo para continuar.
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Profile Info */}
         <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm">
@@ -99,6 +116,15 @@ export const Profile = () => {
                 <span className="text-gray-600 dark:text-gray-300">{user?.email}</span>
               </div>
             </div>
+            {user?.login && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Login (Últimos 4 dígitos CPF)</label>
+                <div className="mt-1 flex items-center space-x-2 p-2 bg-gray-100 dark:bg-slate-700 rounded-md">
+                  <User className="w-4 h-4 text-gray-400" />
+                  <span className="text-gray-600 dark:text-gray-300">{user.login}</span>
+                </div>
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nome</label>
               <input type="text" value={firstName} onChange={e => setFirstName(e.target.value)} className="mt-1 w-full border-gray-300 dark:border-slate-600 rounded-md p-2 border bg-white dark:bg-slate-700" />
@@ -107,8 +133,8 @@ export const Profile = () => {
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Sobrenome</label>
               <input type="text" value={lastName} onChange={e => setLastName(e.target.value)} className="mt-1 w-full border-gray-300 dark:border-slate-600 rounded-md p-2 border bg-white dark:bg-slate-700" />
             </div>
-            {profileMessage && <p className="text-sm text-green-600 dark:text-green-400">{profileMessage}</p>}
-            {profileError && <p className="text-sm text-red-600 dark:text-red-400">{profileError}</p>}
+            {profileMessage && <p className="text-sm text-green-600 dark:text-green-400 flex items-center"><CheckCircle2 className="w-4 h-4 mr-1" />{profileMessage}</p>}
+            {profileError && <p className="text-sm text-red-600 dark:text-red-400 flex items-center"><AlertTriangle className="w-4 h-4 mr-1" />{profileError}</p>}
             <button type="submit" disabled={loadingProfile} className="w-full flex justify-center items-center space-x-2 bg-brand-600 text-white py-2 rounded-lg hover:bg-brand-700 disabled:opacity-50">
               {loadingProfile ? <Loader2 className="animate-spin" /> : <Save className="w-4 h-4" />}
               <span>Salvar Alterações</span>
@@ -128,8 +154,8 @@ export const Profile = () => {
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Confirmar Nova Senha</label>
               <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className="mt-1 w-full border-gray-300 dark:border-slate-600 rounded-md p-2 border bg-white dark:bg-slate-700" />
             </div>
-            {passwordMessage && <p className="text-sm text-green-600 dark:text-green-400">{passwordMessage}</p>}
-            {passwordError && <p className="text-sm text-red-600 dark:text-red-400">{passwordError}</p>}
+            {passwordMessage && <p className="text-sm text-green-600 dark:text-green-400 flex items-center"><CheckCircle2 className="w-4 h-4 mr-1" />{passwordMessage}</p>}
+            {passwordError && <p className="text-sm text-red-600 dark:text-red-400 flex items-center"><AlertTriangle className="w-4 h-4 mr-1" />{passwordError}</p>}
             <button type="submit" disabled={loadingPassword} className="w-full flex justify-center items-center space-x-2 bg-gray-700 text-white py-2 rounded-lg hover:bg-gray-800 disabled:opacity-50">
               {loadingPassword ? <Loader2 className="animate-spin" /> : <Lock className="w-4 h-4" />}
               <span>Atualizar Senha</span>
