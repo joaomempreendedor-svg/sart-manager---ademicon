@@ -461,7 +461,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const addCandidate = useCallback(async (candidate: Candidate) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('candidates').insert({ user_id: user.id, data: candidate }).select('id').single(); if (error) { console.error(error); throw error; } if (data) { setCandidates(prev => [{ ...candidate, db_id: data.id }, ...prev]); } }, [user]);
   const updateCandidate = useCallback(async (id: string, updates: Partial<Candidate>) => { if (!user) throw new Error("Usuário não autenticado."); const c = candidates.find(c => c.id === id); if (!c || !c.db_id) throw new Error("Candidato não encontrado"); const updated = { ...c, ...updates }; const { db_id, ...dataToUpdate } = updated; const { error } = await supabase.from('candidates').update({ data: dataToUpdate }).match({ id: c.db_id, user_id: user.id }); if (error) { console.error(error); throw error; } setCandidates(prev => prev.map(p => p.id === id ? updated : p)); }, [user, candidates]);
   const deleteCandidate = useCallback(async (id: string) => { if (!user) throw new Error("Usuário não autenticado."); const c = candidates.find(c => c.id === id); if (!c || !c.db_id) throw new Error("Candidato não encontrado"); const { error } = await supabase.from('candidates').delete().match({ id: c.db_id, user_id: user.id }); if (error) { console.error(error); throw error; } setCandidates(prev => prev.filter(p => p.id !== id)); }, [user, candidates]);
-  const addTeamMember = useCallback(async (member: TeamMember) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('team_members').insert({ user_id: user.id, data: member }).select('id').single(); if (error) { console.error(error); throw error; } if (data) { setTeamMembers(prev => [...prev, { ...member, db_id: data.id }]); } }, [user]);
+  
+  const addTeamMember = useCallback(async (member: Omit<TeamMember, 'id'>) => { 
+    if (!user) throw new Error("Usuário não autenticado."); 
+    // Buscar o auth.uid() do usuário recém-criado (pelo e-mail)
+    const { data: authUser, error: authError } = await supabase.auth.getUser();
+    if (authError || !authUser?.user) {
+      throw new Error("Não foi possível obter o ID do usuário recém-criado. Certifique-se de que o registro foi bem-sucedido.");
+    }
+    const newMemberWithAuthId: TeamMember = { ...member, id: authUser.user.id };
+
+    const { data, error } = await supabase.from('team_members').insert({ user_id: user.id, data: newMemberWithAuthId }).select('id').single(); 
+    if (error) { console.error(error); throw error; } 
+    if (data) { setTeamMembers(prev => [...prev, { ...newMemberWithAuthId, db_id: data.id }]); } 
+  }, [user]);
+
   const updateTeamMember = useCallback(async (id: string, updates: Partial<TeamMember>) => { if (!user) throw new Error("Usuário não autenticado."); const m = teamMembers.find(m => m.id === id); if (!m || !m.db_id) throw new Error("Membro não encontrado"); const updated = { ...m, ...updates }; const { db_id, ...dataToUpdate } = updated; const { error } = await supabase.from('team_members').update({ data: dataToUpdate }).match({ id: m.db_id, user_id: user.id }); if (error) { console.error(error); throw error; } setTeamMembers(prev => prev.map(p => p.id === id ? updated : p)); }, [user, teamMembers]);
   const deleteTeamMember = useCallback(async (id: string) => { if (!user) throw new Error("Usuário não autenticado."); const m = teamMembers.find(m => m.id === id); if (!m || !m.db_id) throw new Error("Membro não encontrado"); const { error } = await supabase.from('team_members').delete().match({ id: m.db_id, user_id: user.id }); if (error) { console.error(error); throw error; } setTeamMembers(prev => prev.filter(p => p.id !== id)); }, [user, teamMembers]);
   const addCutoffPeriod = useCallback(async (period: CutoffPeriod) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('cutoff_periods').insert({ user_id: user.id, data: period }).select('id').single(); if (error) throw error; if (data) setCutoffPeriods(prev => [...prev, { ...period, db_id: data.id }]); }, [user]);

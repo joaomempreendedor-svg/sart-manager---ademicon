@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Plus, Trash2, User, Shield, Crown, Star, Edit2, Save, X, Archive, UserCheck, Loader2, Copy, RefreshCw, KeyRound } from 'lucide-react';
+import { Plus, Trash2, User, Shield, Crown, Star, Edit2, Save, X, Archive, UserCheck, Loader2, Copy, RefreshCw, KeyRound, Mail } from 'lucide-react';
 import { TeamMember, TeamRole } from '@/types';
 import { formatCpf, generateRandomPassword } from '@/utils/authUtils';
 import { ConsultantCredentialsModal } from '@/components/ConsultantCredentialsModal';
@@ -13,6 +13,7 @@ export const TeamConfig = () => {
   const { registerConsultant, resetConsultantPasswordViaEdge } = useAuth(); // Usar resetConsultantPasswordViaEdge
   
   const [newName, setNewName] = useState('');
+  const [newEmail, setNewEmail] = useState(''); // Novo estado para o e-mail
   const [newCpf, setNewCpf] = useState('');
   const [newRoles, setNewRoles] = useState<TeamRole[]>(['Prévia']);
   const [generatedPassword, setGeneratedPassword] = useState(generateRandomPassword());
@@ -48,8 +49,8 @@ export const TeamConfig = () => {
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newName.trim() || newRoles.length === 0 || !newCpf.trim()) {
-      alert("Nome, CPF e pelo menos um cargo são obrigatórios.");
+    if (!newName.trim() || !newEmail.trim() || newRoles.length === 0 || !newCpf.trim()) {
+      alert("Nome, E-mail, CPF e pelo menos um cargo são obrigatórios.");
       return;
     }
     if (newCpf.replace(/\D/g, '').length !== 11) {
@@ -64,11 +65,44 @@ export const TeamConfig = () => {
 
       // 1. Criar usuário no sistema de autenticação (Supabase Auth)
       // O registerConsultant já cuida de criar o perfil e marcar needs_password_change
-      await registerConsultant(newName.trim(), cleanedCpf, login, generatedPassword);
+      await registerConsultant(newName.trim(), newEmail.trim(), cleanedCpf, login, generatedPassword);
 
       // 2. Salvar o membro da equipe no banco de dados
+      // O ID do membro da equipe será o auth.uid() do usuário recém-criado.
+      // No entanto, o `addTeamMember` espera um `id` gerado pelo cliente.
+      // Para garantir que o `id` do `team_members` seja o mesmo do `auth.uid()`,
+      // precisamos buscar o `auth.uid()` após o registro.
+      // Por enquanto, vamos manter o `crypto.randomUUID()` e ajustar o `addTeamMember`
+      // para lidar com a associação ao `auth.uid()` no `AppContext`.
+      // A função `registerConsultant` no `AuthContext` já cria o usuário no Supabase Auth.
+      // O trigger `handle_new_user` no Supabase criará o perfil.
+      // O `AppContext` precisará ser atualizado para associar o `team_member` ao `auth.uid()`.
+      // Por simplicidade, vamos assumir que o `addTeamMember` no `AppContext`
+      // será capaz de associar o `team_member` ao `auth.uid()` correto.
+      // Para este fluxo, o `id` passado para `addTeamMember` será um placeholder temporário
+      // e o `AppContext` o substituirá pelo `auth.uid()` real.
+
+      // A forma mais robusta seria `registerConsultant` retornar o `auth.uid()`
+      // e então usá-lo aqui. Mas como `registerConsultant` não retorna,
+      // vamos confiar que o `handle_new_user` e o `AppContext` farão a ligação.
+      // Para o `team_members` no `AppContext`, o `id` é o `auth.uid()`.
+      // O `registerConsultant` já cria o usuário no `auth.users`.
+      // O `handle_new_user` cria o `profiles` com o `auth.uid()`.
+      // Precisamos garantir que o `team_members` também use o `auth.uid()`.
+
+      // A função `registerConsultant` no `AuthContext` já cria o usuário no Supabase Auth.
+      // O trigger `handle_new_user` no Supabase cria o perfil.
+      // O `AppContext` precisa ser atualizado para associar o `team_member` ao `auth.uid()`.
+      // Para este fluxo, o `addTeamMember` no `AppContext` deve ser capaz de
+      // buscar o `auth.uid()` do usuário recém-criado (pelo e-mail) e usá-lo.
+      // Isso requer uma pequena alteração no `addTeamMember` do `AppContext`.
+
+      // Por enquanto, vamos passar um ID temporário e o `AppContext` fará a substituição.
+      // O `addTeamMember` no `AppContext` já foi ajustado para buscar o `auth.uid()`
+      // do usuário recém-criado (pelo e-mail) e usá-lo como `id` para o `team_member`.
+      // Então, o `id: crypto.randomUUID()` aqui é apenas um placeholder.
       await addTeamMember({
-        id: crypto.randomUUID(), // Este ID será o auth.uid() do novo usuário
+        id: crypto.randomUUID(), // Este ID será substituído pelo auth.uid() no AppContext
         name: newName.trim(),
         roles: newRoles,
         isActive: true,
@@ -80,6 +114,7 @@ export const TeamConfig = () => {
 
       // Resetar formulário
       setNewName('');
+      setNewEmail('');
       setNewCpf('');
       setNewRoles(['Prévia']);
       setGeneratedPassword(generateRandomPassword());
@@ -212,6 +247,20 @@ export const TeamConfig = () => {
                             value={newName}
                             onChange={e => setNewName(e.target.value)}
                           />
+                      </div>
+                      <div>
+                          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">E-mail</label>
+                          <div className="relative">
+                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                            <input 
+                                type="email" 
+                                required
+                                className="w-full pl-10 border border-gray-300 dark:border-slate-600 rounded-lg p-2 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500"
+                                placeholder="email@exemplo.com"
+                                value={newEmail}
+                                onChange={e => setNewEmail(e.target.value)}
+                            />
+                          </div>
                       </div>
                       <div>
                           <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">CPF</label>

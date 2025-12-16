@@ -9,7 +9,7 @@ interface AuthContextType {
   isLoading: boolean;
   login: (identifier: string, password: string) => Promise<void>; // identifier pode ser email ou login (CPF)
   register: (name: string, email: string, password: string) => Promise<void>;
-  registerConsultant: (name: string, cpf: string, login: string, password: string) => Promise<void>; // Nova função para consultores
+  registerConsultant: (name: string, email: string, cpf: string, login: string, password: string) => Promise<void>; // Nova função para consultores, agora com 'email'
   logout: () => Promise<void>;
   sendPasswordResetEmail: (email: string) => Promise<void>;
   updateUserPassword: (password: string) => Promise<void>; // Nova função para atualizar senha
@@ -155,9 +155,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (error) throw error;
   }, []);
 
-  const registerConsultant = useCallback(async (name: string, cpf: string, login: string, password: string) => {
+  const registerConsultant = useCallback(async (name: string, email: string, cpf: string, login: string, password: string) => {
     const { data, error } = await supabase.auth.signUp({
-      email: `consultor_${login}@example.com`, // Alterado o domínio do e-mail dummy para example.com
+      email, // Agora usa o e-mail real fornecido
       password,
       options: {
         data: {
