@@ -44,16 +44,43 @@ serve(async (req) => {
       throw fetchError;
     }
 
-    // Explicitly check the length of the users array
     userExistsFlag = (existingUsersData?.users?.length || 0) > 0;
-    console.log(`[Edge Function] listUsers response: ${JSON.stringify(existingUsersData)}`);
     console.log(`[Edge Function] User exists check result: ${userExistsFlag}. Found ${existingUsersData?.users?.length || 0} users.`);
 
     if (userExistsFlag) {
-      // User exists, use their ID
-      authUserId = existingUsersData!.users[0].id; // Use non-null assertion as userExistsFlag is true
-      message = 'User already exists, linked to existing account.';
-      console.log(`[Edge Function] User ${email} found in Auth. ID: ${authUserId}`);
+      // User exists, update their password and metadata
+      authUserId = existingUsersData!.users[0].id;
+      console.log(`[Edge Function] User ${email} found in Auth. ID: ${authUserId}. Updating password and metadata.`);
+
+      const { error: updateAuthError } = await supabaseAdmin.auth.admin.updateUserById(
+        authUserId,
+        {
+          password: tempPassword,
+          user_metadata: {
+            first_name: name.split(' ')[0],
+            last_name: name.split(' ').slice(1).join(' '),
+            needs_password_change: true, // Force password change
+          },
+        }
+      );
+
+      if (updateAuthError) {
+        console.error(`[Edge Function] Error updating existing user in Auth: ${updateAuthError.message}`);
+        throw updateAuthError;
+      }
+
+      // Also update the public.profiles table to ensure needs_password_change is true
+      const { error: updateProfileError } = await supabaseAdmin
+        .from('profiles')
+        .update({ first_name: name.split(' ')[0], last_name: name.split(' ').slice(1).join(' '), needs_password_change: true })
+        .eq('id', authUserId);
+
+      if (updateProfileError) {
+        console.error(`[Edge Function] Error updating profile table for existing user: ${updateProfileError.message}`);
+        // Do not throw here, as auth update was successful. Log and continue.
+      }
+
+      message = 'Existing user updated with new temporary password and forced password change.';
     } else {
       // User does not exist, create new user
       console.log(`[Edge Function] User ${email} not found in Auth. Creating new user.`);
@@ -73,9 +100,8 @@ serve(async (req) => {
         console.error(`[Edge Function] Error creating user: ${createUserError.message}`);
         throw createUserError;
       }
-      authUserId = newUser.user!.id; // Use non-null assertion as user should be created
-      message = 'New user created successfully.';
-      console.log(`[Edge Function] New user ${email} created. ID: ${authUserId}`);
+      authUserId = newUser.user!.id;
+      message = 'New user created successfully with temporary password and forced password change.';
     }
 
     return new Response(JSON.stringify({ authUserId, message, userExists: userExistsFlag }), {
