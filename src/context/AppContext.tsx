@@ -98,7 +98,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // Módulo 4: Metas de Prospecção
   const [weeklyTargets, setWeeklyTargets] = useState<WeeklyTarget[]>([]);
   const [weeklyTargetItems, setWeeklyTargetItems] = useState<WeeklyTargetItem[]>([]);
-  const [weeklyTargetAssignments, setWeeklyTargetAssignments] = useState<WeeklyTargetAssignment[]>(([]);
+  const [weeklyTargetAssignments, setWeeklyTargetAssignments] = useState<WeeklyTargetAssignment[]>([]);
   const [metricLogs, setMetricLogs] = useState<MetricLog[]>([]);
 
   // Módulo 5: Materiais de Apoio (v2)
