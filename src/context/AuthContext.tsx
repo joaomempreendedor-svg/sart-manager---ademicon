@@ -110,24 +110,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     let authError: Error | null = null;
 
     if (/^\d{4}$/.test(identifier)) {
-      // Attempt login via RPC for CPF
-      const { data: rpcData, error: rpcError } = await supabase.rpc('sign_in_with_login', {
+      // Attempt to get email via RPC for CPF
+      const { data: userEmail, error: rpcError } = await supabase.rpc('sign_in_with_login', {
         login_val: identifier,
-        password_val: password, // This password_val is not actually used by the RPC for validation, but passed for consistency
       });
 
       if (rpcError) {
         authError = rpcError;
-      } else if (rpcData && rpcData.access_token && rpcData.refresh_token) {
-        // If RPC returned tokens, it means a session was established or found
-        const { error: setSessionError } = await supabase.auth.setSession({
-          access_token: rpcData.access_token,
-          refresh_token: rpcData.refresh_token,
-        });
-        if (setSessionError) authError = setSessionError;
-      } else if (rpcData && rpcData.email) {
+      } else if (userEmail) {
         // If RPC returned an email, proceed with client-side signInWithPassword
-        const { error: emailSignInError } = await supabase.auth.signInWithPassword({ email: rpcData.email, password });
+        const { error: emailSignInError } = await supabase.auth.signInWithPassword({ email: userEmail, password });
         authError = emailSignInError;
       } else {
         authError = new Error("Usuário não encontrado com o login fornecido.");
