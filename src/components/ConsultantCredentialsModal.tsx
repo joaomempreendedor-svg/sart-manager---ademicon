@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Copy, Check, User, Lock, TrendingUp } from 'lucide-react';
+import { X, Copy, Check, User, Lock, TrendingUp, Mail } from 'lucide-react';
 
 interface ConsultantCredentialsModalProps {
   isOpen: boolean;
