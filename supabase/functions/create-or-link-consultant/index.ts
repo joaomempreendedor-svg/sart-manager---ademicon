@@ -28,22 +28,29 @@ serve(async (req) => {
 
     let authUserId: string;
     let message: string;
+    let userExistsFlag: boolean; // Novo flag
 
     // 1. Check if user already exists in auth.users
+    console.log(`[Edge Function] Checking for existing user with email: ${email}`);
     const { data: existingUsers, error: fetchError } = await supabaseAdmin.auth.admin.listUsers({
       email: email,
     });
 
     if (fetchError) {
+      console.error(`[Edge Function] Error listing users: ${fetchError.message}`);
       throw fetchError;
     }
+
+    console.log(`[Edge Function] Existing users found: ${existingUsers?.users.length}`);
 
     if (existingUsers && existingUsers.users.length > 0) {
       // User exists, use their ID
       authUserId = existingUsers.users[0].id;
       message = 'User already exists, linked to existing account.';
+      userExistsFlag = true;
     } else {
       // User does not exist, create new user
+      console.log(`[Edge Function] Creating new user with email: ${email}`);
       const { data: newUser, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
         email: email,
         password: tempPassword,
@@ -57,13 +64,15 @@ serve(async (req) => {
       });
 
       if (createUserError) {
+        console.error(`[Edge Function] Error creating user: ${createUserError.message}`);
         throw createUserError;
       }
       authUserId = newUser.user.id;
       message = 'New user created successfully.';
+      userExistsFlag = false;
     }
 
-    return new Response(JSON.stringify({ authUserId, message }), {
+    return new Response(JSON.stringify({ authUserId, message, userExists: userExistsFlag }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     });
