@@ -14,7 +14,6 @@ export const DailyChecklist = () => {
     dailyChecklistItems, 
     dailyChecklistAssignments, 
     dailyChecklistCompletions,
-    teamMembers, // Adicionado para logs
     toggleDailyChecklistCompletion,
     isDataLoading
   } = useApp();
@@ -24,6 +23,7 @@ export const DailyChecklist = () => {
   const formattedSelectedDate = useMemo(() => formatDate(selectedDate), [selectedDate]);
 
   // --- DEBUG LOGS INÍCIO ---
+  // Removendo logs antigos de verificação de teamMembers que mostram erro, já que vamos ignorá-los temporariamente.
   useEffect(() => {
     console.log("--- DailyChecklist Component Debug Logs ---");
     console.log("1. Usuário Logado:", {
@@ -43,48 +43,43 @@ export const DailyChecklist = () => {
       daily_checklist_id: assign.daily_checklist_id,
       consultant_id: assign.consultant_id,
     })));
-    console.log("4. Consultores disponíveis na equipe (teamMembers):", teamMembers.map(tm => ({
-      id: tm.id,
-      name: tm.name,
-      roles: tm.roles,
-      isActive: tm.isActive,
-    })));
-  }, [user, dailyChecklists, dailyChecklistAssignments, teamMembers]);
+  }, [user, dailyChecklists, dailyChecklistAssignments]);
   // --- DEBUG LOGS FIM ---
 
   const assignedChecklists = useMemo(() => {
     if (!user) return [];
 
-    console.log("🔧 LÓGICA ROBUSTA ATIVADA");
+    console.log("SISTEMA SIMPLIFICADO: Globais + Atribuídos");
 
-    // MODO DE EMERGÊNCIA: Se tudo falhou, mostra CHECKLISTS DE TESTE
-    if (dailyChecklists.length === 0 && dailyChecklistAssignments.length === 0) {
-      console.log("⚠️ MODO EMERGÊNCIA: Nenhum dado carregado, criando dados locais");
-      return [
-        {
-          id: 'emergency-1',
-          title: 'Checklist de Teste (Emergência)',
-          is_active: true,
-          user_id: user.id,
-          created_at: new Date().toISOString()
-        }
-      ];
-    }
+    // 1. Checklists GLOBAIS (sem atribuição específica)
+    const globalChecklists = dailyChecklists.filter(checklist => {
+      const hasAnyAssignment = dailyChecklistAssignments.some(
+        a => a.daily_checklist_id === checklist.id
+      );
+      return !hasAnyAssignment; // GLOBAL = sem atribuições
+    });
 
-    // LÓGICA NORMAL melhorada
-    const explicitAssignments = dailyChecklistAssignments
-      .filter(a => a.consultant_id === user.id)
-      .map(a => a.daily_checklist_id);
+    // 2. Checklists ESPECÍFICOS para este consultor
+    const specificChecklists = dailyChecklists.filter(checklist => {
+      return dailyChecklistAssignments.some(
+        a => a.daily_checklist_id === checklist.id && 
+             a.consultant_id === user.id
+      );
+    });
 
-    const globalChecklists = dailyChecklists
-      .filter(c => !dailyChecklistAssignments.some(a => a.daily_checklist_id === c.id))
-      .map(c => c.id);
-
-    const relevantIds = new Set([...explicitAssignments, ...globalChecklists]);
-
-    return dailyChecklists
-      .filter(c => c.is_active && relevantIds.has(c.id))
+    // 3. Combinar AMBOS
+    const allChecklists = [...globalChecklists, ...specificChecklists];
+    
+    // 4. Filtrar ativos e remover duplicados
+    const uniqueActiveChecklists = allChecklists
+      .filter((checklist, index, self) =>
+        checklist.is_active && 
+        self.findIndex(c => c.id === checklist.id) === index
+      )
       .sort((a, b) => a.title.localeCompare(b.title));
+
+    console.log(`✅ ${uniqueActiveChecklists.length} checklists visíveis`);
+    return uniqueActiveChecklists;
   }, [dailyChecklists, dailyChecklistAssignments, user]);
 
   const getItemsForChecklist = useCallback((checklistId: string) => {

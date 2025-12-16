@@ -93,10 +93,10 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
             <ClipboardCheck className="w-5 h-5" />
             <span>Monitorar Checklists</span>
           </NavLink>
-          <NavLink to="/gestor/checklist-assignment" className={linkClass} onClick={toggleSidebar}> {/* LINK ATUALIZADO */}
+          {/* <NavLink to="/gestor/checklist-assignment" className={linkClass} onClick={toggleSidebar}> REMOVIDO
             <ListChecks className="w-5 h-5" />
             <span>Checklists por Cargo</span>
-          </NavLink>
+          </NavLink> */}
           <NavLink to="/gestor/config-process" className={linkClass} onClick={toggleSidebar}>
             <Settings className="w-5 h-5" />
             <span>Editar Processo (Antigo)</span>

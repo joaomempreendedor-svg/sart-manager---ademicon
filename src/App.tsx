@@ -36,7 +36,7 @@ import { OnlineOnboarding } from '@/pages/OnlineOnboarding';
 import CrmConfigPage from '@/pages/gestor/CrmConfig';
 import { DailyChecklistConfig } from '@/pages/gestor/DailyChecklistConfig';
 import { DailyChecklistMonitoring } from '@/pages/gestor/DailyChecklistMonitoring';
-import { ChecklistAssignment } from '@/pages/gestor/ChecklistAssignment'; // Importar o novo componente
+// import { ChecklistAssignment } from '@/pages/gestor/ChecklistAssignment'; // Importar o novo componente
 
 // Consultor Pages
 import ConsultorDashboard from '@/pages/consultor/Dashboard';
@@ -134,7 +134,7 @@ const AppRoutes = () => {
           <Route path="crm-config" element={<CrmConfigPage />} />
           <Route path="daily-checklist-config" element={<DailyChecklistConfig />} />
           <Route path="daily-checklist-monitoring" element={<DailyChecklistMonitoring />} />
-          <Route path="checklist-assignment" element={<ChecklistAssignment />} /> {/* NOVA ROTA */}
+          {/* <Route path="checklist-assignment" element={<ChecklistAssignment />} /> REMOVIDO */}
           <Route path="*" element={<Navigate to="/gestor/dashboard" replace />} />
         </Route>
       </Route>

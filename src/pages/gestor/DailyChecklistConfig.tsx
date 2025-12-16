@@ -28,31 +28,10 @@ const ChecklistModal: React.FC<ChecklistModalProps> = ({ isOpen, onClose, checkl
   const [title, setTitle] = useState(checklist?.title || '');
   const [isSaving, setIsSaving] = useState(false);
   
-  // NOVOS ESTADOS PARA CONTROLE DE DESTINO
-  const [applyTo, setApplyTo] = useState<'all' | 'specific'>('all');
-  const [selectedConsultants, setSelectedConsultants] = useState<string[]>([]);
-
-  // Filtrar apenas consultores (excluir gestores)
-  const consultants = useMemo(() => 
-    teamMembers.filter(member => {
-      const isConsultant = member.roles.includes('Prévia') || 
-                          member.roles.includes('Autorizado') || 
-                          member.roles.includes('Anjo');
-      const isGestor = member.roles.includes('Gestor');
-      return isConsultant && !isGestor && member.isActive;
-    }), 
-    [teamMembers]
-  );
-
   // Resetar estados quando modal abre/fecha
   React.useEffect(() => {
     if (isOpen) {
       setTitle(checklist?.title || '');
-      if (!checklist) {
-        // Para novo checklist: resetar seleções
-        setApplyTo('all');
-        setSelectedConsultants([]);
-      }
     }
   }, [isOpen, checklist]);
 
@@ -74,44 +53,15 @@ const ChecklistModal: React.FC<ChecklistModalProps> = ({ isOpen, onClose, checkl
         console.log(`[ChecklistModal] Checklist "${title}" (ID: ${checklist.id}) atualizado com sucesso.`);
         alert("✅ Checklist atualizado com sucesso!");
       } else {
-        // CRIAÇÃO: cria checklist E atribui conforme seleção
+        // CRIAÇÃO: cria checklist como GLOBAL por padrão
         const newChecklist = await addDailyChecklist(title);
         
         if (!newChecklist || !newChecklist.id) {
           throw new Error("Checklist não foi criado corretamente");
         }
 
-        console.log("[ChecklistModal] Novo checklist criado:", newChecklist);
-        console.log("[ChecklistModal] Opção de aplicação selecionada:", applyTo);
-        console.log("[ChecklistModal] Consultores selecionados (se aplicável):", selectedConsultants);
-
-        if (applyTo === 'all') {
-          // Atribuir a TODOS os consultores ativos
-          for (const member of consultants) {
-            try {
-              await assignDailyChecklistToConsultant(newChecklist.id, member.id);
-              console.log(`[ChecklistModal] Atribuído checklist ${newChecklist.id} para TODOS: ${member.name} (ID: ${member.id})`);
-            } catch (err) {
-              console.warn(`Não pôde atribuir para ${member.name}:`, err);
-            }
-          }
-          alert(`✅ Checklist "${title}" criado e atribuído a TODOS os ${consultants.length} consultores!`);
-        } 
-        else if (applyTo === 'specific' && selectedConsultants.length > 0) {
-          // Atribuir apenas aos consultores selecionados
-          for (const memberId of selectedConsultants) {
-            try {
-              await assignDailyChecklistToConsultant(newChecklist.id, memberId);
-              console.log(`[ChecklistModal] Atribuído checklist ${newChecklist.id} para ESPECÍFICO: (ID: ${memberId})`);
-            } catch (err) {
-              console.warn(`Não pôde atribuir para ID ${memberId}:`, err);
-            }
-          }
-          alert(`✅ Checklist "${title}" criado e atribuído a ${selectedConsultants.length} consultor(es)!`);
-        } else {
-          console.log(`[ChecklistModal] Checklist "${title}" criado sem atribuições específicas. Será global.`);
-          alert(`✅ Checklist "${title}" criado sem atribuições (será global).`);
-        }
+        console.log("[ChecklistModal] Novo checklist criado como GLOBAL:", newChecklist);
+        alert(`✅ Checklist "${title}" criado com sucesso como GLOBAL!`);
       }
       onClose();
     } catch (error: any) {
@@ -123,28 +73,6 @@ const ChecklistModal: React.FC<ChecklistModalProps> = ({ isOpen, onClose, checkl
     }
   };
 
-  // Função para alternar seleção de consultor
-  const toggleConsultantSelection = (consultantId: string) => {
-    setSelectedConsultants(prev => {
-      if (prev.includes(consultantId)) {
-        return prev.filter(id => id !== consultantId);
-      } else {
-        return [...prev, consultantId];
-      }
-    });
-  };
-
-  // Função para selecionar/desselecionar todos
-  const toggleSelectAll = () => {
-    if (selectedConsultants.length === consultants.length) {
-      // Desselecionar todos
-      setSelectedConsultants([]);
-    } else {
-      // Selecionar todos
-      setSelectedConsultants(consultants.map(c => c.id));
-    }
-  };
-
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[500px] bg-white dark:bg-slate-800 dark:text-white">
@@ -153,7 +81,7 @@ const ChecklistModal: React.FC<ChecklistModalProps> = ({ isOpen, onClose, checkl
           <DialogDescription>
             {checklist 
               ? 'Altere o título do checklist.' 
-              : 'Crie um novo checklist diário para seus consultores.'}
+              : 'Crie um novo checklist diário para seus consultores. Ele será global por padrão.'}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
@@ -172,112 +100,6 @@ const ChecklistModal: React.FC<ChecklistModalProps> = ({ isOpen, onClose, checkl
                 required
               />
             </div>
-
-            {/* APENAS PARA NOVO CHECKLIST: Opções de destino */}
-            {!checklist && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-4 items-start gap-4">
-                  <Label className="text-right pt-2">
-                    Aplicar para:
-                  </Label>
-                  <div className="col-span-3 space-y-3">
-                    {/* Opção 1: Todos os consultores */}
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="radio"
-                        id="applyAll"
-                        checked={applyTo === 'all'}
-                        onChange={() => {
-                          setApplyTo('all');
-                          // Ao selecionar "todos", limpa seleções individuais
-                          setSelectedConsultants([]);
-                        }}
-                        className="h-4 w-4 text-brand-600 focus:ring-brand-500"
-                      />
-                      <Label htmlFor="applyAll" className="cursor-pointer">
-                        <span className="font-medium">Todos os consultores</span>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                          ({consultants.length} consultores ativos)
-                        </p>
-                      </Label>
-                    </div>
-
-                    {/* Opção 2: Consultores específicos */}
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="radio"
-                        id="applySpecific"
-                        checked={applyTo === 'specific'}
-                        onChange={() => setApplyTo('specific')}
-                        className="h-4 w-4 text-brand-600 focus:ring-brand-500"
-                      />
-                      <Label htmlFor="applySpecific" className="cursor-pointer">
-                        <span className="font-medium">Apenas consultores específicos</span>
-                      </Label>
-                    </div>
-
-                    {/* Lista de consultores (só aparece se "específicos" estiver selecionado) */}
-                    {applyTo === 'specific' && consultants.length > 0 && (
-                      <div className="ml-6 mt-3 border border-gray-200 dark:border-slate-600 rounded-lg p-3 bg-gray-50 dark:bg-slate-700/30">
-                        <div className="flex justify-between items-center mb-2">
-                          <Label className="text-sm font-medium">Selecione os consultores:</Label>
-                          <button
-                            type="button"
-                            onClick={toggleSelectAll}
-                            className="text-xs text-brand-600 hover:text-brand-700 dark:text-brand-400"
-                          >
-                            {selectedConsultants.length === consultants.length 
-                              ? 'Desselecionar todos' 
-                              : 'Selecionar todos'}
-                          </button>
-                        </div>
-                        
-                        <ScrollArea className="h-40">
-                          <div className="space-y-2 pr-2">
-                            {consultants.map(member => {
-                              const isSelected = selectedConsultants.includes(member.id);
-                              return (
-                                <div
-                                  key={member.id}
-                                  className={`flex items-center space-x-2 p-2 rounded hover:bg-gray-100 dark:hover:bg-slate-600 cursor-pointer ${isSelected ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}
-                                  onClick={() => toggleConsultantSelection(member.id)}
-                                >
-                                  <div className={`h-4 w-4 border rounded flex items-center justify-center ${isSelected ? 'bg-brand-600 border-brand-600' : 'border-gray-300 dark:border-slate-500'}`}>
-                                    {isSelected && (
-                                      <Check className="h-3 w-3 text-white" />
-                                    )}
-                                  </div>
-                                  <div>
-                                    <p className="text-sm font-medium">{member.name}</p>
-                                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                                      {member.roles.join(', ')}
-                                    </p>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </ScrollArea>
-                        
-                        {selectedConsultants.length > 0 && (
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                            {selectedConsultants.length} de {consultants.length} consultores selecionados
-                          </p>
-                        )}
-                      </div>
-                    )}
-
-                    {applyTo === 'specific' && consultants.length === 0 && (
-                      <div className="ml-6 mt-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
-                        <p className="text-sm text-yellow-700 dark:text-yellow-300">
-                          Nenhum consultor ativo encontrado. Crie consultores primeiro.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
           
           <DialogFooter>
