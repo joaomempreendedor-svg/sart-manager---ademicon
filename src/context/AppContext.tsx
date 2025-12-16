@@ -258,10 +258,28 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
         setCrmOwnerUserId(effectiveCrmOwnerId); // Set the CRM owner ID
 
+        // --- Fetch team members ---
+        let teamMembersQuery = supabase.from('team_members').select('id, data');
+        if (user?.role === 'CONSULTOR') {
+            if (effectiveCrmOwnerId) {
+                // Fetch team members where user_id is the manager's ID OR id is the consultant's ID
+                teamMembersQuery = teamMembersQuery.or(`user_id.eq.${effectiveCrmOwnerId},id.eq.${userId}`);
+            } else {
+                // If no manager found, still try to fetch own entry
+                teamMembersQuery = teamMembersQuery.eq('id', userId);
+            }
+        } else { // GESTOR or ADMIN
+            // A manager/admin sees all team members they created
+            teamMembersQuery = teamMembersQuery.eq('user_id', userId);
+        }
+        const { data: teamMembersData, error: teamMembersError } = await teamMembersQuery;
+        // --- End fetch team members ---
+
+
         const [
           { data: configResult, error: configError },
           { data: candidatesData, error: candidatesError },
-          { data: teamMembersData, error: teamMembersError },
+          // { data: teamMembersData, error: teamMembersError }, // Moved above
           { data: materialsData, error: materialsError },
           { data: cutoffData, error: cutoffError },
           { data: linksData, error: linksError },
@@ -273,20 +291,23 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           { data: fieldsData, error: fieldsDataError },
           // crmLeads fetch needs to be conditional based on role
           { data: crmLeadsData, error: crmLeadsError },
-          { data: dailyChecklistsData, error: dailyChecklistsError }, // Fetch Daily Checklists
+          // Daily Checklists and related tables
+          { data: dailyChecklistsData, error: dailyChecklistsError },
           { data: dailyChecklistItemsData, error: dailyChecklistItemsError },
           { data: dailyChecklistAssignmentsData, error: dailyChecklistAssignmentsError },
           { data: dailyChecklistCompletionsData, error: dailyChecklistCompletionsError },
-          { data: weeklyTargetsData, error: weeklyTargetsError }, // Fetch Weekly Targets
+          // Weekly Targets and related tables
+          { data: weeklyTargetsData, error: weeklyTargetsError },
           { data: weeklyTargetItemsData, error: weeklyTargetItemsError },
           { data: weeklyTargetAssignmentsData, error: weeklyTargetAssignmentsError },
           { data: metricLogsData, error: metricLogsError },
-          { data: supportMaterialsV2Data, error: supportMaterialsV2Error }, // Fetch Support Materials V2
+          // Support Materials V2 and related tables
+          { data: supportMaterialsV2Data, error: supportMaterialsV2Error },
           { data: supportMaterialAssignmentsData, error: supportMaterialAssignmentsError },
         ] = await Promise.all([
           supabase.from('app_config').select('data').eq('user_id', userId).maybeSingle(),
           supabase.from('candidates').select('id, data').eq('user_id', userId),
-          supabase.from('team_members').select('id, data').eq('user_id', userId),
+          // supabase.from('team_members').select('id, data').eq('user_id', userId), // Removed from here
           supabase.from('support_materials').select('id, data').eq('user_id', userId),
           supabase.from('cutoff_periods').select('id, data').eq('user_id', userId),
           supabase.from('important_links').select('id, data').eq('user_id', userId),
@@ -298,21 +319,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           effectiveCrmOwnerId ? supabase.from('crm_fields').select('*').eq('user_id', effectiveCrmOwnerId) : Promise.resolve({ data: [], error: null }),
           // crmLeads fetch needs to be conditional based on role
           (user?.role === 'CONSULTOR' ? supabase.from('crm_leads').select('*').eq('consultant_id', userId) : (effectiveCrmOwnerId ? supabase.from('crm_leads').select('*').eq('user_id', effectiveCrmOwnerId) : Promise.resolve({ data: [], error: null }))),
-          supabase.from('daily_checklists').select('*').eq('user_id', userId), // Fetch Daily Checklists
+          // Daily Checklists and related tables (use effectiveCrmOwnerId for parent table)
+          (effectiveCrmOwnerId ? supabase.from('daily_checklists').select('*').eq('user_id', effectiveCrmOwnerId) : Promise.resolve({ data: [], error: null })),
           supabase.from('daily_checklist_items').select('*'),
           supabase.from('daily_checklist_assignments').select('*'),
           supabase.from('daily_checklist_completions').select('*'),
-          supabase.from('weekly_targets').select('*').eq('user_id', userId), // Fetch Weekly Targets
+          // Weekly Targets and related tables (use effectiveCrmOwnerId for parent table)
+          (effectiveCrmOwnerId ? supabase.from('weekly_targets').select('*').eq('user_id', effectiveCrmOwnerId) : Promise.resolve({ data: [], error: null })),
           supabase.from('weekly_target_items').select('*'),
           supabase.from('weekly_target_assignments').select('*'),
           supabase.from('metric_logs').select('*'),
-          supabase.from('support_materials_v2').select('*').eq('user_id', userId), // Fetch Support Materials V2
+          // Support Materials V2 and related tables (use effectiveCrmOwnerId for parent table)
+          (effectiveCrmOwnerId ? supabase.from('support_materials_v2').select('*').eq('user_id', effectiveCrmOwnerId) : Promise.resolve({ data: [], error: null })),
           supabase.from('support_material_assignments').select('*'),
         ]);
 
         if (configError) console.error("Config error:", configError);
         if (candidatesError) console.error("Candidates error:", candidatesError);
-        if (teamMembersError) console.error("Team error:", teamMembersError);
+        if (teamMembersError) console.error("Team error:", teamMembersError); // Log error if any
         if (materialsError) console.error("Materials error:", materialsError);
         if (cutoffError) console.error("Cutoff Periods error:", cutoffError);
         if (linksError) console.error("Important Links error:", linksError);
