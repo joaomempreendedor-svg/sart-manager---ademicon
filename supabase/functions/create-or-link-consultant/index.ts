@@ -55,7 +55,7 @@ serve(async (req) => {
       const { error: updateAuthError } = await supabaseAdmin.auth.admin.updateUserById(
         authUserId,
         {
-          email: email, // <-- NOVO: Atualiza o e-mail do usuário existente
+          email: email, // <-- CORREÇÃO: Adicionado para atualizar o e-mail
           password: tempPassword,
           user_metadata: {
             first_name: name.split(' ')[0],
