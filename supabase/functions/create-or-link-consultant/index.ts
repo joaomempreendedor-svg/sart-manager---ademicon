@@ -14,7 +14,10 @@ serve(async (req) => {
   try {
     const { email, name, tempPassword } = await req.json();
 
+    console.log(`[Edge Function] Received request for email: ${email}, name: ${name}`);
+
     if (!email || !name || !tempPassword) {
+      console.error('[Edge Function] Missing required fields: email, name, or tempPassword.');
       return new Response(JSON.stringify({ error: 'Email, name, and temporary password are required.' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
@@ -28,11 +31,11 @@ serve(async (req) => {
 
     let authUserId: string;
     let message: string;
-    let userExistsFlag: boolean; // Novo flag
+    let userExistsFlag: boolean;
 
     // 1. Check if user already exists in auth.users
-    console.log(`[Edge Function] Checking for existing user with email: ${email}`);
-    const { data: existingUsers, error: fetchError } = await supabaseAdmin.auth.admin.listUsers({
+    console.log(`[Edge Function] Attempting to list users with email: ${email}`);
+    const { data: existingUsersData, error: fetchError } = await supabaseAdmin.auth.admin.listUsers({
       email: email,
     });
 
@@ -41,21 +44,24 @@ serve(async (req) => {
       throw fetchError;
     }
 
-    console.log(`[Edge Function] Existing users found: ${existingUsers?.users.length}`);
+    // Explicitly check the length of the users array
+    userExistsFlag = (existingUsersData?.users?.length || 0) > 0;
+    console.log(`[Edge Function] listUsers response: ${JSON.stringify(existingUsersData)}`);
+    console.log(`[Edge Function] User exists check result: ${userExistsFlag}. Found ${existingUsersData?.users?.length || 0} users.`);
 
-    if (existingUsers && existingUsers.users.length > 0) {
+    if (userExistsFlag) {
       // User exists, use their ID
-      authUserId = existingUsers.users[0].id;
+      authUserId = existingUsersData!.users[0].id; // Use non-null assertion as userExistsFlag is true
       message = 'User already exists, linked to existing account.';
-      userExistsFlag = true;
+      console.log(`[Edge Function] User ${email} found in Auth. ID: ${authUserId}`);
     } else {
       // User does not exist, create new user
-      console.log(`[Edge Function] Creating new user with email: ${email}`);
+      console.log(`[Edge Function] User ${email} not found in Auth. Creating new user.`);
       const { data: newUser, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
         email: email,
         password: tempPassword,
         email_confirm: true, // Automatically confirm email
-        user_metadata: { 
+        user_metadata: {
           first_name: name.split(' ')[0],
           last_name: name.split(' ').slice(1).join(' '),
           role: 'CONSULTOR', // Default role for new signups
@@ -67,9 +73,9 @@ serve(async (req) => {
         console.error(`[Edge Function] Error creating user: ${createUserError.message}`);
         throw createUserError;
       }
-      authUserId = newUser.user.id;
+      authUserId = newUser.user!.id; // Use non-null assertion as user should be created
       message = 'New user created successfully.';
-      userExistsFlag = false;
+      console.log(`[Edge Function] New user ${email} created. ID: ${authUserId}`);
     }
 
     return new Response(JSON.stringify({ authUserId, message, userExists: userExistsFlag }), {
