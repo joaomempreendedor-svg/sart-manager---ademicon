@@ -98,7 +98,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // Módulo 4: Metas de Prospecção
   const [weeklyTargets, setWeeklyTargets] = useState<WeeklyTarget[]>([]);
   const [weeklyTargetItems, setWeeklyTargetItems] = useState<WeeklyTargetItem[]>([]);
-  const [weeklyTargetAssignments, setWeeklyTargetAssignments] = useState<WeeklyTargetAssignment[]>([]);
+  const [weeklyTargetAssignments, setWeeklyTargetAssignments] = useState<WeeklyTargetAssignment[]>(([]);
   const [metricLogs, setMetricLogs] = useState<MetricLog[]>([]);
 
   // Módulo 5: Materiais de Apoio (v2)
@@ -238,20 +238,25 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         let effectiveCrmOwnerId = userId; // Default to current user's ID
 
         if (user?.role === 'CONSULTOR') {
-          const { data: teamMemberProfile, error: teamMemberProfileError } = await supabase
-            .from('team_members')
-            .select('user_id') // This 'user_id' is the Gestor's ID
-            .eq('id', userId) // This 'id' is the consultant's auth.uid()
-            .maybeSingle();
+          try {
+            const { data: teamMemberProfile, error: teamMemberProfileError } = await supabase
+              .from('team_members')
+              .select('user_id') // This 'user_id' is the Gestor's ID
+              .eq('id', userId) // This 'id' is the consultant's auth.uid()
+              .maybeSingle();
 
-          if (teamMemberProfileError) {
-            console.error("Error fetching team member profile for consultant:", teamMemberProfileError);
-          } else if (teamMemberProfile) {
-            effectiveCrmOwnerId = teamMemberProfile.user_id; // Use the Gestor's ID as the owner
-            console.log(`[AppContext] Consultant ${userId} is linked to Gestor: ${effectiveCrmOwnerId}`);
-          } else {
-            console.warn(`[AppContext] Consultant ${userId} not found in team_members or has no associated Gestor. CRM will not be visible.`);
-            effectiveCrmOwnerId = null; // No Gestor found, so no CRM to display
+            if (teamMemberProfileError) {
+              console.error("Error fetching team member profile for consultant:", teamMemberProfileError);
+            } else if (teamMemberProfile) {
+              effectiveCrmOwnerId = teamMemberProfile.user_id; // Use the Gestor's ID as the owner
+              console.log(`[AppContext] Consultant ${userId} is linked to Gestor: ${effectiveCrmOwnerId}`);
+            } else {
+              console.warn(`[AppContext] Consultant ${userId} not found in team_members or has no associated Gestor. CRM will not be visible.`);
+              effectiveCrmOwnerId = null; // No Gestor found, so no CRM to display
+            }
+          } catch (e) {
+            console.error("Falha ao buscar perfil do membro da equipe para consultor:", e);
+            effectiveCrmOwnerId = null; // Fallback if fetch fails
           }
         } else if (user?.role === 'GESTOR' || user?.role === 'ADMIN') {
           console.log(`[AppContext] User ${userId} is a Gestor/Admin. CRM owner is self.`);
@@ -272,94 +277,97 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             // A manager/admin sees all team members they created
             teamMembersQuery = teamMembersQuery.eq('user_id', userId);
         }
-        const { data: teamMembersData, error: teamMembersError } = await teamMembersQuery;
+        let teamMembersData = [];
+        let teamMembersError = null;
+        try {
+          const { data, error } = await teamMembersQuery;
+          teamMembersData = data || [];
+          teamMembersError = error;
+        } catch (e) {
+          console.error("Falha ao buscar team_members:", e);
+          teamMembersError = e;
+        }
         // --- End fetch team members ---
 
 
         const [
-          { data: configResult, error: configError },
-          { data: candidatesData, error: candidatesError },
-          // { data: teamMembersData, error: teamMembersError }, // Moved above
-          { data: materialsData, error: materialsError },
-          { data: cutoffData, error: cutoffError },
-          { data: linksData, error: linksError },
-          { data: onboardingData, error: onboardingError },
-          { data: templateVideosData, error: templateVideosError },
-          // Use effectiveCrmOwnerId for CRM related fetches
-          { data: pipelinesData, error: pipelinesError },
-          { data: stagesData, error: stagesError },
-          { data: fieldsData, error: fieldsDataError },
-          // crmLeads fetch needs to be conditional based on role
-          { data: crmLeadsData, error: crmLeadsError },
-          // Daily Checklists and related tables
-          { data: dailyChecklistsData, error: dailyChecklistsError },
-          { data: dailyChecklistItemsData, error: dailyChecklistItemsError },
-          { data: dailyChecklistAssignmentsData, error: dailyChecklistAssignmentsError },
-          { data: dailyChecklistCompletionsData, error: dailyChecklistCompletionsError },
-          // Weekly Targets and related tables
-          { data: weeklyTargetsData, error: weeklyTargetsError },
-          { data: weeklyTargetItemsData, error: weeklyTargetItemsError },
-          { data: weeklyTargetAssignmentsData, error: weeklyTargetAssignmentsError },
-          { data: metricLogsData, error: metricLogsError },
-          // Support Materials V2 and related tables
-          { data: supportMaterialsV2Data, error: supportMaterialsV2Error },
-          { data: supportMaterialAssignmentsData, error: supportMaterialAssignmentsError },
+          configResult,
+          candidatesData,
+          materialsData,
+          cutoffData,
+          linksData,
+          onboardingData,
+          templateVideosData,
+          pipelinesData,
+          stagesData,
+          fieldsData,
+          crmLeadsData,
+          dailyChecklistsData,
+          dailyChecklistItemsData,
+          dailyChecklistAssignmentsData,
+          dailyChecklistCompletionsData,
+          weeklyTargetsData,
+          weeklyTargetItemsData,
+          weeklyTargetAssignmentsData,
+          metricLogsData,
+          supportMaterialsV2Data,
+          supportMaterialAssignmentsData,
         ] = await Promise.all([
-          supabase.from('app_config').select('data').eq('user_id', userId).maybeSingle(),
-          supabase.from('candidates').select('id, data').eq('user_id', userId),
-          // supabase.from('team_members').select('id, data').eq('user_id', userId), // Removed from here
-          supabase.from('support_materials').select('id, data').eq('user_id', userId),
-          supabase.from('cutoff_periods').select('id, data').eq('user_id', userId),
-          supabase.from('important_links').select('id, data').eq('user_id', userId),
-          supabase.from('onboarding_sessions').select('*, videos:onboarding_videos(*)').eq('user_id', userId),
-          supabase.from('onboarding_video_templates').select('*').eq('user_id', userId).order('order', { ascending: true }),
+          (async () => { try { return await supabase.from('app_config').select('data').eq('user_id', userId).maybeSingle(); } catch (e) { console.error("Error fetching app_config:", e); return { data: null, error: e }; } })(),
+          (async () => { try { return await supabase.from('candidates').select('id, data').eq('user_id', userId); } catch (e) { console.error("Error fetching candidates:", e); return { data: [], error: e }; } })(),
+          (async () => { try { return await supabase.from('support_materials').select('id, data').eq('user_id', userId); } catch (e) { console.error("Error fetching support_materials:", e); return { data: [], error: e }; } })(),
+          (async () => { try { return await supabase.from('cutoff_periods').select('id, data').eq('user_id', userId); } catch (e) { console.error("Error fetching cutoff_periods:", e); return { data: [], error: e }; } })(),
+          (async () => { try { return await supabase.from('important_links').select('id, data').eq('user_id', userId); } catch (e) { console.error("Error fetching important_links:", e); return { data: [], error: e }; } })(),
+          (async () => { try { return await supabase.from('onboarding_sessions').select('*, videos:onboarding_videos(*)').eq('user_id', userId); } catch (e) { console.error("Error fetching onboarding_sessions:", e); return { data: [], error: e }; } })(),
+          (async () => { try { return await supabase.from('onboarding_video_templates').select('*').eq('user_id', userId).order('order', { ascending: true }); } catch (e) { console.error("Error fetching onboarding_video_templates:", e); return { data: [], error: e }; } })(),
           // CRM fetches now use effectiveCrmOwnerId
-          effectiveCrmOwnerId ? supabase.from('crm_pipelines').select('*').eq('user_id', effectiveCrmOwnerId) : Promise.resolve({ data: [], error: null }),
-          effectiveCrmOwnerId ? supabase.from('crm_stages').select('*').eq('user_id', effectiveCrmOwnerId).order('order_index') : Promise.resolve({ data: [], error: null }),
-          effectiveCrmOwnerId ? supabase.from('crm_fields').select('*').eq('user_id', effectiveCrmOwnerId) : Promise.resolve({ data: [], error: null }),
+          (async () => { try { return effectiveCrmOwnerId ? await supabase.from('crm_pipelines').select('*').eq('user_id', effectiveCrmOwnerId) : { data: [], error: null }; } catch (e) { console.error("Error fetching crm_pipelines:", e); return { data: [], error: e }; } })(),
+          (async () => { try { return effectiveCrmOwnerId ? await supabase.from('crm_stages').select('*').eq('user_id', effectiveCrmOwnerId).order('order_index') : { data: [], error: null }; } catch (e) { console.error("Error fetching crm_stages:", e); return { data: [], error: e }; } })(),
+          (async () => { try { return effectiveCrmOwnerId ? await supabase.from('crm_fields').select('*').eq('user_id', effectiveCrmOwnerId) : { data: [], error: null }; } catch (e) { console.error("Error fetching crm_fields:", e); return { data: [], error: e }; } })(),
           // crmLeads fetch needs to be conditional based on role
-          (user?.role === 'CONSULTOR' ? supabase.from('crm_leads').select('*').eq('consultant_id', userId) : (effectiveCrmOwnerId ? supabase.from('crm_leads').select('*').eq('user_id', effectiveCrmOwnerId) : Promise.resolve({ data: [], error: null }))),
+          (async () => { try { return (user?.role === 'CONSULTOR' ? await supabase.from('crm_leads').select('*').eq('consultant_id', userId) : (effectiveCrmOwnerId ? await supabase.from('crm_leads').select('*').eq('user_id', effectiveCrmOwnerId) : { data: [], error: null })); } catch (e) { console.error("Error fetching crm_leads:", e); return { data: [], error: e }; } })(),
           // Daily Checklists and related tables (use effectiveCrmOwnerId for parent table)
-          (effectiveCrmOwnerId ? supabase.from('daily_checklists').select('*').eq('user_id', effectiveCrmOwnerId) : Promise.resolve({ data: [], error: null })),
-          supabase.from('daily_checklist_items').select('*'),
-          supabase.from('daily_checklist_assignments').select('*'),
-          supabase.from('daily_checklist_completions').select('*'),
+          (async () => { try { return (effectiveCrmOwnerId ? await supabase.from('daily_checklists').select('*').eq('user_id', effectiveCrmOwnerId) : { data: [], error: null }); } catch (e) { console.error("Error fetching daily_checklists:", e); return { data: [], error: e }; } })(),
+          (async () => { try { return await supabase.from('daily_checklist_items').select('*'); } catch (e) { console.error("Error fetching daily_checklist_items:", e); return { data: [], error: e }; } })(),
+          (async () => { try { return await supabase.from('daily_checklist_assignments').select('*'); } catch (e) { console.error("Error fetching daily_checklist_assignments:", e); return { data: [], error: e }; } })(),
+          (async () => { try { return await supabase.from('daily_checklist_completions').select('*'); } catch (e) { console.error("Error fetching daily_checklist_completions:", e); return { data: [], error: e }; } })(),
           // Weekly Targets and related tables (use effectiveCrmOwnerId for parent table)
-          (effectiveCrmOwnerId ? supabase.from('weekly_targets').select('*').eq('user_id', effectiveCrmOwnerId) : Promise.resolve({ data: [], error: null })),
-          supabase.from('weekly_target_items').select('*'),
-          supabase.from('weekly_target_assignments').select('*'),
-          supabase.from('metric_logs').select('*'),
+          (async () => { try { return (effectiveCrmOwnerId ? await supabase.from('weekly_targets').select('*').eq('user_id', effectiveCrmOwnerId) : { data: [], error: null }); } catch (e) { console.error("Error fetching weekly_targets:", e); return { data: [], error: e }; } })(),
+          (async () => { try { return await supabase.from('weekly_target_items').select('*'); } catch (e) { console.error("Error fetching weekly_target_items:", e); return { data: [], error: e }; } })(),
+          (async () => { try { return await supabase.from('weekly_target_assignments').select('*'); } catch (e) { console.error("Error fetching weekly_target_assignments:", e); return { data: [], error: e }; } })(),
+          (async () => { try { return await supabase.from('metric_logs').select('*'); } catch (e) { console.error("Error fetching metric_logs:", e); return { data: [], error: e }; } })(),
           // Support Materials V2 and related tables (use effectiveCrmOwnerId for parent table)
-          (effectiveCrmOwnerId ? supabase.from('support_materials_v2').select('*').eq('user_id', effectiveCrmOwnerId) : Promise.resolve({ data: [], error: null })),
-          supabase.from('support_material_assignments').select('*'),
+          (async () => { try { return (effectiveCrmOwnerId ? await supabase.from('support_materials_v2').select('*').eq('user_id', effectiveCrmOwnerId) : { data: [], error: null }); } catch (e) { console.error("Error fetching support_materials_v2:", e); return { data: [], error: e }; } })(),
+          (async () => { try { return await supabase.from('support_material_assignments').select('*'); } catch (e) { console.error("Error fetching support_material_assignments:", e); return { data: [], error: e }; } })(),
         ]);
 
-        if (configError) console.error("Config error:", configError);
-        if (candidatesError) console.error("Candidates error:", candidatesError);
-        if (teamMembersError) console.error("Team error:", teamMembersError); // Log error if any
-        if (materialsError) console.error("Materials error:", materialsError);
-        if (cutoffError) console.error("Cutoff Periods error:", cutoffError);
-        if (linksError) console.error("Important Links error:", linksError);
-        if (onboardingError) console.error("Onboarding error:", onboardingError);
-        if (templateVideosError) console.error("Onboarding Template error:", templateVideosData);
-        if (pipelinesError) console.error("Pipelines error:", pipelinesError);
-        if (stagesError) console.error("Stages error:", stagesError);
-        if (fieldsDataError) console.error("Fields error:", fieldsDataError);
-        if (crmLeadsError) console.error("CRM Leads error:", crmLeadsError);
-        if (dailyChecklistsError) console.error("Daily Checklists error:", dailyChecklistsError);
-        if (dailyChecklistItemsError) console.error("Daily Checklist Items error:", dailyChecklistItemsError);
-        if (dailyChecklistAssignmentsError) console.error("Daily Checklist Assignments error:", dailyChecklistAssignmentsError);
-        if (dailyChecklistCompletionsError) console.error("Daily Checklist Completions error:", dailyChecklistCompletionsError);
-        if (weeklyTargetsError) console.error("Weekly Targets error:", weeklyTargetsError);
-        if (weeklyTargetItemsError) console.error("Weekly Target Items error:", weeklyTargetItemsError);
-        if (weeklyTargetAssignmentsError) console.error("Weekly Target Assignments error:", weeklyTargetAssignmentsError);
-        if (metricLogsError) console.error("Metric Logs error:", metricLogsError);
-        if (supportMaterialsV2Error) console.error("Support Materials V2 error:", supportMaterialsV2Error);
-        if (supportMaterialAssignmentsError) console.error("Support Material Assignments error:", supportMaterialAssignmentsError);
+        // Log errors if any, but don't throw to prevent blocking
+        if (configResult.error) console.error("Config error:", configResult.error);
+        if (candidatesData.error) console.error("Candidates error:", candidatesData.error);
+        if (teamMembersError) console.error("Team error:", teamMembersError);
+        if (materialsData.error) console.error("Materials error:", materialsData.error);
+        if (cutoffData.error) console.error("Cutoff Periods error:", cutoffData.error);
+        if (linksData.error) console.error("Important Links error:", linksData.error);
+        if (onboardingData.error) console.error("Onboarding error:", onboardingData.error);
+        if (templateVideosData.error) console.error("Onboarding Template error:", templateVideosData.error);
+        if (pipelinesData.error) console.error("Pipelines error:", pipelinesData.error);
+        if (stagesData.error) console.error("Stages error:", stagesData.error);
+        if (fieldsData.error) console.error("Fields error:", fieldsData.error);
+        if (crmLeadsData.error) console.error("CRM Leads error:", crmLeadsData.error);
+        if (dailyChecklistsData.error) console.error("Daily Checklists error:", dailyChecklistsData.error);
+        if (dailyChecklistItemsData.error) console.error("Daily Checklist Items error:", dailyChecklistItemsData.error);
+        if (dailyChecklistAssignmentsData.error) console.error("Daily Checklist Assignments error:", dailyChecklistAssignmentsData.error);
+        if (dailyChecklistCompletionsData.error) console.error("Daily Checklist Completions error:", dailyChecklistCompletionsData.error);
+        if (weeklyTargetsData.error) console.error("Weekly Targets error:", weeklyTargetsData.error);
+        if (weeklyTargetItemsData.error) console.error("Weekly Target Items error:", weeklyTargetItemsData.error);
+        if (weeklyTargetAssignmentsData.error) console.error("Weekly Target Assignments error:", weeklyTargetAssignmentsData.error);
+        if (metricLogsData.error) console.error("Metric Logs error:", metricLogsData.error);
+        if (supportMaterialsV2Data.error) console.error("Support Materials V2 error:", supportMaterialsV2Data.error);
+        if (supportMaterialAssignmentsData.error) console.error("Support Material Assignments error:", supportMaterialAssignmentsData.error);
 
 
-        if (configResult) {
-          const { data } = configResult;
+        if (configResult.data) {
+          const { data } = configResult.data;
           setChecklistStructure(data.checklistStructure || DEFAULT_STAGES);
           setConsultantGoalsStructure(data.consultantGoalsStructure || DEFAULT_GOALS);
           const loadedInterviewStructure = data.interviewStructure || INITIAL_INTERVIEW_STRUCTURE;
@@ -381,7 +389,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           setPvs(pvs);
         }
 
-        setCandidates(candidatesData?.map(item => ({ ...(item.data as Candidate), db_id: item.id })) || []);
+        setCandidates(candidatesData?.data?.map(item => ({ ...(item.data as Candidate), db_id: item.id })) || []);
         const rawTeamMembers = teamMembersData?.map(item => ({ ...(item.data as TeamMember), db_id: item.id })) || [];
         const normalizedTeamMembers = rawTeamMembers.map(member => {
           const m = member as any;
@@ -391,13 +399,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           return m as TeamMember;
         });
         setTeamMembers(normalizedTeamMembers);
-        setSupportMaterials(materialsData?.map(item => ({ ...(item.data as SupportMaterial), db_id: item.id })) || []);
-        setImportantLinks(linksData?.map(item => ({ ...(item.data as ImportantLink), db_id: item.id })) || []);
-        setCutoffPeriods(cutoffData?.map(item => ({ ...(item.data as CutoffPeriod), db_id: item.id })) || []);
-        setOnboardingSessions((onboardingData as any[])?.map(s => ({...s, videos: s.videos.sort((a:any,b:any) => a.order - b.order)})) || []);
-        setOnboardingTemplateVideos(templateVideosData || []);
+        setSupportMaterials(materialsData?.data?.map(item => ({ ...(item.data as SupportMaterial), db_id: item.id })) || []);
+        setImportantLinks(linksData?.data?.map(item => ({ ...(item.data as ImportantLink), db_id: item.id })) || []);
+        setCutoffPeriods(cutoffData?.data?.map(item => ({ ...(item.data as CutoffPeriod), db_id: item.id })) || []);
+        setOnboardingSessions((onboardingData?.data as any[])?.map(s => ({...s, videos: s.videos.sort((a:any,b:any) => a.order - b.order)})) || []);
+        setOnboardingTemplateVideos(templateVideosData?.data || []);
         
-        let finalPipelines = pipelinesData || [];
+        let finalPipelines = pipelinesData?.data || [];
         if (finalPipelines.length === 0 && effectiveCrmOwnerId) { // Only create default if current user is the owner
           if (user?.role === 'GESTOR' || user?.role === 'ADMIN') { // Only Gestors/Admins can create default pipelines
             console.log(`[AppContext] No CRM pipelines found for ${effectiveCrmOwnerId}. Creating default pipeline.`);
@@ -418,19 +426,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
         setCrmPipelines(finalPipelines);
 
-        setCrmStages(stagesData || []);
-        setCrmFields(fieldsData || []);
-        setCrmLeads(crmLeadsData || []); // Set CRM Leads
-        setDailyChecklists(dailyChecklistsData || []); // Set Daily Checklists
-        setDailyChecklistItems(dailyChecklistItemsData || []);
-        setDailyChecklistAssignments(dailyChecklistAssignmentsData || []);
-        setDailyChecklistCompletions(dailyChecklistCompletionsData || []);
-        setWeeklyTargets(weeklyTargetsData || []); // Set Weekly Targets
-        setWeeklyTargetItems(weeklyTargetItemsData || []);
-        setWeeklyTargetAssignments(weeklyTargetAssignmentsData || []);
-        setMetricLogs(metricLogsData || []);
-        setSupportMaterialsV2(supportMaterialsV2Data || []); // Set Support Materials V2
-        setSupportMaterialAssignments(supportMaterialAssignmentsData || []);
+        setCrmStages(stagesData?.data || []);
+        setCrmFields(fieldsData?.data || []);
+        setCrmLeads(crmLeadsData?.data || []); // Set CRM Leads
+        setDailyChecklists(dailyChecklistsData?.data || []); // Set Daily Checklists
+        setDailyChecklistItems(dailyChecklistItemsData?.data || []);
+        setDailyChecklistAssignments(dailyChecklistAssignmentsData?.data || []);
+        setDailyChecklistCompletions(dailyChecklistCompletionsData?.data || []);
+        setWeeklyTargets(weeklyTargetsData?.data || []); // Set Weekly Targets
+        setWeeklyTargetItems(weeklyTargetItemsData?.data || []);
+        setWeeklyTargetAssignments(weeklyTargetAssignmentsData?.data || []);
+        setMetricLogs(metricLogsData?.data || []);
+        setSupportMaterialsV2(supportMaterialsV2Data?.data || []); // Set Support Materials V2
+        setSupportMaterialAssignments(supportMaterialAssignmentsData?.data || []);
         
         refetchCommissions();
 

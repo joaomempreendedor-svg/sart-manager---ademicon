@@ -58,23 +58,30 @@ const ChecklistModal: React.FC<ChecklistModalProps> = ({ isOpen, onClose, checkl
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // VERIFICAÇÃO FORTE
     if (!title.trim()) {
-      alert("O título do checklist é obrigatório.");
+      alert("❌ Título é obrigatório!");
       return;
     }
-    
+
     setIsSaving(true);
+    
     try {
       if (checklist) {
         // EDIÇÃO: apenas atualiza o título
         await updateDailyChecklist(checklist.id, { title });
         console.log(`[ChecklistModal] Checklist "${title}" (ID: ${checklist.id}) atualizado com sucesso.`);
-        alert("Checklist atualizado com sucesso!");
+        alert("✅ Checklist atualizado com sucesso!");
       } else {
         // CRIAÇÃO: cria checklist E atribui conforme seleção
         const newChecklist = await addDailyChecklist(title);
-        console.log("[ChecklistModal] Novo checklist criado:", newChecklist);
         
+        if (!newChecklist || !newChecklist.id) {
+          throw new Error("Checklist não foi criado corretamente");
+        }
+
+        console.log("[ChecklistModal] Novo checklist criado:", newChecklist);
         console.log("[ChecklistModal] Opção de aplicação selecionada:", applyTo);
         console.log("[ChecklistModal] Consultores selecionados (se aplicável):", selectedConsultants);
 
@@ -84,11 +91,11 @@ const ChecklistModal: React.FC<ChecklistModalProps> = ({ isOpen, onClose, checkl
             try {
               await assignDailyChecklistToConsultant(newChecklist.id, member.id);
               console.log(`[ChecklistModal] Atribuído checklist ${newChecklist.id} para TODOS: ${member.name} (ID: ${member.id})`);
-            } catch (error) {
-              console.error(`[ChecklistModal] Erro ao atribuir para ${member.name} (ID: ${member.id}):`, error);
+            } catch (err) {
+              console.warn(`Não pôde atribuir para ${member.name}:`, err);
             }
           }
-          alert(`Checklist "${title}" criado e atribuído a TODOS os ${consultants.length} consultores!`);
+          alert(`✅ Checklist "${title}" criado e atribuído a TODOS os ${consultants.length} consultores!`);
         } 
         else if (applyTo === 'specific' && selectedConsultants.length > 0) {
           // Atribuir apenas aos consultores selecionados
@@ -96,20 +103,21 @@ const ChecklistModal: React.FC<ChecklistModalProps> = ({ isOpen, onClose, checkl
             try {
               await assignDailyChecklistToConsultant(newChecklist.id, memberId);
               console.log(`[ChecklistModal] Atribuído checklist ${newChecklist.id} para ESPECÍFICO: (ID: ${memberId})`);
-            } catch (error) {
-              console.error(`[ChecklistModal] Erro ao atribuir para ID ${memberId}:`, error);
+            } catch (err) {
+              console.warn(`Não pôde atribuir para ID ${memberId}:`, err);
             }
           }
-          alert(`Checklist "${title}" criado e atribuído a ${selectedConsultants.length} consultor(es)!`);
+          alert(`✅ Checklist "${title}" criado e atribuído a ${selectedConsultants.length} consultor(es)!`);
         } else {
           console.log(`[ChecklistModal] Checklist "${title}" criado sem atribuições específicas. Será global.`);
-          alert(`Checklist "${title}" criado sem atribuições (será global).`);
+          alert(`✅ Checklist "${title}" criado sem atribuições (será global).`);
         }
       }
       onClose();
     } catch (error: any) {
-      console.error("[ChecklistModal] Failed to save checklist:", error);
-      alert(`Erro ao salvar o checklist: ${error.message || 'Verifique o console para mais detalhes.'}`);
+      // ERRO DETALHADO
+      console.error("❌ FALHA COMPLETA:", error);
+      alert(`FALHA: ${error.message}\n\nVerifique: 1) Conexão 2) Permissões 3) Console`);
     } finally {
       setIsSaving(false);
     }
@@ -393,7 +401,9 @@ export const DailyChecklistConfig = () => {
     moveDailyChecklistItem,
     updateDailyChecklist,
     deleteDailyChecklist,
-    teamMembers
+    teamMembers, // Adicionado para o botão de teste
+    addDailyChecklist, // Adicionado para o botão de teste
+    assignDailyChecklistToConsultant // Adicionado para o botão de teste
   } = useApp();
 
   const [isChecklistModalOpen, setIsChecklistModalOpen] = useState(false);
@@ -483,10 +493,39 @@ export const DailyChecklistConfig = () => {
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Configurar Checklist do Dia</h1>
           <p className="text-gray-500 dark:text-gray-400">Crie e gerencie os checklists diários para seus consultores.</p>
         </div>
-        <Button onClick={handleAddNewChecklist} className="bg-brand-600 hover:bg-brand-700 text-white">
-          <Plus className="w-4 h-4 mr-2" />
-          Novo Checklist
-        </Button>
+        <div className="flex items-center space-x-2"> {/* Wrapper para os botões */}
+          <Button onClick={handleAddNewChecklist} className="bg-brand-600 hover:bg-brand-700 text-white">
+            <Plus className="w-4 h-4 mr-2" />
+            Novo Checklist
+          </Button>
+          {/* ADICIONAR BOTÃO "CRIAR DADOS DE TESTE" AQUI */}
+          <Button 
+            onClick={async () => {
+              if (confirm("Criar dados de teste no banco?")) {
+                try {
+                  // Cria checklist de teste
+                  const testChecklist = await addDailyChecklist("TESTE AUTO " + Date.now());
+                  
+                  // Atribui a TODOS os consultores
+                  const consultants = teamMembers.filter(m => 
+                    m.roles.includes('Prévia') || m.roles.includes('Autorizado')
+                  );
+                  
+                  for (const member of consultants) {
+                    await assignDailyChecklistToConsultant(testChecklist.id, member.id);
+                  }
+                  
+                  alert(`✅ Dados de teste criados!`);
+                } catch (e: any) {
+                  alert(`❌ Erro: ${e.message}`);
+                }
+              }
+            }}
+            className="ml-2 bg-green-600 hover:bg-green-700 text-white"
+          >
+            Criar Dados Teste
+          </Button>
+        </div>
       </div>
 
       <div className="space-y-8">
