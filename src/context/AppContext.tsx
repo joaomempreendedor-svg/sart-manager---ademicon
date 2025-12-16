@@ -522,65 +522,23 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     let tempPassword = '';
     let isExistingUser = false;
   
-    // SE tem email: verifica se já existe
+    // SE tem email: usa a Edge Function para criar ou vincular
     if (member.email) {
-      console.log(`Verificando se email ${member.email} já existe...`);
+      tempPassword = Math.random().toString(36).slice(-8) + 'Aa1!'; // Senha forte
       
-      try {
-        // Tenta criar um novo usuário. Se já existir, o Supabase Auth retornará um erro.
-        tempPassword = Math.random().toString(36).slice(-8) + 'Aa1!'; // Senha forte
-        
-        const { data: authData, error: signUpError } = await supabase.auth.signUp({
-          email: member.email,
-          password: tempPassword,
-          options: {
-            data: { 
-              first_name: member.name.split(' ')[0],
-              last_name: member.name.split(' ').slice(1).join(' '),
-              role: 'CONSULTOR', // Default role for new signups
-              needs_password_change: true, // Force password change
-            }
-          }
-        });
-        
-        if (signUpError) {
-          // ERRO: usuário já existe
-          if (signUpError.message.includes('already registered') || signUpError.message.includes('User already registered')) {
-            console.log(`Usuário ${member.email} já existe. Buscando ID...`);
-            isExistingUser = true;
-            
-            // Para obter o ID de um usuário existente (não o logado), precisamos de uma RPC ou admin API.
-            // Como estamos no cliente, vamos tentar buscar na tabela 'profiles' se o email estiver lá.
-            // Se não, usaremos um ID temporário e o gestor terá que vincular manualmente.
-            const { data: profileData, error: profileError } = await supabase
-              .from('profiles')
-              .select('id')
-              .eq('email', member.email)
-              .maybeSingle();
+      const { data, error } = await supabase.functions.invoke('create-or-link-consultant', {
+        body: { email: member.email, name: member.name, tempPassword },
+      });
 
-            if (profileError) {
-              console.error("Erro ao buscar perfil para usuário existente:", profileError);
-              authUserId = `existing_email_${member.email.replace(/[^a-z0-9]/g, '')}`; // Fallback ID
-            } else if (profileData) {
-              authUserId = profileData.id;
-            } else {
-              // Se não encontrado em profiles, fallback para um ID gerado
-              authUserId = `existing_email_${member.email.replace(/[^a-z0-9]/g, '')}`;
-            }
-            tempPassword = ''; // Não tem senha temporária para usuário existente
-          } else {
-            throw signUpError;
-          }
-        } else {
-          // SUCESSO: novo usuário criado
-          authUserId = authData.user!.id;
-          console.log(`Novo usuário criado: ${member.email} (ID: ${authUserId})`);
-        }
-      } catch (error: any) {
-        console.error("Erro no processo de autenticação:", error);
-        // Fallback: ID local baseado no email em caso de erro inesperado
-        authUserId = `error_email_${member.email.replace(/[@.]/g, '_')}`;
+      if (error) {
+        console.error("Erro ao invocar Edge Function:", error);
+        throw new Error(data?.error || 'Falha ao criar/vincular usuário no Auth.');
+      }
+      
+      authUserId = data.authUserId;
+      if (data.message.includes('already exists')) {
         isExistingUser = true;
+        tempPassword = ''; // Não há senha temporária se o usuário já existia
       }
     } else {
       // Sem email: ID local (para membros legados ou sem login)
@@ -591,14 +549,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     // Prepara objeto do membro
     const newMember: TeamMember = {
       ...member,
-      id: authUserId,
+      id: authUserId, // Este é o ID do Auth (ou local) do consultor
       email: member.email,
       hasLogin: !!member.email,
       isActive: true,
       ...(tempPassword && { tempPassword }) // Só inclui se tiver senha temporária
     };
   
-    // Adiciona ao team_members
+    // Adiciona ao team_members (user_id é o ID do gestor logado)
     const { data, error } = await supabase
       .from('team_members')
       .insert({ 
