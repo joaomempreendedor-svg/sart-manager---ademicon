@@ -85,7 +85,7 @@ export const DailyChecklistMonitoring = () => {
 
   const handleToggleCompletion = async (itemId: string, currentStatus: boolean) => {
     if (!selectedConsultantId) return;
-    await toggleDailyChecklistCompletion(itemId, formattedSelectedDate, !currentStatus);
+    await toggleDailyChecklistCompletion(itemId, formattedSelectedDate, !currentStatus, selectedConsultantId);
   };
 
   const navigateDay = (offset: number) => {

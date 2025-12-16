@@ -66,8 +66,9 @@ export const DailyChecklist = () => {
       // 2. TENTA: match por email (se TIPO 2 tem email)
       if (tm.email && tm.email === user.email) return true;
       
-      // 3. TENTA: é legado e podemos assumir pelo nome/email? (TIPO 1)
-      // Esta é uma heurística e pode não ser 100% precisa se houver nomes duplicados
+      // 3. TENTA: é legado e podemos assumir pelo nome? (TIPO 1)
+      // Para membros legados, o 'id' é um ID temporário ('legacy_...') e o 'email' pode não existir.
+      // Precisamos comparar o nome do usuário logado com o nome do membro da equipe.
       if (tm.isLegacy && tm.name === user.name) return true; 
       
       return false;
@@ -135,7 +136,7 @@ export const DailyChecklist = () => {
 
   const handleToggleCompletion = async (itemId: string, currentStatus: boolean) => {
     if (!user || !userTeamMember) return;
-    await toggleDailyChecklistCompletion(itemId, formattedSelectedDate, !currentStatus);
+    await toggleDailyChecklistCompletion(itemId, formattedSelectedDate, !currentStatus, userTeamMember.id);
   };
 
   const navigateDay = (offset: number) => {

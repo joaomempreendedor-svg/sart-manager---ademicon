@@ -747,16 +747,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setDailyChecklistAssignments(prev => prev.filter(assign => !(assign.daily_checklist_id === checklistId && assign.consultant_id === consultantId)));
   }, [user]);
 
-  const toggleDailyChecklistCompletion = useCallback(async (itemId: string, date: string, done: boolean) => {
+  const toggleDailyChecklistCompletion = useCallback(async (itemId: string, date: string, done: boolean, consultantId: string) => {
     if (!user) throw new Error("Usuário não autenticado.");
-    const existingCompletion = dailyChecklistCompletions.find(c => c.daily_checklist_item_id === itemId && c.consultant_id === user.id && c.date === date);
+    const existingCompletion = dailyChecklistCompletions.find(c => c.daily_checklist_item_id === itemId && c.consultant_id === consultantId && c.date === date);
 
     if (existingCompletion) {
       const { error } = await supabase.from('daily_checklist_completions').update({ done, updated_at: new Date().toISOString() }).eq('id', existingCompletion.id);
       if (error) throw error;
       setDailyChecklistCompletions(prev => prev.map(c => c.id === existingCompletion.id ? { ...c, done, updated_at: new Date().toISOString() } : c));
     } else {
-      const { data, error } = await supabase.from('daily_checklist_completions').insert({ daily_checklist_item_id: itemId, consultant_id: user.id, date, done, updated_at: new Date().toISOString() }).select().single();
+      const { data, error } = await supabase.from('daily_checklist_completions').insert({ daily_checklist_item_id: itemId, consultant_id: consultantId, date, done, updated_at: new Date().toISOString() }).select().single();
       if (error) throw error;
       setDailyChecklistCompletions(prev => [...prev, data]);
     }
