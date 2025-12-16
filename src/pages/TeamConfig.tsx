@@ -366,7 +366,7 @@ export const TeamConfig = () => {
           consultantName={createdConsultantCredentials.name}
           login={createdConsultantCredentials.login}
           password={createdConsultantCredentials.password}
-          wasExistingUser={createdConsultantCredentials.wasExistingUser} {/* Passar a nova prop */}
+          wasExistingUser={createdConsultantCredentials.wasExistingUser}
         />
       )}
     </div>
