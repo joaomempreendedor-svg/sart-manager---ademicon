@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { useApp } from '@/context/AppContext';
 import { DailyChecklist, DailyChecklistItem, TeamMember } from '@/types';
-import { Plus, Edit2, Trash2, ArrowUp, ArrowDown, ToggleLeft, ToggleRight, Users, Check, X, ListChecks } from 'lucide-react';
+import { Plus, Edit2, Trash2, ArrowUp, ArrowDown, ToggleLeft, ToggleRight, Users, Check, X, ListChecks, Loader2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -24,13 +24,37 @@ interface ChecklistModalProps {
 }
 
 const ChecklistModal: React.FC<ChecklistModalProps> = ({ isOpen, onClose, checklist }) => {
-  const { addDailyChecklist, updateDailyChecklist } = useApp();
+  const { addDailyChecklist, updateDailyChecklist, teamMembers, assignDailyChecklistToConsultant } = useApp();
   const [title, setTitle] = useState(checklist?.title || '');
   const [isSaving, setIsSaving] = useState(false);
+  
+  // NOVOS ESTADOS PARA CONTROLE DE DESTINO
+  const [applyTo, setApplyTo] = useState<'all' | 'specific'>('all');
+  const [selectedConsultants, setSelectedConsultants] = useState<string[]>([]);
 
+  // Filtrar apenas consultores (excluir gestores)
+  const consultants = useMemo(() => 
+    teamMembers.filter(member => {
+      const isConsultant = member.roles.includes('Prévia') || 
+                          member.roles.includes('Autorizado') || 
+                          member.roles.includes('Anjo');
+      const isGestor = member.roles.includes('Gestor');
+      return isConsultant && !isGestor && member.isActive;
+    }), 
+    [teamMembers]
+  );
+
+  // Resetar estados quando modal abre/fecha
   React.useEffect(() => {
-    setTitle(checklist?.title || '');
-  }, [checklist]);
+    if (isOpen) {
+      setTitle(checklist?.title || '');
+      if (!checklist) {
+        // Para novo checklist: resetar seleções
+        setApplyTo('all');
+        setSelectedConsultants([]);
+      }
+    }
+  }, [isOpen, checklist]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,14 +62,41 @@ const ChecklistModal: React.FC<ChecklistModalProps> = ({ isOpen, onClose, checkl
       alert("O título do checklist é obrigatório.");
       return;
     }
+    
     setIsSaving(true);
     try {
       if (checklist) {
+        // EDIÇÃO: apenas atualiza o título
         await updateDailyChecklist(checklist.id, { title });
         alert("Checklist atualizado com sucesso!");
       } else {
-        await addDailyChecklist(title);
-        alert("Checklist criado com sucesso!");
+        // CRIAÇÃO: cria checklist E atribui conforme seleção
+        const newChecklist = await addDailyChecklist(title);
+        
+        if (applyTo === 'all') {
+          // Atribuir a TODOS os consultores ativos
+          for (const member of consultants) {
+            try {
+              await assignDailyChecklistToConsultant(newChecklist.id, member.id);
+            } catch (error) {
+              console.error(`Erro ao atribuir para ${member.name}:`, error);
+            }
+          }
+          alert(`Checklist "${title}" criado e atribuído a TODOS os ${consultants.length} consultores!`);
+        } 
+        else if (applyTo === 'specific' && selectedConsultants.length > 0) {
+          // Atribuir apenas aos consultores selecionados
+          for (const memberId of selectedConsultants) {
+            try {
+              await assignDailyChecklistToConsultant(newChecklist.id, memberId);
+            } catch (error) {
+              console.error(`Erro ao atribuir para ID ${memberId}:`, error);
+            }
+          }
+          alert(`Checklist "${title}" criado e atribuído a ${selectedConsultants.length} consultor(es)!`);
+        } else {
+          alert(`Checklist "${title}" criado sem atribuições (será global).`);
+        }
       }
       onClose();
     } catch (error: any) {
@@ -56,36 +107,183 @@ const ChecklistModal: React.FC<ChecklistModalProps> = ({ isOpen, onClose, checkl
     }
   };
 
+  // Função para alternar seleção de consultor
+  const toggleConsultantSelection = (consultantId: string) => {
+    setSelectedConsultants(prev => {
+      if (prev.includes(consultantId)) {
+        return prev.filter(id => id !== consultantId);
+      } else {
+        return [...prev, consultantId];
+      }
+    });
+  };
+
+  // Função para selecionar/desselecionar todos
+  const toggleSelectAll = () => {
+    if (selectedConsultants.length === consultants.length) {
+      // Desselecionar todos
+      setSelectedConsultants([]);
+    } else {
+      // Selecionar todos
+      setSelectedConsultants(consultants.map(c => c.id));
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px] bg-white dark:bg-slate-800 dark:text-white">
+      <DialogContent className="sm:max-w-[500px] bg-white dark:bg-slate-800 dark:text-white">
         <DialogHeader>
           <DialogTitle>{checklist ? 'Editar Checklist' : 'Novo Checklist'}</DialogTitle>
           <DialogDescription>
-            {checklist ? 'Altere o título do checklist.' : 'Crie um novo checklist diário para seus consultores.'}
+            {checklist 
+              ? 'Altere o título do checklist.' 
+              : 'Crie um novo checklist diário para seus consultores.'}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4 py-4">
+            {/* Título do Checklist */}
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="title" className="text-right">
-                Título
+                Título *
               </Label>
               <Input
                 id="title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 className="col-span-3 dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                placeholder="Ex: Checklist Matinal"
                 required
               />
             </div>
+
+            {/* APENAS PARA NOVO CHECKLIST: Opções de destino */}
+            {!checklist && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-4 items-start gap-4">
+                  <Label className="text-right pt-2">
+                    Aplicar para:
+                  </Label>
+                  <div className="col-span-3 space-y-3">
+                    {/* Opção 1: Todos os consultores */}
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="radio"
+                        id="applyAll"
+                        checked={applyTo === 'all'}
+                        onChange={() => {
+                          setApplyTo('all');
+                          // Ao selecionar "todos", limpa seleções individuais
+                          setSelectedConsultants([]);
+                        }}
+                        className="h-4 w-4 text-brand-600 focus:ring-brand-500"
+                      />
+                      <Label htmlFor="applyAll" className="cursor-pointer">
+                        <span className="font-medium">Todos os consultores</span>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          ({consultants.length} consultores ativos)
+                        </p>
+                      </Label>
+                    </div>
+
+                    {/* Opção 2: Consultores específicos */}
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="radio"
+                        id="applySpecific"
+                        checked={applyTo === 'specific'}
+                        onChange={() => setApplyTo('specific')}
+                        className="h-4 w-4 text-brand-600 focus:ring-brand-500"
+                      />
+                      <Label htmlFor="applySpecific" className="cursor-pointer">
+                        <span className="font-medium">Apenas consultores específicos</span>
+                      </Label>
+                    </div>
+
+                    {/* Lista de consultores (só aparece se "específicos" estiver selecionado) */}
+                    {applyTo === 'specific' && consultants.length > 0 && (
+                      <div className="ml-6 mt-3 border border-gray-200 dark:border-slate-600 rounded-lg p-3 bg-gray-50 dark:bg-slate-700/30">
+                        <div className="flex justify-between items-center mb-2">
+                          <Label className="text-sm font-medium">Selecione os consultores:</Label>
+                          <button
+                            type="button"
+                            onClick={toggleSelectAll}
+                            className="text-xs text-brand-600 hover:text-brand-700 dark:text-brand-400"
+                          >
+                            {selectedConsultants.length === consultants.length 
+                              ? 'Desselecionar todos' 
+                              : 'Selecionar todos'}
+                          </button>
+                        </div>
+                        
+                        <ScrollArea className="h-40">
+                          <div className="space-y-2 pr-2">
+                            {consultants.map(member => {
+                              const isSelected = selectedConsultants.includes(member.id);
+                              return (
+                                <div
+                                  key={member.id}
+                                  className={`flex items-center space-x-2 p-2 rounded hover:bg-gray-100 dark:hover:bg-slate-600 cursor-pointer ${isSelected ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}
+                                  onClick={() => toggleConsultantSelection(member.id)}
+                                >
+                                  <div className={`h-4 w-4 border rounded flex items-center justify-center ${isSelected ? 'bg-brand-600 border-brand-600' : 'border-gray-300 dark:border-slate-500'}`}>
+                                    {isSelected && (
+                                      <Check className="h-3 w-3 text-white" />
+                                    )}
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-medium">{member.name}</p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                                      {member.roles.join(', ')}
+                                    </p>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </ScrollArea>
+                        
+                        {selectedConsultants.length > 0 && (
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                            {selectedConsultants.length} de {consultants.length} consultores selecionados
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {applyTo === 'specific' && consultants.length === 0 && (
+                      <div className="ml-6 mt-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+                        <p className="text-sm text-yellow-700 dark:text-yellow-300">
+                          Nenhum consultor ativo encontrado. Crie consultores primeiro.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
+          
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose} className="dark:bg-slate-700 dark:text-white dark:border-slate-600">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={onClose} 
+              className="dark:bg-slate-700 dark:text-white dark:border-slate-600"
+            >
               Cancelar
             </Button>
-            <Button type="submit" disabled={isSaving} className="bg-brand-600 hover:bg-brand-700 text-white">
-              {isSaving ? 'Salvando...' : 'Salvar'}
+            <Button 
+              type="submit" 
+              disabled={isSaving} 
+              className="bg-brand-600 hover:bg-brand-700 text-white"
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Salvando...
+                </>
+              ) : checklist ? 'Atualizar' : 'Criar Checklist'}
             </Button>
           </DialogFooter>
         </form>
