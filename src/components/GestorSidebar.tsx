@@ -93,9 +93,9 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
             <ClipboardCheck className="w-5 h-5" />
             <span>Monitorar Checklists</span>
           </NavLink>
-          <NavLink to="/gestor/checklist-assignment" className={linkClass} onClick={toggleSidebar}> {/* NOVO LINK */}
-            <UserPlus className="w-5 h-5" />
-            <span>Atribuição de Checklists</span>
+          <NavLink to="/gestor/checklist-assignment" className={linkClass} onClick={toggleSidebar}> {/* LINK ATUALIZADO */}
+            <ListChecks className="w-5 h-5" />
+            <span>Checklists por Cargo</span>
           </NavLink>
           <NavLink to="/gestor/config-process" className={linkClass} onClick={toggleSidebar}>
             <Settings className="w-5 h-5" />
@@ -128,7 +128,7 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
           <div className="flex gap-2">
               <button 
               onClick={toggleTheme}
-              className="flex-1 flex items-center justify-center space-x-2 p-2 rounded-lg bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-700 transition"
+              className="flex-1 flex items-center justify-center space-x-2 p-2 rounded-lg bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-600 transition"
               title="Alternar Tema"
               >
               {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
