@@ -14,6 +14,7 @@ export const DailyChecklist = () => {
     dailyChecklistItems, 
     dailyChecklistAssignments, 
     dailyChecklistCompletions,
+    teamMembers, // Adicionado para logs
     toggleDailyChecklistCompletion,
     isDataLoading
   } = useApp();
@@ -22,13 +23,47 @@ export const DailyChecklist = () => {
 
   const formattedSelectedDate = useMemo(() => formatDate(selectedDate), [selectedDate]);
 
+  // --- DEBUG LOGS INÍCIO ---
+  useEffect(() => {
+    console.log("--- DailyChecklist Component Debug Logs ---");
+    console.log("1. Usuário Logado:", {
+      id: user?.id,
+      email: user?.email,
+      role: user?.role,
+      isActive: user?.isActive,
+    });
+    console.log("2. Todos os DailyChecklists existentes:", dailyChecklists.map(cl => ({
+      id: cl.id,
+      title: cl.title,
+      is_active: cl.is_active,
+      user_id: cl.user_id,
+    })));
+    console.log("3. Todas as DailyChecklistAssignments:", dailyChecklistAssignments.map(assign => ({
+      id: assign.id,
+      daily_checklist_id: assign.daily_checklist_id,
+      consultant_id: assign.consultant_id,
+    })));
+    console.log("4. Consultores disponíveis na equipe (teamMembers):", teamMembers.map(tm => ({
+      id: tm.id,
+      name: tm.name,
+      roles: tm.roles,
+      isActive: tm.isActive,
+    })));
+  }, [user, dailyChecklists, dailyChecklistAssignments, teamMembers]);
+  // --- DEBUG LOGS FIM ---
+
   const assignedChecklists = useMemo(() => {
-    if (!user) return [];
+    if (!user) {
+      console.log("5.1. Filtragem: Usuário não logado, retornando checklists vazios.");
+      return [];
+    }
     
     // Find checklists explicitly assigned to the user
     const explicitAssignments = dailyChecklistAssignments
       .filter(assignment => assignment.consultant_id === user.id)
       .map(assignment => assignment.daily_checklist_id);
+
+    console.log("5.2. Filtragem: Atribuições explícitas para o usuário", user.id, ":", explicitAssignments);
 
     // Find global checklists (not assigned to anyone specifically)
     const globalChecklists = dailyChecklists.filter(checklist => {
@@ -36,11 +71,22 @@ export const DailyChecklist = () => {
       return !hasAssignments; // If no assignments exist for this checklist, it's global
     }).map(checklist => checklist.id);
 
-    const relevantChecklistIds = new Set([...explicitAssignments, ...globalChecklists]);
+    console.log("5.3. Filtragem: Checklists globais (sem atribuições específicas):", globalChecklists);
 
-    return dailyChecklists
+    const relevantChecklistIds = new Set([...explicitAssignments, ...globalChecklists]);
+    console.log("5.4. Filtragem: IDs de checklists relevantes (explícitos + globais):", Array.from(relevantChecklistIds));
+
+    const finalAssigned = dailyChecklists
       .filter(checklist => checklist.is_active && relevantChecklistIds.has(checklist.id))
       .sort((a, b) => a.title.localeCompare(b.title));
+    
+    console.log("5.5. Filtragem: Checklists finais visíveis para o consultor:", finalAssigned.map(cl => ({
+      id: cl.id,
+      title: cl.title,
+      is_active: cl.is_active,
+    })));
+
+    return finalAssigned;
   }, [dailyChecklists, dailyChecklistAssignments, user]);
 
   const getItemsForChecklist = useCallback((checklistId: string) => {

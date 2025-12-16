@@ -68,18 +68,24 @@ const ChecklistModal: React.FC<ChecklistModalProps> = ({ isOpen, onClose, checkl
       if (checklist) {
         // EDIÇÃO: apenas atualiza o título
         await updateDailyChecklist(checklist.id, { title });
+        console.log(`[ChecklistModal] Checklist "${title}" (ID: ${checklist.id}) atualizado com sucesso.`);
         alert("Checklist atualizado com sucesso!");
       } else {
         // CRIAÇÃO: cria checklist E atribui conforme seleção
         const newChecklist = await addDailyChecklist(title);
+        console.log("[ChecklistModal] Novo checklist criado:", newChecklist);
         
+        console.log("[ChecklistModal] Opção de aplicação selecionada:", applyTo);
+        console.log("[ChecklistModal] Consultores selecionados (se aplicável):", selectedConsultants);
+
         if (applyTo === 'all') {
           // Atribuir a TODOS os consultores ativos
           for (const member of consultants) {
             try {
               await assignDailyChecklistToConsultant(newChecklist.id, member.id);
+              console.log(`[ChecklistModal] Atribuído checklist ${newChecklist.id} para TODOS: ${member.name} (ID: ${member.id})`);
             } catch (error) {
-              console.error(`Erro ao atribuir para ${member.name}:`, error);
+              console.error(`[ChecklistModal] Erro ao atribuir para ${member.name} (ID: ${member.id}):`, error);
             }
           }
           alert(`Checklist "${title}" criado e atribuído a TODOS os ${consultants.length} consultores!`);
@@ -89,18 +95,20 @@ const ChecklistModal: React.FC<ChecklistModalProps> = ({ isOpen, onClose, checkl
           for (const memberId of selectedConsultants) {
             try {
               await assignDailyChecklistToConsultant(newChecklist.id, memberId);
+              console.log(`[ChecklistModal] Atribuído checklist ${newChecklist.id} para ESPECÍFICO: (ID: ${memberId})`);
             } catch (error) {
-              console.error(`Erro ao atribuir para ID ${memberId}:`, error);
+              console.error(`[ChecklistModal] Erro ao atribuir para ID ${memberId}:`, error);
             }
           }
           alert(`Checklist "${title}" criado e atribuído a ${selectedConsultants.length} consultor(es)!`);
         } else {
+          console.log(`[ChecklistModal] Checklist "${title}" criado sem atribuições específicas. Será global.`);
           alert(`Checklist "${title}" criado sem atribuições (será global).`);
         }
       }
       onClose();
     } catch (error: any) {
-      console.error("Failed to save checklist:", error);
+      console.error("[ChecklistModal] Failed to save checklist:", error);
       alert(`Erro ao salvar o checklist: ${error.message || 'Verifique o console para mais detalhes.'}`);
     } finally {
       setIsSaving(false);
