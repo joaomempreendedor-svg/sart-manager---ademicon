@@ -6,7 +6,7 @@ interface ConsultantCredentialsModalProps {
   onClose: () => void;
   consultantName: string;
   login: string;
-  password: string;
+  password: string; // Pode ser 'Usuário existente, sem senha temporária'
 }
 
 export const ConsultantCredentialsModal: React.FC<ConsultantCredentialsModalProps> = ({
@@ -20,6 +20,8 @@ export const ConsultantCredentialsModal: React.FC<ConsultantCredentialsModalProp
   const [copiedPassword, setCopiedPassword] = useState(false);
 
   if (!isOpen) return null;
+
+  const isExistingUser = password === 'Usuário existente, sem senha temporária';
 
   const handleCopy = (text: string, type: 'login' | 'password') => {
     navigator.clipboard.writeText(text);
@@ -56,15 +58,21 @@ export const ConsultantCredentialsModal: React.FC<ConsultantCredentialsModalProp
             <p className="text-gray-800 dark:text-gray-200 text-lg font-medium">
               Bem-vindo(a), <span className="text-brand-600 dark:text-brand-400">{consultantName}</span>!
             </p>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-              Use as credenciais abaixo para seu primeiro acesso. Você será solicitado a trocar a senha.
-            </p>
+            {isExistingUser ? (
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                Este consultor já possui uma conta. Ele deve fazer login com a senha existente ou usar a opção "Esqueceu sua senha?" na tela de login.
+              </p>
+            ) : (
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                Use as credenciais abaixo para o primeiro acesso. O consultor será solicitado a trocar a senha.
+              </p>
+            )}
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Login (Últimos 4 dígitos do CPF)</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Login (E-mail)</label>
             <div className="relative flex items-center">
-              <User className="absolute left-3 w-4 h-4 text-gray-400" />
+              <Mail className="absolute left-3 w-4 h-4 text-gray-400" />
               <input
                 type="text"
                 readOnly
@@ -81,25 +89,27 @@ export const ConsultantCredentialsModal: React.FC<ConsultantCredentialsModalProp
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Senha Temporária</label>
-            <div className="relative flex items-center">
-              <Lock className="absolute left-3 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                readOnly
-                value={password}
-                className="w-full pl-10 pr-12 p-2 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-lg text-gray-800 dark:text-gray-200 text-sm font-mono"
-              />
-              <button
-                onClick={() => handleCopy(password, 'password')}
-                className="absolute right-2 p-1 bg-white dark:bg-slate-800 rounded-md hover:bg-gray-100 dark:hover:bg-slate-700 transition text-brand-600 dark:text-brand-400"
-                title="Copiar Senha"
-              >
-                {copiedPassword ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
-              </button>
+          {!isExistingUser && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Senha Temporária</label>
+              <div className="relative flex items-center">
+                <Lock className="absolute left-3 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  readOnly
+                  value={password}
+                  className="w-full pl-10 pr-12 p-2 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-lg text-gray-800 dark:text-gray-200 text-sm font-mono"
+                />
+                <button
+                  onClick={() => handleCopy(password, 'password')}
+                  className="absolute right-2 p-1 bg-white dark:bg-slate-800 rounded-md hover:bg-gray-100 dark:hover:bg-slate-700 transition text-brand-600 dark:text-brand-400"
+                  title="Copiar Senha"
+                >
+                  {copiedPassword ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         <div className="px-6 py-4 bg-gray-50 dark:bg-slate-700/50 border-t border-gray-100 dark:border-slate-700 flex justify-end">
