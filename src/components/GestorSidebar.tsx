@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, MessageSquare, Settings, FileText, Sun, Moon, Banknote, PlusCircle, Library, TrendingUp, Target, Users, LogOut, User as UserIcon, Calendar, Link as LinkIcon, Star, Video, ListChecks, ClipboardCheck } from 'lucide-react'; // Import ClipboardCheck icon
+import { LayoutDashboard, MessageSquare, Settings, FileText, Sun, Moon, Banknote, PlusCircle, Library, TrendingUp, Target, Users, LogOut, User as UserIcon, Calendar, Link as LinkIcon, Star, Video, ListChecks, ClipboardCheck, UserPlus } from 'lucide-react'; // Import UserPlus icon
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 
@@ -89,9 +89,13 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
             <ListChecks className="w-5 h-5" />
             <span>Config. Checklist Diário</span>
           </NavLink>
-          <NavLink to="/gestor/daily-checklist-monitoring" className={linkClass} onClick={toggleSidebar}> {/* NEW LINK */}
+          <NavLink to="/gestor/daily-checklist-monitoring" className={linkClass} onClick={toggleSidebar}>
             <ClipboardCheck className="w-5 h-5" />
             <span>Monitorar Checklists</span>
+          </NavLink>
+          <NavLink to="/gestor/checklist-assignment" className={linkClass} onClick={toggleSidebar}> {/* NOVO LINK */}
+            <UserPlus className="w-5 h-5" />
+            <span>Atribuição de Checklists</span>
           </NavLink>
           <NavLink to="/gestor/config-process" className={linkClass} onClick={toggleSidebar}>
             <Settings className="w-5 h-5" />
