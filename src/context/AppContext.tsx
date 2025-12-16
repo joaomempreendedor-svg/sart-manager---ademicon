@@ -167,6 +167,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setSupportMaterials([]);
     setImportantLinks([]);
     setCutoffPeriods([]);
+    setOnboardingSessions([]);
+    setOnboardingTemplateVideos([]);
     setChecklistStructure(DEFAULT_STAGES);
     setConsultantGoalsStructure(DEFAULT_GOALS);
     setInterviewStructure(INITIAL_INTERVIEW_STRUCTURE);
@@ -270,17 +272,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           { data: stagesData, error: stagesError },
           { data: fieldsData, error: fieldsDataError },
           // crmLeads fetch needs to be conditional based on role
-          user?.role === 'CONSULTOR' ? supabase.from('crm_leads').select('*').eq('consultant_id', userId) : (effectiveCrmOwnerId ? supabase.from('crm_leads').select('*').eq('user_id', effectiveCrmOwnerId) : Promise.resolve({ data: [], error: null })),
-          supabase.from('daily_checklists').select('*').eq('user_id', userId), // Fetch Daily Checklists
-          supabase.from('daily_checklist_items').select('*'),
-          supabase.from('daily_checklist_assignments').select('*'),
-          supabase.from('daily_checklist_completions').select('*'),
-          supabase.from('weekly_targets').select('*').eq('user_id', userId), // Fetch Weekly Targets
-          supabase.from('weekly_target_items').select('*'),
-          supabase.from('weekly_target_assignments').select('*'),
-          supabase.from('metric_logs').select('*'),
-          supabase.from('support_materials_v2').select('*').eq('user_id', userId), // Fetch Support Materials V2
-          supabase.from('support_material_assignments').select('*'),
+          { data: crmLeadsData, error: crmLeadsError },
+          { data: dailyChecklistsData, error: dailyChecklistsError }, // Fetch Daily Checklists
+          { data: dailyChecklistItemsData, error: dailyChecklistItemsError },
+          { data: dailyChecklistAssignmentsData, error: dailyChecklistAssignmentsError },
+          { data: dailyChecklistCompletionsData, error: dailyChecklistCompletionsError },
+          { data: weeklyTargetsData, error: weeklyTargetsError }, // Fetch Weekly Targets
+          { data: weeklyTargetItemsData, error: weeklyTargetItemsError },
+          { data: weeklyTargetAssignmentsData, error: weeklyTargetAssignmentsError },
+          { data: metricLogsData, error: metricLogsError },
+          { data: supportMaterialsV2Data, error: supportMaterialsV2Error }, // Fetch Support Materials V2
+          { data: supportMaterialAssignmentsData, error: supportMaterialAssignmentsError },
         ] = await Promise.all([
           supabase.from('app_config').select('data').eq('user_id', userId).maybeSingle(),
           supabase.from('candidates').select('id, data').eq('user_id', userId),
@@ -295,7 +297,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           effectiveCrmOwnerId ? supabase.from('crm_stages').select('*').eq('user_id', effectiveCrmOwnerId).order('order_index') : Promise.resolve({ data: [], error: null }),
           effectiveCrmOwnerId ? supabase.from('crm_fields').select('*').eq('user_id', effectiveCrmOwnerId) : Promise.resolve({ data: [], error: null }),
           // crmLeads fetch needs to be conditional based on role
-          user?.role === 'CONSULTOR' ? supabase.from('crm_leads').select('*').eq('consultant_id', userId) : (effectiveCrmOwnerId ? supabase.from('crm_leads').select('*').eq('user_id', effectiveCrmOwnerId) : Promise.resolve({ data: [], error: null })),
+          (user?.role === 'CONSULTOR' ? supabase.from('crm_leads').select('*').eq('consultant_id', userId) : (effectiveCrmOwnerId ? supabase.from('crm_leads').select('*').eq('user_id', effectiveCrmOwnerId) : Promise.resolve({ data: [], error: null }))),
           supabase.from('daily_checklists').select('*').eq('user_id', userId), // Fetch Daily Checklists
           supabase.from('daily_checklist_items').select('*'),
           supabase.from('daily_checklist_assignments').select('*'),
@@ -315,7 +317,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (cutoffError) console.error("Cutoff Periods error:", cutoffError);
         if (linksError) console.error("Important Links error:", linksError);
         if (onboardingError) console.error("Onboarding error:", onboardingError);
-        if (templateVideosError) console.error("Onboarding Template error:", templateVideosError);
+        if (templateVideosError) console.error("Onboarding Template error:", templateVideosData);
         if (pipelinesError) console.error("Pipelines error:", pipelinesError);
         if (stagesError) console.error("Stages error:", stagesError);
         if (fieldsDataError) console.error("Fields error:", fieldsDataError);
@@ -504,7 +506,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const updateChecklistItem = useCallback((stageId: string, itemId: string, label: string) => { const newStructure = checklistStructure.map(s => s.id === stageId ? { ...s, items: s.items.map(i => i.id === itemId ? { ...i, label } : i) } : s); updateAndPersistStructure(setChecklistStructure, 'checklistStructure', newStructure); }, [checklistStructure, updateAndPersistStructure]);
   const deleteChecklistItem = useCallback((stageId: string, itemId: string) => { const newStructure = checklistStructure.map(s => s.id === stageId ? { ...s, items: s.items.filter(i => i.id !== itemId) } : s); updateAndPersistructure(setChecklistStructure, 'checklistStructure', newStructure); }, [checklistStructure, updateAndPersistStructure]);
   const moveChecklistItem = useCallback((stageId: string, itemId: string, dir: 'up' | 'down') => { const newStructure = checklistStructure.map(s => { if (s.id !== stageId) return s; const idx = s.items.findIndex(i => i.id === itemId); if ((dir === 'up' && idx < 1) || (dir === 'down' && idx >= s.items.length - 1)) return s; const newItems = [...s.items]; const targetIdx = dir === 'up' ? idx - 1 : idx + 1; [newItems[idx], newItems[targetIdx]] = [newItems[targetIdx], newItems[idx]]; return { ...s, items: newItems }; }); updateAndPersistStructure(setChecklistStructure, 'checklistStructure', newStructure); }, [checklistStructure, updateAndPersistStructure]);
-  const resetChecklistToDefault = useCallback(() => { updateAndPersistStructure(setChecklistStructure, 'checklistStructure', DEFAULT_STAGES); }, [updateAndPersistStructure]);
+  const resetChecklistToDefault = useCallback(() => { updateAndPersistStructure(setChecklistStructure, 'checklistStructure', DEFAULT_STAGES); }, [updateAndAndPersistStructure]);
   const addGoalItem = useCallback((stageId: string, label: string) => { const newStructure = consultantGoalsStructure.map(s => s.id === stageId ? { ...s, items: [...s.items, { id: `goal_${Date.now()}`, label }] } : s); updateAndPersistStructure(setConsultantGoalsStructure, 'consultantGoalsStructure', newStructure); }, [consultantGoalsStructure, updateAndPersistStructure]);
   const updateGoalItem = useCallback((stageId: string, itemId: string, label: string) => { const newStructure = consultantGoalsStructure.map(s => s.id === stageId ? { ...s, items: s.items.map(i => i.id === itemId ? { ...i, label } : i) } : s); updateAndPersistStructure(setConsultantGoalsStructure, 'consultantGoalsStructure', newStructure); }, [consultantGoalsStructure, updateAndPersistStructure]);
   const deleteGoalItem = useCallback((stageId: string, itemId: string) => { const newStructure = consultantGoalsStructure.map(s => s.id === stageId ? { ...s, items: s.items.filter(i => i.id !== itemId) } : s); updateAndPersistStructure(setConsultantGoalsStructure, 'consultantGoalsStructure', newStructure); }, [consultantGoalsStructure, updateAndPersistStructure]);
