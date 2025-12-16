@@ -9,6 +9,7 @@ import { ConsultantCredentialsModal } from '@/components/ConsultantCredentialsMo
 const ALL_ROLES: TeamRole[] = ['Prévia', 'Autorizado', 'Gestor', 'Anjo'];
 
 export const TeamConfig = () => {
+  const { user } = useAuth(); // Obter o usuário logado (gestor)
   const { teamMembers, addTeamMember, updateTeamMember, deleteTeamMember } = useApp();
   const { registerConsultant, resetConsultantPasswordViaEdge } = useAuth(); // Usar resetConsultantPasswordViaEdge
   
@@ -49,6 +50,10 @@ export const TeamConfig = () => {
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user) {
+      alert("Você precisa estar logado como gestor para adicionar membros.");
+      return;
+    }
     if (!newName.trim() || !newEmail.trim() || newRoles.length === 0 || !newCpf.trim()) {
       alert("Nome, E-mail, CPF e pelo menos um cargo são obrigatórios.");
       return;
@@ -63,51 +68,20 @@ export const TeamConfig = () => {
       const cleanedCpf = newCpf.replace(/\D/g, '');
       const login = cleanedCpf.slice(-4); // Últimos 4 dígitos do CPF
 
-      // 1. Criar usuário no sistema de autenticação (Supabase Auth)
-      // O registerConsultant já cuida de criar o perfil e marcar needs_password_change
-      await registerConsultant(newName.trim(), newEmail.trim(), cleanedCpf, login, generatedPassword);
+      // 1. Registrar o novo usuário no Supabase Auth e obter seu ID
+      const newConsultantAuthId = await registerConsultant(newName.trim(), newEmail.trim(), cleanedCpf, login, generatedPassword);
 
-      // 2. Salvar o membro da equipe no banco de dados
-      // O ID do membro da equipe será o auth.uid() do usuário recém-criado.
-      // No entanto, o `addTeamMember` espera um `id` gerado pelo cliente.
-      // Para garantir que o `id` do `team_members` seja o mesmo do `auth.uid()`,
-      // precisamos buscar o `auth.uid()` após o registro.
-      // Por enquanto, vamos manter o `crypto.randomUUID()` e ajustar o `addTeamMember`
-      // para lidar com a associação ao `auth.uid()` no `AppContext`.
-      // A função `registerConsultant` no `AuthContext` já cria o usuário no Supabase Auth.
-      // O trigger `handle_new_user` no Supabase criará o perfil.
-      // O `AppContext` precisará ser atualizado para associar o `team_member` ao `auth.uid()`.
-      // Por simplicidade, vamos assumir que o `addTeamMember` no `AppContext`
-      // será capaz de associar o `team_member` ao `auth.uid()` correto.
-      // Para este fluxo, o `id` passado para `addTeamMember` será um placeholder temporário
-      // e o `AppContext` o substituirá pelo `auth.uid()` real.
-
-      // A forma mais robusta seria `registerConsultant` retornar o `auth.uid()`
-      // e então usá-lo aqui. Mas como `registerConsultant` não retorna,
-      // vamos confiar que o `handle_new_user` e o `AppContext` farão a ligação.
-      // Para o `team_members` no `AppContext`, o `id` é o `auth.uid()`.
-      // O `registerConsultant` já cria o usuário no `auth.users`.
-      // O `handle_new_user` cria o `profiles` com o `auth.uid()`.
-      // Precisamos garantir que o `team_members` também use o `auth.uid()`.
-
-      // A função `registerConsultant` no `AuthContext` já cria o usuário no Supabase Auth.
-      // O trigger `handle_new_user` no Supabase cria o perfil.
-      // O `AppContext` precisa ser atualizado para associar o `team_member` ao `auth.uid()`.
-      // Para este fluxo, o `addTeamMember` no `AppContext` deve ser capaz de
-      // buscar o `auth.uid()` do usuário recém-criado (pelo e-mail) e usá-lo.
-      // Isso requer uma pequena alteração no `addTeamMember` do `AppContext`.
-
-      // Por enquanto, vamos passar um ID temporário e o `AppContext` fará a substituição.
-      // O `addTeamMember` no `AppContext` já foi ajustado para buscar o `auth.uid()`
-      // do usuário recém-criado (pelo e-mail) e usá-lo como `id` para o `team_member`.
-      // Então, o `id: crypto.randomUUID()` aqui é apenas um placeholder.
-      await addTeamMember({
-        id: crypto.randomUUID(), // Este ID será substituído pelo auth.uid() no AppContext
-        name: newName.trim(),
-        roles: newRoles,
-        isActive: true,
-        cpf: cleanedCpf, // Salvar CPF completo
-      });
+      // 2. Adicionar o novo membro à tabela team_members
+      await addTeamMember(
+        newConsultantAuthId, // ID do consultor (auth.uid())
+        user.id,             // ID do gestor logado
+        {
+          name: newName.trim(),
+          roles: newRoles,
+          isActive: true,
+          cpf: cleanedCpf,
+        }
+      );
 
       setCreatedConsultantCredentials({ name: newName.trim(), login, password: generatedPassword });
       setShowCredentialsModal(true);

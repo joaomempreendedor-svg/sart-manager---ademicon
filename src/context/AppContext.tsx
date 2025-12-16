@@ -167,8 +167,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setSupportMaterials([]);
     setImportantLinks([]);
     setCutoffPeriods([]);
-    setOnboardingSessions([]);
-    setOnboardingTemplateVideos([]);
     setChecklistStructure(DEFAULT_STAGES);
     setConsultantGoalsStructure(DEFAULT_GOALS);
     setInterviewStructure(INITIAL_INTERVIEW_STRUCTURE);
@@ -272,17 +270,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           { data: stagesData, error: stagesError },
           { data: fieldsData, error: fieldsDataError },
           // crmLeads fetch needs to be conditional based on role
-          { data: crmLeadsData, error: crmLeadsError },
-          { data: dailyChecklistsData, error: dailyChecklistsError }, // Fetch Daily Checklists
-          { data: dailyChecklistItemsData, error: dailyChecklistItemsError },
-          { data: dailyChecklistAssignmentsData, error: dailyChecklistAssignmentsError },
-          { data: dailyChecklistCompletionsData, error: dailyChecklistCompletionsError },
-          { data: weeklyTargetsData, error: weeklyTargetsError }, // Fetch Weekly Targets
-          { data: weeklyTargetItemsData, error: weeklyTargetItemsError },
-          { data: weeklyTargetAssignmentsData, error: weeklyTargetAssignmentsError },
-          { data: metricLogsData, error: metricLogsError },
-          { data: supportMaterialsV2Data, error: supportMaterialsV2Error }, // Fetch Support Materials V2
-          { data: supportMaterialAssignmentsData, error: supportMaterialAssignmentsError },
+          user?.role === 'CONSULTOR' ? supabase.from('crm_leads').select('*').eq('consultant_id', userId) : (effectiveCrmOwnerId ? supabase.from('crm_leads').select('*').eq('user_id', effectiveCrmOwnerId) : Promise.resolve({ data: [], error: null })),
+          supabase.from('daily_checklists').select('*').eq('user_id', userId), // Fetch Daily Checklists
+          supabase.from('daily_checklist_items').select('*'),
+          supabase.from('daily_checklist_assignments').select('*'),
+          supabase.from('daily_checklist_completions').select('*'),
+          supabase.from('weekly_targets').select('*').eq('user_id', userId), // Fetch Weekly Targets
+          supabase.from('weekly_target_items').select('*'),
+          supabase.from('weekly_target_assignments').select('*'),
+          supabase.from('metric_logs').select('*'),
+          supabase.from('support_materials_v2').select('*').eq('user_id', userId), // Fetch Support Materials V2
+          supabase.from('support_material_assignments').select('*'),
         ] = await Promise.all([
           supabase.from('app_config').select('data').eq('user_id', userId).maybeSingle(),
           supabase.from('candidates').select('id, data').eq('user_id', userId),
@@ -462,19 +460,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const updateCandidate = useCallback(async (id: string, updates: Partial<Candidate>) => { if (!user) throw new Error("Usuário não autenticado."); const c = candidates.find(c => c.id === id); if (!c || !c.db_id) throw new Error("Candidato não encontrado"); const updated = { ...c, ...updates }; const { db_id, ...dataToUpdate } = updated; const { error } = await supabase.from('candidates').update({ data: dataToUpdate }).match({ id: c.db_id, user_id: user.id }); if (error) { console.error(error); throw error; } setCandidates(prev => prev.map(p => p.id === id ? updated : p)); }, [user, candidates]);
   const deleteCandidate = useCallback(async (id: string) => { if (!user) throw new Error("Usuário não autenticado."); const c = candidates.find(c => c.id === id); if (!c || !c.db_id) throw new Error("Candidato não encontrado"); const { error } = await supabase.from('candidates').delete().match({ id: c.db_id, user_id: user.id }); if (error) { console.error(error); throw error; } setCandidates(prev => prev.filter(p => p.id !== id)); }, [user, candidates]);
   
-  const addTeamMember = useCallback(async (member: Omit<TeamMember, 'id'>) => { 
-    if (!user) throw new Error("Usuário não autenticado."); 
-    // Buscar o auth.uid() do usuário recém-criado (pelo e-mail)
-    const { data: authUser, error: authError } = await supabase.auth.getUser();
-    if (authError || !authUser?.user) {
-      throw new Error("Não foi possível obter o ID do usuário recém-criado. Certifique-se de que o registro foi bem-sucedido.");
-    }
-    const newMemberWithAuthId: TeamMember = { ...member, id: authUser.user.id };
+  const addTeamMember = useCallback(async (consultantAuthId: string, managerAuthId: string, memberData: Omit<TeamMember, 'id' | 'db_id'>) => { 
+    if (!managerAuthId) throw new Error("ID do gestor não fornecido."); 
+    const newMember: TeamMember = { ...memberData, id: consultantAuthId };
 
-    const { data, error } = await supabase.from('team_members').insert({ user_id: user.id, data: newMemberWithAuthId }).select('id').single(); 
+    const { data, error } = await supabase.from('team_members').insert({ user_id: managerAuthId, data: newMember }).select('id').single(); 
     if (error) { console.error(error); throw error; } 
-    if (data) { setTeamMembers(prev => [...prev, { ...newMemberWithAuthId, db_id: data.id }]); } 
-  }, [user]);
+    if (data) { setTeamMembers(prev => [...prev, { ...newMember, db_id: data.id }]); } 
+  }, []);
 
   const updateTeamMember = useCallback(async (id: string, updates: Partial<TeamMember>) => { if (!user) throw new Error("Usuário não autenticado."); const m = teamMembers.find(m => m.id === id); if (!m || !m.db_id) throw new Error("Membro não encontrado"); const updated = { ...m, ...updates }; const { db_id, ...dataToUpdate } = updated; const { error } = await supabase.from('team_members').update({ data: dataToUpdate }).match({ id: m.db_id, user_id: user.id }); if (error) { console.error(error); throw error; } setTeamMembers(prev => prev.map(p => p.id === id ? updated : p)); }, [user, teamMembers]);
   const deleteTeamMember = useCallback(async (id: string) => { if (!user) throw new Error("Usuário não autenticado."); const m = teamMembers.find(m => m.id === id); if (!m || !m.db_id) throw new Error("Membro não encontrado"); const { error } = await supabase.from('team_members').delete().match({ id: m.db_id, user_id: user.id }); if (error) { console.error(error); throw error; } setTeamMembers(prev => prev.filter(p => p.id !== id)); }, [user, teamMembers]);
@@ -509,7 +502,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const updateAndPersistStructure = useCallback((setter: React.Dispatch<React.SetStateAction<any>>, key: string, newStructure: any) => { setter(newStructure); updateConfig({ [key]: newStructure }); }, [updateConfig]);
   const addChecklistItem = useCallback((stageId: string, label: string) => { const newStructure = checklistStructure.map(s => s.id === stageId ? { ...s, items: [...s.items, { id: `custom_${Date.now()}`, label }] } : s); updateAndPersistStructure(setChecklistStructure, 'checklistStructure', newStructure); }, [checklistStructure, updateAndPersistStructure]);
   const updateChecklistItem = useCallback((stageId: string, itemId: string, label: string) => { const newStructure = checklistStructure.map(s => s.id === stageId ? { ...s, items: s.items.map(i => i.id === itemId ? { ...i, label } : i) } : s); updateAndPersistStructure(setChecklistStructure, 'checklistStructure', newStructure); }, [checklistStructure, updateAndPersistStructure]);
-  const deleteChecklistItem = useCallback((stageId: string, itemId: string) => { const newStructure = checklistStructure.map(s => s.id === stageId ? { ...s, items: s.items.filter(i => i.id !== itemId) } : s); updateAndPersistStructure(setChecklistStructure, 'checklistStructure', newStructure); }, [checklistStructure, updateAndPersistStructure]);
+  const deleteChecklistItem = useCallback((stageId: string, itemId: string) => { const newStructure = checklistStructure.map(s => s.id === stageId ? { ...s, items: s.items.filter(i => i.id !== itemId) } : s); updateAndPersistructure(setChecklistStructure, 'checklistStructure', newStructure); }, [checklistStructure, updateAndPersistStructure]);
   const moveChecklistItem = useCallback((stageId: string, itemId: string, dir: 'up' | 'down') => { const newStructure = checklistStructure.map(s => { if (s.id !== stageId) return s; const idx = s.items.findIndex(i => i.id === itemId); if ((dir === 'up' && idx < 1) || (dir === 'down' && idx >= s.items.length - 1)) return s; const newItems = [...s.items]; const targetIdx = dir === 'up' ? idx - 1 : idx + 1; [newItems[idx], newItems[targetIdx]] = [newItems[targetIdx], newItems[idx]]; return { ...s, items: newItems }; }); updateAndPersistStructure(setChecklistStructure, 'checklistStructure', newStructure); }, [checklistStructure, updateAndPersistStructure]);
   const resetChecklistToDefault = useCallback(() => { updateAndPersistStructure(setChecklistStructure, 'checklistStructure', DEFAULT_STAGES); }, [updateAndPersistStructure]);
   const addGoalItem = useCallback((stageId: string, label: string) => { const newStructure = consultantGoalsStructure.map(s => s.id === stageId ? { ...s, items: [...s.items, { id: `goal_${Date.now()}`, label }] } : s); updateAndPersistStructure(setConsultantGoalsStructure, 'consultantGoalsStructure', newStructure); }, [consultantGoalsStructure, updateAndPersistStructure]);

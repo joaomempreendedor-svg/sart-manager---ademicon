@@ -9,7 +9,7 @@ interface AuthContextType {
   isLoading: boolean;
   login: (identifier: string, password: string) => Promise<void>; // identifier pode ser email ou login (CPF)
   register: (name: string, email: string, password: string) => Promise<void>;
-  registerConsultant: (name: string, email: string, cpf: string, login: string, password: string) => Promise<void>; // Nova função para consultores, agora com 'email'
+  registerConsultant: (name: string, email: string, cpf: string, login: string, password: string) => Promise<string>; // Nova função para consultores, agora com 'email'
   logout: () => Promise<void>;
   sendPasswordResetEmail: (email: string) => Promise<void>;
   updateUserPassword: (password: string) => Promise<void>; // Nova função para atualizar senha
@@ -147,7 +147,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (error) throw error;
   }, []);
 
-  const registerConsultant = useCallback(async (name: string, email: string, cpf: string, login: string, password: string) => {
+  const registerConsultant = useCallback(async (name: string, email: string, cpf: string, login: string, password: string): Promise<string> => {
     const { data, error } = await supabase.auth.signUp({
       email, // Agora usa o e-mail real fornecido
       password,
@@ -162,7 +162,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
     });
     if (error) throw error;
-    // O trigger handle_new_user no Supabase cuidará de criar o perfil e copiar o login/needs_password_change
+    if (!data.user) throw new Error("User data not returned after signup.");
+    return data.user.id; // Retorna o ID do novo usuário
   }, []);
 
   const logout = useCallback(async () => {
