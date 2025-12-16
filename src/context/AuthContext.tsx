@@ -117,14 +117,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       });
       if (signInError) {
         error = signInError;
-      } else if (!data || !data.access_token) {
-        error = new Error("Credenciais inválidas ou usuário não encontrado.");
+      } else if (!data || !data.email) { // RPC now returns email
+        error = new Error("Usuário não encontrado com o login fornecido.");
       } else {
-        // If RPC call is successful, set the session manually
-        await supabase.auth.setSession({
-          access_token: data.access_token,
-          refresh_token: data.refresh_token,
-        });
+        // If RPC call is successful, use the returned email to sign in with password
+        const { error: emailSignInError } = await supabase.auth.signInWithPassword({ email: data.email, password });
+        error = emailSignInError;
       }
     } else {
       // Otherwise, assume it's an email
