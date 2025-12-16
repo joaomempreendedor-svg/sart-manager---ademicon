@@ -158,13 +158,16 @@ const AppRoutes = () => {
   );
 };
 
-const App = () => (
-  <HashRouter>
-    <AuthProvider>
-      <AppProvider>
-        <AppRoutes />
-      </AppProvider>
+const App = () => {
+  return (
+    <HashRouter>
+      <AuthProvider>
+        <AppProvider>
+          <AppRoutes />
+        </AppProvider>
+      </AuthProvider>
     </HashRouter>
-);
+  );
+};
 
 export default App;
