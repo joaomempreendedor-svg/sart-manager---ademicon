@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { TrendingUp, User, CheckCircle2, ListChecks, Target, CalendarDays, Loader2, Phone, Mail, Tag, Clock, AlertCircle } from 'lucide-react';
+import { TrendingUp, User, CheckCircle2, ListChecks, Target, CalendarDays, Loader2, Phone, Mail, Tag, Clock, AlertCircle, Plus } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { DailyChecklistItem, WeeklyTargetItem, MetricLog } from '@/types';
@@ -32,7 +32,7 @@ const ConsultorDashboard = () => {
     const consultantLeads = crmLeads.filter(lead => lead.consultant_id === user.id);
     const totalLeads = consultantLeads.length;
 
-    const one WeekAgo = new Date(today);
+    const oneWeekAgo = new Date(today);
     oneWeekAgo.setDate(today.getDate() - 7);
 
     const newLeadsThisWeek = consultantLeads.filter(lead => new Date(lead.created_at) >= oneWeekAgo).length;
