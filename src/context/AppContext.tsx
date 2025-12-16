@@ -264,28 +264,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setCrmOwnerUserId(effectiveCrmOwnerId); // Set the CRM owner ID
 
         // --- Fetch team members ---
-        let teamMembersQuery = supabase.from('team_members').select('id, data');
-        if (user?.role === 'CONSULTOR') {
-            if (effectiveCrmOwnerId) {
-                // Fetch team members where user_id is the manager's ID OR id is the consultant's ID
-                teamMembersQuery = teamMembersQuery.or(`user_id.eq.${effectiveCrmOwnerId},id.eq.${userId}`);
-            } else {
-                // If no manager found, still try to fetch own entry
-                teamMembersQuery = teamMembersQuery.eq('id', userId);
-            }
-        } else { // GESTOR or ADMIN
-            // A manager/admin sees all team members they created
-            teamMembersQuery = teamMembersQuery.eq('user_id', userId);
-        }
         let teamMembersData = [];
-        let teamMembersError = null;
         try {
+          let teamMembersQuery = supabase.from('team_members').select('id, data');
+          if (user?.role === 'CONSULTOR') {
+              if (effectiveCrmOwnerId) {
+                  // Fetch team members where user_id is the manager's ID OR id is the consultant's ID
+                  teamMembersQuery = teamMembersQuery.or(`user_id.eq.${effectiveCrmOwnerId},id.eq.${userId}`);
+              } else {
+                  // If no manager found, still try to fetch own entry
+                  teamMembersQuery = teamMembersQuery.eq('id', userId);
+              }
+          } else { // GESTOR or ADMIN
+              // A manager/admin sees all team members they created
+              teamMembersQuery = teamMembersQuery.eq('user_id', userId);
+          }
           const { data, error } = await teamMembersQuery;
-          teamMembersData = data || [];
-          teamMembersError = error;
+          if (!error) teamMembersData = data || [];
+          else console.error("Error fetching team_members (ignoring):", error);
         } catch (e) {
           console.error("Falha ao buscar team_members:", e);
-          teamMembersError = e;
         }
         // --- End fetch team members ---
 
@@ -344,7 +342,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         // Log errors if any, but don't throw to prevent blocking
         if (configResult.error) console.error("Config error:", configResult.error);
         if (candidatesData.error) console.error("Candidates error:", candidatesData.error);
-        if (teamMembersError) console.error("Team error:", teamMembersError);
+        // teamMembersError is handled inline now
         if (materialsData.error) console.error("Materials error:", materialsData.error);
         if (cutoffData.error) console.error("Cutoff Periods error:", cutoffData.error);
         if (linksData.error) console.error("Important Links error:", linksData.error);
@@ -390,15 +388,38 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
 
         setCandidates(candidatesData?.data?.map(item => ({ ...(item.data as Candidate), db_id: item.id })) || []);
-        const rawTeamMembers = teamMembersData?.map(item => ({ ...(item.data as TeamMember), db_id: item.id })) || [];
-        const normalizedTeamMembers = rawTeamMembers.map(member => {
-          const m = member as any;
-          if (m.isActive === undefined) { m.isActive = true; }
-          if (m.role && !m.roles) { m.roles = [m.role]; delete m.role; }
-          if (!Array.isArray(m.roles)) { m.roles = []; }
-          return m as TeamMember;
-        });
+        
+        // Normalização dos teamMembers
+        const normalizedTeamMembers = teamMembersData?.map(item => {
+          const data = item.data as any;
+          
+          // Se for TIPO 1 (antigo, sem id do auth)
+          if (!data.id && data.name) {
+            return {
+              id: `legacy_${item.id}`, // ID temporário baseado no db_id
+              db_id: item.id,
+              name: data.name,
+              roles: Array.isArray(data.roles) ? data.roles : [data.role || 'Prévia'],
+              isActive: data.isActive !== false,
+              isLegacy: true, // Marca como legado
+              hasLogin: false,
+            } as TeamMember;
+          }
+          
+          // Se for TIPO 2 (novo, com id do auth)
+          return {
+            id: data.id, // ID do Supabase Auth
+            db_id: item.id,
+            name: data.name,
+            email: data.email,
+            roles: Array.isArray(data.roles) ? data.roles : [data.role || 'Prévia'],
+            isActive: data.isActive !== false,
+            hasLogin: true,
+            isLegacy: false,
+          } as TeamMember;
+        }) || [];
         setTeamMembers(normalizedTeamMembers);
+
         setSupportMaterials(materialsData?.data?.map(item => ({ ...(item.data as SupportMaterial), db_id: item.id })) || []);
         setImportantLinks(linksData?.data?.map(item => ({ ...(item.data as ImportantLink), db_id: item.id })) || []);
         setCutoffPeriods(cutoffData?.data?.map(item => ({ ...(item.data as CutoffPeriod), db_id: item.id })) || []);

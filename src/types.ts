@@ -197,13 +197,16 @@ export interface ImportantLink {
 export type TeamRole = 'Prévia' | 'Autorizado' | 'Gestor' | 'Anjo';
 
 export interface TeamMember {
-  id: string; // Client-side UUID
+  id: string; // Client-side UUID (pode ser auth.uid() ou legacy_db_id)
   db_id?: string; // Database primary key
   name: string;
+  email?: string; // NOVO: Adicionado para o TIPO 2
   roles: TeamRole[];
   isActive: boolean;
   cpf?: string; // NOVO: CPF do membro da equipe (criptografado)
   feedbacks?: Feedback[];
+  hasLogin?: boolean; // NOVO: Indica se o membro tem um login associado (TIPO 2)
+  isLegacy?: boolean; // NOVO: Indica se é um membro do TIPO 1 (antigo)
 }
 
 // AUTHENTICATION
@@ -432,7 +435,7 @@ export interface AppContextType {
   addCutoffPeriod: (period: CutoffPeriod) => Promise<void>;
   updateCutoffPeriod: (id: string, updates: Partial<CutoffPeriod>) => Promise<void>;
   deleteCutoffPeriod: (id: string) => Promise<void>;
-  addTeamMember: (member: TeamMember) => Promise<void>;
+  addTeamMember: (consultantAuthId: string, managerAuthId: string, memberData: Omit<TeamMember, 'id' | 'db_id'>) => Promise<void>;
   updateTeamMember: (id: string, updates: Partial<TeamMember>) => Promise<void>;
   deleteTeamMember: (id: string) => Promise<void>;
   addOrigin: (origin: string) => void;
