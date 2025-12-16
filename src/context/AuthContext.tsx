@@ -109,21 +109,26 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     let authError: Error | null = null;
 
     if (/^\d{4}$/.test(identifier)) {
+      console.log(`[AuthContext] Tentando login com CPF: ${identifier}`);
       // Attempt to get email via RPC for CPF
       const { data: userEmail, error: rpcError } = await supabase.rpc('sign_in_with_login', {
         login_val: identifier,
       });
 
       if (rpcError) {
+        console.error(`[AuthContext] Erro RPC ao buscar email por CPF:`, rpcError);
         authError = rpcError;
       } else if (userEmail) {
+        console.log(`[AuthContext] RPC retornou email: ${userEmail}. Tentando signInWithPassword.`);
         // If RPC returned an email, proceed with client-side signInWithPassword
         const { error: emailSignInError } = await supabase.auth.signInWithPassword({ email: userEmail, password });
         authError = emailSignInError;
       } else {
+        console.log(`[AuthContext] RPC não retornou email para CPF: ${identifier}`);
         authError = new Error("Usuário não encontrado com o login fornecido.");
       }
     } else {
+      console.log(`[AuthContext] Tentando login com email: ${identifier}`);
       // Attempt login via email
       const { error: emailSignInError } = await supabase.auth.signInWithPassword({ email: identifier, password });
       authError = emailSignInError;
