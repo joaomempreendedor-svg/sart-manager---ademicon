@@ -11,7 +11,7 @@ const ALL_ROLES: TeamRole[] = ['Prévia', 'Autorizado', 'Gestor', 'Anjo'];
 export const TeamConfig = () => {
   const { user } = useAuth(); // Obter o usuário logado (gestor)
   const { teamMembers, addTeamMember, updateTeamMember, deleteTeamMember } = useApp();
-  const { registerConsultant, resetConsultantPasswordViaEdge } = useAuth(); // Usar resetConsultantPasswordViaEdge
+  const { resetConsultantPasswordViaEdge } = useAuth(); // Usar resetConsultantPasswordViaEdge
   
   const [newName, setNewName] = useState('');
   const [newEmail, setNewEmail] = useState(''); // Novo estado para o e-mail
@@ -68,23 +68,26 @@ export const TeamConfig = () => {
       const cleanedCpf = newCpf.replace(/\D/g, '');
       const login = cleanedCpf.slice(-4); // Últimos 4 dígitos do CPF
 
-      // 1. Registrar o novo usuário no Supabase Auth e obter seu ID
-      const newConsultantAuthId = await registerConsultant(newName.trim(), newEmail.trim(), cleanedCpf, login, generatedPassword);
+      // Usar a nova função addTeamMember do AppContext
+      const result = await addTeamMember({
+        name: newName.trim(),
+        email: newEmail.trim(),
+        cpf: cleanedCpf,
+        login: login,
+        roles: newRoles,
+        isActive: true,
+      });
 
-      // 2. Adicionar o novo membro à tabela team_members
-      await addTeamMember(
-        newConsultantAuthId, // ID do consultor (auth.uid())
-        user.id,             // ID do gestor logado
-        {
-          name: newName.trim(),
-          roles: newRoles,
-          isActive: true,
-          cpf: cleanedCpf,
-        }
-      );
-
-      setCreatedConsultantCredentials({ name: newName.trim(), login, password: generatedPassword });
-      setShowCredentialsModal(true);
+      if (result.success) {
+        setCreatedConsultantCredentials({ 
+          name: result.member.name, 
+          login: result.member.login || '', 
+          password: result.tempPassword || 'Usuário existente, sem senha temporária' 
+        });
+        setShowCredentialsModal(true);
+      } else {
+        alert(result.message || "Falha ao adicionar membro.");
+      }
 
       // Resetar formulário
       setNewName('');

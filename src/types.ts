@@ -207,6 +207,7 @@ export interface TeamMember {
   feedbacks?: Feedback[];
   hasLogin?: boolean; // NOVO: Indica se o membro tem um login associado (TIPO 2)
   isLegacy?: boolean; // NOVO: Indica se é um membro do TIPO 1 (antigo)
+  tempPassword?: string; // NOVO: Senha temporária gerada para o primeiro acesso
 }
 
 // AUTHENTICATION
@@ -435,7 +436,7 @@ export interface AppContextType {
   addCutoffPeriod: (period: CutoffPeriod) => Promise<void>;
   updateCutoffPeriod: (id: string, updates: Partial<CutoffPeriod>) => Promise<void>;
   deleteCutoffPeriod: (id: string) => Promise<void>;
-  addTeamMember: (consultantAuthId: string, managerAuthId: string, memberData: Omit<TeamMember, 'id' | 'db_id'>) => Promise<void>;
+  addTeamMember: (member: Omit<TeamMember, 'id'> & { email?: string }) => Promise<{ success: boolean; member: TeamMember; tempPassword?: string; message: string; }>;
   updateTeamMember: (id: string, updates: Partial<TeamMember>) => Promise<void>;
   deleteTeamMember: (id: string) => Promise<void>;
   addOrigin: (origin: string) => void;
@@ -503,7 +504,7 @@ export interface AppContextType {
   moveDailyChecklistItem: (checklistId: string, itemId: string, direction: 'up' | 'down') => Promise<void>;
   assignDailyChecklistToConsultant: (checklistId: string, consultantId: string) => Promise<void>;
   unassignDailyChecklistFromConsultant: (checklistId: string, consultantId: string) => Promise<void>;
-  toggleDailyChecklistCompletion: (itemId: string, date: string, done: boolean) => Promise<void>;
+  toggleDailyChecklistCompletion: (itemId: string, date: string, done: boolean, consultantId: string) => Promise<void>;
 
   // NOVO: Estado e funções para Metas de Prospecção (Módulo 4)
   weeklyTargets: WeeklyTarget[];

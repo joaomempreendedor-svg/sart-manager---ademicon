@@ -515,14 +515,117 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const updateCandidate = useCallback(async (id: string, updates: Partial<Candidate>) => { if (!user) throw new Error("Usuário não autenticado."); const c = candidates.find(c => c.id === id); if (!c || !c.db_id) throw new Error("Candidato não encontrado"); const updated = { ...c, ...updates }; const { db_id, ...dataToUpdate } = updated; const { error } = await supabase.from('candidates').update({ data: dataToUpdate }).match({ id: c.db_id, user_id: user.id }); if (error) { console.error(error); throw error; } setCandidates(prev => prev.map(p => p.id === id ? updated : p)); }, [user, candidates]);
   const deleteCandidate = useCallback(async (id: string) => { if (!user) throw new Error("Usuário não autenticado."); const c = candidates.find(c => c.id === id); if (!c || !c.db_id) throw new Error("Candidato não encontrado"); const { error } = await supabase.from('candidates').delete().match({ id: c.db_id, user_id: user.id }); if (error) { console.error(error); throw error; } setCandidates(prev => prev.filter(p => p.id !== id)); }, [user, candidates]);
   
-  const addTeamMember = useCallback(async (consultantAuthId: string, managerAuthId: string, memberData: Omit<TeamMember, 'id' | 'db_id'>) => { 
-    if (!managerAuthId) throw new Error("ID do gestor não fornecido."); 
-    const newMember: TeamMember = { ...memberData, id: consultantAuthId };
+  const addTeamMember = useCallback(async (member: Omit<TeamMember, 'id'> & { email?: string }) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+  
+    let authUserId: string;
+    let tempPassword = '';
+    let isExistingUser = false;
+  
+    // SE tem email: verifica se já existe
+    if (member.email) {
+      console.log(`Verificando se email ${member.email} já existe...`);
+      
+      try {
+        // Tenta criar um novo usuário. Se já existir, o Supabase Auth retornará um erro.
+        tempPassword = Math.random().toString(36).slice(-8) + 'Aa1!'; // Senha forte
+        
+        const { data: authData, error: signUpError } = await supabase.auth.signUp({
+          email: member.email,
+          password: tempPassword,
+          options: {
+            data: { 
+              first_name: member.name.split(' ')[0],
+              last_name: member.name.split(' ').slice(1).join(' '),
+              role: 'CONSULTOR', // Default role for new signups
+              needs_password_change: true, // Force password change
+            }
+          }
+        });
+        
+        if (signUpError) {
+          // ERRO: usuário já existe
+          if (signUpError.message.includes('already registered') || signUpError.message.includes('User already registered')) {
+            console.log(`Usuário ${member.email} já existe. Buscando ID...`);
+            isExistingUser = true;
+            
+            // Para obter o ID de um usuário existente (não o logado), precisamos de uma RPC ou admin API.
+            // Como estamos no cliente, vamos tentar buscar na tabela 'profiles' se o email estiver lá.
+            // Se não, usaremos um ID temporário e o gestor terá que vincular manualmente.
+            const { data: profileData, error: profileError } = await supabase
+              .from('profiles')
+              .select('id')
+              .eq('email', member.email)
+              .maybeSingle();
 
-    const { data, error } = await supabase.from('team_members').insert({ user_id: managerAuthId, data: newMember }).select('id').single(); 
-    if (error) { console.error(error); throw error; } 
-    if (data) { setTeamMembers(prev => [...prev, { ...newMember, db_id: data.id }]); } 
-  }, []);
+            if (profileError) {
+              console.error("Erro ao buscar perfil para usuário existente:", profileError);
+              authUserId = `existing_email_${member.email.replace(/[^a-z0-9]/g, '')}`; // Fallback ID
+            } else if (profileData) {
+              authUserId = profileData.id;
+            } else {
+              // Se não encontrado em profiles, fallback para um ID gerado
+              authUserId = `existing_email_${member.email.replace(/[^a-z0-9]/g, '')}`;
+            }
+            tempPassword = ''; // Não tem senha temporária para usuário existente
+          } else {
+            throw signUpError;
+          }
+        } else {
+          // SUCESSO: novo usuário criado
+          authUserId = authData.user!.id;
+          console.log(`Novo usuário criado: ${member.email} (ID: ${authUserId})`);
+        }
+      } catch (error: any) {
+        console.error("Erro no processo de autenticação:", error);
+        // Fallback: ID local baseado no email em caso de erro inesperado
+        authUserId = `error_email_${member.email.replace(/[@.]/g, '_')}`;
+        isExistingUser = true;
+      }
+    } else {
+      // Sem email: ID local (para membros legados ou sem login)
+      authUserId = `local_${crypto.randomUUID()}`;
+      console.log(`Membro sem email criado com ID local: ${authUserId}`);
+    }
+  
+    // Prepara objeto do membro
+    const newMember: TeamMember = {
+      ...member,
+      id: authUserId,
+      email: member.email,
+      hasLogin: !!member.email,
+      isActive: true,
+      ...(tempPassword && { tempPassword }) // Só inclui se tiver senha temporária
+    };
+  
+    // Adiciona ao team_members
+    const { data, error } = await supabase
+      .from('team_members')
+      .insert({ 
+        user_id: user.id, 
+        data: newMember 
+      })
+      .select('id')
+      .single();
+    
+    if (error) {
+      console.error("Erro ao inserir em team_members:", error);
+      throw error;
+    }
+    
+    // Atualiza estado local
+    setTeamMembers(prev => [...prev, { ...newMember, db_id: data.id }]);
+    
+    // Retorna resultado com informações
+    return { 
+      success: true, 
+      member: newMember, 
+      tempPassword: isExistingUser ? undefined : tempPassword,
+      message: isExistingUser ? 
+        `Membro adicionado usando conta existente (${member.email})` :
+        `Membro criado com senha temporária: ${tempPassword}`
+    };
+  }, [user]);
 
   const updateTeamMember = useCallback(async (id: string, updates: Partial<TeamMember>) => { if (!user) throw new Error("Usuário não autenticado."); const m = teamMembers.find(m => m.id === id); if (!m || !m.db_id) throw new Error("Membro não encontrado"); const updated = { ...m, ...updates }; const { db_id, ...dataToUpdate } = updated; const { error } = await supabase.from('team_members').update({ data: dataToUpdate }).match({ id: m.db_id, user_id: user.id }); if (error) { console.error(error); throw error; } setTeamMembers(prev => prev.map(p => p.id === id ? updated : p)); }, [user, teamMembers]);
   const deleteTeamMember = useCallback(async (id: string) => { if (!user) throw new Error("Usuário não autenticado."); const m = teamMembers.find(m => m.id === id); if (!m || !m.db_id) throw new Error("Membro não encontrado"); const { error } = await supabase.from('team_members').delete().match({ id: m.db_id, user_id: user.id }); if (error) { console.error(error); throw error; } setTeamMembers(prev => prev.filter(p => p.id !== id)); }, [user, teamMembers]);

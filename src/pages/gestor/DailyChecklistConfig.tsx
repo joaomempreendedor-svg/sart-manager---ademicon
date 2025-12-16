@@ -24,7 +24,7 @@ interface ChecklistModalProps {
 }
 
 const ChecklistModal: React.FC<ChecklistModalProps> = ({ isOpen, onClose, checklist }) => {
-  const { addDailyChecklist, updateDailyChecklist, teamMembers, assignDailyChecklistToConsultant } = useApp();
+  const { addDailyChecklist, updateDailyChecklist } = useApp(); // Removido teamMembers e assignDailyChecklistToConsultant
   const [title, setTitle] = useState(checklist?.title || '');
   const [isSaving, setIsSaving] = useState(false);
   
@@ -37,37 +37,20 @@ const ChecklistModal: React.FC<ChecklistModalProps> = ({ isOpen, onClose, checkl
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // VERIFICAÇÃO FORTE
     if (!title.trim()) {
-      alert("❌ Título é obrigatório!");
+      alert("O título do checklist é obrigatório.");
       return;
     }
-
-    setIsSaving(true);
     
+    setIsSaving(true);
     try {
-      if (checklist) {
-        // EDIÇÃO: apenas atualiza o título
-        await updateDailyChecklist(checklist.id, { title });
-        console.log(`[ChecklistModal] Checklist "${title}" (ID: ${checklist.id}) atualizado com sucesso.`);
-        alert("✅ Checklist atualizado com sucesso!");
-      } else {
-        // CRIAÇÃO: cria checklist como GLOBAL por padrão
-        const newChecklist = await addDailyChecklist(title);
-        
-        if (!newChecklist || !newChecklist.id) {
-          throw new Error("Checklist não foi criado corretamente");
-        }
-
-        console.log("[ChecklistModal] Novo checklist criado como GLOBAL:", newChecklist);
-        alert(`✅ Checklist "${title}" criado com sucesso como GLOBAL!`);
-      }
+      // CRIAÇÃO SIMPLES: apenas o checklist (será GLOBAL)
+      const newChecklist = await addDailyChecklist(title);
+      alert(`✅ Checklist "${title}" criado com sucesso!\n\nEle estará disponível para TODOS os consultores.`);
       onClose();
     } catch (error: any) {
-      // ERRO DETALHADO
-      console.error("❌ FALHA COMPLETA:", error);
-      alert(`FALHA: ${error.message}\n\nVerifique: 1) Conexão 2) Permissões 3) Console`);
+      console.error("Failed to save checklist:", error);
+      alert(`Erro: ${error.message || 'Não foi possível criar o checklist.'}`);
     } finally {
       setIsSaving(false);
     }
@@ -141,7 +124,7 @@ const AssignmentModal: React.FC<AssignmentModalProps> = ({ isOpen, onClose, chec
   const { teamMembers, dailyChecklistAssignments, assignDailyChecklistToConsultant, unassignDailyChecklistFromConsultant } = useApp();
   const [isSaving, setIsSaving] = useState(false);
 
-  const consultants = useMemo(() => teamMembers.filter(m => m.roles.includes('CONSULTOR') || m.roles.includes('Prévia') || m.roles.includes('Autorizado')), [teamMembers]);
+  const consultants = useMemo(() => teamMembers.filter(m => m.isActive && (m.roles.includes('CONSULTOR') || m.roles.includes('Prévia') || m.roles.includes('Autorizado'))), [teamMembers]);
   const assignedConsultantIds = useMemo(() => 
     new Set(dailyChecklistAssignments.filter(a => a.daily_checklist_id === checklist?.id).map(a => a.consultant_id))
   , [dailyChecklistAssignments, checklist]);

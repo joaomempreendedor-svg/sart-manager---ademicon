@@ -81,40 +81,42 @@ export const DailyChecklist = () => {
       return [];
     }
 
-    console.log("🔧 LÓGICA ROBUSTA ATIVADA");
-    console.log("Consultor logado (TeamMember):", userTeamMember);
+    console.log("🔍 Buscando checklists para:", userTeamMember.id);
 
-    // MODO DE EMERGÊNCIA: Se tudo falhou, mostra CHECKLISTS DE TESTE
-    if (dailyChecklists.length === 0 && dailyChecklistAssignments.length === 0) {
-      console.log("⚠️ MODO EMERGÊNCIA: Nenhum dado carregado, criando dados locais");
-      return [
-        {
-          id: 'emergency-1',
-          title: 'Checklist de Teste (Emergência)',
-          is_active: true,
-          user_id: user.id, // Usar o ID do usuário logado como fallback
-          created_at: new Date().toISOString()
-        }
-      ];
-    }
+    // 1. GLOBAIS: checklists SEM atribuição específica
+    const globalChecklists = dailyChecklists.filter(checklist => {
+      const hasAnyAssignment = dailyChecklistAssignments.some(
+        assignment => assignment.daily_checklist_id === checklist.id
+      );
+      return !hasAnyAssignment; // GLOBAL = sem atribuições
+    });
 
-    // LÓGICA NORMAL melhorada
-    const explicitAssignments = dailyChecklistAssignments
-      .filter(a => a.consultant_id === userTeamMember.id) // Usar o ID do userTeamMember
-      .map(a => a.daily_checklist_id);
+    console.log("📋 Checklists globais:", globalChecklists.length);
 
-    const globalChecklists = dailyChecklists
-      .filter(c => !dailyChecklistAssignments.some(a => a.daily_checklist_id === c.id))
-      .map(c => c.id);
+    // 2. ESPECÍFICOS: checklists atribuídos a ESTE consultor
+    const specificChecklists = dailyChecklists.filter(checklist => {
+      return dailyChecklistAssignments.some(
+        assignment => 
+          assignment.daily_checklist_id === checklist.id && 
+          assignment.consultant_id === userTeamMember.id
+      );
+    });
 
-    const relevantIds = new Set([...explicitAssignments, ...globalChecklists]);
+    console.log("🎯 Checklists específicos:", specificChecklists.length);
 
-    const uniqueActiveChecklists = dailyChecklists
-      .filter(c => c.is_active && relevantIds.has(c.id))
-      .sort((a, b) => a.title.localeCompare(b.title));
+    // 3. COMBINAR ambos (remover duplicados)
+    const allChecklists = [...globalChecklists, ...specificChecklists];
+    const uniqueChecklists = allChecklists.filter(
+      (checklist, index, self) =>
+        // Filtra ativos E remove duplicados
+        checklist.is_active &&
+        self.findIndex(c => c.id === checklist.id) === index
+    );
 
-    console.log(`✅ ${uniqueActiveChecklists.length} checklists visíveis`);
-    return uniqueActiveChecklists;
+    console.log("✅ Total de checklists visíveis:", uniqueChecklists.length);
+    console.log("📝 Títulos:", uniqueChecklists.map(c => c.title));
+
+    return uniqueChecklists.sort((a, b) => a.title.localeCompare(b.title));
   }, [dailyChecklists, dailyChecklistAssignments, user, userTeamMember]);
 
   const getItemsForChecklist = useCallback((checklistId: string) => {

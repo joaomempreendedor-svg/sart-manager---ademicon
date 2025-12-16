@@ -7,9 +7,8 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   isLoading: boolean;
-  login: (identifier: string, password: string) => Promise<void>; // identifier pode ser email ou login (CPF)
+  login: (identifier: string, password: string) => Promise<void>; // identifier pode ser email ou CPF (4 dígitos)
   register: (name: string, email: string, password: string) => Promise<void>;
-  registerConsultant: (name: string, email: string, cpf: string, login: string, password: string) => Promise<string>; // Nova função para consultores, agora com 'email'
   logout: () => Promise<void>;
   sendPasswordResetEmail: (email: string) => Promise<void>;
   updateUserPassword: (password: string) => Promise<void>; // Nova função para atualizar senha
@@ -147,25 +146,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (error) throw error;
   }, []);
 
-  const registerConsultant = useCallback(async (name: string, email: string, cpf: string, login: string, password: string): Promise<string> => {
-    const { data, error } = await supabase.auth.signUp({
-      email, // Agora usa o e-mail real fornecido
-      password,
-      options: {
-        data: {
-          first_name: name.split(' ')[0],
-          last_name: name.split(' ').slice(1).join(' '),
-          cpf: cpf, // Armazenar CPF nos metadados do usuário
-          login: login, // Armazenar login nos metadados do usuário
-          needs_password_change: true, // Forçar troca de senha no primeiro login
-        }
-      }
-    });
-    if (error) throw error;
-    if (!data.user) throw new Error("User data not returned after signup.");
-    return data.user.id; // Retorna o ID do novo usuário
-  }, []);
-
   const logout = useCallback(async () => {
     const { error } = await supabase.auth.signOut();
     if (error) {
@@ -204,12 +184,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     isLoading,
     login,
     register,
-    registerConsultant,
     logout,
     sendPasswordResetEmail,
     updateUserPassword,
     resetConsultantPasswordViaEdge, // Adicionado
-  }), [user, session, isLoading, login, register, registerConsultant, logout, sendPasswordResetEmail, updateUserPassword, resetConsultantPasswordViaEdge]);
+  }), [user, session, isLoading, login, register, logout, sendPasswordResetEmail, updateUserPassword, resetConsultantPasswordViaEdge]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
