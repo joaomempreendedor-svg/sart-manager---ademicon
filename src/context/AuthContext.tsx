@@ -13,6 +13,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   sendPasswordResetEmail: (email: string) => Promise<void>;
   updateUserPassword: (password: string) => Promise<void>; // Nova função para atualizar senha
+  resetConsultantPasswordViaEdge: (userId: string, newPassword: string) => Promise<void>; // NOVO: Reset de senha via Edge Function
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -189,6 +190,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, [user]);
 
+  const resetConsultantPasswordViaEdge = useCallback(async (userId: string, newPassword: string) => {
+    const { data, error } = await supabase.functions.invoke('reset-consultant-password', {
+      body: { userId, newPassword },
+    });
+    if (error) throw error;
+    if (data.error) throw new Error(data.error);
+  }, []);
+
   const value = useMemo(() => ({
     user,
     session,
@@ -199,7 +208,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     logout,
     sendPasswordResetEmail,
     updateUserPassword,
-  }), [user, session, isLoading, login, register, registerConsultant, logout, sendPasswordResetEmail, updateUserPassword]);
+    resetConsultantPasswordViaEdge, // Adicionado
+  }), [user, session, isLoading, login, register, registerConsultant, logout, sendPasswordResetEmail, updateUserPassword, resetConsultantPasswordViaEdge]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

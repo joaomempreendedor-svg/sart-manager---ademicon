@@ -10,7 +10,7 @@ const ALL_ROLES: TeamRole[] = ['Prévia', 'Autorizado', 'Gestor', 'Anjo'];
 
 export const TeamConfig = () => {
   const { teamMembers, addTeamMember, updateTeamMember, deleteTeamMember } = useApp();
-  const { registerConsultant, sendPasswordResetEmail } = useAuth(); // Usar registerConsultant do AuthContext
+  const { registerConsultant, resetConsultantPasswordViaEdge } = useAuth(); // Usar resetConsultantPasswordViaEdge
   
   const [newName, setNewName] = useState('');
   const [newCpf, setNewCpf] = useState('');
@@ -155,21 +155,16 @@ export const TeamConfig = () => {
     }
 
     try {
-      // Gerar uma nova senha temporária
       const newTempPassword = generateRandomPassword();
+      const login = member.cpf.slice(-4); // O login é os últimos 4 dígitos do CPF
+
+      await resetConsultantPasswordViaEdge(member.id, newTempPassword);
       
-      // Chamar a função de reset de senha do AuthContext
-      // Esta função irá atualizar a senha do usuário no auth.users
-      // e marcar needs_password_change como true no perfil.
-      await sendPasswordResetEmail(member.id); // Usar o ID do usuário para o reset
-      
-      alert(`Senha de ${member.name} resetada com sucesso! Uma nova senha temporária foi enviada para o e-mail associado ao usuário. O consultor será forçado a trocá-la no próximo login.`);
-      // TODO: Idealmente, a nova senha temporária deveria ser exibida ao gestor aqui,
-      // mas o Supabase Auth não retorna a senha temporária gerada por `resetPasswordForEmail`.
-      // A melhor prática é que o usuário receba o link por e-mail e defina a própria senha.
-      // Para o fluxo de "senha temporária gerada pelo gestor", precisaríamos de um Edge Function
-      // que atualize a senha diretamente e retorne a nova senha.
-      // Por enquanto, o fluxo será via e-mail de reset.
+      // Exibir a nova senha temporária no modal
+      setCreatedConsultantCredentials({ name: member.name, login, password: newTempPassword });
+      setShowCredentialsModal(true);
+
+      alert(`Senha de ${member.name} resetada com sucesso! O consultor será forçado a trocá-la no próximo login.`);
     } catch (error: any) {
       alert(`Falha ao resetar senha: ${error.message}`);
       console.error("Erro ao resetar senha:", error);
