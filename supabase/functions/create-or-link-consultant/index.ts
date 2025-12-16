@@ -12,9 +12,9 @@ serve(async (req) => {
   }
 
   try {
-    const { email, name, tempPassword } = await req.json();
+    const { email, name, tempPassword, login: consultantLogin } = await req.json(); // Adicionado 'login: consultantLogin'
 
-    console.log(`[Edge Function] Received request for email: ${email}, name: ${name}`);
+    console.log(`[Edge Function] Received request for email: ${email}, name: ${name}, login: ${consultantLogin}`);
 
     if (!email || !name || !tempPassword) {
       console.error('[Edge Function] Missing required fields: email, name, or tempPassword.');
@@ -60,6 +60,7 @@ serve(async (req) => {
             first_name: name.split(' ')[0],
             last_name: name.split(' ').slice(1).join(' '),
             needs_password_change: true, // Force password change
+            login: consultantLogin, // Incluir o login (4 dígitos do CPF) aqui
           },
         }
       );
@@ -72,7 +73,12 @@ serve(async (req) => {
       // Also update the public.profiles table to ensure needs_password_change is true
       const { error: updateProfileError } = await supabaseAdmin
         .from('profiles')
-        .update({ first_name: name.split(' ')[0], last_name: name.split(' ').slice(1).join(' '), needs_password_change: true })
+        .update({ 
+          first_name: name.split(' ')[0], 
+          last_name: name.split(' ').slice(1).join(' '), 
+          needs_password_change: true,
+          login: consultantLogin // Incluir o login (4 dígitos do CPF) aqui
+        })
         .eq('id', authUserId);
 
       if (updateProfileError) {
@@ -93,6 +99,7 @@ serve(async (req) => {
           last_name: name.split(' ').slice(1).join(' '),
           role: 'CONSULTOR', // Default role for new signups
           needs_password_change: true, // Force password change on first login
+          login: consultantLogin, // Incluir o login (4 dígitos do CPF) aqui
         },
       });
 
