@@ -143,7 +143,7 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
       value: value,
       onChange: (e: any) => handleChange(field.key, e.target.value),
       // Removido focus:ring e focus:border, mantendo apenas focus:outline-none
-      className: "w-full p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 focus:outline-none",
+      className: "w-full p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 focus:outline-none focus:ring-0 focus:ring-offset-0 focus:border-transparent",
       required: field.is_required,
     };
 
@@ -157,7 +157,7 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
       case 'select':
         return (
           <Select value={value} onValueChange={(val) => handleChange(field.key, val)} required={field.is_required}>
-            <SelectTrigger className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600 focus:outline-none"> {/* Removido focus:ring e focus:border aqui também */}
+            <SelectTrigger className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600 focus:outline-none focus:ring-0 focus:ring-offset-0 focus:border-transparent"> {/* Removido focus:ring e focus:border aqui também */}
               <SelectValue placeholder={`Selecione ${field.label}`} />
             </SelectTrigger>
             <SelectContent className="dark:bg-slate-800 dark:text-white dark:border-slate-700">
