@@ -190,8 +190,8 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
                 />
               </div>
 
-              {/* Etapa */}
-              <div className="grid gap-2">
+              {/* Etapa - REMOVIDO */}
+              {/* <div className="grid gap-2">
                 <Label htmlFor="stage_id" className="text-left">
                   Etapa
                 </Label>
@@ -205,7 +205,7 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
+              </div> */}
 
               <div className="col-span-4 border-t border-gray-200 dark:border-slate-700 pt-4 mt-4">
                 <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-3 flex items-center">
