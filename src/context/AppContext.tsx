@@ -550,7 +550,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       if (invokeError) {
         console.error("[AppContext] Edge Function invocation error:", invokeError);
-        console.error("[AppContext] Full invokeError object:", invokeError); // Log completo do erro
+        if ((invokeError as any).context?.response) {
+          try {
+            const errorBody = await (invokeError as any).context.response.json();
+            console.error("[AppContext] Detailed Edge Function error response body:", errorBody);
+            if (errorBody.error) {
+              throw new Error(errorBody.error); // Throw the specific error message
+            }
+          } catch (jsonError) {
+            console.error("[AppContext] Failed to parse Edge Function error response body:", jsonError);
+          }
+        }
         throw new Error(`Falha ao invocar Edge Function: ${invokeError.message}`);
       }
       
@@ -633,7 +643,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       if (invokeError) {
         console.error("[AppContext] Edge Function invocation error during UPDATE:", invokeError);
-        console.error("[AppContext] Full invokeError object:", invokeError); // Log completo do erro
+        if ((invokeError as any).context?.response) {
+          try {
+            const errorBody = await (invokeError as any).context.response.json();
+            console.error("[AppContext] Detailed Edge Function error response body:", errorBody);
+            if (errorBody.error) {
+              throw new Error(errorBody.error); // Throw the specific error message
+            }
+          } catch (jsonError) {
+            console.error("[AppContext] Failed to parse Edge Function error response body:", jsonError);
+          }
+        }
         throw new Error(`Falha ao invocar Edge Function: ${invokeError.message}`);
       }
       
