@@ -39,7 +39,7 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('10:00');
-  const [invitedManagerId, setInvitedManagerId] = useState<string | undefined>(undefined);
+  const [invitedManagerId, setInvitedManagerId] = useState<string | undefined>(undefined); // Alterado para undefined
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -58,7 +58,7 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
       setDate(new Date().toISOString().split('T')[0]);
       setStartTime('09:00');
       setEndTime('10:00');
-      setInvitedManagerId(undefined);
+      setInvitedManagerId(undefined); // Resetar para undefined
       setError('');
     }
   }, [isOpen, lead.name]);
@@ -96,7 +96,7 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
         type: 'meeting',
         meeting_start_time: startDateTime.toISOString(),
         meeting_end_time: endDateTime.toISOString(),
-        manager_id: invitedManagerId,
+        manager_id: invitedManagerId, // Passa undefined se "Nenhum" for selecionado
         manager_invitation_status: invitedManagerId ? 'pending' : undefined,
       });
 
@@ -215,7 +215,7 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
                     <SelectValue placeholder="Selecione um gestor" />
                   </SelectTrigger>
                   <SelectContent className="dark:bg-slate-800 dark:text-white dark:border-slate-700">
-                    <SelectItem value="none">Nenhum</SelectItem>
+                    <SelectItem value={undefined}>Nenhum</SelectItem> {/* Alterado para undefined */}
                     {managers.map(manager => (
                       <SelectItem key={manager.id} value={manager.id}>
                         {manager.name}
