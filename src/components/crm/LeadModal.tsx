@@ -28,14 +28,14 @@ interface LeadModalProps {
   onClose: () => void;
   lead: CrmLead | null;
   crmFields: CrmField[];
-  pipelineStages: CrmStage[];
+  // Removido pipelineStages: CrmStage[];
   consultantId: string;
 }
 
-const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields, pipelineStages, consultantId }) => {
+const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields, consultantId }) => {
   const { addCrmLead, updateCrmLead, deleteCrmLead, crmOwnerUserId } = useApp();
   const [formData, setFormData] = useState<Partial<CrmLead>>({
-    stage_id: '',
+    // Removido stage_id: '',
     data: {},
   });
   const [isSaving, setIsSaving] = useState(false);
@@ -44,16 +44,16 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
   useEffect(() => {
     if (lead) {
       setFormData({
-        stage_id: lead.stage_id,
-        data: { ...lead.data, name: lead.name || '' }, // Move lead.name into data for editing
+        stage_id: lead.stage_id, // Manter stage_id para edição de leads existentes
+        data: { ...lead.data, name: lead.name || '' },
       });
     } else {
       setFormData({
-        stage_id: pipelineStages.length > 0 ? pipelineStages[0].id : '', // Default to first stage
-        data: { name: '' }, // Initialize name in data for new leads
+        // Para novos leads, stage_id será definido automaticamente no AppContext
+        data: { name: '' },
       });
     }
-  }, [lead, isOpen, pipelineStages]);
+  }, [lead, isOpen]);
 
   const handleChange = (key: string, value: any) => {
     if (key === 'stage_id') {
@@ -79,8 +79,10 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
       return;
     }
 
-    if (!formData.stage_id) {
-      alert('A Etapa é obrigatória.');
+    // A validação de stage_id para novos leads será feita no AppContext
+    // Para leads existentes, a etapa pode ser alterada (se a UI permitir) ou mantida.
+    if (lead && !formData.stage_id) {
+      alert('A Etapa é obrigatória para leads existentes.');
       return;
     }
 
@@ -100,7 +102,7 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
     try {
       const payload = {
         ...formData,
-        name: formData.data?.name, // Extract name from data to top-level for CrmLead type
+        name: formData.data?.name || null, // Extract name from data to top-level for CrmLead type
         consultant_id: consultantId,
         user_id: crmOwnerUserId, // Use the CRM owner's ID (Gestor's ID)
       } as CrmLead;
@@ -108,7 +110,9 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
       if (lead) {
         await updateCrmLead(lead.id, payload);
       } else {
-        await addCrmLead(payload);
+        // Para novos leads, não passamos stage_id aqui, ele será definido no addCrmLead
+        const { stage_id, ...newLeadPayload } = payload; // Remove stage_id from payload for new leads
+        await addCrmLead(newLeadPayload);
       }
       onClose();
     } catch (error: any) {
@@ -187,22 +191,20 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
         <form onSubmit={handleSubmit}>
           <ScrollArea className="h-[60vh] py-4 pr-4">
             <div className="grid gap-4">
-              {/* Etapa */}
-              <div className="grid gap-2">
-                <Label htmlFor="stage_id" className="text-left">
-                  Etapa
-                </Label>
-                <Select value={formData.stage_id || ''} onValueChange={(val) => handleChange('stage_id', val)} required>
-                  <SelectTrigger className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
-                    <SelectValue placeholder="Selecione a Etapa" />
-                  </SelectTrigger>
-                  <SelectContent className="dark:bg-slate-800 dark:text-white dark:border-slate-700">
-                    {pipelineStages.map(stage => (
-                      <SelectItem key={stage.id} value={stage.id}>{stage.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {/* A seleção de etapa foi removida daqui */}
+              {lead && ( // Para leads existentes, ainda podemos mostrar a etapa atual (apenas leitura ou com um seletor diferente se necessário)
+                <div className="grid gap-2">
+                  <Label htmlFor="current_stage" className="text-left text-gray-500 dark:text-gray-400">
+                    Etapa Atual
+                  </Label>
+                  <Input
+                    id="current_stage"
+                    value={pipelineStages.find(s => s.id === lead.stage_id)?.name || 'N/A'}
+                    readOnly
+                    className="w-full p-2 border rounded bg-gray-100 dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-200"
+                  />
+                </div>
+              )}
 
               <div className="col-span-4 border-t border-gray-200 dark:border-slate-700 pt-4 mt-4">
                 <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-3 flex items-center">

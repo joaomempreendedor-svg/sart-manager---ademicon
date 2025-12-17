@@ -31,7 +31,7 @@ const CrmPage = () => {
     if (!searchTerm) return consultantLeads;
     const lowerCaseSearchTerm = searchTerm.toLowerCase();
     return consultantLeads.filter(lead =>
-      lead.name.toLowerCase().includes(lowerCaseSearchTerm) ||
+      (lead.name && lead.name.toLowerCase().includes(lowerCaseSearchTerm)) || // Check lead.name if it exists
       Object.values(lead.data || {}).some(value =>
         String(value).toLowerCase().includes(lowerCaseSearchTerm)
       )
@@ -144,7 +144,7 @@ const CrmPage = () => {
           onClose={() => setIsLeadModalOpen(false)}
           lead={editingLead}
           crmFields={crmFields.filter(f => f.is_active)}
-          pipelineStages={pipelineStages}
+          // Removido pipelineStages={pipelineStages}
           consultantId={user?.id || ''}
         />
       )}

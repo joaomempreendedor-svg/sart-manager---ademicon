@@ -102,7 +102,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // Módulo 4: Metas de Prospecção
   const [weeklyTargets, setWeeklyTargets] = useState<WeeklyTarget[]>([]);
   const [weeklyTargetItems, setWeeklyTargetItems] = useState<WeeklyTargetItem[]>([]);
-  const [weeklyTargetAssignments, setWeeklyTargetAssignments] = useState<WeeklyTargetAssignment[]>([]);
+  const [weeklyTargetAssignments, setWeeklyTargetAssignments] = useState<WeeklyTargetAssignment[]>(([]);
   const [metricLogs, setMetricLogs] = useState<MetricLog[]>([]);
 
   // Módulo 5: Materiais de Apoio (v2)
@@ -696,7 +696,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const deleteGoalItem = useCallback((stageId: string, itemId: string) => { const newStructure = consultantGoalsStructure.map(s => s.id === stageId ? { ...s, items: s.items.filter(i => i.id !== itemId) } : s); updateAndPersistStructure(setConsultantGoalsStructure, 'consultantGoalsStructure', newStructure); }, [consultantGoalsStructure, updateAndPersistStructure]);
   const moveGoalItem = useCallback((stageId: string, itemId: string, dir: 'up' | 'down') => { const newStructure = consultantGoalsStructure.map(s => { if (s.id !== stageId) return s; const idx = s.items.findIndex(i => i.id === itemId); if ((dir === 'up' && idx < 1) || (dir === 'down' && idx >= s.items.length - 1)) return s; const newItems = [...s.items]; const targetIdx = dir === 'up' ? idx - 1 : idx + 1; [newItems[idx], newItems[targetIdx]] = [newItems[targetIdx], newItems[idx]]; return { ...s, items: newItems }; }); updateAndPersistStructure(setConsultantGoalsStructure, 'consultantGoalsStructure', newStructure); }, [consultantGoalsStructure, updateAndPersistStructure]);
   const resetGoalsToDefault = useCallback(() => { updateAndPersistStructure(setConsultantGoalsStructure, 'consultantGoalsStructure', DEFAULT_GOALS); }, [updateAndPersistStructure]);
-  const updateInterviewSection = useCallback((sectionId: string, updates: Partial<InterviewSection>) => { const newStructure = interviewStructure.map(s => s.id === sectionId ? { ...s, ...updates } : s); updateAndAndPersistStructure(setInterviewStructure, 'interviewStructure', newStructure); }, [interviewStructure, updateAndPersistStructure]);
+  const updateInterviewSection = useCallback((sectionId: string, updates: Partial<InterviewSection>) => { const newStructure = interviewStructure.map(s => s.id === sectionId ? { ...s, ...updates } : s); updateAndPersistStructure(setInterviewStructure, 'interviewStructure', newStructure); }, [interviewStructure, updateAndPersistStructure]);
   const addInterviewQuestion = useCallback((sectionId: string, text: string, points: number) => { const newStructure = interviewStructure.map(s => s.id === sectionId ? { ...s, questions: [...s.questions, { id: `q_${Date.now()}`, text, points }] } : s); updateAndPersistStructure(setInterviewStructure, 'interviewStructure', newStructure); }, [interviewStructure, updateAndPersistStructure]);
   const updateInterviewQuestion = useCallback((sectionId: string, questionId: string, updates: Partial<InterviewSection['questions'][0]>) => { const newStructure = interviewStructure.map(s => s.id === sectionId ? { ...s, questions: s.questions.map(q => q.id === questionId ? { ...q, ...updates } : q) } : s); updateAndPersistStructure(setInterviewStructure, 'interviewStructure', newStructure); }, [interviewStructure, updateAndPersistStructure]);
   const deleteInterviewQuestion = useCallback((sectionId: string, questionId: string) => { const newStructure = interviewStructure.map(s => s.id === sectionId ? { ...s, questions: s.questions.filter(q => q.id !== questionId) } : s); updateAndPersistStructure(setInterviewStructure, 'interviewStructure', newStructure); }, [interviewStructure, updateAndPersistStructure]);
@@ -754,30 +754,32 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [user]);
 
   // CRM Functions
-  const addCrmLead = useCallback(async (leadData: Omit<CrmLead, 'id' | 'created_at' | 'updated_at'>): Promise<CrmLead> => {
+  const addCrmLead = useCallback(async (leadData: Omit<CrmLead, 'id' | 'created_at' | 'updated_at' | 'stage_id'>): Promise<CrmLead> => {
     if (!user) throw new Error("Usuário não autenticado.");
     // Ensure user_id (Gestor's ID) is correctly set from crmOwnerUserId
     if (!crmOwnerUserId) throw new Error("ID do Gestor do CRM não encontrado.");
 
-    // Determine the default stage_id if not provided
-    let finalStageId = leadData.stage_id;
-    if (!finalStageId) {
-      const activePipeline = crmPipelines.find(p => p.is_active) || crmPipelines[0];
-      if (activePipeline) {
-        const firstStage = crmStages.find(s => s.pipeline_id === activePipeline.id && s.is_active);
-        if (firstStage) {
-          finalStageId = firstStage.id;
-        }
+    // Automatically determine the first active stage of the active pipeline
+    const activePipeline = crmPipelines.find(p => p.is_active) || crmPipelines[0];
+    let firstStageId: string | undefined;
+
+    if (activePipeline) {
+      const firstStage = crmStages
+        .filter(s => s.pipeline_id === activePipeline.id && s.is_active)
+        .sort((a, b) => a.order_index - b.order_index)[0];
+      if (firstStage) {
+        firstStageId = firstStage.id;
       }
     }
-    if (!finalStageId) {
-      throw new Error("Nenhuma etapa de pipeline ativa encontrada para atribuir ao lead.");
+    
+    if (!firstStageId) {
+      throw new Error("Nenhuma etapa de pipeline ativa encontrada para atribuir ao lead. Por favor, configure as etapas do CRM.");
     }
 
     const payload = { 
       ...leadData, 
       user_id: JOAO_GESTOR_AUTH_ID, 
-      stage_id: finalStageId,
+      stage_id: firstStageId, // Assign to the first active stage
       name: leadData.data?.name || null, // Extract name from data to top-level
     }; 
     const { data, error } = await supabase.from('crm_leads').insert(payload).select().single();
@@ -798,7 +800,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }; 
     const { error } = await supabase.from('crm_leads').update(payload).eq('id', id).eq('consultant_id', user.id);
     if (error) throw error;
-    setCrmLeads(prev => prev.map(lead => lead.id === id ? { ...lead, ...updates } : lead));
+    setCrmLeads(prev => prev.map(lead => lead.id === id ? { ...lead, ...payload } : lead)); // Use payload to ensure name is updated
   }, [user, crmOwnerUserId]);
 
   const deleteCrmLead = useCallback(async (id: string) => {
