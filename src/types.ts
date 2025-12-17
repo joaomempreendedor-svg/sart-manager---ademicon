@@ -436,8 +436,8 @@ export interface AppContextType {
   addCutoffPeriod: (period: CutoffPeriod) => Promise<void>;
   updateCutoffPeriod: (id: string, updates: Partial<CutoffPeriod>) => Promise<void>;
   deleteCutoffPeriod: (id: string) => Promise<void>;
-  addTeamMember: (member: Omit<TeamMember, 'id'> & { email?: string }) => Promise<{ success: boolean; member: TeamMember; tempPassword?: string; message: string; }>;
-  updateTeamMember: (id: string, updates: Partial<TeamMember>) => Promise<void>;
+  addTeamMember: (member: Omit<TeamMember, 'id'> & { email?: string }) => Promise<{ success: boolean; member: TeamMember; tempPassword?: string; message: string; wasExistingUser?: boolean; }>;
+  updateTeamMember: (id: string, updates: Partial<TeamMember>) => Promise<{ tempPassword?: string }>; // Updated return type
   deleteTeamMember: (id: string) => Promise<void>;
   addOrigin: (origin: string) => void;
   deleteOrigin: (origin: string) => void;
@@ -522,7 +522,7 @@ export interface AppContextType {
   unassignWeeklyTargetFromConsultant: (targetId: string, consultantId: string) => Promise<void>;
   addMetricLog: (metric_key: string, value: number, date: string) => Promise<MetricLog>;
 
-  // NOVO: Estado e funções para Materiais de Apoio (links/texto) (Módulo 5)
+  // NOVO: Estado e funções para Materiais de Apoio (v2)
   supportMaterialsV2: SupportMaterialV2[];
   supportMaterialAssignments: SupportMaterialAssignment[];
   addSupportMaterialV2: (material: Omit<SupportMaterialV2, 'id' | 'user_id' | 'created_at'>) => Promise<SupportMaterialV2>;

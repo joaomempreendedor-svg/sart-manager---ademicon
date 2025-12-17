@@ -23,6 +23,7 @@ export const TeamConfig = () => {
 
   const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
   const [editingName, setEditingName] = useState('');
+  const [editingEmail, setEditingEmail] = useState(''); // Novo estado para o e-mail em edição
   const [editingCpf, setEditingCpf] = useState('');
   const [editingRoles, setEditingRoles] = useState<TeamRole[]>([]);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -107,6 +108,7 @@ export const TeamConfig = () => {
   const startEditing = (member: TeamMember) => {
     setEditingMember(member);
     setEditingName(member.name);
+    setEditingEmail(member.email || ''); // Set editing email
     setEditingCpf(formatCpf(member.cpf || ''));
     setEditingRoles(member.roles);
   };
@@ -114,13 +116,14 @@ export const TeamConfig = () => {
   const cancelEditing = () => {
     setEditingMember(null);
     setEditingName('');
+    setEditingEmail(''); // Clear editing email
     setEditingCpf('');
     setEditingRoles([]);
   };
 
   const handleUpdate = async () => {
-    if (!editingMember || !editingName.trim() || editingRoles.length === 0 || !editingCpf.trim()) {
-      alert("O nome, CPF e pelo menos um cargo são obrigatórios.");
+    if (!editingMember || !editingName.trim() || editingRoles.length === 0 || !editingCpf.trim() || !editingEmail.trim()) {
+      alert("O nome, E-mail, CPF e pelo menos um cargo são obrigatórios.");
       return;
     }
     if (editingCpf.replace(/\D/g, '').length !== 11) {
@@ -131,7 +134,23 @@ export const TeamConfig = () => {
     setIsUpdating(true);
     try {
       const cleanedCpf = editingCpf.replace(/\D/g, '');
-      await updateTeamMember(editingMember.id, { name: editingName.trim(), roles: editingRoles, cpf: cleanedCpf });
+      const result = await updateTeamMember(editingMember.id, { 
+        name: editingName.trim(), 
+        roles: editingRoles, 
+        cpf: cleanedCpf,
+        email: editingEmail.trim(), // Include email in updates
+      });
+
+      if (result?.tempPassword) {
+        setCreatedConsultantCredentials({
+          name: editingName.trim(),
+          login: editingEmail.trim(),
+          password: result.tempPassword,
+          wasExistingUser: true, // It's an update, so it's an existing user
+        });
+        setShowCredentialsModal(true);
+      }
+      
       cancelEditing();
     } catch (error: any) {
       alert(`Falha ao atualizar membro: ${error.message}`);
@@ -172,7 +191,6 @@ export const TeamConfig = () => {
       
       await resetConsultantPasswordViaEdge(member.id, newTempPassword);
       
-      // Exibir a nova senha temporária no modal
       setCreatedConsultantCredentials({ 
         name: member.name, 
         login: member.email, // O login é o email
@@ -295,6 +313,7 @@ export const TeamConfig = () => {
                                   {editingMember?.id === member.id ? (
                                     <div className="flex-1 flex flex-col gap-3">
                                       <input type="text" value={editingName} onChange={e => setEditingName(e.target.value)} className="w-full border-gray-300 dark:border-slate-600 rounded-md p-2 text-sm" />
+                                      <input type="email" value={editingEmail} onChange={e => setEditingEmail(e.target.value)} className="w-full border-gray-300 dark:border-slate-600 rounded-md p-2 text-sm" /> {/* Email field */}
                                       <input type="text" value={editingCpf} onChange={e => setEditingCpf(formatCpf(e.target.value))} maxLength={14} className="w-full border-gray-300 dark:border-slate-600 rounded-md p-2 text-sm" />
                                       <div className="grid grid-cols-2 gap-2">
                                         {ALL_ROLES.map(role => (
@@ -328,6 +347,9 @@ export const TeamConfig = () => {
                                                 ))}
                                                 {!member.isActive && <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300">Inativo</span>}
                                               </div>
+                                              {member.email && (
+                                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Email: {member.email}</p>
+                                              )}
                                               {member.cpf && (
                                                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">CPF: {formatCpf(member.cpf)}</p>
                                               )}
