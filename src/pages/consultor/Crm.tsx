@@ -1,12 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Plus, Search, Loader2, Phone, Mail, Tag, MessageSquare, TrendingUp, ListTodo, CalendarPlus, Send, DollarSign } from 'lucide-react'; // Importado novos ícones
+import { Plus, Search, Loader2, Phone, Mail, Tag, MessageSquare, TrendingUp, ListTodo, CalendarPlus, Send, DollarSign, Edit2, Trash2 } from 'lucide-react'; // Importado novos ícones
 import LeadModal from '@/components/crm/LeadModal'; // Novo componente
 
 const CrmPage = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
-  const { crmPipelines, crmStages, crmLeads, crmFields, isDataLoading } = useApp();
+  const { crmPipelines, crmStages, crmLeads, crmFields, isDataLoading, deleteCrmLead } = useApp();
   const [isLeadModalOpen, setIsLeadModalOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<CrmLead | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -54,6 +54,17 @@ const CrmPage = () => {
   const handleEditLead = (lead: CrmLead) => {
     setEditingLead(lead);
     setIsLeadModalOpen(true);
+  };
+
+  const handleDeleteLead = async (e: React.MouseEvent, lead: CrmLead) => {
+    e.stopPropagation(); // Prevent opening the edit modal
+    if (window.confirm(`Tem certeza que deseja excluir o lead "${lead.name}"? Esta ação não pode ser desfeita.`)) {
+      try {
+        await deleteCrmLead(lead.id);
+      } catch (error: any) {
+        alert(`Erro ao excluir lead: ${error.message}`);
+      }
+    }
   };
 
   if (isAuthLoading || isDataLoading) {
@@ -123,8 +134,26 @@ const CrmPage = () => {
                 <p className="text-center text-sm text-gray-400 py-4">Nenhum lead nesta etapa.</p>
               ) : (
                 groupedLeads[stage.id]?.map(lead => (
-                  <div key={lead.id} onClick={() => handleEditLead(lead)} className="bg-white dark:bg-slate-700 p-3 rounded-lg shadow-sm border border-gray-200 dark:border-slate-600 hover:border-brand-500 cursor-pointer transition-all">
-                    <p className="font-medium text-gray-900 dark:text-white">{lead.name}</p>
+                  <div key={lead.id} className="bg-white dark:bg-slate-700 p-3 rounded-lg shadow-sm border border-gray-200 dark:border-slate-600 hover:border-brand-500 cursor-pointer transition-all group">
+                    <div className="flex justify-between items-start mb-2">
+                      <p className="font-medium text-gray-900 dark:text-white">{lead.name}</p>
+                      <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); handleEditLead(lead); }} 
+                          className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md"
+                          title="Editar Lead"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button 
+                          onClick={(e) => handleDeleteLead(e, lead)} 
+                          className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md"
+                          title="Excluir Lead"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
                     <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 space-y-0.5">
                       {lead.data.phone && <div className="flex items-center"><Phone className="w-3 h-3 mr-1" /> {lead.data.phone}</div>}
                       {lead.data.email && <div className="flex items-center"><Mail className="w-3 h-3 mr-1" /> {lead.data.email}</div>}
@@ -159,7 +188,6 @@ const CrmPage = () => {
           onClose={() => setIsLeadModalOpen(false)}
           lead={editingLead}
           crmFields={crmFields.filter(f => f.is_active)}
-          // Removido pipelineStages={pipelineStages}
           consultantId={user?.id || ''}
         />
       )}
