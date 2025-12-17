@@ -176,25 +176,27 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
         <form onSubmit={handleSubmit}>
           <ScrollArea className="h-[60vh] py-4 pr-4">
             <div className="grid gap-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="name" className="text-right whitespace-nowrap"> {/* Adicionado whitespace-nowrap aqui */}
+              {/* Nome do Lead */}
+              <div className="grid gap-2">
+                <Label htmlFor="name" className="text-left">
                   Nome do Lead
                 </Label>
                 <Input
                   id="name"
                   value={formData.name || ''}
                   onChange={(e) => handleChange('name', e.target.value)}
-                  className="col-span-3 dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                  className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600"
                   required
                 />
               </div>
 
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="stage_id" className="text-right">
+              {/* Etapa */}
+              <div className="grid gap-2">
+                <Label htmlFor="stage_id" className="text-left">
                   Etapa
                 </Label>
                 <Select value={formData.stage_id || ''} onValueChange={(val) => handleChange('stage_id', val)} required>
-                  <SelectTrigger className="col-span-3 dark:bg-slate-700 dark:text-white dark:border-slate-600">
+                  <SelectTrigger className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
                     <SelectValue placeholder="Selecione a Etapa" />
                   </SelectTrigger>
                   <SelectContent className="dark:bg-slate-800 dark:text-white dark:border-slate-700">
@@ -212,11 +214,11 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
                 </h4>
                 <div className="grid gap-4">
                   {filteredCrmFields.map(field => (
-                    <div key={field.id} className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor={field.key} className="text-right">
+                    <div key={field.id} className="grid gap-2"> {/* Ajustado para empilhar label e input */}
+                      <Label htmlFor={field.key} className="text-left">
                         {field.label} {field.is_required && <span className="text-red-500">*</span>}
                       </Label>
-                      <div className="col-span-3">
+                      <div>
                         {renderField(field)}
                       </div>
                     </div>
