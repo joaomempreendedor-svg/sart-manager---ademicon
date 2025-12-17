@@ -1076,32 +1076,64 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // NOVO: Funções para Lead Tasks
   const addLeadTask = useCallback(async (task: Omit<LeadTask, 'id' | 'user_id' | 'created_at'>): Promise<LeadTask> => {
     if (!user) throw new Error("Usuário não autenticado.");
-    const { data, error } = await supabase.from('lead_tasks').insert({ ...task, user_id: user.id }).select().single();
-    if (error) throw error;
-    setLeadTasks(prev => [...prev, data]);
-    return data;
+    try {
+      const { data, error } = await supabase.from('lead_tasks').insert({ ...task, user_id: user.id }).select().single();
+      if (error) {
+        console.error("Supabase error adding lead task:", error);
+        throw new Error(error.message);
+      }
+      setLeadTasks(prev => [...prev, data]);
+      return data;
+    } catch (error: any) {
+      console.error("Failed to add lead task:", error);
+      throw new Error(`Failed to add lead task: ${error.message || error}`);
+    }
   }, [user]);
 
   const updateLeadTask = useCallback(async (id: string, updates: Partial<LeadTask>) => {
     if (!user) throw new Error("Usuário não autenticado.");
-    const { error } = await supabase.from('lead_tasks').update(updates).eq('id', id).eq('user_id', user.id);
-    if (error) throw error;
-    setLeadTasks(prev => prev.map(task => task.id === id ? { ...task, ...updates } : task));
+    try {
+      const { error } = await supabase.from('lead_tasks').update(updates).eq('id', id).eq('user_id', user.id);
+      if (error) {
+        console.error("Supabase error updating lead task:", error);
+        throw new Error(error.message);
+      }
+      setLeadTasks(prev => prev.map(task => task.id === id ? { ...task, ...updates } : task));
+    } catch (error: any) {
+      console.error("Failed to update lead task:", error);
+      throw new Error(`Failed to update lead task: ${error.message || error}`);
+    }
   }, [user]);
 
   const deleteLeadTask = useCallback(async (id: string) => {
     if (!user) throw new Error("Usuário não autenticado.");
-    const { error } = await supabase.from('lead_tasks').delete().eq('id', id).eq('user_id', user.id);
-    if (error) throw error;
-    setLeadTasks(prev => prev.filter(task => task.id !== id));
+    try {
+      const { error } = await supabase.from('lead_tasks').delete().eq('id', id).eq('user_id', user.id);
+      if (error) {
+        console.error("Supabase error deleting lead task:", error);
+        throw new Error(error.message);
+      }
+      setLeadTasks(prev => prev.filter(task => task.id !== id));
+    } catch (error: any) {
+      console.error("Failed to delete lead task:", error);
+      throw new Error(`Failed to delete lead task: ${error.message || error}`);
+    }
   }, [user]);
 
   const toggleLeadTaskCompletion = useCallback(async (id: string, is_completed: boolean) => {
     if (!user) throw new Error("Usuário não autenticado.");
     const updates = { is_completed, completed_at: is_completed ? new Date().toISOString() : null };
-    const { error } = await supabase.from('lead_tasks').update(updates).eq('id', id).eq('user_id', user.id);
-    if (error) throw error;
-    setLeadTasks(prev => prev.map(task => task.id === id ? { ...task, ...updates } : task));
+    try {
+      const { error } = await supabase.from('lead_tasks').update(updates).eq('id', id).eq('user_id', user.id);
+      if (error) {
+        console.error("Supabase error toggling lead task completion:", error);
+        throw new Error(error.message);
+      }
+      setLeadTasks(prev => prev.map(task => task.id === id ? { ...task, ...updates } : task));
+    } catch (error: any) {
+      console.error("Failed to toggle task completion:", error);
+      throw new Error(`Failed to toggle task completion: ${error.message || error}`);
+    }
   }, [user]);
 
 
