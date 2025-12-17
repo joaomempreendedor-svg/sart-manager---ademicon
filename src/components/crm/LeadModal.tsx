@@ -142,7 +142,6 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
       name: field.key,
       value: value,
       onChange: (e: any) => handleChange(field.key, e.target.value),
-      // Removido focus:ring e focus:border, mantendo apenas focus:outline-none
       className: "w-full p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 focus:outline-none focus:ring-0 focus:ring-offset-0 focus:border-transparent",
       required: field.is_required,
     };
@@ -157,7 +156,7 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
       case 'select':
         return (
           <Select value={value} onValueChange={(val) => handleChange(field.key, val)} required={field.is_required}>
-            <SelectTrigger className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600 focus:outline-none focus:ring-0 focus:ring-offset-0 focus:border-transparent"> {/* Removido focus:ring e focus:border aqui também */}
+            <SelectTrigger className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600 focus:outline-none focus:ring-0 focus:ring-offset-0 focus:border-transparent">
               <SelectValue placeholder={`Selecione ${field.label}`} />
             </SelectTrigger>
             <SelectContent className="dark:bg-slate-800 dark:text-white dark:border-slate-700">
@@ -189,7 +188,7 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-2xl dark:bg-slate-800 dark:text-white p-6"> {/* Increased max-w to 2xl and added p-6 */}
+      <DialogContent className="sm:max-w-2xl bg-white dark:bg-slate-800 dark:text-white p-6"> {/* Adicionado bg-white aqui */}
         <DialogHeader>
           <DialogTitle>{lead ? 'Editar Lead' : 'Novo Lead'}</DialogTitle>
           <DialogDescription>
@@ -197,9 +196,9 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
-          <ScrollArea className="max-h-[60vh] py-4 pr-4"> {/* Changed h-[60vh] to max-h-[60vh] and added pr-4 back for scrollbar */}
+          <ScrollArea className="max-h-[60vh] py-4 pr-4">
             <div className="grid gap-4">
-              {lead && ( // Para leads existentes, ainda podemos mostrar a etapa atual (apenas leitura ou com um seletor diferente se necessário)
+              {lead && (
                 <div className="grid gap-2">
                   <Label htmlFor="current_stage" className="text-left text-gray-500 dark:text-gray-400">
                     Etapa Atual
