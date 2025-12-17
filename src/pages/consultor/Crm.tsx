@@ -4,6 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Plus, Search, Loader2, Phone, Mail, Tag, MessageSquare, TrendingUp, ListTodo, CalendarPlus, Send, DollarSign, Edit2, Trash2 } from 'lucide-react'; // Importado novos ícones
 import LeadModal from '@/components/crm/LeadModal'; // Novo componente
 import { LeadTasksModal } from '@/components/crm/LeadTasksModal'; // Importar o novo modal de tarefas
+import { ScheduleMeetingModal } from '@/components/crm/ScheduleMeetingModal'; // NOVO: Importar o modal de agendamento de reunião
 
 const CrmPage = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -13,6 +14,8 @@ const CrmPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isTasksModalOpen, setIsTasksModalOpen] = useState(false); // Estado para o modal de tarefas
   const [selectedLeadForTasks, setSelectedLeadForTasks] = useState<CrmLead | null>(null); // Lead selecionado para tarefas
+  const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false); // NOVO: Estado para o modal de reunião
+  const [selectedLeadForMeeting, setSelectedLeadForMeeting] = useState<CrmLead | null>(null); // NOVO: Lead selecionado para reunião
 
   const activePipeline = useMemo(() => {
     return crmPipelines.find(p => p.is_active) || crmPipelines[0];
@@ -74,6 +77,13 @@ const CrmPage = () => {
     e.stopPropagation(); // Evita que o clique no botão abra o modal de edição do lead
     setSelectedLeadForTasks(lead);
     setIsTasksModalOpen(true);
+  };
+
+  // NOVO: Função para abrir o modal de agendamento de reunião
+  const handleOpenMeetingModal = (e: React.MouseEvent, lead: CrmLead) => {
+    e.stopPropagation();
+    setSelectedLeadForMeeting(lead);
+    setIsMeetingModalOpen(true);
   };
 
   if (isAuthLoading || isDataLoading) {
@@ -173,7 +183,7 @@ const CrmPage = () => {
                       <button onClick={(e) => handleOpenTasksModal(e, lead)} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition">
                         <ListTodo className="w-3 h-3 mr-1" /> Tarefas
                       </button>
-                      <button onClick={(e) => e.stopPropagation()} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-900/30 transition">
+                      <button onClick={(e) => handleOpenMeetingModal(e, lead)} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-900/30 transition">
                         <CalendarPlus className="w-3 h-3 mr-1" /> Reunião
                       </button>
                       <button onClick={(e) => e.stopPropagation()} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/30 transition">
@@ -206,6 +216,15 @@ const CrmPage = () => {
           isOpen={isTasksModalOpen}
           onClose={() => setIsTasksModalOpen(false)}
           lead={selectedLeadForTasks}
+        />
+      )}
+
+      {/* NOVO: Modal de Agendamento de Reunião */}
+      {isMeetingModalOpen && selectedLeadForMeeting && (
+        <ScheduleMeetingModal
+          isOpen={isMeetingModalOpen}
+          onClose={() => setIsMeetingModalOpen(false)}
+          lead={selectedLeadForMeeting}
         />
       )}
     </div>

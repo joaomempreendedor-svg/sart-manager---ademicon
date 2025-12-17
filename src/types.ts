@@ -329,6 +329,11 @@ export interface LeadTask {
   is_completed: boolean;
   completed_at?: string; // TIMESTAMP WITH TIME ZONE
   created_at: string;
+  type: 'task' | 'meeting'; // NOVO: Tipo da tarefa
+  meeting_start_time?: string; // NOVO: Data e hora de início da reunião (ISO string)
+  meeting_end_time?: string;   // NOVO: Data e hora de fim da reunião (ISO string)
+  manager_id?: string; // NOVO: ID do gestor convidado
+  manager_invitation_status?: 'pending' | 'accepted' | 'declined'; // NOVO: Status do convite
 }
 
 // NOVO: Tipos para Checklist do Dia (Módulo 3)
@@ -441,6 +446,7 @@ export interface AppContextType {
   addCrmLead: (leadData: Omit<CrmLead, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => Promise<CrmLead>;
   updateCrmLead: (id: string, updates: Partial<CrmLead>) => Promise<void>;
   deleteCrmLead: (id: string) => Promise<void>;
+  updateCrmLeadStage: (leadId: string, newStageId: string) => Promise<void>; // NOVO: Mover lead para nova etapa
   addCrmStage: (stageData: Omit<CrmStage, 'id' | 'user_id' | 'created_at'>) => Promise<CrmStage>;
   updateCrmStage: (id: string, updates: Partial<CrmStage>) => Promise<void>;
   updateCrmStageOrder: (stages: CrmStage[]) => Promise<void>;
@@ -549,4 +555,5 @@ export interface AppContextType {
   updateLeadTask: (id: string, updates: Partial<LeadTask>) => Promise<void>;
   deleteLeadTask: (id: string) => Promise<void>;
   toggleLeadTaskCompletion: (id: string, is_completed: boolean) => Promise<void>;
+  updateLeadMeetingInvitationStatus: (taskId: string, status: 'pending' | 'accepted' | 'declined') => Promise<void>; // NOVO: Atualizar status do convite
 }
