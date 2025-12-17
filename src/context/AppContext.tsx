@@ -538,7 +538,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const cleanedCpf = member.cpf ? member.cpf.replace(/\D/g, '') : '';
       const last4Cpf = cleanedCpf.length >= 4 ? cleanedCpf.slice(-4) : null;
       
-      const { data, error } = await supabase.functions.invoke('create-or-link-consultant', {
+      console.log("[AppContext] Invoking create-or-link-consultant Edge Function for ADD operation...");
+      const { data, error: invokeError } = await supabase.functions.invoke('create-or-link-consultant', {
         body: { 
           email: member.email, 
           name: member.name, 
@@ -547,13 +548,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         },
       });
 
-      if (error) {
-        console.error("Erro ao invocar Edge Function:", error);
-        throw new Error(data?.error || 'Falha ao criar/vincular usuário no Auth.');
+      if (invokeError) {
+        console.error("[AppContext] Edge Function invocation error:", invokeError);
+        throw new Error(`Falha ao invocar Edge Function: ${invokeError.message}`);
+      }
+      
+      if (data?.error) {
+        console.error("[AppContext] Edge Function returned an error:", data.error);
+        throw new Error(data.error);
       }
       
       authUserId = data.authUserId;
       wasExistingUser = data.userExists;
+      console.log(`[AppContext] Edge Function successful. Auth User ID: ${authUserId}, Existing User: ${wasExistingUser}`);
+
     } else {
       authUserId = `local_${crypto.randomUUID()}`;
       console.log(`Membro sem email criado com ID local: ${authUserId}`);
@@ -612,7 +620,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const cleanedCpf = updates.cpf ? updates.cpf.replace(/\D/g, '') : (m.cpf ? m.cpf.replace(/\D/g, '') : '');
       const last4Cpf = cleanedCpf.length >= 4 ? cleanedCpf.slice(-4) : null;
 
-      const { data, error } = await supabase.functions.invoke('create-or-link-consultant', {
+      console.log("[AppContext] Invoking create-or-link-consultant Edge Function for UPDATE operation (email change)...");
+      const { data, error: invokeError } = await supabase.functions.invoke('create-or-link-consultant', {
         body: {
           email: updates.email,
           name: updates.name || m.name, // Use new name if provided, else old name
@@ -621,12 +630,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         },
       });
 
-      if (error) {
-        console.error("Erro ao invocar Edge Function para atualizar email:", error);
-        throw new Error(data?.error || 'Falha ao atualizar e-mail e senha do usuário no Auth.');
+      if (invokeError) {
+        console.error("[AppContext] Edge Function invocation error during UPDATE:", invokeError);
+        throw new Error(`Falha ao invocar Edge Function: ${invokeError.message}`);
       }
+      
+      if (data?.error) {
+        console.error("[AppContext] Edge Function returned an error during UPDATE:", data.error);
+        throw new Error(data.error);
+      }
+
       authUserId = data.authUserId; // Ensure we have the correct authUserId
-      console.log(`[AppContext] Auth user ${authUserId} email updated to ${updates.email} and password reset.`);
+      console.log(`[AppContext] Edge Function successful during UPDATE. Auth user ${authUserId} email updated to ${updates.email} and password reset.`);
     }
 
     const updated = { ...m, ...updates, id: authUserId, hasLogin: !!updates.email }; // Update local ID if authUserId changed
