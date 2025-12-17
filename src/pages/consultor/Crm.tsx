@@ -3,6 +3,7 @@ import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { Plus, Search, Loader2, Phone, Mail, Tag, MessageSquare, TrendingUp, ListTodo, CalendarPlus, Send, DollarSign, Edit2, Trash2 } from 'lucide-react'; // Importado novos ícones
 import LeadModal from '@/components/crm/LeadModal'; // Novo componente
+import { LeadTasksModal } from '@/components/crm/LeadTasksModal'; // Importar o novo modal de tarefas
 
 const CrmPage = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -10,6 +11,8 @@ const CrmPage = () => {
   const [isLeadModalOpen, setIsLeadModalOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<CrmLead | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isTasksModalOpen, setIsTasksModalOpen] = useState(false); // Estado para o modal de tarefas
+  const [selectedLeadForTasks, setSelectedLeadForTasks] = useState<CrmLead | null>(null); // Lead selecionado para tarefas
 
   const activePipeline = useMemo(() => {
     return crmPipelines.find(p => p.is_active) || crmPipelines[0];
@@ -65,6 +68,12 @@ const CrmPage = () => {
         alert(`Erro ao excluir lead: ${error.message}`);
       }
     }
+  };
+
+  const handleOpenTasksModal = (e: React.MouseEvent, lead: CrmLead) => {
+    e.stopPropagation(); // Evita que o clique no botão abra o modal de edição do lead
+    setSelectedLeadForTasks(lead);
+    setIsTasksModalOpen(true);
   };
 
   if (isAuthLoading || isDataLoading) {
@@ -134,7 +143,7 @@ const CrmPage = () => {
                 <p className="text-center text-sm text-gray-400 py-4">Nenhum lead nesta etapa.</p>
               ) : (
                 groupedLeads[stage.id]?.map(lead => (
-                  <div key={lead.id} className="bg-white dark:bg-slate-700 p-3 rounded-lg shadow-sm border border-gray-200 dark:border-slate-600 hover:border-brand-500 cursor-pointer transition-all group">
+                  <div key={lead.id} onClick={() => handleEditLead(lead)} className="bg-white dark:bg-slate-700 p-3 rounded-lg shadow-sm border border-gray-200 dark:border-slate-600 hover:border-brand-500 cursor-pointer transition-all group">
                     <div className="flex justify-between items-start mb-2">
                       <p className="font-medium text-gray-900 dark:text-white">{lead.name}</p>
                       <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -161,7 +170,7 @@ const CrmPage = () => {
                     </div>
                     {/* Novos botões de ação */}
                     <div className="mt-3 pt-3 border-t border-gray-100 dark:border-slate-600 flex flex-wrap gap-2">
-                      <button onClick={(e) => e.stopPropagation()} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition">
+                      <button onClick={(e) => handleOpenTasksModal(e, lead)} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition">
                         <ListTodo className="w-3 h-3 mr-1" /> Tarefas
                       </button>
                       <button onClick={(e) => e.stopPropagation()} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-900/30 transition">
@@ -189,6 +198,14 @@ const CrmPage = () => {
           lead={editingLead}
           crmFields={crmFields.filter(f => f.is_active)}
           consultantId={user?.id || ''}
+        />
+      )}
+
+      {isTasksModalOpen && selectedLeadForTasks && (
+        <LeadTasksModal
+          isOpen={isTasksModalOpen}
+          onClose={() => setIsTasksModalOpen(false)}
+          lead={selectedLeadForTasks}
         />
       )}
     </div>

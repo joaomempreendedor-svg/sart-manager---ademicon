@@ -317,6 +317,20 @@ export interface CrmLead {
   updated_at: string;
 }
 
+// NOVO: Tipo para tarefas de Lead
+export interface LeadTask {
+  id: string;
+  db_id?: string;
+  lead_id: string;
+  user_id: string; // ID do consultor que criou a tarefa
+  title: string;
+  description?: string;
+  due_date?: string; // YYYY-MM-DD
+  is_completed: boolean;
+  completed_at?: string; // TIMESTAMP WITH TIME ZONE
+  created_at: string;
+}
+
 // NOVO: Tipos para Checklist do Dia (Módulo 3)
 export interface DailyChecklist {
   id: string;
@@ -530,4 +544,9 @@ export interface AppContextType {
   deleteSupportMaterialV2: (id: string) => Promise<void>;
   assignSupportMaterialToConsultant: (materialId: string, consultantId: string) => Promise<void>;
   unassignSupportMaterialFromConsultant: (materialId: string, consultantId: string) => Promise<void>;
+  leadTasks: LeadTask[]; // NOVO: Adicionado para tarefas de Lead
+  addLeadTask: (task: Omit<LeadTask, 'id' | 'user_id' | 'created_at'>) => Promise<LeadTask>;
+  updateLeadTask: (id: string, updates: Partial<LeadTask>) => Promise<void>;
+  deleteLeadTask: (id: string) => Promise<void>;
+  toggleLeadTaskCompletion: (id: string, is_completed: boolean) => Promise<void>;
 }

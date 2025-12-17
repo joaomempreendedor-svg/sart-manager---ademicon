@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
-import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, CommissionStatus, InstallmentInfo, CutoffPeriod, ImportantLink, Feedback, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment } from '@/types';
+import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, CommissionStatus, InstallmentInfo, CutoffPeriod, ImportantLink, Feedback, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask } from '@/types';
 import { CHECKLIST_STAGES as DEFAULT_STAGES } from '@/data/checklistData';
 import { CONSULTANT_GOALS as DEFAULT_GOALS } from '@/data/consultantGoals';
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
@@ -109,6 +109,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [supportMaterialsV2, setSupportMaterialsV2] = useState<SupportMaterialV2[]>([]);
   const [supportMaterialAssignments, setSupportMaterialAssignments] = useState<SupportMaterialAssignment[]>([]);
 
+  // NOVO: Tarefas de Lead
+  const [leadTasks, setLeadTasks] = useState<LeadTask[]>([]);
+
 
   const [theme, setTheme] = useState<'light' | 'dark'>(() => (localStorage.getItem('sart_theme') as 'light' | 'dark') || 'light');
 
@@ -195,6 +198,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setMetricLogs([]);
     setSupportMaterialsV2([]); // Reset Support Materials V2
     setSupportMaterialAssignments([]);
+    setLeadTasks([]); // Reset Lead Tasks
     setIsDataLoading(false);
   };
 
@@ -310,6 +314,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           metricLogsData,
           supportMaterialsV2Data,
           supportMaterialAssignmentsData,
+          leadTasksData, // NOVO: Fetch de lead_tasks
         ] = await Promise.all([
           (async () => { try { return await supabase.from('app_config').select('data').eq('user_id', effectiveGestorId).maybeSingle(); } catch (e) { console.error("Error fetching app_config:", e); return { data: null, error: e }; } })(),
           (async () => { try { return await supabase.from('candidates').select('id, data').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching candidates:", e); return { data: [], error: e }; } })(),
@@ -337,6 +342,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           // Support Materials V2 and related tables (use effectiveGestorId for parent table)
           (async () => { try { return await supabase.from('support_materials_v2').select('*').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching support_materials_v2:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('support_material_assignments').select('*'); } catch (e) { console.error("Error fetching support_material_assignments:", e); return { data: [], error: e }; } })(),
+          // NOVO: Fetch de lead_tasks
+          (async () => { try { return await supabase.from('lead_tasks').select('*'); } catch (e) { console.error("Error fetching lead_tasks:", e); return { data: [], error: e }; } })(),
         ]);
 
         // Log errors if any, but don't throw to prevent blocking
@@ -362,6 +369,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (metricLogsData.error) console.error("Metric Logs error:", metricLogsData.error);
         if (supportMaterialsV2Data.error) console.error("Support Materials V2 error:", supportMaterialsV2Data.error);
         if (supportMaterialAssignmentsData.error) console.error("Support Material Assignments error:", supportMaterialAssignmentsData.error);
+        if (leadTasksData.error) console.error("Lead Tasks error:", leadTasksData.error); // Log error for lead_tasks
 
 
         if (configResult.data) {
@@ -460,6 +468,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setMetricLogs(metricLogsData?.data || []);
         setSupportMaterialsV2(supportMaterialsV2Data?.data || []); // Set Support Materials V2
         setSupportMaterialAssignments(supportMaterialAssignmentsData?.data || []);
+        setLeadTasks(leadTasksData?.data || []); // NOVO: Set Lead Tasks
         
         refetchCommissions();
 
@@ -1064,6 +1073,37 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setSupportMaterialAssignments(prev => prev.filter(assign => !(assign.material_id === materialId && assign.consultant_id === consultantId)));
   }, [user]);
 
+  // NOVO: Funções para Lead Tasks
+  const addLeadTask = useCallback(async (task: Omit<LeadTask, 'id' | 'user_id' | 'created_at'>): Promise<LeadTask> => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('lead_tasks').insert({ ...task, user_id: user.id }).select().single();
+    if (error) throw error;
+    setLeadTasks(prev => [...prev, data]);
+    return data;
+  }, [user]);
+
+  const updateLeadTask = useCallback(async (id: string, updates: Partial<LeadTask>) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { error } = await supabase.from('lead_tasks').update(updates).eq('id', id).eq('user_id', user.id);
+    if (error) throw error;
+    setLeadTasks(prev => prev.map(task => task.id === id ? { ...task, ...updates } : task));
+  }, [user]);
+
+  const deleteLeadTask = useCallback(async (id: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { error } = await supabase.from('lead_tasks').delete().eq('id', id).eq('user_id', user.id);
+    if (error) throw error;
+    setLeadTasks(prev => prev.filter(task => task.id !== id));
+  }, [user]);
+
+  const toggleLeadTaskCompletion = useCallback(async (id: string, is_completed: boolean) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const updates = { is_completed, completed_at: is_completed ? new Date().toISOString() : null };
+    const { error } = await supabase.from('lead_tasks').update(updates).eq('id', id).eq('user_id', user.id);
+    if (error) throw error;
+    setLeadTasks(prev => prev.map(task => task.id === id ? { ...task, ...updates } : task));
+  }, [user]);
+
 
   useEffect(() => { if (!user) return; const syncPendingCommissions = async () => { const pending = JSON.parse(localStorage.getItem('pending_commissions') || '[]') as any[]; if (pending.length === 0) return; for (const item of pending) { try { const { _localId, _timestamp, _attempts, ...cleanData } = item; const { data, error } = await supabase.from('commissions').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: cleanData }).select('id', 'created_at').maybeSingle(); if (!error && data) { setCommissions(prev => prev.map(c => c.db_id === _localId ? { ...c, db_id: data.id.toString(), criado_em: data.created_at } : c)); const updated = pending.filter((p: any) => p._localId !== _localId); localStorage.setItem('pending_commissions', JSON.stringify(updated)); } } catch (error) { console.log(`❌ Falha ao sincronizar ${item._localId}`); } } }; const interval = setInterval(syncPendingCommissions, 2 * 60 * 1000); setTimeout(syncPendingCommissions, 5000); return () => clearInterval(interval); }, [user]); // Use JOAO_GESTOR_AUTH_ID
 
@@ -1093,7 +1133,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       // Módulo 5: Materiais de Apoio (v2)
       supportMaterialsV2, supportMaterialAssignments,
       addSupportMaterialV2, updateSupportMaterialV2, deleteSupportMaterialV2,
-      assignSupportMaterialToConsultant, unassignSupportMaterialFromConsultant
+      assignSupportMaterialToConsultant, unassignSupportMaterialFromConsultant,
+      // NOVO: Tarefas de Lead
+      leadTasks, addLeadTask, updateLeadTask, deleteLeadTask, toggleLeadTaskCompletion
     }}>
       {children}
     </AppContext.Provider>
