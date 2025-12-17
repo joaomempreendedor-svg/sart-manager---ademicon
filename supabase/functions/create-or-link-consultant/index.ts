@@ -41,7 +41,10 @@ serve(async (req) => {
 
     if (fetchError) {
       console.error(`[Edge Function] Error listing users: ${fetchError.message}`);
-      throw fetchError;
+      return new Response(JSON.stringify({ error: `Auth user list failed: ${fetchError.message}` }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500,
+      });
     }
 
     userExistsFlag = (existingUsersData?.users?.length || 0) > 0;
@@ -68,7 +71,10 @@ serve(async (req) => {
 
       if (updateAuthError) {
         console.error(`[Edge Function] Error updating existing user in Auth: ${updateAuthError.message}`);
-        throw updateAuthError;
+        return new Response(JSON.stringify({ error: `Falha ao atualizar usuário no Auth: ${updateAuthError.message}` }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400,
+        });
       }
 
       // Also update the public.profiles table to ensure needs_password_change is true
@@ -106,7 +112,10 @@ serve(async (req) => {
 
       if (createUserError) {
         console.error(`[Edge Function] Error creating user: ${createUserError.message}`);
-        throw createUserError;
+        return new Response(JSON.stringify({ error: `Falha ao criar usuário no Auth: ${createUserError.message}` }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400,
+        });
       }
       authUserId = newUser.user!.id;
       message = 'New user created successfully with temporary password and forced password change.';
