@@ -789,7 +789,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       ...leadData, 
       user_id: JOAO_GESTOR_AUTH_ID, 
       stage_id: finalStageId, // Assign to the first active stage
-      name: leadData.data?.name || null, // Extract name from data to top-level
+      name: leadData.name || '', // Garante que o nome seja uma string vazia, não null
     }; 
     const { data, error } = await supabase.from('crm_leads').insert(payload).select().single();
     if (error) throw error;
@@ -805,7 +805,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const payload = { 
       ...updates, 
       user_id: JOAO_GESTOR_AUTH_ID,
-      name: updates.data?.name || updates.name || null, // Extract name from data to top-level if present
+      name: updates.name || '', // Garante que o nome seja uma string vazia, não null
     }; 
     const { error } = await supabase.from('crm_leads').update(payload).eq('id', id).eq('consultant_id', user.id);
     if (error) throw error;
