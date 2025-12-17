@@ -44,7 +44,12 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
   const [error, setError] = useState('');
 
   const managers = useMemo(() => {
-    return teamMembers.filter(member => member.roles.includes('Gestor') && member.isActive);
+    // Filtra para incluir apenas gestores ativos E que possuem um login associado (hasLogin: true)
+    return teamMembers.filter(member => 
+      member.roles.includes('Gestor') && 
+      member.isActive &&
+      member.hasLogin // Garante que o ID do membro é um auth.uid() válido
+    );
   }, [teamMembers]);
 
   const meetingStage = useMemo(() => {
