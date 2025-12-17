@@ -56,8 +56,8 @@ export const Dashboard = () => {
   const { todayAgenda, overdueTasks, meetingInvitations } = useMemo(() => {
     const todayStr = new Date().toISOString().split('T')[0];
     const todayAgendaItems: AgendaItem[] = [];
-    const overdue: AgendaItem[] = [];
-    const invitations: AgendaItem[] = [];
+    const overdueItems: AgendaItem[] = [];
+    const invitationsItems: AgendaItem[] = [];
 
     // 1. Checklist Tasks (Candidatos)
     candidates.forEach(candidate => {
@@ -77,7 +77,7 @@ export const Dashboard = () => {
             if (state.dueDate === todayStr && !state.completed) {
               todayAgendaItems.push(agendaItem);
             } else if (state.dueDate < todayStr && !state.completed) {
-              overdue.push(agendaItem);
+              overdueItems.push(agendaItem);
             }
           }
         }
@@ -131,7 +131,7 @@ export const Dashboard = () => {
         const lead = crmLeads.find(l => l.id === task.lead_id);
         const consultant = teamMembers.find(tm => tm.id === task.user_id); // user_id da tarefa é o consultor
         if (lead && consultant && task.meeting_start_time && task.meeting_end_time) {
-          invitations.push({
+          invitationsItems.push({
             id: `meeting-invite-${task.id}`,
             type: 'meeting',
             title: `Convite de Reunião: ${task.title}`,
@@ -151,7 +151,7 @@ export const Dashboard = () => {
       });
     }
 
-    return { todayAgenda: todayAgenda, overdueTasks: overdue, meetingInvitations: invitations };
+    return { todayAgenda: todayAgendaItems, overdueTasks: overdueItems, meetingInvitations: invitationsItems };
   }, [candidates, teamMembers, checklistStructure, leadTasks, crmLeads, user]);
 
   const getAgendaIcon = (type: AgendaItem['type']) => {
