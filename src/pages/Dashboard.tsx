@@ -123,6 +123,9 @@ export const Dashboard = () => {
     // 4. Lead Tasks (CRM) - para o consultor logado
     // No dashboard do gestor, queremos ver convites de reunião
     if (user?.role === 'GESTOR' || user?.role === 'ADMIN') {
+      console.log("[Dashboard] Checking meeting invitations for Gestor:", user.id);
+      console.log("[Dashboard] All leadTasks:", leadTasks.map(t => ({ id: t.id, type: t.type, manager_id: t.manager_id, manager_invitation_status: t.manager_invitation_status, user_id: t.user_id, lead_id: t.lead_id })));
+
       leadTasks.filter(task => 
         task.type === 'meeting' && 
         task.manager_id === user.id && 
@@ -149,6 +152,7 @@ export const Dashboard = () => {
           });
         }
       });
+      console.log("[Dashboard] Generated meeting invitations:", invitationsItems);
     }
 
     return { todayAgenda: todayAgendaItems, overdueTasks: overdueItems, meetingInvitations: invitationsItems };

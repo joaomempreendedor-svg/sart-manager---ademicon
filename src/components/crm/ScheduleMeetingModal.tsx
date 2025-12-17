@@ -44,7 +44,9 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
   const [error, setError] = useState('');
 
   const managers = useMemo(() => {
-    return teamMembers.filter(member => member.roles.includes('Gestor') && member.isActive);
+    const filteredManagers = teamMembers.filter(member => member.roles.includes('Gestor') && member.isActive);
+    console.log("[ScheduleMeetingModal] Managers available:", filteredManagers.map(m => ({ id: m.id, name: m.name, roles: m.roles })));
+    return filteredManagers;
   }, [teamMembers]);
 
   const meetingStage = useMemo(() => {
