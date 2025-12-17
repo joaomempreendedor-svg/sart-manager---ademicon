@@ -10,7 +10,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
+import { Button }m '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -181,7 +181,7 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px] dark:bg-slate-800 dark:text-white">
+      <DialogContent className="sm:max-w-xl dark:bg-slate-800 dark:text-white"> {/* Increased max-w to xl */}
         <DialogHeader>
           <DialogTitle>{lead ? 'Editar Lead' : 'Novo Lead'}</DialogTitle>
           <DialogDescription>
@@ -189,7 +189,7 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
-          <ScrollArea className="h-[60vh] py-4 pr-4">
+          <ScrollArea className="h-[60vh] py-4"> {/* Removed pr-4, relying on DialogContent's padding */}
             <div className="grid gap-4">
               {/* A seleção de etapa foi removida daqui */}
               {lead && ( // Para leads existentes, ainda podemos mostrar a etapa atual (apenas leitura ou com um seletor diferente se necessário)
