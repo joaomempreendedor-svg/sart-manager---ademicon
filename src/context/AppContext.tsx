@@ -550,6 +550,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       if (invokeError) {
         console.error("[AppContext] Edge Function invocation error:", invokeError);
+        console.error("[AppContext] Full invokeError object:", invokeError); // Log completo do erro
         throw new Error(`Falha ao invocar Edge Function: ${invokeError.message}`);
       }
       
@@ -632,6 +633,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       if (invokeError) {
         console.error("[AppContext] Edge Function invocation error during UPDATE:", invokeError);
+        console.error("[AppContext] Full invokeError object:", invokeError); // Log completo do erro
         throw new Error(`Falha ao invocar Edge Function: ${invokeError.message}`);
       }
       
