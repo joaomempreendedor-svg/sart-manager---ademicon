@@ -91,6 +91,7 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
 
     setIsSaving(true);
     try {
+      console.log("Attempting to add lead task with manager_id:", invitedManagerId); // DIAGNÓSTICO
       await addLeadTask({
         lead_id: lead.id,
         title: title.trim(),
