@@ -39,14 +39,12 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('10:00');
-  const [invitedManagerId, setInvitedManagerId] = useState<string | undefined>(undefined); // Alterado para undefined
+  const [invitedManagerId, setInvitedManagerId] = useState<string | undefined>(undefined);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
 
   const managers = useMemo(() => {
-    const filteredManagers = teamMembers.filter(member => member.roles.includes('Gestor') && member.isActive);
-    console.log("[ScheduleMeetingModal] Managers available:", filteredManagers.map(m => ({ id: m.id, name: m.name, roles: m.roles })));
-    return filteredManagers;
+    return teamMembers.filter(member => member.roles.includes('Gestor') && member.isActive);
   }, [teamMembers]);
 
   const meetingStage = useMemo(() => {
@@ -60,7 +58,7 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
       setDate(new Date().toISOString().split('T')[0]);
       setStartTime('09:00');
       setEndTime('10:00');
-      setInvitedManagerId(undefined); // Resetar para undefined
+      setInvitedManagerId(undefined);
       setError('');
     }
   }, [isOpen, lead.name]);
@@ -88,21 +86,19 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
 
     setIsSaving(true);
     try {
-      // 1. Criar a tarefa de reunião
       await addLeadTask({
         lead_id: lead.id,
         title: title.trim(),
         description: description.trim() || undefined,
-        due_date: date, // A data de vencimento pode ser a data da reunião
+        due_date: date,
         is_completed: false,
         type: 'meeting',
         meeting_start_time: startDateTime.toISOString(),
         meeting_end_time: endDateTime.toISOString(),
-        manager_id: invitedManagerId, // Passa undefined se "Nenhum" for selecionado
+        manager_id: invitedManagerId,
         manager_invitation_status: invitedManagerId ? 'pending' : undefined,
       });
 
-      // 2. Mover o lead para a etapa "Reunião Marcada" (se existir)
       if (meetingStage && lead.stage_id !== meetingStage.id) {
         await updateCrmLeadStage(lead.id, meetingStage.id);
       }
@@ -217,7 +213,6 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
                     <SelectValue placeholder="Selecione um gestor" />
                   </SelectTrigger>
                   <SelectContent className="dark:bg-slate-800 dark:text-white dark:border-slate-700">
-                    <SelectItem value={undefined}>Nenhum</SelectItem> {/* Alterado para undefined */}
                     {managers.map(manager => (
                       <SelectItem key={manager.id} value={manager.id}>
                         {manager.name}
