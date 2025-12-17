@@ -28,14 +28,13 @@ interface LeadModalProps {
   onClose: () => void;
   lead: CrmLead | null;
   crmFields: CrmField[];
-  // Removido pipelineStages: CrmStage[];
   consultantId: string;
 }
 
 const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields, consultantId }) => {
-  const { addCrmLead, updateCrmLead, deleteCrmLead, crmOwnerUserId, crmStages } = useApp(); // Adicionado crmStages
+  const { addCrmLead, updateCrmLead, deleteCrmLead, crmOwnerUserId, crmStages } = useApp();
   const [formData, setFormData] = useState<Partial<CrmLead>>({
-    // Removido stage_id: '',
+    name: '', // Adicionado name aqui para ser a fonte primária
     data: {},
   });
   const [isSaving, setIsSaving] = useState(false);
@@ -44,13 +43,14 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
   useEffect(() => {
     if (lead) {
       setFormData({
-        stage_id: lead.stage_id, // Manter stage_id para edição de leads existentes
-        data: { ...lead.data, name: lead.name || '' },
+        name: lead.name || '', // Popula o name principal
+        stage_id: lead.stage_id,
+        data: { ...lead.data }, // Mantém outros campos de dados
       });
     } else {
       setFormData({
-        // Para novos leads, stage_id será definido automaticamente no AppContext
-        data: { name: '' },
+        name: '', // Para novos leads
+        data: {},
       });
     }
   }, [lead, isOpen]);
@@ -58,6 +58,8 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
   const handleChange = (key: string, value: any) => {
     if (key === 'stage_id') {
       setFormData(prev => ({ ...prev, [key]: value }));
+    } else if (key === 'name' || key === 'nome') { // Trata 'name' ou 'nome' como o campo de nome principal
+      setFormData(prev => ({ ...prev, name: value }));
     } else {
       setFormData(prev => ({
         ...prev,
@@ -72,25 +74,23 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate 'name' from custom fields
+    // Valida o campo 'name' principal
     const nameField = crmFields.find(f => f.key === 'name' || f.key === 'nome');
-    if (nameField?.is_required && !formData.data?.name?.trim()) {
+    if (nameField?.is_required && !formData.name?.trim()) { // Verifica formData.name diretamente
       alert('O campo "Nome do Lead" é obrigatório.');
       return;
     }
 
-    // A validação de stage_id para novos leads será feita no AppContext
-    // Para leads existentes, a etapa pode ser alterada (se a UI permitir) ou mantida.
     if (lead && !formData.stage_id) {
       alert('A Etapa é obrigatória para leads existentes.');
       return;
     }
 
-    // Validate other required custom fields
+    // Valida outros campos personalizados obrigatórios
     const missingRequiredFields = crmFields.filter(field => 
       field.is_required && 
-      field.key !== 'name' && // Exclude 'name' as it's handled above
-      field.key !== 'nome' && // Exclude 'nome' as it's handled above
+      field.key !== 'name' && // Exclui 'name' pois já foi tratado acima
+      field.key !== 'nome' && // Exclui 'nome' pois já foi tratado acima
       !formData.data?.[field.key]
     );
     if (missingRequiredFields.length > 0) {
@@ -102,16 +102,15 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
     try {
       const payload = {
         ...formData,
-        name: formData.data?.name || null, // Extract name from data to top-level for CrmLead type
+        name: formData.name || null, // Garante que o name de nível superior seja usado
         consultant_id: consultantId,
-        user_id: crmOwnerUserId, // Use the CRM owner's ID (Gestor's ID)
+        user_id: crmOwnerUserId, // Use o ID do proprietário do CRM (ID do Gestor)
       } as CrmLead;
 
       if (lead) {
         await updateCrmLead(lead.id, payload);
       } else {
-        // Para novos leads, não passamos stage_id aqui, ele será definido no addCrmLead
-        const { stage_id, ...newLeadPayload } = payload; // Remove stage_id from payload for new leads
+        const { stage_id, ...newLeadPayload } = payload; // Remove stage_id do payload para novos leads
         await addCrmLead(newLeadPayload);
       }
       onClose();
@@ -136,6 +135,21 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
   };
 
   const renderField = (field: CrmField) => {
+    // Tratamento especial para o campo de nome principal
+    if (field.key === 'name' || field.key === 'nome') {
+      const value = formData.name || ''; // Vincula ao name de nível superior
+      const commonProps = {
+        id: field.key,
+        name: field.key,
+        value: value,
+        onChange: (e: any) => handleChange(field.key, e.target.value), // Isso agora atualizará formData.name
+        className: "w-full p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 focus:outline-none focus:ring-0 focus:ring-offset-0 focus:border-transparent",
+        required: field.is_required,
+      };
+      return <Input type="text" {...commonProps} />;
+    }
+
+    // Para outros campos personalizados
     const value = formData.data?.[field.key] || '';
     const commonProps = {
       id: field.key,
@@ -171,13 +185,13 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
     }
   };
 
-  // Filter out system-reserved keys that are NOT meant to be custom fields
+  // Filtra chaves reservadas do sistema que NÃO devem ser campos personalizados
   const filteredCrmFields = useMemo(() => {
     const systemReservedKeys = ['stage_id']; 
     return crmFields.filter(field => !systemReservedKeys.includes(field.key));
   }, [crmFields]);
 
-  // Get the name of the current stage for display
+  // Obtém o nome da etapa atual para exibição
   const currentStageName = useMemo(() => {
     if (!lead?.stage_id) return 'N/A';
     const stage = crmStages.find(s => s.id === lead.stage_id);
@@ -188,7 +202,7 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-2xl bg-white dark:bg-slate-800 dark:text-white p-6"> {/* Adicionado bg-white aqui */}
+      <DialogContent className="sm:max-w-2xl bg-white dark:bg-slate-800 dark:text-white p-6">
         <DialogHeader>
           <DialogTitle>{lead ? 'Editar Lead' : 'Novo Lead'}</DialogTitle>
           <DialogDescription>
