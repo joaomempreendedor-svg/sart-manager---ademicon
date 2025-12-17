@@ -46,8 +46,19 @@ const PipelineStagesConfig = () => {
   const handleMove = async (index: number, direction: 'up' | 'down') => {
     const newStages = [...pipelineStages];
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    
+    if ((direction === 'up' && index === 0) || (direction === 'down' && index === newStages.length - 1)) {
+      return; // Cannot move further in this direction
+    }
+
     [newStages[index], newStages[targetIndex]] = [newStages[targetIndex], newStages[index]];
-    await updateCrmStageOrder(newStages);
+    
+    try {
+      await updateCrmStageOrder(newStages);
+    } catch (error: any) {
+      console.error("Erro ao reordenar etapas:", error);
+      alert(`Erro ao reordenar etapas: ${error.message || 'Verifique o console para mais detalhes.'}`);
+    }
   };
 
   if (!activePipeline) {
