@@ -102,7 +102,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // Módulo 4: Metas de Prospecção
   const [weeklyTargets, setWeeklyTargets] = useState<WeeklyTarget[]>([]);
   const [weeklyTargetItems, setWeeklyTargetItems] = useState<WeeklyTargetItem[]>([]);
-  const [weeklyTargetAssignments, setWeeklyTargetAssignments] = useState<WeeklyTargetAssignment[]>(([]);
+  const [weeklyTargetAssignments, setWeeklyTargetAssignments] = useState<WeeklyTargetAssignment[]>([]);
   const [metricLogs, setMetricLogs] = useState<MetricLog[]>([]);
 
   // Módulo 5: Materiais de Apoio (v2)
@@ -754,32 +754,32 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [user]);
 
   // CRM Functions
-  const addCrmLead = useCallback(async (leadData: Omit<CrmLead, 'id' | 'created_at' | 'updated_at' | 'stage_id'>): Promise<CrmLead> => {
+  const addCrmLead = useCallback(async (leadData: Omit<CrmLead, 'id' | 'created_at' | 'updated_at'>): Promise<CrmLead> => {
     if (!user) throw new Error("Usuário não autenticado.");
     // Ensure user_id (Gestor's ID) is correctly set from crmOwnerUserId
     if (!crmOwnerUserId) throw new Error("ID do Gestor do CRM não encontrado.");
 
-    // Automatically determine the first active stage of the active pipeline
-    const activePipeline = crmPipelines.find(p => p.is_active) || crmPipelines[0];
-    let firstStageId: string | undefined;
-
-    if (activePipeline) {
-      const firstStage = crmStages
-        .filter(s => s.pipeline_id === activePipeline.id && s.is_active)
-        .sort((a, b) => a.order_index - b.order_index)[0];
-      if (firstStage) {
-        firstStageId = firstStage.id;
+    // Determine the default stage_id if not provided
+    let finalStageId = leadData.stage_id;
+    if (!finalStageId) {
+      const activePipeline = crmPipelines.find(p => p.is_active) || crmPipelines[0];
+      if (activePipeline) {
+        const firstStage = crmStages
+          .filter(s => s.pipeline_id === activePipeline.id && s.is_active)
+          .sort((a, b) => a.order_index - b.order_index)[0];
+        if (firstStage) {
+          finalStageId = firstStage.id;
+        }
       }
     }
-    
-    if (!firstStageId) {
+    if (!finalStageId) {
       throw new Error("Nenhuma etapa de pipeline ativa encontrada para atribuir ao lead. Por favor, configure as etapas do CRM.");
     }
 
     const payload = { 
       ...leadData, 
       user_id: JOAO_GESTOR_AUTH_ID, 
-      stage_id: firstStageId, // Assign to the first active stage
+      stage_id: finalStageId, // Assign to the first active stage
       name: leadData.data?.name || null, // Extract name from data to top-level
     }; 
     const { data, error } = await supabase.from('crm_leads').insert(payload).select().single();
