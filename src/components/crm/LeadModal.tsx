@@ -80,7 +80,7 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
     }
 
     // Validate required custom fields
-    const missingRequiredFields = crmFields.filter(field => field.is_required && !formData.data?.[field.key]);
+    const missingRequiredFields = crmFields.filter(field => field.is_required && field.key !== 'name' && !formData.data?.[field.key]);
     if (missingRequiredFields.length > 0) {
       alert(`Os seguintes campos são obrigatórios: ${missingRequiredFields.map(f => f.label).join(', ')}`);
       return;
@@ -156,6 +156,11 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
     }
   };
 
+  // Filter out any custom field that has 'name' as its key to avoid duplication
+  const filteredCrmFields = useMemo(() => {
+    return crmFields.filter(field => field.key !== 'name');
+  }, [crmFields]);
+
   if (!isOpen) return null;
 
   return (
@@ -205,7 +210,7 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
                   Campos Personalizados
                 </h4>
                 <div className="grid gap-4">
-                  {crmFields.map(field => (
+                  {filteredCrmFields.map(field => (
                     <div key={field.id} className="grid grid-cols-4 items-center gap-4">
                       <Label htmlFor={field.key} className="text-right">
                         {field.label} {field.is_required && <span className="text-red-500">*</span>}
