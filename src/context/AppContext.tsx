@@ -827,7 +827,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       id: stage.id,
       order_index: index,
       user_id: JOAO_GESTOR_AUTH_ID, // Explicitly include user_id for RLS
-      pipeline_id: stage.pipeline_id, // <--- Adicionado pipeline_id aqui
+      pipeline_id: stage.pipeline_id,
+      name: stage.name, // Adicionado
+      is_active: stage.is_active, // Adicionado
+      is_won: stage.is_won, // Adicionado
+      is_lost: stage.is_lost, // Adicionado
     }));
     const { error } = await supabase.from('crm_stages').upsert(updates);
     if (error) throw error;
