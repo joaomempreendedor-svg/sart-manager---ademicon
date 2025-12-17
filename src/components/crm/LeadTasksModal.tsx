@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { LeadTask, CrmLead } from '@/types';
-import { X, Plus, CalendarPlus, CheckCircle2, Circle, Edit2, Trash2, Loader2, MessageSquare, Clock } from 'lucide-react';
+import { X, Plus, CalendarPlus, CheckCircle2, Circle, Edit2, Trash2, Loader2, MessageSquare, Clock, Save } from 'lucide-react'; // Adicionado Save
 import {
   Dialog,
   DialogContent,
