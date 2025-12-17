@@ -85,8 +85,15 @@ const PipelineStagesConfig = () => {
                 </div>
               </div>
               <div className="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                <Button variant="ghost" size="sm" onClick={() => handleToggleActive(stage)} className={`p-2 rounded-full ${stage.is_active ? 'text-gray-400 hover:text-yellow-600' : 'text-gray-400 hover:text-green-600'}`} title={stage.is_active ? 'Desativar' : 'Ativar'}>
-                  {stage.is_active ? <ToggleLeft className="w-5 h-5" /> : <ToggleRight className="w-5 h-5" />}
+                <Button 
+                  variant={stage.is_active ? "default" : "outline"} 
+                  size="sm" 
+                  onClick={() => handleToggleActive(stage)} 
+                  className={`px-3 py-1.5 text-xs font-medium ${stage.is_active ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-700 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-gray-200 border-gray-300 dark:border-slate-600'}`}
+                  title={stage.is_active ? 'Desativar Etapa' : 'Ativar Etapa'}
+                >
+                  {stage.is_active ? <CheckCircle className="w-4 h-4 mr-1" /> : <XCircle className="w-4 h-4 mr-1" />}
+                  <span>{stage.is_active ? 'Ativa' : 'Inativa'}</span>
                 </Button>
                 <Button variant="ghost" size="sm" onClick={() => handleEdit(stage)} className="p-2 text-gray-400 hover:text-blue-500 rounded-full"><Edit2 className="w-4 h-4" /></Button>
                 <Button variant="ghost" size="sm" onClick={() => handleDelete(stage)} className="p-2 text-gray-400 hover:text-red-500 rounded-full"><Trash2 className="w-4 h-4" /></Button>
