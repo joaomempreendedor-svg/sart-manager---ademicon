@@ -821,7 +821,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const addCrmStage = useCallback(async (stageData: Omit<CrmStage, 'id' | 'user_id' | 'created_at'>) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('crm_stages').insert({ ...stageData, user_id: JOAO_GESTOR_AUTH_ID }).select().single(); if (error) throw error; setCrmStages(prev => [...prev, data].sort((a, b) => a.order_index - b.order_index)); return data; }, [user]); // Use JOAO_GESTOR_AUTH_ID
   const updateCrmStage = useCallback(async (id: string, updates: Partial<CrmStage>) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('crm_stages').update(updates).eq('id', id).select().single(); if (error) throw error; setCrmStages(prev => prev.map(s => s.id === id ? data : s).sort((a, b) => a.order_index - b.order_index)); }, [user]);
-  const updateCrmStageOrder = useCallback(async (stages: CrmStage[]) => { if (!user) throw new Error("Usuário não autenticado."); const updates = stages.map((stage, index) => ({ id: stage.id, order_index: index })); const { error } = await supabase.from('crm_stages').upsert(updates); if (error) throw error; setCrmStages(stages.map((s, i) => ({...s, order_index: i}))); }, [user]);
+  const updateCrmStageOrder = useCallback(async (stages: CrmStage[]) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const updates = stages.map((stage, index) => ({
+      id: stage.id,
+      order_index: index,
+      user_id: JOAO_GESTOR_AUTH_ID, // Explicitly include user_id for RLS
+    }));
+    const { error } = await supabase.from('crm_stages').upsert(updates);
+    if (error) throw error;
+    setCrmStages(stages.map((s, i) => ({...s, order_index: i})));
+  }, [user]);
   const deleteCrmStage = useCallback(async (id: string) => {
     if (!user) throw new Error("Usuário não autenticado.");
     const { error } = await supabase.from('crm_stages').delete().eq('id', id).eq('user_id', JOAO_GESTOR_AUTH_ID);
