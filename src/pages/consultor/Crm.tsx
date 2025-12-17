@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Plus, Search, Loader2, Phone, Mail, Tag, MessageSquare, TrendingUp } from 'lucide-react';
+import { Plus, Search, Loader2, Phone, Mail, Tag, MessageSquare, TrendingUp, ListTodo, CalendarPlus, Send, DollarSign } from 'lucide-react'; // Importado novos ícones
 import LeadModal from '@/components/crm/LeadModal'; // Novo componente
 
 const CrmPage = () => {
@@ -129,6 +129,21 @@ const CrmPage = () => {
                       {lead.data.phone && <div className="flex items-center"><Phone className="w-3 h-3 mr-1" /> {lead.data.phone}</div>}
                       {lead.data.email && <div className="flex items-center"><Mail className="w-3 h-3 mr-1" /> {lead.data.email}</div>}
                       {lead.data.origin && <div className="flex items-center"><Tag className="w-3 h-3 mr-1" /> {lead.data.origin}</div>}
+                    </div>
+                    {/* Novos botões de ação */}
+                    <div className="mt-3 pt-3 border-t border-gray-100 dark:border-slate-600 flex flex-wrap gap-2">
+                      <button onClick={(e) => e.stopPropagation()} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition">
+                        <ListTodo className="w-3 h-3 mr-1" /> Tarefas
+                      </button>
+                      <button onClick={(e) => e.stopPropagation()} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-900/30 transition">
+                        <CalendarPlus className="w-3 h-3 mr-1" /> Reunião
+                      </button>
+                      <button onClick={(e) => e.stopPropagation()} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/30 transition">
+                        <Send className="w-3 h-3 mr-1" /> Proposta
+                      </button>
+                      <button onClick={(e) => e.stopPropagation()} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-brand-50 dark:bg-brand-900/20 text-brand-700 dark:text-brand-300 hover:bg-brand-100 dark:hover:bg-brand-900/30 transition">
+                        <DollarSign className="w-3 h-3 mr-1" /> Vendido
+                      </button>
                     </div>
                   </div>
                 ))
