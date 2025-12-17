@@ -33,7 +33,7 @@ interface LeadModalProps {
 }
 
 const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields, consultantId }) => {
-  const { addCrmLead, updateCrmLead, deleteCrmLead, crmOwnerUserId } = useApp();
+  const { addCrmLead, updateCrmLead, deleteCrmLead, crmOwnerUserId, crmStages } = useApp(); // Adicionado crmStages
   const [formData, setFormData] = useState<Partial<CrmLead>>({
     // Removido stage_id: '',
     data: {},
@@ -177,11 +177,18 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
     return crmFields.filter(field => !systemReservedKeys.includes(field.key));
   }, [crmFields]);
 
+  // Get the name of the current stage for display
+  const currentStageName = useMemo(() => {
+    if (!lead?.stage_id) return 'N/A';
+    const stage = crmStages.find(s => s.id === lead.stage_id);
+    return stage?.name || 'N/A';
+  }, [lead?.stage_id, crmStages]);
+
   if (!isOpen) return null;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-xl dark:bg-slate-800 dark:text-white"> {/* Increased max-w to xl */}
+      <DialogContent className="sm:max-w-2xl dark:bg-slate-800 dark:text-white p-6"> {/* Increased max-w to 2xl and added p-6 */}
         <DialogHeader>
           <DialogTitle>{lead ? 'Editar Lead' : 'Novo Lead'}</DialogTitle>
           <DialogDescription>
@@ -189,9 +196,8 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
-          <ScrollArea className="h-[60vh] py-4"> {/* Removed pr-4, relying on DialogContent's padding */}
+          <ScrollArea className="max-h-[60vh] py-4 pr-4"> {/* Changed h-[60vh] to max-h-[60vh] and added pr-4 back for scrollbar */}
             <div className="grid gap-4">
-              {/* A seleção de etapa foi removida daqui */}
               {lead && ( // Para leads existentes, ainda podemos mostrar a etapa atual (apenas leitura ou com um seletor diferente se necessário)
                 <div className="grid gap-2">
                   <Label htmlFor="current_stage" className="text-left text-gray-500 dark:text-gray-400">
@@ -199,7 +205,7 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
                   </Label>
                   <Input
                     id="current_stage"
-                    value={pipelineStages.find(s => s.id === lead.stage_id)?.name || 'N/A'}
+                    value={currentStageName}
                     readOnly
                     className="w-full p-2 border rounded bg-gray-100 dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-200"
                   />
