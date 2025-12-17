@@ -311,7 +311,7 @@ export interface CrmLead {
   consultant_id: string;
   stage_id: string;
   user_id: string; // ID do gestor que gerencia este lead
-  name: string;
+  name?: string; // Tornando 'name' opcional
   data: Record<string, any>; // Campos dinâmicos
   created_at: string;
   updated_at: string;

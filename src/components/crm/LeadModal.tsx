@@ -35,7 +35,6 @@ interface LeadModalProps {
 const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields, pipelineStages, consultantId }) => {
   const { addCrmLead, updateCrmLead, deleteCrmLead, crmOwnerUserId } = useApp();
   const [formData, setFormData] = useState<Partial<CrmLead>>({
-    name: '',
     stage_id: '',
     data: {},
   });
@@ -45,21 +44,19 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
   useEffect(() => {
     if (lead) {
       setFormData({
-        name: lead.name,
         stage_id: lead.stage_id,
-        data: lead.data || {},
+        data: { ...lead.data, name: lead.name || '' }, // Move lead.name into data for editing
       });
     } else {
       setFormData({
-        name: '',
         stage_id: pipelineStages.length > 0 ? pipelineStages[0].id : '', // Default to first stage
-        data: {},
+        data: { name: '' }, // Initialize name in data for new leads
       });
     }
   }, [lead, isOpen, pipelineStages]);
 
   const handleChange = (key: string, value: any) => {
-    if (key === 'name' || key === 'stage_id') {
+    if (key === 'stage_id') {
       setFormData(prev => ({ ...prev, [key]: value }));
     } else {
       setFormData(prev => ({
@@ -74,13 +71,26 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name?.trim() || !formData.stage_id) {
-      alert('Nome do Lead e Etapa são obrigatórios.');
+    
+    // Validate 'name' from custom fields
+    const nameField = crmFields.find(f => f.key === 'name' || f.key === 'nome');
+    if (nameField?.is_required && !formData.data?.name?.trim()) {
+      alert('O campo "Nome do Lead" é obrigatório.');
       return;
     }
 
-    // Validate required custom fields
-    const missingRequiredFields = crmFields.filter(field => field.is_required && field.key !== 'name' && !formData.data?.[field.key]);
+    if (!formData.stage_id) {
+      alert('A Etapa é obrigatória.');
+      return;
+    }
+
+    // Validate other required custom fields
+    const missingRequiredFields = crmFields.filter(field => 
+      field.is_required && 
+      field.key !== 'name' && // Exclude 'name' as it's handled above
+      field.key !== 'nome' && // Exclude 'nome' as it's handled above
+      !formData.data?.[field.key]
+    );
     if (missingRequiredFields.length > 0) {
       alert(`Os seguintes campos são obrigatórios: ${missingRequiredFields.map(f => f.label).join(', ')}`);
       return;
@@ -90,6 +100,7 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
     try {
       const payload = {
         ...formData,
+        name: formData.data?.name, // Extract name from data to top-level for CrmLead type
         consultant_id: consultantId,
         user_id: crmOwnerUserId, // Use the CRM owner's ID (Gestor's ID)
       } as CrmLead;
@@ -156,9 +167,9 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
     }
   };
 
-  // Filter out any custom field that has 'name' or 'nome' as its key to avoid duplication
+  // Filter out system-reserved keys that are NOT meant to be custom fields
   const filteredCrmFields = useMemo(() => {
-    const systemReservedKeys = ['name', 'stage_id', 'nome']; // 'nome' added to catch auto-generated key from 'Nome' label
+    const systemReservedKeys = ['stage_id']; 
     return crmFields.filter(field => !systemReservedKeys.includes(field.key));
   }, [crmFields]);
 
@@ -176,22 +187,8 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
         <form onSubmit={handleSubmit}>
           <ScrollArea className="h-[60vh] py-4 pr-4">
             <div className="grid gap-4">
-              {/* Nome do Lead */}
+              {/* Etapa */}
               <div className="grid gap-2">
-                <Label htmlFor="name" className="text-left">
-                  Nome do Lead
-                </Label>
-                <Input
-                  id="name"
-                  value={formData.name || ''}
-                  onChange={(e) => handleChange('name', e.target.value)}
-                  className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600"
-                  required
-                />
-              </div>
-
-              {/* Etapa - REMOVIDO */}
-              {/* <div className="grid gap-2">
                 <Label htmlFor="stage_id" className="text-left">
                   Etapa
                 </Label>
@@ -205,7 +202,7 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
                     ))}
                   </SelectContent>
                 </Select>
-              </div> */}
+              </div>
 
               <div className="col-span-4 border-t border-gray-200 dark:border-slate-700 pt-4 mt-4">
                 <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-3 flex items-center">
@@ -214,7 +211,7 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
                 </h4>
                 <div className="grid gap-4">
                   {filteredCrmFields.map(field => (
-                    <div key={field.id} className="grid gap-2"> {/* Ajustado para empilhar label e input */}
+                    <div key={field.id} className="grid gap-2">
                       <Label htmlFor={field.key} className="text-left">
                         {field.label} {field.is_required && <span className="text-red-500">*</span>}
                       </Label>
