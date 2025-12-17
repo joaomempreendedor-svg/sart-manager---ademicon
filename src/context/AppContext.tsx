@@ -60,6 +60,10 @@ const clearStaleAuth = () => {
   return false;
 };
 
+// ID do gestor principal para centralizar todas as configurações e dados
+// SUBSTITUA ESTE VALOR PELO ID REAL DO USUÁRIO 'joaomempreendedor@gmail.com'
+const JOAO_GESTOR_AUTH_ID = "a1b2c3d4-e5f6-7890-1234-567890abcdef"; 
+
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { user } = useAuth();
   const fetchedUserIdRef = useRef<string | null>(null);
@@ -147,7 +151,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     try {
       const { error } = await supabase
         .from('app_config')
-        .upsert({ user_id: user.id, data: newConfig }, { onConflict: 'user_id' });
+        .upsert({ user_id: JOAO_GESTOR_AUTH_ID, data: newConfig }, { onConflict: 'user_id' }); // Use JOAO_GESTOR_AUTH_ID
       if (error) throw error;
     } catch (error) {
       console.error("Failed to save config:", error);
@@ -200,7 +204,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (isFetchingRef.current) return;
     isFetchingRef.current = true;
     try {
-      const { data, error } = await supabase.from("commissions").select("id, data, created_at").eq("user_id", user.id).order("created_at", { ascending: false });
+      const { data, error } = await supabase.from("commissions").select("id, data, created_at").eq("user_id", JOAO_GESTOR_AUTH_ID).order("created_at", { ascending: false }); // Use JOAO_GESTOR_AUTH_ID
       if (error) { console.error(error); return; }
       const normalized: Commission[] = (data || []).map(item => {
         const commission = item.data as Commission;
@@ -236,7 +240,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setIsDataLoading(false);
       }, 15000);
       try {
-        let effectiveCrmOwnerId = userId; // Default to current user's ID
+        let effectiveOwnerIdForConsultantData = userId; // For consultant-specific data (e.g., metric logs)
+        let effectiveGestorId = JOAO_GESTOR_AUTH_ID; // All shared configs and gestor-owned data will use this ID
 
         if (user?.role === 'CONSULTOR') {
           try {
@@ -249,36 +254,31 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             if (teamMemberProfileError) {
               console.error("Error fetching team member profile for consultant:", teamMemberProfileError);
             } else if (teamMemberProfile) {
-              effectiveCrmOwnerId = teamMemberProfile.user_id; // Use the Gestor's ID as the owner
-              console.log(`[AppContext] Consultant ${userId} is linked to Gestor: ${effectiveCrmOwnerId}`);
+              // If consultant is linked to a gestor, use that gestor's ID for shared configs
+              // However, the request is to centralize everything under JOAO_GESTOR_AUTH_ID
+              // So, even if linked to another gestor, they will see JOAO_GESTOR_AUTH_ID's configs
+              effectiveGestorId = JOAO_GESTOR_AUTH_ID;
             } else {
-              console.warn(`[AppContext] Consultant ${userId} not found in team_members or has no associated Gestor. CRM will not be visible.`);
-              effectiveCrmOwnerId = null; // No Gestor found, so no CRM to display
+              console.warn(`[AppContext] Consultant ${userId} not found in team_members or has no associated Gestor. Shared configs will default to ${JOAO_GESTOR_AUTH_ID}.`);
             }
           } catch (e) {
             console.error("Falha ao buscar perfil do membro da equipe para consultor:", e);
-            effectiveCrmOwnerId = null; // Fallback if fetch fails
           }
         } else if (user?.role === 'GESTOR' || user?.role === 'ADMIN') {
-          console.log(`[AppContext] User ${userId} is a Gestor/Admin. CRM owner is self.`);
+          console.log(`[AppContext] User ${userId} is a Gestor/Admin. All shared configs will use ${JOAO_GESTOR_AUTH_ID}.`);
         }
-        setCrmOwnerUserId(effectiveCrmOwnerId); // Set the CRM owner ID
+        setCrmOwnerUserId(effectiveGestorId); // Set the CRM owner ID to the centralized gestor
 
         // --- Fetch team members ---
         let teamMembersData = [];
         try {
           let teamMembersQuery = supabase.from('team_members').select('id, data');
           if (user?.role === 'CONSULTOR') {
-              if (effectiveCrmOwnerId) {
-                  // Fetch team members where user_id is the manager's ID OR id is the consultant's ID
-                  teamMembersQuery = teamMembersQuery.or(`user_id.eq.${effectiveCrmOwnerId},id.eq.${userId}`);
-              } else {
-                  // If no manager found, still try to fetch own entry
-                  teamMembersQuery = teamMembersQuery.eq('id', userId);
-              }
+              // Consultants should see their own entry and entries linked to JOAO_GESTOR_AUTH_ID
+              teamMembersQuery = teamMembersQuery.or(`user_id.eq.${effectiveGestorId},id.eq.${userId}`);
           } else { // GESTOR or ADMIN
-              // A manager/admin sees all team members they created
-              teamMembersQuery = teamMembersQuery.eq('user_id', userId);
+              // Gestors/Admins see all team members linked to JOAO_GESTOR_AUTH_ID
+              teamMembersQuery = teamMembersQuery.eq('user_id', effectiveGestorId);
           }
           const { data, error } = await teamMembersQuery;
           if (!error) teamMembersData = data || [];
@@ -312,31 +312,31 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           supportMaterialsV2Data,
           supportMaterialAssignmentsData,
         ] = await Promise.all([
-          (async () => { try { return await supabase.from('app_config').select('data').eq('user_id', userId).maybeSingle(); } catch (e) { console.error("Error fetching app_config:", e); return { data: null, error: e }; } })(),
-          (async () => { try { return await supabase.from('candidates').select('id, data').eq('user_id', userId); } catch (e) { console.error("Error fetching candidates:", e); return { data: [], error: e }; } })(),
-          (async () => { try { return await supabase.from('support_materials').select('id, data').eq('user_id', userId); } catch (e) { console.error("Error fetching support_materials:", e); return { data: [], error: e }; } })(),
-          (async () => { try { return await supabase.from('cutoff_periods').select('id, data').eq('user_id', userId); } catch (e) { console.error("Error fetching cutoff_periods:", e); return { data: [], error: e }; } })(),
-          (async () => { try { return await supabase.from('important_links').select('id, data').eq('user_id', userId); } catch (e) { console.error("Error fetching important_links:", e); return { data: [], error: e }; } })(),
-          (async () => { try { return await supabase.from('onboarding_sessions').select('*, videos:onboarding_videos(*)').eq('user_id', userId); } catch (e) { console.error("Error fetching onboarding_sessions:", e); return { data: [], error: e }; } })(),
-          (async () => { try { return await supabase.from('onboarding_video_templates').select('*').eq('user_id', userId).order('order', { ascending: true }); } catch (e) { console.error("Error fetching onboarding_video_templates:", e); return { data: [], error: e }; } })(),
-          // CRM fetches now use effectiveCrmOwnerId
-          (async () => { try { return effectiveCrmOwnerId ? await supabase.from('crm_pipelines').select('*').eq('user_id', effectiveCrmOwnerId) : { data: [], error: null }; } catch (e) { console.error("Error fetching crm_pipelines:", e); return { data: [], error: e }; } })(),
-          (async () => { try { return effectiveCrmOwnerId ? await supabase.from('crm_stages').select('*').eq('user_id', effectiveCrmOwnerId).order('order_index') : { data: [], error: null }; } catch (e) { console.error("Error fetching crm_stages:", e); return { data: [], error: e }; } })(),
-          (async () => { try { return effectiveCrmOwnerId ? await supabase.from('crm_fields').select('*').eq('user_id', effectiveCrmOwnerId) : { data: [], error: null }; } catch (e) { console.error("Error fetching crm_fields:", e); return { data: [], error: e }; } })(),
+          (async () => { try { return await supabase.from('app_config').select('data').eq('user_id', effectiveGestorId).maybeSingle(); } catch (e) { console.error("Error fetching app_config:", e); return { data: null, error: e }; } })(),
+          (async () => { try { return await supabase.from('candidates').select('id, data').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching candidates:", e); return { data: [], error: e }; } })(),
+          (async () => { try { return await supabase.from('support_materials').select('id, data').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching support_materials:", e); return { data: [], error: e }; } })(),
+          (async () => { try { return await supabase.from('cutoff_periods').select('id, data').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching cutoff_periods:", e); return { data: [], error: e }; } })(),
+          (async () => { try { return await supabase.from('important_links').select('id, data').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching important_links:", e); return { data: [], error: e }; } })(),
+          (async () => { try { return await supabase.from('onboarding_sessions').select('*, videos:onboarding_videos(*)').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching onboarding_sessions:", e); return { data: [], error: e }; } })(),
+          (async () => { try { return await supabase.from('onboarding_video_templates').select('*').eq('user_id', effectiveGestorId).order('order', { ascending: true }); } catch (e) { console.error("Error fetching onboarding_video_templates:", e); return { data: [], error: e }; } })(),
+          // CRM fetches now use effectiveGestorId
+          (async () => { try { return await supabase.from('crm_pipelines').select('*').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching crm_pipelines:", e); return { data: [], error: e }; } })(),
+          (async () => { try { return await supabase.from('crm_stages').select('*').eq('user_id', effectiveGestorId).order('order_index') ; } catch (e) { console.error("Error fetching crm_stages:", e); return { data: [], error: e }; } })(),
+          (async () => { try { return await supabase.from('crm_fields').select('*').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching crm_fields:", e); return { data: [], error: e }; } })(),
           // crmLeads fetch needs to be conditional based on role
-          (async () => { try { return (user?.role === 'CONSULTOR' ? await supabase.from('crm_leads').select('*').eq('consultant_id', userId) : (effectiveCrmOwnerId ? await supabase.from('crm_leads').select('*').eq('user_id', effectiveCrmOwnerId) : { data: [], error: null })); } catch (e) { console.error("Error fetching crm_leads:", e); return { data: [], error: e }; } })(),
-          // Daily Checklists and related tables (use effectiveCrmOwnerId for parent table)
-          (async () => { try { return (effectiveCrmOwnerId ? await supabase.from('daily_checklists').select('*').eq('user_id', effectiveCrmOwnerId) : { data: [], error: null }); } catch (e) { console.error("Error fetching daily_checklists:", e); return { data: [], error: e }; } })(),
+          (async () => { try { return (user?.role === 'CONSULTOR' ? await supabase.from('crm_leads').select('*').eq('consultant_id', userId) : await supabase.from('crm_leads').select('*').eq('user_id', effectiveGestorId)); } catch (e) { console.error("Error fetching crm_leads:", e); return { data: [], error: e }; } })(),
+          // Daily Checklists and related tables (use effectiveGestorId for parent table)
+          (async () => { try { return await supabase.from('daily_checklists').select('*').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching daily_checklists:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('daily_checklist_items').select('*'); } catch (e) { console.error("Error fetching daily_checklist_items:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('daily_checklist_assignments').select('*'); } catch (e) { console.error("Error fetching daily_checklist_assignments:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('daily_checklist_completions').select('*'); } catch (e) { console.error("Error fetching daily_checklist_completions:", e); return { data: [], error: e }; } })(),
-          // Weekly Targets and related tables (use effectiveCrmOwnerId for parent table)
-          (async () => { try { return (effectiveCrmOwnerId ? await supabase.from('weekly_targets').select('*').eq('user_id', effectiveCrmOwnerId) : { data: [], error: null }); } catch (e) { console.error("Error fetching weekly_targets:", e); return { data: [], error: e }; } })(),
+          // Weekly Targets and related tables (use effectiveGestorId for parent table)
+          (async () => { try { return await supabase.from('weekly_targets').select('*').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching weekly_targets:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('weekly_target_items').select('*'); } catch (e) { console.error("Error fetching weekly_target_items:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('weekly_target_assignments').select('*'); } catch (e) { console.error("Error fetching weekly_target_assignments:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('metric_logs').select('*'); } catch (e) { console.error("Error fetching metric_logs:", e); return { data: [], error: e }; } })(),
-          // Support Materials V2 and related tables (use effectiveCrmOwnerId for parent table)
-          (async () => { try { return (effectiveCrmOwnerId ? await supabase.from('support_materials_v2').select('*').eq('user_id', effectiveCrmOwnerId) : { data: [], error: null }); } catch (e) { console.error("Error fetching support_materials_v2:", e); return { data: [], error: e }; } })(),
+          // Support Materials V2 and related tables (use effectiveGestorId for parent table)
+          (async () => { try { return await supabase.from('support_materials_v2').select('*').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching support_materials_v2:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('support_material_assignments').select('*'); } catch (e) { console.error("Error fetching support_material_assignments:", e); return { data: [], error: e }; } })(),
         ]);
 
@@ -377,7 +377,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           setInterviewers(data.interviewers || []);
           setPvs(data.pvs || []);
         } else {
-          await supabase.from('app_config').insert({ user_id: userId, data: DEFAULT_APP_CONFIG_DATA });
+          await supabase.from('app_config').insert({ user_id: effectiveGestorId, data: DEFAULT_APP_CONFIG_DATA }); // Use effectiveGestorId
           const { checklistStructure, consultantGoalsStructure, interviewStructure, templates, origins, interviewers, pvs } = DEFAULT_APP_CONFIG_DATA;
           setChecklistStructure(checklistStructure);
           setConsultantGoalsStructure(consultantGoalsStructure);
@@ -400,6 +400,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               id: `legacy_${item.id}`, // ID temporário baseado no db_id
               db_id: item.id,
               name: data.name,
+              email: data.email, // Adicionado para legados também
               roles: Array.isArray(data.roles) ? data.roles : [data.role || 'Prévia'],
               isActive: data.isActive !== false,
               isLegacy: true, // Marca como legado
@@ -428,13 +429,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setOnboardingTemplateVideos(templateVideosData?.data || []);
         
         let finalPipelines = pipelinesData?.data || [];
-        if (finalPipelines.length === 0 && effectiveCrmOwnerId) { // Only create default if current user is the owner
-          if (user?.role === 'GESTOR' || user?.role === 'ADMIN') { // Only Gestors/Admins can create default pipelines
-            console.log(`[AppContext] No CRM pipelines found for ${effectiveCrmOwnerId}. Creating default pipeline.`);
-            // Create a default pipeline if none exist
+        if (finalPipelines.length === 0) { // Only create default if none exist for the effectiveGestorId
+          if (user?.role === 'GESTOR' || user?.role === 'ADMIN') { // Only Gestors/Admins can trigger default pipeline creation
+            console.log(`[AppContext] No CRM pipelines found for ${effectiveGestorId}. Creating default pipeline.`);
             const { data: newPipeline, error: insertPipelineError } = await supabase
               .from('crm_pipelines')
-              .insert({ user_id: userId, name: 'Pipeline Padrão', is_active: true })
+              .insert({ user_id: effectiveGestorId, name: 'Pipeline Padrão', is_active: true }) // Use effectiveGestorId
               .select('*')
               .single();
             if (insertPipelineError) {
@@ -443,7 +443,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               finalPipelines = [newPipeline];
             }
           } else {
-            console.log(`[AppContext] No CRM pipelines found for Gestor ${effectiveCrmOwnerId} linked to consultant ${userId}.`);
+            console.log(`[AppContext] No CRM pipelines found for Gestor ${effectiveGestorId} linked to consultant ${userId}.`);
           }
         }
         setCrmPipelines(finalPipelines);
@@ -471,7 +471,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             for (const pendingCommission of pending) {
               try {
                 const { _id, _timestamp, _retryCount, ...cleanCommission } = pendingCommission;
-                const payload = { user_id: user.id, data: cleanCommission };
+                const payload = { user_id: JOAO_GESTOR_AUTH_ID, data: cleanCommission }; // Use JOAO_GESTOR_AUTH_ID
                 const { data, error } = await supabase.from('commissions').insert(payload).select('id', 'created_at').maybeSingle();
                 if (error) throw error;
                 const updatedPending = JSON.parse(localStorage.getItem('pending_commissions') || '[]').filter((pc: any) => pc._id !== _id);
@@ -512,9 +512,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [user?.id, user?.role, refetchCommissions]);
 
   const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
-  const addCandidate = useCallback(async (candidate: Candidate) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('candidates').insert({ user_id: user.id, data: candidate }).select('id').single(); if (error) { console.error(error); throw error; } if (data) { setCandidates(prev => [{ ...candidate, db_id: data.id }, ...prev]); } }, [user]);
-  const updateCandidate = useCallback(async (id: string, updates: Partial<Candidate>) => { if (!user) throw new Error("Usuário não autenticado."); const c = candidates.find(c => c.id === id); if (!c || !c.db_id) throw new Error("Candidato não encontrado"); const updated = { ...c, ...updates }; const { db_id, ...dataToUpdate } = updated; const { error } = await supabase.from('candidates').update({ data: dataToUpdate }).match({ id: c.db_id, user_id: user.id }); if (error) { console.error(error); throw error; } setCandidates(prev => prev.map(p => p.id === id ? updated : p)); }, [user, candidates]);
-  const deleteCandidate = useCallback(async (id: string) => { if (!user) throw new Error("Usuário não autenticado."); const c = candidates.find(c => c.id === id); if (!c || !c.db_id) throw new Error("Candidato não encontrado"); const { error } = await supabase.from('candidates').delete().match({ id: c.db_id, user_id: user.id }); if (error) { console.error(error); throw error; } setCandidates(prev => prev.filter(p => p.id !== id)); }, [user, candidates]);
+  const addCandidate = useCallback(async (candidate: Candidate) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('candidates').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: candidate }).select('id').single(); if (error) { console.error(error); throw error; } if (data) { setCandidates(prev => [{ ...candidate, db_id: data.id }, ...prev]); } }, [user]); // Use JOAO_GESTOR_AUTH_ID
+  const updateCandidate = useCallback(async (id: string, updates: Partial<Candidate>) => { if (!user) throw new Error("Usuário não autenticado."); const c = candidates.find(c => c.id === id); if (!c || !c.db_id) throw new Error("Candidato não encontrado"); const updated = { ...c, ...updates }; const { db_id, ...dataToUpdate } = updated; const { error } = await supabase.from('candidates').update({ data: dataToUpdate }).match({ id: c.db_id, user_id: JOAO_GESTOR_AUTH_ID }); if (error) { console.error(error); throw error; } setCandidates(prev => prev.map(p => p.id === id ? updated : p)); }, [user, candidates]); // Use JOAO_GESTOR_AUTH_ID
+  const deleteCandidate = useCallback(async (id: string) => { if (!user) throw new Error("Usuário não autenticado."); const c = candidates.find(c => c.id === id); if (!c || !c.db_id) throw new Error("Candidato não encontrado"); const { error } = await supabase.from('candidates').delete().match({ id: c.db_id, user_id: JOAO_GESTOR_AUTH_ID }); if (error) { console.error(error); throw error; } setCandidates(prev => prev.filter(p => p.id !== id)); }, [user, candidates]); // Use JOAO_GESTOR_AUTH_ID
   
   const addTeamMember = useCallback(async (member: Omit<TeamMember, 'id'> & { email?: string }) => {
     if (!user) throw new Error("Usuário não autenticado.");
@@ -563,7 +563,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const { data, error } = await supabase
       .from('team_members')
       .insert({ 
-        user_id: user.id, 
+        user_id: JOAO_GESTOR_AUTH_ID, // Use JOAO_GESTOR_AUTH_ID
         data: newMember 
       })
       .select('id')
@@ -624,7 +624,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const updated = { ...m, ...updates, id: authUserId, hasLogin: !!updates.email }; // Update local ID if authUserId changed
     const { db_id, ...dataToUpdate } = updated; // Exclude db_id from data to be stored in 'data' column
 
-    const { error } = await supabase.from('team_members').update({ data: dataToUpdate }).match({ id: m.db_id, user_id: user.id });
+    const { error } = await supabase.from('team_members').update({ data: dataToUpdate }).match({ id: m.db_id, user_id: JOAO_GESTOR_AUTH_ID }); // Use JOAO_GESTOR_AUTH_ID
     if (error) { console.error(error); throw error; }
     
     setTeamMembers(prev => prev.map(p => p.db_id === m.db_id ? updated : p)); // Update using db_id to ensure correct item is replaced
@@ -640,10 +640,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       throw new Error("Membro da equipe não encontrado ou ID do banco de dados ausente.");
     }
 
-    console.log(`[deleteTeamMember] Tentando excluir membro com db_id: ${m.db_id} e user_id (gestor): ${user.id}`);
+    console.log(`[deleteTeamMember] Tentando excluir membro com db_id: ${m.db_id} e user_id (gestor): ${JOAO_GESTOR_AUTH_ID}`); // Use JOAO_GESTOR_AUTH_ID
     
     try {
-      const { error } = await supabase.from('team_members').delete().match({ id: m.db_id, user_id: user.id });
+      const { error } = await supabase.from('team_members').delete().match({ id: m.db_id, user_id: JOAO_GESTOR_AUTH_ID }); // Use JOAO_GESTOR_AUTH_ID
       
       if (error) {
         console.error(`[deleteTeamMember] Erro ao excluir membro do banco de dados:`, error);
@@ -658,18 +658,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, [user, teamMembers]);
 
-  const addCutoffPeriod = useCallback(async (period: CutoffPeriod) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('cutoff_periods').insert({ user_id: user.id, data: period }).select('id').single(); if (error) throw error; if (data) setCutoffPeriods(prev => [...prev, { ...period, db_id: data.id }]); }, [user]);
-  const updateCutoffPeriod = useCallback(async (id: string, updates: Partial<CutoffPeriod>) => { if (!user) throw new Error("Usuário não autenticado."); const p = cutoffPeriods.find(p => p.id === id); if (!p || !p.db_id) throw new Error("Período não encontrado"); const updated = { ...p, ...updates }; const { db_id, ...dataToUpdate } = updated; const { error } = await supabase.from('cutoff_periods').update({ data: dataToUpdate }).match({ id: p.db_id, user_id: user.id }); if (error) { console.error(error); throw error; } setCutoffPeriods(prev => prev.map(item => item.id === id ? updated : item)); }, [user, cutoffPeriods]);
-  const deleteCutoffPeriod = useCallback(async (id: string) => { if (!user) throw new Error("Usuário não autenticado."); const p = cutoffPeriods.find(p => p.id === id); if (!p || !p.db_id) throw new Error("Período não encontrado"); const { error } = await supabase.from('cutoff_periods').delete().match({ id: p.db_id, user_id: user.id }); if (error) { console.error(error); throw error; } setCutoffPeriods(prev => prev.filter(item => item.id !== id)); }, [user, cutoffPeriods]);
-  const addCommission = useCallback(async (commission: Commission): Promise<Commission> => { if (!user) throw new Error("Usuário não autenticado."); const localId = `local_${Date.now()}`; const localCommission: Commission = { ...commission, db_id: localId, criado_em: new Date().toISOString() }; setCommissions(prev => [localCommission, ...prev]); setTimeout(() => { alert(`✅ VENDA REGISTRADA!\n\nCliente: ${commission.clientName}\nValor: R$ ${commission.value.toLocaleString()}\nID: ${localId}\n\nA sincronização ocorrerá em segundo plano.`); }, 50); setTimeout(async () => { try { const cleanCommission = { ...commission, customRules: commission.customRules?.length ? commission.customRules : undefined, angelName: commission.angelName || undefined, managerName: commission.managerName || 'N/A', }; const payload = { user_id: user.id, data: cleanCommission }; const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Background sync timeout')), 10000)); const insertPromise = supabase.from('commissions').insert(payload).select('id', 'created_at').maybeSingle(); const { data, error } = await Promise.race([insertPromise, timeoutPromise]) as any; if (error) throw error; if (data && data.id) { setCommissions(prev => prev.map(c => c.db_id === localId ? { ...c, db_id: data.id.toString(), criado_em: data.created_at, _synced: true } : c)); const updated = pending.filter((p: any) => p._localId !== localId); localStorage.setItem('pending_commissions', JSON.stringify(updated)); } else { throw new Error('Nenhum ID retornado'); } } catch (error: any) { const pending = JSON.parse(localStorage.getItem('pending_commissions') || '[]'); const alreadyExists = pending.some((p: any) => p._localId === localId); if (!alreadyExists) { pending.push({ ...commission, _localId: localId, _timestamp: new Date().toISOString(), _error: error.message, _attempts: 1 }); localStorage.setItem('pending_commissions', JSON.stringify(pending)); } } }, 2000); return localCommission; }, [user]);
-  const updateCommission = useCallback(async (id: string, updates: Partial<Commission>) => { if (!user) throw new Error("Usuário não autenticado."); const commissionToUpdate = commissions.find(c => c.id === id); if (!commissionToUpdate || !commissionToUpdate.db_id) throw new Error("Comissão não encontrada para atualização."); const originalData = { ...commissionToUpdate }; delete (originalData as any).db_id; delete (originalData as any).criado_em; const newData = { ...originalData, ...updates }; const payload = { data: newData }; const { error } = await supabase.from('commissions').update(payload).match({ id: commissionToUpdate.db_id, user_id: user.id }); if (error) { console.error(error); throw error; } await refetchCommissions(); }, [user, commissions, refetchCommissions]);
-  const deleteCommission = useCallback(async (id: string) => { if (!user) throw new Error("Usuário não autenticado."); const commissionToDelete = commissions.find(c => c.id === id); if (!commissionToDelete || !commissionToDelete.db_id) throw new Error("Comissão não encontrada para exclusão."); const { error } = await supabase.from('commissions').delete().match({ id: commissionToDelete.db_id, user_id: user.id }); if (error) { console.error(error); throw error; } await refetchCommissions(); }, [user, commissions, refetchCommissions]);
-  const addSupportMaterial = useCallback(async (materialData: Omit<SupportMaterial, 'id' | 'url'>, file: File) => { if (!user) throw new Error("Usuário não autenticado."); const sanitizedFileName = file.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w\s.-]/g, '').replace(/\s+/g, '_'); const filePath = `public/${crypto.randomUUID()}-${sanitizedFileName}`; const { error: uploadError } = await supabase.storage.from('support_materials').upload(filePath, file); if (uploadError) throw uploadError; const { data: urlData } = supabase.storage.from('support_materials').getPublicUrl(filePath); if (!urlData) throw new Error("Não foi possível obter a URL pública do arquivo."); const newMaterial: SupportMaterial = { ...materialData, id: crypto.randomUUID(), url: urlData.publicUrl, }; const { data: dbData, error: dbError } = await supabase.from('support_materials').insert({ user_id: user.id, data: newMaterial }).select('id').single(); if (dbError) { await supabase.storage.from('support_materials').remove([filePath]); throw dbError; } setSupportMaterials(prev => [{ ...newMaterial, db_id: dbData.id }, ...prev]); }, [user]);
-  const deleteSupportMaterial = useCallback(async (id: string) => { if (!user) throw new Error("Usuário não autenticado."); const m = supportMaterials.find(m => m.id === id); if (!m || !m.db_id) throw new Error("Material não encontrado"); const filePath = m.url.split('/support_materials/')[1]; const { error: storageError } = await supabase.storage.from('support_materials').remove([filePath]); if (storageError) console.error("Erro ao deletar do storage (pode já ter sido removido):", storageError.message); const { error: dbError } = await supabase.from('support_materials').delete().match({ id: m.db_id, user_id: user.id }); if (dbError) throw dbError; setSupportMaterials(prev => prev.filter(p => p.id !== id)); }, [user, supportMaterials]);
-  const addImportantLink = useCallback(async (link: ImportantLink) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('important_links').insert({ user_id: user.id, data: link }).select('id').single(); if (error) throw error; if (data) setImportantLinks(prev => [...prev, { ...link, db_id: data.id }]); }, [user]);
-  const updateImportantLink = useCallback(async (id: string, updates: Partial<ImportantLink>) => { if (!user) throw new Error("Usuário não autenticado."); const l = importantLinks.find(l => l.id === id); if (!l || !l.db_id) throw new Error("Link não encontrado"); const updated = { ...l, ...updates }; const { db_id, ...dataToUpdate } = updated; const { error } = await supabase.from('important_links').update({ data: dataToUpdate }).match({ id: l.db_id, user_id: user.id }); if (error) { console.error(error); throw error; } setImportantLinks(prev => prev.map(item => item.id === id ? updated : item)); }, [user, importantLinks]);
-  const deleteImportantLink = useCallback(async (id: string) => { if (!user) throw new Error("Usuário não autenticado."); const l = importantLinks.find(l => l.id === id); if (!l || !l.db_id) throw new Error("Link não encontrado"); const { error } = await supabase.from('important_links').delete().match({ id: l.db_id, user_id: user.id }); if (error) throw error; setImportantLinks(prev => prev.filter(p => p.id !== id)); }, [user, importantLinks]);
-  const updateInstallmentStatus = useCallback(async (commissionId: string, installmentNumber: number, status: InstallmentStatus, paidDate?: string, saleType?: 'Imóvel' | 'Veículo') => { const commission = commissions.find(c => c.id === commissionId); if (!commission) { console.error("Comissão não encontrada"); return; } let competenceMonth: string | undefined; let finalPaidDate = paidDate || new Date().toISOString().split('T')[0]; if (status === 'Pago' && finalPaidDate) { competenceMonth = calculateCompetenceMonth(finalPaidDate); } const newDetails = { ...commission.installmentDetails, [installmentNumber]: { status, ...(finalPaidDate && { paidDate: finalPaidDate }), ...(competenceMonth && { competenceMonth }) } }; const newOverallStatus = getOverallStatus(newDetails); try { const updatedCommission = { ...commission, installmentDetails: newDetails, status: newOverallStatus }; setCommissions(prev => prev.map(c => c.id === commissionId ? updatedCommission : c)); if (commission.db_id && user) { const { db_id, criado_em, _synced, ...dataToUpdate } = updatedCommission; const { error } = await supabase.from('commissions').update({ data: dataToUpdate }).eq('id', commission.db_id).eq('user_id', user.id); if (error) throw error; } } catch (error: any) { console.error("Erro ao salvar status:", error); alert("Erro ao salvar status da parcela. Tente novamente."); throw error; } }, [commissions, user, calculateCompetenceMonth]);
+  const addCutoffPeriod = useCallback(async (period: CutoffPeriod) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('cutoff_periods').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: period }).select('id').single(); if (error) throw error; if (data) setCutoffPeriods(prev => [...prev, { ...period, db_id: data.id }]); }, [user]); // Use JOAO_GESTOR_AUTH_ID
+  const updateCutoffPeriod = useCallback(async (id: string, updates: Partial<CutoffPeriod>) => { if (!user) throw new Error("Usuário não autenticado."); const p = cutoffPeriods.find(p => p.id === id); if (!p || !p.db_id) throw new Error("Período não encontrado"); const updated = { ...p, ...updates }; const { db_id, ...dataToUpdate } = updated; const { error } = await supabase.from('cutoff_periods').update({ data: dataToUpdate }).match({ id: p.db_id, user_id: JOAO_GESTOR_AUTH_ID }); if (error) { console.error(error); throw error; } setCutoffPeriods(prev => prev.map(item => item.id === id ? updated : item)); }, [user, cutoffPeriods]); // Use JOAO_GESTOR_AUTH_ID
+  const deleteCutoffPeriod = useCallback(async (id: string) => { if (!user) throw new Error("Usuário não autenticado."); const p = cutoffPeriods.find(p => p.id === id); if (!p || !p.db_id) throw new Error("Período não encontrado"); const { error } = await supabase.from('cutoff_periods').delete().match({ id: p.db_id, user_id: JOAO_GESTOR_AUTH_ID }); if (error) { console.error(error); throw error; } setCutoffPeriods(prev => prev.filter(item => item.id !== id)); }, [user, cutoffPeriods]); // Use JOAO_GESTOR_AUTH_ID
+  const addCommission = useCallback(async (commission: Commission): Promise<Commission> => { if (!user) throw new Error("Usuário não autenticado."); const localId = `local_${Date.now()}`; const localCommission: Commission = { ...commission, db_id: localId, criado_em: new Date().toISOString() }; setCommissions(prev => [localCommission, ...prev]); setTimeout(() => { alert(`✅ VENDA REGISTRADA!\n\nCliente: ${commission.clientName}\nValor: R$ ${commission.value.toLocaleString()}\nID: ${localId}\n\nA sincronização ocorrerá em segundo plano.`); }, 50); setTimeout(async () => { try { const cleanCommission = { ...commission, customRules: commission.customRules?.length ? commission.customRules : undefined, angelName: commission.angelName || undefined, managerName: commission.managerName || 'N/A', }; const payload = { user_id: JOAO_GESTOR_AUTH_ID, data: cleanCommission }; const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Background sync timeout')), 10000)); const insertPromise = supabase.from('commissions').insert(payload).select('id', 'created_at').maybeSingle(); const { data, error } = await Promise.race([insertPromise, timeoutPromise]) as any; if (error) throw error; if (data && data.id) { setCommissions(prev => prev.map(c => c.db_id === localId ? { ...c, db_id: data.id.toString(), criado_em: data.created_at, _synced: true } : c)); const updated = pending.filter((p: any) => p._localId !== localId); localStorage.setItem('pending_commissions', JSON.stringify(updated)); } else { throw new Error('Nenhum ID retornado'); } } catch (error: any) { const pending = JSON.parse(localStorage.getItem('pending_commissions') || '[]'); const alreadyExists = pending.some((p: any) => p._localId === localId); if (!alreadyExists) { pending.push({ ...commission, _localId: localId, _timestamp: new Date().toISOString(), _error: error.message, _attempts: 1 }); localStorage.setItem('pending_commissions', JSON.stringify(pending)); } } }, 2000); return localCommission; }, [user]); // Use JOAO_GESTOR_AUTH_ID
+  const updateCommission = useCallback(async (id: string, updates: Partial<Commission>) => { if (!user) throw new Error("Usuário não autenticado."); const commissionToUpdate = commissions.find(c => c.id === id); if (!commissionToUpdate || !commissionToUpdate.db_id) throw new Error("Comissão não encontrada para atualização."); const originalData = { ...commissionToUpdate }; delete (originalData as any).db_id; delete (originalData as any).criado_em; const newData = { ...originalData, ...updates }; const payload = { data: newData }; const { error } = await supabase.from('commissions').update(payload).match({ id: commissionToUpdate.db_id, user_id: JOAO_GESTOR_AUTH_ID }); if (error) { console.error(error); throw error; } await refetchCommissions(); }, [user, commissions, refetchCommissions]); // Use JOAO_GESTOR_AUTH_ID
+  const deleteCommission = useCallback(async (id: string) => { if (!user) throw new Error("Usuário não autenticado."); const commissionToDelete = commissions.find(c => c.id === id); if (!commissionToDelete || !commissionToDelete.db_id) throw new Error("Comissão não encontrada para exclusão."); const { error } = await supabase.from('commissions').delete().match({ id: commissionToDelete.db_id, user_id: JOAO_GESTOR_AUTH_ID }); if (error) { console.error(error); throw error; } await refetchCommissions(); }, [user, commissions, refetchCommissions]); // Use JOAO_GESTOR_AUTH_ID
+  const addSupportMaterial = useCallback(async (materialData: Omit<SupportMaterial, 'id' | 'url'>, file: File) => { if (!user) throw new Error("Usuário não autenticado."); const sanitizedFileName = file.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w\s.-]/g, '').replace(/\s+/g, '_'); const filePath = `public/${crypto.randomUUID()}-${sanitizedFileName}`; const { error: uploadError } = await supabase.storage.from('support_materials').upload(filePath, file); if (uploadError) throw uploadError; const { data: urlData } = supabase.storage.from('support_materials').getPublicUrl(filePath); if (!urlData) throw new Error("Não foi possível obter a URL pública do arquivo."); const newMaterial: SupportMaterial = { ...materialData, id: crypto.randomUUID(), url: urlData.publicUrl, }; const { data: dbData, error: dbError } = await supabase.from('support_materials').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: newMaterial }).select('id').single(); if (dbError) { await supabase.storage.from('support_materials').remove([filePath]); throw dbError; } setSupportMaterials(prev => [{ ...newMaterial, db_id: dbData.id }, ...prev]); }, [user]); // Use JOAO_GESTOR_AUTH_ID
+  const deleteSupportMaterial = useCallback(async (id: string) => { if (!user) throw new Error("Usuário não autenticado."); const m = supportMaterials.find(m => m.id === id); if (!m || !m.db_id) throw new Error("Material não encontrado"); const filePath = m.url.split('/support_materials/')[1]; const { error: storageError } = await supabase.storage.from('support_materials').remove([filePath]); if (storageError) console.error("Erro ao deletar do storage (pode já ter sido removido):", storageError.message); const { error: dbError } = await supabase.from('support_materials').delete().match({ id: m.db_id, user_id: JOAO_GESTOR_AUTH_ID }); if (dbError) throw dbError; setSupportMaterials(prev => prev.filter(p => p.id !== id)); }, [user, supportMaterials]); // Use JOAO_GESTOR_AUTH_ID
+  const addImportantLink = useCallback(async (link: ImportantLink) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('important_links').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: link }).select('id').single(); if (error) throw error; if (data) setImportantLinks(prev => [...prev, { ...link, db_id: data.id }]); }, [user]); // Use JOAO_GESTOR_AUTH_ID
+  const updateImportantLink = useCallback(async (id: string, updates: Partial<ImportantLink>) => { if (!user) throw new Error("Usuário não autenticado."); const l = importantLinks.find(l => l.id === id); if (!l || !l.db_id) throw new Error("Link não encontrado"); const updated = { ...l, ...updates }; const { db_id, ...dataToUpdate } = updated; const { error } = await supabase.from('important_links').update({ data: dataToUpdate }).match({ id: l.db_id, user_id: JOAO_GESTOR_AUTH_ID }); if (error) { console.error(error); throw error; } setImportantLinks(prev => prev.map(item => item.id === id ? updated : item)); }, [user, importantLinks]); // Use JOAO_GESTOR_AUTH_ID
+  const deleteImportantLink = useCallback(async (id: string) => { if (!user) throw new Error("Usuário não autenticado."); const l = importantLinks.find(l => l.id === id); if (!l || !l.db_id) throw new Error("Link não encontrado"); const { error } = await supabase.from('important_links').delete().match({ id: l.db_id, user_id: JOAO_GESTOR_AUTH_ID }); if (error) throw error; setImportantLinks(prev => prev.filter(p => p.id !== id)); }, [user, importantLinks]); // Use JOAO_GESTOR_AUTH_ID
+  const updateInstallmentStatus = useCallback(async (commissionId: string, installmentNumber: number, status: InstallmentStatus, paidDate?: string, saleType?: 'Imóvel' | 'Veículo') => { const commission = commissions.find(c => c.id === commissionId); if (!commission) { console.error("Comissão não encontrada"); return; } let competenceMonth: string | undefined; let finalPaidDate = paidDate || new Date().toISOString().split('T')[0]; if (status === 'Pago' && finalPaidDate) { competenceMonth = calculateCompetenceMonth(finalPaidDate); } const newDetails = { ...commission.installmentDetails, [installmentNumber]: { status, ...(finalPaidDate && { paidDate: finalPaidDate }), ...(competenceMonth && { competenceMonth }) } }; const newOverallStatus = getOverallStatus(newDetails); try { const updatedCommission = { ...commission, installmentDetails: newDetails, status: newOverallStatus }; setCommissions(prev => prev.map(c => c.id === commissionId ? updatedCommission : c)); if (commission.db_id && user) { const { db_id, criado_em, _synced, ...dataToUpdate } = updatedCommission; const { error } = await supabase.from('commissions').update({ data: dataToUpdate }).eq('id', commission.db_id).eq('user_id', JOAO_GESTOR_AUTH_ID); if (error) throw error; } } catch (error: any) { console.error("Erro ao salvar status:", error); alert("Erro ao salvar status da parcela. Tente novamente."); throw error; } }, [commissions, user, calculateCompetenceMonth]); // Use JOAO_GESTOR_AUTH_ID
   const getCandidate = useCallback((id: string) => candidates.find(c => c.id === id), [candidates]);
   const toggleChecklistItem = useCallback(async (candidateId: string, itemId: string) => { const c = getCandidate(candidateId); if(c) { const state = c.checklistProgress[itemId] || { completed: false }; await updateCandidate(candidateId, { checklistProgress: { ...c.checklistProgress, [itemId]: { ...state, completed: !state.completed } } }); } }, [getCandidate, updateCandidate]);
   const setChecklistDueDate = useCallback(async (candidateId: string, itemId: string, date: string) => { const c = getCandidate(candidateId); if(c) { const state = c.checklistProgress[itemId] || { completed: false }; await updateCandidate(candidateId, { checklistProgress: { ...c.checklistProgress, [itemId]: { ...state, dueDate: date } } }); } }, [getCandidate, updateCandidate]);
@@ -709,7 +709,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!user) throw new Error("Usuário não autenticado.");
     const { data: sessionData, error: sessionError } = await supabase
       .from('onboarding_sessions')
-      .insert({ user_id: user.id, consultant_name: consultantName })
+      .insert({ user_id: JOAO_GESTOR_AUTH_ID, consultant_name: consultantName }) // Use JOAO_GESTOR_AUTH_ID
       .select()
       .single();
     if (sessionError) throw sessionError;
@@ -736,12 +736,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return newSession;
   }, [user, onboardingTemplateVideos]);
 
-  const deleteOnlineOnboardingSession = useCallback(async (sessionId: string) => { if (!user) throw new Error("Usuário não autenticado."); const { error } = await supabase.from('onboarding_sessions').delete().match({ id: sessionId, user_id: user.id }); if (error) throw error; setOnboardingSessions(prev => prev.filter(s => s.id !== sessionId)); }, [user]);
+  const deleteOnlineOnboardingSession = useCallback(async (sessionId: string) => { if (!user) throw new Error("Usuário não autenticado."); const { error } = await supabase.from('onboarding_sessions').delete().match({ id: sessionId, user_id: JOAO_GESTOR_AUTH_ID }); if (error) throw error; setOnboardingSessions(prev => prev.filter(s => s.id !== sessionId)); }, [user]); // Use JOAO_GESTOR_AUTH_ID
   
   const addVideoToTemplate = useCallback(async (title: string, url: string) => {
     if (!user) throw new Error("Usuário não autenticado.");
     const newOrder = onboardingTemplateVideos.length > 0 ? Math.max(...onboardingTemplateVideos.map(v => v.order)) + 1 : 1;
-    const newVideoData = { user_id: user.id, title, video_url: url, order: newOrder };
+    const newVideoData = { user_id: JOAO_GESTOR_AUTH_ID, title, video_url: url, order: newOrder }; // Use JOAO_GESTOR_AUTH_ID
     const { data, error } = await supabase.from('onboarding_video_templates').insert(newVideoData).select().single();
     if (error) throw error;
     setOnboardingTemplateVideos(prev => [...prev, data]);
@@ -749,7 +749,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const deleteVideoFromTemplate = useCallback(async (videoId: string) => {
     if (!user) throw new Error("Usuário não autenticado.");
-    const { error } = await supabase.from('onboarding_video_templates').delete().match({ id: videoId, user_id: user.id });
+    const { error } = await supabase.from('onboarding_video_templates').delete().match({ id: videoId, user_id: JOAO_GESTOR_AUTH_ID }); // Use JOAO_GESTOR_AUTH_ID
     if (error) throw error;
     setOnboardingTemplateVideos(prev => prev.filter(v => v.id !== videoId));
   }, [user]);
@@ -759,7 +759,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!user) throw new Error("Usuário não autenticado.");
     // Ensure user_id (Gestor's ID) is correctly set from crmOwnerUserId
     if (!crmOwnerUserId) throw new Error("ID do Gestor do CRM não encontrado.");
-    const payload = { ...leadData, user_id: crmOwnerUserId };
+    const payload = { ...leadData, user_id: JOAO_GESTOR_AUTH_ID }; // Use JOAO_GESTOR_AUTH_ID
     const { data, error } = await supabase.from('crm_leads').insert(payload).select().single();
     if (error) throw error;
     setCrmLeads(prev => [...prev, data]);
@@ -770,7 +770,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!user) throw new Error("Usuário não autenticado.");
     // Ensure user_id (Gestor's ID) is correctly set from crmOwnerUserId
     if (!crmOwnerUserId) throw new Error("ID do Gestor do CRM não encontrado.");
-    const payload = { ...updates, user_id: crmOwnerUserId }; // Ensure user_id is not changed if it's a consultant updating
+    const payload = { ...updates, user_id: JOAO_GESTOR_AUTH_ID }; // Use JOAO_GESTOR_AUTH_ID
     const { error } = await supabase.from('crm_leads').update(payload).eq('id', id).eq('consultant_id', user.id);
     if (error) throw error;
     setCrmLeads(prev => prev.map(lead => lead.id === id ? { ...lead, ...updates } : lead));
@@ -783,16 +783,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setCrmLeads(prev => prev.filter(lead => lead.id !== id));
   }, [user]);
 
-  const addCrmStage = useCallback(async (stageData: Omit<CrmStage, 'id' | 'user_id' | 'created_at'>) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('crm_stages').insert({ ...stageData, user_id: user.id }).select().single(); if (error) throw error; setCrmStages(prev => [...prev, data].sort((a, b) => a.order_index - b.order_index)); return data; }, [user]);
+  const addCrmStage = useCallback(async (stageData: Omit<CrmStage, 'id' | 'user_id' | 'created_at'>) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('crm_stages').insert({ ...stageData, user_id: JOAO_GESTOR_AUTH_ID }).select().single(); if (error) throw error; setCrmStages(prev => [...prev, data].sort((a, b) => a.order_index - b.order_index)); return data; }, [user]); // Use JOAO_GESTOR_AUTH_ID
   const updateCrmStage = useCallback(async (id: string, updates: Partial<CrmStage>) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('crm_stages').update(updates).eq('id', id).select().single(); if (error) throw error; setCrmStages(prev => prev.map(s => s.id === id ? data : s).sort((a, b) => a.order_index - b.order_index)); }, [user]);
   const updateCrmStageOrder = useCallback(async (stages: CrmStage[]) => { if (!user) throw new Error("Usuário não autenticado."); const updates = stages.map((stage, index) => ({ id: stage.id, order_index: index })); const { error } = await supabase.from('crm_stages').upsert(updates); if (error) throw error; setCrmStages(stages.map((s, i) => ({...s, order_index: i}))); }, [user]);
-  const addCrmField = useCallback(async (fieldData: Omit<CrmField, 'id' | 'user_id' | 'created_at'>) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('crm_fields').insert({ ...fieldData, user_id: user.id }).select().single(); if (error) throw error; setCrmFields(prev => [...prev, data]); return data; }, [user]);
+  const addCrmField = useCallback(async (fieldData: Omit<CrmField, 'id' | 'user_id' | 'created_at'>) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('crm_fields').insert({ ...fieldData, user_id: JOAO_GESTOR_AUTH_ID }).select().single(); if (error) throw error; setCrmFields(prev => [...prev, data]); return data; }, [user]); // Use JOAO_GESTOR_AUTH_ID
   const updateCrmField = useCallback(async (id: string, updates: Partial<CrmField>) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('crm_fields').update(updates).eq('id', id).select().single(); if (error) throw error; setCrmFields(prev => prev.map(f => f.id === id ? data : f)); }, [user]);
 
   // Módulo 3: Funções do Checklist do Dia
   const addDailyChecklist = useCallback(async (title: string): Promise<DailyChecklist> => {
     if (!user) throw new Error("Usuário não autenticado.");
-    const { data, error } = await supabase.from('daily_checklists').insert({ user_id: user.id, title, is_active: true }).select().single();
+    const { data, error } = await supabase.from('daily_checklists').insert({ user_id: JOAO_GESTOR_AUTH_ID, title, is_active: true }).select().single(); // Use JOAO_GESTOR_AUTH_ID
     if (error) throw error;
     setDailyChecklists(prev => [...prev, data]);
     return data;
@@ -800,14 +800,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const updateDailyChecklist = useCallback(async (id: string, updates: Partial<DailyChecklist>) => {
     if (!user) throw new Error("Usuário não autenticado.");
-    const { error } = await supabase.from('daily_checklists').update(updates).eq('id', id).eq('user_id', user.id);
+    const { error } = await supabase.from('daily_checklists').update(updates).eq('id', id).eq('user_id', JOAO_GESTOR_AUTH_ID); // Use JOAO_GESTOR_AUTH_ID
     if (error) throw error;
     setDailyChecklists(prev => prev.map(cl => cl.id === id ? { ...cl, ...updates } : cl));
   }, [user]);
 
   const deleteDailyChecklist = useCallback(async (id: string) => {
     if (!user) throw new Error("Usuário não autenticado.");
-    const { error } = await supabase.from('daily_checklists').delete().eq('id', id).eq('user_id', user.id);
+    const { error } = await supabase.from('daily_checklists').delete().eq('id', id).eq('user_id', JOAO_GESTOR_AUTH_ID); // Use JOAO_GESTOR_AUTH_ID
     if (error) throw error;
     setDailyChecklists(prev => prev.filter(cl => cl.id !== id));
     setDailyChecklistItems(prev => prev.filter(item => item.daily_checklist_id !== id));
@@ -897,7 +897,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // Módulo 4: Funções das Metas de Prospecção
   const addWeeklyTarget = useCallback(async (title: string, week_start: string, week_end: string): Promise<WeeklyTarget> => {
     if (!user) throw new Error("Usuário não autenticado.");
-    const { data, error } = await supabase.from('weekly_targets').insert({ user_id: user.id, title, week_start, week_end, is_active: true }).select().single();
+    const { data, error } = await supabase.from('weekly_targets').insert({ user_id: JOAO_GESTOR_AUTH_ID, title, week_start, week_end, is_active: true }).select().single(); // Use JOAO_GESTOR_AUTH_ID
     if (error) throw error;
     setWeeklyTargets(prev => [...prev, data]);
     return data;
@@ -905,14 +905,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const updateWeeklyTarget = useCallback(async (id: string, updates: Partial<WeeklyTarget>) => {
     if (!user) throw new Error("Usuário não autenticado.");
-    const { error } = await supabase.from('weekly_targets').update(updates).eq('id', id).eq('user_id', user.id);
+    const { error } = await supabase.from('weekly_targets').update(updates).eq('id', id).eq('user_id', JOAO_GESTOR_AUTH_ID); // Use JOAO_GESTOR_AUTH_ID
     if (error) throw error;
     setWeeklyTargets(prev => prev.map(wt => wt.id === id ? { ...wt, ...updates } : wt));
   }, [user]);
 
   const deleteWeeklyTarget = useCallback(async (id: string) => {
     if (!user) throw new Error("Usuário não autenticado.");
-    const { error } = await supabase.from('weekly_targets').delete().eq('id', id).eq('user_id', user.id);
+    const { error } = await supabase.from('weekly_targets').delete().eq('id', id).eq('user_id', JOAO_GESTOR_AUTH_ID); // Use JOAO_GESTOR_AUTH_ID
     if (error) throw error;
     setWeeklyTargets(prev => prev.filter(wt => wt.id !== id));
     setWeeklyTargetItems(prev => prev.filter(item => item.weekly_target_id !== id));
@@ -994,7 +994,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // Módulo 5: Funções dos Materiais de Apoio (v2)
   const addSupportMaterialV2 = useCallback(async (materialData: Omit<SupportMaterialV2, 'id' | 'user_id' | 'created_at'>): Promise<SupportMaterialV2> => {
     if (!user) throw new Error("Usuário não autenticado.");
-    const { data, error } = await supabase.from('support_materials_v2').insert({ ...materialData, user_id: user.id }).select().single();
+    const { data, error } = await supabase.from('support_materials_v2').insert({ ...materialData, user_id: JOAO_GESTOR_AUTH_ID }).select().single(); // Use JOAO_GESTOR_AUTH_ID
     if (error) throw error;
     setSupportMaterialsV2(prev => [...prev, data]);
     return data;
@@ -1002,14 +1002,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const updateSupportMaterialV2 = useCallback(async (id: string, updates: Partial<SupportMaterialV2>) => {
     if (!user) throw new Error("Usuário não autenticado.");
-    const { error } = await supabase.from('support_materials_v2').update(updates).eq('id', id).eq('user_id', user.id);
+    const { error } = await supabase.from('support_materials_v2').update(updates).eq('id', id).eq('user_id', JOAO_GESTOR_AUTH_ID); // Use JOAO_GESTOR_AUTH_ID
     if (error) throw error;
     setSupportMaterialsV2(prev => prev.map(mat => mat.id === id ? { ...mat, ...updates } : mat));
   }, [user]);
 
   const deleteSupportMaterialV2 = useCallback(async (id: string) => {
     if (!user) throw new Error("Usuário não autenticado.");
-    const { error } = await supabase.from('support_materials_v2').delete().eq('id', id).eq('user_id', user.id);
+    const { error } = await supabase.from('support_materials_v2').delete().eq('id', id).eq('user_id', JOAO_GESTOR_AUTH_ID); // Use JOAO_GESTOR_AUTH_ID
     if (error) throw error;
     setSupportMaterialsV2(prev => prev.filter(mat => mat.id !== id));
     setSupportMaterialAssignments(prev => prev.filter(assign => assign.material_id !== id));
@@ -1030,7 +1030,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [user]);
 
 
-  useEffect(() => { if (!user) return; const syncPendingCommissions = async () => { const pending = JSON.parse(localStorage.getItem('pending_commissions') || '[]') as any[]; if (pending.length === 0) return; for (const item of pending) { try { const { _localId, _timestamp, _attempts, ...cleanData } = item; const { data, error } = await supabase.from('commissions').insert({ user_id: user.id, data: cleanData }).select('id', 'created_at').maybeSingle(); if (!error && data) { setCommissions(prev => prev.map(c => c.db_id === _localId ? { ...c, db_id: data.id.toString(), criado_em: data.created_at } : c)); const updated = pending.filter((p: any) => p._localId !== _localId); localStorage.setItem('pending_commissions', JSON.stringify(updated)); } } catch (error) { console.log(`❌ Falha ao sincronizar ${item._localId}`); } } }; const interval = setInterval(syncPendingCommissions, 2 * 60 * 1000); setTimeout(syncPendingCommissions, 5000); return () => clearInterval(interval); }, [user]);
+  useEffect(() => { if (!user) return; const syncPendingCommissions = async () => { const pending = JSON.parse(localStorage.getItem('pending_commissions') || '[]') as any[]; if (pending.length === 0) return; for (const item of pending) { try { const { _localId, _timestamp, _attempts, ...cleanData } = item; const { data, error } = await supabase.from('commissions').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: cleanData }).select('id', 'created_at').maybeSingle(); if (!error && data) { setCommissions(prev => prev.map(c => c.db_id === _localId ? { ...c, db_id: data.id.toString(), criado_em: data.created_at } : c)); const updated = pending.filter((p: any) => p._localId !== _localId); localStorage.setItem('pending_commissions', JSON.stringify(updated)); } } catch (error) { console.log(`❌ Falha ao sincronizar ${item._localId}`); } } }; const interval = setInterval(syncPendingCommissions, 2 * 60 * 1000); setTimeout(syncPendingCommissions, 5000); return () => clearInterval(interval); }, [user]); // Use JOAO_GESTOR_AUTH_ID
 
   return (
     <AppContext.Provider value={{ 
@@ -1040,7 +1040,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       addCutoffPeriod, updateCutoffPeriod, deleteCutoffPeriod,
       addTeamMember, updateTeamMember, deleteTeamMember, toggleTheme, addOrigin, deleteOrigin, addInterviewer, deleteInterviewer, addPV, addCandidate, updateCandidate, deleteCandidate, toggleChecklistItem, toggleConsultantGoal, setChecklistDueDate, getCandidate, saveTemplate,
       addChecklistItem, updateChecklistItem, deleteChecklistItem, moveChecklistItem, resetChecklistToDefault, addGoalItem, updateGoalItem, deleteGoalItem, moveGoalItem, resetGoalsToDefault,
-      updateInterviewSection, addInterviewQuestion, updateInterviewQuestion, deleteInterviewQuestion, moveInterviewQuestion, resetInterviewToDefault, addCommission, updateCommission, deleteCommission, updateInstallmentStatus, addSupportMaterial, deleteSupportMaterial,
+      updateInterviewSection, addInterviewQuestion, updateInterviewQuestion, updateInterviewQuestion, deleteInterviewQuestion, moveInterviewQuestion, resetInterviewToDefault, addCommission, updateCommission, deleteCommission, updateInstallmentStatus, addSupportMaterial, deleteSupportMaterial,
       addImportantLink, updateImportantLink, deleteImportantLink,
       addFeedback, updateFeedback, deleteFeedback,
       addTeamMemberFeedback, updateTeamMemberFeedback, deleteTeamMemberFeedback,
