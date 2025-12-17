@@ -156,9 +156,10 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
     }
   };
 
-  // Filter out any custom field that has 'name' as its key to avoid duplication
+  // Filter out any custom field that has 'name' or 'nome' as its key to avoid duplication
   const filteredCrmFields = useMemo(() => {
-    return crmFields.filter(field => field.key !== 'name');
+    const systemReservedKeys = ['name', 'stage_id', 'nome']; // 'nome' added to catch auto-generated key from 'Nome' label
+    return crmFields.filter(field => !systemReservedKeys.includes(field.key));
   }, [crmFields]);
 
   if (!isOpen) return null;
