@@ -22,6 +22,9 @@ const ConsultorDashboard = () => {
     metricLogs,
     commissions, // Adicionado para calcular o total vendido
     leadTasks, // Adicionado para calcular reuniões
+    teamMembers, // Adicionado para o plano de 90 dias
+    consultantGoalsStructure, // Adicionado para o plano de 90 dias
+    toggleNinetyDayGoalCompletion, // Adicionado para o plano de 90 dias
     isDataLoading 
   } = useApp();
 
@@ -162,6 +165,39 @@ const ConsultorDashboard = () => {
     return { activeWeeklyTarget: activeTarget, weeklyGoalsProgress: progress };
   }, [user, weeklyTargets, weeklyTargetItems, weeklyTargetAssignments, metricLogs, today]);
 
+  // --- 90-Day Plan Progress ---
+  const { ninetyDayPlan, ninetyDayProgress, totalNinetyDayGoals, completedNinetyDayGoals, isNinetyDayPlanActive } = useMemo(() => {
+    if (!user) return { ninetyDayPlan: [], ninetyDayProgress: 0, totalNinetyDayGoals: 0, completedNinetyDayGoals: 0, isNinetyDayPlanActive: false };
+
+    const consultant = teamMembers.find(m => m.id === user.id);
+    if (!consultant || !consultant.ninetyDayPlanStartDate) {
+      return { ninetyDayPlan: [], ninetyDayProgress: 0, totalNinetyDayGoals: 0, completedNinetyDayGoals: 0, isNinetyDayPlanActive: false };
+    }
+
+    const startDate = new Date(consultant.ninetyDayPlanStartDate);
+    const ninetyDaysLater = new Date(startDate);
+    ninetyDaysLater.setDate(startDate.getDate() + 90);
+    const isActive = new Date() <= ninetyDaysLater;
+
+    const allGoals = consultantGoalsStructure.flatMap(stage => stage.items);
+    const total = allGoals.length;
+    const completed = allGoals.filter(goal => consultant.ninetyDayGoalsProgress?.[goal.id]).length;
+    const progressPercent = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+    return {
+      ninetyDayPlan: consultantGoalsStructure,
+      ninetyDayProgress: progressPercent,
+      totalNinetyDayGoals: total,
+      completedNinetyDayGoals: completed,
+      isNinetyDayPlanActive: isActive,
+    };
+  }, [user, teamMembers, consultantGoalsStructure]);
+
+  const handleToggleNinetyDayGoal = async (goalItemId: string) => {
+    if (!user) return;
+    await toggleNinetyDayGoalCompletion(user.id, goalItemId);
+  };
+
   if (isAuthLoading || isDataLoading) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-theme(spacing.16))]">
@@ -234,6 +270,52 @@ const ConsultorDashboard = () => {
       <div className="mb-8">
         <DailyChecklist />
       </div>
+
+      {/* 90-Day Plan Section */}
+      {isNinetyDayPlanActive && ninetyDayPlan.length > 0 ? (
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm mb-8">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center"><User className="w-5 h-5 mr-2 text-blue-500" />Meu Plano de 90 Dias</h2>
+            <span className="text-sm font-semibold text-gray-500 dark:text-gray-400">{completedNinetyDayGoals}/{totalNinetyDayGoals} Concluídas</span>
+          </div>
+          <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2.5 mb-4">
+            <div className="bg-blue-500 h-2.5 rounded-full transition-all duration-500" style={{ width: `${ninetyDayProgress}%` }}></div>
+          </div>
+          <div className="space-y-4">
+            {ninetyDayPlan.map(stage => (
+              <div key={stage.id}>
+                <h3 className="font-semibold text-gray-800 dark:text-gray-200 mb-2">{stage.title}</h3>
+                <div className="space-y-2">
+                  {stage.items.map(item => {
+                    const consultant = teamMembers.find(m => m.id === user?.id);
+                    const isCompleted = consultant?.ninetyDayGoalsProgress?.[item.id] || false;
+                    return (
+                      <div key={item.id} className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id={`90day-goal-${item.id}`}
+                          checked={isCompleted}
+                          onChange={() => handleToggleNinetyDayGoal(item.id)}
+                          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:bg-slate-700 dark:border-slate-600"
+                        />
+                        <label htmlFor={`90day-goal-${item.id}`} className={`text-sm ${isCompleted ? 'line-through text-gray-500 dark:text-gray-400' : 'text-gray-700 dark:text-gray-200'}`}>
+                          {item.label}
+                        </label>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-dashed border-gray-200 dark:border-slate-700 text-center mb-8">
+          <AlertCircle className="mx-auto w-12 h-12 text-gray-300 dark:text-slate-600 mb-4" />
+          <p className="text-gray-500 dark:text-gray-400">Nenhum plano de 90 dias ativo atribuído a você.</p>
+          <p className="text-sm text-gray-400">Entre em contato com seu gestor para iniciar seu plano de desenvolvimento.</p>
+        </div>
+      )}
 
       {/* Weekly Goals */}
       {activeWeeklyTarget && weeklyGoalsProgress.length > 0 && (

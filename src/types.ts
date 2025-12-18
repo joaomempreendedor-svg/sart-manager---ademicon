@@ -208,6 +208,8 @@ export interface TeamMember {
   hasLogin?: boolean; // NOVO: Indica se o membro tem um login associado (TIPO 2)
   isLegacy?: boolean; // NOVO: Indica se é um membro do TIPO 1 (antigo)
   tempPassword?: string; // NOVO: Senha temporária gerada para o primeiro acesso
+  ninetyDayGoalsProgress?: Record<string, boolean>; // NOVO: Progresso do plano de 90 dias
+  ninetyDayPlanStartDate?: string; // NOVO: Data de início do plano de 90 dias
 }
 
 // AUTHENTICATION
@@ -489,7 +491,7 @@ export interface AppContextType {
   deleteInterviewQuestion: (sectionId: string, questionId: string) => void;
   moveInterviewQuestion: (sectionId: string, questionId: string, direction: 'up' | 'down') => void;
   resetInterviewToDefault: () => void;
-  addCommission: (commission: Commission) => Promise<Commission>;
+  addCommission: (commission: Commission, commissionOwnerId: string) => Promise<Commission>;
   updateCommission: (id: string, updates: Partial<Commission>) => Promise<void>;
   deleteCommission: (id: string) => Promise<void>;
   updateInstallmentStatus: (commissionId: string, installmentNumber: number, status: InstallmentStatus, paidDate?: string, saleType?: 'Imóvel' | 'Veículo') => Promise<void>;
@@ -556,4 +558,6 @@ export interface AppContextType {
   deleteLeadTask: (id: string) => Promise<void>;
   toggleLeadTaskCompletion: (id: string, is_completed: boolean) => Promise<void>;
   // updateLeadMeetingInvitationStatus: (taskId: string, status: 'pending' | 'accepted' | 'declined') => Promise<void>; // NOVO: Atualizar status do convite - REMOVIDO
+  startNinetyDayPlan: (memberId: string) => Promise<void>; // NOVO: Iniciar plano de 90 dias
+  toggleNinetyDayGoalCompletion: (memberId: string, goalItemId: string) => Promise<void>; // NOVO: Marcar item do plano de 90 dias
 }

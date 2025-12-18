@@ -431,6 +431,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             isLegacy: !isAuthIdValid, // If not auth-linked, it's legacy
             hasLogin: isAuthIdValid, // hasLogin is true if the ID is an auth.uid()
             login: data.login, // Keep the login field from data
+            ninetyDayGoalsProgress: data.ninetyDayGoalsProgress || {}, // Load new field
+            ninetyDayPlanStartDate: data.ninetyDayPlanStartDate || undefined, // Load new field
           } as TeamMember;
         }) || [];
         setTeamMembers(normalizedTeamMembers);
@@ -592,7 +594,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       hasLogin: !!member.email, // If email is provided, it means an auth user was created/linked
       isActive: true,
       login: member.login, // Preserve the login (4-digit CPF)
-      ...(tempPassword && { tempPassword })
+      ...(tempPassword && { tempPassword }),
+      ninetyDayGoalsProgress: {}, // Initialize empty
+      ninetyDayPlanStartDate: undefined, // Initialize empty
     };
   
     const { data, error } = await supabase
@@ -1369,6 +1373,53 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, [user]);
 
+  // NOVO: Funções para o Plano de 90 Dias do Consultor
+  const startNinetyDayPlan = useCallback(async (memberId: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const member = teamMembers.find(m => m.id === memberId);
+    if (!member || !member.db_id) throw new Error("Membro da equipe não encontrado.");
+
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const initialProgress: Record<string, boolean> = {};
+    consultantGoalsStructure.forEach(stage => {
+      stage.items.forEach(item => {
+        initialProgress[item.id] = false;
+      });
+    });
+
+    const updates = {
+      ninetyDayPlanStartDate: today,
+      ninetyDayGoalsProgress: initialProgress,
+    };
+
+    const { error } = await supabase.from('team_members').update({ data: { ...member.data, ...updates } }).eq('id', member.db_id).eq('user_id', JOAO_GESTOR_AUTH_ID);
+    if (error) throw error;
+
+    setTeamMembers(prev => prev.map(m => m.id === memberId ? { ...m, ...updates } : m));
+  }, [user, teamMembers, consultantGoalsStructure]);
+
+  const toggleNinetyDayGoalCompletion = useCallback(async (memberId: string, goalItemId: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const member = teamMembers.find(m => m.id === memberId);
+    if (!member || !member.db_id) throw new Error("Membro da equipe não encontrado.");
+
+    const currentProgress = member.ninetyDayGoalsProgress || {};
+    const updatedProgress = {
+      ...currentProgress,
+      [goalItemId]: !currentProgress[goalItemId],
+    };
+
+    const updates = {
+      ninetyDayGoalsProgress: updatedProgress,
+    };
+
+    const { error } = await supabase.from('team_members').update({ data: { ...member.data, ...updates } }).eq('id', member.db_id).eq('user_id', JOAO_GESTOR_AUTH_ID);
+    if (error) throw error;
+
+    setTeamMembers(prev => prev.map(m => m.id === memberId ? { ...m, ...updates } : m));
+  }, [user, teamMembers]);
+
+
   useEffect(() => { if (!user) return; const syncPendingCommissions = async () => { const pending = JSON.parse(localStorage.getItem('pending_commissions') || '[]') as any[]; if (pending.length === 0) return; for (const item of pending) { try { const { _localId, _timestamp, _attempts, ...cleanData } = item; const { data, error } = await supabase.from('commissions').insert({ user_id: item.commissionOwnerId, data: cleanData }).select('id', 'created_at').maybeSingle(); if (!error && data) { setCommissions(prev => prev.map(c => c.db_id === _localId ? { ...c, db_id: data.id.toString(), criado_em: data.created_at } : c)); const updated = pending.filter((p: any) => p._localId !== _localId); localStorage.setItem('pending_commissions', JSON.stringify(updated)); } } catch (error) { console.log(`❌ Falha ao sincronizar ${item._localId}`); } } }; const interval = setInterval(syncPendingCommissions, 2 * 60 * 1000); setTimeout(syncPendingCommissions, 5000); return () => clearInterval(interval); }, [user]); // Use JOAO_GESTOR_AUTH_ID
 
   return (
@@ -1400,6 +1451,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       assignSupportMaterialToConsultant, unassignSupportMaterialFromConsultant,
       // NOVO: Tarefas de Lead
       leadTasks, addLeadTask, updateLeadTask, deleteLeadTask, toggleLeadTaskCompletion, 
+      // NOVO: Plano de 90 Dias
+      startNinetyDayPlan, toggleNinetyDayGoalCompletion,
     }}>
       {children}
     </AppContext.Provider>
