@@ -154,10 +154,10 @@ interface KanbanColumnProps {
   leadCount: number;
   totalValue: number;
   children: React.ReactNode;
-  items: string[]; // Adicionado: IDs dos itens arrastáveis nesta coluna
+  // Removido: items: string[]; // Não é mais necessário aqui, pois SortableContext será no pai
 }
 
-const KanbanColumn: React.FC<KanbanColumnProps> = ({ id, title, leadCount, totalValue, children, items }) => {
+const KanbanColumn: React.FC<KanbanColumnProps> = ({ id, title, leadCount, totalValue, children }) => {
   const { setNodeRef } = useDroppable({
     id: id,
   });
@@ -178,11 +178,10 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ id, title, leadCount, total
           )}
         </div>
       </div>
-      <SortableContext items={items} strategy={verticalListSortingStrategy}> {/* Corrigido: Passando os IDs dos itens */}
-        <div className="p-4 space-y-3 overflow-y-auto custom-scrollbar flex-1">
-          {children}
-        </div>
-      </SortableContext>
+      {/* SortableContext agora envolve os children diretamente no CrmPage */}
+      <div className="p-4 space-y-3 overflow-y-auto custom-scrollbar flex-1">
+        {children}
+      </div>
     </div>
   );
 };
@@ -424,7 +423,7 @@ const CrmPage = () => {
   if (!activePipeline || pipelineStages.length === 0) {
     return (
       <div className="p-8 max-w-4xl mx-auto text-center">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">CRM - Funil de Vendas</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">CRM - Funil de Vendas</h1>
         <p className="text-gray-500 dark:text-gray-400 mb-6">
           Nenhum pipeline de vendas ativo ou etapas configuradas. Por favor, entre em contato com seu gestor.
         </p>
@@ -487,25 +486,27 @@ const CrmPage = () => {
               title={stage.name}
               leadCount={groupedLeads[stage.id]?.length || 0}
               totalValue={stageTotals[stage.id] || 0}
-              items={groupedLeads[stage.id]?.map(lead => lead.id) || []} {/* Corrigido: Passando os IDs dos leads */}
+              // Removido items prop daqui, pois SortableContext será aplicado dentro
             >
-              {groupedLeads[stage.id]?.length === 0 ? (
-                <p className="text-center text-sm text-gray-400 py-4">Nenhum lead nesta etapa.</p>
-              ) : (
-                groupedLeads[stage.id]?.map(lead => (
-                  <DraggableLeadCard
-                    key={lead.id}
-                    lead={lead}
-                    onEdit={handleEditLead}
-                    onDelete={handleDeleteLead}
-                    onOpenTasksModal={handleOpenTasksModal}
-                    onOpenMeetingModal={handleOpenMeetingModal}
-                    onOpenProposalModal={handleOpenProposalModal}
-                    onOpenSaleModal={handleOpenSaleModal}
-                    onMarkAsLost={handleMarkAsLost}
-                  />
-                ))
-              )}
+              <SortableContext items={groupedLeads[stage.id]?.map(lead => lead.id) || []} strategy={verticalListSortingStrategy}>
+                {groupedLeads[stage.id]?.length === 0 ? (
+                  <p className="text-center text-sm text-gray-400 py-4">Nenhum lead nesta etapa.</p>
+                ) : (
+                  groupedLeads[stage.id]?.map(lead => (
+                    <DraggableLeadCard
+                      key={lead.id}
+                      lead={lead}
+                      onEdit={handleEditLead}
+                      onDelete={handleDeleteLead}
+                      onOpenTasksModal={handleOpenTasksModal}
+                      onOpenMeetingModal={handleOpenMeetingModal}
+                      onOpenProposalModal={handleOpenProposalModal}
+                      onOpenSaleModal={handleOpenSaleModal}
+                      onMarkAsLost={handleMarkAsLost}
+                    />
+                  ))
+                )}
+              </SortableContext>
             </KanbanColumn>
           ))}
         </div>
