@@ -183,7 +183,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ id, title, leadCount, total
       </div>
       <div className="p-4 space-y-3 overflow-y-auto custom-scrollbar flex-1">
         <SortableContext 
-          key={leadsInStageIds.join('-')} // Adicionando key para forçar re-renderização
+          key={leadsInStageIds.join('-')} // Revertendo para key baseada nos IDs dos leads
           items={leadsInStageIds} 
           strategy={verticalListSortingStrategy}
         >
@@ -254,11 +254,12 @@ const CrmPage = () => {
   }, [consultantLeads, searchTerm]);
 
   const groupedLeads = useMemo(() => {
+    console.log("[CrmPage] Recalculating groupedLeads. Current filteredLeads:", filteredLeads.map(l => ({ id: l.id, stage_id: l.stage_id, name: l.name })));
     const groups: Record<string, CrmLead[]> = {};
     pipelineStages.forEach(stage => {
       groups[stage.id] = filteredLeads.filter(lead => lead.stage_id === stage.id);
     });
-    console.log("[CrmPage] Recalculated groupedLeads:", Object.keys(groups).map(stageId => ({ stageId, leads: groups[stageId].map(l => l.id) })));
+    console.log("[CrmPage] Recalculated groupedLeads result:", Object.keys(groups).map(stageId => ({ stageId, leads: groups[stageId].map(l => l.id) })));
     return groups;
   }, [pipelineStages, filteredLeads]);
 
@@ -402,25 +403,26 @@ const CrmPage = () => {
     // Helper para verificar se um ID é um ID de etapa válido
     const isValidStageId = (id: string) => pipelineStages.some(stage => stage.id === id);
 
-    // Priorize obter o ID do contêiner droppable/sortable a partir dos dados do objeto 'over'
-    if (over.data.current?.sortable?.containerId && isValidStageId(over.data.current.sortable.containerId as string)) {
-      // Se dropado em outro item sortable, seu containerId é o ID do SortableContext (que é o ID da etapa)
-      newStageId = over.data.current.sortable.containerId;
-      console.log(`[handleDragEnd] Detectado drop em item Sortable. ID do SortableContext pai: ${newStageId}`);
-    } else if (over.data.current?.droppable?.id && isValidStageId(over.data.current.droppable.id as string)) {
-      // Se dropado diretamente em um Droppable (KanbanColumn), seu ID é o ID da etapa
-      newStageId = over.data.current.droppable.id;
-      console.log(`[handleDragEnd] Detectado drop em Droppable (KanbanColumn). Novo ID da Etapa: ${newStageId}`);
-    } else {
-      // Fallback: se over.data.current não estiver disponível ou não contiver ID de contêiner/droppable,
-      // tente usar over.id diretamente se ele corresponder a um ID de etapa.
-      // Isso pode acontecer se o drop for em uma área vazia da coluna onde nenhum item sortable está presente.
-      if (isValidStageId(over.id as string)) {
-        newStageId = over.id as string;
-        console.log(`[handleDragEnd] Fallback: over.id corresponde a um ID de etapa. Novo ID da Etapa: ${newStageId}`);
-      } else {
-        console.warn(`[handleDragEnd] Não foi possível determinar o novo ID da etapa a partir de over.data.current ou over.id. over.id era: ${over.id}`);
-      }
+    // Prioridade 1: O ID do 'over' é um ID de etapa válido (drop direto na coluna)
+    if (isValidStageId(over.id as string)) {
+      newStageId = over.id as string;
+      console.log(`[handleDragEnd] Prioridade 1: Drop direto na etapa (ID: ${newStageId})`);
+    }
+    // Prioridade 2: O 'over' é um item sortable, e seu containerId é um ID de etapa válido
+    else if (over.data.current?.sortable?.containerId && isValidStageId(over.data.current.sortable.containerId as string)) {
+      newStageId = over.data.current.sortable.containerId as string;
+      console.log(`[handleDragEnd] Prioridade 2: Drop em item sortable. Container ID da etapa: ${newStageId}`);
+    }
+    // Prioridade 3: O 'over' é um droppable, e seu id é um ID de etapa válido
+    else if (over.data.current?.droppable?.id && isValidStageId(over.data.current.droppable.id as string)) {
+      newStageId = over.data.current.droppable.id as string;
+      console.log(`[handleDragEnd] Prioridade 3: Drop em droppable com ID de etapa em dados. ID da etapa: ${newStageId}`);
+    }
+    // Fallback: Se nenhuma das prioridades acima funcionou, logar o problema e cancelar
+    else {
+      console.warn(`[handleDragEnd] Não foi possível determinar um ID de etapa válido a partir do objeto 'over'. over.id: ${over.id}, over.data.current:`, over.data.current);
+      setActiveDragId(null);
+      return;
     }
 
     if (!newStageId) {
