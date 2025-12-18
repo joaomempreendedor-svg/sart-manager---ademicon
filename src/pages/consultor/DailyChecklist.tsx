@@ -62,6 +62,9 @@ export const DailyChecklist = () => {
       console.log("🚫 userTeamMember: Usuário Auth não logado.");
       return null;
     }
+    console.log("DEBUG: user.id para correspondência:", user.id);
+    console.log("DEBUG: array teamMembers para correspondência:", teamMembers.map(tm => ({ id: tm.id, email: tm.email, name: tm.name, isLegacy: tm.isLegacy })));
+
     const foundMember = teamMembers.find(tm => {
       // 1. TENTA: match exato de ID (TIPO 2)
       if (tm.id === user.id) {
