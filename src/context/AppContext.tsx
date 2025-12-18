@@ -278,7 +278,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           let teamMembersQuery = supabase.from('team_members').select('id, data');
           if (user?.role === 'CONSULTOR') {
               // Consultants should see their own entry and entries linked to JOAO_GESTOR_AUTH_ID
-              teamMembersQuery = teamMembersQuery.or(`user_id.eq.${effectiveGestorId},id.eq.${userId}`);
+              // MODIFICAÇÃO AQUI: Usar 'data->>id' para comparar com o auth.uid() do consultor
+              teamMembersQuery = teamMembersQuery.or(`user_id.eq.${effectiveGestorId},data->>id.eq.${userId}`);
           } else { // GESTOR or ADMIN
               // Gestors/Admins see all team members linked to JOAO_GESTOR_AUTH_ID
               teamMembersQuery = teamMembersQuery.eq('user_id', effectiveGestorId);
@@ -593,9 +594,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       .from('team_members')
       .insert({ 
         user_id: JOAO_GESTOR_AUTH_ID, // Use JOAO_GESTOR_AUTH_ID
-        data: newMember 
+        data: newMember // The entire newMember object is stored in the 'data' JSONB column
       })
-      .select('id')
+      .select('id') // This selects the PK of the team_members table, not the 'id' from newMember
       .single();
     
     if (error) {
@@ -741,7 +742,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const resetChecklistToDefault = useCallback(() => { updateAndPersistStructure(setChecklistStructure, 'checklistStructure', DEFAULT_STAGES); }, [updateAndPersistStructure]);
   const addGoalItem = useCallback((stageId: string, label: string) => { const newStructure = consultantGoalsStructure.map(s => s.id === stageId ? { ...s, items: [...s.items, { id: `goal_${Date.now()}`, label }] } : s); updateAndPersistStructure(setConsultantGoalsStructure, 'consultantGoalsStructure', newStructure); }, [consultantGoalsStructure, updateAndPersistStructure]);
   const updateGoalItem = useCallback((stageId: string, itemId: string, label: string) => { const newStructure = consultantGoalsStructure.map(s => s.id === stageId ? { ...s, items: s.items.map(i => i.id === itemId ? { ...i, label } : i) } : s); updateAndPersistStructure(setConsultantGoalsStructure, 'consultantGoalsStructure', newStructure); }, [consultantGoalsStructure, updateAndPersistStructure]);
-  const deleteGoalItem = useCallback((stageId: string, itemId: string) => { const newStructure = consultantGoalsStructure.map(s => s.id === stageId ? { ...s, items: s.items.filter(i => i.id !== itemId) } : s); updateAndPersistStructure(setConsultantGoalsStructure, 'consultantGoalsStructure', newStructure); }, [consultantGoalsStructure, updateAndPersistStructure]);
+  const deleteGoalItem = useCallback((stageId: string, itemId: string) => { const newStructure = consultantGoalsStructure.map(s => s.id === stageId ? { ...s, items: s.items.filter(i => i.id !== itemId) } : s); updateAndAndPersistStructure(setConsultantGoalsStructure, 'consultantGoalsStructure', newStructure); }, [consultantGoalsStructure, updateAndPersistStructure]);
   const moveGoalItem = useCallback((stageId: string, itemId: string, dir: 'up' | 'down') => { const newStructure = consultantGoalsStructure.map(s => { if (s.id !== stageId) return s; const idx = s.items.findIndex(i => i.id === itemId); if ((dir === 'up' && idx < 1) || (dir === 'down' && idx >= s.items.length - 1)) return s; const newItems = [...s.items]; const targetIdx = dir === 'up' ? idx - 1 : idx + 1; [newItems[idx], newItems[targetIdx]] = [newItems[targetIdx], newItems[idx]]; return { ...s, items: newItems }; }); updateAndPersistStructure(setConsultantGoalsStructure, 'consultantGoalsStructure', newStructure); }, [consultantGoalsStructure, updateAndPersistStructure]);
   const resetGoalsToDefault = useCallback(() => { updateAndPersistStructure(setConsultantGoalsStructure, 'consultantGoalsStructure', DEFAULT_GOALS); }, [updateAndPersistStructure]);
   const updateInterviewSection = useCallback((sectionId: string, updates: Partial<InterviewSection>) => { const newStructure = interviewStructure.map(s => s.id === sectionId ? { ...s, ...updates } : s); updateAndPersistStructure(setInterviewStructure, 'interviewStructure', newStructure); }, [interviewStructure, updateAndPersistStructure]);
