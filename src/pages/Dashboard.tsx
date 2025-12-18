@@ -219,6 +219,23 @@ export const Dashboard = () => {
         <p className="text-gray-500 dark:text-gray-400">Acompanhe o progresso e tarefas do time.</p>
       </div>
 
+      {/* TEMPORARY: Display User ID */}
+      {user && (
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 p-4 rounded-xl mb-6 flex items-start space-x-3">
+          <AlertCircle className="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-0.5" />
+          <div>
+            <h3 className="font-semibold text-yellow-800 dark:text-yellow-200">Seu ID de Usuário Atual (Temporário)</h3>
+            <p className="text-sm text-yellow-700 dark:text-yellow-300 font-mono break-all">
+              {user.id}
+            </p>
+            <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1">
+              Por favor, copie este ID e me informe no chat.
+            </p>
+          </div>
+        </div>
+      )}
+      {/* END TEMPORARY */}
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
           <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
