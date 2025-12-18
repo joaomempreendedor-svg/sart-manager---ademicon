@@ -164,7 +164,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ id, title, leadCount, total
   return (
     <div
       ref={setNodeRef}
-      className="min-w-[220px] 2xl:max-w-[250px] bg-gray-100 dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 flex flex-col" // Adicionado flex flex-col
+      className="min-w-[220px] 2xl:max-w-[250px] bg-gray-100 dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 flex flex-col h-full" // Adicionado h-full
     >
       <div className="p-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
         <h3 className="font-semibold text-gray-900 dark:text-white">{title}</h3>
@@ -438,7 +438,7 @@ const CrmPage = () => {
   }
 
   return (
-    <div className="p-8 min-h-screen bg-gray-50 dark:bg-slate-900 flex flex-col"> {/* Adicionado flex flex-col */}
+    <div className="p-8 h-full bg-gray-50 dark:bg-slate-900 flex flex-col"> {/* Alterado min-h-screen para h-full */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Meu CRM - {activePipeline.name}</h1>
@@ -478,7 +478,7 @@ const CrmPage = () => {
           },
         }}
       >
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-7 gap-4 pb-4 flex-1"> {/* Adicionado flex-1 */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-7 gap-4 pb-4 flex-1 h-full"> {/* Adicionado h-full */}
           {pipelineStages.map(stage => (
             <KanbanColumn
               key={stage.id}
@@ -488,7 +488,7 @@ const CrmPage = () => {
               totalValue={stageTotals[stage.id] || 0}
             >
               <SortableContext items={groupedLeads[stage.id]?.map(lead => lead.id) || []} strategy={verticalListSortingStrategy}>
-                <div className="p-4 space-y-3 overflow-y-auto custom-scrollbar flex-1"> {/* Removido max-h, adicionado flex-1 */}
+                <div className="p-4 space-y-3 overflow-y-auto custom-scrollbar flex-1">
                   {groupedLeads[stage.id]?.length === 0 ? (
                     <p className="text-center text-sm text-gray-400 py-4">Nenhum lead nesta etapa.</p>
                   ) : (
