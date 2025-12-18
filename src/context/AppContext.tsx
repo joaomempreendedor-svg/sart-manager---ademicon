@@ -275,7 +275,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         // --- Fetch team members ---
         let teamMembersData = [];
         try {
-          let teamMembersQuery = supabase.from('team_members').select('id, data');
+          let teamMembersQuery = supabase.from('team_members').select('id, data, cpf'); // Adicionado 'cpf'
           if (user?.role === 'CONSULTOR') {
               // Consultants should see their own entry and entries linked to JOAO_GESTOR_AUTH_ID
               teamMembersQuery = teamMembersQuery.or(`user_id.eq.${effectiveGestorId},data->>id.eq.${userId}`); // Corrigido para buscar no JSONB 'data'
@@ -412,6 +412,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               isActive: data.isActive !== false,
               isLegacy: true, // Marca como legado
               hasLogin: false,
+              cpf: item.cpf, // Adicionado CPF
             } as TeamMember;
           }
           
@@ -425,6 +426,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             isActive: data.isActive !== false,
             hasLogin: true,
             isLegacy: false,
+            cpf: item.cpf, // Adicionado CPF
           } as TeamMember;
         }) || [];
         setTeamMembers(normalizedTeamMembers);
@@ -539,6 +541,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const last4Cpf = cleanedCpf.length >= 4 ? cleanedCpf.slice(-4) : null;
       
       console.log("[AppContext] Invoking create-or-link-consultant Edge Function for ADD operation...");
+      console.log("[AppContext] Email being sent to Edge Function:", member.email); // NOVO LOG
       const { data, error: invokeError } = await supabase.functions.invoke('create-or-link-consultant', {
         body: { 
           email: member.email, 
@@ -587,21 +590,42 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       ...(tempPassword && { tempPassword })
     };
   
-    const { data, error } = await supabase
+    // Usar upsert para lidar com o caso de o usuário já existir no auth.users
+    // e um registro team_members já ter sido criado anteriormente.
+    const { data: upsertedData, error } = await supabase
       .from('team_members')
-      .insert({ 
-        user_id: JOAO_GESTOR_AUTH_ID, // Use JOAO_GESTOR_AUTH_ID
-        data: newMember 
-      })
+      .upsert(
+        { 
+          user_id: JOAO_GESTOR_AUTH_ID, // Use JOAO_GESTOR_AUTH_ID
+          id: crypto.randomUUID(), // Gerar um novo UUID para o PK da tabela team_members
+          cpf: newMember.cpf, // Adicionar CPF ao nível superior
+          data: newMember // O objeto completo do membro vai para a coluna JSONB 'data'
+        },
+        { 
+          onConflict: 'cpf', // Conflito no CPF (coluna de nível superior)
+          ignoreDuplicates: false // Não ignorar, queremos atualizar
+        }
+      )
       .select('id')
       .single();
     
     if (error) {
-      console.error("Erro ao inserir em team_members:", error);
+      console.error("Erro ao inserir/atualizar em team_members:", error);
       throw error;
     }
     
-    setTeamMembers(prev => [...prev, { ...newMember, db_id: data.id }]);
+    setTeamMembers(prev => {
+      const existingIndex = prev.findIndex(tm => tm.cpf === newMember.cpf);
+      if (existingIndex > -1) {
+        // Atualiza o membro existente
+        const updatedMembers = [...prev];
+        updatedMembers[existingIndex] = { ...newMember, db_id: upsertedData.id };
+        return updatedMembers;
+      } else {
+        // Adiciona um novo membro
+        return [...prev, { ...newMember, db_id: upsertedData.id }];
+      }
+    });
     
     return { 
       success: true, 
@@ -669,7 +693,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const updated = { ...m, ...updates, id: authUserId, hasLogin: !!updates.email }; // Update local ID if authUserId changed
     const { db_id, ...dataToUpdate } = updated; // Exclude db_id from data to be stored in 'data' column
 
-    const { error } = await supabase.from('team_members').update({ data: dataToUpdate }).match({ id: m.db_id, user_id: JOAO_GESTOR_AUTH_ID }); // Use JOAO_GESTOR_AUTH_ID
+    const { error } = await supabase.from('team_members').update({ data: dataToUpdate, cpf: updated.cpf }).match({ id: m.db_id, user_id: JOAO_GESTOR_AUTH_ID }); // Use JOAO_GESTOR_AUTH_ID
     if (error) { console.error(error); throw error; }
     
     setTeamMembers(prev => prev.map(p => p.db_id === m.db_id ? updated : p)); // Update using db_id to ensure correct item is replaced
@@ -733,7 +757,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const addPV = useCallback((pv: string) => { if (!pvs.includes(pv)) { const newPvs = [...pvs, pv]; setPvs(newPvs); updateConfig({ pvs: newPvs }); } }, [pvs, updateConfig]);
   const updateAndPersistStructure = useCallback((setter: React.Dispatch<React.SetStateAction<any>>, key: string, newStructure: any) => { setter(newStructure); updateConfig({ [key]: newStructure }); }, [updateConfig]);
   const addChecklistItem = useCallback((stageId: string, label: string) => { const newStructure = checklistStructure.map(s => s.id === stageId ? { ...s, items: [...s.items, { id: `custom_${Date.now()}`, label }] } : s); updateAndPersistStructure(setChecklistStructure, 'checklistStructure', newStructure); }, [checklistStructure, updateAndPersistStructure]);
-  const updateChecklistItem = useCallback((stageId: string, itemId: string, label: string) => { const newStructure = checklistStructure.map(s => s.id === stageId ? { ...s, items: s.items.map(i => i.id === itemId ? { ...i, label } : i) } : s); updateAndPersistructure(setChecklistStructure, 'checklistStructure', newStructure); }, [checklistStructure, updateAndPersistStructure]);
+  const updateChecklistItem = useCallback((stageId: string, itemId: string, label: string) => { const newStructure = checklistStructure.map(s => s.id === stageId ? { ...s, items: s.items.map(i => i.id === itemId ? { ...i, label } : i) } : s); updateAndPersistStructure(setChecklistStructure, 'checklistStructure', newStructure); }, [checklistStructure, updateAndPersistStructure]);
   const deleteChecklistItem = useCallback((stageId: string, itemId: string) => { const newStructure = checklistStructure.map(s => s.id === stageId ? { ...s, items: s.items.filter(i => i.id !== itemId) } : s); updateAndPersistStructure(setChecklistStructure, 'checklistStructure', newStructure); }, [checklistStructure, updateAndPersistStructure]);
   const moveChecklistItem = useCallback((stageId: string, itemId: string, dir: 'up' | 'down') => { const newStructure = checklistStructure.map(s => { if (s.id !== stageId) return s; const idx = s.items.findIndex(i => i.id === itemId); if ((dir === 'up' && idx < 1) || (dir === 'down' && idx >= s.items.length - 1)) return s; const newItems = [...s.items]; const targetIdx = dir === 'up' ? idx - 1 : idx + 1; [newItems[idx], newItems[targetIdx]] = [newItems[targetIdx], newItems[idx]]; return { ...s, items: newItems }; }); updateAndPersistStructure(setChecklistStructure, 'checklistStructure', newStructure); }, [checklistStructure, updateAndPersistStructure]);
   const resetChecklistToDefault = useCallback(() => { updateAndPersistStructure(setChecklistStructure, 'checklistStructure', DEFAULT_STAGES); }, [updateAndPersistStructure]);
@@ -746,7 +770,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const addInterviewQuestion = useCallback((sectionId: string, text: string, points: number) => { const newStructure = interviewStructure.map(s => s.id === sectionId ? { ...s, questions: [...s.questions, { id: `q_${Date.now()}`, text, points }] } : s); updateAndPersistStructure(setInterviewStructure, 'interviewStructure', newStructure); }, [interviewStructure, updateAndPersistStructure]);
   const updateInterviewQuestion = useCallback((sectionId: string, questionId: string, updates: Partial<InterviewSection['questions'][0]>) => { const newStructure = interviewStructure.map(s => s.id === sectionId ? { ...s, questions: s.questions.map(q => q.id === questionId ? { ...q, ...updates } : q) } : s); updateAndPersistStructure(setInterviewStructure, 'interviewStructure', newStructure); }, [interviewStructure, updateAndPersistStructure]);
   const deleteInterviewQuestion = useCallback((sectionId: string, questionId: string) => { const newStructure = interviewStructure.map(s => s.id === sectionId ? { ...s, questions: s.questions.filter(q => q.id !== questionId) } : s); updateAndPersistStructure(setInterviewStructure, 'interviewStructure', newStructure); }, [interviewStructure, updateAndPersistStructure]);
-  const moveInterviewQuestion = useCallback((sectionId: string, questionId: string, dir: 'up' | 'down') => { const newStructure = interviewStructure.map(s => { if (s.id !== sectionId) return s; const idx = s.questions.findIndex(q => q.id === questionId); if ((dir === 'up' && idx < 1) || (dir === 'down' && idx >= s.questions.length - 1)) return s; const newQuestions = [...s.questions]; const targetIdx = dir === 'up' ? idx - 1 : idx + 1; [newQuestions[idx], newQuestions[targetIdx]] = [newQuestions[targetIdx], newQuestions[idx]]; return { ...s, questions: newQuestions }; }); updateAndPersistStructure(setInterviewStructure, 'interviewStructure', newStructure); }, [interviewStructure, updateAndPersistStructure]);
+  const moveInterviewQuestion = useCallback((sectionId: string, questionId: string, dir: 'up' | 'down') => { const newStructure = interviewStructure.map(s => { if (s.id !== sectionId) return s; const idx = s.questions.findIndex(i => i.id === questionId); if ((dir === 'up' && idx < 1) || (dir === 'down' && idx >= s.questions.length - 1)) return s; const newQuestions = [...s.questions]; const targetIdx = dir === 'up' ? idx - 1 : idx + 1; [newQuestions[idx], newQuestions[targetIdx]] = [newQuestions[targetIdx], newQuestions[idx]]; return { ...s, questions: newQuestions }; }); updateAndPersistStructure(setInterviewStructure, 'interviewStructure', newStructure); }, [interviewStructure, updateAndPersistStructure]);
   const resetInterviewToDefault = useCallback(() => { updateAndPersistStructure(setInterviewStructure, 'interviewStructure', INITIAL_INTERVIEW_STRUCTURE); }, [updateAndPersistStructure]);
   
   // Funções do Onboarding Online
