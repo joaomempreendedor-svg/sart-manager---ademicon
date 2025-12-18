@@ -40,7 +40,6 @@ export const SaleModal: React.FC<SaleModalProps> = ({ isOpen, onClose, lead }) =
   const [creditValue, setCreditValue] = useState('');
   const [saleDate, setSaleDate] = useState(new Date().toISOString().split('T')[0]);
   const [saleType, setSaleType] = useState<'Imóvel' | 'Veículo'>('Imóvel');
-  const [taxRateInput, setTaxRateInput] = useState('6'); // Default tax rate
   
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
@@ -56,7 +55,6 @@ export const SaleModal: React.FC<SaleModalProps> = ({ isOpen, onClose, lead }) =
       setCreditValue(lead.data?.proposal_value ? (lead.data.proposal_value / 100).toFixed(2).replace('.', ',').replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.') : '');
       setSaleDate(new Date().toISOString().split('T')[0]);
       setSaleType('Imóvel'); // Default to Imóvel
-      setTaxRateInput('6');
       setError(''); // Limpar erro ao abrir o modal
     }
   }, [isOpen, lead, user]);
@@ -105,7 +103,6 @@ export const SaleModal: React.FC<SaleModalProps> = ({ isOpen, onClose, lead }) =
     setIsSaving(true);
     try {
       // 1. Registrar a comissão
-      const taxValue = parseFloat(taxRateInput.replace(',', '.')) || 0;
       const initialInstallments: Record<string, any> = {};
       for (let i = 1; i <= 15; i++) { initialInstallments[i] = { status: 'Pendente' }; }
 
@@ -125,8 +122,8 @@ export const SaleModal: React.FC<SaleModalProps> = ({ isOpen, onClose, lead }) =
         angelName: undefined, // Padrão para undefined
         pv: lead.data?.pv || 'Não Informado', // Use PV do lead se existir
         value: parsedCreditValue,
-        taxRate: taxValue,
-        netValue: (consultantShare + managerShare + angelShare) * (1 - (taxValue / 100)),
+        taxRate: 0, // Imposto removido, então 0
+        netValue: (consultantShare + managerShare + angelShare), // Ajustado para não considerar imposto
         installments: 15,
         status: 'Em Andamento',
         installmentDetails: initialInstallments,
@@ -237,30 +234,6 @@ export const SaleModal: React.FC<SaleModalProps> = ({ isOpen, onClose, lead }) =
                   >
                     <Car className="w-4 h-4" /> <span>Veículo</span>
                   </Button>
-                </div>
-              </div>
-
-              <div className="border-t border-gray-200 dark:border-slate-700 pt-4 mt-4">
-                <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-3 flex items-center">
-                  <Users className="w-4 h-4 mr-2 text-brand-500" />
-                  Equipe Envolvida
-                </h4>
-                <div className="grid gap-4">
-                  <div className="p-3 bg-gray-50 dark:bg-slate-700/50 rounded-lg border border-gray-200 dark:border-slate-700">
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">Consultor: <span className="font-bold text-brand-600 dark:text-brand-400">{user?.name || 'N/A'}</span></p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Gestor e Anjo serão definidos como 'N/A' automaticamente.</p>
-                  </div>
-                  <div>
-                    <Label htmlFor="taxRate">Imposto (%)</Label>
-                    <Input
-                      id="taxRate"
-                      type="text"
-                      value={taxRateInput}
-                      onChange={(e) => setTaxRateInput(e.target.value.replace(/[^0-9,]/g, ''))}
-                      className="dark:bg-slate-700 dark:text-white dark:border-slate-600"
-                      placeholder="Ex: 6"
-                    />
-                  </div>
                 </div>
               </div>
 
