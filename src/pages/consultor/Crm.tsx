@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Plus, Search, Loader2, Phone, Mail, Tag, MessageSquare, TrendingUp, ListTodo, CalendarPlus, Send, DollarSign, Edit2, Trash2, XCircle, ChevronDown } from 'lucide-react';
+import { Plus, Search, Loader2, Phone, Mail, Tag, MessageSquare, TrendingUp, ListTodo, CalendarPlus, Send, DollarSign, Edit2, Trash2, XCircle } from 'lucide-react';
 import LeadModal from '@/components/crm/LeadModal';
 import { LeadTasksModal } from '@/components/crm/LeadTasksModal';
 import { ScheduleMeetingModal } from '@/components/crm/ScheduleMeetingModal';
@@ -96,7 +96,7 @@ const DraggableLeadCard: React.FC<DraggableLeadCardProps> = ({
       {...listeners}
       onClick={() => onEdit(lead)}
       className={cn(
-        "bg-white dark:bg-slate-700 p-3 rounded-lg shadow-sm border border-gray-200 dark:border-slate-600 hover:border-brand-500 cursor-grab transition-all group",
+        "bg-white dark:bg-slate-700 p-3 rounded-lg shadow-sm border border-gray-200 dark:border-slate-600 hover:border-brand-500 cursor-grab transition-all group mb-3", // Adicionado mb-3
         overlay && "shadow-lg ring-2 ring-brand-500/50 !bg-white !dark:bg-slate-700" // Estilos para o overlay
       )}
     >
@@ -218,7 +218,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ id, title, leadCount, total
           )}
         </div>
       </div>
-      <div className="p-4 space-y-3 overflow-y-auto custom-scrollbar flex-1">
+      <div className="p-4 space-y-3 overflow-y-auto custom-scrollbar flex-1 overflow-hidden"> {/* Adicionado overflow-hidden */}
         <SortableContext 
           key={id} // Usar o ID da coluna como chave para o SortableContext
           items={leadsInStageIds} 
