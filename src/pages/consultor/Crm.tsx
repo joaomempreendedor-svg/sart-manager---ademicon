@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Plus, Search, Loader2, Phone, Mail, Tag, MessageSquare, TrendingUp, ListTodo, CalendarPlus, Send, DollarSign, Edit2, Trash2, XCircle } from 'lucide-react';
+import { Plus, Search, Loader2, Phone, Mail, Tag, MessageSquare, TrendingUp, ListTodo, CalendarPlus, Send, DollarSign, Edit2, Trash2, XCircle, ChevronDown } from 'lucide-react';
 import LeadModal from '@/components/crm/LeadModal';
 import { LeadTasksModal } from '@/components/crm/LeadTasksModal';
 import { ScheduleMeetingModal } from '@/components/crm/ScheduleMeetingModal';
@@ -171,7 +171,7 @@ const DraggableLeadCard: React.FC<DraggableLeadCardProps> = ({
           <SelectTrigger className="w-full h-8 text-xs dark:bg-slate-800 dark:text-white dark:border-slate-600">
             <SelectValue placeholder="Mover para..." />
           </SelectTrigger>
-          <SelectContent className="dark:bg-slate-800 dark:text-white dark:border-slate-700">
+          <SelectContent className="bg-white text-gray-900 border-gray-200 dark:bg-slate-800 dark:text-white dark:border-slate-700">
             {pipelineStages.map(stage => (
               <SelectItem key={stage.id} value={stage.id}>
                 {stage.name}
