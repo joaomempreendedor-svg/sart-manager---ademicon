@@ -14,10 +14,7 @@ serve(async (req) => {
   try {
     const { email, name, tempPassword, login: consultantLogin } = await req.json();
 
-    console.log(`[Edge Function] Recebido na Edge Function: email=${email}, name=${name}, login=${consultantLogin}`);
-
     if (!email || !name || !tempPassword) {
-      console.error('[Edge Function] Missing required fields: email, name, or tempPassword.');
       return new Response(JSON.stringify({ error: 'Email, name, and temporary password are required.' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
@@ -29,107 +26,92 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    let authUserId: string;
-    let message: string;
-    let userExistsFlag: boolean;
+    console.log(`[Edge Function] Criando/vinculando consultor: ${email}`);
 
-    // 1. Check if user already exists in auth.users
-    console.log(`[Edge Function] Attempting to list users with email: ${email}`);
-    const { data: existingUsersData, error: fetchError } = await supabaseAdmin.auth.admin.listUsers({
-      email: email,
-    });
-
-    if (fetchError) {
-      console.error(`[Edge Function] Error listing users: ${fetchError.message}`);
-      return new Response(JSON.stringify({ error: `Auth user list failed: ${fetchError.message}` }), {
+    // 1. VERIFICAR SE USUÁRIO JÁ EXISTE COM ESTE EMAIL
+    const { data: existingUsers, error: listError } = await supabaseAdmin.auth.admin.listUsers();
+    
+    if (listError) {
+      console.error(`[Edge Function] Erro ao listar usuários: ${listError.message}`);
+      return new Response(JSON.stringify({ error: `Falha ao verificar usuários: ${listError.message}` }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500,
       });
     }
 
-    userExistsFlag = (existingUsersData?.users?.length || 0) > 0;
-    console.log(`[Edge Function] User exists check result: ${userExistsFlag}. Found ${existingUsersData?.users?.length || 0} users.`);
+    const existingUser = existingUsers.users.find(user => user.email === email);
+    let authUserId: string;
+    let userExists = false;
 
-    if (userExistsFlag) {
-      // User exists, update their password and metadata, but NOT their email
-      authUserId = existingUsersData!.users[0].id;
-      console.log(`[Edge Function] User ${email} found in Auth. ID: ${authUserId}. Updating password and metadata.`);
+    if (existingUser) {
+      // 2A. USUÁRIO EXISTE - APENAS RESETAR SENHA (NUNCA ALTERAR EMAIL)
+      console.log(`[Edge Function] Usuário ${email} já existe. Resetando senha.`);
+      authUserId = existingUser.id;
+      userExists = true;
 
-      const { error: updateAuthError } = await supabaseAdmin.auth.admin.updateUserById(
+      const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
         authUserId,
         {
-          // NÃO ATUALIZAR EMAIL - apenas senha e metadados
-          // email: email, // ⚠️ REMOVIDO: Esta linha causava a sobrescrita do email
+          // ⚠️ NUNCA ATUALIZAR EMAIL AQUI - APENAS SENHA
           password: tempPassword,
           user_metadata: {
-            first_name: name.split(' ')[0],
-            last_name: name.split(' ').slice(1).join(' '),
-            needs_password_change: true, // Force password change
-            login: consultantLogin, // Incluir o login (4 dígitos do CPF) aqui
+            ...existingUser.user_metadata,
+            needs_password_change: true,
+            login: consultantLogin || existingUser.user_metadata?.login,
           },
         }
       );
 
-      if (updateAuthError) {
-        console.error(`[Edge Function] Error updating existing user in Auth: ${updateAuthError.message}`);
-        return new Response(JSON.stringify({ error: `Falha ao atualizar usuário no Auth: ${updateAuthError.message}` }), {
+      if (updateError) {
+        console.error(`[Edge Function] Erro ao atualizar usuário existente: ${updateError.message}`);
+        return new Response(JSON.stringify({ error: `Falha ao resetar senha: ${updateError.message}` }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 400,
         });
       }
-
-      // Also update the public.profiles table to ensure needs_password_change is true
-      const { error: updateProfileError } = await supabaseAdmin
-        .from('profiles')
-        .update({ 
-          first_name: name.split(' ')[0], 
-          last_name: name.split(' ').slice(1).join(' '), 
-          needs_password_change: true,
-          login: consultantLogin // Incluir o login (4 dígitos do CPF) aqui
-        })
-        .eq('id', authUserId);
-
-      if (updateProfileError) {
-        console.error(`[Edge Function] Error updating profile table for existing user: ${updateProfileError.message}`);
-        // Do not throw here, as auth update was successful. Log and continue.
-      }
-
-      message = 'Existing user updated with new temporary password and forced password change.';
     } else {
-      // User does not exist, create new user
-      console.log(`[Edge Function] User ${email} not found in Auth. Creating new user.`);
-      const { data: newUser, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
+      // 2B. USUÁRIO NÃO EXISTE - CRIAR NOVO
+      console.log(`[Edge Function] Criando novo usuário: ${email}`);
+      
+      const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
         email: email,
         password: tempPassword,
-        email_confirm: true, // Automatically confirm email
+        email_confirm: true,
         user_metadata: {
           first_name: name.split(' ')[0],
           last_name: name.split(' ').slice(1).join(' '),
-          role: 'CONSULTOR', // Default role for new signups
-          needs_password_change: true, // Force password change on first login
-          login: consultantLogin, // Incluir o login (4 dígitos do CPF) aqui
+          role: 'CONSULTOR',
+          needs_password_change: true,
+          login: consultantLogin,
         },
       });
 
-      if (createUserError) {
-        console.error(`[Edge Function] Error creating user: ${createUserError.message}`);
-        return new Response(JSON.stringify({ error: `Falha ao criar usuário no Auth: ${createUserError.message}` }), {
+      if (createError) {
+        console.error(`[Edge Function] Erro ao criar usuário: ${createError.message}`);
+        return new Response(JSON.stringify({ error: `Falha ao criar usuário: ${createError.message}` }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 400,
         });
       }
-      authUserId = newUser.user!.id;
-      message = 'New user created successfully with temporary password and forced password change.';
+      
+      authUserId = newUser.user.id;
+      userExists = false;
     }
 
-    return new Response(JSON.stringify({ authUserId, message, userExists: userExistsFlag }), {
+    console.log(`[Edge Function] Sucesso! AuthUserId: ${authUserId}, UserExists: ${userExists}`);
+
+    return new Response(JSON.stringify({ 
+      authUserId, 
+      userExists,
+      message: userExists ? 'Usuário existente atualizado' : 'Novo usuário criado'
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     });
 
   } catch (error) {
-    console.error('Error in create-or-link-consultant Edge Function:', error);
-    return new Response(JSON.stringify({ error: error.message || 'Failed to create or link consultant.' }), {
+    console.error('[Edge Function] Erro crítico:', error);
+    return new Response(JSON.stringify({ error: error.message || 'Falha ao processar solicitação' }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
     });
