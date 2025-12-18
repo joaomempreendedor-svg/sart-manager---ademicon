@@ -66,7 +66,10 @@ const DraggableLeadCard: React.FC<DraggableLeadCardProps> = ({
     transition,
     opacity: isDragging ? 0.5 : 1,
     zIndex: isDragging ? 100 : 1,
+    touchAction: 'none', // Adicionado para evitar interferência do navegador
   };
+
+  console.log(`[DraggableLeadCard ${lead.name}] Rendering. isDragging: ${isDragging}`); // Log para depuração
 
   return (
     <div
@@ -216,7 +219,7 @@ const CrmPage = () => {
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8, // 8px before drag starts
+        distance: 1, // Reduzido para 1px para maior sensibilidade
       },
     }),
     useSensor(KeyboardSensor, {})
