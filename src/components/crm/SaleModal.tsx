@@ -32,17 +32,14 @@ interface SaleModalProps {
 
 export const SaleModal: React.FC<SaleModalProps> = ({ isOpen, onClose, lead }) => {
   const { user } = useAuth();
-  const { addCommission, updateCrmLeadStage, crmStages, teamMembers, pvs } = useApp();
+  const { addCommission, updateCrmLeadStage, crmStages, pvs } = useApp(); // Removido teamMembers
 
   const [group, setGroup] = useState('');
   const [quota, setQuota] = useState('');
   const [creditValue, setCreditValue] = useState('');
   const [saleDate, setSaleDate] = useState(new Date().toISOString().split('T')[0]);
   const [saleType, setSaleType] = useState<'Imóvel' | 'Veículo'>('Imóvel');
-  const [selectedConsultant, setSelectedConsultant] = useState('');
-  const [selectedManager, setSelectedManager] = useState('');
-  const [selectedAngel, setSelectedAngel] = useState('');
-  const [hasAngel, setHasAngel] = useState(false);
+  // Removidos estados de seleção de equipe
   const [taxRateInput, setTaxRateInput] = useState('6'); // Default tax rate
   
   const [isSaving, setIsSaving] = useState(false);
@@ -52,15 +49,7 @@ export const SaleModal: React.FC<SaleModalProps> = ({ isOpen, onClose, lead }) =
     return crmStages.find(stage => stage.is_won && stage.is_active);
   }, [crmStages]);
 
-  const consultants = useMemo(() => {
-    return teamMembers.filter(m => m.isActive && (m.roles.includes('Prévia') || m.roles.includes('Autorizado')) && m.name.trim() !== '');
-  }, [teamMembers]);
-  const managers = useMemo(() => {
-    return teamMembers.filter(m => m.isActive && m.roles.includes('Gestor') && m.name.trim() !== '');
-  }, [teamMembers]);
-  const angels = useMemo(() => {
-    return teamMembers.filter(m => m.isActive && m.roles.includes('Anjo') && m.name.trim() !== '');
-  }, [teamMembers]);
+  // Removidos useMemos para consultants, managers, angels
 
   useEffect(() => {
     if (isOpen) {
@@ -70,10 +59,7 @@ export const SaleModal: React.FC<SaleModalProps> = ({ isOpen, onClose, lead }) =
       setCreditValue(lead.data?.proposal_value ? (lead.data.proposal_value / 100).toFixed(2).replace('.', ',').replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.') : '');
       setSaleDate(new Date().toISOString().split('T')[0]);
       setSaleType('Imóvel'); // Default to Imóvel
-      setSelectedConsultant(user?.name || ''); // Pre-fill with current user as consultant
-      setSelectedManager('');
-      setSelectedAngel('');
-      setHasAngel(false);
+      // Removido preenchimento de selectedConsultant, selectedManager, selectedAngel, hasAngel
       setTaxRateInput('6');
       setError('');
     }
@@ -101,14 +87,11 @@ export const SaleModal: React.FC<SaleModalProps> = ({ isOpen, onClose, lead }) =
       setError("A etapa 'Vendido' (Ganha) não está configurada ou ativa no CRM. Por favor, contate seu gestor.");
       return;
     }
-    if (!group.trim() || !quota.trim() || !creditValue.trim() || !saleDate.trim() || !selectedConsultant.trim()) {
-      setError('Grupo, Cota, Valor do Crédito, Data da Venda e Consultor são obrigatórios.');
+    if (!group.trim() || !quota.trim() || !creditValue.trim() || !saleDate.trim()) { // Removido selectedConsultant da validação
+      setError('Grupo, Cota, Valor do Crédito e Data da Venda são obrigatórios.');
       return;
     }
-    if (hasAngel && !selectedAngel.trim()) {
-      setError('Selecione o Anjo ou desative a opção "Existe Anjo?".');
-      return;
-    }
+    // Removida validação de selectedAngel
 
     const parsedCreditValue = parseCurrency(creditValue);
     if (parsedCreditValue <= 0) {
@@ -124,11 +107,10 @@ export const SaleModal: React.FC<SaleModalProps> = ({ isOpen, onClose, lead }) =
       for (let i = 1; i <= 15; i++) { initialInstallments[i] = { status: 'Pendente' }; }
 
       // Simplified commission calculation for now, assuming default rules
-      // In a real scenario, this would involve more complex logic or a dedicated function
       const baseCommissionValue = parsedCreditValue * 0.05; // Example: 5% of credit value
       const consultantShare = baseCommissionValue * 0.7; // Example: 70% for consultant
       const managerShare = baseCommissionValue * 0.2; // Example: 20% for manager
-      const angelShare = hasAngel ? baseCommissionValue * 0.1 : 0; // Example: 10% for angel
+      const angelShare = 0; // Anjo removido da seleção, então 0
 
       const commissionPayload = {
         date: saleDate,
@@ -136,9 +118,9 @@ export const SaleModal: React.FC<SaleModalProps> = ({ isOpen, onClose, lead }) =
         type: saleType,
         group: group.trim(),
         quota: quota.trim(),
-        consultant: selectedConsultant.trim(),
-        managerName: selectedManager.trim() || 'N/A',
-        angelName: hasAngel ? selectedAngel.trim() : undefined,
+        consultant: user.name || 'N/A', // Automaticamente o usuário logado
+        managerName: 'N/A', // Padrão para N/A
+        angelName: undefined, // Padrão para undefined
         pv: lead.data?.pv || 'Não Informado', // Use PV do lead se existir
         value: parsedCreditValue,
         taxRate: taxValue,
@@ -259,55 +241,11 @@ export const SaleModal: React.FC<SaleModalProps> = ({ isOpen, onClose, lead }) =
                   Equipe Envolvida
                 </h4>
                 <div className="grid gap-4">
-                  <div>
-                    <Label htmlFor="consultant">Consultor (Prévia/Autorizado)</Label>
-                    <Select value={selectedConsultant} onValueChange={setSelectedConsultant} required>
-                      <SelectTrigger className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
-                        <SelectValue placeholder="Selecione o Consultor" />
-                      </SelectTrigger>
-                      <SelectContent className="dark:bg-slate-800 dark:text-white dark:border-slate-700">
-                        {consultants.map(c => (
-                          <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  {/* Campos de seleção de equipe removidos */}
+                  <div className="p-3 bg-gray-50 dark:bg-slate-700/50 rounded-lg border border-gray-200 dark:border-slate-700">
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">Consultor: <span className="font-bold text-brand-600 dark:text-brand-400">{user?.name || 'N/A'}</span></p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Gestor e Anjo serão definidos como 'N/A' automaticamente.</p>
                   </div>
-                  <div>
-                    <Label htmlFor="manager">Gestor (Opcional)</Label>
-                    <Select value={selectedManager} onValueChange={setSelectedManager}>
-                      <SelectTrigger className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
-                        <SelectValue placeholder="Selecione o Gestor" />
-                      </SelectTrigger>
-                      <SelectContent className="dark:bg-slate-800 dark:text-white dark:border-slate-700">
-                        <SelectItem value="Nenhum">Nenhum</SelectItem> {/* Usar um valor distinto para 'Nenhum' */}
-                        {managers.map(m => (
-                          <SelectItem key={m.id} value={m.name}>{m.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex items-center justify-between p-2 border border-gray-200 dark:border-slate-700 rounded-lg bg-gray-50 dark:bg-slate-700/30">
-                    <div><span className="block font-medium text-gray-900 dark:text-white">Existe Anjo?</span></div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input type="checkbox" className="sr-only peer" checked={hasAngel} onChange={() => setHasAngel(!hasAngel)} />
-                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-600 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-brand-500"></div>
-                    </label>
-                  </div>
-                  {hasAngel && (
-                    <div>
-                      <Label htmlFor="angel">Anjo</Label>
-                      <Select value={selectedAngel} onValueChange={setSelectedAngel} required={hasAngel}>
-                        <SelectTrigger className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
-                          <SelectValue placeholder="Selecione o Anjo" />
-                        </SelectTrigger>
-                        <SelectContent className="dark:bg-slate-800 dark:text-white dark:border-slate-700">
-                          {angels.map(a => (
-                            <SelectItem key={a.id} value={a.name}>{a.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
                   <div>
                     <Label htmlFor="taxRate">Imposto (%)</Label>
                     <Input
