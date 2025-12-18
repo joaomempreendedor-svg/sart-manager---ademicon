@@ -275,7 +275,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         // --- Fetch team members ---
         let teamMembersData = [];
         try {
-          // A busca agora é mais simples, confiando nas políticas RLS para filtrar
+          // MODIFICAÇÃO AQUI: Simplificando a busca para confiar nas políticas RLS
+          // A RLS agora garante que o gestor verá todos os membros que ele pode ver.
           const { data, error } = await supabase.from('team_members').select('id, data');
           if (!error) teamMembersData = data || [];
           else console.error("Error fetching team_members (ignoring):", error);
@@ -1086,7 +1087,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [user]);
 
   const addWeeklyTargetItem = useCallback(async (targetId: string, metric_key: string, label: string, target_value: number, order_index: number): Promise<WeeklyTargetItem> => {
-    if (!user) throw new Error("Usuário não autenticado.");
+    if (!user) throw throw new Error("Usuário não autenticado.");
     const { data, error } = await supabase.from('weekly_target_items').insert({ weekly_target_id: targetId, metric_key, label, target_value, order_index, is_active: true }).select().single();
     if (error) throw error;
     setWeeklyTargetItems(prev => [...prev, data].sort((a, b) => a.order_index - b.order_index));
