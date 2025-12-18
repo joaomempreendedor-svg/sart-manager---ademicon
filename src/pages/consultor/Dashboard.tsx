@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { TrendingUp, User, CheckCircle2, ListChecks, Target, CalendarDays, Loader2, Phone, Mail, Tag, Clock, AlertCircle, Plus, DollarSign, Handshake } from 'lucide-react';
+import { TrendingUp, User, CheckCircle2, ListChecks, Target, CalendarDays, Loader2, Phone, Mail, Tag, Clock, AlertCircle, Plus } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { DailyChecklistItem, WeeklyTargetItem, MetricLog } from '@/types';
@@ -20,70 +20,43 @@ const ConsultorDashboard = () => {
     weeklyTargetItems,
     weeklyTargetAssignments,
     metricLogs,
-    commissions, // Adicionado para calcular o total vendido
-    leadTasks, // Adicionado para calcular reuniões
     isDataLoading 
   } = useApp();
 
   const today = useMemo(() => new Date(), []);
   const todayFormatted = useMemo(() => today.toISOString().split('T')[0], [today]); // YYYY-MM-DD
-  const currentMonthStart = useMemo(() => {
-    const date = new Date(today);
-    date.setDate(1);
-    date.setHours(0, 0, 0, 0);
-    return date;
-  }, [today]);
-  const currentMonthEnd = useMemo(() => {
-    const date = new Date(today);
-    date.setMonth(date.getMonth() + 1);
-    date.setDate(0); // Last day of current month
-    date.setHours(23, 59, 59, 999);
-    return date;
-  }, [today]);
 
-  // --- CRM Statistics (Mês Atual) ---
-  const { totalLeadsMonth, newLeadsMonth, meetingsScheduledMonth, proposalValueMonth, totalSoldMonth } = useMemo(() => {
-    if (!user) return { totalLeadsMonth: 0, newLeadsMonth: 0, meetingsScheduledMonth: 0, proposalValueMonth: 0, totalSoldMonth: 0 };
+  // --- CRM Statistics ---
+  const { totalLeads, newLeadsThisWeek, meetingsToday, conversionRate } = useMemo(() => {
+    if (!user) return { totalLeads: 0, newLeadsThisWeek: 0, meetingsToday: 0, conversionRate: 0 };
 
     const consultantLeads = crmLeads.filter(lead => lead.consultant_id === user.id);
+    const totalLeads = consultantLeads.length;
 
-    const leadsThisMonth = consultantLeads.filter(lead => {
-      const leadDate = new Date(lead.created_at);
-      return leadDate >= currentMonthStart && leadDate <= currentMonthEnd;
-    });
+    const oneWeekAgo = new Date(today);
+    oneWeekAgo.setDate(today.getDate() - 7);
 
-    const totalLeadsMonth = leadsThisMonth.length;
-    const newLeadsMonth = leadsThisMonth.length; // Para o mês atual, "novos leads" é o total de leads criados no mês
+    const newLeadsThisWeek = consultantLeads.filter(lead => new Date(lead.created_at) >= oneWeekAgo).length;
 
-    const meetingsScheduledMonth = leadTasks.filter(task => {
-      if (task.lead_id && task.type === 'meeting' && task.meeting_start_time) {
-        const meetingDate = new Date(task.meeting_start_time);
-        return task.user_id === user.id && meetingDate >= currentMonthStart && meetingDate <= currentMonthEnd;
-      }
-      return false;
+    // Assuming 'meeting' is a custom field key for meetings and it stores a date
+    const meetingsToday = consultantLeads.filter(lead => {
+      const meetingDate = lead.data?.next_action_at; // Assuming 'next_action_at' is a custom field for next interaction date
+      return meetingDate && new Date(meetingDate).toISOString().split('T')[0] === todayFormatted;
     }).length;
 
-    const proposalValueMonth = leadsThisMonth.reduce((sum, lead) => {
-      if (lead.data?.proposal_value) {
-        return sum + (lead.data.proposal_value as number);
-      }
-      return sum;
-    }, 0);
+    // Simple conversion rate: (Won Leads / Total Leads)
+    const activePipeline = crmPipelines.find(p => p.is_active);
+    const wonStage = crmStages.find(s => s.pipeline_id === activePipeline?.id && s.is_won);
+    const lostStage = crmStages.find(s => s.pipeline_id === activePipeline?.id && s.is_lost);
 
-    const totalSoldMonth = commissions.filter(c => {
-      const commissionDate = new Date(c.date);
-      return c.user_id === user.id && commissionDate >= currentMonthStart && commissionDate <= currentMonthEnd;
-    }).reduce((sum, c) => sum + c.value, 0);
+    const wonLeads = consultantLeads.filter(lead => lead.stage_id === wonStage?.id).length;
+    const lostLeads = consultantLeads.filter(lead => lead.stage_id === lostStage?.id).length;
+    const totalClosedLeads = wonLeads + lostLeads;
 
+    const conversionRate = totalClosedLeads > 0 ? (wonLeads / totalClosedLeads) * 100 : 0;
 
-    return { 
-      totalLeadsMonth, 
-      newLeadsMonth, 
-      meetingsScheduledMonth, 
-      proposalValueMonth, 
-      totalSoldMonth 
-    };
-  }, [user, crmLeads, leadTasks, commissions, currentMonthStart, currentMonthEnd]);
+    return { totalLeads, newLeadsThisWeek, meetingsToday, conversionRate: conversionRate.toFixed(2) };
+  }, [user, crmLeads, crmPipelines, crmStages, today, todayFormatted]);
 
   // --- Daily Checklist Progress ---
   const { completedDailyTasks, totalDailyTasks, dailyProgress } = useMemo(() => {
@@ -123,10 +96,8 @@ const ConsultorDashboard = () => {
 
     const currentWeekStart = new Date(today);
     currentWeekStart.setDate(today.getDate() - today.getDay()); // Sunday
-    currentWeekStart.setHours(0, 0, 0, 0);
     const currentWeekEnd = new Date(currentWeekStart);
     currentWeekEnd.setDate(currentWeekStart.getDate() + 6); // Saturday
-    currentWeekEnd.setHours(23, 59, 59, 999);
 
     const activeTarget = weeklyTargets.find(target => {
       const targetStart = new Date(target.week_start);
@@ -175,15 +146,25 @@ const ConsultorDashboard = () => {
       <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Olá, {user?.name.split(' ')[0]}!</h1>
       <p className="text-gray-500 dark:text-gray-400 mb-8">Bem-vindo ao seu Dashboard. Aqui estão suas principais informações e atalhos.</p>
       
-      {/* CRM Statistics (Mês Atual) */}
+      {/* CRM Statistics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
           <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
             <TrendingUp className="w-6 h-6 text-blue-600 dark:text-blue-400" />
           </div>
           <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Leads Cadastrados (Mês)</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{totalLeadsMonth}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Total de Leads</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{totalLeads}</p>
+          </div>
+        </div>
+        
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
+          <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+            <Plus className="w-6 h-6 text-green-600 dark:text-green-400" />
+          </div>
+          <div>
+            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Novos Leads (Semana)</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{newLeadsThisWeek}</p>
           </div>
         </div>
         
@@ -192,28 +173,18 @@ const ConsultorDashboard = () => {
             <CalendarDays className="w-6 h-6 text-orange-600 dark:text-orange-400" />
           </div>
           <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Reuniões Agendadas (Mês)</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{meetingsScheduledMonth}</p>
-          </div>
-        </div>
-        
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
-          <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-            <Handshake className="w-6 h-6 text-purple-600 dark:text-purple-400" />
-          </div>
-          <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Valor de Propostas (Mês)</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(proposalValueMonth)}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Reuniões Hoje</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{meetingsToday}</p>
           </div>
         </div>
 
         <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
-          <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
-            <DollarSign className="w-6 h-6 text-green-600 dark:text-green-400" />
+          <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+            <CheckCircle2 className="w-6 h-6 text-purple-600 dark:text-purple-400" />
           </div>
           <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Total Vendido (Mês)</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalSoldMonth)}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Taxa de Conversão</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{conversionRate}%</p>
           </div>
         </div>
       </div>

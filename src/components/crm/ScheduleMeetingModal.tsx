@@ -32,25 +32,15 @@ interface ScheduleMeetingModalProps {
 
 export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOpen, onClose, lead }) => {
   const { user } = useAuth();
-  const { addLeadTask, updateCrmLeadStage, teamMembers, crmStages } = useApp();
+  const { addLeadTask, updateCrmLeadStage, crmStages } = useApp();
 
-  const [title, setTitle] = useState(`Reunião com ${lead.name}`);
+  const [title, setTitle] = useState(`Reunião - ${lead.name}`);
   const [description, setDescription] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('10:00');
-  const [invitedManagerId, setInvitedManagerId] = useState<string | undefined>(undefined);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
-
-  const managers = useMemo(() => {
-    // Filtra para incluir apenas gestores ativos E que possuem um login associado (hasLogin: true)
-    return teamMembers.filter(member => 
-      member.roles.includes('Gestor') && 
-      member.isActive &&
-      member.hasLogin // Garante que o ID do membro é um auth.uid() válido
-    );
-  }, [teamMembers]);
 
   const meetingStage = useMemo(() => {
     return crmStages.find(stage => stage.name.toLowerCase().includes('reunião') && stage.is_active);
@@ -58,12 +48,11 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
 
   useEffect(() => {
     if (isOpen) {
-      setTitle(`Reunião com ${lead.name}`);
+      setTitle(`Reunião - ${lead.name}`);
       setDescription('');
       setDate(new Date().toISOString().split('T')[0]);
       setStartTime('09:00');
       setEndTime('10:00');
-      setInvitedManagerId(undefined);
       setError('');
     }
   }, [isOpen, lead.name]);
@@ -89,9 +78,14 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
       return;
     }
 
+    console.log("[ScheduleMeetingModal] Attempting to schedule meeting.");
+    console.log("[ScheduleMeetingModal] Lead ID:", lead.id);
+    console.log("[ScheduleMeetingModal] Consultant User ID (from Auth):", user?.id);
+    console.log("[ScheduleMeetingModal] Meeting Start Time:", startDateTime.toISOString());
+    console.log("[ScheduleMeetingModal] Meeting End Time:", endDateTime.toISOString());
+
     setIsSaving(true);
     try {
-      console.log("Attempting to add lead task with manager_id:", invitedManagerId); // DIAGNÓSTICO
       await addLeadTask({
         lead_id: lead.id,
         title: title.trim(),
@@ -101,8 +95,6 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
         type: 'meeting',
         meeting_start_time: startDateTime.toISOString(),
         meeting_end_time: endDateTime.toISOString(),
-        manager_id: invitedManagerId,
-        manager_invitation_status: invitedManagerId ? 'pending' : undefined,
       });
 
       if (meetingStage && lead.stage_id !== meetingStage.id) {
@@ -124,7 +116,7 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
 
     const googleCalendarUrl = new URL('https://calendar.google.com/calendar/render');
     googleCalendarUrl.searchParams.append('action', 'TEMPLATE');
-    googleCalendarUrl.searchParams.append('text', encodeURIComponent(title));
+    googleCalendarUrl.searchParams.append('text', title); // Removido encodeURIComponent
     googleCalendarUrl.searchParams.append('dates', `${startDateTime.toISOString().replace(/[-:]|\.\d{3}/g, '')}/${endDateTime.toISOString().replace(/[-:]|\.\d{3}/g, '')}`);
     googleCalendarUrl.searchParams.append('details', encodeURIComponent(description || `Reunião com o lead ${lead.name}`));
     
@@ -133,10 +125,6 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
     }
     if (user?.email) {
       googleCalendarUrl.searchParams.append('add', encodeURIComponent(user.email));
-    }
-    const invitedManager = managers.find(m => m.id === invitedManagerId);
-    if (invitedManager?.email) {
-      googleCalendarUrl.searchParams.append('add', encodeURIComponent(invitedManager.email));
     }
 
     window.open(googleCalendarUrl.toString(), '_blank');
@@ -150,7 +138,7 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
         <DialogHeader>
           <DialogTitle>Agendar Reunião para: {lead.name}</DialogTitle>
           <DialogDescription>
-            Preencha os detalhes da reunião e convide um gestor, se necessário.
+            Preencha os detalhes da reunião.
           </DialogDescription>
         </DialogHeader>
         
@@ -211,21 +199,6 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
                     className="dark:bg-slate-700 dark:text-white dark:border-slate-600"
                   />
                 </div>
-              </div>
-              <div>
-                <Label htmlFor="manager">Convidar Gestor (Opcional)</Label>
-                <Select value={invitedManagerId} onValueChange={setInvitedManagerId}>
-                  <SelectTrigger className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
-                    <SelectValue placeholder="Selecione um gestor" />
-                  </SelectTrigger>
-                  <SelectContent className="dark:bg-slate-800 dark:text-white dark:border-slate-700">
-                    {managers.map(manager => (
-                      <SelectItem key={manager.id} value={manager.id}>
-                        {manager.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
               </div>
               {error && <p className="text-red-500 text-sm">{error}</p>}
             </div>
