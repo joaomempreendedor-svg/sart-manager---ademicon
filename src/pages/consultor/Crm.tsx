@@ -153,10 +153,11 @@ interface KanbanColumnProps {
   title: string;
   leadCount: number;
   totalValue: number;
+  leadsInStageIds: string[]; // IDs dos leads nesta etapa para o SortableContext
   children: React.ReactNode;
 }
 
-const KanbanColumn: React.FC<KanbanColumnProps> = ({ id, title, leadCount, totalValue, children }) => {
+const KanbanColumn: React.FC<KanbanColumnProps> = ({ id, title, leadCount, totalValue, leadsInStageIds, children }) => {
   const { setNodeRef } = useDroppable({
     id: id,
   });
@@ -179,7 +180,9 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ id, title, leadCount, total
         </div>
       </div>
       <div className="p-4 space-y-3 overflow-y-auto custom-scrollbar flex-1">
-        {children}
+        <SortableContext items={leadsInStageIds} strategy={verticalListSortingStrategy}>
+          {children}
+        </SortableContext>
       </div>
     </div>
   );
@@ -376,8 +379,6 @@ const CrmPage = () => {
     }
 
     const draggedLeadId = active.id as string;
-    const targetDroppableId = over.id as string; // This is the ID of the droppable element
-
     const draggedLead = consultantLeads.find(lead => lead.id === draggedLeadId);
     if (!draggedLead) {
       console.log("[handleDragEnd] Lead arrastado não encontrado.");
@@ -387,33 +388,24 @@ const CrmPage = () => {
 
     let newStageId: string | undefined;
 
-    // 1. Check if the targetDroppableId is directly a stage ID
-    if (pipelineStages.some(stage => stage.id === targetDroppableId)) {
-      newStageId = targetDroppableId;
-      console.log(`[handleDragEnd] Drop direto na etapa (ID: ${newStageId})`);
+    // Priorize obter o ID do contêiner droppable/sortable a partir dos dados do objeto 'over'
+    if (over.data.current?.sortable?.containerId) {
+      // Se dropado em outro item sortable, seu containerId é o ID do SortableContext (que é o ID da etapa)
+      newStageId = over.data.current.sortable.containerId;
+      console.log(`[handleDragEnd] Detectado drop em item Sortable. ID do SortableContext pai: ${newStageId}`);
+    } else if (over.data.current?.droppable?.id) {
+      // Se dropado diretamente em um Droppable (KanbanColumn), seu ID é o ID da etapa
+      newStageId = over.data.current.droppable.id;
+      console.log(`[handleDragEnd] Detectado drop em Droppable (KanbanColumn). Novo ID da Etapa: ${newStageId}`);
     } else {
-      // 2. If not a stage ID, it might be a lead card or another element inside a column.
-      // Try to find the stage ID from the 'over' data.
-      if (over.data.current?.sortable?.containerId) {
-        // If dropped on another sortable item, its containerId is the droppable (stage)
-        newStageId = over.data.current.sortable.containerId;
-        console.log(`[handleDragEnd] Drop em item sortable. Container ID: ${newStageId}`);
-      } else if (over.data.current?.droppable?.id) {
-        // If dropped on a droppable that is not sortable (e.g., empty column)
-        newStageId = over.data.current.droppable.id;
-        console.log(`[handleDragEnd] Drop em droppable. ID: ${newStageId}`);
+      // Fallback: se over.data.current não estiver disponível ou não contiver ID de contêiner/droppable,
+      // tente usar over.id diretamente se ele corresponder a um ID de etapa.
+      // Isso pode acontecer se o drop for em uma área vazia da coluna onde nenhum item sortable está presente.
+      if (pipelineStages.some(stage => stage.id === over.id)) {
+        newStageId = over.id as string;
+        console.log(`[handleDragEnd] Fallback: over.id corresponde a um ID de etapa. Novo ID da Etapa: ${newStageId}`);
       } else {
-        // Fallback: traverse DOM (less reliable, but good for unexpected cases)
-        const overElement = document.getElementById(targetDroppableId);
-        let currentElement = overElement;
-        while (currentElement) {
-          if (pipelineStages.some(stage => stage.id === currentElement?.id)) {
-            newStageId = currentElement.id;
-            console.log(`[handleDragEnd] Fallback DOM traversal. Coluna pai identificada: ${newStageId}`);
-            break;
-          }
-          currentElement = currentElement.parentElement;
-        }
+        console.warn(`[handleDragEnd] Não foi possível determinar o novo ID da etapa a partir de over.data.current ou over.id. over.id era: ${over.id}`);
       }
     }
 
@@ -511,37 +503,36 @@ const CrmPage = () => {
           },
         }}
       >
-        <SortableContext items={consultantLeads.map(lead => lead.id)} strategy={verticalListSortingStrategy}>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-7 gap-4 pb-4 flex-1 h-full">
-            {pipelineStages.map(stage => (
-              <KanbanColumn
-                key={stage.id}
-                id={stage.id}
-                title={stage.name}
-                leadCount={groupedLeads[stage.id]?.length || 0}
-                totalValue={stageTotals[stage.id] || 0}
-              >
-                {groupedLeads[stage.id]?.length === 0 ? (
-                  <p className="text-center text-sm text-gray-400 py-4">Nenhum lead nesta etapa.</p>
-                ) : (
-                  groupedLeads[stage.id]?.map(lead => (
-                    <DraggableLeadCard
-                      key={lead.id}
-                      lead={lead}
-                      onEdit={handleEditLead}
-                      onDelete={handleDeleteLead}
-                      onOpenTasksModal={handleOpenTasksModal}
-                      onOpenMeetingModal={handleOpenMeetingModal}
-                      onOpenProposalModal={handleOpenProposalModal}
-                      onOpenSaleModal={handleOpenSaleModal}
-                      onMarkAsLost={handleMarkAsLost}
-                    />
-                  ))
-                )}
-              </KanbanColumn>
-            ))}
-          </div>
-        </SortableContext>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-7 gap-4 pb-4 flex-1 h-full">
+          {pipelineStages.map(stage => (
+            <KanbanColumn
+              key={stage.id}
+              id={stage.id}
+              title={stage.name}
+              leadCount={groupedLeads[stage.id]?.length || 0}
+              totalValue={stageTotals[stage.id] || 0}
+              leadsInStageIds={groupedLeads[stage.id]?.map(lead => lead.id) || []}
+            >
+              {groupedLeads[stage.id]?.length === 0 ? (
+                <p className="text-center text-sm text-gray-400 py-4">Nenhum lead nesta etapa.</p>
+              ) : (
+                groupedLeads[stage.id]?.map(lead => (
+                  <DraggableLeadCard
+                    key={lead.id}
+                    lead={lead}
+                    onEdit={handleEditLead}
+                    onDelete={handleDeleteLead}
+                    onOpenTasksModal={handleOpenTasksModal}
+                    onOpenMeetingModal={handleOpenMeetingModal}
+                    onOpenProposalModal={handleOpenProposalModal}
+                    onOpenSaleModal={handleOpenSaleModal}
+                    onMarkAsLost={handleMarkAsLost}
+                  />
+                ))
+              )}
+            </KanbanColumn>
+          ))}
+        </div>
 
         {createPortal(
           <DragOverlay>
