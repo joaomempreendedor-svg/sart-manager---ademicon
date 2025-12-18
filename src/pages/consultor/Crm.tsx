@@ -162,6 +162,8 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ id, title, leadCount, total
     id: id,
   });
 
+  console.log(`[KanbanColumn ${title} (${id})] Rendering with leadsInStageIds:`, leadsInStageIds);
+
   return (
     <div
       ref={setNodeRef}
@@ -180,7 +182,11 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ id, title, leadCount, total
         </div>
       </div>
       <div className="p-4 space-y-3 overflow-y-auto custom-scrollbar flex-1">
-        <SortableContext items={leadsInStageIds} strategy={verticalListSortingStrategy}>
+        <SortableContext 
+          key={leadsInStageIds.join('-')} // Adicionando key para forçar re-renderização
+          items={leadsInStageIds} 
+          strategy={verticalListSortingStrategy}
+        >
           {children}
         </SortableContext>
       </div>
@@ -229,18 +235,22 @@ const CrmPage = () => {
 
   const consultantLeads = useMemo(() => {
     if (!user) return [];
-    return crmLeads.filter(lead => lead.consultant_id === user.id);
+    const filtered = crmLeads.filter(lead => lead.consultant_id === user.id);
+    console.log("[CrmPage] consultantLeads recalculated:", filtered.map(l => l.id));
+    return filtered;
   }, [crmLeads, user]);
 
   const filteredLeads = useMemo(() => {
     if (!searchTerm) return consultantLeads;
     const lowerCaseSearchTerm = searchTerm.toLowerCase();
-    return consultantLeads.filter(lead =>
+    const filtered = consultantLeads.filter(lead =>
       (lead.name && lead.name.toLowerCase().includes(lowerCaseSearchTerm)) ||
       Object.values(lead.data || {}).some(value =>
         String(value).toLowerCase().includes(lowerCaseSearchTerm)
       )
     );
+    console.log("[CrmPage] filteredLeads recalculated:", filtered.map(l => l.id));
+    return filtered;
   }, [consultantLeads, searchTerm]);
 
   const groupedLeads = useMemo(() => {
@@ -248,6 +258,7 @@ const CrmPage = () => {
     pipelineStages.forEach(stage => {
       groups[stage.id] = filteredLeads.filter(lead => lead.stage_id === stage.id);
     });
+    console.log("[CrmPage] Recalculated groupedLeads:", Object.keys(groups).map(stageId => ({ stageId, leads: groups[stageId].map(l => l.id) })));
     return groups;
   }, [pipelineStages, filteredLeads]);
 
@@ -391,26 +402,25 @@ const CrmPage = () => {
     // Helper para verificar se um ID é um ID de etapa válido
     const isValidStageId = (id: string) => pipelineStages.some(stage => stage.id === id);
 
-    // Prioridade 1: Dropped diretamente em uma coluna (Droppable)
-    if (isValidStageId(over.id as string)) {
-      newStageId = over.id as string;
-      console.log(`[handleDragEnd] Prioridade 1: Drop direto na etapa (ID: ${newStageId})`);
-    }
-    // Prioridade 2: Dropped em um item sortable, mas queremos o ID do container pai (a etapa)
-    else if (over.data.current?.sortable?.containerId && isValidStageId(over.data.current.sortable.containerId as string)) {
-      newStageId = over.data.current.sortable.containerId as string;
-      console.log(`[handleDragEnd] Prioridade 2: Drop em item sortable. Container ID da etapa: ${newStageId}`);
-    }
-    // Prioridade 3: Dropped em um droppable que não é um item sortable, mas tem o ID da etapa em seus dados
-    else if (over.data.current?.droppable?.id && isValidStageId(over.data.current.droppable.id as string)) {
-      newStageId = over.data.current.droppable.id as string;
-      console.log(`[handleDragEnd] Prioridade 3: Drop em droppable com ID de etapa em dados. ID da etapa: ${newStageId}`);
-    }
-    // Fallback: Se nenhuma das prioridades acima funcionou, logar o problema e cancelar
-    else {
-      console.warn(`[handleDragEnd] Não foi possível determinar um ID de etapa válido a partir do objeto 'over'. over.id: ${over.id}, over.data.current:`, over.data.current);
-      setActiveDragId(null);
-      return;
+    // Priorize obter o ID do contêiner droppable/sortable a partir dos dados do objeto 'over'
+    if (over.data.current?.sortable?.containerId && isValidStageId(over.data.current.sortable.containerId as string)) {
+      // Se dropado em outro item sortable, seu containerId é o ID do SortableContext (que é o ID da etapa)
+      newStageId = over.data.current.sortable.containerId;
+      console.log(`[handleDragEnd] Detectado drop em item Sortable. ID do SortableContext pai: ${newStageId}`);
+    } else if (over.data.current?.droppable?.id && isValidStageId(over.data.current.droppable.id as string)) {
+      // Se dropado diretamente em um Droppable (KanbanColumn), seu ID é o ID da etapa
+      newStageId = over.data.current.droppable.id;
+      console.log(`[handleDragEnd] Detectado drop em Droppable (KanbanColumn). Novo ID da Etapa: ${newStageId}`);
+    } else {
+      // Fallback: se over.data.current não estiver disponível ou não contiver ID de contêiner/droppable,
+      // tente usar over.id diretamente se ele corresponder a um ID de etapa.
+      // Isso pode acontecer se o drop for em uma área vazia da coluna onde nenhum item sortable está presente.
+      if (isValidStageId(over.id as string)) {
+        newStageId = over.id as string;
+        console.log(`[handleDragEnd] Fallback: over.id corresponde a um ID de etapa. Novo ID da Etapa: ${newStageId}`);
+      } else {
+        console.warn(`[handleDragEnd] Não foi possível determinar o novo ID da etapa a partir de over.data.current ou over.id. over.id era: ${over.id}`);
+      }
     }
 
     if (!newStageId) {

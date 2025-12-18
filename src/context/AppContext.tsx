@@ -56,7 +56,7 @@ const clearStaleAuth = () => {
       localStorage.removeItem('supabase.auth.refreshToken');
       return true;
     }
-  }
+  };
   return false;
 };
 
@@ -855,9 +855,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // NOVO: Função para mover um lead para uma nova etapa
   const updateCrmLeadStage = useCallback(async (leadId: string, newStageId: string) => {
     if (!user) throw new Error("Usuário não autenticado.");
+    console.log(`[AppContext] updateCrmLeadStage: Attempting to update lead ${leadId} to stage ${newStageId}`);
     const { error } = await supabase.from('crm_leads').update({ stage_id: newStageId }).eq('id', leadId).eq('consultant_id', user.id);
-    if (error) throw error;
-    setCrmLeads(prev => prev.map(lead => lead.id === leadId ? { ...lead, stage_id: newStageId } : lead));
+    if (error) {
+      console.error(`[AppContext] updateCrmLeadStage: Supabase error for lead ${leadId}:`, error);
+      throw error;
+    }
+    console.log(`[AppContext] updateCrmLeadStage: Supabase update successful for lead ${leadId}. Updating local state.`);
+    setCrmLeads(prev => {
+      const newState = prev.map(lead => lead.id === leadId ? { ...lead, stage_id: newStageId } : lead);
+      console.log(`[AppContext] setCrmLeads: New state for crmLeads (relevant part):`, newState.filter(l => l.id === leadId || l.stage_id === newStageId).map(l => ({id: l.id, stage_id: l.stage_id})));
+      return newState;
+    });
   }, [user]);
 
   const addCrmStage = useCallback(async (stageData: Omit<CrmStage, 'id' | 'user_id' | 'created_at'>) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('crm_stages').insert({ ...stageData, user_id: JOAO_GESTOR_AUTH_ID }).select().single(); if (error) throw error; setCrmStages(prev => [...prev, data].sort((a, b) => a.order_index - b.order_index)); return data; }, [user]); // Use JOAO_GESTOR_AUTH_ID
