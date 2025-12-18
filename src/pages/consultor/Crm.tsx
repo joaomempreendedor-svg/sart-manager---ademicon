@@ -152,7 +152,6 @@ const CrmPage = () => {
     e.stopPropagation();
     setSelectedLeadForSale(lead);
     setIsSaleModalOpen(true);
-    console.log("CrmPage: handleOpenSaleModal called. isSaleModalOpen set to true for lead:", lead.name); // Log para depuração
   };
 
 
@@ -326,10 +325,7 @@ const CrmPage = () => {
       {isSaleModalOpen && selectedLeadForSale && (
         <SaleModal
           isOpen={isSaleModalOpen}
-          onClose={() => {
-            setIsSaleModalOpen(false);
-            console.log("CrmPage: SaleModal onClose called. isSaleModalOpen set to false."); // Log para depuração
-          }}
+          onClose={() => setIsSaleModalOpen(false)}
           lead={selectedLeadForSale}
         />
       )}

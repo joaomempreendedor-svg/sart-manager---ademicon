@@ -48,8 +48,6 @@ export const SaleModal: React.FC<SaleModalProps> = ({ isOpen, onClose, lead }) =
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
 
-  console.log("SaleModal is rendering. isOpen:", isOpen, "Lead:", lead?.name);
-
   const wonStage = useMemo(() => {
     return crmStages.find(stage => stage.is_won && stage.is_active);
   }, [crmStages]);
@@ -162,10 +160,7 @@ export const SaleModal: React.FC<SaleModalProps> = ({ isOpen, onClose, lead }) =
     }
   };
 
-  if (!isOpen) {
-    console.log("SaleModal is NOT open, returning null.");
-    return null;
-  }
+  if (!isOpen) return null;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -177,19 +172,165 @@ export const SaleModal: React.FC<SaleModalProps> = ({ isOpen, onClose, lead }) =
           </DialogDescription>
         </DialogHeader>
         
-        {/* Conteúdo simplificado para depuração */}
-        <div className="py-4 text-center text-lg font-bold text-green-600 dark:text-green-400">
-          Olá do Modal de Venda! Se você está vendo isso, o modal está abrindo.
-        </div>
-        {/* Fim do conteúdo simplificado */}
+        <form onSubmit={handleSubmit}>
+          <ScrollArea className="max-h-[60vh] py-4 pr-4">
+            <div className="grid gap-4">
+              <div>
+                <Label htmlFor="creditValue">Valor do Crédito (R$)</Label>
+                <div className="relative">
+                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Input
+                    id="creditValue"
+                    type="text"
+                    value={creditValue}
+                    onChange={(e) => formatAndSetCurrency(e.target.value)}
+                    required
+                    className="w-full pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                    placeholder="0,00"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="group">Grupo</Label>
+                  <Input
+                    id="group"
+                    value={group}
+                    onChange={(e) => setGroup(e.target.value)}
+                    required
+                    className="dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                    placeholder="Ex: 5025"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="quota">Cota</Label>
+                  <Input
+                    id="quota"
+                    value={quota}
+                    onChange={(e) => setQuota(e.target.value)}
+                    required
+                    className="dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                    placeholder="Ex: 150"
+                  />
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="saleDate">Data da Venda</Label>
+                <Input
+                  id="saleDate"
+                  type="date"
+                  value={saleDate}
+                  onChange={(e) => setSaleDate(e.target.value)}
+                  required
+                  className="dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                />
+              </div>
+              <div>
+                <Label>Tipo de Venda</Label>
+                <div className="flex space-x-2 mt-1">
+                  <Button
+                    type="button"
+                    variant={saleType === 'Imóvel' ? 'default' : 'outline'}
+                    onClick={() => setSaleType('Imóvel')}
+                    className={`flex-1 flex items-center justify-center space-x-2 ${saleType === 'Imóvel' ? 'bg-brand-600 text-white hover:bg-brand-700' : 'dark:bg-slate-700 dark:text-white dark:border-slate-600'}`}
+                  >
+                    <Home className="w-4 h-4" /> <span>Imóvel</span>
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={saleType === 'Veículo' ? 'default' : 'outline'}
+                    onClick={() => setSaleType('Veículo')}
+                    className={`flex-1 flex items-center justify-center space-x-2 ${saleType === 'Veículo' ? 'bg-brand-600 text-white hover:bg-brand-700' : 'dark:bg-slate-700 dark:text-white dark:border-slate-600'}`}
+                  >
+                    <Car className="w-4 h-4" /> <span>Veículo</span>
+                  </Button>
+                </div>
+              </div>
 
-        <DialogFooter className="flex flex-col sm:flex-row sm:justify-end sm:items-center mt-4 pt-4 border-t border-gray-100 dark:border-slate-700">
-          <div className="flex gap-2">
-            <Button type="button" variant="outline" onClick={onClose} className="dark:bg-slate-700 dark:text-white dark:border-slate-600">
-              Fechar
-            </Button>
-          </div>
-        </DialogFooter>
+              <div className="border-t border-gray-200 dark:border-slate-700 pt-4 mt-4">
+                <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-3 flex items-center">
+                  <Users className="w-4 h-4 mr-2 text-brand-500" />
+                  Equipe Envolvida
+                </h4>
+                <div className="grid gap-4">
+                  <div>
+                    <Label htmlFor="consultant">Consultor (Prévia/Autorizado)</Label>
+                    <Select value={selectedConsultant} onValueChange={setSelectedConsultant} required>
+                      <SelectTrigger className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
+                        <SelectValue placeholder="Selecione o Consultor" />
+                      </SelectTrigger>
+                      <SelectContent className="dark:bg-slate-800 dark:text-white dark:border-slate-700">
+                        {consultants.map(c => (
+                          <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="manager">Gestor (Opcional)</Label>
+                    <Select value={selectedManager} onValueChange={setSelectedManager}>
+                      <SelectTrigger className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
+                        <SelectValue placeholder="Selecione o Gestor" />
+                      </SelectTrigger>
+                      <SelectContent className="dark:bg-slate-800 dark:text-white dark:border-slate-700">
+                        <SelectItem value="">Nenhum</SelectItem>
+                        {managers.map(m => (
+                          <SelectItem key={m.id} value={m.name}>{m.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-center justify-between p-2 border border-gray-200 dark:border-slate-700 rounded-lg bg-gray-50 dark:bg-slate-700/30">
+                    <div><span className="block font-medium text-gray-900 dark:text-white">Existe Anjo?</span></div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input type="checkbox" className="sr-only peer" checked={hasAngel} onChange={() => setHasAngel(!hasAngel)} />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-600 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-brand-500"></div>
+                    </label>
+                  </div>
+                  {hasAngel && (
+                    <div>
+                      <Label htmlFor="angel">Anjo</Label>
+                      <Select value={selectedAngel} onValueChange={setSelectedAngel} required={hasAngel}>
+                        <SelectTrigger className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
+                          <SelectValue placeholder="Selecione o Anjo" />
+                        </SelectTrigger>
+                        <SelectContent className="dark:bg-slate-800 dark:text-white dark:border-slate-700">
+                          {angels.map(a => (
+                            <SelectItem key={a.id} value={a.name}>{a.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  <div>
+                    <Label htmlFor="taxRate">Imposto (%)</Label>
+                    <Input
+                      id="taxRate"
+                      type="text"
+                      value={taxRateInput}
+                      onChange={(e) => setTaxRateInput(e.target.value.replace(/[^0-9,]/g, ''))}
+                      className="dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                      placeholder="Ex: 6"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {error && <p className="text-red-500 text-sm mt-4">{error}</p>}
+            </div>
+          </ScrollArea>
+          <DialogFooter className="flex flex-col sm:flex-row sm:justify-end sm:items-center mt-4 pt-4 border-t border-gray-100 dark:border-slate-700">
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={onClose} className="dark:bg-slate-700 dark:text-white dark:border-slate-600">
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={isSaving} className="bg-brand-600 hover:bg-brand-700 text-white">
+                {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                {isSaving ? 'Registrando...' : 'Registrar Venda'}
+              </Button>
+            </div>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );
