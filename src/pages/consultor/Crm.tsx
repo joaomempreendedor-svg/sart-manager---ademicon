@@ -315,59 +315,23 @@ const CrmPage = () => {
   const handleDragEnd = async (event: any) => {
     const { active, over } = event;
 
-    console.log("Drag End Event:", event);
-    console.log("Active ID (dragged lead):", active?.id);
-    console.log("Over ID (target element):", over?.id);
-    console.log("Over data:", over?.data);
-
-    if (!active || !over) {
-      console.log("Drag ended outside a droppable area or no active item.");
-      setActiveDragId(null);
-      return;
-    }
+    if (!active || !over) return;
 
     const draggedLeadId = active.id as string;
-    const targetId = over.id as string;
+    const newStageId = over.id as string;
 
     const draggedLead = consultantLeads.find(lead => lead.id === draggedLeadId);
-    if (!draggedLead) {
-      console.error("Dragged lead not found:", draggedLeadId);
-      setActiveDragId(null);
-      return;
-    }
-
-    // Determine the new stage ID
-    let newStageId: string | undefined;
-
-    // Prioritize dropping directly on a KanbanColumn (stage)
-    if (pipelineStages.some(stage => stage.id === targetId)) {
-      newStageId = targetId;
-    } else {
-      // If dropped on another lead, find the stage of that lead
-      const targetLead = consultantLeads.find(lead => lead.id === targetId);
-      if (targetLead) {
-        newStageId = targetLead.stage_id;
-      }
-    }
-
-    if (!newStageId) {
-      console.warn("Could not determine new stage ID. No update.");
-      setActiveDragId(null);
-      return;
-    }
+    if (!draggedLead) return;
 
     // Only update if the stage has actually changed
     if (draggedLead.stage_id !== newStageId) {
       try {
-        console.log(`Updating lead ${draggedLead.name} (${draggedLeadId}) to stage ${newStageId}`);
         await updateCrmLeadStage(draggedLeadId, newStageId);
         toast.success(`Lead "${draggedLead.name}" movido para a nova etapa!`);
       } catch (error: any) {
         console.error("Failed to update lead stage:", error);
         toast.error(`Erro ao mover o lead: ${error.message}`);
       }
-    } else {
-      console.log(`Lead ${draggedLead.name} dropped in the same stage. No update needed.`);
     }
     setActiveDragId(null);
   };
@@ -405,13 +369,13 @@ const CrmPage = () => {
 
   return (
     <div className="p-8 min-h-screen bg-gray-50 dark:bg-slate-900">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Meu CRM - {activePipeline.name}</h1>
           <p className="text-gray-500 dark:text-gray-400">Gerencie seus leads e acompanhe o funil de vendas.</p>
         </div>
-        <div className="flex items-center space-x-4 w-full md:w-auto">
-          <div className="relative flex-1 md:w-64">
+        <div className="flex items-center space-x-4 flex-grow md:flex-grow-0 justify-end">
+          <div className="relative flex-1 max-w-xs">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <Search className="h-4 w-4 text-gray-400" />
             </div>
