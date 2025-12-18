@@ -154,7 +154,6 @@ interface KanbanColumnProps {
   leadCount: number;
   totalValue: number;
   children: React.ReactNode;
-  // Removido: items: string[]; // Não é mais necessário aqui, pois SortableContext será no pai
 }
 
 const KanbanColumn: React.FC<KanbanColumnProps> = ({ id, title, leadCount, totalValue, children }) => {
@@ -178,7 +177,6 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ id, title, leadCount, total
           )}
         </div>
       </div>
-      {/* SortableContext agora envolve os children diretamente no CrmPage */}
       <div className="p-4 space-y-3 overflow-y-auto custom-scrollbar flex-1">
         {children}
       </div>
@@ -365,7 +363,10 @@ const CrmPage = () => {
   const handleDragEnd = async (event: any) => {
     const { active, over } = event;
 
-    console.log("Drag End Event:", { active, over }); // Log para depuração
+    console.log("--- handleDragEnd Debug ---");
+    console.log("Active (dragged item):", active);
+    console.log("Over (drop target):", over);
+    console.log("Current pipeline stages:", pipelineStages.map(s => ({ id: s.id, name: s.name, order_index: s.order_index })));
 
     if (!active || !over) {
       console.log("Drag cancelado: active ou over é nulo.");
@@ -374,7 +375,7 @@ const CrmPage = () => {
     }
 
     const draggedLeadId = active.id as string;
-    const targetId = over.id as string; // Pode ser um ID de etapa ou um ID de outro lead
+    const targetId = over.id as string;
 
     const draggedLead = consultantLeads.find(lead => lead.id === draggedLeadId);
     if (!draggedLead) {
@@ -385,16 +386,32 @@ const CrmPage = () => {
 
     let newStageId: string | undefined;
 
-    // Prioriza o drop direto em uma KanbanColumn (etapa)
+    // Priorize o drop direto em uma KanbanColumn (etapa)
     if (pipelineStages.some(stage => stage.id === targetId)) {
       newStageId = targetId;
-      console.log(`Drop direto na etapa: ${newStageId}`);
+      console.log(`Drop direto na etapa (KanbanColumn ID): ${newStageId}`);
     } else {
       // Se dropado em outro lead, encontra a etapa desse lead
       const targetLead = consultantLeads.find(lead => lead.id === targetId);
       if (targetLead) {
         newStageId = targetLead.stage_id;
-        console.log(`Drop em outro lead. Nova etapa: ${newStageId}`);
+        console.log(`Drop em outro lead (Lead ID: ${targetId}). Nova etapa: ${newStageId}`);
+      } else {
+        // Fallback: se o over.id não é uma coluna nem um lead, pode ser um elemento interno da coluna.
+        // Tenta encontrar a coluna pai do elemento onde o drop ocorreu.
+        const overElement = document.getElementById(targetId);
+        let parentColumnId: string | null = null;
+        let currentElement = overElement;
+        while (currentElement && !parentColumnId) {
+          if (pipelineStages.some(stage => stage.id === currentElement?.id)) {
+            parentColumnId = currentElement.id;
+          }
+          currentElement = currentElement.parentElement;
+        }
+        if (parentColumnId) {
+          newStageId = parentColumnId;
+          console.log(`Fallback: Drop em elemento interno. Coluna pai identificada: ${newStageId}`);
+        }
       }
     }
 
