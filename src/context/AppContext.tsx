@@ -275,16 +275,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         // --- Fetch team members ---
         let teamMembersData = [];
         try {
-          let teamMembersQuery = supabase.from('team_members').select('id, data');
-          if (user?.role === 'CONSULTOR') {
-              // Consultants should see their own entry and entries linked to JOAO_GESTOR_AUTH_ID
-              // MODIFICAÇÃO AQUI: Usar 'data->>id' para comparar com o auth.uid() do consultor
-              teamMembersQuery = teamMembersQuery.or(`user_id.eq.${effectiveGestorId},data->>id.eq.${userId}`);
-          } else { // GESTOR or ADMIN
-              // Gestors/Admins see all team members linked to JOAO_GESTOR_AUTH_ID
-              teamMembersQuery = teamMembersQuery.eq('user_id', effectiveGestorId);
-          }
-          const { data, error } = await teamMembersQuery;
+          // A busca agora é mais simples, confiando nas políticas RLS para filtrar
+          const { data, error } = await supabase.from('team_members').select('id, data');
           if (!error) teamMembersData = data || [];
           else console.error("Error fetching team_members (ignoring):", error);
         } catch (e) {
@@ -593,7 +585,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const { data, error } = await supabase
       .from('team_members')
       .insert({ 
-        user_id: JOAO_GESTOR_AUTH_ID, // Use JOAO_GESTOR_AUTH_ID
+        user_id: user.id, // Use o ID do gestor logado
         data: newMember // The entire newMember object is stored in the 'data' JSONB column
       })
       .select('id') // This selects the PK of the team_members table, not the 'id' from newMember
@@ -672,7 +664,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const updated = { ...m, ...updates, id: authUserId, hasLogin: !!updates.email, login: updates.login || m.login }; // Update local ID if authUserId changed
     const { db_id, ...dataToUpdate } = updated; // Exclude db_id from data to be stored in 'data' column
 
-    const { error } = await supabase.from('team_members').update({ data: dataToUpdate }).match({ id: m.db_id, user_id: JOAO_GESTOR_AUTH_ID }); // Use JOAO_GESTOR_AUTH_ID
+    const { error } = await supabase.from('team_members').update({ data: dataToUpdate }).match({ id: m.db_id, user_id: user.id }); // Use o ID do gestor logado
     if (error) { console.error(error); throw error; }
     
     setTeamMembers(prev => prev.map(p => p.db_id === m.db_id ? updated : p)); // Update using db_id to ensure correct item is replaced
@@ -688,10 +680,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       throw new Error("Membro da equipe não encontrado ou ID do banco de dados ausente.");
     }
 
-    console.log(`[deleteTeamMember] Tentando excluir membro com db_id: ${m.db_id} e user_id (gestor): ${JOAO_GESTOR_AUTH_ID}`); // Use JOAO_GESTOR_AUTH_ID
+    console.log(`[deleteTeamMember] Tentando excluir membro com db_id: ${m.db_id} e user_id (gestor): ${user.id}`); // Use o ID do gestor logado
     
     try {
-      const { error } = await supabase.from('team_members').delete().match({ id: m.db_id, user_id: JOAO_GESTOR_AUTH_ID }); // Use JOAO_GESTOR_AUTH_ID
+      const { error } = await supabase.from('team_members').delete().match({ id: m.db_id, user_id: user.id }); // Use o ID do gestor logado
       
       if (error) {
         console.error(`[deleteTeamMember] Erro ao excluir membro do banco de dados:`, error);
@@ -742,7 +734,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const resetChecklistToDefault = useCallback(() => { updateAndPersistStructure(setChecklistStructure, 'checklistStructure', DEFAULT_STAGES); }, [updateAndPersistStructure]);
   const addGoalItem = useCallback((stageId: string, label: string) => { const newStructure = consultantGoalsStructure.map(s => s.id === stageId ? { ...s, items: [...s.items, { id: `goal_${Date.now()}`, label }] } : s); updateAndPersistStructure(setConsultantGoalsStructure, 'consultantGoalsStructure', newStructure); }, [consultantGoalsStructure, updateAndPersistStructure]);
   const updateGoalItem = useCallback((stageId: string, itemId: string, label: string) => { const newStructure = consultantGoalsStructure.map(s => s.id === stageId ? { ...s, items: s.items.map(i => i.id === itemId ? { ...i, label } : i) } : s); updateAndPersistStructure(setConsultantGoalsStructure, 'consultantGoalsStructure', newStructure); }, [consultantGoalsStructure, updateAndPersistStructure]);
-  const deleteGoalItem = useCallback((stageId: string, itemId: string) => { const newStructure = consultantGoalsStructure.map(s => s.id === stageId ? { ...s, items: s.items.filter(i => i.id !== itemId) } : s); updateAndAndPersistStructure(setConsultantGoalsStructure, 'consultantGoalsStructure', newStructure); }, [consultantGoalsStructure, updateAndPersistStructure]);
+  const deleteGoalItem = useCallback((stageId: string, itemId: string) => { const newStructure = consultantGoalsStructure.map(s => s.id === stageId ? { ...s, items: s.items.filter(i => i.id !== itemId) } : s); updateAndPersistStructure(setConsultantGoalsStructure, 'consultantGoalsStructure', newStructure); }, [consultantGoalsStructure, updateAndPersistStructure]);
   const moveGoalItem = useCallback((stageId: string, itemId: string, dir: 'up' | 'down') => { const newStructure = consultantGoalsStructure.map(s => { if (s.id !== stageId) return s; const idx = s.items.findIndex(i => i.id === itemId); if ((dir === 'up' && idx < 1) || (dir === 'down' && idx >= s.items.length - 1)) return s; const newItems = [...s.items]; const targetIdx = dir === 'up' ? idx - 1 : idx + 1; [newItems[idx], newItems[targetIdx]] = [newItems[targetIdx], newItems[idx]]; return { ...s, items: newItems }; }); updateAndPersistStructure(setConsultantGoalsStructure, 'consultantGoalsStructure', newStructure); }, [consultantGoalsStructure, updateAndPersistStructure]);
   const resetGoalsToDefault = useCallback(() => { updateAndPersistStructure(setConsultantGoalsStructure, 'consultantGoalsStructure', DEFAULT_GOALS); }, [updateAndPersistStructure]);
   const updateInterviewSection = useCallback((sectionId: string, updates: Partial<InterviewSection>) => { const newStructure = interviewStructure.map(s => s.id === sectionId ? { ...s, ...updates } : s); updateAndPersistStructure(setInterviewStructure, 'interviewStructure', newStructure); }, [interviewStructure, updateAndPersistStructure]);
@@ -840,7 +832,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const { data, error } = await supabase.from('crm_leads').insert(payload).select().single();
     if (error) {
       console.error("Supabase error adding crm lead:", error);
-      throw error;
+      throw new Error(error.message);
     }
     setCrmLeads(prev => [data, ...prev]); // Alterado para adicionar no início
     return data;
@@ -884,7 +876,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const { error } = await query;
     if (error) {
       console.error("Supabase error updating crm lead:", error);
-      throw error;
+      throw new Error(error.message);
     }
     setCrmLeads(prev => prev.map(lead => lead.id === id ? { ...lead, ...updates } : lead)); // Use updates directly for local state
   }, [user, crmOwnerUserId, crmLeads]);
@@ -1296,7 +1288,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       supportMaterialsV2, supportMaterialAssignments,
       addSupportMaterialV2, updateSupportMaterialV2, deleteSupportMaterialV2,
       assignSupportMaterialToConsultant, unassignSupportMaterialFromConsultant,
-      // NOVO: Tarefas de Lead
       leadTasks, addLeadTask, updateLeadTask, deleteLeadTask, toggleLeadTaskCompletion, 
     }}>
       {children}
