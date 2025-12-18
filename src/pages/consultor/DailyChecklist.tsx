@@ -3,7 +3,7 @@ import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { CalendarDays, ChevronLeft, ChevronRight, ListChecks, Loader2 } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, ListChecks, Loader2, User } from 'lucide-react';
 
 const formatDate = (date: Date) => date.toISOString().split('T')[0]; // YYYY-MM-DD
 const displayDate = (date: Date) => date.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
@@ -120,6 +120,17 @@ export const DailyChecklist = () => {
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-theme(spacing.16))]">
         <Loader2 className="w-12 h-12 text-brand-500 animate-spin" />
+      </div>
+    );
+  }
+
+  // Adição da verificação explícita para user e userTeamMember
+  if (!user || !userTeamMember) {
+    return (
+      <div className="text-center py-16 bg-white dark:bg-slate-800 rounded-xl border border-dashed border-gray-200 dark:border-slate-700">
+        <User className="mx-auto w-12 h-12 text-gray-300 dark:text-slate-600" />
+        <p className="mt-4 text-gray-500 dark:text-gray-400">Não foi possível carregar seu perfil de consultor ou encontrar suas atribuições.</p>
+        <p className="text-sm text-gray-400">Por favor, entre em contato com seu gestor.</p>
       </div>
     );
   }
