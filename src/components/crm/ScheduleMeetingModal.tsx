@@ -34,7 +34,7 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
   const { user } = useAuth();
   const { addLeadTask, updateCrmLeadStage, crmStages } = useApp(); // Removido teamMembers
 
-  const [title, setTitle] = useState(`Reunião com ${lead.name}`);
+  const [title, setTitle] = useState(`Reunião - ${lead.name}`);
   const [description, setDescription] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [startTime, setStartTime] = useState('09:00');
@@ -70,7 +70,7 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
 
   useEffect(() => {
     if (isOpen) {
-      setTitle(`Reunião com ${lead.name}`);
+      setTitle(`Reunião - ${lead.name}`);
       setDescription('');
       setDate(new Date().toISOString().split('T')[0]);
       setStartTime('09:00');
