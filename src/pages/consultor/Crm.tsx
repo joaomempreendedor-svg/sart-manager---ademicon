@@ -8,7 +8,7 @@ import { ScheduleMeetingModal } from '@/components/crm/ScheduleMeetingModal';
 import { ProposalModal } from '@/components/crm/ProposalModal';
 import { SaleModal } from '@/components/crm/SaleModal';
 import { KanbanBoard } from '@/components/crm/KanbanBoard';
-import { DailyChecklist } from '@/pages/consultor/DailyChecklist'; // Importar o DailyChecklist
+// import { DailyChecklist } from '@/pages/consultor/DailyChecklist'; // REMOVIDO: Importar o DailyChecklist
 
 import {
   Select,
@@ -71,10 +71,10 @@ const CrmPage = () => {
       <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Meu CRM - {activePipeline.name}</h1>
       <p className="text-gray-500 dark:text-gray-400 mb-8">Gerencie seus leads e acompanhe o funil de vendas.</p>
 
-      {/* Daily Checklist Section */}
-      <div className="mb-8">
+      {/* Daily Checklist Section - REMOVIDO */}
+      {/* <div className="mb-8">
         <DailyChecklist />
-      </div>
+      </div> */}
 
       <KanbanBoard
         leads={consultantLeads}
