@@ -48,6 +48,8 @@ export const SaleModal: React.FC<SaleModalProps> = ({ isOpen, onClose, lead }) =
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
 
+  console.log("SaleModal is rendering. isOpen:", isOpen, "Lead:", lead?.name);
+
   const wonStage = useMemo(() => {
     return crmStages.find(stage => stage.is_won && stage.is_active);
   }, [crmStages]);
@@ -160,11 +162,14 @@ export const SaleModal: React.FC<SaleModalProps> = ({ isOpen, onClose, lead }) =
     }
   };
 
-  if (!isOpen) return null;
+  if (!isOpen) {
+    console.log("SaleModal is NOT open, returning null.");
+    return null;
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-2xl bg-white dark:bg-slate-800 dark:text-white p-6">
+      <DialogContent className="sm:max-w-2xl bg-white dark:bg-slate-800 dark:text-white p-6 z-[9999]"> {/* Adicionado z-[9999] */}
         <DialogHeader>
           <DialogTitle>Registrar Venda para: {lead.name}</DialogTitle>
           <DialogDescription>
