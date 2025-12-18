@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Plus, Search, Loader2, Phone, Mail, Tag, MessageSquare, TrendingUp, ListTodo, CalendarPlus, Send, DollarSign, Edit2, Trash2 } from 'lucide-react';
+import { Plus, Search, Loader2, Phone, Mail, Tag, MessageSquare, TrendingUp, ListTodo, CalendarPlus, Send, DollarSign, Edit2, Trash2, XCircle } from 'lucide-react'; // Adicionado XCircle para o botão "Perdido"
 import LeadModal from '@/components/crm/LeadModal';
 import { LeadTasksModal } from '@/components/crm/LeadTasksModal';
 import { ScheduleMeetingModal } from '@/components/crm/ScheduleMeetingModal';
@@ -18,7 +18,7 @@ import {
   KeyboardSensor,
   closestCorners,
   MeasuringStrategy,
-  useDroppable, // Importar useDroppable
+  useDroppable,
 } from '@dnd-kit/core';
 import {
   SortableContext,
@@ -40,6 +40,7 @@ interface DraggableLeadCardProps {
   onOpenMeetingModal: (e: React.MouseEvent, lead: CrmLead) => void;
   onOpenProposalModal: (e: React.MouseEvent, lead: CrmLead) => void;
   onOpenSaleModal: (e: React.MouseEvent, lead: CrmLead) => void;
+  onMarkAsLost: (e: React.MouseEvent, lead: CrmLead) => void; // Nova prop
 }
 
 const DraggableLeadCard: React.FC<DraggableLeadCardProps> = ({
@@ -50,6 +51,7 @@ const DraggableLeadCard: React.FC<DraggableLeadCardProps> = ({
   onOpenMeetingModal,
   onOpenProposalModal,
   onOpenSaleModal,
+  onMarkAsLost, // Usar a nova prop
 }) => {
   const {
     attributes,
@@ -117,6 +119,9 @@ const DraggableLeadCard: React.FC<DraggableLeadCardProps> = ({
         </button>
         <button onClick={(e) => onOpenSaleModal(e, lead)} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-brand-50 dark:bg-brand-900/20 text-brand-700 dark:text-brand-300 hover:bg-brand-100 dark:hover:bg-brand-900/30 transition">
           <DollarSign className="w-3 h-3 mr-1" /> Vendido
+        </button>
+        <button onClick={(e) => onMarkAsLost(e, lead)} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/30 transition">
+          <XCircle className="w-3 h-3 mr-1" /> Perdido
         </button>
       </div>
     </div>
@@ -307,6 +312,28 @@ const CrmPage = () => {
     setIsSaleModalOpen(true);
   };
 
+  const handleMarkAsLost = async (e: React.MouseEvent, lead: CrmLead) => {
+    e.stopPropagation();
+    if (!window.confirm(`Tem certeza que deseja marcar o lead "${lead.name}" como PERDIDO?`)) {
+      return;
+    }
+
+    const lostStage = crmStages.find(s => s.is_lost && s.is_active);
+
+    if (!lostStage) {
+      toast.error("A etapa 'Perdida' não foi encontrada ou não está ativa. Por favor, configure-a nas configurações do CRM.");
+      return;
+    }
+
+    try {
+      await updateCrmLeadStage(lead.id, lostStage.id);
+      toast.success(`Lead "${lead.name}" marcado como PERDIDO!`);
+    } catch (error: any) {
+      console.error("Erro ao marcar lead como perdido:", error);
+      toast.error(`Erro ao marcar lead como perdido: ${error.message}`);
+    }
+  };
+
   // Dnd-kit handlers
   const handleDragStart = (event: any) => {
     setActiveDragId(event.active.id);
@@ -318,10 +345,30 @@ const CrmPage = () => {
     if (!active || !over) return;
 
     const draggedLeadId = active.id as string;
-    const newStageId = over.id as string;
+    const targetId = over.id as string;
 
     const draggedLead = consultantLeads.find(lead => lead.id === draggedLeadId);
     if (!draggedLead) return;
+
+    // Determine the new stage ID
+    let newStageId: string | undefined;
+
+    // Prioritize dropping directly on a KanbanColumn (stage)
+    if (pipelineStages.some(stage => stage.id === targetId)) {
+      newStageId = targetId;
+    } else {
+      // If dropped on another lead, find the stage of that lead
+      const targetLead = consultantLeads.find(lead => lead.id === targetId);
+      if (targetLead) {
+        newStageId = targetLead.stage_id;
+      }
+    }
+
+    if (!newStageId) {
+      console.warn("Could not determine new stage ID. No update.");
+      setActiveDragId(null);
+      return;
+    }
 
     // Only update if the stage has actually changed
     if (draggedLead.stage_id !== newStageId) {
@@ -375,7 +422,7 @@ const CrmPage = () => {
           <p className="text-gray-500 dark:text-gray-400">Gerencie seus leads e acompanhe o funil de vendas.</p>
         </div>
         <div className="flex items-center space-x-4 flex-grow md:flex-grow-0 justify-end">
-          <div className="relative flex-1 max-w-xs">
+          <div className="relative flex-1 md:w-64">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <Search className="h-4 w-4 text-gray-400" />
             </div>
@@ -432,6 +479,7 @@ const CrmPage = () => {
                         onOpenMeetingModal={handleOpenMeetingModal}
                         onOpenProposalModal={handleOpenProposalModal}
                         onOpenSaleModal={handleOpenSaleModal}
+                        onMarkAsLost={handleMarkAsLost} // Passar a nova função
                       />
                     ))
                   )}
@@ -452,6 +500,7 @@ const CrmPage = () => {
                 onOpenMeetingModal={handleOpenMeetingModal}
                 onOpenProposalModal={handleOpenProposalModal}
                 onOpenSaleModal={handleOpenSaleModal}
+                onMarkAsLost={handleMarkAsLost} // Passar a nova função para o overlay também
               />
             ) : null}
           </DragOverlay>,
