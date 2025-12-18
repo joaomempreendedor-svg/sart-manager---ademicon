@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Plus, Search, Loader2, Phone, Mail, Tag, MessageSquare, TrendingUp, ListTodo, CalendarPlus, Send, DollarSign, Edit2, Trash2, XCircle } from 'lucide-react'; // Adicionado XCircle para o botão "Perdido"
+import { Plus, Search, Loader2, Phone, Mail, Tag, MessageSquare, TrendingUp, ListTodo, CalendarPlus, Send, DollarSign, Edit2, Trash2, XCircle } from 'lucide-react';
 import LeadModal from '@/components/crm/LeadModal';
 import { LeadTasksModal } from '@/components/crm/LeadTasksModal';
 import { ScheduleMeetingModal } from '@/components/crm/ScheduleMeetingModal';
@@ -40,7 +40,7 @@ interface DraggableLeadCardProps {
   onOpenMeetingModal: (e: React.MouseEvent, lead: CrmLead) => void;
   onOpenProposalModal: (e: React.MouseEvent, lead: CrmLead) => void;
   onOpenSaleModal: (e: React.MouseEvent, lead: CrmLead) => void;
-  onMarkAsLost: (e: React.MouseEvent, lead: CrmLead) => void; // Nova prop
+  onMarkAsLost: (e: React.MouseEvent, lead: CrmLead) => void;
 }
 
 const DraggableLeadCard: React.FC<DraggableLeadCardProps> = ({
@@ -51,7 +51,7 @@ const DraggableLeadCard: React.FC<DraggableLeadCardProps> = ({
   onOpenMeetingModal,
   onOpenProposalModal,
   onOpenSaleModal,
-  onMarkAsLost, // Usar a nova prop
+  onMarkAsLost,
 }) => {
   const {
     attributes,
@@ -145,7 +145,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ id, title, leadCount, total
   return (
     <div
       ref={setNodeRef}
-      className="flex-shrink-0 w-80 bg-gray-100 dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700"
+      className="flex-1 min-w-[280px] max-w-[350px] bg-gray-100 dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700"
     >
       <div className="p-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
         <h3 className="font-semibold text-gray-900 dark:text-white">{title}</h3>
@@ -416,13 +416,13 @@ const CrmPage = () => {
 
   return (
     <div className="p-8 min-h-screen bg-gray-50 dark:bg-slate-900">
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Meu CRM - {activePipeline.name}</h1>
           <p className="text-gray-500 dark:text-gray-400">Gerencie seus leads e acompanhe o funil de vendas.</p>
         </div>
-        <div className="flex items-center space-x-4 flex-grow md:flex-grow-0 justify-end">
-          <div className="relative flex-1 md:w-64">
+        <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-4 w-full md:w-auto">
+          <div className="relative w-full sm:max-w-xs">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <Search className="h-4 w-4 text-gray-400" />
             </div>
@@ -436,7 +436,7 @@ const CrmPage = () => {
           </div>
           <button
             onClick={handleAddNewLead}
-            className="flex items-center justify-center space-x-2 bg-brand-600 hover:bg-brand-700 text-white py-2 px-4 rounded-lg transition font-medium"
+            className="flex items-center justify-center space-x-2 bg-brand-600 hover:bg-brand-700 text-white py-2 px-4 rounded-lg transition font-medium w-full sm:w-auto"
           >
             <Plus className="w-5 h-5" />
             <span>Novo Lead</span>
@@ -455,7 +455,7 @@ const CrmPage = () => {
           },
         }}
       >
-        <div className="flex overflow-x-auto pb-4 space-x-6 custom-scrollbar">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6 pb-4"> {/* Alterado para grid responsivo */}
           {pipelineStages.map(stage => (
             <KanbanColumn
               key={stage.id}
@@ -479,7 +479,7 @@ const CrmPage = () => {
                         onOpenMeetingModal={handleOpenMeetingModal}
                         onOpenProposalModal={handleOpenProposalModal}
                         onOpenSaleModal={handleOpenSaleModal}
-                        onMarkAsLost={handleMarkAsLost} // Passar a nova função
+                        onMarkAsLost={handleMarkAsLost}
                       />
                     ))
                   )}
@@ -500,7 +500,7 @@ const CrmPage = () => {
                 onOpenMeetingModal={handleOpenMeetingModal}
                 onOpenProposalModal={handleOpenProposalModal}
                 onOpenSaleModal={handleOpenSaleModal}
-                onMarkAsLost={handleMarkAsLost} // Passar a nova função para o overlay também
+                onMarkAsLost={handleMarkAsLost}
               />
             ) : null}
           </DragOverlay>,
