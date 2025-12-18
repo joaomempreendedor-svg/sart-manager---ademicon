@@ -712,7 +712,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     console.log(`[deleteTeamMember] Tentando excluir membro com db_id: ${m.db_id} e user_id (gestor): ${JOAO_GESTOR_AUTH_ID}`); // Use JOAO_GESTOR_AUTH_ID
     
     try {
-      const { error } = await supabase.from('team_members').delete().match({ id: m.db_id, user_id: JOAO_GESTOR_AUTH_ID }); // Use JOAO_GESTOR_AUTH_ID
+      const { error } = await supabase.from('team_members').delete().match({ id: m.db_id, user_id: JOAO_GESTOR_AUTH_ID });
       
       if (error) {
         console.error(`[deleteTeamMember] Erro ao excluir membro do banco de dados:`, error);
