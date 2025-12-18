@@ -6,6 +6,7 @@ import LeadModal from '@/components/crm/LeadModal'; // Novo componente
 import { LeadTasksModal } from '@/components/crm/LeadTasksModal'; // Importar o novo modal de tarefas
 import { ScheduleMeetingModal } from '@/components/crm/ScheduleMeetingModal'; // NOVO: Importar o modal de agendamento de reunião
 import { ProposalModal } from '@/components/crm/ProposalModal'; // NOVO: Importar o modal de proposta
+import { SaleModal } from '@/components/crm/SaleModal'; // NOVO: Importar o modal de venda
 
 const CrmPage = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -19,6 +20,8 @@ const CrmPage = () => {
   const [selectedLeadForMeeting, setSelectedLeadForMeeting] = useState<CrmLead | null>(null); // NOVO: Lead selecionado para reunião
   const [isProposalModalOpen, setIsProposalModalOpen] = useState(false); // NOVO: Estado para o modal de proposta
   const [selectedLeadForProposal, setSelectedLeadForProposal] = useState<CrmLead | null>(null); // NOVO: Lead selecionado para proposta
+  const [isSaleModalOpen, setIsSaleModalOpen] = useState(false); // NOVO: Estado para o modal de venda
+  const [selectedLeadForSale, setSelectedLeadForSale] = useState<CrmLead | null>(null); // NOVO: Lead selecionado para venda
 
   const activePipeline = useMemo(() => {
     return crmPipelines.find(p => p.is_active) || crmPipelines[0];
@@ -144,6 +147,13 @@ const CrmPage = () => {
     }
   };
 
+  // NOVO: Função para abrir o modal de venda
+  const handleOpenSaleModal = (e: React.MouseEvent, lead: CrmLead) => {
+    e.stopPropagation();
+    setSelectedLeadForSale(lead);
+    setIsSaleModalOpen(true);
+  };
+
 
   if (isAuthLoading || isDataLoading) {
     return (
@@ -262,7 +272,7 @@ const CrmPage = () => {
                       <button onClick={(e) => handleOpenProposalModal(e, lead)} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/30 transition">
                         <Send className="w-3 h-3 mr-1" /> Proposta
                       </button>
-                      <button onClick={(e) => e.stopPropagation()} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-brand-50 dark:bg-brand-900/20 text-brand-700 dark:text-brand-300 hover:bg-brand-100 dark:hover:bg-brand-900/30 transition">
+                      <button onClick={(e) => handleOpenSaleModal(e, lead)} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-brand-50 dark:bg-brand-900/20 text-brand-700 dark:text-brand-300 hover:bg-brand-100 dark:hover:bg-brand-900/30 transition">
                         <DollarSign className="w-3 h-3 mr-1" /> Vendido
                       </button>
                     </div>
@@ -308,6 +318,15 @@ const CrmPage = () => {
           onClose={() => setIsProposalModalOpen(false)}
           lead={selectedLeadForProposal}
           onSave={handleSaveProposal}
+        />
+      )}
+
+      {/* NOVO: Modal de Venda */}
+      {isSaleModalOpen && selectedLeadForSale && (
+        <SaleModal
+          isOpen={isSaleModalOpen}
+          onClose={() => setIsSaleModalOpen(false)}
+          lead={selectedLeadForSale}
         />
       )}
     </div>
