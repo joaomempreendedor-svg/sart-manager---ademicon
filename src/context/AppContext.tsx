@@ -61,7 +61,7 @@ const clearStaleAuth = () => {
 };
 
 // ID do gestor principal para centralizar todas as configurações e dados
-const JOAO_GESTOR_AUTH_ID = "COLE_O_NOVO_ID_AQUI"; // SUBSTITUA ESTE ID PELO ID REAL DO SEU USUÁRIO GESTOR NO SUPABASE
+const JOAO_GESTOR_AUTH_ID = "122f554a-cad6-4f8a-ba18-31dc00000000"; // SUBSTITUA ESTE ID PELO ID REAL DO SEU USUÁRIO GESTOR NO SUPABASE
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { user } = useAuth();
