@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Plus, Search, Loader2, Phone, Mail, Tag, MessageSquare, TrendingUp, ListTodo, CalendarPlus, Send, DollarSign, Edit2, Trash2, XCircle } from 'lucide-react';
+import { Plus, Search, Loader2, Phone, Mail, Tag, MessageSquare, TrendingUp, ListTodo, CalendarPlus, Send, DollarSign, Edit2, Trash2, XCircle, ChevronDown } from 'lucide-react';
 import LeadModal from '@/components/crm/LeadModal';
 import { LeadTasksModal } from '@/components/crm/LeadTasksModal';
 import { ScheduleMeetingModal } from '@/components/crm/ScheduleMeetingModal';
@@ -27,8 +27,18 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { createPortal } from 'react-dom';
-import { CrmLead } from '@/types';
+import { CrmLead, CrmStage } from '@/types';
 import toast from 'react-hot-toast';
+
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
+
 
 // Componente para o cartão de Lead arrastável
 interface DraggableLeadCardProps {
@@ -40,6 +50,8 @@ interface DraggableLeadCardProps {
   onOpenProposalModal: (e: React.MouseEvent, lead: CrmLead) => void;
   onOpenSaleModal: (e: React.MouseEvent, lead: CrmLead) => void;
   onMarkAsLost: (e: React.MouseEvent, lead: CrmLead) => void;
+  onChangeStage: (leadId: string, newStageId: string) => void; // Nova prop
+  pipelineStages: CrmStage[]; // Nova prop
 }
 
 const DraggableLeadCard: React.FC<DraggableLeadCardProps> = ({
@@ -51,6 +63,8 @@ const DraggableLeadCard: React.FC<DraggableLeadCardProps> = ({
   onOpenProposalModal,
   onOpenSaleModal,
   onMarkAsLost,
+  onChangeStage, // Usar a nova prop
+  pipelineStages, // Usar a nova prop
 }) => {
   const {
     attributes,
@@ -145,6 +159,20 @@ const DraggableLeadCard: React.FC<DraggableLeadCardProps> = ({
         >
           <XCircle className="w-4 h-4" />
         </button>
+      </div>
+      <div className="mt-3 pt-3 border-t border-gray-100 dark:border-slate-600">
+        <Select onValueChange={(newStageId) => onChangeStage(lead.id, newStageId)} value={lead.stage_id}>
+          <SelectTrigger className="w-full h-8 text-xs dark:bg-slate-800 dark:text-white dark:border-slate-600">
+            <SelectValue placeholder="Mover para..." />
+          </SelectTrigger>
+          <SelectContent className="dark:bg-slate-800 dark:text-white dark:border-slate-700">
+            {pipelineStages.map(stage => (
+              <SelectItem key={stage.id} value={stage.id}>
+                {stage.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
     </div>
   );
@@ -374,6 +402,26 @@ const CrmPage = () => {
     }
   };
 
+  // NOVO: Handler para mudar a etapa via Select
+  const handleChangeStageFromSelect = async (leadId: string, newStageId: string) => {
+    const leadToUpdate = consultantLeads.find(lead => lead.id === leadId);
+    if (!leadToUpdate) {
+      toast.error("Lead não encontrado.");
+      return;
+    }
+    if (leadToUpdate.stage_id === newStageId) {
+      // toast.info("O lead já está nesta etapa.");
+      return;
+    }
+    try {
+      await updateCrmLeadStage(leadId, newStageId);
+      toast.success(`Lead "${leadToUpdate.name}" movido para a nova etapa!`);
+    } catch (error: any) {
+      console.error("Erro ao mover o lead via select:", error);
+      toast.error(`Erro ao mover o lead: ${error.message}`);
+    }
+  };
+
   // Dnd-kit handlers
   const handleDragStart = (event: any) => {
     setActiveDragId(event.active.id);
@@ -553,6 +601,8 @@ const CrmPage = () => {
                     onOpenProposalModal={handleOpenProposalModal}
                     onOpenSaleModal={handleOpenSaleModal}
                     onMarkAsLost={handleMarkAsLost}
+                    onChangeStage={handleChangeStageFromSelect} // Passar o handler
+                    pipelineStages={pipelineStages} // Passar as etapas
                   />
                 ))
               )}
@@ -572,6 +622,8 @@ const CrmPage = () => {
                 onOpenProposalModal={handleOpenProposalModal}
                 onOpenSaleModal={handleOpenSaleModal}
                 onMarkAsLost={handleMarkAsLost}
+                onChangeStage={handleChangeStageFromSelect} // Passar o handler
+                pipelineStages={pipelineStages} // Passar as etapas
               />
             ) : null}
           </DragOverlay>,
