@@ -14,7 +14,7 @@ serve(async (req) => {
   try {
     const { email, name, tempPassword, login: consultantLogin } = await req.json();
 
-    console.log(`[Edge Function] Received request for email: ${email}, name: ${name}, tempPassword: [HIDDEN], login: ${consultantLogin}`);
+    console.log(`[Edge Function] Received request for email: ${email}, name: ${name}, login: ${consultantLogin}`);
 
     if (!email || !name || !tempPassword) {
       console.error('[Edge Function] Missing required fields: email, name, or tempPassword.');

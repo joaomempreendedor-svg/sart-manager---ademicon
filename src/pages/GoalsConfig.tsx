@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '@/context/AppContext';
-import { Edit2, Trash2, Plus, ArrowUp, ArrowDown, Save, X, RotateCcw, UserPlus } from 'lucide-react';
-import { AssignNinetyDayGoalsModal } from '@/components/AssignNinetyDayGoalsModal'; // Importar o novo modal
+import { Edit2, Trash2, Plus, ArrowUp, ArrowDown, Save, X, RotateCcw } from 'lucide-react';
 
 export const GoalsConfig = () => {
   const { consultantGoalsStructure, addGoalItem, updateGoalItem, deleteGoalItem, moveGoalItem, resetGoalsToDefault } = useApp();
@@ -11,8 +10,6 @@ export const GoalsConfig = () => {
 
   const [addingToStage, setAddingToStage] = useState<string | null>(null);
   const [newLabel, setNewLabel] = useState('');
-
-  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false); // Estado para o novo modal
 
   const startEdit = (stageId: string, itemId: string, currentLabel: string) => {
     setEditingItem({ stageId, itemId });
@@ -58,19 +55,10 @@ export const GoalsConfig = () => {
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Configurar Metas do Consultor</h1>
             <p className="text-gray-500 dark:text-gray-400">Edite as metas, objetivos e itens de acompanhamento.</p>
           </div>
-          <div className="flex items-center space-x-2">
-            <button 
-                onClick={() => setIsAssignModalOpen(true)} 
-                className="text-xs flex items-center text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300 border border-brand-200 dark:border-brand-900 rounded px-3 py-1.5 transition"
-            >
-                <UserPlus className="w-3 h-3 mr-1.5" />
-                Atribuir Plano 90 Dias
-            </button>
-            <button onClick={handleReset} className="text-xs flex items-center text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 border border-red-200 dark:border-red-900 rounded px-3 py-1.5 transition">
-                <RotateCcw className="w-3 h-3 mr-1.5" />
-                Restaurar Padrão
-            </button>
-          </div>
+          <button onClick={handleReset} className="text-xs flex items-center text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 border border-red-200 dark:border-red-900 rounded px-3 py-1.5 transition">
+              <RotateCcw className="w-3 h-3 mr-1.5" />
+              Restaurar Padrão
+          </button>
       </div>
 
       <div className="space-y-8">
@@ -131,7 +119,7 @@ export const GoalsConfig = () => {
                           deleteGoalItem(stage.id, item.id);
                         }
                       }}
-                      className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-400 dark:hover:bg-red-900/20 rounded"
+                      className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:text-red-400 dark:hover:bg-red-900/20 rounded"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -177,11 +165,6 @@ export const GoalsConfig = () => {
           </div>
         ))}
       </div>
-
-      <AssignNinetyDayGoalsModal 
-        isOpen={isAssignModalOpen} 
-        onClose={() => setIsAssignModalOpen(false)} 
-      />
     </div>
   );
 };

@@ -1,19 +1,11 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/context/AuthContext'; // Import useAuth
 import { useNavigate } from 'react-router-dom';
-import { ChevronRight, User, Calendar, CheckCircle2, TrendingUp, AlertCircle, Clock, Users, Star, CheckSquare, CalendarCheck, XCircle, BellRing, UserRound } from 'lucide-react';
+import { ChevronRight, User, Calendar, CheckCircle2, TrendingUp, AlertCircle, Clock, Users, Star, CheckSquare, CalendarCheck, XCircle, BellRing, UserRound } from 'lucide-react'; // Adicionado BellRing e UserRound
 import { CandidateStatus, ChecklistTaskState, LeadTask } from '@/types';
 import { TableSkeleton } from '@/components/TableSkeleton';
 import { ScheduleInterviewModal } from '@/components/ScheduleInterviewModal';
-// import { KanbanBoard } from '@/components/crm/KanbanBoard'; // Importar o KanbanBoard - REMOVIDO
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 
 const StatusBadge = ({ status }: { status: CandidateStatus }) => {
   const colors = {
@@ -35,63 +27,39 @@ const StatusBadge = ({ status }: { status: CandidateStatus }) => {
 
 type AgendaItem = {
   id: string;
-  type: 'task' | 'interview' | 'feedback' | 'meeting';
+  type: 'task' | 'interview' | 'feedback' | 'meeting'; // Adicionado 'meeting'
   title: string;
   personName: string;
   personId: string;
-  personType: 'candidate' | 'teamMember' | 'lead';
+  personType: 'candidate' | 'teamMember' | 'lead'; // Adicionado 'lead'
   dueDate: string;
   meetingDetails?: {
     startTime: string;
     endTime: string;
     consultantName: string;
-    taskId: string;
+    managerInvitationStatus?: 'pending' | 'accepted' | 'declined';
+    taskId: string; // Para identificar a tarefa de reunião
   };
 };
 
 export const Dashboard = () => {
-  const { user } = useAuth();
-  const { 
-    candidates, 
-    checklistStructure, 
-    teamMembers, 
-    isDataLoading, 
-    leadTasks, 
-    crmLeads, 
-    crmPipelines, 
-    crmStages, 
-    crmFields,
-    addCrmLead, 
-    updateCrmLead, 
-    deleteCrmLead, 
-    updateCrmLeadStage 
-  } = useApp();
+  const { user } = useAuth(); // Obter o usuário logado
+  const { candidates, checklistStructure, teamMembers, isDataLoading, leadTasks, crmLeads, updateLeadMeetingInvitationStatus } = useApp();
   const navigate = useNavigate();
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
-  // const [selectedConsultantId, setSelectedConsultantId] = useState<string | null>(null); // REMOVIDO
-
-  const today = useMemo(() => new Date(), []);
-  const todayStr = useMemo(() => today.toISOString().split('T')[0], [today]);
-
-  const consultants = useMemo(() => {
-    return teamMembers.filter(m => m.isActive && (m.roles.includes('CONSULTOR') || m.roles.includes('Prévia') || m.roles.includes('Autorizado')));
-  }, [teamMembers]);
-
-  // useEffect(() => { // REMOVIDO
-  //   if (consultants.length > 0 && !selectedConsultantId) {
-  //     setSelectedConsultantId(consultants[0].id);
-  //   }
-  // }, [consultants, selectedConsultantId]);
 
   const totalCandidates = candidates.length;
   const authorized = teamMembers.filter(m => m.isActive && m.roles.includes('Autorizado')).length;
   const inTraining = candidates.filter(c => c.status === 'Acompanhamento 90 Dias').length;
   const activeTeam = teamMembers.filter(m => m.isActive).length;
 
-  const { todayAgenda, overdueTasks } = useMemo(() => {
+  const { todayAgenda, overdueTasks, meetingInvitations } = useMemo(() => {
+    const todayStr = new Date().toISOString().split('T')[0];
     const todayAgendaItems: AgendaItem[] = [];
     const overdueItems: AgendaItem[] = [];
+    const invitationsItems: AgendaItem[] = [];
 
+    // 1. Checklist Tasks (Candidatos)
     candidates.forEach(candidate => {
       Object.entries(candidate.checklistProgress || {}).forEach(([taskId, state]) => {
         if (state.dueDate) {
@@ -116,6 +84,7 @@ export const Dashboard = () => {
       });
     });
 
+    // 2. Interviews (Candidatos)
     candidates.forEach(candidate => {
       if (candidate.interviewDate === todayStr) {
         todayAgendaItems.push({
@@ -130,6 +99,7 @@ export const Dashboard = () => {
       }
     });
 
+    // 3. Feedbacks (Candidatos e Membros da Equipe)
     const allPeople = [
       ...candidates.map(c => ({ ...c, personType: 'candidate' as const })),
       ...teamMembers.map(m => ({ ...m, personType: 'teamMember' as const }))
@@ -150,8 +120,43 @@ export const Dashboard = () => {
       });
     });
 
-    return { todayAgenda: todayAgendaItems, overdueTasks: overdueItems };
-  }, [candidates, teamMembers, checklistStructure, todayStr]);
+    // 4. Lead Tasks (CRM) - para o consultor logado
+    // No dashboard do gestor, queremos ver convites de reunião
+    if (user?.role === 'GESTOR' || user?.role === 'ADMIN') {
+      console.log("[Dashboard] Checking meeting invitations for Gestor:", user.id);
+      console.log("[Dashboard] All leadTasks:", leadTasks.map(t => ({ id: t.id, type: t.type, manager_id: t.manager_id, manager_invitation_status: t.manager_invitation_status, user_id: t.user_id, lead_id: t.lead_id })));
+
+      leadTasks.filter(task => 
+        task.type === 'meeting' && 
+        task.manager_id === user.id && 
+        task.manager_invitation_status === 'pending'
+      ).forEach(task => {
+        const lead = crmLeads.find(l => l.id === task.lead_id);
+        const consultant = teamMembers.find(tm => tm.id === task.user_id); // user_id da tarefa é o consultor
+        if (lead && consultant && task.meeting_start_time && task.meeting_end_time) {
+          invitationsItems.push({
+            id: `meeting-invite-${task.id}`,
+            type: 'meeting',
+            title: `Convite de Reunião: ${task.title}`,
+            personName: lead.name || 'Lead Desconhecido',
+            personId: lead.id,
+            personType: 'lead',
+            dueDate: task.due_date || new Date(task.meeting_start_time).toISOString().split('T')[0],
+            meetingDetails: {
+              startTime: new Date(task.meeting_start_time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+              endTime: new Date(task.meeting_end_time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+              consultantName: consultant.name,
+              managerInvitationStatus: task.manager_invitation_status,
+              taskId: task.id,
+            }
+          });
+        }
+      });
+      console.log("[Dashboard] Generated meeting invitations:", invitationsItems);
+    }
+
+    return { todayAgenda: todayAgendaItems, overdueTasks: overdueItems, meetingInvitations: invitationsItems };
+  }, [candidates, teamMembers, checklistStructure, leadTasks, crmLeads, user]);
 
   const getAgendaIcon = (type: AgendaItem['type']) => {
     switch (type) {
@@ -167,37 +172,45 @@ export const Dashboard = () => {
       navigate(`/candidate/${item.personId}`);
     } else if (item.personType === 'lead') {
       // Navegar para o CRM ou para uma view específica do lead
-      // Para o gestor, podemos redirecionar para o CRM e pré-selecionar o consultor
-      navigate(`/gestor/crm-mirror?consultantId=${item.personId}`); 
+      navigate(`/consultor/crm`); // Ou para uma rota de detalhe do lead se existir
     } else {
-      navigate('/feedbacks');
+      navigate('/feedbacks'); // Or a future team member detail page
     }
   };
 
-  // CRM Mirror Logic - REMOVIDO DO DASHBOARD
-  // const activePipeline = useMemo(() => {
-  //   return crmPipelines.find(p => p.is_active) || crmPipelines[0];
-  // }, [crmPipelines]);
+  const handleInvitationResponse = async (taskId: string, status: 'accepted' | 'declined', meetingDetails: AgendaItem['meetingDetails']) => {
+    if (!user || !meetingDetails) return;
 
-  // const pipelineStages = useMemo(() => {
-  //   if (!activePipeline) return [];
-  //   return crmStages
-  //     .filter(s => s.pipeline_id === activePipeline.id && s.is_active)
-  //     .sort((a, b) => a.order_index - b.order_index);
-  // }, [crmStages, activePipeline]);
+    try {
+      await updateLeadMeetingInvitationStatus(taskId, status);
+      alert(`Convite de reunião ${status === 'accepted' ? 'aceito' : 'recusado'} com sucesso!`);
 
-  // const leadsForSelectedConsultant = useMemo(() => {
-  //   if (!selectedConsultantId) return [];
-  //   return crmLeads.filter(lead => lead.consultant_id === selectedConsultantId);
-  // }, [crmLeads, selectedConsultantId]);
+      // Se aceito, adicionar ao Google Agenda do gestor
+      if (status === 'accepted') {
+        const startDateTime = new Date(meetingDetails.dueDate + 'T' + meetingDetails.startTime);
+        const endDateTime = new Date(meetingDetails.dueDate + 'T' + meetingDetails.endTime);
 
-  if (isDataLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[calc(100vh-theme(spacing.16))]">
-        <Loader2 className="w-12 h-12 text-brand-500 animate-spin" />
-      </div>
-    );
-  }
+        const googleCalendarUrl = new URL('https://calendar.google.com/calendar/render');
+        googleCalendarUrl.searchParams.append('action', 'TEMPLATE');
+        googleCalendarUrl.searchParams.append('text', encodeURIComponent(meetingDetails.title || 'Reunião'));
+        googleCalendarUrl.searchParams.append('dates', `${startDateTime.toISOString().replace(/[-:]|\.\d{3}/g, '')}/${endDateTime.toISOString().replace(/[-:]|\.\d{3}/g, '')}`);
+        googleCalendarUrl.searchParams.append('details', encodeURIComponent(`Reunião com o lead ${meetingDetails.personName} e consultor ${meetingDetails.consultantName}`));
+        if (user.email) {
+          googleCalendarUrl.searchParams.append('add', encodeURIComponent(user.email));
+        }
+        // Adicionar o email do consultor que criou a reunião, se disponível
+        const consultant = teamMembers.find(tm => tm.name === meetingDetails.consultantName);
+        if (consultant?.email) {
+          googleCalendarUrl.searchParams.append('add', encodeURIComponent(consultant.email));
+        }
+
+        window.open(googleCalendarUrl.toString(), '_blank');
+      }
+    } catch (error) {
+      console.error("Erro ao responder convite:", error);
+      alert("Erro ao responder ao convite. Tente novamente.");
+    }
+  };
 
   return (
     <div className="p-8 max-w-7xl mx-auto">
@@ -247,6 +260,51 @@ export const Dashboard = () => {
           </div>
         </div>
       </div>
+
+      {/* Meeting Invitations Section */}
+      {user?.role === 'GESTOR' && meetingInvitations.length > 0 && (
+        <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl shadow-sm flex flex-col mb-8">
+          <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700 flex items-center space-x-2 bg-purple-50 dark:bg-purple-900/20 rounded-t-xl">
+            <BellRing className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+            <h2 className="text-lg font-semibold text-purple-800 dark:text-purple-300">Convites de Reunião</h2>
+            <span className="bg-purple-200 dark:bg-purple-800 text-purple-800 dark:text-purple-100 text-xs font-bold px-2 py-0.5 rounded-full">{meetingInvitations.length}</span>
+          </div>
+          <div className="flex-1 p-0 overflow-y-auto max-h-80 custom-scrollbar">
+            <ul className="divide-y divide-gray-100 dark:divide-slate-700">
+              {meetingInvitations.map((item) => (
+                <li key={item.id} className="p-4 hover:bg-purple-50 dark:hover:bg-purple-900/10 transition">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-900 dark:text-gray-200">{item.title}</p>
+                      <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 mt-1 space-x-2">
+                        <span className="flex items-center"><UserRound className="w-3 h-3 mr-1" /> Consultor: <span className="font-semibold ml-1">{item.meetingDetails?.consultantName}</span></span>
+                        <span className="flex items-center"><Calendar className="w-3 h-3 mr-1" /> {new Date(item.dueDate + 'T00:00:00').toLocaleDateString()}</span>
+                        <span className="flex items-center"><Clock className="w-3 h-3 mr-1" /> {item.meetingDetails?.startTime} - {item.meetingDetails?.endTime}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <button 
+                        onClick={() => handleInvitationResponse(item.meetingDetails!.taskId, 'accepted', item.meetingDetails)}
+                        className="px-3 py-1.5 bg-green-500 text-white rounded-md text-xs font-medium hover:bg-green-600 flex items-center space-x-1"
+                      >
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span>Aceitar</span>
+                      </button>
+                      <button 
+                        onClick={() => handleInvitationResponse(item.meetingDetails!.taskId, 'declined', item.meetingDetails)}
+                        className="px-3 py-1.5 bg-red-500 text-white rounded-md text-xs font-medium hover:bg-red-600 flex items-center space-x-1"
+                      >
+                        <XCircle className="w-4 h-4" />
+                        <span>Recusar</span>
+                      </button>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
 
       {/* Agenda Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
@@ -304,54 +362,6 @@ export const Dashboard = () => {
             </div>
         </div>
       </div>
-
-      {/* CRM Mirror Section - REMOVIDO */}
-      {/* <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl shadow-sm overflow-hidden mb-8">
-        <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
-            <TrendingUp className="w-5 h-5 mr-2 text-brand-500" />
-            CRM do Consultor
-          </h2>
-          <div className="flex items-center space-x-2">
-            <span className="text-sm text-gray-500 dark:text-gray-400">Visualizando:</span>
-            <Select value={selectedConsultantId || ''} onValueChange={setSelectedConsultantId}>
-              <SelectTrigger className="w-[200px] dark:bg-slate-700 dark:text-white dark:border-slate-600">
-                <SelectValue placeholder="Selecione o Consultor" />
-              </SelectTrigger>
-              <SelectContent className="bg-white text-gray-900 border-gray-200 dark:bg-slate-800 dark:text-white dark:border-slate-700">
-                {consultants.map(consultant => (
-                  <SelectItem key={consultant.id} value={consultant.id}>
-                    {consultant.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        
-        {selectedConsultantId && activePipeline && pipelineStages.length > 0 ? (
-          <div className="p-4 h-[600px]">
-            <KanbanBoard
-              leads={leadsForSelectedConsultant}
-              pipelineStages={pipelineStages}
-              crmFields={crmFields.filter(f => f.is_active)}
-              consultantId={selectedConsultantId}
-              onUpdateLeadStage={updateCrmLeadStage}
-              onAddLead={addCrmLead}
-              onUpdateLead={updateCrmLead}
-              onDeleteLead={deleteCrmLead}
-            />
-          </div>
-        ) : (
-          <div className="p-6 text-center text-gray-400">
-            {consultants.length === 0 ? (
-              <p>Nenhum consultor ativo encontrado para visualizar o CRM.</p>
-            ) : (
-              <p>Selecione um consultor para ver o CRM dele.</p>
-            )}
-          </div>
-        )}
-      </div> */}
 
       <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">

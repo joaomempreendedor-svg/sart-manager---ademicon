@@ -208,8 +208,6 @@ export interface TeamMember {
   hasLogin?: boolean; // NOVO: Indica se o membro tem um login associado (TIPO 2)
   isLegacy?: boolean; // NOVO: Indica se é um membro do TIPO 1 (antigo)
   tempPassword?: string; // NOVO: Senha temporária gerada para o primeiro acesso
-  ninetyDayGoalsProgress?: Record<string, boolean>; // NOVO: Progresso do plano de 90 dias
-  ninetyDayPlanStartDate?: string; // NOVO: Data de início do plano de 90 dias
 }
 
 // AUTHENTICATION
@@ -334,8 +332,8 @@ export interface LeadTask {
   type: 'task' | 'meeting'; // NOVO: Tipo da tarefa
   meeting_start_time?: string; // NOVO: Data e hora de início da reunião (ISO string)
   meeting_end_time?: string;   // NOVO: Data e hora de fim da reunião (ISO string)
-  // manager_id?: string; // NOVO: ID do gestor convidado - REMOVIDO
-  // manager_invitation_status?: 'pending' | 'accepted' | 'declined'; // NOVO: Status do convite - REMOVIDO
+  manager_id?: string; // NOVO: ID do gestor convidado
+  manager_invitation_status?: 'pending' | 'accepted' | 'declined'; // NOVO: Status do convite
 }
 
 // NOVO: Tipos para Checklist do Dia (Módulo 3)
@@ -491,7 +489,7 @@ export interface AppContextType {
   deleteInterviewQuestion: (sectionId: string, questionId: string) => void;
   moveInterviewQuestion: (sectionId: string, questionId: string, direction: 'up' | 'down') => void;
   resetInterviewToDefault: () => void;
-  addCommission: (commission: Commission, commissionOwnerId: string) => Promise<Commission>;
+  addCommission: (commission: Commission) => Promise<Commission>;
   updateCommission: (id: string, updates: Partial<Commission>) => Promise<void>;
   deleteCommission: (id: string) => Promise<void>;
   updateInstallmentStatus: (commissionId: string, installmentNumber: number, status: InstallmentStatus, paidDate?: string, saleType?: 'Imóvel' | 'Veículo') => Promise<void>;
@@ -557,7 +555,5 @@ export interface AppContextType {
   updateLeadTask: (id: string, updates: Partial<LeadTask>) => Promise<void>;
   deleteLeadTask: (id: string) => Promise<void>;
   toggleLeadTaskCompletion: (id: string, is_completed: boolean) => Promise<void>;
-  // updateLeadMeetingInvitationStatus: (taskId: string, status: 'pending' | 'accepted' | 'declined') => Promise<void>; // NOVO: Atualizar status do convite - REMOVIDO
-  startNinetyDayPlan: (memberId: string) => Promise<void>; // NOVO: Iniciar plano de 90 dias
-  toggleNinetyDayGoalCompletion: (memberId: string, goalItemId: string) => Promise<void>; // NOVO: Marcar item do plano de 90 dias
+  updateLeadMeetingInvitationStatus: (taskId: string, status: 'pending' | 'accepted' | 'declined') => Promise<void>; // NOVO: Atualizar status do convite
 }

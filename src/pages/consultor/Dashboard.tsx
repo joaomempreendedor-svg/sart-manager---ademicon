@@ -1,10 +1,9 @@
 import React, { useMemo, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { TrendingUp, User, CheckCircle2, ListChecks, Target, CalendarDays, Loader2, Phone, Mail, Tag, Clock, AlertCircle, Plus, DollarSign, Handshake } from 'lucide-react';
+import { TrendingUp, User, CheckCircle2, ListChecks, Target, CalendarDays, Loader2, Phone, Mail, Tag, Clock, AlertCircle, Plus } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { DailyChecklistItem, WeeklyTargetItem, MetricLog } from '@/types';
-import { DailyChecklist } from '@/pages/consultor/DailyChecklist'; // Importar o DailyChecklist
 
 const ConsultorDashboard = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -20,73 +19,43 @@ const ConsultorDashboard = () => {
     weeklyTargetItems,
     weeklyTargetAssignments,
     metricLogs,
-    commissions, // Adicionado para calcular o total vendido
-    leadTasks, // Adicionado para calcular reuniões
-    teamMembers, // Adicionado para o plano de 90 dias
-    consultantGoalsStructure, // Adicionado para o plano de 90 dias
-    toggleNinetyDayGoalCompletion, // Adicionado para o plano de 90 dias
     isDataLoading 
   } = useApp();
 
   const today = useMemo(() => new Date(), []);
   const todayFormatted = useMemo(() => today.toISOString().split('T')[0], [today]); // YYYY-MM-DD
-  const currentMonthStart = useMemo(() => {
-    const date = new Date(today);
-    date.setDate(1);
-    date.setHours(0, 0, 0, 0);
-    return date;
-  }, [today]);
-  const currentMonthEnd = useMemo(() => {
-    const date = new Date(today);
-    date.setMonth(date.getMonth() + 1);
-    date.setDate(0); // Last day of current month
-    date.setHours(23, 59, 59, 999);
-    return date;
-  }, [today]);
 
-  // --- CRM Statistics (Mês Atual) ---
-  const { totalLeadsMonth, newLeadsMonth, meetingsScheduledMonth, proposalValueMonth, totalSoldMonth } = useMemo(() => {
-    if (!user) return { totalLeadsMonth: 0, newLeadsMonth: 0, meetingsScheduledMonth: 0, proposalValueMonth: 0, totalSoldMonth: 0 };
+  // --- CRM Statistics ---
+  const { totalLeads, newLeadsThisWeek, meetingsToday, conversionRate } = useMemo(() => {
+    if (!user) return { totalLeads: 0, newLeadsThisWeek: 0, meetingsToday: 0, conversionRate: 0 };
 
     const consultantLeads = crmLeads.filter(lead => lead.consultant_id === user.id);
+    const totalLeads = consultantLeads.length;
 
-    const leadsThisMonth = consultantLeads.filter(lead => {
-      const leadDate = new Date(lead.created_at);
-      return leadDate >= currentMonthStart && leadDate <= currentMonthEnd;
-    });
+    const oneWeekAgo = new Date(today);
+    oneWeekAgo.setDate(today.getDate() - 7);
 
-    const totalLeadsMonth = leadsThisMonth.length;
-    const newLeadsMonth = leadsThisMonth.length; // Para o mês atual, "novos leads" é o total de leads criados no mês
+    const newLeadsThisWeek = consultantLeads.filter(lead => new Date(lead.created_at) >= oneWeekAgo).length;
 
-    const meetingsScheduledMonth = leadTasks.filter(task => {
-      if (task.lead_id && task.type === 'meeting' && task.meeting_start_time) {
-        const meetingDate = new Date(task.meeting_start_time);
-        return task.user_id === user.id && meetingDate >= currentMonthStart && meetingDate <= currentMonthEnd;
-      }
-      return false;
+    // Assuming 'meeting' is a custom field key for meetings and it stores a date
+    const meetingsToday = consultantLeads.filter(lead => {
+      const meetingDate = lead.data?.next_action_at; // Assuming 'next_action_at' is a custom field for next interaction date
+      return meetingDate && new Date(meetingDate).toISOString().split('T')[0] === todayFormatted;
     }).length;
 
-    const proposalValueMonth = leadsThisMonth.reduce((sum, lead) => {
-      if (lead.data?.proposal_value) {
-        return sum + (lead.data.proposal_value as number);
-      }
-      return sum;
-    }, 0);
+    // Simple conversion rate: (Won Leads / Total Leads)
+    const activePipeline = crmPipelines.find(p => p.is_active);
+    const wonStage = crmStages.find(s => s.pipeline_id === activePipeline?.id && s.is_won);
+    const lostStage = crmStages.find(s => s.pipeline_id === activePipeline?.id && s.is_lost);
 
-    const totalSoldMonth = commissions.filter(c => {
-      const commissionDate = new Date(c.date);
-      return c.user_id === user.id && commissionDate >= currentMonthStart && commissionDate <= currentMonthEnd;
-    }).reduce((sum, c) => sum + c.value, 0);
+    const wonLeads = consultantLeads.filter(lead => lead.stage_id === wonStage?.id).length;
+    const lostLeads = consultantLeads.filter(lead => lead.stage_id === lostStage?.id).length;
+    const totalClosedLeads = wonLeads + lostLeads;
 
+    const conversionRate = totalClosedLeads > 0 ? (wonLeads / totalClosedLeads) * 100 : 0;
 
-    return { 
-      totalLeadsMonth, 
-      newLeadsMonth, 
-      meetingsScheduledMonth, 
-      proposalValueMonth, 
-      totalSoldMonth 
-    };
-  }, [user, crmLeads, leadTasks, commissions, currentMonthStart, currentMonthEnd]);
+    return { totalLeads, newLeadsThisWeek, meetingsToday, conversionRate: conversionRate.toFixed(2) };
+  }, [user, crmLeads, crmPipelines, crmStages, today, todayFormatted]);
 
   // --- Daily Checklist Progress ---
   const { completedDailyTasks, totalDailyTasks, dailyProgress } = useMemo(() => {
@@ -126,10 +95,8 @@ const ConsultorDashboard = () => {
 
     const currentWeekStart = new Date(today);
     currentWeekStart.setDate(today.getDate() - today.getDay()); // Sunday
-    currentWeekStart.setHours(0, 0, 0, 0);
     const currentWeekEnd = new Date(currentWeekStart);
     currentWeekEnd.setDate(currentWeekStart.getDate() + 6); // Saturday
-    currentWeekEnd.setHours(23, 59, 59, 999);
 
     const activeTarget = weeklyTargets.find(target => {
       const targetStart = new Date(target.week_start);
@@ -165,39 +132,6 @@ const ConsultorDashboard = () => {
     return { activeWeeklyTarget: activeTarget, weeklyGoalsProgress: progress };
   }, [user, weeklyTargets, weeklyTargetItems, weeklyTargetAssignments, metricLogs, today]);
 
-  // --- 90-Day Plan Progress ---
-  const { ninetyDayPlan, ninetyDayProgress, totalNinetyDayGoals, completedNinetyDayGoals, isNinetyDayPlanActive } = useMemo(() => {
-    if (!user) return { ninetyDayPlan: [], ninetyDayProgress: 0, totalNinetyDayGoals: 0, completedNinetyDayGoals: 0, isNinetyDayPlanActive: false };
-
-    const consultant = teamMembers.find(m => m.id === user.id);
-    if (!consultant || !consultant.ninetyDayPlanStartDate) {
-      return { ninetyDayPlan: [], ninetyDayProgress: 0, totalNinetyDayGoals: 0, completedNinetyDayGoals: 0, isNinetyDayPlanActive: false };
-    }
-
-    const startDate = new Date(consultant.ninetyDayPlanStartDate);
-    const ninetyDaysLater = new Date(startDate);
-    ninetyDaysLater.setDate(startDate.getDate() + 90);
-    const isActive = new Date() <= ninetyDaysLater;
-
-    const allGoals = consultantGoalsStructure.flatMap(stage => stage.items);
-    const total = allGoals.length;
-    const completed = allGoals.filter(goal => consultant.ninetyDayGoalsProgress?.[goal.id]).length;
-    const progressPercent = total > 0 ? Math.round((completed / total) * 100) : 0;
-
-    return {
-      ninetyDayPlan: consultantGoalsStructure,
-      ninetyDayProgress: progressPercent,
-      totalNinetyDayGoals: total,
-      completedNinetyDayGoals: completed,
-      isNinetyDayPlanActive: isActive,
-    };
-  }, [user, teamMembers, consultantGoalsStructure]);
-
-  const handleToggleNinetyDayGoal = async (goalItemId: string) => {
-    if (!user) return;
-    await toggleNinetyDayGoalCompletion(user.id, goalItemId);
-  };
-
   if (isAuthLoading || isDataLoading) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-theme(spacing.16))]">
@@ -211,15 +145,25 @@ const ConsultorDashboard = () => {
       <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Olá, {user?.name.split(' ')[0]}!</h1>
       <p className="text-gray-500 dark:text-gray-400 mb-8">Bem-vindo ao seu Dashboard. Aqui estão suas principais informações e atalhos.</p>
       
-      {/* CRM Statistics (Mês Atual) */}
+      {/* CRM Statistics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
           <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
             <TrendingUp className="w-6 h-6 text-blue-600 dark:text-blue-400" />
           </div>
           <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Leads Cadastrados (Mês)</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{totalLeadsMonth}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Total de Leads</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{totalLeads}</p>
+          </div>
+        </div>
+        
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
+          <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+            <Plus className="w-6 h-6 text-green-600 dark:text-green-400" />
+          </div>
+          <div>
+            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Novos Leads (Semana)</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{newLeadsThisWeek}</p>
           </div>
         </div>
         
@@ -228,28 +172,18 @@ const ConsultorDashboard = () => {
             <CalendarDays className="w-6 h-6 text-orange-600 dark:text-orange-400" />
           </div>
           <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Reuniões Agendadas (Mês)</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{meetingsScheduledMonth}</p>
-          </div>
-        </div>
-        
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
-          <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-            <Handshake className="w-6 h-6 text-purple-600 dark:text-purple-400" />
-          </div>
-          <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Valor de Propostas (Mês)</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(proposalValueMonth)}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Reuniões Hoje</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{meetingsToday}</p>
           </div>
         </div>
 
         <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
-          <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
-            <DollarSign className="w-6 h-6 text-green-600 dark:text-green-400" />
+          <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+            <CheckCircle2 className="w-6 h-6 text-purple-600 dark:text-purple-400" />
           </div>
           <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Total Vendido (Mês)</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalSoldMonth)}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Taxa de Conversão</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{conversionRate}%</p>
           </div>
         </div>
       </div>
@@ -265,57 +199,6 @@ const ConsultorDashboard = () => {
         </div>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">{dailyProgress}% do seu checklist de hoje está completo.</p>
       </div>
-
-      {/* Daily Checklist Component */}
-      <div className="mb-8">
-        <DailyChecklist />
-      </div>
-
-      {/* 90-Day Plan Section */}
-      {isNinetyDayPlanActive && ninetyDayPlan.length > 0 ? (
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm mb-8">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center"><User className="w-5 h-5 mr-2 text-blue-500" />Meu Plano de 90 Dias</h2>
-            <span className="text-sm font-semibold text-gray-500 dark:text-gray-400">{completedNinetyDayGoals}/{totalNinetyDayGoals} Concluídas</span>
-          </div>
-          <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2.5 mb-4">
-            <div className="bg-blue-500 h-2.5 rounded-full transition-all duration-500" style={{ width: `${ninetyDayProgress}%` }}></div>
-          </div>
-          <div className="space-y-4">
-            {ninetyDayPlan.map(stage => (
-              <div key={stage.id}>
-                <h3 className="font-semibold text-gray-800 dark:text-gray-200 mb-2">{stage.title}</h3>
-                <div className="space-y-2">
-                  {stage.items.map(item => {
-                    const consultant = teamMembers.find(m => m.id === user?.id);
-                    const isCompleted = consultant?.ninetyDayGoalsProgress?.[item.id] || false;
-                    return (
-                      <div key={item.id} className="flex items-center space-x-2">
-                        <input
-                          type="checkbox"
-                          id={`90day-goal-${item.id}`}
-                          checked={isCompleted}
-                          onChange={() => handleToggleNinetyDayGoal(item.id)}
-                          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:bg-slate-700 dark:border-slate-600"
-                        />
-                        <label htmlFor={`90day-goal-${item.id}`} className={`text-sm ${isCompleted ? 'line-through text-gray-500 dark:text-gray-400' : 'text-gray-700 dark:text-gray-200'}`}>
-                          {item.label}
-                        </label>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : (
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-dashed border-gray-200 dark:border-slate-700 text-center mb-8">
-          <AlertCircle className="mx-auto w-12 h-12 text-gray-300 dark:text-slate-600 mb-4" />
-          <p className="text-gray-500 dark:text-gray-400">Nenhum plano de 90 dias ativo atribuído a você.</p>
-          <p className="text-sm text-gray-400">Entre em contato com seu gestor para iniciar seu plano de desenvolvimento.</p>
-        </div>
-      )}
 
       {/* Weekly Goals */}
       {activeWeeklyTarget && weeklyGoalsProgress.length > 0 && (
@@ -353,6 +236,43 @@ const ConsultorDashboard = () => {
           <p className="text-sm text-gray-400">Entre em contato com seu gestor para definir suas metas.</p>
         </div>
       )}
+
+      {/* Quick Access Cards */}
+      <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <Link to="/consultor/crm" className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm hover:shadow-lg hover:border-brand-500 transition-all group">
+          <div className="flex items-center space-x-4">
+            <div className="p-3 bg-brand-50 dark:bg-brand-900/20 rounded-lg">
+              <TrendingUp className="w-6 h-6 text-brand-600 dark:text-brand-400" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Meu CRM</h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400 group-hover:text-brand-600 dark:group-hover:text-brand-400">Gerenciar meus leads</p>
+            </div>
+          </div>
+        </Link>
+        <Link to="/consultor/daily-checklist" className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm hover:shadow-lg hover:border-blue-500 transition-all group">
+          <div className="flex items-center space-x-4">
+            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+              <ListChecks className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Checklist Diário</h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400">Ver minhas tarefas do dia</p>
+            </div>
+          </div>
+        </Link>
+        <Link to="/profile" className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm hover:shadow-lg hover:border-green-500 transition-all group">
+          <div className="flex items-center space-x-4">
+            <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+              <User className="w-6 h-6 text-green-600 dark:text-green-400" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Meu Perfil</h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400 group-hover:text-green-600 dark:group-hover:text-green-400">Atualizar minhas informações</p>
+            </div>
+          </div>
+        </Link>
+      </div>
     </div>
   );
 };
