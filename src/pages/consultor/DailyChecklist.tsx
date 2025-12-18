@@ -23,87 +23,37 @@ export const DailyChecklist = () => {
 
   const formattedSelectedDate = useMemo(() => formatDate(selectedDate), [selectedDate]);
 
-  // --- DEBUG LOGS INÍCIO ---
-  useEffect(() => {
-    console.log("--- DailyChecklist Component Debug Logs ---");
-    console.log("1. Usuário Logado (AuthContext):", {
-      id: user?.id,
-      email: user?.email,
-      role: user?.role,
-      isActive: user?.isActive,
-    });
-    console.log("2. Todos os DailyChecklists existentes:", dailyChecklists.map(cl => ({
-      id: cl.id,
-      title: cl.title,
-      is_active: cl.is_active,
-      user_id: cl.user_id,
-    })));
-    console.log("3. Todas as DailyChecklistAssignments:", dailyChecklistAssignments.map(assign => ({
-      id: assign.id,
-      daily_checklist_id: assign.daily_checklist_id,
-      consultant_id: assign.consultant_id,
-    })));
-    console.log("4. Consultores disponíveis na equipe (teamMembers):", teamMembers.map(tm => ({
-      id: tm.id,
-      db_id: tm.db_id,
-      name: tm.name,
-      email: tm.email,
-      roles: tm.roles,
-      isActive: tm.isActive,
-      isLegacy: tm.isLegacy,
-      hasLogin: tm.hasLogin,
-    })));
-  }, [user, dailyChecklists, dailyChecklistAssignments, teamMembers]);
-  // --- DEBUG LOGS FIM ---
-
   // Encontrar o teamMember correspondente ao usuário logado
   const userTeamMember = useMemo(() => {
     if (!user) {
-      console.log("🚫 userTeamMember: Usuário Auth não logado.");
       return null;
     }
-    console.log("DEBUG: user.id para correspondência:", user.id);
-    console.log("DEBUG: array teamMembers para correspondência:", teamMembers.map(tm => ({ id: tm.id, email: tm.email, name: tm.name, isLegacy: tm.isLegacy })));
 
     const foundMember = teamMembers.find(tm => {
-      console.log(`DEBUG: Comparando tm.id (${tm.id}) com user.id (${user.id})`); // NEW LOG
       // 1. TENTA: match exato de ID (TIPO 2)
       if (tm.id === user.id) {
-        console.log(`✅ userTeamMember: Encontrado por ID (Auth.uid === TeamMember.id): ${tm.name}`);
         return true;
       }
       
       // 2. TENTA: match por email (se TIPO 2 tem email)
       if (tm.email && tm.email === user.email) {
-        console.log(`✅ userTeamMember: Encontrado por Email (Auth.email === TeamMember.email): ${tm.name}`);
         return true;
       }
       
       // 3. TENTA: é legado e podemos assumir pelo nome? (TIPO 1)
-      // Para membros legados, o 'id' é um ID temporário ('legacy_...') e o 'email' pode não existir.
-      // Precisamos comparar o nome do usuário logado com o nome do membro da equipe.
       if (tm.isLegacy && tm.name === user.name) {
-        console.log(`✅ userTeamMember: Encontrado por Nome (Legado): ${tm.name}`);
         return true; 
       }
       
       return false;
     });
-    if (!foundMember) {
-      console.log(`❌ userTeamMember: Nenhum membro da equipe encontrado para o usuário logado (Auth ID: ${user.id}, Email: ${user.email}, Nome: ${user.name}).`);
-    } else {
-      console.log(`ℹ️ userTeamMember: Membro da equipe final identificado: ${foundMember.name} (ID: ${foundMember.id}, Email: ${foundMember.email || 'N/A'}, Roles: ${foundMember.roles.join(', ')})`);
-    }
     return foundMember;
   }, [user, teamMembers]);
 
   const assignedChecklists = useMemo(() => {
     if (!user || !userTeamMember) {
-      console.log("🚫 assignedChecklists: Usuário ou membro da equipe não identificado. Retornando lista vazia.");
       return [];
     }
-
-    console.log("🔍 assignedChecklists: Buscando checklists para o consultor:", userTeamMember.id);
 
     // 1. GLOBAIS: checklists SEM atribuição específica
     const globalChecklists = dailyChecklists.filter(checklist => {
@@ -111,11 +61,8 @@ export const DailyChecklist = () => {
         assignment => assignment.daily_checklist_id === checklist.id
       );
       const isGlobal = !hasAnyAssignment;
-      console.log(`  - Checklist '${checklist.title}' (ID: ${checklist.id}): Global? ${isGlobal}`);
       return isGlobal; // GLOBAL = sem atribuições
     });
-
-    console.log("📋 assignedChecklists: Checklists globais encontrados:", globalChecklists.length);
 
     // 2. ESPECÍFICOS: checklists atribuídos a ESTE consultor
     const specificChecklists = dailyChecklists.filter(checklist => {
@@ -124,11 +71,8 @@ export const DailyChecklist = () => {
           assignment.daily_checklist_id === checklist.id && 
           assignment.consultant_id === userTeamMember.id
       );
-      console.log(`  - Checklist '${checklist.title}' (ID: ${checklist.id}): Específico para ${userTeamMember.name}? ${isSpecific}`);
       return isSpecific;
     });
-
-    console.log("🎯 assignedChecklists: Checklists específicos encontrados:", specificChecklists.length);
 
     // 3. COMBINAR ambos (remover duplicados)
     const allChecklists = [...globalChecklists, ...specificChecklists];
@@ -138,9 +82,6 @@ export const DailyChecklist = () => {
         checklist.is_active &&
         self.findIndex(c => c.id === checklist.id) === index
     );
-
-    console.log("✅ assignedChecklists: Total de checklists visíveis (ativos e únicos):", uniqueChecklists.length);
-    console.log("📝 assignedChecklists: Títulos dos checklists visíveis:", uniqueChecklists.map(c => c.title));
 
     return uniqueChecklists.sort((a, b) => a.title.localeCompare(b.title));
   }, [dailyChecklists, dailyChecklistAssignments, user, userTeamMember]);
