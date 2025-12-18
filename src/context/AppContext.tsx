@@ -724,13 +724,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const addPV = useCallback((pv: string) => { if (!pvs.includes(pv)) { const newPvs = [...pvs, pv]; setPvs(newPvs); updateConfig({ pvs: newPvs }); } }, [pvs, updateConfig]);
   const updateAndPersistStructure = useCallback((setter: React.Dispatch<React.SetStateAction<any>>, key: string, newStructure: any) => { setter(newStructure); updateConfig({ [key]: newStructure }); }, [updateConfig]);
   const addChecklistItem = useCallback((stageId: string, label: string) => { const newStructure = checklistStructure.map(s => s.id === stageId ? { ...s, items: [...s.items, { id: `custom_${Date.now()}`, label }] } : s); updateAndPersistStructure(setChecklistStructure, 'checklistStructure', newStructure); }, [checklistStructure, updateAndPersistStructure]);
-  const updateChecklistItem = useCallback((stageId: string, itemId: string, label: string) => { const newStructure = checklistStructure.map(s => s.id === stageId ? { ...s, items: s.items.map(i => i.id === itemId ? { ...i, label } : i) } : s); updateAndPersistructure(setChecklistStructure, 'checklistStructure', newStructure); }, [checklistStructure, updateAndPersistStructure]);
-  const deleteChecklistItem = useCallback((stageId: string, itemId: string) => { const newStructure = checklistStructure.map(s => s.id === stageId ? { ...s, items: s.items.filter(i => i.id !== itemId) } : s); updateAndAndPersistStructure(setChecklistStructure, 'checklistStructure', newStructure); }, [checklistStructure, updateAndPersistStructure]);
+  const updateChecklistItem = useCallback((stageId: string, itemId: string, label: string) => { const newStructure = checklistStructure.map(s => s.id === stageId ? { ...s, items: s.items.map(i => i.id === itemId ? { ...i, label } : i) } : s); updateAndPersistStructure(setChecklistStructure, 'checklistStructure', newStructure); }, [checklistStructure, updateAndPersistStructure]);
+  const deleteChecklistItem = useCallback((stageId: string, itemId: string) => { const newStructure = checklistStructure.map(s => s.id === stageId ? { ...s, items: s.items.filter(i => i.id !== itemId) } : s); updateAndPersistStructure(setChecklistStructure, 'checklistStructure', newStructure); }, [checklistStructure, updateAndPersistStructure]);
   const moveChecklistItem = useCallback((stageId: string, itemId: string, dir: 'up' | 'down') => { const newStructure = checklistStructure.map(s => { if (s.id !== stageId) return s; const idx = s.items.findIndex(i => i.id === itemId); if ((dir === 'up' && idx < 1) || (dir === 'down' && idx >= s.items.length - 1)) return s; const newItems = [...s.items]; const targetIdx = dir === 'up' ? idx - 1 : idx + 1; [newItems[idx], newItems[targetIdx]] = [newItems[targetIdx], newItems[idx]]; return { ...s, items: newItems }; }); updateAndPersistStructure(setChecklistStructure, 'checklistStructure', newStructure); }, [checklistStructure, updateAndPersistStructure]);
   const resetChecklistToDefault = useCallback(() => { updateAndPersistStructure(setChecklistStructure, 'checklistStructure', DEFAULT_STAGES); }, [updateAndPersistStructure]);
   const addGoalItem = useCallback((stageId: string, label: string) => { const newStructure = consultantGoalsStructure.map(s => s.id === stageId ? { ...s, items: [...s.items, { id: `goal_${Date.now()}`, label }] } : s); updateAndPersistStructure(setConsultantGoalsStructure, 'consultantGoalsStructure', newStructure); }, [consultantGoalsStructure, updateAndPersistStructure]);
   const updateGoalItem = useCallback((stageId: string, itemId: string, label: string) => { const newStructure = consultantGoalsStructure.map(s => s.id === stageId ? { ...s, items: s.items.map(i => i.id === itemId ? { ...i, label } : i) } : s); updateAndPersistStructure(setConsultantGoalsStructure, 'consultantGoalsStructure', newStructure); }, [consultantGoalsStructure, updateAndPersistStructure]);
-  const deleteGoalItem = useCallback((stageId: string, itemId: string) => { const newStructure = consultantGoalsStructure.map(s => s.id === stageId ? { ...s, items: s.items.filter(i => i.id !== itemId) } : s); updateAndAndPersistStructure(setConsultantGoalsStructure, 'consultantGoalsStructure', newStructure); }, [consultantGoalsStructure, updateAndPersistStructure]);
+  const deleteGoalItem = useCallback((stageId: string, itemId: string) => { const newStructure = consultantGoalsStructure.map(s => s.id === stageId ? { ...s, items: s.items.filter(i => i.id !== itemId) } : s); updateAndPersistStructure(setConsultantGoalsStructure, 'consultantGoalsStructure', newStructure); }, [consultantGoalsStructure, updateAndPersistStructure]);
   const moveGoalItem = useCallback((stageId: string, itemId: string, dir: 'up' | 'down') => { const newStructure = consultantGoalsStructure.map(s => { if (s.id !== stageId) return s; const idx = s.items.findIndex(i => i.id === itemId); if ((dir === 'up' && idx < 1) || (dir === 'down' && idx >= s.items.length - 1)) return s; const newItems = [...s.items]; const targetIdx = dir === 'up' ? idx - 1 : idx + 1; [newItems[idx], newItems[targetIdx]] = [newItems[targetIdx], newItems[idx]]; return { ...s, items: newItems }; }); updateAndPersistStructure(setConsultantGoalsStructure, 'consultantGoalsStructure', newStructure); }, [consultantGoalsStructure, updateAndPersistStructure]);
   const resetGoalsToDefault = useCallback(() => { updateAndPersistStructure(setConsultantGoalsStructure, 'consultantGoalsStructure', DEFAULT_GOALS); }, [updateAndPersistStructure]);
   const updateInterviewSection = useCallback((sectionId: string, updates: Partial<InterviewSection>) => { const newStructure = interviewStructure.map(s => s.id === sectionId ? { ...s, ...updates } : s); updateAndPersistStructure(setInterviewStructure, 'interviewStructure', newStructure); }, [interviewStructure, updateAndPersistStructure]);
@@ -830,14 +830,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     // Ensure user_id (Gestor's ID) is correctly set from crmOwnerUserId
     if (!crmOwnerUserId) throw new Error("ID do Gestor do CRM não encontrado.");
     
-    const payload = { 
+    const payload: Partial<CrmLead> = { 
       ...updates, 
       user_id: JOAO_GESTOR_AUTH_ID,
-      name: updates.name || '', // Garante que o nome seja uma string vazia, não null
     }; 
+
+    // Only update 'name' if it's explicitly provided in the updates object
+    if (updates.name !== undefined) {
+      payload.name = updates.name || ''; // Allow setting to empty string if explicitly passed
+    }
+
     const { error } = await supabase.from('crm_leads').update(payload).eq('id', id).eq('consultant_id', user.id);
     if (error) throw error;
-    setCrmLeads(prev => prev.map(lead => lead.id === id ? { ...lead, ...payload } : lead)); // Use payload to ensure name is updated
+    setCrmLeads(prev => prev.map(lead => lead.id === id ? { ...lead, ...updates } : lead)); // Use updates directly for local state
   }, [user, crmOwnerUserId]);
 
   const deleteCrmLead = useCallback(async (id: string) => {
@@ -1129,7 +1134,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!user) throw new Error("Usuário não autenticado.");
     try {
       console.log("[AppContext.addLeadTask] Payload antes de inserir:", { ...task, user_id: user.id }); // Log do payload
-      // console.log("[AppContext.addLeadTask] Manager ID being sent:", task.manager_id); // NEW LOG - REMOVIDO
       const { data, error } = await supabase.from('lead_tasks').insert({ ...task, user_id: user.id }).select().single();
       if (error) {
         console.error("Supabase error adding lead task:", error);
@@ -1189,23 +1193,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, [user]);
 
-  // REMOVIDO: updateLeadMeetingInvitationStatus
-  // const updateLeadMeetingInvitationStatus = useCallback(async (taskId: string, status: 'pending' | 'accepted' | 'declined') => {
-  //   if (!user) throw new Error("Usuário não autenticado.");
-  //   try {
-  //     const { error } = await supabase.from('lead_tasks').update({ manager_invitation_status: status }).eq('id', taskId).eq('manager_id', user.id);
-  //     if (error) {
-  //       console.error("Supabase error updating meeting invitation status:", error);
-  //       throw new Error(error.message);
-  //     }
-  //     setLeadTasks(prev => prev.map(task => task.id === taskId ? { ...task, manager_invitation_status: status } : task));
-  //   } catch (error: any) {
-  //     console.error("Failed to update meeting invitation status:", error);
-  //     throw new Error(`Failed to update meeting invitation status: ${error.message || error}`);
-  //   }
-  // }, [user]);
-
-
   useEffect(() => { if (!user) return; const syncPendingCommissions = async () => { const pending = JSON.parse(localStorage.getItem('pending_commissions') || '[]') as any[]; if (pending.length === 0) return; for (const item of pending) { try { const { _localId, _timestamp, _attempts, ...cleanData } = item; const { data, error } = await supabase.from('commissions').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: cleanData }).select('id', 'created_at').maybeSingle(); if (!error && data) { setCommissions(prev => prev.map(c => c.db_id === _localId ? { ...c, db_id: data.id.toString(), criado_em: data.created_at } : c)); const updated = pending.filter((p: any) => p._localId !== _localId); localStorage.setItem('pending_commissions', JSON.stringify(updated)); } } catch (error) { console.log(`❌ Falha ao sincronizar ${item._localId}`); } } }; const interval = setInterval(syncPendingCommissions, 2 * 60 * 1000); setTimeout(syncPendingCommissions, 5000); return () => clearInterval(interval); }, [user]); // Use JOAO_GESTOR_AUTH_ID
 
   return (
@@ -1237,7 +1224,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       assignSupportMaterialToConsultant, unassignSupportMaterialFromConsultant,
       // NOVO: Tarefas de Lead
       leadTasks, addLeadTask, updateLeadTask, deleteLeadTask, toggleLeadTaskCompletion, 
-      // updateLeadMeetingInvitationStatus // REMOVIDO
     }}>
       {children}
     </AppContext.Provider>
