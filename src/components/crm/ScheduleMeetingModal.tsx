@@ -53,7 +53,17 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
       !member.id.startsWith('legacy_') // Exclui IDs legados
     );
     console.log("[ScheduleMeetingModal] Filtered Managers for selection:", filtered.map(m => ({ id: m.id, name: m.name, hasLogin: m.hasLogin })));
-    return filtered;
+    
+    // NEW: Add a validation step here
+    const validManagers = filtered.filter(m => {
+      const isValidUuid = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(m.id);
+      if (!isValidUuid) {
+        console.warn(`[ScheduleMeetingModal] Manager ${m.name} (ID: ${m.id}) has an invalid UUID format. Filtering out.`);
+      }
+      return isValidUuid;
+    });
+    console.log("[ScheduleMeetingModal] Validated Managers (UUID format check):", validManagers.map(m => ({ id: m.id, name: m.name })));
+    return validManagers;
   }, [teamMembers]);
 
   const meetingStage = useMemo(() => {
