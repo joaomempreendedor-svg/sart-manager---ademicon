@@ -53,6 +53,10 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
             <LayoutDashboard className="w-5 h-5" />
             <span>Dashboard</span>
           </NavLink>
+          <NavLink to="/gestor/crm" className={linkClass} onClick={toggleSidebar}> {/* ROTA ATUALIZADA */}
+            <TrendingUp className="w-5 h-5" />
+            <span>CRM</span>
+          </NavLink>
           <NavLink to="/gestor/onboarding-admin" className={linkClass} onClick={toggleSidebar}>
             <Video className="w-5 h-5" />
             <span>Onboarding Online</span>

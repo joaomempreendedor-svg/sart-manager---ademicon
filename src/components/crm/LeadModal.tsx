@@ -28,10 +28,10 @@ interface LeadModalProps {
   onClose: () => void;
   lead: CrmLead | null;
   crmFields: CrmField[];
-  consultantId: string;
+  assignedConsultantId?: string; // Tornando opcional
 }
 
-const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields, consultantId }) => {
+const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields, assignedConsultantId }) => {
   const { addCrmLead, updateCrmLead, deleteCrmLead, crmOwnerUserId, crmStages } = useApp();
   const [formData, setFormData] = useState<Partial<CrmLead>>({
     name: '', // Adicionado name aqui para ser a fonte primária
@@ -103,7 +103,7 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
       const payload = {
         ...formData,
         name: formData.name || null, // Garante que o name de nível superior seja usado
-        consultant_id: consultantId,
+        consultant_id: assignedConsultantId || lead?.consultant_id || '', // Usa assignedConsultantId se disponível, senão o do lead existente
         user_id: crmOwnerUserId, // Use o ID do proprietário do CRM (ID do Gestor)
       } as CrmLead;
 

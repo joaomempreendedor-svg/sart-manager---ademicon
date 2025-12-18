@@ -34,6 +34,7 @@ import { CutoffConfig } from '@/pages/CutoffConfig';
 import { Feedbacks } from '@/pages/Feedbacks';
 import { OnlineOnboarding } from '@/pages/OnlineOnboarding';
 import CrmConfigPage from '@/pages/gestor/CrmConfig';
+import CrmOverviewPage from '@/pages/gestor/CrmOverview'; // Importar a nova página
 import { DailyChecklistConfig } from '@/pages/gestor/DailyChecklistConfig';
 import { DailyChecklistMonitoring } from '@/pages/gestor/DailyChecklistMonitoring';
 // import { ChecklistAssignment } from '@/pages/gestor/ChecklistAssignment'; // Importar o novo componente
@@ -145,6 +146,7 @@ const AppRoutes = () => {
           <Route path="config-interview" element={<InterviewConfig />} />
           <Route path="config-cutoff" element={<CutoffConfig />} />
           <Route path="crm-config" element={<CrmConfigPage />} />
+          <Route path="crm" element={<CrmOverviewPage />} /> {/* NOVA ROTA */}
           <Route path="daily-checklist-config" element={<DailyChecklistConfig />} />
           <Route path="daily-checklist-monitoring" element={<DailyChecklistMonitoring />} />
           {/* <Route path="checklist-assignment" element={<ChecklistAssignment />} /> REMOVIDO */}
