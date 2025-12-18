@@ -21,11 +21,10 @@ import {
   useDroppable,
 } from '@dnd-kit/core';
 import {
-  SortableContext,
-  useSortable,
+  SortableContext, // Corrigido: Importado de @dnd-kit/sortable
+  useSortable,     // Corrigido: Importado de @dnd-kit/sortable
   verticalListSortingStrategy,
-  arrayMove,
-} from '@dnd-kit/core'; // Changed from @dnd-kit/sortable to @dnd-kit/core
+} from '@dnd-kit/sortable'; // Corrigido: Pacote correto
 import { CSS } from '@dnd-kit/utilities';
 import { createPortal } from 'react-dom';
 import { CrmLead } from '@/types';
@@ -455,7 +454,7 @@ const CrmPage = () => {
           },
         }}
       >
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-7 gap-4 pb-4"> {/* Ajustado para 7 colunas em telas 2xl */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-7 gap-4 pb-4"> {/* Mantido o layout de grade responsivo para quebrar em telas menores */}
           {pipelineStages.map(stage => (
             <KanbanColumn
               key={stage.id}
