@@ -163,7 +163,7 @@ export const DailyChecklist = () => {
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Meu Checklist Diário</h1>
         <p className="text-gray-500 dark:text-gray-400">Acompanhe suas tarefas e metas do dia.</p>
         {/* ADICIONE APÓS O TÍTULO DA PÁGINA */}
-        <button 
+        {/* <button 
           onClick={() => {
             console.log("=== TESTE FORÇADO ===");
             console.log("Todos checklists ativos:", dailyChecklists.filter(c => c.is_active));
@@ -178,7 +178,7 @@ export const DailyChecklist = () => {
           className="px-4 py-2 bg-red-500 text-white rounded-lg mt-4"
         >
           TESTE: Ver Todos Checklists
-        </button>
+        </button> */}
       </div>
 
       <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm mb-6 flex items-center justify-between">
