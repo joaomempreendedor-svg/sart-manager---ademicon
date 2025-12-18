@@ -1,12 +1,125 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Plus, Search, Loader2, Phone, Mail, Tag, MessageSquare, TrendingUp, ListTodo, CalendarPlus, Send, DollarSign, Edit2, Trash2 } from 'lucide-react'; // Importado novos ícones
-import LeadModal from '@/components/crm/LeadModal'; // Novo componente
-import { LeadTasksModal } from '@/components/crm/LeadTasksModal'; // Importar o novo modal de tarefas
-import { ScheduleMeetingModal } from '@/components/crm/ScheduleMeetingModal'; // NOVO: Importar o modal de agendamento de reunião
-import { ProposalModal } from '@/components/crm/ProposalModal'; // NOVO: Importar o modal de proposta
-import { SaleModal } from '@/components/crm/SaleModal'; // NOVO: Importar o modal de venda
+import { Plus, Search, Loader2, Phone, Mail, Tag, MessageSquare, TrendingUp, ListTodo, CalendarPlus, Send, DollarSign, Edit2, Trash2 } from 'lucide-react';
+import LeadModal from '@/components/crm/LeadModal';
+import { LeadTasksModal } from '@/components/crm/LeadTasksModal';
+import { ScheduleMeetingModal } from '@/components/crm/ScheduleMeetingModal';
+import { ProposalModal } from '@/components/crm/ProposalModal';
+import { SaleModal } from '@/components/crm/SaleModal';
+
+// Dnd-kit imports
+import {
+  DndContext,
+  DragOverlay,
+  useSensor,
+  useSensors,
+  PointerSensor,
+  KeyboardSensor,
+  closestCorners,
+  MeasuringStrategy,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { createPortal } from 'react-dom';
+import { CrmLead } from '@/types';
+
+// Componente para o cartão de Lead arrastável
+interface DraggableLeadCardProps {
+  lead: CrmLead;
+  onEdit: (lead: CrmLead) => void;
+  onDelete: (e: React.MouseEvent, lead: CrmLead) => void;
+  onOpenTasksModal: (e: React.MouseEvent, lead: CrmLead) => void;
+  onOpenMeetingModal: (e: React.MouseEvent, lead: CrmLead) => void;
+  onOpenProposalModal: (e: React.MouseEvent, lead: CrmLead) => void;
+  onOpenSaleModal: (e: React.MouseEvent, lead: CrmLead) => void;
+}
+
+const DraggableLeadCard: React.FC<DraggableLeadCardProps> = ({
+  lead,
+  onEdit,
+  onDelete,
+  onOpenTasksModal,
+  onOpenMeetingModal,
+  onOpenProposalModal,
+  onOpenSaleModal,
+}) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: lead.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 100 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      onClick={() => onEdit(lead)}
+      className="bg-white dark:bg-slate-700 p-3 rounded-lg shadow-sm border border-gray-200 dark:border-slate-600 hover:border-brand-500 cursor-grab transition-all group"
+    >
+      <div className="flex justify-between items-start mb-2">
+        <p className="font-medium text-gray-900 dark:text-white">{lead.name}</p>
+        <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button
+            onClick={(e) => { e.stopPropagation(); onEdit(lead); }}
+            className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md"
+            title="Editar Lead"
+          >
+            <Edit2 className="w-4 h-4" />
+          </button>
+          <button
+            onClick={(e) => onDelete(e, lead)}
+            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md"
+            title="Excluir Lead"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+      <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 space-y-0.5">
+        {lead.data.phone && <div className="flex items-center"><Phone className="w-3 h-3 mr-1" /> {lead.data.phone}</div>}
+        {lead.data.email && <div className="flex items-center"><Mail className="w-3 h-3 mr-1" /> {lead.data.email}</div>}
+        {lead.data.origin && <div className="flex items-center"><Tag className="w-3 h-3 mr-1" /> {lead.data.origin}</div>}
+        {lead.data.proposal_value && (
+          <div className="flex items-center text-purple-700 dark:text-purple-300 font-semibold">
+            <DollarSign className="w-3 h-3 mr-1" /> Proposta: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(lead.data.proposal_value)}
+          </div>
+        )}
+      </div>
+      <div className="mt-3 pt-3 border-t border-gray-100 dark:border-slate-600 flex flex-wrap gap-2">
+        <button onClick={(e) => onOpenTasksModal(e, lead)} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition">
+          <ListTodo className="w-3 h-3 mr-1" /> Tarefas
+        </button>
+        <button onClick={(e) => onOpenMeetingModal(e, lead)} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-900/30 transition">
+          <CalendarPlus className="w-3 h-3 mr-1" /> Reunião
+        </button>
+        <button onClick={(e) => onOpenProposalModal(e, lead)} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/30 transition">
+          <Send className="w-3 h-3 mr-1" /> Proposta
+        </button>
+        <button onClick={(e) => onOpenSaleModal(e, lead)} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-brand-50 dark:bg-brand-900/20 text-brand-700 dark:text-brand-300 hover:bg-brand-100 dark:hover:bg-brand-900/30 transition">
+          <DollarSign className="w-3 h-3 mr-1" /> Vendido
+        </button>
+      </div>
+    </div>
+  );
+};
 
 const CrmPage = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -14,14 +127,26 @@ const CrmPage = () => {
   const [isLeadModalOpen, setIsLeadModalOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<CrmLead | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [isTasksModalOpen, setIsTasksModalOpen] = useState(false); // Estado para o modal de tarefas
-  const [selectedLeadForTasks, setSelectedLeadForTasks] = useState<CrmLead | null>(null); // Lead selecionado para tarefas
-  const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false); // NOVO: Estado para o modal de reunião
-  const [selectedLeadForMeeting, setSelectedLeadForMeeting] = useState<CrmLead | null>(null); // NOVO: Lead selecionado para reunião
-  const [isProposalModalOpen, setIsProposalModalOpen] = useState(false); // NOVO: Estado para o modal de proposta
-  const [selectedLeadForProposal, setSelectedLeadForProposal] = useState<CrmLead | null>(null); // NOVO: Lead selecionado para proposta
-  const [isSaleModalOpen, setIsSaleModalOpen] = useState(false); // NOVO: Estado para o modal de venda
-  const [selectedLeadForSale, setSelectedLeadForSale] = useState<CrmLead | null>(null); // NOVO: Lead selecionado para venda
+  const [isTasksModalOpen, setIsTasksModalOpen] = useState(false);
+  const [selectedLeadForTasks, setSelectedLeadForTasks] = useState<CrmLead | null>(null);
+  const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false);
+  const [selectedLeadForMeeting, setSelectedLeadForMeeting] = useState<CrmLead | null>(null);
+  const [isProposalModalOpen, setIsProposalModalOpen] = useState(false);
+  const [selectedLeadForProposal, setSelectedLeadForProposal] = useState<CrmLead | null>(null);
+  const [isSaleModalOpen, setIsSaleModalOpen] = useState(false);
+  const [selectedLeadForSale, setSelectedLeadForSale] = useState<CrmLead | null>(null);
+
+  // Dnd-kit state
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // 8px before drag starts
+      },
+    }),
+    useSensor(KeyboardSensor, {})
+  );
 
   const activePipeline = useMemo(() => {
     return crmPipelines.find(p => p.is_active) || crmPipelines[0];
@@ -43,7 +168,7 @@ const CrmPage = () => {
     if (!searchTerm) return consultantLeads;
     const lowerCaseSearchTerm = searchTerm.toLowerCase();
     return consultantLeads.filter(lead =>
-      (lead.name && lead.name.toLowerCase().includes(lowerCaseSearchTerm)) || // Check lead.name if it exists
+      (lead.name && lead.name.toLowerCase().includes(lowerCaseSearchTerm)) ||
       Object.values(lead.data || {}).some(value =>
         String(value).toLowerCase().includes(lowerCaseSearchTerm)
       )
@@ -58,13 +183,11 @@ const CrmPage = () => {
     return groups;
   }, [pipelineStages, filteredLeads]);
 
-  // NOVO: Cálculo dos totais por coluna
   const stageTotals = useMemo(() => {
     const totals: Record<string, number> = {};
     pipelineStages.forEach(stage => {
       const leadsInStage = groupedLeads[stage.id] || [];
       const totalValue = leadsInStage.reduce((sum, lead) => {
-        // Para "Proposta Enviada" e "Vendido", somamos o valor da proposta
         if (lead.data?.proposal_value) {
           return sum + (lead.data.proposal_value as number);
         }
@@ -74,7 +197,6 @@ const CrmPage = () => {
     });
     return totals;
   }, [pipelineStages, groupedLeads]);
-
 
   const handleAddNewLead = () => {
     setEditingLead(null);
@@ -87,7 +209,7 @@ const CrmPage = () => {
   };
 
   const handleDeleteLead = async (e: React.MouseEvent, lead: CrmLead) => {
-    e.stopPropagation(); // Prevent opening the edit modal
+    e.stopPropagation();
     if (window.confirm(`Tem certeza que deseja excluir o lead "${lead.name}"? Esta ação não pode ser desfeita.`)) {
       try {
         await deleteCrmLead(lead.id);
@@ -98,26 +220,23 @@ const CrmPage = () => {
   };
 
   const handleOpenTasksModal = (e: React.MouseEvent, lead: CrmLead) => {
-    e.stopPropagation(); // Evita que o clique no botão abra o modal de edição do lead
+    e.stopPropagation();
     setSelectedLeadForTasks(lead);
     setIsTasksModalOpen(true);
   };
 
-  // NOVO: Função para abrir o modal de agendamento de reunião
   const handleOpenMeetingModal = (e: React.MouseEvent, lead: CrmLead) => {
     e.stopPropagation();
     setSelectedLeadForMeeting(lead);
     setIsMeetingModalOpen(true);
   };
 
-  // NOVO: Função para abrir o modal de proposta
   const handleOpenProposalModal = (e: React.MouseEvent, lead: CrmLead) => {
     e.stopPropagation();
     setSelectedLeadForProposal(lead);
     setIsProposalModalOpen(true);
   };
 
-  // NOVO: Função para salvar a proposta e mover o lead
   const handleSaveProposal = async (leadId: string, proposalValue: number, proposalDate: string, proposalNotes?: string) => {
     const proposalSentStage = crmStages.find(s => s.name.toLowerCase().includes('proposta enviada') && s.is_active);
 
@@ -127,19 +246,16 @@ const CrmPage = () => {
     }
 
     try {
-      // 1. Atualizar os dados da proposta no lead
       await updateCrmLead(leadId, {
         data: {
-          ...crmLeads.find(l => l.id === leadId)?.data, // Manter dados existentes
+          ...crmLeads.find(l => l.id === leadId)?.data,
           proposal_value: proposalValue,
           proposal_date: proposalDate,
           proposal_notes: proposalNotes,
         }
       });
-
-      // 2. Mover o lead para a etapa "Proposta Enviada"
       await updateCrmLeadStage(leadId, proposalSentStage.id);
-      alert("Proposta registrada e lead movido para 'Proposta Enviada'!");
+      toast.success("Proposta registrada e lead movido para 'Proposta Enviada'!");
     } catch (error: any) {
       console.error("Erro ao salvar proposta e mover lead:", error);
       alert(`Erro ao salvar proposta: ${error.message}`);
@@ -147,12 +263,45 @@ const CrmPage = () => {
     }
   };
 
-  // NOVO: Função para abrir o modal de venda
   const handleOpenSaleModal = (e: React.MouseEvent, lead: CrmLead) => {
     e.stopPropagation();
     setSelectedLeadForSale(lead);
     setIsSaleModalOpen(true);
   };
+
+  // Dnd-kit handlers
+  const handleDragStart = (event: any) => {
+    setActiveDragId(event.active.id);
+  };
+
+  const handleDragEnd = async (event: any) => {
+    const { active, over } = event;
+
+    if (!active || !over) return;
+
+    const draggedLeadId = active.id as string;
+    const newStageId = over.id as string;
+
+    const draggedLead = consultantLeads.find(lead => lead.id === draggedLeadId);
+    if (!draggedLead) return;
+
+    // Only update if the stage has actually changed
+    if (draggedLead.stage_id !== newStageId) {
+      try {
+        await updateCrmLeadStage(draggedLeadId, newStageId);
+        toast.success(`Lead "${draggedLead.name}" movido para a nova etapa!`);
+      } catch (error: any) {
+        console.error("Failed to update lead stage:", error);
+        toast.error(`Erro ao mover o lead: ${error.message}`);
+      }
+    }
+    setActiveDragId(null);
+  };
+
+  const getActiveDragLead = useMemo(() => {
+    if (!activeDragId) return null;
+    return consultantLeads.find(lead => lead.id === activeDragId);
+  }, [activeDragId, consultantLeads]);
 
 
   if (isAuthLoading || isDataLoading) {
@@ -210,79 +359,76 @@ const CrmPage = () => {
         </div>
       </div>
 
-      <div className="flex overflow-x-auto pb-4 space-x-6 custom-scrollbar">
-        {pipelineStages.map(stage => (
-          <div key={stage.id} className="flex-shrink-0 w-80 bg-gray-100 dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700">
-            <div className="p-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
-              <h3 className="font-semibold text-gray-900 dark:text-white">{stage.name}</h3>
-              <div className="flex justify-between items-center mt-1">
-                <span className="text-xs text-gray-500 dark:text-gray-400">{groupedLeads[stage.id]?.length || 0} leads</span>
-                {/* NOVO: Exibir total da coluna */}
-                {(stage.name.toLowerCase().includes('proposta enviada') || stage.is_won) && stageTotals[stage.id] > 0 && (
-                  <span className="text-sm font-bold text-purple-700 dark:text-purple-300">
-                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(stageTotals[stage.id])}
-                  </span>
-                )}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCorners}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        measuring={{
+          droppable: {
+            strategy: MeasuringStrategy.Always,
+          },
+        }}
+      >
+        <div className="flex overflow-x-auto pb-4 space-x-6 custom-scrollbar">
+          {pipelineStages.map(stage => (
+            <div
+              key={stage.id}
+              id={stage.id} // ID for droppable context
+              className="flex-shrink-0 w-80 bg-gray-100 dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700"
+            >
+              <div className="p-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
+                <h3 className="font-semibold text-gray-900 dark:text-white">{stage.name}</h3>
+                <div className="flex justify-between items-center mt-1">
+                  <span className="text-xs text-gray-500 dark:text-gray-400">{groupedLeads[stage.id]?.length || 0} leads</span>
+                  {(stage.name.toLowerCase().includes('proposta enviada') || stage.is_won) && stageTotals[stage.id] > 0 && (
+                    <span className="text-sm font-bold text-purple-700 dark:text-purple-300">
+                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(stageTotals[stage.id])}
+                    </span>
+                  )}
+                </div>
               </div>
+              <SortableContext items={groupedLeads[stage.id]?.map(lead => lead.id) || []} strategy={verticalListSortingStrategy}>
+                <div className="p-4 space-y-3 min-h-[200px]">
+                  {groupedLeads[stage.id]?.length === 0 ? (
+                    <p className="text-center text-sm text-gray-400 py-4">Nenhum lead nesta etapa.</p>
+                  ) : (
+                    groupedLeads[stage.id]?.map(lead => (
+                      <DraggableLeadCard
+                        key={lead.id}
+                        lead={lead}
+                        onEdit={handleEditLead}
+                        onDelete={handleDeleteLead}
+                        onOpenTasksModal={handleOpenTasksModal}
+                        onOpenMeetingModal={handleOpenMeetingModal}
+                        onOpenProposalModal={handleOpenProposalModal}
+                        onOpenSaleModal={handleOpenSaleModal}
+                      />
+                    ))
+                  )}
+                </div>
+              </SortableContext>
             </div>
-            <div className="p-4 space-y-3 min-h-[200px]">
-              {groupedLeads[stage.id]?.length === 0 ? (
-                <p className="text-center text-sm text-gray-400 py-4">Nenhum lead nesta etapa.</p>
-              ) : (
-                groupedLeads[stage.id]?.map(lead => (
-                  <div key={lead.id} onClick={() => handleEditLead(lead)} className="bg-white dark:bg-slate-700 p-3 rounded-lg shadow-sm border border-gray-200 dark:border-slate-600 hover:border-brand-500 cursor-pointer transition-all group">
-                    <div className="flex justify-between items-start mb-2">
-                      <p className="font-medium text-gray-900 dark:text-white">{lead.name}</p>
-                      <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button 
-                          onClick={(e) => { e.stopPropagation(); handleEditLead(lead); }} 
-                          className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md"
-                          title="Editar Lead"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button 
-                          onClick={(e) => handleDeleteLead(e, lead)} 
-                          className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md"
-                          title="Excluir Lead"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 space-y-0.5">
-                      {lead.data.phone && <div className="flex items-center"><Phone className="w-3 h-3 mr-1" /> {lead.data.phone}</div>}
-                      {lead.data.email && <div className="flex items-center"><Mail className="w-3 h-3 mr-1" /> {lead.data.email}</div>}
-                      {lead.data.origin && <div className="flex items-center"><Tag className="w-3 h-3 mr-1" /> {lead.data.origin}</div>}
-                      {/* Exibir valor da proposta no card */}
-                      {lead.data.proposal_value && (
-                        <div className="flex items-center text-purple-700 dark:text-purple-300 font-semibold">
-                          <DollarSign className="w-3 h-3 mr-1" /> Proposta: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(lead.data.proposal_value)}
-                        </div>
-                      )}
-                    </div>
-                    {/* Novos botões de ação */}
-                    <div className="mt-3 pt-3 border-t border-gray-100 dark:border-slate-600 flex flex-wrap gap-2">
-                      <button onClick={(e) => handleOpenTasksModal(e, lead)} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition">
-                        <ListTodo className="w-3 h-3 mr-1" /> Tarefas
-                      </button>
-                      <button onClick={(e) => handleOpenMeetingModal(e, lead)} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-900/30 transition">
-                        <CalendarPlus className="w-3 h-3 mr-1" /> Reunião
-                      </button>
-                      <button onClick={(e) => handleOpenProposalModal(e, lead)} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/30 transition">
-                        <Send className="w-3 h-3 mr-1" /> Proposta
-                      </button>
-                      <button onClick={(e) => handleOpenSaleModal(e, lead)} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-brand-50 dark:bg-brand-900/20 text-brand-700 dark:text-brand-300 hover:bg-brand-100 dark:hover:bg-brand-900/30 transition">
-                        <DollarSign className="w-3 h-3 mr-1" /> Vendido
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+
+        {createPortal(
+          <DragOverlay>
+            {activeDragId && getActiveDragLead ? (
+              <DraggableLeadCard
+                lead={getActiveDragLead}
+                onEdit={handleEditLead}
+                onDelete={handleDeleteLead}
+                onOpenTasksModal={handleOpenTasksModal}
+                onOpenMeetingModal={handleOpenMeetingModal}
+                onOpenProposalModal={handleOpenProposalModal}
+                onOpenSaleModal={handleOpenSaleModal}
+              />
+            ) : null}
+          </DragOverlay>,
+          document.body
+        )}
+      </DndContext>
 
       {isLeadModalOpen && (
         <LeadModal
@@ -302,7 +448,6 @@ const CrmPage = () => {
         />
       )}
 
-      {/* NOVO: Modal de Agendamento de Reunião */}
       {isMeetingModalOpen && selectedLeadForMeeting && (
         <ScheduleMeetingModal
           isOpen={isMeetingModalOpen}
@@ -311,7 +456,6 @@ const CrmPage = () => {
         />
       )}
 
-      {/* NOVO: Modal de Proposta */}
       {isProposalModalOpen && selectedLeadForProposal && (
         <ProposalModal
           isOpen={isProposalModalOpen}
@@ -321,7 +465,6 @@ const CrmPage = () => {
         />
       )}
 
-      {/* NOVO: Modal de Venda */}
       {isSaleModalOpen && selectedLeadForSale && (
         <SaleModal
           isOpen={isSaleModalOpen}
