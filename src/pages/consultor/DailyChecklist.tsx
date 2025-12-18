@@ -14,7 +14,6 @@ export const DailyChecklist = () => {
     dailyChecklistItems, 
     dailyChecklistAssignments, 
     dailyChecklistCompletions,
-    teamMembers,
     toggleDailyChecklistCompletion,
     isDataLoading
   } = useApp();
@@ -23,35 +22,8 @@ export const DailyChecklist = () => {
 
   const formattedSelectedDate = useMemo(() => formatDate(selectedDate), [selectedDate]);
 
-  // Encontrar o teamMember correspondente ao usuário logado
-  const userTeamMember = useMemo(() => {
-    if (!user) {
-      return null;
-    }
-
-    const foundMember = teamMembers.find(tm => {
-      // 1. TENTA: match exato de ID (TIPO 2)
-      if (tm.id === user.id) {
-        return true;
-      }
-      
-      // 2. TENTA: match por email (se TIPO 2 tem email)
-      if (tm.email && tm.email === user.email) {
-        return true;
-      }
-      
-      // 3. TENTA: é legado e podemos assumir pelo nome? (TIPO 1)
-      if (tm.isLegacy && tm.name === user.name) {
-        return true; 
-      }
-      
-      return false;
-    });
-    return foundMember;
-  }, [user, teamMembers]);
-
   const assignedChecklists = useMemo(() => {
-    if (!user || !userTeamMember) {
+    if (!user) {
       return [];
     }
 
@@ -69,7 +41,7 @@ export const DailyChecklist = () => {
       const isSpecific = dailyChecklistAssignments.some(
         assignment => 
           assignment.daily_checklist_id === checklist.id && 
-          assignment.consultant_id === userTeamMember.id
+          assignment.consultant_id === user.id // Usar user.id diretamente
       );
       return isSpecific;
     });
@@ -84,7 +56,7 @@ export const DailyChecklist = () => {
     );
 
     return uniqueChecklists.sort((a, b) => a.title.localeCompare(b.title));
-  }, [dailyChecklists, dailyChecklistAssignments, user, userTeamMember]);
+  }, [dailyChecklists, dailyChecklistAssignments, user]);
 
   const getItemsForChecklist = useCallback((checklistId: string) => {
     return dailyChecklistItems
@@ -93,19 +65,19 @@ export const DailyChecklist = () => {
   }, [dailyChecklistItems]);
 
   const getCompletionStatus = useCallback((itemId: string) => {
-    if (!user || !userTeamMember) return false;
+    if (!user) return false;
     return dailyChecklistCompletions.some(
       completion =>
         completion.daily_checklist_item_id === itemId &&
-        completion.consultant_id === userTeamMember.id && // Usar o ID do userTeamMember
+        completion.consultant_id === user.id && // Usar user.id diretamente
         completion.date === formattedSelectedDate &&
         completion.done
     );
-  }, [dailyChecklistCompletions, user, userTeamMember, formattedSelectedDate]);
+  }, [dailyChecklistCompletions, user, formattedSelectedDate]);
 
   const handleToggleCompletion = async (itemId: string, currentStatus: boolean) => {
-    if (!user || !userTeamMember) return;
-    await toggleDailyChecklistCompletion(itemId, formattedSelectedDate, !currentStatus, userTeamMember.id);
+    if (!user) return;
+    await toggleDailyChecklistCompletion(itemId, formattedSelectedDate, !currentStatus, user.id); // Usar user.id diretamente
   };
 
   const navigateDay = (offset: number) => {
@@ -124,8 +96,8 @@ export const DailyChecklist = () => {
     );
   }
 
-  // Adição da verificação explícita para user e userTeamMember
-  if (!user || !userTeamMember) {
+  // Adição da verificação explícita para user
+  if (!user) {
     return (
       <div className="text-center py-16 bg-white dark:bg-slate-800 rounded-xl border border-dashed border-gray-200 dark:border-slate-700">
         <User className="mx-auto w-12 h-12 text-gray-300 dark:text-slate-600" />
