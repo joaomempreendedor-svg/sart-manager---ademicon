@@ -218,6 +218,12 @@ const CrmPage = () => {
                       {lead.data.phone && <div className="flex items-center"><Phone className="w-3 h-3 mr-1" /> {lead.data.phone}</div>}
                       {lead.data.email && <div className="flex items-center"><Mail className="w-3 h-3 mr-1" /> {lead.data.email}</div>}
                       {lead.data.origin && <div className="flex items-center"><Tag className="w-3 h-3 mr-1" /> {lead.data.origin}</div>}
+                      {/* NOVO: Exibir valor da proposta */}
+                      {lead.data.proposal_value && (
+                        <div className="flex items-center text-purple-700 dark:text-purple-300 font-semibold">
+                          <DollarSign className="w-3 h-3 mr-1" /> Proposta: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(lead.data.proposal_value)}
+                        </div>
+                      )}
                     </div>
                     {/* Novos botões de ação */}
                     <div className="mt-3 pt-3 border-t border-gray-100 dark:border-slate-600 flex flex-wrap gap-2">
