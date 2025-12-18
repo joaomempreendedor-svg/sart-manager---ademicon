@@ -251,7 +251,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             const { data: teamMemberProfile, error: teamMemberProfileError } = await supabase
               .from('team_members')
               .select('user_id') // This 'user_id' is the Gestor's ID
-              .eq('id', userId) // This 'id' is the consultant's auth.uid()
+              .eq('data->>id', userId) // Corrigido para buscar no JSONB 'data'
               .maybeSingle();
 
             if (teamMemberProfileError) {
@@ -278,7 +278,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           let teamMembersQuery = supabase.from('team_members').select('id, data');
           if (user?.role === 'CONSULTOR') {
               // Consultants should see their own entry and entries linked to JOAO_GESTOR_AUTH_ID
-              teamMembersQuery = teamMembersQuery.or(`user_id.eq.${effectiveGestorId},id.eq.${userId}`);
+              teamMembersQuery = teamMembersQuery.or(`user_id.eq.${effectiveGestorId},data->>id.eq.${userId}`); // Corrigido para buscar no JSONB 'data'
           } else { // GESTOR or ADMIN
               // Gestors/Admins see all team members linked to JOAO_GESTOR_AUTH_ID
               teamMembersQuery = teamMembersQuery.eq('user_id', effectiveGestorId);

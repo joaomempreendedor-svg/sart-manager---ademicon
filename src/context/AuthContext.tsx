@@ -32,10 +32,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       if (profileError) throw profileError;
 
+      // CORREÇÃO: Buscar team_member usando 'data->>id' para o ID do auth.users
       const { data: teamMemberData, error: teamMemberError } = await supabase
         .from('team_members')
         .select('data')
-        .eq('id', session.user.id) // Aqui o ID do team_member é o auth.uid()
+        .eq('data->>id', session.user.id) // Corrigido para buscar no JSONB 'data'
         .maybeSingle();
 
       if (teamMemberError) console.error("Error fetching team member status:", teamMemberError);
