@@ -328,7 +328,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           (async () => { try { return await supabase.from('crm_stages').select('*').eq('user_id', effectiveGestorId).order('order_index') ; } catch (e) { console.error("Error fetching crm_stages:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('crm_fields').select('*').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching crm_fields:", e); return { data: [], error: e }; } })(),
           // crmLeads fetch needs to be conditional based on role
-          (async () => { try { return (user?.role === 'CONSULTOR' ? await supabase.from('crm_leads').select('*').eq('consultant_id', userId) : await supabase.from('crm_leads').select('*').eq('user_id', effectiveGestorId)); } catch (e) { console.error("Error fetching crm_leads:", e); return { data: [], error: e }; } })(),
+          (async () => {
+            try {
+              const query = supabase.from('crm_leads').select('*');
+              if (user?.role === 'CONSULTOR') {
+                return await query.eq('consultant_id', userId);
+              } else { // GESTOR or ADMIN
+                // Gestors/Admins can see all leads associated with the effectiveGestorId
+                return await query.eq('user_id', effectiveGestorId);
+              }
+            } catch (e) { console.error("Error fetching crm_leads:", e); return { data: [], error: e }; }
+          })(),
           // Daily Checklists and related tables (use effectiveGestorId for parent table)
           (async () => { try { return await supabase.from('daily_checklists').select('*').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching daily_checklists:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('daily_checklist_items').select('*'); } catch (e) { console.error("Error fetching daily_checklist_items:", e); return { data: [], error: e }; } })(),
@@ -448,6 +458,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setCrmStages(stagesData?.data || []);
         setCrmFields(fieldsData?.data || []);
         setCrmLeads(crmLeadsData?.data || []); // Set CRM Leads
+        console.log("[AppContext] Fetched CRM Leads for Gestor/Admin:", crmLeadsData?.data?.map(l => ({ id: l.id, name: l.name, consultant_id: l.consultant_id }))); // Debug log
         setDailyChecklists(dailyChecklistsData?.data || []); // Set Daily Checklists
         setDailyChecklistItems(dailyChecklistItemsData?.data || []);
         setDailyChecklistAssignments(dailyChecklistAssignmentsData?.data || []);
@@ -813,14 +824,23 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       throw new Error("Nenhuma etapa de pipeline ativa encontrada para atribuir ao lead. Por favor, configure as etapas do CRM.");
     }
 
+    // Ensure consultant_id is always set to the current user's ID (the one creating/managing the lead)
+    // This is crucial for RLS and for the mirror functionality
+    const finalConsultantId = leadData.consultant_id || user.id; // Use provided consultant_id or current user's ID
+
     const payload = { 
       ...leadData, 
       user_id: JOAO_GESTOR_AUTH_ID, 
       stage_id: finalStageId, // Assign to the first active stage
       name: leadData.name || '', // Garante que o nome seja uma string vazia, não null
+      consultant_id: finalConsultantId, // Ensure this is always set
     }; 
+    console.log("[AppContext.addCrmLead] Final payload:", payload); // Debug log
     const { data, error } = await supabase.from('crm_leads').insert(payload).select().single();
-    if (error) throw error;
+    if (error) {
+      console.error("Supabase error adding crm lead:", error);
+      throw error;
+    }
     setCrmLeads(prev => [data, ...prev]); // Alterado para adicionar no início
     return data;
   }, [user, crmOwnerUserId, crmPipelines, crmStages]); // Adicionado crmPipelines e crmStages como dependências
@@ -830,6 +850,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     // Ensure user_id (Gestor's ID) is correctly set from crmOwnerUserId
     if (!crmOwnerUserId) throw new Error("ID do Gestor do CRM não encontrado.");
     
+    const currentLead = crmLeads.find(l => l.id === id);
+    if (!currentLead) throw new Error("Lead não encontrado para atualização.");
+
     const payload: Partial<CrmLead> = { 
       ...updates, 
       user_id: JOAO_GESTOR_AUTH_ID,
@@ -840,15 +863,47 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       payload.name = updates.name || ''; // Allow setting to empty string if explicitly passed
     }
 
-    const { error } = await supabase.from('crm_leads').update(payload).eq('id', id).eq('consultant_id', user.id);
-    if (error) throw error;
+    // Ensure consultant_id is not accidentally removed or set to null
+    if (updates.consultant_id === undefined) {
+        payload.consultant_id = currentLead.consultant_id; // Keep existing if not explicitly updated
+    } else {
+        payload.consultant_id = updates.consultant_id || user.id; // Use new or default to current user
+    }
+
+    console.log("[AppContext.updateCrmLead] Final payload:", payload); // Debug log
+
+    let query = supabase.from('crm_leads').update(payload).eq('id', id);
+
+    // Apply RLS condition only if the user is a CONSULTOR
+    if (user.role === 'CONSULTOR') {
+      query = query.eq('consultant_id', user.id);
+    }
+    // For GESTOR/ADMIN, the RLS policies handle permissions, no need for client-side consultant_id check here
+
+    const { error } = await query;
+    if (error) {
+      console.error("Supabase error updating crm lead:", error);
+      throw error;
+    }
     setCrmLeads(prev => prev.map(lead => lead.id === id ? { ...lead, ...updates } : lead)); // Use updates directly for local state
-  }, [user, crmOwnerUserId]);
+  }, [user, crmOwnerUserId, crmLeads]);
 
   const deleteCrmLead = useCallback(async (id: string) => {
     if (!user) throw new Error("Usuário não autenticado.");
-    const { error } = await supabase.from('crm_leads').delete().eq('id', id).eq('consultant_id', user.id);
-    if (error) throw error;
+    
+    let query = supabase.from('crm_leads').delete().eq('id', id);
+
+    // Apply RLS condition only if the user is a CONSULTOR
+    if (user.role === 'CONSULTOR') {
+      query = query.eq('consultant_id', user.id);
+    }
+    // For GESTOR/ADMIN, the RLS policies handle permissions
+
+    const { error } = await query;
+    if (error) {
+      console.error("Supabase error deleting crm lead:", error);
+      throw new Error(error.message);
+    }
     setCrmLeads(prev => prev.filter(lead => lead.id !== id));
   }, [user]);
 
@@ -856,7 +911,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const updateCrmLeadStage = useCallback(async (leadId: string, newStageId: string) => {
     if (!user) throw new Error("Usuário não autenticado.");
     console.log(`[AppContext] updateCrmLeadStage: Attempting to update lead ${leadId} to stage ${newStageId}`);
-    const { error } = await supabase.from('crm_leads').update({ stage_id: newStageId }).eq('id', leadId).eq('consultant_id', user.id);
+    
+    let query = supabase.from('crm_leads').update({ stage_id: newStageId }).eq('id', leadId);
+
+    // Apply RLS condition only if the user is a CONSULTOR
+    if (user.role === 'CONSULTOR') {
+      query = query.eq('consultant_id', user.id);
+    }
+    // For GESTOR/ADMIN, the RLS policies handle permissions
+
+    const { error } = await query;
     if (error) {
       console.error(`[AppContext] updateCrmLeadStage: Supabase error for lead ${leadId}:`, error);
       throw error;
