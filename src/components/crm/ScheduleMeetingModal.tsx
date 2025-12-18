@@ -32,37 +32,15 @@ interface ScheduleMeetingModalProps {
 
 export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOpen, onClose, lead }) => {
   const { user } = useAuth();
-  const { addLeadTask, updateCrmLeadStage, crmStages } = useApp(); // Removido teamMembers
+  const { addLeadTask, updateCrmLeadStage, crmStages } = useApp();
 
   const [title, setTitle] = useState(`Reunião - ${lead.name}`);
   const [description, setDescription] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('10:00');
-  // const [invitedManagerId, setInvitedManagerId] = useState<string | undefined>(undefined); // REMOVIDO
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
-
-  // REMOVIDO: managers useMemo
-  // const managers = useMemo(() => {
-  //   const filtered = teamMembers.filter(member => 
-  //     member.roles.includes('Gestor') && 
-  //     member.isActive &&
-  //     member.hasLogin &&
-  //     !member.id.startsWith('legacy_')
-  //   );
-  //   console.log("[ScheduleMeetingModal] Filtered Managers for selection:", filtered.map(m => ({ id: m.id, name: m.name, hasLogin: m.hasLogin })));
-    
-  //   const validManagers = filtered.filter(m => {
-  //     const isValidUuid = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(m.id);
-  //     if (!isValidUuid) {
-  //       console.warn(`[ScheduleMeetingModal] Manager ${m.name} (ID: ${m.id}) has an invalid UUID format. Filtering out.`);
-  //     }
-  //     return isValidUuid;
-  //   });
-  //   console.log("[ScheduleMeetingModal] Validated Managers (UUID format check):", validManagers.map(m => ({ id: m.id, name: m.name })));
-  //   return validManagers;
-  // }, [teamMembers]);
 
   const meetingStage = useMemo(() => {
     return crmStages.find(stage => stage.name.toLowerCase().includes('reunião') && stage.is_active);
@@ -75,7 +53,6 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
       setDate(new Date().toISOString().split('T')[0]);
       setStartTime('09:00');
       setEndTime('10:00');
-      // setInvitedManagerId(undefined); // REMOVIDO
       setError('');
     }
   }, [isOpen, lead.name]);
@@ -104,7 +81,6 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
     console.log("[ScheduleMeetingModal] Attempting to schedule meeting.");
     console.log("[ScheduleMeetingModal] Lead ID:", lead.id);
     console.log("[ScheduleMeetingModal] Consultant User ID (from Auth):", user?.id);
-    // console.log("[ScheduleMeetingModal] Invited Manager ID (before addLeadTask):", invitedManagerId); // REMOVIDO
     console.log("[ScheduleMeetingModal] Meeting Start Time:", startDateTime.toISOString());
     console.log("[ScheduleMeetingModal] Meeting End Time:", endDateTime.toISOString());
 
@@ -119,8 +95,6 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
         type: 'meeting',
         meeting_start_time: startDateTime.toISOString(),
         meeting_end_time: endDateTime.toISOString(),
-        // manager_id: invitedManagerId, // REMOVIDO
-        // manager_invitation_status: invitedManagerId ? 'pending' : undefined, // REMOVIDO
       });
 
       if (meetingStage && lead.stage_id !== meetingStage.id) {
@@ -142,7 +116,7 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
 
     const googleCalendarUrl = new URL('https://calendar.google.com/calendar/render');
     googleCalendarUrl.searchParams.append('action', 'TEMPLATE');
-    googleCalendarUrl.searchParams.append('text', encodeURIComponent(title));
+    googleCalendarUrl.searchParams.append('text', title); // Removido encodeURIComponent
     googleCalendarUrl.searchParams.append('dates', `${startDateTime.toISOString().replace(/[-:]|\.\d{3}/g, '')}/${endDateTime.toISOString().replace(/[-:]|\.\d{3}/g, '')}`);
     googleCalendarUrl.searchParams.append('details', encodeURIComponent(description || `Reunião com o lead ${lead.name}`));
     
@@ -152,11 +126,6 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
     if (user?.email) {
       googleCalendarUrl.searchParams.append('add', encodeURIComponent(user.email));
     }
-    // REMOVIDO: Lógica de convite de gestor
-    // const invitedManager = managers.find(m => m.id === invitedManagerId);
-    // if (invitedManager?.email) {
-    //   googleCalendarUrl.searchParams.append('add', encodeURIComponent(invitedManager.email));
-    // }
 
     window.open(googleCalendarUrl.toString(), '_blank');
   };
@@ -231,22 +200,6 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
                   />
                 </div>
               </div>
-              {/* REMOVIDO: Campo de convite de gestor */}
-              {/* <div>
-                <Label htmlFor="manager">Convidar Gestor (Opcional)</Label>
-                <Select value={invitedManagerId} onValueChange={setInvitedManagerId}>
-                  <SelectTrigger className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
-                    <SelectValue placeholder="Selecione um gestor" />
-                  </SelectTrigger>
-                  <SelectContent className="dark:bg-slate-800 dark:text-white dark:border-slate-700">
-                    {managers.map(manager => (
-                      <SelectItem key={manager.id} value={manager.id}>
-                        {manager.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div> */}
               {error && <p className="text-red-500 text-sm">{error}</p>}
             </div>
           </ScrollArea>
