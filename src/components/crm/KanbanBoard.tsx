@@ -18,6 +18,7 @@ import {
   KeyboardSensor,
   closestCorners,
   MeasuringStrategy,
+  useDroppable, // Adicionado: Importação do useDroppable
 } from '@dnd-kit/core';
 import {
   SortableContext,
