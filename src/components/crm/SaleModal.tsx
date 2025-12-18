@@ -133,7 +133,8 @@ export const SaleModal: React.FC<SaleModalProps> = ({ isOpen, onClose, lead }) =
         receivedValue: 0, // Will be updated as installments are paid
       };
 
-      await addCommission(commissionPayload);
+      // Pass the lead's consultant_id as the owner of the commission
+      await addCommission(commissionPayload, lead.consultant_id);
 
       // 2. Mover o lead para a etapa "Vendido"
       await updateCrmLeadStage(lead.id, wonStage.id);
