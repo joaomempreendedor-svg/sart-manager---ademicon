@@ -145,7 +145,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ id, title, leadCount, total
   return (
     <div
       ref={setNodeRef}
-      className="flex-shrink-0 w-80 bg-gray-100 dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700"
+      className="min-w-[240px] bg-gray-100 dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700"
     >
       <div className="p-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
         <h3 className="font-semibold text-gray-900 dark:text-white">{title}</h3>
@@ -455,7 +455,7 @@ const CrmPage = () => {
           },
         }}
       >
-        <div className="flex overflow-x-auto pb-4 space-x-6 custom-scrollbar"> {/* Alterado para flex com rolagem horizontal */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6 pb-4"> {/* Layout de grade responsivo */}
           {pipelineStages.map(stage => (
             <KanbanColumn
               key={stage.id}
