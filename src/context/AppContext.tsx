@@ -65,7 +65,7 @@ const JOAO_GESTOR_AUTH_ID = "7ccbe808-4dfe-48ac-809e-fa095303e299";
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { user } = useAuth();
-  const fetchedUserIdRef = useRef<string | null>(null);
+  const fetchedUserIdRef = useRef<string | null>(fetchedUserIdRef.current); // Initialize with current value
   const isFetchingRef = useRef(false);
 
   const [isDataLoading, setIsDataLoading] = useState(true);
@@ -821,7 +821,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }; 
     const { data, error } = await supabase.from('crm_leads').insert(payload).select().single();
     if (error) throw error;
-    setCrmLeads(prev => [...prev, data]);
+    setCrmLeads(prev => [data, ...prev]); // Alterado para adicionar no início
     return data;
   }, [user, crmOwnerUserId, crmPipelines, crmStages]); // Adicionado crmPipelines e crmStages como dependências
 
