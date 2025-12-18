@@ -183,7 +183,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ id, title, leadCount, total
       </div>
       <div className="p-4 space-y-3 overflow-y-auto custom-scrollbar flex-1">
         <SortableContext 
-          key={leadsInStageIds.join('-')} // Revertendo para key baseada nos IDs dos leads
+          key={id} // Usar o ID da coluna como chave para o SortableContext
           items={leadsInStageIds} 
           strategy={verticalListSortingStrategy}
         >
@@ -374,7 +374,7 @@ const CrmPage = () => {
   // Dnd-kit handlers
   const handleDragStart = (event: any) => {
     setActiveDragId(event.active.id);
-    console.log("[handleDragStart] Drag iniciado. Active ID:", event.active.id);
+    console.log("--- handleDragStart EXECUTADO --- Active ID:", event.active.id); // Log de início do arrasto
   };
 
   const handleDragEnd = async (event: any) => {
