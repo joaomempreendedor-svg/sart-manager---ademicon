@@ -5,10 +5,11 @@ import { Plus, Search, Loader2, Phone, Mail, Tag, MessageSquare, TrendingUp, Lis
 import LeadModal from '@/components/crm/LeadModal'; // Novo componente
 import { LeadTasksModal } from '@/components/crm/LeadTasksModal'; // Importar o novo modal de tarefas
 import { ScheduleMeetingModal } from '@/components/crm/ScheduleMeetingModal'; // NOVO: Importar o modal de agendamento de reunião
+import { ProposalModal } from '@/components/crm/ProposalModal'; // NOVO: Importar o modal de proposta
 
 const CrmPage = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
-  const { crmPipelines, crmStages, crmLeads, crmFields, isDataLoading, deleteCrmLead } = useApp();
+  const { crmPipelines, crmStages, crmLeads, crmFields, isDataLoading, deleteCrmLead, updateCrmLead, updateCrmLeadStage } = useApp();
   const [isLeadModalOpen, setIsLeadModalOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<CrmLead | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -16,6 +17,8 @@ const CrmPage = () => {
   const [selectedLeadForTasks, setSelectedLeadForTasks] = useState<CrmLead | null>(null); // Lead selecionado para tarefas
   const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false); // NOVO: Estado para o modal de reunião
   const [selectedLeadForMeeting, setSelectedLeadForMeeting] = useState<CrmLead | null>(null); // NOVO: Lead selecionado para reunião
+  const [isProposalModalOpen, setIsProposalModalOpen] = useState(false); // NOVO: Estado para o modal de proposta
+  const [selectedLeadForProposal, setSelectedLeadForProposal] = useState<CrmLead | null>(null); // NOVO: Lead selecionado para proposta
 
   const activePipeline = useMemo(() => {
     return crmPipelines.find(p => p.is_active) || crmPipelines[0];
@@ -85,6 +88,44 @@ const CrmPage = () => {
     setSelectedLeadForMeeting(lead);
     setIsMeetingModalOpen(true);
   };
+
+  // NOVO: Função para abrir o modal de proposta
+  const handleOpenProposalModal = (e: React.MouseEvent, lead: CrmLead) => {
+    e.stopPropagation();
+    setSelectedLeadForProposal(lead);
+    setIsProposalModalOpen(true);
+  };
+
+  // NOVO: Função para salvar a proposta e mover o lead
+  const handleSaveProposal = async (leadId: string, proposalValue: number, proposalDate: string, proposalNotes?: string) => {
+    const proposalSentStage = crmStages.find(s => s.name.toLowerCase().includes('proposta enviada') && s.is_active);
+
+    if (!proposalSentStage) {
+      alert("A etapa 'Proposta Enviada' não foi encontrada ou não está ativa. Por favor, configure-a nas configurações do CRM.");
+      throw new Error("Etapa 'Proposta Enviada' não configurada.");
+    }
+
+    try {
+      // 1. Atualizar os dados da proposta no lead
+      await updateCrmLead(leadId, {
+        data: {
+          ...crmLeads.find(l => l.id === leadId)?.data, // Manter dados existentes
+          proposal_value: proposalValue,
+          proposal_date: proposalDate,
+          proposal_notes: proposalNotes,
+        }
+      });
+
+      // 2. Mover o lead para a etapa "Proposta Enviada"
+      await updateCrmLeadStage(leadId, proposalSentStage.id);
+      alert("Proposta registrada e lead movido para 'Proposta Enviada'!");
+    } catch (error: any) {
+      console.error("Erro ao salvar proposta e mover lead:", error);
+      alert(`Erro ao salvar proposta: ${error.message}`);
+      throw error;
+    }
+  };
+
 
   if (isAuthLoading || isDataLoading) {
     return (
@@ -186,7 +227,7 @@ const CrmPage = () => {
                       <button onClick={(e) => handleOpenMeetingModal(e, lead)} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-900/30 transition">
                         <CalendarPlus className="w-3 h-3 mr-1" /> Reunião
                       </button>
-                      <button onClick={(e) => e.stopPropagation()} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/30 transition">
+                      <button onClick={(e) => handleOpenProposalModal(e, lead)} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/30 transition">
                         <Send className="w-3 h-3 mr-1" /> Proposta
                       </button>
                       <button onClick={(e) => e.stopPropagation()} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-brand-50 dark:bg-brand-900/20 text-brand-700 dark:text-brand-300 hover:bg-brand-100 dark:hover:bg-brand-900/30 transition">
@@ -225,6 +266,16 @@ const CrmPage = () => {
           isOpen={isMeetingModalOpen}
           onClose={() => setIsMeetingModalOpen(false)}
           lead={selectedLeadForMeeting}
+        />
+      )}
+
+      {/* NOVO: Modal de Proposta */}
+      {isProposalModalOpen && selectedLeadForProposal && (
+        <ProposalModal
+          isOpen={isProposalModalOpen}
+          onClose={() => setIsProposalModalOpen(false)}
+          lead={selectedLeadForProposal}
+          onSave={handleSaveProposal}
         />
       )}
     </div>
