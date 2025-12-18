@@ -18,6 +18,7 @@ import {
   KeyboardSensor,
   closestCorners,
   MeasuringStrategy,
+  useDroppable, // Importar useDroppable
 } from '@dnd-kit/core';
 import {
   SortableContext,
@@ -28,6 +29,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { createPortal } from 'react-dom';
 import { CrmLead } from '@/types';
+import toast from 'react-hot-toast';
 
 // Componente para o cartão de Lead arrastável
 interface DraggableLeadCardProps {
@@ -120,6 +122,42 @@ const DraggableLeadCard: React.FC<DraggableLeadCardProps> = ({
     </div>
   );
 };
+
+// Novo componente para a coluna do Kanban
+interface KanbanColumnProps {
+  id: string; // Stage ID
+  title: string;
+  leadCount: number;
+  totalValue: number;
+  children: React.ReactNode;
+}
+
+const KanbanColumn: React.FC<KanbanColumnProps> = ({ id, title, leadCount, totalValue, children }) => {
+  const { setNodeRef } = useDroppable({
+    id: id,
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className="flex-shrink-0 w-80 bg-gray-100 dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700"
+    >
+      <div className="p-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
+        <h3 className="font-semibold text-gray-900 dark:text-white">{title}</h3>
+        <div className="flex justify-between items-center mt-1">
+          <span className="text-xs text-gray-500 dark:text-gray-400">{leadCount} leads</span>
+          {(title.toLowerCase().includes('proposta enviada') || title.toLowerCase().includes('vendido')) && totalValue > 0 && (
+            <span className="text-sm font-bold text-purple-700 dark:text-purple-300">
+              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalValue)}
+            </span>
+          )}
+        </div>
+      </div>
+      {children}
+    </div>
+  );
+};
+
 
 const CrmPage = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -214,7 +252,7 @@ const CrmPage = () => {
       try {
         await deleteCrmLead(lead.id);
       } catch (error: any) {
-        alert(`Erro ao excluir lead: ${error.message}`);
+        toast.error(`Erro ao excluir lead: ${error.message}`);
       }
     }
   };
@@ -241,7 +279,7 @@ const CrmPage = () => {
     const proposalSentStage = crmStages.find(s => s.name.toLowerCase().includes('proposta enviada') && s.is_active);
 
     if (!proposalSentStage) {
-      alert("A etapa 'Proposta Enviada' não foi encontrada ou não está ativa. Por favor, configure-a nas configurações do CRM.");
+      toast.error("A etapa 'Proposta Enviada' não foi encontrada ou não está ativa. Por favor, configure-a nas configurações do CRM.");
       throw new Error("Etapa 'Proposta Enviada' não configurada.");
     }
 
@@ -258,7 +296,7 @@ const CrmPage = () => {
       toast.success("Proposta registrada e lead movido para 'Proposta Enviada'!");
     } catch (error: any) {
       console.error("Erro ao salvar proposta e mover lead:", error);
-      alert(`Erro ao salvar proposta: ${error.message}`);
+      toast.error(`Erro ao salvar proposta: ${error.message}`);
       throw error;
     }
   };
@@ -277,23 +315,59 @@ const CrmPage = () => {
   const handleDragEnd = async (event: any) => {
     const { active, over } = event;
 
-    if (!active || !over) return;
+    console.log("Drag End Event:", event);
+    console.log("Active ID (dragged lead):", active?.id);
+    console.log("Over ID (target element):", over?.id);
+    console.log("Over data:", over?.data);
+
+    if (!active || !over) {
+      console.log("Drag ended outside a droppable area or no active item.");
+      setActiveDragId(null);
+      return;
+    }
 
     const draggedLeadId = active.id as string;
-    const newStageId = over.id as string;
+    const targetId = over.id as string;
 
     const draggedLead = consultantLeads.find(lead => lead.id === draggedLeadId);
-    if (!draggedLead) return;
+    if (!draggedLead) {
+      console.error("Dragged lead not found:", draggedLeadId);
+      setActiveDragId(null);
+      return;
+    }
+
+    // Determine the new stage ID
+    let newStageId: string | undefined;
+
+    // Prioritize dropping directly on a KanbanColumn (stage)
+    if (pipelineStages.some(stage => stage.id === targetId)) {
+      newStageId = targetId;
+    } else {
+      // If dropped on another lead, find the stage of that lead
+      const targetLead = consultantLeads.find(lead => lead.id === targetId);
+      if (targetLead) {
+        newStageId = targetLead.stage_id;
+      }
+    }
+
+    if (!newStageId) {
+      console.warn("Could not determine new stage ID. No update.");
+      setActiveDragId(null);
+      return;
+    }
 
     // Only update if the stage has actually changed
     if (draggedLead.stage_id !== newStageId) {
       try {
+        console.log(`Updating lead ${draggedLead.name} (${draggedLeadId}) to stage ${newStageId}`);
         await updateCrmLeadStage(draggedLeadId, newStageId);
         toast.success(`Lead "${draggedLead.name}" movido para a nova etapa!`);
       } catch (error: any) {
         console.error("Failed to update lead stage:", error);
         toast.error(`Erro ao mover o lead: ${error.message}`);
       }
+    } else {
+      console.log(`Lead ${draggedLead.name} dropped in the same stage. No update needed.`);
     }
     setActiveDragId(null);
   };
@@ -372,22 +446,13 @@ const CrmPage = () => {
       >
         <div className="flex overflow-x-auto pb-4 space-x-6 custom-scrollbar">
           {pipelineStages.map(stage => (
-            <div
+            <KanbanColumn
               key={stage.id}
-              id={stage.id} // ID for droppable context
-              className="flex-shrink-0 w-80 bg-gray-100 dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700"
+              id={stage.id}
+              title={stage.name}
+              leadCount={groupedLeads[stage.id]?.length || 0}
+              totalValue={stageTotals[stage.id] || 0}
             >
-              <div className="p-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
-                <h3 className="font-semibold text-gray-900 dark:text-white">{stage.name}</h3>
-                <div className="flex justify-between items-center mt-1">
-                  <span className="text-xs text-gray-500 dark:text-gray-400">{groupedLeads[stage.id]?.length || 0} leads</span>
-                  {(stage.name.toLowerCase().includes('proposta enviada') || stage.is_won) && stageTotals[stage.id] > 0 && (
-                    <span className="text-sm font-bold text-purple-700 dark:text-purple-300">
-                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(stageTotals[stage.id])}
-                    </span>
-                  )}
-                </div>
-              </div>
               <SortableContext items={groupedLeads[stage.id]?.map(lead => lead.id) || []} strategy={verticalListSortingStrategy}>
                 <div className="p-4 space-y-3 min-h-[200px]">
                   {groupedLeads[stage.id]?.length === 0 ? (
@@ -408,7 +473,7 @@ const CrmPage = () => {
                   )}
                 </div>
               </SortableContext>
-            </div>
+            </KanbanColumn>
           ))}
         </div>
 
