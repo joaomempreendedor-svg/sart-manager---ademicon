@@ -36,7 +36,7 @@ import { OnlineOnboarding } from '@/pages/OnlineOnboarding';
 import CrmConfigPage from '@/pages/gestor/CrmConfig';
 import { DailyChecklistConfig } from '@/pages/gestor/DailyChecklistConfig';
 import { DailyChecklistMonitoring } from '@/pages/gestor/DailyChecklistMonitoring';
-// import { ChecklistAssignment } from '@/pages/gestor/ChecklistAssignment'; // Importar o novo componente
+import { CrmMirror } from '@/pages/gestor/CrmMirror'; // Importar o novo componente CrmMirror
 
 // Consultor Pages
 import ConsultorDashboard from '@/pages/consultor/Dashboard';
@@ -119,6 +119,7 @@ const AppRoutes = () => {
       <Route element={<RequireAuth allowedRoles={['GESTOR', 'ADMIN']} />}>
         <Route path="/gestor" element={<GestorLayout />}>
           <Route path="dashboard" element={<Dashboard />} />
+          <Route path="crm-mirror" element={<CrmMirror />} /> {/* NOVA ROTA */}
           <Route path="candidate/:id" element={<CandidateDetail />} />
           <Route path="commissions" element={<Commissions />} />
           <Route path="feedbacks" element={<Feedbacks />} />
@@ -134,7 +135,6 @@ const AppRoutes = () => {
           <Route path="crm-config" element={<CrmConfigPage />} />
           <Route path="daily-checklist-config" element={<DailyChecklistConfig />} />
           <Route path="daily-checklist-monitoring" element={<DailyChecklistMonitoring />} />
-          {/* <Route path="checklist-assignment" element={<ChecklistAssignment />} /> REMOVIDO */}
           <Route path="*" element={<Navigate to="/gestor/dashboard" replace />} />
         </Route>
       </Route>

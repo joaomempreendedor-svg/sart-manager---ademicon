@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, MessageSquare, Settings, FileText, Sun, Moon, Banknote, PlusCircle, Library, TrendingUp, Target, Users, LogOut, User as UserIcon, Calendar, Link as LinkIcon, Star, Video, ListChecks, ClipboardCheck, UserPlus } from 'lucide-react'; // Import UserPlus icon
+import { LayoutDashboard, MessageSquare, Settings, FileText, Sun, Moon, Banknote, PlusCircle, Library, TrendingUp, Target, Users, LogOut, User as UserIcon, Calendar, Link as LinkIcon, Star, Video, ListChecks, ClipboardCheck, UserPlus, Monitor } from 'lucide-react'; // Import Monitor icon
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 
@@ -52,6 +52,10 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
           <NavLink to="/gestor/dashboard" className={linkClass} onClick={toggleSidebar}>
             <LayoutDashboard className="w-5 h-5" />
             <span>Dashboard</span>
+          </NavLink>
+          <NavLink to="/gestor/crm-mirror" className={linkClass} onClick={toggleSidebar}> {/* NEW LINK */}
+            <Monitor className="w-5 h-5" />
+            <span>Espelho do CRM</span>
           </NavLink>
           <NavLink to="/gestor/onboarding-admin" className={linkClass} onClick={toggleSidebar}>
             <Video className="w-5 h-5" />

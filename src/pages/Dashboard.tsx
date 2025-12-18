@@ -6,7 +6,7 @@ import { ChevronRight, User, Calendar, CheckCircle2, TrendingUp, AlertCircle, Cl
 import { CandidateStatus, ChecklistTaskState, LeadTask } from '@/types';
 import { TableSkeleton } from '@/components/TableSkeleton';
 import { ScheduleInterviewModal } from '@/components/ScheduleInterviewModal';
-import { KanbanBoard } from '@/components/crm/KanbanBoard'; // Importar o KanbanBoard
+// import { KanbanBoard } from '@/components/crm/KanbanBoard'; // Importar o KanbanBoard - REMOVIDO
 import {
   Select,
   SelectContent,
@@ -68,7 +68,7 @@ export const Dashboard = () => {
   } = useApp();
   const navigate = useNavigate();
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
-  const [selectedConsultantId, setSelectedConsultantId] = useState<string | null>(null);
+  // const [selectedConsultantId, setSelectedConsultantId] = useState<string | null>(null); // REMOVIDO
 
   const today = useMemo(() => new Date(), []);
   const todayStr = useMemo(() => today.toISOString().split('T')[0], [today]);
@@ -77,11 +77,11 @@ export const Dashboard = () => {
     return teamMembers.filter(m => m.isActive && (m.roles.includes('CONSULTOR') || m.roles.includes('Prévia') || m.roles.includes('Autorizado')));
   }, [teamMembers]);
 
-  useEffect(() => {
-    if (consultants.length > 0 && !selectedConsultantId) {
-      setSelectedConsultantId(consultants[0].id);
-    }
-  }, [consultants, selectedConsultantId]);
+  // useEffect(() => { // REMOVIDO
+  //   if (consultants.length > 0 && !selectedConsultantId) {
+  //     setSelectedConsultantId(consultants[0].id);
+  //   }
+  // }, [consultants, selectedConsultantId]);
 
   const totalCandidates = candidates.length;
   const authorized = teamMembers.filter(m => m.isActive && m.roles.includes('Autorizado')).length;
@@ -174,22 +174,22 @@ export const Dashboard = () => {
     }
   };
 
-  // CRM Mirror Logic
-  const activePipeline = useMemo(() => {
-    return crmPipelines.find(p => p.is_active) || crmPipelines[0];
-  }, [crmPipelines]);
+  // CRM Mirror Logic - REMOVIDO DO DASHBOARD
+  // const activePipeline = useMemo(() => {
+  //   return crmPipelines.find(p => p.is_active) || crmPipelines[0];
+  // }, [crmPipelines]);
 
-  const pipelineStages = useMemo(() => {
-    if (!activePipeline) return [];
-    return crmStages
-      .filter(s => s.pipeline_id === activePipeline.id && s.is_active)
-      .sort((a, b) => a.order_index - b.order_index);
-  }, [crmStages, activePipeline]);
+  // const pipelineStages = useMemo(() => {
+  //   if (!activePipeline) return [];
+  //   return crmStages
+  //     .filter(s => s.pipeline_id === activePipeline.id && s.is_active)
+  //     .sort((a, b) => a.order_index - b.order_index);
+  // }, [crmStages, activePipeline]);
 
-  const leadsForSelectedConsultant = useMemo(() => {
-    if (!selectedConsultantId) return [];
-    return crmLeads.filter(lead => lead.consultant_id === selectedConsultantId);
-  }, [crmLeads, selectedConsultantId]);
+  // const leadsForSelectedConsultant = useMemo(() => {
+  //   if (!selectedConsultantId) return [];
+  //   return crmLeads.filter(lead => lead.consultant_id === selectedConsultantId);
+  // }, [crmLeads, selectedConsultantId]);
 
   if (isDataLoading) {
     return (
@@ -305,8 +305,8 @@ export const Dashboard = () => {
         </div>
       </div>
 
-      {/* CRM Mirror Section */}
-      <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl shadow-sm overflow-hidden mb-8">
+      {/* CRM Mirror Section - REMOVIDO */}
+      {/* <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl shadow-sm overflow-hidden mb-8">
         <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
             <TrendingUp className="w-5 h-5 mr-2 text-brand-500" />
@@ -330,12 +330,12 @@ export const Dashboard = () => {
         </div>
         
         {selectedConsultantId && activePipeline && pipelineStages.length > 0 ? (
-          <div className="p-4 h-[600px]"> {/* Altura fixa para o Kanban no dashboard */}
+          <div className="p-4 h-[600px]">
             <KanbanBoard
               leads={leadsForSelectedConsultant}
               pipelineStages={pipelineStages}
               crmFields={crmFields.filter(f => f.is_active)}
-              consultantId={selectedConsultantId} // Passa o ID do consultor selecionado
+              consultantId={selectedConsultantId}
               onUpdateLeadStage={updateCrmLeadStage}
               onAddLead={addCrmLead}
               onUpdateLead={updateCrmLead}
@@ -351,7 +351,7 @@ export const Dashboard = () => {
             )}
           </div>
         )}
-      </div>
+      </div> */}
 
       <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
