@@ -55,6 +55,19 @@ const RequireAuth: React.FC<{ allowedRoles: UserRole[] }> = ({ allowedRoles }) =
 
   const location = useLocation();
 
+  // Adicionando logs para depuração
+  useEffect(() => {
+    console.log("[RequireAuth] isAuthLoading:", isAuthLoading);
+    console.log("[RequireAuth] isDataLoading:", isDataLoading);
+    console.log("[RequireAuth] User:", user);
+    if (user) {
+      console.log("[RequireAuth] User Role:", user.role);
+      console.log("[RequireAuth] User isActive:", user.isActive);
+      console.log("[RequireAuth] User needs_password_change:", user.needs_password_change);
+    }
+  }, [isAuthLoading, isDataLoading, user]);
+
+
   if (isAuthLoading || isDataLoading) {
     return <AppLoader />;
   }
