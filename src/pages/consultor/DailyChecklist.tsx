@@ -66,6 +66,7 @@ export const DailyChecklist = () => {
     console.log("DEBUG: array teamMembers para correspondência:", teamMembers.map(tm => ({ id: tm.id, email: tm.email, name: tm.name, isLegacy: tm.isLegacy })));
 
     const foundMember = teamMembers.find(tm => {
+      console.log(`DEBUG: Comparando tm.id (${tm.id}) com user.id (${user.id})`); // NEW LOG
       // 1. TENTA: match exato de ID (TIPO 2)
       if (tm.id === user.id) {
         console.log(`✅ userTeamMember: Encontrado por ID (Auth.uid === TeamMember.id): ${tm.name}`);
