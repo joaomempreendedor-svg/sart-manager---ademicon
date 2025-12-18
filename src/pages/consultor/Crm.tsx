@@ -38,6 +38,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils'; // Importar a função cn para mesclar classes
 
 
 // Componente para o cartão de Lead arrastável
@@ -52,6 +53,7 @@ interface DraggableLeadCardProps {
   onMarkAsLost: (e: React.MouseEvent, lead: CrmLead) => void;
   onChangeStage: (leadId: string, newStageId: string) => void; // Nova prop
   pipelineStages: CrmStage[]; // Nova prop
+  overlay?: boolean; // Nova prop para indicar se está no DragOverlay
 }
 
 const DraggableLeadCard: React.FC<DraggableLeadCardProps> = ({
@@ -65,6 +67,7 @@ const DraggableLeadCard: React.FC<DraggableLeadCardProps> = ({
   onMarkAsLost,
   onChangeStage, // Usar a nova prop
   pipelineStages, // Usar a nova prop
+  overlay = false, // Valor padrão
 }) => {
   const {
     attributes,
@@ -83,7 +86,7 @@ const DraggableLeadCard: React.FC<DraggableLeadCardProps> = ({
     touchAction: 'none', // Adicionado para evitar interferência do navegador
   };
 
-  console.log(`[DraggableLeadCard ${lead.name}] Rendering. isDragging: ${isDragging}`); // Log para depuração
+  console.log(`[DraggableLeadCard ${lead.name}] Rendering. isDragging: ${isDragging}, overlay: ${overlay}`); // Log para depuração
 
   return (
     <div
@@ -92,7 +95,10 @@ const DraggableLeadCard: React.FC<DraggableLeadCardProps> = ({
       {...attributes}
       {...listeners}
       onClick={() => onEdit(lead)}
-      className="bg-white dark:bg-slate-700 p-3 rounded-lg shadow-sm border border-gray-200 dark:border-slate-600 hover:border-brand-500 cursor-grab transition-all group"
+      className={cn(
+        "bg-white dark:bg-slate-700 p-3 rounded-lg shadow-sm border border-gray-200 dark:border-slate-600 hover:border-brand-500 cursor-grab transition-all group",
+        overlay && "shadow-lg ring-2 ring-brand-500/50 !bg-white !dark:bg-slate-700" // Estilos para o overlay
+      )}
     >
       <div className="flex justify-between items-start mb-2">
         <p className="font-medium text-gray-900 dark:text-white">{lead.name}</p>
@@ -624,6 +630,7 @@ const CrmPage = () => {
                 onMarkAsLost={handleMarkAsLost}
                 onChangeStage={handleChangeStageFromSelect} // Passar o handler
                 pipelineStages={pipelineStages} // Passar as etapas
+                overlay={true} // Indicar que é o card do overlay
               />
             ) : null}
           </DragOverlay>,
