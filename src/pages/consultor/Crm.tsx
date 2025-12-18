@@ -55,6 +55,24 @@ const CrmPage = () => {
     return groups;
   }, [pipelineStages, filteredLeads]);
 
+  // NOVO: Cálculo dos totais por coluna
+  const stageTotals = useMemo(() => {
+    const totals: Record<string, number> = {};
+    pipelineStages.forEach(stage => {
+      const leadsInStage = groupedLeads[stage.id] || [];
+      const totalValue = leadsInStage.reduce((sum, lead) => {
+        // Para "Proposta Enviada" e "Vendido", somamos o valor da proposta
+        if (lead.data?.proposal_value) {
+          return sum + (lead.data.proposal_value as number);
+        }
+        return sum;
+      }, 0);
+      totals[stage.id] = totalValue;
+    });
+    return totals;
+  }, [pipelineStages, groupedLeads]);
+
+
   const handleAddNewLead = () => {
     setEditingLead(null);
     setIsLeadModalOpen(true);
@@ -187,7 +205,15 @@ const CrmPage = () => {
           <div key={stage.id} className="flex-shrink-0 w-80 bg-gray-100 dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700">
             <div className="p-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
               <h3 className="font-semibold text-gray-900 dark:text-white">{stage.name}</h3>
-              <span className="text-xs text-gray-500 dark:text-gray-400">{groupedLeads[stage.id]?.length || 0} leads</span>
+              <div className="flex justify-between items-center mt-1">
+                <span className="text-xs text-gray-500 dark:text-gray-400">{groupedLeads[stage.id]?.length || 0} leads</span>
+                {/* NOVO: Exibir total da coluna */}
+                {(stage.name.toLowerCase().includes('proposta enviada') || stage.is_won) && stageTotals[stage.id] > 0 && (
+                  <span className="text-sm font-bold text-purple-700 dark:text-purple-300">
+                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(stageTotals[stage.id])}
+                  </span>
+                )}
+              </div>
             </div>
             <div className="p-4 space-y-3 min-h-[200px]">
               {groupedLeads[stage.id]?.length === 0 ? (
@@ -218,7 +244,7 @@ const CrmPage = () => {
                       {lead.data.phone && <div className="flex items-center"><Phone className="w-3 h-3 mr-1" /> {lead.data.phone}</div>}
                       {lead.data.email && <div className="flex items-center"><Mail className="w-3 h-3 mr-1" /> {lead.data.email}</div>}
                       {lead.data.origin && <div className="flex items-center"><Tag className="w-3 h-3 mr-1" /> {lead.data.origin}</div>}
-                      {/* NOVO: Exibir valor da proposta */}
+                      {/* Exibir valor da proposta no card */}
                       {lead.data.proposal_value && (
                         <div className="flex items-center text-purple-700 dark:text-purple-300 font-semibold">
                           <DollarSign className="w-3 h-3 mr-1" /> Proposta: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(lead.data.proposal_value)}
