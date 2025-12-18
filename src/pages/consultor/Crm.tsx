@@ -374,14 +374,28 @@ const CrmPage = () => {
   // Dnd-kit handlers
   const handleDragStart = (event: any) => {
     setActiveDragId(event.active.id);
+    console.log("[handleDragStart] Drag iniciado. Active ID:", event.active.id);
   };
 
   const handleDragEnd = async (event: any) => {
+    console.log("--- handleDragEnd EXECUTADO ---"); // Log de execução
     const { active, over } = event;
 
-    console.log("--- handleDragEnd Debug ---");
     console.log("Active (dragged item):", active);
-    console.log("Over (drop target) raw object:", over); // Log the raw over object
+    // Função para lidar com referências circulares no JSON.stringify
+    const getCircularReplacer = () => {
+      const seen = new WeakSet();
+      return (key: string, value: any) => {
+        if (typeof value === 'object' && value !== null) {
+          if (seen.has(value)) {
+            return '[Circular]';
+          }
+          seen.add(value);
+        }
+        return value;
+      };
+    };
+    console.log("Over (drop target) DETALHADO:", JSON.stringify(over, getCircularReplacer(), 2));
 
     if (!active || !over) {
       console.log("[handleDragEnd] Drag cancelado: active ou over é nulo.");
@@ -402,23 +416,17 @@ const CrmPage = () => {
     // Helper para verificar se um ID é um ID de etapa válido
     const isValidStageId = (id: string) => pipelineStages.some(stage => stage.id === id);
 
-    // Prioridade 1: Tentar obter o ID do SortableContext pai (se dropado em outro item sortable)
-    if (over.data.current?.sortable?.containerId && isValidStageId(over.data.current.sortable.containerId as string)) {
-      newStageId = over.data.current.sortable.containerId;
-      console.log(`[handleDragEnd] Detectado drop em item Sortable. ID do SortableContext pai: ${newStageId}`);
-    } 
-    // Prioridade 2: Tentar obter o ID do Droppable (se dropado diretamente na coluna)
-    else if (over.data.current?.droppable?.id && isValidStageId(over.data.current.droppable.id as string)) {
-      newStageId = over.data.current.droppable.id;
-      console.log(`[handleDragEnd] Detectado drop em Droppable (KanbanColumn). Novo ID da Etapa: ${newStageId}`);
-    }
-    // Prioridade 3: Fallback para over.id se ele for um ID de etapa válido (pode ocorrer em áreas vazias da coluna)
-    else if (isValidStageId(over.id as string)) {
+    // Tentar obter o ID da etapa de várias fontes no objeto 'over'
+    if (over.id && isValidStageId(over.id as string)) {
       newStageId = over.id as string;
-      console.log(`[handleDragEnd] Fallback: over.id corresponde a um ID de etapa. Novo ID da Etapa: ${newStageId}`);
-    }
-    // Se nenhuma das prioridades acima funcionou, logar o problema e cancelar
-    else {
+      console.log(`[handleDragEnd] ID da etapa encontrado diretamente em over.id: ${newStageId}`);
+    } else if (over.data?.current?.sortable?.containerId && isValidStageId(over.data.current.sortable.containerId as string)) {
+      newStageId = over.data.current.sortable.containerId as string;
+      console.log(`[handleDragEnd] ID da etapa encontrado em over.data.current.sortable.containerId: ${newStageId}`);
+    } else if (over.data?.current?.droppable?.id && isValidStageId(over.data.current.droppable.id as string)) {
+      newStageId = over.data.current.droppable.id as string;
+      console.log(`[handleDragEnd] ID da etapa encontrado em over.data.current.droppable.id: ${newStageId}`);
+    } else {
       console.warn(`[handleDragEnd] Não foi possível determinar um ID de etapa válido a partir do objeto 'over'. over.id: ${over.id}, over.data.current:`, over.data.current);
       setActiveDragId(null);
       return;
