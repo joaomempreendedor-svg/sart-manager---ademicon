@@ -37,14 +37,14 @@ type AgendaItem = {
     startTime: string;
     endTime: string;
     consultantName: string;
-    managerInvitationStatus?: 'pending' | 'accepted' | 'declined';
+    // managerInvitationStatus?: 'pending' | 'accepted' | 'declined'; // REMOVIDO
     taskId: string; // Para identificar a tarefa de reunião
   };
 };
 
 export const Dashboard = () => {
   const { user } = useAuth(); // Obter o usuário logado
-  const { candidates, checklistStructure, teamMembers, isDataLoading, leadTasks, crmLeads, updateLeadMeetingInvitationStatus } = useApp();
+  const { candidates, checklistStructure, teamMembers, isDataLoading, leadTasks, crmLeads } = useApp(); // Removido updateLeadMeetingInvitationStatus
   const navigate = useNavigate();
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
 
@@ -53,11 +53,11 @@ export const Dashboard = () => {
   const inTraining = candidates.filter(c => c.status === 'Acompanhamento 90 Dias').length;
   const activeTeam = teamMembers.filter(m => m.isActive).length;
 
-  const { todayAgenda, overdueTasks, meetingInvitations } = useMemo(() => {
+  const { todayAgenda, overdueTasks } = useMemo(() => { // Removido meetingInvitations
     const todayStr = new Date().toISOString().split('T')[0];
     const todayAgendaItems: AgendaItem[] = [];
     const overdueItems: AgendaItem[] = [];
-    const invitationsItems: AgendaItem[] = [];
+    // const invitationsItems: AgendaItem[] = []; // REMOVIDO
 
     // 1. Checklist Tasks (Candidatos)
     candidates.forEach(candidate => {
@@ -122,40 +122,41 @@ export const Dashboard = () => {
 
     // 4. Lead Tasks (CRM) - para o consultor logado
     // No dashboard do gestor, queremos ver convites de reunião
-    if (user?.role === 'GESTOR' || user?.role === 'ADMIN') {
-      console.log("[Dashboard] Checking meeting invitations for Gestor:", user.id);
-      console.log("[Dashboard] All leadTasks:", leadTasks.map(t => ({ id: t.id, type: t.type, manager_id: t.manager_id, manager_invitation_status: t.manager_invitation_status, user_id: t.user_id, lead_id: t.lead_id })));
+    // REMOVIDO: Lógica de convites de reunião para gestores
+    // if (user?.role === 'GESTOR' || user?.role === 'ADMIN') {
+    //   console.log("[Dashboard] Checking meeting invitations for Gestor:", user.id);
+    //   console.log("[Dashboard] All leadTasks:", leadTasks.map(t => ({ id: t.id, type: t.type, manager_id: t.manager_id, manager_invitation_status: t.manager_invitation_status, user_id: t.user_id, lead_id: t.lead_id })));
 
-      leadTasks.filter(task => 
-        task.type === 'meeting' && 
-        task.manager_id === user.id && 
-        task.manager_invitation_status === 'pending'
-      ).forEach(task => {
-        const lead = crmLeads.find(l => l.id === task.lead_id);
-        const consultant = teamMembers.find(tm => tm.id === task.user_id); // user_id da tarefa é o consultor
-        if (lead && consultant && task.meeting_start_time && task.meeting_end_time) {
-          invitationsItems.push({
-            id: `meeting-invite-${task.id}`,
-            type: 'meeting',
-            title: `Convite de Reunião: ${task.title}`,
-            personName: lead.name || 'Lead Desconhecido',
-            personId: lead.id,
-            personType: 'lead',
-            dueDate: task.due_date || new Date(task.meeting_start_time).toISOString().split('T')[0],
-            meetingDetails: {
-              startTime: new Date(task.meeting_start_time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-              endTime: new Date(task.meeting_end_time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-              consultantName: consultant.name,
-              managerInvitationStatus: task.manager_invitation_status,
-              taskId: task.id,
-            }
-          });
-        }
-      });
-      console.log("[Dashboard] Generated meeting invitations:", invitationsItems);
-    }
+    //   leadTasks.filter(task => 
+    //     task.type === 'meeting' && 
+    //     task.manager_id === user.id && 
+    //     task.manager_invitation_status === 'pending'
+    //   ).forEach(task => {
+    //     const lead = crmLeads.find(l => l.id === task.lead_id);
+    //     const consultant = teamMembers.find(tm => tm.name === task.user_id); // user_id da tarefa é o consultor
+    //     if (lead && consultant && task.meeting_start_time && task.meeting_end_time) {
+    //       invitationsItems.push({
+    //         id: `meeting-invite-${task.id}`,
+    //         type: 'meeting',
+    //         title: `Convite de Reunião: ${task.title}`,
+    //         personName: lead.name || 'Lead Desconhecido',
+    //         personId: lead.id,
+    //         personType: 'lead',
+    //         dueDate: task.due_date || new Date(task.meeting_start_time).toISOString().split('T')[0],
+    //         meetingDetails: {
+    //           startTime: new Date(task.meeting_start_time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+    //           endTime: new Date(task.meeting_end_time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+    //           consultantName: consultant.name,
+    //           managerInvitationStatus: task.manager_invitation_status,
+    //           taskId: task.id,
+    //         }
+    //       });
+    //     }
+    //   });
+    //   console.log("[Dashboard] Generated meeting invitations:", invitationsItems);
+    // }
 
-    return { todayAgenda: todayAgendaItems, overdueTasks: overdueItems, meetingInvitations: invitationsItems };
+    return { todayAgenda: todayAgendaItems, overdueTasks: overdueItems }; // Removido meetingInvitations
   }, [candidates, teamMembers, checklistStructure, leadTasks, crmLeads, user]);
 
   const getAgendaIcon = (type: AgendaItem['type']) => {
@@ -178,39 +179,40 @@ export const Dashboard = () => {
     }
   };
 
-  const handleInvitationResponse = async (taskId: string, status: 'accepted' | 'declined', meetingDetails: AgendaItem['meetingDetails']) => {
-    if (!user || !meetingDetails) return;
+  // REMOVIDO: handleInvitationResponse
+  // const handleInvitationResponse = async (taskId: string, status: 'accepted' | 'declined', meetingDetails: AgendaItem['meetingDetails']) => {
+  //   if (!user || !meetingDetails) return;
 
-    try {
-      await updateLeadMeetingInvitationStatus(taskId, status);
-      alert(`Convite de reunião ${status === 'accepted' ? 'aceito' : 'recusado'} com sucesso!`);
+  //   try {
+  //     await updateLeadMeetingInvitationStatus(taskId, status);
+  //     alert(`Convite de reunião ${status === 'accepted' ? 'aceito' : 'recusado'} com sucesso!`);
 
-      // Se aceito, adicionar ao Google Agenda do gestor
-      if (status === 'accepted') {
-        const startDateTime = new Date(meetingDetails.dueDate + 'T' + meetingDetails.startTime);
-        const endDateTime = new Date(meetingDetails.dueDate + 'T' + meetingDetails.endTime);
+  //     // Se aceito, adicionar ao Google Agenda do gestor
+  //     if (status === 'accepted') {
+  //       const startDateTime = new Date(meetingDetails.dueDate + 'T' + meetingDetails.startTime);
+  //       const endDateTime = new Date(meetingDetails.dueDate + 'T' + meetingDetails.endTime);
 
-        const googleCalendarUrl = new URL('https://calendar.google.com/calendar/render');
-        googleCalendarUrl.searchParams.append('action', 'TEMPLATE');
-        googleCalendarUrl.searchParams.append('text', encodeURIComponent(meetingDetails.title || 'Reunião'));
-        googleCalendarUrl.searchParams.append('dates', `${startDateTime.toISOString().replace(/[-:]|\.\d{3}/g, '')}/${endDateTime.toISOString().replace(/[-:]|\.\d{3}/g, '')}`);
-        googleCalendarUrl.searchParams.append('details', encodeURIComponent(`Reunião com o lead ${meetingDetails.personName} e consultor ${meetingDetails.consultantName}`));
-        if (user.email) {
-          googleCalendarUrl.searchParams.append('add', encodeURIComponent(user.email));
-        }
-        // Adicionar o email do consultor que criou a reunião, se disponível
-        const consultant = teamMembers.find(tm => tm.name === meetingDetails.consultantName);
-        if (consultant?.email) {
-          googleCalendarUrl.searchParams.append('add', encodeURIComponent(consultant.email));
-        }
+  //       const googleCalendarUrl = new URL('https://calendar.google.com/calendar/render');
+  //       googleCalendarUrl.searchParams.append('action', 'TEMPLATE');
+  //       googleCalendarUrl.searchParams.append('text', encodeURIComponent(meetingDetails.title || 'Reunião'));
+  //       googleCalendarUrl.searchParams.append('dates', `${startDateTime.toISOString().replace(/[-:]|\.\d{3}/g, '')}/${endDateTime.toISOString().replace(/[-:]|\.\d{3}/g, '')}`);
+  //       googleCalendarUrl.searchParams.append('details', encodeURIComponent(`Reunião com o lead ${meetingDetails.personName} e consultor ${meetingDetails.consultantName}`));
+  //       if (user.email) {
+  //         googleCalendarUrl.searchParams.append('add', encodeURIComponent(user.email));
+  //       }
+  //       // Adicionar o email do consultor que criou a reunião, se disponível
+  //       const consultant = teamMembers.find(tm => tm.name === meetingDetails.consultantName);
+  //       if (consultant?.email) {
+  //         googleCalendarUrl.searchParams.append('add', encodeURIComponent(consultant.email));
+  //       }
 
-        window.open(googleCalendarUrl.toString(), '_blank');
-      }
-    } catch (error) {
-      console.error("Erro ao responder convite:", error);
-      alert("Erro ao responder ao convite. Tente novamente.");
-    }
-  };
+  //       window.open(googleCalendarUrl.toString(), '_blank');
+  //     }
+  //   } catch (error) {
+  //     console.error("Erro ao responder convite:", error);
+  //     alert("Erro ao responder ao convite. Tente novamente.");
+  //   }
+  // };
 
   return (
     <div className="p-8 max-w-7xl mx-auto">
@@ -261,8 +263,8 @@ export const Dashboard = () => {
         </div>
       </div>
 
-      {/* Meeting Invitations Section */}
-      {user?.role === 'GESTOR' && meetingInvitations.length > 0 && (
+      {/* REMOVIDO: Meeting Invitations Section */}
+      {/* {user?.role === 'GESTOR' && meetingInvitations.length > 0 && (
         <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl shadow-sm flex flex-col mb-8">
           <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700 flex items-center space-x-2 bg-purple-50 dark:bg-purple-900/20 rounded-t-xl">
             <BellRing className="w-5 h-5 text-purple-600 dark:text-purple-400" />
@@ -304,7 +306,7 @@ export const Dashboard = () => {
             </ul>
           </div>
         </div>
-      )}
+      )} */}
 
       {/* Agenda Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">

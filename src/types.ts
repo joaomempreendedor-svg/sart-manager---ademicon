@@ -332,8 +332,8 @@ export interface LeadTask {
   type: 'task' | 'meeting'; // NOVO: Tipo da tarefa
   meeting_start_time?: string; // NOVO: Data e hora de início da reunião (ISO string)
   meeting_end_time?: string;   // NOVO: Data e hora de fim da reunião (ISO string)
-  manager_id?: string; // NOVO: ID do gestor convidado
-  manager_invitation_status?: 'pending' | 'accepted' | 'declined'; // NOVO: Status do convite
+  // manager_id?: string; // NOVO: ID do gestor convidado - REMOVIDO
+  // manager_invitation_status?: 'pending' | 'accepted' | 'declined'; // NOVO: Status do convite - REMOVIDO
 }
 
 // NOVO: Tipos para Checklist do Dia (Módulo 3)
@@ -555,5 +555,5 @@ export interface AppContextType {
   updateLeadTask: (id: string, updates: Partial<LeadTask>) => Promise<void>;
   deleteLeadTask: (id: string) => Promise<void>;
   toggleLeadTaskCompletion: (id: string, is_completed: boolean) => Promise<void>;
-  updateLeadMeetingInvitationStatus: (taskId: string, status: 'pending' | 'accepted' | 'declined') => Promise<void>; // NOVO: Atualizar status do convite
+  // updateLeadMeetingInvitationStatus: (taskId: string, status: 'pending' | 'accepted' | 'declined') => Promise<void>; // NOVO: Atualizar status do convite - REMOVIDO
 }
