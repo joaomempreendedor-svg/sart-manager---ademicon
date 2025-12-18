@@ -2,7 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { CrmLead, CrmStage } from '@/types';
-import { X, Save, Loader2, DollarSign, Calendar, MessageSquare, Users, Home, Car } from 'lucide-react';
+import { X, Save, Loader2, DollarSign, Calendar, MessageSquare, Users, Home, Car, AlertTriangle } from 'lucide-react'; // Adicionado AlertTriangle
+import toast from 'react-hot-toast'; // Importar toast
 import {
   Dialog,
   DialogContent,
@@ -32,14 +33,13 @@ interface SaleModalProps {
 
 export const SaleModal: React.FC<SaleModalProps> = ({ isOpen, onClose, lead }) => {
   const { user } = useAuth();
-  const { addCommission, updateCrmLeadStage, crmStages, pvs } = useApp(); // Removido teamMembers
+  const { addCommission, updateCrmLeadStage, crmStages, pvs } = useApp();
 
   const [group, setGroup] = useState('');
   const [quota, setQuota] = useState('');
   const [creditValue, setCreditValue] = useState('');
   const [saleDate, setSaleDate] = useState(new Date().toISOString().split('T')[0]);
   const [saleType, setSaleType] = useState<'Imóvel' | 'Veículo'>('Imóvel');
-  // Removidos estados de seleção de equipe
   const [taxRateInput, setTaxRateInput] = useState('6'); // Default tax rate
   
   const [isSaving, setIsSaving] = useState(false);
@@ -49,19 +49,15 @@ export const SaleModal: React.FC<SaleModalProps> = ({ isOpen, onClose, lead }) =
     return crmStages.find(stage => stage.is_won && stage.is_active);
   }, [crmStages]);
 
-  // Removidos useMemos para consultants, managers, angels
-
   useEffect(() => {
     if (isOpen) {
-      // Pre-fill with lead data if available
       setGroup(lead.data?.group || '');
       setQuota(lead.data?.quota || '');
       setCreditValue(lead.data?.proposal_value ? (lead.data.proposal_value / 100).toFixed(2).replace('.', ',').replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.') : '');
       setSaleDate(new Date().toISOString().split('T')[0]);
       setSaleType('Imóvel'); // Default to Imóvel
-      // Removido preenchimento de selectedConsultant, selectedManager, selectedAngel, hasAngel
       setTaxRateInput('6');
-      setError('');
+      setError(''); // Limpar erro ao abrir o modal
     }
   }, [isOpen, lead, user]);
 
@@ -80,22 +76,29 @@ export const SaleModal: React.FC<SaleModalProps> = ({ isOpen, onClose, lead }) =
     setError('');
 
     if (!user) {
-      setError('Usuário não autenticado.');
+      const msg = 'Usuário não autenticado.';
+      setError(msg);
+      toast.error(msg);
       return;
     }
     if (!wonStage) {
-      setError("A etapa 'Vendido' (Ganha) não está configurada ou ativa no CRM. Por favor, contate seu gestor.");
+      const msg = "A etapa 'Vendido' (Ganha) não está configurada ou ativa no CRM. Por favor, contate seu gestor.";
+      setError(msg);
+      toast.error(msg);
       return;
     }
-    if (!group.trim() || !quota.trim() || !creditValue.trim() || !saleDate.trim()) { // Removido selectedConsultant da validação
-      setError('Grupo, Cota, Valor do Crédito e Data da Venda são obrigatórios.');
+    if (!group.trim() || !quota.trim() || !creditValue.trim() || !saleDate.trim()) {
+      const msg = 'Grupo, Cota, Valor do Crédito e Data da Venda são obrigatórios.';
+      setError(msg);
+      toast.error(msg);
       return;
     }
-    // Removida validação de selectedAngel
 
     const parsedCreditValue = parseCurrency(creditValue);
     if (parsedCreditValue <= 0) {
-      setError('O valor do crédito deve ser maior que zero.');
+      const msg = 'O valor do crédito deve ser maior que zero.';
+      setError(msg);
+      toast.error(msg);
       return;
     }
 
@@ -106,7 +109,6 @@ export const SaleModal: React.FC<SaleModalProps> = ({ isOpen, onClose, lead }) =
       const initialInstallments: Record<string, any> = {};
       for (let i = 1; i <= 15; i++) { initialInstallments[i] = { status: 'Pendente' }; }
 
-      // Simplified commission calculation for now, assuming default rules
       const baseCommissionValue = parsedCreditValue * 0.05; // Example: 5% of credit value
       const consultantShare = baseCommissionValue * 0.7; // Example: 70% for consultant
       const managerShare = baseCommissionValue * 0.2; // Example: 20% for manager
@@ -139,10 +141,13 @@ export const SaleModal: React.FC<SaleModalProps> = ({ isOpen, onClose, lead }) =
       // 2. Mover o lead para a etapa "Vendido"
       await updateCrmLeadStage(lead.id, wonStage.id);
 
+      toast.success(`Venda de ${lead.name} registrada e lead movido para "Vendido"!`);
       onClose();
     } catch (err: any) {
       console.error("Erro ao registrar venda:", err);
-      setError(err.message || 'Falha ao registrar venda.');
+      const msg = err.message || 'Falha ao registrar venda.';
+      setError(msg);
+      toast.error(msg);
     } finally {
       setIsSaving(false);
     }
@@ -241,7 +246,6 @@ export const SaleModal: React.FC<SaleModalProps> = ({ isOpen, onClose, lead }) =
                   Equipe Envolvida
                 </h4>
                 <div className="grid gap-4">
-                  {/* Campos de seleção de equipe removidos */}
                   <div className="p-3 bg-gray-50 dark:bg-slate-700/50 rounded-lg border border-gray-200 dark:border-slate-700">
                     <p className="text-sm font-medium text-gray-900 dark:text-white">Consultor: <span className="font-bold text-brand-600 dark:text-brand-400">{user?.name || 'N/A'}</span></p>
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Gestor e Anjo serão definidos como 'N/A' automaticamente.</p>
@@ -260,7 +264,12 @@ export const SaleModal: React.FC<SaleModalProps> = ({ isOpen, onClose, lead }) =
                 </div>
               </div>
 
-              {error && <p className="text-red-500 text-sm mt-4">{error}</p>}
+              {error && (
+                <div className="rounded-md bg-red-50 dark:bg-red-900/20 p-3 text-sm font-medium text-red-800 dark:text-red-200 flex items-center">
+                  <AlertTriangle className="w-4 h-4 mr-2" />
+                  {error}
+                </div>
+              )}
             </div>
           </ScrollArea>
           <DialogFooter className="flex flex-col sm:flex-row sm:justify-end sm:items-center mt-4 pt-4 border-t border-gray-100 dark:border-slate-700">
