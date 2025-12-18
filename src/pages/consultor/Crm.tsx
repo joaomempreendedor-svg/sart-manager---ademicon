@@ -106,38 +106,38 @@ const DraggableLeadCard: React.FC<DraggableLeadCardProps> = ({
           </div>
         )}
       </div>
-      <div className="mt-3 pt-3 border-t border-gray-100 dark:border-slate-600 flex flex-wrap gap-1 justify-center">
+      <div className="mt-3 pt-3 border-t border-gray-100 dark:border-slate-600 flex gap-2 justify-center"> {/* Alterado gap-1 para gap-2 */}
         <button 
           onClick={(e) => onOpenTasksModal(e, lead)} 
-          className="p-1.5 rounded-md text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition"
+          className="flex items-center justify-center w-7 h-7 rounded-md bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition"
           title="Tarefas"
         >
           <ListTodo className="w-4 h-4" />
         </button>
         <button 
           onClick={(e) => onOpenMeetingModal(e, lead)} 
-          className="p-1.5 rounded-md text-xs bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-900/30 transition"
+          className="flex items-center justify-center w-7 h-7 rounded-md bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-900/30 transition"
           title="Agendar Reunião"
         >
           <CalendarPlus className="w-4 h-4" />
         </button>
         <button 
           onClick={(e) => onOpenProposalModal(e, lead)} 
-          className="p-1.5 rounded-md text-xs bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/30 transition"
+          className="flex items-center justify-center w-7 h-7 rounded-md bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/30 transition"
           title="Registrar Proposta"
         >
           <Send className="w-4 h-4" />
         </button>
         <button 
           onClick={(e) => onOpenSaleModal(e, lead)} 
-          className="p-1.5 rounded-md text-xs bg-brand-50 dark:bg-brand-900/20 text-brand-700 dark:text-brand-300 hover:bg-brand-100 dark:hover:bg-brand-900/30 transition"
+          className="flex items-center justify-center w-7 h-7 rounded-md bg-brand-50 dark:bg-brand-900/20 text-brand-700 dark:text-brand-300 hover:bg-brand-100 dark:hover:bg-brand-900/30 transition"
           title="Registrar Venda"
         >
           <DollarSign className="w-4 h-4" />
         </button>
         <button 
           onClick={(e) => onMarkAsLost(e, lead)} 
-          className="p-1.5 rounded-md text-xs bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/30 transition"
+          className="flex items-center justify-center w-7 h-7 rounded-md bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/30 transition"
           title="Marcar como Perdido"
         >
           <XCircle className="w-4 h-4" />
@@ -419,7 +419,7 @@ const CrmPage = () => {
   if (!activePipeline || pipelineStages.length === 0) {
     return (
       <div className="p-8 max-w-4xl mx-auto text-center">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">CRM - Funil de Vendas</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">CRM - Funil de Vendas</h1>
         <p className="text-gray-500 dark:text-gray-400 mb-6">
           Nenhum pipeline de vendas ativo ou etapas configuradas. Por favor, entre em contato com seu gestor.
         </p>
