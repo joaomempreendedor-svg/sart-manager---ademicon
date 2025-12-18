@@ -154,9 +154,10 @@ interface KanbanColumnProps {
   leadCount: number;
   totalValue: number;
   children: React.ReactNode;
+  items: string[]; // Adicionado: IDs dos itens arrastáveis nesta coluna
 }
 
-const KanbanColumn: React.FC<KanbanColumnProps> = ({ id, title, leadCount, totalValue, children }) => {
+const KanbanColumn: React.FC<KanbanColumnProps> = ({ id, title, leadCount, totalValue, children, items }) => {
   const { setNodeRef } = useDroppable({
     id: id,
   });
@@ -164,7 +165,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ id, title, leadCount, total
   return (
     <div
       ref={setNodeRef}
-      className="min-w-[220px] 2xl:max-w-[250px] bg-gray-100 dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 flex flex-col h-full" // Adicionado flex flex-col h-full
+      className="min-w-[220px] 2xl:max-w-[250px] bg-gray-100 dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 flex flex-col h-full"
     >
       <div className="p-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
         <h3 className="font-semibold text-gray-900 dark:text-white">{title}</h3>
@@ -177,9 +178,8 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ id, title, leadCount, total
           )}
         </div>
       </div>
-      <SortableContext items={[]} strategy={verticalListSortingStrategy}> {/* items will be passed to children */}
-        {/* Removido flex-1, adicionado maxHeight para rolagem interna */}
-        <div className="p-4 space-y-3 overflow-y-auto custom-scrollbar" style={{ maxHeight: 'calc(100% - 80px)' }}> 
+      <SortableContext items={items} strategy={verticalListSortingStrategy}> {/* Corrigido: Passando os IDs dos itens */}
+        <div className="p-4 space-y-3 overflow-y-auto custom-scrollbar flex-1">
           {children}
         </div>
       </SortableContext>
@@ -487,28 +487,25 @@ const CrmPage = () => {
               title={stage.name}
               leadCount={groupedLeads[stage.id]?.length || 0}
               totalValue={stageTotals[stage.id] || 0}
+              items={groupedLeads[stage.id]?.map(lead => lead.id) || []} {/* Corrigido: Passando os IDs dos leads */}
             >
-              <SortableContext items={groupedLeads[stage.id]?.map(lead => lead.id) || []} strategy={verticalListSortingStrategy}>
-                <div className="p-4 space-y-3 overflow-y-auto custom-scrollbar flex-1">
-                  {groupedLeads[stage.id]?.length === 0 ? (
-                    <p className="text-center text-sm text-gray-400 py-4">Nenhum lead nesta etapa.</p>
-                  ) : (
-                    groupedLeads[stage.id]?.map(lead => (
-                      <DraggableLeadCard
-                        key={lead.id}
-                        lead={lead}
-                        onEdit={handleEditLead}
-                        onDelete={handleDeleteLead}
-                        onOpenTasksModal={handleOpenTasksModal}
-                        onOpenMeetingModal={handleOpenMeetingModal}
-                        onOpenProposalModal={handleOpenProposalModal}
-                        onOpenSaleModal={handleOpenSaleModal}
-                        onMarkAsLost={handleMarkAsLost}
-                      />
-                    ))
-                  )}
-                </div>
-              </SortableContext>
+              {groupedLeads[stage.id]?.length === 0 ? (
+                <p className="text-center text-sm text-gray-400 py-4">Nenhum lead nesta etapa.</p>
+              ) : (
+                groupedLeads[stage.id]?.map(lead => (
+                  <DraggableLeadCard
+                    key={lead.id}
+                    lead={lead}
+                    onEdit={handleEditLead}
+                    onDelete={handleDeleteLead}
+                    onOpenTasksModal={handleOpenTasksModal}
+                    onOpenMeetingModal={handleOpenMeetingModal}
+                    onOpenProposalModal={handleOpenProposalModal}
+                    onOpenSaleModal={handleOpenSaleModal}
+                    onMarkAsLost={handleMarkAsLost}
+                  />
+                ))
+              )}
             </KanbanColumn>
           ))}
         </div>
