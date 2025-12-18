@@ -150,12 +150,15 @@ const CrmOverviewPage = () => {
             />
           </div>
           <div className="w-full sm:w-48">
-            <Select value={selectedConsultantId || ''} onValueChange={setSelectedConsultantId}>
+            <Select 
+              value={selectedConsultantId || 'all'} 
+              onValueChange={(value) => setSelectedConsultantId(value === 'all' ? null : value)}
+            >
               <SelectTrigger className="w-full dark:bg-slate-800 dark:text-white dark:border-slate-600">
                 <SelectValue placeholder="Todos os Consultores" />
               </SelectTrigger>
               <SelectContent className="dark:bg-slate-800 dark:text-white dark:border-slate-700">
-                <SelectItem value="">Todos os Consultores</SelectItem>
+                <SelectItem value="all">Todos os Consultores</SelectItem>
                 {consultants.map(consultant => (
                   <SelectItem key={consultant.id} value={consultant.id}>
                     {consultant.name}
