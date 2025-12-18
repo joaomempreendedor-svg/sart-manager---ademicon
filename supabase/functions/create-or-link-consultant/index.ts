@@ -59,6 +59,7 @@ serve(async (req) => {
         authUserId,
         {
           // NÃO ATUALIZAR EMAIL - apenas senha e metadados
+          // email: email, // ⚠️ REMOVIDO: Esta linha causava a sobrescrita do email
           password: tempPassword,
           user_metadata: {
             first_name: name.split(' ')[0],

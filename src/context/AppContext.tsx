@@ -583,7 +583,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   
     const newMember: TeamMember = {
       ...member,
-      id: authUserId,
+      id: authUserId, // Este ID é o authUserId, que será usado para vincular o perfil
       email: member.email,
       hasLogin: !!member.email,
       isActive: true,
@@ -597,7 +597,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       .upsert(
         { 
           user_id: JOAO_GESTOR_AUTH_ID, // Use JOAO_GESTOR_AUTH_ID
-          id: crypto.randomUUID(), // Gerar um novo UUID para o PK da tabela team_members
+          id: crypto.randomUUID(), // ⚠️ CORREÇÃO: UUID independente para a PK da tabela team_members
           cpf: newMember.cpf, // Adicionar CPF ao nível superior
           data: newMember // O objeto completo do membro vai para a coluna JSONB 'data'
         },
