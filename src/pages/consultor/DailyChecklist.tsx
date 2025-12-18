@@ -3,7 +3,7 @@ import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { CalendarDays, ChevronLeft, ChevronRight, ListChecks, Loader2, User } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, ListChecks, Loader2 } from 'lucide-react';
 
 const formatDate = (date: Date) => date.toISOString().split('T')[0]; // YYYY-MM-DD
 const displayDate = (date: Date) => date.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
@@ -14,6 +14,7 @@ export const DailyChecklist = () => {
     dailyChecklistItems, 
     dailyChecklistAssignments, 
     dailyChecklistCompletions,
+    teamMembers,
     toggleDailyChecklistCompletion,
     isDataLoading
   } = useApp();
@@ -22,29 +23,86 @@ export const DailyChecklist = () => {
 
   const formattedSelectedDate = useMemo(() => formatDate(selectedDate), [selectedDate]);
 
+  // --- DEBUG LOGS INÍCIO ---
+  useEffect(() => {
+    console.log("--- DailyChecklist Component Debug Logs ---");
+    console.log("1. Usuário Logado (AuthContext):", {
+      id: user?.id,
+      email: user?.email,
+      role: user?.role,
+      isActive: user?.isActive,
+    });
+    console.log("2. Todos os DailyChecklists existentes:", dailyChecklists.map(cl => ({
+      id: cl.id,
+      title: cl.title,
+      is_active: cl.is_active,
+      user_id: cl.user_id,
+    })));
+    console.log("3. Todas as DailyChecklistAssignments:", dailyChecklistAssignments.map(assign => ({
+      id: assign.id,
+      daily_checklist_id: assign.daily_checklist_id,
+      consultant_id: assign.consultant_id,
+    })));
+    console.log("4. Consultores disponíveis na equipe (teamMembers):", teamMembers.map(tm => ({
+      id: tm.id,
+      db_id: tm.db_id,
+      name: tm.name,
+      email: tm.email,
+      roles: tm.roles,
+      isActive: tm.isActive,
+      isLegacy: tm.isLegacy,
+      hasLogin: tm.hasLogin,
+    })));
+  }, [user, dailyChecklists, dailyChecklistAssignments, teamMembers]);
+  // --- DEBUG LOGS FIM ---
+
+  // Encontrar o teamMember correspondente ao usuário logado
+  const userTeamMember = useMemo(() => {
+    if (!user) return null;
+    return teamMembers.find(tm => {
+      // 1. TENTA: match exato de ID (TIPO 2)
+      if (tm.id === user.id) return true;
+      
+      // 2. TENTA: match por email (se TIPO 2 tem email)
+      if (tm.email && tm.email === user.email) return true;
+      
+      // 3. TENTA: é legado e podemos assumir pelo nome? (TIPO 1)
+      // Para membros legados, o 'id' é um ID temporário ('legacy_...') e o 'email' pode não existir.
+      // Precisamos comparar o nome do usuário logado com o nome do membro da equipe.
+      if (tm.isLegacy && tm.name === user.name) return true; 
+      
+      return false;
+    });
+  }, [user, teamMembers]);
+
   const assignedChecklists = useMemo(() => {
-    if (!user) {
+    if (!user || !userTeamMember) {
+      console.log("🚫 Usuário ou membro da equipe não identificado. Nenhum checklist visível.");
       return [];
     }
+
+    console.log("🔍 Buscando checklists para:", userTeamMember.id);
 
     // 1. GLOBAIS: checklists SEM atribuição específica
     const globalChecklists = dailyChecklists.filter(checklist => {
       const hasAnyAssignment = dailyChecklistAssignments.some(
         assignment => assignment.daily_checklist_id === checklist.id
       );
-      const isGlobal = !hasAnyAssignment;
-      return isGlobal; // GLOBAL = sem atribuições
+      return !hasAnyAssignment; // GLOBAL = sem atribuições
     });
+
+    console.log("📋 Checklists globais:", globalChecklists.length);
 
     // 2. ESPECÍFICOS: checklists atribuídos a ESTE consultor
     const specificChecklists = dailyChecklists.filter(checklist => {
-      const isSpecific = dailyChecklistAssignments.some(
+      return dailyChecklistAssignments.some(
         assignment => 
           assignment.daily_checklist_id === checklist.id && 
-          assignment.consultant_id === user.id // Usar user.id diretamente
+          assignment.consultant_id === userTeamMember.id
       );
-      return isSpecific;
     });
+
+    console.log("🎯 Checklists específicos:", specificChecklists.length);
 
     // 3. COMBINAR ambos (remover duplicados)
     const allChecklists = [...globalChecklists, ...specificChecklists];
@@ -55,8 +113,11 @@ export const DailyChecklist = () => {
         self.findIndex(c => c.id === checklist.id) === index
     );
 
+    console.log("✅ Total de checklists visíveis:", uniqueChecklists.length);
+    console.log("📝 Títulos:", uniqueChecklists.map(c => c.title));
+
     return uniqueChecklists.sort((a, b) => a.title.localeCompare(b.title));
-  }, [dailyChecklists, dailyChecklistAssignments, user]);
+  }, [dailyChecklists, dailyChecklistAssignments, user, userTeamMember]);
 
   const getItemsForChecklist = useCallback((checklistId: string) => {
     return dailyChecklistItems
@@ -65,19 +126,19 @@ export const DailyChecklist = () => {
   }, [dailyChecklistItems]);
 
   const getCompletionStatus = useCallback((itemId: string) => {
-    if (!user) return false;
+    if (!user || !userTeamMember) return false;
     return dailyChecklistCompletions.some(
       completion =>
         completion.daily_checklist_item_id === itemId &&
-        completion.consultant_id === user.id && // Usar user.id diretamente
+        completion.consultant_id === userTeamMember.id && // Usar o ID do userTeamMember
         completion.date === formattedSelectedDate &&
         completion.done
     );
-  }, [dailyChecklistCompletions, user, formattedSelectedDate]);
+  }, [dailyChecklistCompletions, user, userTeamMember, formattedSelectedDate]);
 
   const handleToggleCompletion = async (itemId: string, currentStatus: boolean) => {
-    if (!user) return;
-    await toggleDailyChecklistCompletion(itemId, formattedSelectedDate, !currentStatus, user.id); // Usar user.id diretamente
+    if (!user || !userTeamMember) return;
+    await toggleDailyChecklistCompletion(itemId, formattedSelectedDate, !currentStatus, userTeamMember.id);
   };
 
   const navigateDay = (offset: number) => {
@@ -96,22 +157,28 @@ export const DailyChecklist = () => {
     );
   }
 
-  // Adição da verificação explícita para user
-  if (!user) {
-    return (
-      <div className="text-center py-16 bg-white dark:bg-slate-800 rounded-xl border border-dashed border-gray-200 dark:border-slate-700">
-        <User className="mx-auto w-12 h-12 text-gray-300 dark:text-slate-600" />
-        <p className="mt-4 text-gray-500 dark:text-gray-400">Não foi possível carregar seu perfil de consultor ou encontrar suas atribuições.</p>
-        <p className="text-sm text-gray-400">Por favor, entre em contato com seu gestor.</p>
-      </div>
-    );
-  }
-
   return (
     <div className="p-8 max-w-4xl mx-auto pb-20">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Meu Checklist Diário</h1>
         <p className="text-gray-500 dark:text-gray-400">Acompanhe suas tarefas e metas do dia.</p>
+        {/* ADICIONE APÓS O TÍTULO DA PÁGINA */}
+        <button 
+          onClick={() => {
+            console.log("=== TESTE FORÇADO ===");
+            console.log("Todos checklists ativos:", dailyChecklists.filter(c => c.is_active));
+            console.log("Minhas atribuições:", dailyChecklistAssignments.filter(a => a.consultant_id === userTeamMember?.id));
+            console.log("Meu user ID (Auth):", user?.id);
+            console.log("Meu user ID (TeamMember):", userTeamMember?.id);
+            
+            // Mostrar todos checklists ativos na tela (forçado)
+            const allActive = dailyChecklists.filter(c => c.is_active);
+            alert(`Checklists ativos no sistema: ${allActive.length}\n${allActive.map(c => c.title).join(', ')}`);
+          }}
+          className="px-4 py-2 bg-red-500 text-white rounded-lg mt-4"
+        >
+          TESTE: Ver Todos Checklists
+        </button>
       </div>
 
       <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm mb-6 flex items-center justify-between">

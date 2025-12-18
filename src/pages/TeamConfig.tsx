@@ -59,22 +59,22 @@ export const TeamConfig = () => {
       alert("Nome, E-mail, CPF e pelo menos um cargo são obrigatórios.");
       return;
     }
-    const cleanedCpf = newCpf.replace(/\D/g, '');
-    if (cleanedCpf.length !== 11) {
+    if (newCpf.replace(/\D/g, '').length !== 11) {
       alert("Por favor, insira um CPF válido com 11 dígitos.");
       return;
     }
 
     setIsAdding(true);
     try {
-      const last4Cpf = cleanedCpf.slice(-4); // Extrair os últimos 4 dígitos do CPF
-      
+      const cleanedCpf = newCpf.replace(/\D/g, '');
+      const login = newEmail.trim(); // O login agora é o e-mail
+
       // Usar a nova função addTeamMember do AppContext
       const result = await addTeamMember({
         name: newName.trim(),
         email: newEmail.trim(),
         cpf: cleanedCpf,
-        login: last4Cpf, // Passar os 4 dígitos do CPF como login
+        login: login, // Passar o email como login
         roles: newRoles,
         isActive: true,
       });
@@ -82,7 +82,7 @@ export const TeamConfig = () => {
       if (result.success) {
         setCreatedConsultantCredentials({ 
           name: result.member.name, 
-          login: result.member.email || '', // O login para o modal é o e-mail
+          login: result.member.email || '', // Usar o email como login
           password: result.tempPassword || '', // A senha temporária virá da Edge Function
           wasExistingUser: result.wasExistingUser || false, // Passar o flag
         });
@@ -126,21 +126,19 @@ export const TeamConfig = () => {
       alert("O nome, E-mail, CPF e pelo menos um cargo são obrigatórios.");
       return;
     }
-    const cleanedCpf = editingCpf.replace(/\D/g, '');
-    if (cleanedCpf.length !== 11) {
+    if (editingCpf.replace(/\D/g, '').length !== 11) {
       alert("Por favor, insira um CPF válido com 11 dígitos.");
       return;
     }
 
     setIsUpdating(true);
     try {
-      const last4Cpf = cleanedCpf.slice(-4); // Extrair os últimos 4 dígitos do CPF
+      const cleanedCpf = editingCpf.replace(/\D/g, '');
       const result = await updateTeamMember(editingMember.id, { 
         name: editingName.trim(), 
         roles: editingRoles, 
         cpf: cleanedCpf,
         email: editingEmail.trim(), // Include email in updates
-        login: last4Cpf, // Passar os 4 dígitos do CPF como login
       });
 
       if (result?.tempPassword) {

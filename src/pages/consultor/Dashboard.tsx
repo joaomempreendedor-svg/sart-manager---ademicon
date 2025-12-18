@@ -4,7 +4,6 @@ import { TrendingUp, User, CheckCircle2, ListChecks, Target, CalendarDays, Loade
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { DailyChecklistItem, WeeklyTargetItem, MetricLog } from '@/types';
-import { DailyChecklist } from '@/pages/consultor/DailyChecklist'; // Importar o DailyChecklist
 
 const ConsultorDashboard = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -199,11 +198,6 @@ const ConsultorDashboard = () => {
           <div className="bg-brand-500 h-2.5 rounded-full transition-all duration-500" style={{ width: `${dailyProgress}%` }}></div>
         </div>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">{dailyProgress}% do seu checklist de hoje está completo.</p>
-      </div>
-
-      {/* Daily Checklist Component */}
-      <div className="mb-8">
-        <DailyChecklist />
       </div>
 
       {/* Weekly Goals */}

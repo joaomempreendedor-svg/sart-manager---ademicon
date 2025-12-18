@@ -56,7 +56,7 @@ const clearStaleAuth = () => {
       localStorage.removeItem('supabase.auth.refreshToken');
       return true;
     }
-  };
+  }
   return false;
 };
 
@@ -65,7 +65,7 @@ const JOAO_GESTOR_AUTH_ID = "7ccbe808-4dfe-48ac-809e-fa095303e299";
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { user } = useAuth();
-  const fetchedUserIdRef = useRef<string | null>(null); // Corrigido: inicializado com null
+  const fetchedUserIdRef = useRef<string | null>(null);
   const isFetchingRef = useRef(false);
 
   const [isDataLoading, setIsDataLoading] = useState(true);
@@ -275,9 +275,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         // --- Fetch team members ---
         let teamMembersData = [];
         try {
-          // MODIFICAÇÃO AQUI: Simplificando a busca para confiar nas políticas RLS
-          // A RLS agora garante que o gestor verá todos os membros que ele pode ver.
-          const { data, error } = await supabase.from('team_members').select('id, data');
+          let teamMembersQuery = supabase.from('team_members').select('id, data');
+          if (user?.role === 'CONSULTOR') {
+              // Consultants should see their own entry and entries linked to JOAO_GESTOR_AUTH_ID
+              teamMembersQuery = teamMembersQuery.or(`user_id.eq.${effectiveGestorId},id.eq.${userId}`);
+          } else { // GESTOR or ADMIN
+              // Gestors/Admins see all team members linked to JOAO_GESTOR_AUTH_ID
+              teamMembersQuery = teamMembersQuery.eq('user_id', effectiveGestorId);
+          }
+          const { data, error } = await teamMembersQuery;
           if (!error) teamMembersData = data || [];
           else console.error("Error fetching team_members (ignoring):", error);
         } catch (e) {
@@ -322,17 +328,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           (async () => { try { return await supabase.from('crm_stages').select('*').eq('user_id', effectiveGestorId).order('order_index') ; } catch (e) { console.error("Error fetching crm_stages:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('crm_fields').select('*').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching crm_fields:", e); return { data: [], error: e }; } })(),
           // crmLeads fetch needs to be conditional based on role
-          (async () => {
-            try {
-              const query = supabase.from('crm_leads').select('*');
-              if (user?.role === 'CONSULTOR') {
-                return await query.eq('consultant_id', userId);
-              } else { // GESTOR or ADMIN
-                // Gestors/Admins can see all leads associated with the effectiveGestorId
-                return await query.eq('user_id', effectiveGestorId);
-              }
-            } catch (e) { console.error("Error fetching crm_leads:", e); return { data: [], error: e }; }
-          })(),
+          (async () => { try { return (user?.role === 'CONSULTOR' ? await supabase.from('crm_leads').select('*').eq('consultant_id', userId) : await supabase.from('crm_leads').select('*').eq('user_id', effectiveGestorId)); } catch (e) { console.error("Error fetching crm_leads:", e); return { data: [], error: e }; } })(),
           // Daily Checklists and related tables (use effectiveGestorId for parent table)
           (async () => { try { return await supabase.from('daily_checklists').select('*').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching daily_checklists:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('daily_checklist_items').select('*'); } catch (e) { console.error("Error fetching daily_checklist_items:", e); return { data: [], error: e }; } })(),
@@ -405,20 +401,30 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const normalizedTeamMembers = teamMembersData?.map(item => {
           const data = item.data as any;
           
-          // Determine if the 'id' within the JSONB data is a valid UUID (auth.uid)
-          // This indicates it was created/linked via the auth system.
-          const isAuthIdValid = typeof data.id === 'string' && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(data.id);
-
+          // Se for TIPO 1 (antigo, sem id do auth)
+          if (!data.id && data.name) {
+            return {
+              id: `legacy_${item.id}`, // ID temporário baseado no db_id
+              db_id: item.id,
+              name: data.name,
+              email: data.email, // Adicionado para legados também
+              roles: Array.isArray(data.roles) ? data.roles : [data.role || 'Prévia'],
+              isActive: data.isActive !== false,
+              isLegacy: true, // Marca como legado
+              hasLogin: false,
+            } as TeamMember;
+          }
+          
+          // Se for TIPO 2 (novo, com id do auth)
           return {
-            id: isAuthIdValid ? data.id : `legacy_${item.id}`, // Use data.id (auth.uid) if valid, else a legacy ID
-            db_id: item.id, // This is the PK of the team_members table
+            id: data.id, // ID do Supabase Auth
+            db_id: item.id,
             name: data.name,
             email: data.email,
             roles: Array.isArray(data.roles) ? data.roles : [data.role || 'Prévia'],
             isActive: data.isActive !== false,
-            isLegacy: !isAuthIdValid, // If not auth-linked, it's legacy
-            hasLogin: isAuthIdValid, // hasLogin is true if the ID is an auth.uid()
-            login: data.login, // Keep the login field from data
+            hasLogin: true,
+            isLegacy: false,
           } as TeamMember;
         }) || [];
         setTeamMembers(normalizedTeamMembers);
@@ -452,7 +458,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setCrmStages(stagesData?.data || []);
         setCrmFields(fieldsData?.data || []);
         setCrmLeads(crmLeadsData?.data || []); // Set CRM Leads
-        console.log("[AppContext] Fetched CRM Leads for Gestor/Admin:", crmLeadsData?.data?.map(l => ({ id: l.id, name: l.name, consultant_id: l.consultant_id }))); // Debug log
         setDailyChecklists(dailyChecklistsData?.data || []); // Set Daily Checklists
         setDailyChecklistItems(dailyChecklistItemsData?.data || []);
         setDailyChecklistAssignments(dailyChecklistAssignmentsData?.data || []);
@@ -478,7 +483,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 const { data, error } = await supabase.from('commissions').insert(payload).select('id', 'created_at').maybeSingle();
                 if (error) throw error;
                 const updatedPending = JSON.parse(localStorage.getItem('pending_commissions') || '[]').filter((pc: any) => pc._id !== _id);
-                localStorage.setItem('pending_commissions', JSON.stringify(updatedUpdated));
+                localStorage.setItem('pending_commissions', JSON.stringify(updatedPending));
                 const newCommissionWithDbId = { ...cleanCommission, db_id: data.id, criado_em: data.created_at };
                 setCommissions(prev => {
                   const filtered = prev.filter(c => c.db_id !== `temp_${_id}`);
@@ -577,19 +582,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       ...member,
       id: authUserId,
       email: member.email,
-      hasLogin: !!member.email, // If email is provided, it means an auth user was created/linked
+      hasLogin: !!member.email,
       isActive: true,
-      login: member.login, // Preserve the login (4-digit CPF)
       ...(tempPassword && { tempPassword })
     };
   
     const { data, error } = await supabase
       .from('team_members')
       .insert({ 
-        user_id: user.id, // Use o ID do gestor logado
-        data: newMember // The entire newMember object is stored in the 'data' JSONB column
+        user_id: JOAO_GESTOR_AUTH_ID, // Use JOAO_GESTOR_AUTH_ID
+        data: newMember 
       })
-      .select('id') // This selects the PK of the team_members table, not the 'id' from newMember
+      .select('id')
       .single();
     
     if (error) {
@@ -662,10 +666,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       console.log(`[AppContext] Edge Function successful during UPDATE. Auth user ${authUserId} email updated to ${updates.email} and password reset.`);
     }
 
-    const updated = { ...m, ...updates, id: authUserId, hasLogin: !!updates.email, login: updates.login || m.login }; // Update local ID if authUserId changed
+    const updated = { ...m, ...updates, id: authUserId, hasLogin: !!updates.email }; // Update local ID if authUserId changed
     const { db_id, ...dataToUpdate } = updated; // Exclude db_id from data to be stored in 'data' column
 
-    const { error } = await supabase.from('team_members').update({ data: dataToUpdate }).match({ id: m.db_id, user_id: user.id }); // Use o ID do gestor logado
+    const { error } = await supabase.from('team_members').update({ data: dataToUpdate }).match({ id: m.db_id, user_id: JOAO_GESTOR_AUTH_ID }); // Use JOAO_GESTOR_AUTH_ID
     if (error) { console.error(error); throw error; }
     
     setTeamMembers(prev => prev.map(p => p.db_id === m.db_id ? updated : p)); // Update using db_id to ensure correct item is replaced
@@ -681,10 +685,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       throw new Error("Membro da equipe não encontrado ou ID do banco de dados ausente.");
     }
 
-    console.log(`[deleteTeamMember] Tentando excluir membro com db_id: ${m.db_id} e user_id (gestor): ${user.id}`); // Use o ID do gestor logado
+    console.log(`[deleteTeamMember] Tentando excluir membro com db_id: ${m.db_id} e user_id (gestor): ${JOAO_GESTOR_AUTH_ID}`); // Use JOAO_GESTOR_AUTH_ID
     
     try {
-      const { error } = await supabase.from('team_members').delete().match({ id: m.db_id, user_id: user.id }); // Use o ID do gestor logado
+      const { error } = await supabase.from('team_members').delete().match({ id: m.db_id, user_id: JOAO_GESTOR_AUTH_ID }); // Use JOAO_GESTOR_AUTH_ID
       
       if (error) {
         console.error(`[deleteTeamMember] Erro ao excluir membro do banco de dados:`, error);
@@ -729,7 +733,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const addPV = useCallback((pv: string) => { if (!pvs.includes(pv)) { const newPvs = [...pvs, pv]; setPvs(newPvs); updateConfig({ pvs: newPvs }); } }, [pvs, updateConfig]);
   const updateAndPersistStructure = useCallback((setter: React.Dispatch<React.SetStateAction<any>>, key: string, newStructure: any) => { setter(newStructure); updateConfig({ [key]: newStructure }); }, [updateConfig]);
   const addChecklistItem = useCallback((stageId: string, label: string) => { const newStructure = checklistStructure.map(s => s.id === stageId ? { ...s, items: [...s.items, { id: `custom_${Date.now()}`, label }] } : s); updateAndPersistStructure(setChecklistStructure, 'checklistStructure', newStructure); }, [checklistStructure, updateAndPersistStructure]);
-  const updateChecklistItem = useCallback((stageId: string, itemId: string, label: string) => { const newStructure = checklistStructure.map(s => s.id === stageId ? { ...s, items: s.items.map(i => i.id === itemId ? { ...i, label } : i) } : s); updateAndPersistStructure(setChecklistStructure, 'checklistStructure', newStructure); }, [checklistStructure, updateAndPersistStructure]);
+  const updateChecklistItem = useCallback((stageId: string, itemId: string, label: string) => { const newStructure = checklistStructure.map(s => s.id === stageId ? { ...s, items: s.items.map(i => i.id === itemId ? { ...i, label } : i) } : s); updateAndPersistructure(setChecklistStructure, 'checklistStructure', newStructure); }, [checklistStructure, updateAndPersistStructure]);
   const deleteChecklistItem = useCallback((stageId: string, itemId: string) => { const newStructure = checklistStructure.map(s => s.id === stageId ? { ...s, items: s.items.filter(i => i.id !== itemId) } : s); updateAndPersistStructure(setChecklistStructure, 'checklistStructure', newStructure); }, [checklistStructure, updateAndPersistStructure]);
   const moveChecklistItem = useCallback((stageId: string, itemId: string, dir: 'up' | 'down') => { const newStructure = checklistStructure.map(s => { if (s.id !== stageId) return s; const idx = s.items.findIndex(i => i.id === itemId); if ((dir === 'up' && idx < 1) || (dir === 'down' && idx >= s.items.length - 1)) return s; const newItems = [...s.items]; const targetIdx = dir === 'up' ? idx - 1 : idx + 1; [newItems[idx], newItems[targetIdx]] = [newItems[targetIdx], newItems[idx]]; return { ...s, items: newItems }; }); updateAndPersistStructure(setChecklistStructure, 'checklistStructure', newStructure); }, [checklistStructure, updateAndPersistStructure]);
   const resetChecklistToDefault = useCallback(() => { updateAndPersistStructure(setChecklistStructure, 'checklistStructure', DEFAULT_STAGES); }, [updateAndPersistStructure]);
@@ -818,24 +822,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       throw new Error("Nenhuma etapa de pipeline ativa encontrada para atribuir ao lead. Por favor, configure as etapas do CRM.");
     }
 
-    // Ensure consultant_id is always set to the current user's ID (the one creating/managing the lead)
-    // This is crucial for RLS and for the mirror functionality
-    const finalConsultantId = leadData.consultant_id || user.id; // Use provided consultant_id or current user's ID
-
     const payload = { 
       ...leadData, 
       user_id: JOAO_GESTOR_AUTH_ID, 
       stage_id: finalStageId, // Assign to the first active stage
       name: leadData.name || '', // Garante que o nome seja uma string vazia, não null
-      consultant_id: finalConsultantId, // Ensure this is always set
     }; 
-    console.log("[AppContext.addCrmLead] Final payload:", payload); // Debug log
     const { data, error } = await supabase.from('crm_leads').insert(payload).select().single();
-    if (error) {
-      console.error("Supabase error adding crm lead:", error);
-      throw new Error(error.message);
-    }
-    setCrmLeads(prev => [data, ...prev]); // Alterado para adicionar no início
+    if (error) throw error;
+    setCrmLeads(prev => [...prev, data]);
     return data;
   }, [user, crmOwnerUserId, crmPipelines, crmStages]); // Adicionado crmPipelines e crmStages como dependências
 
@@ -844,87 +839,29 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     // Ensure user_id (Gestor's ID) is correctly set from crmOwnerUserId
     if (!crmOwnerUserId) throw new Error("ID do Gestor do CRM não encontrado.");
     
-    const currentLead = crmLeads.find(l => l.id === id);
-    if (!currentLead) throw new Error("Lead não encontrado para atualização.");
-
-    const payload: Partial<CrmLead> = { 
+    const payload = { 
       ...updates, 
       user_id: JOAO_GESTOR_AUTH_ID,
+      name: updates.name || '', // Garante que o nome seja uma string vazia, não null
     }; 
-
-    // Only update 'name' if it's explicitly provided in the updates object
-    if (updates.name !== undefined) {
-      payload.name = updates.name || ''; // Allow setting to empty string if explicitly passed
-    }
-
-    // Ensure consultant_id is not accidentally removed or set to null
-    if (updates.consultant_id === undefined) {
-        payload.consultant_id = currentLead.consultant_id; // Keep existing if not explicitly updated
-    } else {
-        payload.consultant_id = updates.consultant_id || user.id; // Use new or default to current user
-    }
-
-    console.log("[AppContext.updateCrmLead] Final payload:", payload); // Debug log
-
-    let query = supabase.from('crm_leads').update(payload).eq('id', id);
-
-    // Apply RLS condition only if the user is a CONSULTOR
-    if (user.role === 'CONSULTOR') {
-      query = query.eq('consultant_id', user.id);
-    }
-    // For GESTOR/ADMIN, the RLS policies handle permissions, no need for client-side consultant_id check here
-
-    const { error } = await query;
-    if (error) {
-      console.error("Supabase error updating crm lead:", error);
-      throw new Error(error.message);
-    }
-    setCrmLeads(prev => prev.map(lead => lead.id === id ? { ...lead, ...updates } : lead)); // Use updates directly for local state
-  }, [user, crmOwnerUserId, crmLeads]);
+    const { error } = await supabase.from('crm_leads').update(payload).eq('id', id).eq('consultant_id', user.id);
+    if (error) throw error;
+    setCrmLeads(prev => prev.map(lead => lead.id === id ? { ...lead, ...payload } : lead)); // Use payload to ensure name is updated
+  }, [user, crmOwnerUserId]);
 
   const deleteCrmLead = useCallback(async (id: string) => {
     if (!user) throw new Error("Usuário não autenticado.");
-    
-    let query = supabase.from('crm_leads').delete().eq('id', id);
-
-    // Apply RLS condition only if the user is a CONSULTOR
-    if (user.role === 'CONSULTOR') {
-      query = query.eq('consultant_id', user.id);
-    }
-    // For GESTOR/ADMIN, the RLS policies handle permissions
-
-    const { error } = await query;
-    if (error) {
-      console.error("Supabase error deleting crm lead:", error);
-      throw new Error(error.message);
-    }
+    const { error } = await supabase.from('crm_leads').delete().eq('id', id).eq('consultant_id', user.id);
+    if (error) throw error;
     setCrmLeads(prev => prev.filter(lead => lead.id !== id));
   }, [user]);
 
   // NOVO: Função para mover um lead para uma nova etapa
   const updateCrmLeadStage = useCallback(async (leadId: string, newStageId: string) => {
     if (!user) throw new Error("Usuário não autenticado.");
-    console.log(`[AppContext] updateCrmLeadStage: Attempting to update lead ${leadId} to stage ${newStageId}`);
-    
-    let query = supabase.from('crm_leads').update({ stage_id: newStageId }).eq('id', leadId);
-
-    // Apply RLS condition only if the user is a CONSULTOR
-    if (user.role === 'CONSULTOR') {
-      query = query.eq('consultant_id', user.id);
-    }
-    // For GESTOR/ADMIN, the RLS policies handle permissions
-
-    const { error } = await query;
-    if (error) {
-      console.error(`[AppContext] updateCrmLeadStage: Supabase error for lead ${leadId}:`, error);
-      throw error;
-    }
-    console.log(`[AppContext] updateCrmLeadStage: Supabase update successful for lead ${leadId}. Updating local state.`);
-    setCrmLeads(prev => {
-      const newState = prev.map(lead => lead.id === leadId ? { ...lead, stage_id: newStageId } : lead);
-      console.log(`[AppContext] setCrmLeads: New state for crmLeads (relevant part):`, newState.filter(l => l.id === leadId || l.stage_id === newStageId).map(l => ({id: l.id, stage_id: l.stage_id})));
-      return newState;
-    });
+    const { error } = await supabase.from('crm_leads').update({ stage_id: newStageId }).eq('id', leadId).eq('consultant_id', user.id);
+    if (error) throw error;
+    setCrmLeads(prev => prev.map(lead => lead.id === leadId ? { ...lead, stage_id: newStageId } : lead));
   }, [user]);
 
   const addCrmStage = useCallback(async (stageData: Omit<CrmStage, 'id' | 'user_id' | 'created_at'>) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('crm_stages').insert({ ...stageData, user_id: JOAO_GESTOR_AUTH_ID }).select().single(); if (error) throw error; setCrmStages(prev => [...prev, data].sort((a, b) => a.order_index - b.order_index)); return data; }, [user]); // Use JOAO_GESTOR_AUTH_ID
@@ -1087,7 +1024,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [user]);
 
   const addWeeklyTargetItem = useCallback(async (targetId: string, metric_key: string, label: string, target_value: number, order_index: number): Promise<WeeklyTargetItem> => {
-    if (!user) throw throw new Error("Usuário não autenticado.");
+    if (!user) throw new Error("Usuário não autenticado.");
     const { data, error } = await supabase.from('weekly_target_items').insert({ weekly_target_id: targetId, metric_key, label, target_value, order_index, is_active: true }).select().single();
     if (error) throw error;
     setWeeklyTargetItems(prev => [...prev, data].sort((a, b) => a.order_index - b.order_index));
@@ -1200,7 +1137,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const addLeadTask = useCallback(async (task: Omit<LeadTask, 'id' | 'user_id' | 'created_at'>): Promise<LeadTask> => {
     if (!user) throw new Error("Usuário não autenticado.");
     try {
-      console.log("[AppContext.addLeadTask] Payload antes de inserir:", { ...task, user_id: user.id }); // Log do payload
       const { data, error } = await supabase.from('lead_tasks').insert({ ...task, user_id: user.id }).select().single();
       if (error) {
         console.error("Supabase error adding lead task:", error);
@@ -1260,6 +1196,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, [user]);
 
+  const updateLeadMeetingInvitationStatus = useCallback(async (taskId: string, status: 'pending' | 'accepted' | 'declined') => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    try {
+      const { error } = await supabase.from('lead_tasks').update({ manager_invitation_status: status }).eq('id', taskId).eq('manager_id', user.id);
+      if (error) {
+        console.error("Supabase error updating meeting invitation status:", error);
+        throw new Error(error.message);
+      }
+      setLeadTasks(prev => prev.map(task => task.id === taskId ? { ...task, manager_invitation_status: status } : task));
+    } catch (error: any) {
+      console.error("Failed to update meeting invitation status:", error);
+      throw new Error(`Failed to update meeting invitation status: ${error.message || error}`);
+    }
+  }, [user]);
+
+
   useEffect(() => { if (!user) return; const syncPendingCommissions = async () => { const pending = JSON.parse(localStorage.getItem('pending_commissions') || '[]') as any[]; if (pending.length === 0) return; for (const item of pending) { try { const { _localId, _timestamp, _attempts, ...cleanData } = item; const { data, error } = await supabase.from('commissions').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: cleanData }).select('id', 'created_at').maybeSingle(); if (!error && data) { setCommissions(prev => prev.map(c => c.db_id === _localId ? { ...c, db_id: data.id.toString(), criado_em: data.created_at } : c)); const updated = pending.filter((p: any) => p._localId !== _localId); localStorage.setItem('pending_commissions', JSON.stringify(updated)); } } catch (error) { console.log(`❌ Falha ao sincronizar ${item._localId}`); } } }; const interval = setInterval(syncPendingCommissions, 2 * 60 * 1000); setTimeout(syncPendingCommissions, 5000); return () => clearInterval(interval); }, [user]); // Use JOAO_GESTOR_AUTH_ID
 
   return (
@@ -1289,7 +1241,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       supportMaterialsV2, supportMaterialAssignments,
       addSupportMaterialV2, updateSupportMaterialV2, deleteSupportMaterialV2,
       assignSupportMaterialToConsultant, unassignSupportMaterialFromConsultant,
-      leadTasks, addLeadTask, updateLeadTask, deleteLeadTask, toggleLeadTaskCompletion, 
+      // NOVO: Tarefas de Lead
+      leadTasks, addLeadTask, updateLeadTask, deleteLeadTask, toggleLeadTaskCompletion, updateLeadMeetingInvitationStatus
     }}>
       {children}
     </AppContext.Provider>
