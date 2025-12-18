@@ -106,7 +106,7 @@ const DraggableLeadCard: React.FC<DraggableLeadCardProps> = ({
           </div>
         )}
       </div>
-      <div className="mt-3 pt-3 border-t border-gray-100 dark:border-slate-600 flex gap-2 justify-center">
+      <div className="mt-3 pt-3 border-t border-gray-100 dark:border-slate-600 flex gap-2 justify-center flex-wrap"> {/* Adicionado flex-wrap para garantir que os ícones quebrem a linha se necessário */}
         <button 
           onClick={(e) => onOpenTasksModal(e, lead)} 
           className="flex items-center justify-center w-7 h-7 rounded-md bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition"
@@ -164,7 +164,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ id, title, leadCount, total
   return (
     <div
       ref={setNodeRef}
-      className="min-w-[180px] max-w-[200px] bg-gray-100 dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700"
+      className="min-w-[220px] 2xl:max-w-[250px] bg-gray-100 dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700"
     >
       <div className="p-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
         <h3 className="font-semibold text-gray-900 dark:text-white">{title}</h3>
@@ -423,7 +423,7 @@ const CrmPage = () => {
   if (!activePipeline || pipelineStages.length === 0) {
     return (
       <div className="p-8 max-w-4xl mx-auto text-center">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">CRM - Funil de Vendas</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">CRM - Funil de Vendas</h1>
         <p className="text-gray-500 dark:text-gray-400 mb-6">
           Nenhum pipeline de vendas ativo ou etapas configuradas. Por favor, entre em contato com seu gestor.
         </p>
@@ -488,7 +488,7 @@ const CrmPage = () => {
               totalValue={stageTotals[stage.id] || 0}
             >
               <SortableContext items={groupedLeads[stage.id]?.map(lead => lead.id) || []} strategy={verticalListSortingStrategy}>
-                <div className="p-4 space-y-3"> {/* Removido min-h-[200px] daqui, agora controlado pelo max-h da coluna */}
+                <div className="p-4 space-y-3 max-h-[400px] overflow-y-auto custom-scrollbar">
                   {groupedLeads[stage.id]?.length === 0 ? (
                     <p className="text-center text-sm text-gray-400 py-4">Nenhum lead nesta etapa.</p>
                   ) : (
