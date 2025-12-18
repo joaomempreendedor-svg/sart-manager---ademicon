@@ -154,10 +154,10 @@ interface KanbanColumnProps {
   leadCount: number;
   totalValue: number;
   children: React.ReactNode;
-  items: string[]; // Adicionado: IDs dos itens arrastáveis nesta coluna
+  // Removido: items: string[]; // Não é mais necessário aqui, pois SortableContext será no pai
 }
 
-const KanbanColumn: React.FC<KanbanColumnProps> = ({ id, title, leadCount, totalValue, children, items }) => {
+const KanbanColumn: React.FC<KanbanColumnProps> = ({ id, title, leadCount, totalValue, children }) => {
   const { setNodeRef } = useDroppable({
     id: id,
   });
@@ -178,11 +178,10 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ id, title, leadCount, total
           )}
         </div>
       </div>
-      <SortableContext items={items} strategy={verticalListSortingStrategy}> {/* Corrigido: Passando os IDs dos itens */}
-        <div className="p-4 space-y-3 overflow-y-auto custom-scrollbar flex-1"> {/* Restaurado flex-1 */}
-          {children}
-        </div>
-      </SortableContext>
+      {/* SortableContext agora envolve os children diretamente no CrmPage */}
+      <div className="p-4 space-y-3 overflow-y-auto custom-scrollbar flex-1">
+        {children}
+      </div>
     </div>
   );
 };
@@ -366,43 +365,57 @@ const CrmPage = () => {
   const handleDragEnd = async (event: any) => {
     const { active, over } = event;
 
-    if (!active || !over) return;
+    console.log("Drag End Event:", { active, over }); // Log para depuração
 
-    const draggedLeadId = active.id as string;
-    const targetId = over.id as string;
-
-    const draggedLead = consultantLeads.find(lead => lead.id === draggedLeadId);
-    if (!draggedLead) return;
-
-    // Determine the new stage ID
-    let newStageId: string | undefined;
-
-    // Prioritize dropping directly on a KanbanColumn (stage)
-    if (pipelineStages.some(stage => stage.id === targetId)) {
-      newStageId = targetId;
-    } else {
-      // If dropped on another lead, find the stage of that lead
-      const targetLead = consultantLeads.find(lead => lead.id === targetId);
-      if (targetLead) {
-        newStageId = targetLead.stage_id;
-      }
-    }
-
-    if (!newStageId) {
-      console.warn("Could not determine new stage ID. No update.");
+    if (!active || !over) {
+      console.log("Drag cancelado: active ou over é nulo.");
       setActiveDragId(null);
       return;
     }
 
-    // Only update if the stage has actually changed
+    const draggedLeadId = active.id as string;
+    const targetId = over.id as string; // Pode ser um ID de etapa ou um ID de outro lead
+
+    const draggedLead = consultantLeads.find(lead => lead.id === draggedLeadId);
+    if (!draggedLead) {
+      console.log("Lead arrastado não encontrado.");
+      setActiveDragId(null);
+      return;
+    }
+
+    let newStageId: string | undefined;
+
+    // Prioriza o drop direto em uma KanbanColumn (etapa)
+    if (pipelineStages.some(stage => stage.id === targetId)) {
+      newStageId = targetId;
+      console.log(`Drop direto na etapa: ${newStageId}`);
+    } else {
+      // Se dropado em outro lead, encontra a etapa desse lead
+      const targetLead = consultantLeads.find(lead => lead.id === targetId);
+      if (targetLead) {
+        newStageId = targetLead.stage_id;
+        console.log(`Drop em outro lead. Nova etapa: ${newStageId}`);
+      }
+    }
+
+    if (!newStageId) {
+      console.warn("Não foi possível determinar o novo ID da etapa. Nenhuma atualização.");
+      setActiveDragId(null);
+      return;
+    }
+
+    // Só atualiza se a etapa realmente mudou
     if (draggedLead.stage_id !== newStageId) {
       try {
+        console.log(`Movendo lead ${draggedLead.name} (ID: ${draggedLeadId}) da etapa ${draggedLead.stage_id} para ${newStageId}`);
         await updateCrmLeadStage(draggedLeadId, newStageId);
         toast.success(`Lead "${draggedLead.name}" movido para a nova etapa!`);
       } catch (error: any) {
-        console.error("Failed to update lead stage:", error);
+        console.error("Falha ao atualizar a etapa do lead:", error);
         toast.error(`Erro ao mover o lead: ${error.message}`);
       }
+    } else {
+      console.log("Etapa do lead não mudou. Nenhuma atualização necessária.");
     }
     setActiveDragId(null);
   };
@@ -455,7 +468,7 @@ const CrmPage = () => {
               placeholder="Buscar lead..."
               className="pl-10 pr-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg text-sm w-full focus:ring-brand-500 focus:border-brand-500 bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
               value={searchTerm}
-              onChange={(e) => setSearchSearchTerm(e.target.value)}
+              onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
           <button
@@ -479,36 +492,37 @@ const CrmPage = () => {
           },
         }}
       >
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-7 gap-4 pb-4 flex-1 h-full">
-          {pipelineStages.map(stage => (
-            <KanbanColumn
-              key={stage.id}
-              id={stage.id}
-              title={stage.name}
-              leadCount={groupedLeads[stage.id]?.length || 0}
-              totalValue={stageTotals[stage.id] || 0}
-              items={groupedLeads[stage.id]?.map(lead => lead.id) || []}
-            >
-              {groupedLeads[stage.id]?.length === 0 ? (
-                <p className="text-center text-sm text-gray-400 py-4">Nenhum lead nesta etapa.</p>
-              ) : (
-                groupedLeads[stage.id]?.map(lead => (
-                  <DraggableLeadCard
-                    key={lead.id}
-                    lead={lead}
-                    onEdit={handleEditLead}
-                    onDelete={handleDeleteLead}
-                    onOpenTasksModal={handleOpenTasksModal}
-                    onOpenMeetingModal={handleOpenMeetingModal}
-                    onOpenProposalModal={handleOpenProposalModal}
-                    onOpenSaleModal={handleOpenSaleModal}
-                    onMarkAsLost={handleMarkAsLost}
-                  />
-                ))
-              )}
-            </KanbanColumn>
-          ))}
-        </div>
+        <SortableContext items={consultantLeads.map(lead => lead.id)} strategy={verticalListSortingStrategy}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-7 gap-4 pb-4 flex-1 h-full">
+            {pipelineStages.map(stage => (
+              <KanbanColumn
+                key={stage.id}
+                id={stage.id}
+                title={stage.name}
+                leadCount={groupedLeads[stage.id]?.length || 0}
+                totalValue={stageTotals[stage.id] || 0}
+              >
+                {groupedLeads[stage.id]?.length === 0 ? (
+                  <p className="text-center text-sm text-gray-400 py-4">Nenhum lead nesta etapa.</p>
+                ) : (
+                  groupedLeads[stage.id]?.map(lead => (
+                    <DraggableLeadCard
+                      key={lead.id}
+                      lead={lead}
+                      onEdit={handleEditLead}
+                      onDelete={handleDeleteLead}
+                      onOpenTasksModal={handleOpenTasksModal}
+                      onOpenMeetingModal={handleOpenMeetingModal}
+                      onOpenProposalModal={handleOpenProposalModal}
+                      onOpenSaleModal={handleOpenSaleModal}
+                      onMarkAsLost={handleMarkAsLost}
+                    />
+                  ))
+                )}
+              </KanbanColumn>
+            ))}
+          </div>
+        </SortableContext>
 
         {createPortal(
           <DragOverlay>
