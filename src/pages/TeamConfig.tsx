@@ -69,6 +69,16 @@ export const TeamConfig = () => {
       const cleanedCpf = newCpf.replace(/\D/g, '');
       const login = newEmail.trim(); // O login agora é o e-mail
 
+      // --- NOVO LOG AQUI ---
+      console.log("[TeamConfig] Enviando para addTeamMember:", {
+        name: newName.trim(),
+        email: newEmail.trim(),
+        cpf: cleanedCpf,
+        login: login,
+        roles: newRoles,
+      });
+      // --- FIM DO NOVO LOG ---
+
       // Usar a nova função addTeamMember do AppContext
       const result = await addTeamMember({
         name: newName.trim(),
