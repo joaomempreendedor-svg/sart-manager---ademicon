@@ -65,7 +65,7 @@ const JOAO_GESTOR_AUTH_ID = "7ccbe808-4dfe-48ac-809e-fa095303e299";
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { user } = useAuth();
-  const fetchedUserIdRef = useRef<string | null>(fetchedUserIdRef.current); // Initialize with current value
+  const fetchedUserIdRef = useRef<string | null>(null); // Corrigido: inicializado com null
   const isFetchingRef = useRef(false);
 
   const [isDataLoading, setIsDataLoading] = useState(true);
@@ -473,7 +473,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 const { data, error } = await supabase.from('commissions').insert(payload).select('id', 'created_at').maybeSingle();
                 if (error) throw error;
                 const updatedPending = JSON.parse(localStorage.getItem('pending_commissions') || '[]').filter((pc: any) => pc._id !== _id);
-                localStorage.setItem('pending_commissions', JSON.stringify(updatedPending));
+                localStorage.setItem('pending_commissions', JSON.stringify(updatedUpdated));
                 const newCommissionWithDbId = { ...cleanCommission, db_id: data.id, criado_em: data.created_at };
                 setCommissions(prev => {
                   const filtered = prev.filter(c => c.db_id !== `temp_${_id}`);
