@@ -61,7 +61,7 @@ const clearStaleAuth = () => {
 };
 
 // ID do gestor principal para centralizar todas as configurações e dados
-const JOAO_GESTOR_AUTH_ID = "122f554a-cad6-4f8a-ba18-31dc00293fb4"; // NOVO ID DO GESTOR
+const JOAO_GESTOR_AUTH_ID = "SEU_NOVO_GESTOR_ID_AQUI"; // <--- ATUALIZE ESTE ID COM O SEU NOVO ID DE GESTOR!
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { user } = useAuth();
@@ -268,7 +268,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             console.error("Falha ao buscar perfil do membro da equipe para consultor:", e);
           }
         } else if (user?.role === 'GESTOR' || user?.role === 'ADMIN') {
-          console.log(`[AppContext] User ${userId} is a Gestor/Admin. All shared configs will use ${JOAO_GESTOR_AUTH_ID}.`);
+          effectiveGestorId = userId; // <--- THIS IS THE KEY CHANGE: GESTOR/ADMIN uses their OWN ID for ownership
+          console.log(`[AppContext] User ${userId} is a Gestor/Admin. All shared configs will use ${effectiveGestorId}.`);
         }
         setCrmOwnerUserId(effectiveGestorId); // Set the CRM owner ID to the centralized gestor
 
