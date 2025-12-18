@@ -1128,6 +1128,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const addLeadTask = useCallback(async (task: Omit<LeadTask, 'id' | 'user_id' | 'created_at'>): Promise<LeadTask> => {
     if (!user) throw new Error("Usuário não autenticado.");
     try {
+      console.log("[AppContext.addLeadTask] Payload antes de inserir:", { ...task, user_id: user.id }); // Log do payload
       const { data, error } = await supabase.from('lead_tasks').insert({ ...task, user_id: user.id }).select().single();
       if (error) {
         console.error("Supabase error adding lead task:", error);

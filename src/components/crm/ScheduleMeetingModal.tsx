@@ -46,12 +46,14 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
   const managers = useMemo(() => {
     // Filtra para incluir apenas gestores ativos E que possuem um login associado (hasLogin: true)
     // E cujo ID não seja um ID "legacy_"
-    return teamMembers.filter(member => 
+    const filtered = teamMembers.filter(member => 
       member.roles.includes('Gestor') && 
       member.isActive &&
       member.hasLogin && // Garante que o membro tem um login associado (auth.uid())
       !member.id.startsWith('legacy_') // Exclui IDs legados
     );
+    console.log("[ScheduleMeetingModal] Filtered Managers for selection:", filtered.map(m => ({ id: m.id, name: m.name, hasLogin: m.hasLogin })));
+    return filtered;
   }, [teamMembers]);
 
   const meetingStage = useMemo(() => {
@@ -91,9 +93,15 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
       return;
     }
 
+    console.log("[ScheduleMeetingModal] Attempting to schedule meeting.");
+    console.log("[ScheduleMeetingModal] Lead ID:", lead.id);
+    console.log("[ScheduleMeetingModal] Consultant User ID (from Auth):", user?.id);
+    console.log("[ScheduleMeetingModal] Invited Manager ID (before addLeadTask):", invitedManagerId); // Log this crucial value
+    console.log("[ScheduleMeetingModal] Meeting Start Time:", startDateTime.toISOString());
+    console.log("[ScheduleMeetingModal] Meeting End Time:", endDateTime.toISOString());
+
     setIsSaving(true);
     try {
-      console.log("Attempting to add lead task with manager_id:", invitedManagerId); // DIAGNÓSTICO
       await addLeadTask({
         lead_id: lead.id,
         title: title.trim(),
@@ -103,7 +111,7 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
         type: 'meeting',
         meeting_start_time: startDateTime.toISOString(),
         meeting_end_time: endDateTime.toISOString(),
-        manager_id: invitedManagerId,
+        manager_id: invitedManagerId, // This is the value in question
         manager_invitation_status: invitedManagerId ? 'pending' : undefined,
       });
 
