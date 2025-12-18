@@ -14,9 +14,7 @@ serve(async (req) => {
   try {
     const { email, name, tempPassword, login: consultantLogin } = await req.json();
 
-    // --- NOVO LOG AQUI ---
     console.log(`[Edge Function] Recebido na Edge Function: email=${email}, name=${name}, login=${consultantLogin}`);
-    // --- FIM DO NOVO LOG ---
 
     if (!email || !name || !tempPassword) {
       console.error('[Edge Function] Missing required fields: email, name, or tempPassword.');
@@ -53,14 +51,14 @@ serve(async (req) => {
     console.log(`[Edge Function] User exists check result: ${userExistsFlag}. Found ${existingUsersData?.users?.length || 0} users.`);
 
     if (userExistsFlag) {
-      // User exists, update their password, email and metadata
+      // User exists, update their password and metadata, but NOT their email
       authUserId = existingUsersData!.users[0].id;
-      console.log(`[Edge Function] User ${email} found in Auth. ID: ${authUserId}. Updating password, email and metadata.`);
+      console.log(`[Edge Function] User ${email} found in Auth. ID: ${authUserId}. Updating password and metadata.`);
 
       const { error: updateAuthError } = await supabaseAdmin.auth.admin.updateUserById(
         authUserId,
         {
-          email: email, // <-- CORREÇÃO: Adicionado para atualizar o e-mail
+          // NÃO ATUALIZAR EMAIL - apenas senha e metadados
           password: tempPassword,
           user_metadata: {
             first_name: name.split(' ')[0],
@@ -95,7 +93,7 @@ serve(async (req) => {
         // Do not throw here, as auth update was successful. Log and continue.
       }
 
-      message = 'Existing user updated with new temporary password, email and forced password change.';
+      message = 'Existing user updated with new temporary password and forced password change.';
     } else {
       // User does not exist, create new user
       console.log(`[Edge Function] User ${email} not found in Auth. Creating new user.`);
