@@ -401,30 +401,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const normalizedTeamMembers = teamMembersData?.map(item => {
           const data = item.data as any;
           
-          // Se for TIPO 1 (antigo, sem id do auth)
-          if (!data.id && data.name) {
-            return {
-              id: `legacy_${item.id}`, // ID temporário baseado no db_id
-              db_id: item.id,
-              name: data.name,
-              email: data.email, // Adicionado para legados também
-              roles: Array.isArray(data.roles) ? data.roles : [data.role || 'Prévia'],
-              isActive: data.isActive !== false,
-              isLegacy: true, // Marca como legado
-              hasLogin: false,
-            } as TeamMember;
-          }
-          
-          // Se for TIPO 2 (novo, com id do auth)
+          // Determine if the 'id' within the JSONB data is a valid UUID (auth.uid)
+          // This indicates it was created/linked via the auth system.
+          const isAuthIdValid = typeof data.id === 'string' && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(data.id);
+
           return {
-            id: data.id, // ID do Supabase Auth
-            db_id: item.id,
+            id: isAuthIdValid ? data.id : `legacy_${item.id}`, // Use data.id (auth.uid) if valid, else a legacy ID
+            db_id: item.id, // This is the PK of the team_members table
             name: data.name,
             email: data.email,
             roles: Array.isArray(data.roles) ? data.roles : [data.role || 'Prévia'],
             isActive: data.isActive !== false,
-            hasLogin: true,
-            isLegacy: false,
+            isLegacy: !isAuthIdValid, // If not auth-linked, it's legacy
+            hasLogin: isAuthIdValid, // hasLogin is true if the ID is an auth.uid()
+            login: data.login, // Keep the login field from data
           } as TeamMember;
         }) || [];
         setTeamMembers(normalizedTeamMembers);
@@ -582,8 +572,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       ...member,
       id: authUserId,
       email: member.email,
-      hasLogin: !!member.email,
+      hasLogin: !!member.email, // If email is provided, it means an auth user was created/linked
       isActive: true,
+      login: member.login, // Preserve the login (4-digit CPF)
       ...(tempPassword && { tempPassword })
     };
   
@@ -666,7 +657,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       console.log(`[AppContext] Edge Function successful during UPDATE. Auth user ${authUserId} email updated to ${updates.email} and password reset.`);
     }
 
-    const updated = { ...m, ...updates, id: authUserId, hasLogin: !!updates.email }; // Update local ID if authUserId changed
+    const updated = { ...m, ...updates, id: authUserId, hasLogin: !!updates.email, login: updates.login || m.login }; // Update local ID if authUserId changed
     const { db_id, ...dataToUpdate } = updated; // Exclude db_id from data to be stored in 'data' column
 
     const { error } = await supabase.from('team_members').update({ data: dataToUpdate }).match({ id: m.db_id, user_id: JOAO_GESTOR_AUTH_ID }); // Use JOAO_GESTOR_AUTH_ID
