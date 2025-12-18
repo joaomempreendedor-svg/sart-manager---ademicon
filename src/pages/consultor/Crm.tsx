@@ -164,6 +164,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ id, title, leadCount, total
   return (
     <div
       ref={setNodeRef}
+      id={id} // Ensure the ID is on the droppable element
       className="min-w-[220px] 2xl:max-w-[250px] bg-gray-100 dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 flex flex-col h-full"
     >
       <div className="p-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
@@ -369,54 +370,55 @@ const CrmPage = () => {
     console.log("Current pipeline stages:", pipelineStages.map(s => ({ id: s.id, name: s.name, order_index: s.order_index })));
 
     if (!active || !over) {
-      console.log("Drag cancelado: active ou over é nulo.");
+      console.log("[handleDragEnd] Drag cancelado: active ou over é nulo.");
       setActiveDragId(null);
       return;
     }
 
     const draggedLeadId = active.id as string;
-    const targetId = over.id as string;
+    const targetDroppableId = over.id as string; // This is the ID of the droppable element
 
     const draggedLead = consultantLeads.find(lead => lead.id === draggedLeadId);
     if (!draggedLead) {
-      console.log("Lead arrastado não encontrado.");
+      console.log("[handleDragEnd] Lead arrastado não encontrado.");
       setActiveDragId(null);
       return;
     }
 
     let newStageId: string | undefined;
 
-    // Priorize o drop direto em uma KanbanColumn (etapa)
-    if (pipelineStages.some(stage => stage.id === targetId)) {
-      newStageId = targetId;
-      console.log(`Drop direto na etapa (KanbanColumn ID): ${newStageId}`);
+    // 1. Check if the targetDroppableId is directly a stage ID
+    if (pipelineStages.some(stage => stage.id === targetDroppableId)) {
+      newStageId = targetDroppableId;
+      console.log(`[handleDragEnd] Drop direto na etapa (ID: ${newStageId})`);
     } else {
-      // Se dropado em outro lead, encontra a etapa desse lead
-      const targetLead = consultantLeads.find(lead => lead.id === targetId);
-      if (targetLead) {
-        newStageId = targetLead.stage_id;
-        console.log(`Drop em outro lead (Lead ID: ${targetId}). Nova etapa: ${newStageId}`);
+      // 2. If not a stage ID, it might be a lead card or another element inside a column.
+      // Try to find the stage ID from the 'over' data.
+      if (over.data.current?.sortable?.containerId) {
+        // If dropped on another sortable item, its containerId is the droppable (stage)
+        newStageId = over.data.current.sortable.containerId;
+        console.log(`[handleDragEnd] Drop em item sortable. Container ID: ${newStageId}`);
+      } else if (over.data.current?.droppable?.id) {
+        // If dropped on a droppable that is not sortable (e.g., empty column)
+        newStageId = over.data.current.droppable.id;
+        console.log(`[handleDragEnd] Drop em droppable. ID: ${newStageId}`);
       } else {
-        // Fallback: se o over.id não é uma coluna nem um lead, pode ser um elemento interno da coluna.
-        // Tenta encontrar a coluna pai do elemento onde o drop ocorreu.
-        const overElement = document.getElementById(targetId);
-        let parentColumnId: string | null = null;
+        // Fallback: traverse DOM (less reliable, but good for unexpected cases)
+        const overElement = document.getElementById(targetDroppableId);
         let currentElement = overElement;
-        while (currentElement && !parentColumnId) {
+        while (currentElement) {
           if (pipelineStages.some(stage => stage.id === currentElement?.id)) {
-            parentColumnId = currentElement.id;
+            newStageId = currentElement.id;
+            console.log(`[handleDragEnd] Fallback DOM traversal. Coluna pai identificada: ${newStageId}`);
+            break;
           }
           currentElement = currentElement.parentElement;
-        }
-        if (parentColumnId) {
-          newStageId = parentColumnId;
-          console.log(`Fallback: Drop em elemento interno. Coluna pai identificada: ${newStageId}`);
         }
       }
     }
 
     if (!newStageId) {
-      console.warn("Não foi possível determinar o novo ID da etapa. Nenhuma atualização.");
+      console.warn("[handleDragEnd] Não foi possível determinar o novo ID da etapa. Nenhuma atualização.");
       setActiveDragId(null);
       return;
     }
@@ -424,15 +426,15 @@ const CrmPage = () => {
     // Só atualiza se a etapa realmente mudou
     if (draggedLead.stage_id !== newStageId) {
       try {
-        console.log(`Movendo lead ${draggedLead.name} (ID: ${draggedLeadId}) da etapa ${draggedLead.stage_id} para ${newStageId}`);
+        console.log(`[handleDragEnd] Movendo lead ${draggedLead.name} (ID: ${draggedLeadId}) da etapa ${draggedLead.stage_id} para ${newStageId}`);
         await updateCrmLeadStage(draggedLeadId, newStageId);
         toast.success(`Lead "${draggedLead.name}" movido para a nova etapa!`);
       } catch (error: any) {
-        console.error("Falha ao atualizar a etapa do lead:", error);
+        console.error("[handleDragEnd] Falha ao atualizar a etapa do lead:", error);
         toast.error(`Erro ao mover o lead: ${error.message}`);
       }
     } else {
-      console.log("Etapa do lead não mudou. Nenhuma atualização necessária.");
+      console.log("[handleDragEnd] Etapa do lead não mudou. Nenhuma atualização necessária.");
     }
     setActiveDragId(null);
   };
