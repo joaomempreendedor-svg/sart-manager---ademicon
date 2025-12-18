@@ -25,7 +25,7 @@ import {
   useSortable,
   verticalListSortingStrategy,
   arrayMove,
-} from '@dnd-kit/sortable';
+} from '@dnd-kit/core'; // Changed from @dnd-kit/sortable to @dnd-kit/core
 import { CSS } from '@dnd-kit/utilities';
 import { createPortal } from 'react-dom';
 import { CrmLead } from '@/types';
@@ -145,7 +145,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ id, title, leadCount, total
   return (
     <div
       ref={setNodeRef}
-      className="min-w-[240px] bg-gray-100 dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700"
+      className="min-w-[180px] max-w-[200px] bg-gray-100 dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700"
     >
       <div className="p-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
         <h3 className="font-semibold text-gray-900 dark:text-white">{title}</h3>
@@ -455,7 +455,7 @@ const CrmPage = () => {
           },
         }}
       >
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6 pb-4"> {/* Layout de grade responsivo */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-7 gap-4 pb-4"> {/* Ajustado para 7 colunas em telas 2xl */}
           {pipelineStages.map(stage => (
             <KanbanColumn
               key={stage.id}
