@@ -332,7 +332,7 @@ const CrmOverviewPage = () => {
                         <button 
                           onClick={(e) => handleMarkAsWon(e, lead)} 
                           className={`flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs transition ${canOpenProposalModal ? 'bg-brand-500 text-white hover:bg-brand-600' : 'bg-gray-100 dark:bg-slate-600 text-gray-500 cursor-not-allowed opacity-70'}`}
-                          disabled={!canMarkAsWon}
+                          disabled={!canOpenProposalModal}
                         >
                           <DollarSign className="w-3 h-3 mr-1" /> Vendido
                         </button>
@@ -352,7 +352,7 @@ const CrmOverviewPage = () => {
           onClose={() => setIsLeadModalOpen(false)}
           lead={editingLead}
           crmFields={crmFields.filter(f => f.is_active)}
-          assignedConsultantId={selectedConsultantId || user?.id || null}
+          assignedConsultantId={user?.id || null}
         />
       )}
 
