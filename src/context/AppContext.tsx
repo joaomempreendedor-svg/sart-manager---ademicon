@@ -65,7 +65,7 @@ const JOAO_GESTOR_AUTH_ID = "0c6d71b7-daeb-4dde-8eec-0e7a8ffef658"; // <--- ATUA
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { user, session } = useAuth(); // Adicionado 'session' para ter acesso ao userId
-  const fetchedUserIdRef = useRef<string | null>(fetchedUserIdRef.current);
+  const fetchedUserIdRef = useRef<string | null>(null);
   const isFetchingRef = useRef(false);
 
   const [isDataLoading, setIsDataLoading] = useState(true);
@@ -331,13 +331,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           // crmLeads fetch needs to be conditional based on role
           (async () => {
             try {
-              // CORREÇÃO: String de SELECT corrigida para evitar o erro "failed to parse select parameter"
-              const selectColumns = `
-                id, consultant_id, stage_id, user_id, name, data, 
-                created_at, updated_at, created_by, updated_by,
-                proposal_value, proposal_closing_date, sold_credit_value,
-                sold_group, sold_quota, sale_date
-              `;
+              // CORREÇÃO: Espaços corretos nos aliases
+              const selectColumns = `id, consultant_id, stage_id, user_id, name, data, created_at, updated_at, created_by, updated_by, proposal_value as "proposalValue", proposal_closing_date as "proposalClosingDate", sold_credit_value as "soldCreditValue", sold_group as "soldGroup", sold_quota as "soldQuota", sale_date as "saleDate"`;
               // 🔥 CORREÇÃO: Lógica consistente de filtro para o fetch de leads
               let query = supabase.from('crm_leads').select(selectColumns);
               if (user?.role === 'CONSULTOR') {
@@ -891,13 +886,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     console.log('Inserting lead with:', payload); // DEBUG
 
-    // CORREÇÃO: String de SELECT corrigida para evitar o erro "failed to parse select parameter"
-    const selectColumns = `
-      id, consultant_id, stage_id, user_id, name, data, 
-      created_at, updated_at, created_by, updated_by,
-      proposal_value, proposal_closing_date, sold_credit_value,
-      sold_group, sold_quota, sale_date
-    `;
+    // CORREÇÃO: Espaços corretos nos aliases
+    const selectColumns = `id, consultant_id, stage_id, user_id, name, data, created_at, updated_at, created_by, updated_by, proposal_value as "proposalValue", proposal_closing_date as "proposalClosingDate", sold_credit_value as "soldCreditValue", sold_group as "soldGroup", sold_quota as "soldQuota", sale_date as "saleDate"`;
 
     const { data, error } = await supabase
         .from('crm_leads')
