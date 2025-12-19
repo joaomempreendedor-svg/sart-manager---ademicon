@@ -211,6 +211,13 @@ const ConsultorCrmPage = () => { // Nome do componente corrigido para ConsultorC
                 {stage.name}
               </h3>
               <span className="text-xs text-gray-500 dark:text-gray-400">{groupedLeads[stage.id]?.length || 0} leads</span>
+              {stage.name.toLowerCase().includes('proposta') && (
+                <div className="mt-1 text-sm font-bold text-purple-700 dark:text-purple-300">
+                  Total Propostas: {formatCurrency(
+                    groupedLeads[stage.id].reduce((sum, lead) => sum + (lead.proposalValue || 0), 0)
+                  )}
+                </div>
+              )}
             </div>
             <div className="p-4 space-y-3 min-h-[200px]">
               {groupedLeads[stage.id]?.length === 0 ? (
