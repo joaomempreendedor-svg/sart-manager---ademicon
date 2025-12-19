@@ -862,11 +862,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const updateCrmLead = useCallback(async (id: string, updates: Partial<CrmLead>) => {
     if (!user) throw new Error("Usuário não autenticado.");
     
-    console.log("🟡 [DEBUG] Atualizando CRM Lead:", { id, updates, user });
-    
     const currentLead = crmLeads.find(l => l.id === id);
     if (!currentLead) {
-      console.error("❌ [DEBUG] Lead não encontrado para atualização.");
       throw new Error("Lead não encontrado para atualização.");
     }
 
@@ -901,40 +898,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
     });
 
-    console.log("🟡 [DEBUG] Payload enviado para Supabase:", JSON.stringify(dataToUpdateInDB, null, 2));
-
     let query = supabase.from('crm_leads').update(dataToUpdateInDB).eq('id', id);
 
     // Apply role-based filtering for updates
     if (user.role === 'CONSULTOR') {
       query = query.eq('consultant_id', user.id);
-      console.log("🟡 [DEBUG] Query para CONSULTOR: eq('consultant_id',", user.id, ")");
     } else if (user.role === 'GESTOR' || user.role === 'ADMIN') {
       // Gestors/Admins can update any lead within their CRM ownership
-      if (!crmOwnerUserId) {
-        console.error("❌ [DEBUG] ID do Gestor do CRM não encontrado para validação.");
-        throw new Error("ID do Gestor do CRM não encontrado para validação.");
-      }
+      if (!crmOwnerUserId) throw new Error("ID do Gestor do CRM não encontrado para validação.");
       query = query.eq('user_id', crmOwnerUserId);
-      console.log("🟡 [DEBUG] Query para GESTOR/ADMIN: eq('user_id',", crmOwnerUserId, ")");
     } else {
-      console.error("❌ [DEBUG] Role de usuário não autorizada para atualizar leads:", user.role);
       throw new Error("Role de usuário não autorizada para atualizar leads.");
     }
 
     const { error } = await query;
 
     if (error) {
-      console.error("❌ [DEBUG] Erro Supabase detalhado:", {
-        error,
-        message: error.message,
-        details: error.details,
-        hint: error.hint
-      });
+      console.error("Supabase error updating crm_leads:", error);
       throw error;
     }
     
-    console.log("✅ [DEBUG] Lead atualizado com sucesso");
     // Update local state with the merged data
     setCrmLeads(prev => prev.map(lead => lead.id === id ? { ...currentLead, ...dataToUpdateInDB } : lead));
   }, [user, crmLeads, crmOwnerUserId]); // Added crmOwnerUserId to dependencies
