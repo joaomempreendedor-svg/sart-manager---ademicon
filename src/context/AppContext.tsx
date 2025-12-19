@@ -761,7 +761,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const updateChecklistItem = useCallback((stageId: string, itemId: string, label: string) => { const newStructure = checklistStructure.map(s => s.id === stageId ? { ...s, items: s.items.map(i => i.id === itemId ? { ...i, label } : i) } : s); updateAndPersistStructure(setChecklistStructure, 'checklistStructure', newStructure); }, [checklistStructure, updateAndPersistStructure]);
   const deleteChecklistItem = useCallback((stageId: string, itemId: string) => { const newStructure = checklistStructure.map(s => s.id === stageId ? { ...s, items: s.items.filter(i => i.id !== itemId) } : s); updateAndPersistStructure(setChecklistStructure, 'checklistStructure', newStructure); }, [checklistStructure, updateAndPersistStructure]);
   const moveChecklistItem = useCallback((stageId: string, itemId: string, dir: 'up' | 'down') => { const newStructure = checklistStructure.map(s => { if (s.id !== stageId) return s; const idx = s.items.findIndex(i => i.id === itemId); if ((dir === 'up' && idx < 1) || (dir === 'down' && idx >= s.items.length - 1)) return s; const newItems = [...s.items]; const targetIdx = dir === 'up' ? idx - 1 : idx + 1; [newItems[idx], newItems[targetIdx]] = [newItems[targetIdx], newItems[idx]]; return { ...s, items: newItems }; }); updateAndPersistStructure(setChecklistStructure, 'checklistStructure', newStructure); }, [checklistStructure, updateAndPersistStructure]);
-  const resetChecklistToDefault = useCallback(() => { updateAndPersistStructure(setChecklistStructure, 'checklistStructure', DEFAULT_STAGES); }, [updateAndPersistStructure]);
+  const resetChecklistToDefault = useCallback(() => { updateAndPersistStructure(setChecklistStructure, 'checklistStructure', DEFAULT_STAGES); }, [updateAndAndPersistStructure]);
   const addGoalItem = useCallback((stageId: string, label: string) => { const newStructure = consultantGoalsStructure.map(s => s.id === stageId ? { ...s, items: [...s.items, { id: `goal_${Date.now()}`, label }] } : s); updateAndPersistStructure(setConsultantGoalsStructure, 'consultantGoalsStructure', newStructure); }, [consultantGoalsStructure, updateAndPersistStructure]);
   const updateGoalItem = useCallback((stageId: string, itemId: string, label: string) => { const newStructure = consultantGoalsStructure.map(s => s.id === stageId ? { ...s, items: s.items.map(i => i.id === itemId ? { ...i, label } : i) } : s); updateAndPersistStructure(setConsultantGoalsStructure, 'consultantGoalsStructure', newStructure); }, [consultantGoalsStructure, updateAndPersistStructure]);
   const deleteGoalItem = useCallback((stageId: string, itemId: string) => { const newStructure = consultantGoalsStructure.map(s => s.id === stageId ? { ...s, items: s.items.filter(i => i.id !== itemId) } : s); updateAndPersistStructure(setConsultantGoalsStructure, 'consultantGoalsStructure', newStructure); }, [consultantGoalsStructure, updateAndPersistStructure]);
@@ -862,27 +862,34 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const updateCrmLead = useCallback(async (id: string, updates: Partial<CrmLead>) => {
     if (!user) throw new Error("Usuário não autenticado.");
     
+    console.log("🟡 [DEBUG] Atualizando CRM Lead:", { id, updates, user });
+    
     const currentLead = crmLeads.find(l => l.id === id);
-    if (!currentLead) throw new Error("Lead não encontrado para atualização.");
+    if (!currentLead) {
+      console.error("❌ [DEBUG] Lead não encontrado para atualização.");
+      throw new Error("Lead não encontrado para atualização.");
+    }
 
     // Prepare the data to send to Supabase
-    const dataToUpdateInDB: Partial<CrmLead> = {
-      // Merge top-level fields directly
-      name: updates.name !== undefined ? (updates.name === null ? '' : updates.name) : currentLead.name,
-      stage_id: updates.stage_id !== undefined ? updates.stage_id : currentLead.stage_id,
-      proposalValue: updates.proposalValue !== undefined ? updates.proposalValue : currentLead.proposalValue,
-      proposalClosingDate: updates.proposalClosingDate !== undefined ? updates.proposalClosingDate : currentLead.proposalClosingDate,
-      consultant_id: updates.consultant_id !== undefined ? updates.consultant_id : currentLead.consultant_id,
-      // Merge the 'data' JSONB field
-      data: {
-        ...currentLead.data,
-        ...updates.data,
-      },
+    const dataToUpdateInDB: Partial<CrmLead> = {};
+
+    // Explicitly set 'name' to its current value if not provided in updates,
+    // ensuring it's never undefined or null in the payload.
+    dataToUpdateInDB.name = updates.name !== undefined ? (updates.name === null ? '' : updates.name) : currentLead.name;
+
+    if (updates.stage_id !== undefined) dataToUpdateInDB.stage_id = updates.stage_id;
+    if (updates.proposalValue !== undefined) dataToUpdateInDB.proposalValue = updates.proposalValue;
+    if (updates.proposalClosingDate !== undefined) dataToUpdateInDB.proposalClosingDate = updates.proposalClosingDate;
+    if (updates.consultant_id !== undefined) dataToUpdateInDB.consultant_id = updates.consultant_id;
+
+    // Merge the 'data' JSONB field
+    dataToUpdateInDB.data = {
+      ...currentLead.data,
+      ...updates.data,
     };
 
-    // Ensure `user_id` (gestor owner) is NOT updated by a consultant.
+    // Ensure `user_id` (gestor owner) is NOT updated.
     // It's set at creation and should remain constant for the lead's ownership.
-    // If `updates` contains `user_id`, remove it.
     if ('user_id' in dataToUpdateInDB) {
       delete dataToUpdateInDB.user_id;
     }
@@ -894,26 +901,40 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
     });
 
+    console.log("🟡 [DEBUG] Payload enviado para Supabase:", JSON.stringify(dataToUpdateInDB, null, 2));
+
     let query = supabase.from('crm_leads').update(dataToUpdateInDB).eq('id', id);
 
     // Apply role-based filtering for updates
     if (user.role === 'CONSULTOR') {
       query = query.eq('consultant_id', user.id);
+      console.log("🟡 [DEBUG] Query para CONSULTOR: eq('consultant_id',", user.id, ")");
     } else if (user.role === 'GESTOR' || user.role === 'ADMIN') {
       // Gestors/Admins can update any lead within their CRM ownership
-      if (!crmOwnerUserId) throw new Error("ID do Gestor do CRM não encontrado para validação.");
+      if (!crmOwnerUserId) {
+        console.error("❌ [DEBUG] ID do Gestor do CRM não encontrado para validação.");
+        throw new Error("ID do Gestor do CRM não encontrado para validação.");
+      }
       query = query.eq('user_id', crmOwnerUserId);
+      console.log("🟡 [DEBUG] Query para GESTOR/ADMIN: eq('user_id',", crmOwnerUserId, ")");
     } else {
+      console.error("❌ [DEBUG] Role de usuário não autorizada para atualizar leads:", user.role);
       throw new Error("Role de usuário não autorizada para atualizar leads.");
     }
 
     const { error } = await query;
 
     if (error) {
-      console.error("Supabase error updating crm_leads:", error);
+      console.error("❌ [DEBUG] Erro Supabase detalhado:", {
+        error,
+        message: error.message,
+        details: error.details,
+        hint: error.hint
+      });
       throw error;
     }
     
+    console.log("✅ [DEBUG] Lead atualizado com sucesso");
     // Update local state with the merged data
     setCrmLeads(prev => prev.map(lead => lead.id === id ? { ...currentLead, ...dataToUpdateInDB } : lead));
   }, [user, crmLeads, crmOwnerUserId]); // Added crmOwnerUserId to dependencies

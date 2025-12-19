@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { CrmLead, CrmStage } from '@/types';
-import { X, Save, Loader2, DollarSign, Calendar, CheckCircle2 } from 'lucide-react';
+import { X, Save, Loader2, DollarSign, Calendar, CheckCircle2, XCircle } from 'lucide-react'; // XCircle adicionado
 import {
   Dialog,
   DialogContent,
