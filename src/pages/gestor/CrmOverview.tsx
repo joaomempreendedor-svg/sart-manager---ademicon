@@ -15,7 +15,7 @@ import {
 
 const CrmOverviewPage = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
-  const { crmPipelines, crmStages, crmLeads, crmFields, teamMembers, isDataLoading, deleteCrmLead } = useApp();
+  const { crmPipelines, crmStages, crmLeads, crmFields, teamMembers, isDataLoading, deleteCrmLead, updateCrmLeadStage } = useApp();
   const [isLeadModalOpen, setIsLeadModalOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<CrmLead | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -102,6 +102,15 @@ const CrmOverviewPage = () => {
     e.stopPropagation();
     setSelectedLeadForMeeting(lead);
     setIsMeetingModalOpen(true);
+  };
+
+  const handleStageChange = async (leadId: string, newStageId: string) => {
+    if (!user) return;
+    try {
+      await updateCrmLeadStage(leadId, newStageId);
+    } catch (error: any) {
+      alert(`Erro ao mover lead: ${error.message}`);
+    }
   };
 
   if (isAuthLoading || isDataLoading) {
@@ -217,7 +226,30 @@ const CrmOverviewPage = () => {
                         {lead.data.email && <div className="flex items-center"><Mail className="w-3 h-3 mr-1" /> {lead.data.email}</div>}
                         {lead.data.origin && <div className="flex items-center"><Tag className="w-3 h-3 mr-1" /> {lead.data.origin}</div>}
                       </div>
-                      <div className="mt-3 pt-3 border-t border-gray-100 dark:border-slate-600 flex flex-wrap gap-2">
+                      {/* Seletor de Estágio */}
+                      <div className="mt-3 pt-3 border-t border-gray-100 dark:border-slate-600">
+                        <Select
+                          value={lead.stage_id}
+                          onValueChange={(newStageId) => handleStageChange(lead.id, newStageId)}
+                          // Previne que o clique no Select propague para o card e abra o modal de edição
+                          onOpenChange={(open) => { if (open) { /* do nothing */ } }}
+                        >
+                          <SelectTrigger 
+                            className="w-full h-auto py-1.5 text-xs dark:bg-slate-800 dark:text-white dark:border-slate-600"
+                            onClick={(e) => e.stopPropagation()} // Impede a propagação do clique
+                          >
+                            <SelectValue placeholder="Mover para..." />
+                          </SelectTrigger>
+                          <SelectContent className="dark:bg-slate-800 dark:text-white dark:border-slate-700">
+                            {pipelineStages.map(stageOption => (
+                              <SelectItem key={stageOption.id} value={stageOption.id}>
+                                {stageOption.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="mt-3 flex flex-wrap gap-2">
                         <button onClick={(e) => handleOpenTasksModal(e, lead)} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition">
                           <ListTodo className="w-3 h-3 mr-1" /> Tarefas
                         </button>
