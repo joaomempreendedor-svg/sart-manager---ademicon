@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Plus, Search, Loader2, Phone, Mail, Tag, MessageSquare, TrendingUp, ListTodo, CalendarPlus, Send, DollarSign, Edit2, Trash2, Users, CheckCircle2 } from 'lucide-react';
+import { Plus, Search, Loader2, Phone, Mail, Tag, MessageSquare, TrendingUp, ListTodo, CalendarPlus, Send, DollarSign, Edit2, Trash2, Users, CheckCircle2, XCircle } from 'lucide-react';
 import LeadModal from '@/components/crm/LeadModal';
 import { LeadTasksModal } from '@/components/crm/LeadTasksModal';
 import { ScheduleMeetingModal } from '@/components/crm/ScheduleMeetingModal';
@@ -213,6 +213,11 @@ const CrmOverviewPage = () => {
               ) : (
                 groupedLeads[stage.id]?.map(lead => {
                   const consultant = teamMembers.find(m => m.id === lead.consultant_id);
+                  const currentLeadStage = crmStages.find(s => s.id === lead.stage_id);
+                  const isWonStage = currentLeadStage?.is_won;
+                  const isLostStage = currentLeadStage?.is_lost;
+                  const canOpenProposalModal = !isWonStage && !isLostStage;
+
                   return (
                     <div key={lead.id} onClick={() => handleEditLead(lead)} className="bg-white dark:bg-slate-700 p-3 rounded-lg shadow-sm border border-gray-200 dark:border-slate-600 hover:border-brand-500 cursor-pointer transition-all group">
                       <div className="flex justify-between items-start mb-2">
@@ -239,15 +244,22 @@ const CrmOverviewPage = () => {
                         {lead.data.phone && <div className="flex items-center"><Phone className="w-3 h-3 mr-1" /> {lead.data.phone}</div>}
                         {lead.data.email && <div className="flex items-center"><Mail className="w-3 h-3 mr-1" /> {lead.data.email}</div>}
                         {lead.data.origin && <div className="flex items-center"><Tag className="w-3 h-3 mr-1" /> {lead.data.origin}</div>}
+                        
                         {lead.proposalValue && (
-                          <div className="flex items-center text-brand-600 dark:text-brand-400 font-semibold">
-                            <DollarSign className="w-3 h-3 mr-1" /> {formatCurrency(lead.proposalValue)}
-                            {lead.proposalClosingDate && (
-                              <span className="ml-1 text-xs text-gray-500 dark:text-gray-400 font-normal">
-                                (até {new Date(lead.proposalClosingDate + 'T00:00:00').toLocaleDateString('pt-BR')})
-                              </span>
-                            )}
-                          </div>
+                          isWonStage ? (
+                            <div className="flex items-center text-green-600 dark:text-green-400 font-semibold">
+                              <CheckCircle2 className="w-3 h-3 mr-1" /> Vendido: {formatCurrency(lead.proposalValue)}
+                            </div>
+                          ) : (
+                            <div className="flex items-center text-purple-600 dark:text-purple-400 font-semibold">
+                              <DollarSign className="w-3 h-3 mr-1" /> Proposta: {formatCurrency(lead.proposalValue)}
+                              {lead.proposalClosingDate && (
+                                <span className="ml-1 text-xs text-gray-500 dark:text-gray-400 font-normal">
+                                  (até {new Date(lead.proposalClosingDate + 'T00:00:00').toLocaleDateString('pt-BR')})
+                                </span>
+                              )}
+                            </div>
+                          )
                         )}
                       </div>
                       {/* Seletor de Estágio */}
@@ -280,10 +292,17 @@ const CrmOverviewPage = () => {
                         <button onClick={(e) => handleOpenMeetingModal(e, lead)} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-900/30 transition">
                           <CalendarPlus className="w-3 h-3 mr-1" /> Reunião
                         </button>
-                        <button onClick={(e) => handleOpenProposalModal(e, lead)} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/30 transition">
+                        <button 
+                          onClick={(e) => handleOpenProposalModal(e, lead)} 
+                          className={`flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs transition ${canOpenProposalModal ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/30' : 'bg-gray-100 dark:bg-slate-600 text-gray-500 cursor-not-allowed opacity-70'}`}
+                          disabled={!canOpenProposalModal}
+                        >
                           <Send className="w-3 h-3 mr-1" /> Proposta
                         </button>
-                        <button onClick={(e) => e.stopPropagation()} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-brand-50 dark:bg-brand-900/20 text-brand-700 dark:text-brand-300 hover:bg-brand-100 dark:hover:bg-brand-900/30 transition">
+                        <button 
+                          onClick={(e) => e.stopPropagation()} 
+                          className={`flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs transition ${isWonStage ? 'bg-brand-500 text-white hover:bg-brand-600' : 'bg-brand-50 dark:bg-brand-900/20 text-brand-700 dark:text-brand-300 hover:bg-brand-100 dark:hover:bg-brand-900/30'}`}
+                        >
                           <DollarSign className="w-3 h-3 mr-1" /> Vendido
                         </button>
                       </div>
@@ -325,10 +344,7 @@ const CrmOverviewPage = () => {
       {isProposalModalOpen && selectedLeadForProposal && (
         <ProposalModal
           isOpen={isProposalModalOpen}
-          onClose={() => {
-            console.log("CrmOverviewPage: Closing ProposalModal");
-            setIsProposalModalOpen(false);
-          }}
+          onClose={() => setIsProposalModalOpen(false)}
           lead={selectedLeadForProposal}
         />
       )}
