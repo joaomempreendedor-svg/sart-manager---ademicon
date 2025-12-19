@@ -331,16 +331,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           // crmLeads fetch needs to be conditional based on role
           (async () => {
             try {
-              const selectColumns = `
-                  id, consultant_id, stage_id, user_id, name, data, 
-                  created_at, updated_at, created_by, updated_by,
-                  proposal_value as "proposalValue",
-                  proposal_closing_date as "proposalClosingDate",
-                  sold_credit_value as "soldCreditValue",
-                  sold_group as "soldGroup",
-                  sold_quota as "soldQuota",
-                  sale_date as "saleDate"
-              `.replace(/\s+/g, ' ').trim(); // APLICANDO A CORREÇÃO AQUI TAMBÉM
+              const selectColumns = [
+                  'id', 'consultant_id', 'stage_id', 'user_id', 'name', 'data', 
+                  'created_at', 'updated_at', 'created_by', 'updated_by',
+                  'proposal_value as "proposalValue"',
+                  'proposal_closing_date as "proposalClosingDate"',
+                  'sold_credit_value as "soldCreditValue"',
+                  'sold_group as "soldGroup"',
+                  'sold_quota as "soldQuota"',
+                  'sale_date as "saleDate"'
+              ].join(', ');
               // 🔥 CORREÇÃO: Lógica consistente de filtro para o fetch de leads
               let query = supabase.from('crm_leads').select(selectColumns);
               if (user?.role === 'CONSULTOR') {
@@ -369,8 +369,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           (async () => { try { return await supabase.from('weekly_target_assignments').select('*'); } catch (e) { console.error("Error fetching weekly_target_assignments:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('metric_logs').select('*'); } catch (e) { console.error("Error fetching metric_logs:", e); return { data: [], error: e }; } })(),
           // Support Materials V2 and related tables (use effectiveGestorId for parent table)
-          (async () => { try { return await supabase.from('support_materials_v2').select('*').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching support_materials_v2:", e); return { data: [], error: e }; } })(),
-          (async () => { try { return await supabase.from('support_material_assignments').select('*'); } catch (e) { console.error("Error fetching support_material_assignments:", e); return { data: [], error: e }; } })(),
+          (async () => { try { return await supabase.from('support_materials_v2').select('*').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching support_materials_v2:", e); return { data: null, error: e }; } })(),
+          (async () => { try { return await supabase.from('support_material_assignments').select('*'); } catch (e) { console.error("Error fetching support_material_assignments:", e); return { data: null, error: e }; } })(),
           // NOVO: Fetch de lead_tasks
           (async () => { try { return await supabase.from('lead_tasks').select('*'); } catch (e) { console.error("Error fetching lead_tasks:", e); return { data: [], error: e }; } })(),
         ]);
@@ -497,8 +497,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setWeeklyTargetItems(weeklyTargetItemsData?.data || []);
         setWeeklyTargetAssignments(weeklyTargetAssignmentsData?.data || []);
         setMetricLogs(metricLogsData?.data || []);
-        setSupportMaterialsV2(supportMaterialsV2Data?.data || []); // Set Support Materials V2
-        setSupportMaterialAssignments(supportMaterialAssignmentsData?.data || []);
+        if (supportMaterialsV2Data?.data) { // Check if data is not null
+          setSupportMaterialsV2(supportMaterialsV2Data.data);
+        } else {
+          setSupportMaterialsV2([]);
+        }
+        if (supportMaterialAssignmentsData?.data) { // Check if data is not null
+          setSupportMaterialAssignments(supportMaterialAssignmentsData.data);
+        } else {
+          setSupportMaterialAssignments([]);
+        }
         setLeadTasks(leadTasksData?.data || []); // NOVO: Set Lead Tasks
         
         refetchCommissions();
@@ -889,17 +897,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     console.log('Inserting lead with:', payload); // DEBUG
 
-    // APLICANDO A CORREÇÃO AQUI
-    const selectColumns = `
-        id, consultant_id, stage_id, user_id, name, data, 
-        created_at, updated_at, created_by, updated_by,
-        proposal_value as "proposalValue",
-        proposal_closing_date as "proposalClosingDate",
-        sold_credit_value as "soldCreditValue",
-        sold_group as "soldGroup",
-        sold_quota as "soldQuota",
-        sale_date as "saleDate"
-    `.replace(/\s+/g, ' ').trim();
+    // CORREÇÃO FINAL: Usando array.join para robustez na string de seleção
+    const selectColumns = [
+        'id', 'consultant_id', 'stage_id', 'user_id', 'name', 'data', 
+        'created_at', 'updated_at', 'created_by', 'updated_by',
+        'proposal_value as "proposalValue"',
+        'proposal_closing_date as "proposalClosingDate"',
+        'sold_credit_value as "soldCreditValue"',
+        'sold_group as "soldGroup"',
+        'sold_quota as "soldQuota"',
+        'sale_date as "saleDate"'
+    ].join(', ');
 
     const { data, error } = await supabase
         .from('crm_leads')
