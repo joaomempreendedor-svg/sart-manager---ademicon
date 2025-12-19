@@ -495,7 +495,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               } catch (error) {
                 console.error(`[RECOVERY] Falha ao sincronizar comissão ${pendingCommission._id}:`, error);
                 const updatedPending = JSON.parse(localStorage.getItem('pending_commissions') || '[]').map((pc: any) => pc._id === pendingCommission._id ? { ...pc, _retryCount: (pc._retryCount || 0) + 1 } : pc);
-                localStorage.setItem('pending_commissions', JSON.stringify(updatedPending));
+                localStorage.setItem('pending_commissions', JSON.stringify(updatedUpdatedPending));
               }
             }
           } catch (error) {
@@ -868,15 +868,23 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
 
     // Prepare the data to send to Supabase
-    const dataToUpdateInDB: Partial<CrmLead> = {};
+    const dataToUpdateInDB: any = {}; // Usar 'any' temporariamente para flexibilidade de snake_case
 
     // Explicitly set 'name' to its current value if not provided in updates,
     // ensuring it's never undefined or null in the payload.
     dataToUpdateInDB.name = updates.name !== undefined ? (updates.name === null ? '' : updates.name) : currentLead.name;
 
     if (updates.stage_id !== undefined) dataToUpdateInDB.stage_id = updates.stage_id;
-    if (updates.proposalValue !== undefined) dataToUpdateInDB.proposalValue = updates.proposalValue;
-    if (updates.proposalClosingDate !== undefined) dataToUpdateInDB.proposalClosingDate = updates.proposalClosingDate;
+    
+    // ⚠️ CORREÇÃO CRÍTICA: Mapear para snake_case
+    if (updates.proposalValue !== undefined) {
+      dataToUpdateInDB.proposal_value = updates.proposalValue; // ⚠️ snake_case
+    }
+    
+    if (updates.proposalClosingDate !== undefined) {
+      dataToUpdateInDB.proposal_closing_date = updates.proposalClosingDate; // ⚠️ snake_case
+    }
+
     if (updates.consultant_id !== undefined) dataToUpdateInDB.consultant_id = updates.consultant_id;
 
     // Merge the 'data' JSONB field
@@ -890,6 +898,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if ('user_id' in dataToUpdateInDB) {
       delete dataToUpdateInDB.user_id;
     }
+
+    // Adicionar updated_at
+    dataToUpdateInDB.updated_at = new Date().toISOString();
 
     // Remove undefined values from dataToUpdateInDB to avoid issues with Supabase update
     Object.keys(dataToUpdateInDB).forEach(key => {
@@ -905,7 +916,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       query = query.eq('consultant_id', user.id);
     } else if (user.role === 'GESTOR' || user.role === 'ADMIN') {
       // Gestors/Admins can update any lead within their CRM ownership
-      if (!crmOwnerUserId) throw new Error("ID do Gestor do CRM não encontrado para validação.");
+      if (!crmOwnerUserId) {
+        throw new Error("ID do Gestor do CRM não encontrado para validação.");
+      }
       query = query.eq('user_id', crmOwnerUserId);
     } else {
       throw new Error("Role de usuário não autorizada para atualizar leads.");
