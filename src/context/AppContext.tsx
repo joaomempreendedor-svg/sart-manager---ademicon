@@ -331,12 +331,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           // crmLeads fetch needs to be conditional based on role
           (async () => {
             try {
-              const selectColumns = `
-                id, consultant_id, stage_id, user_id, name, data, created_at, updated_at, 
-                proposal_value as "proposalValue", proposal_closing_date as "proposalClosingDate",
-                sold_credit_value as "soldCreditValue", sold_group as "soldGroup", 
-                sold_quota as "soldQuota", sale_date as "saleDate"
-              `;
+              const selectColumns = `id, consultant_id, stage_id, user_id, name, data, created_at, updated_at, created_by, updated_by, proposal_value as "proposalValue", proposal_closing_date as "proposalClosingDate", sold_credit_value as "soldCreditValue", sold_group as "soldGroup", sold_quota as "soldQuota", sale_date as "saleDate"`;
               // 🔥 CORREÇÃO: Lógica consistente de filtro para o fetch de leads
               let query = supabase.from('crm_leads').select(selectColumns);
               if (user?.role === 'CONSULTOR') {
@@ -890,15 +885,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     console.log('Inserting lead with:', payload); // DEBUG
 
+    const selectColumns = `id, consultant_id, stage_id, user_id, name, data, created_at, updated_at, created_by, updated_by, proposal_value as "proposalValue", proposal_closing_date as "proposalClosingDate", sold_credit_value as "soldCreditValue", sold_group as "soldGroup", sold_quota as "soldQuota", sale_date as "saleDate"`;
+
     const { data, error } = await supabase
         .from('crm_leads')
         .insert(payload)
-        .select(`
-            id, consultant_id, stage_id, user_id, name, data, created_at, updated_at,
-            proposal_value as "proposalValue", proposal_closing_date as "proposalClosingDate",
-            sold_credit_value as "soldCreditValue", sold_group as "soldGroup",
-            sold_quota as "soldQuota", sale_date as "saleDate"
-        `)
+        .select(selectColumns)
         .single();
     
     if (error) {
