@@ -27,7 +27,7 @@ import { ChecklistConfig } from '@/pages/ChecklistConfig';
 import { GoalsConfig } from '@/pages/GoalsConfig';
 import { InterviewConfig } from '@/pages/InterviewConfig';
 import { Commissions } from '@/pages/Commissions';
-import { Materials } from '@/pages/Materials';
+import { Materials } => '@/pages/Materials';
 import { ImportantLinks } from '@/pages/ImportantLinks';
 import { TeamConfig } from '@/pages/TeamConfig';
 import { CutoffConfig } from '@/pages/CutoffConfig';
