@@ -311,7 +311,7 @@ const ConsultorCrmPage = () => { // Nome do componente corrigido para ConsultorC
                     </div>
                   </div>
                 ))
-              )}; {/* Adicionado ponto e vírgula aqui */}
+              )};
             </div>
           </div>
         ))}
