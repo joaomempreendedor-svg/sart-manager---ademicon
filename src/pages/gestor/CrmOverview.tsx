@@ -234,7 +234,10 @@ const CrmOverviewPage = () => {
         {pipelineStages.map(stage => (
           <div key={stage.id} className="flex-shrink-0 w-80 bg-gray-100 dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700">
             <div className="p-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
-              <h3 className="font-semibold text-gray-900 dark:text-white">{stage.name}</h3>
+              <h3 className="font-semibold text-gray-900 dark:text-white flex items-center">
+                {stage.name.toLowerCase().includes('proposta') && <Send className="w-4 h-4 mr-2 text-purple-600 dark:text-purple-400" />}
+                {stage.name}
+              </h3>
               <span className="text-xs text-gray-500 dark:text-gray-400">{groupedLeads[stage.id]?.length || 0} leads</span>
             </div>
             <div className="p-4 space-y-3 min-h-[200px]">
@@ -352,7 +355,7 @@ const CrmOverviewPage = () => {
           onClose={() => setIsLeadModalOpen(false)}
           lead={editingLead}
           crmFields={crmFields.filter(f => f.is_active)}
-          assignedConsultantId={user?.id || null}
+          assignedConsultantId={selectedConsultantId || user?.id || null}
         />
       )}
 

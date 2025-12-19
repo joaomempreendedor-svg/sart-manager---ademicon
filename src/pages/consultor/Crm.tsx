@@ -206,7 +206,10 @@ const ConsultorCrmPage = () => { // Nome do componente corrigido para ConsultorC
         {pipelineStages.map(stage => (
           <div key={stage.id} className="flex-shrink-0 w-80 bg-gray-100 dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700">
             <div className="p-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
-              <h3 className="font-semibold text-gray-900 dark:text-white">{stage.name}</h3>
+              <h3 className="font-semibold text-gray-900 dark:text-white flex items-center">
+                {stage.name.toLowerCase().includes('proposta') && <Send className="w-4 h-4 mr-2 text-purple-600 dark:text-purple-400" />}
+                {stage.name}
+              </h3>
               <span className="text-xs text-gray-500 dark:text-gray-400">{groupedLeads[stage.id]?.length || 0} leads</span>
             </div>
             <div className="p-4 space-y-3 min-h-[200px]">
@@ -283,32 +286,31 @@ const ConsultorCrmPage = () => { // Nome do componente corrigido para ConsultorC
                             ))}
                           </SelectContent>
                         </Select>
-                      </div>
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        <button onClick={(e) => handleOpenTasksModal(e, lead)} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition">
-                          <ListTodo className="w-3 h-3 mr-1" /> Tarefas
-                        </button>
-                        <button onClick={(e) => handleOpenMeetingModal(e, lead)} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-900/30 transition">
-                          <CalendarPlus className="w-3 h-3 mr-1" /> Reunião
-                        </button>
-                        <button 
-                          onClick={(e) => handleOpenProposalModal(e, lead)} 
-                          className={`flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs transition ${canOpenProposalModal ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/30' : 'bg-gray-100 dark:bg-slate-600 text-gray-500 cursor-not-allowed opacity-70'}`}
-                          disabled={!canOpenProposalModal}
-                        >
-                          <Send className="w-3 h-3 mr-1" /> Proposta
-                        </button>
-                        <button 
-                          onClick={(e) => handleMarkAsWon(e, lead)} 
-                          className={`flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs transition ${canOpenProposalModal ? 'bg-brand-500 text-white hover:bg-brand-600' : 'bg-gray-100 dark:bg-slate-600 text-gray-500 cursor-not-allowed opacity-70'}`}
-                          disabled={!canOpenProposalModal}
-                        >
-                          <DollarSign className="w-3 h-3 mr-1" /> Vendido
-                        </button>
-                      </div>
                     </div>
-                  );
-                })
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button onClick={(e) => handleOpenTasksModal(e, lead)} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition">
+                        <ListTodo className="w-3 h-3 mr-1" /> Tarefas
+                      </button>
+                      <button onClick={(e) => handleOpenMeetingModal(e, lead)} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-900/30 transition">
+                        <CalendarPlus className="w-3 h-3 mr-1" /> Reunião
+                      </button>
+                      <button 
+                        onClick={(e) => handleOpenProposalModal(e, lead)} 
+                        className={`flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs transition ${canOpenProposalModal ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/30' : 'bg-gray-100 dark:bg-slate-600 text-gray-500 cursor-not-allowed opacity-70'}`}
+                        disabled={!canOpenProposalModal}
+                      >
+                        <Send className="w-3 h-3 mr-1" /> Proposta
+                      </button>
+                      <button 
+                        onClick={(e) => handleMarkAsWon(e, lead)} 
+                        className={`flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs transition ${canOpenProposalModal ? 'bg-brand-500 text-white hover:bg-brand-600' : 'bg-gray-100 dark:bg-slate-600 text-gray-500 cursor-not-allowed opacity-70'}`}
+                        disabled={!canOpenProposalModal}
+                      >
+                        <DollarSign className="w-3 h-3 mr-1" /> Vendido
+                      </button>
+                    </div>
+                  </div>
+                ))
               )}
             </div>
           </div>
