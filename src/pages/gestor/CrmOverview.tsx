@@ -242,7 +242,10 @@ const CrmOverviewPage = () => {
               {stage.name.toLowerCase().includes('proposta') && (
                 <div className="mt-1 text-sm font-bold text-purple-700 dark:text-purple-300">
                   Total Propostas: {formatCurrency(
-                    groupedLeads[stage.id].reduce((sum, lead) => sum + (lead.proposalValue || 0), 0)
+                    groupedLeads[stage.id].reduce((sum, lead) => {
+                      console.log(`Lead ${lead.name} in stage ${stage.name}: proposalValue = ${lead.proposalValue}`); // DEBUG LOG
+                      return sum + (lead.proposalValue || 0);
+                    }, 0)
                   )}
                 </div>
               )}
@@ -258,6 +261,8 @@ const CrmOverviewPage = () => {
                   const isLostStage = currentLeadStage?.is_lost;
                   const canOpenProposalModal = !isWonStage && !isLostStage;
                   const canMarkAsWon = !isWonStage && !isLostStage;
+
+                  console.log(`[Card Render] Lead: ${lead.name}, ProposalValue: ${lead.proposalValue}, ProposalClosingDate: ${lead.proposalClosingDate}`); // DEBUG LOG
 
                   return (
                     <div key={lead.id} onClick={() => handleEditLead(lead)} className="bg-white dark:bg-slate-700 p-3 rounded-lg shadow-sm border border-gray-200 dark:border-slate-600 hover:border-brand-500 cursor-pointer transition-all group">
@@ -286,7 +291,7 @@ const CrmOverviewPage = () => {
                         {lead.data.email && <div className="flex items-center"><Mail className="w-3 h-3 mr-1" /> {lead.data.email}</div>}
                         {lead.data.origin && <div className="flex items-center"><Tag className="w-3 h-3 mr-1" /> {lead.data.origin}</div>}
                         
-                        {lead.proposalValue && (
+                        {lead.proposalValue && lead.proposalValue > 0 ? ( // Adicionado verificação > 0
                           isWonStage ? (
                             <div className="flex items-center text-green-600 dark:text-green-400 font-semibold">
                               <CheckCircle2 className="w-3 h-3 mr-1" /> Vendido: {formatCurrency(lead.proposalValue)}
@@ -301,6 +306,10 @@ const CrmOverviewPage = () => {
                               )}
                             </div>
                           )
+                        ) : (
+                          <div className="flex items-center text-gray-400 dark:text-gray-500">
+                            <DollarSign className="w-3 h-3 mr-1" /> Sem proposta
+                          </div>
                         )}
                       </div>
                       {/* Seletor de Estágio */}

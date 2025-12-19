@@ -742,7 +742,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const updateCutoffPeriod = useCallback(async (id: string, updates: Partial<CutoffPeriod>) => { if (!user) throw new Error("Usuário não autenticado."); const p = cutoffPeriods.find(p => p.id === id); if (!p || !p.db_id) throw new Error("Período não encontrado"); const updated = { ...p, ...updates }; const { db_id, ...dataToUpdate } = updated; const { error } = await supabase.from('cutoff_periods').update({ data: dataToUpdate }).match({ id: p.db_id, user_id: JOAO_GESTOR_AUTH_ID }); if (error) { console.error(error); throw error; } setCutoffPeriods(prev => prev.map(item => item.id === id ? updated : item)); }, [user, cutoffPeriods]); // Use JOAO_GESTOR_AUTH_ID
   const deleteCutoffPeriod = useCallback(async (id: string) => { if (!user) throw new Error("Usuário não autenticado."); const p = cutoffPeriods.find(p => p.id === id); if (!p || !p.db_id) throw new Error("Período não encontrado"); const { error } = await supabase.from('cutoff_periods').delete().match({ id: p.db_id, user_id: JOAO_GESTOR_AUTH_ID }); if (error) throw error; setCutoffPeriods(prev => prev.filter(item => item.id !== id)); }, [user, cutoffPeriods]); // Use JOAO_GESTOR_AUTH_ID
   const addCommission = useCallback(async (commission: Commission): Promise<Commission> => { if (!user) throw new Error("Usuário não autenticado."); const localId = `local_${Date.now()}`; const localCommission: Commission = { ...commission, db_id: localId, criado_em: new Date().toISOString() }; setCommissions(prev => [localCommission, ...prev]); setTimeout(() => { alert(`✅ VENDA REGISTRADA!\n\nCliente: ${commission.clientName}\nValor: R$ ${commission.value.toLocaleString()}\nID: ${localId}\n\nA sincronização ocorrerá em segundo plano.`); }, 50); setTimeout(async () => { try { const cleanCommission = { ...commission, customRules: commission.customRules?.length ? commission.customRules : undefined, angelName: commission.angelName || undefined, managerName: commission.managerName || 'N/A', }; const payload = { user_id: JOAO_GESTOR_AUTH_ID, data: cleanCommission }; const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Background sync timeout')), 10000)); const insertPromise = supabase.from('commissions').insert(payload).select('id', 'created_at').maybeSingle(); const { data, error } = await Promise.race([insertPromise, timeoutPromise]) as any; if (error) throw error; if (data && data.id) { setCommissions(prev => prev.map(c => c.db_id === localId ? { ...c, db_id: data.id.toString(), criado_em: data.created_at, _synced: true } : c)); const updated = pending.filter((p: any) => p._localId !== localId); localStorage.setItem('pending_commissions', JSON.stringify(updated)); } else { throw new Error('Nenhum ID retornado'); } } catch (error: any) { const pending = JSON.parse(localStorage.getItem('pending_commissions') || '[]'); const alreadyExists = pending.some((p: any) => p._localId === localId); if (!alreadyExists) { pending.push({ ...commission, _localId: localId, _timestamp: new Date().toISOString(), _error: error.message, _attempts: 1 }); localStorage.setItem('pending_commissions', JSON.stringify(pending)); } } }, 2000); return localCommission; }, [user]); // Use JOAO_GESTOR_AUTH_ID
-  const updateCommission = useCallback(async (id: string, updates: Partial<Commission>) => { if (!user) throw new Error("Usuário não autenticado."); const commissionToUpdate = commissions.find(c => c.id === commissionId); if (!commissionToUpdate || !commissionToUpdate.db_id) throw new Error("Comissão não encontrada para atualização."); const originalData = { ...commissionToUpdate }; delete (originalData as any).db_id; delete (originalData as any).criado_em; const newData = { ...originalData, ...updates }; const payload = { data: newData }; const { error } = await supabase.from('commissions').update(payload).match({ id: commissionToUpdate.db_id, user_id: JOAO_GESTOR_AUTH_ID }); if (error) { console.error(error); throw error; } await refetchCommissions(); }, [user, commissions, refetchCommissions]); // Use JOAO_GESTOR_AUTH_ID
+  const updateCommission = useCallback(async (id: string, updates: Partial<Commission>) => { if (!user) throw new Error("Usuário não autenticado."); const commissionToUpdate = commissions.find(c => c.id === id); if (!commissionToUpdate || !commissionToUpdate.db_id) throw new Error("Comissão não encontrada para atualização."); const originalData = { ...commissionToUpdate }; delete (originalData as any).db_id; delete (originalData as any).criado_em; const newData = { ...originalData, ...updates }; const payload = { data: newData }; const { error } = await supabase.from('commissions').update(payload).match({ id: commissionToUpdate.db_id, user_id: JOAO_GESTOR_AUTH_ID }); if (error) { console.error(error); throw error; } await refetchCommissions(); }, [user, commissions, refetchCommissions]); // Use JOAO_GESTOR_AUTH_ID
   const deleteCommission = useCallback(async (id: string) => { if (!user) throw new Error("Usuário não autenticado."); const commissionToDelete = commissions.find(c => c.id === id); if (!commissionToDelete || !commissionToDelete.db_id) throw new Error("Comissão não encontrada para exclusão."); const { error } = await supabase.from('commissions').delete().match({ id: commissionToDelete.db_id, user_id: JOAO_GESTOR_AUTH_ID }); if (error) { console.error(error); throw error; } await refetchCommissions(); }, [user, commissions, refetchCommissions]); // Use JOAO_GESTOR_AUTH_ID
   const addSupportMaterial = useCallback(async (materialData: Omit<SupportMaterial, 'id' | 'url'>, file: File) => { if (!user) throw new Error("Usuário não autenticado."); const sanitizedFileName = file.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w\s.-]/g, '').replace(/\s+/g, '_'); const filePath = `public/${crypto.randomUUID()}-${sanitizedFileName}`; const { error: uploadError } = await supabase.storage.from('support_materials').upload(filePath, file); if (uploadError) throw uploadError; const { data: urlData } = supabase.storage.from('support_materials').getPublicUrl(filePath); if (!urlData) throw new Error("Não foi possível obter a URL pública do arquivo."); const newMaterial: SupportMaterial = { ...materialData, id: crypto.randomUUID(), url: urlData.publicUrl, }; const { data: dbData, error: dbError } = await supabase.from('support_materials').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: newMaterial }).select('id').single(); if (dbError) { await supabase.storage.from('support_materials').remove([filePath]); throw dbError; } setSupportMaterials(prev => [{ ...newMaterial, db_id: dbData.id }, ...prev]); }, [user]); // Use JOAO_GESTOR_AUTH_ID
   const deleteSupportMaterial = useCallback(async (id: string) => { if (!user) throw new Error("Usuário não autenticado."); const m = supportMaterials.find(m => m.id === id); if (!m || !m.db_id) throw new Error("Material não encontrado"); const filePath = m.url.split('/support_materials/')[1]; const { error: storageError } = await supabase.storage.from('support_materials').remove([filePath]); if (storageError) console.error("Erro ao deletar do storage (pode já ter sido removido):", storageError.message); const { error: dbError } = await supabase.from('support_materials').delete().match({ id: m.db_id, user_id: JOAO_GESTOR_AUTH_ID }); if (dbError) throw dbError; setSupportMaterials(prev => prev.filter(p => p.id !== id)); }, [user, supportMaterials]); // Use JOAO_GESTOR_AUTH_ID
@@ -880,41 +880,34 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
 
     // Prepare the data to send to Supabase
-    const dataToUpdateInDB: any = {}; // Usar 'any' temporariamente para flexibilidade de snake_case
+    const dataToUpdateInDB: any = {}; 
 
-    // Explicitly set 'name' to its current value if not provided in updates,
-    // ensuring it's never undefined or null in the payload.
     dataToUpdateInDB.name = updates.name !== undefined ? (updates.name === null ? '' : updates.name) : currentLead.name;
 
     if (updates.stage_id !== undefined) dataToUpdateInDB.stage_id = updates.stage_id;
     
-    // ⚠️ CORREÇÃO: Mapear para snake_case
+    // Mapear para snake_case para o banco de dados
     if (updates.proposalValue !== undefined) {
-      dataToUpdateInDB.proposal_value = updates.proposalValue; // ⚠️ snake_case
+      dataToUpdateInDB.proposal_value = updates.proposalValue; 
     }
     
     if (updates.proposalClosingDate !== undefined) {
-      dataToUpdateInDB.proposal_closing_date = updates.proposalClosingDate; // ⚠️ snake_case
+      dataToUpdateInDB.proposal_closing_date = updates.proposalClosingDate; 
     }
 
     if (updates.consultant_id !== undefined) dataToUpdateInDB.consultant_id = updates.consultant_id;
 
-    // Merge the 'data' JSONB field
     dataToUpdateInDB.data = {
       ...currentLead.data,
       ...updates.data,
     };
 
-    // Ensure `user_id` (gestor owner) is NOT updated.
-    // It's set at creation and should remain constant for the lead's ownership.
     if ('user_id' in dataToUpdateInDB) {
       delete dataToUpdateInDB.user_id;
     }
 
-    // Adicionar updated_at
     dataToUpdateInDB.updated_at = new Date().toISOString();
 
-    // Remove undefined values from dataToUpdateInDB to avoid issues with Supabase update
     Object.keys(dataToUpdateInDB).forEach(key => {
       if (dataToUpdateInDB[key] === undefined) {
         delete dataToUpdateInDB[key];
@@ -943,8 +936,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       throw error;
     }
     
-    // Update local state with the merged data
-    setCrmLeads(prev => prev.map(lead => lead.id === id ? { ...currentLead, ...dataToUpdateInDB } : lead));
+    // ATUALIZAÇÃO DO ESTADO LOCAL:
+    // Mesclar o lead atual com as atualizações recebidas (que já estão em camelCase)
+    // Isso garante que o estado local reflita os dados no formato correto da interface.
+    setCrmLeads(prev => prev.map(lead => 
+      lead.id === id 
+        ? { 
+            ...currentLead, 
+            ...updates,
+            // Se 'data' foi atualizado, mesclar também
+            data: { ...currentLead.data, ...updates.data }
+          } 
+        : lead
+    ));
   }, [user, crmLeads, crmOwnerUserId]); // Added crmOwnerUserId to dependencies
 
   const deleteCrmLead = useCallback(async (id: string) => {
