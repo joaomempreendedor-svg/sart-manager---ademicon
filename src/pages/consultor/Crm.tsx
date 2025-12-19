@@ -19,6 +19,7 @@ const formatCurrency = (value: number) => {
 };
 
 const ConsultorCrmPage = () => { // Nome do componente corrigido para ConsultorCrmPage
+  // DEBUG: Forçando reprocessamento do arquivo para resolver erro de cache/sintaxe.
   const { user, isLoading: isAuthLoading } = useAuth();
   const { crmPipelines, crmStages, crmLeads, crmFields, isDataLoading, deleteCrmLead, updateCrmLeadStage } = useApp();
   const [isLeadModalOpen, setIsLeadModalOpen] = useState(false);
@@ -351,4 +352,4 @@ const ConsultorCrmPage = () => { // Nome do componente corrigido para ConsultorC
   );
 };
 
-export default CrmOverviewPage;
+export default ConsultorCrmPage;
