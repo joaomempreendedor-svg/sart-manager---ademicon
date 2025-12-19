@@ -340,7 +340,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                   'sold_group as "soldGroup"',
                   'sold_quota as "soldQuota"',
                   'sale_date as "saleDate"'
-              ].join(', ');
+              ].join(', '); // APLICANDO A CORREÇÃO AQUI
               // 🔥 CORREÇÃO: Lógica consistente de filtro para o fetch de leads
               let query = supabase.from('crm_leads').select(selectColumns);
               if (user?.role === 'CONSULTOR') {
@@ -369,8 +369,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           (async () => { try { return await supabase.from('weekly_target_assignments').select('*'); } catch (e) { console.error("Error fetching weekly_target_assignments:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('metric_logs').select('*'); } catch (e) { console.error("Error fetching metric_logs:", e); return { data: [], error: e }; } })(),
           // Support Materials V2 and related tables (use effectiveGestorId for parent table)
-          (async () => { try { return await supabase.from('support_materials_v2').select('*').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching support_materials_v2:", e); return { data: null, error: e }; } })(),
-          (async () => { try { return await supabase.from('support_material_assignments').select('*'); } catch (e) { console.error("Error fetching support_material_assignments:", e); return { data: null, error: e }; } })(),
+          (async () => { try { return await supabase.from('support_materials_v2').select('*').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching support_materials_v2:", e); return { data: [], error: e }; } })(),
+          (async () => { try { return await supabase.from('support_material_assignments').select('*'); } catch (e) { console.error("Error fetching support_material_assignments:", e); return { data: [], error: e }; } })(),
           // NOVO: Fetch de lead_tasks
           (async () => { try { return await supabase.from('lead_tasks').select('*'); } catch (e) { console.error("Error fetching lead_tasks:", e); return { data: [], error: e }; } })(),
         ]);
@@ -497,16 +497,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setWeeklyTargetItems(weeklyTargetItemsData?.data || []);
         setWeeklyTargetAssignments(weeklyTargetAssignmentsData?.data || []);
         setMetricLogs(metricLogsData?.data || []);
-        if (supportMaterialsV2Data?.data) { // Check if data is not null
-          setSupportMaterialsV2(supportMaterialsV2Data.data);
-        } else {
-          setSupportMaterialsV2([]);
-        }
-        if (supportMaterialAssignmentsData?.data) { // Check if data is not null
-          setSupportMaterialAssignments(supportMaterialAssignmentsData.data);
-        } else {
-          setSupportMaterialAssignments([]);
-        }
+        setSupportMaterialsV2(supportMaterialsV2Data?.data || []); // Set Support Materials V2
+        setSupportMaterialAssignments(supportMaterialAssignmentsData?.data || []);
         setLeadTasks(leadTasksData?.data || []); // NOVO: Set Lead Tasks
         
         refetchCommissions();
