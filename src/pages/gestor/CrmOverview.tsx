@@ -6,6 +6,7 @@ import LeadModal from '@/components/crm/LeadModal';
 import { LeadTasksModal } from '@/components/crm/LeadTasksModal';
 import { ScheduleMeetingModal } from '@/components/crm/ScheduleMeetingModal';
 import { ProposalModal } from '@/components/crm/ProposalModal'; // Importar o novo modal de proposta
+import { MarkAsSoldModal } from '@/components/crm/MarkAsSoldModal'; // NOVO: Importar o modal de marcar como vendido
 import {
   Select,
   SelectContent,
@@ -30,6 +31,8 @@ const CrmOverviewPage = () => {
   const [selectedLeadForMeeting, setSelectedLeadForMeeting] = useState<CrmLead | null>(null);
   const [isProposalModalOpen, setIsProposalModalOpen] = useState(false); // NOVO: Estado para o modal de proposta
   const [selectedLeadForProposal, setSelectedLeadForProposal] = useState<CrmLead | null>(null); // NOVO: Lead selecionado para proposta
+  const [isMarkAsSoldModalOpen, setIsMarkAsSoldModalOpen] = useState(false); // NOVO: Estado para o modal de marcar como vendido
+  const [selectedLeadForSold, setSelectedLeadForSold] = useState<CrmLead | null>(null); // NOVO: Lead selecionado para marcar como vendido
   const [selectedConsultantId, setSelectedConsultantId] = useState<string | null>(null); // Novo estado para filtrar por consultor
 
   const activePipeline = useMemo(() => {
@@ -118,6 +121,7 @@ const CrmOverviewPage = () => {
     setIsProposalModalOpen(true);
   };
 
+  // NOVO: Função para abrir o modal de marcar como vendido
   const handleMarkAsWon = async (e: React.MouseEvent, lead: CrmLead) => {
     e.stopPropagation();
     if (!user) return;
@@ -138,14 +142,8 @@ const CrmOverviewPage = () => {
       return;
     }
 
-    if (window.confirm(`Tem certeza que deseja marcar o lead "${lead.name}" como GANHO e movê-lo para a etapa "${wonStage.name}"?`)) {
-      try {
-        await updateCrmLeadStage(lead.id, wonStage.id);
-        alert(`Lead "${lead.name}" marcado como GANHO!`);
-      } catch (error: any) {
-        alert(`Erro ao marcar lead como ganho: ${error.message}`);
-      }
-    }
+    setSelectedLeadForSold(lead);
+    setIsMarkAsSoldModalOpen(true);
   };
 
   const handleStageChange = async (leadId: string, newStageId: string) => {
@@ -249,6 +247,16 @@ const CrmOverviewPage = () => {
                   )}
                 </div>
               )}
+              {stage.is_won && (
+                <div className="mt-1 text-sm font-bold text-green-700 dark:text-green-300">
+                  Total Vendido: {formatCurrency(
+                    groupedLeads[stage.id].reduce((sum, lead) => {
+                      console.log(`Lead ${lead.name} in stage ${stage.name}: soldCreditValue = ${lead.soldCreditValue}`); // DEBUG LOG
+                      return sum + (lead.soldCreditValue || 0);
+                    }, 0)
+                  )}
+                </div>
+              )}
             </div>
             <div className="p-4 space-y-3 min-h-[200px]">
               {groupedLeads[stage.id]?.length === 0 ? (
@@ -262,7 +270,7 @@ const CrmOverviewPage = () => {
                   const canOpenProposalModal = !isWonStage && !isLostStage;
                   const canMarkAsWon = !isWonStage && !isLostStage;
 
-                  console.log(`[Card Render] Lead: ${lead.name}, ProposalValue: ${lead.proposalValue}, ProposalClosingDate: ${lead.proposalClosingDate}`); // DEBUG LOG
+                  console.log(`[Card Render] Lead: ${lead.name}, ProposalValue: ${lead.proposalValue}, ProposalClosingDate: ${lead.proposalClosingDate}, SoldCreditValue: ${lead.soldCreditValue}, SaleDate: ${lead.saleDate}`); // DEBUG LOG
 
                   return (
                     <div key={lead.id} onClick={() => handleEditLead(lead)} className="bg-white dark:bg-slate-700 p-3 rounded-lg shadow-sm border border-gray-200 dark:border-slate-600 hover:border-brand-500 cursor-pointer transition-all group">
@@ -291,12 +299,23 @@ const CrmOverviewPage = () => {
                         {lead.data.email && <div className="flex items-center"><Mail className="w-3 h-3 mr-1" /> {lead.data.email}</div>}
                         {lead.data.origin && <div className="flex items-center"><Tag className="w-3 h-3 mr-1" /> {lead.data.origin}</div>}
                         
-                        {lead.proposalValue && lead.proposalValue > 0 ? ( // Adicionado verificação > 0
-                          isWonStage ? (
+                        {isWonStage ? (
+                          lead.soldCreditValue && lead.soldCreditValue > 0 ? (
                             <div className="flex items-center text-green-600 dark:text-green-400 font-semibold">
-                              <CheckCircle2 className="w-3 h-3 mr-1" /> Vendido: {formatCurrency(lead.proposalValue)}
+                              <CheckCircle2 className="w-3 h-3 mr-1" /> Vendido: {formatCurrency(lead.soldCreditValue)}
+                              {lead.saleDate && (
+                                <span className="ml-1 text-xs text-gray-500 dark:text-gray-400 font-normal">
+                                  ({new Date(lead.saleDate + 'T00:00:00').toLocaleDateString('pt-BR')})
+                                </span>
+                              )}
                             </div>
                           ) : (
+                            <div className="flex items-center text-green-600 dark:text-green-400">
+                              <CheckCircle2 className="w-3 h-3 mr-1" /> Vendido (valor não informado)
+                            </div>
+                          )
+                        ) : (
+                          lead.proposalValue && lead.proposalValue > 0 ? (
                             <div className="flex items-center text-purple-600 dark:text-purple-400 font-semibold">
                               <DollarSign className="w-3 h-3 mr-1" /> Proposta: {formatCurrency(lead.proposalValue)}
                               {lead.proposalClosingDate && (
@@ -305,11 +324,11 @@ const CrmOverviewPage = () => {
                                 </span>
                               )}
                             </div>
+                          ) : (
+                            <div className="flex items-center text-gray-400 dark:text-gray-500">
+                              <DollarSign className="w-3 h-3 mr-1" /> Sem proposta
+                            </div>
                           )
-                        ) : (
-                          <div className="flex items-center text-gray-400 dark:text-gray-500">
-                            <DollarSign className="w-3 h-3 mr-1" /> Sem proposta
-                          </div>
                         )}
                       </div>
                       {/* Seletor de Estágio */}
@@ -350,8 +369,8 @@ const CrmOverviewPage = () => {
                         </button>
                         <button 
                           onClick={(e) => handleMarkAsWon(e, lead)} 
-                          className={`flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs transition ${canOpenProposalModal ? 'bg-brand-500 text-white hover:bg-brand-600' : 'bg-gray-100 dark:bg-slate-600 text-gray-500 cursor-not-allowed opacity-70'}`}
-                          disabled={!canOpenProposalModal}
+                          className={`flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs transition ${canMarkAsWon ? 'bg-brand-500 text-white hover:bg-brand-600' : 'bg-gray-100 dark:bg-slate-600 text-gray-500 cursor-not-allowed opacity-70'}`}
+                          disabled={!canMarkAsWon}
                         >
                           <DollarSign className="w-3 h-3 mr-1" /> Vendido
                         </button>
@@ -396,6 +415,14 @@ const CrmOverviewPage = () => {
           isOpen={isProposalModalOpen}
           onClose={() => setIsProposalModalOpen(false)}
           lead={selectedLeadForProposal}
+        />
+      )}
+
+      {isMarkAsSoldModalOpen && selectedLeadForSold && (
+        <MarkAsSoldModal
+          isOpen={isMarkAsSoldModalOpen}
+          onClose={() => setIsMarkAsSoldModalOpen(false)}
+          lead={selectedLeadForSold}
         />
       )}
     </div>

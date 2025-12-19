@@ -315,6 +315,13 @@ export interface CrmLead {
   data: Record<string, any>; // Campos dinâmicos
   proposalValue?: number; // NOVO: Valor da proposta
   proposalClosingDate?: string; // NOVO: Data de fechamento da proposta (YYYY-MM-DD)
+  
+  // NOVO: Campos para venda finalizada
+  soldCreditValue?: number; // Valor do crédito vendido
+  soldGroup?: string;       // Grupo da venda
+  soldQuota?: string;       // Cota da venda
+  saleDate?: string;        // Data da venda (YYYY-MM-DD)
+
   created_at: string;
   updated_at: string;
 }
@@ -334,8 +341,6 @@ export interface LeadTask {
   type: 'task' | 'meeting'; // NOVO: Tipo da tarefa
   meeting_start_time?: string; // NOVO: Data e hora de início da reunião (ISO string)
   meeting_end_time?: string;   // NOVO: Data e hora de fim da reunião (ISO string)
-  // manager_id?: string; // NOVO: ID do gestor convidado - REMOVIDO
-  // manager_invitation_status?: 'pending' | 'accepted' | 'declined'; // NOVO: Status do convite - REMOVIDO
 }
 
 // --- FIM DOS NOVOS TIPOS ---

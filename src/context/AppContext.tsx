@@ -331,7 +331,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           // crmLeads fetch needs to be conditional based on role
           (async () => {
             try {
-              const selectColumns = 'id, consultant_id, stage_id, user_id, name, data, created_at, updated_at, proposal_value as "proposalValue", proposal_closing_date as "proposalClosingDate"';
+              const selectColumns = `
+                id, consultant_id, stage_id, user_id, name, data, created_at, updated_at, 
+                proposal_value as "proposalValue", proposal_closing_date as "proposalClosingDate",
+                sold_credit_value as "soldCreditValue", sold_group as "soldGroup", 
+                sold_quota as "soldQuota", sale_date as "saleDate"
+              `;
               return (user?.role === 'CONSULTOR' ?
                 await supabase.from('crm_leads').select(selectColumns).eq('consultant_id', userId) :
                 await supabase.from('crm_leads').select(selectColumns).eq('user_id', effectiveGestorId));
@@ -895,6 +900,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       dataToUpdateInDB.proposal_closing_date = updates.proposalClosingDate; 
     }
 
+    // NOVO: Mapear campos de venda para snake_case
+    if (updates.soldCreditValue !== undefined) {
+      dataToUpdateInDB.sold_credit_value = updates.soldCreditValue;
+    }
+    if (updates.soldGroup !== undefined) {
+      dataToUpdateInDB.sold_group = updates.soldGroup;
+    }
+    if (updates.soldQuota !== undefined) {
+      dataToUpdateInDB.sold_quota = updates.soldQuota;
+    }
+    if (updates.saleDate !== undefined) {
+      dataToUpdateInDB.sale_date = updates.saleDate;
+    }
+
     if (updates.consultant_id !== undefined) dataToUpdateInDB.consultant_id = updates.consultant_id;
 
     dataToUpdateInDB.data = {
@@ -1260,7 +1279,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [user]);
 
   // NOVO: Funções para Lead Tasks
-  const addLeadTask = useCallback(async (task: Omit<LeadTask, 'id' | 'user_id' | 'created_at' | 'manager_id' | 'manager_invitation_status'>): Promise<LeadTask> => {
+  const addLeadTask = useCallback(async (task: Omit<LeadTask, 'id' | 'user_id' | 'created_at'>): Promise<LeadTask> => {
     if (!user) throw new Error("Usuário não autenticado.");
     try {
       const { data, error } = await supabase.from('lead_tasks').insert({ ...task, user_id: user.id }).select().single();
