@@ -176,7 +176,7 @@ const ConsultorCrmPage = () => { // Nome do componente corrigido para ConsultorC
     <div className="p-8 min-h-screen bg-gray-50 dark:bg-slate-900">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Meu CRM - {activePipeline.name}</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Meu CRM de Vendas - {activePipeline.name}</h1>
           <p className="text-gray-500 dark:text-gray-400">Gerencie seus leads e acompanhe o funil de vendas.</p>
         </div>
         <div className="flex items-center space-x-4 w-full md:w-auto">
@@ -286,32 +286,31 @@ const ConsultorCrmPage = () => { // Nome do componente corrigido para ConsultorC
                             ))}
                           </SelectContent>
                         </Select>
-                      </div>
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        <button onClick={(e) => handleOpenTasksModal(e, lead)} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition">
-                          <ListTodo className="w-3 h-3 mr-1" /> Tarefas
-                        </button>
-                        <button onClick={(e) => handleOpenMeetingModal(e, lead)} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-900/30 transition">
-                          <CalendarPlus className="w-3 h-3 mr-1" /> Reunião
-                        </button>
-                        <button 
-                          onClick={(e) => handleOpenProposalModal(e, lead)} 
-                          className={`flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs transition ${canOpenProposalModal ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/30' : 'bg-gray-100 dark:bg-slate-600 text-gray-500 cursor-not-allowed opacity-70'}`}
-                          disabled={!canOpenProposalModal}
-                        >
-                          <Send className="w-3 h-3 mr-1" /> Proposta
-                        </button>
-                        <button 
-                          onClick={(e) => handleMarkAsWon(e, lead)} 
-                          className={`flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs transition ${canOpenProposalModal ? 'bg-brand-500 text-white hover:bg-brand-600' : 'bg-gray-100 dark:bg-slate-600 text-gray-500 cursor-not-allowed opacity-70'}`}
-                          disabled={!canOpenProposalModal}
-                        >
-                          <DollarSign className="w-3 h-3 mr-1" /> Vendido
-                        </button>
-                      </div>
                     </div>
-                  );
-                })
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button onClick={(e) => handleOpenTasksModal(e, lead)} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition">
+                        <ListTodo className="w-3 h-3 mr-1" /> Tarefas
+                      </button>
+                      <button onClick={(e) => handleOpenMeetingModal(e, lead)} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-900/30 transition">
+                        <CalendarPlus className="w-3 h-3 mr-1" /> Reunião
+                      </button>
+                      <button 
+                        onClick={(e) => handleOpenProposalModal(e, lead)} 
+                        className={`flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs transition ${canOpenProposalModal ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/30' : 'bg-gray-100 dark:bg-slate-600 text-gray-500 cursor-not-allowed opacity-70'}`}
+                        disabled={!canOpenProposalModal}
+                      >
+                        <Send className="w-3 h-3 mr-1" /> Proposta
+                      </button>
+                      <button 
+                        onClick={(e) => handleMarkAsWon(e, lead)} 
+                        className={`flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs transition ${canOpenProposalModal ? 'bg-brand-500 text-white hover:bg-brand-600' : 'bg-gray-100 dark:bg-slate-600 text-gray-500 cursor-not-allowed opacity-70'}`}
+                        disabled={!canOpenProposalModal}
+                      >
+                        <DollarSign className="w-3 h-3 mr-1" /> Vendido
+                      </button>
+                    </div>
+                  </div>
+                ))
               )}; {/* Adicionado ponto e vírgula aqui */}
             </div>
           </div>
@@ -355,4 +354,4 @@ const ConsultorCrmPage = () => { // Nome do componente corrigido para ConsultorC
   );
 };
 
-export default CrmOverviewPage;
+export default ConsultorCrmPage;
