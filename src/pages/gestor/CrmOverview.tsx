@@ -302,8 +302,7 @@ const CrmOverviewPage = () => {
           onClose={() => setIsLeadModalOpen(false)}
           lead={editingLead}
           crmFields={crmFields.filter(f => f.is_active)}
-          // Quando um gestor adiciona um lead, ele é atribuído ao consultor selecionado no filtro, ou ao próprio gestor se nenhum for selecionado.
-          assignedConsultantId={selectedConsultantId || user?.id || null} {/* ⚠️ CORREÇÃO AQUI */}
+          assignedConsultantId={selectedConsultantId || user?.id || null}
         />
       )}
 

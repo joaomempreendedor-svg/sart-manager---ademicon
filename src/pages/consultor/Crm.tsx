@@ -269,7 +269,7 @@ const CrmPage = () => {
           onClose={() => setIsLeadModalOpen(false)}
           lead={editingLead}
           crmFields={crmFields.filter(f => f.is_active)}
-          consultantId={user?.id || null} {/* ⚠️ CORREÇÃO AQUI */}
+          consultantId={user?.id || null}
         />
       )}
 
@@ -292,7 +292,7 @@ const CrmPage = () => {
       {isProposalModalOpen && selectedLeadForProposal && (
         <ProposalModal
           isOpen={isProposalModalOpen}
-          onClose={() => setIsProposalModalOpen(false)}
+          onClose={() => setIsTasksModalOpen(false)}
           lead={selectedLeadForProposal}
         />
       )}
