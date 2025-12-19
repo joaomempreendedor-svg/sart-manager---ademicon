@@ -208,7 +208,7 @@ const CrmPage = () => {
                           >
                             <SelectValue placeholder="Mover para..." />
                           </SelectTrigger>
-                          <SelectContent className="dark:bg-slate-800 dark:text-white dark:border-slate-700">
+                          <SelectContent className="bg-white text-gray-900 dark:bg-slate-800 dark:text-white dark:border-slate-700">
                             {pipelineStages.map(stageOption => (
                               <SelectItem key={stageOption.id} value={stageOption.id}>
                                 {stageOption.name}
