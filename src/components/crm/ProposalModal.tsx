@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { CrmLead, CrmStage } from '@/types';
-import { X, Save, Loader2, DollarSign, Calendar, CheckCircle2, XCircle } from 'lucide-react'; // XCircle adicionado
+import { X, Save, Loader2, DollarSign, Calendar, CheckCircle2, XCircle } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -54,6 +54,7 @@ export const ProposalModal: React.FC<ProposalModalProps> = ({ isOpen, onClose, l
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    console.log("ProposalModal: handleSubmit called");
 
     const parsedValue = parseCurrencyInput(proposalValue);
 
@@ -78,9 +79,10 @@ export const ProposalModal: React.FC<ProposalModalProps> = ({ isOpen, onClose, l
         await updateCrmLeadStage(lead.id, proposalSentStage.id);
       }
 
-      onClose();
+      console.log("ProposalModal: Calling onClose() after successful save.");
+      onClose(); // <--- Isso deve fechar o modal
     } catch (err: any) {
-      console.error("Erro ao salvar proposta:", err);
+      console.error("ProposalModal: Error saving proposal:", err);
       setError(err.message || 'Falha ao salvar a proposta.');
     } finally {
       setIsSaving(false);
@@ -90,7 +92,10 @@ export const ProposalModal: React.FC<ProposalModalProps> = ({ isOpen, onClose, l
   if (!isOpen) return null;
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={(open) => {
+      console.log("ProposalModal: Dialog onOpenChange called with", open);
+      if (!open) onClose(); // Se o Dialog quer fechar (clique fora, Esc), chame onClose
+    }}>
       <DialogContent className="sm:max-w-md bg-white dark:bg-slate-800 dark:text-white p-6">
         <DialogHeader>
           <DialogTitle>Registrar Proposta para: {lead.name}</DialogTitle>
@@ -133,7 +138,10 @@ export const ProposalModal: React.FC<ProposalModalProps> = ({ isOpen, onClose, l
             {error && <p className="text-red-500 text-sm mt-2 flex items-center"><XCircle className="w-4 h-4 mr-2" />{error}</p>}
           </div>
           <DialogFooter className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-700">
-            <Button type="button" variant="outline" onClick={onClose} className="dark:bg-slate-700 dark:text-white dark:border-slate-600">
+            <Button type="button" variant="outline" onClick={() => {
+              console.log("ProposalModal: Cancel button clicked, calling onClose()");
+              onClose();
+            }} className="dark:bg-slate-700 dark:text-white dark:border-slate-600">
               Cancelar
             </Button>
             <Button type="submit" disabled={isSaving} className="bg-brand-600 hover:bg-brand-700 text-white">
