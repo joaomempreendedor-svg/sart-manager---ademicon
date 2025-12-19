@@ -894,10 +894,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
     });
 
-    const { error } = await supabase.from('crm_leads')
-      .update(dataToUpdateInDB)
-      .eq('id', id)
-      .eq('consultant_id', user.id); // Ensure the consultant owns this lead
+    let query = supabase.from('crm_leads').update(dataToUpdateInDB).eq('id', id);
+
+    // Apply role-based filtering for updates
+    if (user.role === 'CONSULTOR') {
+      query = query.eq('consultant_id', user.id);
+    } else if (user.role === 'GESTOR' || user.role === 'ADMIN') {
+      // Gestors/Admins can update any lead within their CRM ownership
+      if (!crmOwnerUserId) throw new Error("ID do Gestor do CRM não encontrado para validação.");
+      query = query.eq('user_id', crmOwnerUserId);
+    } else {
+      throw new Error("Role de usuário não autorizada para atualizar leads.");
+    }
+
+    const { error } = await query;
 
     if (error) {
       console.error("Supabase error updating crm_leads:", error);
@@ -906,22 +916,46 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     
     // Update local state with the merged data
     setCrmLeads(prev => prev.map(lead => lead.id === id ? { ...currentLead, ...dataToUpdateInDB } : lead));
-  }, [user, crmLeads]); // Added crmLeads to dependencies
+  }, [user, crmLeads, crmOwnerUserId]); // Added crmOwnerUserId to dependencies
 
   const deleteCrmLead = useCallback(async (id: string) => {
     if (!user) throw new Error("Usuário não autenticado.");
-    const { error } = await supabase.from('crm_leads').delete().eq('id', id).eq('consultant_id', user.id);
+    
+    let query = supabase.from('crm_leads').delete().eq('id', id);
+
+    if (user.role === 'CONSULTOR') {
+      query = query.eq('consultant_id', user.id);
+    } else if (user.role === 'GESTOR' || user.role === 'ADMIN') {
+      if (!crmOwnerUserId) throw new Error("ID do Gestor do CRM não encontrado para validação.");
+      query = query.eq('user_id', crmOwnerUserId);
+    } else {
+      throw new Error("Role de usuário não autorizada para excluir leads.");
+    }
+
+    const { error } = await query;
     if (error) throw error;
     setCrmLeads(prev => prev.filter(lead => lead.id !== id));
-  }, [user]);
+  }, [user, crmOwnerUserId]);
 
   // NOVO: Função para mover um lead para uma nova etapa
   const updateCrmLeadStage = useCallback(async (leadId: string, newStageId: string) => {
     if (!user) throw new Error("Usuário não autenticado.");
-    const { error } = await supabase.from('crm_leads').update({ stage_id: newStageId }).eq('id', leadId).eq('consultant_id', user.id);
+    
+    let query = supabase.from('crm_leads').update({ stage_id: newStageId }).eq('id', leadId);
+
+    if (user.role === 'CONSULTOR') {
+      query = query.eq('consultant_id', user.id);
+    } else if (user.role === 'GESTOR' || user.role === 'ADMIN') {
+      if (!crmOwnerUserId) throw new Error("ID do Gestor do CRM não encontrado para validação.");
+      query = query.eq('user_id', crmOwnerUserId);
+    } else {
+      throw new Error("Role de usuário não autorizada para mover leads de etapa.");
+    }
+
+    const { error } = await query;
     if (error) throw error;
     setCrmLeads(prev => prev.map(lead => lead.id === leadId ? { ...lead, stage_id: newStageId } : lead));
-  }, [user]);
+  }, [user, crmOwnerUserId]);
 
   const addCrmStage = useCallback(async (stageData: Omit<CrmStage, 'id' | 'user_id' | 'created_at'>) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('crm_stages').insert({ ...stageData, user_id: JOAO_GESTOR_AUTH_ID }).select().single(); if (error) throw error; setCrmStages(prev => [...prev, data].sort((a, b) => a.order_index - b.order_index)); return data; }, [user]); // Use JOAO_GESTOR_AUTH_ID
   const updateCrmStage = useCallback(async (id: string, updates: Partial<CrmStage>) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('crm_stages').update(updates).eq('id', id).select().single(); if (error) throw error; setCrmStages(prev => prev.map(s => s.id === id ? data : s).sort((a, b) => a.order_index - b.order_index)); }, [user]);
