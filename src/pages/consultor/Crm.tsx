@@ -18,7 +18,7 @@ const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 };
 
-const CrmPage = () => {
+const CrmPage = () => { // Nome do componente corrigido para CrmPage
   const { user, isLoading: isAuthLoading } = useAuth();
   const { crmPipelines, crmStages, crmLeads, crmFields, isDataLoading, deleteCrmLead, updateCrmLeadStage } = useApp();
   const [isLeadModalOpen, setIsLeadModalOpen] = useState(false);
@@ -253,31 +253,30 @@ const CrmPage = () => {
                             ))}
                           </SelectContent>
                         </Select>
-                      </div>
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        <button onClick={(e) => handleOpenTasksModal(e, lead)} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition">
-                          <ListTodo className="w-3 h-3 mr-1" /> Tarefas
-                        </button>
-                        <button onClick={(e) => handleOpenMeetingModal(e, lead)} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-900/30 transition">
-                          <CalendarPlus className="w-3 h-3 mr-1" /> Reunião
-                        </button>
-                        <button 
-                          onClick={(e) => handleOpenProposalModal(e, lead)} 
-                          className={`flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs transition ${canOpenProposalModal ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/30' : 'bg-gray-100 dark:bg-slate-600 text-gray-500 cursor-not-allowed opacity-70'}`}
-                          disabled={!canOpenProposalModal}
-                        >
-                          <Send className="w-3 h-3 mr-1" /> Proposta
-                        </button>
-                        <button 
-                          onClick={(e) => e.stopPropagation()} 
-                          className={`flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs transition ${isWonStage ? 'bg-brand-500 text-white hover:bg-brand-600' : 'bg-brand-50 dark:bg-brand-900/20 text-brand-700 dark:text-brand-300 hover:bg-brand-100 dark:hover:bg-brand-900/30'}`}
-                        >
-                          <DollarSign className="w-3 h-3 mr-1" /> Vendido
-                        </button>
-                      </div>
                     </div>
-                  );
-                })
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button onClick={(e) => handleOpenTasksModal(e, lead)} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition">
+                        <ListTodo className="w-3 h-3 mr-1" /> Tarefas
+                      </button>
+                      <button onClick={(e) => handleOpenMeetingModal(e, lead)} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-900/30 transition">
+                        <CalendarPlus className="w-3 h-3 mr-1" /> Reunião
+                      </button>
+                      <button 
+                        onClick={(e) => handleOpenProposalModal(e, lead)} 
+                        className={`flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs transition ${canOpenProposalModal ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/30' : 'bg-gray-100 dark:bg-slate-600 text-gray-500 cursor-not-allowed opacity-70'}`}
+                        disabled={!canOpenProposalModal}
+                      >
+                        <Send className="w-3 h-3 mr-1" /> Proposta
+                      </button>
+                      <button 
+                        onClick={(e) => e.stopPropagation()} 
+                        className={`flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs transition ${isWonStage ? 'bg-brand-500 text-white hover:bg-brand-600' : 'bg-brand-50 dark:bg-brand-900/20 text-brand-700 dark:text-brand-300 hover:bg-brand-100 dark:hover:bg-brand-900/30'}`}
+                      >
+                        <DollarSign className="w-3 h-3 mr-1" /> Vendido
+                      </button>
+                    </div>
+                  </div>
+                ))
               )}
             </div>
           </div>
