@@ -41,7 +41,7 @@ import { DailyChecklistMonitoring } from '@/pages/gestor/DailyChecklistMonitorin
 
 // Consultor Pages
 import ConsultorDashboard from '@/pages/consultor/Dashboard';
-import CrmPage from '@/pages/consultor/Crm';
+import ConsultorCrmPage from '@/pages/consultor/Crm'; // RENOMEADO: Importar ConsultorCrmPage
 import { DailyChecklist } from '@/pages/consultor/DailyChecklist';
 
 const AppLoader = () => (
@@ -53,8 +53,6 @@ const AppLoader = () => (
 const RequireAuth: React.FC<{ allowedRoles: UserRole[] }> = ({ allowedRoles }) => {
   const { user, isLoading: isAuthLoading } = useAuth();
   const { isDataLoading } = useApp();
-
-  const location = useLocation();
 
   // Adicionando logs para depuração
   useEffect(() => {
@@ -158,7 +156,7 @@ const AppRoutes = () => {
       <Route element={<RequireAuth allowedRoles={['CONSULTOR']} />}>
         <Route path="/consultor" element={<ConsultorLayout />}>
           <Route path="dashboard" element={<ConsultorDashboard />} />
-          <Route path="crm" element={<CrmPage />} />
+          <Route path="crm" element={<ConsultorCrmPage />} /> {/* RENOMEADO: Usar ConsultorCrmPage */}
           <Route path="daily-checklist" element={<DailyChecklist />} />
           <Route path="*" element={<Navigate to="/consultor/dashboard" replace />} />
         </Route>
