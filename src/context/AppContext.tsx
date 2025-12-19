@@ -852,6 +852,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       user_id: JOAO_GESTOR_AUTH_ID, 
       stage_id: finalStageId, // Assign to the first active stage
       name: leadData.name || '', // Garante que o nome seja uma string vazia, não null
+      // ⚠️ CORREÇÃO: Garante que consultant_id seja o ID do usuário se for um CONSULTOR
+      consultant_id: user.role === 'CONSULTOR' ? user.id : (leadData.consultant_id || null),
     }; 
     const { data, error } = await supabase.from('crm_leads').insert(payload).select().single();
     if (error) throw error;
