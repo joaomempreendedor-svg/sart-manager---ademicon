@@ -864,7 +864,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const payload = { 
       ...leadData, 
-      user_id: JOAO_GESTOR_AUTH_ID, 
+      user_id: crmOwnerUserId, // <--- ALTERADO AQUI: Usar crmOwnerUserId
       stage_id: finalStageId, // Assign to the first active stage
       name: leadData.name || '', // Garante que o nome seja uma string vazia, não null
       // ⚠️ CORREÇÃO: Garante que consultant_id seja o ID do usuário se for um CONSULTOR
