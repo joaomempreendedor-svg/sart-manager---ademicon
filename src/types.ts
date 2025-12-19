@@ -334,8 +334,8 @@ export interface LeadTask {
   type: 'task' | 'meeting'; // NOVO: Tipo da tarefa
   meeting_start_time?: string; // NOVO: Data e hora de início da reunião (ISO string)
   meeting_end_time?: string;   // NOVO: Data e hora de fim da reunião (ISO string)
-  manager_id?: string; // NOVO: ID do gestor convidado
-  manager_invitation_status?: 'pending' | 'accepted' | 'declined'; // NOVO: Status do convite
+  // manager_id?: string; // NOVO: ID do gestor convidado - REMOVIDO
+  // manager_invitation_status?: 'pending' | 'accepted' | 'declined'; // NOVO: Status do convite - REMOVIDO
 }
 
 // --- FIM DOS NOVOS TIPOS ---

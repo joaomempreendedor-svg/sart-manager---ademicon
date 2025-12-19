@@ -32,25 +32,25 @@ interface ScheduleMeetingModalProps {
 
 export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOpen, onClose, lead }) => {
   const { user } = useAuth();
-  const { addLeadTask, updateCrmLeadStage, teamMembers, crmStages } = useApp();
+  const { addLeadTask, updateCrmLeadStage, crmStages } = useApp();
 
   const [title, setTitle] = useState(`Reunião com ${lead.name}`);
   const [description, setDescription] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('10:00');
-  const [invitedManagerId, setInvitedManagerId] = useState<string | undefined>(undefined);
+  // const [invitedManagerId, setInvitedManagerId] = useState<string | undefined>(undefined); // Removido
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
 
-  const managers = useMemo(() => {
-    // Filtra para incluir apenas gestores ativos E que possuem um login associado (hasLogin: true)
-    return teamMembers.filter(member => 
-      member.roles.includes('Gestor') && 
-      member.isActive &&
-      member.hasLogin // Garante que o ID do membro é um auth.uid() válido
-    );
-  }, [teamMembers]);
+  // Removido o useMemo para 'managers' pois não será mais usado
+  // const managers = useMemo(() => {
+  //   return teamMembers.filter(member => 
+  //     member.roles.includes('Gestor') && 
+  //     member.isActive &&
+  //     member.hasLogin
+  //   );
+  // }, [teamMembers]);
 
   const meetingStage = useMemo(() => {
     return crmStages.find(stage => stage.name.toLowerCase().includes('reunião') && stage.is_active);
@@ -63,7 +63,7 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
       setDate(new Date().toISOString().split('T')[0]);
       setStartTime('09:00');
       setEndTime('10:00');
-      setInvitedManagerId(undefined);
+      // setInvitedManagerId(undefined); // Removido
       setError('');
     }
   }, [isOpen, lead.name]);
@@ -91,7 +91,7 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
 
     setIsSaving(true);
     try {
-      console.log("Attempting to add lead task with manager_id:", invitedManagerId); // DIAGNÓSTICO
+      // console.log("Attempting to add lead task with manager_id:", invitedManagerId); // DIAGNÓSTICO - Removido
       await addLeadTask({
         lead_id: lead.id,
         title: title.trim(),
@@ -101,8 +101,8 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
         type: 'meeting',
         meeting_start_time: startDateTime.toISOString(),
         meeting_end_time: endDateTime.toISOString(),
-        manager_id: invitedManagerId,
-        manager_invitation_status: invitedManagerId ? 'pending' : undefined,
+        // manager_id: invitedManagerId, // Removido
+        // manager_invitation_status: invitedManagerId ? 'pending' : undefined, // Removido
       });
 
       if (meetingStage && lead.stage_id !== meetingStage.id) {
@@ -134,10 +134,11 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
     if (user?.email) {
       googleCalendarUrl.searchParams.append('add', encodeURIComponent(user.email));
     }
-    const invitedManager = managers.find(m => m.id === invitedManagerId);
-    if (invitedManager?.email) {
-      googleCalendarUrl.searchParams.append('add', encodeURIComponent(invitedManager.email));
-    }
+    // Removido o bloco para adicionar o gestor convidado
+    // const invitedManager = managers.find(m => m.id === invitedManagerId);
+    // if (invitedManager?.email) {
+    //   googleCalendarUrl.searchParams.append('add', encodeURIComponent(invitedManager.email));
+    // }
 
     window.open(googleCalendarUrl.toString(), '_blank');
   };
@@ -150,7 +151,7 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
         <DialogHeader>
           <DialogTitle>Agendar Reunião para: {lead.name}</DialogTitle>
           <DialogDescription>
-            Preencha os detalhes da reunião e convide um gestor, se necessário.
+            Preencha os detalhes da reunião.
           </DialogDescription>
         </DialogHeader>
         
@@ -212,7 +213,8 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
                   />
                 </div>
               </div>
-              <div>
+              {/* Removido o campo de seleção do gestor */}
+              {/* <div>
                 <Label htmlFor="manager">Convidar Gestor (Opcional)</Label>
                 <Select value={invitedManagerId} onValueChange={setInvitedManagerId}>
                   <SelectTrigger className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
@@ -226,7 +228,7 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
+              </div> */}
               {error && <p className="text-red-500 text-sm">{error}</p>}
             </div>
           </ScrollArea>
