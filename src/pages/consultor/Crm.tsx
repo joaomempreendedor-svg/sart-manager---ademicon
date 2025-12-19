@@ -216,77 +216,76 @@ const ConsultorCrmPage = () => { // Nome do componente corrigido para ConsultorC
               {groupedLeads[stage.id]?.length === 0 ? (
                 <p className="text-center text-sm text-gray-400 py-4">Nenhum lead nesta etapa.</p>
               ) : (
-                <>
-                  {groupedLeads[stage.id].map(lead => {
-                    const currentLeadStage = crmStages.find(s => s.id === lead.stage_id);
-                    const isWonStage = currentLeadStage?.is_won;
-                    const isLostStage = currentLeadStage?.is_lost;
-                    const canOpenProposalModal = !isWonStage && !isLostStage;
+                groupedLeads[stage.id].map(lead => {
+                  const currentLeadStage = crmStages.find(s => s.id === lead.stage_id);
+                  const isWonStage = currentLeadStage?.is_won;
+                  const isLostStage = currentLeadStage?.is_lost;
+                  const canOpenProposalModal = !isWonStage && !isLostStage;
 
-                    return (
-                      <div key={lead.id} onClick={() => handleEditLead(lead)} className="bg-white dark:bg-slate-700 p-3 rounded-lg shadow-sm border border-gray-200 dark:border-slate-600 hover:border-brand-500 cursor-pointer transition-all group">
-                        <div className="flex justify-between items-start mb-2">
-                          <p className="font-medium text-gray-900 dark:text-white">{lead.name}</p>
-                          <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button 
-                              onClick={(e) => { e.stopPropagation(); handleEditLead(lead); }} 
-                              className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md"
-                              title="Editar Lead"
-                            >
-                              <Edit2 className="w-4 h-4" />
-                            </button>
-                            <button 
-                              onClick={(e) => handleDeleteLead(e, lead)} 
-                              className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md"
-                              title="Excluir Lead"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 space-y-0.5">
-                          {lead.data.phone && <div className="flex items-center"><Phone className="w-3 h-3 mr-1" /> {lead.data.phone}</div>}
-                          {lead.data.email && <div className="flex items-center"><Mail className="w-3 h-3 mr-1" /> {lead.data.email}</div>}
-                          {lead.data.origin && <div className="flex items-center"><Tag className="w-3 h-3 mr-1" /> {lead.data.origin}</div>}
-                          
-                          {lead.proposalValue && (
-                            isWonStage ? (
-                              <div className="flex items-center text-green-600 dark:text-green-400 font-semibold">
-                                <CheckCircle2 className="w-3 h-3 mr-1" /> Vendido: {formatCurrency(lead.proposalValue)}
-                              </div>
-                            ) : (
-                              <div className="flex items-center text-purple-600 dark:text-purple-400 font-semibold">
-                                <DollarSign className="w-3 h-3 mr-1" /> Proposta: {formatCurrency(lead.proposalValue)}
-                                {lead.proposalClosingDate && (
-                                  <span className="ml-1 text-xs text-gray-500 dark:text-gray-400 font-normal">
-                                    (até {new Date(lead.proposalClosingDate + 'T00:00:00').toLocaleDateString('pt-BR')})
-                                  </span>
-                                )}
-                              </div>
-                            )
-                          )}
-                        </div>
-                        {/* Seletor de Estágio */}
-                        <div className="mt-3 pt-3 border-t border-gray-100 dark:border-slate-600">
-                          <Select
-                            value={lead.stage_id}
-                            onValueChange={(newStageId) => handleStageChange(lead.id, newStageId)}
-                            onOpenChange={() => {}} // Adicionado para evitar propagação
+                  return (
+                    <div key={lead.id} onClick={() => handleEditLead(lead)} className="bg-white dark:bg-slate-700 p-3 rounded-lg shadow-sm border border-gray-200 dark:border-slate-600 hover:border-brand-500 cursor-pointer transition-all group">
+                      <div className="flex justify-between items-start mb-2">
+                        <p className="font-medium text-gray-900 dark:text-white">{lead.name}</p>
+                        <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); handleEditLead(lead); }} 
+                            className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md"
+                            title="Editar Lead"
                           >
-                            <SelectTrigger 
-                              className="w-full h-auto py-1.5 text-xs dark:bg-slate-800 dark:text-white dark:border-slate-600"
-                              onClick={(e) => e.stopPropagation()} // Reintroduzido
-                            >
-                              <SelectValue placeholder="Mover para..." />
-                            </SelectTrigger>
-                            <SelectContent className="bg-white text-gray-900 dark:bg-slate-800 dark:text-white dark:border-slate-700">
-                              {pipelineStages.map(stageOption => (
-                                <SelectItem key={stageOption.id} value={stageOption.id}>
-                                  {stageOption.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button 
+                            onClick={(e) => handleDeleteLead(e, lead)} 
+                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md"
+                            title="Excluir Lead"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 space-y-0.5">
+                        {lead.data.phone && <div className="flex items-center"><Phone className="w-3 h-3 mr-1" /> {lead.data.phone}</div>}
+                        {lead.data.email && <div className="flex items-center"><Mail className="w-3 h-3 mr-1" /> {lead.data.email}</div>}
+                        {lead.data.origin && <div className="flex items-center"><Tag className="w-3 h-3 mr-1" /> {lead.data.origin}</div>}
+                        
+                        {lead.proposalValue && (
+                          isWonStage ? (
+                            <div className="flex items-center text-green-600 dark:text-green-400 font-semibold">
+                              <CheckCircle2 className="w-3 h-3 mr-1" /> Vendido: {formatCurrency(lead.proposalValue)}
+                            </div>
+                          ) : (
+                            <div className="flex items-center text-purple-600 dark:text-purple-400 font-semibold">
+                              <DollarSign className="w-3 h-3 mr-1" /> Proposta: {formatCurrency(lead.proposalValue)}
+                              {lead.proposalClosingDate && (
+                                <span className="ml-1 text-xs text-gray-500 dark:text-gray-400 font-normal">
+                                  (até {new Date(lead.proposalClosingDate + 'T00:00:00').toLocaleDateString('pt-BR')})
+                                </span>
+                              )}
+                            </div>
+                          )
+                        )}
+                      </div>
+                      {/* Seletor de Estágio */}
+                      <div className="mt-3 pt-3 border-t border-gray-100 dark:border-slate-600">
+                        <Select
+                          value={lead.stage_id}
+                          onValueChange={(newStageId) => handleStageChange(lead.id, newStageId)}
+                          onOpenChange={() => {}} // Adicionado para evitar propagação
+                        >
+                          <SelectTrigger 
+                            className="w-full h-auto py-1.5 text-xs dark:bg-slate-800 dark:text-white dark:border-slate-600"
+                            onClick={(e) => e.stopPropagation()} // Reintroduzido
+                          >
+                            <SelectValue placeholder="Mover para..." />
+                          </SelectTrigger>
+                          <SelectContent className="bg-white text-gray-900 dark:bg-slate-800 dark:text-white dark:border-slate-700">
+                            {pipelineStages.map(stageOption => (
+                              <SelectItem key={stageOption.id} value={stageOption.id}>
+                                {stageOption.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div className="mt-3 flex flex-wrap gap-2">
                         <button onClick={(e) => handleOpenTasksModal(e, lead)} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition">
@@ -311,8 +310,8 @@ const ConsultorCrmPage = () => { // Nome do componente corrigido para ConsultorC
                         </button>
                       </div>
                     </div>
-                  )}
-                </>
+                  );
+                })
               )}
             </div>
           </div>
@@ -325,7 +324,7 @@ const ConsultorCrmPage = () => { // Nome do componente corrigido para ConsultorC
           onClose={() => setIsLeadModalOpen(false)}
           lead={editingLead}
           crmFields={crmFields.filter(f => f.is_active)}
-          assignedConsultantId={selectedConsultantId || user?.id || null}
+          assignedConsultantId={user?.id || null}
         />
       )}
 
@@ -356,4 +355,4 @@ const ConsultorCrmPage = () => { // Nome do componente corrigido para ConsultorC
   );
 };
 
-export default CrmOverviewPage;
+export default ConsultorCrmPage;

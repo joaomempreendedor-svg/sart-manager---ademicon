@@ -244,7 +244,7 @@ const CrmOverviewPage = () => {
               {groupedLeads[stage.id]?.length === 0 ? (
                 <p className="text-center text-sm text-gray-400 py-4">Nenhum lead nesta etapa.</p>
               ) : (
-                groupedLeads[stage.id].map(lead => { // Removido `...` e `[]`
+                groupedLeads[stage.id].map(lead => {
                   const consultant = teamMembers.find(m => m.id === lead.consultant_id);
                   const currentLeadStage = crmStages.find(s => s.id === lead.stage_id);
                   const isWonStage = currentLeadStage?.is_won;
