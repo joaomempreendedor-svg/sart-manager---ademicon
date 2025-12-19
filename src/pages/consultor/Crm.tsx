@@ -107,6 +107,36 @@ const CrmPage = () => { // Nome do componente corrigido para CrmPage
     setIsProposalModalOpen(true);
   };
 
+  const handleMarkAsWon = async (e: React.MouseEvent, lead: CrmLead) => {
+    e.stopPropagation();
+    if (!user) return;
+
+    const wonStage = crmStages.find(s => s.pipeline_id === activePipeline?.id && s.is_won);
+    if (!wonStage) {
+      alert("Nenhuma etapa de 'Ganha' configurada no pipeline. Por favor, configure-a nas configurações do CRM.");
+      return;
+    }
+
+    const currentLeadStage = crmStages.find(s => s.id === lead.stage_id);
+    if (currentLeadStage?.is_won) {
+      alert("Este lead já está na etapa de 'Ganha'.");
+      return;
+    }
+    if (currentLeadStage?.is_lost) {
+      alert("Este lead está na etapa de 'Perdida' e não pode ser marcado como 'Ganha'.");
+      return;
+    }
+
+    if (window.confirm(`Tem certeza que deseja marcar o lead "${lead.name}" como GANHO e movê-lo para a etapa "${wonStage.name}"?`)) {
+      try {
+        await updateCrmLeadStage(lead.id, wonStage.id);
+        alert(`Lead "${lead.name}" marcado como GANHO!`);
+      } catch (error: any) {
+        alert(`Erro ao marcar lead como ganho: ${error.message}`);
+      }
+    }
+  };
+
   const handleStageChange = async (leadId: string, newStageId: string) => {
     if (!user) return;
     try {
@@ -187,6 +217,7 @@ const CrmPage = () => { // Nome do componente corrigido para CrmPage
                   const isWonStage = currentLeadStage?.is_won;
                   const isLostStage = currentLeadStage?.is_lost;
                   const canOpenProposalModal = !isWonStage && !isLostStage;
+                  const canMarkAsWon = !isWonStage && !isLostStage;
 
                   return (
                     <div key={lead.id} onClick={() => handleEditLead(lead)} className="bg-white dark:bg-slate-700 p-3 rounded-lg shadow-sm border border-gray-200 dark:border-slate-600 hover:border-brand-500 cursor-pointer transition-all group">
@@ -269,8 +300,9 @@ const CrmPage = () => { // Nome do componente corrigido para CrmPage
                         <Send className="w-3 h-3 mr-1" /> Proposta
                       </button>
                       <button 
-                        onClick={(e) => e.stopPropagation()} 
-                        className={`flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs transition ${isWonStage ? 'bg-brand-500 text-white hover:bg-brand-600' : 'bg-brand-50 dark:bg-brand-900/20 text-brand-700 dark:text-brand-300 hover:bg-brand-100 dark:hover:bg-brand-900/30'}`}
+                        onClick={(e) => handleMarkAsWon(e, lead)} 
+                        className={`flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs transition ${canMarkAsWon ? 'bg-brand-500 text-white hover:bg-brand-600' : 'bg-gray-100 dark:bg-slate-600 text-gray-500 cursor-not-allowed opacity-70'}`}
+                        disabled={!canMarkAsWon}
                       >
                         <DollarSign className="w-3 h-3 mr-1" /> Vendido
                       </button>
