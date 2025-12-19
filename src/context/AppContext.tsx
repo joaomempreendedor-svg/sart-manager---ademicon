@@ -331,6 +331,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           // crmLeads fetch needs to be conditional based on role
           (async () => {
             try {
+              // CORREÇÃO: Espaços corretos nos aliases
               const selectColumns = `id, consultant_id, stage_id, user_id, name, data, created_at, updated_at, created_by, updated_by, proposal_value as "proposalValue", proposal_closing_date as "proposalClosingDate", sold_credit_value as "soldCreditValue", sold_group as "soldGroup", sold_quota as "soldQuota", sale_date as "saleDate"`;
               // 🔥 CORREÇÃO: Lógica consistente de filtro para o fetch de leads
               let query = supabase.from('crm_leads').select(selectColumns);
@@ -777,7 +778,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const addPV = useCallback((pv: string) => { if (!pvs.includes(pv)) { const newPvs = [...pvs, pv]; setPvs(newPvs); updateConfig({ pvs: newPvs }); } }, [pvs, updateConfig]);
   const updateAndPersistStructure = useCallback((setter: React.Dispatch<React.SetStateAction<any>>, key: string, newStructure: any) => { setter(newStructure); updateConfig({ [key]: newStructure }); }, [updateConfig]);
   const addChecklistItem = useCallback((stageId: string, label: string) => { const newStructure = checklistStructure.map(s => s.id === stageId ? { ...s, items: [...s.items, { id: `custom_${Date.now()}`, label }] } : s); updateAndPersistStructure(setChecklistStructure, 'checklistStructure', newStructure); }, [checklistStructure, updateAndPersistStructure]);
-  const updateChecklistItem = useCallback((stageId: string, itemId: string, label: string) => { const newStructure = checklistStructure.map(s => s.id === stageId ? { ...s, items: s.items.map(i => i.id === itemId ? { ...i, label } : i) } : s); updateAndPersistructure(setChecklistStructure, 'checklistStructure', newStructure); }, [checklistStructure, updateAndPersistStructure]);
+  const updateChecklistItem = useCallback((stageId: string, itemId: string, label: string) => { const newStructure = checklistStructure.map(s => s.id === stageId ? { ...s, items: s.items.map(i => i.id === itemId ? { ...i, label } : i) } : s); updateAndPersistStructure(setChecklistStructure, 'checklistStructure', newStructure); }, [checklistStructure, updateAndPersistStructure]);
   const deleteChecklistItem = useCallback((stageId: string, itemId: string) => { const newStructure = checklistStructure.map(s => s.id === stageId ? { ...s, items: s.items.filter(i => i.id !== itemId) } : s); updateAndPersistStructure(setChecklistStructure, 'checklistStructure', newStructure); }, [checklistStructure, updateAndPersistStructure]);
   const moveChecklistItem = useCallback((stageId: string, itemId: string, dir: 'up' | 'down') => { const newStructure = checklistStructure.map(s => { if (s.id !== stageId) return s; const idx = s.items.findIndex(i => i.id === itemId); if ((dir === 'up' && idx < 1) || (dir === 'down' && idx >= s.items.length - 1)) return s; const newItems = [...s.items]; const targetIdx = dir === 'up' ? idx - 1 : idx + 1; [newItems[idx], newItems[targetIdx]] = [newItems[targetIdx], newItems[idx]]; return { ...s, items: newItems }; }); updateAndPersistStructure(setChecklistStructure, 'checklistStructure', newStructure); }, [checklistStructure, updateAndPersistStructure]);
   const resetChecklistToDefault = useCallback(() => { updateAndPersistStructure(setChecklistStructure, 'checklistStructure', DEFAULT_STAGES); }, [updateAndPersistStructure]);
@@ -885,6 +886,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     console.log('Inserting lead with:', payload); // DEBUG
 
+    // CORREÇÃO: Espaços corretos nos aliases
     const selectColumns = `id, consultant_id, stage_id, user_id, name, data, created_at, updated_at, created_by, updated_by, proposal_value as "proposalValue", proposal_closing_date as "proposalClosingDate", sold_credit_value as "soldCreditValue", sold_group as "soldGroup", sold_quota as "soldQuota", sale_date as "saleDate"`;
 
     const { data, error } = await supabase
