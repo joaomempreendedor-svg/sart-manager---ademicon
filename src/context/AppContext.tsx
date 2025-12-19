@@ -64,7 +64,7 @@ const clearStaleAuth = () => {
 const JOAO_GESTOR_AUTH_ID = "0c6d71b7-daeb-4dde-8eec-0e7a8ffef658"; // <--- ATUALIZE ESTE ID COM O SEU NOVO ID DE GESTOR!
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const { user } = useAuth();
+  const { user, session } = useAuth(); // Adicionado 'session' para ter acesso ao userId
   const fetchedUserIdRef = useRef<string | null>(null);
   const isFetchingRef = useRef(false);
 
@@ -337,9 +337,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 sold_credit_value as "soldCreditValue", sold_group as "soldGroup", 
                 sold_quota as "soldQuota", sale_date as "saleDate"
               `;
-              return (user?.role === 'CONSULTOR' ?
-                await supabase.from('crm_leads').select(selectColumns).eq('consultant_id', userId) :
-                await supabase.from('crm_leads').select(selectColumns).eq('user_id', effectiveGestorId));
+              // 🔥 CORREÇÃO: Lógica consistente de filtro para o fetch de leads
+              let query = supabase.from('crm_leads').select(selectColumns);
+              if (user?.role === 'CONSULTOR') {
+                  query = query.eq('consultant_id', userId);
+              } else if (user?.role === 'GESTOR' || user?.role === 'ADMIN') {
+                  query = query.eq('user_id', effectiveGestorId);
+              } else {
+                  // Fallback ou erro se o role não for reconhecido
+                  console.warn(`[AppContext] Role de usuário ${user?.role} não reconhecida para buscar leads. Usando filtro padrão.`);
+                  query = query.eq('user_id', effectiveGestorId); // Default para o gestor principal
+              }
+              return await query;
             } catch (e) {
               console.error("Error fetching crm_leads:", e);
               return { data: [], error: e };
@@ -841,40 +850,66 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // CRM Functions
   const addCrmLead = useCallback(async (leadData: Omit<CrmLead, 'id' | 'created_at' | 'updated_at'>): Promise<CrmLead> => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    // Ensure user_id (Gestor's ID) is correctly set from crmOwnerUserId
+    if (!user || !session) throw new Error("Usuário não autenticado.");
+    
+    // CORREÇÃO 1: Remover 'new' duplicado
     if (!crmOwnerUserId) throw new Error("ID do Gestor do CRM não encontrado.");
 
-    // Determine the default stage_id if not provided
+    // Determinar stage_id se não fornecido (mantenha sua lógica atual)
     let finalStageId = leadData.stage_id;
     if (!finalStageId) {
-      const activePipeline = crmPipelines.find(p => p.is_active) || crmPipelines[0];
-      if (activePipeline) {
-        const firstStage = crmStages
-          .filter(s => s.pipeline_id === activePipeline.id && s.is_active)
-          .sort((a, b) => a.order_index - b.order_index)[0];
-        if (firstStage) {
-          finalStageId = firstStage.id;
+        const activePipeline = crmPipelines.find(p => p.is_active) || crmPipelines[0];
+        if (activePipeline) {
+            const firstStage = crmStages
+                .filter(s => s.pipeline_id === activePipeline.id && s.is_active)
+                .sort((a, b) => a.order_index - b.order_index)[0];
+            if (firstStage) {
+                finalStageId = firstStage.id;
+            }
         }
-      }
     }
     if (!finalStageId) {
-      throw new Error("Nenhuma etapa de pipeline ativa encontrada para atribuir ao lead. Por favor, configure as etapas do CRM.");
+        throw new Error("Nenhuma etapa de pipeline ativa encontrada para atribuir ao lead.");
     }
 
-    const payload = { 
-      ...leadData, 
-      user_id: crmOwnerUserId, // <--- ALTERADO AQUI: Usar crmOwnerUserId
-      stage_id: finalStageId, // Assign to the first active stage
-      name: leadData.name || '', // Garante que o nome seja uma string vazia, não null
-      // ⚠️ CORREÇÃO: Garante que consultant_id seja o ID do usuário se for um CONSULTOR
-      consultant_id: user.role === 'CONSULTOR' ? user.id : (leadData.consultant_id || null),
-    }; 
-    const { data, error } = await supabase.from('crm_leads').insert(payload).select().single();
-    if (error) throw error;
+    // 🔥 CORREÇÃO CRÍTICA: Definir user_id (proprietário do CRM) e consultant_id (consultor atribuído)
+    // user_id: Sempre o ID do gestor que gerencia o CRM (crmOwnerUserId)
+    // consultant_id: Se o usuário logado for um CONSULTOR, ele é o consultant_id. Caso contrário, usa o que foi passado ou null.
+    const effectiveUserIdForCrmOwner = crmOwnerUserId; // O gestor que possui a configuração do CRM
+    const effectiveConsultantId = user.role === 'CONSULTOR' ? session.user.id : (leadData.consultant_id || null);
+
+    const payload = {
+        ...leadData,
+        user_id: effectiveUserIdForCrmOwner, // O gestor proprietário do CRM
+        stage_id: finalStageId,
+        name: leadData.name || '',
+        consultant_id: effectiveConsultantId, // O consultor atribuído ao lead
+        created_by: session.user.id, // Quem criou o lead
+        updated_by: session.user.id // Quem atualizou por último
+    };
+
+    console.log('Inserting lead with:', payload); // DEBUG
+
+    const { data, error } = await supabase
+        .from('crm_leads')
+        .insert(payload)
+        .select(`
+            id, consultant_id, stage_id, user_id, name, data, created_at, updated_at,
+            proposal_value as "proposalValue", proposal_closing_date as "proposalClosingDate",
+            sold_credit_value as "soldCreditValue", sold_group as "soldGroup",
+            sold_quota as "soldQuota", sale_date as "saleDate"
+        `)
+        .single();
+    
+    if (error) {
+        console.error('Error inserting lead:', error);
+        throw error;
+    }
+    
+    // Atualizar estado local
     setCrmLeads(prev => [...prev, data]);
     return data;
-  }, [user, crmOwnerUserId, crmPipelines, crmStages]); // Adicionado crmPipelines e crmStages como dependências
+}, [user, session, crmOwnerUserId, crmPipelines, crmStages]);
 
   const updateCrmLead = useCallback(async (id: string, updates: Partial<CrmLead>) => {
     if (!user) throw new Error("Usuário não autenticado.");
