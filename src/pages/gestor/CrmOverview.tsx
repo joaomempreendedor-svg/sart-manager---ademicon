@@ -343,7 +343,7 @@ const CrmOverviewPage = () => {
                     </div>
                   );
                 })
-              )}
+              )}; {/* Adicionado ponto e vírgula aqui */}
             </div>
           </div>
         ))}
