@@ -289,7 +289,7 @@ const CrmPage = () => { // Nome do componente corrigido para CrmPage
           onClose={() => setIsLeadModalOpen(false)}
           lead={editingLead}
           crmFields={crmFields.filter(f => f.is_active)}
-          assignedConsultantId={selectedConsultantId || user?.id || null}
+          assignedConsultantId={user?.id || null}
         />
       )}
 
@@ -320,4 +320,4 @@ const CrmPage = () => { // Nome do componente corrigido para CrmPage
   );
 };
 
-export default CrmOverviewPage;
+export default CrmPage;
