@@ -331,8 +331,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           // crmLeads fetch needs to be conditional based on role
           (async () => {
             try {
-              // CORREÇÃO: Espaços corretos nos aliases
-              const selectColumns = `id, consultant_id, stage_id, user_id, name, data, created_at, updated_at, created_by, updated_by, proposal_value as "proposalValue", proposal_closing_date as "proposalClosingDate", sold_credit_value as "soldCreditValue", sold_group as "soldGroup", sold_quota as "soldQuota", sale_date as "saleDate"`;
+              const selectColumns = [
+                  'id', 'consultant_id', 'stage_id', 'user_id', 'name', 'data', 
+                  'created_at', 'updated_at', 'created_by', 'updated_by',
+                  'proposal_value as "proposalValue"',
+                  'proposal_closing_date as "proposalClosingDate"',
+                  'sold_credit_value as "soldCreditValue"',
+                  'sold_group as "soldGroup"',
+                  'sold_quota as "soldQuota"',
+                  'sale_date as "saleDate"'
+              ].join(', ');
               // 🔥 CORREÇÃO: Lógica consistente de filtro para o fetch de leads
               let query = supabase.from('crm_leads').select(selectColumns);
               if (user?.role === 'CONSULTOR') {
@@ -784,7 +792,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const resetChecklistToDefault = useCallback(() => { updateAndPersistStructure(setChecklistStructure, 'checklistStructure', DEFAULT_STAGES); }, [updateAndPersistStructure]);
   const addGoalItem = useCallback((stageId: string, label: string) => { const newStructure = consultantGoalsStructure.map(s => s.id === stageId ? { ...s, items: [...s.items, { id: `goal_${Date.now()}`, label }] } : s); updateAndPersistStructure(setConsultantGoalsStructure, 'consultantGoalsStructure', newStructure); }, [consultantGoalsStructure, updateAndPersistStructure]);
   const updateGoalItem = useCallback((stageId: string, itemId: string, label: string) => { const newStructure = consultantGoalsStructure.map(s => s.id === stageId ? { ...s, items: s.items.map(i => i.id === itemId ? { ...i, label } : i) } : s); updateAndPersistStructure(setConsultantGoalsStructure, 'consultantGoalsStructure', newStructure); }, [consultantGoalsStructure, updateAndPersistStructure]);
-  const deleteGoalItem = useCallback((stageId: string, itemId: string) => { const newStructure = consultantGoalsStructure.map(s => s.id === stageId ? { ...s, items: s.items.filter(i => i.id !== itemId) } : s); updateAndPersistStructure(setConsultantGoalsStructure, 'consultantGoalsStructure', newStructure); }, [consultantGoalsStructure, updateAndPersistStructure]);
+  const deleteGoalItem = useCallback((stageId: string, itemId: string) => { const newStructure = consultantGoalsStructure.map(s => s.id === stageId ? { ...s, items: s.items.filter(i => i.id !== itemId) } : s); updateAndAndPersistStructure(setConsultantGoalsStructure, 'consultantGoalsStructure', newStructure); }, [consultantGoalsStructure, updateAndPersistStructure]);
   const moveGoalItem = useCallback((stageId: string, itemId: string, dir: 'up' | 'down') => { const newStructure = consultantGoalsStructure.map(s => { if (s.id !== stageId) return s; const idx = s.items.findIndex(i => i.id === itemId); if ((dir === 'up' && idx < 1) || (dir === 'down' && idx >= s.items.length - 1)) return s; const newItems = [...s.items]; const targetIdx = dir === 'up' ? idx - 1 : idx + 1; [newItems[idx], newItems[targetIdx]] = [newItems[targetIdx], newItems[idx]]; return { ...s, items: newItems }; }); updateAndPersistStructure(setConsultantGoalsStructure, 'consultantGoalsStructure', newStructure); }, [consultantGoalsStructure, updateAndPersistStructure]);
   const resetGoalsToDefault = useCallback(() => { updateAndPersistStructure(setConsultantGoalsStructure, 'consultantGoalsStructure', DEFAULT_GOALS); }, [updateAndPersistStructure]);
   const updateInterviewSection = useCallback((sectionId: string, updates: Partial<InterviewSection>) => { const newStructure = interviewStructure.map(s => s.id === sectionId ? { ...s, ...updates } : s); updateAndPersistStructure(setInterviewStructure, 'interviewStructure', newStructure); }, [interviewStructure, updateAndPersistStructure]);
@@ -848,10 +856,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const addCrmLead = useCallback(async (leadData: Omit<CrmLead, 'id' | 'created_at' | 'updated_at'>): Promise<CrmLead> => {
     if (!user || !session) throw new Error("Usuário não autenticado.");
     
-    // CORREÇÃO 1: Remover 'new' duplicado
     if (!crmOwnerUserId) throw new Error("ID do Gestor do CRM não encontrado.");
 
-    // Determinar stage_id se não fornecido (mantenha sua lógica atual)
     let finalStageId = leadData.stage_id;
     if (!finalStageId) {
         const activePipeline = crmPipelines.find(p => p.is_active) || crmPipelines[0];
@@ -868,26 +874,31 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         throw new Error("Nenhuma etapa de pipeline ativa encontrada para atribuir ao lead.");
     }
 
-    // 🔥 CORREÇÃO CRÍTICA: Definir user_id (proprietário do CRM) e consultant_id (consultor atribuído)
-    // user_id: Sempre o ID do gestor que gerencia o CRM (crmOwnerUserId)
-    // consultant_id: Se o usuário logado for um CONSULTOR, ele é o consultant_id. Caso contrário, usa o que foi passado ou null.
-    const effectiveUserIdForCrmOwner = crmOwnerUserId; // O gestor que possui a configuração do CRM
+    const effectiveUserIdForCrmOwner = crmOwnerUserId;
     const effectiveConsultantId = user.role === 'CONSULTOR' ? session.user.id : (leadData.consultant_id || null);
 
     const payload = {
         ...leadData,
-        user_id: effectiveUserIdForCrmOwner, // O gestor proprietário do CRM
+        user_id: effectiveUserIdForCrmOwner,
         stage_id: finalStageId,
         name: leadData.name || '',
-        consultant_id: effectiveConsultantId, // O consultor atribuído ao lead
-        created_by: session.user.id, // Quem criou o lead
-        updated_by: session.user.id // Quem atualizou por último
+        consultant_id: effectiveConsultantId,
+        created_by: session.user.id,
+        updated_by: session.user.id
     };
 
     console.log('Inserting lead with:', payload); // DEBUG
 
-    // CORREÇÃO: Espaços corretos nos aliases
-    const selectColumns = `id, consultant_id, stage_id, user_id, name, data, created_at, updated_at, created_by, updated_by, proposal_value as "proposalValue", proposal_closing_date as "proposalClosingDate", sold_credit_value as "soldCreditValue", sold_group as "soldGroup", sold_quota as "soldQuota", sale_date as "saleDate"`;
+    const selectColumns = [
+        'id', 'consultant_id', 'stage_id', 'user_id', 'name', 'data', 
+        'created_at', 'updated_at', 'created_by', 'updated_by',
+        'proposal_value as "proposalValue"',
+        'proposal_closing_date as "proposalClosingDate"',
+        'sold_credit_value as "soldCreditValue"',
+        'sold_group as "soldGroup"',
+        'sold_quota as "soldQuota"',
+        'sale_date as "saleDate"'
+    ].join(', ');
 
     const { data, error } = await supabase
         .from('crm_leads')
@@ -900,7 +911,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         throw error;
     }
     
-    // Atualizar estado local
     setCrmLeads(prev => [...prev, data]);
     return data;
 }, [user, session, crmOwnerUserId, crmPipelines, crmStages]);
