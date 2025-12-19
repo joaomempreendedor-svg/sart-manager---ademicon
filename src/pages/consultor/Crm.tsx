@@ -1,10 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Plus, Search, Loader2, Phone, Mail, Tag, MessageSquare, TrendingUp, ListTodo, CalendarPlus, Send, DollarSign, Edit2, Trash2, Users } from 'lucide-react'; // Importado novos ícones
+import { Plus, Search, Loader2, Phone, Mail, Tag, MessageSquare, TrendingUp, ListTodo, CalendarPlus, Send, DollarSign, Edit2, Trash2, Users, CheckCircle2 } from 'lucide-react'; // Importado novos ícones
 import LeadModal from '@/components/crm/LeadModal'; // Novo componente
 import { LeadTasksModal } from '@/components/crm/LeadTasksModal'; // Importar o novo modal de tarefas
 import { ScheduleMeetingModal } from '@/components/crm/ScheduleMeetingModal'; // NOVO: Importar o modal de agendamento de reunião
+import { ProposalModal } from '@/components/crm/ProposalModal'; // Importar o novo modal de proposta
 import {
   Select,
   SelectContent,
@@ -12,6 +13,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+
+const formatCurrency = (value: number) => {
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+};
 
 const CrmPage = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -23,6 +28,8 @@ const CrmPage = () => {
   const [selectedLeadForTasks, setSelectedLeadForTasks] = useState<CrmLead | null>(null); // Lead selecionado para tarefas
   const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false); // NOVO: Estado para o modal de reunião
   const [selectedLeadForMeeting, setSelectedLeadForMeeting] = useState<CrmLead | null>(null); // NOVO: Lead selecionado para reunião
+  const [isProposalModalOpen, setIsProposalModalOpen] = useState(false); // NOVO: Estado para o modal de proposta
+  const [selectedLeadForProposal, setSelectedLeadForProposal] = useState<CrmLead | null>(null); // NOVO: Lead selecionado para proposta
 
   const activePipeline = useMemo(() => {
     return crmPipelines.find(p => p.is_active) || crmPipelines[0];
@@ -91,6 +98,13 @@ const CrmPage = () => {
     e.stopPropagation();
     setSelectedLeadForMeeting(lead);
     setIsMeetingModalOpen(true);
+  };
+
+  // NOVO: Função para abrir o modal de proposta
+  const handleOpenProposalModal = (e: React.MouseEvent, lead: CrmLead) => {
+    e.stopPropagation();
+    setSelectedLeadForProposal(lead);
+    setIsProposalModalOpen(true);
   };
 
   const handleStageChange = async (leadId: string, newStageId: string) => {
@@ -193,6 +207,16 @@ const CrmPage = () => {
                       {lead.data.phone && <div className="flex items-center"><Phone className="w-3 h-3 mr-1" /> {lead.data.phone}</div>}
                       {lead.data.email && <div className="flex items-center"><Mail className="w-3 h-3 mr-1" /> {lead.data.email}</div>}
                       {lead.data.origin && <div className="flex items-center"><Tag className="w-3 h-3 mr-1" /> {lead.data.origin}</div>}
+                      {lead.proposalValue && (
+                        <div className="flex items-center text-brand-600 dark:text-brand-400 font-semibold">
+                          <DollarSign className="w-3 h-3 mr-1" /> {formatCurrency(lead.proposalValue)}
+                          {lead.proposalClosingDate && (
+                            <span className="ml-1 text-xs text-gray-500 dark:text-gray-400 font-normal">
+                              (até {new Date(lead.proposalClosingDate + 'T00:00:00').toLocaleDateString('pt-BR')})
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
                     {/* Seletor de Estágio */}
                     <div className="mt-3 pt-3 border-t border-gray-100 dark:border-slate-600">
@@ -224,7 +248,7 @@ const CrmPage = () => {
                       <button onClick={(e) => handleOpenMeetingModal(e, lead)} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-900/30 transition">
                         <CalendarPlus className="w-3 h-3 mr-1" /> Reunião
                       </button>
-                      <button onClick={(e) => e.stopPropagation()} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/30 transition">
+                      <button onClick={(e) => handleOpenProposalModal(e, lead)} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/30 transition">
                         <Send className="w-3 h-3 mr-1" /> Proposta
                       </button>
                       <button onClick={(e) => e.stopPropagation()} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-brand-50 dark:bg-brand-900/20 text-brand-700 dark:text-brand-300 hover:bg-brand-100 dark:hover:bg-brand-900/30 transition">
@@ -262,6 +286,14 @@ const CrmPage = () => {
           isOpen={isMeetingModalOpen}
           onClose={() => setIsMeetingModalOpen(false)}
           lead={selectedLeadForMeeting}
+        />
+      )}
+
+      {isProposalModalOpen && selectedLeadForProposal && (
+        <ProposalModal
+          isOpen={isProposalModalOpen}
+          onClose={() => setIsProposalModalOpen(false)}
+          lead={selectedLeadForProposal}
         />
       )}
     </div>

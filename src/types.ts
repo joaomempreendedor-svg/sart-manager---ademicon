@@ -164,7 +164,7 @@ export interface SupportMaterial {
 export type SupportMaterialContentType = 'link' | 'text';
 
 export interface SupportMaterialV2 {
-  id: string; // Client-side UUID
+  id: string;
   db_id?: string; // Database primary key
   user_id: string; // ID do gestor que criou
   title: string;
@@ -313,6 +313,8 @@ export interface CrmLead {
   user_id: string; // ID do gestor que gerencia este lead
   name?: string; // Tornando 'name' opcional
   data: Record<string, any>; // Campos dinâmicos
+  proposalValue?: number; // NOVO: Valor da proposta
+  proposalClosingDate?: string; // NOVO: Data de fechamento da proposta (YYYY-MM-DD)
   created_at: string;
   updated_at: string;
 }
@@ -417,143 +419,3 @@ export interface MetricLog {
 }
 
 // --- FIM DOS NOVOS TIPOS ---
-
-
-export interface AppContextType {
-  isDataLoading: boolean;
-  candidates: Candidate[];
-  templates: Record<string, CommunicationTemplate>;
-  checklistStructure: ChecklistStage[];
-  consultantGoalsStructure: GoalStage[];
-  interviewStructure: InterviewSection[];
-  commissions: Commission[];
-  supportMaterials: SupportMaterial[]; // Existing file-based materials
-  importantLinks: ImportantLink[];
-  theme: 'light' | 'dark';
-  origins: string[];
-  interviewers: string[];
-  pvs: string[];
-  teamMembers: TeamMember[];
-  cutoffPeriods: CutoffPeriod[];
-  onboardingSessions: OnboardingSession[];
-  onboardingTemplateVideos: OnboardingVideoTemplate[];
-  // CRM State
-  crmPipelines: CrmPipeline[];
-  crmStages: CrmStage[];
-  crmFields: CrmField[];
-  crmLeads: CrmLead[]; // NOVO: Leads do CRM
-  crmOwnerUserId: string | null; // NEW: ID of the user who owns the CRM configuration
-  addCrmLead: (leadData: Omit<CrmLead, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => Promise<CrmLead>;
-  updateCrmLead: (id: string, updates: Partial<CrmLead>) => Promise<void>;
-  deleteCrmLead: (id: string) => Promise<void>;
-  updateCrmLeadStage: (leadId: string, newStageId: string) => Promise<void>; // NOVO: Mover lead para nova etapa
-  addCrmStage: (stageData: Omit<CrmStage, 'id' | 'user_id' | 'created_at'>) => Promise<CrmStage>;
-  updateCrmStage: (id: string, updates: Partial<CrmStage>) => Promise<void>;
-  updateCrmStageOrder: (stages: CrmStage[]) => Promise<void>;
-  addCrmField: (fieldData: Omit<CrmField, 'id' | 'user_id' | 'created_at'>) => Promise<CrmField>;
-  updateCrmField: (id: string, updates: Partial<CrmField>) => Promise<void>;
-  // End CRM State
-  addCutoffPeriod: (period: CutoffPeriod) => Promise<void>;
-  updateCutoffPeriod: (id: string, updates: Partial<CutoffPeriod>) => Promise<void>;
-  deleteCutoffPeriod: (id: string) => Promise<void>;
-  addTeamMember: (member: Omit<TeamMember, 'id'> & { email?: string }) => Promise<{ success: boolean; member: TeamMember; tempPassword?: string; message: string; wasExistingUser?: boolean; }>;
-  updateTeamMember: (id: string, updates: Partial<TeamMember>) => Promise<{ tempPassword?: string }>; // Updated return type
-  deleteTeamMember: (id: string) => Promise<void>;
-  addOrigin: (origin: string) => void;
-  deleteOrigin: (origin: string) => void;
-  addInterviewer: (interviewer: string) => void;
-  deleteInterviewer: (interviewer: string) => void;
-  addPV: (pv: string) => void;
-  toggleTheme: () => void;
-  addCandidate: (candidate: Candidate) => Promise<void>;
-  updateCandidate: (id: string, updates: Partial<Candidate>) => Promise<void>;
-  deleteCandidate: (id: string) => Promise<void>;
-  toggleChecklistItem: (candidateId: string, itemId: string) => Promise<void>;
-  toggleConsultantGoal: (candidateId: string, goalId: string) => Promise<void>;
-  setChecklistDueDate: (candidateId: string, itemId: string, date: string) => Promise<void>;
-  getCandidate: (id: string) => Candidate | undefined;
-  saveTemplate: (id: string, template: Partial<CommunicationTemplate>) => void;
-  addChecklistItem: (stageId: string, label: string) => void;
-  updateChecklistItem: (stageId: string, itemId: string, label: string) => void;
-  deleteChecklistItem: (stageId: string, itemId: string) => void;
-  moveChecklistItem: (stageId: string, itemId: string, direction: 'up' | 'down') => void;
-  resetChecklistToDefault: () => void;
-  addGoalItem: (stageId: string, label: string) => void;
-  updateGoalItem: (stageId: string, itemId: string, label: string) => void;
-  deleteGoalItem: (stageId: string, itemId: string) => void;
-  moveGoalItem: (stageId: string, itemId: string, direction: 'up' | 'down') => void;
-  resetGoalsToDefault: () => void;
-  updateInterviewSection: (sectionId: string, updates: Partial<InterviewSection>) => void;
-  addInterviewQuestion: (sectionId: string, text: string, points: number) => void;
-  updateInterviewQuestion: (sectionId: string, questionId: string, updates: Partial<InterviewQuestion>) => void;
-  deleteInterviewQuestion: (sectionId: string, questionId: string) => void;
-  moveInterviewQuestion: (sectionId: string, questionId: string, direction: 'up' | 'down') => void;
-  resetInterviewToDefault: () => void;
-  addCommission: (commission: Commission) => Promise<Commission>;
-  updateCommission: (id: string, updates: Partial<Commission>) => Promise<void>;
-  deleteCommission: (id: string) => Promise<void>;
-  updateInstallmentStatus: (commissionId: string, installmentNumber: number, status: InstallmentStatus, paidDate?: string, saleType?: 'Imóvel' | 'Veículo') => Promise<void>;
-  addSupportMaterial: (material: Omit<SupportMaterial, 'id' | 'url'>, file: File) => Promise<void>;
-  deleteSupportMaterial: (id: string) => Promise<void>;
-  addImportantLink: (link: ImportantLink) => Promise<void>;
-  updateImportantLink: (id: string, updates: Partial<ImportantLink>) => Promise<void>;
-  deleteImportantLink: (id: string) => Promise<void>;
-  addFeedback: (candidateId: string, feedback: Omit<Feedback, 'id'>) => Promise<void>;
-  updateFeedback: (candidateId: string, feedback: Feedback) => Promise<void>;
-  deleteFeedback: (candidateId: string, feedbackId: string) => Promise<void>;
-  addTeamMemberFeedback: (memberId: string, feedback: Omit<Feedback, 'id'>) => Promise<void>;
-  updateTeamMemberFeedback: (memberId: string, feedback: Feedback) => Promise<void>;
-  deleteTeamMemberFeedback: (memberId: string, feedbackId: string) => Promise<void>;
-  // Novas funções para onboarding
-  addOnlineOnboardingSession: (consultantName: string) => Promise<OnboardingSession | null>;
-  deleteOnlineOnboardingSession: (sessionId: string) => Promise<void>;
-  addVideoToTemplate: (title: string, url: string) => Promise<void>;
-  deleteVideoFromTemplate: (videoId: string) => Promise<void>;
-
-  // NOVO: Estado e funções para Checklist do Dia (Módulo 3)
-  dailyChecklists: DailyChecklist[];
-  dailyChecklistItems: DailyChecklistItem[];
-  dailyChecklistAssignments: DailyChecklistAssignment[];
-  dailyChecklistCompletions: DailyChecklistCompletion[];
-  addDailyChecklist: (title: string) => Promise<DailyChecklist>;
-  updateDailyChecklist: (id: string, updates: Partial<DailyChecklist>) => Promise<void>;
-  deleteDailyChecklist: (id: string) => Promise<void>;
-  addDailyChecklistItem: (checklistId: string, text: string, order_index: number) => Promise<DailyChecklistItem>;
-  updateDailyChecklistItem: (id: string, updates: Partial<DailyChecklistItem>) => Promise<void>;
-  deleteDailyChecklistItem: (id: string) => Promise<void>;
-  moveDailyChecklistItem: (checklistId: string, itemId: string, direction: 'up' | 'down') => Promise<void>;
-  assignDailyChecklistToConsultant: (checklistId: string, consultantId: string) => Promise<void>;
-  unassignDailyChecklistFromConsultant: (checklistId: string, consultantId: string) => Promise<void>;
-  toggleDailyChecklistCompletion: (itemId: string, date: string, done: boolean, consultantId: string) => Promise<void>;
-
-  // NOVO: Estado e funções para Metas de Prospecção (Módulo 4)
-  weeklyTargets: WeeklyTarget[];
-  weeklyTargetItems: WeeklyTargetItem[];
-  weeklyTargetAssignments: WeeklyTargetAssignment[];
-  metricLogs: MetricLog[];
-  addWeeklyTarget: (title: string, week_start: string, week_end: string) => Promise<WeeklyTarget>;
-  updateWeeklyTarget: (id: string, updates: Partial<WeeklyTarget>) => Promise<void>;
-  deleteWeeklyTarget: (id: string) => Promise<void>;
-  addWeeklyTargetItem: (targetId: string, metric_key: string, label: string, target_value: number, order_index: number) => Promise<WeeklyTargetItem>;
-  updateWeeklyTargetItem: (id: string, updates: Partial<WeeklyTargetItem>) => Promise<void>;
-  deleteWeeklyTargetItem: (id: string) => Promise<void>;
-  moveWeeklyTargetItem: (targetId: string, itemId: string, direction: 'up' | 'down') => Promise<void>;
-  assignWeeklyTargetToConsultant: (targetId: string, consultantId: string) => Promise<void>;
-  unassignWeeklyTargetFromConsultant: (targetId: string, consultantId: string) => Promise<void>;
-  addMetricLog: (metric_key: string, value: number, date: string) => Promise<MetricLog>;
-
-  // NOVO: Estado e funções para Materiais de Apoio (v2)
-  supportMaterialsV2: SupportMaterialV2[];
-  supportMaterialAssignments: SupportMaterialAssignment[];
-  addSupportMaterialV2: (material: Omit<SupportMaterialV2, 'id' | 'user_id' | 'created_at'>) => Promise<SupportMaterialV2>;
-  updateSupportMaterialV2: (id: string, updates: Partial<SupportMaterialV2>) => Promise<void>;
-  deleteSupportMaterialV2: (id: string) => Promise<void>;
-  assignSupportMaterialToConsultant: (materialId: string, consultantId: string) => Promise<void>;
-  unassignSupportMaterialFromConsultant: (materialId: string, consultantId: string) => Promise<void>;
-  leadTasks: LeadTask[]; // NOVO: Adicionado para tarefas de Lead
-  addLeadTask: (task: Omit<LeadTask, 'id' | 'user_id' | 'created_at'>) => Promise<LeadTask>;
-  updateLeadTask: (id: string, updates: Partial<LeadTask>) => Promise<void>;
-  deleteLeadTask: (id: string) => Promise<void>;
-  toggleLeadTaskCompletion: (id: string, is_completed: boolean) => Promise<void>;
-  updateLeadMeetingInvitationStatus: (taskId: string, status: 'pending' | 'accepted' | 'declined') => Promise<void>; // NOVO: Atualizar status do convite
-}
