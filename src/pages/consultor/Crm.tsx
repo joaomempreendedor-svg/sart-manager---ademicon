@@ -269,7 +269,7 @@ const CrmPage = () => {
           onClose={() => setIsLeadModalOpen(false)}
           lead={editingLead}
           crmFields={crmFields.filter(f => f.is_active)}
-          consultantId={user?.id || ''}
+          consultantId={user?.id || null} {/* ⚠️ CORREÇÃO AQUI */}
         />
       )}
 

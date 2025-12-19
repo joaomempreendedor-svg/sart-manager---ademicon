@@ -308,7 +308,7 @@ export interface CrmField {
 
 export interface CrmLead {
   id: string;
-  consultant_id: string;
+  consultant_id: string | null; // ⚠️ CORREÇÃO: Pode ser null
   stage_id: string;
   user_id: string; // ID do gestor que gerencia este lead
   name?: string; // Tornando 'name' opcional
@@ -336,86 +336,6 @@ export interface LeadTask {
   meeting_end_time?: string;   // NOVO: Data e hora de fim da reunião (ISO string)
   manager_id?: string; // NOVO: ID do gestor convidado
   manager_invitation_status?: 'pending' | 'accepted' | 'declined'; // NOVO: Status do convite
-}
-
-// NOVO: Tipos para Checklist do Dia (Módulo 3)
-export interface DailyChecklist {
-  id: string;
-  db_id?: string;
-  user_id: string; // ID do gestor
-  title: string;
-  is_active: boolean;
-  created_at: string;
-}
-
-export interface DailyChecklistItem {
-  id: string;
-  db_id?: string;
-  daily_checklist_id: string;
-  text: string;
-  order_index: number;
-  is_active: boolean;
-  created_at: string;
-}
-
-export interface DailyChecklistAssignment {
-  id: string;
-  db_id?: string;
-  daily_checklist_id: string;
-  consultant_id: string;
-  created_at: string;
-}
-
-export interface DailyChecklistCompletion {
-  id: string;
-  db_id?: string;
-  daily_checklist_item_id: string;
-  consultant_id: string;
-  date: string; // YYYY-MM-DD
-  done: boolean;
-  updated_at: string;
-}
-
-// NOVO: Tipos para Metas de Prospecção (Módulo 4)
-export interface WeeklyTarget {
-  id: string;
-  db_id?: string;
-  user_id: string; // ID do gestor
-  title: string;
-  week_start: string; // YYYY-MM-DD
-  week_end: string;   // YYYY-MM-DD
-  is_active: boolean;
-  created_at: string;
-}
-
-export interface WeeklyTargetItem {
-  id: string;
-  db_id?: string;
-  weekly_target_id: string;
-  metric_key: string; // Ex: 'whatsapp_msgs'
-  label: string;
-  target_value: number;
-  order_index: number;
-  is_active: boolean;
-  created_at: string;
-}
-
-export interface WeeklyTargetAssignment {
-  id: string;
-  db_id?: string;
-  weekly_target_id: string;
-  consultant_id: string;
-  created_at: string;
-}
-
-export interface MetricLog {
-  id: string;
-  db_id?: string;
-  consultant_id: string;
-  metric_key: string;
-  date: string; // YYYY-MM-DD
-  value: number;
-  created_at: string;
 }
 
 // --- FIM DOS NOVOS TIPOS ---

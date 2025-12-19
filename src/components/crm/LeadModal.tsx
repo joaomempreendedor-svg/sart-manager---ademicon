@@ -28,7 +28,7 @@ interface LeadModalProps {
   onClose: () => void;
   lead: CrmLead | null;
   crmFields: CrmField[];
-  assignedConsultantId?: string; // Tornando opcional
+  assignedConsultantId?: string | null; // ⚠️ CORREÇÃO: Pode ser null
 }
 
 const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields, assignedConsultantId }) => {
@@ -45,18 +45,20 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
       setFormData({
         name: lead.name || '', // Popula o name principal
         stage_id: lead.stage_id,
+        consultant_id: lead.consultant_id, // ⚠️ Incluir consultant_id do lead existente
         data: { ...lead.data }, // Mantém outros campos de dados
       });
     } else {
       setFormData({
         name: '', // Para novos leads
+        consultant_id: assignedConsultantId, // ⚠️ Usar assignedConsultantId para novos leads
         data: {},
       });
     }
-  }, [lead, isOpen]);
+  }, [lead, isOpen, assignedConsultantId]); // Adicionado assignedConsultantId como dependência
 
   const handleChange = (key: string, value: any) => {
-    if (key === 'stage_id') {
+    if (key === 'stage_id' || key === 'consultant_id') { // ⚠️ Tratar consultant_id como campo direto
       setFormData(prev => ({ ...prev, [key]: value }));
     } else if (key === 'name' || key === 'nome') { // Trata 'name' ou 'nome' como o campo de nome principal
       setFormData(prev => ({ ...prev, name: value }));
@@ -103,7 +105,8 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
       const payload = {
         ...formData,
         name: formData.name || null, // Garante que o name de nível superior seja usado
-        consultant_id: assignedConsultantId || lead?.consultant_id || '', // Usa assignedConsultantId se disponível, senão o do lead existente
+        // ⚠️ CORREÇÃO: Garante que consultant_id seja null se não for um UUID válido
+        consultant_id: formData.consultant_id || null, 
         user_id: crmOwnerUserId, // Use o ID do proprietário do CRM (ID do Gestor)
       } as CrmLead;
 
