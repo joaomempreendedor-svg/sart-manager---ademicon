@@ -266,11 +266,11 @@ const ConsultorCrmPage = () => { // Nome do componente corrigido para ConsultorC
                         <Select
                           value={lead.stage_id}
                           onValueChange={(newStageId) => handleStageChange(lead.id, newStageId)}
-                          // onClick={(e) => e.stopPropagation()} // Impede a propagação do clique
+                          onOpenChange={() => {}} // Adicionado para evitar propagação
                         >
                           <SelectTrigger 
                             className="w-full h-auto py-1.5 text-xs dark:bg-slate-800 dark:text-white dark:border-slate-600"
-                            // onClick={(e) => e.stopPropagation()} // Removido
+                            onClick={(e) => e.stopPropagation()} // Reintroduzido
                           >
                             <SelectValue placeholder="Mover para..." />
                           </SelectTrigger>
@@ -300,7 +300,7 @@ const ConsultorCrmPage = () => { // Nome do componente corrigido para ConsultorC
                       <button 
                         onClick={(e) => handleMarkAsWon(e, lead)} 
                         className={`flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs transition ${canOpenProposalModal ? 'bg-brand-500 text-white hover:bg-brand-600' : 'bg-gray-100 dark:bg-slate-600 text-gray-500 cursor-not-allowed opacity-70'}`}
-                        disabled={!canMarkAsWon}
+                        disabled={!canOpenProposalModal}
                       >
                         <DollarSign className="w-3 h-3 mr-1" /> Vendido
                       </button>

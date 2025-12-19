@@ -298,11 +298,11 @@ const CrmOverviewPage = () => {
                         <Select
                           value={lead.stage_id}
                           onValueChange={(newStageId) => handleStageChange(lead.id, newStageId)}
-                          // onClick={(e) => e.stopPropagation()} // Removido
+                          onOpenChange={() => {}} // Adicionado para evitar propagação
                         >
                           <SelectTrigger 
                             className="w-full h-auto py-1.5 text-xs dark:bg-slate-800 dark:text-white dark:border-slate-600"
-                            // onClick={(e) => e.stopPropagation()} // Removido
+                            onClick={(e) => e.stopPropagation()} // Reintroduzido
                           >
                             <SelectValue placeholder="Mover para..." />
                           </SelectTrigger>
