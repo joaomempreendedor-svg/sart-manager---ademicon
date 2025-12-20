@@ -122,25 +122,27 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
     const startDateTime = new Date(`${date}T${startTime}:00`);
     const endDateTime = new Date(`${date}T${endTime}:00`);
 
-    const googleCalendarUrl = new URL('https://calendar.google.com/calendar/render');
-    googleCalendarUrl.searchParams.append('action', 'TEMPLATE');
-    googleCalendarUrl.searchParams.append('text', encodeURIComponent(title));
-    googleCalendarUrl.searchParams.append('dates', `${startDateTime.toISOString().replace(/[-:]|\.\d{3}/g, '')}/${endDateTime.toISOString().replace(/[-:]|\.\d{3}/g, '')}`);
-    googleCalendarUrl.searchParams.append('details', encodeURIComponent(description || `Reunião com o lead ${lead.name}`));
-    
+    const formattedStartDate = startDateTime.toISOString().replace(/[-:]|\.\d{3}/g, '');
+    const formattedEndDate = endDateTime.toISOString().replace(/[-:]|\.\d{3}/g, '');
+    const datesParam = `${formattedStartDate}/${formattedEndDate}`;
+
+    // Construir o título e a descrição explicitamente antes de codificar
+    const eventTitle = `Reunião com ${lead.name}`;
+    const eventDescription = description || `Reunião com o lead ${lead.name}`;
+
+    let googleCalendarUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE`;
+    googleCalendarUrl += `&text=${encodeURIComponent(eventTitle)}`;
+    googleCalendarUrl += `&dates=${datesParam}`;
+    googleCalendarUrl += `&details=${encodeURIComponent(eventDescription)}`;
+
     if (lead.data.email) {
-      googleCalendarUrl.searchParams.append('add', encodeURIComponent(lead.data.email));
+      googleCalendarUrl += `&add=${encodeURIComponent(lead.data.email)}`;
     }
     if (user?.email) {
-      googleCalendarUrl.searchParams.append('add', encodeURIComponent(user.email));
+      googleCalendarUrl += `&add=${encodeURIComponent(user.email)}`;
     }
-    // Removido o bloco para adicionar o gestor convidado
-    // const invitedManager = managers.find(m => m.id === invitedManagerId);
-    // if (invitedManager?.email) {
-    //   googleCalendarUrl.searchParams.append('add', encodeURIComponent(invitedManager.email));
-    // }
-
-    window.open(googleCalendarUrl.toString(), '_blank');
+    
+    window.open(googleCalendarUrl, '_blank');
   };
 
   if (!isOpen) return null;
