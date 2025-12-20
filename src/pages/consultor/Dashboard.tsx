@@ -26,9 +26,6 @@ const ConsultorDashboard = () => {
     isDataLoading 
   } = useApp();
 
-  const today = useMemo(() => new Date(), []);
-  const todayFormatted = useMemo(() => today.toISOString().split('T')[0], [today]); // YYYY-MM-DD
-
   // --- CRM Statistics ---
   const { 
     totalLeads, 
@@ -38,6 +35,9 @@ const ConsultorDashboard = () => {
     soldValueThisMonth,
     pendingLeadTasks // NOVO: Tarefas pendentes
   } = useMemo(() => {
+    const today = new Date();
+    const todayFormatted = today.toISOString().split('T')[0];
+
     if (!user) return { totalLeads: 0, newLeadsThisMonth: 0, meetingsThisMonth: 0, proposalValueThisMonth: 0, soldValueThisMonth: 0, pendingLeadTasks: 0 };
 
     const consultantLeads = crmLeads.filter(lead => lead.consultant_id === user.id);
@@ -58,7 +58,7 @@ const ConsultorDashboard = () => {
 
     // Valor de Propostas Enviadas no Mês
     const proposalValueThisMonth = consultantLeads.reduce((sum, lead) => {
-      if (lead.proposalValue && lead.proposalClosingDate) {
+      if (lead.proposalValue && lead.proposalValue > 0 && lead.proposalClosingDate) {
         const proposalDate = new Date(lead.proposalClosingDate + 'T00:00:00'); // Ensure date comparison is correct
         if (proposalDate >= currentMonthStart && proposalDate <= currentMonthEnd) {
           return sum + (lead.proposalValue || 0);
@@ -69,7 +69,7 @@ const ConsultorDashboard = () => {
 
     // Valor Vendido no Mês
     const soldValueThisMonth = consultantLeads.reduce((sum, lead) => {
-      if (lead.soldCreditValue && lead.saleDate) {
+      if (lead.soldCreditValue && lead.soldCreditValue > 0 && lead.saleDate) {
         const saleDate = new Date(lead.saleDate + 'T00:00:00'); // Ensure date comparison is correct
         if (saleDate >= currentMonthStart && saleDate <= currentMonthEnd) {
           return sum + (lead.soldCreditValue || 0);
@@ -97,10 +97,13 @@ const ConsultorDashboard = () => {
       soldValueThisMonth,
       pendingLeadTasks
     };
-  }, [user, crmLeads, crmPipelines, crmStages, today, todayFormatted, leadTasks]);
+  }, [user, crmLeads, crmPipelines, crmStages, leadTasks]);
 
   // --- Daily Checklist Progress ---
   const { completedDailyTasks, totalDailyTasks, dailyProgress } = useMemo(() => {
+    const today = new Date();
+    const todayFormatted = today.toISOString().split('T')[0];
+
     if (!user) return { completedDailyTasks: 0, totalDailyTasks: 0, dailyProgress: 0 };
 
     const assignedChecklists = dailyChecklists
@@ -129,10 +132,12 @@ const ConsultorDashboard = () => {
       totalDailyTasks: total,
       dailyProgress: total > 0 ? Math.round((completed / total) * 100) : 0,
     };
-  }, [user, dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions, todayFormatted]);
+  }, [user, dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions]);
 
   // --- Weekly Goals ---
   const { activeWeeklyTarget, weeklyGoalsProgress } = useMemo(() => {
+    const today = new Date();
+
     if (!user) return { activeWeeklyTarget: null, weeklyGoalsProgress: [] };
 
     const currentWeekStart = new Date(today);
@@ -172,7 +177,7 @@ const ConsultorDashboard = () => {
     });
 
     return { activeWeeklyTarget: activeTarget, weeklyGoalsProgress: progress };
-  }, [user, weeklyTargets, weeklyTargetItems, weeklyTargetAssignments, metricLogs, today]);
+  }, [user, weeklyTargets, weeklyTargetItems, weeklyTargetAssignments, metricLogs]);
 
   if (isAuthLoading || isDataLoading) {
     return (

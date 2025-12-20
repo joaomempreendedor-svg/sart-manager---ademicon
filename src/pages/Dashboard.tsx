@@ -49,9 +49,6 @@ export const Dashboard = () => {
   const navigate = useNavigate();
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
 
-  const today = useMemo(() => new Date(), []);
-  const todayStr = useMemo(() => today.toISOString().split('T')[0], [today]);
-
   // --- Commercial Metrics ---
   const {
     totalCrmLeads,
@@ -61,6 +58,9 @@ export const Dashboard = () => {
     soldValueThisMonth,
     pendingLeadTasksCount,
   } = useMemo(() => {
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+
     if (!user) return { totalCrmLeads: 0, newLeadsThisMonth: 0, meetingsThisMonth: 0, proposalValueThisMonth: 0, soldValueThisMonth: 0, pendingLeadTasksCount: 0 };
 
     const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -81,7 +81,7 @@ export const Dashboard = () => {
     }).length;
 
     const proposalValueThisMonth = leadsForGestor.reduce((sum, lead) => {
-      if (lead.proposalValue && lead.proposalClosingDate) {
+      if (lead.proposalValue && lead.proposalValue > 0 && lead.proposalClosingDate) {
         const proposalDate = new Date(lead.proposalClosingDate + 'T00:00:00');
         if (proposalDate >= currentMonthStart && proposalDate <= currentMonthEnd) {
           return sum + (lead.proposalValue || 0);
@@ -91,7 +91,7 @@ export const Dashboard = () => {
     }, 0);
 
     const soldValueThisMonth = leadsForGestor.reduce((sum, lead) => {
-      if (lead.soldCreditValue && lead.saleDate) {
+      if (lead.soldCreditValue && lead.soldCreditValue > 0 && lead.saleDate) {
         const saleDate = new Date(lead.saleDate + 'T00:00:00');
         if (saleDate >= currentMonthStart && saleDate <= currentMonthEnd) {
           return sum + (lead.soldCreditValue || 0);
@@ -118,7 +118,7 @@ export const Dashboard = () => {
       soldValueThisMonth,
       pendingLeadTasksCount,
     };
-  }, [user, crmLeads, leadTasks, today, todayStr]);
+  }, [crmLeads, leadTasks, user]);
 
   // --- Hiring Metrics (existing) ---
   const totalCandidates = candidates.length;
@@ -128,6 +128,9 @@ export const Dashboard = () => {
 
   // --- Agenda Items ---
   const { todayAgenda, overdueTasks, meetingInvitations } = useMemo(() => {
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+
     const todayAgendaItems: AgendaItem[] = [];
     const overdueItems: AgendaItem[] = [];
     const invitationsItems: AgendaItem[] = [];
@@ -200,7 +203,7 @@ export const Dashboard = () => {
         task.manager_id === user.id &&
         task.manager_invitation_status === 'pending'
       ).forEach(task => {
-        const lead = crmLeads.find(l => l.id === task.lead_id);
+        const lead = crmLeads.find(l => l.id === task.lead_id && l.user_id === user.id);
         const consultant = teamMembers.find(tm => tm.id === task.user_id);
         if (lead && consultant && task.meeting_start_time && task.meeting_end_time) {
           invitationsItems.push({
@@ -224,7 +227,7 @@ export const Dashboard = () => {
     }
 
     return { todayAgenda: todayAgendaItems, overdueTasks: overdueItems, meetingInvitations: invitationsItems };
-  }, [candidates, teamMembers, checklistStructure, leadTasks, crmLeads, user, todayStr]);
+  }, [candidates, teamMembers, checklistStructure, leadTasks, crmLeads, user]);
 
   const getAgendaIcon = (type: AgendaItem['type']) => {
     switch (type) {
