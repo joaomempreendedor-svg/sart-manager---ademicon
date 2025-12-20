@@ -97,7 +97,7 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
           </NavLink>
           <NavLink to="/gestor/daily-checklist-config" className={linkClass} onClick={toggleSidebar}>
             <ListChecks className="w-5 h-5" />
-            {!isSidebarCollapsed && <span>Config. Checklist Diário</span>}
+            {!isSidebarCollapsed && <span>Config. Metas Diárias</span>} {/* AQUI ESTÁ A MUDANÇA */}
           </NavLink>
           <NavLink to="/gestor/config-process" className={linkClass} onClick={toggleSidebar}>
             <Settings className="w-5 h-5" />
