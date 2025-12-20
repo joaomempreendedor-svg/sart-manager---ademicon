@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Upload, Search, FileText, Image as ImageIcon, Trash2, Download, Plus, Loader2, Link as LinkIcon, MessageSquare, Users, ToggleLeft, ToggleRight, CheckCircle2, XCircle, BookOpen } from 'lucide-react'; // 'Library' substituído por 'BookOpen'
+import { Upload, Search, FileText, Image as ImageIcon, Trash2, Download, Plus, Loader2, Link as LinkIcon, MessageSquare, Users, ToggleLeft, ToggleRight, CheckCircle2, XCircle, BookOpen } from 'lucide-react';
 import { SupportMaterialV2, SupportMaterialContentType } from '@/types';
-import { SupportMaterialAssignmentModal } from '@/components/SupportMaterialAssignmentModal'; // Importar o novo modal
+import { SupportMaterialAssignmentModal } from '@/components/SupportMaterialAssignmentModal';
+import toast from 'react-hot-toast'; // Importar toast
 
 export const Materials = () => {
   const { user } = useAuth();
@@ -13,15 +14,15 @@ export const Materials = () => {
     addSupportMaterialV2, 
     updateSupportMaterialV2,
     deleteSupportMaterialV2,
-    teamMembers, // Para o modal de atribuição
+    teamMembers,
   } = useApp();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [titleInput, setTitleInput] = useState('');
-  const [descriptionInput, setDescriptionInput] = useState(''); // Novo campo de descrição
+  const [descriptionInput, setDescriptionInput] = useState('');
   const [categoryInput, setCategoryInput] = useState('');
-  const [contentTypeInput, setContentTypeInput] = useState<SupportMaterialContentType>('pdf'); // Default para arquivo
-  const [contentInput, setContentInput] = useState(''); // Para URL de link ou texto
+  const [contentTypeInput, setContentTypeInput] = useState<SupportMaterialContentType>('pdf');
+  const [contentInput, setContentInput] = useState('');
   const [isAdding, setIsAdding] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
@@ -33,29 +34,29 @@ export const Materials = () => {
     if (!file) return;
     setSelectedFile(file);
     setContentTypeInput(file.type.includes('image') ? 'image' : 'pdf');
-    setTitleInput(file.name.split('.').slice(0, -1).join('.')); // Preenche título com nome do arquivo
+    setTitleInput(file.name.split('.').slice(0, -1).join('.'));
   };
 
   const handleAddMaterial = async () => {
     if (!user) {
-      alert("Você precisa estar logado para adicionar materiais.");
+      toast.error("Você precisa estar logado para adicionar materiais.");
       return;
     }
 
     if (!titleInput.trim()) {
-      alert("O título do material é obrigatório.");
+      toast.error("O título do material é obrigatório.");
       return;
     }
     if (contentTypeInput === 'link' && !contentInput.trim()) {
-      alert("A URL do link é obrigatória.");
+      toast.error("A URL do link é obrigatória.");
       return;
     }
     if (contentTypeInput === 'text' && !contentInput.trim()) {
-      alert("O conteúdo do texto é obrigatório.");
+      toast.error("O conteúdo do texto é obrigatório.");
       return;
     }
     if ((contentTypeInput === 'image' || contentTypeInput === 'pdf') && !selectedFile) {
-      alert("Por favor, selecione um arquivo para upload.");
+      toast.error("Por favor, selecione um arquivo para upload.");
       return;
     }
 
@@ -66,10 +67,11 @@ export const Materials = () => {
         description: descriptionInput.trim() || undefined,
         category: categoryInput.trim() || 'Geral',
         content_type: contentTypeInput,
-        content: contentInput.trim(), // Será sobrescrito se for arquivo
+        content: contentInput.trim(),
       };
 
       await addSupportMaterialV2(newMaterialData, selectedFile || undefined);
+      toast.success("Material adicionado com sucesso!");
 
       // Reset form
       setTitleInput('');
@@ -79,7 +81,7 @@ export const Materials = () => {
       setContentInput('');
       setSelectedFile(null);
     } catch (error: any) {
-      alert(`Erro ao adicionar material: ${error.message}`);
+      toast.error(`Erro ao adicionar material: ${error.message}`);
       console.error("Erro ao adicionar material:", error);
     } finally {
       setIsAdding(false);
@@ -90,8 +92,9 @@ export const Materials = () => {
     if (window.confirm(`Tem certeza que deseja excluir o material "${title}"?`)) {
       try {
         await deleteSupportMaterialV2(id);
+        toast.success("Material excluído com sucesso!");
       } catch (error: any) {
-        alert(`Erro ao excluir: ${error.message}`);
+        toast.error(`Erro ao excluir: ${error.message}`);
       }
     }
   };
@@ -99,8 +102,9 @@ export const Materials = () => {
   const handleToggleActive = async (material: SupportMaterialV2) => {
     try {
       await updateSupportMaterialV2(material.id, { is_active: !material.is_active });
+      toast.success(`Material ${material.is_active ? 'desativado' : 'ativado'} com sucesso!`);
     } catch (error: any) {
-      alert(`Erro ao alterar status do material: ${error.message}`);
+      toast.error(`Erro ao alterar status do material: ${error.message}`);
     }
   };
 
@@ -115,18 +119,15 @@ export const Materials = () => {
     let materialsToDisplay = supportMaterialsV2;
 
     if (user?.role === 'CONSULTOR') {
-      // Consultores veem materiais ativos que são:
-      // 1. Atribuídos a eles
-      // 2. Globais (sem nenhuma atribuição)
       materialsToDisplay = supportMaterialsV2.filter(material => {
-        if (!material.is_active) return false; // Apenas materiais ativos
+        if (!material.is_active) return false;
 
         const hasAssignments = supportMaterialAssignments.some(
           assignment => assignment.material_id === material.id
         );
 
         if (!hasAssignments) {
-          return true; // É global
+          return true;
         } else {
           return supportMaterialAssignments.some(
             assignment => assignment.material_id === material.id && assignment.consultant_id === user.id
@@ -134,11 +135,9 @@ export const Materials = () => {
         }
       });
     } else if (user?.role === 'GESTOR' || user?.role === 'ADMIN') {
-      // Gestores/Admins veem todos os materiais que eles criaram
       materialsToDisplay = supportMaterialsV2.filter(material => material.user_id === user.id);
     }
 
-    // Aplica filtro de busca
     const lowerCaseSearchTerm = searchTerm.toLowerCase();
     return materialsToDisplay.filter(m => 
       m.title.toLowerCase().includes(lowerCaseSearchTerm) ||
@@ -147,7 +146,6 @@ export const Materials = () => {
     );
   }, [supportMaterialsV2, supportMaterialAssignments, searchTerm, user]);
 
-  // Group by category
   const groupedMaterials = filteredMaterials.reduce((acc, curr) => {
     const category = curr.category || 'Sem Categoria';
     if (!acc[category]) acc[category] = [];
@@ -327,7 +325,7 @@ export const Materials = () => {
 
       {Object.keys(groupedMaterials).length === 0 ? (
           <div className="text-center py-20 bg-white dark:bg-slate-800 rounded-xl border border-dashed border-gray-200 dark:border-slate-700">
-              <BookOpen className="w-12 h-12 text-gray-300 dark:text-slate-600 mx-auto mb-3" /> {/* 'Library' substituído por 'BookOpen' */}
+              <BookOpen className="w-12 h-12 text-gray-300 dark:text-slate-600 mx-auto mb-3" />
               <p className="text-gray-500 dark:text-gray-400">Nenhum material encontrado.</p>
           </div>
       ) : (
@@ -346,7 +344,7 @@ export const Materials = () => {
                                           {(material.content_type === 'image' || material.content_type === 'pdf') && (
                                               <a 
                                                   href={material.content} 
-                                                  download={material.title} // Usar o título como nome do arquivo
+                                                  download={material.title}
                                                   target="_blank"
                                                   rel="noopener noreferrer"
                                                   className="p-2 bg-white text-gray-900 rounded-full hover:bg-gray-100 transition"
