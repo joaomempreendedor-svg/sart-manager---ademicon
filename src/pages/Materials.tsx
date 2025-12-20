@@ -127,6 +127,34 @@ export const Materials = () => {
     setIsAssignmentModalOpen(true);
   };
 
+  // NOVO: Função para download direto de arquivos
+  const handleDownloadClick = async (material: SupportMaterialV2) => {
+    if (!material.content || (material.content_type !== 'image' && material.content_type !== 'pdf')) {
+        toast.error("Este material não é um arquivo para download direto.");
+        return;
+    }
+
+    try {
+        const response = await fetch(material.content);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        const blob = await response.blob();
+
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', material.title); // Define o nome do arquivo para download
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url); // Limpa a URL do objeto
+
+        toast.success(`Download de "${material.title}" iniciado.`);
+    } catch (error) {
+        console.error("Erro ao baixar o arquivo:", error);
+        toast.error("Falha ao iniciar o download do arquivo.");
+    }
+  };
+
   const allConsultants = useMemo(() => teamMembers.filter(m => m.isActive && (m.roles.includes('CONSULTOR') || m.roles.includes('Prévia') || m.roles.includes('Autorizado'))), [teamMembers]);
 
   const filteredMaterials = useMemo(() => {
@@ -216,7 +244,7 @@ export const Materials = () => {
             
             {user?.role === 'GESTOR' || user?.role === 'ADMIN' ? (
               <button 
-                  onClick={handleToggleForm} // Usa o novo toggle
+                  onClick={handleToggleForm}
                   className={`p-2 rounded-lg transition ${isFormOpen ? 'bg-gray-200 dark:bg-slate-700 text-gray-600' : 'bg-brand-600 text-white hover:bg-brand-700'}`}
               >
                   <Plus className={`w-5 h-5 transition-transform ${isFormOpen ? 'rotate-45' : ''}`} />
@@ -356,16 +384,13 @@ export const Materials = () => {
                                       {renderMaterialContent(material)}
                                       <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity gap-2">
                                           {(material.content_type === 'image' || material.content_type === 'pdf') && (
-                                              <a 
-                                                  href={material.content} 
-                                                  download={material.title}
-                                                  target="_blank"
-                                                  rel="noopener noreferrer"
+                                              <button 
+                                                  onClick={() => handleDownloadClick(material)} // Chama a nova função
                                                   className="p-2 bg-white text-gray-900 rounded-full hover:bg-gray-100 transition"
                                                   title="Baixar"
                                               >
                                                   <Download className="w-5 h-5" />
-                                              </a>
+                                              </button>
                                           )}
                                           {material.content_type === 'link' && (
                                               <a 

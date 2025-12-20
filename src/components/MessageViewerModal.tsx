@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Copy, Check, Download, Image as ImageIcon, FileText } from 'lucide-react';
 import { CommunicationTemplate } from '@/types';
+import toast from 'react-hot-toast'; // Importar toast
 
 interface MessageViewerModalProps {
   isOpen: boolean;
@@ -25,16 +26,31 @@ export const MessageViewerModal: React.FC<MessageViewerModalProps> = ({ isOpen, 
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleDownload = () => {
-    if (template.resource?.url) {
+  // NOVO: Função para download direto de arquivos
+  const handleDownload = async () => {
+    if (!template.resource?.url || (template.resource.type !== 'image' && template.resource.type !== 'pdf')) {
+        toast.error("Este material não é um arquivo para download direto.");
+        return;
+    }
+
+    try {
+        const response = await fetch(template.resource.url);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        const blob = await response.blob();
+
+        const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
-        link.href = template.resource.url;
-        link.download = template.resource.name;
+        link.href = url;
+        link.setAttribute('download', template.resource.name); // Define o nome do arquivo para download
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-    } else {
-        alert("Este é um arquivo de exemplo do sistema. Na versão completa, ele seria baixado aqui.");
+        window.URL.revokeObjectURL(url); // Limpa a URL do objeto
+
+        toast.success(`Download de "${template.resource.name}" iniciado.`);
+    } catch (error) {
+        console.error("Erro ao baixar o arquivo:", error);
+        toast.error("Falha ao iniciar o download do arquivo.");
     }
   };
 
@@ -85,7 +101,7 @@ export const MessageViewerModal: React.FC<MessageViewerModalProps> = ({ isOpen, 
                             </div>
                         </div>
                         <button 
-                            onClick={handleDownload}
+                            onClick={handleDownload} // Chama a nova função
                             className="px-4 py-2 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-200 text-sm font-medium rounded-lg hover:bg-gray-50 dark:hover:bg-slate-600 flex items-center space-x-2 shadow-sm"
                         >
                             <Download className="w-4 h-4" />
