@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
-import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, CommissionStatus, InstallmentInfo, CutoffPeriod, ImportantLink, Feedback, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask } from '@/types';
+import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, CommissionStatus, InstallmentInfo, CutoffPeriod, ImportantLink, Feedback, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask, SupportMaterialContentType } from '@/types';
 import { CHECKLIST_STAGES as DEFAULT_STAGES } from '@/data/checklistData';
 import { CONSULTANT_GOALS as DEFAULT_GOALS } from '@/data/consultantGoals';
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
@@ -1301,9 +1301,38 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [user]);
 
   // Módulo 5: Funções dos Materiais de Apoio (v2)
-  const addSupportMaterialV2 = useCallback(async (materialData: Omit<SupportMaterialV2, 'id' | 'user_id' | 'created_at'>): Promise<SupportMaterialV2> => {
+  const addSupportMaterialV2 = useCallback(async (materialData: Omit<SupportMaterialV2, 'id' | 'user_id' | 'created_at'>, file?: File): Promise<SupportMaterialV2> => {
     if (!user) throw new Error("Usuário não autenticado.");
-    const { data, error } = await supabase.from('support_materials_v2').insert({ ...materialData, user_id: JOAO_GESTOR_AUTH_ID }).select().single(); // Use JOAO_GESTOR_AUTH_ID
+    
+    let content = materialData.content;
+    let contentType = materialData.content_type;
+
+    if (file) {
+      const sanitizedFileName = file.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w\s.-]/g, '').replace(/\s+/g, '_');
+      const filePath = `support_materials_v2/${crypto.randomUUID()}-${sanitizedFileName}`;
+      
+      const { error: uploadError } = await supabase.storage.from('support_materials').upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: false
+      });
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage.from('support_materials').getPublicUrl(filePath);
+      if (!urlData) throw new Error("Não foi possível obter a URL pública do arquivo.");
+      
+      content = urlData.publicUrl;
+      contentType = file.type.includes('image') ? 'image' : 'pdf';
+    }
+
+    const newMaterialData = { 
+      ...materialData, 
+      user_id: JOAO_GESTOR_AUTH_ID, // Use JOAO_GESTOR_AUTH_ID
+      content,
+      content_type: contentType,
+      is_active: true, // Default to active
+    };
+
+    const { data, error } = await supabase.from('support_materials_v2').insert(newMaterialData).select().single();
     if (error) throw error;
     setSupportMaterialsV2(prev => [...prev, data]);
     return data;
@@ -1318,11 +1347,23 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const deleteSupportMaterialV2 = useCallback(async (id: string) => {
     if (!user) throw new Error("Usuário não autenticado.");
+    const materialToDelete = supportMaterialsV2.find(m => m.id === id);
+    if (!materialToDelete) throw new Error("Material não encontrado.");
+
+    // If it's a file, delete from storage
+    if (materialToDelete.content_type === 'image' || materialToDelete.content_type === 'pdf') {
+      const filePath = materialToDelete.content.split('/support_materials/')[1]; // Adjust path if bucket name changes
+      if (filePath) {
+        const { error: storageError } = await supabase.storage.from('support_materials').remove([filePath]);
+        if (storageError) console.error("Erro ao deletar arquivo do storage:", storageError.message);
+      }
+    }
+
     const { error } = await supabase.from('support_materials_v2').delete().eq('id', id).eq('user_id', JOAO_GESTOR_AUTH_ID); // Use JOAO_GESTOR_AUTH_ID
     if (error) throw error;
     setSupportMaterialsV2(prev => prev.filter(mat => mat.id !== id));
     setSupportMaterialAssignments(prev => prev.filter(assign => assign.material_id !== id));
-  }, [user]);
+  }, [user, supportMaterialsV2]);
 
   const assignSupportMaterialToConsultant = useCallback(async (materialId: string, consultantId: string) => {
     if (!user) throw new Error("Usuário não autenticado.");
@@ -1401,23 +1442,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, [user]);
 
-  // Removida a função updateLeadMeetingInvitationStatus
-  // const updateLeadMeetingInvitationStatus = useCallback(async (taskId: string, status: 'pending' | 'accepted' | 'declined') => {
-  //   if (!user) throw new Error("Usuário não autenticado.");
-  //   try {
-  //     const { error } = await supabase.from('lead_tasks').update({ manager_invitation_status: status }).eq('id', taskId).eq('manager_id', user.id);
-  //     if (error) {
-  //       console.error("Supabase error updating meeting invitation status:", error);
-  //       throw new Error(error.message);
-  //     }
-  //     setLeadTasks(prev => prev.map(task => task.id === taskId ? { ...task, manager_invitation_status: status } : task));
-  //   } catch (error: any) {
-  //     console.error("Failed to update meeting invitation status:", error);
-  //     throw new Error(`Failed to update meeting invitation status: ${error.message || error}`);
-  //   }
-  // }, [user]);
-
-
   useEffect(() => { if (!user) return; const syncPendingCommissions = async () => { const pending = JSON.parse(localStorage.getItem('pending_commissions') || '[]') as any[]; if (pending.length === 0) return; for (const item of pending) { try { const { _localId, _timestamp, _attempts, ...cleanData } = item; const { data, error } = await supabase.from('commissions').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: cleanData }).select('id', 'created_at').maybeSingle(); if (!error && data) { setCommissions(prev => prev.map(c => c.db_id === _localId ? { ...c, db_id: data.id.toString(), criado_em: data.created_at } : c)); const updated = pending.filter((p: any) => p._localId !== _localId); localStorage.setItem('pending_commissions', JSON.stringify(updated)); } } catch (error) { console.log(`❌ Falha ao sincronizar ${item._localId}`); } } }; const interval = setInterval(syncPendingCommissions, 2 * 60 * 1000); setTimeout(syncPendingCommissions, 5000); return () => clearInterval(interval); }, [user]); // Use JOAO_GESTOR_AUTH_ID
 
   return (
@@ -1448,7 +1472,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       addSupportMaterialV2, updateSupportMaterialV2, deleteSupportMaterialV2,
       assignSupportMaterialToConsultant, unassignSupportMaterialFromConsultant,
       // NOVO: Tarefas de Lead
-      leadTasks, addLeadTask, updateLeadTask, deleteLeadTask, toggleLeadTaskCompletion // Removido updateLeadMeetingInvitationStatus
+      leadTasks, addLeadTask, updateLeadTask, deleteLeadTask, toggleLeadTaskCompletion
     }}>
       {children}
     </AppContext.Provider>

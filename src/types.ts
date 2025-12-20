@@ -161,7 +161,7 @@ export interface SupportMaterial {
 }
 
 // NOVO: Material de Apoio para links/texto (Módulo 5)
-export type SupportMaterialContentType = 'link' | 'text';
+export type SupportMaterialContentType = 'link' | 'text' | 'image' | 'pdf'; // Updated to include image/pdf
 
 export interface SupportMaterialV2 {
   id: string;
@@ -169,8 +169,9 @@ export interface SupportMaterialV2 {
   user_id: string; // ID do gestor que criou
   title: string;
   description?: string;
+  category?: string; // NEW: Added category field
   content_type: SupportMaterialContentType;
-  content: string; // URL se for link, ou o próprio texto se for texto
+  content: string; // URL se for link/arquivo, ou o próprio texto se for texto
   is_active: boolean;
   created_at: string;
 }
