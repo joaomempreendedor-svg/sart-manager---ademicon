@@ -32,14 +32,12 @@ const ConsultorDashboard = () => {
   // --- CRM Statistics ---
   const { 
     totalLeads, 
-    newLeadsThisMonth, // Alterado de newLeadsThisWeek
-    meetingsToday, 
-    meetingsThisMonth, // NOVO
-    proposalValueThisMonth, // NOVO
-    soldValueThisMonth, // NOVO
-    conversionRate 
+    newLeadsThisMonth, 
+    meetingsThisMonth, 
+    proposalValueThisMonth, 
+    soldValueThisMonth, 
   } = useMemo(() => {
-    if (!user) return { totalLeads: 0, newLeadsThisMonth: 0, meetingsToday: 0, meetingsThisMonth: 0, proposalValueThisMonth: 0, soldValueThisMonth: 0, conversionRate: 0 };
+    if (!user) return { totalLeads: 0, newLeadsThisMonth: 0, meetingsThisMonth: 0, proposalValueThisMonth: 0, soldValueThisMonth: 0 };
 
     const consultantLeads = crmLeads.filter(lead => lead.consultant_id === user.id);
     const totalLeads = consultantLeads.length;
@@ -50,22 +48,14 @@ const ConsultorDashboard = () => {
     // Novos Leads do Mês
     const newLeadsThisMonth = consultantLeads.filter(lead => new Date(lead.created_at) >= currentMonthStart).length;
 
-    // Reuniões Hoje (mantido)
-    const meetingsToday = leadTasks.filter(task => 
-      task.user_id === user.id && 
-      task.type === 'meeting' && 
-      task.due_date === todayFormatted &&
-      !task.is_completed
-    ).length;
-
-    // Reuniões Agendadas no Mês (NOVO)
+    // Reuniões Agendadas no Mês
     const meetingsThisMonth = leadTasks.filter(task => {
       if (task.user_id !== user.id || task.type !== 'meeting') return false;
       const taskDate = new Date(task.due_date || task.meeting_start_time || '');
       return taskDate >= currentMonthStart && taskDate <= currentMonthEnd;
     }).length;
 
-    // Valor de Propostas Enviadas no Mês (NOVO)
+    // Valor de Propostas Enviadas no Mês
     const proposalValueThisMonth = consultantLeads.reduce((sum, lead) => {
       if (lead.proposalValue && lead.proposalClosingDate) {
         const proposalDate = new Date(lead.proposalClosingDate + 'T00:00:00'); // Ensure date comparison is correct
@@ -76,7 +66,7 @@ const ConsultorDashboard = () => {
       return sum;
     }, 0);
 
-    // Valor Vendido no Mês (NOVO)
+    // Valor Vendido no Mês
     const soldValueThisMonth = consultantLeads.reduce((sum, lead) => {
       if (lead.soldCreditValue && lead.saleDate) {
         const saleDate = new Date(lead.saleDate + 'T00:00:00'); // Ensure date comparison is correct
@@ -87,25 +77,12 @@ const ConsultorDashboard = () => {
       return sum;
     }, 0);
 
-    // Taxa de Conversão (mantido)
-    const activePipeline = crmPipelines.find(p => p.is_active);
-    const wonStage = crmStages.find(s => s.pipeline_id === activePipeline?.id && s.is_won);
-    const lostStage = crmStages.find(s => s.pipeline_id === activePipeline?.id && s.is_lost);
-
-    const wonLeads = consultantLeads.filter(lead => lead.stage_id === wonStage?.id).length;
-    const lostLeads = consultantLeads.filter(lead => lead.stage_id === lostStage?.id).length;
-    const totalClosedLeads = wonLeads + lostLeads;
-
-    const conversionRate = totalClosedLeads > 0 ? (wonLeads / totalClosedLeads) * 100 : 0;
-
     return { 
       totalLeads, 
       newLeadsThisMonth, 
-      meetingsToday, 
       meetingsThisMonth, 
       proposalValueThisMonth, 
       soldValueThisMonth, 
-      conversionRate: conversionRate.toFixed(2) 
     };
   }, [user, crmLeads, crmPipelines, crmStages, today, todayFormatted, leadTasks]);
 
@@ -214,31 +191,11 @@ const ConsultorDashboard = () => {
             <Plus className="w-6 h-6 text-green-600 dark:text-green-400" />
           </div>
           <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Novos Leads (Mês)</p> {/* Alterado para Mês */}
+            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Novos Leads (Mês)</p>
             <p className="text-2xl font-bold text-gray-900 dark:text-white">{newLeadsThisMonth}</p>
           </div>
         </div>
         
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
-          <div className="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
-            <CalendarDays className="w-6 h-6 text-orange-600 dark:text-orange-400" />
-          </div>
-          <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Reuniões Hoje</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{meetingsToday}</p>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
-          <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-            <CheckCircle2 className="w-6 h-6 text-purple-600 dark:text-purple-400" />
-          </div>
-          <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Taxa de Conversão</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{conversionRate}%</p>
-          </div>
-        </div>
-
         {/* NOVOS CARDS DE MÉTRICAS MENSAIS */}
         <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
           <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
@@ -267,16 +224,6 @@ const ConsultorDashboard = () => {
           <div>
             <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Vendido Mês</p>
             <p className="text-2xl font-bold text-gray-900 dark:text-white">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(soldValueThisMonth || 0)}</p>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
-          <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
-            <Users className="w-6 h-6 text-red-600 dark:text-red-400" />
-          </div>
-          <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Leads Atribuídos</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{crmLeads.filter(lead => lead.consultant_id === user.id).length}</p>
           </div>
         </div>
       </div>
