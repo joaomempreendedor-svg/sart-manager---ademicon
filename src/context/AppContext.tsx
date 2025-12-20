@@ -989,8 +989,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       saleDate: data.sale_date,
     };
 
-    // Realtime subscription will handle updating the state, so no need to manually setCrmLeads here
-    // setCrmLeads(prev => [newLead, ...prev]);
+    // Atualiza o estado local imediatamente
+    setCrmLeads(prev => [newLead, ...prev]);
     return newLead;
 }, [user, session, crmOwnerUserId, crmPipelines, crmStages]);
 
@@ -1072,17 +1072,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       throw error;
     }
     
-    // Realtime subscription will handle updating the state, so no need to manually setCrmLeads here
-    // setCrmLeads(prev => {
-    //   const updatedLead = { 
-    //     ...currentLead, 
-    //     ...updates,
-    //     data: { ...currentLead.data, ...updates.data },
-    //     updated_at: dataToUpdateInDB.updated_at
-    //   };
-    //   const otherLeads = prev.filter(lead => lead.id !== id);
-    //   return [updatedLead, ...otherLeads];
-    // });
+    // Atualiza o estado local imediatamente
+    setCrmLeads(prev => {
+      const updatedLead = { 
+        ...currentLead, 
+        ...updates,
+        data: { ...currentLead.data, ...updates.data },
+        updated_at: dataToUpdateInDB.updated_at,
+        proposalValue: dataToUpdateInDB.proposal_value !== undefined ? dataToUpdateInDB.proposal_value : currentLead.proposalValue,
+        proposalClosingDate: dataToUpdateInDB.proposal_closing_date !== undefined ? dataToUpdateInDB.proposal_closing_date : currentLead.proposalClosingDate,
+        soldCreditValue: dataToUpdateInDB.sold_credit_value !== undefined ? dataToUpdateInDB.sold_credit_value : currentLead.soldCreditValue,
+        soldGroup: dataToUpdateInDB.sold_group !== undefined ? dataToUpdateInDB.sold_group : currentLead.soldGroup,
+        soldQuota: dataToUpdateInDB.sold_quota !== undefined ? dataToUpdateInDB.sold_quota : currentLead.soldQuota,
+        saleDate: dataToUpdateInDB.sale_date !== undefined ? dataToUpdateInDB.sale_date : currentLead.saleDate,
+      };
+      return prev.map(lead => lead.id === id ? updatedLead : lead);
+    });
   }, [user, crmLeads, crmOwnerUserId]);
 
   const deleteCrmLead = useCallback(async (id: string) => {
@@ -1102,14 +1107,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const { error } = await query;
     if (error) { console.error(error); toast.error("Erro ao excluir lead."); throw error; }
-    // Realtime subscription will handle updating the state, so no need to manually setCrmLeads here
-    // setCrmLeads(prev => prev.filter(lead => lead.id !== id));
+    // Atualiza o estado local imediatamente
+    setCrmLeads(prev => prev.filter(lead => lead.id !== id));
   }, [user, crmOwnerUserId]);
 
   const updateCrmLeadStage = useCallback(async (leadId: string, newStageId: string) => {
     if (!user) throw new Error("Usuário não autenticado.");
     
-    let query = supabase.from('crm_leads').update({ stage_id: newStageId, updated_at: new Date().toISOString() }).eq('id', leadId);
+    const updated_at = new Date().toISOString();
+    let query = supabase.from('crm_leads').update({ stage_id: newStageId, updated_at }).eq('id', leadId);
 
     if (user.role === 'CONSULTOR') {
       query = query.eq('consultant_id', user.id);
@@ -1124,12 +1130,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const { error } = await query;
     if (error) { console.error(error); toast.error("Erro ao mover lead de etapa."); throw error; }
     
-    const currentLead = crmLeads.find(l => l.id === leadId);
-    if (currentLead) {
-      // Realtime subscription will handle updating the state, so no need to manually call updateCrmLead here
-      // await updateCrmLead(leadId, { stage_id: newStageId, updated_at: new Date().toISOString() });
-    }
-  }, [user, crmOwnerUserId, crmLeads]); // Removed updateCrmLead from dependencies as it's no longer called directly
+    // Atualiza o estado local imediatamente
+    setCrmLeads(prev => prev.map(lead => lead.id === leadId ? { ...lead, stage_id: newStageId, updated_at } : lead));
+  }, [user, crmOwnerUserId]);
 
   const addCrmStage = useCallback(async (stageData: Omit<CrmStage, 'id' | 'user_id' | 'created_at'>) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('crm_stages').insert({ ...stageData, user_id: JOAO_GESTOR_AUTH_ID }).select().single(); if (error) { console.error(error); toast.error("Erro ao adicionar etapa do CRM."); throw error; } setCrmStages(prev => [...prev, data].sort((a, b) => a.order_index - b.order_index)); return data; }, [user]);
   const updateCrmStage = useCallback(async (id: string, updates: Partial<CrmStage>) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('crm_stages').update(updates).eq('id', id).select().single(); if (error) { console.error(error); toast.error("Erro ao atualizar etapa do CRM."); throw error; } setCrmStages(prev => prev.map(s => s.id === id ? data : s).sort((a, b) => a.order_index - b.order_index)); }, [user]);
@@ -1545,8 +1548,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         toast.error("Erro ao adicionar tarefa do lead.");
         throw new Error(error.message);
       }
-      // Realtime subscription will handle updating the state, so no need to manually setLeadTasks here
-      // setLeadTasks(prev => [...prev, data]);
+      // Atualiza o estado local imediatamente
+      setLeadTasks(prev => [...prev, data]);
       return data;
     } catch (error: any) {
       console.error("Failed to add lead task:", error);
@@ -1563,8 +1566,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         toast.error("Erro ao atualizar tarefa do lead.");
         throw new Error(error.message);
       }
-      // Realtime subscription will handle updating the state, so no need to manually setLeadTasks here
-      // setLeadTasks(prev => prev.map(task => task.id === id ? { ...task, ...updates } : task));
+      // Atualiza o estado local imediatamente
+      setLeadTasks(prev => prev.map(task => task.id === id ? { ...task, ...updates } : task));
     } catch (error: any) {
       console.error("Failed to update lead task:", error);
       throw new Error(`Failed to update lead task: ${error.message || error}`);
@@ -1580,8 +1583,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         toast.error("Erro ao excluir tarefa do lead.");
         throw new Error(error.message);
       }
-      // Realtime subscription will handle updating the state, so no need to manually setLeadTasks here
-      // setLeadTasks(prev => prev.filter(task => task.id !== id));
+      // Atualiza o estado local imediatamente
+      setLeadTasks(prev => prev.filter(task => task.id !== id));
     } catch (error: any) {
       console.error("Failed to delete lead task:", error);
       throw new Error(`Failed to delete lead task: ${error.message || error}`);
@@ -1598,8 +1601,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         toast.error("Erro ao atualizar conclusão da tarefa.");
         throw new Error(error.message);
       }
-      // Realtime subscription will handle updating the state, so no need to manually setLeadTasks here
-      // setLeadTasks(prev => prev.map(task => task.id === id ? { ...task, ...updates } : task));
+      // Atualiza o estado local imediatamente
+      setLeadTasks(prev => prev.map(task => task.id === id ? { ...task, ...updates } : task));
     } catch (error: any) {
       console.error("Failed to toggle task completion:", error);
       throw new Error(`Failed to toggle task completion: ${error.message || error}`);
@@ -1616,8 +1619,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         toast.error("Erro ao atualizar status do convite de reunião.");
         throw new Error(error.message);
       }
-      // Realtime subscription will handle updating the state, so no need to manually setLeadTasks here
-      // setLeadTasks(prev => prev.map(task => task.id === taskId ? { ...task, manager_invitation_status: status } : task));
+      // Atualiza o estado local imediatamente
+      setLeadTasks(prev => prev.map(task => task.id === taskId ? { ...task, manager_invitation_status: status } : task));
     } catch (error: any) {
       console.error("Failed to update meeting invitation status:", error);
       throw new Error(`Failed to update meeting invitation status: ${error.message || error}`);
