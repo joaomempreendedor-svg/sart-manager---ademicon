@@ -36,8 +36,7 @@ import { OnlineOnboarding } from '@/pages/OnlineOnboarding';
 import CrmConfigPage from '@/pages/gestor/CrmConfig';
 import CrmOverviewPage from '@/pages/gestor/CrmOverview'; // Importar a nova página
 import { DailyChecklistConfig } from '@/pages/gestor/DailyChecklistConfig';
-// import { DailyChecklistMonitoring } from '@/pages/gestor/DailyChecklistMonitoring'; // REMOVIDO
-// import { ChecklistAssignment } from '@/pages/gestor/ChecklistAssignment'; // Importar o novo componente
+import { DailyChecklistMonitoring } from '@/pages/gestor/DailyChecklistMonitoring'; // NOVO: Importar o componente
 
 // Consultor Pages
 import ConsultorDashboard from '@/pages/consultor/Dashboard';
@@ -153,6 +152,7 @@ const AppRoutes = () => {
           <Route path="crm-config" element={<CrmConfigPage />} />
           <Route path="crm" element={<CrmOverviewPage />} />
           <Route path="daily-checklist-config" element={<DailyChecklistConfig />} />
+          <Route path="daily-checklist-monitoring" element={<DailyChecklistMonitoring />} /> {/* NOVO: Rota para monitoramento */}
           <Route path="*" element={<Navigate to="/gestor/dashboard" replace />} />
         </Route>
       </Route>
