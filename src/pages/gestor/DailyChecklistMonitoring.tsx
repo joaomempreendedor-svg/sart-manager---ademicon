@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { DailyChecklistItem } from '@/types'; // Importar DailyChecklistItem
 
 const formatDate = (date: Date) => date.toISOString().split('T')[0]; // YYYY-MM-DD
 const displayDate = (date: Date) => date.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
@@ -96,6 +97,33 @@ export const DailyChecklistMonitoring = () => {
     });
   };
 
+  // Calcular o progresso diário geral para o consultor selecionado
+  const { completedDailyTasks, totalDailyTasks, dailyProgress } = useMemo(() => {
+    if (!selectedConsultantId) return { completedDailyTasks: 0, totalDailyTasks: 0, dailyProgress: 0 };
+
+    const relevantItems: DailyChecklistItem[] = assignedChecklists.flatMap(checklist => 
+      dailyChecklistItems.filter(item => item.daily_checklist_id === checklist.id && item.is_active)
+    );
+
+    const total = relevantItems.length;
+    const completed = relevantItems.filter(item => 
+      dailyChecklistCompletions.some(
+        completion =>
+          completion.daily_checklist_item_id === item.id &&
+          completion.consultant_id === selectedConsultantId &&
+          completion.date === formattedSelectedDate &&
+          completion.done
+      )
+    ).length;
+
+    return {
+      completedDailyTasks: completed,
+      totalDailyTasks: total,
+      dailyProgress: total > 0 ? Math.round((completed / total) * 100) : 0,
+    };
+  }, [selectedConsultantId, assignedChecklists, dailyChecklistItems, dailyChecklistCompletions, formattedSelectedDate]);
+
+
   if (isDataLoading) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-theme(spacing.16))]">
@@ -155,31 +183,55 @@ export const DailyChecklistMonitoring = () => {
         </div>
       ) : (
         <div className="space-y-6">
-          {assignedChecklists.map(checklist => (
-            <div key={checklist.id} className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
-              <div className="bg-gray-50 dark:bg-slate-700/50 px-6 py-4 border-b border-gray-200 dark:border-slate-700">
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white">{checklist.title}</h3>
-              </div>
-              <div className="divide-y divide-gray-100 dark:divide-slate-700">
-                {getItemsForChecklist(checklist.id).map(item => {
-                  const isCompleted = getCompletionStatus(item.id);
-                  return (
-                    <div key={item.id} className="p-4 flex items-center space-x-3 hover:bg-gray-50 dark:hover:bg-slate-700/30">
-                      <Checkbox
-                        id={`item-${item.id}-${selectedConsultantId}`}
-                        checked={isCompleted}
-                        onCheckedChange={() => handleToggleCompletion(item.id, isCompleted)}
-                        className="dark:border-slate-600 data-[state=checked]:bg-brand-600 data-[state=checked]:text-white"
-                      />
-                      <Label htmlFor={`item-${item.id}-${selectedConsultantId}`} className={`text-sm font-medium leading-none ${isCompleted ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-700 dark:text-gray-200'}`}>
-                        {item.text}
-                      </Label>
-                    </div>
-                  );
-                })}
-              </div>
+          {/* Overall Daily Progress Bar */}
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center"><ListChecks className="w-5 h-5 mr-2 text-brand-500" />Progresso Diário Geral</h2>
+              <span className="text-sm font-semibold text-gray-500 dark:text-gray-400">{completedDailyTasks}/{totalDailyTasks} Concluídas</span>
             </div>
-          ))}
+            <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2.5">
+              <div className="bg-brand-500 h-2.5 rounded-full transition-all duration-500" style={{ width: `${dailyProgress}%` }}></div>
+            </div>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">{dailyProgress}% do checklist do dia está completo.</p>
+          </div>
+
+          {assignedChecklists.map(checklist => {
+            const items = getItemsForChecklist(checklist.id);
+            const completedItemsCount = items.filter(item => getCompletionStatus(item.id)).length;
+            const checklistProgress = items.length > 0 ? Math.round((completedItemsCount / items.length) * 100) : 0;
+
+            return (
+              <div key={checklist.id} className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
+                <div className="bg-gray-50 dark:bg-slate-700/50 px-6 py-4 border-b border-gray-200 dark:border-slate-700">
+                  <div className="flex justify-between items-center mb-2">
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">{checklist.title}</h3>
+                    <span className="text-xs font-semibold text-gray-500 dark:text-gray-300 bg-gray-200 dark:bg-slate-600 px-2 py-1 rounded">{checklistProgress}% Concluído</span>
+                  </div>
+                  <div className="w-full bg-gray-200 dark:bg-slate-600 rounded-full h-1.5">
+                    <div className="bg-brand-500 h-1.5 rounded-full transition-all duration-500" style={{ width: `${checklistProgress}%` }}></div>
+                  </div>
+                </div>
+                <div className="divide-y divide-gray-100 dark:divide-slate-700">
+                  {items.map(item => {
+                    const isCompleted = getCompletionStatus(item.id);
+                    return (
+                      <div key={item.id} className="p-4 flex items-center space-x-3 hover:bg-gray-50 dark:hover:bg-slate-700/30">
+                        <Checkbox
+                          id={`item-${item.id}-${selectedConsultantId}`}
+                          checked={isCompleted}
+                          onCheckedChange={() => handleToggleCompletion(item.id, isCompleted)}
+                          className="dark:border-slate-600 data-[state=checked]:bg-brand-600 data-[state=checked]:text-white"
+                        />
+                        <Label htmlFor={`item-${item.id}-${selectedConsultantId}`} className={`text-sm font-medium leading-none ${isCompleted ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-700 dark:text-gray-200'}`}>
+                          {item.text}
+                        </Label>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
