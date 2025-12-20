@@ -304,32 +304,7 @@ export const DailyChecklistConfig = () => {
             Novo Checklist
           </Button>
           {/* ADICIONAR BOTÃO "CRIAR DADOS DE TESTE" AQUI */}
-          <Button 
-            onClick={async () => {
-              if (confirm("Criar dados de teste no banco?")) {
-                try {
-                  // Cria checklist de teste
-                  const testChecklist = await addDailyChecklist("TESTE AUTO " + Date.now());
-                  
-                  // Atribui a TODOS os consultores
-                  const consultants = teamMembers.filter(m => 
-                    m.roles.includes('Prévia') || m.roles.includes('Autorizado')
-                  );
-                  
-                  for (const member of consultants) {
-                    await assignDailyChecklistToConsultant(testChecklist.id, member.id);
-                  }
-                  
-                  alert(`✅ Dados de teste criados!`);
-                } catch (e: any) {
-                  alert(`❌ Erro: ${e.message}`);
-                }
-              }
-            }}
-            className="ml-2 bg-green-600 hover:bg-green-700 text-white"
-          >
-            Criar Dados Teste
-          </Button>
+          {/* Removido o botão "Criar Dados Teste" */}
         </div>
       </div>
 
@@ -473,7 +448,7 @@ export const DailyChecklistConfig = () => {
       />
       <AssignmentModal
         isOpen={isAssignmentModalOpen}
-        onClose={() => setIsAssignmentModalOpen(false)}
+        onClose={() => setIsAssignmentModalModalOpen(false)}
         checklist={selectedChecklistForAssignment}
       />
     </div>
