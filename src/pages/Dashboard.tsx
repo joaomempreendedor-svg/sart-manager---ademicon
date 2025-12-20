@@ -123,7 +123,7 @@ export const Dashboard = () => {
   // --- Hiring Metrics (existing) ---
   const totalCandidates = candidates.length;
   const authorized = teamMembers.filter(m => m.isActive && m.roles.includes('Autorizado')).length;
-  const inTraining = candidates.filter(c => c.status === 'Acompanhamento 90 Dias').length;
+  const previas = teamMembers.filter(m => m.isActive && m.roles.includes('Prévia')).length; // NOVO: Contagem de Prévias
   const activeTeam = teamMembers.filter(m => m.isActive).length;
 
   // --- Agenda Items ---
@@ -376,8 +376,8 @@ export const Dashboard = () => {
             <TrendingUp className="w-6 h-6 text-brand-600 dark:text-brand-400" />
           </div>
           <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Em Treinamento</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{inTraining}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Prévias</p> {/* Alterado de 'Em Treinamento' para 'Prévias' */}
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{previas}</p> {/* Usando a nova contagem */}
           </div>
         </div>
         <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
