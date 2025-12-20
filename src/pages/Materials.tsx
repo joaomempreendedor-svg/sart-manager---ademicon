@@ -23,11 +23,30 @@ export const Materials = () => {
   const [categoryInput, setCategoryInput] = useState('');
   const [contentTypeInput, setContentTypeInput] = useState<SupportMaterialContentType>('pdf');
   const [contentInput, setContentInput] = useState('');
-  const [isAdding, setIsAdding] = useState(false);
+  
+  const [isFormOpen, setIsFormOpen] = useState(false); // Novo estado para controlar a visibilidade do formulário
+  const [isSubmitting, setIsSubmitting] = useState(false); // Estado para o carregamento do botão de envio
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const [isAssignmentModalOpen, setIsAssignmentModalOpen] = useState(false);
   const [selectedMaterialForAssignment, setSelectedMaterialForAssignment] = useState<SupportMaterialV2 | null>(null);
+
+  const resetForm = () => {
+    setTitleInput('');
+    setDescriptionInput('');
+    setCategoryInput('');
+    setContentTypeInput('pdf');
+    setContentInput('');
+    setSelectedFile(null);
+    setIsSubmitting(false); // Garante que o estado de envio seja falso
+  };
+
+  const handleToggleForm = () => {
+    setIsFormOpen(prev => !prev);
+    if (!isFormOpen) { // Se o formulário está sendo aberto
+      resetForm();
+    }
+  };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -60,7 +79,7 @@ export const Materials = () => {
       return;
     }
 
-    setIsAdding(true);
+    setIsSubmitting(true); // Ativa o estado de carregamento do botão
     try {
       const newMaterialData: Omit<SupportMaterialV2, 'id' | 'user_id' | 'created_at' | 'is_active'> = {
         title: titleInput.trim(),
@@ -73,18 +92,13 @@ export const Materials = () => {
       await addSupportMaterialV2(newMaterialData, selectedFile || undefined);
       toast.success("Material adicionado com sucesso!");
 
-      // Reset form
-      setTitleInput('');
-      setDescriptionInput('');
-      setCategoryInput('');
-      setContentTypeInput('pdf');
-      setContentInput('');
-      setSelectedFile(null);
+      resetForm(); // Reseta o formulário e o estado de envio
+      setIsFormOpen(false); // Fecha o formulário após o sucesso
     } catch (error: any) {
       toast.error(`Erro ao adicionar material: ${error.message}`);
       console.error("Erro ao adicionar material:", error);
     } finally {
-      setIsAdding(false);
+      setIsSubmitting(false); // Desativa o estado de carregamento do botão, mesmo em caso de erro
     }
   };
 
@@ -202,16 +216,16 @@ export const Materials = () => {
             
             {user?.role === 'GESTOR' || user?.role === 'ADMIN' ? (
               <button 
-                  onClick={() => setIsAdding(!isAdding)}
-                  className={`p-2 rounded-lg transition ${isAdding ? 'bg-gray-200 dark:bg-slate-700 text-gray-600' : 'bg-brand-600 text-white hover:bg-brand-700'}`}
+                  onClick={handleToggleForm} // Usa o novo toggle
+                  className={`p-2 rounded-lg transition ${isFormOpen ? 'bg-gray-200 dark:bg-slate-700 text-gray-600' : 'bg-brand-600 text-white hover:bg-brand-700'}`}
               >
-                  <Plus className={`w-5 h-5 transition-transform ${isAdding ? 'rotate-45' : ''}`} />
+                  <Plus className={`w-5 h-5 transition-transform ${isFormOpen ? 'rotate-45' : ''}`} />
               </button>
             ) : null}
         </div>
       </div>
 
-      {isAdding && (user?.role === 'GESTOR' || user?.role === 'ADMIN') && (
+      {isFormOpen && (user?.role === 'GESTOR' || user?.role === 'ADMIN') && (
         <div className="mb-8 bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm animate-fade-in">
             <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Adicionar Novo Material</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -315,9 +329,9 @@ export const Materials = () => {
                 )}
             </div>
             <div className="mt-4 flex justify-end">
-                <button onClick={handleAddMaterial} disabled={isAdding} className="px-6 py-2 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2">
-                    {isAdding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                    <span>{isAdding ? 'Adicionando...' : 'Adicionar Material'}</span>
+                <button onClick={handleAddMaterial} disabled={isSubmitting} className="px-6 py-2 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2">
+                    {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                    <span>{isSubmitting ? 'Adicionando...' : 'Adicionar Material'}</span>
                 </button>
             </div>
         </div>
