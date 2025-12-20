@@ -551,6 +551,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         .channel('crm_leads_changes')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'crm_leads' }, (payload) => {
             console.log('CRM Lead Change (Realtime):', payload);
+            toast.info(`🔄 Lead "${payload.new.name || payload.old.name}" atualizado em tempo real!`);
             const newLeadData: CrmLead = {
                 id: payload.new.id,
                 consultant_id: payload.new.consultant_id,
@@ -585,6 +586,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         .channel('lead_tasks_changes')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'lead_tasks' }, (payload) => {
             console.log('Lead Task Change (Realtime):', payload);
+            toast.info(`📝 Tarefa "${payload.new.title || payload.old.title}" atualizada em tempo real!`);
             const newTaskData: LeadTask = {
                 id: payload.new.id,
                 lead_id: payload.new.lead_id,
@@ -1560,7 +1562,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const updateLeadTask = useCallback(async (id: string, updates: Partial<LeadTask>) => {
     if (!user) throw new Error("Usuário não autenticado.");
     try {
-      const { error } = await supabase.from('lead_tasks').update(updates).eq('id', id).eq('user_id', user.id);
+      const { data, error } = await supabase.from('lead_tasks').update(updates).eq('id', id).eq('user_id', user.id).select().single();
       if (error) {
         console.error("Supabase error updating lead task:", error);
         toast.error("Erro ao atualizar tarefa do lead.");
@@ -1595,7 +1597,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!user) throw new Error("Usuário não autenticado.");
     const updates = { is_completed, completed_at: is_completed ? new Date().toISOString() : null };
     try {
-      const { error } = await supabase.from('lead_tasks').update(updates).eq('id', id).eq('user_id', user.id);
+      const { data, error } = await supabase.from('lead_tasks').update(updates).eq('id', id).eq('user_id', user.id).select().single();
       if (error) {
         console.error("Supabase error toggling lead task completion:", error);
         toast.error("Erro ao atualizar conclusão da tarefa.");
@@ -1613,7 +1615,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const updateLeadMeetingInvitationStatus = useCallback(async (taskId: string, status: 'pending' | 'accepted' | 'declined') => {
     if (!user) throw new Error("Usuário não autenticado.");
     try {
-      const { error } = await supabase.from('lead_tasks').update({ manager_invitation_status: status }).eq('id', taskId).eq('manager_id', user.id);
+      const { data, error } = await supabase.from('lead_tasks').update({ manager_invitation_status: status }).eq('id', taskId).eq('manager_id', user.id).select().single();
       if (error) {
         console.error("Supabase error updating meeting invitation status:", error);
         toast.error("Erro ao atualizar status do convite de reunião.");
