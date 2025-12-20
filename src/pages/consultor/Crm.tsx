@@ -202,7 +202,7 @@ const ConsultorCrmPage = () => { // Nome do componente corrigido para ConsultorC
 
       <div className="flex overflow-x-auto pb-4 space-x-4 custom-scrollbar"> {/* Reduzido space-x-6 para space-x-4 */}
         {pipelineStages.map(stage => (
-          <div key={stage.id} className="flex-shrink-0 w-64 bg-gray-100 dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700"> {/* Reduzido w-72 para w-64 */}
+          <div key={stage.id} className="flex-shrink-0 w-56 bg-gray-100 dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700"> {/* Reduzido w-64 para w-56 */}
             <div className="p-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
               <h3 className="font-semibold text-gray-900 dark:text-white flex items-center">
                 {stage.name.toLowerCase().includes('proposta') && <Send className="w-4 h-4 mr-2 text-purple-600 dark:text-purple-400" />}
