@@ -321,15 +321,15 @@ const ChecklistItemModal: React.FC<ChecklistItemModalProps> = ({ isOpen, onClose
         <form onSubmit={handleSubmit}>
           <ScrollArea className="h-[60vh] py-4 pr-4">
             <div className="grid gap-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="itemText" className="col-span-1"> {/* Removido text-right */}
+              <div className="flex items-center gap-4"> {/* Alterado de grid para flex */}
+                <Label htmlFor="itemText" className="w-24 flex-shrink-0"> {/* Adicionado largura fixa e flex-shrink-0 */}
                   Tarefa *
                 </Label>
                 <Input
                   id="itemText"
                   value={text}
                   onChange={(e) => setText(e.target.value)}
-                  className="col-span-3 dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                  className="flex-1 dark:bg-slate-700 dark:text-white dark:border-slate-600" {/* Adicionado flex-1 */}
                   placeholder="Ex: Fazer 40 contatos diários"
                   required
                 />
