@@ -185,14 +185,14 @@ export interface SupportMaterialAssignment {
 }
 
 
-export interface ImportantLink {
-  id: string; // Client-side UUID
-  db_id?: string; // Database primary key
-  title: string;
-  url: string;
-  description: string;
-  category: string;
-}
+// export interface ImportantLink { // REMOVIDO
+//   id: string; // Client-side UUID
+//   db_id?: string; // Database primary key
+//   title: string;
+//   url: string;
+//   description: string;
+//   category: string;
+// }
 
 // TEAM MANAGEMENT
 export type TeamRole = 'Prévia' | 'Autorizado' | 'Gestor' | 'Anjo';

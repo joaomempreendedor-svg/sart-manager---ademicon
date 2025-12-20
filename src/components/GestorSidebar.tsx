@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, MessageSquare, Settings, FileText, Sun, Moon, Banknote, PlusCircle, Library, TrendingUp, Target, Users, LogOut, User as UserIcon, Calendar, Link as LinkIcon, Star, Video, ListChecks, ClipboardCheck, UserPlus, ChevronLeft, ChevronRight } from 'lucide-react'; // Import UserPlus icon
+import { LayoutDashboard, MessageSquare, Settings, FileText, Sun, Moon, Banknote, PlusCircle, Library, TrendingUp, Target, Users, LogOut, User as UserIcon, Calendar, Star, Video, ListChecks, ClipboardCheck, UserPlus, ChevronLeft, ChevronRight } from 'lucide-react'; // Import UserPlus icon
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 
@@ -57,7 +57,7 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
             <LayoutDashboard className="w-5 h-5" />
             {!isSidebarCollapsed && <span>Dashboard</span>}
           </NavLink>
-          <NavLink to="/gestor/crm" className={linkClass} onClick={toggleSidebar}> {/* ROTA ATUALIZADA */}
+          <NavLink to="/gestor/crm" className={linkClass} onClick={toggleSidebar}>
             <TrendingUp className="w-5 h-5" />
             {!isSidebarCollapsed && <span>CRM</span>}
           </NavLink>
@@ -77,10 +77,10 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
             <Library className="w-5 h-5" />
             {!isSidebarCollapsed && <span>Materiais de Apoio</span>}
           </NavLink>
-          <NavLink to="/gestor/links" className={linkClass} onClick={toggleSidebar}>
+          {/* <NavLink to="/gestor/links" className={linkClass} onClick={toggleSidebar}>
             <LinkIcon className="w-5 h-5" />
             {!isSidebarCollapsed && <span>Links Importantes</span>}
-          </NavLink>
+          </NavLink> */}
           <NavLink to="/profile" className={linkClass} onClick={toggleSidebar}>
             <UserIcon className="w-5 h-5" />
             {!isSidebarCollapsed && <span>Meu Perfil</span>}
@@ -97,7 +97,7 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
           </NavLink>
           <NavLink to="/gestor/daily-checklist-config" className={linkClass} onClick={toggleSidebar}>
             <ListChecks className="w-5 h-5" />
-            {!isSidebarCollapsed && <span>Config. Metas Diárias</span>} {/* AQUI ESTÁ A MUDANÇA */}
+            {!isSidebarCollapsed && <span>Config. Metas Diárias</span>}
           </NavLink>
           <NavLink to="/gestor/config-process" className={linkClass} onClick={toggleSidebar}>
             <Settings className="w-5 h-5" />

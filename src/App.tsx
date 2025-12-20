@@ -28,7 +28,7 @@ import { GoalsConfig } from '@/pages/GoalsConfig';
 import { InterviewConfig } from '@/pages/InterviewConfig';
 import { Commissions } from '@/pages/Commissions';
 import { Materials } from '@/pages/Materials';
-import { ImportantLinks } from '@/pages/ImportantLinks';
+// import { ImportantLinks } from '@/pages/ImportantLinks'; // REMOVIDO
 import { TeamConfig } from '@/pages/TeamConfig';
 import { CutoffConfig } from '@/pages/CutoffConfig';
 import { Feedbacks } from '@/pages/Feedbacks';
@@ -93,12 +93,19 @@ const RequireAuth: React.FC<{ allowedRoles: UserRole[] }> = ({ allowedRoles }) =
 
 const GestorLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false); // Adicionado estado para recolher/expandir
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
+  const toggleSidebarCollapse = () => setIsSidebarCollapsed(!isSidebarCollapsed); // Adicionado função para recolher/expandir
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-slate-900 flex font-sans text-gray-900 dark:text-gray-100 transition-colors duration-200">
-      <GestorSidebar isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar} />
-      <div className="flex-1 md:ml-64 flex flex-col">
+      <GestorSidebar 
+        isSidebarOpen={isSidebarOpen} 
+        toggleSidebar={toggleSidebar} 
+        isSidebarCollapsed={isSidebarCollapsed} 
+        toggleSidebarCollapse={toggleSidebarCollapse} 
+      />
+      <div className={`flex-1 flex flex-col transition-all duration-300 ${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-64'}`}> {/* Ajusta margem */}
         <Header isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar} />
         <main className="flex-1">
           <Outlet />
@@ -135,7 +142,7 @@ const AppRoutes = () => {
           <Route path="commissions" element={<Commissions />} />
           <Route path="feedbacks" element={<Feedbacks />} />
           <Route path="materials" element={<Materials />} />
-          <Route path="links" element={<ImportantLinks />} />
+          {/* <Route path="links" element={<ImportantLinks />} /> REMOVIDO */}
           <Route path="onboarding-admin" element={<OnlineOnboarding />} />
           <Route path="config-team" element={<TeamConfig />} />
           <Route path="config-templates" element={<TemplateConfig />} />
@@ -144,10 +151,8 @@ const AppRoutes = () => {
           <Route path="config-interview" element={<InterviewConfig />} />
           <Route path="config-cutoff" element={<CutoffConfig />} />
           <Route path="crm-config" element={<CrmConfigPage />} />
-          <Route path="crm" element={<CrmOverviewPage />} /> {/* NOVA ROTA */}
+          <Route path="crm" element={<CrmOverviewPage />} />
           <Route path="daily-checklist-config" element={<DailyChecklistConfig />} />
-          {/* <Route path="daily-checklist-monitoring" element={<DailyChecklistMonitoring />} /> REMOVIDO */}
-          {/* <Route path="checklist-assignment" element={<ChecklistAssignment />} /> REMOVIDO */}
           <Route path="*" element={<Navigate to="/gestor/dashboard" replace />} />
         </Route>
       </Route>
@@ -156,10 +161,10 @@ const AppRoutes = () => {
       <Route element={<RequireAuth allowedRoles={['CONSULTOR']} />}>
         <Route path="/consultor" element={<ConsultorLayout />}>
           <Route path="dashboard" element={<ConsultorDashboard />} />
-          <Route path="crm" element={<ConsultorCrmPage />} /> {/* RENOMEADO: Usar ConsultorCrmPage */}
+          <Route path="crm" element={<ConsultorCrmPage />} />
           <Route path="daily-checklist" element={<DailyChecklist />} />
-          <Route path="materials" element={<Materials />} /> {/* NOVA ROTA PARA CONSULTOR */}
-          <Route path="links" element={<ImportantLinks />} /> {/* NOVA ROTA PARA CONSULTOR */}
+          <Route path="materials" element={<Materials />} />
+          {/* <Route path="links" element={<ImportantLinks />} /> REMOVIDO */}
           <Route path="*" element={<Navigate to="/consultor/dashboard" replace />} />
         </Route>
       </Route>

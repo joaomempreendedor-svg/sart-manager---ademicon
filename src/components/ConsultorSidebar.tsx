@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, TrendingUp, LogOut, User as UserIcon, Sun, Moon, ListChecks, ChevronLeft, ChevronRight, Library, Link as LinkIcon } from 'lucide-react'; // Import ListChecks, Library e LinkIcon
+import { LayoutDashboard, TrendingUp, LogOut, User as UserIcon, Sun, Moon, ListChecks, ChevronLeft, ChevronRight, Library } from 'lucide-react'; // Import ListChecks, Library e LinkIcon
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 
@@ -67,10 +67,10 @@ export const ConsultorSidebar: React.FC<ConsultorSidebarProps> = ({ isSidebarOpe
             <Library className="w-5 h-5" />
             {!isSidebarCollapsed && <span>Materiais de Apoio</span>}
           </NavLink>
-          <NavLink to="/consultor/links" className={linkClass} onClick={toggleSidebar}>
+          {/* <NavLink to="/consultor/links" className={linkClass} onClick={toggleSidebar}>
             <LinkIcon className="w-5 h-5" />
             {!isSidebarCollapsed && <span>Links Importantes</span>}
-          </NavLink>
+          </NavLink> */}
           <NavLink to="/profile" className={linkClass} onClick={toggleSidebar}>
             <UserIcon className="w-5 h-5" />
             {!isSidebarCollapsed && <span>Meu Perfil</span>}
