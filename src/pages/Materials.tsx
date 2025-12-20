@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Upload, Search, FileText, Image as ImageIcon, Trash2, Download, Plus, Loader2, Link as LinkIcon, MessageSquare, Users, ToggleLeft, ToggleRight, CheckCircle2, XCircle } from 'lucide-react';
+import { Upload, Search, FileText, Image as ImageIcon, Trash2, Download, Plus, Loader2, Link as LinkIcon, MessageSquare, Users, ToggleLeft, ToggleRight, CheckCircle2, XCircle, BookOpen } from 'lucide-react'; // 'Library' substituído por 'BookOpen'
 import { SupportMaterialV2, SupportMaterialContentType } from '@/types';
 import { SupportMaterialAssignmentModal } from '@/components/SupportMaterialAssignmentModal'; // Importar o novo modal
 
@@ -327,7 +327,7 @@ export const Materials = () => {
 
       {Object.keys(groupedMaterials).length === 0 ? (
           <div className="text-center py-20 bg-white dark:bg-slate-800 rounded-xl border border-dashed border-gray-200 dark:border-slate-700">
-              <Library className="w-12 h-12 text-gray-300 dark:text-slate-600 mx-auto mb-3" />
+              <BookOpen className="w-12 h-12 text-gray-300 dark:text-slate-600 mx-auto mb-3" /> {/* 'Library' substituído por 'BookOpen' */}
               <p className="text-gray-500 dark:text-gray-400">Nenhum material encontrado.</p>
           </div>
       ) : (
