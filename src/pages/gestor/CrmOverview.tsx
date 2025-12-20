@@ -187,8 +187,8 @@ const CrmOverviewPage = () => {
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Visão Geral do CRM - {activePipeline.name}</h1>
           <p className="text-gray-500 dark:text-gray-400">Gerencie leads de todos os consultores e acompanhe o funil de vendas.</p>
         </div>
-        <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-4 w-full md:w-auto">
-          <div className="relative flex-1 w-full sm:w-64">
+        <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-2 w-full md:w-auto"> {/* Reduzido space-x-4 para space-x-2 */}
+          <div className="relative flex-1 w-full"> {/* Removido sm:w-64 */}
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <Search className="h-4 w-4 text-gray-400" />
             </div>
@@ -200,7 +200,7 @@ const CrmOverviewPage = () => {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <div className="w-full sm:w-48">
+          <div className="w-full sm:w-48 flex-shrink-0"> {/* Adicionado flex-shrink-0 */}
             <Select 
               value={selectedConsultantId || 'all'} 
               onValueChange={(value) => setSelectedConsultantId(value === 'all' ? null : value)}
@@ -220,7 +220,7 @@ const CrmOverviewPage = () => {
           </div>
           <button
             onClick={handleAddNewLead}
-            className="flex items-center justify-center space-x-2 bg-brand-600 hover:bg-brand-700 text-white py-2 px-4 rounded-lg transition font-medium w-full sm:w-auto"
+            className="flex items-center justify-center space-x-2 bg-brand-600 hover:bg-brand-700 text-white py-2 px-4 rounded-lg transition font-medium w-full sm:w-auto flex-shrink-0"
           >
             <Plus className="w-5 h-5" />
             <span>Novo Lead</span>
@@ -228,9 +228,9 @@ const CrmOverviewPage = () => {
         </div>
       </div>
 
-      <div className="flex overflow-x-auto pb-4 space-x-6 custom-scrollbar">
+      <div className="flex overflow-x-auto pb-4 space-x-4 custom-scrollbar"> {/* Reduzido space-x-6 para space-x-4 */}
         {pipelineStages.map(stage => (
-          <div key={stage.id} className="flex-shrink-0 w-72 bg-gray-100 dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700">
+          <div key={stage.id} className="flex-shrink-0 w-64 bg-gray-100 dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700"> {/* Reduzido w-72 para w-64 */}
             <div className="p-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
               <h3 className="font-semibold text-gray-900 dark:text-white flex items-center">
                 {stage.name.toLowerCase().includes('proposta') && <Send className="w-4 h-4 mr-2 text-purple-600 dark:text-purple-400" />}
