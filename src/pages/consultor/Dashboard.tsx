@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { TrendingUp, User, CheckCircle2, ListChecks, Target, CalendarDays, Loader2, Phone, Mail, Tag, Clock, AlertCircle, Plus, Calendar, DollarSign, Send, Users } from 'lucide-react';
+import { TrendingUp, User, CheckCircle2, ListChecks, Target, CalendarDays, Loader2, Phone, Mail, Tag, Clock, AlertCircle, Plus, Calendar, DollarSign, Send, Users, ListTodo } from 'lucide-react'; // Adicionado ListTodo
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { DailyChecklistItem, WeeklyTargetItem, MetricLog } from '@/types';
@@ -35,9 +35,10 @@ const ConsultorDashboard = () => {
     newLeadsThisMonth, 
     meetingsThisMonth, 
     proposalValueThisMonth, 
-    soldValueThisMonth, 
+    soldValueThisMonth,
+    pendingLeadTasks // NOVO: Tarefas pendentes
   } = useMemo(() => {
-    if (!user) return { totalLeads: 0, newLeadsThisMonth: 0, meetingsThisMonth: 0, proposalValueThisMonth: 0, soldValueThisMonth: 0 };
+    if (!user) return { totalLeads: 0, newLeadsThisMonth: 0, meetingsThisMonth: 0, proposalValueThisMonth: 0, soldValueThisMonth: 0, pendingLeadTasks: 0 };
 
     const consultantLeads = crmLeads.filter(lead => lead.consultant_id === user.id);
     const totalLeads = consultantLeads.length;
@@ -77,12 +78,24 @@ const ConsultorDashboard = () => {
       return sum;
     }, 0);
 
+    // NOVO: Tarefas Pendentes (Hoje/Atrasadas)
+    const pendingLeadTasks = leadTasks.filter(task => {
+      if (task.user_id !== user.id || task.is_completed) return false;
+      if (!task.due_date) return false; // Only tasks with a due date
+      
+      const taskDueDate = new Date(task.due_date + 'T00:00:00');
+      const todayDate = new Date(todayFormatted + 'T00:00:00');
+
+      return taskDueDate <= todayDate; // Due today or overdue
+    }).length;
+
     return { 
       totalLeads, 
       newLeadsThisMonth, 
       meetingsThisMonth, 
       proposalValueThisMonth, 
-      soldValueThisMonth, 
+      soldValueThisMonth,
+      pendingLeadTasks
     };
   }, [user, crmLeads, crmPipelines, crmStages, today, todayFormatted, leadTasks]);
 
@@ -175,7 +188,7 @@ const ConsultorDashboard = () => {
       <p className="text-gray-500 dark:text-gray-400 mb-8">Bem-vindo ao seu Dashboard. Aqui estão suas principais informações e atalhos.</p>
       
       {/* CRM Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8"> {/* Alterado para lg:grid-cols-3 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
           <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
             <TrendingUp className="w-6 h-6 text-blue-600 dark:text-blue-400" />
@@ -223,6 +236,17 @@ const ConsultorDashboard = () => {
           <div>
             <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Vendido Mês</p>
             <p className="text-2xl font-bold text-gray-900 dark:text-white">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(soldValueThisMonth || 0)}</p>
+          </div>
+        </div>
+
+        {/* NOVO CARD: Tarefas Pendentes */}
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
+          <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
+            <ListTodo className="w-6 h-6 text-red-600 dark:text-red-400" />
+          </div>
+          <div>
+            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Tarefas Pendentes</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{pendingLeadTasks}</p>
           </div>
         </div>
       </div>
