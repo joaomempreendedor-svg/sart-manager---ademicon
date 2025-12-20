@@ -176,7 +176,7 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
             <SelectTrigger className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600 focus:outline-none focus:ring-0 focus:ring-offset-0 focus:border-transparent">
               <SelectValue placeholder={`Selecione ${field.label}`} />
             </SelectTrigger>
-            <SelectContent className="dark:bg-slate-800 dark:text-white dark:border-slate-700">
+            <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white border-gray-200 dark:border-slate-700 shadow-lg z-50">
               {field.options?.map(option => (
                 <SelectItem key={option} value={option}>{option}</SelectItem>
               ))}
