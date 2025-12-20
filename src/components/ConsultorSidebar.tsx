@@ -59,10 +59,10 @@ export const ConsultorSidebar: React.FC<ConsultorSidebarProps> = ({ isSidebarOpe
             <TrendingUp className="w-5 h-5" />
             {!isSidebarCollapsed && <span>CRM</span>}
           </NavLink>
-          <NavLink to="/consultor/daily-checklist" className={linkClass} onClick={toggleSidebar}> {/* NEW LINK */}
+          {/* <NavLink to="/consultor/daily-checklist" className={linkClass} onClick={toggleSidebar}> 
             <ListChecks className="w-5 h-5" />
             {!isSidebarCollapsed && <span>Checklist do Dia</span>}
-          </NavLink>
+          </NavLink> */}
           <NavLink to="/profile" className={linkClass} onClick={toggleSidebar}>
             <UserIcon className="w-5 h-5" />
             {!isSidebarCollapsed && <span>Meu Perfil</span>}

@@ -4,6 +4,9 @@ import { TrendingUp, User, CheckCircle2, ListChecks, Target, CalendarDays, Loade
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { DailyChecklistItem, WeeklyTargetItem, MetricLog } from '@/types';
+import { TableSkeleton } from '@/components/TableSkeleton';
+import { ScheduleInterviewModal } from '@/components/ScheduleInterviewModal';
+import { DailyChecklistDisplay } from '@/components/consultor/DailyChecklistDisplay'; // Importar o novo componente
 
 const ConsultorDashboard = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -191,13 +194,19 @@ const ConsultorDashboard = () => {
       {/* Daily Checklist Progress */}
       <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm mb-8">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center"><ListChecks className="w-5 h-5 mr-2 text-brand-500" />Checklist Diário</h2>
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center"><ListChecks className="w-5 h-5 mr-2 text-brand-500" />Progresso do Checklist Diário</h2>
           <span className="text-sm font-semibold text-gray-500 dark:text-gray-400">{completedDailyTasks}/{totalDailyTasks} Concluídas</span>
         </div>
         <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2.5">
           <div className="bg-brand-500 h-2.5 rounded-full transition-all duration-500" style={{ width: `${dailyProgress}%` }}></div>
         </div>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">{dailyProgress}% do seu checklist de hoje está completo.</p>
+      </div>
+
+      {/* Daily Checklist Display - NOVO */}
+      <div className="mb-8">
+        <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center mb-4"><ListChecks className="w-5 h-5 mr-2 text-brand-500" />Checklist do Dia</h2>
+        <DailyChecklistDisplay user={user} isDataLoading={isDataLoading} />
       </div>
 
       {/* Weekly Goals */}
@@ -250,7 +259,8 @@ const ConsultorDashboard = () => {
             </div>
           </div>
         </Link>
-        <Link to="/consultor/daily-checklist" className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm hover:shadow-lg hover:border-blue-500 transition-all group">
+        {/* Removido o link direto para /consultor/daily-checklist */}
+        {/* <Link to="/consultor/daily-checklist" className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm hover:shadow-lg hover:border-blue-500 transition-all group">
           <div className="flex items-center space-x-4">
             <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
               <ListChecks className="w-6 h-6 text-blue-600 dark:text-blue-400" />
@@ -260,7 +270,7 @@ const ConsultorDashboard = () => {
               <p className="text-sm text-gray-500 dark:text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400">Ver minhas tarefas do dia</p>
             </div>
           </div>
-        </Link>
+        </Link> */}
         <Link to="/profile" className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm hover:shadow-lg hover:border-green-500 transition-all group">
           <div className="flex items-center space-x-4">
             <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
