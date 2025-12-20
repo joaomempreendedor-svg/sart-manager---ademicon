@@ -194,7 +194,7 @@ const ConsultorDashboard = () => {
       {/* Daily Checklist Progress */}
       <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm mb-8">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center"><ListChecks className="w-5 h-5 mr-2 text-brand-500" />Progresso do Checklist Diário</h2>
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center"><ListChecks className="w-5 h-5 mr-2 text-brand-500" />Progresso das Metas Diárias</h2>
           <span className="text-sm font-semibold text-gray-500 dark:text-gray-400">{completedDailyTasks}/{totalDailyTasks} Concluídas</span>
         </div>
         <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2.5">
@@ -205,7 +205,7 @@ const ConsultorDashboard = () => {
 
       {/* Daily Checklist Display - NOVO */}
       <div className="mb-8">
-        <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center mb-4"><ListChecks className="w-5 h-5 mr-2 text-brand-500" />Checklist do Dia</h2>
+        <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center mb-4"><ListChecks className="w-5 h-5 mr-2 text-brand-500" />Metas Diárias</h2>
         <DailyChecklistDisplay user={user} isDataLoading={isDataLoading} />
       </div>
 
