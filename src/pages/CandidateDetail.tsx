@@ -10,7 +10,10 @@ export const CandidateDetail = () => {
   const { getCandidate, toggleChecklistItem, toggleConsultantGoal, updateCandidate, deleteCandidate, setChecklistDueDate, templates, checklistStructure, consultantGoalsStructure, interviewStructure } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
+  
+  console.log("CandidateDetail: id from useParams", id); // Log para o ID
   const candidate = getCandidate(id || '');
+  console.log("CandidateDetail: fetched candidate", candidate); // Log para o objeto candidato
   
   const [activeTab, setActiveTab] = useState<'checklist' | 'goals' | 'interview'>(
     location.state?.openInterviewTab ? 'interview' : 'checklist'
@@ -30,40 +33,8 @@ export const CandidateDetail = () => {
     }
   }, [candidate]);
 
-  const handleScoreChange = (sectionId: string, value: number) => {
-    setScores(prev => ({ ...prev, [sectionId]: value }));
-  };
-
-  const handleQuestionToggle = (questionId: string, points: number, sectionId: string) => {
-    const isCurrentlyChecked = !!checkedQuestions[questionId];
-    setCheckedQuestions(prev => ({ ...prev, [questionId]: !isCurrentlyChecked }));
-    
-    const currentScore = scores[sectionId] as number || 0;
-    const maxScore = interviewStructure.find(s => s.id === sectionId)?.maxPoints || 0;
-    let newScore = currentScore + (isCurrentlyChecked ? -points : points);
-    if (newScore > maxScore) newScore = maxScore;
-    if (newScore < 0) newScore = 0;
-    
-    setScores(prev => ({ ...prev, [sectionId]: newScore }));
-  };
-
-  const handleSaveInterview = async () => {
-    if (!candidate) return;
-    setIsSaving(true);
-    try {
-      await updateCandidate(candidate.id, {
-        interviewScores: scores,
-        checkedQuestions: checkedQuestions,
-      });
-    } catch (error) {
-      console.error("Failed to save interview:", error);
-      alert("Erro ao salvar avaliação.");
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
   if (!candidate) {
+    console.log("CandidateDetail: Candidate not found, rendering fallback."); // Log para o fallback
     return <div className="p-8 text-gray-500 dark:text-gray-400">Candidato não encontrado.</div>;
   }
 
