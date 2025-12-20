@@ -460,7 +460,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setCrmPipelines(finalPipelines);
 
         setCrmStages(stagesData?.data || []);
-        setCrmFields(fieldsData?.data || []);
         setCrmLeads(crmLeadsData?.data?.map((lead: any) => ({
           id: lead.id,
           consultant_id: lead.consultant_id,
@@ -479,6 +478,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           soldQuota: lead.sold_quota,
           saleDate: lead.sale_date,
         })).sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()) || []);
+        setCrmFields(fieldsData?.data || []);
         setDailyChecklists(dailyChecklistsData?.data || []);
         setDailyChecklistItems(dailyChecklistItemsData?.data || []);
         setDailyChecklistAssignments(dailyChecklistAssignmentsData?.data || []);
@@ -1521,6 +1521,23 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, [user]);
 
+  // NOVO: Função para atualizar o status do convite de reunião
+  const updateLeadMeetingInvitationStatus = useCallback(async (taskId: string, status: 'pending' | 'accepted' | 'declined') => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    try {
+      const { error } = await supabase.from('lead_tasks').update({ manager_invitation_status: status }).eq('id', taskId).eq('manager_id', user.id);
+      if (error) {
+        console.error("Supabase error updating meeting invitation status:", error);
+        toast.error("Erro ao atualizar status do convite de reunião.");
+        throw new Error(error.message);
+      }
+      setLeadTasks(prev => prev.map(task => task.id === taskId ? { ...task, manager_invitation_status: status } : task));
+    } catch (error: any) {
+      console.error("Failed to update meeting invitation status:", error);
+      throw new Error(`Failed to update meeting invitation status: ${error.message || error}`);
+    }
+  }, [user]);
+
   useEffect(() => { if (!user) return; const syncPendingCommissions = async () => { const pending = JSON.parse(localStorage.getItem('pending_commissions') || '[]') as any[]; if (pending.length === 0) return; for (const item of pending) { try { const { _localId, _timestamp, _attempts, ...cleanData } = item; const { data, error } = await supabase.from('commissions').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: cleanData }).select('id', 'created_at').maybeSingle(); if (!error && data) { setCommissions(prev => prev.map(c => c.db_id === _localId ? { ...c, db_id: data.id.toString(), criado_em: data.created_at } : c)); const updated = pending.filter((p: any) => p._localId !== _localId); localStorage.setItem('pending_commissions', JSON.stringify(updated)); } } catch (error) { console.log(`❌ Falha ao sincronizar ${item._localId}`); toast.error(`Falha ao sincronizar comissão ${item._localId}.`); } } }; const interval = setInterval(syncPendingCommissions, 2 * 60 * 1000); setTimeout(syncPendingCommissions, 5000); return () => clearInterval(interval); }, [user]);
 
   return (
@@ -1549,7 +1566,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       supportMaterialsV2, supportMaterialAssignments,
       addSupportMaterialV2, updateSupportMaterialV2, deleteSupportMaterialV2,
       assignSupportMaterialToConsultant, unassignSupportMaterialFromConsultant,
-      leadTasks, addLeadTask, updateLeadTask, deleteLeadTask, toggleLeadTaskCompletion
+      leadTasks, addLeadTask, updateLeadTask, deleteLeadTask, toggleLeadTaskCompletion, updateLeadMeetingInvitationStatus
     }}>
       {children}
     </AppContext.Provider>
