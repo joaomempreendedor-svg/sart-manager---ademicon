@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, MessageSquare, Settings, FileText, Sun, Moon, Banknote, PlusCircle, Library, TrendingUp, Target, Users, LogOut, User as UserIcon, Calendar, Star, Video, ListChecks, ClipboardCheck, UserPlus, ChevronLeft, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, MessageSquare, Settings, FileText, Sun, Moon, Banknote, PlusCircle, Library, TrendingUp, Target, Users, LogOut, User as UserIcon, Calendar, Star, Video, ListChecks, ClipboardCheck, UserPlus, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react'; // Adicionado ChevronDown
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 
@@ -15,6 +15,11 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
   const { theme, toggleTheme } = useApp();
   const { user, logout } = useAuth();
 
+  // Estados para controlar o recolhimento de cada seção
+  const [isOverviewCollapsed, setIsOverviewCollapsed] = useState(false);
+  const [isConfigCollapsed, setIsConfigCollapsed] = useState(false);
+  const [isPersonalCollapsed, setIsPersonalCollapsed] = useState(false);
+
   const handleLogout = async () => {
     await logout();
   };
@@ -25,6 +30,8 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
         ? 'bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400 font-medium'
         : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800 hover:text-gray-900 dark:hover:text-gray-200'
     } ${isSidebarCollapsed ? 'justify-center space-x-0' : ''}`;
+
+  const sectionTitleClass = `flex items-center justify-between w-full px-4 py-3 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg transition-colors`;
 
   return (
     <>
@@ -53,87 +60,161 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
         </div>
         
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+          {/* Visão Geral e Operação */}
           {!isSidebarCollapsed && (
-            <div className="pt-2 pb-2">
-              <p className="px-4 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Visão Geral e Operação</p>
-            </div>
+            <button onClick={() => setIsOverviewCollapsed(!isOverviewCollapsed)} className={sectionTitleClass}>
+              <span>Visão Geral e Operação</span>
+              <ChevronDown className={`w-4 h-4 transition-transform ${isOverviewCollapsed ? 'rotate-0' : '-rotate-90'}`} />
+            </button>
           )}
-          <NavLink to="/gestor/dashboard" className={linkClass} onClick={toggleSidebar}>
-            <LayoutDashboard className="w-5 h-5" />
-            {!isSidebarCollapsed && <span>Dashboard</span>}
-          </NavLink>
-          <NavLink to="/gestor/crm" className={linkClass} onClick={toggleSidebar}>
-            <TrendingUp className="w-5 h-5" />
-            {!isSidebarCollapsed && <span>CRM</span>}
-          </NavLink>
-          <NavLink to="/gestor/onboarding-admin" className={linkClass} onClick={toggleSidebar}>
-            <Video className="w-5 h-5" />
-            {!isSidebarCollapsed && <span>Onboarding Online</span>}
-          </NavLink>
-          <NavLink to="/gestor/commissions" className={linkClass} onClick={toggleSidebar}>
-            <Banknote className="w-5 h-5" />
-            {!isSidebarCollapsed && <span>Comissões</span>}
-          </NavLink>
-          <NavLink to="/gestor/feedbacks" className={linkClass} onClick={toggleSidebar}>
-            <Star className="w-5 h-5" />
-            {!isSidebarCollapsed && <span>Feedbacks</span>}
-          </NavLink>
-          <NavLink to="/gestor/materials" className={linkClass} onClick={toggleSidebar}>
-            <Library className="w-5 h-5" />
-            {!isSidebarCollapsed && <span>Materiais de Apoio</span>}
-          </NavLink>
-          <NavLink to="/gestor/daily-checklist-monitoring" className={linkClass} onClick={toggleSidebar}>
-            <ClipboardCheck className="w-5 h-5" />
-            {!isSidebarCollapsed && <span>Monitorar Metas Diárias</span>}
-          </NavLink>
-          
-          {!isSidebarCollapsed && (
-            <div className="pt-4 pb-2">
-              <p className="px-4 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Configurações do Sistema</p>
-            </div>
+          {(!isSidebarCollapsed && !isOverviewCollapsed) && (
+            <>
+              <NavLink to="/gestor/dashboard" className={linkClass} onClick={toggleSidebar}>
+                <LayoutDashboard className="w-5 h-5" />
+                <span>Dashboard</span>
+              </NavLink>
+              <NavLink to="/gestor/crm" className={linkClass} onClick={toggleSidebar}>
+                <TrendingUp className="w-5 h-5" />
+                <span>CRM</span>
+              </NavLink>
+              <NavLink to="/gestor/onboarding-admin" className={linkClass} onClick={toggleSidebar}>
+                <Video className="w-5 h-5" />
+                <span>Onboarding Online</span>
+              </NavLink>
+              <NavLink to="/gestor/commissions" className={linkClass} onClick={toggleSidebar}>
+                <Banknote className="w-5 h-5" />
+                <span>Comissões</span>
+              </NavLink>
+              <NavLink to="/gestor/feedbacks" className={linkClass} onClick={toggleSidebar}>
+                <Star className="w-5 h-5" />
+                <span>Feedbacks</span>
+              </NavLink>
+              <NavLink to="/gestor/materials" className={linkClass} onClick={toggleSidebar}>
+                <Library className="w-5 h-5" />
+                <span>Materiais de Apoio</span>
+              </NavLink>
+              <NavLink to="/gestor/daily-checklist-monitoring" className={linkClass} onClick={toggleSidebar}>
+                <ClipboardCheck className="w-5 h-5" />
+                <span>Monitorar Metas Diárias</span>
+              </NavLink>
+            </>
           )}
-          <NavLink to="/gestor/config-team" className={linkClass} onClick={toggleSidebar}>
-            <Users className="w-5 h-5" />
-            {!isSidebarCollapsed && <span>Gestão de Equipe</span>}
-          </NavLink>
-          <NavLink to="/gestor/daily-checklist-config" className={linkClass} onClick={toggleSidebar}>
-            <ListChecks className="w-5 h-5" />
-            {!isSidebarCollapsed && <span>Config. Metas Diárias</span>}
-          </NavLink>
-          <NavLink to="/gestor/config-goals" className={linkClass} onClick={toggleSidebar}>
-            <Target className="w-5 h-5" />
-            {!isSidebarCollapsed && <span>Configurar Metas</span>}
-          </NavLink>
-          <NavLink to="/gestor/config-interview" className={linkClass} onClick={toggleSidebar}>
-            <FileText className="w-5 h-5" />
-            {!isSidebarCollapsed && <span>Configurar Entrevista</span>}
-          </NavLink>
-          <NavLink to="/gestor/config-templates" className={linkClass} onClick={toggleSidebar}>
-            <MessageSquare className="w-5 h-5" />
-            {!isSidebarCollapsed && <span>Configurar Mensagens</span>}
-          </NavLink>
-          <NavLink to="/gestor/config-cutoff" className={linkClass} onClick={toggleSidebar}>
-            <Calendar className="w-5 h-5" />
-            {!isSidebarCollapsed && <span>Períodos de Corte</span>}
-          </NavLink>
-          <NavLink to="/gestor/crm-config" className={linkClass} onClick={toggleSidebar}>
-            <PlusCircle className="w-5 h-5" />
-            {!isSidebarCollapsed && <span>Configurar CRM</span>}
-          </NavLink>
-          <NavLink to="/gestor/config-process" className={linkClass} onClick={toggleSidebar}>
-            <Settings className="w-5 h-5" />
-            {!isSidebarCollapsed && <span>Editar Processo (Antigo)</span>}
-          </NavLink>
+          {isSidebarCollapsed && ( // Ícones para a seção recolhida
+            <>
+              <NavLink to="/gestor/dashboard" className={linkClass} onClick={toggleSidebar} title="Dashboard">
+                <LayoutDashboard className="w-5 h-5" />
+              </NavLink>
+              <NavLink to="/gestor/crm" className={linkClass} onClick={toggleSidebar} title="CRM">
+                <TrendingUp className="w-5 h-5" />
+              </NavLink>
+              <NavLink to="/gestor/onboarding-admin" className={linkClass} onClick={toggleSidebar} title="Onboarding Online">
+                <Video className="w-5 h-5" />
+              </NavLink>
+              <NavLink to="/gestor/commissions" className={linkClass} onClick={toggleSidebar} title="Comissões">
+                <Banknote className="w-5 h-5" />
+              </NavLink>
+              <NavLink to="/gestor/feedbacks" className={linkClass} onClick={toggleSidebar} title="Feedbacks">
+                <Star className="w-5 h-5" />
+              </NavLink>
+              <NavLink to="/gestor/materials" className={linkClass} onClick={toggleSidebar} title="Materiais de Apoio">
+                <Library className="w-5 h-5" />
+              </NavLink>
+              <NavLink to="/gestor/daily-checklist-monitoring" className={linkClass} onClick={toggleSidebar} title="Monitorar Metas Diárias">
+                <ClipboardCheck className="w-5 h-5" />
+              </NavLink>
+            </>
+          )}
 
+          {/* Configurações do Sistema */}
           {!isSidebarCollapsed && (
-            <div className="pt-4 pb-2">
-              <p className="px-4 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Pessoal</p>
-            </div>
+            <button onClick={() => setIsConfigCollapsed(!isConfigCollapsed)} className={`${sectionTitleClass} mt-4`}>
+              <span>Configurações do Sistema</span>
+              <ChevronDown className={`w-4 h-4 transition-transform ${isConfigCollapsed ? 'rotate-0' : '-rotate-90'}`} />
+            </button>
           )}
-          <NavLink to="/profile" className={linkClass} onClick={toggleSidebar}>
-            <UserIcon className="w-5 h-5" />
-            {!isSidebarCollapsed && <span>Meu Perfil</span>}
-          </NavLink>
+          {(!isSidebarCollapsed && !isConfigCollapsed) && (
+            <>
+              <NavLink to="/gestor/config-team" className={linkClass} onClick={toggleSidebar}>
+                <Users className="w-5 h-5" />
+                <span>Gestão de Equipe</span>
+              </NavLink>
+              <NavLink to="/gestor/daily-checklist-config" className={linkClass} onClick={toggleSidebar}>
+                <ListChecks className="w-5 h-5" />
+                <span>Config. Metas Diárias</span>
+              </NavLink>
+              <NavLink to="/gestor/config-goals" className={linkClass} onClick={toggleSidebar}>
+                <Target className="w-5 h-5" />
+                <span>Configurar Metas</span>
+              </NavLink>
+              <NavLink to="/gestor/config-interview" className={linkClass} onClick={toggleSidebar}>
+                <FileText className="w-5 h-5" />
+                <span>Configurar Entrevista</span>
+              </NavLink>
+              <NavLink to="/gestor/config-templates" className={linkClass} onClick={toggleSidebar}>
+                <MessageSquare className="w-5 h-5" />
+                <span>Configurar Mensagens</span>
+              </NavLink>
+              <NavLink to="/gestor/config-cutoff" className={linkClass} onClick={toggleSidebar}>
+                <Calendar className="w-5 h-5" />
+                <span>Períodos de Corte</span>
+              </NavLink>
+              <NavLink to="/gestor/crm-config" className={linkClass} onClick={toggleSidebar}>
+                <PlusCircle className="w-5 h-5" />
+                <span>Configurar CRM</span>
+              </NavLink>
+              <NavLink to="/gestor/config-process" className={linkClass} onClick={toggleSidebar}>
+                <Settings className="w-5 h-5" />
+                <span>Editar Processo (Antigo)</span>
+              </NavLink>
+            </>
+          )}
+          {isSidebarCollapsed && ( // Ícones para a seção recolhida
+            <>
+              <NavLink to="/gestor/config-team" className={linkClass} onClick={toggleSidebar} title="Gestão de Equipe">
+                <Users className="w-5 h-5" />
+              </NavLink>
+              <NavLink to="/gestor/daily-checklist-config" className={linkClass} onClick={toggleSidebar} title="Config. Metas Diárias">
+                <ListChecks className="w-5 h-5" />
+              </NavLink>
+              <NavLink to="/gestor/config-goals" className={linkClass} onClick={toggleSidebar} title="Configurar Metas">
+                <Target className="w-5 h-5" />
+              </NavLink>
+              <NavLink to="/gestor/config-interview" className={linkClass} onClick={toggleSidebar} title="Configurar Entrevista">
+                <FileText className="w-5 h-5" />
+              </NavLink>
+              <NavLink to="/gestor/config-templates" className={linkClass} onClick={toggleSidebar} title="Configurar Mensagens">
+                <MessageSquare className="w-5 h-5" />
+              </NavLink>
+              <NavLink to="/gestor/config-cutoff" className={linkClass} onClick={toggleSidebar} title="Períodos de Corte">
+                <Calendar className="w-5 h-5" />
+              </NavLink>
+              <NavLink to="/gestor/crm-config" className={linkClass} onClick={toggleSidebar} title="Configurar CRM">
+                <PlusCircle className="w-5 h-5" />
+              </NavLink>
+              <NavLink to="/gestor/config-process" className={linkClass} onClick={toggleSidebar} title="Editar Processo (Antigo)">
+                <Settings className="w-5 h-5" />
+              </NavLink>
+            </>
+          )}
+
+          {/* Pessoal */}
+          {!isSidebarCollapsed && (
+            <button onClick={() => setIsPersonalCollapsed(!isPersonalCollapsed)} className={`${sectionTitleClass} mt-4`}>
+              <span>Pessoal</span>
+              <ChevronDown className={`w-4 h-4 transition-transform ${isPersonalCollapsed ? 'rotate-0' : '-rotate-90'}`} />
+            </button>
+          )}
+          {(!isSidebarCollapsed && !isPersonalCollapsed) && (
+            <NavLink to="/profile" className={linkClass} onClick={toggleSidebar}>
+              <UserIcon className="w-5 h-5" />
+              <span>Meu Perfil</span>
+            </NavLink>
+          )}
+          {isSidebarCollapsed && ( // Ícones para a seção recolhida
+            <NavLink to="/profile" className={linkClass} onClick={toggleSidebar} title="Meu Perfil">
+              <UserIcon className="w-5 h-5" />
+            </NavLink>
+          )}
         </nav>
 
         {/* Footer & Toggle */}
