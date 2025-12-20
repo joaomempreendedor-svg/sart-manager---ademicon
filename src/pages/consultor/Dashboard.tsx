@@ -175,7 +175,7 @@ const ConsultorDashboard = () => {
       <p className="text-gray-500 dark:text-gray-400 mb-8">Bem-vindo ao seu Dashboard. Aqui estão suas principais informações e atalhos.</p>
       
       {/* CRM Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8"> {/* Alterado para lg:grid-cols-3 */}
         <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
           <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
             <TrendingUp className="w-6 h-6 text-blue-600 dark:text-blue-400" />
@@ -196,7 +196,6 @@ const ConsultorDashboard = () => {
           </div>
         </div>
         
-        {/* NOVOS CARDS DE MÉTRICAS MENSAIS */}
         <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
           <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
             <Calendar className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
@@ -282,13 +281,6 @@ const ConsultorDashboard = () => {
           <p className="text-sm text-gray-400">Entre em contato com seu gestor para definir suas metas.</p>
         </div>
       )}
-
-      {/* Quick Access Cards */}
-      <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {/* Removido o link direto para /consultor/crm */}
-        {/* Removido o link direto para /consultor/daily-checklist */}
-        {/* Removido o link direto para /profile */}
-      </div>
     </div>
   );
 };
