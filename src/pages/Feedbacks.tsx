@@ -128,7 +128,7 @@ export const Feedbacks = () => {
           </div>
         </aside>
 
-        <main className="flex-1 overflow-y-auto p-8">
+        <main className="flex-1 overflow-y-auto p-8 custom-scrollbar">
           {selectedPerson ? (
             <div>
               <div className="flex justify-between items-center mb-6">
@@ -164,7 +164,7 @@ export const Feedbacks = () => {
                             )}
                           </div>
                           <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button onClick={() => handleScheduleOnCalendar(fb)} className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:text-blue-400 dark:hover:bg-blue-900/20 rounded-md" title="Agendar no Google Calendar">
+                            <button onClick={() => handleScheduleOnCalendar(fb)} className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md" title="Agendar no Google Calendar">
                               <CalendarPlus className="w-4 h-4" />
                             </button>
                             <button onClick={() => { setEditingFeedback(fb); setIsModalOpen(true); }} className={`p-2 rounded-md ${isScheduled ? 'text-yellow-600 hover:bg-yellow-100 dark:hover:bg-yellow-400 dark:hover:bg-yellow-900/20' : 'text-gray-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-400 dark:hover:bg-green-900/20'}`} title={isScheduled ? 'Adicionar Anotações' : 'Editar'}>

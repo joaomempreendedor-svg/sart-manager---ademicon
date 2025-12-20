@@ -64,7 +64,7 @@ export const MessageViewerModal: React.FC<MessageViewerModalProps> = ({ isOpen, 
             </button>
         </div>
         
-        <div className="p-6 space-y-6">
+        <div className="p-6 space-y-6 custom-scrollbar max-h-[70vh]">
             {/* Text Section */}
             {processedText && (
                 <div>

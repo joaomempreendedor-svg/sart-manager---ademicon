@@ -204,7 +204,7 @@ export const LeadTasksModal: React.FC<LeadTasksModalProps> = ({ isOpen, onClose,
           {/* Coluna de Lista de Tarefas */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Lista de Tarefas ({tasksForLead.length})</h3>
-            <ScrollArea className="h-[300px] pr-4">
+            <ScrollArea className="h-[300px] pr-4 custom-scrollbar">
               {tasksForLead.length === 0 ? (
                 <p className="text-center text-gray-500 dark:text-gray-400 py-4">Nenhuma tarefa para este lead.</p>
               ) : (

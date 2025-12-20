@@ -136,7 +136,7 @@ export const TemplateConfig = () => {
             </div>
         </aside>
 
-        <main className="flex-1 overflow-y-auto p-8">
+        <main className="flex-1 overflow-y-auto p-8 custom-scrollbar">
             {selectedData ? (
                 <div className="max-w-3xl mx-auto space-y-8 animate-fade-in">
                     <div>

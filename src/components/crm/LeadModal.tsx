@@ -213,7 +213,7 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
-          <ScrollArea className="max-h-[60vh] py-4 pr-4">
+          <ScrollArea className="max-h-[60vh] py-4 pr-4 custom-scrollbar">
             <div className="grid gap-4">
               {lead && (
                 <div className="grid gap-2">

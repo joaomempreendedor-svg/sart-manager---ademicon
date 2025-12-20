@@ -163,7 +163,7 @@ const AssignmentModal: React.FC<AssignmentModalProps> = ({ isOpen, onClose, chec
             Selecione os consultores que receberão este checklist. Se nenhum for selecionado, ele será global.
           </DialogDescription>
         </DialogHeader>
-        <ScrollArea className="h-[300px] py-4">
+        <ScrollArea className="h-[300px] py-4 custom-scrollbar">
           <div className="grid gap-3">
             {consultants.length === 0 ? (
               <p className="text-center text-gray-500 dark:text-gray-400">Nenhum consultor encontrado.</p>
@@ -250,7 +250,7 @@ const ChecklistItemModal: React.FC<ChecklistItemModalProps> = ({ isOpen, onClose
       return;
     }
 
-    let finalResource: DailyChecklistItemResource | undefined = undefined;
+    let finalResource: DailyChecklistItemResource | undefined = resource;
     
     // Determine the resource to be saved
     if (resourceType === 'text') {
@@ -319,7 +319,7 @@ const ChecklistItemModal: React.FC<ChecklistItemModalProps> = ({ isOpen, onClose
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
-          <ScrollArea className="h-[60vh] py-4 pr-4">
+          <ScrollArea className="h-[60vh] py-4 pr-4 custom-scrollbar">
             <div className="grid gap-4">
               <div className="flex items-center gap-4">
                 <Label htmlFor="itemText" className="w-24 flex-shrink-0">

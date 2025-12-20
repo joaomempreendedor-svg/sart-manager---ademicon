@@ -215,56 +215,58 @@ export const DailyChecklistMonitoring = () => {
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">{dailyProgress}% do checklist do dia está completo.</p>
           </div>
 
-          {assignedChecklists.map(checklist => {
-            const items = getItemsForChecklist(checklist.id);
-            const completedItemsCount = items.filter(item => getCompletionStatus(item.id)).length;
-            const checklistProgress = items.length > 0 ? Math.round((completedItemsCount / items.length) * 100) : 0;
+          <div className="overflow-y-auto max-h-[60vh] custom-scrollbar">
+            {assignedChecklists.map(checklist => {
+              const items = getItemsForChecklist(checklist.id);
+              const completedItemsCount = items.filter(item => getCompletionStatus(item.id)).length;
+              const checklistProgress = items.length > 0 ? Math.round((completedItemsCount / items.length) * 100) : 0;
 
-            return (
-              <div key={checklist.id} className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
-                <div className="bg-gray-50 dark:bg-slate-700/50 px-6 py-4 border-b border-gray-200 dark:border-slate-700">
-                  <div className="flex justify-between items-center mb-2">
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">{checklist.title}</h3>
-                    <span className="text-xs font-semibold text-gray-500 dark:text-gray-300 bg-gray-200 dark:bg-slate-600 px-2 py-1 rounded">{checklistProgress}% Concluído</span>
+              return (
+                <div key={checklist.id} className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden mb-4">
+                  <div className="bg-gray-50 dark:bg-slate-700/50 px-6 py-4 border-b border-gray-200 dark:border-slate-700">
+                    <div className="flex justify-between items-center mb-2">
+                      <h3 className="text-lg font-bold text-gray-900 dark:text-white">{checklist.title}</h3>
+                      <span className="text-xs font-semibold text-gray-500 dark:text-gray-300 bg-gray-200 dark:bg-slate-600 px-2 py-1 rounded">{checklistProgress}% Concluído</span>
+                    </div>
+                    <div className="w-full bg-gray-200 dark:bg-slate-600 rounded-full h-1.5">
+                      <div className="bg-brand-500 h-1.5 rounded-full transition-all duration-500" style={{ width: `${checklistProgress}%` }}></div>
+                    </div>
                   </div>
-                  <div className="w-full bg-gray-200 dark:bg-slate-600 rounded-full h-1.5">
-                    <div className="bg-brand-500 h-1.5 rounded-full transition-all duration-500" style={{ width: `${checklistProgress}%` }}></div>
-                  </div>
-                </div>
-                <div className="divide-y divide-gray-100 dark:divide-slate-700">
-                  {items.map(item => {
-                    const isCompleted = getCompletionStatus(item.id);
-                    return (
-                      <div key={item.id} className="p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-slate-700/30">
-                        <div className="flex items-center space-x-3">
-                          <Checkbox
-                            id={`item-${item.id}-${selectedConsultantId}`}
-                            checked={isCompleted}
-                            onCheckedChange={() => handleToggleCompletion(item.id, isCompleted)}
-                            className="dark:border-slate-600 data-[state=checked]:bg-brand-600 data-[state=checked]:text-white"
-                          />
-                          <Label htmlFor={`item-${item.id}-${selectedConsultantId}`} className={`text-sm font-medium leading-none ${isCompleted ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-700 dark:text-gray-200'}`}>
-                            {item.text}
-                          </Label>
+                  <div className="divide-y divide-gray-100 dark:divide-slate-700">
+                    {items.map(item => {
+                      const isCompleted = getCompletionStatus(item.id);
+                      return (
+                        <div key={item.id} className="p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-slate-700/30">
+                          <div className="flex items-center space-x-3">
+                            <Checkbox
+                              id={`item-${item.id}-${selectedConsultantId}`}
+                              checked={isCompleted}
+                              onCheckedChange={() => handleToggleCompletion(item.id, isCompleted)}
+                              className="dark:border-slate-600 data-[state=checked]:bg-brand-600 data-[state=checked]:text-white"
+                            />
+                            <Label htmlFor={`item-${item.id}-${selectedConsultantId}`} className={`text-sm font-medium leading-none ${isCompleted ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-700 dark:text-gray-200'}`}>
+                              {item.text}
+                            </Label>
+                          </div>
+                          {item.resource && (
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => handleOpenResourceModal(item)}
+                              className="flex items-center space-x-1 px-2 py-1 rounded-md text-xs bg-brand-50 dark:bg-brand-900/20 text-brand-700 dark:text-brand-300 hover:bg-brand-100 dark:hover:bg-brand-900/30 transition border-brand-200 dark:border-brand-800"
+                            >
+                              <Eye className="w-3 h-3 mr-1" />
+                              <span>Como fazer?</span>
+                            </Button>
+                          )}
                         </div>
-                        {item.resource && (
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => handleOpenResourceModal(item)}
-                            className="flex items-center space-x-1 px-2 py-1 rounded-md text-xs bg-brand-50 dark:bg-brand-900/20 text-brand-700 dark:text-brand-300 hover:bg-brand-100 dark:hover:bg-brand-900/30 transition border-brand-200 dark:border-brand-800"
-                          >
-                            <Eye className="w-3 h-3 mr-1" />
-                            <span>Como fazer?</span>
-                          </Button>
-                        )}
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       )}
       {selectedResourceItem && (

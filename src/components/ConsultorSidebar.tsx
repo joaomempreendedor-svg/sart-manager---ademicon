@@ -50,7 +50,7 @@ export const ConsultorSidebar: React.FC<ConsultorSidebarProps> = ({ isSidebarOpe
           </div>
         </div>
         
-        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto custom-scrollbar">
           <NavLink to="/consultor/dashboard" className={linkClass} onClick={toggleSidebar}>
             <LayoutDashboard className="w-5 h-5" />
             {!isSidebarCollapsed && <span>Dashboard</span>}

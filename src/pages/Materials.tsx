@@ -371,7 +371,7 @@ export const Materials = () => {
               <p className="text-gray-500 dark:text-gray-400">Nenhum material encontrado.</p>
           </div>
       ) : (
-          <div className="space-y-8">
+          <div className="space-y-8 custom-scrollbar">
               {Object.entries(groupedMaterials).map(([category, materials]: [string, SupportMaterialV2[]]) => (
                   <div key={category}>
                       <h2 className="text-lg font-bold text-gray-800 dark:text-gray-200 mb-4 px-1 border-l-4 border-brand-500 pl-3">

@@ -156,7 +156,7 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
         </DialogHeader>
         
         <form onSubmit={handleScheduleMeeting}>
-          <ScrollArea className="max-h-[60vh] py-4 pr-4">
+          <ScrollArea className="max-h-[60vh] py-4 pr-4 custom-scrollbar">
             <div className="grid gap-4">
               <div>
                 <Label htmlFor="title">Título da Reunião</Label>
