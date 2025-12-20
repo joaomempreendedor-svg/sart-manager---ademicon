@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { CalendarDays, ChevronLeft, ChevronRight, ListChecks, Loader2 } from 'lucide-react';
 import { User } from '@/types'; // Importar o tipo User
+import { ConfettiAnimation } from '@/components/ConfettiAnimation'; // Importar o novo componente de animação
 
 const formatDate = (date: Date) => date.toISOString().split('T')[0]; // YYYY-MM-DD
 const displayDate = (date: Date) => date.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
@@ -24,6 +25,8 @@ export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ us
     toggleDailyChecklistCompletion,
   } = useApp();
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [showConfetti, setShowConfetti] = useState(false); // Novo estado para controlar o confete
+  const prevDailyProgressRef = useRef(0); // Ref para armazenar o progresso anterior
 
   const formattedSelectedDate = useMemo(() => formatDate(selectedDate), [selectedDate]);
 
@@ -96,6 +99,45 @@ export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ us
     });
   };
 
+  // Calcular o progresso diário para o confete
+  const { completedDailyTasks, totalDailyTasks, dailyProgress } = useMemo(() => {
+    if (!user || !userTeamMember) return { completedDailyTasks: 0, totalDailyTasks: 0, dailyProgress: 0 };
+
+    const relevantItems: DailyChecklistItem[] = assignedChecklists.flatMap(checklist => 
+      dailyChecklistItems.filter(item => item.daily_checklist_id === checklist.id && item.is_active)
+    );
+
+    const total = relevantItems.length;
+    const completed = relevantItems.filter(item => 
+      dailyChecklistCompletions.some(
+        completion =>
+          completion.daily_checklist_item_id === item.id &&
+          completion.consultant_id === userTeamMember.id &&
+          completion.date === formattedSelectedDate &&
+          completion.done
+      )
+    ).length;
+
+    return {
+      completedDailyTasks: completed,
+      totalDailyTasks: total,
+      dailyProgress: total > 0 ? Math.round((completed / total) * 100) : 0,
+    };
+  }, [user, userTeamMember, assignedChecklists, dailyChecklistItems, dailyChecklistCompletions, formattedSelectedDate]);
+
+  // Efeito para disparar o confete
+  useEffect(() => {
+    if (dailyProgress === 100 && prevDailyProgressRef.current !== 100) {
+      setShowConfetti(true);
+    }
+    prevDailyProgressRef.current = dailyProgress;
+  }, [dailyProgress]);
+
+  // Função para resetar o confete após a animação
+  const handleConfettiComplete = useCallback(() => {
+    setShowConfetti(false);
+  }, []);
+
   if (isDataLoading) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -106,6 +148,7 @@ export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ us
 
   return (
     <div className="space-y-6">
+      {showConfetti && <ConfettiAnimation run={showConfetti} onConfettiComplete={handleConfettiComplete} />} {/* Renderiza o confete */}
       <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center justify-between">
         <button onClick={() => navigateDay(-1)} className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-600 dark:text-gray-300">
           <ChevronLeft className="w-5 h-5" />
