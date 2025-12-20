@@ -73,7 +73,8 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({ 
 
   const handleGoToCandidate = () => {
     if (savedCandidate) {
-      navigate(`/candidate/${savedCandidate.id}`, { state: { openInterviewTab: true } });
+      // CORREÇÃO: Adicionar o prefixo '/gestor' à rota
+      navigate(`/gestor/candidate/${savedCandidate.id}`, { state: { openInterviewTab: true } });
       handleClose();
     }
   };
