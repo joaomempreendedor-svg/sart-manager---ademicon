@@ -1106,7 +1106,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     
     let finalResource: DailyChecklistItemResource | undefined = resource;
 
-    if (file && (resource?.type === 'image' || resource?.type === 'pdf')) {
+    if (file && (resource?.type === 'image' || resource?.type === 'pdf' || resource?.type === 'video')) { // Added video to file types for upload
       const sanitizedFileName = file.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w\s.-]/g, '').replace(/\s+/g, '_');
       const filePath = `daily_checklist_resources/${crypto.randomUUID()}-${sanitizedFileName}`;
       
@@ -1114,16 +1114,28 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         cacheControl: '3600',
         upsert: false
       });
-      if (uploadError) { console.error(uploadError); toast.error("Erro ao fazer upload do arquivo para o item do checklist."); throw uploadError; }
+      if (uploadError) { 
+        console.error("Supabase Storage Upload Error:", uploadError); // Detailed log
+        toast.error("Erro ao fazer upload do arquivo para o item do checklist."); 
+        throw uploadError; 
+      }
 
       const { data: urlData } = supabase.storage.from('support_materials').getPublicUrl(filePath);
-      if (!urlData) { toast.error("Não foi possível obter a URL pública do arquivo."); throw new Error("Não foi possível obter a URL pública do arquivo."); }
+      if (!urlData) { 
+        console.error("Supabase Public URL Error: No URL data returned."); // Detailed log
+        toast.error("Não foi possível obter a URL pública do arquivo."); 
+        throw new Error("Não foi possível obter a URL pública do arquivo."); 
+      }
       
       finalResource = { ...resource, content: urlData.publicUrl, name: file.name };
     }
 
     const { data, error } = await supabase.from('daily_checklist_items').insert({ daily_checklist_id: checklistId, text, order_index, is_active: true, resource: finalResource }).select().single();
-    if (error) { console.error(error); toast.error("Erro ao adicionar item ao checklist."); throw error; }
+    if (error) { 
+      console.error("Supabase DB Insert Error (daily_checklist_items):", error); // Detailed log
+      toast.error("Erro ao adicionar item ao checklist."); 
+      throw error; 
+    }
     setDailyChecklistItems(prev => [...prev, data].sort((a, b) => a.order_index - b.order_index));
     return data;
   }, [user]);
@@ -1137,12 +1149,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     let finalResource: DailyChecklistItemResource | undefined = updates.resource !== undefined ? updates.resource : currentItem.resource;
 
     // Handle file upload if a new file is provided and resource type is file-based
-    if (file && (finalResource?.type === 'image' || finalResource?.type === 'pdf')) {
+    if (file && (finalResource?.type === 'image' || finalResource?.type === 'pdf' || finalResource?.type === 'video')) { // Added video to file types for upload
       // If there was an old file, delete it first
-      if (currentItem.resource && (currentItem.resource.type === 'image' || currentItem.resource.type === 'pdf') && currentItem.resource.content) {
+      if (currentItem.resource && (currentItem.resource.type === 'image' || currentItem.resource.type === 'pdf' || currentItem.resource.type === 'video') && currentItem.resource.content) {
         const oldFilePath = currentItem.resource.content.split('/support_materials/')[1];
         if (oldFilePath) {
-          await supabase.storage.from('support_materials').remove([oldFilePath]);
+          const { error: storageDeleteError } = await supabase.storage.from('support_materials').remove([oldFilePath]);
+          if (storageDeleteError) console.error("Supabase Storage Delete Error (old file):", storageDeleteError.message); // Detailed log
         }
       }
 
@@ -1153,24 +1166,37 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         cacheControl: '3600',
         upsert: false
       });
-      if (uploadError) { console.error(uploadError); toast.error("Erro ao fazer upload do novo arquivo para o item do checklist."); throw uploadError; }
+      if (uploadError) { 
+        console.error("Supabase Storage Upload Error (update):", uploadError); // Detailed log
+        toast.error("Erro ao fazer upload do novo arquivo para o item do checklist."); 
+        throw uploadError; 
+      }
 
       const { data: urlData } = supabase.storage.from('support_materials').getPublicUrl(filePath);
-      if (!urlData) { toast.error("Não foi possível obter a URL pública do novo arquivo."); throw new Error("Não foi possível obter a URL pública do novo arquivo."); }
+      if (!urlData) { 
+        console.error("Supabase Public URL Error (update): No URL data returned."); // Detailed log
+        toast.error("Não foi possível obter a URL pública do novo arquivo."); 
+        throw new Error("Não foi possível obter a URL pública do novo arquivo."); 
+      }
       
       finalResource = { ...finalResource, content: urlData.publicUrl, name: file.name };
     } else if (updates.resource === null) { // Explicitly setting resource to null/undefined
-      if (currentItem.resource && (currentItem.resource.type === 'image' || currentItem.resource.type === 'pdf') && currentItem.resource.content) {
+      if (currentItem.resource && (currentItem.resource.type === 'image' || currentItem.resource.type === 'pdf' || currentItem.resource.type === 'video') && currentItem.resource.content) {
         const oldFilePath = currentItem.resource.content.split('/support_materials/')[1];
         if (oldFilePath) {
-          await supabase.storage.from('support_materials').remove([oldFilePath]);
+          const { error: storageDeleteError } = await supabase.storage.from('support_materials').remove([oldFilePath]);
+          if (storageDeleteError) console.error("Supabase Storage Delete Error (resource removed):", storageDeleteError.message); // Detailed log
         }
       }
       finalResource = undefined;
     }
 
     const { error } = await supabase.from('daily_checklist_items').update({ ...updates, resource: finalResource }).eq('id', id);
-    if (error) { console.error(error); toast.error("Erro ao atualizar item do checklist."); throw error; }
+    if (error) { 
+      console.error("Supabase DB Update Error (daily_checklist_items):", error); // Detailed log
+      toast.error("Erro ao atualizar item do checklist."); 
+      throw error; 
+    }
     setDailyChecklistItems(prev => prev.map(item => item.id === id ? { ...item, ...updates, resource: finalResource } : item).sort((a, b) => a.order_index - b.order_index));
   }, [user, dailyChecklistItems]);
 
@@ -1181,16 +1207,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!itemToDelete) throw new Error("Item do checklist não encontrado.");
 
     // If the item has a file resource, delete it from storage
-    if (itemToDelete.resource && (itemToDelete.resource.type === 'image' || itemToDelete.resource.type === 'pdf') && itemToDelete.resource.content) {
+    if (itemToDelete.resource && (itemToDelete.resource.type === 'image' || itemToDelete.resource.type === 'pdf' || itemToDelete.resource.type === 'video') && itemToDelete.resource.content) {
       const filePath = itemToDelete.resource.content.split('/support_materials/')[1];
       if (filePath) {
         const { error: storageError } = await supabase.storage.from('support_materials').remove([filePath]);
-        if (storageError) console.error("Erro ao deletar arquivo do storage (pode já ter sido removido):", storageError.message);
+        if (storageError) console.error("Supabase Storage Delete Error (delete item):", storageError.message); // Detailed log
       }
     }
 
     const { error } = await supabase.from('daily_checklist_items').delete().eq('id', id);
-    if (error) { console.error(error); toast.error("Erro ao excluir item do checklist."); throw error; }
+    if (error) { 
+      console.error("Supabase DB Delete Error (daily_checklist_items):", error); // Detailed log
+      toast.error("Erro ao excluir item do checklist."); 
+      throw error; 
+    }
     setDailyChecklistItems(prev => prev.filter(item => item.id !== id));
     setDailyChecklistCompletions(prev => prev.filter(comp => comp.daily_checklist_item_id !== id));
   }, [user, dailyChecklistItems]);
