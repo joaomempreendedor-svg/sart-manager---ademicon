@@ -126,31 +126,40 @@ export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ us
           <p className="text-sm text-gray-400">Entre em contato com seu gestor para mais informações.</p>
         </div>
       ) : (
-        assignedChecklists.map(checklist => (
-          <div key={checklist.id} className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
-            <div className="bg-gray-50 dark:bg-slate-700/50 px-6 py-4 border-b border-gray-200 dark:border-slate-700">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white">{checklist.title}</h3>
-            </div>
-            <div className="divide-y divide-gray-100 dark:divide-slate-700">
-              {getItemsForChecklist(checklist.id).map(item => {
-                const isCompleted = getCompletionStatus(item.id);
-                return (
-                  <div key={item.id} className="p-4 flex items-center space-x-3 hover:bg-gray-50 dark:hover:bg-slate-700/30">
-                    <Checkbox
-                      id={`item-${item.id}`}
-                      checked={isCompleted}
-                      onCheckedChange={() => handleToggleCompletion(item.id, isCompleted)}
-                      className="dark:border-slate-600 data-[state=checked]:bg-brand-600 data-[state=checked]:text-white"
-                    />
-                    <Label htmlFor={`item-${item.id}`} className={`text-sm font-medium leading-none ${isCompleted ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-700 dark:text-gray-200'}`}>
-                      {item.text}
-                    </Label>
+        assignedChecklists.map(checklist => {
+          const items = getItemsForChecklist(checklist.id);
+          return (
+            <div key={checklist.id} className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
+              <div className="bg-gray-50 dark:bg-slate-700/50 px-6 py-4 border-b border-gray-200 dark:border-slate-700">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white">{checklist.title}</h3>
+              </div>
+              <div className="divide-y divide-gray-100 dark:divide-slate-700">
+                {items.length === 0 ? (
+                  <div className="p-4 text-center text-gray-400 dark:text-gray-500">
+                    Nenhum item ativo neste checklist.
                   </div>
-                );
-              })}
+                ) : (
+                  items.map(item => {
+                    const isCompleted = getCompletionStatus(item.id);
+                    return (
+                      <div key={item.id} className="p-4 flex items-center space-x-3 hover:bg-gray-50 dark:hover:bg-slate-700/30">
+                        <Checkbox
+                          id={`item-${item.id}`}
+                          checked={isCompleted}
+                          onCheckedChange={() => handleToggleCompletion(item.id, isCompleted)}
+                          className="dark:border-slate-600 data-[state=checked]:bg-brand-600 data-[state=checked]:text-white"
+                        />
+                        <Label htmlFor={`item-${item.id}`} className={`text-sm font-medium leading-none ${isCompleted ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-700 dark:text-gray-200'}`}>
+                          {item.text}
+                        </Label>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
             </div>
-          </div>
-        ))
+          );
+        })
       )}
     </div>
   );
