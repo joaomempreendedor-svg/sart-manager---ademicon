@@ -16,6 +16,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { DailyChecklistItemResourceModal } from '@/components/DailyChecklistItemResourceModal'; // Importar o novo modal
+import toast from 'react-hot-toast'; // Importar toast
 
 // Componente para o modal de criação/edição de Checklist
 interface ChecklistModalProps {
@@ -38,7 +39,7 @@ const ChecklistModal: React.FC<ChecklistModalProps> = ({ isOpen, onClose, checkl
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) {
-      alert("O título do checklist é obrigatório.");
+      toast.error("O título do checklist é obrigatório.");
       return;
     }
     
@@ -46,15 +47,15 @@ const ChecklistModal: React.FC<ChecklistModalProps> = ({ isOpen, onClose, checkl
     try {
       if (checklist) {
         await updateDailyChecklist(checklist.id, { title });
-        alert(`✅ Checklist "${title}" atualizado com sucesso!`);
+        toast.success(`✅ Checklist "${title}" atualizado com sucesso!`);
       } else {
         await addDailyChecklist(title);
-        alert(`✅ Checklist "${title}" criado com sucesso!\n\nEle estará disponível para TODOS os consultores.`);
+        toast.success(`✅ Checklist "${title}" criado com sucesso!\n\nEle estará disponível para TODOS os consultores.`);
       }
       onClose();
     } catch (error: any) {
       console.error("Failed to save checklist:", error);
-      alert(`Erro: ${error.message || 'Não foi possível salvar o checklist.'}`);
+      toast.error(`Erro: ${error.message || 'Não foi possível salvar o checklist.'}`);
     } finally {
       setIsSaving(false);
     }
@@ -206,7 +207,7 @@ interface ChecklistItemModalProps {
 }
 
 const ChecklistItemModal: React.FC<ChecklistItemModalProps> = ({ isOpen, onClose, checklistId, item }) => {
-  const { addDailyChecklistItem, updateDailyChecklistItem } = useApp();
+  const { addDailyChecklistItem, updateDailyChecklistItem, dailyChecklistItems } = useApp();
   const [text, setText] = useState(item?.text || '');
   const [resourceType, setResourceType] = useState<DailyChecklistItemResourceType>(item?.resource?.type || 'text');
   const [resourceContent, setResourceContent] = useState(item?.resource?.content || '');
@@ -231,10 +232,12 @@ const ChecklistItemModal: React.FC<ChecklistItemModalProps> = ({ isOpen, onClose
     if (file) {
       setSelectedFile(file);
       setResourceName(file.name);
-      setResourceContent(''); // Clear content if a file is selected
+      setResourceContent(''); // Clear content, as AppContext will handle URL from upload
     } else {
       setSelectedFile(null);
-      setResourceName('');
+      // Revert to original name and content if no new file is selected (e.g., user cancels file dialog)
+      setResourceName(item?.resource?.name || ''); 
+      setResourceContent(item?.resource?.content || '');
     }
   };
 
@@ -248,25 +251,30 @@ const ChecklistItemModal: React.FC<ChecklistItemModalProps> = ({ isOpen, onClose
     }
 
     let finalResource: DailyChecklistItemResource | undefined = undefined;
-    if (resourceType !== 'text' || resourceContent.trim() || selectedFile) {
-      if (resourceType === 'link' || resourceType === 'video') {
-        if (!resourceContent.trim()) {
-          setError(`A URL para ${resourceType === 'link' ? 'o link' : 'o vídeo'} é obrigatória.`);
-          return;
-        }
-        finalResource = { type: resourceType, content: resourceContent.trim(), name: resourceName.trim() || undefined };
-      } else if (resourceType === 'image' || resourceType === 'pdf') {
-        if (!selectedFile && !item?.resource?.content) { // If no new file and no existing file
-          setError(`Um arquivo (${resourceType}) é obrigatório.`);
-          return;
-        }
-        finalResource = { type: resourceType, content: item?.resource?.content || '', name: resourceName.trim() || undefined };
-      } else if (resourceType === 'text') {
-        if (!resourceContent.trim()) {
-          setError("O conteúdo do texto é obrigatório.");
-          return;
-        }
-        finalResource = { type: resourceType, content: resourceContent.trim(), name: resourceName.trim() || undefined };
+    
+    // Determine the resource to be saved
+    if (resourceType === 'text') {
+      if (!resourceContent.trim()) {
+        setError("O conteúdo do texto é obrigatório.");
+        return;
+      }
+      finalResource = { type: 'text', content: resourceContent.trim(), name: resourceName.trim() || undefined };
+    } else if (resourceType === 'link' || resourceType === 'video') {
+      if (!resourceContent.trim()) {
+        setError(`A URL para ${resourceType === 'link' ? 'o link' : 'o vídeo'} é obrigatória.`);
+        return;
+      }
+      finalResource = { type: resourceType, content: resourceContent.trim(), name: resourceName.trim() || undefined };
+    } else if (resourceType === 'image' || resourceType === 'pdf') {
+      if (selectedFile) {
+        // File will be uploaded, content will be set by AppContext
+        finalResource = { type: resourceType, content: '', name: selectedFile.name }; // Content will be filled by AppContext
+      } else if (item?.resource?.type === resourceType && item.resource.content) {
+        // No new file selected, but existing item has a resource of the same type, keep its content
+        finalResource = { type: resourceType, content: item.resource.content, name: item.resource.name || undefined };
+      } else {
+        setError(`Um arquivo (${resourceType}) é obrigatório.`);
+        return;
       }
     }
 
