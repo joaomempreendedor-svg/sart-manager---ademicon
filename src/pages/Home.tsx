@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { Loader2 } from 'lucide-react';
@@ -14,6 +14,8 @@ export const Home = () => {
     );
   }
 
+  // O redirecionamento para /login se !user é tratado pelo RequireAuth
+  // Este componente só será renderizado se o usuário estiver autenticado.
   if (user?.role === 'GESTOR' || user?.role === 'ADMIN') {
     return <Navigate to="/gestor/dashboard" replace />;
   }
@@ -22,5 +24,6 @@ export const Home = () => {
     return <Navigate to="/consultor/dashboard" replace />;
   }
 
+  // Fallback, embora o RequireAuth já devesse ter redirecionado
   return <Navigate to="/login" replace />;
 };

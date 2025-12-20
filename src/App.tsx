@@ -38,11 +38,6 @@ import CrmOverviewPage from '@/pages/gestor/CrmOverview'; // Importar a nova pá
 import { DailyChecklistConfig } from '@/pages/gestor/DailyChecklistConfig';
 import { DailyChecklistMonitoring } from '@/pages/gestor/DailyChecklistMonitoring'; // NOVO: Importar o componente
 
-// Consultor Pages
-import ConsultorDashboard from '@/pages/consultor/Dashboard';
-import ConsultorCrmPage from '@/pages/consultor/Crm'; // RENOMEADO: Importar ConsultorCrmPage
-import { DailyChecklist } from '@/pages/consultor/DailyChecklist';
-
 const AppLoader = () => (
   <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-slate-900">
     <Loader2 className="w-12 h-12 text-brand-500 animate-spin" />
@@ -52,6 +47,7 @@ const AppLoader = () => (
 const RequireAuth: React.FC<{ allowedRoles: UserRole[] }> = ({ allowedRoles }) => {
   const { user, isLoading: isAuthLoading } = useAuth();
   const { isDataLoading } = useApp();
+  const location = useLocation();
 
   // Adicionando logs para depuração
   useEffect(() => {
@@ -84,7 +80,15 @@ const RequireAuth: React.FC<{ allowedRoles: UserRole[] }> = ({ allowedRoles }) =
   }
 
   if (!allowedRoles.includes(user.role)) {
-    return <Navigate to="/" replace />;
+    // Se o usuário está logado mas não tem a role permitida para a rota atual,
+    // redireciona para a rota base da sua role (ou para o login se não tiver role válida)
+    if (user.role === 'GESTOR' || user.role === 'ADMIN') {
+      return <Navigate to="/gestor/dashboard" replace />;
+    }
+    if (user.role === 'CONSULTOR') {
+      return <Navigate to="/consultor/dashboard" replace />;
+    }
+    return <Navigate to="/login" replace />; // Fallback
   }
 
   return <Outlet />;
@@ -130,11 +134,11 @@ const AppRoutes = () => {
       <Route path="/onboarding/:sessionId" element={<PublicOnboarding />} />
       <Route path="/pending-approval" element={<PendingApproval />} />
       
-      {/* Authenticated Routes */}
-      <Route path="/" element={<Home />} />
+      {/* Authenticated Routes - ALL authenticated routes should be nested under RequireAuth */}
+      <Route element={<RequireAuth allowedRoles={['GESTOR', 'ADMIN', 'CONSULTOR']} />}>
+        <Route path="/" element={<Home />} /> {/* Agora Home é protegido */}
 
-      {/* Gestor Routes */}
-      <Route element={<RequireAuth allowedRoles={['GESTOR', 'ADMIN']} />}>
+        {/* Gestor Routes */}
         <Route path="/gestor" element={<GestorLayout />}>
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="candidate/:id" element={<CandidateDetail />} />
@@ -155,10 +159,8 @@ const AppRoutes = () => {
           <Route path="daily-checklist-monitoring" element={<DailyChecklistMonitoring />} /> {/* NOVO: Rota para monitoramento */}
           <Route path="*" element={<Navigate to="/gestor/dashboard" replace />} />
         </Route>
-      </Route>
 
-      {/* Consultor Routes */}
-      <Route element={<RequireAuth allowedRoles={['CONSULTOR']} />}>
+        {/* Consultor Routes */}
         <Route path="/consultor" element={<ConsultorLayout />}>
           <Route path="dashboard" element={<ConsultorDashboard />} />
           <Route path="crm" element={<ConsultorCrmPage />} />
@@ -167,13 +169,11 @@ const AppRoutes = () => {
           {/* <Route path="links" element={<ImportantLinks />} /> REMOVIDO */}
           <Route path="*" element={<Navigate to="/consultor/dashboard" replace />} />
         </Route>
-      </Route>
-      
-      {/* Common authenticated routes */}
-      <Route element={<RequireAuth allowedRoles={['GESTOR', 'ADMIN', 'CONSULTOR']} />}>
-         <Route element={<ConsultorLayout />}>
+        
+        {/* Common authenticated routes */}
+        <Route element={<ConsultorLayout />}>
             <Route path="/profile" element={<Profile />} />
-         </Route>
+        </Route>
       </Route>
 
     </Routes>
