@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { TrendingUp, User, CheckCircle2, ListChecks, Target, CalendarDays, Loader2, Phone, Mail, Tag, Clock, AlertCircle, Plus } from 'lucide-react';
+import { TrendingUp, User, CheckCircle2, ListChecks, Target, CalendarDays, Loader2, Phone, Mail, Tag, Clock, AlertCircle, Plus, Calendar, DollarSign, Send, Users } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { DailyChecklistItem, WeeklyTargetItem, MetricLog } from '@/types';
@@ -22,6 +22,7 @@ const ConsultorDashboard = () => {
     weeklyTargetItems,
     weeklyTargetAssignments,
     metricLogs,
+    leadTasks, // Adicionado para reuniões
     isDataLoading 
   } = useApp();
 
@@ -29,24 +30,64 @@ const ConsultorDashboard = () => {
   const todayFormatted = useMemo(() => today.toISOString().split('T')[0], [today]); // YYYY-MM-DD
 
   // --- CRM Statistics ---
-  const { totalLeads, newLeadsThisWeek, meetingsToday, conversionRate } = useMemo(() => {
-    if (!user) return { totalLeads: 0, newLeadsThisWeek: 0, meetingsToday: 0, conversionRate: 0 };
+  const { 
+    totalLeads, 
+    newLeadsThisMonth, 
+    meetingsToday, 
+    meetingsThisMonth, // NOVO
+    proposalValueThisMonth, // NOVO
+    soldValueThisMonth, // NOVO
+    conversionRate 
+  } = useMemo(() => {
+    if (!user) return { totalLeads: 0, newLeadsThisMonth: 0, meetingsToday: 0, meetingsThisMonth: 0, proposalValueThisMonth: 0, soldValueThisMonth: 0, conversionRate: 0 };
 
     const consultantLeads = crmLeads.filter(lead => lead.consultant_id === user.id);
     const totalLeads = consultantLeads.length;
 
-    const oneWeekAgo = new Date(today);
-    oneWeekAgo.setDate(today.getDate() - 7);
+    const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    const currentMonthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0); // Last day of current month
 
-    const newLeadsThisWeek = consultantLeads.filter(lead => new Date(lead.created_at) >= oneWeekAgo).length;
+    // Novos Leads do Mês
+    const newLeadsThisMonth = consultantLeads.filter(lead => new Date(lead.created_at) >= currentMonthStart).length;
 
-    // Assuming 'meeting' is a custom field key for meetings and it stores a date
-    const meetingsToday = consultantLeads.filter(lead => {
-      const meetingDate = lead.data?.next_action_at; // Assuming 'next_action_at' is a custom field for next interaction date
-      return meetingDate && new Date(meetingDate).toISOString().split('T')[0] === todayFormatted;
+    // Reuniões Hoje (mantido)
+    const meetingsToday = leadTasks.filter(task => 
+      task.user_id === user.id && 
+      task.type === 'meeting' && 
+      task.due_date === todayFormatted &&
+      !task.is_completed
+    ).length;
+
+    // Reuniões Agendadas no Mês (NOVO)
+    const meetingsThisMonth = leadTasks.filter(task => {
+      if (task.user_id !== user.id || task.type !== 'meeting') return false;
+      const taskDate = new Date(task.due_date || task.meeting_start_time || '');
+      return taskDate >= currentMonthStart && taskDate <= currentMonthEnd;
     }).length;
 
-    // Simple conversion rate: (Won Leads / Total Leads)
+    // Valor de Propostas Enviadas no Mês (NOVO)
+    const proposalValueThisMonth = consultantLeads.reduce((sum, lead) => {
+      if (lead.proposalValue && lead.proposalClosingDate) {
+        const proposalDate = new Date(lead.proposalClosingDate);
+        if (proposalDate >= currentMonthStart && proposalDate <= currentMonthEnd) {
+          return sum + lead.proposalValue;
+        }
+      }
+      return sum;
+    }, 0);
+
+    // Valor Vendido no Mês (NOVO)
+    const soldValueThisMonth = consultantLeads.reduce((sum, lead) => {
+      if (lead.soldCreditValue && lead.saleDate) {
+        const saleDate = new Date(lead.saleDate);
+        if (saleDate >= currentMonthStart && saleDate <= currentMonthEnd) {
+          return sum + lead.soldCreditValue;
+        }
+      }
+      return sum;
+    }, 0);
+
+    // Taxa de Conversão (mantido)
     const activePipeline = crmPipelines.find(p => p.is_active);
     const wonStage = crmStages.find(s => s.pipeline_id === activePipeline?.id && s.is_won);
     const lostStage = crmStages.find(s => s.pipeline_id === activePipeline?.id && s.is_lost);
@@ -57,8 +98,16 @@ const ConsultorDashboard = () => {
 
     const conversionRate = totalClosedLeads > 0 ? (wonLeads / totalClosedLeads) * 100 : 0;
 
-    return { totalLeads, newLeadsThisWeek, meetingsToday, conversionRate: conversionRate.toFixed(2) };
-  }, [user, crmLeads, crmPipelines, crmStages, today, todayFormatted]);
+    return { 
+      totalLeads, 
+      newLeadsThisMonth, 
+      meetingsToday, 
+      meetingsThisMonth, 
+      proposalValueThisMonth, 
+      soldValueThisMonth, 
+      conversionRate: conversionRate.toFixed(2) 
+    };
+  }, [user, crmLeads, crmPipelines, crmStages, today, todayFormatted, leadTasks]);
 
   // --- Daily Checklist Progress ---
   const { completedDailyTasks, totalDailyTasks, dailyProgress } = useMemo(() => {
@@ -165,8 +214,8 @@ const ConsultorDashboard = () => {
             <Plus className="w-6 h-6 text-green-600 dark:text-green-400" />
           </div>
           <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Novos Leads (Semana)</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{newLeadsThisWeek}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Novos Leads (Mês)</p> {/* Alterado para Mês */}
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{newLeadsThisMonth}</p>
           </div>
         </div>
         
@@ -187,6 +236,47 @@ const ConsultorDashboard = () => {
           <div>
             <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Taxa de Conversão</p>
             <p className="text-2xl font-bold text-gray-900 dark:text-white">{conversionRate}%</p>
+          </div>
+        </div>
+
+        {/* NOVOS CARDS DE MÉTRICAS MENSAIS */}
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
+          <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+            <Calendar className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
+          </div>
+          <div>
+            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Reuniões Mês</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{meetingsThisMonth}</p>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
+          <div className="p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg">
+            <Send className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
+          </div>
+          <div>
+            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Propostas Mês</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(proposalValueThisMonth)}</p>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
+          <div className="p-3 bg-teal-50 dark:bg-teal-900/20 rounded-lg">
+            <DollarSign className="w-6 h-6 text-teal-600 dark:text-teal-400" />
+          </div>
+          <div>
+            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Vendido Mês</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(soldValueThisMonth)}</p>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
+          <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
+            <Users className="w-6 h-6 text-red-600 dark:text-red-400" />
+          </div>
+          <div>
+            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Leads Atribuídos</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{consultantLeads.length}</p>
           </div>
         </div>
       </div>
