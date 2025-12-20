@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { useApp } from '@/context/AppContext';
-import { DailyChecklist, DailyChecklistItem, TeamMember } from '@/types';
-import { Plus, Edit2, Trash2, ArrowUp, ArrowDown, ToggleLeft, ToggleRight, Users, Check, X, ListChecks, Loader2 } from 'lucide-react';
+import { DailyChecklist, DailyChecklistItem, TeamMember, DailyChecklistItemResource, DailyChecklistItemResourceType } from '@/types';
+import { Plus, Edit2, Trash2, ArrowUp, ArrowDown, ToggleLeft, ToggleRight, Users, Check, X, ListChecks, Loader2, Video, FileText, Image as ImageIcon, Link as LinkIcon, MessageSquare, Eye } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { DailyChecklistItemResourceModal } from '@/components/DailyChecklistItemResourceModal'; // Importar o novo modal
 
 // Componente para o modal de criação/edição de Checklist
 interface ChecklistModalProps {
@@ -24,11 +25,10 @@ interface ChecklistModalProps {
 }
 
 const ChecklistModal: React.FC<ChecklistModalProps> = ({ isOpen, onClose, checklist }) => {
-  const { addDailyChecklist, updateDailyChecklist } = useApp(); // Removido teamMembers e assignDailyChecklistToConsultant
+  const { addDailyChecklist, updateDailyChecklist } = useApp();
   const [title, setTitle] = useState(checklist?.title || '');
   const [isSaving, setIsSaving] = useState(false);
   
-  // Resetar estados quando modal abre/fecha
   React.useEffect(() => {
     if (isOpen) {
       setTitle(checklist?.title || '');
@@ -44,13 +44,17 @@ const ChecklistModal: React.FC<ChecklistModalProps> = ({ isOpen, onClose, checkl
     
     setIsSaving(true);
     try {
-      // CRIAÇÃO SIMPLES: apenas o checklist (será GLOBAL)
-      const newChecklist = await addDailyChecklist(title);
-      alert(`✅ Checklist "${title}" criado com sucesso!\n\nEle estará disponível para TODOS os consultores.`);
+      if (checklist) {
+        await updateDailyChecklist(checklist.id, { title });
+        alert(`✅ Checklist "${title}" atualizado com sucesso!`);
+      } else {
+        await addDailyChecklist(title);
+        alert(`✅ Checklist "${title}" criado com sucesso!\n\nEle estará disponível para TODOS os consultores.`);
+      }
       onClose();
     } catch (error: any) {
       console.error("Failed to save checklist:", error);
-      alert(`Erro: ${error.message || 'Não foi possível criar o checklist.'}`);
+      alert(`Erro: ${error.message || 'Não foi possível salvar o checklist.'}`);
     } finally {
       setIsSaving(false);
     }
@@ -69,7 +73,6 @@ const ChecklistModal: React.FC<ChecklistModalProps> = ({ isOpen, onClose, checkl
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4 py-4">
-            {/* Título do Checklist */}
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="title" className="text-right">
                 Título *
@@ -135,14 +138,14 @@ const AssignmentModal: React.FC<AssignmentModalProps> = ({ isOpen, onClose, chec
     try {
       if (isAssigned) {
         await unassignDailyChecklistFromConsultant(checklist.id, consultantId);
-        alert("Atribuição removida com sucesso!");
+        toast.success("Atribuição removida com sucesso!");
       } else {
         await assignDailyChecklistToConsultant(checklist.id, consultantId);
-        alert("Atribuição adicionada com sucesso!");
+        toast.success("Atribuição adicionada com sucesso!");
       }
     } catch (error: any) {
       console.error("Failed to update assignment:", error);
-      alert(`Erro ao atualizar atribuição: ${error.message || 'Verifique o console para mais detalhes.'}`);
+      toast.error(`Erro ao atualizar atribuição: ${error.message || 'Verifique o console para mais detalhes.'}`);
     } finally {
       setIsSaving(false);
     }
@@ -194,6 +197,258 @@ const AssignmentModal: React.FC<AssignmentModalProps> = ({ isOpen, onClose, chec
   );
 };
 
+// Componente para o modal de criação/edição de Item de Checklist
+interface ChecklistItemModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  checklistId: string;
+  item: DailyChecklistItem | null;
+}
+
+const ChecklistItemModal: React.FC<ChecklistItemModalProps> = ({ isOpen, onClose, checklistId, item }) => {
+  const { addDailyChecklistItem, updateDailyChecklistItem } = useApp();
+  const [text, setText] = useState(item?.text || '');
+  const [resourceType, setResourceType] = useState<DailyChecklistItemResourceType>(item?.resource?.type || 'text');
+  const [resourceContent, setResourceContent] = useState(item?.resource?.content || '');
+  const [resourceName, setResourceName] = useState(item?.resource?.name || '');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  React.useEffect(() => {
+    if (isOpen) {
+      setText(item?.text || '');
+      setResourceType(item?.resource?.type || 'text');
+      setResourceContent(item?.resource?.content || '');
+      setResourceName(item?.resource?.name || '');
+      setSelectedFile(null);
+      setError('');
+    }
+  }, [isOpen, item]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      setResourceName(file.name);
+      setResourceContent(''); // Clear content if a file is selected
+    } else {
+      setSelectedFile(null);
+      setResourceName('');
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    if (!text.trim()) {
+      setError("O texto da tarefa é obrigatório.");
+      return;
+    }
+
+    let finalResource: DailyChecklistItemResource | undefined = undefined;
+    if (resourceType !== 'text' || resourceContent.trim() || selectedFile) {
+      if (resourceType === 'link' || resourceType === 'video') {
+        if (!resourceContent.trim()) {
+          setError(`A URL para ${resourceType === 'link' ? 'o link' : 'o vídeo'} é obrigatória.`);
+          return;
+        }
+        finalResource = { type: resourceType, content: resourceContent.trim(), name: resourceName.trim() || undefined };
+      } else if (resourceType === 'image' || resourceType === 'pdf') {
+        if (!selectedFile && !item?.resource?.content) { // If no new file and no existing file
+          setError(`Um arquivo (${resourceType}) é obrigatório.`);
+          return;
+        }
+        finalResource = { type: resourceType, content: item?.resource?.content || '', name: resourceName.trim() || undefined };
+      } else if (resourceType === 'text') {
+        if (!resourceContent.trim()) {
+          setError("O conteúdo do texto é obrigatório.");
+          return;
+        }
+        finalResource = { type: resourceType, content: resourceContent.trim(), name: resourceName.trim() || undefined };
+      }
+    }
+
+    setIsSaving(true);
+    try {
+      if (item) {
+        await updateDailyChecklistItem(item.id, { text: text.trim(), resource: finalResource }, selectedFile || undefined);
+        toast.success("Item do checklist atualizado com sucesso!");
+      } else {
+        const itemsInChecklist = dailyChecklistItems.filter(i => i.daily_checklist_id === checklistId);
+        const newOrderIndex = itemsInChecklist.length > 0 ? Math.max(...itemsInChecklist.map(i => i.order_index)) + 1 : 0;
+        await addDailyChecklistItem(checklistId, text.trim(), newOrderIndex, finalResource, selectedFile || undefined);
+        toast.success("Novo item adicionado ao checklist com sucesso!");
+      }
+      onClose();
+    } catch (err: any) {
+      console.error("Failed to save checklist item:", err);
+      setError(err.message || 'Não foi possível salvar o item do checklist.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const getResourceTypeIcon = (type: DailyChecklistItemResourceType) => {
+    switch (type) {
+      case 'video': return <Video className="w-4 h-4 mr-1" />;
+      case 'pdf': return <FileText className="w-4 h-4 mr-1" />;
+      case 'image': return <ImageIcon className="w-4 h-4 mr-1" />;
+      case 'link': return <LinkIcon className="w-4 h-4 mr-1" />;
+      case 'text': return <MessageSquare className="w-4 h-4 mr-1" />;
+      default: return null;
+    }
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-lg bg-white dark:bg-slate-800 dark:text-white">
+        <DialogHeader>
+          <DialogTitle>{item ? 'Editar Tarefa' : 'Nova Tarefa'}</DialogTitle>
+          <DialogDescription>
+            {item ? 'Edite os detalhes da tarefa e seu material de apoio.' : 'Adicione uma nova tarefa ao checklist e, opcionalmente, um material de apoio.'}
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit}>
+          <ScrollArea className="h-[60vh] py-4 pr-4">
+            <div className="grid gap-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="itemText" className="text-right">
+                  Tarefa *
+                </Label>
+                <Input
+                  id="itemText"
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  className="col-span-3 dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                  placeholder="Ex: Fazer 40 contatos diários"
+                  required
+                />
+              </div>
+
+              <div className="col-span-4 border-t border-gray-200 dark:border-slate-700 pt-4 mt-4">
+                <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-3 flex items-center">
+                  <Eye className="w-4 h-4 mr-2 text-brand-500" />
+                  Material de Apoio ("Como fazer?")
+                </h4>
+                <div className="grid gap-2">
+                  <Label className="text-left">Tipo de Recurso</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {['text', 'link', 'video', 'image', 'pdf'].map(type => (
+                      <Button
+                        key={type}
+                        type="button"
+                        variant={resourceType === type ? 'default' : 'outline'}
+                        onClick={() => { setResourceType(type as DailyChecklistItemResourceType); setSelectedFile(null); setResourceContent(''); setResourceName(''); }}
+                        className={`flex items-center space-x-1 ${resourceType === type ? 'bg-brand-600 hover:bg-brand-700 text-white' : 'dark:bg-slate-700 dark:text-white dark:border-slate-600'}`}
+                      >
+                        {getResourceTypeIcon(type as DailyChecklistItemResourceType)}
+                        <span>{type.charAt(0).toUpperCase() + type.slice(1)}</span>
+                      </Button>
+                    ))}
+                     <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => { setResourceType('text'); setResourceContent(''); setResourceName(''); setSelectedFile(null); }}
+                        className="flex items-center space-x-1 dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                      >
+                        <X className="w-4 h-4 mr-1" />
+                        <span>Remover Recurso</span>
+                      </Button>
+                  </div>
+                </div>
+
+                {resourceType === 'text' && (
+                  <div className="grid gap-2 mt-4">
+                    <Label htmlFor="resourceContentText" className="text-left">Conteúdo do Texto *</Label>
+                    <textarea
+                      id="resourceContentText"
+                      value={resourceContent}
+                      onChange={(e) => setResourceContent(e.target.value)}
+                      rows={5}
+                      className="w-full p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600"
+                      placeholder="Descreva como fazer a tarefa..."
+                    />
+                  </div>
+                )}
+
+                {(resourceType === 'link' || resourceType === 'video') && (
+                  <div className="grid gap-2 mt-4">
+                    <Label htmlFor="resourceContentUrl" className="text-left">URL do {resourceType === 'link' ? 'Link' : 'Vídeo'} *</Label>
+                    <Input
+                      id="resourceContentUrl"
+                      type="url"
+                      value={resourceContent}
+                      onChange={(e) => setResourceContent(e.target.value)}
+                      className="w-full p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600"
+                      placeholder={resourceType === 'link' ? "https://exemplo.com" : "https://www.youtube.com/watch?v=..."}
+                    />
+                    <Label htmlFor="resourceNameUrl" className="text-left">Nome/Título (Opcional)</Label>
+                    <Input
+                      id="resourceNameUrl"
+                      type="text"
+                      value={resourceName}
+                      onChange={(e) => setResourceName(e.target.value)}
+                      className="w-full p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600"
+                      placeholder="Título do link/vídeo"
+                    />
+                  </div>
+                )}
+
+                {(resourceType === 'image' || resourceType === 'pdf') && (
+                  <div className="grid gap-2 mt-4">
+                    <Label htmlFor="resourceFile" className="text-left">Arquivo ({resourceType.toUpperCase()}) *</Label>
+                    <label className="flex items-center justify-center px-4 py-2 border border-gray-300 dark:border-slate-600 border-dashed rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/50 transition bg-white dark:bg-slate-700">
+                      {getResourceTypeIcon(resourceType)}
+                      <span className="text-sm text-gray-600 dark:text-gray-300 truncate ml-2">{selectedFile ? selectedFile.name : (item?.resource?.name || `Selecionar arquivo ${resourceType}...`)}</span>
+                      <input type="file" id="resourceFile" className="hidden" accept={resourceType === 'pdf' ? 'application/pdf' : 'image/*'} onChange={handleFileChange} />
+                    </label>
+                    <Label htmlFor="resourceFileName" className="text-left">Nome do Arquivo (Opcional)</Label>
+                    <Input
+                      id="resourceFileName"
+                      type="text"
+                      value={resourceName}
+                      onChange={(e) => setResourceName(e.target.value)}
+                      className="w-full p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600"
+                      placeholder="Nome para exibição do arquivo"
+                    />
+                  </div>
+                )}
+              </div>
+              {error && <p className="text-red-500 text-sm mt-4">{error}</p>}
+            </div>
+          </ScrollArea>
+          
+          <DialogFooter>
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={onClose} 
+              className="dark:bg-slate-700 dark:text-white dark:border-slate-600"
+            >
+              Cancelar
+            </Button>
+            <Button 
+              type="submit" 
+              disabled={isSaving} 
+              className="bg-brand-600 hover:bg-brand-700 text-white"
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Salvando...
+                </>
+              ) : item ? 'Atualizar Tarefa' : 'Adicionar Tarefa'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+
 // Componente principal da página de configuração
 export const DailyChecklistConfig = () => {
   const { 
@@ -216,10 +471,13 @@ export const DailyChecklistConfig = () => {
   const [isAssignmentModalOpen, setIsAssignmentModalOpen] = useState(false);
   const [selectedChecklistForAssignment, setSelectedChecklistForAssignment] = useState<DailyChecklist | null>(null);
 
-  const [editingItem, setEditingItem] = useState<{ itemId: string, checklistId: string } | null>(null);
-  const [editItemText, setEditItemText] = useState('');
-  const [addingItemToChecklistId, setAddingItemToChecklistId] = useState<string | null>(null);
-  const [newItemText, setNewItemText] = useState('');
+  const [isItemModalOpen, setIsItemModalOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<DailyChecklistItem | null>(null);
+  const [selectedChecklistForItem, setSelectedChecklistForItem] = useState<DailyChecklist | null>(null);
+
+  const [isResourceModalOpen, setIsResourceModalOpen] = useState(false);
+  const [selectedResourceItem, setSelectedResourceItem] = useState<DailyChecklistItem | null>(null);
+
 
   const handleAddNewChecklist = () => {
     setEditingChecklist(null);
@@ -246,50 +504,49 @@ export const DailyChecklistConfig = () => {
     setIsAssignmentModalOpen(true);
   };
 
-  const startEditItem = (itemId: string, checklistId: string, currentText: string) => {
-    setEditingItem({ itemId, checklistId });
-    setEditItemText(currentText);
+  const handleAddNewItem = (checklist: DailyChecklist) => {
+    setSelectedChecklistForItem(checklist);
+    setEditingItem(null);
+    setIsItemModalOpen(true);
   };
 
-  const handleSaveEditItem = async () => {
-    if (editingItem && editItemText.trim()) {
-      await updateDailyChecklistItem(editingItem.itemId, { text: editItemText.trim() });
-      setEditingItem(null);
-      setEditItemText('');
-      alert("Item do checklist atualizado com sucesso!");
-    } else {
-      alert("O texto do item do checklist é obrigatório.");
-    }
-  };
-
-  const handleSaveNewItem = async (checklistId: string) => {
-    if (newItemText.trim()) {
-      const itemsInChecklist = dailyChecklistItems.filter(item => item.daily_checklist_id === checklistId);
-      const newOrderIndex = itemsInChecklist.length > 0 ? Math.max(...itemsInChecklist.map(item => item.order_index)) + 1 : 0;
-      await addDailyChecklistItem(checklistId, newItemText.trim(), newOrderIndex);
-      setAddingItemToChecklistId(null);
-      setNewItemText('');
-      alert("Novo item adicionado ao checklist com sucesso!");
-    } else {
-      alert("O texto do novo item é obrigatório.");
-    }
+  const handleEditItem = (item: DailyChecklistItem, checklist: DailyChecklist) => {
+    setSelectedChecklistForItem(checklist);
+    setEditingItem(item);
+    setIsItemModalOpen(true);
   };
 
   const handleDeleteItem = async (itemId: string, text: string) => {
     if (window.confirm(`Tem certeza que deseja remover o item "${text}"?`)) {
       await deleteDailyChecklistItem(itemId);
-      alert("Item removido com sucesso!");
+      toast.success("Item removido com sucesso!");
     }
   };
 
   const handleMoveItem = async (checklistId: string, itemId: string, direction: 'up' | 'down') => {
     await moveDailyChecklistItem(checklistId, itemId, direction);
-    alert("Item movido com sucesso!");
+    toast.success("Item movido com sucesso!");
+  };
+
+  const handleOpenResourceModal = (item: DailyChecklistItem) => {
+    setSelectedResourceItem(item);
+    setIsResourceModalOpen(true);
   };
 
   const sortedChecklists = useMemo(() => {
     return [...dailyChecklists].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   }, [dailyChecklists]);
+
+  const getResourceTypeIcon = (type: DailyChecklistItemResourceType) => {
+    switch (type) {
+      case 'video': return <Video className="w-4 h-4 text-red-500" />;
+      case 'pdf': return <FileText className="w-4 h-4 text-red-500" />;
+      case 'image': return <ImageIcon className="w-4 h-4 text-green-500" />;
+      case 'link': return <LinkIcon className="w-4 h-4 text-blue-500" />;
+      case 'text': return <MessageSquare className="w-4 h-4 text-purple-500" />;
+      default: return null;
+    }
+  };
 
   return (
     <div className="p-8 max-w-6xl mx-auto pb-20">
@@ -298,13 +555,11 @@ export const DailyChecklistConfig = () => {
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Configurar Metas Diárias</h1>
           <p className="text-gray-500 dark:text-gray-400">Crie e gerencie as metas diárias para seus consultores.</p>
         </div>
-        <div className="flex items-center space-x-2"> {/* Wrapper para os botões */}
+        <div className="flex items-center space-x-2">
           <Button onClick={handleAddNewChecklist} className="bg-brand-600 hover:bg-brand-700 text-white">
             <Plus className="w-4 h-4 mr-2" />
             Novo Checklist
           </Button>
-          {/* ADICIONAR BOTÃO "CRIAR DADOS DE TESTE" AQUI */}
-          {/* Removido o botão "Criar Dados Teste" */}
         </div>
       </div>
 
@@ -348,23 +603,20 @@ export const DailyChecklistConfig = () => {
                   .sort((a, b) => a.order_index - b.order_index)
                   .map((item, index, arr) => (
                     <div key={item.id} className="p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-slate-700/30 group">
-                      {editingItem?.itemId === item.id ? (
-                        <div className="flex-1 flex items-center space-x-2 mr-4">
-                          <Input 
-                            type="text" 
-                            value={editItemText}
-                            onChange={(e) => setEditItemText(e.target.value)}
-                            className="flex-1 dark:bg-slate-700 dark:text-white dark:border-slate-600"
-                            autoFocus
-                          />
-                          <Button size="sm" onClick={handleSaveEditItem} className="bg-green-600 hover:bg-green-700 text-white"><Check className="w-4 h-4" /></Button>
-                          <Button size="sm" variant="outline" onClick={() => setEditingItem(null)} className="dark:bg-slate-700 dark:text-white dark:border-slate-600"><X className="w-4 h-4" /></Button>
-                        </div>
-                      ) : (
-                        <div className="flex-1 mr-4">
-                          <span className="text-sm text-gray-700 dark:text-gray-200">{item.text}</span>
-                        </div>
-                      )}
+                      <div className="flex-1 mr-4 flex items-center space-x-2">
+                        {item.resource && (
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => handleOpenResourceModal(item)}
+                            className="p-1.5 text-gray-400 hover:text-brand-600"
+                            title="Ver material de apoio"
+                          >
+                            {getResourceTypeIcon(item.resource.type)}
+                          </Button>
+                        )}
+                        <span className="text-sm text-gray-700 dark:text-gray-200">{item.text}</span>
+                      </div>
 
                       <div className="flex items-center space-x-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                         <Button 
@@ -389,7 +641,7 @@ export const DailyChecklistConfig = () => {
                         <Button 
                           variant="ghost" 
                           size="sm" 
-                          onClick={() => startEditItem(item.id, checklist.id, item.text)}
+                          onClick={() => handleEditItem(item, checklist)}
                           className="p-1.5 text-gray-400 hover:text-blue-600"
                         >
                           <Edit2 className="w-4 h-4" />
@@ -407,33 +659,14 @@ export const DailyChecklistConfig = () => {
                   ))}
 
                 <div className="p-4 bg-gray-50/50 dark:bg-slate-700/30">
-                  {addingItemToChecklistId === checklist.id ? (
-                    <div className="flex items-center space-x-2">
-                      <Input 
-                        type="text" 
-                        value={newItemText}
-                        onChange={(e) => setNewItemText(e.target.value)}
-                        placeholder="Nome da nova tarefa..."
-                        className="flex-1 dark:bg-slate-700 dark:text-white dark:border-slate-600"
-                        autoFocus
-                      />
-                      <Button size="sm" onClick={() => handleSaveNewItem(checklist.id)} className="bg-brand-600 hover:bg-brand-700 text-white">
-                        Adicionar
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => {setAddingItemToChecklistId(null); setNewItemText('');}} className="dark:bg-slate-700 dark:text-white dark:border-slate-600">
-                        Cancelar
-                      </Button>
-                    </div>
-                  ) : (
-                    <Button 
-                      variant="ghost" 
-                      onClick={() => setAddingItemToChecklistId(checklist.id)}
-                      className="flex items-center text-sm text-brand-600 dark:text-brand-400 font-medium hover:text-brand-700 dark:hover:text-brand-300"
-                    >
-                      <Plus className="w-4 h-4 mr-1" />
-                      Adicionar Tarefa
-                    </Button>
-                  )}
+                  <Button 
+                    variant="ghost" 
+                    onClick={() => handleAddNewItem(checklist)}
+                    className="flex items-center text-sm text-brand-600 dark:text-brand-400 font-medium hover:text-brand-700 dark:hover:text-brand-300"
+                  >
+                    <Plus className="w-4 h-4 mr-1" />
+                    Adicionar Tarefa
+                  </Button>
                 </div>
               </div>
             </div>
@@ -448,9 +681,25 @@ export const DailyChecklistConfig = () => {
       />
       <AssignmentModal
         isOpen={isAssignmentModalOpen}
-        onClose={() => setIsAssignmentModalModalOpen(false)}
+        onClose={() => setIsAssignmentModalOpen(false)}
         checklist={selectedChecklistForAssignment}
       />
+      {selectedChecklistForItem && (
+        <ChecklistItemModal
+          isOpen={isItemModalOpen}
+          onClose={() => setIsItemModalOpen(false)}
+          checklistId={selectedChecklistForItem.id}
+          item={editingItem}
+        />
+      )}
+      {selectedResourceItem && (
+        <DailyChecklistItemResourceModal
+          isOpen={isResourceModalOpen}
+          onClose={() => setIsResourceModalOpen(false)}
+          itemText={selectedResourceItem.text}
+          resource={selectedResourceItem.resource}
+        />
+      )}
     </div>
   );
 };

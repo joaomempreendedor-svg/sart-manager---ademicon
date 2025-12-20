@@ -344,4 +344,23 @@ export interface LeadTask {
   meeting_end_time?: string;   // NOVO: Data e hora de fim da reunião (ISO string)
 }
 
+// NOVO: Tipos para Daily Checklist Item Resource
+export type DailyChecklistItemResourceType = 'link' | 'text' | 'image' | 'pdf' | 'video';
+
+export interface DailyChecklistItemResource {
+  type: DailyChecklistItemResourceType;
+  content: string; // URL para link/vídeo/arquivo, ou o próprio texto
+  name?: string; // Nome do arquivo, se aplicável
+}
+
+export interface DailyChecklistItem {
+  id: string;
+  daily_checklist_id: string;
+  text: string;
+  order_index: number;
+  is_active: boolean;
+  created_at: string;
+  resource?: DailyChecklistItemResource; // NOVO: Recurso de apoio para o item
+}
+
 // --- FIM DOS NOVOS TIPOS ---

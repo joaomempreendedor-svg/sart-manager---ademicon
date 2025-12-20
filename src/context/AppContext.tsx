@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
-import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, CommissionStatus, InstallmentInfo, CutoffPeriod, Feedback, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask, SupportMaterialContentType } from '@/types';
+import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, CommissionStatus, InstallmentInfo, CutoffPeriod, Feedback, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask, SupportMaterialContentType, DailyChecklistItemResource, DailyChecklistItemResourceType } from '@/types';
 import { CHECKLIST_STAGES as DEFAULT_STAGES } from '@/data/checklistData';
 import { CONSULTANT_GOALS as DEFAULT_GOALS } from '@/data/consultantGoals';
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
@@ -1101,28 +1101,99 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setDailyChecklistAssignments(prev => prev.filter(assign => assign.daily_checklist_id !== id));
   }, [user]);
 
-  const addDailyChecklistItem = useCallback(async (checklistId: string, text: string, order_index: number): Promise<DailyChecklistItem> => {
+  const addDailyChecklistItem = useCallback(async (checklistId: string, text: string, order_index: number, resource?: DailyChecklistItemResource, file?: File): Promise<DailyChecklistItem> => {
     if (!user) throw new Error("Usuário não autenticado.");
-    const { data, error } = await supabase.from('daily_checklist_items').insert({ daily_checklist_id: checklistId, text, order_index, is_active: true }).select().single();
+    
+    let finalResource: DailyChecklistItemResource | undefined = resource;
+
+    if (file && (resource?.type === 'image' || resource?.type === 'pdf')) {
+      const sanitizedFileName = file.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w\s.-]/g, '').replace(/\s+/g, '_');
+      const filePath = `daily_checklist_resources/${crypto.randomUUID()}-${sanitizedFileName}`;
+      
+      const { error: uploadError } = await supabase.storage.from('support_materials').upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: false
+      });
+      if (uploadError) { console.error(uploadError); toast.error("Erro ao fazer upload do arquivo para o item do checklist."); throw uploadError; }
+
+      const { data: urlData } = supabase.storage.from('support_materials').getPublicUrl(filePath);
+      if (!urlData) { toast.error("Não foi possível obter a URL pública do arquivo."); throw new Error("Não foi possível obter a URL pública do arquivo."); }
+      
+      finalResource = { ...resource, content: urlData.publicUrl, name: file.name };
+    }
+
+    const { data, error } = await supabase.from('daily_checklist_items').insert({ daily_checklist_id: checklistId, text, order_index, is_active: true, resource: finalResource }).select().single();
     if (error) { console.error(error); toast.error("Erro ao adicionar item ao checklist."); throw error; }
     setDailyChecklistItems(prev => [...prev, data].sort((a, b) => a.order_index - b.order_index));
     return data;
   }, [user]);
 
-  const updateDailyChecklistItem = useCallback(async (id: string, updates: Partial<DailyChecklistItem>) => {
+  const updateDailyChecklistItem = useCallback(async (id: string, updates: Partial<DailyChecklistItem>, file?: File) => {
     if (!user) throw new Error("Usuário não autenticado.");
-    const { error } = await supabase.from('daily_checklist_items').update(updates).eq('id', id);
+    
+    const currentItem = dailyChecklistItems.find(item => item.id === id);
+    if (!currentItem) throw new Error("Item do checklist não encontrado.");
+
+    let finalResource: DailyChecklistItemResource | undefined = updates.resource !== undefined ? updates.resource : currentItem.resource;
+
+    // Handle file upload if a new file is provided and resource type is file-based
+    if (file && (finalResource?.type === 'image' || finalResource?.type === 'pdf')) {
+      // If there was an old file, delete it first
+      if (currentItem.resource && (currentItem.resource.type === 'image' || currentItem.resource.type === 'pdf') && currentItem.resource.content) {
+        const oldFilePath = currentItem.resource.content.split('/support_materials/')[1];
+        if (oldFilePath) {
+          await supabase.storage.from('support_materials').remove([oldFilePath]);
+        }
+      }
+
+      const sanitizedFileName = file.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w\s.-]/g, '').replace(/\s+/g, '_');
+      const filePath = `daily_checklist_resources/${crypto.randomUUID()}-${sanitizedFileName}`;
+      
+      const { error: uploadError } = await supabase.storage.from('support_materials').upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: false
+      });
+      if (uploadError) { console.error(uploadError); toast.error("Erro ao fazer upload do novo arquivo para o item do checklist."); throw uploadError; }
+
+      const { data: urlData } = supabase.storage.from('support_materials').getPublicUrl(filePath);
+      if (!urlData) { toast.error("Não foi possível obter a URL pública do novo arquivo."); throw new Error("Não foi possível obter a URL pública do novo arquivo."); }
+      
+      finalResource = { ...finalResource, content: urlData.publicUrl, name: file.name };
+    } else if (updates.resource === null) { // Explicitly setting resource to null/undefined
+      if (currentItem.resource && (currentItem.resource.type === 'image' || currentItem.resource.type === 'pdf') && currentItem.resource.content) {
+        const oldFilePath = currentItem.resource.content.split('/support_materials/')[1];
+        if (oldFilePath) {
+          await supabase.storage.from('support_materials').remove([oldFilePath]);
+        }
+      }
+      finalResource = undefined;
+    }
+
+    const { error } = await supabase.from('daily_checklist_items').update({ ...updates, resource: finalResource }).eq('id', id);
     if (error) { console.error(error); toast.error("Erro ao atualizar item do checklist."); throw error; }
-    setDailyChecklistItems(prev => prev.map(item => item.id === id ? { ...item, ...updates } : item).sort((a, b) => a.order_index - b.order_index));
-  }, [user]);
+    setDailyChecklistItems(prev => prev.map(item => item.id === id ? { ...item, ...updates, resource: finalResource } : item).sort((a, b) => a.order_index - b.order_index));
+  }, [user, dailyChecklistItems]);
 
   const deleteDailyChecklistItem = useCallback(async (id: string) => {
     if (!user) throw new Error("Usuário não autenticado.");
+    
+    const itemToDelete = dailyChecklistItems.find(item => item.id === id);
+    if (!itemToDelete) throw new Error("Item do checklist não encontrado.");
+
+    // If the item has a file resource, delete it from storage
+    if (itemToDelete.resource && (itemToDelete.resource.type === 'image' || itemToDelete.resource.type === 'pdf') && itemToDelete.resource.content) {
+      const filePath = itemToDelete.resource.content.split('/support_materials/')[1];
+      if (filePath) {
+        const { error: storageError } = await supabase.storage.from('support_materials').remove([filePath]);
+        if (storageError) console.error("Erro ao deletar arquivo do storage (pode já ter sido removido):", storageError.message);
+      }
+    }
+
     const { error } = await supabase.from('daily_checklist_items').delete().eq('id', id);
     if (error) { console.error(error); toast.error("Erro ao excluir item do checklist."); throw error; }
     setDailyChecklistItems(prev => prev.filter(item => item.id !== id));
     setDailyChecklistCompletions(prev => prev.filter(comp => comp.daily_checklist_item_id !== id));
-  }, [user]);
+  }, [user, dailyChecklistItems]);
 
   const moveDailyChecklistItem = useCallback(async (checklistId: string, itemId: string, direction: 'up' | 'down') => {
     if (!user) throw new Error("Usuário não autenticado.");

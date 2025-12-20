@@ -3,9 +3,10 @@ import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { CalendarDays, ChevronLeft, ChevronRight, ListChecks, Loader2 } from 'lucide-react';
-import { User } from '@/types'; // Importar o tipo User
+import { CalendarDays, ChevronLeft, ChevronRight, ListChecks, Loader2, Eye, Video, FileText, Image as ImageIcon, Link as LinkIcon, MessageSquare } from 'lucide-react';
+import { User, DailyChecklistItem, DailyChecklistItemResourceType } from '@/types'; // Importar o tipo User e DailyChecklistItem
 import { ConfettiAnimation } from '@/components/ConfettiAnimation'; // Importar o novo componente de animação
+import { DailyChecklistItemResourceModal } from '@/components/DailyChecklistItemResourceModal'; // Importar o novo modal
 
 const formatDate = (date: Date) => date.toISOString().split('T')[0]; // YYYY-MM-DD
 const displayDate = (date: Date) => date.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
@@ -27,6 +28,9 @@ export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ us
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showConfetti, setShowConfetti] = useState(false); // Novo estado para controlar o confete
   const prevDailyProgressRef = useRef(0); // Ref para armazenar o progresso anterior
+
+  const [isResourceModalOpen, setIsResourceModalOpen] = useState(false);
+  const [selectedResourceItem, setSelectedResourceItem] = useState<DailyChecklistItem | null>(null);
 
   const formattedSelectedDate = useMemo(() => formatDate(selectedDate), [selectedDate]);
 
@@ -138,6 +142,22 @@ export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ us
     setShowConfetti(false);
   }, []);
 
+  const handleOpenResourceModal = (item: DailyChecklistItem) => {
+    setSelectedResourceItem(item);
+    setIsResourceModalOpen(true);
+  };
+
+  const getResourceTypeIcon = (type: DailyChecklistItemResourceType) => {
+    switch (type) {
+      case 'video': return <Video className="w-4 h-4 text-red-500" />;
+      case 'pdf': return <FileText className="w-4 h-4 text-red-500" />;
+      case 'image': return <ImageIcon className="w-4 h-4 text-green-500" />;
+      case 'link': return <LinkIcon className="w-4 h-4 text-blue-500" />;
+      case 'text': return <MessageSquare className="w-4 h-4 text-purple-500" />;
+      default: return null;
+    }
+  };
+
   if (isDataLoading) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -185,16 +205,27 @@ export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ us
                   items.map(item => {
                     const isCompleted = getCompletionStatus(item.id);
                     return (
-                      <div key={item.id} className="p-4 flex items-center space-x-3 hover:bg-gray-50 dark:hover:bg-slate-700/30">
-                        <Checkbox
-                          id={`item-${item.id}`}
-                          checked={isCompleted}
-                          onCheckedChange={() => handleToggleCompletion(item.id, isCompleted)}
-                          className="dark:border-slate-600 data-[state=checked]:bg-brand-600 data-[state=checked]:text-white"
-                        />
-                        <Label htmlFor={`item-${item.id}`} className={`text-sm font-medium leading-none ${isCompleted ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-700 dark:text-gray-200'}`}>
-                          {item.text}
-                        </Label>
+                      <div key={item.id} className="p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-slate-700/30">
+                        <div className="flex items-center space-x-3">
+                          <Checkbox
+                            id={`item-${item.id}`}
+                            checked={isCompleted}
+                            onCheckedChange={() => handleToggleCompletion(item.id, isCompleted)}
+                            className="dark:border-slate-600 data-[state=checked]:bg-brand-600 data-[state=checked]:text-white"
+                          />
+                          <Label htmlFor={`item-${item.id}`} className={`text-sm font-medium leading-none ${isCompleted ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-700 dark:text-gray-200'}`}>
+                            {item.text}
+                          </Label>
+                        </div>
+                        {item.resource && (
+                          <button 
+                            onClick={() => handleOpenResourceModal(item)}
+                            className="flex items-center space-x-1 px-2 py-1 rounded-md text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition"
+                          >
+                            {getResourceTypeIcon(item.resource.type)}
+                            <span>Como fazer?</span>
+                          </button>
+                        )}
                       </div>
                     );
                   })
@@ -203,6 +234,14 @@ export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ us
             </div>
           );
         })
+      )}
+      {selectedResourceItem && (
+        <DailyChecklistItemResourceModal
+          isOpen={isResourceModalOpen}
+          onClose={() => setIsResourceModalOpen(false)}
+          itemText={selectedResourceItem.text}
+          resource={selectedResourceItem.resource}
+        />
       )}
     </div>
   );
