@@ -237,11 +237,11 @@ export const Dashboard = () => {
 
   const handleAgendaItemClick = (item: AgendaItem) => {
     if (item.personType === 'candidate') {
-      navigate(`/candidate/${item.personId}`);
+      navigate(`/gestor/candidate/${item.personId}`);
     } else if (item.personType === 'lead') {
       navigate(`/gestor/crm`);
     } else {
-      navigate('/feedbacks');
+      navigate('/gestor/feedbacks');
     }
   };
 
@@ -535,7 +535,7 @@ export const Dashboard = () => {
                     return (
                       <tr
                         key={c.id}
-                        onClick={() => navigate(`/candidate/${c.id}`)}
+                        onClick={() => navigate(`/gestor/candidate/${c.id}`)}
                         className="hover:bg-gray-50 dark:hover:bg-slate-700/50 cursor-pointer transition-colors"
                       >
                         <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">

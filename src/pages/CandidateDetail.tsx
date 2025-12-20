@@ -45,7 +45,7 @@ export const CandidateDetail = () => {
   const handleDelete = async () => {
     if (candidate && confirm(`Tem certeza que deseja excluir ${candidate.name}? Esta ação não pode ser desfeita.`)) {
       await deleteCandidate(candidate.id);
-      navigate('/');
+      navigate('/gestor/dashboard'); // Redireciona para o dashboard do gestor após a exclusão
     }
   };
 
@@ -68,6 +68,47 @@ export const CandidateDetail = () => {
     window.open(url, '_blank');
   };
 
+  const handleScoreChange = (sectionId: string, value: number) => {
+    setScores(prev => ({ ...prev, [sectionId]: value }));
+  };
+
+  const handleQuestionToggle = (questionId: string, points: number, sectionId: string) => {
+    setCheckedQuestions(prev => {
+      const newCheckedQuestions = { ...prev, [questionId]: !prev[questionId] };
+      
+      // Adjust section score based on toggle
+      setScores(currentScores => {
+        const currentSectionScore = (currentScores[sectionId] as number) || 0;
+        const newSectionScore = newCheckedQuestions[questionId] 
+          ? currentSectionScore + points 
+          : currentSectionScore - points;
+        
+        // Ensure score doesn't exceed maxPoints for the section
+        const sectionMaxPoints = interviewStructure.find(s => s.id === sectionId)?.maxPoints || 0;
+        const finalSectionScore = Math.max(0, Math.min(sectionMaxPoints, newSectionScore));
+
+        return { ...currentScores, [sectionId]: finalSectionScore };
+      });
+
+      return newCheckedQuestions;
+    });
+  };
+
+  const handleSaveInterview = async () => {
+    setIsSaving(true);
+    try {
+      await updateCandidate(candidate.id, {
+        interviewScores: scores,
+        checkedQuestions: checkedQuestions,
+      });
+      alert('Avaliação salva com sucesso!');
+    } catch (error: any) {
+      alert(`Erro ao salvar avaliação: ${error.message}`);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const totalScore = Object.entries(scores)
     .filter(([key]) => key !== 'notes')
     .reduce((sum, [_, val]) => sum + (typeof val === 'number' ? val : 0), 0);
@@ -84,7 +125,7 @@ export const CandidateDetail = () => {
 
   return (
     <div className="p-8 max-w-6xl mx-auto">
-      <button onClick={() => navigate('/')} className="flex items-center text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white mb-6">
+      <button onClick={() => navigate('/gestor/dashboard')} className="flex items-center text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white mb-6">
         <ArrowLeft className="w-4 h-4 mr-2" /> Voltar para Dashboard
       </button>
 
