@@ -38,6 +38,12 @@ import CrmOverviewPage from '@/pages/gestor/CrmOverview'; // Importar a nova pá
 import { DailyChecklistConfig } from '@/pages/gestor/DailyChecklistConfig';
 import { DailyChecklistMonitoring } from '@/pages/gestor/DailyChecklistMonitoring'; // NOVO: Importar o componente
 
+// Consultor Pages
+import ConsultorDashboard from '@/pages/consultor/Dashboard'; // Importar ConsultorDashboard
+import ConsultorCrmPage from '@/pages/consultor/Crm'; // Importar ConsultorCrmPage
+import { DailyChecklist } from '@/pages/consultor/DailyChecklist';
+
+
 const AppLoader = () => (
   <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-slate-900">
     <Loader2 className="w-12 h-12 text-brand-500 animate-spin" />
