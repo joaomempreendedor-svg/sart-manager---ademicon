@@ -158,6 +158,8 @@ const AppRoutes = () => {
           <Route path="dashboard" element={<ConsultorDashboard />} />
           <Route path="crm" element={<ConsultorCrmPage />} /> {/* RENOMEADO: Usar ConsultorCrmPage */}
           <Route path="daily-checklist" element={<DailyChecklist />} />
+          <Route path="materials" element={<Materials />} /> {/* NOVA ROTA PARA CONSULTOR */}
+          <Route path="links" element={<ImportantLinks />} /> {/* NOVA ROTA PARA CONSULTOR */}
           <Route path="*" element={<Navigate to="/consultor/dashboard" replace />} />
         </Route>
       </Route>
