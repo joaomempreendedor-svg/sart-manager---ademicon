@@ -62,7 +62,7 @@ const clearStaleAuth = () => {
 };
 
 // ID do gestor principal para centralizar todas as configurações e dados
-const JOAO_GESTOR_AUTH_ID = "0c6d71b7-daeb-4dde-8eec-0e7a8ffef658"; // <--- ATUALIZE ESTE ID COM O SEU NOVO ID DE GESTOR!
+const JOAO_GESTOR_AUTH_ID = "SEU_ID_DE_GESTOR_AQUI"; // <--- ATUALIZE ESTE ID COM O SEU NOVO ID DE GESTOR!
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { user, session } = useAuth();
@@ -477,7 +477,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           soldCreditValue: lead.sold_credit_value,
           soldGroup: lead.sold_group,
           soldQuota: lead.sold_quota,
-          saleDate: data.sale_date,
+          saleDate: lead.sale_date,
         })).sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()) || []);
         setDailyChecklists(dailyChecklistsData?.data || []);
         setDailyChecklistItems(dailyChecklistItemsData?.data || []);
