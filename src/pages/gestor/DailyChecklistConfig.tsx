@@ -322,7 +322,7 @@ const ChecklistItemModal: React.FC<ChecklistItemModalProps> = ({ isOpen, onClose
           <ScrollArea className="h-[60vh] py-4 pr-4">
             <div className="grid gap-4">
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="itemText" className="text-right">
+                <Label htmlFor="itemText" className="col-span-1"> {/* Removido text-right */}
                   Tarefa *
                 </Label>
                 <Input
