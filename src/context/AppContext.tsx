@@ -542,6 +542,83 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, [user?.id, user?.role, refetchCommissions]);
 
+  // NOVO useEffect para Realtime Subscriptions
+  useEffect(() => {
+    if (!user || !crmOwnerUserId) return;
+
+    // Realtime para crm_leads
+    const leadsChannel = supabase
+        .channel('crm_leads_changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'crm_leads' }, (payload) => {
+            console.log('CRM Lead Change (Realtime):', payload);
+            const newLeadData: CrmLead = {
+                id: payload.new.id,
+                consultant_id: payload.new.consultant_id,
+                stage_id: payload.new.stage_id,
+                user_id: payload.new.user_id,
+                name: payload.new.name,
+                data: payload.new.data,
+                created_at: payload.new.created_at,
+                updated_at: payload.new.updated_at,
+                created_by: payload.new.created_by,
+                updated_by: payload.new.updated_by,
+                proposalValue: payload.new.proposal_value,
+                proposalClosingDate: payload.new.proposal_closing_date,
+                soldCreditValue: payload.new.sold_credit_value,
+                soldGroup: payload.new.sold_group,
+                soldQuota: payload.new.sold_quota,
+                saleDate: payload.new.sale_date,
+            };
+
+            if (payload.eventType === 'INSERT') {
+                setCrmLeads(prev => [newLeadData, ...prev]);
+            } else if (payload.eventType === 'UPDATE') {
+                setCrmLeads(prev => prev.map(lead => lead.id === newLeadData.id ? newLeadData : lead));
+            } else if (payload.eventType === 'DELETE') {
+                setCrmLeads(prev => prev.filter(lead => lead.id !== payload.old.id));
+            }
+        })
+        .subscribe();
+
+    // Realtime para lead_tasks
+    const tasksChannel = supabase
+        .channel('lead_tasks_changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'lead_tasks' }, (payload) => {
+            console.log('Lead Task Change (Realtime):', payload);
+            const newTaskData: LeadTask = {
+                id: payload.new.id,
+                lead_id: payload.new.lead_id,
+                user_id: payload.new.user_id,
+                title: payload.new.title,
+                description: payload.new.description,
+                due_date: payload.new.due_date,
+                is_completed: payload.new.is_completed,
+                completed_at: payload.new.completed_at,
+                created_at: payload.new.created_at,
+                type: payload.new.type,
+                meeting_start_time: payload.new.meeting_start_time,
+                meeting_end_time: payload.new.meeting_end_time,
+                manager_id: payload.new.manager_id,
+                manager_invitation_status: payload.new.manager_invitation_status,
+            };
+
+            if (payload.eventType === 'INSERT') {
+                setLeadTasks(prev => [newTaskData, ...prev]);
+            } else if (payload.eventType === 'UPDATE') {
+                setLeadTasks(prev => prev.map(task => task.id === newTaskData.id ? newTaskData : task));
+            } else if (payload.eventType === 'DELETE') {
+                setLeadTasks(prev => prev.filter(task => task.id !== payload.old.id));
+            }
+        })
+        .subscribe();
+
+    return () => {
+        supabase.removeChannel(leadsChannel);
+        supabase.removeChannel(tasksChannel);
+    };
+  }, [user, crmOwnerUserId]); // Depende de user e crmOwnerUserId para re-inscrever se eles mudarem
+
+
   const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
   const addCandidate = useCallback(async (candidate: Candidate) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('candidates').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: candidate }).select('id').single(); if (error) { console.error(error); toast.error("Erro ao adicionar candidato."); throw error; } if (data) { setCandidates(prev => [{ ...candidate, db_id: data.id }, ...prev]); } }, [user]);
   const updateCandidate = useCallback(async (id: string, updates: Partial<Candidate>) => { if (!user) throw new Error("Usuário não autenticado."); const c = candidates.find(c => c.id === id); if (!c || !c.db_id) throw new Error("Candidato não encontrado"); const updated = { ...c, ...updates }; const { db_id, ...dataToUpdate } = updated; const { error } = await supabase.from('candidates').update({ data: dataToUpdate }).match({ id: c.db_id, user_id: JOAO_GESTOR_AUTH_ID }); if (error) { console.error(error); toast.error("Erro ao atualizar candidato."); throw error; } setCandidates(prev => prev.map(p => p.id === id ? updated : p)); }, [user, candidates]);
@@ -912,7 +989,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       saleDate: data.sale_date,
     };
 
-    setCrmLeads(prev => [newLead, ...prev]);
+    // Realtime subscription will handle updating the state, so no need to manually setCrmLeads here
+    // setCrmLeads(prev => [newLead, ...prev]);
     return newLead;
 }, [user, session, crmOwnerUserId, crmPipelines, crmStages]);
 
@@ -994,16 +1072,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       throw error;
     }
     
-    setCrmLeads(prev => {
-      const updatedLead = { 
-        ...currentLead, 
-        ...updates,
-        data: { ...currentLead.data, ...updates.data },
-        updated_at: dataToUpdateInDB.updated_at
-      };
-      const otherLeads = prev.filter(lead => lead.id !== id);
-      return [updatedLead, ...otherLeads];
-    });
+    // Realtime subscription will handle updating the state, so no need to manually setCrmLeads here
+    // setCrmLeads(prev => {
+    //   const updatedLead = { 
+    //     ...currentLead, 
+    //     ...updates,
+    //     data: { ...currentLead.data, ...updates.data },
+    //     updated_at: dataToUpdateInDB.updated_at
+    //   };
+    //   const otherLeads = prev.filter(lead => lead.id !== id);
+    //   return [updatedLead, ...otherLeads];
+    // });
   }, [user, crmLeads, crmOwnerUserId]);
 
   const deleteCrmLead = useCallback(async (id: string) => {
@@ -1023,7 +1102,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const { error } = await query;
     if (error) { console.error(error); toast.error("Erro ao excluir lead."); throw error; }
-    setCrmLeads(prev => prev.filter(lead => lead.id !== id));
+    // Realtime subscription will handle updating the state, so no need to manually setCrmLeads here
+    // setCrmLeads(prev => prev.filter(lead => lead.id !== id));
   }, [user, crmOwnerUserId]);
 
   const updateCrmLeadStage = useCallback(async (leadId: string, newStageId: string) => {
@@ -1046,9 +1126,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     
     const currentLead = crmLeads.find(l => l.id === leadId);
     if (currentLead) {
-      await updateCrmLead(leadId, { stage_id: newStageId, updated_at: new Date().toISOString() });
+      // Realtime subscription will handle updating the state, so no need to manually call updateCrmLead here
+      // await updateCrmLead(leadId, { stage_id: newStageId, updated_at: new Date().toISOString() });
     }
-  }, [user, crmOwnerUserId, crmLeads, updateCrmLead]);
+  }, [user, crmOwnerUserId, crmLeads]); // Removed updateCrmLead from dependencies as it's no longer called directly
 
   const addCrmStage = useCallback(async (stageData: Omit<CrmStage, 'id' | 'user_id' | 'created_at'>) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('crm_stages').insert({ ...stageData, user_id: JOAO_GESTOR_AUTH_ID }).select().single(); if (error) { console.error(error); toast.error("Erro ao adicionar etapa do CRM."); throw error; } setCrmStages(prev => [...prev, data].sort((a, b) => a.order_index - b.order_index)); return data; }, [user]);
   const updateCrmStage = useCallback(async (id: string, updates: Partial<CrmStage>) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('crm_stages').update(updates).eq('id', id).select().single(); if (error) { console.error(error); toast.error("Erro ao atualizar etapa do CRM."); throw error; } setCrmStages(prev => prev.map(s => s.id === id ? data : s).sort((a, b) => a.order_index - b.order_index)); }, [user]);
@@ -1464,7 +1545,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         toast.error("Erro ao adicionar tarefa do lead.");
         throw new Error(error.message);
       }
-      setLeadTasks(prev => [...prev, data]);
+      // Realtime subscription will handle updating the state, so no need to manually setLeadTasks here
+      // setLeadTasks(prev => [...prev, data]);
       return data;
     } catch (error: any) {
       console.error("Failed to add lead task:", error);
@@ -1481,7 +1563,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         toast.error("Erro ao atualizar tarefa do lead.");
         throw new Error(error.message);
       }
-      setLeadTasks(prev => prev.map(task => task.id === id ? { ...task, ...updates } : task));
+      // Realtime subscription will handle updating the state, so no need to manually setLeadTasks here
+      // setLeadTasks(prev => prev.map(task => task.id === id ? { ...task, ...updates } : task));
     } catch (error: any) {
       console.error("Failed to update lead task:", error);
       throw new Error(`Failed to update lead task: ${error.message || error}`);
@@ -1497,7 +1580,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         toast.error("Erro ao excluir tarefa do lead.");
         throw new Error(error.message);
       }
-      setLeadTasks(prev => prev.filter(task => task.id !== id));
+      // Realtime subscription will handle updating the state, so no need to manually setLeadTasks here
+      // setLeadTasks(prev => prev.filter(task => task.id !== id));
     } catch (error: any) {
       console.error("Failed to delete lead task:", error);
       throw new Error(`Failed to delete lead task: ${error.message || error}`);
@@ -1514,7 +1598,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         toast.error("Erro ao atualizar conclusão da tarefa.");
         throw new Error(error.message);
       }
-      setLeadTasks(prev => prev.map(task => task.id === id ? { ...task, ...updates } : task));
+      // Realtime subscription will handle updating the state, so no need to manually setLeadTasks here
+      // setLeadTasks(prev => prev.map(task => task.id === id ? { ...task, ...updates } : task));
     } catch (error: any) {
       console.error("Failed to toggle task completion:", error);
       throw new Error(`Failed to toggle task completion: ${error.message || error}`);
@@ -1531,7 +1616,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         toast.error("Erro ao atualizar status do convite de reunião.");
         throw new Error(error.message);
       }
-      setLeadTasks(prev => prev.map(task => task.id === taskId ? { ...task, manager_invitation_status: status } : task));
+      // Realtime subscription will handle updating the state, so no need to manually setLeadTasks here
+      // setLeadTasks(prev => prev.map(task => task.id === taskId ? { ...task, manager_invitation_status: status } : task));
     } catch (error: any) {
       console.error("Failed to update meeting invitation status:", error);
       throw new Error(`Failed to update meeting invitation status: ${error.message || error}`);
