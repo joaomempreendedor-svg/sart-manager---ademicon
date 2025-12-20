@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom'; // Importar useNavigate
 import { LayoutDashboard, MessageSquare, Settings, FileText, Sun, Moon, Banknote, PlusCircle, Library, TrendingUp, Target, Users, LogOut, User as UserIcon, Calendar, Star, Video, ListChecks, ClipboardCheck, UserPlus, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react'; // Adicionado ChevronDown
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
@@ -14,6 +14,7 @@ interface GestorSidebarProps {
 export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, toggleSidebar, isSidebarCollapsed, toggleSidebarCollapse }) => {
   const { theme, toggleTheme } = useApp();
   const { user, logout } = useAuth();
+  const navigate = useNavigate(); // Inicializar useNavigate
 
   // Estados para controlar o recolhimento de cada seção
   const [isOverviewCollapsed, setIsOverviewCollapsed] = useState(false);
@@ -22,6 +23,7 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
 
   const handleLogout = async () => {
     await logout();
+    navigate('/login'); // Redirecionar para a página de login após o logout
   };
 
   const linkClass = ({ isActive }: { isActive: boolean }) =>

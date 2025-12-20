@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom'; // Importar useNavigate
 import { LayoutDashboard, TrendingUp, LogOut, User as UserIcon, Sun, Moon, ListChecks, ChevronLeft, ChevronRight, Library } from 'lucide-react'; // Import ListChecks, Library e LinkIcon
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
@@ -14,9 +14,11 @@ interface ConsultorSidebarProps {
 export const ConsultorSidebar: React.FC<ConsultorSidebarProps> = ({ isSidebarOpen, toggleSidebar, isSidebarCollapsed, toggleSidebarCollapse }) => {
   const { theme, toggleTheme } = useApp();
   const { user, logout } = useAuth();
+  const navigate = useNavigate(); // Inicializar useNavigate
 
   const handleLogout = async () => {
     await logout();
+    navigate('/login'); // Redirecionar para a página de login após o logout
   };
 
   const linkClass = ({ isActive }: { isActive: boolean }) =>
