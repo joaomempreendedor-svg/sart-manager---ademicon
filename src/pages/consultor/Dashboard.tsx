@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { TrendingUp, User, CheckCircle2, ListChecks, Target, CalendarDays, Loader2, Phone, Mail, Tag, Clock, AlertCircle, Plus, Calendar, DollarSign, Send, Users, ListTodo } from 'lucide-react'; // Adicionado ListTodo
+import { TrendingUp, User, CheckCircle2, ListChecks, Target, CalendarDays, Loader2, Phone, Mail, Tag, Clock, AlertCircle, Plus, Calendar, DollarSign, Send, Users, ListTodo } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { DailyChecklistItem, WeeklyTargetItem, MetricLog } from '@/types';
@@ -298,13 +298,7 @@ const ConsultorDashboard = () => {
           </div>
         </div>
       )}
-      {(!activeWeeklyTarget || weeklyGoalsProgress.length === 0) && (
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-dashed border-gray-200 dark:border-slate-700 text-center mb-8">
-          <AlertCircle className="mx-auto w-12 h-12 text-gray-300 dark:text-slate-600 mb-4" />
-          <p className="text-gray-500 dark:text-gray-400">Nenhuma meta semanal ativa atribuída a você.</p>
-          <p className="text-sm text-gray-400">Entre em contato com seu gestor para definir suas metas.</p>
-        </div>
-      )}
+      {/* REMOVIDO: Bloco de mensagem de "Nenhuma meta semanal ativa" */}
     </div>
   );
 };
