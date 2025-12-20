@@ -13,6 +13,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { DailyChecklistItem, DailyChecklistItemResourceType } from '@/types'; // Importar DailyChecklistItem
 import { DailyChecklistItemResourceModal } from '@/components/DailyChecklistItemResourceModal'; // Importar o novo modal
+import { Button } from '@/components/ui/button'; // Importar o componente Button
 
 const formatDate = (date: Date) => date.toISOString().split('T')[0]; // YYYY-MM-DD
 const displayDate = (date: Date) => date.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
@@ -247,13 +248,15 @@ export const DailyChecklistMonitoring = () => {
                           </Label>
                         </div>
                         {item.resource && (
-                          <button 
+                          <Button 
+                            variant="outline" 
+                            size="sm"
                             onClick={() => handleOpenResourceModal(item)}
-                            className="flex items-center space-x-1 px-2 py-1 rounded-md text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition"
+                            className="flex items-center space-x-1 px-2 py-1 rounded-md text-xs bg-brand-50 dark:bg-brand-900/20 text-brand-700 dark:text-brand-300 hover:bg-brand-100 dark:hover:bg-brand-900/30 transition border-brand-200 dark:border-brand-800"
                           >
-                            {getResourceTypeIcon(item.resource.type)}
+                            <Eye className="w-3 h-3 mr-1" />
                             <span>Como fazer?</span>
-                          </button>
+                          </Button>
                         )}
                       </div>
                     );
