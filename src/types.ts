@@ -345,7 +345,7 @@ export interface LeadTask {
 }
 
 // NOVO: Tipos para Daily Checklist Item Resource
-export type DailyChecklistItemResourceType = 'link' | 'text' | 'image' | 'pdf' | 'video';
+export type DailyChecklistItemResourceType = 'link' | 'text' | 'image' | 'pdf' | 'video' | 'none'; // Adicionado 'none'
 
 export interface DailyChecklistItemResource {
   type: DailyChecklistItemResourceType;

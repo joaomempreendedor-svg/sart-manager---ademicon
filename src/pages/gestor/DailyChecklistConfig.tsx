@@ -209,7 +209,7 @@ interface ChecklistItemModalProps {
 const ChecklistItemModal: React.FC<ChecklistItemModalProps> = ({ isOpen, onClose, checklistId, item }) => {
   const { addDailyChecklistItem, updateDailyChecklistItem, dailyChecklistItems } = useApp();
   const [text, setText] = useState(item?.text || '');
-  const [resourceType, setResourceType] = useState<DailyChecklistItemResourceType>(item?.resource?.type || 'text');
+  const [resourceType, setResourceType] = useState<DailyChecklistItemResourceType>(item?.resource?.type || 'none'); // Default to 'none'
   const [resourceContent, setResourceContent] = useState(item?.resource?.content || '');
   const [resourceName, setResourceName] = useState(item?.resource?.name || '');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -219,7 +219,7 @@ const ChecklistItemModal: React.FC<ChecklistItemModalProps> = ({ isOpen, onClose
   React.useEffect(() => {
     if (isOpen) {
       setText(item?.text || '');
-      setResourceType(item?.resource?.type || 'text');
+      setResourceType(item?.resource?.type || 'none'); // Default to 'none'
       setResourceContent(item?.resource?.content || '');
       setResourceName(item?.resource?.name || '');
       setSelectedFile(null);
@@ -243,41 +243,46 @@ const ChecklistItemModal: React.FC<ChecklistItemModalProps> = ({ isOpen, onClose
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("handleSubmit called for ChecklistItemModal"); // DEBUG LOG
     setError('');
 
     if (!text.trim()) {
       setError("O texto da tarefa é obrigatório.");
+      console.log("Validation error: text is empty."); // DEBUG LOG
       return;
     }
 
-    let finalResource: DailyChecklistItemResource | undefined = resource;
-    
-    // Determine the resource to be saved
-    if (resourceType === 'text') {
+    let finalResource: DailyChecklistItemResource | undefined;
+
+    if (resourceType === 'none') {
+      finalResource = undefined; // Explicitly no resource
+    } else if (resourceType === 'text') {
       if (!resourceContent.trim()) {
         setError("O conteúdo do texto é obrigatório.");
+        console.log("Validation error: text resource content is empty."); // DEBUG LOG
         return;
       }
       finalResource = { type: 'text', content: resourceContent.trim(), name: resourceName.trim() || undefined };
     } else if (resourceType === 'link' || resourceType === 'video') {
       if (!resourceContent.trim()) {
         setError(`A URL para ${resourceType === 'link' ? 'o link' : 'o vídeo'} é obrigatória.`);
+        console.log("Validation error: link/video resource content is empty."); // DEBUG LOG
         return;
       }
       finalResource = { type: resourceType, content: resourceContent.trim(), name: resourceName.trim() || undefined };
     } else if (resourceType === 'image' || resourceType === 'pdf') {
       if (selectedFile) {
-        // File will be uploaded, content will be set by AppContext
-        finalResource = { type: resourceType, content: '', name: selectedFile.name }; // Content will be filled by AppContext
+        finalResource = { type: resourceType, content: '', name: selectedFile.name };
       } else if (item?.resource?.type === resourceType && item.resource.content) {
-        // No new file selected, but existing item has a resource of the same type, keep its content
         finalResource = { type: resourceType, content: item.resource.content, name: item.resource.name || undefined };
       } else {
         setError(`Um arquivo (${resourceType}) é obrigatório.`);
+        console.log("Validation error: file resource is missing."); // DEBUG LOG
         return;
       }
     }
-
+    
+    console.log("Validation passed. Attempting to save. finalResource:", finalResource); // DEBUG LOG
     setIsSaving(true);
     try {
       if (item) {
@@ -291,10 +296,12 @@ const ChecklistItemModal: React.FC<ChecklistItemModalProps> = ({ isOpen, onClose
       }
       onClose();
     } catch (err: any) {
-      console.error("Failed to save checklist item:", err);
+      console.error("Failed to save checklist item:", err); // DEBUG LOG
       setError(err.message || 'Não foi possível salvar o item do checklist.');
+      toast.error(`Erro: ${err.message || 'Não foi possível salvar o item do checklist.'}`);
     } finally {
       setIsSaving(false);
+      console.log("Saving process finished. isSaving set to false."); // DEBUG LOG
     }
   };
 
@@ -305,6 +312,7 @@ const ChecklistItemModal: React.FC<ChecklistItemModalProps> = ({ isOpen, onClose
       case 'image': return <ImageIcon className="w-4 h-4 mr-1" />;
       case 'link': return <LinkIcon className="w-4 h-4 mr-1" />;
       case 'text': return <MessageSquare className="w-4 h-4 mr-1" />;
+      case 'none': return <X className="w-4 h-4 mr-1" />;
       default: return null;
     }
   };
@@ -318,6 +326,7 @@ const ChecklistItemModal: React.FC<ChecklistItemModalProps> = ({ isOpen, onClose
             {item ? 'Edite os detalhes da tarefa e seu material de apoio.' : 'Adicione uma nova tarefa ao checklist e, opcionalmente, um material de apoio.'}
           </DialogDescription>
         </DialogHeader>
+        {error && <p className="text-red-500 text-sm px-6 pt-2 flex items-center"><XCircle className="w-4 h-4 mr-2" />{error}</p>} {/* Moved error display */}
         <form onSubmit={handleSubmit}>
           <ScrollArea className="h-[60vh] py-4 pr-4 custom-scrollbar">
             <div className="grid gap-4">
@@ -357,12 +366,12 @@ const ChecklistItemModal: React.FC<ChecklistItemModalProps> = ({ isOpen, onClose
                     ))}
                      <Button
                         type="button"
-                        variant="outline"
-                        onClick={() => { setResourceType('text'); setResourceContent(''); setResourceName(''); setSelectedFile(null); }}
-                        className="flex items-center space-x-1 dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                        variant={resourceType === 'none' ? 'default' : 'outline'} // Highlight 'none'
+                        onClick={() => { setResourceType('none'); setResourceContent(''); setResourceName(''); setSelectedFile(null); }}
+                        className={`flex items-center space-x-1 ${resourceType === 'none' ? 'bg-brand-600 hover:bg-brand-700 text-white' : 'dark:bg-slate-700 dark:text-white dark:border-slate-600'}`}
                       >
                         <X className="w-4 h-4 mr-1" />
-                        <span>Remover Recurso</span>
+                        <span>Sem Recurso</span>
                       </Button>
                   </div>
                 </div>
@@ -424,7 +433,6 @@ const ChecklistItemModal: React.FC<ChecklistItemModalProps> = ({ isOpen, onClose
                   </div>
                 )}
               </div>
-              {error && <p className="text-red-500 text-sm mt-4">{error}</p>}
             </div>
           </ScrollArea>
           
@@ -552,6 +560,7 @@ export const DailyChecklistConfig = () => {
       case 'image': return <ImageIcon className="w-4 h-4 text-green-500" />;
       case 'link': return <LinkIcon className="w-4 h-4 text-blue-500" />;
       case 'text': return <MessageSquare className="w-4 h-4 text-purple-500" />;
+      case 'none': return <X className="w-4 h-4 text-gray-500" />;
       default: return null;
     }
   };
@@ -612,7 +621,7 @@ export const DailyChecklistConfig = () => {
                   .map((item, index, arr) => (
                     <div key={item.id} className="p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-slate-700/30 group">
                       <div className="flex-1 mr-4 flex items-center space-x-2">
-                        {item.resource && (
+                        {item.resource && item.resource.type !== 'none' && ( // Only show icon if resource is not 'none'
                           <Button 
                             variant="ghost" 
                             size="sm" 
