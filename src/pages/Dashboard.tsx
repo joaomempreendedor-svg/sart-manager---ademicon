@@ -520,7 +520,7 @@ export const Dashboard = () => {
 
       {/* Minhas Tarefas Pessoais (Gestor) */}
       <div className="mb-8">
-        <GestorTasksSection />
+        <GestorTasksSection key={gestorTasks.length} />
       </div>
 
       {/* Todos os Candidatos */}
