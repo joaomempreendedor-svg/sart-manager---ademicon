@@ -1,12 +1,30 @@
 import React, { useMemo, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { TrendingUp, User, CheckCircle2, ListChecks, Target, CalendarDays, Loader2, Phone, Mail, Tag, Clock, AlertCircle, Plus, Calendar, DollarSign, Send, Users, ListTodo } from 'lucide-react';
+import { TrendingUp, User, CheckCircle2, ListChecks, Target, CalendarDays, Loader2, Phone, Mail, Tag, Clock, AlertCircle, Plus, Calendar, DollarSign, Send, Users, ListTodo, CalendarCheck } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { DailyChecklistItem, WeeklyTargetItem, MetricLog } from '@/types';
 import { TableSkeleton } from '@/components/TableSkeleton';
 import { ScheduleInterviewModal } from '@/components/ScheduleInterviewModal';
 import { DailyChecklistDisplay } from '@/components/consultor/DailyChecklistDisplay'; // Importar o novo componente
+
+// Tipo para itens da agenda do consultor
+type AgendaItem = {
+  id: string;
+  type: 'task' | 'meeting';
+  title: string;
+  personName: string; // Nome do Lead
+  personId: string; // ID do Lead
+  personType: 'lead';
+  dueDate: string; // Data de vencimento ou data da reunião
+  meetingDetails?: {
+    startTime: string;
+    endTime: string;
+    consultantName: string;
+    managerInvitationStatus?: 'pending' | 'accepted' | 'declined';
+    taskId: string;
+  };
+};
 
 const ConsultorDashboard = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -179,6 +197,61 @@ const ConsultorDashboard = () => {
     return { activeWeeklyTarget: activeTarget, weeklyGoalsProgress: progress };
   }, [user, weeklyTargets, weeklyTargetItems, weeklyTargetAssignments, metricLogs]);
 
+  // --- Consultant's Tasks and Upcoming Meetings ---
+  const { allConsultantTasks, upcomingMeetings } = useMemo(() => {
+    if (!user) return { allConsultantTasks: [], upcomingMeetings: [] };
+
+    const today = new Date();
+    const now = today.getTime();
+    const todayFormatted = today.toISOString().split('T')[0];
+
+    const consultantTasks = leadTasks.filter(task => task.user_id === user.id);
+
+    // All incomplete tasks (excluding meetings, which are handled separately)
+    const allTasks: AgendaItem[] = consultantTasks
+      .filter(task => !task.is_completed && task.type === 'task') // Only incomplete tasks, not meetings
+      .map(task => ({
+        id: task.id,
+        type: 'task',
+        title: task.title,
+        personName: crmLeads.find(l => l.id === task.lead_id)?.name || 'Lead Desconhecido',
+        personId: task.lead_id,
+        personType: 'lead',
+        dueDate: task.due_date || '', // Use empty string if no due date
+      }))
+      .sort((a, b) => {
+        // Sort by due date, with undated tasks at the end
+        if (!a.dueDate && !b.dueDate) return 0;
+        if (!a.dueDate) return 1;
+        if (!b.dueDate) return -1;
+        return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+      });
+
+    // Upcoming meetings
+    const meetings: AgendaItem[] = consultantTasks
+      .filter(task => task.type === 'meeting' && !task.is_completed && task.meeting_start_time && new Date(task.meeting_start_time).getTime() > now)
+      .map(task => ({
+        id: task.id,
+        type: 'meeting',
+        title: task.title,
+        personName: crmLeads.find(l => l.id === task.lead_id)?.name || 'Lead Desconhecido',
+        personId: task.lead_id,
+        personType: 'lead',
+        dueDate: new Date(task.meeting_start_time || '').toISOString().split('T')[0], // Use meeting start date
+        meetingDetails: {
+          startTime: new Date(task.meeting_start_time || '').toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+          endTime: new Date(task.meeting_end_time || '').toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+          consultantName: user.name, // The consultant is the current user
+          managerInvitationStatus: task.manager_invitation_status,
+          taskId: task.id,
+        },
+      }))
+      .sort((a, b) => new Date(a.meetingDetails?.startTime || '').getTime() - new Date(b.meetingDetails?.startTime || '').getTime()); // Sort by meeting start time
+
+    return { allConsultantTasks: allTasks, upcomingMeetings: meetings };
+  }, [user, leadTasks, crmLeads]);
+
+
   if (isAuthLoading || isDataLoading) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-theme(spacing.16))]">
@@ -272,6 +345,67 @@ const ConsultorDashboard = () => {
       <div className="mb-8">
         <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center mb-4"><ListChecks className="w-5 h-5 mr-2 text-brand-500" />Metas Diárias</h2>
         <DailyChecklistDisplay user={user} isDataLoading={isDataLoading} />
+      </div>
+
+      {/* Minhas Tarefas */}
+      <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl shadow-sm flex flex-col mb-8">
+        <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700 flex items-center space-x-2 bg-blue-50 dark:bg-blue-900/20 rounded-t-xl">
+          <ListTodo className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+          <h2 className="text-lg font-semibold text-blue-800 dark:text-blue-300">Minhas Tarefas ({allConsultantTasks.length})</h2>
+        </div>
+        <div className="flex-1 p-0 overflow-y-auto max-h-80 custom-scrollbar">
+          {allConsultantTasks.length === 0 ? (
+            <div className="p-6 text-center text-gray-400">Nenhuma tarefa pendente.</div>
+          ) : (
+            <ul className="divide-y divide-gray-100 dark:divide-slate-700">
+              {allConsultantTasks.map((item) => (
+                <li key={item.id} className="p-4 hover:bg-blue-50 dark:hover:bg-blue-900/10 transition">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-900 dark:text-gray-200">{item.title}</p>
+                      <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 mt-1 space-x-2">
+                        <span className="flex items-center"><User className="w-3 h-3 mr-1" /> Lead: <span className="font-semibold ml-1">{item.personName}</span></span>
+                        {item.dueDate && <span className="flex items-center"><Calendar className="w-3 h-3 mr-1" /> Vence: {new Date(item.dueDate + 'T00:00:00').toLocaleDateString()}</span>}
+                      </div>
+                    </div>
+                    <Link to={`/consultor/crm`} className="text-brand-600 hover:text-brand-700 text-sm font-medium">Ver Lead <ChevronRight className="w-4 h-4 inline ml-1" /></Link>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+
+      {/* Próximas Reuniões */}
+      <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl shadow-sm flex flex-col mb-8">
+        <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700 flex items-center space-x-2 bg-green-50 dark:bg-green-900/20 rounded-t-xl">
+          <CalendarCheck className="w-5 h-5 text-green-600 dark:text-green-400" />
+          <h2 className="text-lg font-semibold text-green-800 dark:text-green-300">Próximas Reuniões ({upcomingMeetings.length})</h2>
+        </div>
+        <div className="flex-1 p-0 overflow-y-auto max-h-80 custom-scrollbar">
+          {upcomingMeetings.length === 0 ? (
+            <div className="p-6 text-center text-gray-400">Nenhuma reunião futura agendada.</div>
+          ) : (
+            <ul className="divide-y divide-gray-100 dark:divide-slate-700">
+              {upcomingMeetings.map((item) => (
+                <li key={item.id} className="p-4 hover:bg-green-50 dark:hover:bg-green-900/10 transition">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-900 dark:text-gray-200">{item.title}</p>
+                      <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 mt-1 space-x-2">
+                        <span className="flex items-center"><User className="w-3 h-3 mr-1" /> Lead: <span className="font-semibold ml-1">{item.personName}</span></span>
+                        <span className="flex items-center"><Calendar className="w-3 h-3 mr-1" /> {new Date(item.dueDate + 'T00:00:00').toLocaleDateString()}</span>
+                        <span className="flex items-center"><Clock className="w-3 h-3 mr-1" /> {item.meetingDetails?.startTime} - {item.meetingDetails?.endTime}</span>
+                      </div>
+                    </div>
+                    <Link to={`/consultor/crm`} className="text-brand-600 hover:text-brand-700 text-sm font-medium">Ver Lead <ChevronRight className="w-4 h-4 inline ml-1" /></Link>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
 
       {/* Weekly Goals */}
