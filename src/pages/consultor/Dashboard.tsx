@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { TrendingUp, User, CheckCircle2, ListChecks, Target, CalendarDays, Loader2, Phone, Mail, Tag, Clock, AlertCircle, Plus, Calendar, DollarSign, Send, Users, ListTodo, CalendarCheck } from 'lucide-react';
+import { TrendingUp, User, CheckCircle2, ListChecks, Target, CalendarDays, Loader2, Phone, Mail, Tag, Clock, AlertCircle, Plus, Calendar, DollarSign, Send, Users, ListTodo, CalendarCheck, ChevronRight } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { DailyChecklistItem, WeeklyTargetItem, MetricLog } from '@/types';
