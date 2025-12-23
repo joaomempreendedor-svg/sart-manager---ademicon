@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
-import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, CommissionStatus, InstallmentInfo, CutoffPeriod, Feedback, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask, SupportMaterialContentType, DailyChecklistItemResource, DailyChecklistItemResourceType } from '@/types';
+import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, CommissionStatus, InstallmentInfo, CutoffPeriod, Feedback, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask, SupportMaterialContentType, DailyChecklistItemResource, DailyChecklistItemResourceType, GestorTask } from '@/types';
 import { CHECKLIST_STAGES as DEFAULT_STAGES } from '@/data/checklistData';
 import { CONSULTANT_GOALS as DEFAULT_GOALS } from '@/data/consultantGoals';
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
@@ -113,6 +113,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // NOVO: Tarefas de Lead
   const [leadTasks, setLeadTasks] = useState<LeadTask[]>([]);
 
+  // NOVO: Tarefas pessoais do Gestor
+  const [gestorTasks, setGestorTasks] = useState<GestorTask[]>([]);
+
 
   const [theme, setTheme] = useState<'light' | 'dark'>(() => (localStorage.getItem('sart_theme') as 'light' | 'dark') || 'light');
 
@@ -201,6 +204,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setSupportMaterialsV2([]);
     setSupportMaterialAssignments([]);
     setLeadTasks([]);
+    setGestorTasks([]); // Reset gestor tasks
     setIsDataLoading(false);
   };
 
@@ -312,6 +316,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           supportMaterialsV2Data,
           supportMaterialAssignmentsData,
           leadTasksData,
+          gestorTasksData, // Fetch gestor tasks
         ] = await Promise.all([
           (async () => { try { return await supabase.from('app_config').select('data').eq('user_id', effectiveGestorId).maybeSingle(); } catch (e) { console.error("Error fetching app_config:", e); return { data: null, error: e }; } })(),
           (async () => { try { return await supabase.from('candidates').select('id, data').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching candidates:", e); return { data: [], error: e }; } })(),
@@ -351,6 +356,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           (async () => { try { return await supabase.from('support_materials_v2').select('*').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching support_materials_v2:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('support_material_assignments').select('*'); } catch (e) { console.error("Error fetching support_material_assignments:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('lead_tasks').select('*'); } catch (e) { console.error("Error fetching lead_tasks:", e); return { data: [], error: e }; } })(),
+          (async () => { try { return await supabase.from('gestor_tasks').select('*').eq('user_id', userId); } catch (e) { console.error("Error fetching gestor_tasks:", e); return { data: [], error: e }; } })(), // Fetch gestor tasks
         ]);
 
         if (configResult.error) console.error("Config error:", configResult.error);
@@ -375,6 +381,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (supportMaterialsV2Data.error) console.error("Support Materials V2 error:", supportMaterialsV2Data.error);
         if (supportMaterialAssignmentsData.error) console.error("Support Material Assignments error:", supportMaterialAssignmentsData.error);
         if (leadTasksData.error) console.error("Lead Tasks error:", leadTasksData.error);
+        if (gestorTasksData.error) console.error("Gestor Tasks error:", gestorTasksData.error);
 
 
         if (configResult.data) {
@@ -490,6 +497,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setSupportMaterialsV2(supportMaterialsV2Data?.data || []);
         setSupportMaterialAssignments(supportMaterialAssignmentsData?.data || []);
         setLeadTasks(leadTasksData?.data || []);
+        setGestorTasks(gestorTasksData?.data || []); // Set gestor tasks
         
         refetchCommissions();
 
@@ -614,9 +622,36 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         })
         .subscribe();
 
+    // Realtime para gestor_tasks
+    const gestorTasksChannel = supabase
+        .channel('gestor_tasks_changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'gestor_tasks' }, (payload) => {
+            console.log('Gestor Task Change (Realtime):', payload);
+            toast.info(`📋 Tarefa pessoal "${payload.new.title || payload.old.title}" atualizada em tempo real!`);
+            const newGestorTaskData: GestorTask = {
+                id: payload.new.id,
+                user_id: payload.new.user_id,
+                title: payload.new.title,
+                description: payload.new.description,
+                due_date: payload.new.due_date,
+                is_completed: payload.new.is_completed,
+                created_at: payload.new.created_at,
+            };
+
+            if (payload.eventType === 'INSERT') {
+                setGestorTasks(prev => [newGestorTaskData, ...prev]);
+            } else if (payload.eventType === 'UPDATE') {
+                setGestorTasks(prev => prev.map(task => task.id === newGestorTaskData.id ? newGestorTaskData : task));
+            } else if (payload.eventType === 'DELETE') {
+                setGestorTasks(prev => prev.filter(task => task.id !== payload.old.id));
+            }
+        })
+        .subscribe();
+
     return () => {
         supabase.removeChannel(leadsChannel);
         supabase.removeChannel(tasksChannel);
+        supabase.removeChannel(gestorTasksChannel);
     };
   }, [user, crmOwnerUserId]); // Depende de user e crmOwnerUserId para re-inscrever se eles mudarem
 
@@ -1629,6 +1664,73 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, [user]);
 
+  // NOVO: Funções para Gestor Tasks
+  const addGestorTask = useCallback(async (task: Omit<GestorTask, 'id' | 'user_id' | 'created_at'>): Promise<GestorTask> => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    try {
+      const { data, error } = await supabase.from('gestor_tasks').insert({ ...task, user_id: user.id }).select().single();
+      if (error) {
+        console.error("Supabase error adding gestor task:", error);
+        toast.error("Erro ao adicionar tarefa pessoal.");
+        throw new Error(error.message);
+      }
+      setGestorTasks(prev => [...prev, data]);
+      return data;
+    } catch (error: any) {
+      console.error("Failed to add gestor task:", error);
+      throw new Error(`Failed to add gestor task: ${error.message || error}`);
+    }
+  }, [user]);
+
+  const updateGestorTask = useCallback(async (id: string, updates: Partial<GestorTask>) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    try {
+      const { data, error } = await supabase.from('gestor_tasks').update(updates).eq('id', id).eq('user_id', user.id).select().single();
+      if (error) {
+        console.error("Supabase error updating gestor task:", error);
+        toast.error("Erro ao atualizar tarefa pessoal.");
+        throw new Error(error.message);
+      }
+      setGestorTasks(prev => prev.map(task => task.id === id ? { ...task, ...updates } : task));
+    } catch (error: any) {
+      console.error("Failed to update gestor task:", error);
+      throw new Error(`Failed to update gestor task: ${error.message || error}`);
+    }
+  }, [user]);
+
+  const deleteGestorTask = useCallback(async (id: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    try {
+      const { error } = await supabase.from('gestor_tasks').delete().eq('id', id).eq('user_id', user.id);
+      if (error) {
+        console.error("Supabase error deleting gestor task:", error);
+        toast.error("Erro ao excluir tarefa pessoal.");
+        throw new Error(error.message);
+      }
+      setGestorTasks(prev => prev.filter(task => task.id !== id));
+    } catch (error: any) {
+      console.error("Failed to delete gestor task:", error);
+      throw new Error(`Failed to delete gestor task: ${error.message || error}`);
+    }
+  }, [user]);
+
+  const toggleGestorTaskCompletion = useCallback(async (id: string, is_completed: boolean) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    try {
+      const { data, error } = await supabase.from('gestor_tasks').update({ is_completed }).eq('id', id).eq('user_id', user.id).select().single();
+      if (error) {
+        console.error("Supabase error toggling gestor task completion:", error);
+        toast.error("Erro ao atualizar conclusão da tarefa pessoal.");
+        throw new Error(error.message);
+      }
+      setGestorTasks(prev => prev.map(task => task.id === id ? { ...task, is_completed } : task));
+    } catch (error: any) {
+      console.error("Failed to toggle gestor task completion:", error);
+      throw new Error(`Failed to toggle gestor task completion: ${error.message || error}`);
+    }
+  }, [user]);
+
+
   useEffect(() => { if (!user) return; const syncPendingCommissions = async () => { const pending = JSON.parse(localStorage.getItem('pending_commissions') || '[]') as any[]; if (pending.length === 0) return; for (const item of pending) { try { const { _localId, _timestamp, _attempts, ...cleanData } = item; const { data, error } = await supabase.from('commissions').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: cleanData }).select('id', 'created_at').maybeSingle(); if (!error && data) { setCommissions(prev => prev.map(c => c.db_id === _localId ? { ...c, db_id: data.id.toString(), criado_em: data.created_at } : c)); const updated = pending.filter((p: any) => p._localId !== _localId); localStorage.setItem('pending_commissions', JSON.stringify(updated)); } } catch (error) { console.log(`❌ Falha ao sincronizar ${item._localId}`); toast.error(`Falha ao sincronizar comissão ${item._localId}.`); } } }; const interval = setInterval(syncPendingCommissions, 2 * 60 * 1000); setTimeout(syncPendingCommissions, 5000); return () => clearInterval(interval); }, [user]);
 
   return (
@@ -1657,7 +1759,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       supportMaterialsV2, supportMaterialAssignments,
       addSupportMaterialV2, updateSupportMaterialV2, deleteSupportMaterialV2,
       assignSupportMaterialToConsultant, unassignSupportMaterialFromConsultant,
-      leadTasks, addLeadTask, updateLeadTask, deleteLeadTask, toggleLeadTaskCompletion, updateLeadMeetingInvitationStatus
+      leadTasks, addLeadTask, updateLeadTask, deleteLeadTask, toggleLeadTaskCompletion, updateLeadMeetingInvitationStatus,
+      gestorTasks, addGestorTask, updateGestorTask, deleteGestorTask, toggleGestorTaskCompletion,
     }}>
       {children}
     </AppContext.Provider>

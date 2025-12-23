@@ -342,6 +342,19 @@ export interface LeadTask {
   type: 'task' | 'meeting'; // NOVO: Tipo da tarefa
   meeting_start_time?: string; // NOVO: Data e hora de início da reunião (ISO string)
   meeting_end_time?: string;   // NOVO: Data e hora de fim da reunião (ISO string)
+  manager_id?: string; // NOVO: ID do gestor convidado para a reunião
+  manager_invitation_status?: 'pending' | 'accepted' | 'declined'; // NOVO: Status do convite
+}
+
+// NOVO: Tipo para tarefas pessoais do Gestor
+export interface GestorTask {
+  id: string;
+  user_id: string; // ID do gestor que criou a tarefa
+  title: string;
+  description?: string;
+  due_date?: string; // YYYY-MM-DD
+  is_completed: boolean;
+  created_at: string;
 }
 
 // NOVO: Tipos para Daily Checklist Item Resource

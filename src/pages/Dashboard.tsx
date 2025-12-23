@@ -6,6 +6,7 @@ import { ChevronRight, User, Calendar, CheckCircle2, TrendingUp, AlertCircle, Cl
 import { CandidateStatus, ChecklistTaskState, LeadTask } from '@/types';
 import { TableSkeleton } from '@/components/TableSkeleton';
 import { ScheduleInterviewModal } from '@/components/ScheduleInterviewModal';
+import { GestorTasksSection } from '@/components/gestor/GestorTasksSection'; // Importar o novo componente
 import toast from 'react-hot-toast';
 
 const StatusBadge = ({ status }: { status: CandidateStatus }) => {
@@ -45,7 +46,7 @@ type AgendaItem = {
 
 export const Dashboard = () => {
   const { user } = useAuth();
-  const { candidates, checklistStructure, teamMembers, isDataLoading, leadTasks, crmLeads, updateLeadMeetingInvitationStatus } = useApp();
+  const { candidates, checklistStructure, teamMembers, isDataLoading, leadTasks, crmLeads, updateLeadMeetingInvitationStatus, gestorTasks } = useApp();
   const navigate = useNavigate();
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
 
@@ -127,13 +128,14 @@ export const Dashboard = () => {
   const activeTeam = teamMembers.filter(m => m.isActive).length;
 
   // --- Agenda Items ---
-  const { todayAgenda, overdueTasks, meetingInvitations } = useMemo(() => {
+  const { todayAgenda, overdueTasks, meetingInvitations, allGestorTasks } = useMemo(() => {
     const today = new Date();
     const todayStr = today.toISOString().split('T')[0];
 
     const todayAgendaItems: AgendaItem[] = [];
     const overdueItems: AgendaItem[] = [];
     const invitationsItems: AgendaItem[] = [];
+    const gestorPersonalTasks: AgendaItem[] = [];
 
     // 1. Checklist Tasks (Candidatos)
     candidates.forEach(candidate => {
@@ -226,8 +228,28 @@ export const Dashboard = () => {
       });
     }
 
-    return { todayAgenda: todayAgendaItems, overdueTasks: overdueItems, meetingInvitations: invitationsItems };
-  }, [candidates, teamMembers, checklistStructure, leadTasks, crmLeads, user]);
+    // 5. Gestor Personal Tasks
+    gestorTasks.filter(task => task.user_id === user?.id && !task.is_completed).forEach(task => {
+      const agendaItem: AgendaItem = {
+        id: `gestor-task-${task.id}`,
+        type: 'task',
+        title: task.title,
+        personName: 'Eu', // Tarefa pessoal do gestor
+        personId: user!.id,
+        personType: 'teamMember',
+        dueDate: task.due_date || '',
+      };
+      if (task.due_date === todayStr) {
+        todayAgendaItems.push(agendaItem);
+      } else if (task.due_date && task.due_date < todayStr) {
+        overdueItems.push(agendaItem);
+      }
+      gestorPersonalTasks.push(agendaItem);
+    });
+
+
+    return { todayAgenda: todayAgendaItems, overdueTasks: overdueItems, meetingInvitations: invitationsItems, allGestorTasks: gestorPersonalTasks };
+  }, [candidates, teamMembers, checklistStructure, leadTasks, crmLeads, user, gestorTasks]);
 
   const getAgendaIcon = (type: AgendaItem['type']) => {
     switch (type) {
@@ -243,6 +265,9 @@ export const Dashboard = () => {
       navigate(`/gestor/candidate/${item.personId}`);
     } else if (item.personType === 'lead') {
       navigate(`/gestor/crm`);
+    } else if (item.personType === 'teamMember' && item.type === 'task') {
+      // No navigation for personal tasks, they are managed in the section below
+      toast.info("Gerencie suas tarefas pessoais na seção 'Minhas Tarefas Pessoais'.");
     } else {
       navigate('/gestor/feedbacks');
     }
@@ -491,6 +516,11 @@ export const Dashboard = () => {
                 )}
             </div>
         </div>
+      </div>
+
+      {/* Minhas Tarefas Pessoais (Gestor) */}
+      <div className="mb-8">
+        <GestorTasksSection />
       </div>
 
       {/* Todos os Candidatos */}
