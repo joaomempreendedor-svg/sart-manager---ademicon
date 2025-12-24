@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { useApp } from '@/context/AppContext';
 import { DailyChecklist, DailyChecklistItem, TeamMember, DailyChecklistItemResource, DailyChecklistItemResourceType } from '@/types';
-import { Plus, Edit2, Trash2, ArrowUp, ArrowDown, ToggleLeft, ToggleRight, Users, Check, X, ListChecks, Loader2, Video, FileText, Image as ImageIcon, Link as LinkIcon, MessageSquare, Eye, Music, XCircle } from 'lucide-react'; // Importar Music icon e XCircle
+import { Plus, Edit2, Trash2, ArrowUp, ArrowDown, ToggleLeft, ToggleRight, Users, Check, X, ListChecks, Loader2, Video, FileText, Image as ImageIcon, Link as LinkIcon, MessageSquare, Eye, Music, XCircle, BookText } from 'lucide-react'; // Importar BookText icon
 import {
   Dialog,
   DialogContent,
@@ -210,20 +210,50 @@ const ChecklistItemModal: React.FC<ChecklistItemModalProps> = ({ isOpen, onClose
   const { addDailyChecklistItem, updateDailyChecklistItem, dailyChecklistItems } = useApp();
   const [text, setText] = useState(item?.text || '');
   const [resourceType, setResourceType] = useState<DailyChecklistItemResourceType>(item?.resource?.type || 'none'); // Default to 'none'
-  const [resourceContent, setResourceContent] = useState(item?.resource?.content || '');
+  const [resourceContent, setResourceContent] = useState(
+    item?.resource?.type === 'text_audio' 
+      ? (item.resource.content as { text: string; audioUrl: string; }).audioUrl 
+      : (item?.resource?.content as string || '')
+  );
   const [resourceName, setResourceName] = useState(item?.resource?.name || '');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
 
+  // NOVO: Estados para o tipo 'text_audio'
+  const [textAudioContentText, setTextAudioContentText] = useState(
+    item?.resource?.type === 'text_audio' 
+      ? (item.resource.content as { text: string; audioUrl: string; }).text 
+      : ''
+  );
+  const [textAudioContentUrl, setTextAudioContentUrl] = useState(
+    item?.resource?.type === 'text_audio' 
+      ? (item.resource.content as { text: string; audioUrl: string; }).audioUrl 
+      : ''
+  );
+  const [textAudioSelectedFile, setTextAudioSelectedFile] = useState<File | null>(null);
+
+
   React.useEffect(() => {
     if (isOpen) {
       setText(item?.text || '');
-      setResourceType(item?.resource?.type || 'none'); // Default to 'none'
-      setResourceContent(item?.resource?.content || '');
+      setResourceType(item?.resource?.type || 'none');
       setResourceName(item?.resource?.name || '');
       setSelectedFile(null);
       setError('');
+
+      // Resetar estados específicos para 'text_audio'
+      if (item?.resource?.type === 'text_audio') {
+        const content = item.resource.content as { text: string; audioUrl: string; };
+        setTextAudioContentText(content.text);
+        setTextAudioContentUrl(content.audioUrl);
+        setResourceContent(content.audioUrl); // Manter resourceContent para compatibilidade se necessário
+      } else {
+        setResourceContent(item?.resource?.content as string || '');
+        setTextAudioContentText('');
+        setTextAudioContentUrl('');
+      }
+      setTextAudioSelectedFile(null);
     }
   }, [isOpen, item]);
 
@@ -237,7 +267,20 @@ const ChecklistItemModal: React.FC<ChecklistItemModalProps> = ({ isOpen, onClose
       setSelectedFile(null);
       // Revert to original name and content if no new file is selected (e.g., user cancels file dialog)
       setResourceName(item?.resource?.name || ''); 
-      setResourceContent(item?.resource?.content || '');
+      setResourceContent(item?.resource?.content as string || '');
+    }
+  };
+
+  const handleTextAudioFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setTextAudioSelectedFile(file);
+      setResourceName(file.name); // Use this name for the overall resource
+      setTextAudioContentUrl(''); // Clear URL, as AppContext will handle URL from upload
+    } else {
+      setTextAudioSelectedFile(null);
+      setResourceName(item?.resource?.name || '');
+      setTextAudioContentUrl(item?.resource?.type === 'text_audio' ? (item.resource.content as { text: string; audioUrl: string; }).audioUrl : '');
     }
   };
 
@@ -253,6 +296,7 @@ const ChecklistItemModal: React.FC<ChecklistItemModalProps> = ({ isOpen, onClose
     }
 
     let finalResource: DailyChecklistItemResource | undefined;
+    let fileToUpload: File | undefined = selectedFile || undefined;
 
     if (resourceType === 'none') {
       finalResource = undefined; // Explicitly no resource
@@ -263,7 +307,7 @@ const ChecklistItemModal: React.FC<ChecklistItemModalProps> = ({ isOpen, onClose
         return;
       }
       finalResource = { type: 'text', content: resourceContent.trim(), name: resourceName.trim() || undefined };
-    } else if (resourceType === 'link' || resourceType === 'video' || resourceType === 'audio') { // Adicionado 'audio'
+    } else if (resourceType === 'link' || resourceType === 'video' || resourceType === 'audio') {
       if (!resourceContent.trim()) {
         setError(`A URL para ${resourceType === 'link' ? 'o link' : resourceType === 'video' ? 'o vídeo' : 'o áudio'} é obrigatória.`);
         console.log(`Validation error: ${resourceType} resource content is empty.`); // DEBUG LOG
@@ -272,7 +316,7 @@ const ChecklistItemModal: React.FC<ChecklistItemModalProps> = ({ isOpen, onClose
       finalResource = { type: resourceType, content: resourceContent.trim(), name: resourceName.trim() || undefined };
     } else if (resourceType === 'image' || resourceType === 'pdf') {
       if (selectedFile) {
-        finalResource = { type: resourceType, content: '', name: selectedFile.name };
+        finalResource = { type: resourceType, content: '', name: selectedFile.name }; // Content will be filled by upload
       } else if (item?.resource?.type === resourceType && item.resource.content) {
         finalResource = { type: resourceType, content: item.resource.content, name: item.resource.name || undefined };
       } else {
@@ -280,18 +324,39 @@ const ChecklistItemModal: React.FC<ChecklistItemModalProps> = ({ isOpen, onClose
         console.log("Validation error: file resource is missing."); // DEBUG LOG
         return;
       }
+    } else if (resourceType === 'text_audio') { // NOVO: Lógica para 'text_audio'
+      if (!textAudioContentText.trim()) {
+        setError("O texto para o recurso 'Texto + Áudio' é obrigatório.");
+        return;
+      }
+      if (!textAudioContentUrl.trim() && !textAudioSelectedFile) {
+        setError("A URL do áudio ou um arquivo de áudio é obrigatório para 'Texto + Áudio'.");
+        return;
+      }
+
+      let audioUrl = textAudioContentUrl.trim();
+      if (textAudioSelectedFile) {
+        fileToUpload = textAudioSelectedFile; // Set the file to be uploaded
+        audioUrl = ''; // Clear URL, it will be set after upload
+      }
+
+      finalResource = { 
+        type: 'text_audio', 
+        content: { text: textAudioContentText.trim(), audioUrl: audioUrl }, 
+        name: resourceName.trim() || undefined 
+      };
     }
     
     console.log("Validation passed. Attempting to save. finalResource:", finalResource); // DEBUG LOG
     setIsSaving(true);
     try {
       if (item) {
-        await updateDailyChecklistItem(item.id, { text: text.trim(), resource: finalResource }, selectedFile || undefined);
+        await updateDailyChecklistItem(item.id, { text: text.trim(), resource: finalResource }, fileToUpload);
         toast.success("Item do checklist atualizado com sucesso!");
       } else {
         const itemsInChecklist = dailyChecklistItems.filter(i => i.daily_checklist_id === checklistId);
         const newOrderIndex = itemsInChecklist.length > 0 ? Math.max(...itemsInChecklist.map(i => i.order_index)) + 1 : 0;
-        await addDailyChecklistItem(checklistId, text.trim(), newOrderIndex, finalResource, selectedFile || undefined);
+        await addDailyChecklistItem(checklistId, text.trim(), newOrderIndex, finalResource, fileToUpload);
         toast.success("Novo item adicionado ao checklist com sucesso!");
       }
       onClose();
@@ -308,7 +373,8 @@ const ChecklistItemModal: React.FC<ChecklistItemModalProps> = ({ isOpen, onClose
   const getResourceTypeIcon = (type: DailyChecklistItemResourceType) => {
     switch (type) {
       case 'video': return <Video className="w-4 h-4 mr-1" />;
-      case 'audio': return <Music className="w-4 h-4 mr-1" />; // NOVO: Ícone para áudio
+      case 'audio': return <Music className="w-4 h-4 mr-1" />;
+      case 'text_audio': return <BookText className="w-4 h-4 mr-1" />; // NOVO: Ícone para texto + áudio
       case 'pdf': return <FileText className="w-4 h-4 mr-1" />;
       case 'image': return <ImageIcon className="w-4 h-4 mr-1" />;
       case 'link': return <LinkIcon className="w-4 h-4 mr-1" />;
@@ -353,22 +419,22 @@ const ChecklistItemModal: React.FC<ChecklistItemModalProps> = ({ isOpen, onClose
                 <div className="grid gap-2">
                   <Label className="text-left">Tipo de Recurso</Label>
                   <div className="flex flex-wrap gap-2">
-                    {['text', 'link', 'video', 'audio', 'image', 'pdf'].map(type => ( // Adicionado 'audio'
+                    {['text', 'link', 'video', 'audio', 'text_audio', 'image', 'pdf'].map(type => ( // Adicionado 'text_audio'
                       <Button
                         key={type}
                         type="button"
                         variant={resourceType === type ? 'default' : 'outline'}
-                        onClick={() => { setResourceType(type as DailyChecklistItemResourceType); setSelectedFile(null); setResourceContent(''); setResourceName(''); }}
+                        onClick={() => { setResourceType(type as DailyChecklistItemResourceType); setSelectedFile(null); setResourceContent(''); setResourceName(''); setTextAudioContentText(''); setTextAudioContentUrl(''); setTextAudioSelectedFile(null); }}
                         className={`flex items-center space-x-1 ${resourceType === type ? 'bg-brand-600 hover:bg-brand-700 text-white' : 'dark:bg-slate-700 dark:text-white dark:border-slate-600'}`}
                       >
                         {getResourceTypeIcon(type as DailyChecklistItemResourceType)}
-                        <span>{type.charAt(0).toUpperCase() + type.slice(1)}</span>
+                        <span>{type.charAt(0).toUpperCase() + type.slice(1).replace('_', ' ')}</span>
                       </Button>
                     ))}
                      <Button
                         type="button"
                         variant={resourceType === 'none' ? 'default' : 'outline'} // Highlight 'none'
-                        onClick={() => { setResourceType('none'); setResourceContent(''); setResourceName(''); setSelectedFile(null); }}
+                        onClick={() => { setResourceType('none'); setResourceContent(''); setResourceName(''); setSelectedFile(null); setTextAudioContentText(''); setTextAudioContentUrl(''); setTextAudioSelectedFile(null); }}
                         className={`flex items-center space-x-1 ${resourceType === 'none' ? 'bg-brand-600 hover:bg-brand-700 text-white' : 'dark:bg-slate-700 dark:text-white dark:border-slate-600'}`}
                       >
                         <X className="w-4 h-4 mr-1" />
@@ -391,7 +457,7 @@ const ChecklistItemModal: React.FC<ChecklistItemModalProps> = ({ isOpen, onClose
                   </div>
                 )}
 
-                {(resourceType === 'link' || resourceType === 'video' || resourceType === 'audio') && ( // Adicionado 'audio'
+                {(resourceType === 'link' || resourceType === 'video' || resourceType === 'audio') && (
                   <div className="grid gap-2 mt-4">
                     <Label htmlFor="resourceContentUrl" className="text-left">URL do {resourceType === 'link' ? 'Link' : resourceType === 'video' ? 'Vídeo' : 'Áudio'} *</Label>
                     <Input
@@ -414,13 +480,13 @@ const ChecklistItemModal: React.FC<ChecklistItemModalProps> = ({ isOpen, onClose
                   </div>
                 )}
 
-                {(resourceType === 'image' || resourceType === 'pdf' || resourceType === 'audio') && ( // Adicionado 'audio' para upload de arquivo
+                {(resourceType === 'image' || resourceType === 'pdf' || resourceType === 'audio') && (
                   <div className="grid gap-2 mt-4">
                     <Label htmlFor="resourceFile" className="text-left">Arquivo ({resourceType.toUpperCase()}) *</Label>
                     <label className="flex items-center justify-center px-4 py-2 border border-gray-300 dark:border-slate-600 border-dashed rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/50 transition bg-white dark:bg-slate-700">
                       {getResourceTypeIcon(resourceType)}
                       <span className="text-sm text-gray-600 dark:text-gray-300 truncate ml-2">{selectedFile ? selectedFile.name : (item?.resource?.name || `Selecionar arquivo ${resourceType}...`)}</span>
-                      <input type="file" id="resourceFile" className="hidden" accept={resourceType === 'pdf' ? 'application/pdf' : resourceType === 'image' ? 'image/*' : 'audio/*'} onChange={handleFileChange} /> {/* Atualizado accept */}
+                      <input type="file" id="resourceFile" className="hidden" accept={resourceType === 'pdf' ? 'application/pdf' : resourceType === 'image' ? 'image/*' : 'audio/*'} onChange={handleFileChange} />
                     </label>
                     <Label htmlFor="resourceFileName" className="text-left">Nome do Arquivo (Opcional)</Label>
                     <Input
@@ -430,6 +496,51 @@ const ChecklistItemModal: React.FC<ChecklistItemModalProps> = ({ isOpen, onClose
                       onChange={(e) => setResourceName(e.target.value)}
                       className="w-full p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600"
                       placeholder="Nome para exibição do arquivo"
+                    />
+                  </div>
+                )}
+
+                {resourceType === 'text_audio' && ( // NOVO: Campos para 'text_audio'
+                  <div className="grid gap-4 mt-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="textAudioContentText" className="text-left">Texto *</Label>
+                      <textarea
+                        id="textAudioContentText"
+                        value={textAudioContentText}
+                        onChange={(e) => setTextAudioContentText(e.target.value)}
+                        rows={5}
+                        className="w-full p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600"
+                        placeholder="Descreva a tarefa em texto..."
+                        required
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="textAudioContentUrl" className="text-left">URL do Áudio (Opcional)</Label>
+                      <Input
+                        id="textAudioContentUrl"
+                        type="url"
+                        value={textAudioContentUrl}
+                        onChange={(e) => setTextAudioContentUrl(e.target.value)}
+                        className="w-full p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600"
+                        placeholder="https://exemplo.com/audio.mp3"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="textAudioFile" className="text-left">Ou Upload de Arquivo de Áudio (Opcional)</Label>
+                      <label className="flex items-center justify-center px-4 py-2 border border-gray-300 dark:border-slate-600 border-dashed rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/50 transition bg-white dark:bg-slate-700">
+                        <Music className="w-4 h-4 mr-2" />
+                        <span className="text-sm text-gray-600 dark:text-gray-300 truncate ml-2">{textAudioSelectedFile ? textAudioSelectedFile.name : (item?.resource?.type === 'text_audio' && (item.resource.content as { text: string; audioUrl: string; }).audioUrl && !textAudioSelectedFile ? 'Áudio existente' : 'Selecionar arquivo de áudio...')}</span>
+                        <input type="file" id="textAudioFile" className="hidden" accept="audio/*" onChange={handleTextAudioFileChange} />
+                      </label>
+                    </div>
+                    <Label htmlFor="resourceNameTextAudio" className="text-left">Nome/Título do Recurso (Opcional)</Label>
+                    <Input
+                      id="resourceNameTextAudio"
+                      type="text"
+                      value={resourceName}
+                      onChange={(e) => setResourceName(e.target.value)}
+                      className="w-full p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600"
+                      placeholder="Título do recurso (ex: Áudio explicativo)"
                     />
                   </div>
                 )}
@@ -557,7 +668,8 @@ export const DailyChecklistConfig = () => {
   const getResourceTypeIcon = (type: DailyChecklistItemResourceType) => {
     switch (type) {
       case 'video': return <Video className="w-4 h-4 text-red-500" />;
-      case 'audio': return <Music className="w-4 h-4 text-brand-500" />; // NOVO: Ícone para áudio
+      case 'audio': return <Music className="w-4 h-4 text-brand-500" />;
+      case 'text_audio': return <BookText className="w-4 h-4 text-orange-500" />; // NOVO: Ícone para texto + áudio
       case 'pdf': return <FileText className="w-4 h-4 text-red-500" />;
       case 'image': return <ImageIcon className="w-4 h-4 text-green-500" />;
       case 'link': return <LinkIcon className="w-4 h-4 text-blue-500" />;

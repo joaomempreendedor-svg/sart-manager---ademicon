@@ -358,22 +358,12 @@ export interface GestorTask {
 }
 
 // NOVO: Tipos para Daily Checklist Item Resource
-export type DailyChecklistItemResourceType = 'link' | 'text' | 'image' | 'pdf' | 'video' | 'audio' | 'none'; // Adicionado 'audio'
+export type DailyChecklistItemResourceType = 'link' | 'text' | 'image' | 'pdf' | 'video' | 'audio' | 'text_audio' | 'none'; // Adicionado 'text_audio'
 
 export interface DailyChecklistItemResource {
   type: DailyChecklistItemResourceType;
-  content: string; // URL para link/vídeo/arquivo, ou o próprio texto
+  content: string | { text: string; audioUrl: string; }; // 'content' pode ser string ou objeto para 'text_audio'
   name?: string; // Nome do arquivo, se aplicável
-}
-
-export interface DailyChecklistItem {
-  id: string;
-  daily_checklist_id: string;
-  text: string;
-  order_index: number;
-  is_active: boolean;
-  created_at: string;
-  resource?: DailyChecklistItemResource; // NOVO: Recurso de apoio para o item
 }
 
 // --- FIM DOS NOVOS TIPOS ---

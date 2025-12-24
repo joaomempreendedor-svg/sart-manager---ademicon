@@ -1226,8 +1226,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!user) throw new Error("Usuário não autenticado.");
     
     let finalResource: DailyChecklistItemResource | undefined = resource;
+    let audioUrlForTextAudio: string | undefined;
 
-    if (file && (resource?.type === 'image' || resource?.type === 'pdf' || resource?.type === 'video' || resource?.type === 'audio')) { // Added audio to file types for upload
+    // Handle file upload for 'image', 'pdf', 'video', 'audio'
+    if (file && (resource?.type === 'image' || resource?.type === 'pdf' || resource?.type === 'video' || resource?.type === 'audio')) {
       const sanitizedFileName = file.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w\s.-]/g, '').replace(/\s+/g, '_');
       const filePath = `daily_checklist_resources/${crypto.randomUUID()}-${sanitizedFileName}`;
       
@@ -1236,24 +1238,54 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         upsert: false
       });
       if (uploadError) { 
-        console.error("Supabase Storage Upload Error:", uploadError); // Detailed log
+        console.error("Supabase Storage Upload Error:", uploadError);
         toast.error("Erro ao fazer upload do arquivo para o item do checklist."); 
         throw uploadError; 
       }
 
       const { data: urlData } = supabase.storage.from('support_materials').getPublicUrl(filePath);
       if (!urlData) { 
-        console.error("Supabase Public URL Error: No URL data returned."); // Detailed log
+        console.error("Supabase Public URL Error: No URL data returned.");
         toast.error("Não foi possível obter a URL pública do arquivo."); 
         throw new Error("Não foi possível obter a URL pública do arquivo."); 
       }
       
       finalResource = { ...resource, content: urlData.publicUrl, name: file.name };
+    } else if (file && resource?.type === 'text_audio') { // Handle audio file upload for 'text_audio' type
+      const sanitizedFileName = file.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w\s.-]/g, '').replace(/\s+/g, '_');
+      const filePath = `daily_checklist_resources/${crypto.randomUUID()}-${sanitizedFileName}`;
+      
+      const { error: uploadError } = await supabase.storage.from('support_materials').upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: false
+      });
+      if (uploadError) { 
+        console.error("Supabase Storage Upload Error (text_audio):", uploadError);
+        toast.error("Erro ao fazer upload do arquivo de áudio para o item do checklist."); 
+        throw uploadError; 
+      }
+
+      const { data: urlData } = supabase.storage.from('support_materials').getPublicUrl(filePath);
+      if (!urlData) { 
+        console.error("Supabase Public URL Error (text_audio): No URL data returned.");
+        toast.error("Não foi possível obter a URL pública do arquivo de áudio."); 
+        throw new Error("Não foi possível obter a URL pública do arquivo de áudio."); 
+      }
+      audioUrlForTextAudio = urlData.publicUrl;
+      finalResource = { 
+        ...resource, 
+        content: { 
+          text: (resource.content as { text: string; audioUrl: string; }).text, 
+          audioUrl: audioUrlForTextAudio 
+        }, 
+        name: file.name 
+      };
     }
+
 
     const { data, error } = await supabase.from('daily_checklist_items').insert({ daily_checklist_id: checklistId, text, order_index, is_active: true, resource: finalResource }).select().single();
     if (error) { 
-      console.error("Supabase DB Insert Error (daily_checklist_items):", error); // Detailed log
+      console.error("Supabase DB Insert Error (daily_checklist_items):", error);
       toast.error("Erro ao adicionar item ao checklist."); 
       throw error; 
     }
@@ -1268,16 +1300,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!currentItem) throw new Error("Item do checklist não encontrado.");
 
     let finalResource: DailyChecklistItemResource | undefined = updates.resource !== undefined ? updates.resource : currentItem.resource;
+    let audioUrlForTextAudio: string | undefined;
 
-    // Handle file upload if a new file is provided and resource type is file-based
-    if (file && (finalResource?.type === 'image' || finalResource?.type === 'pdf' || finalResource?.type === 'video' || finalResource?.type === 'audio')) { // Added audio to file types for upload
-      // If there was an old file, delete it first
-      if (currentItem.resource && (currentItem.resource.type === 'image' || currentItem.resource.type === 'pdf' || currentItem.resource.type === 'video' || currentItem.resource.type === 'audio') && currentItem.resource.content) {
-        const oldFilePath = currentItem.resource.content.split('/support_materials/')[1];
-        if (oldFilePath) {
-          const { error: storageDeleteError } = await supabase.storage.from('support_materials').remove([oldFilePath]);
-          if (storageDeleteError) console.error("Supabase Storage Delete Error (old file):", storageDeleteError.message); // Detailed log
-        }
+    // Determine if old file needs deletion
+    const oldFileResource = currentItem.resource;
+    const oldFilePath = (oldFileResource && (oldFileResource.type === 'image' || oldFileResource.type === 'pdf' || oldFileResource.type === 'video' || oldFileResource.type === 'audio') && typeof oldFileResource.content === 'string')
+      ? oldFileResource.content.split('/support_materials/')[1]
+      : null;
+    
+    const oldTextAudioFilePath = (oldFileResource && oldFileResource.type === 'text_audio' && typeof oldFileResource.content === 'object' && oldFileResource.content.audioUrl)
+      ? oldFileResource.content.audioUrl.split('/support_materials/')[1]
+      : null;
+
+    // Handle file upload for 'image', 'pdf', 'video', 'audio'
+    if (file && (finalResource?.type === 'image' || finalResource?.type === 'pdf' || finalResource?.type === 'video' || finalResource?.type === 'audio')) {
+      // Delete old file if it exists and is different from new file
+      if (oldFilePath && oldFilePath !== file.name) { // Simple check, could be more robust
+        const { error: storageDeleteError } = await supabase.storage.from('support_materials').remove([oldFilePath]);
+        if (storageDeleteError) console.error("Supabase Storage Delete Error (old file):", storageDeleteError.message);
       }
 
       const sanitizedFileName = file.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w\s.-]/g, '').replace(/\s+/g, '_');
@@ -1288,33 +1328,85 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         upsert: false
       });
       if (uploadError) { 
-        console.error("Supabase Storage Upload Error (update):", uploadError); // Detailed log
+        console.error("Supabase Storage Upload Error (update):", uploadError);
         toast.error("Erro ao fazer upload do novo arquivo para o item do checklist."); 
         throw uploadError; 
       }
 
       const { data: urlData } = supabase.storage.from('support_materials').getPublicUrl(filePath);
       if (!urlData) { 
-        console.error("Supabase Public URL Error (update): No URL data returned."); // Detailed log
+        console.error("Supabase Public URL Error (update): No URL data returned.");
         toast.error("Não foi possível obter a URL pública do novo arquivo."); 
         throw new Error("Não foi possível obter a URL pública do novo arquivo."); 
       }
       
       finalResource = { ...finalResource, content: urlData.publicUrl, name: file.name };
-    } else if (updates.resource === null) { // Explicitly setting resource to null/undefined
-      if (currentItem.resource && (currentItem.resource.type === 'image' || currentItem.resource.type === 'pdf' || currentItem.resource.type === 'video' || currentItem.resource.type === 'audio') && currentItem.resource.content) {
-        const oldFilePath = currentItem.resource.content.split('/support_materials/')[1];
-        if (oldFilePath) {
-          const { error: storageDeleteError } = await supabase.storage.from('support_materials').remove([oldFilePath]);
-          if (storageDeleteError) console.error("Supabase Storage Delete Error (resource removed):", storageDeleteError.message); // Detailed log
-        }
+    } else if (file && finalResource?.type === 'text_audio') { // Handle audio file upload for 'text_audio' type
+      // Delete old audio file if it exists
+      if (oldTextAudioFilePath) {
+        const { error: storageDeleteError } = await supabase.storage.from('support_materials').remove([oldTextAudioFilePath]);
+        if (storageDeleteError) console.error("Supabase Storage Delete Error (old text_audio file):", storageDeleteError.message);
+      }
+
+      const sanitizedFileName = file.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w\s.-]/g, '').replace(/\s+/g, '_');
+      const filePath = `daily_checklist_resources/${crypto.randomUUID()}-${sanitizedFileName}`;
+      
+      const { error: uploadError } = await supabase.storage.from('support_materials').upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: false
+      });
+      if (uploadError) { 
+        console.error("Supabase Storage Upload Error (text_audio update):", uploadError);
+        toast.error("Erro ao fazer upload do novo arquivo de áudio para o item do checklist."); 
+        throw uploadError; 
+      }
+
+      const { data: urlData } = supabase.storage.from('support_materials').getPublicUrl(filePath);
+      if (!urlData) { 
+        console.error("Supabase Public URL Error (text_audio update): No URL data returned.");
+        toast.error("Não foi possível obter a URL pública do novo arquivo de áudio."); 
+        throw new Error("Não foi possível obter a URL pública do novo arquivo de áudio."); 
+      }
+      audioUrlForTextAudio = urlData.publicUrl;
+      finalResource = { 
+        ...finalResource, 
+        content: { 
+          text: (finalResource.content as { text: string; audioUrl: string; }).text, 
+          audioUrl: audioUrlForTextAudio 
+        }, 
+        name: file.name 
+      };
+    } else if (updates.resource === null || (updates.resource && updates.resource.type === 'none')) { // Explicitly setting resource to null/undefined or 'none'
+      // Delete old file if it exists
+      if (oldFilePath) {
+        const { error: storageDeleteError } = await supabase.storage.from('support_materials').remove([oldFilePath]);
+        if (storageDeleteError) console.error("Supabase Storage Delete Error (resource removed):", storageDeleteError.message);
+      }
+      if (oldTextAudioFilePath) {
+        const { error: storageDeleteError } = await supabase.storage.from('support_materials').remove([oldTextAudioFilePath]);
+        if (storageDeleteError) console.error("Supabase Storage Delete Error (text_audio resource removed):", storageDeleteError.message);
       }
       finalResource = undefined;
+    } else if (finalResource?.type === 'text_audio' && typeof finalResource.content === 'object' && !file) {
+      // If text_audio type, no new file, but audioUrl might have changed or been removed
+      const newAudioUrl = (updates.resource?.content as { text: string; audioUrl: string; })?.audioUrl || '';
+      if (oldTextAudioFilePath && !newAudioUrl.includes(oldTextAudioFilePath)) { // If old URL is different and not part of new URL
+        const { error: storageDeleteError } = await supabase.storage.from('support_materials').remove([oldTextAudioFilePath]);
+        if (storageDeleteError) console.error("Supabase Storage Delete Error (text_audio URL changed):", storageDeleteError.message);
+      }
+      finalResource = {
+        ...finalResource,
+        content: {
+          text: (finalResource.content as { text: string; audioUrl: string; }).text,
+          audioUrl: newAudioUrl
+        }
+      };
     }
+
 
     const { error } = await supabase.from('daily_checklist_items').update({ ...updates, resource: finalResource }).eq('id', id);
     if (error) { 
-      console.error("Supabase DB Update Error (daily_checklist_items):", error); // Detailed log
+      console.error("Supabase DB Update Error (daily_checklist_items):", error);
       toast.error("Erro ao atualizar item do checklist."); 
       throw error; 
     }
@@ -1328,17 +1420,25 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!itemToDelete) throw new Error("Item do checklist não encontrado.");
 
     // If the item has a file resource, delete it from storage
-    if (itemToDelete.resource && (itemToDelete.resource.type === 'image' || itemToDelete.resource.type === 'pdf' || itemToDelete.resource.type === 'video' || itemToDelete.resource.type === 'audio') && itemToDelete.resource.content) {
-      const filePath = itemToDelete.resource.content.split('/support_materials/')[1];
-      if (filePath) {
-        const { error: storageError } = await supabase.storage.from('support_materials').remove([filePath]);
-        if (storageError) console.error("Supabase Storage Delete Error (delete item):", storageError.message); // Detailed log
+    if (itemToDelete.resource) {
+      if ((itemToDelete.resource.type === 'image' || itemToDelete.resource.type === 'pdf' || itemToDelete.resource.type === 'video' || itemToDelete.resource.type === 'audio') && typeof itemToDelete.resource.content === 'string') {
+        const filePath = itemToDelete.resource.content.split('/support_materials/')[1];
+        if (filePath) {
+          const { error: storageError } = await supabase.storage.from('support_materials').remove([filePath]);
+          if (storageError) console.error("Supabase Storage Delete Error (delete item):", storageError.message);
+        }
+      } else if (itemToDelete.resource.type === 'text_audio' && typeof itemToDelete.resource.content === 'object' && itemToDelete.resource.content.audioUrl) {
+        const filePath = itemToDelete.resource.content.audioUrl.split('/support_materials/')[1];
+        if (filePath) {
+          const { error: storageError } = await supabase.storage.from('support_materials').remove([filePath]);
+          if (storageError) console.error("Supabase Storage Delete Error (delete text_audio item):", storageError.message);
+        }
       }
     }
 
     const { error } = await supabase.from('daily_checklist_items').delete().eq('id', id);
     if (error) { 
-      console.error("Supabase DB Delete Error (daily_checklist_items):", error); // Detailed log
+      console.error("Supabase DB Delete Error (daily_checklist_items):", error);
       toast.error("Erro ao excluir item do checklist."); 
       throw error; 
     }

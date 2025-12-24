@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, FileText, Image as ImageIcon, Link as LinkIcon, MessageSquare, Video, Music } from 'lucide-react'; // Importar Music icon
+import { X, FileText, Image as ImageIcon, Link as LinkIcon, MessageSquare, Video, Music, BookText } from 'lucide-react'; // Importar BookText icon
 import { DailyChecklistItemResource } from '@/types';
 import YouTube from 'react-youtube';
 
@@ -27,7 +27,7 @@ export const DailyChecklistItemResourceModal: React.FC<DailyChecklistItemResourc
   const renderContent = () => {
     switch (resource.type) {
       case 'video':
-        const youtubeId = getYouTubeID(resource.content);
+        const youtubeId = getYouTubeID(resource.content as string); // Cast content to string
         if (youtubeId) {
           return (
             <div className="aspect-video w-full bg-black rounded-lg overflow-hidden">
@@ -46,43 +46,63 @@ export const DailyChecklistItemResourceModal: React.FC<DailyChecklistItemResourc
           );
         }
         return <p className="text-red-500">Link de vídeo inválido.</p>;
-      case 'audio': // NOVO: Adicionar caso para áudio
+      case 'audio':
         return (
           <div className="w-full flex flex-col items-center p-4 bg-gray-50 dark:bg-slate-700 rounded-lg">
             <Music className="w-12 h-12 text-brand-500 mb-3" />
             <p className="text-lg font-semibold text-gray-900 dark:text-white mb-2">{resource.name || "Áudio"}</p>
-            <audio controls src={resource.content} className="w-full max-w-md"></audio>
+            <audio controls src={resource.content as string} className="w-full max-w-md"></audio> {/* Cast content to string */}
+          </div>
+        );
+      case 'text_audio': // NOVO: Caso para texto + áudio
+        const textAudioContent = resource.content as { text: string; audioUrl: string; };
+        return (
+          <div className="space-y-6">
+            <div>
+              <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-2 flex items-center"><MessageSquare className="w-4 h-4 mr-2" /> Texto</h4>
+              <div className="p-4 bg-gray-50 dark:bg-slate-700 rounded-lg whitespace-pre-wrap text-gray-800 dark:text-gray-200">
+                {textAudioContent.text}
+              </div>
+            </div>
+            {textAudioContent.audioUrl && (
+              <div>
+                <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-2 flex items-center"><Music className="w-4 h-4 mr-2" /> Áudio</h4>
+                <div className="w-full flex flex-col items-center p-4 bg-gray-50 dark:bg-slate-700 rounded-lg">
+                  <audio controls src={textAudioContent.audioUrl} className="w-full max-w-md"></audio>
+                </div>
+              </div>
+            )}
           </div>
         );
       case 'pdf':
         return (
           <iframe
-            src={resource.content}
+            src={resource.content as string} // Cast content to string
             className="w-full h-[500px] border-0 rounded-lg"
             title={resource.name || "Documento PDF"}
           ></iframe>
         );
       case 'image':
-        return <img src={resource.content} alt={resource.name || "Imagem"} className="max-w-full h-auto rounded-lg" />;
+        return <img src={resource.content as string} alt={resource.name || "Imagem"} className="max-w-full h-auto rounded-lg" />; // Cast content to string
       case 'link':
         return (
           <div className="flex flex-col items-center justify-center p-6 bg-gray-50 dark:bg-slate-700 rounded-lg">
             <LinkIcon className="w-12 h-12 text-blue-500 mb-3" />
             <p className="text-lg font-semibold text-gray-900 dark:text-white mb-2">{resource.name || "Link Externo"}</p>
             <a
-              href={resource.content}
+              href={resource.content as string} // Cast content to string
               target="_blank"
               rel="noopener noreferrer"
               className="text-blue-600 dark:text-blue-400 hover:underline text-sm break-all"
             >
-              {resource.content}
+              {resource.content as string}
             </a>
           </div>
         );
       case 'text':
         return (
           <div className="p-4 bg-gray-50 dark:bg-slate-700 rounded-lg whitespace-pre-wrap text-gray-800 dark:text-gray-200">
-            {resource.content}
+            {resource.content as string}
           </div>
         );
       default:
@@ -93,7 +113,8 @@ export const DailyChecklistItemResourceModal: React.FC<DailyChecklistItemResourc
   const getIcon = (type: DailyChecklistItemResourceType) => {
     switch (type) {
       case 'video': return <Video className="w-5 h-5 text-red-500" />;
-      case 'audio': return <Music className="w-5 h-5 text-brand-500" />; // NOVO: Ícone para áudio
+      case 'audio': return <Music className="w-5 h-5 text-brand-500" />;
+      case 'text_audio': return <BookText className="w-5 h-5 text-orange-500" />; // NOVO: Ícone para texto + áudio
       case 'pdf': return <FileText className="w-5 h-5 text-red-500" />;
       case 'image': return <ImageIcon className="w-5 h-5 text-green-500" />;
       case 'link': return <LinkIcon className="w-5 h-5 text-blue-500" />;
