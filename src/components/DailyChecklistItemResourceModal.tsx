@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, FileText, Image as ImageIcon, Link as LinkIcon, MessageSquare, Video } from 'lucide-react';
+import { X, FileText, Image as ImageIcon, Link as LinkIcon, MessageSquare, Video, Music } from 'lucide-react'; // Importar Music icon
 import { DailyChecklistItemResource } from '@/types';
 import YouTube from 'react-youtube';
 
@@ -46,6 +46,14 @@ export const DailyChecklistItemResourceModal: React.FC<DailyChecklistItemResourc
           );
         }
         return <p className="text-red-500">Link de vídeo inválido.</p>;
+      case 'audio': // NOVO: Adicionar caso para áudio
+        return (
+          <div className="w-full flex flex-col items-center p-4 bg-gray-50 dark:bg-slate-700 rounded-lg">
+            <Music className="w-12 h-12 text-brand-500 mb-3" />
+            <p className="text-lg font-semibold text-gray-900 dark:text-white mb-2">{resource.name || "Áudio"}</p>
+            <audio controls src={resource.content} className="w-full max-w-md"></audio>
+          </div>
+        );
       case 'pdf':
         return (
           <iframe
@@ -85,6 +93,7 @@ export const DailyChecklistItemResourceModal: React.FC<DailyChecklistItemResourc
   const getIcon = (type: DailyChecklistItemResourceType) => {
     switch (type) {
       case 'video': return <Video className="w-5 h-5 text-red-500" />;
+      case 'audio': return <Music className="w-5 h-5 text-brand-500" />; // NOVO: Ícone para áudio
       case 'pdf': return <FileText className="w-5 h-5 text-red-500" />;
       case 'image': return <ImageIcon className="w-5 h-5 text-green-500" />;
       case 'link': return <LinkIcon className="w-5 h-5 text-blue-500" />;

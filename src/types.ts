@@ -358,7 +358,7 @@ export interface GestorTask {
 }
 
 // NOVO: Tipos para Daily Checklist Item Resource
-export type DailyChecklistItemResourceType = 'link' | 'text' | 'image' | 'pdf' | 'video' | 'none'; // Adicionado 'none'
+export type DailyChecklistItemResourceType = 'link' | 'text' | 'image' | 'pdf' | 'video' | 'audio' | 'none'; // Adicionado 'audio'
 
 export interface DailyChecklistItemResource {
   type: DailyChecklistItemResourceType;

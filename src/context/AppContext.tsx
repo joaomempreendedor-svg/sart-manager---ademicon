@@ -66,7 +66,7 @@ const JOAO_GESTOR_AUTH_ID = "0c6d71b7-daeb-4dde-8eec-0e7a8ffef658"; // <--- ATUA
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { user, session } = useAuth();
-  const fetchedUserIdRef = useRef<string | null>(null);
+  const fetchedUserIdRef = useRef<string | null>(fetchedUserIdRef.current); // Initialize with current value
   const isFetchingRef = useRef(false);
 
   const [isDataLoading, setIsDataLoading] = useState(true);
@@ -903,7 +903,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const resetGoalsToDefault = useCallback(() => { updateAndPersistStructure(setConsultantGoalsStructure, 'consultantGoalsStructure', DEFAULT_GOALS); }, [updateAndPersistStructure]);
   const updateInterviewSection = useCallback((sectionId: string, updates: Partial<InterviewSection>) => { const newStructure = interviewStructure.map(s => s.id === sectionId ? { ...s, ...updates } : s); updateAndPersistStructure(setInterviewStructure, 'interviewStructure', newStructure); }, [interviewStructure, updateAndPersistStructure]);
   const addInterviewQuestion = useCallback((sectionId: string, text: string, points: number) => { const newStructure = interviewStructure.map(s => s.id === sectionId ? { ...s, questions: [...s.questions, { id: `q_${Date.now()}`, text, points }] } : s); updateAndPersistStructure(setInterviewStructure, 'interviewStructure', newStructure); }, [interviewStructure, updateAndPersistStructure]);
-  const updateInterviewQuestion = useCallback((sectionId: string, questionId: string, updates: Partial<InterviewSection['questions'][0]>) => { const newStructure = interviewStructure.map(s => s.id === sectionId ? { ...s, questions: s.questions.map(q => q.id === questionId ? { ...q, ...updates } : q) } : s); updateAndPersistStructure(setInterviewStructure, 'interviewStructure', newStructure); }, [interviewStructure, updateAndPersistStructure]);
+  const updateInterviewQuestion = useCallback((sectionId: string, questionId: string, updates: Partial<InterviewSection['questions'][0]>) => { const newStructure = interviewStructure.map(s => s.id === sectionId ? { ...s, questions: s.questions.map(q => q.id === questionId ? { ...q, ...updates } : q) } : s); updateAndPersistStructure(setInterviewStructure, 'interviewStructure', newStructure); }, [interviewStructure, updateAndAndPersistStructure]);
   const deleteInterviewQuestion = useCallback((sectionId: string, questionId: string) => { const newStructure = interviewStructure.map(s => s.id === sectionId ? { ...s, questions: s.questions.filter(q => q.id !== questionId) } : s); updateAndPersistStructure(setInterviewStructure, 'interviewStructure', newStructure); }, [interviewStructure, updateAndPersistStructure]);
   const moveInterviewQuestion = useCallback((sectionId: string, questionId: string, dir: 'up' | 'down') => { const newStructure = interviewStructure.map(s => { if (s.id !== sectionId) return s; const idx = s.questions.findIndex(i => i.id === questionId); if ((dir === 'up' && idx < 1) || (dir === 'down' && idx >= s.questions.length - 1)) return s; const newQuestions = [...s.questions]; const targetIdx = dir === 'up' ? idx - 1 : idx + 1; [newQuestions[idx], newQuestions[targetIdx]] = [newQuestions[targetIdx], newQuestions[idx]]; return { ...s, questions: newQuestions }; }); updateAndPersistStructure(setInterviewStructure, 'interviewStructure', newStructure); }, [interviewStructure, updateAndPersistStructure]);
   const resetInterviewToDefault = useCallback(() => { updateAndPersistStructure(setInterviewStructure, 'interviewStructure', INITIAL_INTERVIEW_STRUCTURE); }, [updateAndPersistStructure]);
@@ -1227,7 +1227,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     
     let finalResource: DailyChecklistItemResource | undefined = resource;
 
-    if (file && (resource?.type === 'image' || resource?.type === 'pdf' || resource?.type === 'video')) { // Added video to file types for upload
+    if (file && (resource?.type === 'image' || resource?.type === 'pdf' || resource?.type === 'video' || resource?.type === 'audio')) { // Added audio to file types for upload
       const sanitizedFileName = file.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w\s.-]/g, '').replace(/\s+/g, '_');
       const filePath = `daily_checklist_resources/${crypto.randomUUID()}-${sanitizedFileName}`;
       
@@ -1270,9 +1270,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     let finalResource: DailyChecklistItemResource | undefined = updates.resource !== undefined ? updates.resource : currentItem.resource;
 
     // Handle file upload if a new file is provided and resource type is file-based
-    if (file && (finalResource?.type === 'image' || finalResource?.type === 'pdf' || finalResource?.type === 'video')) { // Added video to file types for upload
+    if (file && (finalResource?.type === 'image' || finalResource?.type === 'pdf' || finalResource?.type === 'video' || finalResource?.type === 'audio')) { // Added audio to file types for upload
       // If there was an old file, delete it first
-      if (currentItem.resource && (currentItem.resource.type === 'image' || currentItem.resource.type === 'pdf' || currentItem.resource.type === 'video') && currentItem.resource.content) {
+      if (currentItem.resource && (currentItem.resource.type === 'image' || currentItem.resource.type === 'pdf' || currentItem.resource.type === 'video' || currentItem.resource.type === 'audio') && currentItem.resource.content) {
         const oldFilePath = currentItem.resource.content.split('/support_materials/')[1];
         if (oldFilePath) {
           const { error: storageDeleteError } = await supabase.storage.from('support_materials').remove([oldFilePath]);
@@ -1302,7 +1302,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       
       finalResource = { ...finalResource, content: urlData.publicUrl, name: file.name };
     } else if (updates.resource === null) { // Explicitly setting resource to null/undefined
-      if (currentItem.resource && (currentItem.resource.type === 'image' || currentItem.resource.type === 'pdf' || currentItem.resource.type === 'video') && currentItem.resource.content) {
+      if (currentItem.resource && (currentItem.resource.type === 'image' || currentItem.resource.type === 'pdf' || currentItem.resource.type === 'video' || currentItem.resource.type === 'audio') && currentItem.resource.content) {
         const oldFilePath = currentItem.resource.content.split('/support_materials/')[1];
         if (oldFilePath) {
           const { error: storageDeleteError } = await supabase.storage.from('support_materials').remove([oldFilePath]);
@@ -1328,7 +1328,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!itemToDelete) throw new Error("Item do checklist não encontrado.");
 
     // If the item has a file resource, delete it from storage
-    if (itemToDelete.resource && (itemToDelete.resource.type === 'image' || itemToDelete.resource.type === 'pdf' || itemToDelete.resource.type === 'video') && itemToDelete.resource.content) {
+    if (itemToDelete.resource && (itemToDelete.resource.type === 'image' || itemToDelete.resource.type === 'pdf' || itemToDelete.resource.type === 'video' || itemToDelete.resource.type === 'audio') && itemToDelete.resource.content) {
       const filePath = itemToDelete.resource.content.split('/support_materials/')[1];
       if (filePath) {
         const { error: storageError } = await supabase.storage.from('support_materials').remove([filePath]);

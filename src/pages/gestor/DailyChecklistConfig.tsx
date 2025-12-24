@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { useApp } from '@/context/AppContext';
 import { DailyChecklist, DailyChecklistItem, TeamMember, DailyChecklistItemResource, DailyChecklistItemResourceType } from '@/types';
-import { Plus, Edit2, Trash2, ArrowUp, ArrowDown, ToggleLeft, ToggleRight, Users, Check, X, ListChecks, Loader2, Video, FileText, Image as ImageIcon, Link as LinkIcon, MessageSquare, Eye } from 'lucide-react';
+import { Plus, Edit2, Trash2, ArrowUp, ArrowDown, ToggleLeft, ToggleRight, Users, Check, X, ListChecks, Loader2, Video, FileText, Image as ImageIcon, Link as LinkIcon, MessageSquare, Eye, Music } from 'lucide-react'; // Importar Music icon
 import {
   Dialog,
   DialogContent,
@@ -263,10 +263,10 @@ const ChecklistItemModal: React.FC<ChecklistItemModalProps> = ({ isOpen, onClose
         return;
       }
       finalResource = { type: 'text', content: resourceContent.trim(), name: resourceName.trim() || undefined };
-    } else if (resourceType === 'link' || resourceType === 'video') {
+    } else if (resourceType === 'link' || resourceType === 'video' || resourceType === 'audio') { // Adicionado 'audio'
       if (!resourceContent.trim()) {
-        setError(`A URL para ${resourceType === 'link' ? 'o link' : 'o vídeo'} é obrigatória.`);
-        console.log("Validation error: link/video resource content is empty."); // DEBUG LOG
+        setError(`A URL para ${resourceType === 'link' ? 'o link' : resourceType === 'video' ? 'o vídeo' : 'o áudio'} é obrigatória.`);
+        console.log(`Validation error: ${resourceType} resource content is empty.`); // DEBUG LOG
         return;
       }
       finalResource = { type: resourceType, content: resourceContent.trim(), name: resourceName.trim() || undefined };
@@ -308,6 +308,7 @@ const ChecklistItemModal: React.FC<ChecklistItemModalProps> = ({ isOpen, onClose
   const getResourceTypeIcon = (type: DailyChecklistItemResourceType) => {
     switch (type) {
       case 'video': return <Video className="w-4 h-4 mr-1" />;
+      case 'audio': return <Music className="w-4 h-4 mr-1" />; // NOVO: Ícone para áudio
       case 'pdf': return <FileText className="w-4 h-4 mr-1" />;
       case 'image': return <ImageIcon className="w-4 h-4 mr-1" />;
       case 'link': return <LinkIcon className="w-4 h-4 mr-1" />;
@@ -352,7 +353,7 @@ const ChecklistItemModal: React.FC<ChecklistItemModalProps> = ({ isOpen, onClose
                 <div className="grid gap-2">
                   <Label className="text-left">Tipo de Recurso</Label>
                   <div className="flex flex-wrap gap-2">
-                    {['text', 'link', 'video', 'image', 'pdf'].map(type => (
+                    {['text', 'link', 'video', 'audio', 'image', 'pdf'].map(type => ( // Adicionado 'audio'
                       <Button
                         key={type}
                         type="button"
@@ -390,16 +391,16 @@ const ChecklistItemModal: React.FC<ChecklistItemModalProps> = ({ isOpen, onClose
                   </div>
                 )}
 
-                {(resourceType === 'link' || resourceType === 'video') && (
+                {(resourceType === 'link' || resourceType === 'video' || resourceType === 'audio') && ( // Adicionado 'audio'
                   <div className="grid gap-2 mt-4">
-                    <Label htmlFor="resourceContentUrl" className="text-left">URL do {resourceType === 'link' ? 'Link' : 'Vídeo'} *</Label>
+                    <Label htmlFor="resourceContentUrl" className="text-left">URL do {resourceType === 'link' ? 'Link' : resourceType === 'video' ? 'Vídeo' : 'Áudio'} *</Label>
                     <Input
                       id="resourceContentUrl"
                       type="url"
                       value={resourceContent}
                       onChange={(e) => setResourceContent(e.target.value)}
                       className="w-full p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600"
-                      placeholder={resourceType === 'link' ? "https://exemplo.com" : "https://www.youtube.com/watch?v=..."}
+                      placeholder={resourceType === 'link' ? "https://exemplo.com" : resourceType === 'video' ? "https://www.youtube.com/watch?v=..." : "https://exemplo.com/audio.mp3"}
                     />
                     <Label htmlFor="resourceNameUrl" className="text-left">Nome/Título (Opcional)</Label>
                     <Input
@@ -408,18 +409,18 @@ const ChecklistItemModal: React.FC<ChecklistItemModalProps> = ({ isOpen, onClose
                       value={resourceName}
                       onChange={(e) => setResourceName(e.target.value)}
                       className="w-full p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600"
-                      placeholder="Título do link/vídeo"
+                      placeholder="Título do link/vídeo/áudio"
                     />
                   </div>
                 )}
 
-                {(resourceType === 'image' || resourceType === 'pdf') && (
+                {(resourceType === 'image' || resourceType === 'pdf' || resourceType === 'audio') && ( // Adicionado 'audio' para upload de arquivo
                   <div className="grid gap-2 mt-4">
                     <Label htmlFor="resourceFile" className="text-left">Arquivo ({resourceType.toUpperCase()}) *</Label>
                     <label className="flex items-center justify-center px-4 py-2 border border-gray-300 dark:border-slate-600 border-dashed rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/50 transition bg-white dark:bg-slate-700">
                       {getResourceTypeIcon(resourceType)}
                       <span className="text-sm text-gray-600 dark:text-gray-300 truncate ml-2">{selectedFile ? selectedFile.name : (item?.resource?.name || `Selecionar arquivo ${resourceType}...`)}</span>
-                      <input type="file" id="resourceFile" className="hidden" accept={resourceType === 'pdf' ? 'application/pdf' : 'image/*'} onChange={handleFileChange} />
+                      <input type="file" id="resourceFile" className="hidden" accept={resourceType === 'pdf' ? 'application/pdf' : resourceType === 'image' ? 'image/*' : 'audio/*'} onChange={handleFileChange} /> {/* Atualizado accept */}
                     </label>
                     <Label htmlFor="resourceFileName" className="text-left">Nome do Arquivo (Opcional)</Label>
                     <Input
@@ -556,6 +557,7 @@ export const DailyChecklistConfig = () => {
   const getResourceTypeIcon = (type: DailyChecklistItemResourceType) => {
     switch (type) {
       case 'video': return <Video className="w-4 h-4 text-red-500" />;
+      case 'audio': return <Music className="w-4 h-4 text-brand-500" />; // NOVO: Ícone para áudio
       case 'pdf': return <FileText className="w-4 h-4 text-red-500" />;
       case 'image': return <ImageIcon className="w-4 h-4 text-green-500" />;
       case 'link': return <LinkIcon className="w-4 h-4 text-blue-500" />;
