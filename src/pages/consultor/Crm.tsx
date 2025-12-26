@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Plus, Search, Loader2, Phone, Mail, Tag, MessageSquare, TrendingUp, ListTodo, CalendarPlus, Send, DollarSign, Edit2, Trash2, Users, CheckCircle2, XCircle } from 'lucide-react'; // Importado novos ícones
+import { Plus, Search, Loader2, Phone, Mail, Tag, MessageSquare, TrendingUp, ListTodo, CalendarPlus, Send, DollarSign, Edit2, Trash2, Users, CheckCircle2, XCircle, Filter, RotateCcw } from 'lucide-react'; // Importado novos ícones
 import LeadModal from '@/components/crm/LeadModal'; // Novo componente
 import { LeadTasksModal } from '@/components/crm/LeadTasksModal'; // Importar o novo modal de tarefas
 import { ScheduleMeetingModal } from '@/components/crm/ScheduleMeetingModal'; // NOVO: Importar o modal de agendamento de reunião
@@ -35,6 +35,10 @@ const ConsultorCrmPage = () => { // Nome do componente corrigido para ConsultorC
   const [isMarkAsSoldModalOpen, setIsMarkAsSoldModalOpen] = useState(false); // NOVO: Estado para o modal de marcar como vendido
   const [selectedLeadForSold, setSelectedLeadForSold] = useState<CrmLead | null>(null); // NOVO: Lead selecionado para marcar como vendido
 
+  // NOVO: Estados para o filtro de data
+  const [filterStartDate, setFilterStartDate] = useState('');
+  const [filterEndDate, setFilterEndDate] = useState('');
+
   const activePipeline = useMemo(() => {
     return crmPipelines.find(p => p.is_active) || crmPipelines[0];
   }, [crmPipelines]);
@@ -52,15 +56,31 @@ const ConsultorCrmPage = () => { // Nome do componente corrigido para ConsultorC
   }, [crmLeads, user]);
 
   const filteredLeads = useMemo(() => {
-    if (!searchTerm) return consultantLeads;
-    const lowerCaseSearchTerm = searchTerm.toLowerCase();
-    return consultantLeads.filter(lead =>
-      (lead.name && lead.name.toLowerCase().includes(lowerCaseSearchTerm)) || // Check lead.name if it exists
-      Object.values(lead.data || {}).some(value =>
-        String(value).toLowerCase().includes(lowerCaseSearchTerm)
-      )
-    );
-  }, [consultantLeads, searchTerm]);
+    let currentLeads = consultantLeads;
+
+    // Filtrar por termo de busca
+    if (searchTerm) {
+      const lowerCaseSearchTerm = searchTerm.toLowerCase();
+      currentLeads = currentLeads.filter(lead =>
+        (lead.name && lead.name.toLowerCase().includes(lowerCaseSearchTerm)) ||
+        Object.values(lead.data || {}).some(value =>
+          String(value).toLowerCase().includes(lowerCaseSearchTerm)
+        )
+      );
+    }
+
+    // NOVO: Filtrar por data de criação
+    if (filterStartDate) {
+      const start = new Date(filterStartDate + 'T00:00:00');
+      currentLeads = currentLeads.filter(lead => new Date(lead.created_at) >= start);
+    }
+    if (filterEndDate) {
+      const end = new Date(filterEndDate + 'T23:59:59'); // Inclui o dia inteiro
+      currentLeads = currentLeads.filter(lead => new Date(lead.created_at) <= end);
+    }
+
+    return currentLeads;
+  }, [consultantLeads, searchTerm, filterStartDate, filterEndDate]);
 
   const groupedLeads = useMemo(() => {
     const groups: Record<string, CrmLead[]> = {};
@@ -145,6 +165,14 @@ const ConsultorCrmPage = () => { // Nome do componente corrigido para ConsultorC
     }
   };
 
+  const clearFilters = () => {
+    setSearchTerm('');
+    setFilterStartDate('');
+    setFilterEndDate('');
+  };
+
+  const hasActiveFilters = searchTerm || filterStartDate || filterEndDate;
+
   if (isAuthLoading || isDataLoading) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-theme(spacing.16))]">
@@ -177,8 +205,8 @@ const ConsultorCrmPage = () => { // Nome do componente corrigido para ConsultorC
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Meu CRM de Vendas - {activePipeline.name}</h1>
           <p className="text-gray-500 dark:text-gray-400">Gerencie seus leads e acompanhe o funil de vendas.</p>
         </div>
-        <div className="flex items-center space-x-2 w-full md:w-auto"> {/* Reduzido space-x-4 para space-x-2 */}
-          <div className="relative flex-1 w-full"> {/* Removido md:w-64 */}
+        <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-4 w-full md:w-auto">
+          <div className="relative flex-1 w-full">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <Search className="h-4 w-4 text-gray-400" />
             </div>
@@ -199,6 +227,41 @@ const ConsultorCrmPage = () => { // Nome do componente corrigido para ConsultorC
           </button>
         </div>
       </div>
+
+      {/* NOVO: Filtros de Data */}
+      <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm space-y-4 mb-6">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 flex items-center uppercase tracking-wide"><Filter className="w-4 h-4 mr-2" />Filtrar por Data de Criação</h3>
+          {hasActiveFilters && (
+            <button onClick={clearFilters} className="text-xs flex items-center text-red-500 hover:text-red-700 transition">
+              <RotateCcw className="w-3 h-3 mr-1" />Limpar Filtros
+            </button>
+          )}
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label htmlFor="filterStartDate" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">De</label>
+            <input
+              type="date"
+              id="filterStartDate"
+              value={filterStartDate}
+              onChange={(e) => setFilterStartDate(e.target.value)}
+              className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2.5 text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500"
+            />
+          </div>
+          <div>
+            <label htmlFor="filterEndDate" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Até</label>
+            <input
+              type="date"
+              id="filterEndDate"
+              value={filterEndDate}
+              onChange={(e) => setFilterEndDate(e.target.value)}
+              className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2.5 text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500"
+            />
+          </div>
+        </div>
+      </div>
+
 
       <div className="flex overflow-x-auto pb-4 space-x-4 custom-scrollbar"> {/* Reduzido space-x-6 para space-x-4 */}
         {pipelineStages.map(stage => (
