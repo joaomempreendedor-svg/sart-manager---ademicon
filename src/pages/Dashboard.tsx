@@ -3,7 +3,7 @@ import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { ChevronRight, User, Calendar, CheckCircle2, TrendingUp, AlertCircle, Clock, Users, Star, CheckSquare, CalendarCheck, XCircle, BellRing, UserRound, Plus, ListTodo, Send, DollarSign } from 'lucide-react';
-import { CandidateStatus, ChecklistTaskState, LeadTask } from '@/types';
+import { CandidateStatus, ChecklistTaskState, GestorTask } from '@/types'; // Importar GestorTask
 import { TableSkeleton } from '@/components/TableSkeleton';
 import { ScheduleInterviewModal } from '@/components/ScheduleInterviewModal';
 import { GestorTasksSection } from '@/components/gestor/GestorTasksSection'; // Importar o novo componente
@@ -29,7 +29,7 @@ const StatusBadge = ({ status }: { status: CandidateStatus }) => {
 
 type AgendaItem = {
   id: string;
-  type: 'task' | 'interview' | 'feedback' | 'meeting';
+  type: 'task' | 'interview' | 'feedback' | 'meeting' | 'gestor_task'; // Adicionado 'gestor_task'
   title: string;
   personName: string;
   personId: string;
@@ -46,7 +46,7 @@ type AgendaItem = {
 
 export const Dashboard = () => {
   const { user } = useAuth();
-  const { candidates, checklistStructure, teamMembers, isDataLoading, leadTasks, crmLeads, updateLeadMeetingInvitationStatus, gestorTasks } = useApp();
+  const { candidates, checklistStructure, teamMembers, isDataLoading, leadTasks, crmLeads, updateLeadMeetingInvitationStatus, gestorTasks, gestorTaskCompletions } = useApp(); // Adicionado gestorTaskCompletions
   const navigate = useNavigate();
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
 
@@ -228,28 +228,33 @@ export const Dashboard = () => {
       });
     }
 
-    // 5. Gestor Personal Tasks
-    gestorTasks.filter(task => task.user_id === user?.id && !task.is_completed).forEach(task => {
-      const agendaItem: AgendaItem = {
-        id: `gestor-task-${task.id}`,
-        type: 'task',
-        title: task.title,
-        personName: 'Eu', // Tarefa pessoal do gestor
-        personId: user!.id,
-        personType: 'teamMember',
-        dueDate: task.due_date || '',
-      };
-      if (task.due_date === todayStr) {
-        todayAgendaItems.push(agendaItem);
-      } else if (task.due_date && task.due_date < todayStr) {
-        overdueItems.push(agendaItem);
+    // 5. Gestor Personal Tasks (Tarefas do Gestor)
+    gestorTasks.filter(task => task.user_id === user?.id).forEach(task => {
+      const isCompletedToday = task.is_recurring && gestorTaskCompletions.some(c => c.gestor_task_id === task.id && c.user_id === user.id && c.date === todayStr && c.done);
+      const isCompleted = task.is_recurring ? isCompletedToday : task.is_completed;
+
+      if (!isCompleted) { // Apenas tarefas não concluídas (ou não concluídas hoje para recorrentes)
+        const agendaItem: AgendaItem = {
+          id: `gestor-task-${task.id}`,
+          type: 'gestor_task', // NOVO: Tipo específico para tarefas do gestor
+          title: task.title,
+          personName: 'Eu', // Tarefa pessoal do gestor
+          personId: user!.id,
+          personType: 'teamMember',
+          dueDate: task.due_date || '',
+        };
+        if (task.due_date === todayStr || task.is_recurring) { // Se é hoje ou é recorrente
+          todayAgendaItems.push(agendaItem);
+        } else if (task.due_date && task.due_date < todayStr) {
+          overdueItems.push(agendaItem);
+        }
+        gestorPersonalTasks.push(agendaItem); // Todas as tarefas do gestor (para a seção)
       }
-      gestorPersonalTasks.push(agendaItem);
     });
 
 
     return { todayAgenda: todayAgendaItems, overdueTasks: overdueItems, meetingInvitations: invitationsItems, allGestorTasks: gestorPersonalTasks };
-  }, [candidates, teamMembers, checklistStructure, leadTasks, crmLeads, user, gestorTasks]);
+  }, [candidates, teamMembers, checklistStructure, leadTasks, crmLeads, user, gestorTasks, gestorTaskCompletions]);
 
   const getAgendaIcon = (type: AgendaItem['type']) => {
     switch (type) {
@@ -257,6 +262,7 @@ export const Dashboard = () => {
       case 'interview': return <Calendar className="w-4 h-4 text-green-600 dark:text-green-400" />;
       case 'feedback': return <Star className="w-4 h-4 text-yellow-500 dark:text-yellow-400" />;
       case 'meeting': return <CalendarCheck className="w-4 h-4 text-purple-600 dark:text-purple-400" />;
+      case 'gestor_task': return <ListTodo className="w-4 h-4 text-brand-600 dark:text-brand-400" />; // NOVO: Ícone para tarefas do gestor
     }
   };
 
@@ -265,9 +271,9 @@ export const Dashboard = () => {
       navigate(`/gestor/candidate/${item.personId}`);
     } else if (item.personType === 'lead') {
       navigate(`/gestor/crm`);
-    } else if (item.personType === 'teamMember' && item.type === 'task') {
-      // No navigation for personal tasks, they are managed in the section below
-      toast.info("Gerencie suas tarefas pessoais na seção 'Minhas Tarefas Pessoais'.");
+    } else if (item.type === 'gestor_task') { // NOVO: Navegação para tarefas do gestor
+      // Não há navegação específica para a tarefa em si, pois ela é gerenciada na seção abaixo
+      toast.info("Gerencie suas tarefas do gestor na seção 'Tarefas do Gestor'.");
     } else {
       navigate('/gestor/feedbacks');
     }
@@ -427,7 +433,7 @@ export const Dashboard = () => {
           <div className="flex-1 p-0 overflow-y-auto max-h-80 custom-scrollbar">
             <ul className="divide-y divide-gray-100 dark:divide-slate-700">
               {meetingInvitations.map((item) => (
-                <li key={item.id} className="p-4 hover:bg-purple-50 dark:hover:bg-purple-900/10 transition">
+                <li key={item.id} onClick={() => handleAgendaItemClick(item)} className="p-4 hover:bg-purple-50 dark:hover:bg-purple-900/10 cursor-pointer transition">
                   <div className="flex items-start justify-between">
                     <div>
                       <p className="text-sm font-medium text-gray-900 dark:text-gray-200">{item.title}</p>

@@ -354,7 +354,18 @@ export interface GestorTask {
   description?: string;
   due_date?: string; // YYYY-MM-DD
   is_completed: boolean;
+  is_recurring?: boolean; // NOVO: Indica se a tarefa é recorrente diária
   created_at: string;
+}
+
+// NOVO: Tipo para conclusões de tarefas recorrentes do Gestor
+export interface GestorTaskCompletion {
+  id: string;
+  gestor_task_id: string;
+  user_id: string;
+  date: string; // YYYY-MM-DD
+  done: boolean;
+  updated_at: string;
 }
 
 // NOVO: Tipos para Daily Checklist Item Resource
