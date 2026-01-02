@@ -315,7 +315,7 @@ export const GestorTasksSection: React.FC = () => {
               <div className="space-y-3">
                 {sortedTasks.map(task => {
                   const isRecurring = task.recurrence_pattern && task.recurrence_pattern.type !== 'none';
-                  const isCompletedToday = isRecurring && gestorTaskCompletions.some(c => c.gestor_task_id === task.id && c.user?.id === user?.id && c.date === today && c.done);
+                  const isCompletedToday = isRecurring && gestorTaskCompletions.some(c => c.gestor_task_id === task.id && c.user_id === user?.id && c.date === today && c.done);
                   const isVisuallyCompleted = isRecurring ? isCompletedToday : task.is_completed; // A chave para o estado visual
                   const isDueToday = isGestorTaskDueOnDate(task, today);
                   const isOverdue = !isRecurring && !task.is_completed && task.due_date && new Date(task.due_date + 'T00:00:00') < new Date(today + 'T00:00:00');
