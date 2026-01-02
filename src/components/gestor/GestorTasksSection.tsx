@@ -315,23 +315,30 @@ export const GestorTasksSection: React.FC = () => {
                 {sortedTasks.map(task => {
                   const isRecurring = task.recurrence_pattern && task.recurrence_pattern.type !== 'none';
                   const isCompletedToday = isRecurring && gestorTaskCompletions.some(c => c.gestor_task_id === task.id && c.user_id === user?.id && c.date === today && c.done);
-                  const isCompleted = isRecurring ? isCompletedToday : task.is_completed;
+                  const isVisuallyCompleted = isRecurring ? isCompletedToday : task.is_completed; // A chave para o estado visual
                   const isDueToday = isGestorTaskDueOnDate(task, today);
+                  const isOverdue = !isRecurring && !task.is_completed && task.due_date && new Date(task.due_date + 'T00:00:00') < new Date(today + 'T00:00:00');
 
                   // Determine classes for the task item
                   let itemClasses = 'flex items-start space-x-3 p-3 rounded-lg border group';
                   let titleClasses = 'font-medium';
                   let descriptionClasses = 'text-sm mt-1';
+                  let buttonVisibilityClass = 'opacity-0 group-hover:opacity-100 transition-opacity'; // Default hidden, show on hover
 
-                  if (isCompleted) {
+                  if (isVisuallyCompleted) {
                     itemClasses += ' bg-green-100 dark:bg-green-900/30 border-green-300 dark:border-green-700';
                     titleClasses += ' line-through text-gray-500 dark:text-gray-400';
                     descriptionClasses += ' line-through text-gray-500 dark:text-gray-400';
-                  } else if (isDueToday) { // Uncompleted and due today
+                    // Para tarefas recorrentes concluídas hoje, o botão deve estar visível para permitir desfazer
+                    if (isRecurring && isDueToday) {
+                        buttonVisibilityClass = 'opacity-100';
+                    }
+                  } else if (isDueToday || isOverdue) { // Pendente e vencendo hoje ou atrasada
                     itemClasses += ' bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800';
                     titleClasses += ' text-red-800 dark:text-red-200';
                     descriptionClasses += ' text-red-700 dark:text-red-300';
-                  } else { // Default for not completed and not due today
+                    buttonVisibilityClass = 'opacity-100'; // Sempre mostrar botão para tarefas pendentes/atrasadas
+                  } else { // Não concluída, não vencendo hoje, não atrasada (tarefas futuras ou recorrentes não devidas hoje)
                     itemClasses += ' bg-gray-50 dark:bg-slate-700/50 border-gray-200 dark:border-slate-700';
                     titleClasses += ' text-gray-900 dark:text-white';
                     descriptionClasses += ' text-gray-600 dark:text-gray-300';
@@ -343,10 +350,10 @@ export const GestorTasksSection: React.FC = () => {
                         variant="ghost"
                         size="icon"
                         onClick={() => handleToggleCompletion(task)}
-                        className={`flex-shrink-0 ${isCompleted ? 'text-green-600 hover:text-green-700' : 'text-gray-400 hover:text-brand-600'} ${isDueToday ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 transition-opacity'}`}
-                        disabled={isCompleted && isDueToday} // Desabilita se concluída HOJE e devida HOJE
+                        className={`flex-shrink-0 ${isVisuallyCompleted ? 'text-green-600 hover:text-green-700' : 'text-gray-400 hover:text-brand-600'} ${buttonVisibilityClass}`}
+                        // Removido o prop 'disabled' para garantir que o botão seja sempre clicável
                       >
-                        {isCompleted ? <CheckCircle2 className="w-5 h-5" /> : <Circle className="w-5 h-5" />}
+                        {isVisuallyCompleted ? <CheckCircle2 className="w-5 h-5" /> : <Circle className="w-5 h-5" />}
                       </Button>
                       <div className="flex-1">
                         <p className={titleClasses}>
@@ -369,14 +376,14 @@ export const GestorTasksSection: React.FC = () => {
                               {task.recurrence_pattern?.type === 'daily' ? 'Diária' : `A cada ${task.recurrence_pattern?.interval} dias`}
                             </span>
                           )}
-                          {isDueToday && !isCompleted && (
+                          {isDueToday && !isVisuallyCompleted && (
                             <span className="flex items-center text-red-600 dark:text-red-400 font-medium">
                               <Clock className="w-3 h-3 mr-1" /> Vence Hoje!
                             </span>
                           )}
                         </div>
                       </div>
-                      <div className={`flex-shrink-0 flex items-center space-x-1 ${isDueToday ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 transition-opacity'}`}>
+                      <div className={`flex-shrink-0 flex items-center space-x-1 ${buttonVisibilityClass}`}>
                         {task.due_date && (
                           <Button variant="ghost" size="icon" onClick={() => handleAddToGoogleCalendar(task)} className="text-gray-400 hover:text-blue-600" title="Adicionar ao Google Agenda">
                             <CalendarPlus className="w-4 h-4" />
