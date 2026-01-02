@@ -166,7 +166,7 @@ export const DailyChecklistMonitoring = () => {
             <SelectTrigger className="w-[180px] dark:bg-slate-700 dark:text-white dark:border-slate-600">
               <SelectValue placeholder="Selecione o Consultor" />
             </SelectTrigger>
-            <SelectContent className="dark:bg-slate-800 dark:text-white dark:border-slate-700">
+            <SelectContent className="bg-white text-gray-900 dark:bg-slate-800 dark:text-white dark:border-slate-700"> {/* Adicionado bg-white */}
               {consultants.map(consultant => (
                 <SelectItem key={consultant.id} value={consultant.id}>
                   {consultant.name}
