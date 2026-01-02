@@ -172,7 +172,7 @@ export const GestorTasksSection: React.FC = () => {
     if (!user) return;
     try {
       const isRecurring = task.recurrence_pattern && task.recurrence_pattern.type !== 'none';
-      const isCompletedToday = isRecurring && gestorTaskCompletions.some(c => c.gestor_task_id === task.id && c.user_id === user.id && c.date === today && c.done);
+      const isCompletedToday = isRecurring && gestorTaskCompletions.some(c => c.gestor_task_id === task.id && c.user_id === user?.id && c.date === today && c.done);
       
       await toggleGestorTaskCompletion(task.id, !isCompletedToday, today);
       
@@ -325,6 +325,7 @@ export const GestorTasksSection: React.FC = () => {
                         size="icon"
                         onClick={() => handleToggleCompletion(task)}
                         className={`flex-shrink-0 ${isCompleted ? 'text-green-600 hover:text-green-700' : 'text-gray-400 hover:text-brand-600'}`}
+                        disabled={isCompleted && isDueToday} // Desabilita se concluída HOJE e devida HOJE
                       >
                         {isCompleted ? <CheckCircle2 className="w-5 h-5" /> : <Circle className="w-5 h-5" />}
                       </Button>
