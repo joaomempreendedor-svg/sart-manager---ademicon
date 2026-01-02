@@ -733,8 +733,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const cleanedCpf = member.cpf ? member.cpf.replace(/\D/g, '') : '';
       const last4Cpf = cleanedCpf.length >= 4 ? cleanedCpf.slice(-4) : null;
       
-      console.log("[AppContext] Invoking create-or-link-consultant Edge Function for ADD operation...");
-      console.log("[AppContext] Email being sent to Edge Function:", member.email);
+      console.log("[AppContext] Invoking create-or-link-consultant Edge Function for ADD operation:", { email: member.email, name: member.name, tempPassword, login: last4Cpf });
       const { data, error: invokeError } = await supabase.functions.invoke('create-or-link-consultant', {
         body: { 
           email: member.email, 
