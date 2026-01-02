@@ -244,6 +244,32 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, [user]);
 
+  // Helper function to check if a gestor task is due on a specific date
+  const isGestorTaskDueOnDate = useCallback((task: GestorTask, checkDate: string): boolean => {
+    if (!task.recurrence_pattern || task.recurrence_pattern.type === 'none') {
+      return task.due_date === checkDate;
+    }
+
+    const taskCreationDate = new Date(task.created_at);
+    const targetDate = new Date(checkDate);
+
+    if (task.recurrence_pattern.type === 'daily') {
+      return targetDate >= taskCreationDate;
+    }
+
+    if (task.recurrence_pattern.type === 'every_x_days' && task.recurrence_pattern.interval) {
+      const interval = task.recurrence_pattern.interval;
+      const diffTime = Math.abs(targetDate.getTime() - taskCreationDate.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      // Check if the target date is on or after the creation date
+      // And if the difference in days is a multiple of the interval
+      return targetDate >= taskCreationDate && diffDays % interval === 0;
+    }
+
+    return false;
+  }, []);
+
   useEffect(() => {
     clearStaleAuth();
     const fetchData = async (userId: string) => {
@@ -641,8 +667,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 description: payload.new.description,
                 due_date: payload.new.due_date,
                 is_completed: payload.new.is_completed,
-                is_recurring: payload.new.is_recurring, // NOVO: Incluir is_recurring
                 created_at: payload.new.created_at,
+                recurrence_pattern: payload.new.recurrence_pattern, // NOVO: Incluir recurrence_pattern
             };
 
             if (payload.eventType === 'INSERT') {
@@ -919,7 +945,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const deleteTeamMemberFeedback = useCallback(async (memberId: string, feedbackId: string) => { const member = teamMembers.find(m => m.id === memberId); if (member) { const newFeedbacks = (member.feedbacks || []).filter(f => f.id !== feedbackId); await updateTeamMember(memberId, { feedbacks: newFeedbacks }); } }, [teamMembers, updateTeamMember]);
   const saveTemplate = useCallback((id: string, updates: Partial<CommunicationTemplate>) => { const newTemplates = { ...templates, [id]: { ...templates[id], ...updates } }; setTemplates(newTemplates); updateConfig({ templates: newTemplates }); }, [templates, updateConfig]);
   const addOrigin = useCallback((origin: string) => { if (!origins.includes(origin)) { const newOrigins = [...origins, origin]; setOrigins(newOrigins); updateConfig({ origins: newOrigins }); } }, [origins, updateConfig]);
-  const deleteOrigin = useCallback((originToDelete: string) => { if (origins.length <= 1) { toast.error("É necessário manter pelo menos uma origem."); return; } const newOrigins = origins.filter(o => o !== originToDelete); setOrigins(newOrigins); updateConfig({ origins: newOrigins }); }, [origins, updateConfig]);
+  const deleteOrigin = useCallback((originToDelete: string) => { if (origins.length <= 1) { toast.error("É necessário manter pelo menos uma origem."); return; } const newOrigins = origins.filter(o => o !== originToDelete); setOrigins(newOrigins); updateConfig({ origins: newOrigins }); } , [origins, updateConfig]);
   const addInterviewer = useCallback((interviewer: string) => { if (!interviewers.includes(interviewer)) { const newInterviewers = [...interviewers, interviewer]; setInterviewers(newInterviewers); updateConfig({ interviewers: newInterviewers }); } }, [interviewers, updateConfig]);
   const deleteInterviewer = useCallback((interviewerToDelete: string) => { if (interviewers.length <= 1) { toast.error("É necessário manter pelo menos um entrevistador."); return; } const newInterviewers = interviewers.filter(i => i !== interviewerToDelete); setInterviewers(newInterviewers); updateConfig({ interviewers: newInterviewers }); }, [interviewers, updateConfig]);
   const addPV = useCallback((pv: string) => { if (!pvs.includes(pv)) { const newPvs = [...pvs, pv]; setPvs(newPvs); updateConfig({ pvs: newPvs }); } }, [pvs, updateConfig]);
@@ -1855,7 +1881,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const task = gestorTasks.find(t => t.id === taskId);
     if (!task) throw new Error("Tarefa do gestor não encontrada.");
 
-    if (task.is_recurring) {
+    // Check if the task is recurring and due on the current date
+    const isRecurringAndDue = task.recurrence_pattern && task.recurrence_pattern.type !== 'none' && isGestorTaskDueOnDate(task, date);
+
+    if (isRecurringAndDue) {
       const existingCompletion = gestorTaskCompletions.find(c => c.gestor_task_id === taskId && c.user_id === user.id && c.date === date);
 
       if (existingCompletion) {
@@ -1869,15 +1898,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
     } else {
       // Para tarefas não recorrentes, atualiza o campo is_completed diretamente na tabela gestor_tasks
-      const { error } = await supabase.from('gestor_tasks').update({ is_completed }).eq('id', taskId).eq('user_id', user.id);
+      const { error } = await supabase.from('gestor_tasks').update({ is_completed: done }).eq('id', taskId).eq('user_id', user.id);
       if (error) {
         console.error("Supabase error toggling gestor task completion (non-recurring):", error);
         toast.error("Erro ao atualizar conclusão da tarefa pessoal.");
         throw new Error(error.message);
       }
-      setGestorTasks(prev => prev.map(t => t.id === taskId ? { ...t, is_completed } : t));
+      setGestorTasks(prev => prev.map(t => t.id === taskId ? { ...t, is_completed: done } : t));
     }
-  }, [user, gestorTasks, gestorTaskCompletions]);
+  }, [user, gestorTasks, gestorTaskCompletions, isGestorTaskDueOnDate]);
 
 
   useEffect(() => { if (!user) return; const syncPendingCommissions = async () => { const pending = JSON.parse(localStorage.getItem('pending_commissions') || '[]') as any[]; if (pending.length === 0) return; for (const item of pending) { try { const { _localId, _timestamp, _attempts, ...cleanData } = item; const { data, error } = await supabase.from('commissions').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: cleanData }).select('id', 'created_at').maybeSingle(); if (!error && data) { setCommissions(prev => prev.map(c => c.db_id === _localId ? { ...c, db_id: data.id.toString(), criado_em: data.created_at } : c)); const updated = pending.filter((p: any) => p._localId !== _localId); localStorage.setItem('pending_commissions', JSON.stringify(updated)); } } catch (error) { console.log(`❌ Falha ao sincronizar ${item._localId}`); toast.error(`Falha ao sincronizar comissão ${item._localId}.`); } } }; const interval = setInterval(syncPendingCommissions, 2 * 60 * 1000); setTimeout(syncPendingCommissions, 5000); return () => clearInterval(interval); }, [user]);
@@ -1910,6 +1939,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       assignSupportMaterialToConsultant, unassignSupportMaterialFromConsultant,
       leadTasks, addLeadTask, updateLeadTask, deleteLeadTask, toggleLeadTaskCompletion, updateLeadMeetingInvitationStatus,
       gestorTasks, addGestorTask, updateGestorTask, deleteGestorTask, gestorTaskCompletions, toggleGestorTaskCompletion, // NOVO: Adicionado gestorTaskCompletions e toggleGestorTaskCompletion
+      isGestorTaskDueOnDate, // NOVO: Adicionado isGestorTaskDueOnDate
     }}>
       {children}
     </AppContext.Provider>

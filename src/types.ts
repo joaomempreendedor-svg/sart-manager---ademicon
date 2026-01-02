@@ -354,8 +354,12 @@ export interface GestorTask {
   description?: string;
   due_date?: string; // YYYY-MM-DD
   is_completed: boolean;
-  is_recurring?: boolean; // NOVO: Indica se a tarefa é recorrente diária
+  // is_recurring?: boolean; // REMOVIDO: Substituído por recurrence_pattern
   created_at: string;
+  recurrence_pattern?: { // NOVO: Padrão de recorrência
+    type: 'none' | 'daily' | 'every_x_days';
+    interval?: number; // Usado para 'every_x_days'
+  };
 }
 
 // NOVO: Tipo para conclusões de tarefas recorrentes do Gestor

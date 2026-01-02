@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { ChevronRight, User, Calendar, CheckCircle2, TrendingUp, AlertCircle, Clock, Users, Star, CheckSquare, CalendarCheck, XCircle, BellRing, UserRound, Plus, ListTodo, Send, DollarSign } from 'lucide-react';
+import { ChevronRight, User, Calendar, CheckCircle2, TrendingUp, AlertCircle, Clock, Users, Star, CheckSquare, CalendarCheck, XCircle, BellRing, UserRound, Plus, ListTodo, Send, DollarSign, Repeat } from 'lucide-react'; // Adicionado Repeat icon
 import { CandidateStatus, ChecklistTaskState, GestorTask } from '@/types'; // Importar GestorTask
 import { TableSkeleton } from '@/components/TableSkeleton';
 import { ScheduleInterviewModal } from '@/components/ScheduleInterviewModal';
@@ -46,7 +46,7 @@ type AgendaItem = {
 
 export const Dashboard = () => {
   const { user } = useAuth();
-  const { candidates, checklistStructure, teamMembers, isDataLoading, leadTasks, crmLeads, updateLeadMeetingInvitationStatus, gestorTasks, gestorTaskCompletions } = useApp(); // Adicionado gestorTaskCompletions
+  const { candidates, checklistStructure, teamMembers, isDataLoading, leadTasks, crmLeads, updateLeadMeetingInvitationStatus, gestorTasks, gestorTaskCompletions, isGestorTaskDueOnDate } = useApp(); // Adicionado gestorTaskCompletions, isGestorTaskDueOnDate
   const navigate = useNavigate();
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
 
@@ -230,10 +230,11 @@ export const Dashboard = () => {
 
     // 5. Gestor Personal Tasks (Tarefas do Gestor)
     gestorTasks.filter(task => task.user_id === user?.id).forEach(task => {
-      const isCompletedToday = task.is_recurring && gestorTaskCompletions.some(c => c.gestor_task_id === task.id && c.user_id === user.id && c.date === todayStr && c.done);
-      const isCompleted = task.is_recurring ? isCompletedToday : task.is_completed;
+      const isRecurring = task.recurrence_pattern && task.recurrence_pattern.type !== 'none';
+      const isCompletedToday = isRecurring && gestorTaskCompletions.some(c => c.gestor_task_id === task.id && c.user_id === user.id && c.date === todayStr && c.done);
+      const isDueToday = isGestorTaskDueOnDate(task, todayStr);
 
-      if (!isCompleted) { // Apenas tarefas não concluídas (ou não concluídas hoje para recorrentes)
+      if (!isCompletedToday && isDueToday) { // Apenas tarefas devidas hoje e não concluídas hoje
         const agendaItem: AgendaItem = {
           id: `gestor-task-${task.id}`,
           type: 'gestor_task', // NOVO: Tipo específico para tarefas do gestor
@@ -243,18 +244,33 @@ export const Dashboard = () => {
           personType: 'teamMember',
           dueDate: task.due_date || '',
         };
-        if (task.due_date === todayStr || task.is_recurring) { // Se é hoje ou é recorrente
-          todayAgendaItems.push(agendaItem);
-        } else if (task.due_date && task.due_date < todayStr) {
-          overdueItems.push(agendaItem);
-        }
-        gestorPersonalTasks.push(agendaItem); // Todas as tarefas do gestor (para a seção)
+        todayAgendaItems.push(agendaItem);
+      } else if (!isRecurring && task.due_date && task.due_date < todayStr && !task.is_completed) {
+        // Tarefas não recorrentes atrasadas
+        overdueItems.push({
+          id: `gestor-task-${task.id}`,
+          type: 'gestor_task',
+          title: task.title,
+          personName: 'Eu',
+          personId: user!.id,
+          personType: 'teamMember',
+          dueDate: task.due_date,
+        });
       }
+      gestorPersonalTasks.push({ // Todas as tarefas do gestor (para a seção)
+        id: `gestor-task-${task.id}`,
+        type: 'gestor_task',
+        title: task.title,
+        personName: 'Eu',
+        personId: user!.id,
+        personType: 'teamMember',
+        dueDate: task.due_date || '',
+      });
     });
 
 
     return { todayAgenda: todayAgendaItems, overdueTasks: overdueItems, meetingInvitations: invitationsItems, allGestorTasks: gestorPersonalTasks };
-  }, [candidates, teamMembers, checklistStructure, leadTasks, crmLeads, user, gestorTasks, gestorTaskCompletions]);
+  }, [candidates, teamMembers, checklistStructure, leadTasks, crmLeads, user, gestorTasks, gestorTaskCompletions, isGestorTaskDueOnDate]);
 
   const getAgendaIcon = (type: AgendaItem['type']) => {
     switch (type) {
