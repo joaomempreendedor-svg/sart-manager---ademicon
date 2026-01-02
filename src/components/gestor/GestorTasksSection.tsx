@@ -320,19 +320,6 @@ export const GestorTasksSection: React.FC = () => {
                   const isDueToday = isGestorTaskDueOnDate(task, today);
                   const isOverdue = !isRecurring && !task.is_completed && task.due_date && new Date(task.due_date + 'T00:00:00') < new Date(today + 'T00:00:00');
 
-                  // DEBUG LOGS
-                  console.log(`--- Task: ${task.title} (ID: ${task.id}) ---`);
-                  console.log(`  today: ${today}`);
-                  console.log(`  isRecurring: ${isRecurring}`);
-                  console.log(`  isCompletedToday: ${isCompletedToday}`);
-                  console.log(`  isVisuallyCompleted: ${isVisuallyCompleted}`);
-                  console.log(`  isDueToday: ${isDueToday}`);
-                  console.log(`  isOverdue: ${isOverdue}`);
-                  console.log(`  task.is_completed (for non-recurring): ${task.is_completed}`);
-                  console.log(`  gestorTaskCompletions for this task and today:`, gestorTaskCompletions.filter(c => c.gestor_task_id === task.id && c.user_id === user?.id && c.date === today));
-                  console.log(`------------------------------------------------`);
-
-
                   // Determine classes for the task item
                   let itemClasses = 'flex items-start space-x-3 p-3 rounded-lg border group';
                   let titleClasses = 'font-medium';
@@ -360,7 +347,6 @@ export const GestorTasksSection: React.FC = () => {
                         size="icon"
                         onClick={() => handleToggleCompletion(task)}
                         className={`flex-shrink-0 ${isVisuallyCompleted ? 'text-green-600 hover:text-green-700' : 'text-gray-400 hover:text-brand-600'}`}
-                        // Removido o prop 'disabled' para garantir que o botão seja sempre clicável
                       >
                         {isVisuallyCompleted ? <CheckCircle2 className="w-5 h-5" /> : <Circle className="w-5 h-5" />}
                       </Button>
@@ -374,25 +360,38 @@ export const GestorTasksSection: React.FC = () => {
                           </p>
                         )}
                         <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400 mt-1">
-                          {task.due_date && !isRecurring && ( // Exibir data de vencimento apenas para tarefas não recorrentes
-                            <span className="flex items-center">
-                              <Calendar className="w-3 h-3 mr-1" /> Vence: {new Date(task.due_date + 'T00:00:00').toLocaleDateString('pt-BR')}
+                          {isVisuallyCompleted ? (
+                            <span className="flex items-center text-green-600 dark:text-green-400 font-medium">
+                              <CheckCircle2 className="w-3 h-3 mr-1" /> {isRecurring ? 'Concluído hoje' : 'Concluído'}
                             </span>
-                          )}
-                          {isRecurring && (
-                            <span className="flex items-center text-brand-600 dark:text-brand-400">
-                              {task.recurrence_pattern?.type === 'daily' ? <Repeat className="w-3 h-3 mr-1" /> : <CalendarDays className="w-3 h-3 mr-1" />}
-                              {task.recurrence_pattern?.type === 'daily' ? 'Diária' : `A cada ${task.recurrence_pattern?.interval} dias`}
-                            </span>
-                          )}
-                          {isDueToday && !isVisuallyCompleted && (
-                            <span className="flex items-center text-red-600 dark:text-red-400 font-medium">
-                              <Clock className="w-3 h-3 mr-1" /> Vence Hoje!
-                            </span>
+                          ) : (
+                            <>
+                              {task.due_date && !isRecurring && ( // Exibir data de vencimento apenas para tarefas não recorrentes
+                                <span className="flex items-center">
+                                  <Calendar className="w-3 h-3 mr-1" /> Vence: {new Date(task.due_date + 'T00:00:00').toLocaleDateString('pt-BR')}
+                                </span>
+                              )}
+                              {isRecurring && (
+                                <span className="flex items-center text-brand-600 dark:text-brand-400">
+                                  {task.recurrence_pattern?.type === 'daily' ? <Repeat className="w-3 h-3 mr-1" /> : <CalendarDays className="w-3 h-3 mr-1" />}
+                                  {task.recurrence_pattern?.type === 'daily' ? 'Diária' : `A cada ${task.recurrence_pattern?.interval} dias`}
+                                </span>
+                              )}
+                              {isDueToday && ( // Task is due today (applies to both recurring and non-recurring if not completed)
+                                <span className="flex items-center text-red-600 dark:text-red-400 font-medium">
+                                  <Clock className="w-3 h-3 mr-1" /> Vence Hoje!
+                                </span>
+                              )}
+                              {isOverdue && !isDueToday && ( // Non-recurring task that is overdue but not due today (i.e., due in the past)
+                                <span className="flex items-center text-red-600 dark:text-red-400 font-medium">
+                                  <Clock className="w-3 h-3 mr-1" /> Atrasada!
+                                </span>
+                              )}
+                            </>
                           )}
                         </div>
                       </div>
-                      <div className={`flex-shrink-0 flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity`}>
+                      <div className={`flex-shrink-0 flex items-center space-x-1`}> {/* Removido opacity-0 group-hover:opacity-100 */}
                         {task.due_date && (
                           <Button variant="ghost" size="icon" onClick={() => handleAddToGoogleCalendar(task)} className="text-gray-400 hover:text-blue-600" title="Adicionar ao Google Agenda">
                             <CalendarPlus className="w-4 h-4" />
