@@ -318,8 +318,27 @@ export const GestorTasksSection: React.FC = () => {
                   const isCompleted = isRecurring ? isCompletedToday : task.is_completed;
                   const isDueToday = isGestorTaskDueOnDate(task, today);
 
+                  // Determine classes for the task item
+                  let itemClasses = 'flex items-start space-x-3 p-3 rounded-lg border group';
+                  let titleClasses = 'font-medium';
+                  let descriptionClasses = 'text-sm mt-1';
+
+                  if (isCompleted) {
+                    itemClasses += ' bg-green-100 dark:bg-green-900/30 border-green-300 dark:border-green-700';
+                    titleClasses += ' line-through text-gray-500 dark:text-gray-400';
+                    descriptionClasses += ' line-through text-gray-500 dark:text-gray-400';
+                  } else if (isDueToday) { // Uncompleted and due today
+                    itemClasses += ' bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800';
+                    titleClasses += ' text-red-800 dark:text-red-200';
+                    descriptionClasses += ' text-red-700 dark:text-red-300';
+                  } else { // Default for not completed and not due today
+                    itemClasses += ' bg-gray-50 dark:bg-slate-700/50 border-gray-200 dark:border-slate-700';
+                    titleClasses += ' text-gray-900 dark:text-white';
+                    descriptionClasses += ' text-gray-600 dark:text-gray-300';
+                  }
+
                   return (
-                    <div key={task.id} className={`flex items-start space-x-3 p-3 rounded-lg border ${isCompleted ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' : 'bg-gray-50 dark:bg-slate-700/50 border-gray-200 dark:border-slate-700'} group`}>
+                    <div key={task.id} className={itemClasses}>
                       <Button
                         variant="ghost"
                         size="icon"
@@ -330,11 +349,11 @@ export const GestorTasksSection: React.FC = () => {
                         {isCompleted ? <CheckCircle2 className="w-5 h-5" /> : <Circle className="w-5 h-5" />}
                       </Button>
                       <div className="flex-1">
-                        <p className={`font-medium ${isCompleted ? 'line-through text-gray-500 dark:text-gray-400' : 'text-gray-900 dark:text-white'}`}>
+                        <p className={titleClasses}>
                           {task.title}
                         </p>
                         {task.description && (
-                          <p className={`text-sm mt-1 ${isCompleted ? 'line-through text-gray-500 dark:text-gray-400' : 'text-gray-600 dark:text-gray-300'}`}>
+                          <p className={descriptionClasses}>
                             {task.description}
                           </p>
                         )}
@@ -357,7 +376,7 @@ export const GestorTasksSection: React.FC = () => {
                           )}
                         </div>
                       </div>
-                      <div className="flex-shrink-0 flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className={`flex-shrink-0 flex items-center space-x-1 ${isDueToday ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 transition-opacity'}`}>
                         {task.due_date && (
                           <Button variant="ghost" size="icon" onClick={() => handleAddToGoogleCalendar(task)} className="text-gray-400 hover:text-blue-600" title="Adicionar ao Google Agenda">
                             <CalendarPlus className="w-4 h-4" />
