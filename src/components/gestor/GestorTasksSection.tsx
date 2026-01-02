@@ -319,7 +319,7 @@ export const GestorTasksSection: React.FC = () => {
                   const isDueToday = isGestorTaskDueOnDate(task, today);
 
                   return (
-                    <div key={task.id} className={`flex items-start space-x-3 p-3 rounded-lg border ${isCompleted ? 'bg-green-100 dark:bg-green-900/30 border-green-300 dark:border-green-700' : 'bg-gray-50 dark:bg-slate-700/50 border-gray-200 dark:border-slate-700'} group`}>
+                    <div key={task.id} className={`flex items-start space-x-3 p-3 rounded-lg border ${isCompleted ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' : 'bg-gray-50 dark:bg-slate-700/50 border-gray-200 dark:border-slate-700'} group`}>
                       <Button
                         variant="ghost"
                         size="icon"
@@ -334,7 +334,7 @@ export const GestorTasksSection: React.FC = () => {
                           {task.title}
                         </p>
                         {task.description && (
-                          <p className={`text-sm ${isCompleted ? 'line-through text-gray-500 dark:text-gray-400' : 'text-gray-600 dark:text-gray-300'} mt-1`}>
+                          <p className={`text-sm mt-1 ${isCompleted ? 'line-through text-gray-500 dark:text-gray-400' : 'text-gray-600 dark:text-gray-300'}`}>
                             {task.description}
                           </p>
                         )}
