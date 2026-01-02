@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { GestorTask } from '@/types';
-import { Plus, Edit2, Trash2, CheckCircle2, Circle, Loader2, Calendar, MessageSquare, Clock, Save, X, ListTodo, CalendarPlus, Repeat, CalendarOff } from 'lucide-react'; // Adicionado CalendarOff icon
+import { Plus, Edit2, Trash2, CheckCircle2, Circle, Loader2, Calendar, MessageSquare, Clock, Save, X, ListTodo, CalendarPlus, Repeat, CalendarDays } from 'lucide-react'; // Adicionado CalendarDays icon
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -73,12 +73,21 @@ export const GestorTasksSection: React.FC = () => {
       toast.error("O título da tarefa é obrigatório.");
       return;
     }
+    if (newTaskRecurrenceType === 'every_x_days' && (!newTaskRecurrenceInterval || isNaN(newTaskRecurrenceInterval) || newTaskRecurrenceInterval < 2)) {
+      toast.error("Para recorrência 'A cada X dias', o intervalo deve ser um número maior ou igual a 2.");
+      return;
+    }
 
     setIsAddingTask(true);
     try {
       const recurrence_pattern = newTaskRecurrenceType === 'none' 
         ? { type: 'none' } 
-        : { type: newTaskRecurrenceType, interval: newTaskRecurrenceInterval };
+        : { 
+            type: newTaskRecurrenceType, 
+            interval: newTaskRecurrenceType === 'every_x_days' 
+              ? (newTaskRecurrenceInterval && !isNaN(newTaskRecurrenceInterval) ? Math.max(2, newTaskRecurrenceInterval) : 2) 
+              : undefined 
+          };
 
       await addGestorTask({
         title: newTaskTitle.trim(),
@@ -116,12 +125,21 @@ export const GestorTasksSection: React.FC = () => {
       toast.error("O título da tarefa é obrigatório.");
       return;
     }
+    if (editTaskRecurrenceType === 'every_x_days' && (!editTaskRecurrenceInterval || isNaN(editTaskRecurrenceInterval) || editTaskRecurrenceInterval < 2)) {
+      toast.error("Para recorrência 'A cada X dias', o intervalo deve ser um número maior ou igual a 2.");
+      return;
+    }
 
     setIsUpdatingTask(true);
     try {
       const recurrence_pattern = editTaskRecurrenceType === 'none' 
         ? { type: 'none' } 
-        : { type: editTaskRecurrenceType, interval: editTaskRecurrenceInterval };
+        : { 
+            type: editTaskRecurrenceType, 
+            interval: editTaskRecurrenceType === 'every_x_days' 
+              ? (editTaskRecurrenceInterval && !isNaN(editTaskRecurrenceInterval) ? Math.max(2, editTaskRecurrenceInterval) : 2) 
+              : undefined 
+          };
 
       await updateGestorTask(editingTask.id, {
         title: editTaskTitle.trim(),
@@ -255,7 +273,7 @@ export const GestorTasksSection: React.FC = () => {
             </div>
             {(editingTask ? editTaskRecurrenceType === 'every_x_days' : newTaskRecurrenceType === 'every_x_days') && (
               <div>
-                <Label htmlFor="recurrenceInterval">Repetir a cada (dias)</Label>
+                <Label htmlFor="recurrenceInterval">Repetir a cada (dias) *</Label>
                 <Input
                   id="recurrenceInterval"
                   type="number"
@@ -268,7 +286,7 @@ export const GestorTasksSection: React.FC = () => {
                   }}
                   className="dark:bg-slate-700 dark:text-white dark:border-slate-600"
                   placeholder="Ex: 3"
-                  required
+                  required // Campo obrigatório quando 'every_x_days'
                 />
               </div>
             )}
