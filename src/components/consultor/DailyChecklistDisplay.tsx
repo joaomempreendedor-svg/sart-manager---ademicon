@@ -229,9 +229,9 @@ export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ us
                           />
                           <Label htmlFor={`item-${item.id}`} className={labelClasses}>
                             {item.text}
-                            {isCompleted && ( // NOVO: Indicador de conclusão explícito
-                              <span className="ml-2 text-xs text-green-600 dark:text-green-400 font-semibold">
-                                <CheckCircle2 className="w-3 h-3 inline-block mr-1" /> Concluído
+                            {isCompleted && ( // NOVO: Indicador de conclusão explícito e mais proeminente
+                              <span className="ml-2 text-base text-green-600 dark:text-green-400 font-bold">
+                                <CheckCircle2 className="w-4 h-4 inline-block mr-1" /> Concluído
                               </span>
                             )}
                           </Label>

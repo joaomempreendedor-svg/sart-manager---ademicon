@@ -358,10 +358,10 @@ export const GestorTasksSection: React.FC = () => {
                             {task.description}
                           </p>
                         )}
-                        {/* NOVO: Indicador de conclusão explícito */}
+                        {/* NOVO: Indicador de conclusão explícito e mais proeminente */}
                         {isVisuallyCompleted ? (
-                          <span className="flex items-center text-xs text-green-600 dark:text-green-400 font-semibold mt-1">
-                            <CheckCircle2 className="w-3 h-3 mr-1" /> {isRecurring ? 'Concluído hoje' : 'Concluído'}
+                          <span className="flex items-center text-base text-green-600 dark:text-green-400 font-bold mt-1">
+                            <CheckCircle2 className="w-4 h-4 mr-1 inline-block" /> {isRecurring ? 'Concluído hoje' : 'Concluído'}
                           </span>
                         ) : (
                           <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400 mt-1">
