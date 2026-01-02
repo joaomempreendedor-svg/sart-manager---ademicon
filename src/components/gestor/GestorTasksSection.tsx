@@ -319,12 +319,12 @@ export const GestorTasksSection: React.FC = () => {
                   const isDueToday = isGestorTaskDueOnDate(task, today);
 
                   return (
-                    <div key={task.id} className={`flex items-start space-x-3 p-3 rounded-lg border ${isCompleted ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' : 'bg-gray-50 dark:bg-slate-700/50 border-gray-200 dark:border-slate-700'} group`}>
+                    <div key={task.id} className={`flex items-start space-x-3 p-3 rounded-lg border ${isCompleted ? 'bg-green-100 dark:bg-green-900/30 border-green-300 dark:border-green-700' : 'bg-gray-50 dark:bg-slate-700/50 border-gray-200 dark:border-slate-700'} group`}>
                       <Button
                         variant="ghost"
                         size="icon"
                         onClick={() => handleToggleCompletion(task)}
-                        className={`flex-shrink-0 ${isCompleted ? 'text-green-600 hover:text-green-700' : 'text-gray-400 hover:text-brand-600'}`}
+                        className={`flex-shrink-0 ${isCompleted ? 'text-green-600 hover:text-green-700' : 'text-gray-400 hover:text-brand-600'} ${isDueToday ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 transition-opacity'}`}
                         disabled={isCompleted && isDueToday} // Desabilita se concluída HOJE e devida HOJE
                       >
                         {isCompleted ? <CheckCircle2 className="w-5 h-5" /> : <Circle className="w-5 h-5" />}
@@ -334,7 +334,9 @@ export const GestorTasksSection: React.FC = () => {
                           {task.title}
                         </p>
                         {task.description && (
-                          <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{task.description}</p>
+                          <p className={`text-sm ${isCompleted ? 'line-through text-gray-500 dark:text-gray-400' : 'text-gray-600 dark:text-gray-300'} mt-1`}>
+                            {task.description}
+                          </p>
                         )}
                         <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400 mt-1">
                           {task.due_date && !isRecurring && ( // Exibir data de vencimento apenas para tarefas não recorrentes
