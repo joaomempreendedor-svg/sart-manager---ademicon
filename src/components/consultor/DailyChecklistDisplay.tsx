@@ -205,8 +205,21 @@ export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ us
                 ) : (
                   items.map(item => {
                     const isCompleted = getCompletionStatus(item.id);
+                    
+                    // Determine classes for the task item
+                    let itemClasses = 'p-4 flex items-center justify-between';
+                    let labelClasses = 'text-sm font-medium leading-none';
+
+                    if (isCompleted) {
+                      itemClasses += ' bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800';
+                      labelClasses += ' line-through text-gray-400 dark:text-gray-500';
+                    } else {
+                      itemClasses += ' bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800';
+                      labelClasses += ' text-red-800 dark:text-red-200';
+                    }
+
                     return (
-                      <div key={item.id} className="p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-slate-700/30">
+                      <div key={item.id} className={itemClasses}>
                         <div className="flex items-center space-x-3">
                           <Checkbox
                             id={`item-${item.id}`}
@@ -214,7 +227,7 @@ export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ us
                             onCheckedChange={() => handleToggleCompletion(item.id, isCompleted)}
                             className="dark:border-slate-600 data-[state=checked]:bg-brand-600 data-[state=checked]:text-white"
                           />
-                          <Label htmlFor={`item-${item.id}`} className={`text-sm font-medium leading-none ${isCompleted ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-700 dark:text-gray-200'}`}>
+                          <Label htmlFor={`item-${item.id}`} className={labelClasses}>
                             {item.text}
                           </Label>
                         </div>
