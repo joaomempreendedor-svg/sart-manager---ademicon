@@ -344,6 +344,17 @@ export const GestorTasksSection: React.FC = () => {
                     descriptionClasses += ' text-gray-600 dark:text-gray-300';
                   }
 
+                  // DEBUG LOGS
+                  console.log(`Task: ${task.title}, ID: ${task.id}`);
+                  console.log(`  isRecurring: ${isRecurring}`);
+                  console.log(`  isCompletedToday: ${isCompletedToday}`);
+                  console.log(`  isVisuallyCompleted: ${isVisuallyCompleted}`);
+                  console.log(`  isDueToday: ${isDueToday}`);
+                  console.log(`  isOverdue: ${isOverdue}`);
+                  console.log(`  Calculated itemClasses: ${itemClasses}`);
+                  console.log(`  Calculated buttonVisibilityClass: ${buttonVisibilityClass}`);
+
+
                   return (
                     <div key={task.id} className={itemClasses}>
                       <Button

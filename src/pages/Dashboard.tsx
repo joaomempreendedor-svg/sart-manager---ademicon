@@ -542,7 +542,7 @@ export const Dashboard = () => {
 
       {/* Minhas Tarefas Pessoais (Gestor) */}
       <div className="mb-8">
-        <GestorTasksSection key={gestorTasks.length} />
+        <GestorTasksSection key={`${gestorTasks.length}-${gestorTaskCompletions.length}`} /> {/* Added key */}
       </div>
 
       {/* Todos os Candidatos */}
