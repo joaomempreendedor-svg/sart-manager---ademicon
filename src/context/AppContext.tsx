@@ -1548,15 +1548,29 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const toggleDailyChecklistCompletion = useCallback(async (itemId: string, date: string, done: boolean, consultantId: string) => {
     if (!user) throw new Error("Usuário não autenticado.");
+    console.log(`[toggleDailyChecklistCompletion] Item: ${itemId}, Date: ${date}, Done: ${done}, Consultant: ${consultantId}`);
+
     const existingCompletion = dailyChecklistCompletions.find(c => c.daily_checklist_item_id === itemId && c.consultant_id === consultantId && c.date === date);
 
     if (existingCompletion) {
-      const { error } = await supabase.from('daily_checklist_completions').update({ done, updated_at: new Date().toISOString() }).eq('id', existingCompletion.id);
-      if (error) { console.error(error); toast.error("Erro ao atualizar conclusão do checklist."); throw error; }
-      setDailyChecklistCompletions(prev => prev.map(c => c.id === existingCompletion.id ? { ...c, done, updated_at: new Date().toISOString() } : c));
+      console.log(`[toggleDailyChecklistCompletion] Existing completion found: ${existingCompletion.id}. Updating...`);
+      const { data, error } = await supabase.from('daily_checklist_completions').update({ done, updated_at: new Date().toISOString() }).eq('id', existingCompletion.id).select().single();
+      if (error) { 
+        console.error("[toggleDailyChecklistCompletion] Supabase Update Error:", error); 
+        toast.error("Erro ao atualizar conclusão do checklist."); 
+        throw error; 
+      }
+      console.log("[toggleDailyChecklistCompletion] Supabase Update Success:", data);
+      setDailyChecklistCompletions(prev => prev.map(c => c.id === existingCompletion.id ? { ...c, done, updated_at: data.updated_at } : c));
     } else {
+      console.log("[toggleDailyChecklistCompletion] No existing completion found. Inserting new one...");
       const { data, error } = await supabase.from('daily_checklist_completions').insert({ daily_checklist_item_id: itemId, consultant_id: consultantId, date, done, updated_at: new Date().toISOString() }).select().single();
-      if (error) { console.error(error); toast.error("Erro ao registrar conclusão do checklist."); throw error; }
+      if (error) { 
+        console.error("[toggleDailyChecklistCompletion] Supabase Insert Error:", error);
+        toast.error("Erro ao registrar conclusão do checklist."); 
+        throw error; 
+      }
+      console.log("[toggleDailyChecklistCompletion] Supabase Insert Success:", data);
       setDailyChecklistCompletions(prev => [...prev, data]);
     }
   }, [user, dailyChecklistCompletions]);
@@ -1876,30 +1890,47 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const toggleGestorTaskCompletion = useCallback(async (taskId: string, done: boolean, date: string) => {
     if (!user) throw new Error("Usuário não autenticado.");
+    console.log(`[toggleGestorTaskCompletion] Task: ${taskId}, Date: ${date}, Done: ${done}`);
     
     const task = gestorTasks.find(t => t.id === taskId);
-    if (!task) throw new Error("Tarefa do gestor não encontrada.");
+    if (!task) {
+      console.error("[toggleGestorTaskCompletion] Task not found:", taskId);
+      throw new Error("Tarefa do gestor não encontrada.");
+    }
 
-    // Check if the task is recurring and due on the current date
-    const isRecurringAndDue = task.recurrence_pattern && task.recurrence_pattern.type !== 'none' && isGestorTaskDueOnDate(task, date);
+    const isRecurring = task.recurrence_pattern && task.recurrence_pattern.type !== 'none';
+    console.log(`[toggleGestorTaskCompletion] Is Recurring: ${isRecurring}`);
 
-    if (isRecurringAndDue) {
+    if (isRecurring) {
       const existingCompletion = gestorTaskCompletions.find(c => c.gestor_task_id === taskId && c.user_id === user.id && c.date === date);
+      console.log(`[toggleGestorTaskCompletion] Existing completion for recurring task:`, existingCompletion);
 
       if (existingCompletion) {
-        const { error } = await supabase.from('gestor_task_completions').update({ done, updated_at: new Date().toISOString() }).eq('id', existingCompletion.id);
-        if (error) { console.error(error); toast.error("Erro ao atualizar conclusão da tarefa recorrente."); throw error; }
-        setGestorTaskCompletions(prev => prev.map(c => c.id === existingCompletion.id ? { ...c, done, updated_at: new Date().toISOString() } : c));
+        console.log(`[toggleGestorTaskCompletion] Updating existing completion: ${existingCompletion.id}`);
+        const { data, error } = await supabase.from('gestor_task_completions').update({ done, updated_at: new Date().toISOString() }).eq('id', existingCompletion.id).select().single();
+        if (error) { 
+          console.error("[toggleGestorTaskCompletion] Supabase Update Error (recurring):", error); 
+          toast.error("Erro ao atualizar conclusão da tarefa recorrente."); 
+          throw error; 
+        }
+        console.log("[toggleGestorTaskCompletion] Supabase Update Success (recurring):", data);
+        setGestorTaskCompletions(prev => prev.map(c => c.id === existingCompletion.id ? { ...c, done, updated_at: data.updated_at } : c));
       } else {
+        console.log("[toggleGestorTaskCompletion] Inserting new completion for recurring task.");
         const { data, error } = await supabase.from('gestor_task_completions').insert({ gestor_task_id: taskId, user_id: user.id, date, done, updated_at: new Date().toISOString() }).select().single();
-        if (error) { console.error(error); toast.error("Erro ao registrar conclusão da tarefa recorrente."); throw error; }
+        if (error) { 
+          console.error("[toggleGestorTaskCompletion] Supabase Insert Error (recurring):", error);
+          toast.error("Erro ao registrar conclusão da tarefa recorrente."); 
+          throw error; 
+        }
+        console.log("[toggleGestorTaskCompletion] Supabase Insert Success (recurring):", data);
         setGestorTaskCompletions(prev => [...prev, data]);
       }
     } else {
-      // Para tarefas não recorrentes, atualiza o campo is_completed diretamente na tabela gestor_tasks
+      console.log("[toggleGestorTaskCompletion] Updating non-recurring task directly.");
       const { error } = await supabase.from('gestor_tasks').update({ is_completed: done }).eq('id', taskId).eq('user_id', user.id);
       if (error) {
-        console.error("Supabase error toggling gestor task completion (non-recurring):", error);
+        console.error("[toggleGestorTaskCompletion] Supabase Update Error (non-recurring):", error);
         toast.error("Erro ao atualizar conclusão da tarefa pessoal.");
         throw new Error(error.message);
       }
