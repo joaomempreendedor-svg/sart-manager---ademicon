@@ -324,7 +324,6 @@ export const GestorTasksSection: React.FC = () => {
                   let itemClasses = 'flex items-start space-x-3 p-3 rounded-lg border group';
                   let titleClasses = 'font-medium';
                   let descriptionClasses = 'text-sm mt-1';
-                  // O botão de conclusão estará sempre visível e clicável, então não precisamos de buttonVisibilityClass
 
                   if (isVisuallyCompleted) {
                     itemClasses += ' bg-green-100 dark:bg-green-900/30 border-green-300 dark:border-green-700';
@@ -359,37 +358,36 @@ export const GestorTasksSection: React.FC = () => {
                             {task.description}
                           </p>
                         )}
-                        <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400 mt-1">
-                          {isVisuallyCompleted ? (
-                            <span className="flex items-center text-green-600 dark:text-green-400 font-medium">
-                              <CheckCircle2 className="w-3 h-3 mr-1" /> {isRecurring ? 'Concluído hoje' : 'Concluído'}
-                            </span>
-                          ) : (
-                            <>
-                              {task.due_date && !isRecurring && ( // Exibir data de vencimento apenas para tarefas não recorrentes
-                                <span className="flex items-center">
-                                  <Calendar className="w-3 h-3 mr-1" /> Vence: {new Date(task.due_date + 'T00:00:00').toLocaleDateString('pt-BR')}
-                                </span>
-                              )}
-                              {isRecurring && (
-                                <span className="flex items-center text-brand-600 dark:text-brand-400">
-                                  {task.recurrence_pattern?.type === 'daily' ? <Repeat className="w-3 h-3 mr-1" /> : <CalendarDays className="w-3 h-3 mr-1" />}
-                                  {task.recurrence_pattern?.type === 'daily' ? 'Diária' : `A cada ${task.recurrence_pattern?.interval} dias`}
-                                </span>
-                              )}
-                              {isDueToday && ( // Task is due today (applies to both recurring and non-recurring if not completed)
-                                <span className="flex items-center text-red-600 dark:text-red-400 font-medium">
-                                  <Clock className="w-3 h-3 mr-1" /> Vence Hoje!
-                                </span>
-                              )}
-                              {isOverdue && !isDueToday && ( // Non-recurring task that is overdue but not due today (i.e., due in the past)
-                                <span className="flex items-center text-red-600 dark:text-red-400 font-medium">
-                                  <Clock className="w-3 h-3 mr-1" /> Atrasada!
-                                </span>
-                              )}
-                            </>
-                          )}
-                        </div>
+                        {/* NOVO: Indicador de conclusão explícito */}
+                        {isVisuallyCompleted ? (
+                          <span className="flex items-center text-xs text-green-600 dark:text-green-400 font-semibold mt-1">
+                            <CheckCircle2 className="w-3 h-3 mr-1" /> {isRecurring ? 'Concluído hoje' : 'Concluído'}
+                          </span>
+                        ) : (
+                          <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            {task.due_date && !isRecurring && ( // Exibir data de vencimento apenas para tarefas não recorrentes
+                              <span className="flex items-center">
+                                <Calendar className="w-3 h-3 mr-1" /> Vence: {new Date(task.due_date + 'T00:00:00').toLocaleDateString('pt-BR')}
+                              </span>
+                            )}
+                            {isRecurring && (
+                              <span className="flex items-center text-brand-600 dark:text-brand-400">
+                                {task.recurrence_pattern?.type === 'daily' ? <Repeat className="w-3 h-3 mr-1" /> : <CalendarDays className="w-3 h-3 mr-1" />}
+                                {task.recurrence_pattern?.type === 'daily' ? 'Diária' : `A cada ${task.recurrence_pattern?.interval} dias`}
+                              </span>
+                            )}
+                            {isDueToday && ( // Task is due today (applies to both recurring and non-recurring if not completed)
+                              <span className="flex items-center text-red-600 dark:text-red-400 font-medium">
+                                <Clock className="w-3 h-3 mr-1" /> Vence Hoje!
+                              </span>
+                            )}
+                            {isOverdue && !isDueToday && ( // Non-recurring task that is overdue but not due today (i.e., due in the past)
+                              <span className="flex items-center text-red-600 dark:text-red-400 font-medium">
+                                <Clock className="w-3 h-3 mr-1" /> Atrasada!
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </div>
                       <div className={`flex-shrink-0 flex items-center space-x-1`}> {/* Removido opacity-0 group-hover:opacity-100 */}
                         {task.due_date && (

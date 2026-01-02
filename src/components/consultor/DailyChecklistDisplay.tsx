@@ -3,7 +3,7 @@ import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { CalendarDays, ChevronLeft, ChevronRight, ListChecks, Loader2, Eye, Video, FileText, Image as ImageIcon, Link as LinkIcon, MessageSquare } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, ListChecks, Loader2, Eye, Video, FileText, Image as ImageIcon, Link as LinkIcon, MessageSquare, CheckCircle2 } from 'lucide-react'; // Importar CheckCircle2 icon
 import { User, DailyChecklistItem, DailyChecklistItemResourceType } from '@/types'; // Importar o tipo User e DailyChecklistItem
 import { ConfettiAnimation } from '@/components/ConfettiAnimation'; // Importar o novo componente de animação
 import { DailyChecklistItemResourceModal } from '@/components/DailyChecklistItemResourceModal'; // Importar o novo modal
@@ -229,6 +229,11 @@ export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ us
                           />
                           <Label htmlFor={`item-${item.id}`} className={labelClasses}>
                             {item.text}
+                            {isCompleted && ( // NOVO: Indicador de conclusão explícito
+                              <span className="ml-2 text-xs text-green-600 dark:text-green-400 font-semibold">
+                                <CheckCircle2 className="w-3 h-3 inline-block mr-1" /> Concluído
+                              </span>
+                            )}
                           </Label>
                         </div>
                         {item.resource && (
