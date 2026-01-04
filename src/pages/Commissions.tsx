@@ -124,6 +124,7 @@ export const Commissions = () => {
   const [reportConsultant, setReportConsultant] = useState('');
   const [reportManager, setReportManager] = useState('');
   const [reportAngel, setReportAngel] = useState('');
+  const [reportPV, setReportPV] = useState(''); // NOVO: Estado para o filtro de PV no relatório
   const [reportData, setReportData] = useState<{
     month: string;
     totalCommissions: { consultant: number; manager: number; angel: number; total: number; };
@@ -433,6 +434,7 @@ export const Commissions = () => {
       if (reportConsultant && c.consultant !== reportConsultant) return false;
       if (reportManager && c.managerName !== reportManager) return false;
       if (reportAngel && c.angelName !== reportAngel) return false;
+      if (reportPV && c.pv !== reportPV) return false; // NOVO: Filtrar por PV
       return true;
     });
 
@@ -481,6 +483,7 @@ export const Commissions = () => {
       'Valor (Anjo)': item.values.angel,
       'Data Venda': new Date(item.commission.date + 'T00:00:00').toLocaleDateString('pt-BR'),
       'Mês Competência': formatMonthYear(item.commission.installmentDetails[item.installmentNumber].competenceMonth!),
+      'PV': item.commission.pv, // Adicionado PV ao export
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(dataToExport);
@@ -490,7 +493,7 @@ export const Commissions = () => {
     
     worksheet['!cols'] = [
         { wch: 25 }, { wch: 25 }, { wch: 25 }, { wch: 25 }, { wch: 10 },
-        { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 15 }, { wch: 20 },
+        { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 15 }, { wch: 20 }, { wch: 15 }, // Ajustado para incluir PV
     ];
 
     Object.keys(worksheet).forEach(cellRef => {
@@ -842,6 +845,11 @@ export const Commissions = () => {
                 <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Filtrar por Anjo:</label>
                 <select value={reportAngel} onChange={e => setReportAngel(e.target.value)} className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2 bg-white dark:bg-slate-700 text-gray-900 dark:text-white"><option value="">Todos</option>{angels.map(a => <option key={a.id} value={a.name}>{a.name}</option>)}</select>
               </div>
+              {/* NOVO: Filtro por PV */}
+              <div className="flex-1">
+                <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Filtrar por PV:</label>
+                <select value={reportPV} onChange={e => setReportPV(e.target.value)} className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2 bg-white dark:bg-slate-700 text-gray-900 dark:text-white"><option value="">Todos</option>{pvs.map(pv => <option key={pv} value={pv}>{pv}</option>)}</select>
+              </div>
               <button onClick={generateReport} className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition font-medium">
                 Gerar Relatório
               </button>
@@ -861,7 +869,7 @@ export const Commissions = () => {
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="text-left text-gray-500 dark:text-gray-400"><tr className="border-b dark:border-slate-700"><th className="py-2">Cliente</th><th className="py-2">Consultor</th><th className="py-2">Gestor</th><th className="py-2">Anjo</th><th className="py-2">Parcela</th><th className="py-2 text-right">Valor (Consultor)</th><th className="py-2 text-right">Valor (Gestor)</th><th className="py-2 text-right">Valor (Anjo)</th></tr></thead>
+                  <thead className="text-left text-gray-500 dark:text-gray-400"><tr className="border-b dark:border-slate-700"><th className="py-2">Cliente</th><th className="py-2">Consultor</th><th className="py-2">Gestor</th><th className="py-2">Anjo</th><th className="py-2">Parcela</th><th className="py-2">PV</th><th className="py-2 text-right">Valor (Consultor)</th><th className="py-2 text-right">Valor (Gestor)</th><th className="py-2 text-right">Valor (Anjo)</th></tr></thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
                     {reportData.detailedInstallments.map((item, index) => (
                       <tr key={index} className="hover:bg-gray-50 dark:hover:bg-slate-700/50">
@@ -870,6 +878,7 @@ export const Commissions = () => {
                         <td>{item.commission.managerName}</td>
                         <td>{item.commission.angelName || 'N/A'}</td>
                         <td>{item.installmentNumber}</td>
+                        <td>{item.commission.pv}</td> {/* Adicionado PV na tabela */}
                         <td className="text-right font-mono">{formatCurrency(item.values.cons)}</td>
                         <td className="text-right font-mono">{formatCurrency(item.values.man)}</td>
                         <td className="text-right font-mono">{formatCurrency(item.values.angel)}</td>
