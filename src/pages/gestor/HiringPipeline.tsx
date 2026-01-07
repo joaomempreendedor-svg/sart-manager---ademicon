@@ -44,23 +44,36 @@ const HiringPipeline = () => {
     const candidatesForGestor = candidates;
 
     // Prepare sets of team member identifiers for efficient lookup
-    const teamMemberIdentifiersInPreview = new Set(
-      teamMembers
-        .filter(m => m.isActive && m.roles.includes('Prévia'))
-        .flatMap(m => [m.name.toLowerCase(), m.email?.toLowerCase()].filter(Boolean))
-    );
-    const teamMemberIdentifiersAuthorized = new Set(
-      teamMembers
-        .filter(m => m.isActive && m.roles.includes('Autorizado'))
-        .flatMap(m => [m.name.toLowerCase(), m.email?.toLowerCase()].filter(Boolean))
-    );
+    const teamMemberIdentifiersInPreview = new Set<string>();
+    teamMembers
+      .filter(m => m.isActive && m.roles.includes('Prévia'))
+      .forEach(m => {
+        if (m.name) teamMemberIdentifiersInPreview.add(m.name.toLowerCase().trim());
+        if (m.email) teamMemberIdentifiersInPreview.add(m.email.toLowerCase().trim());
+      });
+
+    const teamMemberIdentifiersAuthorized = new Set<string>();
+    teamMembers
+      .filter(m => m.isActive && m.roles.includes('Autorizado'))
+      .forEach(m => {
+        if (m.name) teamMemberIdentifiersAuthorized.add(m.name.toLowerCase().trim());
+        if (m.email) teamMemberIdentifiersAuthorized.add(m.email.toLowerCase().trim());
+      });
 
     // Helper to check if a candidate matches an existing team member
     const isCandidateAlsoTeamMember = (candidate: typeof candidates[0], teamMemberIdentifiers: Set<string>) => {
-      const candidateNameLower = candidate.name.toLowerCase();
-      const candidateEmailLower = candidate.email?.toLowerCase();
+      const candidateNameLower = candidate.name.toLowerCase().trim();
+      const candidateEmailLower = candidate.email?.toLowerCase().trim();
       
-      return teamMemberIdentifiers.has(candidateNameLower) || (candidateEmailLower && teamMemberIdentifiers.has(candidateEmailLower));
+      // Check if name matches
+      if (teamMemberIdentifiers.has(candidateNameLower)) {
+        return true;
+      }
+      // Check if email matches (if email exists for candidate)
+      if (candidateEmailLower && teamMemberIdentifiers.has(candidateEmailLower)) {
+        return true;
+      }
+      return false;
     };
 
     const scheduled = candidatesForGestor.filter(c => 
