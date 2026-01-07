@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Loader2, Calendar, CheckCircle2, UserX, UserCheck, TrendingUp, Users, FileText, ArrowRight, UserRound, Plus } from 'lucide-react'; // Importado 'Plus'
+import { Loader2, Calendar, CheckCircle2, UserX, UserCheck, TrendingUp, Users, FileText, ArrowRight, UserRound, Plus, Search, Filter, RotateCcw } from 'lucide-react'; // Importado 'Search', 'Filter', 'RotateCcw'
 import { Link } from 'react-router-dom';
 import { TableSkeleton } from '@/components/TableSkeleton';
 import { CandidateStatus, InterviewScores, TeamMember } from '@/types';
@@ -13,6 +13,11 @@ const HiringPipeline = () => {
   const [draggingCandidateId, setDraggingCandidateId] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false); // Estado para controlar a visibilidade do modal
+
+  // NOVO: Estados para os filtros
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterStartDate, setFilterStartDate] = useState('');
+  const [filterEndDate, setFilterEndDate] = useState('');
 
   const {
     scheduledInterviews,
@@ -43,7 +48,27 @@ const HiringPipeline = () => {
       };
     }
 
-    const candidatesForGestor = candidates;
+    let candidatesForGestor = candidates;
+
+    // Aplicar filtro de busca
+    if (searchTerm) {
+      const lowerCaseSearchTerm = searchTerm.toLowerCase();
+      candidatesForGestor = candidatesForGestor.filter(c =>
+        c.name.toLowerCase().includes(lowerCaseSearchTerm) ||
+        c.phone.includes(lowerCaseSearchTerm) ||
+        c.email?.toLowerCase().includes(lowerCaseSearchTerm)
+      );
+    }
+
+    // Aplicar filtro de data de criação
+    if (filterStartDate) {
+      const start = new Date(filterStartDate + 'T00:00:00');
+      candidatesForGestor = candidatesForGestor.filter(c => new Date(c.createdAt) >= start);
+    }
+    if (filterEndDate) {
+      const end = new Date(filterEndDate + 'T23:59:59'); // Inclui o dia inteiro
+      candidatesForGestor = candidatesForGestor.filter(c => new Date(c.createdAt) <= end);
+    }
 
     // Prepare sets of team member identifiers for efficient lookup
     const teamMemberIdentifiersInPreview = new Set(
@@ -71,6 +96,15 @@ const HiringPipeline = () => {
         return true;
       }
       return false;
+    };
+
+    // Helper to find the responsibleUserId for a team member if they originated as a candidate
+    const getResponsibleUserIdForTeamMember = (member: TeamMember) => {
+      const matchingCandidate = candidatesForGestor.find(c => 
+        c.name.toLowerCase().trim() === member.name.toLowerCase().trim() ||
+        (c.email && member.email && c.email.toLowerCase().trim() === member.email.toLowerCase().trim())
+      );
+      return matchingCandidate?.responsibleUserId;
     };
 
     const scheduled = candidatesForGestor.filter(c => 
@@ -109,20 +143,14 @@ const HiringPipeline = () => {
       .filter(m => m.isActive && m.roles.includes('Prévia'))
       .map(m => ({
         ...m,
-        responsibleUserId: candidatesForGestor.find(c => 
-          c.name.toLowerCase().trim() === m.name.toLowerCase().trim() ||
-          (c.email && m.email && c.email.toLowerCase().trim() === m.email.toLowerCase().trim())
-        )?.responsibleUserId // Add responsibleUserId
+        responsibleUserId: getResponsibleUserIdForTeamMember(m) // Add responsibleUserId
       }));
 
     const membersAuthorized = teamMembers
       .filter(m => m.isActive && m.roles.includes('Autorizado'))
       .map(m => ({
         ...m,
-        responsibleUserId: candidatesForGestor.find(c => 
-          c.name.toLowerCase().trim() === m.name.toLowerCase().trim() ||
-          (c.email && m.email && c.email.toLowerCase().trim() === m.email.toLowerCase().trim())
-        )?.responsibleUserId // Add responsibleUserId
+        responsibleUserId: getResponsibleUserIdForTeamMember(m) // Add responsibleUserId
       }));
 
     return {
@@ -141,7 +169,7 @@ const HiringPipeline = () => {
         droppedOut,
       },
     };
-  }, [user, candidates, teamMembers]);
+  }, [user, candidates, teamMembers, searchTerm, filterStartDate, filterEndDate]); // Adicionado dependências dos filtros
 
   const handleDragStart = (e: React.DragEvent, candidateId: string) => {
     setDraggingCandidateId(candidateId);
@@ -225,6 +253,14 @@ const HiringPipeline = () => {
     return member ? member.name : 'Desconhecido';
   };
 
+  const clearFilters = () => {
+    setSearchTerm('');
+    setFilterStartDate('');
+    setFilterEndDate('');
+  };
+
+  const hasActiveFilters = searchTerm || filterStartDate || filterEndDate;
+
   if (isAuthLoading || isDataLoading) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-theme(spacing.16))]">
@@ -247,6 +283,54 @@ const HiringPipeline = () => {
           <Plus className="w-5 h-5" />
           <span>Agendar Entrevista</span>
         </button>
+      </div>
+
+      {/* NOVO: Filtros de Busca e Data */}
+      <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm space-y-4 mb-6">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 flex items-center uppercase tracking-wide"><Filter className="w-4 h-4 mr-2" />Filtrar Candidatos</h3>
+          {hasActiveFilters && (
+            <button onClick={clearFilters} className="text-xs flex items-center text-red-500 hover:text-red-700 transition">
+              <RotateCcw className="w-3 h-3 mr-1" />Limpar Filtros
+            </button>
+          )}
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="col-span-1">
+            <label htmlFor="searchTerm" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Buscar por Nome, Telefone ou E-mail</label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                id="searchTerm"
+                placeholder="Buscar candidato..."
+                className="w-full pl-9 pr-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+          </div>
+          <div>
+            <label htmlFor="filterStartDate" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Criado de</label>
+            <input
+              type="date"
+              id="filterStartDate"
+              value={filterStartDate}
+              onChange={(e) => setFilterStartDate(e.target.value)}
+              className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2.5 text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500"
+            />
+          </div>
+          <div>
+            <label htmlFor="filterEndDate" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Criado até</label>
+            <input
+              type="date"
+              id="filterEndDate"
+              value={filterEndDate}
+              onChange={(e) => setFilterEndDate(e.target.value)}
+              className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2.5 text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500"
+            />
+          </div>
+        </div>
       </div>
 
       {/* Métricas de Contratação */}
