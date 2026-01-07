@@ -192,7 +192,7 @@ const HiringPipeline = () => {
   };
 
   const getColumnClasses = (columnId: string) => {
-    let classes = "flex-shrink-0 w-64 bg-gray-100 dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700";
+    let classes = "bg-gray-100 dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700";
     if (dragOverColumn === columnId) {
       classes += " border-2 border-dashed border-brand-500 dark:border-brand-400";
     }
@@ -263,7 +263,7 @@ const HiringPipeline = () => {
 
       {/* Pipeline Visual */}
       <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center"><Users className="w-5 h-5 mr-2 text-brand-500" />Fluxo de Candidatos</h2>
-      <div className="flex overflow-x-auto pb-4 space-x-4 custom-scrollbar">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 pb-4">
         {/* Coluna: Agendadas */}
         <div 
           id="scheduled"
