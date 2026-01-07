@@ -1,20 +1,38 @@
 import React, { useMemo, useState } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Loader2, Calendar, CheckCircle2, UserX, UserCheck, TrendingUp, Users, FileText, ArrowRight, UserRound, Plus, Search, Filter, RotateCcw } from 'lucide-react'; // Importado 'Search', 'Filter', 'RotateCcw'
+import { Loader2, Calendar, CheckCircle2, UserX, UserCheck, TrendingUp, Users, FileText, ArrowRight, UserRound, Plus, Search, Filter, RotateCcw } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { TableSkeleton } from '@/components/TableSkeleton';
 import { CandidateStatus, InterviewScores, TeamMember } from '@/types';
-import { ScheduleInterviewModal } from '@/components/ScheduleInterviewModal'; // Importar o modal de agendamento
+import { ScheduleInterviewModal } from '@/components/ScheduleInterviewModal';
+
+// Helper function to highlight text
+const highlightText = (text: string, highlight: string) => {
+  if (!highlight) return <span>{text}</span>;
+  const parts = text.split(new RegExp(`(${highlight})`, 'gi'));
+  return (
+    <span>
+      {parts.map((part, i) =>
+        part.toLowerCase() === highlight.toLowerCase() ? (
+          <span key={i} className="bg-yellow-200 dark:bg-yellow-700 text-gray-900 dark:text-white rounded px-0.5">
+            {part}
+          </span>
+        ) : (
+          part
+        )
+      )}
+    </span>
+  );
+};
 
 const HiringPipeline = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
   const { candidates, teamMembers, isDataLoading, updateCandidate, interviewStructure } = useApp();
   const [draggingCandidateId, setDraggingCandidateId] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
-  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false); // Estado para controlar a visibilidade do modal
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
 
-  // NOVO: Estados para os filtros
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStartDate, setFilterStartDate] = useState('');
   const [filterEndDate, setFilterEndDate] = useState('');
@@ -50,27 +68,24 @@ const HiringPipeline = () => {
 
     let candidatesForGestor = candidates;
 
-    // Aplicar filtro de busca
     if (searchTerm) {
       const lowerCaseSearchTerm = searchTerm.toLowerCase();
       candidatesForGestor = candidatesForGestor.filter(c =>
-        c.name.toLowerCase().includes(lowerCaseSearchTerm) ||
-        c.phone.includes(lowerCaseSearchTerm) ||
-        c.email?.toLowerCase().includes(lowerCaseSearchTerm)
+        (c.name && c.name.toLowerCase().includes(lowerCaseSearchTerm)) ||
+        (c.phone && c.phone.includes(lowerCaseSearchTerm)) ||
+        (c.email?.toLowerCase().includes(lowerCaseSearchTerm))
       );
     }
 
-    // Aplicar filtro de data de criação
     if (filterStartDate) {
       const start = new Date(filterStartDate + 'T00:00:00');
       candidatesForGestor = candidatesForGestor.filter(c => new Date(c.createdAt) >= start);
     }
     if (filterEndDate) {
-      const end = new Date(filterEndDate + 'T23:59:59'); // Inclui o dia inteiro
+      const end = new Date(filterEndDate + 'T23:59:59');
       candidatesForGestor = candidatesForGestor.filter(c => new Date(c.createdAt) <= end);
     }
 
-    // Prepare sets of team member identifiers for efficient lookup
     const teamMemberIdentifiersInPreview = new Set(
       teamMembers
         .filter(m => m.isActive && m.roles.includes('Prévia'))
@@ -82,23 +97,19 @@ const HiringPipeline = () => {
         .flatMap(m => [m.name.toLowerCase().trim(), m.email?.toLowerCase().trim()].filter(Boolean))
     );
 
-    // Helper to check if a candidate matches an existing team member
     const isCandidateAlsoTeamMember = (candidate: typeof candidates[0], teamMemberIdentifiers: Set<string>) => {
       const candidateNameLower = candidate.name.toLowerCase().trim();
       const candidateEmailLower = candidate.email?.toLowerCase().trim();
       
-      // Check if name matches
       if (teamMemberIdentifiers.has(candidateNameLower)) {
         return true;
       }
-      // Check if email matches (if email exists for candidate)
       if (candidateEmailLower && teamMemberIdentifiers.has(candidateEmailLower)) {
         return true;
       }
       return false;
     };
 
-    // Helper to find the responsibleUserId for a team member if they originated as a candidate
     const getResponsibleUserIdForTeamMember = (member: TeamMember) => {
       const matchingCandidate = candidatesForGestor.find(c => 
         c.name.toLowerCase().trim() === member.name.toLowerCase().trim() ||
@@ -125,32 +136,30 @@ const HiringPipeline = () => {
        c.interviewScores.notes !== '')
     );
 
-    // Filter out candidates who are already team members in the respective roles
     const awaitingPreview = candidatesForGestor.filter(c => 
       c.status === 'Aguardando Prévia' &&
-      !isCandidateAlsoTeamMember(c, teamMemberIdentifiersInPreview) // Exclui se já é membro da equipe 'Prévia'
+      !isCandidateAlsoTeamMember(c, teamMemberIdentifiersInPreview)
     );
     
     const authorized = candidatesForGestor.filter(c => 
       c.status === 'Autorizado' &&
-      !isCandidateAlsoTeamMember(c, teamMemberIdentifiersAuthorized) // Exclui se já é membro da equipe 'Autorizado'
+      !isCandidateAlsoTeamMember(c, teamMemberIdentifiersAuthorized)
     );
 
     const droppedOut = candidatesForGestor.filter(c => c.status === 'Reprovado');
 
-    // Separate team members by role for display, augmenting with responsibleUserId if found
     const membersInPreview = teamMembers
       .filter(m => m.isActive && m.roles.includes('Prévia'))
       .map(m => ({
         ...m,
-        responsibleUserId: getResponsibleUserIdForTeamMember(m) // Add responsibleUserId
+        responsibleUserId: getResponsibleUserIdForTeamMember(m)
       }));
 
     const membersAuthorized = teamMembers
       .filter(m => m.isActive && m.roles.includes('Autorizado'))
       .map(m => ({
         ...m,
-        responsibleUserId: getResponsibleUserIdForTeamMember(m) // Add responsibleUserId
+        responsibleUserId: getResponsibleUserIdForTeamMember(m)
       }));
 
     return {
@@ -169,7 +178,7 @@ const HiringPipeline = () => {
         droppedOut,
       },
     };
-  }, [user, candidates, teamMembers, searchTerm, filterStartDate, filterEndDate]); // Adicionado dependências dos filtros
+  }, [user, candidates, teamMembers, searchTerm, filterStartDate, filterEndDate]);
 
   const handleDragStart = (e: React.DragEvent, candidateId: string) => {
     setDraggingCandidateId(candidateId);
@@ -178,7 +187,7 @@ const HiringPipeline = () => {
   };
 
   const handleDragOver = (e: React.DragEvent, columnId: string) => {
-    e.preventDefault(); // Necessary to allow dropping
+    e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
     setDragOverColumn(columnId);
   };
@@ -246,7 +255,6 @@ const HiringPipeline = () => {
     return classes;
   };
 
-  // Função para obter o nome do responsável
   const getResponsibleName = (responsibleUserId: string | undefined) => {
     if (!responsibleUserId) return 'Não atribuído';
     const member = teamMembers.find(m => m.id === responsibleUserId);
@@ -285,7 +293,6 @@ const HiringPipeline = () => {
         </button>
       </div>
 
-      {/* NOVO: Filtros de Busca e Data */}
       <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm space-y-4 mb-6">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 flex items-center uppercase tracking-wide"><Filter className="w-4 h-4 mr-2" />Filtrar Candidatos</h3>
@@ -333,7 +340,6 @@ const HiringPipeline = () => {
         </div>
       </div>
 
-      {/* Métricas de Contratação */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
           <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
@@ -341,7 +347,7 @@ const HiringPipeline = () => {
           </div>
           <div>
             <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Entrevistas Agendadas</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{scheduledInterviews.length}</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{pipelineStages.scheduled.length}</p>
           </div>
         </div>
         <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
@@ -373,10 +379,8 @@ const HiringPipeline = () => {
         </div>
       </div>
 
-      {/* Pipeline Visual */}
       <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center"><Users className="w-5 h-5 mr-2 text-brand-500" />Fluxo de Candidatos</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 pb-4">
-        {/* Coluna: Agendadas */}
         <div 
           id="scheduled"
           className={getColumnClasses('scheduled')}
@@ -401,7 +405,7 @@ const HiringPipeline = () => {
                   onDragStart={(e) => handleDragStart(e, candidate.id)}
                   onDragEnd={() => setDraggingCandidateId(null)}
                 >
-                  <p className="font-medium text-gray-900 dark:text-white">{candidate.name}</p>
+                  <p className="font-medium text-gray-900 dark:text-white">{highlightText(candidate.name, searchTerm)}</p>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center">
                     <Calendar className="w-3 h-3 mr-1" /> {new Date(candidate.interviewDate + 'T00:00:00').toLocaleDateString('pt-BR')}
                   </p>
@@ -419,7 +423,6 @@ const HiringPipeline = () => {
           </div>
         </div>
 
-        {/* Coluna: Realizadas */}
         <div 
           id="conducted"
           className={getColumnClasses('conducted')}
@@ -444,7 +447,7 @@ const HiringPipeline = () => {
                   onDragStart={(e) => handleDragStart(e, candidate.id)}
                   onDragEnd={() => setDraggingCandidateId(null)}
                 >
-                  <p className="font-medium text-gray-900 dark:text-white">{candidate.name}</p>
+                  <p className="font-medium text-gray-900 dark:text-white">{highlightText(candidate.name, searchTerm)}</p>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center">
                     <Calendar className="w-3 h-3 mr-1" /> {new Date(candidate.interviewDate + 'T00:00:00').toLocaleDateString('pt-BR')}
                   </p>
@@ -462,7 +465,6 @@ const HiringPipeline = () => {
           </div>
         </div>
 
-        {/* Coluna: Aguardando Prévia */}
         <div 
           id="awaitingPreview"
           className={getColumnClasses('awaitingPreview')}
@@ -488,7 +490,7 @@ const HiringPipeline = () => {
                     onDragStart={(e) => handleDragStart(e, candidate.id)}
                     onDragEnd={() => setDraggingCandidateId(null)}
                   >
-                    <p className="font-medium text-gray-900 dark:text-white">{candidate.name}</p>
+                    <p className="font-medium text-gray-900 dark:text-white">{highlightText(candidate.name, searchTerm)}</p>
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center">
                       <CheckCircle2 className="w-3 h-3 mr-1 text-brand-500" /> Candidato em Prévia
                     </p>
@@ -511,7 +513,7 @@ const HiringPipeline = () => {
                         key={`member-${member.id}`} 
                         className="block bg-gray-50 dark:bg-slate-700/50 p-3 rounded-lg border border-gray-200 dark:border-slate-600 text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700 transition-all group"
                       >
-                        <p className="font-medium flex items-center"><UserRound className="w-4 h-4 mr-2 text-gray-500" />{member.name}</p>
+                        <p className="font-medium flex items-center"><UserRound className="w-4 h-4 mr-2 text-gray-500" />{highlightText(member.name, searchTerm)}</p>
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Função: Prévia</p>
                         {member.responsibleUserId && (
                           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center">
@@ -530,7 +532,6 @@ const HiringPipeline = () => {
           </div>
         </div>
 
-        {/* Coluna: Autorizados */}
         <div 
           id="authorized"
           className={getColumnClasses('authorized')}
@@ -556,7 +557,7 @@ const HiringPipeline = () => {
                     onDragStart={(e) => handleDragStart(e, candidate.id)}
                     onDragEnd={() => setDraggingCandidateId(null)}
                   >
-                    <p className="font-medium text-gray-900 dark:text-white">{candidate.name}</p>
+                    <p className="font-medium text-gray-900 dark:text-white">{highlightText(candidate.name, searchTerm)}</p>
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center">
                       <CheckCircle2 className="w-3 h-3 mr-1 text-purple-500" /> Candidato Autorizado
                     </p>
@@ -579,7 +580,7 @@ const HiringPipeline = () => {
                         key={`member-${member.id}`} 
                         className="block bg-gray-50 dark:bg-slate-700/50 p-3 rounded-lg border border-gray-200 dark:border-slate-600 text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700 transition-all group"
                       >
-                        <p className="font-medium flex items-center"><UserRound className="w-4 h-4 mr-2 text-gray-500" />{member.name}</p>
+                        <p className="font-medium flex items-center"><UserRound className="w-4 h-4 mr-2 text-gray-500" />{highlightText(member.name, searchTerm)}</p>
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Função: Autorizado</p>
                         {member.responsibleUserId && (
                           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center">
@@ -598,7 +599,6 @@ const HiringPipeline = () => {
           </div>
         </div>
 
-        {/* Coluna: Desistências */}
         <div 
           id="droppedOut"
           className={getColumnClasses('droppedOut')}
@@ -623,7 +623,7 @@ const HiringPipeline = () => {
                   onDragStart={(e) => handleDragStart(e, candidate.id)}
                   onDragEnd={() => setDraggingCandidateId(null)}
                 >
-                  <p className="font-medium text-gray-900 dark:text-white">{candidate.name}</p>
+                  <p className="font-medium text-gray-900 dark:text-white">{highlightText(candidate.name, searchTerm)}</p>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center">
                     <UserX className="w-3 h-3 mr-1 text-red-500" /> Reprovado
                   </p>
