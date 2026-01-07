@@ -56,6 +56,7 @@ export interface Candidate {
   consultantGoalsProgress: Record<string, boolean>; // map of goalId -> completed
   feedbacks?: Feedback[];
   createdAt: string;
+  responsibleUserId?: string; // NOVO: ID do gestor/anjo responsável pelo candidato
 }
 
 export interface ChecklistResource {

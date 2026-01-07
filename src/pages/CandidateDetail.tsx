@@ -1,13 +1,20 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
-import { ArrowLeft, CheckSquare, FileText, Phone, Calendar, Clock, MessageCircle, Paperclip, CheckCircle2, Target, Trash2, CalendarPlus, Save, Loader2 } from 'lucide-react';
+import { ArrowLeft, CheckSquare, FileText, Phone, Calendar, Clock, MessageCircle, Paperclip, CheckCircle2, Target, Trash2, CalendarPlus, Save, Loader2, Users } from 'lucide-react'; // Adicionado Users icon
 import { CandidateStatus, CommunicationTemplate, InterviewScores } from '@/types';
 import { MessageViewerModal } from '@/components/MessageViewerModal';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 export const CandidateDetail = () => {
   const { id } = useParams<{ id: string }>();
-  const { getCandidate, toggleChecklistItem, toggleConsultantGoal, updateCandidate, deleteCandidate, setChecklistDueDate, templates, checklistStructure, consultantGoalsStructure, interviewStructure } = useApp();
+  const { getCandidate, toggleChecklistItem, toggleConsultantGoal, updateCandidate, deleteCandidate, setChecklistDueDate, templates, checklistStructure, consultantGoalsStructure, interviewStructure, teamMembers } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
   
@@ -26,10 +33,23 @@ export const CandidateDetail = () => {
   const [checkedQuestions, setCheckedQuestions] = useState<Record<string, boolean>>(candidate?.checkedQuestions || {});
   const [isSaving, setIsSaving] = useState(false);
 
+  // NOVO: Estado para o responsável pelo candidato
+  const [responsibleUserId, setResponsibleUserId] = useState<string>(candidate?.responsibleUserId || '');
+  const [isUpdatingResponsible, setIsUpdatingResponsible] = useState(false);
+
+  const responsibleMembers = useMemo(() => {
+    return teamMembers.filter(m => m.isActive && (m.roles.includes('Gestor') || m.roles.includes('Anjo')));
+  }, [teamMembers]);
+
+  const currentResponsibleMember = useMemo(() => {
+    return responsibleMembers.find(m => m.id === responsibleUserId);
+  }, [responsibleMembers, responsibleUserId]);
+
   useEffect(() => {
     if (candidate) {
       setScores(candidate.interviewScores);
       setCheckedQuestions(candidate.checkedQuestions || {});
+      setResponsibleUserId(candidate.responsibleUserId || ''); // Atualiza o estado do responsável
     }
   }, [candidate]);
 
@@ -109,6 +129,20 @@ export const CandidateDetail = () => {
     }
   };
 
+  // NOVO: Função para atualizar o responsável
+  const handleUpdateResponsible = async (newResponsibleId: string) => {
+    setIsUpdatingResponsible(true);
+    try {
+      await updateCandidate(candidate.id, { responsibleUserId: newResponsibleId });
+      setResponsibleUserId(newResponsibleId);
+      alert('Responsável atualizado com sucesso!');
+    } catch (error: any) {
+      alert(`Erro ao atualizar responsável: ${error.message}`);
+    } finally {
+      setIsUpdatingResponsible(false);
+    }
+  };
+
   const totalScore = Object.entries(scores)
     .filter(([key]) => key !== 'notes')
     .reduce((sum, [_, val]) => sum + (typeof val === 'number' ? val : 0), 0);
@@ -171,6 +205,30 @@ export const CandidateDetail = () => {
                 >
                     <Trash2 className="w-4 h-4" />
                 </button>
+            </div>
+            {/* NOVO: Exibição e edição do responsável */}
+            <div className="mt-4 w-full">
+              <label className="block text-xs text-gray-500 dark:text-gray-400 font-medium uppercase mb-1">Responsável</label>
+              <div className="relative">
+                <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Select
+                  value={responsibleUserId}
+                  onValueChange={handleUpdateResponsible}
+                  disabled={isUpdatingResponsible}
+                >
+                  <SelectTrigger className="w-full pl-10 py-2 text-base border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:outline-none focus:ring-brand-500 focus:border-brand-500 sm:text-sm rounded-md border">
+                    <SelectValue placeholder="Selecione um gestor ou anjo" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
+                    {responsibleMembers.map(member => (
+                      <SelectItem key={member.id} value={member.id}>
+                        {member.name} ({member.roles.join(', ')})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {isUpdatingResponsible && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-brand-500" />}
+              </div>
             </div>
           </div>
         </div>

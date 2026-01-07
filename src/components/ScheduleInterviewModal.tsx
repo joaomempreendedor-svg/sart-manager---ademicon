@@ -1,8 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { Candidate, InterviewScores } from '@/types';
-import { X, Save, Loader2, User, Phone, Calendar as CalendarIcon, CheckCircle2 } from 'lucide-react';
+import { X, Save, Loader2, User, Phone, Calendar as CalendarIcon, CheckCircle2, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface ScheduleInterviewModalProps {
   isOpen: boolean;
@@ -10,21 +17,27 @@ interface ScheduleInterviewModalProps {
 }
 
 export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({ isOpen, onClose }) => {
-  const { addCandidate } = useApp();
+  const { addCandidate, teamMembers } = useApp();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
     date: new Date().toISOString().split('T')[0],
+    responsibleUserId: '', // NOVO: Campo para o ID do responsável
   });
   const [isSaving, setIsSaving] = useState(false);
   const [savedCandidate, setSavedCandidate] = useState<Candidate | null>(null);
+
+  const responsibleMembers = useMemo(() => {
+    return teamMembers.filter(m => m.isActive && (m.roles.includes('Gestor') || m.roles.includes('Anjo')));
+  }, [teamMembers]);
 
   const resetForm = () => {
     setFormData({
       name: '',
       phone: '',
       date: new Date().toISOString().split('T')[0],
+      responsibleUserId: '',
     });
     setSavedCandidate(null);
   };
@@ -36,8 +49,8 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({ 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name || !formData.date) {
-      alert('Nome e data são obrigatórios.');
+    if (!formData.name || !formData.date || !formData.responsibleUserId) {
+      alert('Nome, data e responsável são obrigatórios.');
       return;
     }
     setIsSaving(true);
@@ -51,14 +64,15 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({ 
       name: formData.name,
       phone: formData.phone,
       interviewDate: formData.date,
-      interviewer: 'Não definido',
-      origin: 'Não definida',
+      interviewer: 'Não definido', // Pode ser atualizado depois
+      origin: 'Não definida', // Pode ser atualizado depois
       status: 'Entrevista',
       interviewScores: emptyScores,
       checkedQuestions: {},
       checklistProgress: {},
       consultantGoalsProgress: {},
       createdAt: new Date().toISOString(),
+      responsibleUserId: formData.responsibleUserId, // NOVO: Salva o responsável
     };
 
     try {
@@ -73,7 +87,6 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({ 
 
   const handleGoToCandidate = () => {
     if (savedCandidate) {
-      // CORREÇÃO: Adicionar o prefixo '/gestor' à rota
       navigate(`/gestor/candidate/${savedCandidate.id}`, { state: { openInterviewTab: true } });
       handleClose();
     }
@@ -121,6 +134,29 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({ 
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Data da Entrevista</label>
                 <CalendarIcon className="absolute left-3 top-9 w-4 h-4 text-gray-400" />
                 <input type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} required className="w-full pl-10 p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600" />
+              </div>
+              {/* NOVO: Campo de seleção para o responsável */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">De quem é o candidato? *</label>
+                <div className="relative">
+                  <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Select
+                    value={formData.responsibleUserId}
+                    onValueChange={(value) => setFormData({...formData, responsibleUserId: value})}
+                    required
+                  >
+                    <SelectTrigger className="w-full pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600">
+                      <SelectValue placeholder="Selecione um gestor ou anjo" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
+                      {responsibleMembers.map(member => (
+                        <SelectItem key={member.id} value={member.id}>
+                          {member.name} ({member.roles.join(', ')})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
             <div className="px-6 py-4 bg-gray-50 dark:bg-slate-700/50 border-t border-gray-100 dark:border-slate-700 flex justify-end">
