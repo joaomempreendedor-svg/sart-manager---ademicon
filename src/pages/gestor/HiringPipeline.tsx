@@ -84,12 +84,12 @@ const HiringPipeline = () => {
     // Filter out candidates who are already team members in the respective roles
     const awaitingPreview = candidatesForGestor.filter(c => 
       c.status === 'Aguardando Prévia' &&
-      !isCandidateAlsoTeamMember(c, teamMemberIdentifiersInPreview)
+      !isCandidateAlsoTeamMember(c, teamMemberIdentifiersInPreview) // Exclui se já é membro da equipe 'Prévia'
     );
     
     const authorized = candidatesForGestor.filter(c => 
       c.status === 'Autorizado' &&
-      !isCandidateAlsoTeamMember(c, teamMemberIdentifiersAuthorized)
+      !isCandidateAlsoTeamMember(c, teamMemberIdentifiersAuthorized) // Exclui se já é membro da equipe 'Autorizado'
     );
 
     const droppedOut = candidatesForGestor.filter(c => c.status === 'Reprovado');
@@ -123,7 +123,7 @@ const HiringPipeline = () => {
   };
 
   const handleDragOver = (e: React.DragEvent, columnId: string) => {
-    e.preventDefault();
+    e.preventDefault(); // Necessary to allow dropping
     e.dataTransfer.dropEffect = 'move';
     setDragOverColumn(columnId);
   };
