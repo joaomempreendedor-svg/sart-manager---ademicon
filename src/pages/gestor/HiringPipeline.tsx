@@ -44,21 +44,16 @@ const HiringPipeline = () => {
     const candidatesForGestor = candidates;
 
     // Prepare sets of team member identifiers for efficient lookup
-    const teamMemberIdentifiersInPreview = new Set<string>();
-    teamMembers
-      .filter(m => m.isActive && m.roles.includes('Prévia'))
-      .forEach(m => {
-        if (m.name) teamMemberIdentifiersInPreview.add(m.name.toLowerCase().trim());
-        if (m.email) teamMemberIdentifiersInPreview.add(m.email.toLowerCase().trim());
-      });
-
-    const teamMemberIdentifiersAuthorized = new Set<string>();
-    teamMembers
-      .filter(m => m.isActive && m.roles.includes('Autorizado'))
-      .forEach(m => {
-        if (m.name) teamMemberIdentifiersAuthorized.add(m.name.toLowerCase().trim());
-        if (m.email) teamMemberIdentifiersAuthorized.add(m.email.toLowerCase().trim());
-      });
+    const teamMemberIdentifiersInPreview = new Set(
+      teamMembers
+        .filter(m => m.isActive && m.roles.includes('Prévia'))
+        .flatMap(m => [m.name.toLowerCase().trim(), m.email?.toLowerCase().trim()].filter(Boolean))
+    );
+    const teamMemberIdentifiersAuthorized = new Set(
+      teamMembers
+        .filter(m => m.isActive && m.roles.includes('Autorizado'))
+        .flatMap(m => [m.name.toLowerCase().trim(), m.email?.toLowerCase().trim()].filter(Boolean))
+    );
 
     // Helper to check if a candidate matches an existing team member
     const isCandidateAlsoTeamMember = (candidate: typeof candidates[0], teamMemberIdentifiers: Set<string>) => {
@@ -204,6 +199,13 @@ const HiringPipeline = () => {
     return classes;
   };
 
+  // Função para obter o nome do responsável
+  const getResponsibleName = (responsibleUserId: string | undefined) => {
+    if (!responsibleUserId) return 'Não atribuído';
+    const member = teamMembers.find(m => m.id === responsibleUserId);
+    return member ? member.name : 'Desconhecido';
+  };
+
   if (isAuthLoading || isDataLoading) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-theme(spacing.16))]">
@@ -291,6 +293,11 @@ const HiringPipeline = () => {
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center">
                     <Calendar className="w-3 h-3 mr-1" /> {new Date(candidate.interviewDate + 'T00:00:00').toLocaleDateString('pt-BR')}
                   </p>
+                  {candidate.responsibleUserId && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center">
+                      <UserRound className="w-3 h-3 mr-1" /> Indicado por: {getResponsibleName(candidate.responsibleUserId)}
+                    </p>
+                  )}
                   <div className="flex justify-end mt-2">
                     <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-brand-500 transition-colors" />
                   </div>
@@ -329,6 +336,11 @@ const HiringPipeline = () => {
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center">
                     <Calendar className="w-3 h-3 mr-1" /> {new Date(candidate.interviewDate + 'T00:00:00').toLocaleDateString('pt-BR')}
                   </p>
+                  {candidate.responsibleUserId && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center">
+                      <UserRound className="w-3 h-3 mr-1" /> Indicado por: {getResponsibleName(candidate.responsibleUserId)}
+                    </p>
+                  )}
                   <div className="flex justify-end mt-2">
                     <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-brand-500 transition-colors" />
                   </div>
@@ -368,6 +380,11 @@ const HiringPipeline = () => {
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center">
                       <CheckCircle2 className="w-3 h-3 mr-1 text-brand-500" /> Candidato em Prévia
                     </p>
+                    {candidate.responsibleUserId && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center">
+                        <UserRound className="w-3 h-3 mr-1" /> Indicado por: {getResponsibleName(candidate.responsibleUserId)}
+                      </p>
+                    )}
                     <div className="flex justify-end mt-2">
                       <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-brand-500 transition-colors" />
                     </div>
@@ -426,6 +443,11 @@ const HiringPipeline = () => {
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center">
                       <CheckCircle2 className="w-3 h-3 mr-1 text-purple-500" /> Candidato Autorizado
                     </p>
+                    {candidate.responsibleUserId && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center">
+                        <UserRound className="w-3 h-3 mr-1" /> Indicado por: {getResponsibleName(candidate.responsibleUserId)}
+                      </p>
+                    )}
                     <div className="flex justify-end mt-2">
                       <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-brand-500 transition-colors" />
                     </div>
@@ -483,6 +505,11 @@ const HiringPipeline = () => {
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center">
                     <UserX className="w-3 h-3 mr-1 text-red-500" /> Reprovado
                   </p>
+                  {candidate.responsibleUserId && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center">
+                      <UserRound className="w-3 h-3 mr-1" /> Indicado por: {getResponsibleName(candidate.responsibleUserId)}
+                    </p>
+                  )}
                   <div className="flex justify-end mt-2">
                     <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-brand-500 transition-colors" />
                   </div>
