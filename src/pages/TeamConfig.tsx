@@ -1,16 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Plus, Trash2, User, Shield, Crown, Star, Edit2, Save, X, Archive, UserCheck, Loader2, Copy, RefreshCw, KeyRound, Mail } from 'lucide-react';
-import { TeamMember, TeamRole } from '@/types';
+import { Plus, Trash2, User, Shield, Crown, Star, Edit2, Save, X, Archive, UserCheck, Loader2, Copy, RefreshCw, KeyRound, Mail, CalendarPlus } from 'lucide-react';
+import { TeamMember, TeamRole, Candidate } from '@/types';
 import { formatCpf, generateRandomPassword } from '@/utils/authUtils';
 import { ConsultantCredentialsModal } from '@/components/ConsultantCredentialsModal';
+import { RecordTeamMemberInterviewModal } from '@/components/TeamConfig/RecordTeamMemberInterviewModal'; // Importar o novo modal
 
 const ALL_ROLES: TeamRole[] = ['Prévia', 'Autorizado', 'Gestor', 'Anjo'];
 
 export const TeamConfig = () => {
   const { user } = useAuth(); // Obter o usuário logado (gestor)
-  const { teamMembers, addTeamMember, updateTeamMember, deleteTeamMember } = useApp();
+  const { teamMembers, addTeamMember, updateTeamMember, deleteTeamMember, candidates, addCandidate } = useApp();
   const { resetConsultantPasswordViaEdge } = useAuth(); // Usar resetConsultantPasswordViaEdge
   
   const [newName, setNewName] = useState('');
@@ -29,7 +30,10 @@ export const TeamConfig = () => {
   const [isUpdating, setIsUpdating] = useState(false);
 
   const [showCredentialsModal, setShowCredentialsModal] = useState(false);
-  const [createdConsultantCredentials, setCreatedConsultantCredentials] = useState<{ name: string, login: string, password: string, wasExistingUser: boolean } | null>(null); // Adicionado wasExistingUser
+  const [createdConsultantCredentials, setCreatedConsultantCredentials] = useState<{ name: string, login: string, password: string, wasExistingUser: boolean } | null>(null);
+
+  const [isRecordInterviewModalOpen, setIsRecordInterviewModalOpen] = useState(false);
+  const [teamMemberToRecordInterview, setTeamMemberToRecordInterview] = useState<TeamMember | null>(null);
 
   const handleRoleChange = (role: TeamRole, currentRoles: TeamRole[], setRoles: React.Dispatch<React.SetStateAction<TeamRole[]>>) => {
     const updatedRoles = currentRoles.includes(role)
@@ -69,7 +73,6 @@ export const TeamConfig = () => {
       const cleanedCpf = newCpf.replace(/\D/g, '');
       const login = newEmail.trim(); // O login agora é o e-mail
 
-      // --- NOVO LOG AQUI ---
       console.log("[TeamConfig] Enviando para addTeamMember:", {
         name: newName.trim(),
         email: newEmail.trim(),
@@ -77,9 +80,7 @@ export const TeamConfig = () => {
         login: login,
         roles: newRoles,
       });
-      // --- FIM DO NOVO LOG ---
 
-      // Usar a nova função addTeamMember do AppContext
       const result = await addTeamMember({
         name: newName.trim(),
         email: newEmail.trim(),
@@ -234,6 +235,24 @@ export const TeamConfig = () => {
       }
   };
 
+  // NOVO: Função para verificar se o membro da equipe já tem um registro de candidato ativo
+  const hasAssociatedCandidate = useCallback((member: TeamMember) => {
+    // Um membro da equipe pode ter um registro de candidato se ele for 'Prévia' ou 'Autorizado'
+    if (!member.roles.includes('Prévia') && !member.roles.includes('Autorizado')) {
+      return true; // Não é um tipo de membro que passaria por entrevista, então não mostramos o botão
+    }
+    // Verifica se existe um candidato com o mesmo nome e que não esteja 'Reprovado'
+    return candidates.some(c => 
+      c.name.toLowerCase() === member.name.toLowerCase() && 
+      c.status !== 'Reprovado'
+    );
+  }, [candidates]);
+
+  const handleOpenRecordInterviewModal = (member: TeamMember) => {
+    setTeamMemberToRecordInterview(member);
+    setIsRecordInterviewModalOpen(true);
+  };
+
   return (
     <div className="p-8 max-w-4xl mx-auto min-h-screen bg-gray-50 dark:bg-slate-900">
       <div className="mb-8">
@@ -323,7 +342,7 @@ export const TeamConfig = () => {
                                   {editingMember?.id === member.id ? (
                                     <div className="flex-1 flex flex-col gap-3">
                                       <input type="text" value={editingName} onChange={e => setEditingName(e.target.value)} className="w-full border-gray-300 dark:border-slate-600 rounded-md p-2 text-sm" />
-                                      <input type="email" value={editingEmail} onChange={e => setEditingEmail(e.target.value)} className="w-full border-gray-300 dark:border-slate-600 rounded-md p-2 text-sm" /> {/* Email field */}
+                                      <input type="email" value={editingEmail} onChange={e => setEditingEmail(e.target.value)} className="w-full border-gray-300 dark:border-slate-600 rounded-md p-2 text-sm" />
                                       <input type="text" value={editingCpf} onChange={e => setEditingCpf(formatCpf(e.target.value))} maxLength={14} className="w-full border-gray-300 dark:border-slate-600 rounded-md p-2 text-sm" />
                                       <div className="grid grid-cols-2 gap-2">
                                         {ALL_ROLES.map(role => (
@@ -366,6 +385,16 @@ export const TeamConfig = () => {
                                           </div>
                                       </div>
                                       <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                        {/* Botão de Registrar Entrevista */}
+                                        {!hasAssociatedCandidate(member) && (member.roles.includes('Prévia') || member.roles.includes('Autorizado')) && (
+                                          <button 
+                                            onClick={(e) => { e.stopPropagation(); handleOpenRecordInterviewModal(member); }} 
+                                            className="p-2 rounded-full text-gray-400 hover:text-brand-500 hover:bg-brand-50 dark:hover:bg-brand-900/20" 
+                                            title="Registrar Entrevista"
+                                          >
+                                            <CalendarPlus className="w-4 h-4" />
+                                          </button>
+                                        )}
                                         <button onClick={() => handleResetPassword(member)} className="p-2 rounded-full text-gray-400 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/20" title="Resetar Senha">
                                             <KeyRound className="w-4 h-4" />
                                         </button>
@@ -399,6 +428,13 @@ export const TeamConfig = () => {
           login={createdConsultantCredentials.login}
           password={createdConsultantCredentials.password}
           wasExistingUser={createdConsultantCredentials.wasExistingUser}
+        />
+      )}
+      {isRecordInterviewModalOpen && teamMemberToRecordInterview && (
+        <RecordTeamMemberInterviewModal
+          isOpen={isRecordInterviewModalOpen}
+          onClose={() => setIsRecordInterviewModalOpen(false)}
+          teamMember={teamMemberToRecordInterview}
         />
       )}
     </div>
