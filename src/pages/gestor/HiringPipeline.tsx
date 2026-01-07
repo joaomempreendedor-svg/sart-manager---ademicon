@@ -1,16 +1,18 @@
 import React, { useMemo, useState } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Loader2, Calendar, CheckCircle2, UserX, UserCheck, TrendingUp, Users, FileText, ArrowRight, UserRound } from 'lucide-react';
+import { Loader2, Calendar, CheckCircle2, UserX, UserCheck, TrendingUp, Users, FileText, ArrowRight, UserRound, Plus } from 'lucide-react'; // Importado 'Plus'
 import { Link } from 'react-router-dom';
 import { TableSkeleton } from '@/components/TableSkeleton';
 import { CandidateStatus, InterviewScores, TeamMember } from '@/types';
+import { ScheduleInterviewModal } from '@/components/ScheduleInterviewModal'; // Importar o modal de agendamento
 
 const HiringPipeline = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
   const { candidates, teamMembers, isDataLoading, updateCandidate, interviewStructure } = useApp();
   const [draggingCandidateId, setDraggingCandidateId] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false); // Estado para controlar a visibilidade do modal
 
   const {
     scheduledInterviews,
@@ -71,15 +73,6 @@ const HiringPipeline = () => {
       return false;
     };
 
-    // Helper to find the responsibleUserId for a team member if they originated as a candidate
-    const getResponsibleUserIdForTeamMember = (member: TeamMember) => {
-      const matchingCandidate = candidatesForGestor.find(c => 
-        c.name.toLowerCase().trim() === member.name.toLowerCase().trim() ||
-        (c.email && member.email && c.email.toLowerCase().trim() === member.email.toLowerCase().trim())
-      );
-      return matchingCandidate?.responsibleUserId;
-    };
-
     const scheduled = candidatesForGestor.filter(c => 
       c.status === 'Entrevista' && 
       c.interviewScores.basicProfile === 0 && 
@@ -116,14 +109,20 @@ const HiringPipeline = () => {
       .filter(m => m.isActive && m.roles.includes('Prévia'))
       .map(m => ({
         ...m,
-        responsibleUserId: getResponsibleUserIdForTeamMember(m) // Add responsibleUserId
+        responsibleUserId: candidatesForGestor.find(c => 
+          c.name.toLowerCase().trim() === m.name.toLowerCase().trim() ||
+          (c.email && m.email && c.email.toLowerCase().trim() === m.email.toLowerCase().trim())
+        )?.responsibleUserId // Add responsibleUserId
       }));
 
     const membersAuthorized = teamMembers
       .filter(m => m.isActive && m.roles.includes('Autorizado'))
       .map(m => ({
         ...m,
-        responsibleUserId: getResponsibleUserIdForTeamMember(m) // Add responsibleUserId
+        responsibleUserId: candidatesForGestor.find(c => 
+          c.name.toLowerCase().trim() === m.name.toLowerCase().trim() ||
+          (c.email && m.email && c.email.toLowerCase().trim() === m.email.toLowerCase().trim())
+        )?.responsibleUserId // Add responsibleUserId
       }));
 
     return {
@@ -236,9 +235,18 @@ const HiringPipeline = () => {
 
   return (
     <div className="p-8 max-w-7xl mx-auto min-h-screen bg-gray-50 dark:bg-slate-900">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Pipeline de Contratação</h1>
-        <p className="text-gray-500 dark:text-gray-400">Acompanhe o fluxo de candidatos desde a entrevista até a contratação.</p>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Pipeline de Contratação</h1>
+          <p className="text-gray-500 dark:text-gray-400">Acompanhe o fluxo de candidatos desde a entrevista até a contratação.</p>
+        </div>
+        <button
+          onClick={() => setIsScheduleModalOpen(true)}
+          className="flex items-center justify-center space-x-2 bg-brand-600 hover:bg-brand-700 text-white py-2 px-4 rounded-lg transition font-medium"
+        >
+          <Plus className="w-5 h-5" />
+          <span>Agendar Entrevista</span>
+        </button>
       </div>
 
       {/* Métricas de Contratação */}
@@ -549,6 +557,7 @@ const HiringPipeline = () => {
           </div>
         </div>
       </div>
+      <ScheduleInterviewModal isOpen={isScheduleModalOpen} onClose={() => setIsScheduleModalOpen(false)} />
     </div>
   );
 };
