@@ -34,13 +34,14 @@ import { CutoffConfig } from '@/pages/CutoffConfig';
 import { Feedbacks } from '@/pages/Feedbacks';
 import { OnlineOnboarding } from '@/pages/OnlineOnboarding';
 import CrmConfigPage from '@/pages/gestor/CrmConfig';
-import CrmOverviewPage from '@/pages/gestor/CrmOverview'; // Importar a nova página
+import CrmOverviewPage from '@/pages/gestor/CrmOverview';
 import { DailyChecklistConfig } from '@/pages/gestor/DailyChecklistConfig';
-import { DailyChecklistMonitoring } from '@/pages/gestor/DailyChecklistMonitoring'; // NOVO: Importar o componente
+import { DailyChecklistMonitoring } from '@/pages/gestor/DailyChecklistMonitoring';
+import HiringPipeline from '@/pages/gestor/HiringPipeline'; // NOVO: Importar a página
 
 // Consultor Pages
-import ConsultorDashboard from '@/pages/consultor/Dashboard'; // Importar ConsultorDashboard
-import ConsultorCrmPage from '@/pages/consultor/Crm'; // Importar ConsultorCrmPage
+import ConsultorDashboard from '@/pages/consultor/Dashboard';
+import ConsultorCrmPage from '@/pages/consultor/Crm';
 import { DailyChecklist } from '@/pages/consultor/DailyChecklist';
 
 
@@ -162,7 +163,8 @@ const AppRoutes = () => {
           <Route path="crm-config" element={<CrmConfigPage />} />
           <Route path="crm" element={<CrmOverviewPage />} />
           <Route path="daily-checklist-config" element={<DailyChecklistConfig />} />
-          <Route path="daily-checklist-monitoring" element={<DailyChecklistMonitoring />} /> {/* NOVO: Rota para monitoramento */}
+          <Route path="daily-checklist-monitoring" element={<DailyChecklistMonitoring />} />
+          <Route path="hiring-pipeline" element={<HiringPipeline />} /> {/* NOVO: Rota para o pipeline de contratação */}
           <Route path="*" element={<Navigate to="/gestor/dashboard" replace />} />
         </Route>
 
