@@ -71,6 +71,15 @@ const HiringPipeline = () => {
       return false;
     };
 
+    // Helper to find the responsibleUserId for a team member if they originated as a candidate
+    const getResponsibleUserIdForTeamMember = (member: TeamMember) => {
+      const matchingCandidate = candidatesForGestor.find(c => 
+        c.name.toLowerCase().trim() === member.name.toLowerCase().trim() ||
+        (c.email && member.email && c.email.toLowerCase().trim() === member.email.toLowerCase().trim())
+      );
+      return matchingCandidate?.responsibleUserId;
+    };
+
     const scheduled = candidatesForGestor.filter(c => 
       c.status === 'Entrevista' && 
       c.interviewScores.basicProfile === 0 && 
@@ -102,9 +111,20 @@ const HiringPipeline = () => {
 
     const droppedOut = candidatesForGestor.filter(c => c.status === 'Reprovado');
 
-    // Separate team members by role for display
-    const membersInPreview = teamMembers.filter(m => m.isActive && m.roles.includes('Prévia'));
-    const membersAuthorized = teamMembers.filter(m => m.isActive && m.roles.includes('Autorizado'));
+    // Separate team members by role for display, augmenting with responsibleUserId if found
+    const membersInPreview = teamMembers
+      .filter(m => m.isActive && m.roles.includes('Prévia'))
+      .map(m => ({
+        ...m,
+        responsibleUserId: getResponsibleUserIdForTeamMember(m) // Add responsibleUserId
+      }));
+
+    const membersAuthorized = teamMembers
+      .filter(m => m.isActive && m.roles.includes('Autorizado'))
+      .map(m => ({
+        ...m,
+        responsibleUserId: getResponsibleUserIdForTeamMember(m) // Add responsibleUserId
+      }));
 
     return {
       scheduledInterviews: scheduled,
@@ -401,6 +421,11 @@ const HiringPipeline = () => {
                       >
                         <p className="font-medium flex items-center"><UserRound className="w-4 h-4 mr-2 text-gray-500" />{member.name}</p>
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Função: Prévia</p>
+                        {member.responsibleUserId && (
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center">
+                            <UserRound className="w-3 h-3 mr-1" /> Indicado por: {getResponsibleName(member.responsibleUserId)}
+                          </p>
+                        )}
                         <div className="flex justify-end mt-2">
                           <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-brand-500 transition-colors" />
                         </div>
@@ -464,6 +489,11 @@ const HiringPipeline = () => {
                       >
                         <p className="font-medium flex items-center"><UserRound className="w-4 h-4 mr-2 text-gray-500" />{member.name}</p>
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Função: Autorizado</p>
+                        {member.responsibleUserId && (
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center">
+                            <UserRound className="w-3 h-3 mr-1" /> Indicado por: {getResponsibleName(member.responsibleUserId)}
+                          </p>
+                        )}
                         <div className="flex justify-end mt-2">
                           <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-brand-500 transition-colors" />
                         </div>
