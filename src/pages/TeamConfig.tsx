@@ -5,17 +5,17 @@ import { Plus, Trash2, User, Shield, Crown, Star, Edit2, Save, X, Archive, UserC
 import { TeamMember, TeamRole, Candidate } from '@/types';
 import { formatCpf, generateRandomPassword } from '@/utils/authUtils';
 import { ConsultantCredentialsModal } from '@/components/ConsultantCredentialsModal';
-import { RecordTeamMemberInterviewModal } from '@/components/TeamConfig/RecordTeamMemberInterviewModal'; // Importar o novo modal
+import { RecordTeamMemberInterviewModal } from '@/components/TeamConfig/RecordTeamMemberInterviewModal';
 
 const ALL_ROLES: TeamRole[] = ['Prévia', 'Autorizado', 'Gestor', 'Anjo'];
 
 export const TeamConfig = () => {
-  const { user } = useAuth(); // Obter o usuário logado (gestor)
+  const { user } = useAuth();
   const { teamMembers, addTeamMember, updateTeamMember, deleteTeamMember, candidates, addCandidate } = useApp();
-  const { resetConsultantPasswordViaEdge } = useAuth(); // Usar resetConsultantPasswordViaEdge
+  const { resetConsultantPasswordViaEdge } = useAuth();
   
   const [newName, setNewName] = useState('');
-  const [newEmail, setNewEmail] = useState(''); // Novo estado para o e-mail
+  const [newEmail, setNewEmail] = useState('');
   const [newCpf, setNewCpf] = useState('');
   const [newRoles, setNewRoles] = useState<TeamRole[]>(['Prévia']);
   const [generatedPassword, setGeneratedPassword] = useState(generateRandomPassword());
@@ -24,7 +24,7 @@ export const TeamConfig = () => {
 
   const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
   const [editingName, setEditingName] = useState('');
-  const [editingEmail, setEditingEmail] = useState(''); // Novo estado para o e-mail em edição
+  const [editingEmail, setEditingEmail] = useState('');
   const [editingCpf, setEditingCpf] = useState('');
   const [editingRoles, setEditingRoles] = useState<TeamRole[]>([]);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -71,7 +71,7 @@ export const TeamConfig = () => {
     setIsAdding(true);
     try {
       const cleanedCpf = newCpf.replace(/\D/g, '');
-      const login = newEmail.trim(); // O login agora é o e-mail
+      const login = newEmail.trim();
 
       console.log("[TeamConfig] Enviando para addTeamMember:", {
         name: newName.trim(),
@@ -85,7 +85,7 @@ export const TeamConfig = () => {
         name: newName.trim(),
         email: newEmail.trim(),
         cpf: cleanedCpf,
-        login: login, // Passar o email como login
+        login: login,
         roles: newRoles,
         isActive: true,
       });
@@ -93,16 +93,15 @@ export const TeamConfig = () => {
       if (result.success) {
         setCreatedConsultantCredentials({ 
           name: result.member.name, 
-          login: result.member.email || '', // Usar o email como login
-          password: result.tempPassword || '', // A senha temporária virá da Edge Function
-          wasExistingUser: result.wasExistingUser || false, // Passar o flag
+          login: result.member.email || '',
+          password: result.tempPassword || '',
+          wasExistingUser: result.wasExistingUser || false,
         });
         setShowCredentialsModal(true);
       } else {
         alert(result.message || "Falha ao adicionar membro.");
       }
 
-      // Resetar formulário
       setNewName('');
       setNewEmail('');
       setNewCpf('');
@@ -119,7 +118,7 @@ export const TeamConfig = () => {
   const startEditing = (member: TeamMember) => {
     setEditingMember(member);
     setEditingName(member.name);
-    setEditingEmail(member.email || ''); // Set editing email
+    setEditingEmail(member.email || '');
     setEditingCpf(formatCpf(member.cpf || ''));
     setEditingRoles(member.roles);
   };
@@ -127,7 +126,7 @@ export const TeamConfig = () => {
   const cancelEditing = () => {
     setEditingMember(null);
     setEditingName('');
-    setEditingEmail(''); // Clear editing email
+    setEditingEmail('');
     setEditingCpf('');
     setEditingRoles([]);
   };
@@ -149,7 +148,7 @@ export const TeamConfig = () => {
         name: editingName.trim(), 
         roles: editingRoles, 
         cpf: cleanedCpf,
-        email: editingEmail.trim(), // Include email in updates
+        email: editingEmail.trim(),
       });
 
       if (result?.tempPassword) {
@@ -157,7 +156,7 @@ export const TeamConfig = () => {
           name: editingName.trim(),
           login: editingEmail.trim(),
           password: result.tempPassword,
-          wasExistingUser: true, // It's an update, so it's an existing user
+          wasExistingUser: true,
         });
         setShowCredentialsModal(true);
       }
@@ -189,7 +188,7 @@ export const TeamConfig = () => {
   };
 
   const handleResetPassword = async (member: TeamMember) => {
-    if (!member.email) { // Usar o email para resetar
+    if (!member.email) {
       alert("Não é possível resetar a senha: E-mail do consultor não encontrado.");
       return;
     }
@@ -204,9 +203,9 @@ export const TeamConfig = () => {
       
       setCreatedConsultantCredentials({ 
         name: member.name, 
-        login: member.email, // O login é o email
+        login: member.email,
         password: newTempPassword, 
-        wasExistingUser: true // Sempre será um usuário existente neste caso
+        wasExistingUser: true
       });
       setShowCredentialsModal(true);
 
@@ -235,19 +234,6 @@ export const TeamConfig = () => {
       }
   };
 
-  // NOVO: Função para verificar se o membro da equipe já tem um registro de candidato ativo
-  const hasAssociatedCandidate = useCallback((member: TeamMember) => {
-    // Um membro da equipe pode ter um registro de candidato se ele for 'Prévia' ou 'Autorizado'
-    if (!member.roles.includes('Prévia') && !member.roles.includes('Autorizado')) {
-      return true; // Não é um tipo de membro que passaria por entrevista, então não mostramos o botão
-    }
-    // Verifica se existe um candidato com o mesmo nome e que não esteja 'Reprovado'
-    return candidates.some(c => 
-      c.name.toLowerCase() === member.name.toLowerCase() && 
-      c.status !== 'Reprovado'
-    );
-  }, [candidates]);
-
   const handleOpenRecordInterviewModal = (member: TeamMember) => {
     setTeamMemberToRecordInterview(member);
     setIsRecordInterviewModalOpen(true);
@@ -261,7 +247,6 @@ export const TeamConfig = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {/* Add Form */}
           <div className="md:col-span-1">
               <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm sticky top-8">
                   <h2 className="font-semibold text-gray-900 dark:text-white mb-4">Adicionar Membro</h2>
@@ -327,7 +312,6 @@ export const TeamConfig = () => {
               </div>
           </div>
 
-          {/* List */}
           <div className="md:col-span-2">
               <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
                   <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
@@ -385,8 +369,7 @@ export const TeamConfig = () => {
                                           </div>
                                       </div>
                                       <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                        {/* Botão de Registrar Entrevista */}
-                                        {!hasAssociatedCandidate(member) && (member.roles.includes('Prévia') || member.roles.includes('Autorizado')) && (
+                                        {/* Botão de Registrar Entrevista - AGORA SEM CONDIÇÕES DE CARGO OU CANDIDATO EXISTENTE */}
                                           <button 
                                             onClick={(e) => { e.stopPropagation(); handleOpenRecordInterviewModal(member); }} 
                                             className="p-2 rounded-full text-gray-400 hover:text-brand-500 hover:bg-brand-50 dark:hover:bg-brand-900/20" 
@@ -394,7 +377,6 @@ export const TeamConfig = () => {
                                           >
                                             <CalendarPlus className="w-4 h-4" />
                                           </button>
-                                        )}
                                         <button onClick={() => handleResetPassword(member)} className="p-2 rounded-full text-gray-400 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/20" title="Resetar Senha">
                                             <KeyRound className="w-4 h-4" />
                                         </button>
