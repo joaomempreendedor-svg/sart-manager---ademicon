@@ -15,7 +15,8 @@ const HiringPipeline = () => {
   const {
     scheduledInterviews,
     conductedInterviews,
-    hiredCandidates,
+    awaitingPreviewCandidates, // Renomeado de hiredCandidates
+    authorizedCandidates,     // Nova lista para a coluna "Autorizados"
     droppedOutCandidates,
     pipelineStages,
   } = useMemo(() => {
@@ -23,12 +24,14 @@ const HiringPipeline = () => {
       return {
         scheduledInterviews: [],
         conductedInterviews: [],
-        hiredCandidates: [],
+        awaitingPreviewCandidates: [],
+        authorizedCandidates: [],
         droppedOutCandidates: [],
         pipelineStages: {
           scheduled: [],
           conducted: [],
-          hired: [],
+          awaitingPreview: [],
+          authorized: [],
           droppedOut: [],
         },
       };
@@ -54,18 +57,21 @@ const HiringPipeline = () => {
        c.interviewScores.notes !== '')
     );
 
-    const hired = candidatesForGestor.filter(c => c.status === 'Autorizado');
+    const awaitingPreview = candidatesForGestor.filter(c => c.status === 'Aguardando Prévia'); // Candidatos em prévia
+    const authorized = candidatesForGestor.filter(c => c.status === 'Autorizado'); // Candidatos autorizados
     const droppedOut = candidatesForGestor.filter(c => c.status === 'Reprovado');
 
     return {
       scheduledInterviews: scheduled,
       conductedInterviews: conducted,
-      hiredCandidates: hired,
+      awaitingPreviewCandidates: awaitingPreview,
+      authorizedCandidates: authorized,
       droppedOutCandidates: droppedOut,
       pipelineStages: {
         scheduled,
         conducted,
-        hired,
+        awaitingPreview,
+        authorized, // Adicionado ao objeto pipelineStages
         droppedOut,
       },
     };
@@ -115,7 +121,10 @@ const HiringPipeline = () => {
           newInterviewScores = { ...candidateToUpdate.interviewScores, basicProfile: 1 }; // Set a minimal score
         }
         break;
-      case 'hired':
+      case 'awaitingPreview': // Nova ID para a coluna "Aguardando Prévia"
+        newStatus = 'Aguardando Prévia';
+        break;
+      case 'authorized': // Nova coluna "Autorizados"
         newStatus = 'Autorizado';
         break;
       case 'droppedOut':
@@ -186,8 +195,8 @@ const HiringPipeline = () => {
             <UserCheck className="w-6 h-6 text-brand-600 dark:text-brand-400" />
           </div>
           <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Contratados</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{hiredCandidates.length}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Em Prévia</p> {/* Métrica para 'Aguardando Prévia' */}
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{awaitingPreviewCandidates.length}</p>
           </div>
         </div>
         <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
@@ -195,8 +204,8 @@ const HiringPipeline = () => {
             <UserX className="w-6 h-6 text-red-600 dark:text-red-400" />
           </div>
           <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Desistências</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{droppedOutCandidates.length}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Autorizados</p> {/* Métrica para 'Autorizados' */}
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{authorizedCandidates.length}</p>
           </div>
         </div>
       </div>
@@ -280,23 +289,23 @@ const HiringPipeline = () => {
           </div>
         </div>
 
-        {/* Coluna: Contratados */}
+        {/* Coluna: Aguardando Prévia (antigo Contratados) */}
         <div 
-          id="hired"
-          className={getColumnClasses('hired')}
-          onDragOver={(e) => handleDragOver(e, 'hired')}
-          onDrop={(e) => handleDrop(e, 'hired')}
+          id="awaitingPreview"
+          className={getColumnClasses('awaitingPreview')}
+          onDragOver={(e) => handleDragOver(e, 'awaitingPreview')}
+          onDrop={(e) => handleDrop(e, 'awaitingPreview')}
           onDragLeave={handleDragLeave}
         >
           <div className="p-4 border-b border-gray-200 dark:border-slate-700 bg-brand-50 dark:bg-brand-900/20 rounded-t-xl">
-            <h3 className="font-semibold text-brand-800 dark:text-brand-300 flex items-center"><UserCheck className="w-4 h-4 mr-2" />Contratados</h3>
-            <span className="text-xs text-brand-600 dark:text-brand-400">{pipelineStages.hired.length} candidatos</span>
+            <h3 className="font-semibold text-brand-800 dark:text-brand-300 flex items-center"><UserCheck className="w-4 h-4 mr-2" />Aguardando Prévia</h3>
+            <span className="text-xs text-brand-600 dark:text-brand-400">{pipelineStages.awaitingPreview.length} candidatos</span>
           </div>
           <div className="p-4 space-y-3 min-h-[200px]">
-            {pipelineStages.hired.length === 0 ? (
-              <p className="text-center text-sm text-gray-400 py-4">Nenhum candidato contratado.</p>
+            {pipelineStages.awaitingPreview.length === 0 ? (
+              <p className="text-center text-sm text-gray-400 py-4">Nenhum candidato em prévia.</p>
             ) : (
-              pipelineStages.hired.map(candidate => (
+              pipelineStages.awaitingPreview.map(candidate => (
                 <Link 
                   to={`/gestor/candidate/${candidate.id}`} 
                   key={candidate.id} 
@@ -307,7 +316,45 @@ const HiringPipeline = () => {
                 >
                   <p className="font-medium text-gray-900 dark:text-white">{candidate.name}</p>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center">
-                    <CheckCircle2 className="w-3 h-3 mr-1 text-green-500" /> Autorizado
+                    <CheckCircle2 className="w-3 h-3 mr-1 text-brand-500" /> Aguardando Prévia
+                  </p>
+                  <div className="flex justify-end mt-2">
+                    <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-brand-500 transition-colors" />
+                  </div>
+                </Link>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Coluna: Autorizados (NOVA) */}
+        <div 
+          id="authorized"
+          className={getColumnClasses('authorized')}
+          onDragOver={(e) => handleDragOver(e, 'authorized')}
+          onDrop={(e) => handleDrop(e, 'authorized')}
+          onDragLeave={handleDragLeave}
+        >
+          <div className="p-4 border-b border-gray-200 dark:border-slate-700 bg-purple-50 dark:bg-purple-900/20 rounded-t-xl">
+            <h3 className="font-semibold text-purple-800 dark:text-purple-300 flex items-center"><UserCheck className="w-4 h-4 mr-2" />Autorizados</h3>
+            <span className="text-xs text-purple-600 dark:text-purple-400">{pipelineStages.authorized.length} candidatos</span>
+          </div>
+          <div className="p-4 space-y-3 min-h-[200px]">
+            {pipelineStages.authorized.length === 0 ? (
+              <p className="text-center text-sm text-gray-400 py-4">Nenhum candidato autorizado.</p>
+            ) : (
+              pipelineStages.authorized.map(candidate => (
+                <Link 
+                  to={`/gestor/candidate/${candidate.id}`} 
+                  key={candidate.id} 
+                  className="block bg-white dark:bg-slate-700 p-3 rounded-lg shadow-sm border border-gray-200 dark:border-slate-600 hover:border-brand-500 cursor-pointer transition-all group"
+                  draggable="true"
+                  onDragStart={(e) => handleDragStart(e, candidate.id)}
+                  onDragEnd={() => setDraggingCandidateId(null)}
+                >
+                  <p className="font-medium text-gray-900 dark:text-white">{candidate.name}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center">
+                    <CheckCircle2 className="w-3 h-3 mr-1 text-purple-500" /> Autorizado
                   </p>
                   <div className="flex justify-end mt-2">
                     <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-brand-500 transition-colors" />
