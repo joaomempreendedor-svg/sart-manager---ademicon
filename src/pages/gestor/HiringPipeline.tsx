@@ -1,10 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Loader2, Calendar, CheckCircle2, UserX, UserCheck, TrendingUp, Users, FileText, ArrowRight, UserRound } from 'lucide-react'; // Adicionado UserRound
+import { Loader2, Calendar, CheckCircle2, UserX, UserCheck, TrendingUp, Users, FileText, ArrowRight, UserRound } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { TableSkeleton } from '@/components/TableSkeleton';
-import { CandidateStatus, InterviewScores, TeamMember } from '@/types'; // Importar TeamMember
+import { CandidateStatus, InterviewScores, TeamMember } from '@/types';
 
 const HiringPipeline = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -18,8 +18,8 @@ const HiringPipeline = () => {
     awaitingPreviewCandidates,
     authorizedCandidates,
     droppedOutCandidates,
-    teamMembersInPreview, // NOVO: Membros da equipe com role 'Prévia'
-    teamMembersAuthorized, // NOVO: Membros da equipe com role 'Autorizado'
+    teamMembersInPreview,
+    teamMembersAuthorized,
     pipelineStages,
   } = useMemo(() => {
     if (!user) {
@@ -41,7 +41,27 @@ const HiringPipeline = () => {
       };
     }
 
-    const candidatesForGestor = candidates; // All candidates are managed by the Gestor
+    const candidatesForGestor = candidates;
+
+    // Prepare sets of team member identifiers for efficient lookup
+    const teamMemberIdentifiersInPreview = new Set(
+      teamMembers
+        .filter(m => m.isActive && m.roles.includes('Prévia'))
+        .flatMap(m => [m.name.toLowerCase(), m.email?.toLowerCase()].filter(Boolean))
+    );
+    const teamMemberIdentifiersAuthorized = new Set(
+      teamMembers
+        .filter(m => m.isActive && m.roles.includes('Autorizado'))
+        .flatMap(m => [m.name.toLowerCase(), m.email?.toLowerCase()].filter(Boolean))
+    );
+
+    // Helper to check if a candidate matches an existing team member
+    const isCandidateAlsoTeamMember = (candidate: typeof candidates[0], teamMemberIdentifiers: Set<string>) => {
+      const candidateNameLower = candidate.name.toLowerCase();
+      const candidateEmailLower = candidate.email?.toLowerCase();
+      
+      return teamMemberIdentifiers.has(candidateNameLower) || (candidateEmailLower && teamMemberIdentifiers.has(candidateEmailLower));
+    };
 
     const scheduled = candidatesForGestor.filter(c => 
       c.status === 'Entrevista' && 
@@ -61,11 +81,20 @@ const HiringPipeline = () => {
        c.interviewScores.notes !== '')
     );
 
-    const awaitingPreview = candidatesForGestor.filter(c => c.status === 'Aguardando Prévia');
-    const authorized = candidatesForGestor.filter(c => c.status === 'Autorizado');
+    // Filter out candidates who are already team members in the respective roles
+    const awaitingPreview = candidatesForGestor.filter(c => 
+      c.status === 'Aguardando Prévia' &&
+      !isCandidateAlsoTeamMember(c, teamMemberIdentifiersInPreview)
+    );
+    
+    const authorized = candidatesForGestor.filter(c => 
+      c.status === 'Autorizado' &&
+      !isCandidateAlsoTeamMember(c, teamMemberIdentifiersAuthorized)
+    );
+
     const droppedOut = candidatesForGestor.filter(c => c.status === 'Reprovado');
 
-    // NOVO: Filtrar membros da equipe por função
+    // Separate team members by role for display
     const membersInPreview = teamMembers.filter(m => m.isActive && m.roles.includes('Prévia'));
     const membersAuthorized = teamMembers.filter(m => m.isActive && m.roles.includes('Autorizado'));
 
@@ -94,7 +123,7 @@ const HiringPipeline = () => {
   };
 
   const handleDragOver = (e: React.DragEvent, columnId: string) => {
-    e.preventDefault(); // Necessary to allow dropping
+    e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
     setDragOverColumn(columnId);
   };
@@ -149,7 +178,6 @@ const HiringPipeline = () => {
       });
     } catch (error) {
       console.error("Failed to update candidate status:", error);
-      // Optionally show a toast notification
     } finally {
       setDraggingCandidateId(null);
     }
@@ -337,7 +365,7 @@ const HiringPipeline = () => {
                     <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">Membros da Equipe (Prévia)</p>
                     {teamMembersInPreview.map(member => (
                       <Link 
-                        to={`/gestor/config-team`} // Link para a gestão de equipe
+                        to={`/gestor/config-team`}
                         key={`member-${member.id}`} 
                         className="block bg-gray-50 dark:bg-slate-700/50 p-3 rounded-lg border border-gray-200 dark:border-slate-600 text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700 transition-all group"
                       >
@@ -355,7 +383,7 @@ const HiringPipeline = () => {
           </div>
         </div>
 
-        {/* Coluna: Autorizados (NOVA) */}
+        {/* Coluna: Autorizados */}
         <div 
           id="authorized"
           className={getColumnClasses('authorized')}
@@ -395,7 +423,7 @@ const HiringPipeline = () => {
                     <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">Membros da Equipe (Autorizados)</p>
                     {teamMembersAuthorized.map(member => (
                       <Link 
-                        to={`/gestor/config-team`} // Link para a gestão de equipe
+                        to={`/gestor/config-team`}
                         key={`member-${member.id}`} 
                         className="block bg-gray-50 dark:bg-slate-700/50 p-3 rounded-lg border border-gray-200 dark:border-slate-600 text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700 transition-all group"
                       >
