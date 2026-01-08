@@ -157,6 +157,13 @@ export const Commissions = () => {
     resetCalculatorForm();
   }, []);
 
+  // NOVO: Efeito para fechar o modal de edição/confirmação quando a aba muda
+  useEffect(() => {
+    setEditingInstallment(null);
+    setPaymentDate('');
+    setCalculatedCompetence('');
+  }, [activeTab]);
+
   const parseCurrency = (value: string) => parseFloat(value.replace(/\./g, '').replace(',', '.')) || 0;
 
   const simulation = useMemo(() => {
@@ -385,7 +392,7 @@ export const Commissions = () => {
       setPaymentDate(today);
       setCalculatedCompetence(calculateCompetenceMonth(today));
     } else {
-      await updateInstallmentStatus(commissionId, installmentNumber, newStatus);
+      await updateInstallmentStatus(commissionId, parseInt(installmentNumber.toString()), newStatus);
     }
   };
 
