@@ -168,6 +168,10 @@ const CrmSalesReports = () => {
       }
     });
 
+    const avgProposalValue = totalProposalsCount > 0 ? totalProposalValue / totalProposalsCount : 0;
+    const avgSoldValue = totalSalesCount > 0 ? totalSoldValue / totalSalesCount : 0;
+    const overallConversionRate = totalProposalsCount > 0 ? (totalSalesCount / totalProposalsCount) * 100 : 0;
+
     const sortedConsultantData = Object.values(dataByConsultant).map(c => {
       const conversionRate = c.proposalsSent > 0 ? (c.salesClosed / c.proposalsSent) * 100 : 0;
       return { ...c, conversionRate };
