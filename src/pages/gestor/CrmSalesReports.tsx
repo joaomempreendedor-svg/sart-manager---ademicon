@@ -175,11 +175,7 @@ const CrmSalesReports = () => {
 
     const topRegistrars = [...sortedConsultantData].sort((a, b) => b.leadsRegistered - a.leadsRegistered).slice(0, 3);
     const topMeetingSchedulers = [...sortedConsultantData].sort((a, b) => b.meetingsScheduled - a.meetingsScheduled).slice(0, 3);
-    const topClosers = [...sortedConsultantData].sort((a, b) => b.salesClosed - a.salesClosed).slice(0, 3);
-
-    const avgProposalValue = totalProposalsCount > 0 ? totalProposalValue / totalProposalsCount : 0;
-    const avgSoldValue = totalSalesCount > 0 ? totalSoldValue / totalSalesCount : 0;
-    const overallConversionRate = totalProposalsCount > 0 ? (totalSalesCount / totalProposalsCount) * 100 : 0;
+    const topClosers = [...sortedConsultantData].sort((a, b) => b.salesClosed - a.salesClosed).slice(0, 3); // Já está ordenado por salesClosed
 
     return {
       totalLeads,
@@ -520,7 +516,7 @@ const CrmSalesReports = () => {
         </div>
 
         <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm">
-          <h3 className="font-semibold text-lg text-gray-900 dark:text-white mb-4 flex items-center"><DollarSign className="w-5 h-5 mr-2 text-green-600 dark:text-green-400" />Mais Vendas Fechadas</h3>
+          <h3 className="font-semibold text-lg text-gray-900 dark:text-white mb-4 flex items-center"><DollarSign className="w-5 h-5 mr-2 text-green-600 dark:text-green-400" />Ranking de Vendas</h3> {/* Título alterado */}
           <ul className="space-y-3">
             {reportData.topClosers.length === 0 ? (
               <li className="text-gray-500 dark:text-gray-400 text-sm">Nenhum dado disponível.</li>
