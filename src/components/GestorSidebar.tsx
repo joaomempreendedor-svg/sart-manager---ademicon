@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { NavLink } from 'react-router-dom'; // Removido useNavigate
-import { LayoutDashboard, MessageSquare, Settings, FileText, Sun, Moon, Banknote, PlusCircle, Library, TrendingUp, Target, Users, LogOut, User as UserIcon, Calendar, Star, Video, ListChecks, ClipboardCheck, UserPlus, ChevronLeft, ChevronRight, ChevronDown, UserSearch } from 'lucide-react'; // Adicionado ChevronDown e UserSearch
+import { NavLink } from 'react-router-dom';
+import { LayoutDashboard, MessageSquare, Settings, FileText, Sun, Moon, Banknote, PlusCircle, Library, TrendingUp, Target, Users, LogOut, User as UserIcon, Calendar, Star, Video, ListChecks, ClipboardCheck, UserPlus, ChevronLeft, ChevronRight, ChevronDown, UserSearch, BarChart3, UserCog } from 'lucide-react'; // Adicionado UserCog
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 
@@ -14,16 +14,13 @@ interface GestorSidebarProps {
 export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, toggleSidebar, isSidebarCollapsed, toggleSidebarCollapse }) => {
   const { theme, toggleTheme } = useApp();
   const { user, logout } = useAuth();
-  // Removido useNavigate
 
-  // Estados para controlar o recolhimento de cada seção
   const [isOverviewCollapsed, setIsOverviewCollapsed] = useState(false);
   const [isConfigCollapsed, setIsConfigCollapsed] = useState(false);
   const [isPersonalCollapsed, setIsPersonalCollapsed] = useState(false);
 
   const handleLogout = async () => {
     await logout();
-    // Removido: navigate('/login'); // O redirecionamento agora é tratado pelo AuthContext e RequireAuth
   };
 
   const linkClass = ({ isActive }: { isActive: boolean }) =>
@@ -79,9 +76,17 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
                 <TrendingUp className="w-5 h-5" />
                 <span>CRM</span>
               </NavLink>
-              <NavLink to="/gestor/hiring-pipeline" className={linkClass} onClick={toggleSidebar}> {/* NOVO: Link para o pipeline de contratação */}
+              <NavLink to="/gestor/crm-sales-reports" className={linkClass} onClick={toggleSidebar}>
+                <BarChart3 className="w-5 h-5" />
+                <span>Relatórios de Vendas</span>
+              </NavLink>
+              <NavLink to="/gestor/hiring-pipeline" className={linkClass} onClick={toggleSidebar}>
                 <UserSearch className="w-5 h-5" />
                 <span>Pipeline Contratação</span>
+              </NavLink>
+              <NavLink to="/gestor/hiring-reports" className={linkClass} onClick={toggleSidebar}> {/* NOVO: Link para o relatório de contratação */}
+                <UserCog className="w-5 h-5" />
+                <span>Relatórios Contratação</span>
               </NavLink>
               <NavLink to="/gestor/onboarding-admin" className={linkClass} onClick={toggleSidebar}>
                 <Video className="w-5 h-5" />
@@ -113,8 +118,14 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
               <NavLink to="/gestor/crm" className={linkClass} onClick={toggleSidebar} title="CRM">
                 <TrendingUp className="w-5 h-5" />
               </NavLink>
-              <NavLink to="/gestor/hiring-pipeline" className={linkClass} onClick={toggleSidebar} title="Pipeline Contratação"> {/* NOVO: Link para o pipeline de contratação */}
+              <NavLink to="/gestor/crm-sales-reports" className={linkClass} onClick={toggleSidebar} title="Relatórios de Vendas">
+                <BarChart3 className="w-5 h-5" />
+              </NavLink>
+              <NavLink to="/gestor/hiring-pipeline" className={linkClass} onClick={toggleSidebar} title="Pipeline Contratação">
                 <UserSearch className="w-5 h-5" />
+              </NavLink>
+              <NavLink to="/gestor/hiring-reports" className={linkClass} onClick={toggleSidebar} title="Relatórios Contratação"> {/* NOVO: Link para o relatório de contratação */}
+                <UserCog className="w-5 h-5" />
               </NavLink>
               <NavLink to="/gestor/onboarding-admin" className={linkClass} onClick={toggleSidebar} title="Onboarding Online">
                 <Video className="w-5 h-5" />

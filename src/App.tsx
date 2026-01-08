@@ -37,7 +37,9 @@ import CrmConfigPage from '@/pages/gestor/CrmConfig';
 import CrmOverviewPage from '@/pages/gestor/CrmOverview';
 import { DailyChecklistConfig } from '@/pages/gestor/DailyChecklistConfig';
 import { DailyChecklistMonitoring } from '@/pages/gestor/DailyChecklistMonitoring';
-import HiringPipeline from '@/pages/gestor/HiringPipeline'; // NOVO: Importar a página
+import HiringPipeline from '@/pages/gestor/HiringPipeline';
+import CrmSalesReports from '@/pages/gestor/CrmSalesReports';
+import HiringReports from '@/pages/gestor/HiringReports'; // NOVO: Importar o relatório de contratação
 
 // Consultor Pages
 import ConsultorDashboard from '@/pages/consultor/Dashboard';
@@ -164,7 +166,9 @@ const AppRoutes = () => {
           <Route path="crm" element={<CrmOverviewPage />} />
           <Route path="daily-checklist-config" element={<DailyChecklistConfig />} />
           <Route path="daily-checklist-monitoring" element={<DailyChecklistMonitoring />} />
-          <Route path="hiring-pipeline" element={<HiringPipeline />} /> {/* NOVO: Rota para o pipeline de contratação */}
+          <Route path="hiring-pipeline" element={<HiringPipeline />} />
+          <Route path="crm-sales-reports" element={<CrmSalesReports />} />
+          <Route path="hiring-reports" element={<HiringReports />} /> {/* NOVO: Rota para o relatório de contratação */}
           <Route path="*" element={<Navigate to="/gestor/dashboard" replace />} />
         </Route>
 
