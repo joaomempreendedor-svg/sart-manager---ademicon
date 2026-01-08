@@ -159,6 +159,7 @@ export const Commissions = () => {
 
   // NOVO: Efeito para fechar o modal de edição/confirmação quando a aba muda
   useEffect(() => {
+    console.log(`[Commissions] activeTab changed to: ${activeTab}. Closing modals.`);
     setEditingInstallment(null);
     setPaymentDate('');
     setCalculatedCompetence('');
@@ -535,7 +536,7 @@ export const Commissions = () => {
       </div>
 
       {activeTab === 'calculator' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-fade-in">
+        <div key="calculator-tab-content" className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-fade-in">
             <div className="lg:col-span-1 space-y-6">
                 <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm">
                     <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center"><DollarSign className="w-5 h-5 mr-2 text-brand-500" />Entrada de Dados</h2>
@@ -680,7 +681,7 @@ export const Commissions = () => {
       )}
 
       {activeTab === 'history' && (
-        <div className="animate-fade-in space-y-6">
+        <div key="history-tab-content" className="animate-fade-in space-y-6">
             <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm space-y-6 mb-6">
                 <div className="flex items-center justify-between mb-2">
                     <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 flex items-center uppercase tracking-wide"><Filter className="w-4 h-4 mr-2" />Filtros Avançados</h3>
@@ -832,7 +833,8 @@ export const Commissions = () => {
         </div>
       )}
       {activeTab === 'reports' && (
-        <div className="animate-fade-in">
+        <div key="reports-tab-content" className="animate-fade-in">
+          {console.log("[Commissions] Renderizando aba de Relatórios.")}
           <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm mb-6">
             <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">Relatório por Mês de Competência</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
@@ -901,6 +903,7 @@ export const Commissions = () => {
       )}
       {editingInstallment && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          {console.log("[Commissions] Modal de edição de parcela está visível!")}
           <div className="bg-white dark:bg-slate-800 p-6 rounded-xl max-w-sm w-full shadow-lg">
             <h3 className="text-lg font-bold mb-1 text-gray-900 dark:text-white">Confirmar Pagamento</h3>
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Parcela {editingInstallment.number} de {editingInstallment.clientName}</p>
