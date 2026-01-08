@@ -388,36 +388,36 @@ const CrmSalesReports = () => {
           <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
             <Users className="w-6 h-6 text-blue-600 dark:text-blue-400" />
           </div>
-          <div className="flex flex-col justify-center flex-1 min-w-0 overflow-hidden"> {/* Adicionado overflow-hidden */}
+          <div className="flex flex-col justify-center flex-1 min-w-0 overflow-hidden">
             <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Total de Leads</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white whitespace-nowrap">{reportData.totalLeads}</p> {/* Alterado para whitespace-nowrap */}
+            <p className="text-xl font-bold text-gray-900 dark:text-white whitespace-nowrap">{reportData.totalLeads}</p>
           </div>
         </div>
         <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
           <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
             <Send className="w-6 h-6 text-purple-600 dark:text-purple-400" />
           </div>
-          <div className="flex flex-col justify-center flex-1 min-w-0 overflow-hidden"> {/* Adicionado overflow-hidden */}
+          <div className="flex flex-col justify-center flex-1 min-w-0 overflow-hidden">
             <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Valor Total em Propostas</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white whitespace-nowrap">{formatCurrency(reportData.totalProposalValue)}</p> {/* Alterado para whitespace-nowrap */}
+            <p className="text-xl font-bold text-gray-900 dark:text-white whitespace-nowrap">{formatCurrency(reportData.totalProposalValue)}</p>
           </div>
         </div>
         <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
           <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
             <DollarSign className="w-6 h-6 text-green-600 dark:text-green-400" />
           </div>
-          <div className="flex flex-col justify-center flex-1 min-w-0 overflow-hidden"> {/* Adicionado overflow-hidden */}
+          <div className="flex flex-col justify-center flex-1 min-w-0 overflow-hidden">
             <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Valor Total Vendido</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white whitespace-nowrap">{formatCurrency(reportData.totalSoldValue)}</p> {/* Alterado para whitespace-nowrap */}
+            <p className="text-xl font-bold text-gray-900 dark:text-white whitespace-nowrap">{formatCurrency(reportData.totalSoldValue)}</p>
           </div>
         </div>
         <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
           <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
             <Percent className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
           </div>
-          <div className="flex flex-col justify-center flex-1 min-w-0 overflow-hidden"> {/* Adicionado overflow-hidden */}
+          <div className="flex flex-col justify-center flex-1 min-w-0 overflow-hidden">
             <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Taxa de Conversão Geral</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white whitespace-nowrap">{reportData.overallConversionRate.toFixed(1)}%</p> {/* Alterado para whitespace-nowrap */}
+            <p className="text-xl font-bold text-gray-900 dark:text-white whitespace-nowrap">{reportData.overallConversionRate.toFixed(1)}%</p>
           </div>
         </div>
       </div>
@@ -429,18 +429,18 @@ const CrmSalesReports = () => {
           <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
             <Send className="w-6 h-6 text-purple-600 dark:text-purple-400" />
           </div>
-          <div className="flex flex-col justify-center flex-1 min-w-0 overflow-hidden"> {/* Adicionado overflow-hidden */}
+          <div className="flex flex-col justify-center flex-1 min-w-0 overflow-hidden">
             <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Valor Médio da Proposta</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white whitespace-nowrap">{formatCurrency(reportData.avgProposalValue)}</p> {/* Alterado para whitespace-nowrap */}
+            <p className="text-xl font-bold text-gray-900 dark:text-white whitespace-nowrap">{formatCurrency(reportData.avgProposalValue)}</p>
           </div>
         </div>
         <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
           <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
             <DollarSign className="w-6 h-6 text-green-600 dark:text-green-400" />
           </div>
-          <div className="flex flex-col justify-center flex-1 min-w-0 overflow-hidden"> {/* Adicionado overflow-hidden */}
+          <div className="flex flex-col justify-center flex-1 min-w-0 overflow-hidden">
             <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Valor Médio da Venda</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white whitespace-nowrap">{formatCurrency(reportData.avgSoldValue)}</p> {/* Alterado para whitespace-nowrap */}
+            <p className="text-xl font-bold text-gray-900 dark:text-white whitespace-nowrap">{formatCurrency(reportData.avgSoldValue)}</p>
           </div>
         </div>
       </div>
