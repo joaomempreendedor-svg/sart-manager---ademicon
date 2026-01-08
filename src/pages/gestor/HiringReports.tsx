@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Loader2, Users, Calendar, FileText, UserCheck, UserX, Award, Filter, RotateCcw, UserRound, TrendingUp, Star, Download, Percent } from 'lucide-react';
+import { Loader2, Users, Calendar, FileText, UserCheck, UserX, Award, Filter, RotateCcw, UserRound, TrendingUp, Star, Download, Percent, LineChart } from 'lucide-react'; // Adicionado LineChart
 import {
   Select,
   SelectContent,
@@ -87,6 +87,9 @@ const HiringReports = () => {
     const candidatesByOrigin: { [key: string]: { count: number; authorizedCount: number; } } = {};
     origins.forEach(o => candidatesByOrigin[o] = { count: 0, authorizedCount: 0 });
 
+    // NOVO: Estrutura para tendências mensais
+    const monthlyTrends: { [monthYear: string]: { totalCandidates: number; authorizedCandidates: number; totalInterviewScore: number; interviewCount: number; } } = {};
+
     filteredCandidates.forEach(c => {
       // Pipeline Status Overview
       if (c.status === 'Entrevista' && c.interviewScores.basicProfile === 0 && c.interviewScores.commercialSkills === 0 && c.interviewScores.behavioralProfile === 0 && c.interviewScores.jobFit === 0 && c.interviewScores.notes === '') {
@@ -126,6 +129,21 @@ const HiringReports = () => {
           candidatesByOrigin[c.origin].authorizedCount++;
         }
       }
+
+      // NOVO: Preencher dados de tendências mensais
+      const createdAtDate = new Date(c.createdAt);
+      const monthYear = `${createdAtDate.getFullYear()}-${String(createdAtDate.getMonth() + 1).padStart(2, '0')}`;
+      if (!monthlyTrends[monthYear]) {
+        monthlyTrends[monthYear] = { totalCandidates: 0, authorizedCandidates: 0, totalInterviewScore: 0, interviewCount: 0 };
+      }
+      monthlyTrends[monthYear].totalCandidates++;
+      if (c.status === 'Autorizado') {
+        monthlyTrends[monthYear].authorizedCandidates++;
+      }
+      if (totalCandidateScore > 0) {
+        monthlyTrends[monthYear].totalInterviewScore += totalCandidateScore;
+        monthlyTrends[monthYear].interviewCount++;
+      }
     });
 
     const avgInterviewScore = interviewCount > 0 ? totalInterviewScore / interviewCount : 0;
@@ -150,6 +168,20 @@ const HiringReports = () => {
     const awaitingPreviewToAuthorized = dataByStatus['Aguardando Prévia'] > 0 ? (dataByStatus['Autorizado'] / dataByStatus['Aguardando Prévia']) * 100 : 0;
     const overallToAuthorized = totalScheduled > 0 ? (dataByStatus['Autorizado'] / totalScheduled) * 100 : 0;
 
+    // NOVO: Formatar tendências mensais para exibição
+    const formattedMonthlyTrends = Object.entries(monthlyTrends)
+      .map(([monthYear, data]) => {
+        const [year, month] = monthYear.split('-');
+        const monthName = new Date(parseInt(year), parseInt(month) - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+        return {
+          month: monthName,
+          totalCandidates: data.totalCandidates,
+          authorizedCandidates: data.authorizedCandidates,
+          avgInterviewScore: data.interviewCount > 0 ? data.totalInterviewScore / data.interviewCount : 0,
+        };
+      })
+      .sort((a, b) => new Date(a.month).getTime() - new Date(b.month).getTime());
+
 
     return {
       dataByStatus,
@@ -163,6 +195,7 @@ const HiringReports = () => {
         awaitingPreviewToAuthorized,
         overallToAuthorized,
       },
+      monthlyTrends: formattedMonthlyTrends, // NOVO: Adicionar tendências mensais
     };
   }, [filteredCandidates, interviewStructure, responsibleMembers, origins]);
 
@@ -189,9 +222,10 @@ const HiringReports = () => {
       'Criado Em': new Date(c.createdAt).toLocaleDateString('pt-BR'),
     }));
 
-    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Candidatos Detalhado");
+
+    const worksheetCandidates = XLSX.utils.json_to_sheet(dataToExport);
+    XLSX.utils.book_append_sheet(workbook, worksheetCandidates, "Candidatos Detalhado");
 
     // Add summary data
     const summaryData = [
@@ -235,6 +269,16 @@ const HiringReports = () => {
       'Taxa de Conversão para Autorizado (%)': o.conversionRate.toFixed(1),
     })));
     XLSX.utils.book_append_sheet(workbook, originSheet, "Candidatos por Origem");
+
+    // NOVO: Adicionar tendências mensais ao Excel
+    const monthlyTrendsSheet = XLSX.utils.json_to_sheet(reportData.monthlyTrends.map(m => ({
+      'Mês': m.month,
+      'Total de Candidatos': m.totalCandidates,
+      'Candidatos Autorizados': m.authorizedCandidates,
+      'Média Pontuação Entrevista': m.avgInterviewScore.toFixed(1),
+    })));
+    XLSX.utils.book_append_sheet(workbook, monthlyTrendsSheet, "Tendencias Mensais");
+
 
     XLSX.writeFile(workbook, `Relatorio_Contratacao_${new Date().toISOString().slice(0, 10)}.xlsx`);
   };
@@ -493,7 +537,7 @@ const HiringReports = () => {
 
       {/* Candidates by Origin */}
       <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center"><Star className="w-5 h-5 mr-2 text-brand-500" />Candidatos por Origem</h2>
-      <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden mb-8">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300">
             <thead className="bg-gray-50 dark:bg-slate-700/50 text-gray-500 dark:text-gray-400 text-xs uppercase">
@@ -518,6 +562,41 @@ const HiringReports = () => {
                     <td className="px-4 py-3">{origin.count}</td>
                     <td className="px-4 py-3">{origin.authorizedCount}</td>
                     <td className="px-4 py-3">{origin.conversionRate.toFixed(1)}%</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* NOVO: Seção de Tendências Mensais */}
+      <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center"><LineChart className="w-5 h-5 mr-2 text-brand-500" />Tendências Mensais</h2>
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden mb-8">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300">
+            <thead className="bg-gray-50 dark:bg-slate-700/50 text-gray-500 dark:text-gray-400 text-xs uppercase">
+              <tr>
+                <th className="px-4 py-3">Mês</th>
+                <th className="px-4 py-3">Total de Candidatos</th>
+                <th className="px-4 py-3">Candidatos Autorizados</th>
+                <th className="px-4 py-3">Média Pontuação Entrevista</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
+              {reportData.monthlyTrends.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="px-6 py-12 text-center text-gray-400">
+                    Nenhum dado de tendência mensal encontrado.
+                  </td>
+                </tr>
+              ) : (
+                reportData.monthlyTrends.map(trend => (
+                  <tr key={trend.month} className="hover:bg-gray-50 dark:hover:bg-slate-700/30 transition">
+                    <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">{trend.month}</td>
+                    <td className="px-4 py-3">{trend.totalCandidates}</td>
+                    <td className="px-4 py-3">{trend.authorizedCandidates}</td>
+                    <td className="px-4 py-3">{trend.avgInterviewScore.toFixed(1)}</td>
                   </tr>
                 ))
               )}
