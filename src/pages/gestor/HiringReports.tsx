@@ -1,3 +1,4 @@
+' por '&rarr;' nos textos das taxas de conversão.">
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
@@ -399,7 +400,7 @@ const HiringReports = () => {
             <TrendingUp className="w-6 h-6 text-blue-600 dark:text-blue-400" />
           </div>
           <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Agendada -> Realizada</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Agendada &rarr; Realizada</p>
             <p className="text-2xl font-bold text-gray-900 dark:text-white">{reportData.conversionRates.scheduledToConducted.toFixed(1)}%</p>
           </div>
         </div>
@@ -408,7 +409,7 @@ const HiringReports = () => {
             <TrendingUp className="w-6 h-6 text-green-600 dark:text-green-400" />
           </div>
           <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Realizada -> Aguardando Prévia</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Realizada &rarr; Aguardando Prévia</p>
             <p className="text-2xl font-bold text-gray-900 dark:text-white">{reportData.conversionRates.conductedToAwaitingPreview.toFixed(1)}%</p>
           </div>
         </div>
@@ -417,7 +418,7 @@ const HiringReports = () => {
             <TrendingUp className="w-6 h-6 text-brand-600 dark:text-brand-400" />
           </div>
           <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Aguardando Prévia -> Autorizado</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Aguardando Prévia &rarr; Autorizado</p>
             <p className="text-2xl font-bold text-gray-900 dark:text-white">{reportData.conversionRates.awaitingPreviewToAuthorized.toFixed(1)}%</p>
           </div>
         </div>
@@ -426,7 +427,7 @@ const HiringReports = () => {
             <TrendingUp className="w-6 h-6 text-purple-600 dark:text-purple-400" />
           </div>
           <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Geral (Agendado -> Autorizado)</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Geral (Agendado &rarr; Autorizado)</p>
             <p className="text-2xl font-bold text-gray-900 dark:text-white">{reportData.conversionRates.overallToAuthorized.toFixed(1)}%</p>
           </div>
         </div>
