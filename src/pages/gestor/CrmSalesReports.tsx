@@ -234,7 +234,7 @@ const CrmSalesReports = () => {
       { 'Métrica': 'Valor Médio da Venda', 'Valor': reportData.avgSoldValue },
       { 'Métrica': 'Taxa de Conversão Geral (Proposta -> Venda)', 'Valor': reportData.overallConversionRate },
     ];
-    reportData.avgSectionScores.forEach(s => summaryData.push({ 'Métrica': `Média ${s.title}`, 'Valor': s.average.toFixed(1) }));
+    // reportData.avgSectionScores.forEach(s => summaryData.push({ 'Métrica': `Média ${s.title}`, 'Valor': s.average.toFixed(1) })); // This line is for HiringReports, not CrmSalesReports
     
     const summarySheet = XLSX.utils.json_to_sheet(summaryData);
     XLSX.utils.book_append_sheet(workbook, summarySheet, "Resumo Geral");
@@ -388,36 +388,36 @@ const CrmSalesReports = () => {
           <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
             <Users className="w-6 h-6 text-blue-600 dark:text-blue-400" />
           </div>
-          <div className="flex flex-col justify-center"> {/* Adicionado flex-col justify-center */}
+          <div className="flex flex-col justify-center flex-1 min-w-0"> {/* Adicionado flex-1 min-w-0 */}
             <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Total de Leads</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{reportData.totalLeads}</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white break-all">{reportData.totalLeads}</p> {/* Adicionado break-all */}
           </div>
         </div>
         <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
           <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
             <Send className="w-6 h-6 text-purple-600 dark:text-purple-400" />
           </div>
-          <div className="flex flex-col justify-center"> {/* Adicionado flex-col justify-center */}
+          <div className="flex flex-col justify-center flex-1 min-w-0"> {/* Adicionado flex-1 min-w-0 */}
             <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Valor Total em Propostas</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatCurrency(reportData.totalProposalValue)}</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white break-all">{formatCurrency(reportData.totalProposalValue)}</p> {/* Adicionado break-all */}
           </div>
         </div>
         <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
           <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
             <DollarSign className="w-6 h-6 text-green-600 dark:text-green-400" />
           </div>
-          <div className="flex flex-col justify-center"> {/* Adicionado flex-col justify-center */}
+          <div className="flex flex-col justify-center flex-1 min-w-0"> {/* Adicionado flex-1 min-w-0 */}
             <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Valor Total Vendido</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatCurrency(reportData.totalSoldValue)}</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white break-all">{formatCurrency(reportData.totalSoldValue)}</p> {/* Adicionado break-all */}
           </div>
         </div>
         <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
           <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
             <Percent className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
           </div>
-          <div className="flex flex-col justify-center"> {/* Adicionado flex-col justify-center */}
+          <div className="flex flex-col justify-center flex-1 min-w-0"> {/* Adicionado flex-1 min-w-0 */}
             <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Taxa de Conversão Geral</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{reportData.overallConversionRate.toFixed(1)}%</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white break-all">{reportData.overallConversionRate.toFixed(1)}%</p> {/* Adicionado break-all */}
           </div>
         </div>
       </div>
@@ -429,18 +429,18 @@ const CrmSalesReports = () => {
           <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
             <Send className="w-6 h-6 text-purple-600 dark:text-purple-400" />
           </div>
-          <div className="flex flex-col justify-center"> {/* Adicionado flex-col justify-center */}
+          <div className="flex flex-col justify-center flex-1 min-w-0"> {/* Adicionado flex-1 min-w-0 */}
             <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Valor Médio da Proposta</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatCurrency(reportData.avgProposalValue)}</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white break-all">{formatCurrency(reportData.avgProposalValue)}</p> {/* Adicionado break-all */}
           </div>
         </div>
         <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
           <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
             <DollarSign className="w-6 h-6 text-green-600 dark:text-green-400" />
           </div>
-          <div className="flex flex-col justify-center"> {/* Adicionado flex-col justify-center */}
+          <div className="flex flex-col justify-center flex-1 min-w-0"> {/* Adicionado flex-1 min-w-0 */}
             <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Valor Médio da Venda</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatCurrency(reportData.avgSoldValue)}</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white break-all">{formatCurrency(reportData.avgSoldValue)}</p> {/* Adicionado break-all */}
           </div>
         </div>
       </div>
@@ -565,7 +565,7 @@ const CrmSalesReports = () => {
                 </tr>
               ) : (
                 reportData.consultantPerformance.map(consultant => (
-                  <tr key={consultant.name} className="hover:bg-gray-50 dark:hover:bg-slate-700/30 transition">
+                  <tr key={consultant.name} className="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition">
                     <td className="px-4 py-3 font-medium text-gray-900 dark:text-white flex items-center space-x-2">
                       <UserRound className="w-4 h-4 text-gray-400" />
                       <span>{consultant.name}</span>
