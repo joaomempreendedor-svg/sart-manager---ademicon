@@ -532,7 +532,7 @@ const CrmSalesReports = () => {
                     <span className="font-bold text-lg text-brand-500">{index + 1}.</span>
                     <span className="text-gray-800 dark:text-gray-200">{consultant.name}</span>
                   </div>
-                  <span className="text-gray-600 dark:text-gray-300">{consultant.salesClosed} Vendas ({formatCurrency(consultant.soldValue)})</span>
+                  <span className="text-gray-600 dark:text-gray-300">{formatCurrency(consultant.soldValue)}</span>
                 </li>
               ))
             )}
