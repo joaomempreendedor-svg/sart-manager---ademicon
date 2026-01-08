@@ -1,4 +1,3 @@
-' por '&rarr;' nos textos das taxas de conversão.">
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
