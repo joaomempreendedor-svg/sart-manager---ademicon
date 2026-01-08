@@ -467,6 +467,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             hasLogin: true,
             isLegacy: false,
             cpf: item.cpf,
+            managerId: data.managerId, // NOVO: Adicionado managerId
+            angelId: data.angelId,     // NOVO: Adicionado angelId
           } as TeamMember;
         }) || [];
         setTeamMembers(normalizedTeamMembers);
@@ -474,7 +476,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setSupportMaterials(materialsData?.data?.map(item => ({ ...(item.data as SupportMaterial), db_id: item.id })) || []);
         // setImportantLinks(linksData?.data?.map(item => ({ ...(item.data as ImportantLink), db_id: item.id })) || []); // REMOVIDO
         setCutoffPeriods(cutoffData?.data?.map(item => ({ ...(item.data as CutoffPeriod), db_id: item.id })) || []);
-        setOnboardingSessions((onboardingData?.data as any[])?.map(s => ({...s, videos: s.videos.sort((a:any,b:any) => a.order - b.order)})) || []);
+        setOnboardingSessions((onboardingData?.data as any[])?.map(s => ({...s, videos: s.videos.sort((a:any,b:any) => a.order - b.or`der)})) || []);
         setOnboardingTemplateVideos(templateVideosData?.data || []);
         
         let finalPipelines = pipelinesData?.data || [];
@@ -1468,7 +1470,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       toast.error("Erro ao atualizar item do checklist."); 
       throw error; 
     }
-    setDailyChecklistItems(prev => prev.map(item => item.id === id ? { ...item, ...updates, resource: finalResource } : item).sort((a, b) => a.order_index - b.order_index));
+    setDailyChecklistItems(prev => prev.map(item => item.id === id ? { ...item, ...updates, resource: finalResource } : item).sort((a, b) => a.order_index - b.or`der_index));
   }, [user, dailyChecklistItems]);
 
   const deleteDailyChecklistItem = useCallback(async (id: string) => {
