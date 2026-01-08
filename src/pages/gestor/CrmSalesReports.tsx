@@ -111,7 +111,7 @@ const CrmSalesReports = () => {
         proposalValue: 0,
         salesClosed: 0,
         soldValue: 0,
-        conversionRate: 0,
+        conversionRate: 0, // New metric
       };
     });
 
@@ -226,14 +226,17 @@ const CrmSalesReports = () => {
     XLSX.utils.book_append_sheet(workbook, worksheet, "Desempenho Consultores");
 
     // Add summary data
-    const summarySheet = XLSX.utils.json_to_sheet([
+    const summaryData = [
       { 'Métrica': 'Total de Leads', 'Valor': reportData.totalLeads },
       { 'Métrica': 'Valor Total em Propostas', 'Valor': reportData.totalProposalValue },
       { 'Métrica': 'Valor Total Vendido', 'Valor': reportData.totalSoldValue },
       { 'Métrica': 'Valor Médio da Proposta', 'Valor': reportData.avgProposalValue },
       { 'Métrica': 'Valor Médio da Venda', 'Valor': reportData.avgSoldValue },
       { 'Métrica': 'Taxa de Conversão Geral (Proposta -> Venda)', 'Valor': reportData.overallConversionRate },
-    ]);
+    ];
+    reportData.avgSectionScores.forEach(s => summaryData.push({ 'Métrica': `Média ${s.title}`, 'Valor': s.average.toFixed(1) }));
+    
+    const summarySheet = XLSX.utils.json_to_sheet(summaryData);
     XLSX.utils.book_append_sheet(workbook, summarySheet, "Resumo Geral");
 
     // Add pipeline stage summary
@@ -385,7 +388,7 @@ const CrmSalesReports = () => {
           <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
             <Users className="w-6 h-6 text-blue-600 dark:text-blue-400" />
           </div>
-          <div>
+          <div className="flex flex-col justify-center"> {/* Adicionado flex-col justify-center */}
             <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Total de Leads</p>
             <p className="text-2xl font-bold text-gray-900 dark:text-white">{reportData.totalLeads}</p>
           </div>
@@ -394,7 +397,7 @@ const CrmSalesReports = () => {
           <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
             <Send className="w-6 h-6 text-purple-600 dark:text-purple-400" />
           </div>
-          <div>
+          <div className="flex flex-col justify-center"> {/* Adicionado flex-col justify-center */}
             <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Valor Total em Propostas</p>
             <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatCurrency(reportData.totalProposalValue)}</p>
           </div>
@@ -403,7 +406,7 @@ const CrmSalesReports = () => {
           <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
             <DollarSign className="w-6 h-6 text-green-600 dark:text-green-400" />
           </div>
-          <div>
+          <div className="flex flex-col justify-center"> {/* Adicionado flex-col justify-center */}
             <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Valor Total Vendido</p>
             <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatCurrency(reportData.totalSoldValue)}</p>
           </div>
@@ -412,7 +415,7 @@ const CrmSalesReports = () => {
           <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
             <Percent className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
           </div>
-          <div>
+          <div className="flex flex-col justify-center"> {/* Adicionado flex-col justify-center */}
             <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Taxa de Conversão Geral</p>
             <p className="text-2xl font-bold text-gray-900 dark:text-white">{reportData.overallConversionRate.toFixed(1)}%</p>
           </div>
@@ -426,7 +429,7 @@ const CrmSalesReports = () => {
           <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
             <Send className="w-6 h-6 text-purple-600 dark:text-purple-400" />
           </div>
-          <div>
+          <div className="flex flex-col justify-center"> {/* Adicionado flex-col justify-center */}
             <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Valor Médio da Proposta</p>
             <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatCurrency(reportData.avgProposalValue)}</p>
           </div>
@@ -435,7 +438,7 @@ const CrmSalesReports = () => {
           <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
             <DollarSign className="w-6 h-6 text-green-600 dark:text-green-400" />
           </div>
-          <div>
+          <div className="flex flex-col justify-center"> {/* Adicionado flex-col justify-center */}
             <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Valor Médio da Venda</p>
             <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatCurrency(reportData.avgSoldValue)}</p>
           </div>
@@ -463,7 +466,7 @@ const CrmSalesReports = () => {
                 </tr>
               ) : (
                 reportData.pipelineStageSummary.map(stage => (
-                  <tr key={stage.name} className="hover:bg-gray-50 dark:hover:bg-slate-700/30 transition">
+                  <tr key={stage.name} className="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition">
                     <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">{stage.name}</td>
                     <td className="px-4 py-3">{stage.count}</td>
                     <td className="px-4 py-3">{formatCurrency(stage.totalValue)}</td>
