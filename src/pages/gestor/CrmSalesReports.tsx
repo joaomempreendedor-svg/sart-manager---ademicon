@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Loader2, TrendingUp, Users, Calendar, DollarSign, Send, ListTodo, Award, Filter, RotateCcw, UserRound, Download } from 'lucide-react';
+import { Loader2, TrendingUp, Users, Calendar, DollarSign, Send, ListTodo, Award, Filter, RotateCcw, UserRound } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -9,7 +9,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import * as XLSX from 'xlsx'; // Importar a biblioteca XLSX
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -17,25 +16,14 @@ const formatCurrency = (value: number) => {
 
 const CrmSalesReports = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
-  const { crmLeads, leadTasks, crmStages, teamMembers, pvs, isDataLoading } = useApp(); // Adicionado pvs
+  const { crmLeads, leadTasks, crmStages, teamMembers, isDataLoading } = useApp();
 
   const [filterStartDate, setFilterStartDate] = useState('');
   const [filterEndDate, setFilterEndDate] = useState('');
   const [selectedConsultantId, setSelectedConsultantId] = useState<string | null>(null);
-  const [selectedManagerId, setSelectedManagerId] = useState<string | null>(null); // NOVO: Filtro por Gestor
-  const [selectedAngelId, setSelectedAngelId] = useState<string | null>(null);     // NOVO: Filtro por Anjo
-  const [selectedPv, setSelectedPv] = useState<string | null>(null);             // NOVO: Filtro por PV
 
   const consultants = useMemo(() => {
     return teamMembers.filter(m => m.isActive && (m.roles.includes('CONSULTOR') || m.roles.includes('Prévia') || m.roles.includes('Autorizado')));
-  }, [teamMembers]);
-
-  const managers = useMemo(() => { // NOVO: Lista de Gestores
-    return teamMembers.filter(m => m.isActive && m.roles.includes('Gestor'));
-  }, [teamMembers]);
-
-  const angels = useMemo(() => { // NOVO: Lista de Anjos
-    return teamMembers.filter(m => m.isActive && m.roles.includes('Anjo'));
   }, [teamMembers]);
 
   const filteredLeads = useMemo(() => {
@@ -43,21 +31,6 @@ const CrmSalesReports = () => {
 
     if (selectedConsultantId) {
       currentLeads = currentLeads.filter(lead => lead.consultant_id === selectedConsultantId);
-    }
-    if (selectedManagerId) { // NOVO: Filtrar por Gestor
-      currentLeads = currentLeads.filter(lead => {
-        const consultant = teamMembers.find(tm => tm.id === lead.consultant_id);
-        return consultant && consultant.managerId === selectedManagerId; // Assumindo que TeamMember tem managerId
-      });
-    }
-    if (selectedAngelId) { // NOVO: Filtrar por Anjo
-      currentLeads = currentLeads.filter(lead => {
-        const consultant = teamMembers.find(tm => tm.id === lead.consultant_id);
-        return consultant && consultant.angelId === selectedAngelId; // Assumindo que TeamMember tem angelId
-      });
-    }
-    if (selectedPv) { // NOVO: Filtrar por PV
-      currentLeads = currentLeads.filter(lead => lead.data.pv === selectedPv); // Assumindo que PV está em lead.data.pv
     }
 
     if (filterStartDate) {
@@ -70,12 +43,11 @@ const CrmSalesReports = () => {
     }
 
     return currentLeads;
-  }, [crmLeads, selectedConsultantId, selectedManagerId, selectedAngelId, selectedPv, filterStartDate, filterEndDate, teamMembers]);
+  }, [crmLeads, selectedConsultantId, filterStartDate, filterEndDate]);
 
   const reportData = useMemo(() => {
     const dataByConsultant: {
       [key: string]: {
-        id: string; // Adicionado ID para facilitar a busca do nome
         name: string;
         leadsRegistered: number;
         meetingsScheduled: number;
@@ -88,7 +60,6 @@ const CrmSalesReports = () => {
 
     consultants.forEach(c => {
       dataByConsultant[c.id] = {
-        id: c.id,
         name: c.name,
         leadsRegistered: 0,
         meetingsScheduled: 0,
@@ -129,9 +100,8 @@ const CrmSalesReports = () => {
 
     leadTasks.forEach(task => {
       const lead = filteredLeads.find(l => l.id === task.lead_id);
-      // Certifique-se de que a tarefa pertence a um consultor válido e está dentro do filtro de leads
-      if (lead && task.type === 'meeting' && task.user_id && dataByConsultant[task.user_id]) {
-        dataByConsultant[task.user_id].meetingsScheduled++;
+      if (lead && task.type === 'meeting' && task.consultant_id && dataByConsultant[task.consultant_id]) {
+        dataByConsultant[task.consultant_id].meetingsScheduled++;
       }
     });
 
@@ -150,35 +120,15 @@ const CrmSalesReports = () => {
       topMeetingSchedulers,
       topClosers,
     };
-  }, [filteredLeads, leadTasks, consultants, crmStages, teamMembers]);
+  }, [filteredLeads, leadTasks, consultants, crmStages]);
 
   const clearFilters = () => {
     setFilterStartDate('');
     setFilterEndDate('');
     setSelectedConsultantId(null);
-    setSelectedManagerId(null);
-    setSelectedAngelId(null);
-    setSelectedPv(null);
   };
 
-  const hasActiveFilters = filterStartDate || filterEndDate || selectedConsultantId || selectedManagerId || selectedAngelId || selectedPv;
-
-  const handleExportToExcel = () => {
-    const dataToExport = reportData.consultantPerformance.map(c => ({
-      'Consultor': c.name,
-      'Leads Cadastrados': c.leadsRegistered,
-      'Reuniões Agendadas': c.meetingsScheduled,
-      'Propostas Enviadas': c.proposalsSent,
-      'Valor em Propostas': c.proposalValue,
-      'Vendas Fechadas': c.salesClosed,
-      'Valor Vendido': c.soldValue,
-    }));
-
-    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "RelatorioVendasCRM");
-    XLSX.writeFile(workbook, "relatorio_vendas_crm.xlsx");
-  };
+  const hasActiveFilters = filterStartDate || filterEndDate || selectedConsultantId;
 
   if (isAuthLoading || isDataLoading) {
     return (
@@ -195,10 +145,6 @@ const CrmSalesReports = () => {
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Relatórios de Vendas do CRM</h1>
           <p className="text-gray-500 dark:text-gray-400">Análise de desempenho dos consultores e visão geral do pipeline.</p>
         </div>
-        <button onClick={handleExportToExcel} className="flex items-center justify-center space-x-2 bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg transition font-medium">
-          <Download className="w-5 h-5" />
-          <span>Exportar para Excel</span>
-        </button>
       </div>
 
       <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm space-y-4 mb-6">
@@ -210,7 +156,7 @@ const CrmSalesReports = () => {
             </button>
           )}
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
             <label htmlFor="filterStartDate" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Leads Criados de</label>
             <input
@@ -245,63 +191,6 @@ const CrmSalesReports = () => {
                 {consultants.map(consultant => (
                   <SelectItem key={consultant.id} value={consultant.id}>
                     {consultant.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="w-full">
-            <label htmlFor="managerFilter" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Gestor</label>
-            <Select 
-              value={selectedManagerId || 'all'} 
-              onValueChange={(value) => setSelectedManagerId(value === 'all' ? null : value)}
-            >
-              <SelectTrigger className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
-                <SelectValue placeholder="Todos os Gestores" />
-              </SelectTrigger>
-              <SelectContent className="bg-white text-gray-900 dark:bg-slate-800 dark:text-white dark:border-slate-700">
-                <SelectItem value="all">Todos os Gestores</SelectItem>
-                {managers.map(manager => (
-                  <SelectItem key={manager.id} value={manager.id}>
-                    {manager.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="w-full">
-            <label htmlFor="angelFilter" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Anjo</label>
-            <Select 
-              value={selectedAngelId || 'all'} 
-              onValueChange={(value) => setSelectedAngelId(value === 'all' ? null : value)}
-            >
-              <SelectTrigger className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
-                <SelectValue placeholder="Todos os Anjos" />
-              </SelectTrigger>
-              <SelectContent className="bg-white text-gray-900 dark:bg-slate-800 dark:text-white dark:border-slate-700">
-                <SelectItem value="all">Todos os Anjos</SelectItem>
-                {angels.map(angel => (
-                  <SelectItem key={angel.id} value={angel.id}>
-                    {angel.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="w-full">
-            <label htmlFor="pvFilter" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Ponto de Venda (PV)</label>
-            <Select 
-              value={selectedPv || 'all'} 
-              onValueChange={(value) => setSelectedPv(value === 'all' ? null : value)}
-            >
-              <SelectTrigger className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
-                <SelectValue placeholder="Todos os PVs" />
-              </SelectTrigger>
-              <SelectContent className="bg-white text-gray-900 dark:bg-slate-800 dark:text-white dark:border-slate-700">
-                <SelectItem value="all">Todos os PVs</SelectItem>
-                {pvs.map(pv => (
-                  <SelectItem key={pv} value={pv}>
-                    {pv}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -427,7 +316,7 @@ const CrmSalesReports = () => {
                 </tr>
               ) : (
                 reportData.consultantPerformance.map(consultant => (
-                  <tr key={consultant.id} className="hover:bg-gray-50 dark:hover:bg-slate-700/30 transition">
+                  <tr key={consultant.name} className="hover:bg-gray-50 dark:hover:bg-slate-700/30 transition">
                     <td className="px-4 py-3 font-medium text-gray-900 dark:text-white flex items-center space-x-2">
                       <UserRound className="w-4 h-4 text-gray-400" />
                       <span>{consultant.name}</span>
@@ -442,17 +331,6 @@ const CrmSalesReports = () => {
                 ))
               )}
             </tbody>
-            <tfoot className="bg-gray-50 dark:bg-slate-700/50 text-gray-900 dark:text-white font-bold border-t border-gray-200 dark:border-slate-700">
-              <tr>
-                <td className="px-4 py-3">Total Geral</td>
-                <td className="px-4 py-3">{reportData.consultantPerformance.reduce((sum, c) => sum + c.leadsRegistered, 0)}</td>
-                <td className="px-4 py-3">{reportData.consultantPerformance.reduce((sum, c) => sum + c.meetingsScheduled, 0)}</td>
-                <td className="px-4 py-3">{reportData.consultantPerformance.reduce((sum, c) => sum + c.proposalsSent, 0)}</td>
-                <td className="px-4 py-3">{formatCurrency(reportData.consultantPerformance.reduce((sum, c) => sum + c.proposalValue, 0))}</td>
-                <td className="px-4 py-3">{reportData.consultantPerformance.reduce((sum, c) => sum + c.salesClosed, 0)}</td>
-                <td className="px-4 py-3">{formatCurrency(reportData.consultantPerformance.reduce((sum, c) => sum + c.soldValue, 0))}</td>
-              </tr>
-            </tfoot>
           </table>
         </div>
       </div>
