@@ -179,7 +179,8 @@ const CrmSalesReports = () => {
 
     const topRegistrars = [...sortedConsultantData].sort((a, b) => b.leadsRegistered - a.leadsRegistered).slice(0, 3);
     const topMeetingSchedulers = [...sortedConsultantData].sort((a, b) => b.meetingsScheduled - a.meetingsScheduled).slice(0, 3);
-    const topClosers = [...sortedConsultantData].sort((a, b) => b.salesClosed - a.salesClosed).slice(0, 3); // Já está ordenado por salesClosed
+    // Corrigido: Ordenar por soldValue (valor vendido) em vez de salesClosed (quantidade de vendas)
+    const topClosers = [...sortedConsultantData].sort((a, b) => b.soldValue - a.soldValue).slice(0, 3); 
 
     return {
       totalLeads,
