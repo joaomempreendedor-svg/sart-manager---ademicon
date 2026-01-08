@@ -39,7 +39,8 @@ import { DailyChecklistConfig } from '@/pages/gestor/DailyChecklistConfig';
 import { DailyChecklistMonitoring } from '@/pages/gestor/DailyChecklistMonitoring';
 import HiringPipeline from '@/pages/gestor/HiringPipeline';
 import CrmSalesReports from '@/pages/gestor/CrmSalesReports';
-import HiringReports from '@/pages/gestor/HiringReports'; // NOVO: Importar o relatório de contratação
+import HiringReports from '@/pages/gestor/HiringReports';
+import { OriginConfig } from '@/pages/OriginConfig'; // NOVO: Importar OriginConfig
 
 // Consultor Pages
 import ConsultorDashboard from '@/pages/consultor/Dashboard';
@@ -168,7 +169,8 @@ const AppRoutes = () => {
           <Route path="daily-checklist-monitoring" element={<DailyChecklistMonitoring />} />
           <Route path="hiring-pipeline" element={<HiringPipeline />} />
           <Route path="crm-sales-reports" element={<CrmSalesReports />} />
-          <Route path="hiring-reports" element={<HiringReports />} /> {/* NOVO: Rota para o relatório de contratação */}
+          <Route path="hiring-reports" element={<HiringReports />} />
+          <Route path="config-origins" element={<OriginConfig />} /> {/* NOVO: Rota para OriginConfig */}
           <Route path="*" element={<Navigate to="/gestor/dashboard" replace />} />
         </Route>
 

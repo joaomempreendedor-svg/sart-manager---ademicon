@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, MessageSquare, Settings, FileText, Sun, Moon, Banknote, PlusCircle, Library, TrendingUp, Target, Users, LogOut, User as UserIcon, Calendar, Star, Video, ListChecks, ClipboardCheck, UserPlus, ChevronLeft, ChevronRight, ChevronDown, UserSearch, BarChart3, UserCog } from 'lucide-react'; // Adicionado UserCog
+import { LayoutDashboard, MessageSquare, Settings, FileText, Sun, Moon, Banknote, PlusCircle, Library, TrendingUp, Target, Users, LogOut, User as UserIcon, Calendar, Star, Video, ListChecks, ClipboardCheck, UserPlus, ChevronLeft, ChevronRight, ChevronDown, UserSearch, BarChart3, UserCog, MapPin } from 'lucide-react'; // Adicionado UserCog e MapPin
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 
@@ -84,7 +84,7 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
                 <UserSearch className="w-5 h-5" />
                 <span>Pipeline Contratação</span>
               </NavLink>
-              <NavLink to="/gestor/hiring-reports" className={linkClass} onClick={toggleSidebar}> {/* NOVO: Link para o relatório de contratação */}
+              <NavLink to="/gestor/hiring-reports" className={linkClass} onClick={toggleSidebar}>
                 <UserCog className="w-5 h-5" />
                 <span>Relatórios Contratação</span>
               </NavLink>
@@ -124,7 +124,7 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
               <NavLink to="/gestor/hiring-pipeline" className={linkClass} onClick={toggleSidebar} title="Pipeline Contratação">
                 <UserSearch className="w-5 h-5" />
               </NavLink>
-              <NavLink to="/gestor/hiring-reports" className={linkClass} onClick={toggleSidebar} title="Relatórios Contratação"> {/* NOVO: Link para o relatório de contratação */}
+              <NavLink to="/gestor/hiring-reports" className={linkClass} onClick={toggleSidebar} title="Relatórios Contratação">
                 <UserCog className="w-5 h-5" />
               </NavLink>
               <NavLink to="/gestor/onboarding-admin" className={linkClass} onClick={toggleSidebar} title="Onboarding Online">
@@ -182,6 +182,10 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
                 <PlusCircle className="w-5 h-5" />
                 <span>Configurar CRM</span>
               </NavLink>
+              <NavLink to="/gestor/config-origins" className={linkClass} onClick={toggleSidebar}> {/* NOVO: Link para OriginConfig */}
+                <MapPin className="w-5 h-5" />
+                <span>Configurar Origens</span>
+              </NavLink>
               <NavLink to="/gestor/config-process" className={linkClass} onClick={toggleSidebar}>
                 <Settings className="w-5 h-5" />
                 <span>Editar Processo (Antigo)</span>
@@ -210,6 +214,9 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
               </NavLink>
               <NavLink to="/gestor/crm-config" className={linkClass} onClick={toggleSidebar} title="Configurar CRM">
                 <PlusCircle className="w-5 h-5" />
+              </NavLink>
+              <NavLink to="/gestor/config-origins" className={linkClass} onClick={toggleSidebar} title="Configurar Origens"> {/* NOVO: Link para OriginConfig */}
+                <MapPin className="w-5 h-5" />
               </NavLink>
               <NavLink to="/gestor/config-process" className={linkClass} onClick={toggleSidebar} title="Editar Processo (Antigo)">
                 <Settings className="w-5 h-5" />
