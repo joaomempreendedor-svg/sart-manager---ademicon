@@ -34,12 +34,14 @@ export const FinancialPanel = () => {
 
   const entriesByDate = useMemo(() => {
     const map: Record<string, FinancialEntry[]> = {};
+    // Initialize map for all displayed dates
     displayedDates.forEach(date => {
       map[formatDate(date)] = [];
     });
 
     financialEntries.forEach(entry => {
       const entryDateStr = entry.entry_date;
+      // Only include entries that fall within the currently displayed month
       if (map[entryDateStr]) {
         map[entryDateStr].push(entry);
       }
@@ -55,22 +57,42 @@ export const FinancialPanel = () => {
 
   const dailyBalances = useMemo(() => {
     const balances: Record<string, { income: number; expense: number; balance: number }> = {};
+    let runningBalance = 0; // Initialize running balance
+
+    // Calculate balance for days BEFORE the current displayed month
+    const firstDayOfDisplayedMonth = displayedDates[0];
+    if (firstDayOfDisplayedMonth) {
+      const allEntriesBeforeMonth = financialEntries.filter(entry => 
+        new Date(entry.entry_date + 'T00:00:00') < firstDayOfDisplayedMonth
+      );
+      allEntriesBeforeMonth.forEach(entry => {
+        if (entry.type === 'income') {
+          runningBalance += entry.amount;
+        } else {
+          runningBalance -= entry.amount;
+        }
+      });
+    }
+
     displayedDates.forEach(date => {
       const dateStr = formatDate(date);
       const entries = entriesByDate[dateStr] || [];
-      let income = 0;
-      let expense = 0;
+      let dailyIncome = 0;
+      let dailyExpense = 0;
+
       entries.forEach(entry => {
         if (entry.type === 'income') {
-          income += entry.amount;
+          dailyIncome += entry.amount;
         } else {
-          expense += entry.amount;
+          dailyExpense += entry.amount;
         }
       });
-      balances[dateStr] = { income, expense, balance: income - expense };
+      
+      runningBalance += (dailyIncome - dailyExpense); // Update running balance
+      balances[dateStr] = { income: dailyIncome, expense: dailyExpense, balance: runningBalance };
     });
     return balances;
-  }, [entriesByDate, displayedDates]);
+  }, [entriesByDate, displayedDates, financialEntries]); // Added financialEntries to dependencies
 
   const navigateMonth = (offset: number) => {
     setCurrentDate(prevDate => {
