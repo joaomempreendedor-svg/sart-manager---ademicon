@@ -382,4 +382,16 @@ export interface DailyChecklistItemResource {
   name?: string; // Nome do arquivo, se aplicável
 }
 
+// NOVO: Tipo para Entradas e Saídas Financeiras
+export interface FinancialEntry {
+  id: string;
+  db_id?: string; // ID do banco de dados
+  user_id: string; // ID do usuário (gestor) que criou a entrada
+  entry_date: string; // YYYY-MM-DD
+  type: 'income' | 'expense';
+  description?: string;
+  amount: number;
+  created_at: string;
+}
+
 // --- FIM DOS NOVOS TIPOS ---

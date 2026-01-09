@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, MessageSquare, Settings, FileText, Sun, Moon, Banknote, PlusCircle, Library, TrendingUp, Target, Users, LogOut, User as UserIcon, Calendar, Star, Video, ListChecks, ClipboardCheck, UserPlus, ChevronLeft, ChevronRight, ChevronDown, UserSearch, BarChart3, UserCog, MapPin } from 'lucide-react'; // Adicionado UserCog e MapPin
+import { LayoutDashboard, MessageSquare, Settings, FileText, Sun, Moon, Banknote, PlusCircle, Library, TrendingUp, Target, Users, LogOut, User as UserIcon, Calendar, Star, Video, ListChecks, ClipboardCheck, UserPlus, ChevronLeft, ChevronRight, ChevronDown, UserSearch, BarChart3, UserCog, MapPin, DollarSign } from 'lucide-react'; // Adicionado DollarSign
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 
@@ -96,6 +96,10 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
                 <Banknote className="w-5 h-5" />
                 <span>Comissões</span>
               </NavLink>
+              <NavLink to="/gestor/financial-panel" className={linkClass} onClick={toggleSidebar}> {/* NOVO: Link para FinancialPanel */}
+                <DollarSign className="w-5 h-5" />
+                <span>Painel Financeiro</span>
+              </NavLink>
               <NavLink to="/gestor/feedbacks" className={linkClass} onClick={toggleSidebar}>
                 <Star className="w-5 h-5" />
                 <span>Feedbacks</span>
@@ -132,6 +136,9 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
               </NavLink>
               <NavLink to="/gestor/commissions" className={linkClass} onClick={toggleSidebar} title="Comissões">
                 <Banknote className="w-5 h-5" />
+              </NavLink>
+              <NavLink to="/gestor/financial-panel" className={linkClass} onClick={toggleSidebar} title="Painel Financeiro"> {/* NOVO: Link para FinancialPanel */}
+                <DollarSign className="w-5 h-5" />
               </NavLink>
               <NavLink to="/gestor/feedbacks" className={linkClass} onClick={toggleSidebar} title="Feedbacks">
                 <Star className="w-5 h-5" />

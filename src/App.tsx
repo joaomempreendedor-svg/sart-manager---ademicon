@@ -41,6 +41,7 @@ import HiringPipeline from '@/pages/gestor/HiringPipeline';
 import CrmSalesReports from '@/pages/gestor/CrmSalesReports';
 import HiringReports from '@/pages/gestor/HiringReports';
 import { OriginConfig } from '@/pages/OriginConfig'; // NOVO: Importar OriginConfig
+import { FinancialPanel } from '@/pages/FinancialPanel'; // NOVO: Importar FinancialPanel
 
 // Consultor Pages
 import ConsultorDashboard from '@/pages/consultor/Dashboard';
@@ -153,6 +154,7 @@ const AppRoutes = () => {
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="candidate/:id" element={<CandidateDetail />} />
           <Route path="commissions" element={<Commissions />} />
+          <Route path="financial-panel" element={<FinancialPanel />} /> {/* NOVO: Rota para FinancialPanel */}
           <Route path="feedbacks" element={<Feedbacks />} />
           <Route path="materials" element={<Materials />} />
           {/* <Route path="links" element={<ImportantLinks />} /> REMOVIDO */}

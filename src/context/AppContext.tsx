@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
-import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, CommissionStatus, InstallmentInfo, CutoffPeriod, Feedback, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask, SupportMaterialContentType, DailyChecklistItemResource, DailyChecklistItemResourceType, GestorTask, GestorTaskCompletion } from '@/types';
+import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, CommissionStatus, InstallmentInfo, CutoffPeriod, Feedback, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask, SupportMaterialContentType, DailyChecklistItemResource, DailyChecklistItemResourceType, GestorTask, GestorTaskCompletion, FinancialEntry } from '@/types';
 import { CHECKLIST_STAGES as DEFAULT_STAGES } from '@/data/checklistData';
 import { CONSULTANT_GOALS as DEFAULT_GOALS } from '@/data/consultantGoals';
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
@@ -117,6 +117,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [gestorTasks, setGestorTasks] = useState<GestorTask[]>([]);
   const [gestorTaskCompletions, setGestorTaskCompletions] = useState<GestorTaskCompletion[]>([]); // NOVO: Conclusões de tarefas do gestor
 
+  // NOVO: Entradas e Saídas Financeiras
+  const [financialEntries, setFinancialEntries] = useState<FinancialEntry[]>([]);
+
 
   const [theme, setTheme] = useState<'light' | 'dark'>(() => (localStorage.getItem('sart_theme') as 'light' | 'dark') || 'light');
 
@@ -207,6 +210,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setLeadTasks([]);
     setGestorTasks([]); // Reset gestor tasks
     setGestorTaskCompletions([]); // Reset gestor task completions
+    setFinancialEntries([]); // NOVO: Reset financial entries
     setIsDataLoading(false);
   };
 
@@ -346,6 +350,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           leadTasksData,
           gestorTasksData, // Fetch gestor tasks
           gestorTaskCompletionsData, // NOVO: Fetch gestor task completions
+          financialEntriesData, // NOVO: Fetch financial entries
         ] = await Promise.all([
           (async () => { try { return await supabase.from('app_config').select('data').eq('user_id', effectiveGestorId).maybeSingle(); } catch (e) { console.error("Error fetching app_config:", e); return { data: null, error: e }; } })(),
           (async () => { try { return await supabase.from('candidates').select('id, data').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching candidates:", e); return { data: [], error: e }; } })(),
@@ -387,6 +392,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           (async () => { try { return await supabase.from('lead_tasks').select('*'); } catch (e) { console.error("Error fetching lead_tasks:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('gestor_tasks').select('*').eq('user_id', userId); } catch (e) { console.error("Error fetching gestor_tasks:", e); return { data: [], error: e }; } })(), // Fetch gestor tasks
           (async () => { try { return await supabase.from('gestor_task_completions').select('*').eq('user_id', userId); } catch (e) { console.error("Error fetching gestor_task_completions:", e); return { data: [], error: e }; } })(), // NOVO: Fetch gestor task completions
+          (async () => { try { return await supabase.from('financial_entries').select('*').eq('user_id', userId); } catch (e) { console.error("Error fetching financial_entries:", e); return { data: [], error: e }; } })(), // NOVO: Fetch financial entries
         ]);
 
         if (configResult.error) console.error("Config error:", configResult.error);
@@ -413,6 +419,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (leadTasksData.error) console.error("Lead Tasks error:", leadTasksData.error);
         if (gestorTasksData.error) console.error("Gestor Tasks error:", gestorTasksData.error);
         if (gestorTaskCompletionsData.error) console.error("Gestor Task Completions error:", gestorTaskCompletionsData.error); // NOVO: Log de erro
+        if (financialEntriesData.error) console.error("Financial Entries error:", financialEntriesData.error); // NOVO: Log de erro
 
 
         if (configResult.data) {
@@ -530,6 +537,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setLeadTasks(leadTasksData?.data || []);
         setGestorTasks(gestorTasksData?.data || []); // Set gestor tasks
         setGestorTaskCompletions(gestorTaskCompletionsData?.data || []); // NOVO: Set gestor task completions
+        setFinancialEntries(financialEntriesData?.data?.map((entry: any) => ({
+          id: entry.id,
+          db_id: entry.id,
+          user_id: entry.user_id,
+          entry_date: entry.entry_date,
+          type: entry.type,
+          description: entry.description,
+          amount: parseFloat(entry.amount), // Ensure amount is a number
+          created_at: entry.created_at,
+        })) || []); // NOVO: Set financial entries
         
         refetchCommissions();
 
@@ -706,11 +723,39 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         })
         .subscribe();
 
+    // NOVO: Realtime para financial_entries
+    const financialEntriesChannel = supabase
+        .channel('financial_entries_changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'financial_entries' }, (payload) => {
+            console.log('Financial Entry Change (Realtime):', payload);
+            toast.info(`💰 Entrada/Saída financeira atualizada em tempo real!`);
+            const newEntryData: FinancialEntry = {
+                id: payload.new.id,
+                db_id: payload.new.id,
+                user_id: payload.new.user_id,
+                entry_date: payload.new.entry_date,
+                type: payload.new.type,
+                description: payload.new.description,
+                amount: parseFloat(payload.new.amount),
+                created_at: payload.new.created_at,
+            };
+
+            if (payload.eventType === 'INSERT') {
+                setFinancialEntries(prev => [...prev, newEntryData]);
+            } else if (payload.eventType === 'UPDATE') {
+                setFinancialEntries(prev => prev.map(entry => entry.id === newEntryData.id ? newEntryData : entry));
+            } else if (payload.eventType === 'DELETE') {
+                setFinancialEntries(prev => prev.filter(entry => entry.id !== payload.old.id));
+            }
+        })
+        .subscribe();
+
     return () => {
         supabase.removeChannel(leadsChannel);
         supabase.removeChannel(tasksChannel);
         supabase.removeChannel(gestorTasksChannel);
         supabase.removeChannel(gestorTaskCompletionsChannel); // NOVO: Remover canal
+        supabase.removeChannel(financialEntriesChannel); // NOVO: Remover canal
     };
   }, [user, crmOwnerUserId]); // Depende de user e crmOwnerUserId para re-inscrever se eles mudarem
 
@@ -1939,6 +1984,29 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, [user, gestorTasks, gestorTaskCompletions, isGestorTaskDueOnDate]);
 
+  // NOVO: Funções para Financial Entries
+  const addFinancialEntry = useCallback(async (entry: Omit<FinancialEntry, 'id' | 'user_id' | 'created_at'>): Promise<FinancialEntry> => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('financial_entries').insert({ ...entry, user_id: user.id }).select().single();
+    if (error) { console.error(error); toast.error("Erro ao adicionar entrada financeira."); throw error; }
+    setFinancialEntries(prev => [...prev, data]);
+    return data;
+  }, [user]);
+
+  const updateFinancialEntry = useCallback(async (id: string, updates: Partial<FinancialEntry>) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { error } = await supabase.from('financial_entries').update(updates).eq('id', id).eq('user_id', user.id);
+    if (error) { console.error(error); toast.error("Erro ao atualizar entrada financeira."); throw error; }
+    setFinancialEntries(prev => prev.map(entry => entry.id === id ? { ...entry, ...updates } : entry));
+  }, [user]);
+
+  const deleteFinancialEntry = useCallback(async (id: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { error } = await supabase.from('financial_entries').delete().eq('id', id).eq('user_id', user.id);
+    if (error) { console.error(error); toast.error("Erro ao excluir entrada financeira."); throw error; }
+    setFinancialEntries(prev => prev.filter(entry => entry.id !== id));
+  }, [user]);
+
 
   useEffect(() => { if (!user) return; const syncPendingCommissions = async () => { const pending = JSON.parse(localStorage.getItem('pending_commissions') || '[]') as any[]; if (pending.length === 0) return; for (const item of pending) { try { const { _localId, _timestamp, _attempts, ...cleanData } = item; const { data, error } = await supabase.from('commissions').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: cleanData }).select('id', 'created_at').maybeSingle(); if (!error && data) { setCommissions(prev => prev.map(c => c.db_id === _localId ? { ...c, db_id: data.id.toString(), criado_em: data.created_at } : c)); const updated = pending.filter((p: any) => p._localId !== _localId); localStorage.setItem('pending_commissions', JSON.stringify(updated)); } } catch (error) { console.log(`❌ Falha ao sincronizar ${item._localId}`); toast.error(`Falha ao sincronizar comissão ${item._localId}.`); } } }; const interval = setInterval(syncPendingCommissions, 2 * 60 * 1000); setTimeout(syncPendingCommissions, 5000); return () => clearInterval(interval); }, [user]);
 
@@ -1971,6 +2039,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       leadTasks, addLeadTask, updateLeadTask, deleteLeadTask, toggleLeadTaskCompletion, updateLeadMeetingInvitationStatus,
       gestorTasks, addGestorTask, updateGestorTask, deleteGestorTask, gestorTaskCompletions, toggleGestorTaskCompletion, // NOVO: Adicionado gestorTaskCompletions e toggleGestorTaskCompletion
       isGestorTaskDueOnDate, // NOVO: Adicionado isGestorTaskDueOnDate
+      financialEntries, addFinancialEntry, updateFinancialEntry, deleteFinancialEntry, // NOVO: Adicionado financial entries
     }}>
       {children}
     </AppContext.Provider>
