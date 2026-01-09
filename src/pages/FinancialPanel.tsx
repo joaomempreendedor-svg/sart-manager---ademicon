@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 
 const formatDate = (date: Date) => date.toISOString().split('T')[0]; // YYYY-MM-DD
 const displayDate = (date: Date) => date.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+const displayMonthYear = (date: Date) => date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
 const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
 export const FinancialPanel = () => {
@@ -21,10 +22,12 @@ export const FinancialPanel = () => {
 
   const displayedDates = useMemo(() => {
     const dates = [];
-    for (let i = -1; i <= 1; i++) { // 3-day view: yesterday, today, tomorrow
-      const date = new Date(currentDate);
-      date.setDate(currentDate.getDate() + i);
-      dates.push(date);
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    for (let i = 1; i <= daysInMonth; i++) {
+      dates.push(new Date(year, month, i));
     }
     return dates;
   }, [currentDate]);
@@ -69,10 +72,10 @@ export const FinancialPanel = () => {
     return balances;
   }, [entriesByDate, displayedDates]);
 
-  const navigateDay = (offset: number) => {
+  const navigateMonth = (offset: number) => {
     setCurrentDate(prevDate => {
       const newDate = new Date(prevDate);
-      newDate.setDate(prevDate.getDate() + offset);
+      newDate.setMonth(prevDate.getMonth() + offset);
       return newDate;
     });
   };
@@ -130,19 +133,19 @@ export const FinancialPanel = () => {
       </div>
 
       <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm mb-6 flex items-center justify-between">
-        <button onClick={() => navigateDay(-1)} className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-600 dark:text-gray-300">
+        <button onClick={() => navigateMonth(-1)} className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-600 dark:text-gray-300">
           <ChevronLeft className="w-5 h-5" />
         </button>
         <div className="flex items-center space-x-2 text-lg font-semibold text-gray-900 dark:text-white">
           <CalendarDays className="w-5 h-5 text-brand-500" />
-          <span>{displayDate(currentDate)}</span>
+          <span>{displayMonthYear(currentDate)}</span>
         </div>
-        <button onClick={() => navigateDay(1)} className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-600 dark:text-gray-300">
+        <button onClick={() => navigateMonth(1)} className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-600 dark:text-gray-300">
           <ChevronRight className="w-5 h-5" />
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
         {displayedDates.map(date => {
           const dateStr = formatDate(date);
           const daily = dailyBalances[dateStr];
@@ -150,50 +153,50 @@ export const FinancialPanel = () => {
 
           return (
             <div key={dateStr} className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
-              <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
-                <h3 className="font-bold text-lg text-gray-900 dark:text-white">{displayDate(date)}</h3>
-                <div className="flex items-center justify-between mt-2">
-                  <span className="text-sm text-gray-500 dark:text-gray-400">Saldo do Dia:</span>
-                  <span className={`font-bold text-lg ${daily.balance >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+              <div className="px-4 py-3 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
+                <h3 className="font-bold text-base text-gray-900 dark:text-white">{date.getDate()} {date.toLocaleDateString('pt-BR', { weekday: 'short' })}</h3>
+                <div className="flex items-center justify-between mt-1">
+                  <span className="text-xs text-gray-500 dark:text-gray-400">Saldo:</span>
+                  <span className={`font-bold text-sm ${daily.balance >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                     {formatCurrency(daily.balance)}
                   </span>
                 </div>
               </div>
-              <div className="p-4 space-y-3 min-h-[150px]">
+              <div className="p-3 space-y-2 min-h-[100px] max-h-[200px] overflow-y-auto custom-scrollbar">
                 {entries.length === 0 ? (
-                  <p className="text-center text-sm text-gray-400 py-4">Nenhum lançamento para este dia.</p>
+                  <p className="text-center text-xs text-gray-400 py-2">Nenhum lançamento.</p>
                 ) : (
                   entries.map(entry => (
-                    <div key={entry.id} className="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-slate-700/50 group">
-                      <div className="flex items-center space-x-2">
+                    <div key={entry.id} className="flex items-center justify-between p-2 rounded-lg bg-gray-50 dark:bg-slate-700/50 group">
+                      <div className="flex items-center space-x-1">
                         {entry.type === 'income' ? (
-                          <ArrowUp className="w-4 h-4 text-green-600" />
+                          <ArrowUp className="w-3 h-3 text-green-600" />
                         ) : (
-                          <ArrowDown className="w-4 h-4 text-red-600" />
+                          <ArrowDown className="w-3 h-3 text-red-600" />
                         )}
                         <div>
-                          <p className="text-sm font-medium text-gray-900 dark:text-white">{entry.description || (entry.type === 'income' ? 'Entrada' : 'Saída')}</p>
-                          <p className={`text-xs font-semibold ${entry.type === 'income' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                          <p className="text-xs font-medium text-gray-900 dark:text-white truncate max-w-[80px]">{entry.description || (entry.type === 'income' ? 'Entrada' : 'Saída')}</p>
+                          <p className={`text-[10px] font-semibold ${entry.type === 'income' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                             {formatCurrency(entry.amount)}
                           </p>
                         </div>
                       </div>
-                      <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => handleOpenModalForEditEntry(entry)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md">
-                          <Edit2 className="w-4 h-4" />
+                      <div className="flex items-center space-x-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => handleOpenModalForEditEntry(entry)} className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md">
+                          <Edit2 className="w-3 h-3" />
                         </button>
-                        <button onClick={() => handleDeleteEntry(entry.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md">
-                          <Trash2 className="w-4 h-4" />
+                        <button onClick={() => handleDeleteEntry(entry.id)} className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md">
+                          <Trash2 className="w-3 h-3" />
                         </button>
                       </div>
                     </div>
                   ))
                 )}
               </div>
-              <div className="p-4 border-t border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
-                <button onClick={() => handleOpenModalForNewEntry(dateStr)} className="w-full flex items-center justify-center space-x-2 bg-brand-600 hover:bg-brand-700 text-white py-2 rounded-lg transition font-medium">
-                  <Plus className="w-4 h-4" />
-                  <span>Adicionar Lançamento</span>
+              <div className="p-3 border-t border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
+                <button onClick={() => handleOpenModalForNewEntry(dateStr)} className="w-full flex items-center justify-center space-x-1 bg-brand-600 hover:bg-brand-700 text-white py-1.5 rounded-lg transition text-sm font-medium">
+                  <Plus className="w-3 h-3" />
+                  <span>Add</span>
                 </button>
               </div>
             </div>
