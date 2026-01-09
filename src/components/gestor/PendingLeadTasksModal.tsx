@@ -1,6 +1,6 @@
 import React from 'react';
 import { X, ListTodo, Calendar, Clock, UserRound, ChevronRight } from 'lucide-react';
-import { LeadTask, CrmLead } from '@/types';
+import { LeadTask, CrmLead, TeamMember } from '@/types';
 import {
   Dialog,
   DialogContent,
@@ -18,9 +18,10 @@ interface PendingLeadTasksModalProps {
   onClose: () => void;
   pendingTasks: LeadTask[];
   crmLeads: CrmLead[]; // Para obter o nome do lead
+  teamMembers: TeamMember[]; // NOVO: Para obter o nome do consultor
 }
 
-export const PendingLeadTasksModal: React.FC<PendingLeadTasksModalProps> = ({ isOpen, onClose, pendingTasks, crmLeads }) => {
+export const PendingLeadTasksModal: React.FC<PendingLeadTasksModalProps> = ({ isOpen, onClose, pendingTasks, crmLeads, teamMembers }) => {
   const navigate = useNavigate();
 
   const handleGoToLead = (leadId: string) => {
@@ -50,6 +51,7 @@ export const PendingLeadTasksModal: React.FC<PendingLeadTasksModalProps> = ({ is
             <div className="space-y-3">
               {pendingTasks.map(task => {
                 const lead = crmLeads.find(l => l.id === task.lead_id);
+                const consultant = teamMembers.find(tm => tm.id === task.user_id); // Encontra o consultor
                 const isOverdue = task.due_date && new Date(task.due_date + 'T23:59:59') < new Date();
                 const dueDate = task.due_date ? new Date(task.due_date + 'T00:00:00').toLocaleDateString('pt-BR') : 'Sem data';
 
@@ -61,6 +63,11 @@ export const PendingLeadTasksModal: React.FC<PendingLeadTasksModalProps> = ({ is
                         {lead && (
                           <span className="flex items-center">
                             <UserRound className="w-3 h-3 mr-1" /> Lead: <span className="font-semibold">{lead.name}</span>
+                          </span>
+                        )}
+                        {consultant && ( // Exibe o nome do consultor
+                          <span className="flex items-center">
+                            <UserRound className="w-3 h-3 mr-1" /> Consultor: <span className="font-semibold">{consultant.name}</span>
                           </span>
                         )}
                         <span className="flex items-center">
