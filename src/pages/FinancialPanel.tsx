@@ -94,6 +94,44 @@ export const FinancialPanel = () => {
     return balances;
   }, [entriesByDate, displayedDates, financialEntries]); // Added financialEntries to dependencies
 
+  // NOVO: Resumo financeiro mensal
+  const monthlySummary = useMemo(() => {
+    let totalIncome = 0;
+    let totalExpense = 0;
+    let finalAccumulatedBalance = 0;
+
+    if (displayedDates.length > 0) {
+      const firstDayOfMonth = displayedDates[0];
+      const lastDayOfMonth = displayedDates[displayedDates.length - 1];
+
+      // Calculate total income and expense for the displayed month
+      financialEntries.forEach(entry => {
+        const entryDate = new Date(entry.entry_date + 'T00:00:00');
+        if (entryDate >= firstDayOfMonth && entryDate <= lastDayOfMonth) {
+          if (entry.type === 'income') {
+            totalIncome += entry.amount;
+          } else {
+            totalExpense += entry.amount;
+          }
+        }
+      });
+
+      // Get the accumulated balance from the last day of the month
+      const lastDayStr = formatDate(lastDayOfMonth);
+      finalAccumulatedBalance = dailyBalances[lastDayStr]?.balance || 0;
+    }
+
+    const netBalance = totalIncome - totalExpense;
+
+    return {
+      totalIncome,
+      totalExpense,
+      netBalance,
+      finalAccumulatedBalance,
+    };
+  }, [financialEntries, displayedDates, dailyBalances]);
+
+
   const navigateMonth = (offset: number) => {
     setCurrentDate(prevDate => {
       const newDate = new Date(prevDate);
@@ -165,6 +203,46 @@ export const FinancialPanel = () => {
         <button onClick={() => navigateMonth(1)} className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-600 dark:text-gray-300">
           <ChevronRight className="w-5 h-5" />
         </button>
+      </div>
+
+      {/* NOVO: Resumo Financeiro Mensal */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
+          <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+            <ArrowUp className="w-6 h-6 text-green-600 dark:text-green-400" />
+          </div>
+          <div>
+            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Entradas do Mês</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatCurrency(monthlySummary.totalIncome)}</p>
+          </div>
+        </div>
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
+          <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
+            <ArrowDown className="w-6 h-6 text-red-600 dark:text-red-400" />
+          </div>
+          <div>
+            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Saídas do Mês</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatCurrency(monthlySummary.totalExpense)}</p>
+          </div>
+        </div>
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
+          <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+            <DollarSign className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+          </div>
+          <div>
+            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Saldo Líquido do Mês</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatCurrency(monthlySummary.netBalance)}</p>
+          </div>
+        </div>
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
+          <div className="p-3 bg-brand-50 dark:bg-brand-900/20 rounded-lg">
+            <DollarSign className="w-6 h-6 text-brand-600 dark:text-brand-400" />
+          </div>
+          <div>
+            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Saldo Acumulado Final</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatCurrency(monthlySummary.finalAccumulatedBalance)}</p>
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
