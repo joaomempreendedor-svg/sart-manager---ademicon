@@ -142,7 +142,7 @@ export const FinancialPanel = () => {
 
   const handleOpenModalForNewEntry = (date: string) => {
     setEditingEntry(null);
-    setSelectedDateForNewEntry(date);
+    setSelectedDateForNewEntry(date); // Pass the specific date
     setIsModalOpen(true);
   };
 
@@ -296,7 +296,7 @@ export const FinancialPanel = () => {
               <div className="p-3 border-t border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
                 <button onClick={() => handleOpenModalForNewEntry(dateStr)} className="w-full flex items-center justify-center space-x-1 bg-brand-600 hover:bg-brand-700 text-white py-1.5 rounded-lg transition text-sm font-medium">
                   <Plus className="w-3 h-3" />
-                  <span>Add</span>
+                  <span>Adicionar</span>
                 </button>
               </div>
             </div>
@@ -309,6 +309,7 @@ export const FinancialPanel = () => {
         onClose={() => setIsModalOpen(false)}
         entry={editingEntry}
         onSave={handleSaveEntry}
+        defaultDate={selectedDateForNewEntry || undefined}
       />
     </div>
   );

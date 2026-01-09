@@ -26,6 +26,7 @@ interface FinancialEntryModalProps {
   onClose: () => void;
   entry: FinancialEntry | null; // Null for new entry, object for editing
   onSave: (entry: Omit<FinancialEntry, 'id' | 'user_id' | 'created_at'> | FinancialEntry) => Promise<void>;
+  defaultDate?: string; // NOVO: Prop para a data padrão
 }
 
 const formatCurrencyInput = (value: string): string => {
@@ -40,7 +41,7 @@ const parseCurrencyInput = (value: string): number => {
   return parseFloat(value.replace(/\./g, '').replace(',', '.')) || 0;
 };
 
-export const FinancialEntryModal: React.FC<FinancialEntryModalProps> = ({ isOpen, onClose, entry, onSave }) => {
+export const FinancialEntryModal: React.FC<FinancialEntryModalProps> = ({ isOpen, onClose, entry, onSave, defaultDate }) => {
   const [entryDate, setEntryDate] = useState(new Date().toISOString().split('T')[0]);
   const [type, setType] = useState<'income' | 'expense'>('expense');
   const [description, setDescription] = useState('');
@@ -56,14 +57,15 @@ export const FinancialEntryModal: React.FC<FinancialEntryModalProps> = ({ isOpen
         setDescription(entry.description || '');
         setAmount(formatCurrencyInput(entry.amount.toFixed(2).replace('.', ',')));
       } else {
-        setEntryDate(new Date().toISOString().split('T')[0]);
+        // Se for um novo lançamento, usa defaultDate se fornecido, senão a data atual
+        setEntryDate(defaultDate || new Date().toISOString().split('T')[0]);
         setType('expense');
         setDescription('');
         setAmount('');
       }
       setError('');
     }
-  }, [isOpen, entry]);
+  }, [isOpen, entry, defaultDate]); // Adicionado defaultDate como dependência
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
