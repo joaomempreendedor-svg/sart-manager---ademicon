@@ -3,10 +3,11 @@ import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { ChevronRight, User, Calendar, CheckCircle2, TrendingUp, AlertCircle, Clock, Users, Star, CheckSquare, CalendarCheck, XCircle, BellRing, UserRound, Plus, ListTodo, Send, DollarSign, Repeat } from 'lucide-react'; // Adicionado Repeat icon
-import { CandidateStatus, ChecklistTaskState, GestorTask } from '@/types'; // Importar GestorTask
+import { CandidateStatus, ChecklistTaskState, GestorTask, LeadTask } from '@/types'; // Importar GestorTask e LeadTask
 import { TableSkeleton } from '@/components/TableSkeleton';
 import { ScheduleInterviewModal } from '@/components/ScheduleInterviewModal';
 import { GestorTasksSection } from '@/components/gestor/GestorTasksSection'; // Importar o novo componente
+import { PendingLeadTasksModal } from '@/components/gestor/PendingLeadTasksModal'; // NOVO: Importar o modal de tarefas pendentes
 import toast from 'react-hot-toast';
 
 const StatusBadge = ({ status }: { status: CandidateStatus }) => {
@@ -49,6 +50,7 @@ export const Dashboard = () => {
   const { candidates, checklistStructure, teamMembers, isDataLoading, leadTasks, crmLeads, updateLeadMeetingInvitationStatus, gestorTasks, gestorTaskCompletions, isGestorTaskDueOnDate } = useApp(); // Adicionado gestorTaskCompletions, isGestorTaskDueOnDate
   const navigate = useNavigate();
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
+  const [isPendingTasksModalOpen, setIsPendingTasksModalOpen] = useState(false); // NOVO: Estado para o modal de tarefas pendentes
 
   // --- Commercial Metrics ---
   const {
@@ -57,12 +59,12 @@ export const Dashboard = () => {
     meetingsThisMonth,
     proposalValueThisMonth,
     soldValueThisMonth,
-    pendingLeadTasksCount,
+    pendingLeadTasks, // NOVO: Agora é a lista de tarefas, não apenas a contagem
   } = useMemo(() => {
     const today = new Date();
     const todayStr = today.toISOString().split('T')[0];
 
-    if (!user) return { totalCrmLeads: 0, newLeadsThisMonth: 0, meetingsThisMonth: 0, proposalValueThisMonth: 0, soldValueThisMonth: 0, pendingLeadTasksCount: 0 };
+    if (!user) return { totalCrmLeads: 0, newLeadsThisMonth: 0, meetingsThisMonth: 0, proposalValueThisMonth: 0, soldValueThisMonth: 0, pendingLeadTasks: [] };
 
     const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
     const currentMonthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
@@ -101,15 +103,24 @@ export const Dashboard = () => {
       return sum;
     }, 0);
 
-    const pendingLeadTasksCount = leadTasks.filter(task => {
+    // NOVO: Lista de Tarefas Pendentes (Hoje/Atrasadas)
+    const pendingLeadTasksList: LeadTask[] = leadTasks.filter(task => {
       // Tarefas pendentes para leads que o gestor gerencia
       const lead = crmLeads.find(l => l.id === task.lead_id && l.user_id === user.id);
       if (!lead || task.is_completed) return false;
-      if (!task.due_date) return false;
+      if (!task.due_date) return false; // Only tasks with a due date
+      
       const taskDueDate = new Date(task.due_date + 'T00:00:00');
       const todayDate = new Date(todayStr + 'T00:00:00');
-      return taskDueDate <= todayDate;
-    }).length;
+
+      return taskDueDate <= todayDate; // Due today or overdue
+    }).sort((a, b) => {
+      // Sort by due date, with undated tasks at the end
+      if (!a.due_date && !b.due_date) return 0;
+      if (!a.due_date) return 1;
+      if (!b.due_date) return -1;
+      return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+    });
 
     return {
       totalCrmLeads,
@@ -117,7 +128,7 @@ export const Dashboard = () => {
       meetingsThisMonth,
       proposalValueThisMonth,
       soldValueThisMonth,
-      pendingLeadTasksCount,
+      pendingLeadTasks: pendingLeadTasksList,
     };
   }, [crmLeads, leadTasks, user]);
 
@@ -386,15 +397,19 @@ export const Dashboard = () => {
             <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatCurrency(soldValueThisMonth)}</p>
           </div>
         </div>
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
+        {/* NOVO CARD: Tarefas Pendentes - Agora clicável */}
+        <button 
+          onClick={() => setIsPendingTasksModalOpen(true)}
+          className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition cursor-pointer"
+        >
           <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
             <ListTodo className="w-6 h-6 text-red-600 dark:text-red-400" />
           </div>
           <div>
             <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Tarefas de Lead Pendentes</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{pendingLeadTasksCount}</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{pendingLeadTasks.length}</p>
           </div>
-        </div>
+        </button>
       </div>
 
       {/* Seção de Métricas de Contratação */}
@@ -626,6 +641,13 @@ export const Dashboard = () => {
         )}
       </div>
       <ScheduleInterviewModal isOpen={isScheduleModalOpen} onClose={() => setIsScheduleModalOpen(false)} />
+      {/* NOVO: Renderiza o modal de tarefas pendentes */}
+      <PendingLeadTasksModal
+        isOpen={isPendingTasksModalOpen}
+        onClose={() => setIsPendingTasksModalOpen(false)}
+        pendingTasks={pendingLeadTasks}
+        crmLeads={crmLeads}
+      />
     </div>
   );
 };
