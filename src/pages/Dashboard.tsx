@@ -647,7 +647,7 @@ export const Dashboard = () => {
         onClose={() => setIsPendingTasksModalOpen(false)}
         pendingTasks={pendingLeadTasks}
         crmLeads={crmLeads}
-        teamMembers={teamMembers} {/* Passando teamMembers aqui */}
+        teamMembers={teamMembers}
       />
     </div>
   );
