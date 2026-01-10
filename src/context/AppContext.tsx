@@ -958,20 +958,45 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setCandidates(prev => prev.map(p => p.id === id ? updated : p)); 
   }, [user, candidates]);
   const deleteCandidate = useCallback(async (id: string) => {
-    if (!user) throw new Error("Usuário não autenticado.");
+    if (!user) {
+      toast.error("Usuário não autenticado.");
+      throw new Error("Usuário não autenticado.");
+    }
     const c = candidates.find(c => c.id === id);
     if (!c) {
       console.error(`[deleteCandidate] Candidato com client-side ID "${id}" não encontrado no estado local.`);
+      toast.error("Candidato não encontrado no estado local.");
       throw new Error("Candidato não encontrado no estado local.");
     }
     if (!c.db_id) {
       console.error(`[deleteCandidate] Candidato "${c.name}" (client-side ID: "${c.id}") não possui db_id. Não é possível excluir do Supabase.`);
+      toast.error("Candidato não possui ID do banco de dados.");
       throw new Error("Candidato não possui ID do banco de dados.");
     }
 
-    console.log(`[deleteCandidate] Tentando excluir candidato "${c.name}" (client-side ID: "${c.id}", Supabase DB_ID: "${c.db_id}") para user_id: "${JOAO_GESTOR_AUTH_ID}"`);
+    // CRITICAL LOGGING: Verify the exact values being used in the delete query
+    console.log(`[deleteCandidate] Tentando excluir candidato:`);
+    console.log(`  Client-side ID (c.id): "${c.id}"`);
+    console.log(`  Supabase DB_ID (c.db_id): "${c.db_id}"`);
+    console.log(`  User ID (JOAO_GESTOR_AUTH_ID): "${JOAO_GESTOR_AUTH_ID}"`);
 
-    const { error } = await supabase.from('candidates').delete().match({ id: c.db_id, user_id: JOAO_GESTOR_AUTH_ID });
+    if (!c.db_id || typeof c.db_id !== 'string' || c.db_id.length === 0) {
+      console.error(`[deleteCandidate] c.db_id é inválido: "${c.db_id}"`);
+      toast.error("Erro interno: ID do candidato para exclusão é inválido.");
+      throw new Error("ID do candidato para exclusão é inválido.");
+    }
+    if (!JOAO_GESTOR_AUTH_ID || typeof JOAO_GESTOR_AUTH_ID !== 'string' || JOAO_GESTOR_AUTH_ID.length === 0) {
+      console.error(`[deleteCandidate] JOAO_GESTOR_AUTH_ID é inválido: "${JOAO_GESTOR_AUTH_ID}"`);
+      toast.error("Erro interno: ID do gestor para exclusão é inválido.");
+      throw new Error("ID do gestor para exclusão é inválido.");
+    }
+
+    const { error } = await supabase
+      .from('candidates')
+      .delete()
+      .eq('id', c.db_id) // Use .eq() for explicit matching
+      .eq('user_id', JOAO_GESTOR_AUTH_ID); // And another .eq() for user_id
+
     if (error) {
       console.error(`[deleteCandidate] Erro ao excluir candidato "${c.name}" (DB_ID: "${c.db_id}"):`, error);
       toast.error("Erro ao excluir candidato.");
@@ -1224,7 +1249,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const updateInterviewSection = useCallback((sectionId: string, updates: Partial<InterviewSection>) => { const newStructure = interviewStructure.map(s => s.id === sectionId ? { ...s, ...updates } : s); updateAndPersistStructure(setInterviewStructure, 'interviewStructure', newStructure); }, [interviewStructure, updateAndPersistStructure]);
   const addInterviewQuestion = useCallback((sectionId: string, text: string, points: number) => { const newStructure = interviewStructure.map(s => s.id === sectionId ? { ...s, questions: [...s.questions, { id: `q_${Date.now()}`, text, points }] } : s); updateAndPersistStructure(setInterviewStructure, 'interviewStructure', newStructure); }, [interviewStructure, updateAndPersistStructure]);
   const updateInterviewQuestion = useCallback((sectionId: string, questionId: string, updates: Partial<InterviewSection['questions'][0]>) => { const newStructure = interviewStructure.map(s => s.id === sectionId ? { ...s, questions: s.questions.map(q => q.id === questionId ? { ...q, ...updates } : q) } : s); updateAndPersistStructure(setInterviewStructure, 'interviewStructure', newStructure); }, [interviewStructure, updateAndPersistStructure]);
-  const deleteInterviewQuestion = useCallback((sectionId: string, questionId: string) => { const newStructure = interviewStructure.map(s => s.id === sectionId ? { ...s, questions: s.questions.filter(q => q.id !== questionId) } : s); updateAndPersistStructure(setInterviewStructure, 'interviewStructure', newStructure); }, [interviewStructure, updateAndPersistStructure]);
+  const deleteInterviewQuestion = useCallback((sectionId: string, questionId: string) => { const newStructure = interviewStructure.map(s => s.id === sectionId ? { ...s, questions: s.questions.filter(q => q.id !== questionId) } : s); updateAndPersistStructure(setInterviewStructure, 'interviewStructure', newStructure); }, [interviewStructure, updateAndAmendStructure]);
   const moveInterviewQuestion = useCallback((sectionId: string, questionId: string, dir: 'up' | 'down') => { const newStructure = interviewStructure.map(s => { if (s.id !== sectionId) return s; const idx = s.questions.findIndex(i => i.id === questionId); if ((dir === 'up' && idx < 1) || (dir === 'down' && idx >= s.questions.length - 1)) return s; const newQuestions = [...s.questions]; const targetIdx = dir === 'up' ? idx - 1 : idx + 1; [newQuestions[idx], newQuestions[targetIdx]] = [newQuestions[targetIdx], newQuestions[idx]]; return { ...s, questions: newQuestions }; }); updateAndPersistStructure(setInterviewStructure, 'interviewStructure', newStructure); }, [interviewStructure, updateAndPersistStructure]);
   const resetInterviewToDefault = useCallback(() => { updateAndPersistStructure(setInterviewStructure, 'interviewStructure', INITIAL_INTERVIEW_STRUCTURE); }, [updateAndPersistStructure]);
   
