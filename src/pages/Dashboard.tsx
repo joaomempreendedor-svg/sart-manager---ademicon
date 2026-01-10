@@ -9,6 +9,8 @@ import { ScheduleInterviewModal } from '@/components/ScheduleInterviewModal';
 import { GestorTasksSection } from '@/components/gestor/GestorTasksSection'; // Importar o novo componente
 import { PendingLeadTasksModal } from '@/components/gestor/PendingLeadTasksModal'; // NOVO: Importar o modal de tarefas pendentes
 import toast from 'react-hot-toast';
+import { NotificationBell } from '@/components/NotificationBell'; // Importar NotificationBell
+import { NotificationCenter } from '@/components/NotificationCenter'; // Importar NotificationCenter
 
 const StatusBadge = ({ status }: { status: CandidateStatus }) => {
   const colors = {
@@ -47,10 +49,19 @@ type AgendaItem = {
 
 export const Dashboard = () => {
   const { user } = useAuth();
-  const { candidates, checklistStructure, teamMembers, isDataLoading, leadTasks, crmLeads, updateLeadMeetingInvitationStatus, gestorTasks, gestorTaskCompletions, isGestorTaskDueOnDate } = useApp(); // Adicionado gestorTaskCompletions, isGestorTaskDueOnDate
+  const { candidates, checklistStructure, teamMembers, isDataLoading, leadTasks, crmLeads, updateLeadMeetingInvitationStatus, gestorTasks, gestorTaskCompletions, isGestorTaskDueOnDate, notifications } = useApp(); // Added notifications
   const navigate = useNavigate();
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
-  const [isPendingTasksModalOpen, setIsPendingTasksModalOpen] = useState(false); // NOVO: Estado para o modal de tarefas pendentes
+  const [isPendingTasksModalOpen, setIsPendingTasksModalOpen] = useState(false);
+  const [isNotificationCenterOpen, setIsNotificationCenterOpen] = useState(false); // State for NotificationCenter
+
+  const handleOpenNotifications = () => {
+    setIsNotificationCenterOpen(true);
+  };
+
+  const handleCloseNotifications = () => {
+    setIsNotificationCenterOpen(false);
+  };
 
   // --- Commercial Metrics ---
   const {
@@ -344,9 +355,22 @@ export const Dashboard = () => {
 
   return (
     <div className="p-8 max-w-7xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Visão Geral do Gestor</h1>
-        <p className="text-gray-500 dark:text-gray-400">Acompanhe o progresso da equipe e as métricas chave.</p>
+      <div className="mb-8 flex items-center justify-between"> {/* Adicionado flex e justify-between */}
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Visão Geral do Gestor</h1>
+          <p className="text-gray-500 dark:text-gray-400">Acompanhe o progresso da equipe e as métricas chave.</p>
+        </div>
+        <div className="flex items-center space-x-4"> {/* Container para o sino */}
+          <NotificationBell
+            notificationCount={notifications.length}
+            onClick={handleOpenNotifications}
+          />
+          <NotificationCenter
+            isOpen={isNotificationCenterOpen}
+            onClose={handleCloseNotifications}
+            notifications={notifications}
+          />
+        </div>
       </div>
 
       {/* Seção de Métricas Comerciais */}

@@ -7,7 +7,7 @@ import { UserRole } from '@/types';
 // Layouts
 import { GestorSidebar } from '@/components/GestorSidebar';
 import { ConsultorLayout } from '@/components/ConsultorLayout';
-import { Header } from '@/components/Header';
+import { Header } from '@/components/Header'; // Importar o Header atualizado
 
 // Common Pages
 import { Login } from '@/pages/Login';
