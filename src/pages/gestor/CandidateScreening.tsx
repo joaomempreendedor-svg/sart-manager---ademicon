@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Loader2, Search, User, Phone, Mail, CheckCircle2, XCircle, RotateCcw, ArrowRight, MessageSquare, UserX, Plus } from 'lucide-react'; // Adicionado Plus icon
+import { Loader2, Search, User, Phone, Mail, CheckCircle2, XCircle, RotateCcw, ArrowRight, MessageSquare, UserX, Plus, Trash2 } from 'lucide-react'; // Adicionado Trash2 icon
 import { Link } from 'react-router-dom';
 import { TableSkeleton } from '@/components/TableSkeleton';
 import {
@@ -16,7 +16,7 @@ import { AddScreeningCandidateModal } from '@/components/gestor/AddScreeningCand
 
 const CandidateScreening = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
-  const { candidates, isDataLoading, updateCandidate, teamMembers, origins } = useApp(); // Adicionado origins
+  const { candidates, isDataLoading, updateCandidate, deleteCandidate, teamMembers, origins } = useApp(); // Adicionado deleteCandidate
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'Pending Contact' | 'Contacted' | 'No Fit'>('all');
@@ -47,6 +47,17 @@ const CandidateScreening = () => {
       toast.success(`Status de triagem atualizado para "${newStatus}"!`);
     } catch (error: any) {
       toast.error(`Erro ao atualizar status: ${error.message}`);
+    }
+  };
+
+  const handleDeleteCandidate = async (candidateId: string, candidateName: string) => {
+    if (window.confirm(`Tem certeza que deseja excluir o candidato "${candidateName}"? Esta ação não pode ser desfeita.`)) {
+      try {
+        await deleteCandidate(candidateId);
+        toast.success(`Candidato "${candidateName}" excluído com sucesso!`);
+      } catch (error: any) {
+        toast.error(`Erro ao excluir candidato: ${error.message}`);
+      }
     }
   };
 
@@ -177,7 +188,13 @@ const CandidateScreening = () => {
                               <XCircle className="w-4 h-4" />
                             </button>
                           )}
-                          {/* Removido o botão "Ver Detalhes" */}
+                          <button
+                            onClick={() => handleDeleteCandidate(candidate.id, candidate.name)}
+                            className="p-2 rounded-full text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
+                            title="Excluir Candidato"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </div>
                       </td>
                     </tr>
