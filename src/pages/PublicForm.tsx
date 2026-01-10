@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 // import InputMask from 'react-input-mask'; // Removido
-import axios from 'axios'; // Reintroduzido
+import axios from 'axios'; // Reintroduzido APENAS a importação
 import { Loader2, CheckCircle2, AlertTriangle, User, Mail, Phone, MapPin, CalendarDays, Home, FileText, Upload, Link as LinkIcon, Instagram, Facebook, Linkedin, Twitter, Globe, ArrowLeft, ArrowRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -182,28 +182,31 @@ export const PublicForm = () => {
     setErrors(prev => ({ ...prev, [name]: validateField(name as keyof FormData, newValue) }));
   };
 
+  // handleCepBlur está comentado para testar apenas a importação do axios
   const handleCepBlur = useCallback(async () => {
     const cep = formData.cep.replace(/\D/g, '');
     if (cep.length === 8) {
-      try {
-        const response = await axios.get(`https://viacep.com.br/ws/${cep}/json/`);
-        if (response.data.erro) {
-          setErrors(prev => ({ ...prev, cep: 'CEP não encontrado.' }));
-          setFormData(prev => ({ ...prev, estado_endereco: '', cidade_endereco: '', rua_endereco: '', bairro_endereco: '' }));
-        } else {
-          setFormData(prev => ({
-            ...prev,
-            estado_endereco: response.data.uf,
-            cidade_endereco: response.data.localidade,
-            rua_endereco: response.data.logradouro,
-            bairro_endereco: response.data.bairro,
-          }));
-          setErrors(prev => ({ ...prev, cep: '' }));
-        }
-      } catch (err) {
-        setErrors(prev => ({ ...prev, cep: 'Erro ao buscar CEP.' }));
-        setFormData(prev => ({ ...prev, estado_endereco: '', cidade_endereco: '', rua_endereco: '', bairro_endereco: '' }));
-      }
+      // try {
+      //   const response = await axios.get(`https://viacep.com.br/ws/${cep}/json/`);
+      //   if (response.data.erro) {
+      //     setErrors(prev => ({ ...prev, cep: 'CEP não encontrado.' }));
+      //     setFormData(prev => ({ ...prev, estado_endereco: '', cidade_endereco: '', rua_endereco: '', bairro_endereco: '' }));
+      //   } else {
+      //     setFormData(prev => ({
+      //       ...prev,
+      //       estado_endereco: response.data.uf,
+      //       cidade_endereco: response.data.localidade,
+      //       rua_endereco: response.data.logradouro,
+      //       bairro_endereco: response.data.bairro,
+      //     }));
+      //     setErrors(prev => ({ ...prev, cep: '' }));
+      //   }
+      // } catch (err) {
+      //   setErrors(prev => ({ ...prev, cep: 'Erro ao buscar CEP.' }));
+      //   setFormData(prev => ({ ...prev, estado_endereco: '', cidade_endereco: '', rua_endereco: '', bairro_endereco: '' }));
+      // }
+      console.log("CEP lookup commented out for now."); // Comentado
+      setErrors(prev => ({ ...prev, cep: '' })); // Limpa erro de CEP
     } else {
       setErrors(prev => ({ ...prev, cep: 'CEP inválido.' }));
     }
@@ -440,12 +443,21 @@ export const PublicForm = () => {
                       <label htmlFor={fieldName} className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                         {fieldName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} {isRequired && <span className="text-red-500">*</span>}
                       </label>
-                      {fieldName === 'cpf' ? (
-                        <InputMask mask="999.999.999-99" id="cpf" name="cpf" value={formData.cpf} onChange={handleChange} onBlur={() => setErrors(prev => ({ ...prev, cpf: validateField('cpf', formData.cpf) }))} className="mt-1 block w-full border-gray-300 dark:border-slate-600 rounded-md shadow-sm p-2 dark:bg-slate-700 dark:text-white" />
-                      ) : fieldName === 'celular' ? (
-                        <InputMask mask="(99) 99999-9999" id="celular" name="celular" value={formData.celular} onChange={handleChange} onBlur={() => setErrors(prev => ({ ...prev, celular: validateField('celular', formData.celular) }))} className="mt-1 block w-full border-gray-300 dark:border-slate-600 rounded-md shadow-sm p-2 dark:bg-slate-700 dark:text-white" />
-                      ) : fieldName === 'cep' ? (
-                        <InputMask mask="99999-999" id="cep" name="cep" value={formData.cep} onChange={handleChange} onBlur={handleCepBlur} className="mt-1 block w-full border-gray-300 dark:border-slate-600 rounded-md shadow-sm p-2 dark:bg-slate-700 dark:text-white" />
+                      {/* Campos que usavam InputMask agora são inputs padrão */}
+                      {fieldName === 'cpf' || fieldName === 'celular' || fieldName === 'cep' ? (
+                        <input 
+                          type="text" 
+                          id={fieldName} 
+                          name={fieldName} 
+                          value={formData[fieldName as keyof FormData] as string || ''} 
+                          onChange={handleChange} 
+                          onBlur={() => {
+                            if (fieldName === 'cep') handleCepBlur(); // Chama handleCepBlur apenas para o campo CEP
+                            setErrors(prev => ({ ...prev, [fieldName]: validateField(fieldName as keyof FormData, formData[fieldName as keyof FormData]) }));
+                          }}
+                          className="mt-1 block w-full border-gray-300 dark:border-slate-600 rounded-md shadow-sm p-2 dark:bg-slate-700 dark:text-white" 
+                          placeholder={fieldName === 'cpf' ? '000.000.000-00' : fieldName === 'celular' ? '(00) 00000-0000' : '00000-000'}
+                        />
                       ) : fieldName.includes('_file') ? (
                         <>
                           <input type="file" id={fieldName} name={fieldName} onChange={handleChange} accept=".pdf,image/*" className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100 dark:file:bg-brand-900/20 dark:file:text-brand-400 dark:hover:file:bg-brand-900/40" />
@@ -497,7 +509,7 @@ export const PublicForm = () => {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                 >
                   {loading ? (
                     <Loader2 className="w-5 h-5 animate-spin" />
