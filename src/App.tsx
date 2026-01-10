@@ -23,7 +23,7 @@ import { PublicForm } from '@/pages/PublicForm'; // NOVO: Importar PublicForm
 // Gestor Pages
 import { Dashboard } from '@/pages/Dashboard';
 import { CandidateDetail } from '@/pages/CandidateDetail';
-import { TemplateConfig } => '@/pages/TemplateConfig';
+import { TemplateConfig } from '@/pages/TemplateConfig';
 import { ChecklistConfig } from '@/pages/ChecklistConfig';
 import { GoalsConfig } from '@/pages/GoalsConfig';
 import { InterviewConfig } from '@/pages/InterviewConfig';
