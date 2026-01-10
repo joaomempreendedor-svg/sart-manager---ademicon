@@ -84,7 +84,7 @@ export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
       dataLines = allLines.slice(1);
     } else {
       // If no header, assume default headers and all lines are data
-      headers = ['nome', 'status']; // Hardcode expected headers
+      headers = ['nome', 'status', 'ultima_atualizacao']; // Hardcode expected headers, added ultima_atualizacao
       dataLines = allLines;
     }
 
@@ -97,6 +97,8 @@ export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
     // Identify column indices based on detected/assumed headers
     const nameIndex = headers.findIndex(h => h.includes('nome'));
     const statusIndex = headers.findIndex(h => h.includes('status') || h.includes('triagem'));
+    const lastUpdatedAtIndex = headers.findIndex(h => h.includes('ultima_atualizacao') || h.includes('última_atualização') || h.includes('atualizacao') || h.includes('atualização'));
+
 
     if (nameIndex === -1) {
       setParseError("Coluna 'Nome' não encontrada nos dados. Verifique o formato.");
@@ -111,6 +113,7 @@ export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
 
     for (const line of dataLines) {
       const values = line.split(delimiter).map(v => v.trim());
+      const today = new Date().toISOString().split('T')[0];
       const candidateData: Partial<Omit<Candidate, 'id' | 'createdAt' | 'db_id'>> = {
         status: 'Triagem',
         screeningStatus: 'Pending Contact',
@@ -124,6 +127,8 @@ export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
         email: '', 
         origin: '', 
         responsibleUserId: undefined, 
+        createdAt: today, // Default createdAt
+        lastUpdatedAt: today, // Default lastUpdatedAt
       };
       let recordIsValid = true;
       const currentRecordErrors: string[] = [];
@@ -148,6 +153,19 @@ export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
       } else {
         currentRecordErrors.push("Status de triagem ausente.");
         recordIsValid = false;
+      }
+
+      // Extract Last Updated At (if present and valid)
+      if (lastUpdatedAtIndex !== -1 && values[lastUpdatedAtIndex]) {
+        const dateValue = values[lastUpdatedAtIndex];
+        // Basic date validation (YYYY-MM-DD)
+        if (/^\d{4}-\d{2}-\d{2}$/.test(dateValue) && !isNaN(new Date(dateValue).getTime())) {
+          candidateData.lastUpdatedAt = dateValue;
+        } else {
+          currentRecordErrors.push(`Formato de data inválido para 'Última Atualização' em "${dateValue}". Use YYYY-MM-DD.`);
+          // Still allow import, but log error and use default date
+          candidateData.lastUpdatedAt = today;
+        }
       }
 
       // Validate required fields
@@ -202,7 +220,7 @@ export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
             <span>Importar Candidatos da Planilha</span>
           </DialogTitle>
           <DialogDescription>
-            Cole os dados da sua planilha (CSV ou tab-separated). O sistema buscará apenas as colunas 'Nome' e 'Status'.
+            Cole os dados da sua planilha (CSV ou tab-separated). O sistema buscará apenas as colunas 'Nome', 'Status' e 'Última Atualização'.
           </DialogDescription>
         </DialogHeader>
         
@@ -215,7 +233,7 @@ export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
               onChange={(e) => setPastedData(e.target.value)}
               rows={8}
               className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600 font-mono text-sm"
-              placeholder="Cole aqui os dados da sua planilha. Use vírgula (,) ou tab (	) como separador.&#10;&#10;Exemplo:&#10;Nome,Status&#10;Susana,Sem perfil&#10;Rafinha,Contato Feito&#10;Gislaine Aparecida,Pendente"
+              placeholder="Cole aqui os dados da sua planilha. Use vírgula (,) ou tab (	) como separador.&#10;&#10;Exemplo:&#10;Nome,Status,Ultima_Atualizacao&#10;Susana,Sem perfil,2024-01-01&#10;Rafinha,Contato Feito,2024-01-05&#10;Gislaine Aparecida,Pendente,2024-01-10"
             />
             {parseError && (
               <p className="text-red-500 text-sm mt-2 flex items-center"><AlertTriangle className="w-4 h-4 mr-2" />{parseError}</p>

@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { Candidate, TeamMember } from '@/types';
-import { X, Save, Loader2, User, Phone, Mail, MapPin, Users } from 'lucide-react';
+import { X, Save, Loader2, User, Phone, Mail, MapPin, Users, CalendarDays } from 'lucide-react'; // Adicionado CalendarDays
 import {
   Dialog,
   DialogContent,
@@ -25,8 +25,6 @@ import toast from 'react-hot-toast';
 interface AddScreeningCandidateModalProps {
   isOpen: boolean;
   onClose: () => void;
-  // Removido origins: string[];
-  // Removido responsibleMembers: TeamMember[];
 }
 
 export const AddScreeningCandidateModal: React.FC<AddScreeningCandidateModalProps> = ({ isOpen, onClose }) => {
@@ -37,6 +35,7 @@ export const AddScreeningCandidateModal: React.FC<AddScreeningCandidateModalProp
     email: '',
     origin: '',
     responsibleUserId: '',
+    lastUpdatedAt: new Date().toISOString().split('T')[0], // NOVO: lastUpdatedAt padrão
   });
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
@@ -52,6 +51,7 @@ export const AddScreeningCandidateModal: React.FC<AddScreeningCandidateModalProp
       email: '',
       origin: '',
       responsibleUserId: '',
+      lastUpdatedAt: new Date().toISOString().split('T')[0], // Resetar lastUpdatedAt
     });
     setError('');
   };
@@ -88,6 +88,7 @@ export const AddScreeningCandidateModal: React.FC<AddScreeningCandidateModalProp
         feedbacks: [],
         createdAt: new Date().toISOString(),
         responsibleUserId: formData.responsibleUserId || undefined, // Define como undefined se não for fornecido
+        lastUpdatedAt: formData.lastUpdatedAt, // NOVO: Incluir lastUpdatedAt
       };
 
       await addCandidate(newCandidate);
@@ -153,6 +154,20 @@ export const AddScreeningCandidateModal: React.FC<AddScreeningCandidateModalProp
                   onChange={(e) => setFormData({...formData, email: e.target.value})}
                   className="pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600"
                   placeholder="email@exemplo.com"
+                />
+              </div>
+            </div>
+            {/* NOVO: Campo de Data da Última Atualização */}
+            <div>
+              <Label htmlFor="lastUpdatedAt">Data da Última Atualização (Opcional)</Label>
+              <div className="relative">
+                <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input
+                  id="lastUpdatedAt"
+                  type="date"
+                  value={formData.lastUpdatedAt}
+                  onChange={(e) => setFormData({...formData, lastUpdatedAt: e.target.value})}
+                  className="pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600"
                 />
               </div>
             </div>

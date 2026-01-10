@@ -59,6 +59,7 @@ export interface Candidate {
   feedbacks?: Feedback[];
   createdAt: string;
   responsibleUserId?: string; // NOVO: ID do gestor/anjo responsável pelo candidato
+  lastUpdatedAt?: string; // NOVO: Data da última atualização (YYYY-MM-DD)
 }
 
 export interface ChecklistResource {

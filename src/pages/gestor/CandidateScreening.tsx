@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Loader2, Search, User, Phone, Mail, CheckCircle2, XCircle, RotateCcw, ArrowRight, MessageSquare, UserX, Plus, Trash2, Users, Clock, UserRound, UploadCloud } from 'lucide-react'; // Adicionado UploadCloud icon
+import { Loader2, Search, User, Phone, Mail, CheckCircle2, XCircle, RotateCcw, ArrowRight, MessageSquare, UserX, Plus, Trash2, Users, Clock, UserRound, UploadCloud, CalendarDays } from 'lucide-react'; // Adicionado CalendarDays icon
 import { Link } from 'react-router-dom';
 import { TableSkeleton } from '@/components/TableSkeleton';
 import {
@@ -74,6 +74,16 @@ const CandidateScreening = () => {
       } catch (error: any) {
         toast.error(`Erro ao excluir candidato: ${error.message}`);
       }
+    }
+  };
+
+  // NOVO: Função para lidar com a atualização da data da última atualização
+  const handleUpdateLastUpdatedAt = async (candidateId: string, newDate: string) => {
+    try {
+      await updateCandidate(candidateId, { lastUpdatedAt: newDate });
+      toast.success("Data de última atualização salva!");
+    } catch (error: any) {
+      toast.error(`Erro ao atualizar data: ${error.message}`);
     }
   };
 
@@ -210,13 +220,14 @@ const CandidateScreening = () => {
                 <th className="px-6 py-3">Nome</th>
                 <th className="px-6 py-3">Contato</th>
                 <th className="px-6 py-3">Status Triagem</th>
+                <th className="px-6 py-3">Última Atualização</th> {/* NOVO: Coluna para a data de atualização */}
                 <th className="px-6 py-3 text-right">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
               {filteredCandidates.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-6 py-12 text-center text-gray-400">
+                  <td colSpan={5} className="px-6 py-12 text-center text-gray-400">
                     Nenhum candidato encontrado com os filtros aplicados.
                   </td>
                 </tr>
@@ -242,11 +253,20 @@ const CandidateScreening = () => {
                       <td className="px-6 py-4">
                         {getStatusBadge(candidate.screeningStatus)}
                       </td>
+                      <td className="px-6 py-4"> {/* NOVO: Campo de data de última atualização */}
+                        <input
+                          type="date"
+                          value={candidate.lastUpdatedAt || ''}
+                          onChange={(e) => handleUpdateLastUpdatedAt(candidate.id, e.target.value)}
+                          onClick={(e) => e.stopPropagation()} // Evita que o clique no input propague para a linha da tabela
+                          className="w-36 p-1 border rounded-md text-xs bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-gray-900 dark:text-white"
+                        />
+                      </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex justify-end items-center space-x-2">
                           {candidate.screeningStatus !== 'Contacted' && (
                             <button
-                              onClick={() => handleUpdateScreeningStatus(candidate.id, 'Contacted')}
+                              onClick={(e) => { e.stopPropagation(); handleUpdateScreeningStatus(candidate.id, 'Contacted'); }}
                               className="p-2 rounded-full text-gray-400 hover:text-green-500 hover:bg-green-50 dark:hover:bg-green-900/20"
                               title="Marcar como Contatado"
                             >
@@ -255,7 +275,7 @@ const CandidateScreening = () => {
                           )}
                           {candidate.screeningStatus !== 'No Fit' && (
                             <button
-                              onClick={() => handleUpdateScreeningStatus(candidate.id, 'No Fit')}
+                              onClick={(e) => { e.stopPropagation(); handleUpdateScreeningStatus(candidate.id, 'No Fit'); }}
                               className="p-2 rounded-full text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
                               title="Marcar como Sem Perfil"
                             >
@@ -263,7 +283,7 @@ const CandidateScreening = () => {
                             </button>
                           )}
                           <button
-                            onClick={() => handleDeleteCandidate(candidate.id, candidate.name)}
+                            onClick={(e) => { e.stopPropagation(); handleDeleteCandidate(candidate.id, candidate.name); }}
                             className="p-2 rounded-full text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
                             title="Excluir Candidato"
                           >
@@ -282,8 +302,6 @@ const CandidateScreening = () => {
       <AddScreeningCandidateModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
-        origins={origins}
-        responsibleMembers={teamMembers.filter(m => m.isActive && (m.roles.includes('Gestor') || m.roles.includes('Anjo')))}
       />
       {/* NOVO: Modal de Importação */}
       <ImportCandidatesModal
