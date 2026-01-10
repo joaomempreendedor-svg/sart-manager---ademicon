@@ -558,11 +558,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
 
         // ⚠️ APLICANDO CÓPIA PROFUNDA AQUI PARA GARANTIR INDEPENDÊNCIA DOS OBJETOS
-        setCandidates(candidatesData?.data?.map(item => ({ 
-          ...(JSON.parse(JSON.stringify(item.data)) as Candidate), // Cópia profunda
-          db_id: item.id, 
-          lastUpdatedAt: item.last_updated_at 
-        })) || []);
+        setCandidates(candidatesData?.data?.map(item => {
+          console.log(`[fetchData] Original item.data for candidate ${item.id}:`, item.data);
+          const deepCopiedCandidate = JSON.parse(JSON.stringify(item.data)) as Candidate;
+          console.log(`[fetchData] Deep copied candidate for item ${item.id}:`, deepCopiedCandidate);
+          return { 
+            ...deepCopiedCandidate, 
+            db_id: item.id, 
+            lastUpdatedAt: item.last_updated_at 
+          };
+        }) || []);
         
         const normalizedTeamMembers = teamMembersData?.map(item => {
           const data = item.data as any;
@@ -731,7 +736,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             console.log('Candidate Change (Realtime):', payload);
             toast.info(`🔄 Candidato "${payload.new.data.name || payload.old.data.name}" atualizado em tempo real!`);
             
-            // ⚠️ APLICANDO CÓPIA PROFUNDA AQUI PARA GARANTIR INDEPENDÊNCIA DOS OBJETOS
+            // Construir o objeto newCandidateData com cópia profunda de todas as propriedades
             const newCandidateData: Candidate = {
                 ...(JSON.parse(JSON.stringify(payload.new.data)) as Candidate), // Cópia profunda
                 db_id: payload.new.id,
@@ -1241,7 +1246,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const candidate = candidates.find(c => c.id === candidateId);
     if (!candidate) throw new Error("Candidato não encontrado.");
 
-    const updatedProgress = { ...candidate.checklistProgress };
+    // ⚠️ Cópia profunda de checklistProgress
+    const updatedProgress = JSON.parse(JSON.stringify(candidate.checklistProgress || {}));
     updatedProgress[itemId] = { ...updatedProgress[itemId], completed: !updatedProgress[itemId]?.completed };
 
     await updateCandidate(candidateId, { checklistProgress: updatedProgress });
@@ -1252,7 +1258,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const candidate = candidates.find(c => c.id === candidateId);
     if (!candidate) throw new Error("Candidato não encontrado.");
 
-    const updatedProgress = { ...candidate.checklistProgress };
+    // ⚠️ Cópia profunda de checklistProgress
+    const updatedProgress = JSON.parse(JSON.stringify(candidate.checklistProgress || {}));
     updatedProgress[itemId] = { ...updatedProgress[itemId], dueDate: dueDate || undefined };
 
     await updateCandidate(candidateId, { checklistProgress: updatedProgress });
@@ -1263,7 +1270,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const candidate = candidates.find(c => c.id === candidateId);
     if (!candidate) throw new Error("Candidato não encontrado.");
 
-    const updatedProgress = { ...candidate.consultantGoalsProgress };
+    // ⚠️ Cópia profunda de consultantGoalsProgress
+    const updatedProgress = JSON.parse(JSON.stringify(candidate.consultantGoalsProgress || {}));
     updatedProgress[goalId] = !updatedProgress[goalId];
 
     await updateCandidate(candidateId, { consultantGoalsProgress: updatedProgress });
@@ -1847,7 +1855,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         .upload(filePath, file, { contentType: file.type });
       if (uploadError) throw uploadError;
       const { data: publicUrlData } = supabase.storage.from('app_resources').getPublicUrl(filePath);
-      resourceContent = publicUrlData.publicUrl;
+      content = publicUrlData.publicUrl;
       resourceName = file.name;
     }
 
