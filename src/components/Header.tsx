@@ -25,7 +25,7 @@ export const Header: React.FC<HeaderProps> = ({ isSidebarOpen, toggleSidebar, us
 
   return (
     <header className="sticky top-0 z-30 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border-b border-gray-200 dark:border-slate-800 h-16 flex items-center px-4 justify-between">
-      {/* Botão de menu para mobile, escondido em telas médias e maiores */}
+      {/* Botão de menu para mobile, visível apenas em telas pequenas */}
       <button onClick={toggleSidebar} className="text-gray-600 dark:text-gray-300 md:hidden">
         {isSidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
       </button>
