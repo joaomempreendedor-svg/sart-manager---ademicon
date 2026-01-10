@@ -77,7 +77,7 @@ export const FormSubmissionDetailModal: React.FC<FormSubmissionDetailModalProps>
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-3xl bg-white dark:bg-slate-800 dark:text-white p-6">
+      <DialogContent className="sm:max-w-3xl bg-white dark:bg-slate-800 dark:text-white p-6 z-[100]">
         <DialogHeader>
           <DialogTitle>Detalhes da Submissão</DialogTitle>
           <DialogDescription>
