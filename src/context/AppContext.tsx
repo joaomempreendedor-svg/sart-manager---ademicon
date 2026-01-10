@@ -559,14 +559,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
         // ⚠️ APLICANDO CÓPIA PROFUNDA AQUI PARA GARANTIR INDEPENDÊNCIA DOS OBJETOS
         setCandidates(candidatesData?.data?.map(item => {
-          console.log(`[fetchData] Original item.data for candidate ${item.id}:`, item.data);
+          console.log(`[fetchData] Original item.data.name for candidate ${item.id}:`, item.data.name);
           const deepCopiedCandidate = JSON.parse(JSON.stringify(item.data)) as Candidate;
-          console.log(`[fetchData] Deep copied candidate for item ${item.id}:`, deepCopiedCandidate);
-          return { 
+          console.log(`[fetchData] Deep copied candidate.name for item ${item.id}:`, deepCopiedCandidate.name);
+          const finalCandidate = { 
             ...deepCopiedCandidate, 
             db_id: item.id, 
             lastUpdatedAt: item.last_updated_at 
           };
+          console.log(`[fetchData] Final candidate name before setCandidates:`, finalCandidate.name);
+          return finalCandidate;
         }) || []);
         
         const normalizedTeamMembers = teamMembersData?.map(item => {
@@ -736,13 +738,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             console.log('Candidate Change (Realtime):', payload);
             toast.info(`🔄 Candidato "${payload.new.data.name || payload.old.data.name}" atualizado em tempo real!`);
             
-            // Construir o objeto newCandidateData com cópia profunda de todas as propriedades
+            // ⚠️ CORREÇÃO CRÍTICA: Garante que newCandidateData é uma cópia profunda do payload.new.data
             const newCandidateData: Candidate = {
-                ...(JSON.parse(JSON.stringify(payload.new.data)) as Candidate), // Cópia profunda
-                db_id: payload.new.id,
-                lastUpdatedAt: payload.new.last_updated_at,
+                ...(JSON.parse(JSON.stringify(payload.new.data)) as Candidate), // Cópia profunda do JSONB 'data'
+                db_id: payload.new.id, // Adiciona a PK do Supabase
+                lastUpdatedAt: payload.new.last_updated_at, // Adiciona o timestamp de atualização
             };
-            console.log('Constructed newCandidateData (deep copied):', newCandidateData);
+            console.log('[Realtime: Candidate] Deep copied newCandidateData.name:', newCandidateData.name);
 
             if (payload.eventType === 'INSERT') {
                 setCandidates(prev => {
@@ -754,25 +756,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                         console.log('Skipping insert, candidate already exists (client-side id):', newCandidateData.id);
                         return prev;
                     }
-                    console.log('Inserting new candidate:', newCandidateData.name);
+                    console.log('[Realtime: Candidate] Inserting candidate with name:', newCandidateData.name);
                     return [newCandidateData, ...prev];
                 });
             } else if (payload.eventType === 'UPDATE') {
                 setCandidates(prev => {
                     const updatedArray = prev.map(c => {
                         if (c.db_id === newCandidateData.db_id) {
-                            console.log(`Updating candidate ${c.name} (ID: ${c.id}) to ${newCandidateData.name} (ID: ${newCandidateData.id})`);
+                            console.log(`[Realtime: Candidate] Updating candidate from "${c.name}" to "${newCandidateData.name}"`);
                             return newCandidateData;
                         }
                         return c;
                     });
-                    console.log('Array after update:', updatedArray.map(c => c.name));
+                    console.log('[Realtime: Candidate] Array after update (names):', updatedArray.map(c => c.name));
                     return updatedArray;
                 });
             } else if (payload.eventType === 'DELETE') {
                 setCandidates(prev => {
+                    console.log('[Realtime: Candidate] Deleting candidate with name:', payload.old.data.name);
                     const filteredArray = prev.filter(c => c.db_id !== payload.old.id);
-                    console.log('Deleting candidate:', payload.old.data.name, 'Array after delete:', filteredArray.map(c => c.name));
+                    console.log('[Realtime: Candidate] Array after delete (names):', filteredArray.map(c => c.name));
                     return filteredArray;
                 });
             }
@@ -1044,17 +1047,27 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const c = candidates.find(c => c.id === id); 
     if (!c || !c.db_id) throw new Error("Candidato não encontrado"); 
     
+    console.log(`[updateCandidate] Original candidate name (c.name): "${c.name}"`);
+    console.log(`[updateCandidate] Updates object name (updates.name): "${updates.name}"`);
+
     // ⚠️ APLICANDO CÓPIA PROFUNDA AQUI PARA GARANTIR INDEPENDÊNCIA DOS OBJETOS
     const updated = { 
       ...JSON.parse(JSON.stringify(c)), // Cópia profunda do objeto base
       ...JSON.parse(JSON.stringify(updates)), // Cópia profunda das atualizações
       lastUpdatedAt: new Date().toISOString(),
     }; 
+    console.log(`[updateCandidate] Merged updated candidate name (updated.name): "${updated.name}"`);
 
     const { db_id, createdAt, lastUpdatedAt, ...dataToUpdate } = updated; // Remove db_id, createdAt, lastUpdatedAt do objeto 'data'
     const { error } = await supabase.from('candidates').update({ data: dataToUpdate, last_updated_at: updated.lastUpdatedAt }).match({ id: c.db_id, user_id: JOAO_GESTOR_AUTH_ID }); 
     if (error) { console.error(error); toast.error("Erro ao atualizar candidato."); throw error; } 
-    setCandidates(prev => prev.map(p => p.id === id ? updated : p)); 
+    setCandidates(prev => prev.map(p => {
+      if (p.id === id) {
+        console.log(`[updateCandidate] Setting candidate ${id} from "${p.name}" to "${updated.name}"`);
+        return updated;
+      }
+      return p;
+    })); 
   }, [user, candidates]);
   const deleteCandidate = useCallback(async (id: string) => {
     if (!user) {
@@ -1482,7 +1495,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     try {
       const payload = { user_id: JOAO_GESTOR_AUTH_ID, data: commission };
-      const { data, error } = await supabase.from('commissions').insert(payload).select('id, created_at').maybeSingle();
+      const { data, error } = await supabase.from('commissions').insert(payload).select('id', 'created_at').maybeSingle();
       if (error) throw error;
 
       setCommissions(prev => prev.map(c => c.id === tempCommission.id ? { ...c, id: c.id.replace('temp_', ''), db_id: data.id, criado_em: data.created_at, _synced: true } : c));
