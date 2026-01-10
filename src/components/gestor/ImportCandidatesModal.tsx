@@ -36,37 +36,29 @@ export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
   responsibleMembers,
   onImport,
 }) => {
-  console.log("[ImportCandidatesModal] Modal is rendering. isOpen:", isOpen); // Adicionado para depuração
   const [pastedData, setPastedData] = useState('');
   const [headers, setHeaders] = useState<string[]>([]);
   const [columnMapping, setColumnMapping] = useState<Record<string, string>>({
     name: '',
-    phone: '',
-    email: '',
-        origin: '',
-    responsibleUserId: '',
-    screeningStatus: '', // NOVO: Adicionado para mapear o status de triagem
+    screeningStatus: '',
   });
   const [isProcessing, setIsProcessing] = useState(false);
   const [importResult, setImportResult] = useState<{ success: number; failed: number; errors: string[] } | null>(null);
-  const [headerParseError, setHeaderParseError] = useState<string | null>(null); // NOVO: Estado para erro de parsing de cabeçalho
+  const [headerParseError, setHeaderParseError] = useState<string | null>(null);
 
-  const requiredFields = ['name']; // Apenas o nome é obrigatório para triagem inicial
+  const requiredFields = ['name'];
   const allowedScreeningStatuses = ['Pending Contact', 'Contacted', 'No Fit'];
 
-  // Mapeamento de status da planilha para o sistema
   const mapIncomingStatus = (incomingStatus: string): 'Pending Contact' | 'Contacted' | 'No Fit' | null => {
     const lowerCaseStatus = incomingStatus.toLowerCase();
     if (lowerCaseStatus.includes('sem perfil')) return 'No Fit';
     if (lowerCaseStatus.includes('contato feito')) return 'Contacted';
     if (lowerCaseStatus.includes('pendente')) return 'Pending Contact';
-    return null; // Retorna null se não houver correspondência
+    return null;
   };
 
-  // Parse headers when data is pasted
   useEffect(() => {
-    console.log("[ImportModal] Pasted data changed:", pastedData);
-    setHeaderParseError(null); // Reset error on new paste
+    setHeaderParseError(null);
 
     if (pastedData) {
       const lines = pastedData.split('\n').filter(line => line.trim() !== '');
@@ -75,41 +67,31 @@ export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
         const tabCount = (firstLine.match(/\t/g) || []).length;
         const commaCount = (firstLine.match(/,/g) || []).length;
         
-        let delimiter = ','; // Default to comma
+        let delimiter = ',';
         if (tabCount > commaCount) {
-          delimiter = '\t'; // Prefer tab if more tabs
+          delimiter = '\t';
         }
 
         const parsedHeaders = firstLine.split(delimiter).map(h => h.trim());
-        // Filter out any empty strings that might result from split (e.g., "a,,b" -> ["a", "", "b"])
         const cleanedHeaders = parsedHeaders.filter(h => h !== '');
 
-        console.log("[ImportModal] Parsed headers:", cleanedHeaders);
         if (cleanedHeaders.length > 0) {
           setHeaders(cleanedHeaders);
-          // Attempt to auto-map common headers
           setColumnMapping(prev => ({
             name: cleanedHeaders.find(h => h.toLowerCase().includes('nome')) || prev.name,
-            phone: cleanedHeaders.find(h => h.toLowerCase().includes('fone') || h.toLowerCase().includes('tel') || h.toLowerCase().includes('telefone')) || prev.phone,
-            email: cleanedHeaders.find(h => h.toLowerCase().includes('email')) || prev.email,
-            origin: cleanedHeaders.find(h => h.toLowerCase().includes('origem')) || prev.origin,
-            responsibleUserId: cleanedHeaders.find(h => h.toLowerCase().includes('responsavel') || h.toLowerCase().includes('gestor')) || prev.responsibleUserId,
-            screeningStatus: cleanedHeaders.find(h => h.toLowerCase().includes('status') || h.toLowerCase().includes('triagem')) || prev.screeningStatus, // NOVO: Auto-map status
+            screeningStatus: cleanedHeaders.find(h => h.toLowerCase().includes('status') || h.toLowerCase().includes('triagem')) || prev.screeningStatus,
           }));
         } else {
           setHeaders([]);
           setHeaderParseError("Não foi possível identificar cabeçalhos válidos na primeira linha. Verifique o formato.");
-          console.log("[ImportModal] No valid headers found after cleaning.");
         }
       } else {
         setHeaders([]);
         setHeaderParseError("Nenhuma linha válida encontrada nos dados colados.");
-        console.log("[ImportModal] No valid lines found in pasted data.");
       }
     } else {
       setHeaders([]);
-      setColumnMapping({ name: '', phone: '', email: '', origin: '', responsibleUserId: '', screeningStatus: '' }); // Reset mapping when data is empty
-      console.log("[ImportModal] Pasted data is empty.");
+      setColumnMapping({ name: '', screeningStatus: '' });
     }
   }, [pastedData]);
 
@@ -122,20 +104,20 @@ export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
     let failCount = 0;
 
     const lines = pastedData.split('\n').filter(line => line.trim() !== '');
-    if (lines.length <= 1) { // Only headers or empty
+    if (lines.length <= 1) {
       toast.error("Nenhum dado para importar. Cole os dados da sua planilha.");
       setIsProcessing(false);
       return;
     }
 
     const delimiter = lines[0].includes('\t') ? '\t' : ',';
-    const dataLines = lines.slice(1); // Skip header row
+    const dataLines = lines.slice(1);
 
     for (const line of dataLines) {
       const values = line.split(delimiter).map(v => v.trim());
       const candidateData: Partial<Omit<Candidate, 'id' | 'createdAt' | 'db_id'>> = {
-        status: 'Triagem', // Sempre inicia no status de triagem
-        screeningStatus: 'Pending Contact', // Default screening status
+        status: 'Triagem',
+        screeningStatus: 'Pending Contact',
         interviewDate: '',
         interviewer: '',
         interviewScores: { basicProfile: 0, commercialSkills: 0, behavioralProfile: 0, jobFit: 0, notes: '' },
@@ -146,38 +128,55 @@ export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
       let recordIsValid = true;
       const currentRecordErrors: string[] = [];
 
-      // Map values to candidateData
-      Object.entries(columnMapping).forEach(([fieldKey, headerName]) => {
-        const headerIndex = headers.indexOf(headerName);
-        if (headerIndex !== -1 && values[headerIndex]) {
-          const value = values[headerIndex];
-          if (fieldKey === 'responsibleUserId') {
-            const responsibleName = value;
-            const foundMember = responsibleMembers.find(m => m.name.toLowerCase() === responsibleName.toLowerCase());
-            if (foundMember) {
-              candidateData.responsibleUserId = foundMember.id;
+      // Process mapped fields (name, screeningStatus)
+      const nameHeaderIndex = headers.indexOf(columnMapping.name);
+      if (nameHeaderIndex !== -1 && values[nameHeaderIndex]) {
+        candidateData.name = values[nameHeaderIndex];
+      }
+
+      const screeningStatusHeaderIndex = headers.indexOf(columnMapping.screeningStatus);
+      if (screeningStatusHeaderIndex !== -1 && values[screeningStatusHeaderIndex]) {
+        const mappedStatus = mapIncomingStatus(values[screeningStatusHeaderIndex]);
+        if (mappedStatus) {
+          candidateData.screeningStatus = mappedStatus;
+        } else {
+          currentRecordErrors.push(`Status de triagem "${values[screeningStatusHeaderIndex]}" inválido. Use: "Sem perfil", "Contato Feito" ou "Pendente".`);
+          recordIsValid = false;
+        }
+      }
+
+      // Attempt to auto-detect other common fields if headers exist
+      const autoDetectFields = {
+        phone: ['fone', 'tel', 'telefone'],
+        email: ['email'],
+        origin: ['origem'],
+        responsibleUserId: ['responsavel', 'gestor'],
+      };
+
+      Object.entries(autoDetectFields).forEach(([fieldKey, possibleHeaders]) => {
+        for (const possibleHeader of possibleHeaders) {
+          const headerIndex = headers.findIndex(h => h.toLowerCase().includes(possibleHeader));
+          if (headerIndex !== -1 && values[headerIndex]) {
+            const value = values[headerIndex];
+            if (fieldKey === 'responsibleUserId') {
+              const foundMember = responsibleMembers.find(m => m.name.toLowerCase() === value.toLowerCase());
+              if (foundMember) {
+                candidateData.responsibleUserId = foundMember.id;
+              } else {
+                currentRecordErrors.push(`Responsável "${value}" não encontrado.`);
+                recordIsValid = false;
+              }
+            } else if (fieldKey === 'origin') {
+              if (origins.includes(value)) {
+                candidateData.origin = value;
+              } else {
+                currentRecordErrors.push(`Origem "${value}" não encontrada nas opções configuradas.`);
+                recordIsValid = false;
+              }
             } else {
-              currentRecordErrors.push(`Responsável "${responsibleName}" não encontrado.`);
-              recordIsValid = false;
+              (candidateData as any)[fieldKey] = value;
             }
-          } else if (fieldKey === 'origin') {
-            const originName = value;
-            if (origins.includes(originName)) {
-              candidateData.origin = originName;
-            } else {
-              currentRecordErrors.push(`Origem "${originName}" não encontrada nas opções configuradas.`);
-              recordIsValid = false;
-            }
-          } else if (fieldKey === 'screeningStatus') { // NOVO: Lógica para status de triagem
-            const mappedStatus = mapIncomingStatus(value);
-            if (mappedStatus) {
-              candidateData.screeningStatus = mappedStatus;
-            } else {
-              currentRecordErrors.push(`Status de triagem "${value}" inválido. Use: "Sem perfil", "Contato Feito" ou "Pendente".`);
-              recordIsValid = false;
-            }
-          } else {
-            (candidateData as any)[fieldKey] = value;
+            break; // Found a match, move to next fieldKey
           }
         }
       });
@@ -205,7 +204,7 @@ export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
         toast.success(`${successCount} candidatos importados com sucesso!`);
       } catch (error: any) {
         toast.error(`Erro ao salvar candidatos: ${error.message}`);
-        failCount += successCount; // If batch save fails, all are considered failed
+        failCount += successCount;
         successCount = 0;
       }
     } else if (failCount === 0) {
@@ -219,7 +218,7 @@ export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
   const handleCloseModal = () => {
     setPastedData('');
     setHeaders([]);
-    setColumnMapping({ name: '', phone: '', email: '', origin: '', responsibleUserId: '', screeningStatus: '' });
+    setColumnMapping({ name: '', screeningStatus: '' });
     setImportResult(null);
     setHeaderParseError(null);
     onClose();
@@ -228,14 +227,9 @@ export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
   if (!isOpen) return null;
 
   const renderHeaderOptions = () => {
-    // Always include "Ignorar" option with a non-empty, unique value
     const options = [<SelectItem key="none" value="none">Ignorar</SelectItem>];
 
-    if (headers.length === 0) {
-      // If no headers are detected, provide a disabled option for feedback
-      options.push(<SelectItem key="no-headers-detected" value="no-headers-detected" disabled>Nenhum cabeçalho detectado</SelectItem>);
-    } else {
-      // Otherwise, map the detected headers
+    if (headers.length > 0) {
       options.push(...headers.map(header => <SelectItem key={header} value={header}>{header}</SelectItem>));
     }
     return options;
@@ -263,7 +257,7 @@ export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
               onChange={(e) => setPastedData(e.target.value)}
               rows={8}
               className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600 font-mono text-sm"
-              placeholder="Cole aqui os dados da sua planilha. Use vírgula (,) ou tab (	) como separador.&#10;&#10;Exemplo:&#10;Nome:,Staus&#10;Susana,Sem perfil&#10;Rafinha,Contato Feito&#10;Gislaine Aparecida,Pendente"
+              placeholder="Cole aqui os dados da sua planilha. Use vírgula (,) ou tab (	) como separador.&#10;&#10;Exemplo:&#10;Nome:,Status&#10;Susana,Sem perfil&#10;Rafinha,Contato Feito&#10;Gislaine Aparecida,Pendente"
             />
             {headerParseError && (
               <p className="text-red-500 text-sm mt-2 flex items-center"><AlertTriangle className="w-4 h-4 mr-2" />{headerParseError}</p>
@@ -279,7 +273,7 @@ export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-4">
-              <h3 className="col-span-2 text-lg font-semibold text-gray-900 dark:text-white mt-2">Mapeamento de Colunas</h3>
+              <h3 className="col-span-2 text-lg font-semibold text-gray-900 dark:text-white mt-2">Mapeamento de Colunas Essenciais</h3>
               
               {/* Nome */}
               <div>
@@ -294,59 +288,7 @@ export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
                 </Select>
               </div>
 
-              {/* Telefone */}
-              <div>
-                <Label htmlFor="map-phone">Telefone</Label>
-                <Select value={columnMapping.phone} onValueChange={(val) => setColumnMapping(prev => ({ ...prev, phone: val }))}>
-                  <SelectTrigger id="map-phone" className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
-                    <SelectValue placeholder="Selecione a coluna do Telefone" />
-                  </SelectTrigger>
-                  <SelectContent className="dark:bg-slate-800 dark:text-white dark:border-slate-700">
-                    {renderHeaderOptions()}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Email */}
-              <div>
-                <Label htmlFor="map-email">E-mail</Label>
-                <Select value={columnMapping.email} onValueChange={(val) => setColumnMapping(prev => ({ ...prev, email: val }))}>
-                  <SelectTrigger id="map-email" className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
-                    <SelectValue placeholder="Selecione a coluna do E-mail" />
-                  </SelectTrigger>
-                  <SelectContent className="dark:bg-slate-800 dark:text-white dark:border-slate-700">
-                    {renderHeaderOptions()}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Origem */}
-              <div>
-                <Label htmlFor="map-origin">Origem</Label>
-                <Select value={columnMapping.origin} onValueChange={(val) => setColumnMapping(prev => ({ ...prev, origin: val }))}>
-                  <SelectTrigger id="map-origin" className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
-                    <SelectValue placeholder="Selecione a coluna da Origem" />
-                  </SelectTrigger>
-                  <SelectContent className="dark:bg-slate-800 dark:text-white dark:border-slate-700">
-                    {renderHeaderOptions()}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Responsável */}
-              <div>
-                <Label htmlFor="map-responsible">Responsável (Nome)</Label>
-                <Select value={columnMapping.responsibleUserId} onValueChange={(val) => setColumnMapping(prev => ({ ...prev, responsibleUserId: val }))}>
-                  <SelectTrigger id="map-responsible" className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
-                    <SelectValue placeholder="Selecione a coluna do Responsável" />
-                  </SelectTrigger>
-                  <SelectContent className="dark:bg-slate-800 dark:text-white dark:border-slate-700">
-                    {renderHeaderOptions()}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* NOVO: Status de Triagem */}
+              {/* Status de Triagem */}
               <div>
                 <Label htmlFor="map-screeningStatus">Status de Triagem</Label>
                 <Select value={columnMapping.screeningStatus} onValueChange={(val) => setColumnMapping(prev => ({ ...prev, screeningStatus: val }))}>
