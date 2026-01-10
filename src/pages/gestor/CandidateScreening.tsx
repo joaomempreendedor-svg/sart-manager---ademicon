@@ -123,7 +123,6 @@ const CandidateScreening = () => {
               <tr>
                 <th className="px-6 py-3">Nome</th>
                 <th className="px-6 py-3">Contato</th>
-                <th className="px-6 py-3">Origem</th>
                 <th className="px-6 py-3">Status Triagem</th>
                 <th className="px-6 py-3 text-right">Ações</th>
               </tr>
@@ -131,7 +130,7 @@ const CandidateScreening = () => {
             <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
               {filteredCandidates.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-gray-400">
+                  <td colSpan={4} className="px-6 py-12 text-center text-gray-400">
                     Nenhum candidato encontrado com os filtros aplicados.
                   </td>
                 </tr>
@@ -156,7 +155,6 @@ const CandidateScreening = () => {
                         </div>
                         {candidate.email && <span className="flex items-center text-gray-700 dark:text-gray-200"><Mail className="w-3 h-3 mr-1" /> {candidate.email}</span>}
                       </td>
-                      <td className="px-6 py-4 text-gray-700 dark:text-gray-200">{candidate.origin}</td>
                       <td className="px-6 py-4">
                         {getStatusBadge(candidate.screeningStatus)}
                       </td>
@@ -196,8 +194,7 @@ const CandidateScreening = () => {
       <AddScreeningCandidateModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
-        origins={origins} // Passar as origens para o modal
-        responsibleMembers={teamMembers.filter(m => m.isActive && (m.roles.includes('Gestor') || m.roles.includes('Anjo')))} // Passar membros responsáveis
+        // Removido origins e responsibleMembers pois não são mais necessários no modal
       />
     </div>
   );
