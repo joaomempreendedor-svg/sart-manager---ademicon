@@ -43,7 +43,7 @@ export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
     name: '',
     phone: '',
     email: '',
-    origin: '',
+        origin: '',
     responsibleUserId: '',
     screeningStatus: '', // NOVO: Adicionado para mapear o status de triagem
   });
@@ -228,12 +228,12 @@ export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
   if (!isOpen) return null;
 
   const renderHeaderOptions = () => {
-    // Always include "Ignorar" option
-    const options = [<SelectItem key="ignore" value="">Ignorar</SelectItem>];
+    // Always include "Ignorar" option with a non-empty, unique value
+    const options = [<SelectItem key="none" value="none">Ignorar</SelectItem>];
 
     if (headers.length === 0) {
       // If no headers are detected, provide a disabled option for feedback
-      options.push(<SelectItem key="no-headers" value="" disabled>Nenhum cabeçalho detectado</SelectItem>);
+      options.push(<SelectItem key="no-headers-detected" value="no-headers-detected" disabled>Nenhum cabeçalho detectado</SelectItem>);
     } else {
       // Otherwise, map the detected headers
       options.push(...headers.map(header => <SelectItem key={header} value={header}>{header}</SelectItem>));
