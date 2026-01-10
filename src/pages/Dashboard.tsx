@@ -21,6 +21,7 @@ const StatusBadge = ({ status }: { status: CandidateStatus }) => {
     'Acompanhamento 90 Dias': 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300',
     'Autorizado': 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
     'Reprovado': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
+    'Triagem': 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200', // Adicionado para evitar erro, mas não deve ser exibido
   };
 
   return (
@@ -353,6 +354,11 @@ export const Dashboard = () => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   };
 
+  // Filtrar candidatos para a tabela "Todos os Candidatos"
+  const candidatesForTable = useMemo(() => {
+    return candidates.filter(c => c.status !== 'Triagem');
+  }, [candidates]);
+
   return (
     <div className="p-8 max-w-7xl mx-auto">
       <div className="mb-8 flex items-center justify-between"> {/* Adicionado flex e justify-between */}
@@ -612,14 +618,14 @@ export const Dashboard = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
-                {candidates.length === 0 ? (
+                {candidatesForTable.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="px-6 py-8 text-center text-gray-400">
                       Nenhum candidato cadastrado ainda.
                     </td>
                   </tr>
                 ) : (
-                  candidates.map((c) => {
+                  candidatesForTable.map((c) => {
                     const totalScore =
                       c.interviewScores.basicProfile +
                       c.interviewScores.commercialSkills +
