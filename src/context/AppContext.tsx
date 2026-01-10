@@ -724,19 +724,23 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         .channel('candidates_changes')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'candidates', filter: `user_id=eq.${crmOwnerUserId}` }, (payload) => {
             console.log('Candidate Change (Realtime):', payload);
-            console.log('Payload.new.data:', payload.new.data); // Inspecionar dados brutos
+            toast.info(`🔄 Candidato "${payload.new.data.name || payload.old.data.name}" atualizado em tempo real!`);
+            
+            // Construir o objeto newCandidateData com cópia profunda de todas as propriedades
             const newCandidateData: Candidate = {
                 ...(payload.new.data as Candidate),
                 db_id: payload.new.id,
                 lastUpdatedAt: payload.new.last_updated_at,
                 // Cópia profunda de objetos aninhados para evitar referências compartilhadas
+                name: (payload.new.data as Candidate).name ? String((payload.new.data as Candidate).name) : '', // Forçar cópia de string
                 interviewScores: { ...(payload.new.data as Candidate).interviewScores },
                 checkedQuestions: { ...(payload.new.data as Candidate).checkedQuestions },
                 checklistProgress: { ...(payload.new.data as Candidate).checklistProgress },
                 consultantGoalsProgress: { ...(payload.new.data as Candidate).consultantGoalsProgress },
                 feedbacks: (payload.new.data as Candidate).feedbacks ? [...(payload.new.data as Candidate).feedbacks] : [],
+                data: { ...(payload.new.data as Candidate).data }, // Cópia profunda do campo 'data' também
             };
-            console.log('Constructed newCandidateData (deep copied):', newCandidateData); // Inspecionar dados copiados
+            console.log('Constructed newCandidateData (deep copied):', newCandidateData);
 
             if (payload.eventType === 'INSERT') {
                 setCandidates(prev => {
@@ -744,7 +748,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                         console.log('Skipping insert, candidate already exists (db_id):', newCandidateData.db_id);
                         return prev;
                     }
-                    // Também verificar pelo client-side ID se o db_id ainda não foi atribuído
                     if (prev.some(c => c.id === newCandidateData.id && !c.db_id)) {
                         console.log('Skipping insert, candidate already exists (client-side id):', newCandidateData.id);
                         return prev;
@@ -754,14 +757,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 });
             } else if (payload.eventType === 'UPDATE') {
                 setCandidates(prev => {
-                    const updatedArray = prev.map(c => c.db_id === newCandidateData.db_id ? newCandidateData : c);
-                    console.log('Updating candidate:', newCandidateData.name, 'Array after update:', updatedArray);
+                    const updatedArray = prev.map(c => {
+                        if (c.db_id === newCandidateData.db_id) {
+                            console.log(`Updating candidate ${c.name} (ID: ${c.id}) to ${newCandidateData.name} (ID: ${newCandidateData.id})`);
+                            return newCandidateData;
+                        }
+                        return c;
+                    });
+                    console.log('Array after update:', updatedArray.map(c => c.name));
                     return updatedArray;
                 });
             } else if (payload.eventType === 'DELETE') {
                 setCandidates(prev => {
                     const filteredArray = prev.filter(c => c.db_id !== payload.old.id);
-                    console.log('Deleting candidate:', payload.old.data.name, 'Array after delete:', filteredArray);
+                    console.log('Deleting candidate:', payload.old.data.name, 'Array after delete:', filteredArray.map(c => c.name));
                     return filteredArray;
                 });
             }
@@ -998,11 +1007,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       status: candidate.status || 'Triagem', 
       screeningStatus: candidate.screeningStatus || 'Pending Contact',
       // Cópia profunda de objetos aninhados
+      name: candidate.name ? String(candidate.name) : '', // Forçar cópia de string
       interviewScores: { ...(candidate.interviewScores || { basicProfile: 0, commercialSkills: 0, behavioralProfile: 0, jobFit: 0, notes: '' }) },
       checkedQuestions: { ...(candidate.checkedQuestions || {}) },
       checklistProgress: { ...(candidate.checklistProgress || {}) },
       consultantGoalsProgress: { ...(candidate.consultantGoalsProgress || {}) },
       feedbacks: candidate.feedbacks ? [...candidate.feedbacks] : [],
+      data: { ...(candidate.data || {}) }, // Cópia profunda do campo 'data' também
       createdAt: createdAt, 
       lastUpdatedAt: lastUpdatedAt, 
     };
@@ -1042,12 +1053,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const updated = { 
       ...c, 
       ...updates, 
+      name: updates.name ? String(updates.name) : String(c.name), // Forçar cópia de string para o nome
       lastUpdatedAt: new Date().toISOString(),
       interviewScores: { ...(c.interviewScores || {}), ...(updates.interviewScores || {}) },
       checkedQuestions: { ...(c.checkedQuestions || {}), ...(updates.checkedQuestions || {}) },
       checklistProgress: { ...(c.checklistProgress || {}), ...(updates.checklistProgress || {}) },
       consultantGoalsProgress: { ...(c.consultantGoalsProgress || {}), ...(updates.consultantGoalsProgress || {}) },
       feedbacks: updates.feedbacks ? [...updates.feedbacks] : (c.feedbacks ? [...c.feedbacks] : []),
+      data: { ...(c.data || {}), ...(updates.data || {}) }, // Cópia profunda do campo 'data' também
     }; 
 
     const { db_id, createdAt, lastUpdatedAt, ...dataToUpdate } = updated; // Remove db_id, createdAt, lastUpdatedAt do objeto 'data'
