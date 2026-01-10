@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
-import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, CommissionStatus, InstallmentInfo, CutoffPeriod, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask, SupportMaterialContentType, DailyChecklistItemResource, DailyChecklistItemResourceType, GestorTask, GestorTaskCompletion, FinancialEntry, FormCadastro, FormFile } from '@/types';
+import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, CommissionStatus, InstallmentInfo, CutoffPeriod, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask, SupportMaterialContentType, DailyChecklistItemResource, DailyChecklistItemResourceType, GestorTask, GestorTaskCompletion, FinancialEntry, FormCadastro, FormFile, Notification, NotificationType } from '@/types';
 import { CHECKLIST_STAGES as DEFAULT_STAGES } from '@/data/checklistData';
 import { CONSULTANT_GOALS as DEFAULT_GOALS } from '@/data/consultantGoals';
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
@@ -124,6 +124,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [formCadastros, setFormCadastros] = useState<FormCadastro[]>([]);
   const [formFiles, setFormFiles] = useState<FormFile[]>([]);
 
+  // NOVO: Notificações
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+
 
   const [theme, setTheme] = useState<'light' | 'dark'>(() => (localStorage.getItem('sart_theme') as 'light' | 'dark') || 'light');
 
@@ -217,6 +220,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setFinancialEntries([]); // NOVO: Reset financial entries
     setFormCadastros([]); // NOVO: Reset form cadastros
     setFormFiles([]); // NOVO: Reset form files
+    setNotifications([]); // NOVO: Reset notifications
     setIsDataLoading(false);
   };
 
@@ -279,6 +283,101 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     return false;
   }, []);
+
+  const calculateNotifications = useCallback(() => {
+    if (!user || (user.role !== 'GESTOR' && user.role !== 'ADMIN')) {
+      setNotifications([]);
+      return;
+    }
+
+    const newNotifications: Notification[] = [];
+    const today = new Date();
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
+    const todayFormatted = today.toISOString().split('T')[0];
+
+    // 1. Aniversariantes do Mês
+    teamMembers.forEach(member => {
+      if (member.dateOfBirth) {
+        const dob = new Date(member.dateOfBirth + 'T00:00:00');
+        if (dob.getMonth() === currentMonth) {
+          newNotifications.push({
+            id: `birthday-${member.id}`,
+            type: 'birthday',
+            title: `Aniversário de ${member.name}!`,
+            description: `Celebre o aniversário de ${member.name} neste mês.`,
+            date: member.dateOfBirth,
+            link: `/gestor/config-team`, // Link para a gestão de equipe
+            isRead: false,
+          });
+        }
+      }
+    });
+
+    // 2. Documentação enviada no formulário (novos cadastros)
+    formCadastros.filter(cadastro => {
+      const submissionDate = new Date(cadastro.submission_date);
+      // Considerar "novo" se foi submetido nas últimas 24 horas e não está completo/verificado
+      return (today.getTime() - submissionDate.getTime() < 24 * 60 * 60 * 1000) && !cadastro.is_complete;
+    }).forEach(cadastro => {
+      newNotifications.push({
+        id: `form-submission-${cadastro.id}`,
+        type: 'form_submission',
+        title: `Novo Cadastro de Formulário: ${cadastro.data.nome_completo || 'Desconhecido'}`,
+        description: `Um novo formulário foi enviado e aguarda revisão.`,
+        date: cadastro.submission_date.split('T')[0],
+        link: `/gestor/form-cadastros`, // Link para a página de formulários
+        isRead: false,
+      });
+    });
+
+    // 3. Nova Venda Cadastrada (comissões)
+    commissions.filter(commission => {
+      const saleDate = new Date(commission.date + 'T00:00:00');
+      // Considerar "novo" se foi cadastrado nas últimas 24 horas
+      return (today.getTime() - saleDate.getTime() < 24 * 60 * 60 * 1000);
+    }).forEach(commission => {
+      newNotifications.push({
+        id: `new-sale-${commission.id}`,
+        type: 'new_sale',
+        title: `Nova Venda Registrada: ${commission.clientName}`,
+        description: `O consultor ${commission.consultant} registrou uma venda de ${commission.type} no valor de ${commission.value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}.`,
+        date: commission.date,
+        link: `/gestor/commissions`, // Link para a página de comissões
+        isRead: false,
+      });
+    });
+
+    // 4. Onboarding Online 100% Concluído
+    onboardingSessions.filter(session => {
+      const totalVideos = session.videos.length;
+      if (totalVideos === 0) return false;
+      const completedVideos = session.videos.filter(video => video.is_completed).length;
+      const isCompleted100Percent = (completedVideos / totalVideos) === 1;
+
+      // Considerar "novo" se foi concluído 100% nas últimas 24 horas
+      // Isso requer que cada vídeo tenha um `updated_at` ou que a sessão tenha um `completed_at`
+      // Como não temos um `completed_at` na sessão, vamos simplificar:
+      // Se a sessão está 100% completa e foi criada recentemente (últimas 72h, por exemplo)
+      // Ou se o último vídeo foi marcado como completo recentemente.
+      // Para simplificar, vamos considerar que se a sessão está 100% completa, é uma notificação.
+      // Um sistema mais robusto teria um campo `session.completed_at`
+      const sessionCreationDate = new Date(session.created_at);
+      return isCompleted100Percent && (today.getTime() - sessionCreationDate.getTime() < 72 * 60 * 60 * 1000); // Notificar se 100% e criada nas últimas 72h
+    }).forEach(session => {
+      newNotifications.push({
+        id: `onboarding-complete-${session.id}`,
+        type: 'onboarding_complete',
+        title: `Onboarding Concluído: ${session.consultant_name}`,
+        description: `O consultor ${session.consultant_name} finalizou 100% do onboarding online.`,
+        date: session.created_at.split('T')[0], // Usar data de criação da sessão
+        link: `/gestor/onboarding-admin`, // Link para a página de onboarding
+        isRead: false,
+      });
+    });
+
+    setNotifications(newNotifications);
+  }, [user, teamMembers, formCadastros, commissions, onboardingSessions]); // Dependências para recalcular notificações
 
   useEffect(() => {
     clearStaleAuth();
@@ -401,7 +500,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           (async () => { try { return await supabase.from('gestor_tasks').select('*').eq('user_id', userId); } catch (e) { console.error("Error fetching gestor_tasks:", e); return { data: [], error: e }; } })(), // Fetch gestor tasks
           (async () => { try { return await supabase.from('gestor_task_completions').select('*').eq('user_id', userId); } catch (e) { console.error("Error fetching gestor_task_completions:", e); return { data: [], error: e }; } })(), // NOVO: Fetch gestor task completions
           (async () => { try { return await supabase.from('financial_entries').select('*').eq('user_id', userId); } catch (e) { console.error("Error fetching financial_entries:", e); return { data: [], error: e }; } })(), // NOVO: Fetch financial entries
-          (async () => { try { return await supabase.from('form_submissions').select('*').eq('user_id', effectiveGestorId).order('submission_date', { ascending: false }); } catch (e) { console.error("Error fetching form_submissions:", e); return { data: [], error: e }; } })(), // NOVO: Fetch form cadastros
+          (async () => { try { return await supabase.from('form_submissions').select('id, submission_date, data, internal_notes, is_complete').eq('user_id', effectiveGestorId).order('submission_date', { ascending: false }); } catch (e) { console.error("Error fetching form_submissions:", e); return { data: [], error: e }; } })(), // NOVO: Fetch form cadastros
           (async () => { try { return await supabase.from('form_files').select('*'); } catch (e) { console.error("Error fetching form_files:", e); return { data: [], error: e }; } })(), // NOVO: Fetch form files
         ]);
 
@@ -827,6 +926,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         supabase.removeChannel(formFilesChannel); // NOVO: Remover canal
     };
   }, [user, crmOwnerUserId]); // Depende de user e crmOwnerUserId para re-inscrever se eles mudarem
+
+  // NOVO: useEffect para recalcular notificações sempre que os dados relevantes mudarem
+  useEffect(() => {
+    calculateNotifications();
+  }, [teamMembers, formCadastros, commissions, onboardingSessions, calculateNotifications]);
 
 
   const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
@@ -2141,6 +2245,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       isGestorTaskDueOnDate, // NOVO: Adicionado isGestorTaskDueOnDate
       financialEntries, addFinancialEntry, updateFinancialEntry, deleteFinancialEntry, // NOVO: Adicionado financial entries
       formCadastros, formFiles, getFormCadastro, getFormFilesForSubmission, updateFormCadastro, deleteFormCadastro, // NOVO: Adicionado form cadastros e funções
+      notifications, // NOVO: Adicionado notifications ao contexto
     }}>
       {children}
     </AppContext.Provider>

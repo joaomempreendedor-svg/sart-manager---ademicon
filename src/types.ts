@@ -414,4 +414,17 @@ export interface FormFile {
   uploaded_at: string;
 }
 
+// NOVO: Tipos para Notificações
+export type NotificationType = 'birthday' | 'form_submission' | 'new_sale' | 'onboarding_complete';
+
+export interface Notification {
+  id: string;
+  type: NotificationType;
+  title: string;
+  description: string;
+  date: string; // YYYY-MM-DD
+  link?: string; // Link para a página relevante
+  isRead: boolean; // Para controle futuro de "lido"
+}
+
 // --- FIM DOS NOVOS TIPOS ---

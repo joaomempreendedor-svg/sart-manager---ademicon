@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { ConsultorSidebar } from '@/components/ConsultorSidebar';
 import { Header } from '@/components/Header';
+import { useAuth } from '@/context/AuthContext'; // Importar useAuth
 
 export const ConsultorLayout = () => {
+  const { user } = useAuth(); // Obter o usuário do contexto de autenticação
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false); // Novo estado para recolher/expandir
 
@@ -19,7 +21,7 @@ export const ConsultorLayout = () => {
         toggleSidebarCollapse={toggleSidebarCollapse} // Passa a função
       />
       <div className={`flex-1 md:ml-64 flex flex-col transition-all duration-300 ${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-64'}`}> {/* Ajusta margem */}
-        <Header isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar} />
+        <Header isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar} user={user} /> {/* Passar o user para o Header */}
         <main className="flex-1">
           <Outlet />
         </main>
