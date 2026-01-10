@@ -546,6 +546,7 @@ export const PublicForm = () => {
                         {/* Rótulos dinâmicos e corrigidos */}
                         {fieldName === 'documento_identificacao_file' && formData.tipo_documento_identificacao ? `Arquivo do ${formData.tipo_documento_identificacao}` :
                          fieldName === 'comprovante_endereco_file' ? 'Comprovante de Residência' :
+                         fieldName === 'tipo_documento_identificacao' ? 'Tipo Documento Identificação' : // Corrigido aqui
                          fieldName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} {(isRequired || isConditionallyRequired) && <span className="text-red-500">*</span>}
                       </label>
                       {fieldName === 'cpf' ? (
