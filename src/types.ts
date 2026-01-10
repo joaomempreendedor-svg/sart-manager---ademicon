@@ -190,7 +190,7 @@ export interface SupportMaterialAssignment {
 //   id: string; // Client-side UUID
 //   db_id?: string; // Database primary key
 //   title: string;
-//   url: string;
+//   url: string; // URL from Supabase Storage
 //   description: string;
 //   category: string;
 // }
@@ -394,8 +394,8 @@ export interface FinancialEntry {
   created_at: string;
 }
 
-// NOVO: Tipos para Submissões de Formulário Público
-export interface FormSubmission {
+// NOVO: Tipos para Cadastros de Formulário Público
+export interface FormCadastro {
   id: string;
   user_id: string; // ID do gestor que gerencia este formulário
   submission_date: string; // TIMESTAMP WITH TIME ZONE

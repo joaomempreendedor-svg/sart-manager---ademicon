@@ -6,7 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// ID do gestor principal para vincular as submissões do formulário
+// ID do gestor principal para vincular os cadastros do formulário
 const JOAO_GESTOR_AUTH_ID = "0c6d71b7-daeb-4dde-8eec-0e7a8ffef658"; // <--- ATUALIZADO COM O SEU ID DE GESTOR!
 
 serve(async (req) => {
@@ -15,9 +15,9 @@ serve(async (req) => {
   }
 
   try {
-    const { submissionData, files } = await req.json();
+    const { cadastroData, files } = await req.json();
 
-    if (!submissionData) {
+    if (!cadastroData) {
       return new Response(JSON.stringify({ error: 'Dados do formulário são obrigatórios.' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
@@ -30,18 +30,18 @@ serve(async (req) => {
     );
 
     // 1. Inserir os dados do formulário na tabela form_submissions
-    const { data: submission, error: submissionError } = await supabaseAdmin
+    const { data: cadastro, error: cadastroError } = await supabaseAdmin
       .from('form_submissions')
-      .insert({ user_id: JOAO_GESTOR_AUTH_ID, data: submissionData, is_complete: files.length > 0 }) // Assume completo se tiver arquivos
+      .insert({ user_id: JOAO_GESTOR_AUTH_ID, data: cadastroData, is_complete: files.length > 0 }) // Assume completo se tiver arquivos
       .select('id')
       .single();
 
-    if (submissionError) {
-      console.error("Erro ao inserir submissão:", submissionError);
-      throw submissionError;
+    if (cadastroError) {
+      console.error("Erro ao inserir cadastro:", cadastroError);
+      throw cadastroError;
     }
 
-    const submissionId = submission.id;
+    const cadastroId = cadastro.id;
     const uploadedFilesMetadata = [];
 
     // 2. Processar e fazer upload dos arquivos para o Supabase Storage
@@ -49,7 +49,7 @@ serve(async (req) => {
       const { fieldName, fileName, fileType, fileContent } = fileData;
       const fileBuffer = Uint8Array.from(fileContent);
 
-      const filePath = `public/${submissionId}/${fieldName}-${fileName}`;
+      const filePath = `public/${cadastroId}/${fieldName}-${fileName}`;
 
       const { error: uploadError } = await supabaseAdmin.storage
         .from('form_uploads')
@@ -75,7 +75,7 @@ serve(async (req) => {
       const { data: fileRecord, error: fileRecordError } = await supabaseAdmin
         .from('form_files')
         .insert({
-          submission_id: submissionId,
+          submission_id: cadastroId,
           field_name: fieldName,
           file_name: fileName,
           file_url: publicUrlData.publicUrl,
@@ -92,7 +92,7 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({
       message: 'Formulário e arquivos enviados com sucesso!',
-      submissionId,
+      cadastroId,
       uploadedFiles: uploadedFilesMetadata,
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -101,7 +101,7 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Erro na Edge Function submit-form:', error);
-    return new Response(JSON.stringify({ error: error.message || 'Falha ao processar submissão do formulário.' }), {
+    return new Response(JSON.stringify({ error: error.message || 'Falha ao processar cadastro do formulário.' }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
     });

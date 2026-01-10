@@ -327,10 +327,10 @@ export const PublicForm = () => {
       if (formData.comprovante_endereco_file) filesToUpload.push({ fieldName: 'comprovante_endereco', file: formData.comprovante_endereco_file });
       if (formData.certidao_nascimento_file) filesToUpload.push({ fieldName: 'certidao_nascimento', file: formData.certidao_nascimento_file });
 
-      const submissionData: any = { ...formData };
-      delete submissionData.documento_identificacao_file;
-      delete submissionData.comprovante_endereco_file;
-      delete submissionData.certidao_nascimento_file;
+      const cadastroData: any = { ...formData };
+      delete cadastroData.documento_identificacao_file;
+      delete cadastroData.comprovante_endereco_file;
+      delete cadastroData.certidao_nascimento_file;
 
       const processedFiles = await Promise.all(filesToUpload.map(async (f) => ({
         fieldName: f.fieldName,
@@ -340,7 +340,7 @@ export const PublicForm = () => {
       })));
 
       const { data, error: invokeError } = await supabase.functions.invoke('submit-form', {
-        body: { submissionData, files: processedFiles },
+        body: { cadastroData, files: processedFiles },
       });
 
       if (invokeError) {
@@ -357,7 +357,7 @@ export const PublicForm = () => {
       toast.success("Formulário enviado com sucesso!");
       setFormSubmitted(true);
     } catch (err: any) {
-      console.error("Submission error:", err);
+      console.error("Cadastro error:", err);
       toast.error(`Falha ao enviar formulário: ${err.message || 'Erro desconhecido'}`);
     } finally {
       setLoading(false);

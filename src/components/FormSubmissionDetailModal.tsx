@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, FileText, Image as ImageIcon, Download, CheckCircle2, AlertTriangle, MessageSquare, Loader2, Save } from 'lucide-react';
-import { FormSubmission, FormFile } from '@/types';
+import { FormCadastro, FormFile } from '@/types';
 import { useApp } from '@/context/AppContext';
 import toast from 'react-hot-toast';
 import {
@@ -16,27 +16,27 @@ import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { formSteps, BRAZILIAN_STATES, SOCIAL_MEDIA_OPTIONS } from '@/data/formStepsData'; // Importar formSteps e outras constantes
 
-interface FormSubmissionDetailModalProps {
+interface FormCadastroDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
-  submission: FormSubmission | null;
+  cadastro: FormCadastro | null;
   formSteps: typeof formSteps; // Adicionar formSteps como prop
 }
 
-export const FormSubmissionDetailModal: React.FC<FormSubmissionDetailModalProps> = ({ isOpen, onClose, submission, formSteps }) => {
-  const { getFormFilesForSubmission, updateFormSubmission } = useApp();
+export const FormCadastroDetailModal: React.FC<FormCadastroDetailModalProps> = ({ isOpen, onClose, cadastro, formSteps }) => {
+  const { getFormFilesForSubmission, updateFormCadastro } = useApp();
   const [internalNotes, setInternalNotes] = useState('');
   const [isComplete, setIsComplete] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  const files = submission ? getFormFilesForSubmission(submission.id) : [];
+  const files = cadastro ? getFormFilesForSubmission(cadastro.id) : [];
 
   useEffect(() => {
-    if (submission) {
-      setInternalNotes(submission.internal_notes || '');
-      setIsComplete(submission.is_complete);
+    if (cadastro) {
+      setInternalNotes(cadastro.internal_notes || '');
+      setIsComplete(cadastro.is_complete);
     }
-  }, [submission, isOpen]);
+  }, [cadastro, isOpen]);
 
   const handleDownloadFile = async (file: FormFile) => {
     try {
@@ -61,10 +61,10 @@ export const FormSubmissionDetailModal: React.FC<FormSubmissionDetailModalProps>
   };
 
   const handleSaveNotesAndStatus = async () => {
-    if (!submission) return;
+    if (!cadastro) return;
     setIsSaving(true);
     try {
-      await updateFormSubmission(submission.id, { internal_notes: internalNotes, is_complete: isComplete });
+      await updateFormCadastro(cadastro.id, { internal_notes: internalNotes, is_complete: isComplete });
       toast.success("Notas e status atualizados com sucesso!");
       onClose();
     } catch (error) {
@@ -75,12 +75,12 @@ export const FormSubmissionDetailModal: React.FC<FormSubmissionDetailModalProps>
     }
   };
 
-  if (!submission) return null; // Renderiza nulo se não houver submissão
+  if (!cadastro) return null; // Renderiza nulo se não houver cadastro
 
   // Função para formatar o rótulo do campo
-  const formatLabel = (fieldName: string, submissionData: any) => {
-    if (fieldName === 'documento_identificacao_file' && submissionData.tipo_documento_identificacao) {
-      return `Arquivo do ${submissionData.tipo_documento_identificacao}`;
+  const formatLabel = (fieldName: string, cadastroData: any) => {
+    if (fieldName === 'documento_identificacao_file' && cadastroData.tipo_documento_identificacao) {
+      return `Arquivo do ${cadastroData.tipo_documento_identificacao}`;
     }
     if (fieldName === 'comprovante_endereco_file') return 'Comprovante de Residência';
     if (fieldName === 'certidao_nascimento_file') return 'Certidão de Nascimento';
@@ -98,9 +98,9 @@ export const FormSubmissionDetailModal: React.FC<FormSubmissionDetailModalProps>
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-3xl bg-white dark:bg-slate-800 dark:text-white p-6 z-[100]">
         <DialogHeader>
-          <DialogTitle>Detalhes da Submissão</DialogTitle>
+          <DialogTitle>Detalhes do Cadastro</DialogTitle>
           <DialogDescription>
-            Submissão de {submission.data.nome_completo} em {new Date(submission.submission_date).toLocaleDateString('pt-BR')}
+            Cadastro de {cadastro.data.nome_completo} em {new Date(cadastro.submission_date).toLocaleDateString('pt-BR')}
           </DialogDescription>
         </DialogHeader>
         
@@ -113,22 +113,22 @@ export const FormSubmissionDetailModal: React.FC<FormSubmissionDetailModalProps>
                 {formSteps.map(step => (
                   <React.Fragment key={step.id}>
                     {step.fields.map(fieldName => {
-                      const value = submission.data[fieldName];
+                      const value = cadastro.data[fieldName];
 
                       // Ignorar campos de arquivo que são tratados separadamente
                       if (fieldName.includes('_file')) return null;
 
                       // Lógica condicional para exibir campos
-                      if (fieldName === 'nome_completo_conjuge' && submission.data.estado_civil !== 'Casado') return null;
+                      if (fieldName === 'nome_completo_conjuge' && cadastro.data.estado_civil !== 'Casado') return null;
                       if (fieldName === 'rede_social' && !value) return null; // Não mostra se não preenchido
-                      if (fieldName === 'link_rede_social' && !submission.data.rede_social) return null; // Não mostra se não preenchido
+                      if (fieldName === 'link_rede_social' && !cadastro.data.rede_social) return null; // Não mostra se não preenchido
 
                       // Não mostra campos de endereço se o CEP não foi preenchido ou não retornou dados
-                      if (step.id === 'localizacao' && !submission.data.cep) return null;
+                      if (step.id === 'localizacao' && !cadastro.data.cep) return null;
 
                       return (
                         <div key={fieldName} className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-slate-700 last:border-b-0">
-                          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{formatLabel(fieldName, submission.data)}:</span>
+                          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{formatLabel(fieldName, cadastro.data)}:</span>
                           <span className="text-sm text-gray-900 dark:text-white text-right break-all">{String(value || 'N/A')}</span>
                         </div>
                       );
@@ -168,7 +168,7 @@ export const FormSubmissionDetailModal: React.FC<FormSubmissionDetailModalProps>
               <Textarea
                 value={internalNotes}
                 onChange={(e) => setInternalNotes(e.target.value)}
-                placeholder="Adicione notas internas sobre esta submissão..."
+                placeholder="Adicione notas internas sobre este cadastro..."
                 rows={5}
                 className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600"
               />
