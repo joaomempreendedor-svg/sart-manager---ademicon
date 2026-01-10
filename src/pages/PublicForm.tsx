@@ -27,6 +27,22 @@ const formatCepInput = (value: string): string => {
   return value.substring(0, 9); // Limita ao tamanho máximo do CEP formatado
 };
 
+// NOVO: Helper function for formatting RG
+const formatRgInput = (value: string): string => {
+  value = value.replace(/\D/g, ''); // Remove tudo que não é dígito
+  // Formato comum: XX.XXX.XXX-X ou X.XXX.XXX-X
+  if (value.length > 2) {
+    value = value.replace(/^(\d{2})(\d)/, '$1.$2');
+  }
+  if (value.length > 6) {
+    value = value.replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3');
+  }
+  if (value.length > 10) {
+    value = value.replace(/^(\d{2})\.(\d{3})\.(\d{3})(\d)/, '$1.$2.$3-$4');
+  }
+  return value.substring(0, 12); // Limita ao tamanho máximo do RG formatado (ex: 12.345.678-9)
+};
+
 
 // Constantes para estados e nacionalidades
 const BRAZILIAN_STATES = [
@@ -87,7 +103,7 @@ const formSteps = [
   },
   {
     id: 'endereco',
-    title: 'Endereço',
+    title: 'Endereço', // Corrigido ortografia
     icon: Home,
     fields: ['cep', 'estado_endereco', 'cidade_endereco', 'rua_endereco', 'bairro_endereco', 'numero_endereco', 'complemento_endereco'],
   },
@@ -180,6 +196,10 @@ export const PublicForm = () => {
         if (!value.replace(/\D/g, '')) error = 'CEP obrigatório.';
         else if (value.replace(/\D/g, '').length !== 8) error = 'CEP inválido.';
         break;
+      // NOVO: Complemento não é obrigatório
+      case 'complemento_endereco':
+        // Não é obrigatório, então não há validação de preenchimento
+        break;
       default: break;
     }
     return error;
@@ -197,6 +217,8 @@ export const PublicForm = () => {
       formattedValue = formatCelularInput(value);
     } else if (name === 'cep') {
       formattedValue = formatCepInput(value);
+    } else if (name === 'rg') { // NOVO: Formatação para RG
+      formattedValue = formatRgInput(value);
     }
 
     setFormData(prev => {
@@ -312,7 +334,7 @@ export const PublicForm = () => {
         } else if (fieldName === 'certidao_nascimento_file' && formData.comprovante_nome_quem !== 'No nome dos pais') {
           delete allErrors[fieldName];
         }
-      });
+    });
     });
 
     setErrors(allErrors);
@@ -458,8 +480,11 @@ export const PublicForm = () => {
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {formSteps[currentStep].fields.map(fieldName => {
-                  const isOptional = formSteps[currentStep].optional;
-                  const isRequired = !isOptional && !['nome_completo_conjuge', 'certidao_nascimento_file'].includes(fieldName); // Handle conditional required fields
+                  // 'complemento_endereco' não é obrigatório
+                  const isRequired = !['complemento_endereco'].includes(fieldName) && !formSteps[currentStep].optional;
+                  // Validações condicionais para campos específicos
+                  const isConditionallyRequired = (fieldName === 'nome_completo_conjuge' && formData.estado_civil === 'Casado') ||
+                                                 (fieldName === 'certidao_nascimento_file' && formData.comprovante_nome_quem === 'No nome dos pais');
 
                   // Conditional rendering for specific fields
                   if (fieldName === 'nome_completo_conjuge' && formData.estado_civil !== 'Casado') return null;
@@ -476,7 +501,10 @@ export const PublicForm = () => {
                   return (
                     <div key={fieldName} className={['rua_endereco'].includes(fieldName) ? 'md:col-span-2' : ''}>
                       <label htmlFor={fieldName} className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                        {fieldName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} {isRequired && <span className="text-red-500">*</span>}
+                        {/* Corrigido ortografia de 'endereço' e rótulos de documentos */}
+                        {fieldName === 'documento_identificacao_file' ? 'Documento de Identificação' :
+                         fieldName === 'comprovante_endereco_file' ? 'Comprovante de Endereço' :
+                         fieldName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} {(isRequired || isConditionallyRequired) && <span className="text-red-500">*</span>}
                       </label>
                       {fieldName === 'cpf' ? (
                         <input 
@@ -514,10 +542,22 @@ export const PublicForm = () => {
                           placeholder="00000-000"
                           maxLength={9}
                         />
+                      ) : fieldName === 'rg' ? ( // NOVO: Campo RG com formatação
+                        <input 
+                          type="text" 
+                          id="rg" 
+                          name="rg" 
+                          value={formData.rg} 
+                          onChange={handleChange} 
+                          onBlur={() => setErrors(prev => ({ ...prev, rg: validateField('rg', formData.rg) }))}
+                          className="mt-1 block w-full border-gray-300 dark:border-slate-600 rounded-md shadow-sm p-2 dark:bg-slate-700 dark:text-white" 
+                          placeholder="00.000.000-0"
+                          maxLength={12} // Ajustado para o formato XX.XXX.XXX-X
+                        />
                       ) : fieldName.includes('_file') ? (
                         <>
                           <input type="file" id={fieldName} name={fieldName} onChange={handleChange} accept=".pdf,image/*" className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100 dark:file:bg-brand-900/20 dark:file:text-brand-400 dark:hover:file:bg-brand-900/40" />
-                          {fieldName === 'documento_identificacao_file' && <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Enviar frente e verso do documento.</p>}
+                          {fieldName === 'documento_identificacao_file' && <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Enviar frente e verso do RG, CPF ou CNH.</p>} {/* NOVO: Descrição */}
                           {fieldName === 'comprovante_endereco_file' && <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">O comprovante deve estar no nome do titular ou no nome dos pais.</p>}
                           {fieldName === 'certidao_nascimento_file' && <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Documento necessário para validação de vínculo.</p>}
                         </>
@@ -531,6 +571,8 @@ export const PublicForm = () => {
                         </select>
                       ) : fieldName === 'data_nascimento' ? (
                         <input type="date" id={fieldName} name={fieldName} value={formData[fieldName as keyof FormData] as string || ''} onChange={handleChange} className="mt-1 block w-full border-gray-300 dark:border-slate-600 rounded-md shadow-sm p-2 dark:bg-slate-700 dark:text-white" />
+                      ) : fieldName === 'email' ? ( // NOVO: Placeholder para email
+                        <input type="text" id={fieldName} name={fieldName} value={formData[fieldName as keyof FormData] as string || ''} onChange={handleChange} className="mt-1 block w-full border-gray-300 dark:border-slate-600 rounded-md shadow-sm p-2 dark:bg-slate-700 dark:text-white" placeholder="exemplo@gmail.com" />
                       ) : (
                         <input type="text" id={fieldName} name={fieldName} value={formData[fieldName as keyof FormData] as string || ''} onChange={handleChange} className="mt-1 block w-full border-gray-300 dark:border-slate-600 rounded-md shadow-sm p-2 dark:bg-slate-700 dark:text-white" />
                       )}
