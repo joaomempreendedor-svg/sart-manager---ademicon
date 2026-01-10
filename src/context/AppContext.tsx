@@ -972,12 +972,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     
     if (data) { 
       // Update local state with the Supabase-generated 'id' (db_id) and actual 'created_at'
-      setCandidates(prev => [{ 
+      setCandidates(prev => [...prev, { // Adiciona ao final para manter a ordem de importação
         ...newCandidateData, 
         db_id: data.id, // Store Supabase's primary key here
         createdAt: data.created_at, 
         lastUpdatedAt: data.last_updated_at 
-      }, ...prev]); 
+      }]); 
     } 
     return newCandidateData; // Return the client-side object
   }, [user]);

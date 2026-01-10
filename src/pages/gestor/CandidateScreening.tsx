@@ -45,8 +45,9 @@ const CandidateScreening = () => {
       );
     }
 
-    // Alterado para ordenar por data de criação ascendente (mais antigos primeiro)
-    return currentCandidates.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    // Removido: Ordenação por data de criação ascendente para preservar a ordem de importação
+    // return currentCandidates.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    return currentCandidates; // Retorna na ordem em que foram adicionados/carregados
   }, [candidatesInScreening, searchTerm, filterStatus]);
 
   // NOVO: Cálculo das métricas de resumo
