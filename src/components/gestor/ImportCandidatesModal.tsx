@@ -74,13 +74,9 @@ export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
     const headers = firstLine.split(delimiter).map(h => h.trim().toLowerCase());
     const dataLines = lines.slice(1);
 
-    // Identify column indices for auto-detection
+    // Identify column indices for auto-detection (only name and status)
     const nameIndex = headers.findIndex(h => h.includes('nome'));
     const statusIndex = headers.findIndex(h => h.includes('status') || h.includes('triagem'));
-    const phoneIndex = headers.findIndex(h => h.includes('fone') || h.includes('tel') || h.includes('telefone'));
-    const emailIndex = headers.findIndex(h => h.includes('email'));
-    const originIndex = headers.findIndex(h => h.includes('origem'));
-    const responsibleIndex = headers.findIndex(h => h.includes('responsavel') || h.includes('gestor'));
 
     if (nameIndex === -1) {
       setParseError("Coluna 'Nome' não encontrada nos cabeçalhos. Verifique o formato.");
@@ -104,6 +100,10 @@ export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
         checklistProgress: {},
         consultantGoalsProgress: {},
         feedbacks: [],
+        phone: '', // Explicitly set to empty string
+        email: '', // Explicitly set to empty string
+        origin: '', // Explicitly set to empty string
+        responsibleUserId: undefined, // Explicitly set to undefined
       };
       let recordIsValid = true;
       const currentRecordErrors: string[] = [];
@@ -130,32 +130,15 @@ export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
         recordIsValid = false;
       }
 
-      // Auto-detect other fields
-      if (phoneIndex !== -1 && values[phoneIndex]) {
-        candidateData.phone = values[phoneIndex];
-      }
-      if (emailIndex !== -1 && values[emailIndex]) {
-        candidateData.email = values[emailIndex];
-      }
-      if (originIndex !== -1 && values[originIndex]) {
-        const originName = values[originIndex];
-        if (origins.includes(originName)) {
-          candidateData.origin = originName;
-        } else {
-          currentRecordErrors.push(`Origem "${originName}" não encontrada nas opções configuradas.`);
+      // No auto-detection for other fields, they will remain at their default empty/undefined values.
+
+      // Validate required fields
+      requiredFields.forEach(field => {
+        if (!(candidateData as any)[field] || (candidateData as any)[field].trim() === '') {
+          currentRecordErrors.push(`Campo obrigatório "${field}" ausente.`);
           recordIsValid = false;
         }
-      }
-      if (responsibleIndex !== -1 && values[responsibleIndex]) {
-        const responsibleName = values[responsibleIndex];
-        const foundMember = responsibleMembers.find(m => m.name.toLowerCase() === responsibleName.toLowerCase());
-        if (foundMember) {
-          candidateData.responsibleUserId = foundMember.id;
-        } else {
-          currentRecordErrors.push(`Responsável "${responsibleName}" não encontrado.`);
-          recordIsValid = false;
-        }
-      }
+      });
 
       if (recordIsValid) {
         newCandidates.push(candidateData as Omit<Candidate, 'id' | 'createdAt' | 'db_id'>);
@@ -201,7 +184,7 @@ export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
             <span>Importar Candidatos da Planilha</span>
           </DialogTitle>
           <DialogDescription>
-            Cole os dados da sua planilha (CSV ou tab-separated). O sistema tentará identificar as colunas automaticamente.
+            Cole os dados da sua planilha (CSV ou tab-separated). O sistema buscará apenas as colunas 'Nome' e 'Status'.
           </DialogDescription>
         </DialogHeader>
         
@@ -214,7 +197,7 @@ export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
               onChange={(e) => setPastedData(e.target.value)}
               rows={8}
               className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600 font-mono text-sm"
-              placeholder="Cole aqui os dados da sua planilha. Use vírgula (,) ou tab (	) como separador.&#10;&#10;Exemplo:&#10;Nome,Status,Telefone,Email,Origem,Responsavel&#10;Susana,Sem perfil,(11) 98765-4321,susana@email.com,Indicação,João Silva&#10;Rafinha,Contato Feito,(21) 91234-5678,rafinha@email.com,Prospecção,Maria Souza&#10;Gislaine Aparecida,Pendente,(31) 99887-7665,gislaine@email.com,Tráfego Linkedin,João Silva"
+              placeholder="Cole aqui os dados da sua planilha. Use vírgula (,) ou tab (	) como separador.&#10;&#10;Exemplo:&#10;Nome,Status&#10;Susana,Sem perfil&#10;Rafinha,Contato Feito&#10;Gislaine Aparecida,Pendente"
             />
             {parseError && (
               <p className="text-red-500 text-sm mt-2 flex items-center"><AlertTriangle className="w-4 h-4 mr-2" />{parseError}</p>
