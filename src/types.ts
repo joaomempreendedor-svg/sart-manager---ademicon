@@ -50,6 +50,7 @@ export interface Candidate {
   interviewer: string;
   origin: string; // Indicação, Prospecção, etc.
   status: CandidateStatus;
+  screeningStatus?: 'Pending Contact' | 'Contacted' | 'No Fit'; // NOVO: Status de triagem
   interviewScores: InterviewScores;
   checkedQuestions?: Record<string, boolean>; // questionId -> boolean
   checklistProgress: Record<string, ChecklistTaskState>; // map of taskId -> state

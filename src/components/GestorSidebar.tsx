@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, MessageSquare, Settings, FileText, Sun, Moon, Banknote, PlusCircle, Library, TrendingUp, Target, Users, LogOut, User as UserIcon, Calendar, Star, Video, ListChecks, ClipboardCheck, UserPlus, ChevronLeft, ChevronRight, ChevronDown, UserSearch, BarChart3, UserCog, MapPin, DollarSign, FileStack } from 'lucide-react';
+import { LayoutDashboard, MessageSquare, Settings, FileText, Sun, Moon, Banknote, PlusCircle, Library, TrendingUp, Target, Users, LogOut, User as UserIcon, Calendar, Star, Video, ListChecks, ClipboardCheck, UserPlus, ChevronLeft, ChevronRight, ChevronDown, UserSearch, BarChart3, UserCog, MapPin, DollarSign, FileStack, UserCheck } from 'lucide-react'; // Adicionado UserCheck
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 
@@ -84,6 +84,10 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
                 <UserSearch className="w-5 h-5" />
                 <span>Pipeline Contratação</span>
               </NavLink>
+              <NavLink to="/gestor/candidate-screening" className={linkClass} onClick={toggleSidebar}> {/* NOVO LINK */}
+                <UserCheck className="w-5 h-5" />
+                <span>Controle Candidaturas</span>
+              </NavLink>
               <NavLink to="/gestor/hiring-reports" className={linkClass} onClick={toggleSidebar}>
                 <UserCog className="w-5 h-5" />
                 <span>Relatórios Contratação</span>
@@ -131,6 +135,9 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
               </NavLink>
               <NavLink to="/gestor/hiring-pipeline" className={linkClass} onClick={toggleSidebar} title="Pipeline Contratação">
                 <UserSearch className="w-5 h-5" />
+              </NavLink>
+              <NavLink to="/gestor/candidate-screening" className={linkClass} onClick={toggleSidebar} title="Controle Candidaturas"> {/* NOVO LINK */}
+                <UserCheck className="w-5 h-5" />
               </NavLink>
               <NavLink to="/gestor/hiring-reports" className={linkClass} onClick={toggleSidebar} title="Relatórios Contratação">
                 <UserCog className="w-5 h-5" />

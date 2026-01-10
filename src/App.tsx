@@ -44,6 +44,7 @@ import HiringReports from '@/pages/gestor/HiringReports';
 import { OriginConfig } from '@/pages/OriginConfig'; // NOVO: Importar OriginConfig
 import { FinancialPanel } from '@/pages/FinancialPanel'; // NOVO: Importar FinancialPanel
 import { FormCadastros } from '@/pages/gestor/FormSubmissions'; // NOVO: Importar FormCadastros
+import CandidateScreening from '@/pages/gestor/CandidateScreening'; // NOVO: Importar CandidateScreening
 
 // Consultor Pages
 import ConsultorDashboard from '@/pages/consultor/Dashboard';
@@ -183,6 +184,7 @@ const AppRoutes = () => {
           <Route path="hiring-reports" element={<HiringReports />} />
           <Route path="config-origins" element={<OriginConfig />} /> {/* NOVO: Rota para OriginConfig */}
           <Route path="form-cadastros" element={<FormCadastros />} /> {/* NOVO: Rota para FormCadastros */}
+          <Route path="candidate-screening" element={<CandidateScreening />} /> {/* NOVO: Rota para CandidateScreening */}
           <Route path="*" element={<Navigate to="/gestor/dashboard" replace />} />
         </Route>
 

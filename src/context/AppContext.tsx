@@ -934,8 +934,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [teamMembers, formCadastros, crmLeads, onboardingSessions, calculateNotifications]); // Dependências atualizadas
 
   const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
-  const addCandidate = useCallback(async (candidate: Candidate) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('candidates').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: candidate }).select('id').single(); if (error) { console.error(error); toast.error("Erro ao adicionar candidato."); throw error; } if (data) { setCandidates(prev => [{ ...candidate, db_id: data.id }, ...prev]); } }, [user]);
-  const updateCandidate = useCallback(async (id: string, updates: Partial<Candidate>) => { if (!user) throw new Error("Usuário não autenticado."); const c = candidates.find(c => c.id === id); if (!c || !c.db_id) throw new Error("Candidato não encontrado"); const updated = { ...c, ...updates }; const { db_id, ...dataToUpdate } = updated; const { error } = await supabase.from('candidates').update({ data: dataToUpdate }).match({ id: c.db_id, user_id: JOAO_GESTOR_AUTH_ID }); if (error) { console.error(error); toast.error("Erro ao atualizar candidato."); throw error; } setCandidates(prev => prev.map(p => p.id === id ? updated : p)); }, [user, candidates]);
+  const addCandidate = useCallback(async (candidate: Candidate) => { 
+    if (!user) throw new Error("Usuário não autenticado."); 
+    const { data, error } = await supabase.from('candidates').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: { ...candidate, screeningStatus: candidate.screeningStatus || 'Pending Contact' } }).select('id').single(); // NOVO: Adiciona screeningStatus padrão
+    if (error) { console.error(error); toast.error("Erro ao adicionar candidato."); throw error; } 
+    if (data) { setCandidates(prev => [{ ...candidate, db_id: data.id, screeningStatus: candidate.screeningStatus || 'Pending Contact' }, ...prev]); } 
+  }, [user]);
+  const updateCandidate = useCallback(async (id: string, updates: Partial<Candidate>) => { 
+    if (!user) throw new Error("Usuário não autenticado."); 
+    const c = candidates.find(c => c.id === id); 
+    if (!c || !c.db_id) throw new Error("Candidato não encontrado"); 
+    const updated = { ...c, ...updates }; 
+    const { db_id, ...dataToUpdate } = updated; 
+    const { error } = await supabase.from('candidates').update({ data: dataToUpdate }).match({ id: c.db_id, user_id: JOAO_GESTOR_AUTH_ID }); 
+    if (error) { console.error(error); toast.error("Erro ao atualizar candidato."); throw error; } 
+    setCandidates(prev => prev.map(p => p.id === id ? updated : p)); 
+  }, [user, candidates]);
   const deleteCandidate = useCallback(async (id: string) => { if (!user) throw new Error("Usuário não autenticado."); const c = candidates.find(c => c.id === id); if (!c || !c.db_id) throw new Error("Candidato não encontrado"); const { error } = await supabase.from('candidates').delete().match({ id: c.db_id, user_id: JOAO_GESTOR_AUTH_ID }); if (error) { console.error(error); toast.error("Erro ao excluir candidato."); throw error; } setCandidates(prev => prev.filter(p => p.id !== id)); }, [user, candidates]);
   
   const addTeamMember = useCallback(async (member: Omit<TeamMember, 'id'> & { email?: string }) => {
