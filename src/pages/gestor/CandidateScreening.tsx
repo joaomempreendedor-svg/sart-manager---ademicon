@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Loader2, Search, User, Phone, Mail, CheckCircle2, XCircle, RotateCcw, ArrowRight, MessageSquare, UserX, Plus, Trash2, Users, Clock, UserRound } from 'lucide-react'; // Adicionado Users, Clock, UserRound icons
+import { Loader2, Search, User, Phone, Mail, CheckCircle2, XCircle, RotateCcw, ArrowRight, MessageSquare, UserX, Plus, Trash2, Users, Clock, UserRound, UploadCloud } from 'lucide-react'; // Adicionado UploadCloud icon
 import { Link } from 'react-router-dom';
 import { TableSkeleton } from '@/components/TableSkeleton';
 import {
@@ -12,15 +12,18 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import toast from 'react-hot-toast';
-import { AddScreeningCandidateModal } from '@/components/gestor/AddScreeningCandidateModal'; // NOVO: Importar o modal
+import { AddScreeningCandidateModal } from '@/components/gestor/AddScreeningCandidateModal';
+import { ImportCandidatesModal } from '@/components/gestor/ImportCandidatesModal'; // NOVO: Importar o modal de importação
+import { Candidate } from '@/types'; // Importar o tipo Candidate
 
 const CandidateScreening = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
-  const { candidates, isDataLoading, updateCandidate, deleteCandidate, teamMembers, origins } = useApp();
+  const { candidates, isDataLoading, updateCandidate, deleteCandidate, teamMembers, origins, addCandidate } = useApp(); // Adicionado addCandidate
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'Pending Contact' | 'Contacted' | 'No Fit'>('all');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false); // NOVO: Estado para o modal de importação
 
   const candidatesInScreening = useMemo(() => {
     return candidates.filter(c => c.status === 'Triagem');
@@ -70,6 +73,18 @@ const CandidateScreening = () => {
         toast.success(`Candidato "${candidateName}" excluído com sucesso!`);
       } catch (error: any) {
         toast.error(`Erro ao excluir candidato: ${error.message}`);
+      }
+    }
+  };
+
+  // NOVO: Função para lidar com a importação de candidatos
+  const handleImportCandidates = async (newCandidates: Omit<Candidate, 'id' | 'createdAt' | 'db_id'>[]) => {
+    for (const candidateData of newCandidates) {
+      try {
+        await addCandidate(candidateData);
+      } catch (error) {
+        console.error("Erro ao adicionar candidato importado:", candidateData.name, error);
+        throw error; // Re-throw para que o modal possa registrar a falha
       }
     }
   };
@@ -130,6 +145,13 @@ const CandidateScreening = () => {
               </SelectContent>
             </Select>
           </div>
+          <button
+            onClick={() => setIsImportModalOpen(true)} // NOVO: Botão para abrir o modal de importação
+            className="flex items-center justify-center space-x-2 bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded-lg transition font-medium flex-shrink-0"
+          >
+            <UploadCloud className="w-5 h-5" />
+            <span>Importar Planilha</span>
+          </button>
           <button
             onClick={() => setIsAddModalOpen(true)}
             className="flex items-center justify-center space-x-2 bg-brand-600 hover:bg-brand-700 text-white py-2 px-4 rounded-lg transition font-medium flex-shrink-0"
@@ -262,6 +284,14 @@ const CandidateScreening = () => {
         onClose={() => setIsAddModalOpen(false)}
         origins={origins}
         responsibleMembers={teamMembers.filter(m => m.isActive && (m.roles.includes('Gestor') || m.roles.includes('Anjo')))}
+      />
+      {/* NOVO: Modal de Importação */}
+      <ImportCandidatesModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        origins={origins}
+        responsibleMembers={teamMembers.filter(m => m.isActive && (m.roles.includes('Gestor') || m.roles.includes('Anjo')))}
+        onImport={handleImportCandidates}
       />
     </div>
   );
