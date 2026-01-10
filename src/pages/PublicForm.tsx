@@ -258,16 +258,19 @@ export const PublicForm = () => {
       delete submissionData.comprovante_endereco_file;
       delete submissionData.certidao_nascimento_file;
 
+      // Prepare files for upload by converting them to ArrayBuffer and then to an array of numbers
+      const processedFiles = await Promise.all(filesToUpload.map(async (f) => ({
+        fieldName: f.fieldName,
+        fileName: f.file.name,
+        fileType: f.file.type,
+        fileContent: Array.from(new Uint8Array(await f.file.arrayBuffer())), // Convert to array of numbers
+      })));
+
       // Invoke Edge Function to handle submission and file uploads
       const { data, error: invokeError } = await supabase.functions.invoke('submit-form', {
         body: {
           submissionData,
-          files: filesToUpload.map(f => ({
-            fieldName: f.fieldName,
-            fileName: f.file.name,
-            fileType: f.file.type,
-            fileContent: Array.from(new Uint8Array(await f.file.arrayBuffer())), // Convert to array of numbers
-          })),
+          files: processedFiles, // Use the processed files
         },
       });
 
