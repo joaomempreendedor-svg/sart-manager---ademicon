@@ -936,16 +936,50 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
   const addCandidate = useCallback(async (candidate: Omit<Candidate, 'id' | 'createdAt' | 'db_id'>) => { 
     if (!user) throw new Error("Usuário não autenticado."); 
-    const newCandidateData = { 
+    
+    // Generate client-side ID and createdAt if not provided
+    const clientSideId = crypto.randomUUID();
+    const createdAt = new Date().toISOString();
+    const lastUpdatedAt = new Date().toISOString();
+
+    const newCandidateData: Candidate = { 
       ...candidate, 
+      id: clientSideId, // This is the client-side UUID, stored in the 'data' JSONB
       status: candidate.status || 'Triagem', 
       screeningStatus: candidate.screeningStatus || 'Pending Contact',
-      createdAt: new Date().toISOString(), // Garante que createdAt seja definido
-      lastUpdatedAt: new Date().toISOString(), // Define lastUpdatedAt na criação
+      interviewScores: candidate.interviewScores || { basicProfile: 0, commercialSkills: 0, behavioralProfile: 0, jobFit: 0, notes: '' },
+      checkedQuestions: candidate.checkedQuestions || {},
+      checklistProgress: candidate.checklistProgress || {},
+      consultantGoalsProgress: candidate.consultantGoalsProgress || {},
+      feedbacks: candidate.feedbacks || [],
+      createdAt: createdAt, 
+      lastUpdatedAt: lastUpdatedAt, 
     };
-    const { data, error } = await supabase.from('candidates').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: newCandidateData, last_updated_at: newCandidateData.lastUpdatedAt }).select('id, created_at, last_updated_at').single(); 
-    if (error) { console.error(error); toast.error("Erro ao adicionar candidato."); throw error; } 
-    if (data) { setCandidates(prev => [{ ...newCandidateData, id: newCandidateData.id || crypto.randomUUID(), db_id: data.id, createdAt: data.created_at, lastUpdatedAt: data.last_updated_at }, ...prev]); } 
+
+    // Insert into Supabase. The 'id' column (primary key) is auto-generated.
+    // We only provide 'user_id', 'data' (which contains our client-side Candidate object), and 'last_updated_at'.
+    const { data, error } = await supabase.from('candidates').insert({ 
+      user_id: JOAO_GESTOR_AUTH_ID, 
+      data: newCandidateData, // The entire client-side Candidate object goes into the 'data' JSONB column
+      last_updated_at: newCandidateData.lastUpdatedAt 
+    }).select('id, created_at, last_updated_at').single(); 
+    
+    if (error) { 
+      console.error("Erro ao adicionar candidato no Supabase:", error); 
+      toast.error("Erro ao adicionar candidato."); 
+      throw error; 
+    } 
+    
+    if (data) { 
+      // Update local state with the Supabase-generated 'id' (db_id) and actual 'created_at'
+      setCandidates(prev => [{ 
+        ...newCandidateData, 
+        db_id: data.id, // Store Supabase's primary key here
+        createdAt: data.created_at, 
+        lastUpdatedAt: data.last_updated_at 
+      }, ...prev]); 
+    } 
+    return newCandidateData; // Return the client-side object
   }, [user]);
   const updateCandidate = useCallback(async (id: string, updates: Partial<Candidate>) => { 
     if (!user) throw new Error("Usuário não autenticado."); 
