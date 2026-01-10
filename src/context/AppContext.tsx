@@ -292,9 +292,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const newNotifications: Notification[] = [];
     const today = new Date();
+    const todayFormatted = today.toISOString().split('T')[0]; // e.g., "2024-07-11"
+
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+    const yesterdayFormatted = yesterday.toISOString().split('T')[0]; // e.g., "2024-07-10"
+
     const currentMonth = today.getMonth();
-    const currentYear = today.getFullYear();
-    const todayFormatted = today.toISOString().split('T')[0];
+    // const currentYear = today.getFullYear(); // Não usado diretamente
 
     // 1. Aniversariantes do Mês
     teamMembers.forEach(member => {
@@ -331,12 +336,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       });
     });
 
-    // 3. Nova Venda Registrada (CRM Leads)
+    // 3. Nova Venda Registrada (CRM Leads) - Lógica ajustada
     crmLeads.filter(lead => {
       if (!lead.soldCreditValue || !lead.saleDate) return false; // Must have a sold value and sale date
-      const saleDate = new Date(lead.saleDate + 'T00:00:00');
-      // Considerar "novo" se a venda foi registrada nas últimas 24 horas
-      return (today.getTime() - saleDate.getTime() < 24 * 60 * 60 * 1000);
+      
+      // Considerar "novo" se a venda foi registrada hoje ou ontem
+      return lead.saleDate === todayFormatted || lead.saleDate === yesterdayFormatted;
     }).forEach(lead => {
       const consultant = teamMembers.find(tm => tm.id === lead.consultant_id);
       newNotifications.push({
@@ -357,13 +362,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const completedVideos = session.videos.filter(video => video.is_completed).length;
       const isCompleted100Percent = (completedVideos / totalVideos) === 1;
 
-      // Considerar "novo" se foi concluído 100% nas últimas 24 horas
-      // Isso requer que cada vídeo tenha um `updated_at` ou que a sessão tenha um `completed_at`
-      // Como não temos um `completed_at` na sessão, vamos simplificar:
-      // Se a sessão está 100% completa e foi criada recentemente (últimas 72h, por exemplo)
-      // Ou se o último vídeo foi marcado como completo recentemente.
-      // Para simplificar, vamos considerar que se a sessão está 100% completa, é uma notificação.
-      // Um sistema mais robusto teria um campo `session.completed_at`
+      // Considerar "novo" se foi concluído 100% e a sessão foi criada recentemente (últimas 72h, por exemplo)
       const sessionCreationDate = new Date(session.created_at);
       return isCompleted100Percent && (today.getTime() - sessionCreationDate.getTime() < 72 * 60 * 60 * 1000); // Notificar se 100% e criada nas últimas 72h
     }).forEach(session => {
