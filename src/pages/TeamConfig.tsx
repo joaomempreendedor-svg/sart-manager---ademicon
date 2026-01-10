@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Plus, Trash2, User, Shield, Crown, Star, Edit2, Save, X, Archive, UserCheck, Loader2, Copy, RefreshCw, KeyRound, Mail, CalendarPlus } from 'lucide-react';
+import { Plus, Trash2, User, Shield, Crown, Star, Edit2, Save, X, Archive, UserCheck, Loader2, Copy, RefreshCw, KeyRound, Mail, CalendarPlus, CalendarDays } from 'lucide-react'; // Adicionado CalendarDays
 import { TeamMember, TeamRole, Candidate } from '@/types';
 import { formatCpf, generateRandomPassword } from '@/utils/authUtils';
 import { ConsultantCredentialsModal } from '@/components/ConsultantCredentialsModal';
@@ -17,6 +17,7 @@ export const TeamConfig = () => {
   const [newName, setNewName] = useState('');
   const [newEmail, setNewEmail] = useState('');
   const [newCpf, setNewCpf] = useState('');
+  const [newDateOfBirth, setNewDateOfBirth] = useState(''); // NOVO: Estado para data de nascimento
   const [newRoles, setNewRoles] = useState<TeamRole[]>(['Prévia']);
   const [generatedPassword, setGeneratedPassword] = useState(generateRandomPassword());
   const [isAdding, setIsAdding] = useState(false);
@@ -26,6 +27,7 @@ export const TeamConfig = () => {
   const [editingName, setEditingName] = useState('');
   const [editingEmail, setEditingEmail] = useState('');
   const [editingCpf, setEditingCpf] = useState('');
+  const [editingDateOfBirth, setEditingDateOfBirth] = useState(''); // NOVO: Estado para data de nascimento em edição
   const [editingRoles, setEditingRoles] = useState<TeamRole[]>([]);
   const [isUpdating, setIsUpdating] = useState(false);
 
@@ -79,6 +81,7 @@ export const TeamConfig = () => {
         cpf: cleanedCpf,
         login: login,
         roles: newRoles,
+        dateOfBirth: newDateOfBirth || undefined, // NOVO: Incluir data de nascimento
       });
 
       const result = await addTeamMember({
@@ -88,6 +91,7 @@ export const TeamConfig = () => {
         login: login,
         roles: newRoles,
         isActive: true,
+        dateOfBirth: newDateOfBirth || undefined, // NOVO: Incluir data de nascimento
       });
 
       if (result.success) {
@@ -105,6 +109,7 @@ export const TeamConfig = () => {
       setNewName('');
       setNewEmail('');
       setNewCpf('');
+      setNewDateOfBirth(''); // NOVO: Resetar campo
       setNewRoles(['Prévia']);
       setGeneratedPassword(generateRandomPassword());
     } catch (error: any) {
@@ -120,6 +125,7 @@ export const TeamConfig = () => {
     setEditingName(member.name);
     setEditingEmail(member.email || '');
     setEditingCpf(formatCpf(member.cpf || ''));
+    setEditingDateOfBirth(member.dateOfBirth || ''); // NOVO: Popular campo
     setEditingRoles(member.roles);
   };
 
@@ -128,6 +134,7 @@ export const TeamConfig = () => {
     setEditingName('');
     setEditingEmail('');
     setEditingCpf('');
+    setEditingDateOfBirth(''); // NOVO: Resetar campo
     setEditingRoles([]);
   };
 
@@ -149,6 +156,7 @@ export const TeamConfig = () => {
         roles: editingRoles, 
         cpf: cleanedCpf,
         email: editingEmail.trim(),
+        dateOfBirth: editingDateOfBirth || undefined, // NOVO: Incluir data de nascimento
       });
 
       if (result?.tempPassword) {
@@ -288,6 +296,19 @@ export const TeamConfig = () => {
                             maxLength={14}
                           />
                       </div>
+                      {/* NOVO: Campo de Data de Nascimento */}
+                      <div>
+                          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Data de Nascimento (Opcional)</label>
+                          <div className="relative">
+                            <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                            <input 
+                                type="date" 
+                                className="w-full pl-10 border border-gray-300 dark:border-slate-600 rounded-lg p-2 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500"
+                                value={newDateOfBirth}
+                                onChange={e => setNewDateOfBirth(e.target.value)}
+                            />
+                          </div>
+                      </div>
                       <div>
                           <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Cargos / Funções</label>
                           <div className="space-y-2">
@@ -328,6 +349,16 @@ export const TeamConfig = () => {
                                       <input type="text" value={editingName} onChange={e => setEditingName(e.target.value)} className="w-full border-gray-300 dark:border-slate-600 rounded-md p-2 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400" />
                                       <input type="email" value={editingEmail} onChange={e => setEditingEmail(e.target.value)} className="w-full border-gray-300 dark:border-slate-600 rounded-md p-2 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400" />
                                       <input type="text" value={editingCpf} onChange={e => setEditingCpf(formatCpf(e.target.value))} maxLength={14} className="w-full border-gray-300 dark:border-slate-600 rounded-md p-2 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400" />
+                                      {/* NOVO: Campo de Data de Nascimento em edição */}
+                                      <div className="relative">
+                                        <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                        <input 
+                                            type="date" 
+                                            className="w-full pl-10 border border-gray-300 dark:border-slate-600 rounded-lg p-2 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500"
+                                            value={editingDateOfBirth}
+                                            onChange={e => setEditingDateOfBirth(e.target.value)}
+                                        />
+                                      </div>
                                       <div className="grid grid-cols-2 gap-2">
                                         {ALL_ROLES.map(role => (
                                             <label key={role} className="flex items-center space-x-2 cursor-pointer">
@@ -366,6 +397,9 @@ export const TeamConfig = () => {
                                               {member.cpf && (
                                                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">CPF: {formatCpf(member.cpf)}</p>
                                               )}
+                                              {member.dateOfBirth && ( // NOVO: Exibir data de nascimento
+                                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Nascimento: {new Date(member.dateOfBirth + 'T00:00:00').toLocaleDateString('pt-BR')}</p>
+                                              )}
                                           </div>
                                       </div>
                                       <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
@@ -381,7 +415,7 @@ export const TeamConfig = () => {
                                             <KeyRound className="w-4 h-4" />
                                         </button>
                                         <button onClick={() => handleToggleActive(member)} className={`p-2 rounded-full ${member.isActive ? 'text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20' : 'text-gray-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20'}`} title={member.isActive ? 'Inativar' : 'Ativar'}>
-                                            {member.isActive ? <Archive className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
+                                            <Archive className="w-4 h-4" />
                                         </button>
                                         <button onClick={() => startEditing(member)} className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full">
                                           <Edit2 className="w-4 h-4" />

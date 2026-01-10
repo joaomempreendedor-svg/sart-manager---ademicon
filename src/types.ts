@@ -206,6 +206,7 @@ export interface TeamMember {
   roles: TeamRole[];
   isActive: boolean;
   cpf?: string; // NOVO: CPF do membro da equipe (criptografado)
+  dateOfBirth?: string; // NOVO: Data de nascimento (YYYY-MM-DD)
   feedbacks?: Feedback[];
   hasLogin?: boolean; // NOVO: Indica se o membro tem um login associado (TIPO 2)
   isLegacy?: boolean; // NOVO: Indica se é um membro do TIPO 1 (antigo)
