@@ -557,7 +557,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           setPvs(pvs);
         }
 
-        setCandidates(candidatesData?.data?.map(item => ({ ...(item.data as Candidate), db_id: item.id, lastUpdatedAt: item.last_updated_at })) || []);
+        // ⚠️ APLICANDO CÓPIA PROFUNDA AQUI PARA GARANTIR INDEPENDÊNCIA DOS OBJETOS
+        setCandidates(candidatesData?.data?.map(item => ({ 
+          ...(JSON.parse(JSON.stringify(item.data)) as Candidate), // Cópia profunda
+          db_id: item.id, 
+          lastUpdatedAt: item.last_updated_at 
+        })) || []);
         
         const normalizedTeamMembers = teamMembersData?.map(item => {
           const data = item.data as any;
@@ -726,19 +731,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             console.log('Candidate Change (Realtime):', payload);
             toast.info(`🔄 Candidato "${payload.new.data.name || payload.old.data.name}" atualizado em tempo real!`);
             
-            // Construir o objeto newCandidateData com cópia profunda de todas as propriedades
+            // ⚠️ APLICANDO CÓPIA PROFUNDA AQUI PARA GARANTIR INDEPENDÊNCIA DOS OBJETOS
             const newCandidateData: Candidate = {
-                ...(payload.new.data as Candidate),
+                ...(JSON.parse(JSON.stringify(payload.new.data)) as Candidate), // Cópia profunda
                 db_id: payload.new.id,
                 lastUpdatedAt: payload.new.last_updated_at,
-                // Cópia profunda de objetos aninhados para evitar referências compartilhadas
-                name: (payload.new.data as Candidate).name ? String((payload.new.data as Candidate).name) : '', // Forçar cópia de string
-                interviewScores: { ...(payload.new.data as Candidate).interviewScores },
-                checkedQuestions: { ...(payload.new.data as Candidate).checkedQuestions },
-                checklistProgress: { ...(payload.new.data as Candidate).checklistProgress },
-                consultantGoalsProgress: { ...(payload.new.data as Candidate).consultantGoalsProgress },
-                feedbacks: (payload.new.data as Candidate).feedbacks ? [...(payload.new.data as Candidate).feedbacks] : [],
-                data: { ...(payload.new.data as Candidate).data }, // Cópia profunda do campo 'data' também
             };
             console.log('Constructed newCandidateData (deep copied):', newCandidateData);
 
@@ -1001,19 +998,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const createdAt = new Date().toISOString();
     const lastUpdatedAt = new Date().toISOString();
 
+    // ⚠️ APLICANDO CÓPIA PROFUNDA AQUI PARA GARANTIR INDEPENDÊNCIA DOS OBJETOS
     const newCandidateData: Candidate = { 
-      ...candidate, 
+      ...JSON.parse(JSON.stringify(candidate)), // Cópia profunda do objeto base
       id: clientSideId, // This is the client-side UUID, stored in the 'data' JSONB
       status: candidate.status || 'Triagem', 
       screeningStatus: candidate.screeningStatus || 'Pending Contact',
-      // Cópia profunda de objetos aninhados
-      name: candidate.name ? String(candidate.name) : '', // Forçar cópia de string
-      interviewScores: { ...(candidate.interviewScores || { basicProfile: 0, commercialSkills: 0, behavioralProfile: 0, jobFit: 0, notes: '' }) },
-      checkedQuestions: { ...(candidate.checkedQuestions || {}) },
-      checklistProgress: { ...(candidate.checklistProgress || {}) },
-      consultantGoalsProgress: { ...(candidate.consultantGoalsProgress || {}) },
-      feedbacks: candidate.feedbacks ? [...candidate.feedbacks] : [],
-      data: { ...(candidate.data || {}) }, // Cópia profunda do campo 'data' também
       createdAt: createdAt, 
       lastUpdatedAt: lastUpdatedAt, 
     };
@@ -1049,18 +1039,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const c = candidates.find(c => c.id === id); 
     if (!c || !c.db_id) throw new Error("Candidato não encontrado"); 
     
-    // Cópia profunda de objetos aninhados ao criar o objeto 'updated'
+    // ⚠️ APLICANDO CÓPIA PROFUNDA AQUI PARA GARANTIR INDEPENDÊNCIA DOS OBJETOS
     const updated = { 
-      ...c, 
-      ...updates, 
-      name: updates.name ? String(updates.name) : String(c.name), // Forçar cópia de string para o nome
+      ...JSON.parse(JSON.stringify(c)), // Cópia profunda do objeto base
+      ...JSON.parse(JSON.stringify(updates)), // Cópia profunda das atualizações
       lastUpdatedAt: new Date().toISOString(),
-      interviewScores: { ...(c.interviewScores || {}), ...(updates.interviewScores || {}) },
-      checkedQuestions: { ...(c.checkedQuestions || {}), ...(updates.checkedQuestions || {}) },
-      checklistProgress: { ...(c.checklistProgress || {}), ...(updates.checklistProgress || {}) },
-      consultantGoalsProgress: { ...(c.consultantGoalsProgress || {}), ...(updates.consultantGoalsProgress || {}) },
-      feedbacks: updates.feedbacks ? [...updates.feedbacks] : (c.feedbacks ? [...c.feedbacks] : []),
-      data: { ...(c.data || {}), ...(updates.data || {}) }, // Cópia profunda do campo 'data' também
     }; 
 
     const { db_id, createdAt, lastUpdatedAt, ...dataToUpdate } = updated; // Remove db_id, createdAt, lastUpdatedAt do objeto 'data'

@@ -29,8 +29,14 @@ export const CandidateDetail = () => {
   const [selectedTemplate, setSelectedTemplate] = useState<CommunicationTemplate | null>(null);
   
   // State for interview form
-  const [scores, setScores] = useState<InterviewScores>(candidate?.interviewScores || { basicProfile: 0, commercialSkills: 0, behavioralProfile: 0, jobFit: 0, notes: '' });
-  const [checkedQuestions, setCheckedQuestions] = useState<Record<string, boolean>>(candidate?.checkedQuestions || {});
+  // ⚠️ GARANTINDO CÓPIA PROFUNDA NA INICIALIZAÇÃO
+  const [scores, setScores] = useState<InterviewScores>(
+    candidate?.interviewScores ? JSON.parse(JSON.stringify(candidate.interviewScores)) : { basicProfile: 0, commercialSkills: 0, behavioralProfile: 0, jobFit: 0, notes: '' }
+  );
+  // ⚠️ GARANTINDO CÓPIA PROFUNDA NA INICIALIZAÇÃO
+  const [checkedQuestions, setCheckedQuestions] = useState<Record<string, boolean>>(
+    candidate?.checkedQuestions ? JSON.parse(JSON.stringify(candidate.checkedQuestions)) : {}
+  );
   const [isSaving, setIsSaving] = useState(false);
 
   // NOVO: Estado para o responsável pelo candidato
@@ -52,8 +58,9 @@ export const CandidateDetail = () => {
 
   useEffect(() => {
     if (candidate) {
-      setScores(candidate.interviewScores);
-      setCheckedQuestions(candidate.checkedQuestions || {});
+      // ⚠️ GARANTINDO CÓPIA PROFUNDA NO useEffect
+      setScores(JSON.parse(JSON.stringify(candidate.interviewScores)));
+      setCheckedQuestions(JSON.parse(JSON.stringify(candidate.checkedQuestions || {})));
       setResponsibleUserId(candidate.responsibleUserId || ''); // Atualiza o estado do responsável
       setCandidateOrigin(candidate.origin || ''); // NOVO: Atualiza o estado da origem
     }
