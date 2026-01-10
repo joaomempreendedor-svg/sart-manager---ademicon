@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Loader2, Search, User, Phone, Mail, CheckCircle2, XCircle, RotateCcw, ArrowRight, MessageSquare, UserX, Plus, Trash2, Users, Clock, UserRound, UploadCloud } from 'lucide-react'; // Adicionado UploadCloud icon
+import { Loader2, Search, User, Phone, Mail, CheckCircle2, XCircle, RotateCcw, ArrowRight, MessageSquare, UserX, Plus, Trash2, Users, Clock, UserRound, UploadCloud, CalendarDays } from 'lucide-react'; // Adicionado CalendarDays icon
 import { Link } from 'react-router-dom';
 import { TableSkeleton } from '@/components/TableSkeleton';
 import {
@@ -45,7 +45,8 @@ const CandidateScreening = () => {
       );
     }
 
-    return currentCandidates.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    // Alterado para ordenar por data de criação ascendente (mais antigos primeiro)
+    return currentCandidates.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
   }, [candidatesInScreening, searchTerm, filterStatus]);
 
   // NOVO: Cálculo das métricas de resumo
@@ -210,13 +211,14 @@ const CandidateScreening = () => {
                 <th className="px-6 py-3">Nome</th>
                 <th className="px-6 py-3">Contato</th>
                 <th className="px-6 py-3">Status Triagem</th>
+                <th className="px-6 py-3">Última Atualização</th> {/* NOVO: Coluna para a data de atualização */}
                 <th className="px-6 py-3 text-right">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
               {filteredCandidates.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-6 py-12 text-center text-gray-400">
+                  <td colSpan={5} className="px-6 py-12 text-center text-gray-400">
                     Nenhum candidato encontrado com os filtros aplicados.
                   </td>
                 </tr>
@@ -241,6 +243,9 @@ const CandidateScreening = () => {
                       </td>
                       <td className="px-6 py-4">
                         {getStatusBadge(candidate.screeningStatus)}
+                      </td>
+                      <td className="px-6 py-4 text-gray-700 dark:text-gray-200"> {/* NOVO: Exibição da data de atualização */}
+                        {candidate.lastUpdatedAt ? new Date(candidate.lastUpdatedAt).toLocaleDateString('pt-BR') : 'N/A'}
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex justify-end items-center space-x-2">
