@@ -557,11 +557,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           setPvs(pvs);
         }
 
-        setCandidates(candidatesData?.data?.map(item => ({ 
-          ...(item.data as Candidate), 
-          db_id: item.id,
-          lastUpdatedAt: item.data.lastUpdatedAt || item.data.createdAt || new Date().toISOString().split('T')[0], // Default to createdAt or current date
-        })) || []);
+        setCandidates(candidatesData?.data?.map(item => ({ ...(item.data as Candidate), db_id: item.id })) || []);
         
         const normalizedTeamMembers = teamMembersData?.map(item => {
           const data = item.data as any;
@@ -940,16 +936,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
   const addCandidate = useCallback(async (candidate: Candidate) => { 
     if (!user) throw new Error("Usuário não autenticado."); 
-    const today = new Date().toISOString().split('T')[0];
-    const { data, error } = await supabase.from('candidates').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: { ...candidate, status: candidate.status || 'Triagem', screeningStatus: candidate.screeningStatus || 'Pending Contact', createdAt: today, lastUpdatedAt: today } }).select('id').single(); // NOVO: Adiciona status e screeningStatus padrão, e lastUpdatedAt
+    const { data, error } = await supabase.from('candidates').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: { ...candidate, status: candidate.status || 'Triagem', screeningStatus: candidate.screeningStatus || 'Pending Contact' } }).select('id').single(); // NOVO: Adiciona status e screeningStatus padrão
     if (error) { console.error(error); toast.error("Erro ao adicionar candidato."); throw error; } 
-    if (data) { setCandidates(prev => [{ ...candidate, db_id: data.id, status: candidate.status || 'Triagem', screeningStatus: candidate.screeningStatus || 'Pending Contact', createdAt: today, lastUpdatedAt: today }, ...prev]); } 
+    if (data) { setCandidates(prev => [{ ...candidate, db_id: data.id, status: candidate.status || 'Triagem', screeningStatus: candidate.screeningStatus || 'Pending Contact' }, ...prev]); } 
   }, [user]);
   const updateCandidate = useCallback(async (id: string, updates: Partial<Candidate>) => { 
     if (!user) throw new Error("Usuário não autenticado."); 
     const c = candidates.find(c => c.id === id); 
     if (!c || !c.db_id) throw new Error("Candidato não encontrado"); 
-    const updated = { ...c, ...updates, lastUpdatedAt: new Date().toISOString().split('T')[0] }; // NOVO: Atualiza lastUpdatedAt
+    const updated = { ...c, ...updates }; 
     const { db_id, ...dataToUpdate } = updated; 
     const { error } = await supabase.from('candidates').update({ data: dataToUpdate }).match({ id: c.db_id, user_id: JOAO_GESTOR_AUTH_ID }); 
     if (error) { console.error(error); toast.error("Erro ao atualizar candidato."); throw error; } 
