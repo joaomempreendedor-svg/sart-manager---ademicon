@@ -1,10 +1,32 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-// import InputMask from 'react-input-mask'; // Removido
-import axios from 'axios'; // Reintroduzido APENAS a importação
+import axios from 'axios';
 import { Loader2, CheckCircle2, AlertTriangle, User, Mail, Phone, MapPin, CalendarDays, Home, FileText, Upload, Link as LinkIcon, Instagram, Facebook, Linkedin, Twitter, Globe, ArrowLeft, ArrowRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { supabase } from '@/integrations/supabase/client';
+
+// Helper functions for formatting
+const formatCpfInput = (value: string): string => {
+  value = value.replace(/\D/g, ''); // Remove tudo que não é dígito
+  value = value.replace(/(\d{3})(\d)/, '$1.$2'); // Adiciona ponto após o 3º dígito
+  value = value.replace(/(\d{3})(\d)/, '$1.$2'); // Adiciona ponto após o 6º dígito
+  value = value.replace(/(\d{3})(\d{1,2})$/, '$1-$2'); // Adiciona hífen após o 9º dígito
+  return value.substring(0, 14); // Limita ao tamanho máximo do CPF formatado
+};
+
+const formatCelularInput = (value: string): string => {
+  value = value.replace(/\D/g, ''); // Remove tudo que não é dígito
+  value = value.replace(/^(\d{2})(\d)/g, '($1) $2'); // Adiciona parênteses e espaço
+  value = value.replace(/(\d)(\d{4})$/, '$1-$2'); // Adiciona hífen
+  return value.substring(0, 15); // Limita ao tamanho máximo do celular formatado
+};
+
+const formatCepInput = (value: string): string => {
+  value = value.replace(/\D/g, ''); // Remove tudo que não é dígito
+  value = value.replace(/^(\d{5})(\d)/, '$1-$2'); // Adiciona hífen
+  return value.substring(0, 9); // Limita ao tamanho máximo do CEP formatado
+};
+
 
 // Constantes para estados e nacionalidades
 const BRAZILIAN_STATES = [
@@ -165,48 +187,51 @@ export const PublicForm = () => {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
-    let newValue: any = value;
+    let formattedValue: any = value;
 
     if (type === 'file') {
-      newValue = (e.target as HTMLInputElement).files?.[0] || null;
+      formattedValue = (e.target as HTMLInputElement).files?.[0] || null;
+    } else if (name === 'cpf') {
+      formattedValue = formatCpfInput(value);
+    } else if (name === 'celular') {
+      formattedValue = formatCelularInput(value);
+    } else if (name === 'cep') {
+      formattedValue = formatCepInput(value);
     }
 
     setFormData(prev => {
-      const updated = { ...prev, [name]: newValue };
+      const updated = { ...prev, [name]: formattedValue };
       if (name === 'cep' && value.replace(/\D/g, '').length !== 8) {
         updated.estado_endereco = ''; updated.cidade_endereco = '';
         updated.rua_endereco = ''; updated.bairro_endereco = '';
       }
       return updated;
     });
-    setErrors(prev => ({ ...prev, [name]: validateField(name as keyof FormData, newValue) }));
+    setErrors(prev => ({ ...prev, [name]: validateField(name as keyof FormData, formattedValue) }));
   };
 
-  // handleCepBlur está comentado para testar apenas a importação do axios
   const handleCepBlur = useCallback(async () => {
     const cep = formData.cep.replace(/\D/g, '');
     if (cep.length === 8) {
-      // try {
-      //   const response = await axios.get(`https://viacep.com.br/ws/${cep}/json/`);
-      //   if (response.data.erro) {
-      //     setErrors(prev => ({ ...prev, cep: 'CEP não encontrado.' }));
-      //     setFormData(prev => ({ ...prev, estado_endereco: '', cidade_endereco: '', rua_endereco: '', bairro_endereco: '' }));
-      //   } else {
-      //     setFormData(prev => ({
-      //       ...prev,
-      //       estado_endereco: response.data.uf,
-      //       cidade_endereco: response.data.localidade,
-      //       rua_endereco: response.data.logradouro,
-      //       bairro_endereco: response.data.bairro,
-      //     }));
-      //     setErrors(prev => ({ ...prev, cep: '' }));
-      //   }
-      // } catch (err) {
-      //   setErrors(prev => ({ ...prev, cep: 'Erro ao buscar CEP.' }));
-      //   setFormData(prev => ({ ...prev, estado_endereco: '', cidade_endereco: '', rua_endereco: '', bairro_endereco: '' }));
-      // }
-      console.log("CEP lookup commented out for now."); // Comentado
-      setErrors(prev => ({ ...prev, cep: '' })); // Limpa erro de CEP
+      try {
+        const response = await axios.get(`https://viacep.com.br/ws/${cep}/json/`);
+        if (response.data.erro) {
+          setErrors(prev => ({ ...prev, cep: 'CEP não encontrado.' }));
+          setFormData(prev => ({ ...prev, estado_endereco: '', cidade_endereco: '', rua_endereco: '', bairro_endereco: '' }));
+        } else {
+          setFormData(prev => ({
+            ...prev,
+            estado_endereco: response.data.uf,
+            cidade_endereco: response.data.localidade,
+            rua_endereco: response.data.logradouro,
+            bairro_endereco: response.data.bairro,
+          }));
+          setErrors(prev => ({ ...prev, cep: '' }));
+        }
+      } catch (err) {
+        setErrors(prev => ({ ...prev, cep: 'Erro ao buscar CEP.' }));
+        setFormData(prev => ({ ...prev, estado_endereco: '', cidade_endereco: '', rua_endereco: '', bairro_endereco: '' }));
+      }
     } else {
       setErrors(prev => ({ ...prev, cep: 'CEP inválido.' }));
     }
@@ -225,10 +250,20 @@ export const PublicForm = () => {
         stepIsValid = false;
       }
       // Special conditional validations
-      if (fieldName === 'nome_completo_conjuge' && formData.estado_civil !== 'Casado') {
+      if (fieldName === 'nome_completo_conjuge' && formData.estado_civil === 'Casado') {
+        if (!value?.trim()) {
+          currentStepErrors[fieldName] = 'Campo obrigatório.';
+          stepIsValid = false;
+        }
+      } else if (fieldName === 'nome_completo_conjuge' && formData.estado_civil !== 'Casado') {
         delete currentStepErrors[fieldName]; // Not required if not married
       }
-      if (fieldName === 'certidao_nascimento_file' && formData.comprovante_nome_quem !== 'No nome dos pais') {
+      if (fieldName === 'certidao_nascimento_file' && formData.comprovante_nome_quem === 'No nome dos pais') {
+        if (!value) {
+          currentStepErrors[fieldName] = 'Upload obrigatório.';
+          stepIsValid = false;
+        }
+      } else if (fieldName === 'certidao_nascimento_file' && formData.comprovante_nome_quem !== 'No nome dos pais') {
         delete currentStepErrors[fieldName]; // Not required if not 'No nome dos pais'
       }
     });
@@ -443,20 +478,41 @@ export const PublicForm = () => {
                       <label htmlFor={fieldName} className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                         {fieldName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} {isRequired && <span className="text-red-500">*</span>}
                       </label>
-                      {/* Campos que usavam InputMask agora são inputs padrão */}
-                      {fieldName === 'cpf' || fieldName === 'celular' || fieldName === 'cep' ? (
+                      {fieldName === 'cpf' ? (
                         <input 
                           type="text" 
-                          id={fieldName} 
-                          name={fieldName} 
-                          value={formData[fieldName as keyof FormData] as string || ''} 
+                          id="cpf" 
+                          name="cpf" 
+                          value={formData.cpf} 
                           onChange={handleChange} 
-                          onBlur={() => {
-                            if (fieldName === 'cep') handleCepBlur(); // Chama handleCepBlur apenas para o campo CEP
-                            setErrors(prev => ({ ...prev, [fieldName]: validateField(fieldName as keyof FormData, formData[fieldName as keyof FormData]) }));
-                          }}
+                          onBlur={() => setErrors(prev => ({ ...prev, cpf: validateField('cpf', formData.cpf) }))}
                           className="mt-1 block w-full border-gray-300 dark:border-slate-600 rounded-md shadow-sm p-2 dark:bg-slate-700 dark:text-white" 
-                          placeholder={fieldName === 'cpf' ? '000.000.000-00' : fieldName === 'celular' ? '(00) 00000-0000' : '00000-000'}
+                          placeholder="000.000.000-00"
+                          maxLength={14}
+                        />
+                      ) : fieldName === 'celular' ? (
+                        <input 
+                          type="text" 
+                          id="celular" 
+                          name="celular" 
+                          value={formData.celular} 
+                          onChange={handleChange} 
+                          onBlur={() => setErrors(prev => ({ ...prev, celular: validateField('celular', formData.celular) }))}
+                          className="mt-1 block w-full border-gray-300 dark:border-slate-600 rounded-md shadow-sm p-2 dark:bg-slate-700 dark:text-white" 
+                          placeholder="(00) 00000-0000"
+                          maxLength={15}
+                        />
+                      ) : fieldName === 'cep' ? (
+                        <input 
+                          type="text" 
+                          id="cep" 
+                          name="cep" 
+                          value={formData.cep} 
+                          onChange={handleChange} 
+                          onBlur={handleCepBlur}
+                          className="mt-1 block w-full border-gray-300 dark:border-slate-600 rounded-md shadow-sm p-2 dark:bg-slate-700 dark:text-white" 
+                          placeholder="00000-000"
+                          maxLength={9}
                         />
                       ) : fieldName.includes('_file') ? (
                         <>
@@ -509,7 +565,7 @@ export const PublicForm = () => {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                 >
                   {loading ? (
                     <Loader2 className="w-5 h-5 animate-spin" />
