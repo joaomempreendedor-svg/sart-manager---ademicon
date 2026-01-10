@@ -1012,6 +1012,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       screeningStatus: candidate.screeningStatus || 'Pending Contact',
       createdAt: createdAt, 
       lastUpdatedAt: lastUpdatedAt, 
+      // Garantir que objetos aninhados sejam cópias profundas
+      interviewScores: JSON.parse(JSON.stringify(candidate.interviewScores || { basicProfile: 0, commercialSkills: 0, behavioralProfile: 0, jobFit: 0, notes: '' })),
+      checkedQuestions: JSON.parse(JSON.stringify(candidate.checkedQuestions || {})),
+      checklistProgress: JSON.parse(JSON.stringify(candidate.checklistProgress || {})),
+      consultantGoalsProgress: JSON.parse(JSON.stringify(candidate.consultantGoalsProgress || {})),
+      feedbacks: JSON.parse(JSON.stringify(candidate.feedbacks || [])),
     };
 
     // Insert into Supabase. The 'id' column (primary key) is auto-generated.
@@ -1048,22 +1054,48 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     console.log(`[updateCandidate] Original candidate name (c.name): "${c.name}"`);
     console.log(`[updateCandidate] Updates object name (updates.name): "${updates.name}"`);
 
-    // ⚠️ APLICANDO CÓPIA PROFUNDA AQUI PARA GARANTIR INDEPENDÊNCIA DOS OBJETOS
-    const currentCandidateDeepCopy = JSON.parse(JSON.stringify(c));
-    const updatesDeepCopy = JSON.parse(JSON.stringify(updates));
+    // 1. Create a deep copy of the *current* candidate object from state.
+    const currentCandidateDeepCopy: Candidate = JSON.parse(JSON.stringify(c));
 
-    const mergedCandidateData = { 
-      ...currentCandidateDeepCopy, 
+    // 2. Create a deep copy of the *updates* object.
+    const updatesDeepCopy: Partial<Candidate> = JSON.parse(JSON.stringify(updates));
+
+    // 3. Merge the deep-copied updates into the deep-copied current candidate.
+    // This ensures that all nested objects are also new instances or merged correctly.
+    const mergedCandidateData: Candidate = {
+      ...currentCandidateDeepCopy,
       ...updatesDeepCopy,
+      // Explicitly deep copy and merge nested objects if they are part of updates
+      interviewScores: updatesDeepCopy.interviewScores 
+        ? { ...currentCandidateDeepCopy.interviewScores, ...updatesDeepCopy.interviewScores } 
+        : currentCandidateDeepCopy.interviewScores,
+      checkedQuestions: updatesDeepCopy.checkedQuestions 
+        ? { ...currentCandidateDeepCopy.checkedQuestions, ...updatesDeepCopy.checkedQuestions } 
+        : currentCandidateDeepCopy.checkedQuestions,
+      checklistProgress: updatesDeepCopy.checklistProgress 
+        ? { ...currentCandidateDeepCopy.checklistProgress, ...updatesDeepCopy.checklistProgress } 
+        : currentCandidateDeepCopy.checklistProgress,
+      consultantGoalsProgress: updatesDeepCopy.consultantGoalsProgress 
+        ? { ...currentCandidateDeepCopy.consultantGoalsProgress, ...updatesDeepCopy.consultantGoalsProgress } 
+        : currentCandidateDeepCopy.consultantGoalsProgress,
+      feedbacks: updatesDeepCopy.feedbacks 
+        ? [...(currentCandidateDeepCopy.feedbacks || []), ...(updatesDeepCopy.feedbacks || [])] 
+        : currentCandidateDeepCopy.feedbacks,
+      data: updatesDeepCopy.data 
+        ? { ...currentCandidateDeepCopy.data, ...updatesDeepCopy.data } 
+        : currentCandidateDeepCopy.data,
+      
       lastUpdatedAt: new Date().toISOString(),
-    }; 
+    };
+    
     console.log(`[updateCandidate] Merged updated candidate name (mergedCandidateData.name): "${mergedCandidateData.name}"`);
 
     // Remove top-level properties that are not part of the 'data' JSONB column
+    // This object will be stored in the 'data' JSONB column in Supabase
     const finalDataForSupabase = JSON.parse(JSON.stringify(mergedCandidateData)); // Deep copy the merged object
-    delete finalDataForSupabase.db_id;
-    delete finalDataForSupabase.createdAt;
-    delete finalDataForSupabase.lastUpdatedAt;
+    delete finalDataForSupabase.db_id; // This is the Supabase PK, not part of the JSONB 'data'
+    delete finalDataForSupabase.createdAt; // This is the Supabase 'created_at' column, not part of JSONB 'data'
+    delete finalDataForSupabase.lastUpdatedAt; // This is the Supabase 'last_updated_at' column, not part of JSONB 'data'
 
     const { error } = await supabase.from('candidates').update({ 
       data: finalDataForSupabase, 
@@ -1075,7 +1107,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setCandidates(prev => prev.map(p => {
       if (p.id === id) {
         console.log(`[updateCandidate] Setting candidate ${id} from "${p.name}" to "${mergedCandidateData.name}"`);
-        return { ...mergedCandidateData, db_id: c.db_id }; // Ensure db_id is preserved
+        return { ...mergedCandidateData, db_id: c.db_id }; // Ensure db_id is preserved for local state
       }
       return p;
     })); 
@@ -1233,7 +1265,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       toast.error("Erro ao atualizar membro da equipe.");
       throw error;
     }
-    setTeamMembers(prev => prev.map(m => m.id === id ? { ...member, ...updates, data: updatedData, cpf: cleanedCpf } : m));
+    setTeamMembers(prev => prev.map(m => m.id === id ? { ...m, ...updates, data: updatedData, cpf: cleanedCpf } : m));
     return { success: true };
   }, [user, teamMembers]);
   const deleteTeamMember = useCallback(async (id: string) => {
@@ -1270,7 +1302,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const candidate = candidates.find(c => c.id === candidateId);
     if (!candidate) throw new Error("Candidato não encontrado.");
 
-    const updatedProgress = { ...candidate.checklistProgress };
+    // ⚠️ Cópia profunda de checklistProgress
+    const updatedProgress = JSON.parse(JSON.stringify(candidate.checklistProgress || {}));
     updatedProgress[itemId] = { ...updatedProgress[itemId], completed: !updatedProgress[itemId]?.completed };
 
     await updateCandidate(candidateId, { checklistProgress: updatedProgress });
@@ -1281,7 +1314,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const candidate = candidates.find(c => c.id === candidateId);
     if (!candidate) throw new Error("Candidato não encontrado.");
 
-    const updatedProgress = { ...candidate.checklistProgress };
+    // ⚠️ Cópia profunda de checklistProgress
+    const updatedProgress = JSON.parse(JSON.stringify(candidate.checklistProgress || {}));
     updatedProgress[itemId] = { ...updatedProgress[itemId], dueDate: dueDate || undefined };
 
     await updateCandidate(candidateId, { checklistProgress: updatedProgress });
@@ -1292,7 +1326,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const candidate = candidates.find(c => c.id === candidateId);
     if (!candidate) throw new Error("Candidato não encontrado.");
 
-    const updatedProgress = { ...candidate.consultantGoalsProgress };
+    // ⚠️ Cópia profunda de consultantGoalsProgress
+    const updatedProgress = JSON.parse(JSON.stringify(candidate.consultantGoalsProgress || {}));
     updatedProgress[goalId] = !updatedProgress[goalId];
 
     await updateCandidate(candidateId, { consultantGoalsProgress: updatedProgress });
