@@ -5,6 +5,7 @@ import { Copy, Check, FileText, Loader2, Search, Eye, Trash2, CheckCircle2, Aler
 import { FormSubmissionDetailModal } from '@/components/FormSubmissionDetailModal';
 import toast from 'react-hot-toast';
 import { TableSkeleton } from '@/components/TableSkeleton';
+import { formSteps } from '@/data/formStepsData'; // Importar formSteps
 
 export const FormSubmissions = () => {
   const { formSubmissions, formFiles, isDataLoading, deleteFormSubmission } = useApp();
@@ -180,6 +181,7 @@ export const FormSubmissions = () => {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         submission={selectedSubmission}
+        formSteps={formSteps} // Passar formSteps como prop
       />
     </div>
   );

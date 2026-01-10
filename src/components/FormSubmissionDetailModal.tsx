@@ -14,14 +14,16 @@ import {
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { formSteps, BRAZILIAN_STATES, SOCIAL_MEDIA_OPTIONS } from '@/data/formStepsData'; // Importar formSteps e outras constantes
 
 interface FormSubmissionDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   submission: FormSubmission | null;
+  formSteps: typeof formSteps; // Adicionar formSteps como prop
 }
 
-export const FormSubmissionDetailModal: React.FC<FormSubmissionDetailModalProps> = ({ isOpen, onClose, submission }) => {
+export const FormSubmissionDetailModal: React.FC<FormSubmissionDetailModalProps> = ({ isOpen, onClose, submission, formSteps }) => {
   const { getFormFilesForSubmission, updateFormSubmission } = useApp();
   const [internalNotes, setInternalNotes] = useState('');
   const [isComplete, setIsComplete] = useState(false);
@@ -75,9 +77,26 @@ export const FormSubmissionDetailModal: React.FC<FormSubmissionDetailModalProps>
 
   if (!submission) return null; // Renderiza nulo se não houver submissão
 
+  // Função para formatar o rótulo do campo
+  const formatLabel = (fieldName: string, submissionData: any) => {
+    if (fieldName === 'documento_identificacao_file' && submissionData.tipo_documento_identificacao) {
+      return `Arquivo do ${submissionData.tipo_documento_identificacao}`;
+    }
+    if (fieldName === 'comprovante_endereco_file') return 'Comprovante de Residência';
+    if (fieldName === 'certidao_nascimento_file') return 'Certidão de Nascimento';
+    if (fieldName === 'tipo_documento_identificacao') return 'Tipo Documento de Identificação';
+    
+    // Lógica para campos de endereço
+    if (fieldName.includes('_endereco')) {
+      return fieldName.replace('_endereco', '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()).trim();
+    }
+
+    return fieldName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-3xl bg-white dark:bg-slate-800 dark:text-white p-6">
+      <DialogContent className="sm:max-w-3xl bg-white dark:bg-slate-800 dark:text-white p-6 z-[100]">
         <DialogHeader>
           <DialogTitle>Detalhes da Submissão</DialogTitle>
           <DialogDescription>
@@ -91,23 +110,31 @@ export const FormSubmissionDetailModal: React.FC<FormSubmissionDetailModalProps>
             <div>
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Dados do Formulário</h3>
               <div className="bg-gray-50 dark:bg-slate-700/50 rounded-lg p-4 border border-gray-200 dark:border-slate-700">
-                {Object.entries(submission.data).map(([key, value]) => {
-                  // Ignorar campos de arquivo que são tratados separadamente
-                  if (key.includes('_file')) return null;
+                {formSteps.map(step => (
+                  <React.Fragment key={step.id}>
+                    {step.fields.map(fieldName => {
+                      const value = submission.data[fieldName];
 
-                  let label = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()); // Formata key para label
-                  if (label === 'Cpf') label = 'CPF';
-                  if (label === 'Rg') label = 'RG';
-                  if (label === 'Cep') label = 'CEP';
-                  if (label === 'Tipo Documento Identificacao') label = 'Tipo Documento de Identificação'; // Corrigido aqui
+                      // Ignorar campos de arquivo que são tratados separadamente
+                      if (fieldName.includes('_file')) return null;
 
-                  return (
-                    <div key={key} className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-slate-700 last:border-b-0">
-                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{label}:</span>
-                      <span className="text-sm text-gray-900 dark:text-white text-right break-all">{String(value)}</span>
-                    </div>
-                  );
-                })}
+                      // Lógica condicional para exibir campos
+                      if (fieldName === 'nome_completo_conjuge' && submission.data.estado_civil !== 'Casado') return null;
+                      if (fieldName === 'rede_social' && !value) return null; // Não mostra se não preenchido
+                      if (fieldName === 'link_rede_social' && !submission.data.rede_social) return null; // Não mostra se não preenchido
+
+                      // Não mostra campos de endereço se o CEP não foi preenchido ou não retornou dados
+                      if (step.id === 'localizacao' && !submission.data.cep) return null;
+
+                      return (
+                        <div key={fieldName} className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-slate-700 last:border-b-0">
+                          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{formatLabel(fieldName, submission.data)}:</span>
+                          <span className="text-sm text-gray-900 dark:text-white text-right break-all">{String(value || 'N/A')}</span>
+                        </div>
+                      );
+                    })}
+                  </React.Fragment>
+                ))}
               </div>
             </div>
 
