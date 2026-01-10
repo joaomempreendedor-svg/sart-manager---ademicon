@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, MessageSquare, Settings, FileText, Sun, Moon, Banknote, PlusCircle, Library, TrendingUp, Target, Users, LogOut, User as UserIcon, Calendar, Star, Video, ListChecks, ClipboardCheck, UserPlus, ChevronLeft, ChevronRight, ChevronDown, UserSearch, BarChart3, UserCog, MapPin, DollarSign, FileStack } from 'lucide-react'; // Adicionado FileStack
+import { LayoutDashboard, MessageSquare, Settings, FileText, Sun, Moon, Banknote, PlusCircle, Library, TrendingUp, Target, Users, LogOut, User as UserIcon, Calendar, Star, Video, ListChecks, ClipboardCheck, UserPlus, ChevronLeft, ChevronRight, ChevronDown, UserSearch, BarChart3, UserCog, MapPin, DollarSign, FileStack } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 
@@ -8,7 +8,7 @@ interface GestorSidebarProps {
   isSidebarOpen: boolean;
   toggleSidebar: () => void;
   isSidebarCollapsed: boolean;
-  toggleSidebarCollapse: () => void;
+  toggleSidebarCollapse: () => () => void;
 }
 
 export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, toggleSidebar, isSidebarCollapsed, toggleSidebarCollapse }) => {
@@ -112,7 +112,7 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
                 <ClipboardCheck className="w-5 h-5" />
                 <span>Monitorar Metas Diárias</span>
               </NavLink>
-              <NavLink to="/gestor/form-submissions" className={linkClass} onClick={toggleSidebar}> {/* NOVO: Link para FormSubmissions */}
+              <NavLink to="/gestor/form-cadastros" className={linkClass} onClick={toggleSidebar}> {/* CORRIGIDO: Caminho para form-cadastros */}
                 <FileStack className="w-5 h-5" />
                 <span>Gerenciar Formulários</span>
               </NavLink>
@@ -153,7 +153,7 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
               <NavLink to="/gestor/daily-checklist-monitoring" className={linkClass} onClick={toggleSidebar} title="Monitorar Metas Diárias">
                 <ClipboardCheck className="w-5 h-5" />
               </NavLink>
-              <NavLink to="/gestor/form-submissions" className={linkClass} onClick={toggleSidebar} title="Gerenciar Formulários"> {/* NOVO: Link para FormSubmissions */}
+              <NavLink to="/gestor/form-cadastros" className={linkClass} onClick={toggleSidebar} title="Gerenciar Formulários"> {/* CORRIGIDO: Caminho para form-cadastros */}
                 <FileStack className="w-5 h-5" />
               </NavLink>
             </>
