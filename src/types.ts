@@ -5,7 +5,8 @@ export type CandidateStatus =
   | 'Integração Presencial'
   | 'Acompanhamento 90 Dias'
   | 'Autorizado'
-  | 'Reprovado';
+  | 'Reprovado'
+  | 'Triagem'; // NOVO: Status para a fase inicial de triagem
 
 export interface InterviewScores {
   basicProfile: number; // Max 20
@@ -50,6 +51,7 @@ export interface Candidate {
   interviewer: string;
   origin: string; // Indicação, Prospecção, etc.
   status: CandidateStatus;
+  screeningStatus?: 'Pending Contact' | 'Contacted' | 'No Fit'; // NOVO: Status de triagem
   interviewScores: InterviewScores;
   checkedQuestions?: Record<string, boolean>; // questionId -> boolean
   checklistProgress: Record<string, ChecklistTaskState>; // map of taskId -> state
@@ -190,7 +192,7 @@ export interface SupportMaterialAssignment {
 //   id: string; // Client-side UUID
 //   db_id?: string; // Database primary key
 //   title: string;
-//   url: string;
+//   url: string; // URL from Supabase Storage
 //   description: string;
 //   category: string;
 // }
@@ -206,6 +208,7 @@ export interface TeamMember {
   roles: TeamRole[];
   isActive: boolean;
   cpf?: string; // NOVO: CPF do membro da equipe (criptografado)
+  dateOfBirth?: string; // NOVO: Data de nascimento (YYYY-MM-DD)
   feedbacks?: Feedback[];
   hasLogin?: boolean; // NOVO: Indica se o membro tem um login associado (TIPO 2)
   isLegacy?: boolean; // NOVO: Indica se é um membro do TIPO 1 (antigo)
@@ -380,6 +383,50 @@ export interface DailyChecklistItemResource {
   type: DailyChecklistItemResourceType;
   content: string | { text: string; audioUrl: string; }; // 'content' pode ser string ou objeto para 'text_audio'
   name?: string; // Nome do arquivo, se aplicável
+}
+
+// NOVO: Tipo para Entradas e Saídas Financeiras
+export interface FinancialEntry {
+  id: string;
+  db_id?: string; // ID do banco de dados
+  user_id: string; // ID do usuário (gestor) que criou a entrada
+  entry_date: string; // YYYY-MM-DD
+  type: 'income' | 'expense';
+  description?: string;
+  amount: number;
+  created_at: string;
+}
+
+// NOVO: Tipos para Cadastros de Formulário Público
+export interface FormCadastro {
+  id: string;
+  user_id: string; // ID do gestor que gerencia este formulário
+  submission_date: string; // TIMESTAMP WITH TIME ZONE
+  data: Record<string, any>; // Dados do formulário
+  internal_notes?: string;
+  is_complete: boolean; // Se todos os documentos foram enviados/verificados
+}
+
+export interface FormFile {
+  id: string;
+  submission_id: string;
+  field_name: string; // Nome do campo do formulário (ex: 'documento_identificacao')
+  file_name: string;
+  file_url: string;
+  uploaded_at: string;
+}
+
+// NOVO: Tipos para Notificações
+export type NotificationType = 'birthday' | 'form_submission' | 'new_sale' | 'onboarding_complete';
+
+export interface Notification {
+  id: string;
+  type: NotificationType;
+  title: string;
+  description: string;
+  date: string; // YYYY-MM-DD
+  link?: string; // Link para a página relevante
+  isRead: boolean; // Para controle futuro de "lido"
 }
 
 // --- FIM DOS NOVOS TIPOS ---

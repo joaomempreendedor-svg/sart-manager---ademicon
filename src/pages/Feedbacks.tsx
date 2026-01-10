@@ -24,10 +24,12 @@ export const Feedbacks = () => {
   const [editingFeedback, setEditingFeedback] = useState<Feedback | null>(null);
 
   const allPeople = useMemo<Person[]>(() => {
-    const candidatePeople: Person[] = candidates.map(c => ({ ...c, type: 'candidate' }));
-    const teamMemberPeople: Person[] = teamMembers.map(m => ({ ...m, type: 'teamMember' }));
-    return [...candidatePeople, ...teamMemberPeople].sort((a, b) => a.name.localeCompare(b.name));
-  }, [candidates, teamMembers]);
+    // Alterado para incluir apenas teamMembers ATIVOS
+    const activeTeamMemberPeople: Person[] = teamMembers
+      .filter(m => m.isActive) // Filtra apenas membros ativos
+      .map(m => ({ ...m, type: 'teamMember' }));
+    return [...activeTeamMemberPeople].sort((a, b) => a.name.localeCompare(b.name));
+  }, [teamMembers]);
 
   const filteredPeople = useMemo(() => {
     return allPeople.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -36,24 +38,16 @@ export const Feedbacks = () => {
   const handleSaveFeedback = async (feedbackData: Omit<Feedback, 'id'> | Feedback) => {
     if (!selectedPerson) return;
 
-    if (selectedPerson.type === 'candidate') {
-      if ('id' in feedbackData) {
-        await updateFeedback(selectedPerson.id, feedbackData as Feedback);
-      } else {
-        await addFeedback(selectedPerson.id, feedbackData as Omit<Feedback, 'id'>);
-      }
-    } else { // teamMember
+    if (selectedPerson.type === 'teamMember') { 
       if ('id' in feedbackData) {
         await updateTeamMemberFeedback(selectedPerson.id, feedbackData as Feedback);
       } else {
         await addTeamMemberFeedback(selectedPerson.id, feedbackData as Omit<Feedback, 'id'>);
       }
     }
-    // This is a workaround to refresh the data, ideally the context update should trigger this
-    const updatedCandidates = candidates.map(c => c.id === selectedPerson.id ? {...c, feedbacks: (c.feedbacks || []).concat([feedbackData as Feedback])} : c);
+    // Workaround para atualizar o estado local após salvar, idealmente o contexto já faria isso
     const updatedTeamMembers = teamMembers.map(m => m.id === selectedPerson.id ? {...m, feedbacks: (m.feedbacks || []).concat([feedbackData as Feedback])} : m);
     const updatedAllPeople: Person[] = [
-        ...updatedCandidates.map(c => ({ ...c, type: 'candidate' as const })),
         ...updatedTeamMembers.map(m => ({ ...m, type: 'teamMember' as const }))
     ].sort((a, b) => a.name.localeCompare(b.name));
     const refreshedPerson = updatedAllPeople.find(p => p.id === selectedPerson.id && p.type === selectedPerson.type);
@@ -63,9 +57,7 @@ export const Feedbacks = () => {
   const handleDeleteFeedback = async (feedbackId: string) => {
     if (!selectedPerson || !confirm('Tem certeza que deseja excluir este feedback?')) return;
 
-    if (selectedPerson.type === 'candidate') {
-      await deleteFeedback(selectedPerson.id, feedbackId);
-    } else {
+    if (selectedPerson.type === 'teamMember') {
       await deleteTeamMemberFeedback(selectedPerson.id, feedbackId);
     }
     const updatedPerson = {
@@ -92,7 +84,7 @@ export const Feedbacks = () => {
     <div className="flex flex-col h-[calc(100vh-theme(spacing.16))] max-h-screen overflow-hidden bg-gray-50 dark:bg-slate-900">
       <div className="bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 px-6 py-4 shrink-0">
         <h1 className="text-xl font-bold text-gray-900 dark:text-white">Central de Feedbacks</h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400">Gerencie feedbacks para candidatos e membros da equipe.</p>
+        <p className="text-sm text-gray-500 dark:text-gray-400">Gerencie feedbacks para membros da equipe.</p>
       </div>
 
       <div className="flex flex-1 overflow-hidden">
@@ -117,11 +109,12 @@ export const Feedbacks = () => {
                 className={`w-full text-left p-3 rounded-lg flex items-center space-x-3 transition-colors ${selectedPerson?.id === person.id ? 'bg-brand-50 dark:bg-brand-900/20' : 'hover:bg-gray-50 dark:hover:bg-slate-700'}`}
               >
                 <div className={`p-2 rounded-full ${selectedPerson?.id === person.id ? 'bg-brand-100 dark:bg-brand-900/40 text-brand-600 dark:text-brand-300' : 'bg-gray-100 dark:bg-slate-700 text-gray-500 dark:text-gray-400'}`}>
-                  {person.type === 'candidate' ? <User className="w-4 h-4" /> : <Users className="w-4 h-4" />}
+                  {/* Ícone sempre de Users, pois só haverá teamMembers */}
+                  <Users className="w-4 h-4" /> 
                 </div>
                 <div>
                   <p className={`font-medium ${selectedPerson?.id === person.id ? 'text-brand-800 dark:text-brand-200' : 'text-gray-800 dark:text-gray-200'}`}>{person.name}</p>
-                  <p className={`text-xs ${selectedPerson?.id === person.id ? 'text-brand-600 dark:text-brand-400' : 'text-gray-500 dark:text-gray-400'}`}>{person.type === 'candidate' ? 'Candidato' : 'Membro da Equipe'}</p>
+                  <p className={`text-xs ${selectedPerson?.id === person.id ? 'text-brand-600 dark:text-brand-400' : 'text-gray-500 dark:text-gray-400'}`}>Membro da Equipe</p> {/* Texto fixo */}
                 </div>
               </button>
             ))}
