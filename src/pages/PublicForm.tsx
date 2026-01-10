@@ -517,7 +517,15 @@ export const PublicForm = () => {
                           {/* NOVO: Lógica para remover '_endereco' e formatar o rótulo */}
                           {fieldName.replace('_endereco', '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()).trim()} {(isRequired || isConditionallyRequired) && <span className="text-red-500">*</span>}
                         </label>
-                        <input type="text" id={fieldName} name={fieldName} value={formData[fieldName as keyof FormData] as string || ''} readOnly={!['cep', 'numero_endereco', 'complemento_endereco'].includes(fieldName)} className="mt-1 block w-full border-gray-300 dark:border-slate-600 rounded-md shadow-sm p-2 dark:bg-slate-700 dark:text-white" />
+                        <input 
+                          type="text" 
+                          id={fieldName} 
+                          name={fieldName} 
+                          value={formData[fieldName as keyof FormData] as string || ''} 
+                          onChange={handleChange} // Adicionado onChange
+                          readOnly={!['cep', 'numero_endereco', 'complemento_endereco'].includes(fieldName)} 
+                          className="mt-1 block w-full border-gray-300 dark:border-slate-600 rounded-md shadow-sm p-2 dark:bg-slate-700 dark:text-white" 
+                        />
                       </div>
                     );
                   }
