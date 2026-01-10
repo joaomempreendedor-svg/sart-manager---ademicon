@@ -37,7 +37,7 @@ export const Header: React.FC<HeaderProps> = ({ isSidebarOpen, toggleSidebar, us
 
       {/* Renderiza o sino de notificação apenas para Gestores/Admins */}
       {(user?.role === 'GESTOR' || user?.role === 'ADMIN') && (
-        <div className="flex items-center space-x-4 mr-4"> {/* Adicionado 'mr-4' aqui */}
+        <div className="flex items-center space-x-4 mr-6"> {/* Alterado de 'mr-4' para 'mr-6' */}
           <NotificationBell
             notificationCount={notifications.length}
             onClick={handleOpenNotifications}
