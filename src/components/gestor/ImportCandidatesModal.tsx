@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { X, UploadCloud, Loader2, CheckCircle2, AlertTriangle, Save } from 'lucide-react';
 import {
   Dialog,
@@ -44,34 +44,53 @@ export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
     email: '',
     origin: '',
     responsibleUserId: '',
+    screeningStatus: '', // NOVO: Adicionado para mapear o status de triagem
   });
   const [isProcessing, setIsProcessing] = useState(false);
   const [importResult, setImportResult] = useState<{ success: number; failed: number; errors: string[] } | null>(null);
+  const [headerParseError, setHeaderParseError] = useState<string | null>(null); // NOVO: Estado para erro de parsing de cabeçalho
 
   const requiredFields = ['name']; // Apenas o nome é obrigatório para triagem inicial
+  const allowedScreeningStatuses = ['Pending Contact', 'Contacted', 'No Fit'];
 
   // Parse headers when data is pasted
-  useMemo(() => {
+  useEffect(() => {
+    console.log("[ImportModal] Pasted data changed:", pastedData);
+    setHeaderParseError(null); // Reset error on new paste
+
     if (pastedData) {
       const lines = pastedData.split('\n').filter(line => line.trim() !== '');
       if (lines.length > 0) {
         const firstLine = lines[0];
-        // Try to detect delimiter (tab or comma)
-        const delimiter = firstLine.includes('\t') ? '\t' : ',';
+        const tabCount = (firstLine.match(/\t/g) || []).length;
+        const commaCount = (firstLine.match(/,/g) || []).length;
+        
+        let delimiter = ','; // Default to comma
+        if (tabCount > commaCount) {
+          delimiter = '\t'; // Prefer tab if more tabs
+        }
+
         const parsedHeaders = firstLine.split(delimiter).map(h => h.trim());
+        console.log("[ImportModal] Parsed headers:", parsedHeaders);
         setHeaders(parsedHeaders);
+        
         // Attempt to auto-map common headers
         setColumnMapping(prev => ({
           name: parsedHeaders.find(h => h.toLowerCase().includes('nome')) || prev.name,
-          phone: parsedHeaders.find(h => h.toLowerCase().includes('fone') || h.toLowerCase().includes('tel')) || prev.phone,
+          phone: parsedHeaders.find(h => h.toLowerCase().includes('fone') || h.toLowerCase().includes('tel') || h.toLowerCase().includes('telefone')) || prev.phone,
           email: parsedHeaders.find(h => h.toLowerCase().includes('email')) || prev.email,
           origin: parsedHeaders.find(h => h.toLowerCase().includes('origem')) || prev.origin,
-          responsibleUserId: parsedHeaders.find(h => h.toLowerCase().includes('responsavel')) || prev.responsibleUserId,
+          responsibleUserId: parsedHeaders.find(h => h.toLowerCase().includes('responsavel') || h.toLowerCase().includes('gestor')) || prev.responsibleUserId,
+          screeningStatus: parsedHeaders.find(h => h.toLowerCase().includes('status') || h.toLowerCase().includes('triagem')) || prev.screeningStatus, // NOVO: Auto-map status
         }));
+      } else {
+        setHeaders([]);
+        setHeaderParseError("Nenhuma linha válida encontrada nos dados colados.");
+        console.log("[ImportModal] No valid lines found in pasted data.");
       }
     } else {
       setHeaders([]);
-      setColumnMapping({ name: '', phone: '', email: '', origin: '', responsibleUserId: '' });
+      console.log("[ImportModal] Pasted data is empty.");
     }
   }, [pastedData]);
 
@@ -96,8 +115,8 @@ export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
     for (const line of dataLines) {
       const values = line.split(delimiter).map(v => v.trim());
       const candidateData: Partial<Omit<Candidate, 'id' | 'createdAt' | 'db_id'>> = {
-        status: 'Triagem',
-        screeningStatus: 'Pending Contact',
+        status: 'Triagem', // Sempre inicia no status de triagem
+        screeningStatus: 'Pending Contact', // Default screening status
         interviewDate: '',
         interviewer: '',
         interviewScores: { basicProfile: 0, commercialSkills: 0, behavioralProfile: 0, jobFit: 0, notes: '' },
@@ -112,8 +131,9 @@ export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
       Object.entries(columnMapping).forEach(([fieldKey, headerName]) => {
         const headerIndex = headers.indexOf(headerName);
         if (headerIndex !== -1 && values[headerIndex]) {
+          const value = values[headerIndex];
           if (fieldKey === 'responsibleUserId') {
-            const responsibleName = values[headerIndex];
+            const responsibleName = value;
             const foundMember = responsibleMembers.find(m => m.name.toLowerCase() === responsibleName.toLowerCase());
             if (foundMember) {
               candidateData.responsibleUserId = foundMember.id;
@@ -122,15 +142,23 @@ export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
               recordIsValid = false;
             }
           } else if (fieldKey === 'origin') {
-            const originName = values[headerIndex];
+            const originName = value;
             if (origins.includes(originName)) {
               candidateData.origin = originName;
             } else {
               currentRecordErrors.push(`Origem "${originName}" não encontrada nas opções configuradas.`);
               recordIsValid = false;
             }
+          } else if (fieldKey === 'screeningStatus') { // NOVO: Lógica para status de triagem
+            const statusValue = value;
+            if (allowedScreeningStatuses.includes(statusValue as any)) {
+              candidateData.screeningStatus = statusValue as 'Pending Contact' | 'Contacted' | 'No Fit';
+            } else {
+              currentRecordErrors.push(`Status de triagem "${statusValue}" inválido. Use: ${allowedScreeningStatuses.join(', ')}.`);
+              recordIsValid = false;
+            }
           } else {
-            (candidateData as any)[fieldKey] = values[headerIndex];
+            (candidateData as any)[fieldKey] = value;
           }
         }
       });
@@ -172,8 +200,9 @@ export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
   const handleCloseModal = () => {
     setPastedData('');
     setHeaders([]);
-    setColumnMapping({ name: '', phone: '', email: '', origin: '', responsibleUserId: '' });
+    setColumnMapping({ name: '', phone: '', email: '', origin: '', responsibleUserId: '', screeningStatus: '' });
     setImportResult(null);
+    setHeaderParseError(null);
     onClose();
   };
 
@@ -201,8 +230,11 @@ export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
               onChange={(e) => setPastedData(e.target.value)}
               rows={8}
               className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600 font-mono text-sm"
-              placeholder="Cole aqui as colunas: Nome, Telefone, Email, Origem, Responsável..."
+              placeholder="Ex:&#10;Nome,Telefone,Email,Origem,Responsavel,Status&#10;João Silva,(11) 98765-4321,joao@email.com,Indicação,Maria Gestora,Contatado&#10;Maria Souza,(21) 91234-5678,maria@email.com,Prospecção,João Gestor,Pendente de Contato"
             />
+            {headerParseError && (
+              <p className="text-red-500 text-sm mt-2 flex items-center"><AlertTriangle className="w-4 h-4 mr-2" />{headerParseError}</p>
+            )}
           </div>
 
           {headers.length > 0 && (
@@ -277,6 +309,20 @@ export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* NOVO: Status de Triagem */}
+              <div>
+                <Label htmlFor="map-screeningStatus">Status de Triagem</Label>
+                <Select value={columnMapping.screeningStatus} onValueChange={(val) => setColumnMapping(prev => ({ ...prev, screeningStatus: val }))}>
+                  <SelectTrigger id="map-screeningStatus" className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
+                    <SelectValue placeholder="Selecione a coluna do Status" />
+                  </SelectTrigger>
+                  <SelectContent className="dark:bg-slate-800 dark:text-white dark:border-slate-700">
+                    <SelectItem value="">Ignorar (usará 'Pendente de Contato')</SelectItem>
+                    {headers.map(header => <SelectItem key={header} value={header}>{header}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           )}
 
@@ -304,7 +350,7 @@ export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
           <Button
             type="button"
             onClick={handleProcessImport}
-            disabled={isProcessing || !pastedData || !columnMapping.name}
+            disabled={isProcessing || !pastedData || !columnMapping.name || headers.length === 0}
             className="bg-brand-600 hover:bg-brand-700 text-white"
           >
             {isProcessing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
