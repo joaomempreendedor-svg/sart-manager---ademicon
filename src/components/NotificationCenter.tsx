@@ -4,6 +4,7 @@ import { Notification } from '@/types';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
+import { DialogFooter } from '@/components/ui/dialog'; // Importação adicionada
 
 interface NotificationCenterProps {
   isOpen: boolean;
