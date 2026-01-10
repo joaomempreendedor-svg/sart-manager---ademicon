@@ -227,12 +227,17 @@ export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
   if (!isOpen) return null;
 
   const renderHeaderOptions = () => {
-    return (
-      <>
-        <SelectItem value="">Ignorar</SelectItem>
-        {headers.map(header => <SelectItem key={header} value={header}>{header}</SelectItem>)}
-      </>
-    );
+    // Always include "Ignorar" option
+    const options = [<SelectItem key="ignore" value="">Ignorar</SelectItem>];
+
+    if (headers.length === 0) {
+      // If no headers are detected, provide a disabled option for feedback
+      options.push(<SelectItem key="no-headers" value="" disabled>Nenhum cabeçalho detectado</SelectItem>);
+    } else {
+      // Otherwise, map the detected headers
+      options.push(...headers.map(header => <SelectItem key={header} value={header}>{header}</SelectItem>));
+    }
+    return options;
   };
 
   return (
@@ -257,7 +262,7 @@ export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
               onChange={(e) => setPastedData(e.target.value)}
               rows={8}
               className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600 font-mono text-sm"
-              placeholder="Ex:&#10;Nome:,Staus&#10;Susana,Sem perfil&#10;Rafinha,Contato Feito&#10;Gislaine Aparecida,Sem perfil"
+              placeholder="Ex:&#10;Nome:,Staus&#10;Susana,Sem perfil&#10;Rafinha,Contato Feito&#10;Gislaine Aparecida,Pendente"
             />
             {headerParseError && (
               <p className="text-red-500 text-sm mt-2 flex items-center"><AlertTriangle className="w-4 h-4 mr-2" />{headerParseError}</p>
