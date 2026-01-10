@@ -1,23 +1,21 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Plus, Trash2, User, Shield, Crown, Star, Edit2, Save, X, Archive, UserCheck, Loader2, Copy, RefreshCw, KeyRound, Mail, CalendarPlus, CalendarDays } from 'lucide-react'; // Adicionado CalendarDays
-import { TeamMember, TeamRole, Candidate } from '@/types';
+import { Plus, Trash2, User, Shield, Crown, Star, Edit2, Save, X, Archive, UserCheck, Loader2, Copy, RefreshCw, KeyRound, Mail } from 'lucide-react';
+import { TeamMember, TeamRole } from '@/types';
 import { formatCpf, generateRandomPassword } from '@/utils/authUtils';
 import { ConsultantCredentialsModal } from '@/components/ConsultantCredentialsModal';
-import { RecordTeamMemberInterviewModal } from '@/components/TeamConfig/RecordTeamMemberInterviewModal';
 
 const ALL_ROLES: TeamRole[] = ['Prévia', 'Autorizado', 'Gestor', 'Anjo'];
 
 export const TeamConfig = () => {
-  const { user } = useAuth();
-  const { teamMembers, addTeamMember, updateTeamMember, deleteTeamMember, candidates, addCandidate } = useApp();
-  const { resetConsultantPasswordViaEdge } = useAuth();
+  const { user } = useAuth(); // Obter o usuário logado (gestor)
+  const { teamMembers, addTeamMember, updateTeamMember, deleteTeamMember } = useApp();
+  const { resetConsultantPasswordViaEdge } = useAuth(); // Usar resetConsultantPasswordViaEdge
   
   const [newName, setNewName] = useState('');
-  const [newEmail, setNewEmail] = useState('');
+  const [newEmail, setNewEmail] = useState(''); // Novo estado para o e-mail
   const [newCpf, setNewCpf] = useState('');
-  const [newDateOfBirth, setNewDateOfBirth] = useState(''); // NOVO: Estado para data de nascimento
   const [newRoles, setNewRoles] = useState<TeamRole[]>(['Prévia']);
   const [generatedPassword, setGeneratedPassword] = useState(generateRandomPassword());
   const [isAdding, setIsAdding] = useState(false);
@@ -25,17 +23,13 @@ export const TeamConfig = () => {
 
   const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
   const [editingName, setEditingName] = useState('');
-  const [editingEmail, setEditingEmail] = useState('');
+  const [editingEmail, setEditingEmail] = useState(''); // Novo estado para o e-mail em edição
   const [editingCpf, setEditingCpf] = useState('');
-  const [editingDateOfBirth, setEditingDateOfBirth] = useState(''); // NOVO: Estado para data de nascimento em edição
   const [editingRoles, setEditingRoles] = useState<TeamRole[]>([]);
   const [isUpdating, setIsUpdating] = useState(false);
 
   const [showCredentialsModal, setShowCredentialsModal] = useState(false);
-  const [createdConsultantCredentials, setCreatedConsultantCredentials] = useState<{ name: string, login: string, password: string, wasExistingUser: boolean } | null>(null);
-
-  const [isRecordInterviewModalOpen, setIsRecordInterviewModalOpen] = useState(false);
-  const [teamMemberToRecordInterview, setTeamMemberToRecordInterview] = useState<TeamMember | null>(null);
+  const [createdConsultantCredentials, setCreatedConsultantCredentials] = useState<{ name: string, login: string, password: string, wasExistingUser: boolean } | null>(null); // Adicionado wasExistingUser
 
   const handleRoleChange = (role: TeamRole, currentRoles: TeamRole[], setRoles: React.Dispatch<React.SetStateAction<TeamRole[]>>) => {
     const updatedRoles = currentRoles.includes(role)
@@ -73,43 +67,44 @@ export const TeamConfig = () => {
     setIsAdding(true);
     try {
       const cleanedCpf = newCpf.replace(/\D/g, '');
-      const login = newEmail.trim();
+      const login = newEmail.trim(); // O login agora é o e-mail
 
+      // --- NOVO LOG AQUI ---
       console.log("[TeamConfig] Enviando para addTeamMember:", {
         name: newName.trim(),
         email: newEmail.trim(),
         cpf: cleanedCpf,
         login: login,
         roles: newRoles,
-        dateOfBirth: newDateOfBirth || undefined, // NOVO: Incluir data de nascimento
       });
+      // --- FIM DO NOVO LOG ---
 
+      // Usar a nova função addTeamMember do AppContext
       const result = await addTeamMember({
         name: newName.trim(),
         email: newEmail.trim(),
         cpf: cleanedCpf,
-        login: login,
+        login: login, // Passar o email como login
         roles: newRoles,
         isActive: true,
-        dateOfBirth: newDateOfBirth || undefined, // NOVO: Incluir data de nascimento
       });
 
       if (result.success) {
         setCreatedConsultantCredentials({ 
           name: result.member.name, 
-          login: result.member.email || '',
-          password: result.tempPassword || '',
-          wasExistingUser: result.wasExistingUser || false,
+          login: result.member.email || '', // Usar o email como login
+          password: result.tempPassword || '', // A senha temporária virá da Edge Function
+          wasExistingUser: result.wasExistingUser || false, // Passar o flag
         });
         setShowCredentialsModal(true);
       } else {
         alert(result.message || "Falha ao adicionar membro.");
       }
 
+      // Resetar formulário
       setNewName('');
       setNewEmail('');
       setNewCpf('');
-      setNewDateOfBirth(''); // NOVO: Resetar campo
       setNewRoles(['Prévia']);
       setGeneratedPassword(generateRandomPassword());
     } catch (error: any) {
@@ -123,18 +118,16 @@ export const TeamConfig = () => {
   const startEditing = (member: TeamMember) => {
     setEditingMember(member);
     setEditingName(member.name);
-    setEditingEmail(member.email || '');
+    setEditingEmail(member.email || ''); // Set editing email
     setEditingCpf(formatCpf(member.cpf || ''));
-    setEditingDateOfBirth(member.dateOfBirth || ''); // NOVO: Popular campo
     setEditingRoles(member.roles);
   };
 
   const cancelEditing = () => {
     setEditingMember(null);
     setEditingName('');
-    setEditingEmail('');
+    setEditingEmail(''); // Clear editing email
     setEditingCpf('');
-    setEditingDateOfBirth(''); // NOVO: Resetar campo
     setEditingRoles([]);
   };
 
@@ -155,8 +148,7 @@ export const TeamConfig = () => {
         name: editingName.trim(), 
         roles: editingRoles, 
         cpf: cleanedCpf,
-        email: editingEmail.trim(),
-        dateOfBirth: editingDateOfBirth || undefined, // NOVO: Incluir data de nascimento
+        email: editingEmail.trim(), // Include email in updates
       });
 
       if (result?.tempPassword) {
@@ -164,7 +156,7 @@ export const TeamConfig = () => {
           name: editingName.trim(),
           login: editingEmail.trim(),
           password: result.tempPassword,
-          wasExistingUser: true,
+          wasExistingUser: true, // It's an update, so it's an existing user
         });
         setShowCredentialsModal(true);
       }
@@ -196,7 +188,7 @@ export const TeamConfig = () => {
   };
 
   const handleResetPassword = async (member: TeamMember) => {
-    if (!member.email) {
+    if (!member.email) { // Usar o email para resetar
       alert("Não é possível resetar a senha: E-mail do consultor não encontrado.");
       return;
     }
@@ -211,9 +203,9 @@ export const TeamConfig = () => {
       
       setCreatedConsultantCredentials({ 
         name: member.name, 
-        login: member.email,
+        login: member.email, // O login é o email
         password: newTempPassword, 
-        wasExistingUser: true
+        wasExistingUser: true // Sempre será um usuário existente neste caso
       });
       setShowCredentialsModal(true);
 
@@ -242,11 +234,6 @@ export const TeamConfig = () => {
       }
   };
 
-  const handleOpenRecordInterviewModal = (member: TeamMember) => {
-    setTeamMemberToRecordInterview(member);
-    setIsRecordInterviewModalOpen(true);
-  };
-
   return (
     <div className="p-8 max-w-4xl mx-auto min-h-screen bg-gray-50 dark:bg-slate-900">
       <div className="mb-8">
@@ -255,6 +242,7 @@ export const TeamConfig = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {/* Add Form */}
           <div className="md:col-span-1">
               <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm sticky top-8">
                   <h2 className="font-semibold text-gray-900 dark:text-white mb-4">Adicionar Membro</h2>
@@ -264,7 +252,7 @@ export const TeamConfig = () => {
                           <input 
                             type="text" 
                             required
-                            className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500 placeholder:text-gray-500 dark:placeholder:text-gray-400"
+                            className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500"
                             placeholder="Ex: João Silva"
                             value={newName}
                             onChange={e => setNewName(e.target.value)}
@@ -277,7 +265,7 @@ export const TeamConfig = () => {
                             <input 
                                 type="email" 
                                 required
-                                className="w-full pl-10 border border-gray-300 dark:border-slate-600 rounded-lg p-2 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500 placeholder:text-gray-500 dark:placeholder:text-gray-400"
+                                className="w-full pl-10 border border-gray-300 dark:border-slate-600 rounded-lg p-2 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500"
                                 placeholder="email@exemplo.com"
                                 value={newEmail}
                                 onChange={e => setNewEmail(e.target.value)}
@@ -289,25 +277,12 @@ export const TeamConfig = () => {
                           <input 
                             type="text" 
                             required
-                            className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500 placeholder:text-gray-500 dark:placeholder:text-gray-400"
+                            className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500"
                             placeholder="000.000.000-00"
                             value={newCpf}
                             onChange={e => setNewCpf(formatCpf(e.target.value))}
                             maxLength={14}
                           />
-                      </div>
-                      {/* NOVO: Campo de Data de Nascimento */}
-                      <div>
-                          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Data de Nascimento (Opcional)</label>
-                          <div className="relative">
-                            <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                            <input 
-                                type="date" 
-                                className="w-full pl-10 border border-gray-300 dark:border-slate-600 rounded-lg p-2 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500"
-                                value={newDateOfBirth}
-                                onChange={e => setNewDateOfBirth(e.target.value)}
-                            />
-                          </div>
                       </div>
                       <div>
                           <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Cargos / Funções</label>
@@ -333,6 +308,7 @@ export const TeamConfig = () => {
               </div>
           </div>
 
+          {/* List */}
           <div className="md:col-span-2">
               <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
                   <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
@@ -346,24 +322,14 @@ export const TeamConfig = () => {
                               <li key={member.id} className={`p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-slate-700/30 transition group ${!member.isActive ? 'opacity-60' : ''}`}>
                                   {editingMember?.id === member.id ? (
                                     <div className="flex-1 flex flex-col gap-3">
-                                      <input type="text" value={editingName} onChange={e => setEditingName(e.target.value)} className="w-full border-gray-300 dark:border-slate-600 rounded-md p-2 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400" />
-                                      <input type="email" value={editingEmail} onChange={e => setEditingEmail(e.target.value)} className="w-full border-gray-300 dark:border-slate-600 rounded-md p-2 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400" />
-                                      <input type="text" value={editingCpf} onChange={e => setEditingCpf(formatCpf(e.target.value))} maxLength={14} className="w-full border-gray-300 dark:border-slate-600 rounded-md p-2 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400" />
-                                      {/* NOVO: Campo de Data de Nascimento em edição */}
-                                      <div className="relative">
-                                        <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                        <input 
-                                            type="date" 
-                                            className="w-full pl-10 border border-gray-300 dark:border-slate-600 rounded-lg p-2 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500"
-                                            value={editingDateOfBirth}
-                                            onChange={e => setEditingDateOfBirth(e.target.value)}
-                                        />
-                                      </div>
+                                      <input type="text" value={editingName} onChange={e => setEditingName(e.target.value)} className="w-full border-gray-300 dark:border-slate-600 rounded-md p-2 text-sm" />
+                                      <input type="email" value={editingEmail} onChange={e => setEditingEmail(e.target.value)} className="w-full border-gray-300 dark:border-slate-600 rounded-md p-2 text-sm" /> {/* Email field */}
+                                      <input type="text" value={editingCpf} onChange={e => setEditingCpf(formatCpf(e.target.value))} maxLength={14} className="w-full border-gray-300 dark:border-slate-600 rounded-md p-2 text-sm" />
                                       <div className="grid grid-cols-2 gap-2">
                                         {ALL_ROLES.map(role => (
                                             <label key={role} className="flex items-center space-x-2 cursor-pointer">
                                                 <input type="checkbox" checked={editingRoles.includes(role)} onChange={() => handleRoleChange(role, editingRoles, setEditingRoles)} className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
-                                                <span className="text-sm text-gray-700 dark:text-gray-300">{role}</span>
+                                                <span className="text-sm">{role}</span>
                                             </label>
                                         ))}
                                       </div>
@@ -397,25 +363,14 @@ export const TeamConfig = () => {
                                               {member.cpf && (
                                                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">CPF: {formatCpf(member.cpf)}</p>
                                               )}
-                                              {member.dateOfBirth && ( // NOVO: Exibir data de nascimento
-                                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Nascimento: {new Date(member.dateOfBirth + 'T00:00:00').toLocaleDateString('pt-BR')}</p>
-                                              )}
                                           </div>
                                       </div>
                                       <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                        {/* Botão de Registrar Entrevista - AGORA SEM CONDIÇÕES DE CARGO OU CANDIDATO EXISTENTE */}
-                                          <button 
-                                            onClick={(e) => { e.stopPropagation(); handleOpenRecordInterviewModal(member); }} 
-                                            className="p-2 rounded-full text-gray-400 hover:text-brand-500 hover:bg-brand-50 dark:hover:bg-brand-900/20" 
-                                            title="Registrar Entrevista"
-                                          >
-                                            <CalendarPlus className="w-4 h-4" />
-                                          </button>
                                         <button onClick={() => handleResetPassword(member)} className="p-2 rounded-full text-gray-400 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/20" title="Resetar Senha">
                                             <KeyRound className="w-4 h-4" />
                                         </button>
                                         <button onClick={() => handleToggleActive(member)} className={`p-2 rounded-full ${member.isActive ? 'text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20' : 'text-gray-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20'}`} title={member.isActive ? 'Inativar' : 'Ativar'}>
-                                            <Archive className="w-4 h-4" />
+                                            {member.isActive ? <Archive className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
                                         </button>
                                         <button onClick={() => startEditing(member)} className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full">
                                           <Edit2 className="w-4 h-4" />
@@ -444,13 +399,6 @@ export const TeamConfig = () => {
           login={createdConsultantCredentials.login}
           password={createdConsultantCredentials.password}
           wasExistingUser={createdConsultantCredentials.wasExistingUser}
-        />
-      )}
-      {isRecordInterviewModalOpen && teamMemberToRecordInterview && (
-        <RecordTeamMemberInterviewModal
-          isOpen={isRecordInterviewModalOpen}
-          onClose={() => setIsRecordInterviewModalOpen(false)}
-          teamMember={teamMemberToRecordInterview}
         />
       )}
     </div>

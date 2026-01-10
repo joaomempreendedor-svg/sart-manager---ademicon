@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, MessageSquare, Settings, FileText, Sun, Moon, Banknote, PlusCircle, Library, TrendingUp, Target, Users, LogOut, User as UserIcon, Calendar, Star, Video, ListChecks, ClipboardCheck, UserPlus, ChevronLeft, ChevronRight, ChevronDown, UserSearch, BarChart3, UserCog, MapPin, DollarSign, FileStack, UserCheck } from 'lucide-react'; // Adicionado UserCheck
+import { NavLink } from 'react-router-dom'; // Removido useNavigate
+import { LayoutDashboard, MessageSquare, Settings, FileText, Sun, Moon, Banknote, PlusCircle, Library, TrendingUp, Target, Users, LogOut, User as UserIcon, Calendar, Star, Video, ListChecks, ClipboardCheck, UserPlus, ChevronLeft, ChevronRight, ChevronDown, UserSearch } from 'lucide-react'; // Adicionado ChevronDown e UserSearch
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 
@@ -8,19 +8,22 @@ interface GestorSidebarProps {
   isSidebarOpen: boolean;
   toggleSidebar: () => void;
   isSidebarCollapsed: boolean;
-  toggleSidebarCollapse: () => () => void;
+  toggleSidebarCollapse: () => void;
 }
 
 export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, toggleSidebar, isSidebarCollapsed, toggleSidebarCollapse }) => {
   const { theme, toggleTheme } = useApp();
   const { user, logout } = useAuth();
+  // Removido useNavigate
 
+  // Estados para controlar o recolhimento de cada seção
   const [isOverviewCollapsed, setIsOverviewCollapsed] = useState(false);
   const [isConfigCollapsed, setIsConfigCollapsed] = useState(false);
   const [isPersonalCollapsed, setIsPersonalCollapsed] = useState(false);
 
   const handleLogout = async () => {
     await logout();
+    // Removido: navigate('/login'); // O redirecionamento agora é tratado pelo AuthContext e RequireAuth
   };
 
   const linkClass = ({ isActive }: { isActive: boolean }) =>
@@ -42,7 +45,7 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
         ></div>
       )}
 
-      <div className={`bg-white dark:bg-slate-900 border-r border-gray-200 dark:border-slate-800 h-screen flex flex-col fixed left-0 top-0 transition-all duration-300 z-50 md:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} ${isSidebarCollapsed ? 'w-20' : 'w-64'}`}>
+      <div className={`bg-white dark:bg-slate-900 border-r border-gray-200 dark:border-slate-800 min-h-screen flex flex-col fixed left-0 top-0 transition-all duration-300 z-50 md:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} ${isSidebarCollapsed ? 'w-20' : 'w-64'}`}>
         {/* Logo Area */}
         <div className={`p-6 border-b border-gray-100 dark:border-slate-800 flex justify-center items-center h-24 ${isSidebarCollapsed ? 'px-2' : ''}`}>
           <div className="flex items-center space-x-2">
@@ -76,21 +79,9 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
                 <TrendingUp className="w-5 h-5" />
                 <span>CRM</span>
               </NavLink>
-              <NavLink to="/gestor/crm-sales-reports" className={linkClass} onClick={toggleSidebar}>
-                <BarChart3 className="w-5 h-5" />
-                <span>Relatórios de Vendas</span>
-              </NavLink>
-              <NavLink to="/gestor/hiring-pipeline" className={linkClass} onClick={toggleSidebar}>
+              <NavLink to="/gestor/hiring-pipeline" className={linkClass} onClick={toggleSidebar}> {/* NOVO: Link para o pipeline de contratação */}
                 <UserSearch className="w-5 h-5" />
                 <span>Pipeline Contratação</span>
-              </NavLink>
-              <NavLink to="/gestor/candidate-screening" className={linkClass} onClick={toggleSidebar}> {/* NOVO LINK */}
-                <UserCheck className="w-5 h-5" />
-                <span>Controle Candidaturas</span>
-              </NavLink>
-              <NavLink to="/gestor/hiring-reports" className={linkClass} onClick={toggleSidebar}>
-                <UserCog className="w-5 h-5" />
-                <span>Relatórios Contratação</span>
               </NavLink>
               <NavLink to="/gestor/onboarding-admin" className={linkClass} onClick={toggleSidebar}>
                 <Video className="w-5 h-5" />
@@ -99,10 +90,6 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
               <NavLink to="/gestor/commissions" className={linkClass} onClick={toggleSidebar}>
                 <Banknote className="w-5 h-5" />
                 <span>Comissões</span>
-              </NavLink>
-              <NavLink to="/gestor/financial-panel" className={linkClass} onClick={toggleSidebar}>
-                <DollarSign className="w-5 h-5" />
-                <span>Painel Financeiro</span>
               </NavLink>
               <NavLink to="/gestor/feedbacks" className={linkClass} onClick={toggleSidebar}>
                 <Star className="w-5 h-5" />
@@ -116,10 +103,6 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
                 <ClipboardCheck className="w-5 h-5" />
                 <span>Monitorar Metas Diárias</span>
               </NavLink>
-              <NavLink to="/gestor/form-cadastros" className={linkClass} onClick={toggleSidebar}>
-                <FileStack className="w-5 h-5" />
-                <span>Gerenciar Formulários</span>
-              </NavLink>
             </>
           )}
           {isSidebarCollapsed && ( // Ícones para a seção recolhida
@@ -130,26 +113,14 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
               <NavLink to="/gestor/crm" className={linkClass} onClick={toggleSidebar} title="CRM">
                 <TrendingUp className="w-5 h-5" />
               </NavLink>
-              <NavLink to="/gestor/crm-sales-reports" className={linkClass} onClick={toggleSidebar} title="Relatórios de Vendas">
-                <BarChart3 className="w-5 h-5" />
-              </NavLink>
-              <NavLink to="/gestor/hiring-pipeline" className={linkClass} onClick={toggleSidebar} title="Pipeline Contratação">
+              <NavLink to="/gestor/hiring-pipeline" className={linkClass} onClick={toggleSidebar} title="Pipeline Contratação"> {/* NOVO: Link para o pipeline de contratação */}
                 <UserSearch className="w-5 h-5" />
-              </NavLink>
-              <NavLink to="/gestor/candidate-screening" className={linkClass} onClick={toggleSidebar} title="Controle Candidaturas"> {/* NOVO LINK */}
-                <UserCheck className="w-5 h-5" />
-              </NavLink>
-              <NavLink to="/gestor/hiring-reports" className={linkClass} onClick={toggleSidebar} title="Relatórios Contratação">
-                <UserCog className="w-5 h-5" />
               </NavLink>
               <NavLink to="/gestor/onboarding-admin" className={linkClass} onClick={toggleSidebar} title="Onboarding Online">
                 <Video className="w-5 h-5" />
               </NavLink>
               <NavLink to="/gestor/commissions" className={linkClass} onClick={toggleSidebar} title="Comissões">
                 <Banknote className="w-5 h-5" />
-              </NavLink>
-              <NavLink to="/gestor/financial-panel" className={linkClass} onClick={toggleSidebar} title="Painel Financeiro">
-                <DollarSign className="w-5 h-5" />
               </NavLink>
               <NavLink to="/gestor/feedbacks" className={linkClass} onClick={toggleSidebar} title="Feedbacks">
                 <Star className="w-5 h-5" />
@@ -159,9 +130,6 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
               </NavLink>
               <NavLink to="/gestor/daily-checklist-monitoring" className={linkClass} onClick={toggleSidebar} title="Monitorar Metas Diárias">
                 <ClipboardCheck className="w-5 h-5" />
-              </NavLink>
-              <NavLink to="/gestor/form-cadastros" className={linkClass} onClick={toggleSidebar} title="Gerenciar Formulários">
-                <FileStack className="w-5 h-5" />
               </NavLink>
             </>
           )}
@@ -203,10 +171,6 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
                 <PlusCircle className="w-5 h-5" />
                 <span>Configurar CRM</span>
               </NavLink>
-              <NavLink to="/gestor/config-origins" className={linkClass} onClick={toggleSidebar}>
-                <MapPin className="w-5 h-5" />
-                <span>Configurar Origens</span>
-              </NavLink>
               <NavLink to="/gestor/config-process" className={linkClass} onClick={toggleSidebar}>
                 <Settings className="w-5 h-5" />
                 <span>Editar Processo (Antigo)</span>
@@ -235,9 +199,6 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
               </NavLink>
               <NavLink to="/gestor/crm-config" className={linkClass} onClick={toggleSidebar} title="Configurar CRM">
                 <PlusCircle className="w-5 h-5" />
-              </NavLink>
-              <NavLink to="/gestor/config-origins" className={linkClass} onClick={toggleSidebar} title="Configurar Origens">
-                <MapPin className="w-5 h-5" />
               </NavLink>
               <NavLink to="/gestor/config-process" className={linkClass} onClick={toggleSidebar} title="Editar Processo (Antigo)">
                 <Settings className="w-5 h-5" />

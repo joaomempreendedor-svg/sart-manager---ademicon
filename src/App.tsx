@@ -7,7 +7,7 @@ import { UserRole } from '@/types';
 // Layouts
 import { GestorSidebar } from '@/components/GestorSidebar';
 import { ConsultorLayout } from '@/components/ConsultorLayout';
-import { Header } from '@/components/Header'; // Importar o Header atualizado
+import { Header } from '@/components/Header';
 
 // Common Pages
 import { Login } from '@/pages/Login';
@@ -18,7 +18,6 @@ import { PublicOnboarding } from '@/pages/PublicOnboarding';
 import { Home } from '@/pages/Home';
 import { Loader2, RefreshCw } from 'lucide-react';
 import { PendingApproval } from '@/pages/PendingApproval';
-import { PublicForm } from '@/pages/PublicForm'; // NOVO: Importar PublicForm
 
 // Gestor Pages
 import { Dashboard } from '@/pages/Dashboard';
@@ -38,13 +37,7 @@ import CrmConfigPage from '@/pages/gestor/CrmConfig';
 import CrmOverviewPage from '@/pages/gestor/CrmOverview';
 import { DailyChecklistConfig } from '@/pages/gestor/DailyChecklistConfig';
 import { DailyChecklistMonitoring } from '@/pages/gestor/DailyChecklistMonitoring';
-import HiringPipeline from '@/pages/gestor/HiringPipeline';
-import CrmSalesReports from '@/pages/gestor/CrmSalesReports';
-import HiringReports from '@/pages/gestor/HiringReports';
-import { OriginConfig } from '@/pages/OriginConfig'; // NOVO: Importar OriginConfig
-import { FinancialPanel } from '@/pages/FinancialPanel'; // NOVO: Importar FinancialPanel
-import { FormCadastros } from '@/pages/gestor/FormSubmissions'; // NOVO: Importar FormCadastros
-import CandidateScreening from '@/pages/gestor/CandidateScreening'; // NOVO: Importar CandidateScreening
+import HiringPipeline from '@/pages/gestor/HiringPipeline'; // NOVO: Importar a página
 
 // Consultor Pages
 import ConsultorDashboard from '@/pages/consultor/Dashboard';
@@ -109,7 +102,6 @@ const RequireAuth: React.FC<{ allowedRoles: UserRole[] }> = ({ allowedRoles }) =
 };
 
 const GestorLayout = () => {
-  const { user } = useAuth(); // <--- Obtendo o usuário aqui
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false); // Adicionado estado para recolher/expandir
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
@@ -124,7 +116,7 @@ const GestorLayout = () => {
         toggleSidebarCollapse={toggleSidebarCollapse} 
       />
       <div className={`flex-1 flex flex-col transition-all duration-300 ${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-64'}`}> {/* Ajusta margem */}
-        <Header isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar} user={user} /> {/* <--- Passando o user para o Header */}
+        <Header isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar} />
         <main className="flex-1">
           <Outlet />
         </main>
@@ -135,11 +127,6 @@ const GestorLayout = () => {
 
 const AppRoutes = () => {
   const { isLoading } = useAuth();
-  const location = useLocation(); // Adicionado para logar o caminho atual
-
-  useEffect(() => {
-    console.log("Current route path:", location.pathname); // Log do caminho atual
-  }, [location.pathname]);
 
   if (isLoading) {
     return <AppLoader />;
@@ -153,7 +140,6 @@ const AppRoutes = () => {
       <Route path="/update-password" element={<UpdatePassword />} />
       <Route path="/onboarding/:sessionId" element={<PublicOnboarding />} />
       <Route path="/pending-approval" element={<PendingApproval />} />
-      <Route path="/public-form" element={<PublicForm />} /> {/* NOVO: Rota para o formulário público */}
       
       {/* Authenticated Routes - ALL authenticated routes should be nested under RequireAuth */}
       <Route element={<RequireAuth allowedRoles={['GESTOR', 'ADMIN', 'CONSULTOR']} />}>
@@ -164,7 +150,6 @@ const AppRoutes = () => {
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="candidate/:id" element={<CandidateDetail />} />
           <Route path="commissions" element={<Commissions />} />
-          <Route path="financial-panel" element={<FinancialPanel />} /> {/* NOVO: Rota para FinancialPanel */}
           <Route path="feedbacks" element={<Feedbacks />} />
           <Route path="materials" element={<Materials />} />
           {/* <Route path="links" element={<ImportantLinks />} /> REMOVIDO */}
@@ -179,12 +164,7 @@ const AppRoutes = () => {
           <Route path="crm" element={<CrmOverviewPage />} />
           <Route path="daily-checklist-config" element={<DailyChecklistConfig />} />
           <Route path="daily-checklist-monitoring" element={<DailyChecklistMonitoring />} />
-          <Route path="hiring-pipeline" element={<HiringPipeline />} />
-          <Route path="crm-sales-reports" element={<CrmSalesReports />} />
-          <Route path="hiring-reports" element={<HiringReports />} />
-          <Route path="config-origins" element={<OriginConfig />} /> {/* NOVO: Rota para OriginConfig */}
-          <Route path="form-cadastros" element={<FormCadastros />} /> {/* NOVO: Rota para FormCadastros */}
-          <Route path="candidate-screening" element={<CandidateScreening />} /> {/* NOVO: Rota para CandidateScreening */}
+          <Route path="hiring-pipeline" element={<HiringPipeline />} /> {/* NOVO: Rota para o pipeline de contratação */}
           <Route path="*" element={<Navigate to="/gestor/dashboard" replace />} />
         </Route>
 

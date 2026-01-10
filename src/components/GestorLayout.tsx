@@ -2,10 +2,8 @@ import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { GestorSidebar } from '@/components/GestorSidebar';
 import { Header } from '@/components/Header';
-import { useAuth } from '@/context/AuthContext'; // Importar useAuth
 
 export const GestorLayout = () => {
-  const { user } = useAuth(); // Obter o usuário do contexto de autenticação
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false); // Novo estado para recolher/expandir
   
@@ -21,7 +19,7 @@ export const GestorLayout = () => {
         toggleSidebarCollapse={toggleSidebarCollapse} // Passa a função
       />
       <div className={`flex-1 flex flex-col transition-all duration-300 ${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-64'}`}> {/* Ajusta margem */}
-        <Header isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar} user={user} /> {/* Passar o user para o Header */}
+        <Header isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar} />
         <main className="flex-1">
           <Outlet />
         </main>
