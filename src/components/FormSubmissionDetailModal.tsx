@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, FileText, Image as ImageIcon, Download, CheckCircle2, AlertTriangle, MessageSquare, Loader2 } from 'lucide-react';
+import { X, FileText, Image as ImageIcon, Download, CheckCircle2, AlertTriangle, MessageSquare, Loader2, Save } from 'lucide-react';
 import { FormSubmission, FormFile } from '@/types';
 import { useApp } from '@/context/AppContext';
 import toast from 'react-hot-toast';
@@ -77,7 +77,7 @@ export const FormSubmissionDetailModal: React.FC<FormSubmissionDetailModalProps>
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-3xl bg-white dark:bg-slate-800 dark:text-white p-6 z-[100]">
+      <DialogContent className="sm:max-w-3xl bg-white dark:bg-slate-800 dark:text-white p-6">
         <DialogHeader>
           <DialogTitle>Detalhes da Submissão</DialogTitle>
           <DialogDescription>
