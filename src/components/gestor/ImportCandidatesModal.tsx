@@ -56,8 +56,9 @@ export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
     let failCount = 0;
 
     const lines = pastedData.split('\n').filter(line => line.trim() !== '');
-    if (lines.length < 2) { // At least one header line and one data line
-      toast.error("Nenhum dado válido para importar. Cole os cabeçalhos e as linhas de dados.");
+    
+    if (lines.length === 0) {
+      toast.error("Nenhum dado para importar. Cole os dados da sua planilha.");
       setIsProcessing(false);
       return;
     }
@@ -73,6 +74,12 @@ export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
 
     const headers = firstLine.split(delimiter).map(h => h.trim().toLowerCase());
     const dataLines = lines.slice(1);
+
+    if (dataLines.length === 0) { // Only headers were pasted
+      setParseError("Nenhum dado de candidato encontrado após os cabeçalhos. Por favor, cole as linhas de dados.");
+      setIsProcessing(false);
+      return;
+    }
 
     // Identify column indices for auto-detection (only name and status)
     const nameIndex = headers.findIndex(h => h.includes('nome'));
