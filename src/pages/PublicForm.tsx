@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import InputMask from 'react-input-mask';
-import axios from 'axios';
+// import InputMask from 'react-input-mask'; // Removido temporariamente
+// import axios from 'axios'; // Removido temporariamente
 import { Loader2, CheckCircle2, AlertTriangle, User, Mail, Phone, MapPin, CalendarDays, Home, FileText, Upload, Link as LinkIcon, Instagram, Facebook, Linkedin, Twitter, Globe } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { supabase } from '@/integrations/supabase/client'; // Importar o cliente Supabase
@@ -175,25 +175,27 @@ export const PublicForm = () => {
     validateField(name as keyof FormData, newValue);
   };
 
-  // Busca CEP
+  // Busca CEP - Comentado temporariamente
   const handleCepBlur = async () => {
     const cep = formData.cep.replace(/\D/g, '');
     if (cep.length === 8) {
       try {
-        const response = await axios.get(`https://viacep.com.br/ws/${cep}/json/`);
-        if (response.data.erro) {
-          setErrors(prev => ({ ...prev, cep: 'CEP não encontrado.' }));
-          setFormData(prev => ({ ...prev, estado_endereco: '', cidade_endereco: '', rua_endereco: '', bairro_endereco: '' }));
-        } else {
-          setFormData(prev => ({
-            ...prev,
-            estado_endereco: response.data.uf,
-            cidade_endereco: response.data.localidade,
-            rua_endereco: response.data.logradouro,
-            bairro_endereco: response.data.bairro,
-          }));
-          setErrors(prev => ({ ...prev, cep: '' }));
-        }
+        // const response = await axios.get(`https://viacep.com.br/ws/${cep}/json/`);
+        // if (response.data.erro) {
+        //   setErrors(prev => ({ ...prev, cep: 'CEP não encontrado.' }));
+        //   setFormData(prev => ({ ...prev, estado_endereco: '', cidade_endereco: '', rua_endereco: '', bairro_endereco: '' }));
+        // } else {
+        //   setFormData(prev => ({
+        //     ...prev,
+        //     estado_endereco: response.data.uf,
+        //     cidade_endereco: response.data.localidade,
+        //     rua_endereco: response.data.logradouro,
+        //     bairro_endereco: response.data.bairro,
+        //   }));
+        //   setErrors(prev => ({ ...prev, cep: '' }));
+        // }
+        console.log("CEP lookup commented out for now.");
+        setErrors(prev => ({ ...prev, cep: '' })); // Clear any previous CEP error
       } catch (err) {
         setErrors(prev => ({ ...prev, cep: 'Erro ao buscar CEP.' }));
         setFormData(prev => ({ ...prev, estado_endereco: '', cidade_endereco: '', rua_endereco: '', bairro_endereco: '' }));
@@ -383,7 +385,7 @@ export const PublicForm = () => {
                 </div>
                 <div>
                   <label htmlFor="cpf" className="block text-sm font-medium text-gray-700 dark:text-gray-300">CPF *</label>
-                  <InputMask mask="999.999.999-99" id="cpf" name="cpf" value={formData.cpf} onChange={handleChange} onBlur={() => validateField('cpf', formData.cpf)} className="mt-1 block w-full border-gray-300 dark:border-slate-600 rounded-md shadow-sm p-2 dark:bg-slate-700 dark:text-white" />
+                  <input type="text" id="cpf" name="cpf" value={formData.cpf} onChange={handleChange} onBlur={() => validateField('cpf', formData.cpf)} className="mt-1 block w-full border-gray-300 dark:border-slate-600 rounded-md shadow-sm p-2 dark:bg-slate-700 dark:text-white" />
                   {errors.cpf && <p className="text-red-500 text-xs mt-1">{errors.cpf}</p>}
                 </div>
                 <div>
@@ -462,7 +464,7 @@ export const PublicForm = () => {
                 </div>
                 <div>
                   <label htmlFor="celular" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Celular *</label>
-                  <InputMask mask="(99) 99999-9999" id="celular" name="celular" value={formData.celular} onChange={handleChange} onBlur={() => validateField('celular', formData.celular)} className="mt-1 block w-full border-gray-300 dark:border-slate-600 rounded-md shadow-sm p-2 dark:bg-slate-700 dark:text-white" />
+                  <input type="text" id="celular" name="celular" value={formData.celular} onChange={handleChange} onBlur={() => validateField('celular', formData.celular)} className="mt-1 block w-full border-gray-300 dark:border-slate-600 rounded-md shadow-sm p-2 dark:bg-slate-700 dark:text-white" />
                   {errors.celular && <p className="text-red-500 text-xs mt-1">{errors.celular}</p>}
                 </div>
               </div>
@@ -476,7 +478,7 @@ export const PublicForm = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label htmlFor="cep" className="block text-sm font-medium text-gray-700 dark:text-gray-300">CEP *</label>
-                  <InputMask mask="99999-999" id="cep" name="cep" value={formData.cep} onChange={handleChange} onBlur={handleCepBlur} className="mt-1 block w-full border-gray-300 dark:border-slate-600 rounded-md shadow-sm p-2 dark:bg-slate-700 dark:text-white" />
+                  <input type="text" id="cep" name="cep" value={formData.cep} onChange={handleChange} onBlur={handleCepBlur} className="mt-1 block w-full border-gray-300 dark:border-slate-600 rounded-md shadow-sm p-2 dark:bg-slate-700 dark:text-white" />
                   {errors.cep && <p className="text-red-500 text-xs mt-1">{errors.cep}</p>}
                 </div>
                 <div>
