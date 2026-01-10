@@ -112,7 +112,7 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
                 <ClipboardCheck className="w-5 h-5" />
                 <span>Monitorar Metas Diárias</span>
               </NavLink>
-              <NavLink to="/gestor/form-cadastros" className={linkClass} onClick={toggleSidebar}> {/* CORRIGIDO: Caminho para form-cadastros */}
+              <NavLink to="/gestor/form-cadastros" className={linkClass} onClick={toggleSidebar}>
                 <FileStack className="w-5 h-5" />
                 <span>Gerenciar Formulários</span>
               </NavLink>
@@ -153,7 +153,7 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
               <NavLink to="/gestor/daily-checklist-monitoring" className={linkClass} onClick={toggleSidebar} title="Monitorar Metas Diárias">
                 <ClipboardCheck className="w-5 h-5" />
               </NavLink>
-              <NavLink to="/gestor/form-cadastros" className={linkClass} onClick={toggleSidebar} title="Gerenciar Formulários"> {/* CORRIGIDO: Caminho para form-cadastros */}
+              <NavLink to="/gestor/form-cadastros" className={linkClass} onClick={toggleSidebar} title="Gerenciar Formulários">
                 <FileStack className="w-5 h-5" />
               </NavLink>
             </>
