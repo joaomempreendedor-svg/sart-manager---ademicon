@@ -24,10 +24,12 @@ export const Feedbacks = () => {
   const [editingFeedback, setEditingFeedback] = useState<Feedback | null>(null);
 
   const allPeople = useMemo<Person[]>(() => {
-    // Alterado para incluir apenas teamMembers
-    const teamMemberPeople: Person[] = teamMembers.map(m => ({ ...m, type: 'teamMember' }));
-    return [...teamMemberPeople].sort((a, b) => a.name.localeCompare(b.name));
-  }, [teamMembers]); // Removido 'candidates' da dependência
+    // Alterado para incluir apenas teamMembers ATIVOS
+    const activeTeamMemberPeople: Person[] = teamMembers
+      .filter(m => m.isActive) // Filtra apenas membros ativos
+      .map(m => ({ ...m, type: 'teamMember' }));
+    return [...activeTeamMemberPeople].sort((a, b) => a.name.localeCompare(b.name));
+  }, [teamMembers]);
 
   const filteredPeople = useMemo(() => {
     return allPeople.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -36,8 +38,6 @@ export const Feedbacks = () => {
   const handleSaveFeedback = async (feedbackData: Omit<Feedback, 'id'> | Feedback) => {
     if (!selectedPerson) return;
 
-    // A lógica de salvar feedback para candidatos foi removida, pois eles não estarão mais na lista.
-    // O tipo 'candidate' no `selectedPerson` não deve mais ocorrer aqui.
     if (selectedPerson.type === 'teamMember') { 
       if ('id' in feedbackData) {
         await updateTeamMemberFeedback(selectedPerson.id, feedbackData as Feedback);
@@ -57,7 +57,6 @@ export const Feedbacks = () => {
   const handleDeleteFeedback = async (feedbackId: string) => {
     if (!selectedPerson || !confirm('Tem certeza que deseja excluir este feedback?')) return;
 
-    // A lógica de deletar feedback para candidatos foi removida.
     if (selectedPerson.type === 'teamMember') {
       await deleteTeamMemberFeedback(selectedPerson.id, feedbackId);
     }
