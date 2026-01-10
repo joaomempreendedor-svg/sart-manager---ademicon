@@ -103,8 +103,8 @@ const formSteps = [
     fields: ['email', 'profissao', 'celular'],
   },
   {
-    id: 'localizacao', // Renomeado de 'endereco'
-    title: 'Localização', // Renomeado de 'Endereço'
+    id: 'localizacao',
+    title: 'Localização',
     icon: Home,
     fields: ['cep', 'estado_endereco', 'cidade_endereco', 'rua_endereco', 'bairro_endereco', 'numero_endereco', 'complemento_endereco'],
   },
@@ -119,7 +119,7 @@ const formSteps = [
     id: 'documentos_1',
     title: 'Documentos (1/2)',
     icon: Upload,
-    fields: ['tipo_documento_identificacao', 'documento_identificacao_file', 'comprovante_endereco_file'], // Adicionado tipo_documento_identificacao
+    fields: ['tipo_documento_identificacao', 'documento_identificacao_file', 'comprovante_endereco_file'],
   },
   {
     id: 'documentos_2',
@@ -135,9 +135,9 @@ export const PublicForm = () => {
     nome_completo: '', cpf: '', rg: '', orgao_emissor_rg: '', nacionalidade: '', estado_civil: '',
     data_nascimento: '', estado_nascimento: '', cidade_nascimento: '', email: '', profissao: '',
     celular: '', cep: '', estado_endereco: '', cidade_endereco: '', rua_endereco: '',
-    bairro_endereco: '', numero_endereco: '', complemento_endereco: '', // Garantir que complemento_endereco seja inicializado
+    bairro_endereco: '', numero_endereco: '', complemento_endereco: '',
     rede_social: '', link_rede_social: '',
-    tipo_documento_identificacao: '', // NOVO: Inicializar tipo de documento
+    tipo_documento_identificacao: '',
     documento_identificacao_file: null,
     comprovante_endereco_file: null, comprovante_nome_quem: '', certidao_nascimento_file: null,
   });
@@ -146,7 +146,7 @@ export const PublicForm = () => {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [currentStep, setCurrentStep] = useState(0);
   const [hasRenderError, setHasRenderError] = useState<string | null>(null);
-  const [isDocumentTypeModalOpen, setIsDocumentTypeModalOpen] = useState(false); // Estado para o modal de seleção de tipo de documento
+  const [isDocumentTypeModalOpen, setIsDocumentTypeModalOpen] = useState(false);
 
   const validateCpf = (cpf: string) => {
     cpf = cpf.replace(/\D/g, '');
@@ -191,7 +191,7 @@ export const PublicForm = () => {
       case 'nome_completo_conjuge':
         if (formData.estado_civil === 'Casado' && !value?.trim()) error = 'Campo obrigatório.';
         break;
-      case 'tipo_documento_identificacao': // NOVO: Validação para o tipo de documento
+      case 'tipo_documento_identificacao':
         if (!value) error = 'Selecione o tipo de documento.';
         break;
       case 'documento_identificacao_file': case 'comprovante_endereco_file':
@@ -204,7 +204,7 @@ export const PublicForm = () => {
         if (!value.replace(/\D/g, '')) error = 'CEP obrigatório.';
         else if (value.replace(/\D/g, '').length !== 8) error = 'CEP inválido.';
         break;
-      case 'complemento_endereco': // Complemento não é obrigatório
+      case 'complemento_endereco':
         break;
       default: break;
     }
@@ -284,7 +284,7 @@ export const PublicForm = () => {
           stepIsValid = false;
         }
       } else if (fieldName === 'nome_completo_conjuge' && formData.estado_civil !== 'Casado') {
-        delete currentStepErrors[fieldName]; // Not required if not married
+        delete currentStepErrors[fieldName];
       }
       if (fieldName === 'certidao_nascimento_file' && formData.comprovante_nome_quem === 'No nome dos pais') {
         if (!value) {
@@ -292,14 +292,14 @@ export const PublicForm = () => {
           stepIsValid = false;
         }
       } else if (fieldName === 'certidao_nascimento_file' && formData.comprovante_nome_quem !== 'No nome dos pais') {
-        delete currentStepErrors[fieldName]; // Not required if not 'No nome dos pais'
+        delete currentStepErrors[fieldName];
       }
       // NOVO: Validação condicional para documento de identificação
       if (fieldName === 'documento_identificacao_file' && formData.tipo_documento_identificacao && !value) {
         currentStepErrors[fieldName] = 'Upload obrigatório.';
         stepIsValid = false;
       } else if (fieldName === 'documento_identificacao_file' && !formData.tipo_documento_identificacao) {
-        delete currentStepErrors[fieldName]; // Not required if document type not selected
+        delete currentStepErrors[fieldName];
       }
     });
 
@@ -510,11 +510,14 @@ export const PublicForm = () => {
                   // Conditional rendering for specific fields
                   if (fieldName === 'nome_completo_conjuge' && formData.estado_civil !== 'Casado') return null;
                   if (fieldName === 'certidao_nascimento_file' && formData.comprovante_nome_quem !== 'No nome dos pais') return null;
-                  if (['estado_endereco', 'cidade_endereco', 'rua_endereco', 'bairro_endereco'].includes(fieldName) && formSteps[currentStep].id === 'localizacao') {
+                  if (['estado_endereco', 'cidade_endereco', 'rua_endereco', 'bairro_endereco', 'numero_endereco', 'complemento_endereco'].includes(fieldName) && formSteps[currentStep].id === 'localizacao') {
                     return (
                       <div key={fieldName}>
-                        <label htmlFor={fieldName} className="block text-sm font-medium text-gray-700 dark:text-gray-300">{fieldName.replace(/_/g, ' ').replace(' Endereco', '').replace(/\b\w/g, l => l.toUpperCase())}</label>
-                        <input type="text" id={fieldName} name={fieldName} value={formData[fieldName as keyof FormData] as string || ''} readOnly className="mt-1 block w-full border-gray-300 dark:border-slate-600 rounded-md shadow-sm p-2 bg-gray-100 dark:bg-slate-900 text-gray-700 dark:text-gray-300" />
+                        <label htmlFor={fieldName} className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                          {/* NOVO: Lógica para remover '_endereco' e formatar o rótulo */}
+                          {fieldName.replace('_endereco', '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()).trim()} {(isRequired || isConditionallyRequired) && <span className="text-red-500">*</span>}
+                        </label>
+                        <input type="text" id={fieldName} name={fieldName} value={formData[fieldName as keyof FormData] as string || ''} readOnly={!['cep', 'numero_endereco', 'complemento_endereco'].includes(fieldName)} className="mt-1 block w-full border-gray-300 dark:border-slate-600 rounded-md shadow-sm p-2 dark:bg-slate-700 dark:text-white" />
                       </div>
                     );
                   }
@@ -525,7 +528,7 @@ export const PublicForm = () => {
                         {/* Rótulos dinâmicos e corrigidos */}
                         {fieldName === 'documento_identificacao_file' && formData.tipo_documento_identificacao ? `Arquivo do ${formData.tipo_documento_identificacao}` :
                          fieldName === 'comprovante_endereco_file' ? 'Comprovante de Residência' :
-                         fieldName.replace(/_/g, ' ').replace(' Endereco', '').replace(/\b\w/g, l => l.toUpperCase())} {(isRequired || isConditionallyRequired) && <span className="text-red-500">*</span>}
+                         fieldName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} {(isRequired || isConditionallyRequired) && <span className="text-red-500">*</span>}
                       </label>
                       {fieldName === 'cpf' ? (
                         <input 
@@ -575,7 +578,7 @@ export const PublicForm = () => {
                           placeholder="00.000.000-0"
                           maxLength={12}
                         />
-                      ) : fieldName === 'tipo_documento_identificacao' ? ( // NOVO: Botão para abrir modal de seleção
+                      ) : fieldName === 'tipo_documento_identificacao' ? (
                         <>
                           <button
                             type="button"
@@ -591,7 +594,7 @@ export const PublicForm = () => {
                           </button>
                           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Enviar frente e verso do RG, CPF ou CNH.</p>
                         </>
-                      ) : fieldName === 'documento_identificacao_file' ? ( // NOVO: Input de arquivo condicional
+                      ) : fieldName === 'documento_identificacao_file' ? (
                         formData.tipo_documento_identificacao ? (
                           <input type="file" id={fieldName} name={fieldName} onChange={handleChange} accept=".pdf,image/*" className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100 dark:file:bg-brand-900/20 dark:file:text-brand-400 dark:hover:file:bg-brand-900/40" />
                         ) : (
