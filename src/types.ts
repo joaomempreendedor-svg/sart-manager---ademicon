@@ -5,7 +5,8 @@ export type CandidateStatus =
   | 'Integração Presencial'
   | 'Acompanhamento 90 Dias'
   | 'Autorizado'
-  | 'Reprovado';
+  | 'Reprovado'
+  | 'Triagem'; // NOVO: Status para a fase inicial de triagem
 
 export interface InterviewScores {
   basicProfile: number; // Max 20

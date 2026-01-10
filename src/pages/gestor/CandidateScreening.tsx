@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Loader2, Search, User, Phone, Mail, CheckCircle2, XCircle, RotateCcw, ArrowRight, MessageSquare, UserX } from 'lucide-react';
+import { Loader2, Search, User, Phone, Mail, CheckCircle2, XCircle, RotateCcw, ArrowRight, MessageSquare, UserX, Plus } from 'lucide-react'; // Adicionado Plus icon
 import { Link } from 'react-router-dom';
 import { TableSkeleton } from '@/components/TableSkeleton';
 import {
@@ -12,16 +12,18 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import toast from 'react-hot-toast';
+import { AddScreeningCandidateModal } from '@/components/gestor/AddScreeningCandidateModal'; // NOVO: Importar o modal
 
 const CandidateScreening = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
-  const { candidates, isDataLoading, updateCandidate, teamMembers } = useApp();
+  const { candidates, isDataLoading, updateCandidate, teamMembers, origins } = useApp(); // Adicionado origins
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'Pending Contact' | 'Contacted' | 'No Fit'>('all');
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false); // NOVO: Estado para o modal de adicionar
 
   const filteredCandidates = useMemo(() => {
-    let currentCandidates = candidates.filter(c => c.status === 'Entrevista'); // Apenas candidatos em status de entrevista
+    let currentCandidates = candidates.filter(c => c.status === 'Triagem'); // Agora filtra por status 'Triagem'
 
     if (filterStatus !== 'all') {
       currentCandidates = currentCandidates.filter(c => (c.screeningStatus || 'Pending Contact') === filterStatus);
@@ -104,6 +106,13 @@ const CandidateScreening = () => {
               </SelectContent>
             </Select>
           </div>
+          <button
+            onClick={() => setIsAddModalOpen(true)} // NOVO: Botão para adicionar pessoa
+            className="flex items-center justify-center space-x-2 bg-brand-600 hover:bg-brand-700 text-white py-2 px-4 rounded-lg transition font-medium flex-shrink-0"
+          >
+            <Plus className="w-5 h-5" />
+            <span>Adicionar Pessoa</span>
+          </button>
         </div>
       </div>
 
@@ -184,6 +193,12 @@ const CandidateScreening = () => {
           </table>
         </div>
       </div>
+      <AddScreeningCandidateModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        origins={origins} // Passar as origens para o modal
+        responsibleMembers={teamMembers.filter(m => m.isActive && (m.roles.includes('Gestor') || m.roles.includes('Anjo')))} // Passar membros responsáveis
+      />
     </div>
   );
 };

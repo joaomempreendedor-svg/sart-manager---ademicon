@@ -936,9 +936,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
   const addCandidate = useCallback(async (candidate: Candidate) => { 
     if (!user) throw new Error("Usuário não autenticado."); 
-    const { data, error } = await supabase.from('candidates').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: { ...candidate, screeningStatus: candidate.screeningStatus || 'Pending Contact' } }).select('id').single(); // NOVO: Adiciona screeningStatus padrão
+    const { data, error } = await supabase.from('candidates').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: { ...candidate, status: candidate.status || 'Triagem', screeningStatus: candidate.screeningStatus || 'Pending Contact' } }).select('id').single(); // NOVO: Adiciona status e screeningStatus padrão
     if (error) { console.error(error); toast.error("Erro ao adicionar candidato."); throw error; } 
-    if (data) { setCandidates(prev => [{ ...candidate, db_id: data.id, screeningStatus: candidate.screeningStatus || 'Pending Contact' }, ...prev]); } 
+    if (data) { setCandidates(prev => [{ ...candidate, db_id: data.id, status: candidate.status || 'Triagem', screeningStatus: candidate.screeningStatus || 'Pending Contact' }, ...prev]); } 
   }, [user]);
   const updateCandidate = useCallback(async (id: string, updates: Partial<Candidate>) => { 
     if (!user) throw new Error("Usuário não autenticado."); 
@@ -1621,7 +1621,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (uploadError) { 
         console.error("Supabase Storage Upload Error (update):", uploadError);
         toast.error("Erro ao fazer upload do novo arquivo para o item do checklist."); 
-        throw uploadError; 
+        throw error; 
       }
 
       const { data: urlData } = supabase.storage.from('support_materials').getPublicUrl(filePath);
@@ -1649,7 +1649,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (uploadError) { 
         console.error("Supabase Storage Upload Error (text_audio update):", uploadError);
         toast.error("Erro ao fazer upload do novo arquivo de áudio para o item do checklist."); 
-        throw uploadError; 
+        throw error; 
       }
 
       const { data: urlData } = supabase.storage.from('support_materials').getPublicUrl(filePath);
