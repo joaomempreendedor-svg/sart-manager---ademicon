@@ -457,7 +457,7 @@ export const PublicForm = () => {
             Obrigado!
           </h2>
           <p className="mt-2 text-center text-lg text-green-600 dark:text-green-400 flex items-center justify-center">
-            <CheckCircle2 className="w-5 h-5 mr-2" /> Sua submissão foi recebida com sucesso.
+            <CheckCircle2 className="w-5 h-5 mr-2" /> Seu cadastro foi enviado com sucesso.
           </p>
           <p className="mt-4 text-center text-sm text-gray-600 dark:text-gray-400">
             Entraremos em contato em breve.
@@ -546,7 +546,7 @@ export const PublicForm = () => {
                         {/* Rótulos dinâmicos e corrigidos */}
                         {fieldName === 'documento_identificacao_file' && formData.tipo_documento_identificacao ? `Arquivo do ${formData.tipo_documento_identificacao}` :
                          fieldName === 'comprovante_endereco_file' ? 'Comprovante de Residência' :
-                         fieldName === 'tipo_documento_identificacao' ? 'Tipo Documento Identificação' : // Corrigido aqui
+                         fieldName === 'tipo_documento_identificacao' ? 'Tipo Documento de Identificação' : // Corrigido aqui
                          fieldName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} {(isRequired || isConditionallyRequired) && <span className="text-red-500">*</span>}
                       </label>
                       {fieldName === 'cpf' ? (

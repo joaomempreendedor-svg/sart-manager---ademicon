@@ -111,7 +111,7 @@ export const FormSubmissions = () => {
               <tr>
                 <th className="px-6 py-3">Nome Completo</th>
                 <th className="px-6 py-3">E-mail</th>
-                <th className="px-6 py-3">Data da Submissão</th>
+                <th className="px-6 py-3">Data de Cadastro</th> {/* Alterado aqui */}
                 <th className="px-6 py-3">Arquivos</th>
                 <th className="px-6 py-3">Status</th>
                 <th className="px-6 py-3 text-right">Ações</th>
