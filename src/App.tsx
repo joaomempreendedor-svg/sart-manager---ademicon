@@ -133,6 +133,11 @@ const GestorLayout = () => {
 
 const AppRoutes = () => {
   const { isLoading } = useAuth();
+  const location = useLocation(); // Adicionado para logar o caminho atual
+
+  useEffect(() => {
+    console.log("Current route path:", location.pathname); // Log do caminho atual
+  }, [location.pathname]);
 
   if (isLoading) {
     return <AppLoader />;

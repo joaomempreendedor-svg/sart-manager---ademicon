@@ -45,6 +45,7 @@ interface FormData {
 }
 
 export const PublicForm = () => {
+  console.log("PublicForm component is rendering."); // Log para verificar a renderização
   const navigate = useNavigate();
   const [formData, setFormData] = useState<FormData>({
     nome_completo: '',
