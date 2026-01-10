@@ -1,9 +1,19 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Loader2, CheckCircle2, AlertTriangle, User, Mail, Phone, MapPin, CalendarDays, Home, FileText, Upload, Link as LinkIcon, Instagram, Facebook, Linkedin, Twitter, Globe, ArrowLeft, ArrowRight, FileBadge, IdCard } from 'lucide-react';
+import { Loader2, CheckCircle2, AlertTriangle, User, Mail, Phone, MapPin, CalendarDays, Home, FileText, Upload, Link as LinkIcon, Instagram, Facebook, Linkedin, Twitter, Globe, ArrowLeft, ArrowRight, FileBadge, IdCard, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { supabase } from '@/integrations/supabase/client';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+
 
 // Helper functions for formatting
 const formatCpfInput = (value: string): string => {
@@ -677,48 +687,45 @@ export const PublicForm = () => {
       </div>
 
       {/* Document Type Selection Modal */}
-      {isDocumentTypeModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full max-w-sm overflow-hidden animate-fade-in border border-gray-200 dark:border-slate-700">
-            <div className="px-6 py-4 border-b border-gray-100 dark:border-slate-700 flex justify-between items-center bg-gray-50 dark:bg-slate-700/50">
-              <h3 className="font-semibold text-lg text-gray-900 dark:text-white">Tipo de Documento</h3>
-              <button onClick={() => setIsDocumentTypeModalOpen(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
-                <X className="w-5 h-5" />
-              </button>
+      <Dialog open={isDocumentTypeModalOpen} onOpenChange={setIsDocumentTypeModalOpen}>
+        <DialogContent className="sm:max-w-sm bg-white dark:bg-slate-800 dark:text-white p-6">
+          <DialogHeader>
+            <DialogTitle>Tipo de Documento</DialogTitle>
+            <DialogDescription>
+              Qual tipo de documento de identificação você irá enviar?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="p-6 space-y-4">
+            <div className="flex space-x-4">
+              <Button
+                type="button"
+                onClick={() => {
+                  setFormData(prev => ({ ...prev, tipo_documento_identificacao: 'RG' }));
+                  setErrors(prev => ({ ...prev, tipo_documento_identificacao: '' }));
+                  setIsDocumentTypeModalOpen(false);
+                }}
+                className="flex-1 flex flex-col items-center justify-center py-3 px-4 border border-gray-300 dark:border-slate-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-700 hover:bg-gray-50 dark:hover:bg-slate-600 transition-all"
+              >
+                <IdCard className="w-6 h-6 mb-2 text-blue-500" />
+                <span>RG</span>
+              </Button>
+              <Button
+                type="button"
+                onClick={() => {
+                  setFormData(prev => ({ ...prev, tipo_documento_identificacao: 'CNH' }));
+                  setErrors(prev => ({ ...prev, tipo_documento_identificacao: '' }));
+                  setIsDocumentTypeModalOpen(false);
+                }}
+                className="flex-1 flex flex-col items-center justify-center py-3 px-4 border border-gray-300 dark:border-slate-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-700 hover:bg-gray-50 dark:hover:bg-slate-600 transition-all"
+              >
+                <FileBadge className="w-6 h-6 mb-2 text-green-500" />
+                <span>CNH</span>
+              </Button>
             </div>
-            <div className="p-6 space-y-4">
-              <p className="text-gray-700 dark:text-gray-300 text-sm">Qual tipo de documento de identificação você irá enviar?</p>
-              <div className="flex space-x-4">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setFormData(prev => ({ ...prev, tipo_documento_identificacao: 'RG' }));
-                    setErrors(prev => ({ ...prev, tipo_documento_identificacao: '' }));
-                    setIsDocumentTypeModalOpen(false);
-                  }}
-                  className="flex-1 flex flex-col items-center justify-center py-3 px-4 border border-gray-300 dark:border-slate-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-700 hover:bg-gray-50 dark:hover:bg-slate-600 transition-all"
-                >
-                  <IdCard className="w-6 h-6 mb-2 text-blue-500" />
-                  <span>RG</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setFormData(prev => ({ ...prev, tipo_documento_identificacao: 'CNH' }));
-                    setErrors(prev => ({ ...prev, tipo_documento_identificacao: '' }));
-                    setIsDocumentTypeModalOpen(false);
-                  }}
-                  className="flex-1 flex flex-col items-center justify-center py-3 px-4 border border-gray-300 dark:border-slate-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-700 hover:bg-gray-50 dark:hover:bg-slate-600 transition-all"
-                >
-                  <FileBadge className="w-6 h-6 mb-2 text-green-500" />
-                  <span>CNH</span>
-                </button>
-              </div>
-              {errors.tipo_documento_identificacao && <p className="text-red-500 text-xs mt-1">{errors.tipo_documento_identificacao}</p>}
-            </div>
+            {errors.tipo_documento_identificacao && <p className="text-red-500 text-xs mt-1">{errors.tipo_documento_identificacao}</p>}
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
