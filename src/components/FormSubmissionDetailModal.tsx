@@ -73,26 +73,7 @@ export const FormSubmissionDetailModal: React.FC<FormSubmissionDetailModalProps>
     }
   };
 
-  if (!isOpen || !submission) return null;
-
-  const renderData = (data: Record<string, any>) => {
-    return Object.entries(data).map(([key, value]) => {
-      // Ignorar campos de arquivo que são tratados separadamente
-      if (key.includes('_file')) return null;
-
-      let label = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()); // Formata key para label
-      if (label === 'Cpf') label = 'CPF';
-      if (label === 'Rg') label = 'RG';
-      if (label === 'Cep') label = 'CEP';
-
-      return (
-        <div key={key} className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-slate-700 last:border-b-0">
-          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{label}:</span>
-          <span className="text-sm text-gray-900 dark:text-white text-right break-all">{String(value)}</span>
-        </div>
-      );
-    });
-  };
+  if (!submission) return null; // Renderiza nulo se não houver submissão
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -110,7 +91,23 @@ export const FormSubmissionDetailModal: React.FC<FormSubmissionDetailModalProps>
             <div>
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Dados do Formulário</h3>
               <div className="bg-gray-50 dark:bg-slate-700/50 rounded-lg p-4 border border-gray-200 dark:border-slate-700">
-                {renderData(submission.data)}
+                {Object.entries(submission.data).map(([key, value]) => {
+                  // Ignorar campos de arquivo que são tratados separadamente
+                  if (key.includes('_file')) return null;
+
+                  let label = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()); // Formata key para label
+                  if (label === 'Cpf') label = 'CPF';
+                  if (label === 'Rg') label = 'RG';
+                  if (label === 'Cep') label = 'CEP';
+                  if (label === 'Tipo Documento Identificacao') label = 'Tipo Documento de Identificação'; // Corrigido aqui
+
+                  return (
+                    <div key={key} className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-slate-700 last:border-b-0">
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{label}:</span>
+                      <span className="text-sm text-gray-900 dark:text-white text-right break-all">{String(value)}</span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
