@@ -719,6 +719,34 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   useEffect(() => {
     if (!user || !crmOwnerUserId) return;
 
+    // Realtime para candidates
+    const candidatesChannel = supabase
+        .channel('candidates_changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'candidates', filter: `user_id=eq.${crmOwnerUserId}` }, (payload) => {
+            console.log('Candidate Change (Realtime):', payload);
+            toast.info(`🔄 Candidato "${payload.new.data.name || payload.old.data.name}" atualizado em tempo real!`);
+            const newCandidateData: Candidate = {
+                ...(payload.new.data as Candidate),
+                db_id: payload.new.id,
+                lastUpdatedAt: payload.new.last_updated_at
+            };
+
+            if (payload.eventType === 'INSERT') {
+                setCandidates(prev => {
+                    // Evita duplicatas se o item já foi adicionado otimisticamente
+                    if (prev.some(c => c.db_id === newCandidateData.db_id)) {
+                        return prev;
+                    }
+                    return [newCandidateData, ...prev];
+                });
+            } else if (payload.eventType === 'UPDATE') {
+                setCandidates(prev => prev.map(c => c.db_id === newCandidateData.db_id ? newCandidateData : c));
+            } else if (payload.eventType === 'DELETE') {
+                setCandidates(prev => prev.filter(c => c.db_id !== payload.old.id));
+            }
+        })
+        .subscribe();
+
     // Realtime para crm_leads
     const leadsChannel = supabase
         .channel('crm_leads_changes')
@@ -918,6 +946,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
 
     return () => {
+        supabase.removeChannel(candidatesChannel); // REMOVIDO: candidatesChannel
         supabase.removeChannel(leadsChannel);
         supabase.removeChannel(tasksChannel);
         supabase.removeChannel(gestorTasksChannel);
@@ -1483,7 +1512,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!period || !period.db_id) throw new Error("Período de corte não encontrado.");
 
     const { error } = await supabase.from('cutoff_periods').delete().match({ id: period.db_id, user_id: JOAO_GESTOR_AUTH_ID });
-    if (error) throw error;
+    if (error) { console.error(error); toast.error("Erro ao excluir período de corte."); throw error; }
     setCutoffPeriods(prev => prev.filter(p => p.id !== id));
   }, [user, cutoffPeriods]);
 
