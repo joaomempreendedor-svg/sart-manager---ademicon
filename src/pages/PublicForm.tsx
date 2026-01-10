@@ -678,7 +678,7 @@ export const PublicForm = () => {
 
       {/* Document Type Selection Modal */}
       {isDocumentTypeModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full max-w-sm overflow-hidden animate-fade-in border border-gray-200 dark:border-slate-700">
             <div className="px-6 py-4 border-b border-gray-100 dark:border-slate-700 flex justify-between items-center bg-gray-50 dark:bg-slate-700/50">
               <h3 className="font-semibold text-lg text-gray-900 dark:text-white">Tipo de Documento</h3>
