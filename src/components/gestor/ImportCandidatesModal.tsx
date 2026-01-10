@@ -53,6 +53,15 @@ export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
   const requiredFields = ['name']; // Apenas o nome é obrigatório para triagem inicial
   const allowedScreeningStatuses = ['Pending Contact', 'Contacted', 'No Fit'];
 
+  // Mapeamento de status da planilha para o sistema
+  const mapIncomingStatus = (incomingStatus: string): 'Pending Contact' | 'Contacted' | 'No Fit' | null => {
+    const lowerCaseStatus = incomingStatus.toLowerCase();
+    if (lowerCaseStatus.includes('sem perfil')) return 'No Fit';
+    if (lowerCaseStatus.includes('contato feito')) return 'Contacted';
+    if (lowerCaseStatus.includes('pendente')) return 'Pending Contact';
+    return null; // Retorna null se não houver correspondência
+  };
+
   // Parse headers when data is pasted
   useEffect(() => {
     console.log("[ImportModal] Pasted data changed:", pastedData);
@@ -159,11 +168,11 @@ export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
               recordIsValid = false;
             }
           } else if (fieldKey === 'screeningStatus') { // NOVO: Lógica para status de triagem
-            const statusValue = value;
-            if (allowedScreeningStatuses.includes(statusValue as any)) {
-              candidateData.screeningStatus = statusValue as 'Pending Contact' | 'Contacted' | 'No Fit';
+            const mappedStatus = mapIncomingStatus(value);
+            if (mappedStatus) {
+              candidateData.screeningStatus = mappedStatus;
             } else {
-              currentRecordErrors.push(`Status de triagem "${statusValue}" inválido. Use: ${allowedScreeningStatuses.join(', ')}.`);
+              currentRecordErrors.push(`Status de triagem "${value}" inválido. Use: "Sem perfil", "Contato Feito" ou "Pendente".`);
               recordIsValid = false;
             }
           } else {
@@ -217,10 +226,7 @@ export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
 
   if (!isOpen) return null;
 
-  const renderHeaderOptions = (currentField: string) => {
-    if (headers.length === 0) {
-      return <SelectItem value="" disabled>Nenhum cabeçalho detectado</SelectItem>;
-    }
+  const renderHeaderOptions = () => {
     return (
       <>
         <SelectItem value="">Ignorar</SelectItem>
@@ -251,13 +257,14 @@ export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
               onChange={(e) => setPastedData(e.target.value)}
               rows={8}
               className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600 font-mono text-sm"
-              placeholder="Ex:&#10;Nome,Status&#10;João Silva,Pendente de Contato&#10;Maria Souza,Contatado&#10;&#10;Ou com mais colunas:&#10;Nome,Telefone,Email,Origem,Responsavel,Status&#10;João Silva,(11) 98765-4321,joao@email.com,Indicação,Maria Gestora,Contatado"
+              placeholder="Ex:&#10;Nome:,Staus&#10;Susana,Sem perfil&#10;Rafinha,Contato Feito&#10;Gislaine Aparecida,Sem perfil"
             />
             {headerParseError && (
               <p className="text-red-500 text-sm mt-2 flex items-center"><AlertTriangle className="w-4 h-4 mr-2" />{headerParseError}</p>
             )}
           </div>
 
+          {/* Mapeamento de Colunas - Sempre visível */}
           <div className="grid grid-cols-2 gap-4">
             <h3 className="col-span-2 text-lg font-semibold text-gray-900 dark:text-white mt-2">Mapeamento de Colunas</h3>
             
@@ -269,7 +276,7 @@ export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
                   <SelectValue placeholder="Selecione a coluna do Nome" />
                 </SelectTrigger>
                 <SelectContent className="dark:bg-slate-800 dark:text-white dark:border-slate-700">
-                  {renderHeaderOptions('name')}
+                  {renderHeaderOptions()}
                 </SelectContent>
               </Select>
             </div>
@@ -282,7 +289,7 @@ export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
                   <SelectValue placeholder="Selecione a coluna do Telefone" />
                 </SelectTrigger>
                 <SelectContent className="dark:bg-slate-800 dark:text-white dark:border-slate-700">
-                  {renderHeaderOptions('phone')}
+                  {renderHeaderOptions()}
                 </SelectContent>
               </Select>
             </div>
@@ -295,7 +302,7 @@ export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
                   <SelectValue placeholder="Selecione a coluna do E-mail" />
                 </SelectTrigger>
                 <SelectContent className="dark:bg-slate-800 dark:text-white dark:border-slate-700">
-                  {renderHeaderOptions('email')}
+                  {renderHeaderOptions()}
                 </SelectContent>
               </Select>
             </div>
@@ -308,7 +315,7 @@ export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
                   <SelectValue placeholder="Selecione a coluna da Origem" />
                 </SelectTrigger>
                 <SelectContent className="dark:bg-slate-800 dark:text-white dark:border-slate-700">
-                  {renderHeaderOptions('origin')}
+                  {renderHeaderOptions()}
                 </SelectContent>
               </Select>
             </div>
@@ -321,7 +328,7 @@ export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
                   <SelectValue placeholder="Selecione a coluna do Responsável" />
                 </SelectTrigger>
                 <SelectContent className="dark:bg-slate-800 dark:text-white dark:border-slate-700">
-                  {renderHeaderOptions('responsibleUserId')}
+                  {renderHeaderOptions()}
                 </SelectContent>
               </Select>
             </div>
@@ -334,7 +341,7 @@ export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
                   <SelectValue placeholder="Selecione a coluna do Status" />
                 </SelectTrigger>
                 <SelectContent className="dark:bg-slate-800 dark:text-white dark:border-slate-700">
-                  {renderHeaderOptions('screeningStatus')}
+                  {renderHeaderOptions()}
                 </SelectContent>
               </Select>
             </div>
