@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, CommissionStatus, InstallmentInfo, CutoffPeriod, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask, SupportMaterialContentType, DailyChecklistItemResource, DailyChecklistItemResourceType, GestorTask, GestorTaskCompletion, FinancialEntry, FormCadastro, FormFile, Notification, NotificationType } from '@/types';
@@ -1483,7 +1483,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!period || !period.db_id) throw new Error("Período de corte não encontrado.");
 
     const { error } = await supabase.from('cutoff_periods').delete().match({ id: period.db_id, user_id: JOAO_GESTOR_AUTH_ID });
-    if (error) { console.error(error); toast.error("Erro ao excluir período de corte."); throw error; }
+    if (error) throw error;
     setCutoffPeriods(prev => prev.filter(p => p.id !== id));
   }, [user, cutoffPeriods]);
 
