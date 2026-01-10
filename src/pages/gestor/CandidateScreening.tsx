@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Loader2, Search, User, Phone, Mail, CheckCircle2, XCircle, RotateCcw, ArrowRight, MessageSquare, UserX, Plus, Trash2 } from 'lucide-react'; // Adicionado Trash2 icon
+import { Loader2, Search, User, Phone, Mail, CheckCircle2, XCircle, RotateCcw, ArrowRight, MessageSquare, UserX, Plus, Trash2, Users, Clock, UserRound } from 'lucide-react'; // Adicionado Users, Clock, UserRound icons
 import { Link } from 'react-router-dom';
 import { TableSkeleton } from '@/components/TableSkeleton';
 import {
@@ -16,14 +16,18 @@ import { AddScreeningCandidateModal } from '@/components/gestor/AddScreeningCand
 
 const CandidateScreening = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
-  const { candidates, isDataLoading, updateCandidate, deleteCandidate, teamMembers, origins } = useApp(); // Adicionado deleteCandidate
+  const { candidates, isDataLoading, updateCandidate, deleteCandidate, teamMembers, origins } = useApp();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'Pending Contact' | 'Contacted' | 'No Fit'>('all');
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false); // NOVO: Estado para o modal de adicionar
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
+  const candidatesInScreening = useMemo(() => {
+    return candidates.filter(c => c.status === 'Triagem');
+  }, [candidates]);
 
   const filteredCandidates = useMemo(() => {
-    let currentCandidates = candidates.filter(c => c.status === 'Triagem'); // Agora filtra por status 'Triagem'
+    let currentCandidates = candidatesInScreening;
 
     if (filterStatus !== 'all') {
       currentCandidates = currentCandidates.filter(c => (c.screeningStatus || 'Pending Contact') === filterStatus);
@@ -39,7 +43,16 @@ const CandidateScreening = () => {
     }
 
     return currentCandidates.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }, [candidates, searchTerm, filterStatus]);
+  }, [candidatesInScreening, searchTerm, filterStatus]);
+
+  // NOVO: Cálculo das métricas de resumo
+  const screeningMetrics = useMemo(() => {
+    const total = candidatesInScreening.length;
+    const pending = candidatesInScreening.filter(c => (c.screeningStatus || 'Pending Contact') === 'Pending Contact').length;
+    const contacted = candidatesInScreening.filter(c => c.screeningStatus === 'Contacted').length;
+    const noFit = candidatesInScreening.filter(c => c.screeningStatus === 'No Fit').length;
+    return { total, pending, contacted, noFit };
+  }, [candidatesInScreening]);
 
   const handleUpdateScreeningStatus = async (candidateId: string, newStatus: 'Pending Contact' | 'Contacted' | 'No Fit') => {
     try {
@@ -118,12 +131,52 @@ const CandidateScreening = () => {
             </Select>
           </div>
           <button
-            onClick={() => setIsAddModalOpen(true)} // NOVO: Botão para adicionar pessoa
+            onClick={() => setIsAddModalOpen(true)}
             className="flex items-center justify-center space-x-2 bg-brand-600 hover:bg-brand-700 text-white py-2 px-4 rounded-lg transition font-medium flex-shrink-0"
           >
             <Plus className="w-5 h-5" />
             <span>Adicionar Pessoa</span>
           </button>
+        </div>
+      </div>
+
+      {/* NOVO: Seção de Resumo de Métricas */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
+          <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+            <Users className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+          </div>
+          <div>
+            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Total em Triagem</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{screeningMetrics.total}</p>
+          </div>
+        </div>
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
+          <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+            <Clock className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
+          </div>
+          <div>
+            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Pendente de Contato</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{screeningMetrics.pending}</p>
+          </div>
+        </div>
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
+          <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+            <CheckCircle2 className="w-6 h-6 text-green-600 dark:text-green-400" />
+          </div>
+          <div>
+            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Contatados</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{screeningMetrics.contacted}</p>
+          </div>
+        </div>
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
+          <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
+            <UserX className="w-6 h-6 text-red-600 dark:text-red-400" />
+          </div>
+          <div>
+            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Sem Perfil</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{screeningMetrics.noFit}</p>
+          </div>
         </div>
       </div>
 
@@ -151,7 +204,6 @@ const CandidateScreening = () => {
                   return (
                     <tr key={candidate.id} className="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition">
                       <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">
-                        {/* Removido o Link para a página de detalhes */}
                         {candidate.name}
                         {responsibleMember && (
                           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
@@ -208,8 +260,8 @@ const CandidateScreening = () => {
       <AddScreeningCandidateModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
-        origins={origins} // Passar as origens para o modal
-        responsibleMembers={teamMembers.filter(m => m.isActive && (m.roles.includes('Gestor') || m.roles.includes('Anjo')))} // Passar membros responsáveis
+        origins={origins}
+        responsibleMembers={teamMembers.filter(m => m.isActive && (m.roles.includes('Gestor') || m.roles.includes('Anjo')))}
       />
     </div>
   );
