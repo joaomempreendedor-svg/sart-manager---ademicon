@@ -6,9 +6,9 @@ import { useApp } from '@/context/AppContext';
 import { User as AuthUser } from '@/types'; // Importar o tipo User do types.ts
 
 interface HeaderProps {
-  isSidebarOpen: boolean;
-  toggleSidebar: () => void;
-  user: AuthUser | null; // Adicionado prop user
+  isSidebarOpen: boolean; // Apenas relevante para o toggle do menu mobile
+  toggleSidebar: () => void; // Apenas relevante para o toggle do menu mobile
+  user: AuthUser | null;
 }
 
 export const Header: React.FC<HeaderProps> = ({ isSidebarOpen, toggleSidebar, user }) => {
@@ -24,14 +24,20 @@ export const Header: React.FC<HeaderProps> = ({ isSidebarOpen, toggleSidebar, us
   };
 
   return (
-    <header className="sticky top-0 z-30 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border-b border-gray-200 dark:border-slate-800 md:hidden h-16 flex items-center px-4 justify-between"> {/* Adicionado justify-between */}
-      <button onClick={toggleSidebar} className="text-gray-600 dark:text-gray-300">
+    <header className="sticky top-0 z-30 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border-b border-gray-200 dark:border-slate-800 h-16 flex items-center px-4 justify-between">
+      {/* Botão de menu para mobile, escondido em telas médias e maiores */}
+      <button onClick={toggleSidebar} className="text-gray-600 dark:text-gray-300 md:hidden">
         {isSidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
       </button>
       
+      {/* Um espaço flexível para empurrar o sino para a direita em desktop */}
+      <div className="flex-grow md:flex-grow-0">
+        {/* Você pode adicionar um título aqui para desktop, se desejar */}
+      </div>
+
       {/* Renderiza o sino de notificação apenas para Gestores/Admins */}
       {(user?.role === 'GESTOR' || user?.role === 'ADMIN') && (
-        <div className="flex items-center space-x-4"> {/* Container para o sino */}
+        <div className="flex items-center space-x-4">
           <NotificationBell
             notificationCount={notifications.length}
             onClick={handleOpenNotifications}
