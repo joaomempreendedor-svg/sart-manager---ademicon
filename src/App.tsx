@@ -108,6 +108,7 @@ const RequireAuth: React.FC<{ allowedRoles: UserRole[] }> = ({ allowedRoles }) =
 };
 
 const GestorLayout = () => {
+  const { user } = useAuth(); // <--- Obtendo o usuário aqui
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false); // Adicionado estado para recolher/expandir
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
@@ -122,7 +123,7 @@ const GestorLayout = () => {
         toggleSidebarCollapse={toggleSidebarCollapse} 
       />
       <div className={`flex-1 flex flex-col transition-all duration-300 ${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-64'}`}> {/* Ajusta margem */}
-        <Header isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar} />
+        <Header isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar} user={user} /> {/* <--- Passando o user para o Header */}
         <main className="flex-1">
           <Outlet />
         </main>
