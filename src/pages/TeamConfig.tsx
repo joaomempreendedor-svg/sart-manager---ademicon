@@ -6,6 +6,7 @@ import { TeamMember, TeamRole, Candidate } from '@/types';
 import { formatCpf, generateRandomPassword } from '@/utils/authUtils';
 import { ConsultantCredentialsModal } from '@/components/ConsultantCredentialsModal';
 import { RecordTeamMemberInterviewModal } from '@/components/TeamConfig/RecordTeamMemberInterviewModal';
+import toast from 'react-hot-toast';
 
 const ALL_ROLES: TeamRole[] = ['Prévia', 'Autorizado', 'Gestor', 'Anjo'];
 
@@ -58,37 +59,26 @@ export const TeamConfig = () => {
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) {
-      alert("Você precisa estar logado como gestor para adicionar membros.");
+      toast.error("Você precisa estar logado como gestor para adicionar membros.");
       return;
     }
     if (!newName.trim() || !newEmail.trim() || newRoles.length === 0 || !newCpf.trim()) {
-      alert("Nome, E-mail, CPF e pelo menos um cargo são obrigatórios.");
+      toast.error("Nome, E-mail, CPF e pelo menos um cargo são obrigatórios.");
       return;
     }
     if (newCpf.replace(/\D/g, '').length !== 11) {
-      alert("Por favor, insira um CPF válido com 11 dígitos.");
+      toast.error("Por favor, insira um CPF válido com 11 dígitos.");
       return;
     }
 
     setIsAdding(true);
     try {
       const cleanedCpf = newCpf.replace(/\D/g, '');
-      const login = newEmail.trim();
-
-      console.log("[TeamConfig] Enviando para addTeamMember:", {
-        name: newName.trim(),
-        email: newEmail.trim(),
-        cpf: cleanedCpf,
-        login: login,
-        roles: newRoles,
-        dateOfBirth: newDateOfBirth || undefined, // NOVO: Incluir data de nascimento
-      });
-
+      
       const result = await addTeamMember({
         name: newName.trim(),
         email: newEmail.trim(),
         cpf: cleanedCpf,
-        login: login,
         roles: newRoles,
         isActive: true,
         dateOfBirth: newDateOfBirth || undefined, // NOVO: Incluir data de nascimento
@@ -103,7 +93,7 @@ export const TeamConfig = () => {
         });
         setShowCredentialsModal(true);
       } else {
-        alert(result.message || "Falha ao adicionar membro.");
+        toast.error(result.message || "Falha ao adicionar membro.");
       }
 
       setNewName('');
@@ -113,7 +103,7 @@ export const TeamConfig = () => {
       setNewRoles(['Prévia']);
       setGeneratedPassword(generateRandomPassword());
     } catch (error: any) {
-      alert(`Falha ao adicionar membro: ${error.message}`);
+      toast.error(`Falha ao adicionar membro: ${error.message}`);
       console.error("Erro ao adicionar membro:", error);
     } finally {
       setIsAdding(false);
@@ -140,11 +130,11 @@ export const TeamConfig = () => {
 
   const handleUpdate = async () => {
     if (!editingMember || !editingName.trim() || editingRoles.length === 0 || !editingCpf.trim() || !editingEmail.trim()) {
-      alert("O nome, E-mail, CPF e pelo menos um cargo são obrigatórios.");
+      toast.error("O nome, E-mail, CPF e pelo menos um cargo são obrigatórios.");
       return;
     }
     if (editingCpf.replace(/\D/g, '').length !== 11) {
-      alert("Por favor, insira um CPF válido com 11 dígitos.");
+      toast.error("Por favor, insira um CPF válido com 11 dígitos.");
       return;
     }
 
@@ -171,7 +161,7 @@ export const TeamConfig = () => {
       
       cancelEditing();
     } catch (error: any) {
-      alert(`Falha ao atualizar membro: ${error.message}`);
+      toast.error(`Falha ao atualizar membro: ${error.message}`);
     } finally {
       setIsUpdating(false);
     }
@@ -182,7 +172,7 @@ export const TeamConfig = () => {
       try {
         await deleteTeamMember(id);
       } catch (error: any) {
-        alert(`Falha ao remover membro: ${error.message}`);
+        toast.error(`Falha ao remover membro: ${error.message}`);
       }
     }
   };
@@ -191,13 +181,13 @@ export const TeamConfig = () => {
     try {
       await updateTeamMember(member.id, { isActive: !member.isActive });
     } catch (error: any) {
-      alert(`Falha ao alterar status do membro: ${error.message}`);
+      toast.error(`Falha ao alterar status do membro: ${error.message}`);
     }
   };
 
   const handleResetPassword = async (member: TeamMember) => {
     if (!member.email) {
-      alert("Não é possível resetar a senha: E-mail do consultor não encontrado.");
+      toast.error("Não é possível resetar a senha: E-mail do consultor não encontrado.");
       return;
     }
     if (!window.confirm(`Tem certeza que deseja resetar a senha de ${member.name}? Uma nova senha temporária será gerada e o consultor será forçado a trocá-la no próximo login.`)) {
@@ -217,9 +207,9 @@ export const TeamConfig = () => {
       });
       setShowCredentialsModal(true);
 
-      alert(`Senha de ${member.name} resetada com sucesso! O consultor será forçado a trocá-la no próximo login.`);
+      toast.success(`Senha de ${member.name} resetada com sucesso! O consultor será forçado a trocá-la no próximo login.`);
     } catch (error: any) {
-      alert(`Falha ao resetar senha: ${error.message}`);
+      toast.error(`Falha ao resetar senha: ${error.message}`);
       console.error("Erro ao resetar senha:", error);
     }
   };

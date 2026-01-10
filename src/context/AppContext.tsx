@@ -1041,7 +1041,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setCandidates(prev => prev.filter(p => p.id !== id));
   }, [user, candidates]);
 
-  const addTeamMember = useCallback(async (member: Omit<TeamMember, 'id'> & { email?: string }) => {
+  const addTeamMember = useCallback(async (member: Omit<TeamMember, 'id'> & { email: string }) => {
     if (!user) throw new Error("Usuário não autenticado.");
   
     let authUserId: string;
@@ -1054,384 +1054,1467 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const cleanedCpf = member.cpf ? member.cpf.replace(/\D/g, '') : '';
       const last4Cpf = cleanedCpf.length >= 4 ? cleanedCpf.slice(-4) : null;
       
-      console.log("[AppContext] Invoking create-or-link-consultant Edge Function for ADD operation:", {
-        name: newName.trim(),
-        email: newEmail.trim(),
-        cpf: cleanedCpf,
-        login: login,
-        roles: newRoles,
-        dateOfBirth: newDateOfBirth || undefined, // NOVO: Incluir data de nascimento
+      const { data, error: invokeError } = await supabase.functions.invoke('create-or-link-consultant', {
+        body: {
+          email: member.email,
+          name: member.name,
+          tempPassword: tempPassword,
+          login: last4Cpf, // Pass the last 4 digits of CPF as login
+        },
       });
 
-      const result = await addTeamMember({
-        name: newName.trim(),
-        email: newEmail.trim(),
-        cpf: cleanedCpf,
-        login: login,
-        roles: newRoles,
-        isActive: true,
-        dateOfBirth: newDateOfBirth || undefined, // NOVO: Incluir data de nascimento
-      });
+      if (invokeError) throw invokeError;
+      if (data.error) throw new Error(data.error);
 
-      if (result.success) {
-        setCreatedConsultantCredentials({ 
-          name: result.member.name, 
-          login: result.member.email || '',
-          password: result.tempPassword || '',
-          wasExistingUser: result.wasExistingUser || false,
-        });
-        setShowCredentialsModal(true);
-      } else {
-        alert(result.message || "Falha ao adicionar membro.");
+      authUserId = data.authUserId;
+      wasExistingUser = data.userExists;
+
+      // Update or insert into public.profiles table (handled by handle_new_user trigger)
+      // Update or insert into public.team_members table
+      const { error: teamMemberUpsertError } = await supabase
+        .from('team_members')
+        .upsert({
+          id: authUserId, // Use authUserId as the primary key for team_members
+          user_id: JOAO_GESTOR_AUTH_ID, // Link to the gestor
+          data: {
+            id: authUserId, // Store authUserId inside JSONB data as well
+            name: member.name,
+            email: member.email,
+            roles: member.roles,
+            isActive: member.isActive,
+            hasLogin: true,
+            isLegacy: false,
+            dateOfBirth: member.dateOfBirth,
+          },
+          cpf: cleanedCpf,
+        }, { onConflict: 'id' }); // Conflict on 'id' (authUserId)
+
+      if (teamMemberUpsertError) throw teamMemberUpsertError;
+
+      // Refetch team members to ensure local state is consistent
+      const { data: updatedTeamMembersData, error: fetchError } = await supabase
+        .from('team_members')
+        .select('id, data, cpf');
+      if (fetchError) console.error("Error refetching team members:", fetchError);
+      else {
+        const normalized = updatedTeamMembersData.map(item => ({
+          id: item.data.id,
+          db_id: item.id,
+          name: item.data.name,
+          email: item.data.email,
+          roles: Array.isArray(item.data.roles) ? item.data.roles : [item.data.role || 'Prévia'],
+          isActive: item.data.isActive !== false,
+          hasLogin: true,
+          isLegacy: false,
+          cpf: item.cpf,
+          dateOfBirth: item.data.dateOfBirth,
+        })) as TeamMember[];
+        setTeamMembers(normalized);
       }
 
-      setNewName('');
-      setNewEmail('');
-      setNewCpf('');
-      setNewDateOfBirth(''); // NOVO: Resetar campo
-      setNewRoles(['Prévia']);
-      setGeneratedPassword(generateRandomPassword());
-    } catch (error: any) {
-      alert(`Falha ao adicionar membro: ${error.message}`);
-      console.error("Erro ao adicionar membro:", error);
-    } finally {
-      setIsAdding(false);
+      return { success: true, member: { ...member, id: authUserId, hasLogin: true, tempPassword }, tempPassword, wasExistingUser };
+
+    } else {
+      throw new Error("E-mail é obrigatório para adicionar um membro da equipe.");
     }
-  };
+  }, [user, teamMembers]); // Added teamMembers to dependencies for refetching
+  const updateTeamMember = useCallback(async (id: string, updates: Partial<TeamMember>) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const member = teamMembers.find(m => m.id === id);
+    if (!member || !member.db_id) throw new Error("Membro da equipe não encontrado.");
 
-  const startEditing = (member: TeamMember) => {
-    setEditingMember(member);
-    setEditingName(member.name);
-    setEditingEmail(member.email || '');
-    setEditingCpf(formatCpf(member.cpf || ''));
-    setEditingDateOfBirth(member.dateOfBirth || ''); // NOVO: Popular campo
-    setEditingRoles(member.roles);
-  };
+    const updatedData = { ...member.data, ...updates };
+    const cleanedCpf = updates.cpf ? updates.cpf.replace(/\D/g, '') : member.cpf;
 
-  const cancelEditing = () => {
-    setEditingMember(null);
-    setEditingName('');
-    setEditingEmail('');
-    setEditingCpf('');
-    setEditingDateOfBirth(''); // NOVO: Resetar campo
-    setEditingRoles([]);
-  };
-
-  const handleUpdate = async () => {
-    if (!editingMember || !editingName.trim() || editingRoles.length === 0 || !editingCpf.trim() || !editingEmail.trim()) {
-      alert("O nome, E-mail, CPF e pelo menos um cargo são obrigatórios.");
-      return;
-    }
-    if (editingCpf.replace(/\D/g, '').length !== 11) {
-      alert("Por favor, insira um CPF válido com 11 dígitos.");
-      return;
+    // If email is updated, and it's a user with login, update auth.users
+    if (updates.email && member.hasLogin && updates.email !== member.email) {
+      const { error: authUpdateError } = await supabase.auth.admin.updateUserById(member.id, { email: updates.email });
+      if (authUpdateError) {
+        console.error("Error updating auth user email:", authUpdateError);
+        throw authUpdateError;
+      }
     }
 
-    setIsUpdating(true);
+    const { error } = await supabase
+      .from('team_members')
+      .update({ data: updatedData, cpf: cleanedCpf })
+      .match({ id: member.db_id, user_id: JOAO_GESTOR_AUTH_ID });
+
+    if (error) {
+      console.error("Error updating team member:", error);
+      toast.error("Erro ao atualizar membro da equipe.");
+      throw error;
+    }
+    setTeamMembers(prev => prev.map(m => m.id === id ? { ...member, ...updates, data: updatedData, cpf: cleanedCpf } : m));
+    return { success: true };
+  }, [user, teamMembers]);
+  const deleteTeamMember = useCallback(async (id: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const member = teamMembers.find(m => m.id === id);
+    if (!member || !member.db_id) throw new Error("Membro da equipe não encontrado.");
+
+    // Delete auth user if they have a login
+    if (member.hasLogin) {
+      const { error: authDeleteError } = await supabase.auth.admin.deleteUser(member.id);
+      if (authDeleteError) {
+        console.error("Error deleting auth user:", authDeleteError);
+        // Don't throw, try to delete from public.team_members anyway
+      }
+    }
+
+    const { error } = await supabase
+      .from('team_members')
+      .delete()
+      .match({ id: member.db_id, user_id: JOAO_GESTOR_AUTH_ID });
+
+    if (error) {
+      console.error("Error deleting team member:", error);
+      toast.error("Erro ao remover membro da equipe.");
+      throw error;
+    }
+    setTeamMembers(prev => prev.filter(m => m.id !== id));
+  }, [user, teamMembers]);
+
+  const getCandidate = useCallback((id: string) => candidates.find(c => c.id === id), [candidates]);
+
+  const toggleChecklistItem = useCallback(async (candidateId: string, itemId: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const candidate = candidates.find(c => c.id === candidateId);
+    if (!candidate) throw new Error("Candidato não encontrado.");
+
+    const updatedProgress = { ...candidate.checklistProgress };
+    updatedProgress[itemId] = { ...updatedProgress[itemId], completed: !updatedProgress[itemId]?.completed };
+
+    await updateCandidate(candidateId, { checklistProgress: updatedProgress });
+  }, [candidates, updateCandidate, user]);
+
+  const setChecklistDueDate = useCallback(async (candidateId: string, itemId: string, dueDate: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const candidate = candidates.find(c => c.id === candidateId);
+    if (!candidate) throw new Error("Candidato não encontrado.");
+
+    const updatedProgress = { ...candidate.checklistProgress };
+    updatedProgress[itemId] = { ...updatedProgress[itemId], dueDate: dueDate || undefined };
+
+    await updateCandidate(candidateId, { checklistProgress: updatedProgress });
+  }, [candidates, updateCandidate, user]);
+
+  const toggleConsultantGoal = useCallback(async (candidateId: string, goalId: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const candidate = candidates.find(c => c.id === candidateId);
+    if (!candidate) throw new Error("Candidato não encontrado.");
+
+    const updatedProgress = { ...candidate.consultantGoalsProgress };
+    updatedProgress[goalId] = !updatedProgress[goalId];
+
+    await updateCandidate(candidateId, { consultantGoalsProgress: updatedProgress });
+  }, [candidates, updateCandidate, user]);
+
+  const addChecklistItem = useCallback((stageId: string, label: string) => {
+    setChecklistStructure(prev => prev.map(stage =>
+      stage.id === stageId
+        ? { ...stage, items: [...stage.items, { id: crypto.randomUUID(), label }] }
+        : stage
+    ));
+    updateConfig({ checklistStructure });
+  }, [checklistStructure, updateConfig]);
+
+  const updateChecklistItem = useCallback((stageId: string, itemId: string, newLabel: string) => {
+    setChecklistStructure(prev => prev.map(stage =>
+      stage.id === stageId
+        ? { ...stage, items: stage.items.map(item => item.id === itemId ? { ...item, label: newLabel } : item) }
+        : stage
+    ));
+    updateConfig({ checklistStructure });
+  }, [checklistStructure, updateConfig]);
+
+  const deleteChecklistItem = useCallback((stageId: string, itemId: string) => {
+    setChecklistStructure(prev => prev.map(stage =>
+      stage.id === stageId
+        ? { ...stage, items: stage.items.filter(item => item.id !== itemId) }
+        : stage
+    ));
+    updateConfig({ checklistStructure });
+  }, [checklistStructure, updateConfig]);
+
+  const moveChecklistItem = useCallback((stageId: string, itemId: string, direction: 'up' | 'down') => {
+    setChecklistStructure(prev => prev.map(stage => {
+      if (stage.id === stageId) {
+        const items = [...stage.items];
+        const index = items.findIndex(item => item.id === itemId);
+        if (index === -1) return stage;
+
+        const newIndex = direction === 'up' ? index - 1 : index + 1;
+        if (newIndex < 0 || newIndex >= items.length) return stage;
+
+        const [removed] = items.splice(index, 1);
+        items.splice(newIndex, 0, removed);
+        return { ...stage, items };
+      }
+      return stage;
+    }));
+    updateConfig({ checklistStructure });
+  }, [checklistStructure, updateConfig]);
+
+  const resetChecklistToDefault = useCallback(() => {
+    setChecklistStructure(DEFAULT_STAGES);
+    updateConfig({ checklistStructure: DEFAULT_STAGES });
+  }, [updateConfig]);
+
+  const addGoalItem = useCallback((stageId: string, label: string) => {
+    setConsultantGoalsStructure(prev => prev.map(stage =>
+      stage.id === stageId
+        ? { ...stage, items: [...stage.items, { id: crypto.randomUUID(), label }] }
+        : stage
+    ));
+    updateConfig({ consultantGoalsStructure });
+  }, [consultantGoalsStructure, updateConfig]);
+
+  const updateGoalItem = useCallback((stageId: string, itemId: string, newLabel: string) => {
+    setConsultantGoalsStructure(prev => prev.map(stage =>
+      stage.id === stageId
+        ? { ...stage, items: stage.items.map(item => item.id === itemId ? { ...item, label: newLabel } : item) }
+        : stage
+    ));
+    updateConfig({ consultantGoalsStructure });
+  }, [consultantGoalsStructure, updateConfig]);
+
+  const deleteGoalItem = useCallback((stageId: string, itemId: string) => {
+    setConsultantGoalsStructure(prev => prev.map(stage =>
+      stage.id === stageId
+        ? { ...stage, items: stage.items.filter(item => item.id !== itemId) }
+        : stage
+    ));
+    updateConfig({ consultantGoalsStructure });
+  }, [consultantGoalsStructure, updateConfig]);
+
+  const moveGoalItem = useCallback((stageId: string, itemId: string, direction: 'up' | 'down') => {
+    setConsultantGoalsStructure(prev => prev.map(stage => {
+      if (stage.id === stageId) {
+        const items = [...stage.items];
+        const index = items.findIndex(item => item.id === itemId);
+        if (index === -1) return stage;
+
+        const newIndex = direction === 'up' ? index - 1 : index + 1;
+        if (newIndex < 0 || newIndex >= items.length) return stage;
+
+        const [removed] = items.splice(index, 1);
+        items.splice(newIndex, 0, removed);
+        return { ...stage, items };
+      }
+      return stage;
+    }));
+    updateConfig({ consultantGoalsStructure });
+  }, [consultantGoalsStructure, updateConfig]);
+
+  const resetGoalsToDefault = useCallback(() => {
+    setConsultantGoalsStructure(DEFAULT_GOALS);
+    updateConfig({ consultantGoalsStructure: DEFAULT_GOALS });
+  }, [updateConfig]);
+
+  const updateInterviewSection = useCallback((sectionId: string, updates: Partial<InterviewSection>) => {
+    setInterviewStructure(prev => prev.map(section =>
+      section.id === sectionId ? { ...section, ...updates } : section
+    ));
+    updateConfig({ interviewStructure });
+  }, [interviewStructure, updateConfig]);
+
+  const addInterviewQuestion = useCallback((sectionId: string, text: string, points: number) => {
+    setInterviewStructure(prev => prev.map(section =>
+      section.id === sectionId
+        ? { ...section, questions: [...section.questions, { id: crypto.randomUUID(), text, points }] }
+        : section
+    ));
+    updateConfig({ interviewStructure });
+  }, [interviewStructure, updateConfig]);
+
+  const updateInterviewQuestion = useCallback((sectionId: string, questionId: string, updates: Partial<InterviewQuestion>) => {
+    setInterviewStructure(prev => prev.map(section =>
+      section.id === sectionId
+        ? { ...section, questions: section.questions.map(q => q.id === questionId ? { ...q, ...updates } : q) }
+        : section
+    ));
+    updateConfig({ interviewStructure });
+  }, [interviewStructure, updateConfig]);
+
+  const deleteInterviewQuestion = useCallback((sectionId: string, questionId: string) => {
+    setInterviewStructure(prev => prev.map(section =>
+      section.id === sectionId
+        ? { ...section, questions: section.questions.filter(q => q.id !== questionId) }
+        : section
+    ));
+    updateConfig({ interviewStructure });
+  }, [interviewStructure, updateConfig]);
+
+  const moveInterviewQuestion = useCallback((sectionId: string, questionId: string, direction: 'up' | 'down') => {
+    setInterviewStructure(prev => prev.map(section => {
+      if (section.id === sectionId) {
+        const questions = [...section.questions];
+        const index = questions.findIndex(q => q.id === questionId);
+        if (index === -1) return section;
+
+        const newIndex = direction === 'up' ? index - 1 : index + 1;
+        if (newIndex < 0 || newIndex >= questions.length) return section;
+
+        const [removed] = questions.splice(index, 1);
+        questions.splice(newIndex, 0, removed);
+        return { ...section, questions };
+      }
+      return section;
+    }));
+    updateConfig({ interviewStructure });
+  }, [interviewStructure, updateConfig]);
+
+  const resetInterviewToDefault = useCallback(() => {
+    setInterviewStructure(INITIAL_INTERVIEW_STRUCTURE);
+    updateConfig({ interviewStructure: INITIAL_INTERVIEW_STRUCTURE });
+  }, [updateConfig]);
+
+  const saveTemplate = useCallback((itemId: string, updates: Partial<CommunicationTemplate>) => {
+    setTemplates(prev => ({
+      ...prev,
+      [itemId]: { ...prev[itemId], id: itemId, label: updates.label || prev[itemId]?.label || '', ...updates }
+    }));
+    updateConfig({ templates });
+  }, [templates, updateConfig]);
+
+  const addOrigin = useCallback((newOrigin: string) => {
+    setOrigins(prev => {
+      const updated = [...prev, newOrigin];
+      updateConfig({ origins: updated });
+      return updated;
+    });
+  }, [updateConfig]);
+
+  const deleteOrigin = useCallback((originToDelete: string) => {
+    setOrigins(prev => {
+      const updated = prev.filter(o => o !== originToDelete);
+      updateConfig({ origins: updated });
+      return updated;
+    });
+  }, [updateConfig]);
+
+  const resetOriginsToDefault = useCallback(() => {
+    setOrigins(DEFAULT_APP_CONFIG_DATA.origins);
+    updateConfig({ origins: DEFAULT_APP_CONFIG_DATA.origins });
+  }, [updateConfig]);
+
+  const addPV = useCallback((newPV: string) => {
+    setPvs(prev => {
+      const updated = [...prev, newPV];
+      updateConfig({ pvs: updated });
+      return updated;
+    });
+  }, [updateConfig]);
+
+  const addCommission = useCallback(async (commission: Omit<Commission, 'id' | 'db_id' | 'criado_em'>) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const clientSideId = crypto.randomUUID();
+    const tempCommission = { ...commission, id: `temp_${clientSideId}`, _synced: false };
+    setCommissions(prev => [tempCommission, ...prev]);
+
     try {
-      const cleanedCpf = editingCpf.replace(/\D/g, '');
-      const result = await updateTeamMember(editingMember.id, { 
-        name: editingName.trim(), 
-        roles: editingRoles, 
-        cpf: cleanedCpf,
-        email: editingEmail.trim(),
-        dateOfBirth: editingDateOfBirth || undefined, // NOVO: Incluir data de nascimento
-      });
+      const payload = { user_id: JOAO_GESTOR_AUTH_ID, data: commission };
+      const { data, error } = await supabase.from('commissions').insert(payload).select('id, created_at').maybeSingle();
+      if (error) throw error;
 
-      if (result?.tempPassword) {
-        setCreatedConsultantCredentials({
-          name: editingName.trim(),
-          login: editingEmail.trim(),
-          password: result.tempPassword,
-          wasExistingUser: true,
-        });
-        setShowCredentialsModal(true);
-      }
-      
-      cancelEditing();
+      setCommissions(prev => prev.map(c => c.id === tempCommission.id ? { ...c, id: c.id.replace('temp_', ''), db_id: data.id, criado_em: data.created_at, _synced: true } : c));
+      return { success: true };
     } catch (error: any) {
-      alert(`Falha ao atualizar membro: ${error.message}`);
-    } finally {
-      setIsUpdating(false);
+      console.error("Failed to add commission to Supabase:", error);
+      toast.error("Erro ao salvar comissão. Tentando novamente em segundo plano.");
+      const pendingCommissions = JSON.parse(localStorage.getItem('pending_commissions') || '[]');
+      localStorage.setItem('pending_commissions', JSON.stringify([...pendingCommissions, { ...commission, _id: clientSideId, _timestamp: new Date().toISOString(), _retryCount: 0 }]));
+      setCommissions(prev => prev.filter(c => c.id !== tempCommission.id)); // Remove temp commission if it fails
+      throw error;
     }
-  };
+  }, [user]);
 
-  const handleDelete = async (id: string) => {
-    if (window.confirm('Tem certeza que deseja remover este membro da equipe? Esta ação não pode ser desfeita.')) {
-      try {
-        await deleteTeamMember(id);
-      } catch (error: any) {
-        alert(`Falha ao remover membro: ${error.message}`);
+  const updateCommission = useCallback(async (id: string, updates: Partial<Commission>) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const commission = commissions.find(c => c.id === id);
+    if (!commission || !commission.db_id) throw new Error("Comissão não encontrada.");
+
+    const updated = { ...commission, ...updates };
+    const { db_id, criado_em, _synced, ...dataToUpdate } = updated;
+
+    const { error } = await supabase.from('commissions').update({ data: dataToUpdate }).match({ id: commission.db_id, user_id: JOAO_GESTOR_AUTH_ID });
+    if (error) { console.error(error); toast.error("Erro ao atualizar comissão."); throw error; }
+    setCommissions(prev => prev.map(c => c.id === id ? updated : c));
+  }, [user, commissions]);
+
+  const deleteCommission = useCallback(async (id: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const commission = commissions.find(c => c.id === id);
+    if (!commission || !commission.db_id) throw new Error("Comissão não encontrada.");
+
+    const { error } = await supabase.from('commissions').delete().match({ id: commission.db_id, user_id: JOAO_GESTOR_AUTH_ID });
+    if (error) { console.error(error); toast.error("Erro ao excluir comissão."); throw error; }
+    setCommissions(prev => prev.filter(c => c.id !== id));
+  }, [user, commissions]);
+
+  const addCutoffPeriod = useCallback(async (period: Omit<CutoffPeriod, 'id' | 'db_id'>) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const clientSideId = crypto.randomUUID();
+    const newPeriod = { ...period, id: clientSideId };
+    setCutoffPeriods(prev => [...prev, newPeriod]);
+
+    const { data, error } = await supabase.from('cutoff_periods').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: newPeriod }).select('id').single();
+    if (error) { console.error(error); toast.error("Erro ao adicionar período de corte."); throw error; }
+    setCutoffPeriods(prev => prev.map(p => p.id === clientSideId ? { ...p, db_id: data.id } : p));
+  }, [user]);
+
+  const updateCutoffPeriod = useCallback(async (id: string, updates: Partial<CutoffPeriod>) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const period = cutoffPeriods.find(p => p.id === id);
+    if (!period || !period.db_id) throw new Error("Período de corte não encontrado.");
+
+    const updated = { ...period, ...updates };
+    const { db_id, ...dataToUpdate } = updated;
+
+    const { error } = await supabase.from('cutoff_periods').update({ data: dataToUpdate }).match({ id: period.db_id, user_id: JOAO_GESTOR_AUTH_ID });
+    if (error) { console.error(error); toast.error("Erro ao atualizar período de corte."); throw error; }
+    setCutoffPeriods(prev => prev.map(p => p.id === id ? updated : p));
+  }, [user, cutoffPeriods]);
+
+  const deleteCutoffPeriod = useCallback(async (id: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const period = cutoffPeriods.find(p => p.id === id);
+    if (!period || !period.db_id) throw new Error("Período de corte não encontrado.");
+
+    const { error } = await supabase.from('cutoff_periods').delete().match({ id: period.db_id, user_id: JOAO_GESTOR_AUTH_ID });
+    if (error) { console.error(error); toast.error("Erro ao excluir período de corte."); throw error; }
+    setCutoffPeriods(prev => prev.filter(p => p.id !== id));
+  }, [user, cutoffPeriods]);
+
+  const updateInstallmentStatus = useCallback(async (commissionId: string, installmentNumber: number, newStatus: InstallmentStatus, paidDate?: string, saleType?: 'Imóvel' | 'Veículo') => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const commission = commissions.find(c => c.id === commissionId);
+    if (!commission || !commission.db_id) throw new Error("Comissão não encontrada.");
+
+    const updatedInstallmentDetails = { ...commission.installmentDetails };
+    let competenceMonth: string | undefined;
+
+    if (newStatus === 'Pago' && paidDate) {
+      competenceMonth = calculateCompetenceMonth(paidDate);
+      updatedInstallmentDetails[installmentNumber.toString()] = { status: newStatus, paidDate, competenceMonth };
+    } else {
+      updatedInstallmentDetails[installmentNumber.toString()] = { status: newStatus };
+    }
+
+    const updatedCommission = {
+      ...commission,
+      installmentDetails: updatedInstallmentDetails,
+      status: getOverallStatus(updatedInstallmentDetails),
+    };
+
+    const { db_id, criado_em, _synced, ...dataToUpdate } = updatedCommission;
+
+    const { error } = await supabase.from('commissions').update({ data: dataToUpdate }).match({ id: commission.db_id, user_id: JOAO_GESTOR_AUTH_ID });
+    if (error) { console.error(error); toast.error("Erro ao atualizar status da parcela."); throw error; }
+    setCommissions(prev => prev.map(c => c.id === commissionId ? updatedCommission : c));
+  }, [user, commissions, calculateCompetenceMonth]);
+
+  const addOnlineOnboardingSession = useCallback(async (consultantName: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+
+    const { data: sessionData, error: sessionError } = await supabase
+      .from('onboarding_sessions')
+      .insert({ user_id: JOAO_GESTOR_AUTH_ID, consultant_name: consultantName })
+      .select('id, created_at')
+      .single();
+
+    if (sessionError) throw sessionError;
+
+    const newSessionId = sessionData.id;
+    const videosToInsert = onboardingTemplateVideos.map(video => ({
+      session_id: newSessionId,
+      title: video.title,
+      video_url: video.video_url,
+      order: video.order,
+      is_completed: false,
+    }));
+
+    const { data: insertedVideos, error: videosError } = await supabase
+      .from('onboarding_videos')
+      .insert(videosToInsert)
+      .select('*');
+
+    if (videosError) throw videosError;
+
+    const newSession: OnboardingSession = {
+      id: newSessionId,
+      user_id: JOAO_GESTOR_AUTH_ID,
+      consultant_name: consultantName,
+      created_at: sessionData.created_at,
+      videos: insertedVideos || [],
+    };
+
+    setOnboardingSessions(prev => [...prev, newSession]);
+  }, [user, onboardingTemplateVideos]);
+
+  const deleteOnlineOnboardingSession = useCallback(async (sessionId: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+
+    // Deleta os vídeos primeiro (ON DELETE CASCADE no DB cuidaria disso, mas é bom ser explícito)
+    await supabase.from('onboarding_videos').delete().eq('session_id', sessionId);
+
+    const { error } = await supabase
+      .from('onboarding_sessions')
+      .delete()
+      .eq('id', sessionId)
+      .eq('user_id', JOAO_GESTOR_AUTH_ID);
+
+    if (error) throw error;
+
+    setOnboardingSessions(prev => prev.filter(session => session.id !== sessionId));
+  }, [user]);
+
+  const addVideoToTemplate = useCallback(async (title: string, video_url: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+
+    const newOrder = onboardingTemplateVideos.length > 0
+      ? Math.max(...onboardingTemplateVideos.map(v => v.order)) + 1
+      : 0;
+
+    const { data, error } = await supabase
+      .from('onboarding_video_templates')
+      .insert({ user_id: JOAO_GESTOR_AUTH_ID, title, video_url, order: newOrder })
+      .select('*')
+      .single();
+
+    if (error) throw error;
+
+    setOnboardingTemplateVideos(prev => [...prev, data]);
+  }, [user, onboardingTemplateVideos]);
+
+  const deleteVideoFromTemplate = useCallback(async (videoId: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+
+    const { error } = await supabase
+      .from('onboarding_video_templates')
+      .delete()
+      .eq('id', videoId)
+      .eq('user_id', JOAO_GESTOR_AUTH_ID);
+
+    if (error) throw error;
+
+    setOnboardingTemplateVideos(prev => prev.filter(video => video.id !== videoId));
+  }, [user]);
+
+  // CRM Functions
+  const addCrmPipeline = useCallback(async (name: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('crm_pipelines').insert({ user_id: JOAO_GESTOR_AUTH_ID, name, is_active: true }).select('*').single();
+    if (error) throw error;
+    setCrmPipelines(prev => [...prev, data]);
+    return data;
+  }, [user]);
+
+  const updateCrmPipeline = useCallback(async (id: string, updates: Partial<CrmPipeline>) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('crm_pipelines').update(updates).eq('id', id).eq('user_id', JOAO_GESTOR_AUTH_ID).select('*').single();
+    if (error) throw error;
+    setCrmPipelines(prev => prev.map(p => p.id === id ? data : p));
+    return data;
+  }, [user]);
+
+  const deleteCrmPipeline = useCallback(async (id: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { error } = await supabase.from('crm_pipelines').delete().eq('id', id).eq('user_id', JOAO_GESTOR_AUTH_ID);
+    if (error) throw error;
+    setCrmPipelines(prev => prev.filter(p => p.id !== id));
+    setCrmStages(prev => prev.filter(s => s.pipeline_id !== id)); // Also remove associated stages
+    setCrmLeads(prev => prev.filter(l => l.user_id !== id)); // Also remove associated leads
+  }, [user]);
+
+  const addCrmStage = useCallback(async (stage: Omit<CrmStage, 'id' | 'user_id' | 'created_at'>) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('crm_stages').insert({ user_id: JOAO_GESTOR_AUTH_ID, ...stage }).select('*').single();
+    if (error) throw error;
+    setCrmStages(prev => [...prev, data]);
+    return data;
+  }, [user]);
+
+  const updateCrmStage = useCallback(async (id: string, updates: Partial<CrmStage>) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('crm_stages').update(updates).eq('id', id).eq('user_id', JOAO_GESTOR_AUTH_ID).select('*').single();
+    if (error) throw error;
+    setCrmStages(prev => prev.map(s => s.id === id ? data : p));
+    return data;
+  }, [user]);
+
+  const updateCrmStageOrder = useCallback(async (orderedStages: CrmStage[]) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const updates = orderedStages.map((stage, index) => ({
+      id: stage.id,
+      order_index: index,
+    }));
+    const { error } = await supabase.from('crm_stages').upsert(updates, { onConflict: 'id' });
+    if (error) throw error;
+    setCrmStages(orderedStages.map((stage, index) => ({ ...stage, order_index: index })));
+  }, [user]);
+
+  const deleteCrmStage = useCallback(async (id: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    // First, update leads that are in this stage to null or a default stage
+    await supabase.from('crm_leads').update({ stage_id: null }).eq('stage_id', id).eq('user_id', JOAO_GESTOR_AUTH_ID);
+
+    const { error } = await supabase.from('crm_stages').delete().eq('id', id).eq('user_id', JOAO_GESTOR_AUTH_ID);
+    if (error) throw error;
+    setCrmStages(prev => prev.filter(s => s.id !== id));
+    setCrmLeads(prev => prev.map(l => l.stage_id === id ? { ...l, stage_id: null } : l));
+  }, [user]);
+
+  const addCrmField = useCallback(async (field: Omit<CrmField, 'id' | 'user_id' | 'created_at'>) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('crm_fields').insert({ user_id: JOAO_GESTOR_AUTH_ID, ...field }).select('*').single();
+    if (error) throw error;
+    setCrmFields(prev => [...prev, data]);
+    return data;
+  }, [user]);
+
+  const updateCrmField = useCallback(async (id: string, updates: Partial<CrmField>) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('crm_fields').update(updates).eq('id', id).eq('user_id', JOAO_GESTOR_AUTH_ID).select('*').single();
+    if (error) throw error;
+    setCrmFields(prev => prev.map(f => f.id === id ? data : f));
+    return data;
+  }, [user]);
+
+  const addCrmLead = useCallback(async (lead: Omit<CrmLead, 'id' | 'created_at' | 'updated_at' | 'stage_id'>) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    
+    // Find the first active stage in the active pipeline to assign to new leads
+    const activePipeline = crmPipelines.find(p => p.is_active);
+    const firstStage = crmStages.find(s => s.pipeline_id === activePipeline?.id && s.is_active);
+
+    if (!firstStage) {
+      throw new Error("Nenhuma etapa ativa encontrada no pipeline. Por favor, configure as etapas do CRM.");
+    }
+
+    const newLeadData = {
+      ...lead,
+      user_id: JOAO_GESTOR_AUTH_ID,
+      stage_id: firstStage.id, // Assign to the first active stage
+      created_by: user.id,
+      updated_by: user.id,
+    };
+
+    const { data, error } = await supabase.from('crm_leads').insert(newLeadData).select('*').single();
+    if (error) throw error;
+    setCrmLeads(prev => [data, ...prev]); // Add new lead to the beginning of the list
+    return data;
+  }, [user, crmPipelines, crmStages]);
+
+  const updateCrmLead = useCallback(async (id: string, updates: Partial<CrmLead>) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const lead = crmLeads.find(l => l.id === id);
+    if (!lead) throw new Error("Lead não encontrado.");
+
+    const updatedData = {
+      ...lead,
+      ...updates,
+      data: { ...lead.data, ...updates.data }, // Merge nested data object
+      updated_by: user.id,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error } = await supabase.from('crm_leads').update(updatedData).eq('id', id).eq('user_id', JOAO_GESTOR_AUTH_ID);
+    if (error) throw error;
+    setCrmLeads(prev => prev.map(l => l.id === id ? updatedData : l));
+    return updatedData;
+  }, [user, crmLeads]);
+
+  const updateCrmLeadStage = useCallback(async (leadId: string, newStageId: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const lead = crmLeads.find(l => l.id === leadId);
+    if (!lead) throw new Error("Lead não encontrado.");
+
+    const updatedLead = { ...lead, stage_id: newStageId, updated_by: user.id, updated_at: new Date().toISOString() };
+    const { error } = await supabase.from('crm_leads').update(updatedLead).eq('id', leadId).eq('user_id', JOAO_GESTOR_AUTH_ID);
+    if (error) throw error;
+    setCrmLeads(prev => prev.map(l => l.id === leadId ? updatedLead : l));
+  }, [user, crmLeads]);
+
+  const deleteCrmLead = useCallback(async (id: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { error } = await supabase.from('crm_leads').delete().eq('id', id).eq('user_id', JOAO_GESTOR_AUTH_ID);
+    if (error) throw error;
+    setCrmLeads(prev => prev.filter(l => l.id !== id));
+  }, [user]);
+
+  // Daily Checklist Functions
+  const addDailyChecklist = useCallback(async (title: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('daily_checklists').insert({ user_id: JOAO_GESTOR_AUTH_ID, title, is_active: true }).select('*').single();
+    if (error) throw error;
+    setDailyChecklists(prev => [...prev, data]);
+    return data;
+  }, [user]);
+
+  const updateDailyChecklist = useCallback(async (id: string, updates: Partial<DailyChecklist>) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('daily_checklists').update(updates).eq('id', id).eq('user_id', JOAO_GESTOR_AUTH_ID).select('*').single();
+    if (error) throw error;
+    setDailyChecklists(prev => prev.map(c => c.id === id ? data : c));
+    return data;
+  }, [user]);
+
+  const deleteDailyChecklist = useCallback(async (id: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    // Deleta itens e atribuições via CASCADE no DB
+    const { error } = await supabase.from('daily_checklists').delete().eq('id', id).eq('user_id', JOAO_GESTOR_AUTH_ID);
+    if (error) throw error;
+    setDailyChecklists(prev => prev.filter(c => c.id !== id));
+    setDailyChecklistItems(prev => prev.filter(item => item.daily_checklist_id !== id));
+    setDailyChecklistAssignments(prev => prev.filter(assignment => assignment.daily_checklist_id !== id));
+    setDailyChecklistCompletions(prev => prev.filter(completion => {
+      const item = dailyChecklistItems.find(i => i.id === completion.daily_checklist_item_id);
+      return item?.daily_checklist_id !== id;
+    }));
+  }, [user, dailyChecklistItems]);
+
+  const addDailyChecklistItem = useCallback(async (daily_checklist_id: string, text: string, order_index: number, resource?: DailyChecklistItemResource, file?: File) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+
+    let resourceContent = resource?.content;
+    let resourceName = resource?.name;
+
+    if (file) {
+      const filePath = `daily_checklist_resources/${daily_checklist_id}/${crypto.randomUUID()}-${file.name}`;
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('app_resources')
+        .upload(filePath, file, { contentType: file.type });
+      if (uploadError) throw uploadError;
+      const { data: publicUrlData } = supabase.storage.from('app_resources').getPublicUrl(filePath);
+      resourceContent = publicUrlData.publicUrl;
+      resourceName = file.name;
+    }
+
+    const finalResource = resource ? { ...resource, content: resourceContent, name: resourceName } : undefined;
+
+    const { data, error } = await supabase.from('daily_checklist_items').insert({ daily_checklist_id, text, order_index, is_active: true, resource: finalResource }).select('*').single();
+    if (error) throw error;
+    setDailyChecklistItems(prev => [...prev, data]);
+    return data;
+  }, [user]);
+
+  const updateDailyChecklistItem = useCallback(async (id: string, updates: Partial<DailyChecklistItem>, file?: File) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+
+    let resourceContent = updates.resource?.content;
+    let resourceName = updates.resource?.name;
+
+    if (file) {
+      const item = dailyChecklistItems.find(i => i.id === id);
+      if (!item) throw new Error("Item do checklist não encontrado.");
+
+      // Delete old file if it exists and is being replaced
+      if (item.resource?.content && (item.resource.type === 'image' || item.resource.type === 'pdf' || item.resource.type === 'audio')) {
+        const oldFilePath = item.resource.content.split('app_resources/')[1];
+        if (oldFilePath) {
+          await supabase.storage.from('app_resources').remove([oldFilePath]);
+        }
+      }
+
+      const filePath = `daily_checklist_resources/${item.daily_checklist_id}/${crypto.randomUUID()}-${file.name}`;
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('app_resources')
+        .upload(filePath, file, { contentType: file.type });
+      if (uploadError) throw uploadError;
+      const { data: publicUrlData } = supabase.storage.from('app_resources').getPublicUrl(filePath);
+      resourceContent = publicUrlData.publicUrl;
+      resourceName = file.name;
+    }
+
+    const finalResource = updates.resource ? { ...updates.resource, content: resourceContent, name: resourceName } : undefined;
+
+    const { data, error } = await supabase.from('daily_checklist_items').update({ ...updates, resource: finalResource }).eq('id', id).select('*').single();
+    if (error) throw error;
+    setDailyChecklistItems(prev => prev.map(item => item.id === id ? data : item));
+    return data;
+  }, [user, dailyChecklistItems]);
+
+  const deleteDailyChecklistItem = useCallback(async (id: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const item = dailyChecklistItems.find(i => i.id === id);
+    if (!item) throw new Error("Item do checklist não encontrado.");
+
+    // Delete associated file from storage
+    if (item.resource?.content && (item.resource.type === 'image' || item.resource.type === 'pdf' || item.resource.type === 'audio')) {
+      const filePath = item.resource.content.split('app_resources/')[1];
+      if (filePath) {
+        await supabase.storage.from('app_resources').remove([filePath]);
       }
     }
-  };
 
-  const handleToggleActive = async (member: TeamMember) => {
-    try {
-      await updateTeamMember(member.id, { isActive: !member.isActive });
-    } catch (error: any) {
-      alert(`Falha ao alterar status do membro: ${error.message}`);
+    const { error } = await supabase.from('daily_checklist_items').delete().eq('id', id);
+    if (error) throw error;
+    setDailyChecklistItems(prev => prev.filter(item => item.id !== id));
+    setDailyChecklistCompletions(prev => prev.filter(completion => completion.daily_checklist_item_id !== id));
+  }, [user, dailyChecklistItems]);
+
+  const moveDailyChecklistItem = useCallback(async (checklistId: string, itemId: string, direction: 'up' | 'down') => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const items = dailyChecklistItems.filter(item => item.daily_checklist_id === checklistId).sort((a, b) => a.order_index - b.order_index);
+    const index = items.findIndex(item => item.id === itemId);
+    if (index === -1) return;
+
+    const newIndex = direction === 'up' ? index - 1 : index + 1;
+    if (newIndex < 0 || newIndex >= items.length) return;
+
+    const [removed] = items.splice(index, 1);
+    items.splice(newIndex, 0, removed);
+
+    const updates = items.map((item, idx) => ({ id: item.id, order_index: idx }));
+    const { error } = await supabase.from('daily_checklist_items').upsert(updates, { onConflict: 'id' });
+    if (error) throw error;
+    setDailyChecklistItems(prev => prev.map(item => {
+      const updated = updates.find(u => u.id === item.id);
+      return updated ? { ...item, order_index: updated.order_index } : item;
+    }).sort((a, b) => a.order_index - b.order_index));
+  }, [user, dailyChecklistItems]);
+
+  const assignDailyChecklistToConsultant = useCallback(async (daily_checklist_id: string, consultant_id: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('daily_checklist_assignments').insert({ daily_checklist_id, consultant_id }).select('*').single();
+    if (error) throw error;
+    setDailyChecklistAssignments(prev => [...prev, data]);
+    return data;
+  }, [user]);
+
+  const unassignDailyChecklistFromConsultant = useCallback(async (daily_checklist_id: string, consultant_id: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { error } = await supabase.from('daily_checklist_assignments').delete().match({ daily_checklist_id, consultant_id });
+    if (error) throw error;
+    setDailyChecklistAssignments(prev => prev.filter(a => !(a.daily_checklist_id === daily_checklist_id && a.consultant_id === consultant_id)));
+  }, [user]);
+
+  const toggleDailyChecklistCompletion = useCallback(async (daily_checklist_item_id: string, date: string, done: boolean, consultant_id: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+
+    const existingCompletion = dailyChecklistCompletions.find(c =>
+      c.daily_checklist_item_id === daily_checklist_item_id &&
+      c.date === date &&
+      c.consultant_id === consultant_id
+    );
+
+    if (existingCompletion) {
+      const { data, error } = await supabase.from('daily_checklist_completions').update({ done, updated_at: new Date().toISOString() }).eq('id', existingCompletion.id).select('*').single();
+      if (error) throw error;
+      setDailyChecklistCompletions(prev => prev.map(c => c.id === existingCompletion.id ? data : c));
+    } else {
+      const { data, error } = await supabase.from('daily_checklist_completions').insert({ daily_checklist_item_id, consultant_id, date, done }).select('*').single();
+      if (error) throw error;
+      setDailyChecklistCompletions(prev => [...prev, data]);
     }
-  };
+  }, [user, dailyChecklistCompletions]);
 
-  const handleResetPassword = async (member: TeamMember) => {
-    if (!member.email) {
-      alert("Não é possível resetar a senha: E-mail do consultor não encontrado.");
-      return;
+  // Weekly Target Functions
+  const addWeeklyTarget = useCallback(async (target: Omit<WeeklyTarget, 'id' | 'user_id' | 'created_at'>) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('weekly_targets').insert({ user_id: JOAO_GESTOR_AUTH_ID, ...target }).select('*').single();
+    if (error) throw error;
+    setWeeklyTargets(prev => [...prev, data]);
+    return data;
+  }, [user]);
+
+  const updateWeeklyTarget = useCallback(async (id: string, updates: Partial<WeeklyTarget>) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('weekly_targets').update(updates).eq('id', id).eq('user_id', JOAO_GESTOR_AUTH_ID).select('*').single();
+    if (error) throw error;
+    setWeeklyTargets(prev => prev.map(t => t.id === id ? data : t));
+    return data;
+  }, [user]);
+
+  const deleteWeeklyTarget = useCallback(async (id: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { error } = await supabase.from('weekly_targets').delete().eq('id', id).eq('user_id', JOAO_GESTOR_AUTH_ID);
+    if (error) throw error;
+    setWeeklyTargets(prev => prev.filter(t => t.id !== id));
+    setWeeklyTargetItems(prev => prev.filter(item => item.weekly_target_id !== id));
+    setWeeklyTargetAssignments(prev => prev.filter(assignment => assignment.weekly_target_id !== id));
+  }, [user]);
+
+  const addWeeklyTargetItem = useCallback(async (item: Omit<WeeklyTargetItem, 'id' | 'created_at'>) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('weekly_target_items').insert(item).select('*').single();
+    if (error) throw error;
+    setWeeklyTargetItems(prev => [...prev, data]);
+    return data;
+  }, [user]);
+
+  const updateWeeklyTargetItem = useCallback(async (id: string, updates: Partial<WeeklyTargetItem>) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('weekly_target_items').update(updates).eq('id', id).select('*').single();
+    if (error) throw error;
+    setWeeklyTargetItems(prev => prev.map(item => item.id === id ? data : item));
+    return data;
+  }, [user]);
+
+  const deleteWeeklyTargetItem = useCallback(async (id: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { error } = await supabase.from('weekly_target_items').delete().eq('id', id);
+    if (error) throw error;
+    setWeeklyTargetItems(prev => prev.filter(item => item.id !== id));
+  }, [user]);
+
+  const updateWeeklyTargetItemOrder = useCallback(async (orderedItems: WeeklyTargetItem[]) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const updates = orderedItems.map((item, index) => ({
+      id: item.id,
+      order_index: index,
+    }));
+    const { error } = await supabase.from('weekly_target_items').upsert(updates, { onConflict: 'id' });
+    if (error) throw error;
+    setWeeklyTargetItems(orderedItems.map((item, index) => ({ ...item, order_index: index })));
+  }, [user]);
+
+  const assignWeeklyTargetToConsultant = useCallback(async (weekly_target_id: string, consultant_id: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('weekly_target_assignments').insert({ weekly_target_id, consultant_id }).select('*').single();
+    if (error) throw error;
+    setWeeklyTargetAssignments(prev => [...prev, data]);
+    return data;
+  }, [user]);
+
+  const unassignWeeklyTargetFromConsultant = useCallback(async (weekly_target_id: string, consultant_id: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { error } = await supabase.from('weekly_target_assignments').delete().match({ weekly_target_id, consultant_id });
+    if (error) throw error;
+    setWeeklyTargetAssignments(prev => prev.filter(a => !(a.weekly_target_id === weekly_target_id && a.consultant_id === consultant_id)));
+  }, [user]);
+
+  const addMetricLog = useCallback(async (log: Omit<MetricLog, 'id' | 'created_at'>) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('metric_logs').insert(log).select('*').single();
+    if (error) throw error;
+    setMetricLogs(prev => [...prev, data]);
+    return data;
+  }, [user]);
+
+  const updateMetricLog = useCallback(async (id: string, updates: Partial<MetricLog>) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('metric_logs').update(updates).eq('id', id).select('*').single();
+    if (error) throw error;
+    setMetricLogs(prev => prev.map(log => log.id === id ? data : log));
+    return data;
+  }, [user]);
+
+  const deleteMetricLog = useCallback(async (id: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { error } = await supabase.from('metric_logs').delete().eq('id', id);
+    if (error) throw error;
+    setMetricLogs(prev => prev.filter(log => log.id !== id));
+  }, [user]);
+
+  // Support Materials V2 Functions
+  const addSupportMaterialV2 = useCallback(async (material: Omit<SupportMaterialV2, 'id' | 'user_id' | 'created_at'>, file?: File) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+
+    let content = material.content;
+    if (file) {
+      const filePath = `support_materials/${crypto.randomUUID()}-${file.name}`;
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('app_resources')
+        .upload(filePath, file, { contentType: file.type });
+      if (uploadError) throw uploadError;
+      const { data: publicUrlData } = supabase.storage.from('app_resources').getPublicUrl(filePath);
+      content = publicUrlData.publicUrl;
     }
-    if (!window.confirm(`Tem certeza que deseja resetar a senha de ${member.name}? Uma nova senha temporária será gerada e o consultor será forçado a trocá-la no próximo login.`)) {
-      return;
-    }
 
-    try {
-      const newTempPassword = generateRandomPassword();
-      
-      await resetConsultantPasswordViaEdge(member.id, newTempPassword);
-      
-      setCreatedConsultantCredentials({ 
-        name: member.name, 
-        login: member.email,
-        password: newTempPassword, 
-        wasExistingUser: true
-      });
-      setShowCredentialsModal(true);
+    const { data, error } = await supabase.from('support_materials_v2').insert({ user_id: JOAO_GESTOR_AUTH_ID, ...material, content }).select('*').single();
+    if (error) throw error;
+    setSupportMaterialsV2(prev => [...prev, data]);
+    return data;
+  }, [user]);
 
-      alert(`Senha de ${member.name} resetada com sucesso! O consultor será forçado a trocá-la no próximo login.`);
-    } catch (error: any) {
-      alert(`Falha ao resetar senha: ${error.message}`);
-      console.error("Erro ao resetar senha:", error);
-    }
-  };
+  const updateSupportMaterialV2 = useCallback(async (id: string, updates: Partial<SupportMaterialV2>, file?: File) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const existingMaterial = supportMaterialsV2.find(m => m.id === id);
+    if (!existingMaterial) throw new Error("Material de apoio não encontrado.");
 
-  const getRoleIcon = (role: TeamRole) => {
-      switch(role) {
-          case 'Gestor': return <Crown className="w-4 h-4 text-blue-500" />;
-          case 'Anjo': return <Star className="w-4 h-4 text-yellow-500" />;
-          case 'Autorizado': return <Shield className="w-4 h-4 text-green-500" />;
-          default: return <User className="w-4 h-4 text-gray-500" />;
+    let content = updates.content || existingMaterial.content;
+    if (file) {
+      // Delete old file if it exists and is being replaced
+      if (existingMaterial.content_type !== 'link' && existingMaterial.content_type !== 'text' && existingMaterial.content) {
+        const oldFilePath = existingMaterial.content.split('app_resources/')[1];
+        if (oldFilePath) {
+          await supabase.storage.from('app_resources').remove([oldFilePath]);
+        }
       }
-  };
 
-  const getRoleBadge = (role: TeamRole) => {
-      switch(role) {
-          case 'Gestor': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300';
-          case 'Anjo': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300';
-          case 'Autorizado': return 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300';
-          default: return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
+      const filePath = `support_materials/${crypto.randomUUID()}-${file.name}`;
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('app_resources')
+        .upload(filePath, file, { contentType: file.type });
+      if (uploadError) throw uploadError;
+      const { data: publicUrlData } = supabase.storage.from('app_resources').getPublicUrl(filePath);
+      content = publicUrlData.publicUrl;
+    }
+
+    const { data, error } = await supabase.from('support_materials_v2').update({ ...updates, content }).eq('id', id).eq('user_id', JOAO_GESTOR_AUTH_ID).select('*').single();
+    if (error) throw error;
+    setSupportMaterialsV2(prev => prev.map(m => m.id === id ? data : m));
+    return data;
+  }, [user, supportMaterialsV2]);
+
+  const deleteSupportMaterialV2 = useCallback(async (id: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const material = supportMaterialsV2.find(m => m.id === id);
+    if (!material) throw new Error("Material de apoio não encontrado.");
+
+    // Delete associated file from storage
+    if (material.content_type !== 'link' && material.content_type !== 'text' && material.content) {
+      const filePath = material.content.split('app_resources/')[1];
+      if (filePath) {
+        await supabase.storage.from('app_resources').remove([filePath]);
       }
-  };
+    }
 
-  const handleOpenRecordInterviewModal = (member: TeamMember) => {
-    setTeamMemberToRecordInterview(member);
-    setIsRecordInterviewModalOpen(true);
-  };
+    const { error } = await supabase.from('support_materials_v2').delete().eq('id', id).eq('user_id', JOAO_GESTOR_AUTH_ID);
+    if (error) throw error;
+    setSupportMaterialsV2(prev => prev.filter(m => m.id !== id));
+    setSupportMaterialAssignments(prev => prev.filter(a => a.material_id !== id));
+  }, [user, supportMaterialsV2]);
 
-  return (
-    <div className="p-8 max-w-4xl mx-auto min-h-screen bg-gray-50 dark:bg-slate-900">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Gestão de Equipe</h1>
-        <p className="text-gray-500 dark:text-gray-400">Cadastre os membros da equipe e defina seus cargos para uso nas comissões.</p>
-      </div>
+  const assignSupportMaterialToConsultant = useCallback(async (material_id: string, consultant_id: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('support_material_assignments').insert({ material_id, consultant_id }).select('*').single();
+    if (error) throw error;
+    setSupportMaterialAssignments(prev => [...prev, data]);
+    return data;
+  }, [user]);
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div className="md:col-span-1">
-              <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm sticky top-8">
-                  <h2 className="font-semibold text-gray-900 dark:text-white mb-4">Adicionar Membro</h2>
-                  <form onSubmit={handleAdd} className="space-y-4">
-                      <div>
-                          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Nome Completo</label>
-                          <input 
-                            type="text" 
-                            required
-                            className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500 placeholder:text-gray-500 dark:placeholder:text-gray-400"
-                            placeholder="Ex: João Silva"
-                            value={newName}
-                            onChange={e => setNewName(e.target.value)}
-                          />
-                      </div>
-                      <div>
-                          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">E-mail</label>
-                          <div className="relative">
-                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                            <input 
-                                type="email" 
-                                required
-                                className="w-full pl-10 border border-gray-300 dark:border-slate-600 rounded-lg p-2 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500 placeholder:text-gray-500 dark:placeholder:text-gray-400"
-                                placeholder="email@exemplo.com"
-                                value={newEmail}
-                                onChange={e => setNewEmail(e.target.value)}
-                            />
-                          </div>
-                      </div>
-                      <div>
-                          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">CPF</label>
-                          <input 
-                            type="text" 
-                            required
-                            className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500 placeholder:text-gray-500 dark:placeholder:text-gray-400"
-                            placeholder="000.000.000-00"
-                            value={newCpf}
-                            onChange={e => setNewCpf(formatCpf(e.target.value))}
-                            maxLength={14}
-                          />
-                      </div>
-                      {/* NOVO: Campo de Data de Nascimento */}
-                      <div>
-                          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Data de Nascimento (Opcional)</label>
-                          <div className="relative">
-                            <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                            <input 
-                                type="date" 
-                                className="w-full pl-10 border border-gray-300 dark:border-slate-600 rounded-lg p-2 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500"
-                                value={newDateOfBirth}
-                                onChange={e => setNewDateOfBirth(e.target.value)}
-                            />
-                          </div>
-                      </div>
-                      <div>
-                          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Cargos / Funções</label>
-                          <div className="space-y-2">
-                            {ALL_ROLES.map(role => (
-                                <label key={role} className="flex items-center space-x-2 cursor-pointer">
-                                    <input 
-                                        type="checkbox"
-                                        checked={newRoles.includes(role)}
-                                        onChange={() => handleRoleChange(role, newRoles, setNewRoles)}
-                                        className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
-                                    />
-                                    <span className="text-sm text-gray-700 dark:text-gray-300">{role}</span>
-                                </label>
-                            ))}
-                          </div>
-                      </div>
-                      <button type="submit" disabled={isAdding} className="w-full flex items-center justify-center space-x-2 bg-brand-600 hover:bg-brand-700 text-white py-2 rounded-lg transition font-medium disabled:opacity-50">
-                          {isAdding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                          <span>{isAdding ? 'Adicionando...' : 'Adicionar'}</span>
-                      </button>
-                  </form>
-              </div>
-          </div>
+  const unassignSupportMaterialFromConsultant = useCallback(async (material_id: string, consultant_id: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { error } = await supabase.from('support_material_assignments').delete().match({ material_id, consultant_id });
+    if (error) throw error;
+    setSupportMaterialAssignments(prev => prev.filter(a => !(a.material_id === material_id && a.consultant_id === consultant_id)));
+  }, [user]);
 
-          <div className="md:col-span-2">
-              <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
-                  <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
-                      <h3 className="font-semibold text-gray-900 dark:text-white">Membros da Equipe ({teamMembers.length})</h3>
-                  </div>
-                  <ul className="divide-y divide-gray-100 dark:divide-slate-700">
-                      {teamMembers.length === 0 ? (
-                          <li className="p-8 text-center text-gray-500 dark:text-gray-400">Nenhum membro cadastrado.</li>
-                      ) : (
-                          teamMembers.map(member => (
-                              <li key={member.id} className={`p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-slate-700/30 transition group ${!member.isActive ? 'opacity-60' : ''}`}>
-                                  {editingMember?.id === member.id ? (
-                                    <div className="flex-1 flex flex-col gap-3">
-                                      <input type="text" value={editingName} onChange={e => setEditingName(e.target.value)} className="w-full border-gray-300 dark:border-slate-600 rounded-md p-2 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400" />
-                                      <input type="email" value={editingEmail} onChange={e => setEditingEmail(e.target.value)} className="w-full border-gray-300 dark:border-slate-600 rounded-md p-2 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400" />
-                                      <input type="text" value={editingCpf} onChange={e => setEditingCpf(formatCpf(e.target.value))} maxLength={14} className="w-full border-gray-300 dark:border-slate-600 rounded-md p-2 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400" />
-                                      {/* NOVO: Campo de Data de Nascimento em edição */}
-                                      <div className="relative">
-                                        <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                        <input 
-                                            type="date" 
-                                            className="w-full pl-10 border border-gray-300 dark:border-slate-600 rounded-lg p-2 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500"
-                                            value={editingDateOfBirth}
-                                            onChange={e => setEditingDateOfBirth(e.target.value)}
-                                        />
-                                      </div>
-                                      <div className="grid grid-cols-2 gap-2">
-                                        {ALL_ROLES.map(role => (
-                                            <label key={role} className="flex items-center space-x-2 cursor-pointer">
-                                                <input type="checkbox" checked={editingRoles.includes(role)} onChange={() => handleRoleChange(role, editingRoles, setEditingRoles)} className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
-                                                <span className="text-sm text-gray-700 dark:text-gray-300">{role}</span>
-                                            </label>
-                                        ))}
-                                      </div>
-                                      <div className="flex justify-end gap-2 mt-2">
-                                        <button onClick={handleUpdate} disabled={isUpdating} className="px-3 py-1 bg-green-100 text-green-700 rounded text-sm font-medium hover:bg-green-200 disabled:opacity-50">
-                                            {isUpdating ? <Loader2 className="w-4 h-4 inline mr-1 animate-spin" /> : <Save className="w-4 h-4 inline mr-1" />}
-                                            Salvar
-                                        </button>
-                                        <button onClick={cancelEditing} className="px-3 py-1 bg-gray-100 text-gray-700 rounded text-sm font-medium hover:bg-gray-200"><X className="w-4 h-4 inline mr-1" />Cancelar</button>
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <>
-                                      <div className="flex items-center space-x-4">
-                                          <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-slate-700 flex items-center justify-center text-gray-500 dark:text-gray-400">
-                                              {member.roles && member.roles.length > 0 ? getRoleIcon(member.roles[0]) : <User className="w-4 h-4 text-gray-500" />}
-                                          </div>
-                                          <div>
-                                              <p className="font-medium text-gray-900 dark:text-white">{member.name}</p>
-                                              <div className="flex flex-wrap gap-1 mt-1">
-                                                {member.roles.map(role => (
-                                                    <span key={role} className={`text-xs px-2 py-0.5 rounded-full font-medium ${getRoleBadge(role)}`}>
-                                                        {role}
-                                                    </span>
-                                                ))}
-                                                {!member.isActive && <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300">Inativo</span>}
-                                              </div>
-                                              {member.email && (
-                                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Email: {member.email}</p>
-                                              )}
-                                              {member.cpf && (
-                                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">CPF: {formatCpf(member.cpf)}</p>
-                                              )}
-                                              {member.dateOfBirth && ( // NOVO: Exibir data de nascimento
-                                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Nascimento: {new Date(member.dateOfBirth + 'T00:00:00').toLocaleDateString('pt-BR')}</p>
-                                              )}
-                                          </div>
-                                      </div>
-                                      <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                        {/* Botão de Registrar Entrevista - AGORA SEM CONDIÇÕES DE CARGO OU CANDIDATO EXISTENTE */}
-                                          <button 
-                                            onClick={(e) => { e.stopPropagation(); handleOpenRecordInterviewModal(member); }} 
-                                            className="p-2 rounded-full text-gray-400 hover:text-brand-500 hover:bg-brand-50 dark:hover:bg-brand-900/20" 
-                                            title="Registrar Entrevista"
-                                          >
-                                            <CalendarPlus className="w-4 h-4" />
-                                          </button>
-                                        <button onClick={() => handleResetPassword(member)} className="p-2 rounded-full text-gray-400 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/20" title="Resetar Senha">
-                                            <KeyRound className="w-4 h-4" />
-                                        </button>
-                                        <button onClick={() => handleToggleActive(member)} className={`p-2 rounded-full ${member.isActive ? 'text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20' : 'text-gray-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20'}`} title={member.isActive ? 'Inativar' : 'Ativar'}>
-                                            <Archive className="w-4 h-4" />
-                                        </button>
-                                        <button onClick={() => startEditing(member)} className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full">
-                                          <Edit2 className="w-4 h-4" />
-                                        </button>
-                                        <button 
-                                          onClick={() => handleDelete(member.id)}
-                                          className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full"
-                                        >
-                                            <Trash2 className="w-5 h-5" />
-                                        </button>
-                                      </div>
-                                    </>
-                                  )}
-                              </li>
-                          ))
-                      )}
-                  </ul>
-              </div>
-          </div>
-      </div>
-      {showCredentialsModal && createdConsultantCredentials && (
-        <ConsultantCredentialsModal
-          isOpen={showCredentialsModal}
-          onClose={() => setShowCredentialsModal(false)}
-          consultantName={createdConsultantCredentials.name}
-          login={createdConsultantCredentials.login}
-          password={createdConsultantCredentials.password}
-          wasExistingUser={createdConsultantCredentials.wasExistingUser}
-        />
-      )}
-      {isRecordInterviewModalOpen && teamMemberToRecordInterview && (
-        <RecordTeamMemberInterviewModal
-          isOpen={isRecordInterviewModalOpen}
-          onClose={() => setIsRecordInterviewModalOpen(false)}
-          teamMember={teamMemberToRecordInterview}
-        />
-      )}
-    </div>
-  );
+  // Lead Task Functions
+  const addLeadTask = useCallback(async (task: Omit<LeadTask, 'id' | 'user_id' | 'created_at' | 'completed_at'>) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('lead_tasks').insert({ user_id: user.id, ...task }).select('*').single();
+    if (error) throw error;
+    setLeadTasks(prev => [...prev, data]);
+    return data;
+  }, [user]);
+
+  const updateLeadTask = useCallback(async (id: string, updates: Partial<LeadTask>) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('lead_tasks').update(updates).eq('id', id).select('*').single();
+    if (error) throw error;
+    setLeadTasks(prev => prev.map(task => task.id === id ? data : task));
+    return data;
+  }, [user]);
+
+  const deleteLeadTask = useCallback(async (id: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { error } = await supabase.from('lead_tasks').delete().eq('id', id);
+    if (error) throw error;
+    setLeadTasks(prev => prev.filter(task => task.id !== id));
+  }, [user]);
+
+  const toggleLeadTaskCompletion = useCallback(async (id: string, is_completed: boolean) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const completed_at = is_completed ? new Date().toISOString() : null;
+    const { data, error } = await supabase.from('lead_tasks').update({ is_completed, completed_at }).eq('id', id).select('*').single();
+    if (error) throw error;
+    setLeadTasks(prev => prev.map(task => task.id === id ? data : task));
+    return data;
+  }, [user]);
+
+  const updateLeadMeetingInvitationStatus = useCallback(async (taskId: string, status: 'accepted' | 'declined') => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('lead_tasks').update({ manager_invitation_status: status }).eq('id', taskId).eq('manager_id', user.id).select('*').single();
+    if (error) throw error;
+    setLeadTasks(prev => prev.map(task => task.id === taskId ? data : task));
+    return data;
+  }, [user]);
+
+  // Gestor Task Functions
+  const addGestorTask = useCallback(async (task: Omit<GestorTask, 'id' | 'user_id' | 'created_at' | 'is_completed'>) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('gestor_tasks').insert({ user_id: user.id, ...task, is_completed: false }).select('*').single();
+    if (error) throw error;
+    setGestorTasks(prev => [...prev, data]);
+    return data;
+  }, [user]);
+
+  const updateGestorTask = useCallback(async (id: string, updates: Partial<GestorTask>) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('gestor_tasks').update(updates).eq('id', id).eq('user_id', user.id).select('*').single();
+    if (error) throw error;
+    setGestorTasks(prev => prev.map(task => task.id === id ? data : task));
+    return data;
+  }, [user]);
+
+  const deleteGestorTask = useCallback(async (id: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { error } = await supabase.from('gestor_tasks').delete().eq('id', id).eq('user_id', user.id);
+    if (error) throw error;
+    setGestorTasks(prev => prev.filter(task => task.id !== id));
+    setGestorTaskCompletions(prev => prev.filter(completion => completion.gestor_task_id !== id));
+  }, [user]);
+
+  const toggleGestorTaskCompletion = useCallback(async (gestor_task_id: string, done: boolean, date: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+
+    const existingCompletion = gestorTaskCompletions.find(c =>
+      c.gestor_task_id === gestor_task_id &&
+      c.date === date &&
+      c.user_id === user.id
+    );
+
+    if (existingCompletion) {
+      const { data, error } = await supabase.from('gestor_task_completions').update({ done, updated_at: new Date().toISOString() }).eq('id', existingCompletion.id).select('*').single();
+      if (error) throw error;
+      setGestorTaskCompletions(prev => prev.map(c => c.id === existingCompletion.id ? data : c));
+    } else {
+      const { data, error } = await supabase.from('gestor_task_completions').insert({ gestor_task_id, user_id: user.id, date, done }).select('*').single();
+      if (error) throw error;
+      setGestorTaskCompletions(prev => [...prev, data]);
+    }
+  }, [user, gestorTaskCompletions]);
+
+  // Financial Entry Functions
+  const addFinancialEntry = useCallback(async (entry: Omit<FinancialEntry, 'id' | 'user_id' | 'created_at'>) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('financial_entries').insert({ user_id: user.id, ...entry }).select('*').single();
+    if (error) throw error;
+    setFinancialEntries(prev => [...prev, data]);
+    return data;
+  }, [user]);
+
+  const updateFinancialEntry = useCallback(async (id: string, updates: Partial<FinancialEntry>) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('financial_entries').update(updates).eq('id', id).eq('user_id', user.id).select('*').single();
+    if (error) throw error;
+    setFinancialEntries(prev => prev.map(entry => entry.id === id ? data : entry));
+    return data;
+  }, [user]);
+
+  const deleteFinancialEntry = useCallback(async (id: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { error } = await supabase.from('financial_entries').delete().eq('id', id).eq('user_id', user.id);
+    if (error) throw error;
+    setFinancialEntries(prev => prev.filter(entry => entry.id !== id));
+  }, [user]);
+
+  // Form Cadastros Functions
+  const getFormFilesForSubmission = useCallback((submissionId: string) => {
+    return formFiles.filter(file => file.submission_id === submissionId);
+  }, [formFiles]);
+
+  const updateFormCadastro = useCallback(async (id: string, updates: Partial<FormCadastro>) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('form_submissions').update(updates).eq('id', id).eq('user_id', JOAO_GESTOR_AUTH_ID).select('*').single();
+    if (error) throw error;
+    setFormCadastros(prev => prev.map(cadastro => cadastro.id === id ? data : cadastro));
+    return data;
+  }, [user]);
+
+  const deleteFormCadastro = useCallback(async (id: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+
+    // Delete associated files from storage and database first
+    const filesToDelete = formFiles.filter(f => f.submission_id === id);
+    for (const file of filesToDelete) {
+      const filePath = file.file_url.split('form_uploads/')[1];
+      if (filePath) {
+        await supabase.storage.from('form_uploads').remove([filePath]);
+      }
+      await supabase.from('form_files').delete().eq('id', file.id);
+    }
+
+    const { error } = await supabase.from('form_submissions').delete().eq('id', id).eq('user_id', JOAO_GESTOR_AUTH_ID);
+    if (error) throw error;
+    setFormCadastros(prev => prev.filter(cadastro => cadastro.id !== id));
+    setFormFiles(prev => prev.filter(file => file.submission_id !== id));
+  }, [user, formFiles]);
+
+  const addFeedback = useCallback(async (personId: string, feedback: Omit<Feedback, 'id'>) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const candidate = candidates.find(c => c.id === personId);
+    if (!candidate) throw new Error("Candidato não encontrado.");
+
+    const newFeedback = { ...feedback, id: crypto.randomUUID() };
+    const updatedFeedbacks = [...(candidate.feedbacks || []), newFeedback];
+
+    await updateCandidate(personId, { feedbacks: updatedFeedbacks });
+    return newFeedback;
+  }, [candidates, updateCandidate, user]);
+
+  const updateFeedback = useCallback(async (personId: string, feedback: Feedback) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const candidate = candidates.find(c => c.id === personId);
+    if (!candidate) throw new Error("Candidato não encontrado.");
+
+    const updatedFeedbacks = (candidate.feedbacks || []).map(f => f.id === feedback.id ? feedback : f);
+    await updateCandidate(personId, { feedbacks: updatedFeedbacks });
+    return feedback;
+  }, [candidates, updateCandidate, user]);
+
+  const deleteFeedback = useCallback(async (personId: string, feedbackId: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const candidate = candidates.find(c => c.id === personId);
+    if (!candidate) throw new Error("Candidato não encontrado.");
+
+    const updatedFeedbacks = (candidate.feedbacks || []).filter(f => f.id !== feedbackId);
+    await updateCandidate(personId, { feedbacks: updatedFeedbacks });
+  }, [candidates, updateCandidate, user]);
+
+  const addTeamMemberFeedback = useCallback(async (teamMemberId: string, feedback: Omit<Feedback, 'id'>) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const member = teamMembers.find(m => m.id === teamMemberId);
+    if (!member || !member.db_id) throw new Error("Membro da equipe não encontrado.");
+
+    const newFeedback = { ...feedback, id: crypto.randomUUID() };
+    const updatedFeedbacks = [...(member.feedbacks || []), newFeedback];
+    const updatedData = { ...member.data, feedbacks: updatedFeedbacks };
+
+    const { error } = await supabase
+      .from('team_members')
+      .update({ data: updatedData })
+      .match({ id: member.db_id, user_id: JOAO_GESTOR_AUTH_ID });
+
+    if (error) {
+      console.error("Error adding team member feedback:", error);
+      toast.error("Erro ao adicionar feedback do membro da equipe.");
+      throw error;
+    }
+    setTeamMembers(prev => prev.map(m => m.id === teamMemberId ? { ...m, feedbacks: updatedFeedbacks } : m));
+    return newFeedback;
+  }, [teamMembers, user]);
+
+  const updateTeamMemberFeedback = useCallback(async (teamMemberId: string, feedback: Feedback) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const member = teamMembers.find(m => m.id === teamMemberId);
+    if (!member || !member.db_id) throw new Error("Membro da equipe não encontrado.");
+
+    const updatedFeedbacks = (member.feedbacks || []).map(f => f.id === feedback.id ? feedback : f);
+    const updatedData = { ...member.data, feedbacks: updatedFeedbacks };
+
+    const { error } = await supabase
+      .from('team_members')
+      .update({ data: updatedData })
+      .match({ id: member.db_id, user_id: JOAO_GESTOR_AUTH_ID });
+
+    if (error) {
+      console.error("Error updating team member feedback:", error);
+      toast.error("Erro ao atualizar feedback do membro da equipe.");
+      throw error;
+    }
+    setTeamMembers(prev => prev.map(m => m.id === teamMemberId ? { ...m, feedbacks: updatedFeedbacks } : m));
+    return feedback;
+  }, [teamMembers, user]);
+
+  const deleteTeamMemberFeedback = useCallback(async (teamMemberId: string, feedbackId: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const member = teamMembers.find(m => m.id === teamMemberId);
+    if (!member || !member.db_id) throw new Error("Membro da equipe não encontrado.");
+
+    const updatedFeedbacks = (member.feedbacks || []).filter(f => f.id !== feedbackId);
+    const updatedData = { ...member.data, feedbacks: updatedFeedbacks };
+
+    const { error } = await supabase
+      .from('team_members')
+      .update({ data: updatedData })
+      .match({ id: member.db_id, user_id: JOAO_GESTOR_AUTH_ID });
+
+    if (error) {
+      console.error("Error deleting team member feedback:", error);
+      toast.error("Erro ao excluir feedback do membro da equipe.");
+      throw error;
+    }
+    setTeamMembers(prev => prev.map(m => m.id === teamMemberId ? { ...m, feedbacks: updatedFeedbacks } : m));
+  }, [teamMembers, user]);
+
+
+  const value = useMemo(() => ({
+    isDataLoading,
+    candidates,
+    teamMembers,
+    commissions,
+    supportMaterials,
+    // importantLinks, // REMOVIDO
+    cutoffPeriods,
+    onboardingSessions,
+    onboardingTemplateVideos,
+    checklistStructure,
+    consultantGoalsStructure,
+    interviewStructure,
+    templates,
+    origins,
+    interviewers,
+    pvs,
+    crmPipelines,
+    crmStages,
+    crmFields,
+    crmLeads,
+    crmOwnerUserId,
+    dailyChecklists,
+    dailyChecklistItems,
+    dailyChecklistAssignments,
+    dailyChecklistCompletions,
+    weeklyTargets,
+    weeklyTargetItems,
+    weeklyTargetAssignments,
+    metricLogs,
+    supportMaterialsV2,
+    supportMaterialAssignments,
+    leadTasks,
+    gestorTasks,
+    gestorTaskCompletions,
+    financialEntries,
+    formCadastros,
+    formFiles,
+    notifications,
+    theme,
+    toggleTheme,
+    addCandidate,
+    getCandidate,
+    updateCandidate,
+    deleteCandidate,
+    toggleChecklistItem,
+    setChecklistDueDate,
+    toggleConsultantGoal,
+    addChecklistItem,
+    updateChecklistItem,
+    deleteChecklistItem,
+    moveChecklistItem,
+    resetChecklistToDefault,
+    addGoalItem,
+    updateGoalItem,
+    deleteGoalItem,
+    moveGoalItem,
+    resetGoalsToDefault,
+    updateInterviewSection,
+    addInterviewQuestion,
+    updateInterviewQuestion,
+    deleteInterviewQuestion,
+    moveInterviewQuestion,
+    resetInterviewToDefault,
+    saveTemplate,
+    addOrigin,
+    deleteOrigin,
+    resetOriginsToDefault,
+    addPV,
+    addCommission,
+    updateCommission,
+    deleteCommission,
+    updateInstallmentStatus,
+    addCutoffPeriod,
+    updateCutoffPeriod,
+    deleteCutoffPeriod,
+    addOnlineOnboardingSession,
+    deleteOnlineOnboardingSession,
+    addVideoToTemplate,
+    deleteVideoFromTemplate,
+    addCrmPipeline,
+    updateCrmPipeline,
+    deleteCrmPipeline,
+    addCrmStage,
+    updateCrmStage,
+    updateCrmStageOrder,
+    deleteCrmStage,
+    addCrmField,
+    updateCrmField,
+    addCrmLead,
+    updateCrmLead,
+    updateCrmLeadStage,
+    deleteCrmLead,
+    addDailyChecklist,
+    updateDailyChecklist,
+    deleteDailyChecklist,
+    addDailyChecklistItem,
+    updateDailyChecklistItem,
+    deleteDailyChecklistItem,
+    moveDailyChecklistItem,
+    assignDailyChecklistToConsultant,
+    unassignDailyChecklistFromConsultant,
+    toggleDailyChecklistCompletion,
+    addWeeklyTarget,
+    updateWeeklyTarget,
+    deleteWeeklyTarget,
+    addWeeklyTargetItem,
+    updateWeeklyTargetItem,
+    deleteWeeklyTargetItem,
+    updateWeeklyTargetItemOrder,
+    assignWeeklyTargetToConsultant,
+    unassignWeeklyTargetFromConsultant,
+    addMetricLog,
+    updateMetricLog,
+    deleteMetricLog,
+    addSupportMaterialV2,
+    updateSupportMaterialV2,
+    deleteSupportMaterialV2,
+    assignSupportMaterialToConsultant,
+    unassignSupportMaterialFromConsultant,
+    addLeadTask,
+    updateLeadTask,
+    deleteLeadTask,
+    toggleLeadTaskCompletion,
+    updateLeadMeetingInvitationStatus,
+    addGestorTask,
+    updateGestorTask,
+    deleteGestorTask,
+    toggleGestorTaskCompletion,
+    isGestorTaskDueOnDate,
+    addFinancialEntry,
+    updateFinancialEntry,
+    deleteFinancialEntry,
+    getFormFilesForSubmission,
+    updateFormCadastro,
+    deleteFormCadastro,
+    addFeedback,
+    updateFeedback,
+    deleteFeedback,
+    addTeamMemberFeedback,
+    updateTeamMemberFeedback,
+    deleteTeamMemberFeedback,
+    refetchCommissions,
+  }), [
+    isDataLoading, candidates, teamMembers, commissions, supportMaterials, cutoffPeriods, onboardingSessions, onboardingTemplateVideos,
+    checklistStructure, consultantGoalsStructure, interviewStructure, templates, origins, interviewers, pvs,
+    crmPipelines, crmStages, crmFields, crmLeads, crmOwnerUserId,
+    dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions,
+    weeklyTargets, weeklyTargetItems, weeklyTargetAssignments, metricLogs,
+    supportMaterialsV2, supportMaterialAssignments, leadTasks, gestorTasks, gestorTaskCompletions,
+    financialEntries, formCadastros, formFiles, notifications,
+    theme, toggleTheme, addCandidate, getCandidate, updateCandidate, deleteCandidate, toggleChecklistItem, setChecklistDueDate,
+    toggleConsultantGoal, addChecklistItem, updateChecklistItem, deleteChecklistItem, moveChecklistItem, resetChecklistToDefault,
+    addGoalItem, updateGoalItem, deleteGoalItem, moveGoalItem, resetGoalsToDefault,
+    updateInterviewSection, addInterviewQuestion, updateInterviewQuestion, deleteInterviewQuestion, moveInterviewQuestion, resetInterviewToDefault,
+    saveTemplate, addOrigin, deleteOrigin, resetOriginsToDefault, addPV,
+    addCommission, updateCommission, deleteCommission, updateInstallmentStatus,
+    addCutoffPeriod, updateCutoffPeriod, deleteCutoffPeriod,
+    addOnlineOnboardingSession, deleteOnlineOnboardingSession, addVideoToTemplate, deleteVideoFromTemplate,
+    addCrmPipeline, updateCrmPipeline, deleteCrmPipeline, addCrmStage, updateCrmStage, updateCrmStageOrder, deleteCrmStage,
+    addCrmField, updateCrmField, addCrmLead, updateCrmLead, updateCrmLeadStage, deleteCrmLead,
+    addDailyChecklist, updateDailyChecklist, deleteDailyChecklist, addDailyChecklistItem, updateDailyChecklistItem, deleteDailyChecklistItem, moveDailyChecklistItem,
+    assignDailyChecklistToConsultant, unassignDailyChecklistFromConsultant, toggleDailyChecklistCompletion,
+    addWeeklyTarget, updateWeeklyTarget, deleteWeeklyTarget, addWeeklyTargetItem, updateWeeklyTargetItem, deleteWeeklyTargetItem, updateWeeklyTargetItemOrder,
+    assignWeeklyTargetToConsultant, unassignWeeklyTargetFromConsultant, addMetricLog, updateMetricLog, deleteMetricLog,
+    addSupportMaterialV2, updateSupportMaterialV2, deleteSupportMaterialV2, assignSupportMaterialToConsultant, unassignSupportMaterialFromConsultant,
+    addLeadTask, updateLeadTask, deleteLeadTask, toggleLeadTaskCompletion, updateLeadMeetingInvitationStatus,
+    addGestorTask, updateGestorTask, deleteGestorTask, toggleGestorTaskCompletion, isGestorTaskDueOnDate,
+    addFinancialEntry, updateFinancialEntry, deleteFinancialEntry,
+    getFormFilesForSubmission, updateFormCadastro, deleteFormCadastro,
+    addFeedback, updateFeedback, deleteFeedback, addTeamMemberFeedback, updateTeamMemberFeedback, deleteTeamMemberFeedback,
+    refetchCommissions,
+  ]);
+
+  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+};
+
+export const useApp = () => {
+  const context = useContext(AppContext);
+  if (context === undefined) {
+    throw new Error('useApp must be used within an AppProvider');
+  }
+  return context;
 };

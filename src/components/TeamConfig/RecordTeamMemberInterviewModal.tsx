@@ -29,11 +29,12 @@ interface RecordTeamMemberInterviewModalProps {
 }
 
 export const RecordTeamMemberInterviewModal: React.FC<RecordTeamMemberInterviewModalProps> = ({ isOpen, onClose, teamMember }) => {
-  const { addCandidate, teamMembers } = useApp();
+  const { addCandidate, teamMembers, origins } = useApp(); // Adicionado origins
   const navigate = useNavigate();
 
   const [interviewDate, setInterviewDate] = useState(new Date().toISOString().split('T')[0]);
   const [responsibleUserId, setResponsibleUserId] = useState('');
+  const [candidateOrigin, setCandidateOrigin] = useState(''); // NOVO: Estado para a origem
   const [isSaving, setIsSaving] = useState(false);
   const [savedCandidate, setSavedCandidate] = useState<Candidate | null>(null);
 
@@ -45,14 +46,15 @@ export const RecordTeamMemberInterviewModal: React.FC<RecordTeamMemberInterviewM
     if (isOpen) {
       setInterviewDate(new Date().toISOString().split('T')[0]);
       setResponsibleUserId(''); // Reset responsible user on open
+      setCandidateOrigin(''); // Resetar origem
       setSavedCandidate(null);
     }
   }, [isOpen, teamMember]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!interviewDate || !responsibleUserId) {
-      alert('A data da entrevista e o responsável são obrigatórios.');
+    if (!interviewDate || !responsibleUserId || !candidateOrigin) { // Validação da origem
+      alert('A data da entrevista, o responsável e a origem são obrigatórios.');
       return;
     }
     setIsSaving(true);
@@ -61,26 +63,24 @@ export const RecordTeamMemberInterviewModal: React.FC<RecordTeamMemberInterviewM
       basicProfile: 0, commercialSkills: 0, behavioralProfile: 0, jobFit: 0, notes: ''
     };
 
-    const newCandidate: Candidate = {
-      id: crypto.randomUUID(),
+    const newCandidate: Omit<Candidate, 'id' | 'createdAt' | 'db_id'> = { // Usar Omit para o tipo
       name: teamMember.name,
       phone: '', // Phone is not available on TeamMember directly, can be added later
       interviewDate: interviewDate,
       interviewer: 'Não definido', // Can be updated later
-      origin: 'Não definida', // Can be updated later
+      origin: candidateOrigin, // NOVO: Salva a origem
       status: 'Entrevista',
       interviewScores: emptyScores,
       checkedQuestions: {},
       checklistProgress: {},
       consultantGoalsProgress: {},
       feedbacks: [],
-      createdAt: new Date().toISOString(),
       responsibleUserId: responsibleUserId,
     };
 
     try {
-      await addCandidate(newCandidate);
-      setSavedCandidate(newCandidate);
+      const addedCandidate = await addCandidate(newCandidate); // addCandidate agora retorna o Candidate completo
+      setSavedCandidate(addedCandidate);
     } catch (error: any) {
       alert(`Erro ao registrar entrevista: ${error.message}`);
     } finally {
@@ -134,6 +134,29 @@ export const RecordTeamMemberInterviewModal: React.FC<RecordTeamMemberInterviewM
                   required
                   className="pl-10 bg-white text-gray-900 dark:bg-slate-700 dark:text-white dark:border-slate-600 placeholder:text-gray-500 dark:placeholder:text-gray-400"
                 />
+              </div>
+              {/* NOVO: Campo de seleção para a Origem */}
+              <div>
+                <Label htmlFor="candidateOrigin" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Origem do Candidato *</Label>
+                <div className="relative">
+                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Select
+                    value={candidateOrigin}
+                    onValueChange={(value) => setCandidateOrigin(value)}
+                    required
+                  >
+                    <SelectTrigger className="w-full pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600">
+                      <SelectValue placeholder="Selecione a origem" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
+                      {origins.map(origin => (
+                        <SelectItem key={origin} value={origin}>
+                          {origin}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
               <div>
                 <Label htmlFor="responsibleUser" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Indicado por (Responsável) *</Label>
