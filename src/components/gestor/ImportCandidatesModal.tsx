@@ -55,15 +55,15 @@ export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
     let successCount = 0;
     let failCount = 0;
 
-    const lines = pastedData.split('\n').filter(line => line.trim() !== '');
+    const allLines = pastedData.split('\n').filter(line => line.trim() !== '');
     
-    if (lines.length === 0) {
+    if (allLines.length === 0) {
       toast.error("Nenhum dado para importar. Cole os dados da sua planilha.");
       setIsProcessing(false);
       return;
     }
 
-    const firstLine = lines[0];
+    const firstLine = allLines[0];
     const tabCount = (firstLine.match(/\t/g) || []).length;
     const commaCount = (firstLine.match(/,/g) || []).length;
     
@@ -72,26 +72,39 @@ export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
       delimiter = '\t';
     }
 
-    const headers = firstLine.split(delimiter).map(h => h.trim().toLowerCase());
-    const dataLines = lines.slice(1);
+    let headers: string[] = [];
+    let dataLines: string[] = [];
+    let hasHeader = false;
 
-    if (dataLines.length === 0) { // Only headers were pasted
-      setParseError("Nenhum dado de candidato encontrado após os cabeçalhos. Por favor, cole as linhas de dados.");
+    // Heuristic to detect if the first line is a header
+    const lowerCaseFirstLine = firstLine.toLowerCase();
+    if (lowerCaseFirstLine.includes('nome') && lowerCaseFirstLine.includes('status')) {
+      hasHeader = true;
+      headers = firstLine.split(delimiter).map(h => h.trim().toLowerCase());
+      dataLines = allLines.slice(1);
+    } else {
+      // If no header, assume default headers and all lines are data
+      headers = ['nome', 'status']; // Hardcode expected headers
+      dataLines = allLines;
+    }
+
+    if (dataLines.length === 0) {
+      setParseError(hasHeader ? "Nenhum dado de candidato encontrado após os cabeçalhos. Por favor, cole as linhas de dados." : "Nenhum dado de candidato válido encontrado.");
       setIsProcessing(false);
       return;
     }
 
-    // Identify column indices for auto-detection (only name and status)
+    // Identify column indices based on detected/assumed headers
     const nameIndex = headers.findIndex(h => h.includes('nome'));
     const statusIndex = headers.findIndex(h => h.includes('status') || h.includes('triagem'));
 
     if (nameIndex === -1) {
-      setParseError("Coluna 'Nome' não encontrada nos cabeçalhos. Verifique o formato.");
+      setParseError("Coluna 'Nome' não encontrada nos dados. Verifique o formato.");
       setIsProcessing(false);
       return;
     }
     if (statusIndex === -1) {
-      setParseError("Coluna 'Status' ou 'Triagem' não encontrada nos cabeçalhos. Verifique o formato.");
+      setParseError("Coluna 'Status' ou 'Triagem' não encontrada nos dados. Verifique o formato.");
       setIsProcessing(false);
       return;
     }
@@ -107,10 +120,10 @@ export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
         checklistProgress: {},
         consultantGoalsProgress: {},
         feedbacks: [],
-        phone: '', // Explicitly set to empty string
-        email: '', // Explicitly set to empty string
-        origin: '', // Explicitly set to empty string
-        responsibleUserId: undefined, // Explicitly set to undefined
+        phone: '', 
+        email: '', 
+        origin: '', 
+        responsibleUserId: undefined, 
       };
       let recordIsValid = true;
       const currentRecordErrors: string[] = [];
@@ -136,8 +149,6 @@ export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
         currentRecordErrors.push("Status de triagem ausente.");
         recordIsValid = false;
       }
-
-      // No auto-detection for other fields, they will remain at their default empty/undefined values.
 
       // Validate required fields
       requiredFields.forEach(field => {
