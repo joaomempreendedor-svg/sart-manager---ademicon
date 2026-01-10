@@ -18,6 +18,7 @@ import { PublicOnboarding } from '@/pages/PublicOnboarding';
 import { Home } from '@/pages/Home';
 import { Loader2, RefreshCw } from 'lucide-react';
 import { PendingApproval } from '@/pages/PendingApproval';
+import { PublicForm } from '@/pages/PublicForm'; // NOVO: Importar PublicForm
 
 // Gestor Pages
 import { Dashboard } from '@/pages/Dashboard';
@@ -144,6 +145,7 @@ const AppRoutes = () => {
       <Route path="/update-password" element={<UpdatePassword />} />
       <Route path="/onboarding/:sessionId" element={<PublicOnboarding />} />
       <Route path="/pending-approval" element={<PendingApproval />} />
+      <Route path="/public-form" element={<PublicForm />} /> {/* NOVO: Rota para o formulário público */}
       
       {/* Authenticated Routes - ALL authenticated routes should be nested under RequireAuth */}
       <Route element={<RequireAuth allowedRoles={['GESTOR', 'ADMIN', 'CONSULTOR']} />}>
