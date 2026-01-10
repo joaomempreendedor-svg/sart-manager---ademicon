@@ -394,4 +394,23 @@ export interface FinancialEntry {
   created_at: string;
 }
 
+// NOVO: Tipos para Submissões de Formulário Público
+export interface FormSubmission {
+  id: string;
+  user_id: string; // ID do gestor que gerencia este formulário
+  submission_date: string; // TIMESTAMP WITH TIME ZONE
+  data: Record<string, any>; // Dados do formulário
+  internal_notes?: string;
+  is_complete: boolean; // Se todos os documentos foram enviados/verificados
+}
+
+export interface FormFile {
+  id: string;
+  submission_id: string;
+  field_name: string; // Nome do campo do formulário (ex: 'documento_identificacao')
+  file_name: string;
+  file_url: string;
+  uploaded_at: string;
+}
+
 // --- FIM DOS NOVOS TIPOS ---

@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
-import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, CommissionStatus, InstallmentInfo, CutoffPeriod, Feedback, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask, SupportMaterialContentType, DailyChecklistItemResource, DailyChecklistItemResourceType, GestorTask, GestorTaskCompletion, FinancialEntry } from '@/types';
+import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, CommissionStatus, InstallmentInfo, CutoffPeriod, Feedback, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask, SupportMaterialContentType, DailyChecklistItemResource, DailyChecklistItemResourceType, GestorTask, GestorTaskCompletion, FinancialEntry, FormSubmission, FormFile } from '@/types';
 import { CHECKLIST_STAGES as DEFAULT_STAGES } from '@/data/checklistData';
 import { CONSULTANT_GOALS as DEFAULT_GOALS } from '@/data/consultantGoals';
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
@@ -120,6 +120,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // NOVO: Entradas e Saídas Financeiras
   const [financialEntries, setFinancialEntries] = useState<FinancialEntry[]>([]);
 
+  // NOVO: Submissões de Formulário Público
+  const [formSubmissions, setFormSubmissions] = useState<FormSubmission[]>([]);
+  const [formFiles, setFormFiles] = useState<FormFile[]>([]);
+
 
   const [theme, setTheme] = useState<'light' | 'dark'>(() => (localStorage.getItem('sart_theme') as 'light' | 'dark') || 'light');
 
@@ -211,6 +215,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setGestorTasks([]); // Reset gestor tasks
     setGestorTaskCompletions([]); // Reset gestor task completions
     setFinancialEntries([]); // NOVO: Reset financial entries
+    setFormSubmissions([]); // NOVO: Reset form submissions
+    setFormFiles([]); // NOVO: Reset form files
     setIsDataLoading(false);
   };
 
@@ -351,6 +357,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           gestorTasksData, // Fetch gestor tasks
           gestorTaskCompletionsData, // NOVO: Fetch gestor task completions
           financialEntriesData, // NOVO: Fetch financial entries
+          formSubmissionsData, // NOVO: Fetch form submissions
+          formFilesData, // NOVO: Fetch form files
         ] = await Promise.all([
           (async () => { try { return await supabase.from('app_config').select('data').eq('user_id', effectiveGestorId).maybeSingle(); } catch (e) { console.error("Error fetching app_config:", e); return { data: null, error: e }; } })(),
           (async () => { try { return await supabase.from('candidates').select('id, data').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching candidates:", e); return { data: [], error: e }; } })(),
@@ -393,6 +401,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           (async () => { try { return await supabase.from('gestor_tasks').select('*').eq('user_id', userId); } catch (e) { console.error("Error fetching gestor_tasks:", e); return { data: [], error: e }; } })(), // Fetch gestor tasks
           (async () => { try { return await supabase.from('gestor_task_completions').select('*').eq('user_id', userId); } catch (e) { console.error("Error fetching gestor_task_completions:", e); return { data: [], error: e }; } })(), // NOVO: Fetch gestor task completions
           (async () => { try { return await supabase.from('financial_entries').select('*').eq('user_id', userId); } catch (e) { console.error("Error fetching financial_entries:", e); return { data: [], error: e }; } })(), // NOVO: Fetch financial entries
+          (async () => { try { return await supabase.from('form_submissions').select('*').eq('user_id', effectiveGestorId).order('submission_date', { ascending: false }); } catch (e) { console.error("Error fetching form_submissions:", e); return { data: [], error: e }; } })(), // NOVO: Fetch form submissions
+          (async () => { try { return await supabase.from('form_files').select('*'); } catch (e) { console.error("Error fetching form_files:", e); return { data: [], error: e }; } })(), // NOVO: Fetch form files
         ]);
 
         if (configResult.error) console.error("Config error:", configResult.error);
@@ -420,6 +430,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (gestorTasksData.error) console.error("Gestor Tasks error:", gestorTasksData.error);
         if (gestorTaskCompletionsData.error) console.error("Gestor Task Completions error:", gestorTaskCompletionsData.error); // NOVO: Log de erro
         if (financialEntriesData.error) console.error("Financial Entries error:", financialEntriesData.error); // NOVO: Log de erro
+        if (formSubmissionsData.error) console.error("Form Submissions error:", formSubmissionsData.error); // NOVO: Log de erro
+        if (formFilesData.error) console.error("Form Files error:", formFilesData.error); // NOVO: Log de erro
 
 
         if (configResult.data) {
@@ -547,6 +559,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           amount: parseFloat(entry.amount), // Ensure amount is a number
           created_at: entry.created_at,
         })) || []); // NOVO: Set financial entries
+        setFormSubmissions(formSubmissionsData?.data || []); // NOVO: Set form submissions
+        setFormFiles(formFilesData?.data || []); // NOVO: Set form files
         
         refetchCommissions();
 
@@ -750,12 +764,65 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         })
         .subscribe();
 
+    // NOVO: Realtime para form_submissions
+    const formSubmissionsChannel = supabase
+        .channel('form_submissions_changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'form_submissions' }, (payload) => {
+            console.log('Form Submission Change (Realtime):', payload);
+            toast.info(`📄 Nova submissão de formulário em tempo real!`);
+            const newSubmissionData: FormSubmission = {
+                id: payload.new.id,
+                user_id: payload.new.user_id,
+                submission_date: payload.new.submission_date,
+                data: payload.new.data,
+                internal_notes: payload.new.internal_notes,
+                is_complete: payload.new.is_complete,
+            };
+
+            if (payload.eventType === 'INSERT') {
+                setFormSubmissions(prev => [newSubmissionData, ...prev]);
+            } else if (payload.eventType === 'UPDATE') {
+                setFormSubmissions(prev => prev.map(sub => sub.id === newSubmissionData.id ? newSubmissionData : sub));
+            } else if (payload.eventType === 'DELETE') {
+                setFormSubmissions(prev => prev.filter(sub => sub.id !== payload.old.id));
+            }
+        })
+        .subscribe();
+
+    // NOVO: Realtime para form_files
+    const formFilesChannel = supabase
+        .channel('form_files_changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'form_files' }, (payload) => {
+            console.log('Form File Change (Realtime):', payload);
+            toast.info(`📎 Arquivo de formulário atualizado em tempo real!`);
+            const newFileData: FormFile = {
+                id: payload.new.id,
+                submission_id: payload.new.submission_id,
+                field_name: payload.new.field_name,
+                file_name: payload.new.file_name,
+                file_url: payload.new.file_url,
+                uploaded_at: payload.new.uploaded_at,
+            };
+
+            if (payload.eventType === 'INSERT') {
+                setFormFiles(prev => [...prev, newFileData]);
+            } else if (payload.eventType === 'UPDATE') {
+                setFormFiles(prev => prev.map(file => file.id === newFileData.id ? newFileData : file));
+            } else if (payload.eventType === 'DELETE') {
+                setFormFiles(prev => prev.filter(file => file.id !== payload.old.id));
+            }
+        })
+        .subscribe();
+
+
     return () => {
         supabase.removeChannel(leadsChannel);
         supabase.removeChannel(tasksChannel);
         supabase.removeChannel(gestorTasksChannel);
         supabase.removeChannel(gestorTaskCompletionsChannel); // NOVO: Remover canal
         supabase.removeChannel(financialEntriesChannel); // NOVO: Remover canal
+        supabase.removeChannel(formSubmissionsChannel); // NOVO: Remover canal
+        supabase.removeChannel(formFilesChannel); // NOVO: Remover canal
     };
   }, [user, crmOwnerUserId]); // Depende de user e crmOwnerUserId para re-inscrever se eles mudarem
 
@@ -2007,6 +2074,37 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setFinancialEntries(prev => prev.filter(entry => entry.id !== id));
   }, [user]);
 
+  // NOVO: Funções para Form Submissions
+  const getFormSubmission = useCallback((id: string) => formSubmissions.find(s => s.id === id), [formSubmissions]);
+  const getFormFilesForSubmission = useCallback((submissionId: string) => formFiles.filter(f => f.submission_id === submissionId), [formFiles]);
+
+  const updateFormSubmission = useCallback(async (id: string, updates: Partial<FormSubmission>) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { error } = await supabase.from('form_submissions').update(updates).eq('id', id).eq('user_id', JOAO_GESTOR_AUTH_ID);
+    if (error) { console.error(error); toast.error("Erro ao atualizar submissão do formulário."); throw error; }
+    setFormSubmissions(prev => prev.map(sub => sub.id === id ? { ...sub, ...updates } : sub));
+  }, [user]);
+
+  const deleteFormSubmission = useCallback(async (id: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    // Primeiro, exclua os arquivos associados do storage e da tabela form_files
+    const filesToDelete = formFiles.filter(f => f.submission_id === id);
+    for (const file of filesToDelete) {
+      const filePath = file.file_url.split('/form_uploads/')[1];
+      if (filePath) {
+        const { error: storageError } = await supabase.storage.from('form_uploads').remove([filePath]);
+        if (storageError) console.error(`Erro ao deletar arquivo ${file.file_name} do storage:`, storageError.message);
+      }
+      await supabase.from('form_files').delete().eq('id', file.id);
+    }
+
+    // Em seguida, exclua a submissão
+    const { error } = await supabase.from('form_submissions').delete().eq('id', id).eq('user_id', JOAO_GESTOR_AUTH_ID);
+    if (error) { console.error(error); toast.error("Erro ao excluir submissão do formulário."); throw error; }
+    setFormSubmissions(prev => prev.filter(sub => sub.id !== id));
+    setFormFiles(prev => prev.filter(file => file.submission_id !== id));
+  }, [user, formFiles]);
+
 
   useEffect(() => { if (!user) return; const syncPendingCommissions = async () => { const pending = JSON.parse(localStorage.getItem('pending_commissions') || '[]') as any[]; if (pending.length === 0) return; for (const item of pending) { try { const { _localId, _timestamp, _attempts, ...cleanData } = item; const { data, error } = await supabase.from('commissions').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: cleanData }).select('id', 'created_at').maybeSingle(); if (!error && data) { setCommissions(prev => prev.map(c => c.db_id === _localId ? { ...c, db_id: data.id.toString(), criado_em: data.created_at } : c)); const updated = pending.filter((p: any) => p._localId !== _localId); localStorage.setItem('pending_commissions', JSON.stringify(updated)); } } catch (error) { console.log(`❌ Falha ao sincronizar ${item._localId}`); toast.error(`Falha ao sincronizar comissão ${item._localId}.`); } } }; const interval = setInterval(syncPendingCommissions, 2 * 60 * 1000); setTimeout(syncPendingCommissions, 5000); return () => clearInterval(interval); }, [user]);
 
@@ -2040,6 +2138,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       gestorTasks, addGestorTask, updateGestorTask, deleteGestorTask, gestorTaskCompletions, toggleGestorTaskCompletion, // NOVO: Adicionado gestorTaskCompletions e toggleGestorTaskCompletion
       isGestorTaskDueOnDate, // NOVO: Adicionado isGestorTaskDueOnDate
       financialEntries, addFinancialEntry, updateFinancialEntry, deleteFinancialEntry, // NOVO: Adicionado financial entries
+      formSubmissions, formFiles, getFormSubmission, getFormFilesForSubmission, updateFormSubmission, deleteFormSubmission, // NOVO: Adicionado form submissions e funções
     }}>
       {children}
     </AppContext.Provider>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, MessageSquare, Settings, FileText, Sun, Moon, Banknote, PlusCircle, Library, TrendingUp, Target, Users, LogOut, User as UserIcon, Calendar, Star, Video, ListChecks, ClipboardCheck, UserPlus, ChevronLeft, ChevronRight, ChevronDown, UserSearch, BarChart3, UserCog, MapPin, DollarSign } from 'lucide-react'; // Adicionado DollarSign
+import { LayoutDashboard, MessageSquare, Settings, FileText, Sun, Moon, Banknote, PlusCircle, Library, TrendingUp, Target, Users, LogOut, User as UserIcon, Calendar, Star, Video, ListChecks, ClipboardCheck, UserPlus, ChevronLeft, ChevronRight, ChevronDown, UserSearch, BarChart3, UserCog, MapPin, DollarSign, FileStack } from 'lucide-react'; // Adicionado FileStack
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 
@@ -96,7 +96,7 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
                 <Banknote className="w-5 h-5" />
                 <span>Comissões</span>
               </NavLink>
-              <NavLink to="/gestor/financial-panel" className={linkClass} onClick={toggleSidebar}> {/* NOVO: Link para FinancialPanel */}
+              <NavLink to="/gestor/financial-panel" className={linkClass} onClick={toggleSidebar}>
                 <DollarSign className="w-5 h-5" />
                 <span>Painel Financeiro</span>
               </NavLink>
@@ -111,6 +111,10 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
               <NavLink to="/gestor/daily-checklist-monitoring" className={linkClass} onClick={toggleSidebar}>
                 <ClipboardCheck className="w-5 h-5" />
                 <span>Monitorar Metas Diárias</span>
+              </NavLink>
+              <NavLink to="/gestor/form-submissions" className={linkClass} onClick={toggleSidebar}> {/* NOVO: Link para FormSubmissions */}
+                <FileStack className="w-5 h-5" />
+                <span>Gerenciar Formulários</span>
               </NavLink>
             </>
           )}
@@ -137,7 +141,7 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
               <NavLink to="/gestor/commissions" className={linkClass} onClick={toggleSidebar} title="Comissões">
                 <Banknote className="w-5 h-5" />
               </NavLink>
-              <NavLink to="/gestor/financial-panel" className={linkClass} onClick={toggleSidebar} title="Painel Financeiro"> {/* NOVO: Link para FinancialPanel */}
+              <NavLink to="/gestor/financial-panel" className={linkClass} onClick={toggleSidebar} title="Painel Financeiro">
                 <DollarSign className="w-5 h-5" />
               </NavLink>
               <NavLink to="/gestor/feedbacks" className={linkClass} onClick={toggleSidebar} title="Feedbacks">
@@ -148,6 +152,9 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
               </NavLink>
               <NavLink to="/gestor/daily-checklist-monitoring" className={linkClass} onClick={toggleSidebar} title="Monitorar Metas Diárias">
                 <ClipboardCheck className="w-5 h-5" />
+              </NavLink>
+              <NavLink to="/gestor/form-submissions" className={linkClass} onClick={toggleSidebar} title="Gerenciar Formulários"> {/* NOVO: Link para FormSubmissions */}
+                <FileStack className="w-5 h-5" />
               </NavLink>
             </>
           )}
@@ -189,7 +196,7 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
                 <PlusCircle className="w-5 h-5" />
                 <span>Configurar CRM</span>
               </NavLink>
-              <NavLink to="/gestor/config-origins" className={linkClass} onClick={toggleSidebar}> {/* NOVO: Link para OriginConfig */}
+              <NavLink to="/gestor/config-origins" className={linkClass} onClick={toggleSidebar}>
                 <MapPin className="w-5 h-5" />
                 <span>Configurar Origens</span>
               </NavLink>
@@ -222,7 +229,7 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
               <NavLink to="/gestor/crm-config" className={linkClass} onClick={toggleSidebar} title="Configurar CRM">
                 <PlusCircle className="w-5 h-5" />
               </NavLink>
-              <NavLink to="/gestor/config-origins" className={linkClass} onClick={toggleSidebar} title="Configurar Origens"> {/* NOVO: Link para OriginConfig */}
+              <NavLink to="/gestor/config-origins" className={linkClass} onClick={toggleSidebar} title="Configurar Origens">
                 <MapPin className="w-5 h-5" />
               </NavLink>
               <NavLink to="/gestor/config-process" className={linkClass} onClick={toggleSidebar} title="Editar Processo (Antigo)">

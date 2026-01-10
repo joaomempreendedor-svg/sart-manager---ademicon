@@ -23,7 +23,7 @@ import { PublicForm } from '@/pages/PublicForm'; // NOVO: Importar PublicForm
 // Gestor Pages
 import { Dashboard } from '@/pages/Dashboard';
 import { CandidateDetail } from '@/pages/CandidateDetail';
-import { TemplateConfig } from '@/pages/TemplateConfig';
+import { TemplateConfig } => '@/pages/TemplateConfig';
 import { ChecklistConfig } from '@/pages/ChecklistConfig';
 import { GoalsConfig } from '@/pages/GoalsConfig';
 import { InterviewConfig } from '@/pages/InterviewConfig';
@@ -43,6 +43,7 @@ import CrmSalesReports from '@/pages/gestor/CrmSalesReports';
 import HiringReports from '@/pages/gestor/HiringReports';
 import { OriginConfig } from '@/pages/OriginConfig'; // NOVO: Importar OriginConfig
 import { FinancialPanel } from '@/pages/FinancialPanel'; // NOVO: Importar FinancialPanel
+import { FormSubmissions } from '@/pages/gestor/FormSubmissions'; // NOVO: Importar FormSubmissions
 
 // Consultor Pages
 import ConsultorDashboard from '@/pages/consultor/Dashboard';
@@ -175,6 +176,7 @@ const AppRoutes = () => {
           <Route path="crm-sales-reports" element={<CrmSalesReports />} />
           <Route path="hiring-reports" element={<HiringReports />} />
           <Route path="config-origins" element={<OriginConfig />} /> {/* NOVO: Rota para OriginConfig */}
+          <Route path="form-submissions" element={<FormSubmissions />} /> {/* NOVO: Rota para FormSubmissions */}
           <Route path="*" element={<Navigate to="/gestor/dashboard" replace />} />
         </Route>
 

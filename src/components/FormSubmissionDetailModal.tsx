@@ -1,0 +1,180 @@
+import React, { useState, useEffect } from 'react';
+import { X, FileText, Image as ImageIcon, Download, CheckCircle2, AlertTriangle, MessageSquare, Loader2 } from 'lucide-react';
+import { FormSubmission, FormFile } from '@/types';
+import { useApp } from '@/context/AppContext';
+import toast from 'react-hot-toast';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { ScrollArea } from '@/components/ui/scroll-area';
+
+interface FormSubmissionDetailModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  submission: FormSubmission | null;
+}
+
+export const FormSubmissionDetailModal: React.FC<FormSubmissionDetailModalProps> = ({ isOpen, onClose, submission }) => {
+  const { getFormFilesForSubmission, updateFormSubmission } = useApp();
+  const [internalNotes, setInternalNotes] = useState('');
+  const [isComplete, setIsComplete] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const files = submission ? getFormFilesForSubmission(submission.id) : [];
+
+  useEffect(() => {
+    if (submission) {
+      setInternalNotes(submission.internal_notes || '');
+      setIsComplete(submission.is_complete);
+    }
+  }, [submission, isOpen]);
+
+  const handleDownloadFile = async (file: FormFile) => {
+    try {
+      const response = await fetch(file.file_url);
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const blob = await response.blob();
+
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', file.file_name);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      toast.success(`Download de "${file.file_name}" iniciado.`);
+    } catch (error) {
+      console.error("Erro ao baixar o arquivo:", error);
+      toast.error("Falha ao iniciar o download do arquivo.");
+    }
+  };
+
+  const handleSaveNotesAndStatus = async () => {
+    if (!submission) return;
+    setIsSaving(true);
+    try {
+      await updateFormSubmission(submission.id, { internal_notes: internalNotes, is_complete: isComplete });
+      toast.success("Notas e status atualizados com sucesso!");
+      onClose();
+    } catch (error) {
+      console.error("Erro ao salvar notas/status:", error);
+      toast.error("Falha ao salvar as alterações.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (!isOpen || !submission) return null;
+
+  const renderData = (data: Record<string, any>) => {
+    return Object.entries(data).map(([key, value]) => {
+      // Ignorar campos de arquivo que são tratados separadamente
+      if (key.includes('_file')) return null;
+
+      let label = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()); // Formata key para label
+      if (label === 'Cpf') label = 'CPF';
+      if (label === 'Rg') label = 'RG';
+      if (label === 'Cep') label = 'CEP';
+
+      return (
+        <div key={key} className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-slate-700 last:border-b-0">
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{label}:</span>
+          <span className="text-sm text-gray-900 dark:text-white text-right break-all">{String(value)}</span>
+        </div>
+      );
+    });
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-3xl bg-white dark:bg-slate-800 dark:text-white p-6">
+        <DialogHeader>
+          <DialogTitle>Detalhes da Submissão</DialogTitle>
+          <DialogDescription>
+            Submissão de {submission.data.nome_completo} em {new Date(submission.submission_date).toLocaleDateString('pt-BR')}
+          </DialogDescription>
+        </DialogHeader>
+        
+        <ScrollArea className="max-h-[70vh] py-4 pr-4 custom-scrollbar">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Coluna de Dados do Formulário */}
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Dados do Formulário</h3>
+              <div className="bg-gray-50 dark:bg-slate-700/50 rounded-lg p-4 border border-gray-200 dark:border-slate-700">
+                {renderData(submission.data)}
+              </div>
+            </div>
+
+            {/* Coluna de Arquivos e Notas Internas */}
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Arquivos Anexados</h3>
+              {files.length === 0 ? (
+                <p className="text-center text-gray-500 dark:text-gray-400 py-4">Nenhum arquivo anexado.</p>
+              ) : (
+                <div className="space-y-3">
+                  {files.map(file => (
+                    <div key={file.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-700/50 rounded-lg border border-gray-200 dark:border-slate-700">
+                      <div className="flex items-center space-x-3">
+                        {file.file_name.toLowerCase().endsWith('.pdf') ? (
+                          <FileText className="w-5 h-5 text-red-500" />
+                        ) : (
+                          <ImageIcon className="w-5 h-5 text-blue-500" />
+                        )}
+                        <span className="text-sm font-medium text-gray-900 dark:text-white truncate max-w-[150px]">{file.file_name}</span>
+                      </div>
+                      <Button variant="outline" size="sm" onClick={() => handleDownloadFile(file)} className="flex items-center space-x-1 dark:bg-slate-700 dark:text-white dark:border-slate-600">
+                        <Download className="w-4 h-4" />
+                        <span>Baixar</span>
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mt-6 mb-3">Notas Internas</h3>
+              <Textarea
+                value={internalNotes}
+                onChange={(e) => setInternalNotes(e.target.value)}
+                placeholder="Adicione notas internas sobre esta submissão..."
+                rows={5}
+                className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600"
+              />
+
+              <div className="flex items-center space-x-2 mt-4">
+                <input
+                  type="checkbox"
+                  id="isComplete"
+                  checked={isComplete}
+                  onChange={(e) => setIsComplete(e.target.checked)}
+                  className="h-4 w-4 rounded text-brand-600 focus:ring-brand-500 dark:bg-slate-700 dark:border-slate-600"
+                />
+                <label htmlFor="isComplete" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Marcar como Completo/Verificado
+                </label>
+              </div>
+            </div>
+          </div>
+        </ScrollArea>
+
+        <DialogFooter className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-700">
+          <Button type="button" variant="outline" onClick={onClose} className="dark:bg-slate-700 dark:text-white dark:border-slate-600">
+            Fechar
+          </Button>
+          <Button type="button" onClick={handleSaveNotesAndStatus} disabled={isSaving} className="bg-brand-600 hover:bg-brand-700 text-white">
+            {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+            <span>Salvar Alterações</span>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
