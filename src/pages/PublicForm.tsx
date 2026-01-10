@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import InputMask from 'react-input-mask'; // Reintroduzido
-// import axios from 'axios'; // Ainda comentado
+// import InputMask from 'react-input-mask'; // Removido
+import axios from 'axios'; // Reintroduzido
 import { Loader2, CheckCircle2, AlertTriangle, User, Mail, Phone, MapPin, CalendarDays, Home, FileText, Upload, Link as LinkIcon, Instagram, Facebook, Linkedin, Twitter, Globe, ArrowLeft, ArrowRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -185,28 +185,25 @@ export const PublicForm = () => {
   const handleCepBlur = useCallback(async () => {
     const cep = formData.cep.replace(/\D/g, '');
     if (cep.length === 8) {
-      // axios.get(`https://viacep.com.br/ws/${cep}/json/`)
-      //   .then(response => {
-      //     if (response.data.erro) {
-      //       setErrors(prev => ({ ...prev, cep: 'CEP não encontrado.' }));
-      //       setFormData(prev => ({ ...prev, estado_endereco: '', cidade_endereco: '', rua_endereco: '', bairro_endereco: '' }));
-      //     } else {
-      //       setFormData(prev => ({
-      //         ...prev,
-      //         estado_endereco: response.data.uf,
-      //         cidade_endereco: response.data.localidade,
-      //         rua_endereco: response.data.logradouro,
-      //         bairro_endereco: response.data.bairro,
-      //       }));
-      //       setErrors(prev => ({ ...prev, cep: '' }));
-      //     }
-      //   })
-      //   .catch(err => {
-      //     setErrors(prev => ({ ...prev, cep: 'Erro ao buscar CEP.' }));
-      //     setFormData(prev => ({ ...prev, estado_endereco: '', cidade_endereco: '', rua_endereco: '', bairro_endereco: '' }));
-      //   });
-      console.log("CEP lookup commented out for now."); // Comentado
-      setErrors(prev => ({ ...prev, cep: '' })); // Limpa erro de CEP
+      try {
+        const response = await axios.get(`https://viacep.com.br/ws/${cep}/json/`);
+        if (response.data.erro) {
+          setErrors(prev => ({ ...prev, cep: 'CEP não encontrado.' }));
+          setFormData(prev => ({ ...prev, estado_endereco: '', cidade_endereco: '', rua_endereco: '', bairro_endereco: '' }));
+        } else {
+          setFormData(prev => ({
+            ...prev,
+            estado_endereco: response.data.uf,
+            cidade_endereco: response.data.localidade,
+            rua_endereco: response.data.logradouro,
+            bairro_endereco: response.data.bairro,
+          }));
+          setErrors(prev => ({ ...prev, cep: '' }));
+        }
+      } catch (err) {
+        setErrors(prev => ({ ...prev, cep: 'Erro ao buscar CEP.' }));
+        setFormData(prev => ({ ...prev, estado_endereco: '', cidade_endereco: '', rua_endereco: '', bairro_endereco: '' }));
+      }
     } else {
       setErrors(prev => ({ ...prev, cep: 'CEP inválido.' }));
     }
@@ -265,10 +262,16 @@ export const PublicForm = () => {
           formIsValid = false;
         }
         // Special conditional validations
-        if (fieldName === 'nome_completo_conjuge' && formData.estado_civil !== 'Casado') {
+        if (fieldName === 'nome_completo_conjuge' && formData.estado_civil === 'Casado' && !value?.trim()) {
+          allErrors[fieldName] = 'Campo obrigatório.';
+          formIsValid = false;
+        } else if (fieldName === 'nome_completo_conjuge' && formData.estado_civil !== 'Casado') {
           delete allErrors[fieldName];
         }
-        if (fieldName === 'certidao_nascimento_file' && formData.comprovante_nome_quem !== 'No nome dos pais') {
+        if (fieldName === 'certidao_nascimento_file' && formData.comprovante_nome_quem === 'No nome dos pais' && !value) {
+          allErrors[fieldName] = 'Upload obrigatório.';
+          formIsValid = false;
+        } else if (fieldName === 'certidao_nascimento_file' && formData.comprovante_nome_quem !== 'No nome dos pais') {
           delete allErrors[fieldName];
         }
       });
