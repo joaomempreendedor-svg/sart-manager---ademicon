@@ -140,9 +140,8 @@ const CandidateScreening = () => {
                   return (
                     <tr key={candidate.id} className="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition">
                       <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">
-                        <Link to={`/gestor/candidate/${candidate.id}`} className="hover:underline">
-                          {candidate.name}
-                        </Link>
+                        {/* Removido o Link para a página de detalhes */}
+                        {candidate.name}
                         {responsibleMember && (
                           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                             Responsável: {responsibleMember.name}
@@ -178,9 +177,7 @@ const CandidateScreening = () => {
                               <XCircle className="w-4 h-4" />
                             </button>
                           )}
-                          <Link to={`/gestor/candidate/${candidate.id}`} className="p-2 rounded-full text-gray-400 hover:text-brand-500 hover:bg-brand-50 dark:hover:bg-brand-900/20" title="Ver Detalhes">
-                            <ArrowRight className="w-4 h-4" />
-                          </Link>
+                          {/* Removido o botão "Ver Detalhes" */}
                         </div>
                       </td>
                     </tr>
@@ -194,7 +191,8 @@ const CandidateScreening = () => {
       <AddScreeningCandidateModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
-        // Removido origins e responsibleMembers pois não são mais necessários no modal
+        origins={origins} // Passar as origens para o modal
+        responsibleMembers={teamMembers.filter(m => m.isActive && (m.roles.includes('Gestor') || m.roles.includes('Anjo')))} // Passar membros responsáveis
       />
     </div>
   );
