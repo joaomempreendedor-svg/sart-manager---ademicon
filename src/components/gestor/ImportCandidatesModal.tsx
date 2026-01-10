@@ -36,6 +36,7 @@ export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
   responsibleMembers,
   onImport,
 }) => {
+  console.log("[ImportCandidatesModal] Modal is rendering. isOpen:", isOpen); // Adicionado para depuração
   const [pastedData, setPastedData] = useState('');
   const [headers, setHeaders] = useState<string[]>([]);
   const [columnMapping, setColumnMapping] = useState<Record<string, string>>({
@@ -262,95 +263,103 @@ export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
               onChange={(e) => setPastedData(e.target.value)}
               rows={8}
               className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600 font-mono text-sm"
-              placeholder="Ex:&#10;Nome:,Staus&#10;Susana,Sem perfil&#10;Rafinha,Contato Feito&#10;Gislaine Aparecida,Pendente"
+              placeholder="Cole aqui os dados da sua planilha. Use vírgula (,) ou tab (	) como separador.&#10;&#10;Exemplo:&#10;Nome:,Staus&#10;Susana,Sem perfil&#10;Rafinha,Contato Feito&#10;Gislaine Aparecida,Pendente"
             />
             {headerParseError && (
               <p className="text-red-500 text-sm mt-2 flex items-center"><AlertTriangle className="w-4 h-4 mr-2" />{headerParseError}</p>
             )}
           </div>
 
-          {/* Mapeamento de Colunas - Sempre visível */}
-          <div className="grid grid-cols-2 gap-4">
-            <h3 className="col-span-2 text-lg font-semibold text-gray-900 dark:text-white mt-2">Mapeamento de Colunas</h3>
-            
-            {/* Nome */}
-            <div>
-              <Label htmlFor="map-name">Nome Completo *</Label>
-              <Select value={columnMapping.name} onValueChange={(val) => setColumnMapping(prev => ({ ...prev, name: val }))}>
-                <SelectTrigger id="map-name" className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
-                  <SelectValue placeholder="Selecione a coluna do Nome" />
-                </SelectTrigger>
-                <SelectContent className="dark:bg-slate-800 dark:text-white dark:border-slate-700">
-                  {renderHeaderOptions()}
-                </SelectContent>
-              </Select>
+          {/* Mapeamento de Colunas - Renderizado condicionalmente */}
+          {headers.length === 0 && !headerParseError ? (
+            <div className="col-span-2 text-center text-gray-500 dark:text-gray-400 mt-4">
+              <AlertTriangle className="w-6 h-6 mx-auto mb-2 text-yellow-500" />
+              <p>Cole os dados da sua planilha acima para que as colunas sejam detectadas.</p>
+              <p className="text-sm">Se os cabeçalhos não aparecerem, verifique o formato (CSV ou tab-separated).</p>
             </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-4">
+              <h3 className="col-span-2 text-lg font-semibold text-gray-900 dark:text-white mt-2">Mapeamento de Colunas</h3>
+              
+              {/* Nome */}
+              <div>
+                <Label htmlFor="map-name">Nome Completo *</Label>
+                <Select value={columnMapping.name} onValueChange={(val) => setColumnMapping(prev => ({ ...prev, name: val }))}>
+                  <SelectTrigger id="map-name" className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
+                    <SelectValue placeholder="Selecione a coluna do Nome" />
+                  </SelectTrigger>
+                  <SelectContent className="dark:bg-slate-800 dark:text-white dark:border-slate-700">
+                    {renderHeaderOptions()}
+                  </SelectContent>
+                </Select>
+              </div>
 
-            {/* Telefone */}
-            <div>
-              <Label htmlFor="map-phone">Telefone</Label>
-              <Select value={columnMapping.phone} onValueChange={(val) => setColumnMapping(prev => ({ ...prev, phone: val }))}>
-                <SelectTrigger id="map-phone" className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
-                  <SelectValue placeholder="Selecione a coluna do Telefone" />
-                </SelectTrigger>
-                <SelectContent className="dark:bg-slate-800 dark:text-white dark:border-slate-700">
-                  {renderHeaderOptions()}
-                </SelectContent>
-              </Select>
-            </div>
+              {/* Telefone */}
+              <div>
+                <Label htmlFor="map-phone">Telefone</Label>
+                <Select value={columnMapping.phone} onValueChange={(val) => setColumnMapping(prev => ({ ...prev, phone: val }))}>
+                  <SelectTrigger id="map-phone" className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
+                    <SelectValue placeholder="Selecione a coluna do Telefone" />
+                  </SelectTrigger>
+                  <SelectContent className="dark:bg-slate-800 dark:text-white dark:border-slate-700">
+                    {renderHeaderOptions()}
+                  </SelectContent>
+                </Select>
+              </div>
 
-            {/* Email */}
-            <div>
-              <Label htmlFor="map-email">E-mail</Label>
-              <Select value={columnMapping.email} onValueChange={(val) => setColumnMapping(prev => ({ ...prev, email: val }))}>
-                <SelectTrigger id="map-email" className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
-                  <SelectValue placeholder="Selecione a coluna do E-mail" />
-                </SelectTrigger>
-                <SelectContent className="dark:bg-slate-800 dark:text-white dark:border-slate-700">
-                  {renderHeaderOptions()}
-                </SelectContent>
-              </Select>
-            </div>
+              {/* Email */}
+              <div>
+                <Label htmlFor="map-email">E-mail</Label>
+                <Select value={columnMapping.email} onValueChange={(val) => setColumnMapping(prev => ({ ...prev, email: val }))}>
+                  <SelectTrigger id="map-email" className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
+                    <SelectValue placeholder="Selecione a coluna do E-mail" />
+                  </SelectTrigger>
+                  <SelectContent className="dark:bg-slate-800 dark:text-white dark:border-slate-700">
+                    {renderHeaderOptions()}
+                  </SelectContent>
+                </Select>
+              </div>
 
-            {/* Origem */}
-            <div>
-              <Label htmlFor="map-origin">Origem</Label>
-              <Select value={columnMapping.origin} onValueChange={(val) => setColumnMapping(prev => ({ ...prev, origin: val }))}>
-                <SelectTrigger id="map-origin" className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
-                  <SelectValue placeholder="Selecione a coluna da Origem" />
-                </SelectTrigger>
-                <SelectContent className="dark:bg-slate-800 dark:text-white dark:border-slate-700">
-                  {renderHeaderOptions()}
-                </SelectContent>
-              </Select>
-            </div>
+              {/* Origem */}
+              <div>
+                <Label htmlFor="map-origin">Origem</Label>
+                <Select value={columnMapping.origin} onValueChange={(val) => setColumnMapping(prev => ({ ...prev, origin: val }))}>
+                  <SelectTrigger id="map-origin" className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
+                    <SelectValue placeholder="Selecione a coluna da Origem" />
+                  </SelectTrigger>
+                  <SelectContent className="dark:bg-slate-800 dark:text-white dark:border-slate-700">
+                    {renderHeaderOptions()}
+                  </SelectContent>
+                </Select>
+              </div>
 
-            {/* Responsável */}
-            <div>
-              <Label htmlFor="map-responsible">Responsável (Nome)</Label>
-              <Select value={columnMapping.responsibleUserId} onValueChange={(val) => setColumnMapping(prev => ({ ...prev, responsibleUserId: val }))}>
-                <SelectTrigger id="map-responsible" className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
-                  <SelectValue placeholder="Selecione a coluna do Responsável" />
-                </SelectTrigger>
-                <SelectContent className="dark:bg-slate-800 dark:text-white dark:border-slate-700">
-                  {renderHeaderOptions()}
-                </SelectContent>
-              </Select>
-            </div>
+              {/* Responsável */}
+              <div>
+                <Label htmlFor="map-responsible">Responsável (Nome)</Label>
+                <Select value={columnMapping.responsibleUserId} onValueChange={(val) => setColumnMapping(prev => ({ ...prev, responsibleUserId: val }))}>
+                  <SelectTrigger id="map-responsible" className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
+                    <SelectValue placeholder="Selecione a coluna do Responsável" />
+                  </SelectTrigger>
+                  <SelectContent className="dark:bg-slate-800 dark:text-white dark:border-slate-700">
+                    {renderHeaderOptions()}
+                  </SelectContent>
+                </Select>
+              </div>
 
-            {/* NOVO: Status de Triagem */}
-            <div>
-              <Label htmlFor="map-screeningStatus">Status de Triagem</Label>
-              <Select value={columnMapping.screeningStatus} onValueChange={(val) => setColumnMapping(prev => ({ ...prev, screeningStatus: val }))}>
-                <SelectTrigger id="map-screeningStatus" className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
-                  <SelectValue placeholder="Selecione a coluna do Status" />
-                </SelectTrigger>
-                <SelectContent className="dark:bg-slate-800 dark:text-white dark:border-slate-700">
-                  {renderHeaderOptions()}
-                </SelectContent>
-              </Select>
+              {/* NOVO: Status de Triagem */}
+              <div>
+                <Label htmlFor="map-screeningStatus">Status de Triagem</Label>
+                <Select value={columnMapping.screeningStatus} onValueChange={(val) => setColumnMapping(prev => ({ ...prev, screeningStatus: val }))}>
+                  <SelectTrigger id="map-screeningStatus" className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
+                    <SelectValue placeholder="Selecione a coluna do Status" />
+                  </SelectTrigger>
+                  <SelectContent className="dark:bg-slate-800 dark:text-white dark:border-slate-700">
+                    {renderHeaderOptions()}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-          </div>
+          )}
 
           {importResult && (
             <div className="mt-4 p-4 rounded-lg bg-gray-50 dark:bg-slate-700/50 border border-gray-200 dark:border-slate-700">
