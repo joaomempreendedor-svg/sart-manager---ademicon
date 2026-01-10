@@ -463,7 +463,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           (async () => { try { return await supabase.from('app_config').select('data').eq('user_id', effectiveGestorId).maybeSingle(); } catch (e) { console.error("Error fetching app_config:", e); return { data: null, error: e }; } })(),
           (async () => { try { return await supabase.from('candidates').select('id, data, last_updated_at').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching candidates:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('support_materials').select('id, data').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching support_materials:", e); return { data: [], error: e }; } })(),
-          (async () => { try { return await supabase.from('cutoff_periods').select('id, data').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching cutoff_periods:", e); return { data: [], error: e }; } })(),
+          (async () => { try { return await supabase.from('cutoff_periods').select('id, data').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching cutoff_periods:", e); return { data: null, error: e }; } })(),
           // (async () => { try { return await await supabase.from('important_links').select('id, data').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching important_links:", e); return { data: [], error: e }; } })(), // REMOVIDO
           (async () => { try { return await supabase.from('onboarding_sessions').select('*, videos:onboarding_videos(*)').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching onboarding_sessions:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('onboarding_video_templates').select('*').eq('user_id', effectiveGestorId).order('order', { ascending: true }); } catch (e) { console.error("Error fetching onboarding_video_templates:", e); return { data: [], error: e }; } })(),
@@ -724,25 +724,46 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         .channel('candidates_changes')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'candidates', filter: `user_id=eq.${crmOwnerUserId}` }, (payload) => {
             console.log('Candidate Change (Realtime):', payload);
-            toast.info(`🔄 Candidato "${payload.new.data.name || payload.old.data.name}" atualizado em tempo real!`);
+            console.log('Payload.new.data:', payload.new.data); // Inspecionar dados brutos
             const newCandidateData: Candidate = {
                 ...(payload.new.data as Candidate),
                 db_id: payload.new.id,
-                lastUpdatedAt: payload.new.last_updated_at
+                lastUpdatedAt: payload.new.last_updated_at,
+                // Cópia profunda de objetos aninhados para evitar referências compartilhadas
+                interviewScores: { ...(payload.new.data as Candidate).interviewScores },
+                checkedQuestions: { ...(payload.new.data as Candidate).checkedQuestions },
+                checklistProgress: { ...(payload.new.data as Candidate).checklistProgress },
+                consultantGoalsProgress: { ...(payload.new.data as Candidate).consultantGoalsProgress },
+                feedbacks: (payload.new.data as Candidate).feedbacks ? [...(payload.new.data as Candidate).feedbacks] : [],
             };
+            console.log('Constructed newCandidateData (deep copied):', newCandidateData); // Inspecionar dados copiados
 
             if (payload.eventType === 'INSERT') {
                 setCandidates(prev => {
-                    // Evita duplicatas se o item já foi adicionado otimisticamente
                     if (prev.some(c => c.db_id === newCandidateData.db_id)) {
+                        console.log('Skipping insert, candidate already exists (db_id):', newCandidateData.db_id);
                         return prev;
                     }
+                    // Também verificar pelo client-side ID se o db_id ainda não foi atribuído
+                    if (prev.some(c => c.id === newCandidateData.id && !c.db_id)) {
+                        console.log('Skipping insert, candidate already exists (client-side id):', newCandidateData.id);
+                        return prev;
+                    }
+                    console.log('Inserting new candidate:', newCandidateData.name);
                     return [newCandidateData, ...prev];
                 });
             } else if (payload.eventType === 'UPDATE') {
-                setCandidates(prev => prev.map(c => c.db_id === newCandidateData.db_id ? newCandidateData : c));
+                setCandidates(prev => {
+                    const updatedArray = prev.map(c => c.db_id === newCandidateData.db_id ? newCandidateData : c);
+                    console.log('Updating candidate:', newCandidateData.name, 'Array after update:', updatedArray);
+                    return updatedArray;
+                });
             } else if (payload.eventType === 'DELETE') {
-                setCandidates(prev => prev.filter(c => c.db_id !== payload.old.id));
+                setCandidates(prev => {
+                    const filteredArray = prev.filter(c => c.db_id !== payload.old.id);
+                    console.log('Deleting candidate:', payload.old.data.name, 'Array after delete:', filteredArray);
+                    return filteredArray;
+                });
             }
         })
         .subscribe();
@@ -946,7 +967,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
 
     return () => {
-        supabase.removeChannel(candidatesChannel); // REMOVIDO: candidatesChannel
+        supabase.removeChannel(candidatesChannel);
         supabase.removeChannel(leadsChannel);
         supabase.removeChannel(tasksChannel);
         supabase.removeChannel(gestorTasksChannel);
@@ -976,11 +997,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       id: clientSideId, // This is the client-side UUID, stored in the 'data' JSONB
       status: candidate.status || 'Triagem', 
       screeningStatus: candidate.screeningStatus || 'Pending Contact',
-      interviewScores: candidate.interviewScores || { basicProfile: 0, commercialSkills: 0, behavioralProfile: 0, jobFit: 0, notes: '' },
-      checkedQuestions: candidate.checkedQuestions || {},
-      checklistProgress: candidate.checklistProgress || {},
-      consultantGoalsProgress: candidate.consultantGoalsProgress || {},
-      feedbacks: candidate.feedbacks || [],
+      // Cópia profunda de objetos aninhados
+      interviewScores: { ...(candidate.interviewScores || { basicProfile: 0, commercialSkills: 0, behavioralProfile: 0, jobFit: 0, notes: '' }) },
+      checkedQuestions: { ...(candidate.checkedQuestions || {}) },
+      checklistProgress: { ...(candidate.checklistProgress || {}) },
+      consultantGoalsProgress: { ...(candidate.consultantGoalsProgress || {}) },
+      feedbacks: candidate.feedbacks ? [...candidate.feedbacks] : [],
       createdAt: createdAt, 
       lastUpdatedAt: lastUpdatedAt, 
     };
@@ -1015,7 +1037,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!user) throw new Error("Usuário não autenticado."); 
     const c = candidates.find(c => c.id === id); 
     if (!c || !c.db_id) throw new Error("Candidato não encontrado"); 
-    const updated = { ...c, ...updates, lastUpdatedAt: new Date().toISOString() }; // Atualiza lastUpdatedAt
+    
+    // Cópia profunda de objetos aninhados ao criar o objeto 'updated'
+    const updated = { 
+      ...c, 
+      ...updates, 
+      lastUpdatedAt: new Date().toISOString(),
+      interviewScores: { ...(c.interviewScores || {}), ...(updates.interviewScores || {}) },
+      checkedQuestions: { ...(c.checkedQuestions || {}), ...(updates.checkedQuestions || {}) },
+      checklistProgress: { ...(c.checklistProgress || {}), ...(updates.checklistProgress || {}) },
+      consultantGoalsProgress: { ...(c.consultantGoalsProgress || {}), ...(updates.consultantGoalsProgress || {}) },
+      feedbacks: updates.feedbacks ? [...updates.feedbacks] : (c.feedbacks ? [...c.feedbacks] : []),
+    }; 
+
     const { db_id, createdAt, lastUpdatedAt, ...dataToUpdate } = updated; // Remove db_id, createdAt, lastUpdatedAt do objeto 'data'
     const { error } = await supabase.from('candidates').update({ data: dataToUpdate, last_updated_at: updated.lastUpdatedAt }).match({ id: c.db_id, user_id: JOAO_GESTOR_AUTH_ID }); 
     if (error) { console.error(error); toast.error("Erro ao atualizar candidato."); throw error; } 
@@ -1512,7 +1546,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!period || !period.db_id) throw new Error("Período de corte não encontrado.");
 
     const { error } = await supabase.from('cutoff_periods').delete().match({ id: period.db_id, user_id: JOAO_GESTOR_AUTH_ID });
-    if (error) { console.error(error); toast.error("Erro ao excluir período de corte."); throw error; }
+    if (error) throw error;
     setCutoffPeriods(prev => prev.filter(p => p.id !== id));
   }, [user, cutoffPeriods]);
 
