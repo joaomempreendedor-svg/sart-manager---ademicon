@@ -972,12 +972,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     
     if (data) { 
       // Update local state with the Supabase-generated 'id' (db_id) and actual 'created_at'
-      setCandidates(prev => [...prev, { // Adiciona ao final para manter a ordem de importação
+      // ⚠️ CORREÇÃO: Adicionar o novo candidato no INÍCIO do array para que apareça no topo
+      setCandidates(prev => [{ // Adiciona no início para que apareça no topo
         ...newCandidateData, 
         db_id: data.id, // Store Supabase's primary key here
         createdAt: data.created_at, 
         lastUpdatedAt: data.last_updated_at 
-      }]); 
+      }, ...prev]); 
     } 
     return newCandidateData; // Return the client-side object
   }, [user]);
@@ -1053,1311 +1054,384 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const cleanedCpf = member.cpf ? member.cpf.replace(/\D/g, '') : '';
       const last4Cpf = cleanedCpf.length >= 4 ? cleanedCpf.slice(-4) : null;
       
-      console.log("[AppContext] Invoking create-or-link-consultant Edge Function for ADD operation:", { email: member.email, name: member.name, tempPassword, login: last4Cpf });
-      const { data, error: invokeError } = await supabase.functions.invoke('create-or-link-consultant', {
-        body: { 
-          email: member.email, 
-          name: member.name, 
-          tempPassword,
-          login: last4Cpf
-        },
+      console.log("[AppContext] Invoking create-or-link-consultant Edge Function for ADD operation:", {
+        name: newName.trim(),
+        email: newEmail.trim(),
+        cpf: cleanedCpf,
+        login: login,
+        roles: newRoles,
+        dateOfBirth: newDateOfBirth || undefined, // NOVO: Incluir data de nascimento
       });
 
-      if (invokeError) {
-        console.error("[AppContext] Edge Function invocation error:", invokeError);
-        if ((invokeError as any).context?.response) {
-          try {
-            const errorBody = await (invokeError as any).context.response.json();
-            console.error("[AppContext] Detailed Edge Function error response body:", errorBody);
-            if (errorBody.error) {
-              throw new Error(errorBody.error);
-            }
-          } catch (jsonError) {
-            console.error("[AppContext] Failed to parse Edge Function error response body:", jsonError);
-          }
-        }
-        toast.error(`Falha ao invocar Edge Function: ${invokeError.message}`);
-        throw new Error(`Falha ao invocar Edge Function: ${invokeError.message}`);
-      }
-      
-      if (data?.error) {
-        console.error("[AppContext] Edge Function returned an error:", data.error);
-        toast.error(data.error);
-        throw new Error(data.error);
-      }
-      
-      authUserId = data.authUserId;
-      wasExistingUser = data.userExists;
-      console.log(`[AppContext] Edge Function successful. AuthUserId: ${authUserId}, UserExists: ${wasExistingUser}`);
+      const result = await addTeamMember({
+        name: newName.trim(),
+        email: newEmail.trim(),
+        cpf: cleanedCpf,
+        login: login,
+        roles: newRoles,
+        isActive: true,
+        dateOfBirth: newDateOfBirth || undefined, // NOVO: Incluir data de nascimento
+      });
 
-    } else {
-      authUserId = `local_${crypto.randomUUID()}`;
-      console.log(`Membro sem email criado com ID local: ${authUserId}`);
-    }
-  
-    const newMember: TeamMember = {
-      ...member,
-      id: authUserId,
-      email: member.email,
-      hasLogin: !!member.email,
-      isActive: true,
-      ...(tempPassword && { tempPassword })
-    };
-  
-    const { data: upsertedData, error } = await supabase
-      .from('team_members')
-      .upsert(
-        { 
-          user_id: JOAO_GESTOR_AUTH_ID,
-          id: crypto.randomUUID(),
-          cpf: newMember.cpf,
-          data: newMember
-        },
-        { 
-          onConflict: 'cpf',
-          ignoreDuplicates: false
-        }
-      )
-      .select('id')
-      .single();
-    
-    if (error) {
-      console.error("Erro ao inserir/atualizar em team_members:", error);
-      toast.error("Erro ao inserir/atualizar membro da equipe.");
-      throw error;
-    }
-    
-    setTeamMembers(prev => {
-      const existingIndex = prev.findIndex(tm => tm.cpf === newMember.cpf);
-      if (existingIndex > -1) {
-        const updatedMembers = [...prev];
-        updatedMembers[existingIndex] = { ...newMember, db_id: upsertedData.id };
-        return updatedMembers;
+      if (result.success) {
+        setCreatedConsultantCredentials({ 
+          name: result.member.name, 
+          login: result.member.email || '',
+          password: result.tempPassword || '',
+          wasExistingUser: result.wasExistingUser || false,
+        });
+        setShowCredentialsModal(true);
       } else {
-        return [...prev, { ...newMember, db_id: upsertedData.id }];
+        alert(result.message || "Falha ao adicionar membro.");
       }
-    });
-    
-    return { 
-      success: true, 
-      member: newMember, 
-      tempPassword: tempPassword,
-      wasExistingUser: wasExistingUser,
-      message: wasExistingUser ? 
-        `Membro adicionado. Senha do usuário existente foi resetada para a temporária.` :
-        `Membro criado com senha temporária: ${tempPassword}`
-    };
-  }, [user]);
 
-  const updateTeamMember = useCallback(async (id: string, updates: Partial<TeamMember>): Promise<{ tempPassword?: string }> => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const m = teamMembers.find(m => m.id === id);
-    if (!m || !m.db_id) throw new Error("Membro não encontrado");
+      setNewName('');
+      setNewEmail('');
+      setNewCpf('');
+      setNewDateOfBirth(''); // NOVO: Resetar campo
+      setNewRoles(['Prévia']);
+      setGeneratedPassword(generateRandomPassword());
+    } catch (error: any) {
+      alert(`Falha ao adicionar membro: ${error.message}`);
+      console.error("Erro ao adicionar membro:", error);
+    } finally {
+      setIsAdding(false);
+    }
+  };
 
-    let tempPassword: string | undefined;
-    let authUserId = m.id;
+  const startEditing = (member: TeamMember) => {
+    setEditingMember(member);
+    setEditingName(member.name);
+    setEditingEmail(member.email || '');
+    setEditingCpf(formatCpf(member.cpf || ''));
+    setEditingDateOfBirth(member.dateOfBirth || ''); // NOVO: Popular campo
+    setEditingRoles(member.roles);
+  };
 
-    if (updates.email && updates.email !== m.email) {
-      console.log(`[AppContext] Email change detected for ${m.name}. Old: ${m.email}, New: ${updates.email}`);
-      tempPassword = generateRandomPassword();
-      
-      const cleanedCpf = updates.cpf ? updates.cpf.replace(/\D/g, '') : (m.cpf ? m.cpf.replace(/\D/g, '') : '');
-      const last4Cpf = cleanedCpf.length >= 4 ? cleanedCpf.slice(-4) : null;
+  const cancelEditing = () => {
+    setEditingMember(null);
+    setEditingName('');
+    setEditingEmail('');
+    setEditingCpf('');
+    setEditingDateOfBirth(''); // NOVO: Resetar campo
+    setEditingRoles([]);
+  };
 
-      console.log("[AppContext] Invoking create-or-link-consultant Edge Function for UPDATE operation (email change)...");
-      const { data, error: invokeError } = await supabase.functions.invoke('create-or-link-consultant', {
-        body: {
-          email: updates.email,
-          name: updates.name || m.name,
-          tempPassword,
-          login: last4Cpf,
-        },
+  const handleUpdate = async () => {
+    if (!editingMember || !editingName.trim() || editingRoles.length === 0 || !editingCpf.trim() || !editingEmail.trim()) {
+      alert("O nome, E-mail, CPF e pelo menos um cargo são obrigatórios.");
+      return;
+    }
+    if (editingCpf.replace(/\D/g, '').length !== 11) {
+      alert("Por favor, insira um CPF válido com 11 dígitos.");
+      return;
+    }
+
+    setIsUpdating(true);
+    try {
+      const cleanedCpf = editingCpf.replace(/\D/g, '');
+      const result = await updateTeamMember(editingMember.id, { 
+        name: editingName.trim(), 
+        roles: editingRoles, 
+        cpf: cleanedCpf,
+        email: editingEmail.trim(),
+        dateOfBirth: editingDateOfBirth || undefined, // NOVO: Incluir data de nascimento
       });
 
-      if (invokeError) {
-        console.error("[AppContext] Edge Function invocation error during UPDATE:", invokeError);
-        if ((invokeError as any).context?.response) {
-          try {
-            const errorBody = await (invokeError as any).context.response.json();
-            console.error("[AppContext] Detailed Edge Function error response body:", errorBody);
-            if (errorBody.error) {
-              throw new Error(errorBody.error);
-            }
-          } catch (jsonError) {
-            console.error("[AppContext] Failed to parse Edge Function error response body:", jsonError);
-          }
-        }
-        toast.error(`Falha ao invocar Edge Function: ${invokeError.message}`);
-        throw new Error(`Falha ao invocar Edge Function: ${invokeError.message}`);
+      if (result?.tempPassword) {
+        setCreatedConsultantCredentials({
+          name: editingName.trim(),
+          login: editingEmail.trim(),
+          password: result.tempPassword,
+          wasExistingUser: true,
+        });
+        setShowCredentialsModal(true);
       }
       
-      if (data?.error) {
-        console.error("[AppContext] Edge Function returned an error during UPDATE:", data.error);
-        toast.error(data.error);
-        throw new Error(data.error);
+      cancelEditing();
+    } catch (error: any) {
+      alert(`Falha ao atualizar membro: ${error.message}`);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (window.confirm('Tem certeza que deseja remover este membro da equipe? Esta ação não pode ser desfeita.')) {
+      try {
+        await deleteTeamMember(id);
+      } catch (error: any) {
+        alert(`Falha ao remover membro: ${error.message}`);
       }
-
-      authUserId = data.authUserId;
-      console.log(`[AppContext] Edge Function successful during UPDATE. Auth user ${authUserId} email updated to ${updates.email} and password reset.`);
     }
+  };
 
-    const updated = { ...m, ...updates, id: authUserId, hasLogin: !!updates.email };
-    const { db_id, ...dataToUpdate } = updated;
-
-    const { error } = await supabase.from('team_members').update({ data: dataToUpdate, cpf: updated.cpf }).match({ id: m.db_id, user_id: JOAO_GESTOR_AUTH_ID });
-    if (error) { console.error(error); toast.error("Erro ao atualizar membro da equipe."); throw error; }
-    
-    setTeamMembers(prev => prev.map(p => p.db_id === m.db_id ? updated : p));
-
-    return { tempPassword };
-  }, [user, teamMembers]);
-  
-  const deleteTeamMember = useCallback(async (id: string) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const m = teamMembers.find(m => m.id === id);
-    if (!m || !m.db_id) {
-      console.error(`[deleteTeamMember] Membro não encontrado ou sem db_id para o ID: ${id}`);
-      toast.error("Membro da equipe não encontrado ou ID do banco de dados ausente.");
-      throw new Error("Membro da equipe não encontrado ou ID do banco de dados ausente.");
-    }
-
-    console.log(`[deleteTeamMember] Tentando excluir membro com db_id: ${m.db_id} e user_id (gestor): ${JOAO_GESTOR_AUTH_ID}`);
-    
+  const handleToggleActive = async (member: TeamMember) => {
     try {
-      const { error } = await supabase.from('team_members').delete().match({ id: m.db_id, user_id: JOAO_GESTOR_AUTH_ID });
+      await updateTeamMember(member.id, { isActive: !member.isActive });
+    } catch (error: any) {
+      alert(`Falha ao alterar status do membro: ${error.message}`);
+    }
+  };
+
+  const handleResetPassword = async (member: TeamMember) => {
+    if (!member.email) {
+      alert("Não é possível resetar a senha: E-mail do consultor não encontrado.");
+      return;
+    }
+    if (!window.confirm(`Tem certeza que deseja resetar a senha de ${member.name}? Uma nova senha temporária será gerada e o consultor será forçado a trocá-la no próximo login.`)) {
+      return;
+    }
+
+    try {
+      const newTempPassword = generateRandomPassword();
       
-      if (error) {
-        console.error(`[deleteTeamMember] Erro ao excluir membro do banco de dados:`, error);
-        toast.error("Erro ao excluir membro da equipe.");
-        throw error;
-      }
+      await resetConsultantPasswordViaEdge(member.id, newTempPassword);
       
-      console.log(`[deleteTeamMember] Membro com db_id: ${m.db_id} excluído com sucesso do banco de dados.`);
-      setTeamMembers(prev => prev.filter(p => p.id !== id));
-    } catch (error) {
-      console.error(`[deleteTeamMember] Falha na operação de exclusão para o membro ${id}:`, error);
-      throw error;
-    }
-  }, [user, teamMembers]);
-
-  const addCutoffPeriod = useCallback(async (period: CutoffPeriod) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('cutoff_periods').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: period }).select('id').single(); if (error) { console.error(error); toast.error("Erro ao adicionar período de corte."); throw error; } if (data) setCutoffPeriods(prev => [...prev, { ...period, db_id: data.id }]); }, [user]);
-  const updateCutoffPeriod = useCallback(async (id: string, updates: Partial<CutoffPeriod>) => { if (!user) throw new Error("Usuário não autenticado."); const p = cutoffPeriods.find(p => p.id === id); if (!p || !p.db_id) throw new Error("Período não encontrado"); const updated = { ...p, ...updates }; const { db_id, ...dataToUpdate } = updated; const { error } = await supabase.from('cutoff_periods').update({ data: dataToUpdate }).match({ id: p.db_id, user_id: JOAO_GESTOR_AUTH_ID }); if (error) { console.error(error); toast.error("Erro ao atualizar período de corte."); throw error; } setCutoffPeriods(prev => prev.map(item => item.id === id ? updated : item)); }, [user, cutoffPeriods]);
-  const deleteCutoffPeriod = useCallback(async (id: string) => { if (!user) throw new Error("Usuário não autenticado."); const p = cutoffPeriods.find(p => p.id === id); if (!p || !p.db_id) throw new Error("Período não encontrado"); const { error } = await supabase.from('cutoff_periods').delete().match({ id: p.db_id, user_id: JOAO_GESTOR_AUTH_ID }); if (error) { console.error(error); toast.error("Erro ao excluir período de corte."); throw error; } setCutoffPeriods(prev => prev.filter(item => item.id !== id)); }, [user, cutoffPeriods]);
-  const addCommission = useCallback(async (commission: Commission): Promise<Commission> => { if (!user) throw new Error("Usuário não autenticado."); const localId = `local_${Date.now()}`; const localCommission: Commission = { ...commission, db_id: localId, criado_em: new Date().toISOString() }; setCommissions(prev => [localCommission, ...prev]); setTimeout(() => { toast.success(`✅ VENDA REGISTRADA!\n\nCliente: ${commission.clientName}\nValor: R$ ${commission.value.toLocaleString()}\nID: ${localId}\n\nA sincronização ocorrerá em segundo plano.`); }, 50); setTimeout(async () => { try { const cleanCommission = { ...commission, customRules: commission.customRules?.length ? commission.customRules : undefined, angelName: commission.angelName || undefined, managerName: commission.managerName || 'N/A', }; const payload = { user_id: JOAO_GESTOR_AUTH_ID, data: cleanCommission }; const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Background sync timeout')), 10000)); const insertPromise = supabase.from('commissions').insert(payload).select('id', 'created_at').maybeSingle(); const { data, error } = await Promise.race([insertPromise, timeoutPromise]) as any; if (error) throw error; if (data && data.id) { setCommissions(prev => prev.map(c => c.db_id === localId ? { ...c, db_id: data.id.toString(), criado_em: data.created_at, _synced: true } : c)); const updated = JSON.parse(localStorage.getItem('pending_commissions') || '[]').filter((pc: any) => pc._localId !== localId); localStorage.setItem('pending_commissions', JSON.stringify(updated)); } else { throw new Error('Nenhum ID retornado'); } } catch (error: any) { const pending = JSON.parse(localStorage.getItem('pending_commissions') || '[]'); const alreadyExists = pending.some((p: any) => p._localId === localId); if (!alreadyExists) { pending.push({ ...commission, _localId: localId, _timestamp: new Date().toISOString(), _error: error.message, _attempts: 1 }); localStorage.setItem('pending_commissions', JSON.stringify(pending)); } toast.error("Erro ao sincronizar venda em segundo plano. Tentaremos novamente."); } }, 2000); return localCommission; }, [user]);
-  const updateCommission = useCallback(async (id: string, updates: Partial<Commission>) => { if (!user) throw new Error("Usuário não autenticado."); const commissionToUpdate = commissions.find(c => c.id === id); if (!commissionToUpdate || !commissionToUpdate.db_id) throw new Error("Comissão não encontrada para atualização."); const originalData = { ...commissionToUpdate }; delete (originalData as any).db_id; delete (originalData as any).criado_em; const newData = { ...originalData, ...updates }; const payload = { data: newData }; const { error } = await supabase.from('commissions').update(payload).match({ id: commissionToUpdate.db_id, user_id: JOAO_GESTOR_AUTH_ID }); if (error) { console.error(error); toast.error("Erro ao atualizar comissão."); throw error; } await refetchCommissions(); }, [user, commissions, refetchCommissions]);
-  const deleteCommission = useCallback(async (id: string) => { if (!user) throw new Error("Usuário não autenticado."); const commissionToDelete = commissions.find(c => c.id === id); if (!commissionToDelete || !commissionToDelete.db_id) throw new Error("Comissão não encontrada para exclusão."); const { error } = await supabase.from('commissions').delete().match({ id: commissionToDelete.db_id, user_id: JOAO_GESTOR_AUTH_ID }); if (error) { console.error(error); toast.error("Erro ao excluir comissão."); throw error; } await refetchCommissions(); }, [user, commissions, refetchCommissions]);
-  const addSupportMaterial = useCallback(async (materialData: Omit<SupportMaterial, 'id' | 'url'>, file: File) => { if (!user) throw new Error("Usuário não autenticado."); const sanitizedFileName = file.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w\s.-]/g, '').replace(/\s+/g, '_'); const filePath = `public/${crypto.randomUUID()}-${sanitizedFileName}`; const { error: uploadError } = await supabase.storage.from('support_materials').upload(filePath, file); if (uploadError) { toast.error("Erro ao fazer upload do arquivo."); throw uploadError; } const { data: urlData } = supabase.storage.from('support_materials').getPublicUrl(filePath); if (!urlData) { toast.error("Não foi possível obter a URL pública do arquivo."); throw new Error("Não foi possível obter a URL pública do arquivo."); } const newMaterial: SupportMaterial = { ...materialData, id: crypto.randomUUID(), url: urlData.publicUrl, }; const { data: dbData, error: dbError } = await supabase.from('support_materials').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: newMaterial }).select('id').single(); if (dbError) { await supabase.storage.from('support_materials').remove([filePath]); toast.error("Erro ao salvar material no banco de dados."); throw dbError; } setSupportMaterials(prev => [{ ...newMaterial, db_id: dbData.id }, ...prev]); }, [user]);
-  const deleteSupportMaterial = useCallback(async (id: string) => { if (!user) throw new Error("Usuário não autenticado."); const m = supportMaterials.find(m => m.id === id); if (!m || !m.db_id) throw new Error("Material não encontrado"); const filePath = m.url.split('/support_materials/')[1]; const { error: storageError } = await supabase.storage.from('support_materials').remove([filePath]); if (storageError) console.error("Erro ao deletar do storage (pode já ter sido removido):", storageError.message); const { error: dbError } = await supabase.from('support_materials').delete().match({ id: m.db_id, user_id: JOAO_GESTOR_AUTH_ID }); if (dbError) { toast.error("Erro ao excluir material."); throw dbError; } setSupportMaterials(prev => prev.filter(p => p.id !== id)); }, [user, supportMaterials]);
-  // const addImportantLink = useCallback(async (link: ImportantLink) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('important_links').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: link }).select('id').single(); if (error) { console.error(error); toast.error("Erro ao adicionar link."); throw error; } if (data) setImportantLinks(prev => [...prev, { ...link, db_id: data.id }]); }, [user]); // REMOVIDO
-  // const updateImportantLink = useCallback(async (id: string, updates: Partial<ImportantLink>) => { if (!user) throw new Error("Usuário não autenticado."); const l = importantLinks.find(l => l.id === id); if (!l || !l.db_id) throw new Error("Link não encontrado"); const updated = { ...l, ...updates }; const { db_id, ...dataToUpdate } = updated; const { error } = await supabase.from('important_links').update({ data: dataToUpdate }).match({ id: l.db_id, user_id: JOAO_GESTOR_AUTH_ID }); if (error) { console.error(error); toast.error("Erro ao atualizar link."); throw error; } setImportantLinks(prev => prev.map(item => item.id === id ? updated : item)); }, [user, importantLinks]); // REMOVIDO
-  // const deleteImportantLink = useCallback(async (id: string) => { if (!user) throw new Error("Usuário não autenticado."); const l = importantLinks.find(l => l.id === id); if (!l || !l.db_id) throw new Error("Link não encontrado"); const { error } = await supabase.from('important_links').delete().match({ id: l.db_id, user_id: JOAO_GESTOR_AUTH_ID }); if (error) { console.error(error); toast.error("Erro ao excluir link."); throw error; } setImportantLinks(prev => prev.filter(p => p.id !== id)); }, [user, importantLinks]); // REMOVIDO
-  const updateInstallmentStatus = useCallback(async (commissionId: string, installmentNumber: number, status: InstallmentStatus, paidDate?: string, saleType?: 'Imóvel' | 'Veículo') => { const commission = commissions.find(c => c.id === commissionId); if (!commission) { console.error("Comissão não encontrada"); toast.error("Comissão não encontrada."); return; } let competenceMonth: string | undefined; let finalPaidDate = paidDate || new Date().toISOString().split('T')[0]; if (status === 'Pago' && finalPaidDate) { competenceMonth = calculateCompetenceMonth(finalPaidDate); } const newDetails = { ...commission.installmentDetails, [installmentNumber]: { status, ...(finalPaidDate && { paidDate: finalPaidDate }), ...(competenceMonth && { competenceMonth }) } }; const newOverallStatus = getOverallStatus(newDetails); try { const updatedCommission = { ...commission, installmentDetails: newDetails, status: newOverallStatus }; setCommissions(prev => prev.map(c => c.id === commissionId ? updatedCommission : c)); if (commission.db_id && user) { const { db_id, criado_em, _synced, ...dataToUpdate } = updatedCommission; const { error } = await supabase.from('commissions').update({ data: dataToUpdate }).eq('id', commission.db_id).eq('user_id', JOAO_GESTOR_AUTH_ID); if (error) throw error; } } catch (error: any) { console.error("Erro ao salvar status:", error); toast.error("Erro ao salvar status da parcela. Tente novamente."); throw error; } }, [commissions, user, calculateCompetenceMonth]);
-  const getCandidate = useCallback((id: string) => candidates.find(c => c.id === id), [candidates]);
-  const toggleChecklistItem = useCallback(async (candidateId: string, itemId: string) => { const c = getCandidate(candidateId); if(c) { const state = c.checklistProgress[itemId] || { completed: false }; await updateCandidate(candidateId, { checklistProgress: { ...c.checklistProgress, [itemId]: { ...state, completed: !state.completed } } }); } }, [getCandidate, updateCandidate]);
-  const setChecklistDueDate = useCallback(async (candidateId: string, itemId: string, date: string) => { const c = getCandidate(candidateId); if(c) { const state = c.checklistProgress[itemId] || { completed: false }; await updateCandidate(candidateId, { checklistProgress: { ...c.checklistProgress, [itemId]: { ...state, dueDate: date } } }); } }, [getCandidate, updateCandidate]);
-  const toggleConsultantGoal = useCallback(async (candidateId: string, goalId: string) => { const c = getCandidate(candidateId); if(c) { const progress = c.consultantGoalsProgress || {}; await updateCandidate(candidateId, { consultantGoalsProgress: { ...progress, [goalId]: !progress[goalId] } }); } }, [getCandidate, updateCandidate]);
-  const addFeedback = useCallback(async (candidateId: string, feedbackData: Omit<Feedback, 'id'>) => { const c = getCandidate(candidateId); if(c) { const newFeedback: Feedback = { id: crypto.randomUUID(), ...feedbackData }; const newFeedbacks = [...(c.feedbacks || []), newFeedback]; await updateCandidate(candidateId, { feedbacks: newFeedbacks }); } }, [getCandidate, updateCandidate]);
-  const updateFeedback = useCallback(async (candidateId: string, updatedFeedback: Feedback) => { const c = getCandidate(candidateId); if(c) { const newFeedbacks = (c.feedbacks || []).map(f => f.id === updatedFeedback.id ? updatedFeedback : f); await updateCandidate(candidateId, { feedbacks: newFeedbacks }); } }, [getCandidate, updateCandidate]);
-  const deleteFeedback = useCallback(async (candidateId: string, feedbackId: string) => { const c = getCandidate(candidateId); if(c) { const newFeedbacks = (c.feedbacks || []).filter(f => f.id !== feedbackId); await updateCandidate(candidateId, { feedbacks: newFeedbacks }); } }, [getCandidate, updateCandidate]);
-  const addTeamMemberFeedback = useCallback(async (memberId: string, feedbackData: Omit<Feedback, 'id'>) => { const member = teamMembers.find(m => m.id === memberId); if (member) { const newFeedback: Feedback = { id: crypto.randomUUID(), ...feedbackData }; const newFeedbacks = [...(member.feedbacks || []), newFeedback]; await updateTeamMember(memberId, { feedbacks: newFeedbacks }); } }, [teamMembers, updateTeamMember]);
-  const updateTeamMemberFeedback = useCallback(async (memberId: string, updatedFeedback: Feedback) => { const member = teamMembers.find(m => m.id === memberId); if (member) { const newFeedbacks = (member.feedbacks || []).map(f => f.id === updatedFeedback.id ? updatedFeedback : f); await updateTeamMember(memberId, { feedbacks: newFeedbacks }); } }, [teamMembers, updateTeamMember]);
-  const deleteTeamMemberFeedback = useCallback(async (memberId: string, feedbackId: string) => { const member = teamMembers.find(m => m.id === memberId); if (member) { const newFeedbacks = (member.feedbacks || []).filter(f => f.id !== feedbackId); await updateTeamMember(memberId, { feedbacks: newFeedbacks }); } }, [teamMembers, updateTeamMember]);
-  const saveTemplate = useCallback((id: string, updates: Partial<CommunicationTemplate>) => { const newTemplates = { ...templates, [id]: { ...templates[id], ...updates } }; setTemplates(newTemplates); updateConfig({ templates: newTemplates }); }, [templates, updateConfig]);
-  const addOrigin = useCallback((origin: string) => { if (!origins.includes(origin)) { const newOrigins = [...origins, origin]; setOrigins(newOrigins); updateConfig({ origins: newOrigins }); } }, [origins, updateConfig]);
-  const deleteOrigin = useCallback((originToDelete: string) => { if (origins.length <= 1) { toast.error("É necessário manter pelo menos uma origem."); return; } const newOrigins = origins.filter(o => o !== originToDelete); setOrigins(newOrigins); updateConfig({ origins: newOrigins }); } , [origins, updateConfig]);
-  const resetOriginsToDefault = useCallback(() => { setOrigins(DEFAULT_APP_CONFIG_DATA.origins); updateConfig({ origins: DEFAULT_APP_CONFIG_DATA.origins }); }, [updateConfig]); // NOVO: Função para resetar origens
-  const addInterviewer = useCallback((interviewer: string) => { if (!interviewers.includes(interviewer)) { const newInterviewers = [...interviewers, interviewer]; setInterviewers(newInterviewers); updateConfig({ interviewers: newInterviewers }); } }, [interviewers, updateConfig]);
-  const deleteInterviewer = useCallback((interviewerToDelete: string) => { if (interviewers.length <= 1) { toast.error("É necessário manter pelo menos um entrevistador."); return; } const newInterviewers = interviewers.filter(i => i !== interviewerToDelete); setInterviewers(newInterviewers); updateConfig({ interviewers: newInterviewers }); }, [interviewers, updateConfig]);
-  const addPV = useCallback((pv: string) => { if (!pvs.includes(pv)) { const newPvs = [...pvs, pv]; setPvs(newPvs); updateConfig({ pvs: newPvs }); } }, [pvs, updateConfig]);
-  const updateAndPersistStructure = useCallback((setter: React.Dispatch<React.SetStateAction<any>>, key: string, newStructure: any) => { setter(newStructure); updateConfig({ [key]: newStructure }); }, [updateConfig]);
-  const addChecklistItem = useCallback((stageId: string, label: string) => { const newStructure = checklistStructure.map(s => s.id === stageId ? { ...s, items: [...s.items, { id: `custom_${Date.now()}`, label }] } : s); updateAndPersistStructure(setChecklistStructure, 'checklistStructure', newStructure); }, [checklistStructure, updateAndPersistStructure]);
-  const updateChecklistItem = useCallback((stageId: string, itemId: string, label: string) => { const newStructure = checklistStructure.map(s => s.id === stageId ? { ...s, items: s.items.map(i => i.id === itemId ? { ...i, label } : i) } : s); updateAndPersistStructure(setChecklistStructure, 'checklistStructure', newStructure); }, [checklistStructure, updateAndPersistStructure]);
-  const deleteChecklistItem = useCallback((stageId: string, itemId: string) => { const newStructure = checklistStructure.map(s => s.id === stageId ? { ...s, items: s.items.filter(i => i.id !== itemId) } : s); updateAndPersistStructure(setChecklistStructure, 'checklistStructure', newStructure); }, [checklistStructure, updateAndPersistStructure]);
-  const moveChecklistItem = useCallback((stageId: string, itemId: string, dir: 'up' | 'down') => { const newStructure = checklistStructure.map(s => { if (s.id !== stageId) return s; const idx = s.items.findIndex(i => i.id === itemId); if ((dir === 'up' && idx < 1) || (dir === 'down' && idx >= s.items.length - 1)) return s; const newItems = [...s.items]; const targetIdx = dir === 'up' ? idx - 1 : idx + 1; [newItems[idx], newItems[targetIdx]] = [newItems[targetIdx], newItems[idx]]; return { ...s, items: newItems }; }); updateAndPersistStructure(setChecklistStructure, 'checklistStructure', newStructure); }, [checklistStructure, updateAndPersistStructure]);
-  const resetChecklistToDefault = useCallback(() => { updateAndPersistStructure(setChecklistStructure, 'checklistStructure', DEFAULT_STAGES); }, [updateAndPersistStructure]);
-  const addGoalItem = useCallback((stageId: string, label: string) => { const newStructure = consultantGoalsStructure.map(s => s.id === stageId ? { ...s, items: [...s.items, { id: `goal_${Date.now()}`, label }] } : s); updateAndPersistStructure(setConsultantGoalsStructure, 'consultantGoalsStructure', newStructure); }, [consultantGoalsStructure, updateAndPersistStructure]);
-  const updateGoalItem = useCallback((stageId: string, itemId: string, label: string) => { const newStructure = consultantGoalsStructure.map(s => s.id === stageId ? { ...s, items: s.items.map(i => i.id === itemId ? { ...i, label } : i) } : s); updateAndPersistStructure(setConsultantGoalsStructure, 'consultantGoalsStructure', newStructure); }, [consultantGoalsStructure, updateAndPersistStructure]);
-  const deleteGoalItem = useCallback((stageId: string, itemId: string) => { const newStructure = consultantGoalsStructure.map(s => s.id === stageId ? { ...s, items: s.items.filter(i => i.id !== itemId) } : s); updateAndPersistStructure(setConsultantGoalsStructure, 'consultantGoalsStructure', newStructure); }, [consultantGoalsStructure, updateAndPersistStructure]);
-  const moveGoalItem = useCallback((stageId: string, itemId: string, dir: 'up' | 'down') => { const newStructure = consultantGoalsStructure.map(s => { if (s.id !== stageId) return s; const idx = s.items.findIndex(i => i.id === itemId); if ((dir === 'up' && idx < 1) || (dir === 'down' && idx >= s.items.length - 1)) return s; const newItems = [...s.items]; const targetIdx = dir === 'up' ? idx - 1 : idx + 1; [newItems[idx], newItems[targetIdx]] = [newItems[targetIdx], newItems[idx]]; return { ...s, items: newItems }; }); updateAndPersistStructure(setConsultantGoalsStructure, 'consultantGoalsStructure', newStructure); }, [consultantGoalsStructure, updateAndPersistStructure]);
-  const resetGoalsToDefault = useCallback(() => { updateAndPersistStructure(setConsultantGoalsStructure, 'consultantGoalsStructure', DEFAULT_GOALS); }, [updateAndPersistStructure]);
-  const updateInterviewSection = useCallback((sectionId: string, updates: Partial<InterviewSection>) => { const newStructure = interviewStructure.map(s => s.id === sectionId ? { ...s, ...updates } : s); updateAndPersistStructure(setInterviewStructure, 'interviewStructure', newStructure); }, [interviewStructure, updateAndPersistStructure]);
-  const addInterviewQuestion = useCallback((sectionId: string, text: string, points: number) => { const newStructure = interviewStructure.map(s => s.id === sectionId ? { ...s, questions: [...s.questions, { id: `q_${Date.now()}`, text, points }] } : s); updateAndPersistStructure(setInterviewStructure, 'interviewStructure', newStructure); }, [interviewStructure, updateAndPersistStructure]);
-  const updateInterviewQuestion = useCallback((sectionId: string, questionId: string, updates: Partial<InterviewSection['questions'][0]>) => { const newStructure = interviewStructure.map(s => s.id === sectionId ? { ...s, questions: s.questions.map(q => q.id === questionId ? { ...q, ...updates } : q) } : s); updateAndPersistStructure(setInterviewStructure, 'interviewStructure', newStructure); }, [interviewStructure, updateAndPersistStructure]);
-  const deleteInterviewQuestion = useCallback((sectionId: string, questionId: string) => { const newStructure = interviewStructure.map(s => s.id === sectionId ? { ...s, questions: s.questions.filter(q => q.id !== questionId) } : s); updateAndPersistStructure(setInterviewStructure, 'interviewStructure', newStructure); }, [interviewStructure, updateAndPersistStructure]);
-  const moveInterviewQuestion = useCallback((sectionId: string, questionId: string, dir: 'up' | 'down') => { const newStructure = interviewStructure.map(s => { if (s.id !== sectionId) return s; const idx = s.questions.findIndex(i => i.id === questionId); if ((dir === 'up' && idx < 1) || (dir === 'down' && idx >= s.questions.length - 1)) return s; const newQuestions = [...s.questions]; const targetIdx = dir === 'up' ? idx - 1 : idx + 1; [newQuestions[idx], newQuestions[targetIdx]] = [newQuestions[targetIdx], newQuestions[idx]]; return { ...s, questions: newQuestions }; }); updateAndPersistStructure(setInterviewStructure, 'interviewStructure', newStructure); }, [interviewStructure, updateAndPersistStructure]);
-  const resetInterviewToDefault = useCallback(() => { updateAndPersistStructure(setInterviewStructure, 'interviewStructure', INITIAL_INTERVIEW_STRUCTURE); }, [updateAndPersistStructure]);
-  
-  const addOnlineOnboardingSession = useCallback(async (consultantName: string): Promise<OnboardingSession | null> => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const { data: sessionData, error: sessionError } = await supabase
-      .from('onboarding_sessions')
-      .insert({ user_id: JOAO_GESTOR_AUTH_ID, consultant_name: consultantName })
-      .select()
-      .single();
-    if (sessionError) { console.error(sessionError); toast.error("Erro ao criar sessão de onboarding."); throw sessionError; }
-
-    const videosToInsert = onboardingTemplateVideos.map(templateVideo => ({
-      session_id: sessionData.id,
-      title: templateVideo.title,
-      video_url: templateVideo.video_url,
-      order: templateVideo.order,
-      is_completed: false,
-    }));
-
-    if (videosToInsert.length > 0) {
-      const { error: videosError } = await supabase.from('onboarding_videos').insert(videosToInsert);
-      if (videosError) {
-        await supabase.from('onboarding_sessions').delete().eq('id', sessionData.id);
-        console.error(videosError);
-        toast.error("Erro ao adicionar vídeos à sessão.");
-        throw videosError;
-      }
-    }
-    
-    const newSession = { ...sessionData, videos: videosToInsert.map(v => ({...v, id: crypto.randomUUID()})) };
-    setOnboardingSessions(prev => [newSession, ...prev].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
-    return newSession;
-  }, [user, onboardingTemplateVideos]);
-
-  const deleteOnlineOnboardingSession = useCallback(async (sessionId: string) => { if (!user) throw new Error("Usuário não autenticado."); const { error } = await supabase.from('onboarding_sessions').delete().match({ id: sessionId, user_id: JOAO_GESTOR_AUTH_ID }); if (error) { console.error(error); toast.error("Erro ao excluir sessão de onboarding."); throw error; } setOnboardingSessions(prev => prev.filter(s => s.id !== sessionId)); }, [user]);
-  
-  const addVideoToTemplate = useCallback(async (title: string, url: string) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const newOrder = onboardingTemplateVideos.length > 0 ? Math.max(...onboardingTemplateVideos.map(v => v.order)) + 1 : 1;
-    const newVideoData = { user_id: JOAO_GESTOR_AUTH_ID, title, video_url: url, order: newOrder };
-    const { data, error } = await supabase.from('onboarding_video_templates').insert(newVideoData).select().single();
-    if (error) { console.error(error); toast.error("Erro ao adicionar vídeo ao template."); throw error; }
-    setOnboardingTemplateVideos(prev => [...prev, data]);
-  }, [user, onboardingTemplateVideos]);
-
-  const deleteVideoFromTemplate = useCallback(async (videoId: string) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const { error } = await supabase.from('onboarding_video_templates').delete().match({ id: videoId, user_id: JOAO_GESTOR_AUTH_ID });
-    if (error) { console.error(error); toast.error("Erro ao excluir vídeo do template."); throw error; }
-    setOnboardingTemplateVideos(prev => prev.filter(v => v.id !== videoId));
-  }, [user]);
-
-  const addCrmLead = useCallback(async (leadData: Omit<CrmLead, 'id' | 'created_at' | 'updated_at'>): Promise<CrmLead> => {
-    if (!user || !session) throw new Error("Usuário não autenticado.");
-    
-    if (!crmOwnerUserId) throw new Error("ID do Gestor do CRM não encontrado.");
-
-    let finalStageId = leadData.stage_id;
-    if (!finalStageId) {
-        const activePipeline = crmPipelines.find(p => p.is_active) || crmPipelines[0];
-        if (activePipeline) {
-            const firstStage = crmStages
-                .filter(s => s.pipeline_id === activePipeline.id && s.is_active)
-                .sort((a, b) => a.order_index - b.order_index)[0];
-            if (firstStage) {
-                finalStageId = firstStage.id;
-            }
-        }
-    }
-    if (!finalStageId) {
-        toast.error("Nenhuma etapa de pipeline ativa encontrada para atribuir ao lead.");
-        throw new Error("Nenhuma etapa de pipeline ativa encontrada para atribuir ao lead.");
-    }
-
-    const effectiveUserIdForCrmOwner = crmOwnerUserId;
-    const effectiveConsultantId = user.role === 'CONSULTOR' ? session.user.id : (leadData.consultant_id || null);
-
-    const payload = {
-        ...leadData,
-        user_id: effectiveUserIdForCrmOwner,
-        stage_id: finalStageId,
-        name: leadData.name || '',
-        consultant_id: effectiveConsultantId,
-        created_by: session.user.id,
-        updated_by: session.user.id
-    };
-
-    console.log('Inserting lead with:', payload);
-
-    const { data, error } = await supabase
-        .from('crm_leads')
-        .insert(payload)
-        .select('*')
-        .single();
-    
-    if (error) {
-        console.error('Error inserting lead:', error);
-        toast.error("Erro ao adicionar lead.");
-        throw error;
-    }
-    
-    const newLead: CrmLead = {
-      id: data.id,
-      consultant_id: data.consultant_id,
-      stage_id: data.stage_id,
-      user_id: data.user_id,
-      name: data.name,
-      data: data.data,
-      created_at: data.created_at,
-      updated_at: data.updated_at,
-      created_by: data.created_by,
-      updated_by: data.updated_by,
-      proposalValue: data.proposal_value,
-      proposalClosingDate: data.proposal_closing_date,
-      soldCreditValue: data.sold_credit_value,
-      soldGroup: data.sold_group,
-      soldQuota: data.sold_quota,
-      saleDate: data.sale_date,
-    };
-
-    // Atualiza o estado local imediatamente
-    setCrmLeads(prev => [newLead, ...prev]);
-    return newLead;
-}, [user, session, crmOwnerUserId, crmPipelines, crmStages]);
-
-  const updateCrmLead = useCallback(async (id: string, updates: Partial<CrmLead>) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    
-    const currentLead = crmLeads.find(l => l.id === id);
-    if (!currentLead) {
-      toast.error("Lead não encontrado para atualização.");
-      throw new Error("Lead não encontrado para atualização.");
-    }
-
-    const dataToUpdateInDB: any = {}; 
-
-    dataToUpdateInDB.name = updates.name !== undefined ? (updates.name === null ? '' : updates.name) : currentLead.name;
-
-    if (updates.stage_id !== undefined) dataToUpdateInDB.stage_id = updates.stage_id;
-    
-    if (updates.proposalValue !== undefined) {
-      dataToUpdateInDB.proposal_value = updates.proposalValue; 
-    }
-    
-    if (updates.proposalClosingDate !== undefined) {
-      dataToUpdateInDB.proposal_closing_date = updates.proposalClosingDate; 
-    }
-
-    if (updates.soldCreditValue !== undefined) {
-      dataToUpdateInDB.sold_credit_value = updates.soldCreditValue;
-    }
-    if (updates.soldGroup !== undefined) {
-      dataToUpdateInDB.sold_group = updates.soldGroup;
-    }
-    if (updates.soldQuota !== undefined) {
-      dataToUpdateInDB.sold_quota = updates.soldQuota;
-    }
-    if (updates.saleDate !== undefined) {
-      dataToUpdateInDB.sale_date = updates.saleDate;
-    }
-
-    if (updates.consultant_id !== undefined) dataToUpdateInDB.consultant_id = updates.consultant_id;
-
-    dataToUpdateInDB.data = {
-      ...currentLead.data,
-      ...updates.data,
-    };
-
-    if ('user_id' in dataToUpdateInDB) {
-      delete dataToUpdateInDB.user_id;
-    }
-
-    dataToUpdateInDB.updated_at = new Date().toISOString();
-
-    Object.keys(dataToUpdateInDB).forEach(key => {
-      if (dataToUpdateInDB[key] === undefined) {
-        delete dataToUpdateInDB[key];
-      }
-    });
-
-    let query = supabase.from('crm_leads').update(dataToUpdateInDB).eq('id', id);
-
-    if (user.role === 'CONSULTOR') {
-      query = query.eq('consultant_id', user.id);
-    } else if (user.role === 'GESTOR' || user.role === 'ADMIN') {
-      if (!crmOwnerUserId) {
-        toast.error("ID do Gestor do CRM não encontrado para validação.");
-        throw new Error("ID do Gestor do CRM não encontrado para validação.");
-      }
-      query = query.eq('user_id', crmOwnerUserId);
-    } else {
-      toast.error("Role de usuário não autorizada para atualizar leads.");
-      throw new Error("Role de usuário não autorizada para atualizar leads.");
-    }
-
-    const { error } = await query;
-
-    if (error) {
-      console.error("Supabase error updating crm_leads:", error);
-      toast.error("Erro ao atualizar lead.");
-      throw error;
-    }
-    
-    // Atualiza o estado local imediatamente
-    setCrmLeads(prev => {
-      const updatedLead = { 
-        ...currentLead, 
-        ...updates,
-        data: { ...currentLead.data, ...updates.data },
-        updated_at: dataToUpdateInDB.updated_at,
-        proposalValue: dataToUpdateInDB.proposal_value !== undefined ? dataToUpdateInDB.proposal_value : currentLead.proposalValue,
-        proposalClosingDate: dataToUpdateInDB.proposal_closing_date !== undefined ? dataToUpdateInDB.proposal_closing_date : currentLead.proposalClosingDate,
-        soldCreditValue: dataToUpdateInDB.sold_credit_value !== undefined ? dataToUpdateInDB.sold_credit_value : currentLead.soldCreditValue,
-        soldGroup: dataToUpdateInDB.sold_group !== undefined ? dataToUpdateInDB.sold_group : currentLead.soldGroup,
-        soldQuota: dataToUpdateInDB.sold_quota !== undefined ? dataToUpdateInDB.sold_quota : currentLead.soldQuota,
-        saleDate: dataToUpdateInDB.sale_date !== undefined ? dataToUpdateInDB.sale_date : currentLead.saleDate,
-      };
-      return prev.map(lead => lead.id === id ? updatedLead : lead);
-    });
-  }, [user, crmLeads, crmOwnerUserId]);
-
-  const deleteCrmLead = useCallback(async (id: string) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    
-    let query = supabase.from('crm_leads').delete().eq('id', id);
-
-    if (user.role === 'CONSULTOR') {
-      query = query.eq('consultant_id', user.id);
-    } else if (user.role === 'GESTOR' || user.role === 'ADMIN') {
-      if (!crmOwnerUserId) { toast.error("ID do Gestor do CRM não encontrado para validação."); throw new Error("ID do Gestor do CRM não encontrado para validação."); }
-      query = query.eq('user_id', crmOwnerUserId);
-    } else {
-      toast.error("Role de usuário não autorizada para excluir leads.");
-      throw new Error("Role de usuário não autorizada para excluir leads.");
-    }
-
-    const { error } = await query;
-    if (error) { console.error(error); toast.error("Erro ao excluir lead."); throw error; }
-    // Atualiza o estado local imediatamente
-    setCrmLeads(prev => prev.filter(lead => lead.id !== id));
-  }, [user, crmOwnerUserId]);
-
-  const updateCrmLeadStage = useCallback(async (leadId: string, newStageId: string) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    
-    const updated_at = new Date().toISOString();
-    let query = supabase.from('crm_leads').update({ stage_id: newStageId, updated_at }).eq('id', leadId);
-
-    if (user.role === 'CONSULTOR') {
-      query = query.eq('consultant_id', user.id);
-    } else if (user.role === 'GESTOR' || user.role === 'ADMIN') {
-      if (!crmOwnerUserId) { toast.error("ID do Gestor do CRM não encontrado para validação."); throw new Error("ID do Gestor do CRM não encontrado para validação."); }
-      query = query.eq('user_id', crmOwnerUserId);
-    } else {
-      toast.error("Role de usuário não autorizada para mover leads de etapa.");
-      throw new Error("Role de usuário não autorizada para mover leads de etapa.");
-    }
-
-    const { error } = await query;
-    if (error) { console.error(error); toast.error("Erro ao mover lead de etapa."); throw error; }
-    
-    // Atualiza o estado local imediatamente
-    setCrmLeads(prev => prev.map(lead => lead.id === leadId ? { ...lead, stage_id: newStageId, updated_at } : lead));
-  }, [user, crmOwnerUserId]);
-
-  const addCrmStage = useCallback(async (stageData: Omit<CrmStage, 'id' | 'user_id' | 'created_at'>) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('crm_stages').insert({ ...stageData, user_id: JOAO_GESTOR_AUTH_ID }).select().single(); if (error) { console.error(error); toast.error("Erro ao adicionar etapa do CRM."); throw error; } setCrmStages(prev => [...prev, data].sort((a, b) => a.order_index - b.order_index)); return data; }, [user]);
-  const updateCrmStage = useCallback(async (id: string, updates: Partial<CrmStage>) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('crm_stages').update(updates).eq('id', id).select().single(); if (error) { console.error(error); toast.error("Erro ao atualizar etapa do CRM."); throw error; } setCrmStages(prev => prev.map(s => s.id === id ? data : s).sort((a, b) => a.order_index - b.order_index)); }, [user]);
-  const updateCrmStageOrder = useCallback(async (stages: CrmStage[]) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const updates = stages.map((stage, index) => ({
-      id: stage.id,
-      order_index: index,
-      user_id: JOAO_GESTOR_AUTH_ID,
-      pipeline_id: stage.pipeline_id,
-      name: stage.name,
-      is_active: stage.is_active,
-      is_won: stage.is_won,
-      is_lost: stage.is_lost,
-    }));
-    const { error } = await supabase.from('crm_stages').upsert(updates);
-    if (error) { console.error(error); toast.error("Erro ao reordenar etapas do CRM."); throw error; }
-    setCrmStages(stages.map((s, i) => ({...s, order_index: i})));
-  }, [user]);
-  const deleteCrmStage = useCallback(async (id: string) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const { error } = await supabase.from('crm_stages').delete().eq('id', id).eq('user_id', JOAO_GESTOR_AUTH_ID);
-    if (error) { console.error(error); toast.error("Erro ao excluir etapa do CRM."); throw error; }
-    setCrmStages(prev => prev.filter(stage => stage.id !== id));
-  }, [user]);
-  const addCrmField = useCallback(async (fieldData: Omit<CrmField, 'id' | 'user_id' | 'created_at'>) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('crm_fields').insert({ ...fieldData, user_id: JOAO_GESTOR_AUTH_ID }).select().single(); if (error) { console.error(error); toast.error("Erro ao adicionar campo do CRM."); throw error; } setCrmFields(prev => [...prev, data]); return data; }, [user]);
-  const updateCrmField = useCallback(async (id: string, updates: Partial<CrmField>) => { if (!user) throw new Error("Usuário não autenticado."); const { data, error } = await supabase.from('crm_fields').update(updates).eq('id', id).select().single(); if (error) { console.error(error); toast.error("Erro ao atualizar campo do CRM."); throw error; } setCrmFields(prev => prev.map(f => f.id === id ? data : f)); }, [user]);
-
-  const addDailyChecklist = useCallback(async (title: string): Promise<DailyChecklist> => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const { data, error } = await supabase.from('daily_checklists').insert({ user_id: JOAO_GESTOR_AUTH_ID, title, is_active: true }).select().single();
-    if (error) { console.error(error); toast.error("Erro ao criar checklist diário."); throw error; }
-    setDailyChecklists(prev => [...prev, data]);
-    return data;
-  }, [user]);
-
-  const updateDailyChecklist = useCallback(async (id: string, updates: Partial<DailyChecklist>) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const { error } = await supabase.from('daily_checklists').update(updates).eq('id', id).eq('user_id', JOAO_GESTOR_AUTH_ID);
-    if (error) { console.error(error); toast.error("Erro ao atualizar checklist diário."); throw error; }
-    setDailyChecklists(prev => prev.map(cl => cl.id === id ? { ...cl, ...updates } : cl));
-  }, [user]);
-
-  const deleteDailyChecklist = useCallback(async (id: string) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const { error } = await supabase.from('daily_checklists').delete().eq('id', id).eq('user_id', JOAO_GESTOR_AUTH_ID);
-    if (error) { console.error(error); toast.error("Erro ao excluir checklist diário."); throw error; }
-    setDailyChecklists(prev => prev.filter(cl => cl.id !== id));
-    setDailyChecklistItems(prev => prev.filter(item => item.daily_checklist_id !== id));
-    setDailyChecklistAssignments(prev => prev.filter(assign => assign.daily_checklist_id !== id));
-  }, [user]);
-
-  const addDailyChecklistItem = useCallback(async (checklistId: string, text: string, order_index: number, resource?: DailyChecklistItemResource, file?: File): Promise<DailyChecklistItem> => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    
-    let finalResource: DailyChecklistItemResource | undefined = resource;
-    let audioUrlForTextAudio: string | undefined;
-
-    // Handle file upload for 'image', 'pdf', 'video', 'audio'
-    if (file && (resource?.type === 'image' || resource?.type === 'pdf' || resource?.type === 'video' || resource?.type === 'audio')) {
-      const sanitizedFileName = file.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w\s.-]/g, '').replace(/\s+/g, '_');
-      const filePath = `daily_checklist_resources/${crypto.randomUUID()}-${sanitizedFileName}`;
-      
-      const { error: uploadError } = await supabase.storage.from('support_materials').upload(filePath, file, {
-        cacheControl: '3600',
-        upsert: false
+      setCreatedConsultantCredentials({ 
+        name: member.name, 
+        login: member.email,
+        password: newTempPassword, 
+        wasExistingUser: true
       });
-      if (uploadError) { 
-        console.error("Supabase Storage Upload Error:", uploadError);
-        toast.error("Erro ao fazer upload do arquivo para o item do checklist."); 
-        throw uploadError; 
-      }
+      setShowCredentialsModal(true);
 
-      const { data: urlData } = supabase.storage.from('support_materials').getPublicUrl(filePath);
-      if (!urlData) { 
-        console.error("Supabase Public URL Error: No URL data returned.");
-        toast.error("Não foi possível obter a URL pública do arquivo."); 
-        throw new Error("Não foi possível obter a URL pública do arquivo."); 
-      }
-      
-      finalResource = { ...resource, content: urlData.publicUrl, name: file.name };
-    } else if (file && resource?.type === 'text_audio') { // Handle audio file upload for 'text_audio' type
-      const sanitizedFileName = file.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w\s.-]/g, '').replace(/\s+/g, '_');
-      const filePath = `daily_checklist_resources/${crypto.randomUUID()}-${sanitizedFileName}`;
-      
-      const { error: uploadError } = await supabase.storage.from('support_materials').upload(filePath, file, {
-        cacheControl: '3600',
-        upsert: false
-      });
-      if (uploadError) { 
-        console.error("Supabase Storage Upload Error (text_audio):", uploadError);
-        toast.error("Erro ao fazer upload do arquivo de áudio para o item do checklist."); 
-        throw uploadError; 
-      }
-
-      const { data: urlData } = supabase.storage.from('support_materials').getPublicUrl(filePath);
-      if (!urlData) { 
-        console.error("Supabase Public URL Error (text_audio): No URL data returned.");
-        toast.error("Não foi possível obter a URL pública do arquivo de áudio."); 
-        throw new Error("Não foi possível obter a URL pública do arquivo de áudio."); 
-      }
-      audioUrlForTextAudio = urlData.publicUrl;
-      finalResource = { 
-        ...resource, 
-        content: { 
-          text: (resource.content as { text: string; audioUrl: string; }).text, 
-          audioUrl: audioUrlForTextAudio 
-        }, 
-        name: file.name 
-      };
-    }
-
-
-    const { data, error } = await supabase.from('daily_checklist_items').insert({ daily_checklist_id: checklistId, text, order_index, is_active: true, resource: finalResource }).select().single();
-    if (error) { 
-      console.error("Supabase DB Insert Error (daily_checklist_items):", error);
-      toast.error("Erro ao adicionar item ao checklist."); 
-      throw error; 
-    }
-    setDailyChecklistItems(prev => [...prev, data].sort((a, b) => a.order_index - b.order_index));
-    return data;
-  }, [user]);
-
-  const updateDailyChecklistItem = useCallback(async (id: string, updates: Partial<DailyChecklistItem>, file?: File) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    
-    const currentItem = dailyChecklistItems.find(item => item.id === id);
-    if (!currentItem) throw new Error("Item do checklist não encontrado.");
-
-    let finalResource: DailyChecklistItemResource | undefined = updates.resource !== undefined ? updates.resource : currentItem.resource;
-    let audioUrlForTextAudio: string | undefined;
-
-    // Determine if old file needs deletion
-    const oldFileResource = currentItem.resource;
-    const oldFilePath = (oldFileResource && (oldFileResource.type === 'image' || oldFileResource.type === 'pdf' || oldFileResource.type === 'video' || oldFileResource.type === 'audio') && typeof oldFileResource.content === 'string')
-      ? oldFileResource.content.split('/support_materials/')[1]
-      : null;
-    
-    const oldTextAudioFilePath = (oldFileResource && oldFileResource.type === 'text_audio' && typeof oldFileResource.content === 'object' && oldFileResource.content.audioUrl)
-      ? oldFileResource.content.audioUrl.split('/support_materials/')[1]
-      : null;
-
-    // Handle file upload for 'image', 'pdf', 'video', 'audio'
-    if (file && (finalResource?.type === 'image' || finalResource?.type === 'pdf' || finalResource?.type === 'video' || finalResource?.type === 'audio')) {
-      // Delete old file if it exists and is different from new file
-      if (oldFilePath && oldFilePath !== file.name) { // Simple check, could be more robust
-        const { error: storageDeleteError } = await supabase.storage.from('support_materials').remove([oldFilePath]);
-        if (storageDeleteError) console.error("Supabase Storage Delete Error (old file):", storageDeleteError.message);
-      }
-
-      const sanitizedFileName = file.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w\s.-]/g, '').replace(/\s+/g, '_');
-      const filePath = `daily_checklist_resources/${crypto.randomUUID()}-${sanitizedFileName}`;
-      
-      const { error: uploadError } = await supabase.storage.from('support_materials').upload(filePath, file, {
-        cacheControl: '3600',
-        upsert: false
-      });
-      if (uploadError) { 
-        console.error("Supabase Storage Upload Error (update):", uploadError);
-        toast.error("Erro ao fazer upload do novo arquivo para o item do checklist."); 
-        throw error; 
-      }
-
-      const { data: urlData } = supabase.storage.from('support_materials').getPublicUrl(filePath);
-      if (!urlData) { 
-        console.error("Supabase Public URL Error (update): No URL data returned.");
-        toast.error("Não foi possível obter a URL pública do novo arquivo."); 
-        throw new Error("Não foi possível obter a URL pública do novo arquivo."); 
-      }
-      
-      finalResource = { ...finalResource, content: urlData.publicUrl, name: file.name };
-    } else if (file && finalResource?.type === 'text_audio') { // Handle audio file upload for 'text_audio' type
-      // Delete old audio file if it exists
-      if (oldTextAudioFilePath) {
-        const { error: storageDeleteError } = await supabase.storage.from('support_materials').remove([oldTextAudioFilePath]);
-        if (storageDeleteError) console.error("Supabase Storage Delete Error (old text_audio file):", storageDeleteError.message);
-      }
-
-      const sanitizedFileName = file.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w\s.-]/g, '').replace(/\s+/g, '_');
-      const filePath = `daily_checklist_resources/${crypto.randomUUID()}-${sanitizedFileName}`;
-      
-      const { error: uploadError } = await supabase.storage.from('support_materials').upload(filePath, file, {
-        cacheControl: '3600',
-        upsert: false
-      });
-      if (uploadError) { 
-        console.error("Supabase Storage Upload Error (text_audio update):", uploadError);
-        toast.error("Erro ao fazer upload do novo arquivo de áudio para o item do checklist."); 
-        throw error; 
-      }
-
-      const { data: urlData } = supabase.storage.from('support_materials').getPublicUrl(filePath);
-      if (!urlData) { 
-        console.error("Supabase Public URL Error (text_audio update): No URL data returned.");
-        toast.error("Não foi possível obter a URL pública do novo arquivo de áudio."); 
-        throw new Error("Não foi possível obter a URL pública do novo arquivo de áudio."); 
-      }
-      audioUrlForTextAudio = urlData.publicUrl;
-      finalResource = { 
-        ...finalResource, 
-        content: { 
-          text: (finalResource.content as { text: string; audioUrl: string; }).text, 
-          audioUrl: audioUrlForTextAudio 
-        }, 
-        name: file.name 
-      };
-    } else if (updates.resource === null || (updates.resource && updates.resource.type === 'none')) { // Explicitly setting resource to null/undefined or 'none'
-      // Delete old file if it exists
-      if (oldFilePath) {
-        const { error: storageDeleteError } = await supabase.storage.from('support_materials').remove([oldFilePath]);
-        if (storageDeleteError) console.error("Supabase Storage Delete Error (resource removed):", storageDeleteError.message);
-      }
-      if (oldTextAudioFilePath) {
-        const { error: storageDeleteError } = await supabase.storage.from('support_materials').remove([oldTextAudioFilePath]);
-        if (storageDeleteError) console.error("Supabase Storage Delete Error (text_audio resource removed):", storageDeleteError.message);
-      }
-      finalResource = undefined;
-    } else if (finalResource?.type === 'text_audio' && typeof finalResource.content === 'object' && !file) {
-      // If text_audio type, no new file, but audioUrl might have changed or been removed
-      const newAudioUrl = (updates.resource?.content as { text: string; audioUrl: string; })?.audioUrl || '';
-      if (oldTextAudioFilePath && !newAudioUrl.includes(oldTextAudioFilePath)) { // If old URL is different and not part of new URL
-        const { error: storageDeleteError } = await supabase.storage.from('support_materials').remove([oldTextAudioFilePath]);
-        if (storageDeleteError) console.error("Supabase Storage Delete Error (text_audio URL changed):", storageDeleteError.message);
-      }
-      finalResource = {
-        ...finalResource,
-        content: {
-          text: (finalResource.content as { text: string; audioUrl: string; }).text,
-          audioUrl: newAudioUrl
-        }
-      };
-    }
-
-
-    const { error } = await supabase.from('daily_checklist_items').update({ ...updates, resource: finalResource }).eq('id', id);
-    if (error) { 
-      console.error("Supabase DB Update Error (daily_checklist_items):", error);
-      toast.error("Erro ao atualizar item do checklist."); 
-      throw error; 
-    }
-    setDailyChecklistItems(prev => prev.map(item => item.id === id ? { ...item, ...updates, resource: finalResource } : item).sort((a, b) => a.order_index - b.order_index));
-  }, [user, dailyChecklistItems]);
-
-  const deleteDailyChecklistItem = useCallback(async (id: string) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    
-    const itemToDelete = dailyChecklistItems.find(item => item.id === id);
-    if (!itemToDelete) throw new Error("Item do checklist não encontrado.");
-
-    // If the item has a file resource, delete it from storage
-    if (itemToDelete.resource) {
-      if ((itemToDelete.resource.type === 'image' || itemToDelete.resource.type === 'pdf' || itemToDelete.resource.type === 'video' || itemToDelete.resource.type === 'audio') && typeof itemToDelete.resource.content === 'string') {
-        const filePath = itemToDelete.resource.content.split('/support_materials/')[1];
-        if (filePath) {
-          const { error: storageError } = await supabase.storage.from('support_materials').remove([filePath]);
-          if (storageError) console.error("Supabase Storage Delete Error (delete item):", storageError.message);
-        }
-      } else if (itemToDelete.resource.type === 'text_audio' && typeof itemToDelete.resource.content === 'object' && itemToDelete.resource.content.audioUrl) {
-        const filePath = itemToDelete.resource.content.audioUrl.split('/support_materials/')[1];
-        if (filePath) {
-          const { error: storageError } = await supabase.storage.from('support_materials').remove([filePath]);
-          if (storageError) console.error("Supabase Storage Delete Error (delete text_audio item):", storageError.message);
-        }
-      }
-    }
-
-    const { error } = await supabase.from('daily_checklist_items').delete().eq('id', id);
-    if (error) { 
-      console.error("Supabase DB Delete Error (daily_checklist_items):", error);
-      toast.error("Erro ao excluir item do checklist."); 
-      throw error; 
-    }
-    setDailyChecklistItems(prev => prev.filter(item => item.id !== id));
-    setDailyChecklistCompletions(prev => prev.filter(comp => comp.daily_checklist_item_id !== id));
-  }, [user, dailyChecklistItems]);
-
-  const moveDailyChecklistItem = useCallback(async (checklistId: string, itemId: string, direction: 'up' | 'down') => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const itemsInChecklist = dailyChecklistItems.filter(item => item.daily_checklist_id === checklistId).sort((a, b) => a.order_index - b.order_index);
-    const itemIndex = itemsInChecklist.findIndex(item => item.id === itemId);
-
-    if (itemIndex === -1) return;
-
-    const newOrder = [...itemsInChecklist];
-    const [movedItem] = newOrder.splice(itemIndex, 1);
-    const targetIndex = direction === 'up' ? itemIndex - 1 : itemIndex + 1;
-
-    if (targetIndex < 0 || targetIndex >= newOrder.length + 1) return;
-
-    newOrder.splice(targetIndex, 0, movedItem);
-
-    const updates = newOrder.map((item, index) => ({
-      id: item.id,
-      order_index: index,
-    }));
-
-    const { error } = await supabase.from('daily_checklist_items').upsert(updates);
-    if (error) { console.error(error); toast.error("Erro ao mover item do checklist."); throw error; }
-    setDailyChecklistItems(prev => {
-      const otherItems = prev.filter(item => item.daily_checklist_id !== checklistId);
-      return [...otherItems, ...newOrder].sort((a, b) => a.order_index - b.order_index);
-    });
-  }, [user, dailyChecklistItems]);
-
-  const assignDailyChecklistToConsultant = useCallback(async (checklistId: string, consultantId: string) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const { data, error } = await supabase.from('daily_checklist_assignments').insert({ daily_checklist_id: checklistId, consultant_id: consultantId }).select().single();
-    if (error) { console.error(error); toast.error("Erro ao atribuir checklist."); throw error; }
-    setDailyChecklistAssignments(prev => [...prev, data]);
-  }, [user]);
-
-  const unassignDailyChecklistFromConsultant = useCallback(async (checklistId: string, consultantId: string) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const { error } = await supabase.from('daily_checklist_assignments').delete().match({ daily_checklist_id: checklistId, consultant_id: consultantId });
-    if (error) { console.error(error); toast.error("Erro ao remover atribuição do checklist."); throw error; }
-    setDailyChecklistAssignments(prev => prev.filter(assign => !(assign.daily_checklist_id === checklistId && assign.consultant_id === consultantId)));
-  }, [user]);
-
-  const toggleDailyChecklistCompletion = useCallback(async (itemId: string, date: string, done: boolean, consultantId: string) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    console.log(`[toggleDailyChecklistCompletion] Item: ${itemId}, Date: ${date}, Done: ${done}, Consultant: ${consultantId}`);
-
-    const existingCompletion = dailyChecklistCompletions.find(c => c.daily_checklist_item_id === itemId && c.consultant_id === consultantId && c.date === date);
-
-    if (existingCompletion) {
-      console.log(`[toggleDailyChecklistCompletion] Existing completion found: ${existingCompletion.id}. Updating...`);
-      const { data, error } = await supabase.from('daily_checklist_completions').update({ done, updated_at: new Date().toISOString() }).eq('id', existingCompletion.id).select().single();
-      if (error) { 
-        console.error("[toggleDailyChecklistCompletion] Supabase Update Error:", error); 
-        toast.error("Erro ao atualizar conclusão do checklist."); 
-        throw error; 
-      }
-      console.log("[toggleDailyChecklistCompletion] Supabase Update Success:", data);
-      setDailyChecklistCompletions(prev => prev.map(c => c.id === existingCompletion.id ? { ...c, done, updated_at: data.updated_at } : c));
-    } else {
-      console.log("[toggleDailyChecklistCompletion] No existing completion found. Inserting new one...");
-      const { data, error } = await supabase.from('daily_checklist_completions').insert({ daily_checklist_item_id: itemId, consultant_id: consultantId, date, done, updated_at: new Date().toISOString() }).select().single();
-      if (error) { 
-        console.error("[toggleDailyChecklistCompletion] Supabase Insert Error:", error);
-        toast.error("Erro ao registrar conclusão do checklist."); 
-        throw error; 
-      }
-      console.log("[toggleDailyChecklistCompletion] Supabase Insert Success:", data);
-      setDailyChecklistCompletions(prev => [...prev, data]);
-    }
-  }, [user, dailyChecklistCompletions]);
-
-  const addWeeklyTarget = useCallback(async (title: string, week_start: string, week_end: string): Promise<WeeklyTarget> => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const { data, error } = await supabase.from('weekly_targets').insert({ user_id: JOAO_GESTOR_AUTH_ID, title, week_start, week_end, is_active: true }).select().single();
-    if (error) { console.error(error); toast.error("Erro ao criar meta semanal."); throw error; }
-    setWeeklyTargets(prev => [...prev, data]);
-    return data;
-  }, [user]);
-
-  const updateWeeklyTarget = useCallback(async (id: string, updates: Partial<WeeklyTarget>) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const { error } = await supabase.from('weekly_targets').update(updates).eq('id', id).eq('user_id', JOAO_GESTOR_AUTH_ID);
-    if (error) { console.error(error); toast.error("Erro ao atualizar meta semanal."); throw error; }
-    setWeeklyTargets(prev => prev.map(wt => wt.id === id ? { ...wt, ...updates } : wt));
-  }, [user]);
-
-  const deleteWeeklyTarget = useCallback(async (id: string) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const { error } = await supabase.from('weekly_targets').delete().eq('id', id).eq('user_id', JOAO_GESTOR_AUTH_ID);
-    if (error) { console.error(error); toast.error("Erro ao excluir meta semanal."); throw error; }
-    setWeeklyTargets(prev => prev.filter(wt => wt.id !== id));
-    setWeeklyTargetItems(prev => prev.filter(item => item.weekly_target_id !== id));
-    setWeeklyTargetAssignments(prev => prev.filter(assign => assign.weekly_target_id !== id));
-  }, [user]);
-
-  const addWeeklyTargetItem = useCallback(async (targetId: string, metric_key: string, label: string, target_value: number, order_index: number): Promise<WeeklyTargetItem> => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const { data, error } = await supabase.from('weekly_target_items').insert({ weekly_target_id: targetId, metric_key, label, target_value, order_index, is_active: true }).select().single();
-    if (error) { console.error(error); toast.error("Erro ao adicionar item à meta semanal."); throw error; }
-    setWeeklyTargetItems(prev => [...prev, data].sort((a, b) => a.order_index - b.order_index));
-    return data;
-  }, [user]);
-
-  const updateWeeklyTargetItem = useCallback(async (id: string, updates: Partial<WeeklyTargetItem>) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const { error } = await supabase.from('weekly_target_items').update(updates).eq('id', id);
-    if (error) { console.error(error); toast.error("Erro ao atualizar item da meta semanal."); throw error; }
-    setWeeklyTargetItems(prev => prev.map(item => item.id === id ? { ...item, ...updates } : item).sort((a, b) => a.order_index - b.order_index));
-  }, [user]);
-
-  const deleteWeeklyTargetItem = useCallback(async (id: string) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const { error } = await supabase.from('weekly_target_items').delete().eq('id', id);
-    if (error) { console.error(error); toast.error("Erro ao excluir item da meta semanal."); throw error; }
-    setWeeklyTargetItems(prev => prev.filter(item => item.id !== id));
-  }, [user]);
-
-  const moveWeeklyTargetItem = useCallback(async (targetId: string, itemId: string, direction: 'up' | 'down') => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const itemsInTarget = weeklyTargetItems.filter(item => item.weekly_target_id === targetId).sort((a, b) => a.order_index - b.order_index);
-    const itemIndex = itemsInTarget.findIndex(item => item.id === itemId);
-
-    if (itemIndex === -1) return;
-
-    const newOrder = [...itemsInTarget];
-    const [movedItem] = newOrder.splice(itemIndex, 1);
-    const targetIndex = direction === 'up' ? itemIndex - 1 : itemIndex + 1;
-
-    if (targetIndex < 0 || targetIndex >= newOrder.length + 1) return;
-
-    newOrder.splice(targetIndex, 0, movedItem);
-
-    const updates = newOrder.map((item, index) => ({
-      id: item.id,
-      order_index: index,
-    }));
-
-    const { error } = await supabase.from('weekly_target_items').upsert(updates);
-    if (error) { console.error(error); toast.error("Erro ao mover item da meta semanal."); throw error; }
-    setWeeklyTargetItems(prev => {
-      const otherItems = prev.filter(item => item.weekly_target_id !== targetId);
-      return [...otherItems, ...newOrder].sort((a, b) => a.order_index - b.order_index);
-    });
-  }, [user, weeklyTargetItems]);
-
-  const assignWeeklyTargetToConsultant = useCallback(async (targetId: string, consultantId: string) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const { data, error } = await supabase.from('weekly_target_assignments').insert({ weekly_target_id: targetId, consultant_id: consultantId }).select().single();
-    if (error) { console.error(error); toast.error("Erro ao atribuir meta semanal."); throw error; }
-    setWeeklyTargetAssignments(prev => [...prev, data]);
-  }, [user]);
-
-  const unassignWeeklyTargetFromConsultant = useCallback(async (targetId: string, consultantId: string) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const { error } = await supabase.from('weekly_target_assignments').delete().match({ weekly_target_id: targetId, consultant_id: consultantId });
-    if (error) { console.error(error); toast.error("Erro ao remover atribuição da meta semanal."); throw error; }
-    setWeeklyTargetAssignments(prev => prev.filter(assign => !(assign.weekly_target_id === targetId && assign.consultant_id === consultantId)));
-  }, [user]);
-
-  const addMetricLog = useCallback(async (metric_key: string, value: number, date: string): Promise<MetricLog> => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const { data, error } = await supabase.from('metric_logs').insert({ consultant_id: user.id, metric_key, date, value }).select().single();
-    if (error) { console.error(error); toast.error("Erro ao adicionar log de métrica."); throw error; }
-    setMetricLogs(prev => [...prev, data]);
-    return data;
-  }, [user]);
-
-  const addSupportMaterialV2 = useCallback(async (materialData: Omit<SupportMaterialV2, 'id' | 'user_id' | 'created_at'>, file?: File): Promise<SupportMaterialV2> => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    
-    let content = materialData.content;
-    let contentType = materialData.content_type;
-
-    if (file) {
-      const sanitizedFileName = file.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w\s.-]/g, '').replace(/\s+/g, '_');
-      const filePath = `support_materials_v2/${crypto.randomUUID()}-${sanitizedFileName}`;
-      
-      const { error: uploadError } = await supabase.storage.from('support_materials').upload(filePath, file, {
-        cacheControl: '3600',
-        upsert: false
-      });
-      if (uploadError) { console.error(uploadError); toast.error("Erro ao fazer upload do arquivo."); throw uploadError; }
-
-      const { data: urlData } = supabase.storage.from('support_materials').getPublicUrl(filePath);
-      if (!urlData) { toast.error("Não foi possível obter a URL pública do arquivo."); throw new Error("Não foi possível obter a URL pública do arquivo."); }
-      
-      content = urlData.publicUrl;
-      contentType = file.type.includes('image') ? 'image' : 'pdf';
-    }
-
-    const newMaterialData = { 
-      ...materialData, 
-      user_id: JOAO_GESTOR_AUTH_ID,
-      content,
-      content_type: contentType,
-      is_active: true,
-    };
-
-    const { data, error } = await supabase.from('support_materials_v2').insert(newMaterialData).select().single();
-    if (error) { console.error(error); toast.error("Erro ao adicionar material de apoio."); throw error; }
-    setSupportMaterialsV2(prev => [...prev, data]);
-    return data;
-  }, [user]);
-
-  const updateSupportMaterialV2 = useCallback(async (id: string, updates: Partial<SupportMaterialV2>) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const { error } = await supabase.from('support_materials_v2').update(updates).eq('id', id).eq('user_id', JOAO_GESTOR_AUTH_ID);
-    if (error) { console.error(error); toast.error("Erro ao atualizar material de apoio."); throw error; }
-    setSupportMaterialsV2(prev => prev.map(mat => mat.id === id ? { ...mat, ...updates } : mat));
-  }, [user]);
-
-  const deleteSupportMaterialV2 = useCallback(async (id: string) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const materialToDelete = supportMaterialsV2.find(m => m.id === id);
-    if (!materialToDelete) { toast.error("Material não encontrado."); throw new Error("Material não encontrado."); }
-
-    if (materialToDelete.content_type === 'image' || materialToDelete.content_type === 'pdf') {
-      const filePath = materialToDelete.content.split('/support_materials/')[1];
-      if (filePath) {
-        const { error: storageError } = await supabase.storage.from('support_materials').remove([filePath]);
-        if (storageError) console.error("Erro ao deletar arquivo do storage (pode já ter sido removido):", storageError.message);
-      }
-    }
-
-    const { error } = await supabase.from('support_materials_v2').delete().eq('id', id).eq('user_id', JOAO_GESTOR_AUTH_ID);
-    if (error) { console.error(error); toast.error("Erro ao excluir material de apoio."); throw error; }
-    setSupportMaterialsV2(prev => prev.filter(mat => mat.id !== id));
-    setSupportMaterialAssignments(prev => prev.filter(assign => assign.material_id !== id));
-  }, [user, supportMaterialsV2]);
-
-  const assignSupportMaterialToConsultant = useCallback(async (materialId: string, consultantId: string) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const { data, error } = await supabase.from('support_material_assignments').insert({ material_id: materialId, consultant_id: consultantId }).select().single();
-    if (error) { console.error(error); toast.error("Erro ao atribuir material de apoio."); throw error; }
-    setSupportMaterialAssignments(prev => [...prev, data]);
-  }, [user]);
-
-  const unassignSupportMaterialFromConsultant = useCallback(async (materialId: string, consultantId: string) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const { error } = await supabase.from('support_material_assignments').delete().match({ material_id: materialId, consultant_id: consultantId });
-    if (error) { console.error(error); toast.error("Erro ao remover atribuição do material de apoio."); throw error; }
-    setSupportMaterialAssignments(prev => prev.filter(assign => !(assign.material_id === materialId && assign.consultant_id === consultantId)));
-  }, [user]);
-
-  const addLeadTask = useCallback(async (task: Omit<LeadTask, 'id' | 'user_id' | 'created_at'>): Promise<LeadTask> => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    try {
-      const { data, error } = await supabase.from('lead_tasks').insert({ ...task, user_id: user.id }).select().single();
-      if (error) {
-        console.error("Supabase error adding lead task:", error);
-        toast.error("Erro ao adicionar tarefa do lead.");
-        throw new Error(error.message);
-      }
-      // Atualiza o estado local imediatamente
-      setLeadTasks(prev => [...prev, data]);
-      return data;
+      alert(`Senha de ${member.name} resetada com sucesso! O consultor será forçado a trocá-la no próximo login.`);
     } catch (error: any) {
-      console.error("Failed to add lead task:", error);
-      throw new Error(`Failed to add lead task: ${error.message || error}`);
+      alert(`Falha ao resetar senha: ${error.message}`);
+      console.error("Erro ao resetar senha:", error);
     }
-  }, [user]);
+  };
 
-  const updateLeadTask = useCallback(async (id: string, updates: Partial<LeadTask>) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    try {
-      const { data, error } = await supabase.from('lead_tasks').update(updates).eq('id', id).eq('user_id', user.id).select().single();
-      if (error) {
-        console.error("Supabase error updating lead task:", error);
-        toast.error("Erro ao atualizar tarefa do lead.");
-        throw new Error(error.message);
+  const getRoleIcon = (role: TeamRole) => {
+      switch(role) {
+          case 'Gestor': return <Crown className="w-4 h-4 text-blue-500" />;
+          case 'Anjo': return <Star className="w-4 h-4 text-yellow-500" />;
+          case 'Autorizado': return <Shield className="w-4 h-4 text-green-500" />;
+          default: return <User className="w-4 h-4 text-gray-500" />;
       }
-      // Atualiza o estado local imediatamente
-      setLeadTasks(prev => prev.map(task => task.id === id ? { ...task, ...updates } : task));
-    } catch (error: any) {
-      console.error("Failed to update lead task:", error);
-      throw new Error(`Failed to update lead task: ${error.message || error}`);
-    }
-  }, [user]);
+  };
 
-  const deleteLeadTask = useCallback(async (id: string) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    try {
-      const { error } = await supabase.from('lead_tasks').delete().eq('id', id).eq('user_id', user.id);
-      if (error) {
-        console.error("Supabase error deleting lead task:", error);
-        toast.error("Erro ao excluir tarefa do lead.");
-        throw new Error(error.message);
+  const getRoleBadge = (role: TeamRole) => {
+      switch(role) {
+          case 'Gestor': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300';
+          case 'Anjo': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300';
+          case 'Autorizado': return 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300';
+          default: return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
       }
-      // Atualiza o estado local imediatamente
-      setLeadTasks(prev => prev.filter(task => task.id !== id));
-    } catch (error: any) {
-      console.error("Failed to delete lead task:", error);
-      throw new Error(`Failed to delete lead task: ${error.message || error}`);
-    }
-  }, [user]);
+  };
 
-  const toggleLeadTaskCompletion = useCallback(async (id: string, is_completed: boolean) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const updates = { is_completed, completed_at: is_completed ? new Date().toISOString() : null };
-    try {
-      const { data, error } = await supabase.from('lead_tasks').update(updates).eq('id', id).eq('user_id', user.id).select().single();
-      if (error) {
-        console.error("Supabase error toggling lead task completion:", error);
-        toast.error("Erro ao atualizar conclusão da tarefa.");
-        throw new Error(error.message);
-      }
-      // Atualiza o estado local imediatamente
-      setLeadTasks(prev => prev.map(task => task.id === id ? { ...task, ...updates } : task));
-    } catch (error: any) {
-      console.error("Failed to toggle task completion:", error);
-      throw new Error(`Failed to toggle task completion: ${error.message || error}`);
-    }
-  }, [user]);
-
-  // NOVO: Função para atualizar o status do convite de reunião
-  const updateLeadMeetingInvitationStatus = useCallback(async (taskId: string, status: 'pending' | 'accepted' | 'declined') => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    try {
-      const { data, error } = await supabase.from('lead_tasks').update({ manager_invitation_status: status }).eq('id', taskId).eq('manager_id', user.id).select().single();
-      if (error) {
-        console.error("Supabase error updating meeting invitation status:", error);
-        toast.error("Erro ao atualizar status do convite de reunião.");
-        throw new Error(error.message);
-      }
-      // Atualiza o estado local imediatamente
-      setLeadTasks(prev => prev.map(task => task.id === taskId ? { ...task, manager_invitation_status: status } : task));
-    } catch (error: any) {
-      console.error("Failed to update meeting invitation status:", error);
-      throw new Error(`Failed to update meeting invitation status: ${error.message || error}`);
-    }
-  }, [user]);
-
-  // NOVO: Funções para Gestor Tasks
-  const addGestorTask = useCallback(async (task: Omit<GestorTask, 'id' | 'user_id' | 'created_at'>): Promise<GestorTask> => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    try {
-      const { data, error } = await supabase.from('gestor_tasks').insert({ ...task, user_id: user.id }).select().single();
-      if (error) {
-        console.error("Supabase error adding gestor task:", error);
-        toast.error("Erro ao adicionar tarefa pessoal.");
-        throw new Error(error.message);
-      }
-      setGestorTasks(prev => [...prev, data]);
-      return data;
-    } catch (error: any) {
-      console.error("Failed to add gestor task:", error);
-      throw new Error(`Failed to add gestor task: ${error.message || error}`);
-    }
-  }, [user]);
-
-  const updateGestorTask = useCallback(async (id: string, updates: Partial<GestorTask>) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    try {
-      const { data, error } = await supabase.from('gestor_tasks').update(updates).eq('id', id).eq('user_id', user.id).select().single();
-      if (error) {
-        console.error("Supabase error updating gestor task:", error);
-        toast.error("Erro ao atualizar tarefa pessoal.");
-        throw new Error(error.message);
-      }
-      setGestorTasks(prev => prev.map(task => task.id === id ? { ...task, ...updates } : task));
-    } catch (error: any) {
-      console.error("Failed to update gestor task:", error);
-      throw new Error(`Failed to update gestor task: ${error.message || error}`);
-    }
-  }, [user]);
-
-  const deleteGestorTask = useCallback(async (id: string) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    try {
-      const { error } = await supabase.from('gestor_tasks').delete().eq('id', id).eq('user_id', user.id);
-      if (error) {
-        console.error("Supabase error deleting gestor task:", error);
-        toast.error("Erro ao excluir tarefa pessoal.");
-        throw new Error(error.message);
-      }
-      setGestorTasks(prev => prev.filter(task => task.id !== id));
-      // NOVO: Remover conclusões associadas
-      setGestorTaskCompletions(prev => prev.filter(comp => comp.gestor_task_id !== id));
-    } catch (error: any) {
-      console.error("Failed to delete gestor task:", error);
-      throw new Error(`Failed to delete gestor task: ${error.message || error}`);
-    }
-  }, [user]);
-
-  const toggleGestorTaskCompletion = useCallback(async (taskId: string, done: boolean, date: string) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    console.log(`[toggleGestorTaskCompletion] Task: ${taskId}, Date: ${date}, Done: ${done}`);
-    
-    const task = gestorTasks.find(t => t.id === taskId);
-    if (!task) {
-      console.error("[toggleGestorTaskCompletion] Task not found:", taskId);
-      throw new Error("Tarefa do gestor não encontrada.");
-    }
-
-    const isRecurring = task.recurrence_pattern && task.recurrence_pattern.type !== 'none';
-    console.log(`[toggleGestorTaskCompletion] Is Recurring: ${isRecurring}`);
-
-    if (isRecurring) {
-      const existingCompletion = gestorTaskCompletions.find(c => c.gestor_task_id === taskId && c.user_id === user.id && c.date === date);
-      console.log(`[toggleGestorTaskCompletion] Existing completion for recurring task:`, existingCompletion);
-
-      if (existingCompletion) {
-        console.log(`[toggleGestorTaskCompletion] Updating existing completion: ${existingCompletion.id}`);
-        const { data, error } = await supabase.from('gestor_task_completions').update({ done, updated_at: new Date().toISOString() }).eq('id', existingCompletion.id).select().single();
-        if (error) { 
-          console.error("[toggleGestorTaskCompletion] Supabase Update Error (recurring):", error); 
-          toast.error("Erro ao atualizar conclusão da tarefa recorrente."); 
-          throw error; 
-        }
-        console.log("[toggleGestorTaskCompletion] Supabase Update Success (recurring):", data);
-        setGestorTaskCompletions(prev => prev.map(c => c.id === existingCompletion.id ? { ...c, done, updated_at: data.updated_at } : c));
-      } else {
-        console.log("[toggleGestorTaskCompletion] Inserting new completion for recurring task.");
-        const { data, error } = await supabase.from('gestor_task_completions').insert({ gestor_task_id: taskId, user_id: user.id, date, done, updated_at: new Date().toISOString() }).select().single();
-        if (error) { 
-          console.error("[toggleGestorTaskCompletion] Supabase Insert Error (recurring):", error);
-          toast.error("Erro ao registrar conclusão da tarefa recorrente."); 
-          throw error; 
-        }
-        console.log("[toggleGestorTaskCompletion] Supabase Insert Success (recurring):", data);
-        setGestorTaskCompletions(prev => [...prev, data]);
-      }
-    } else {
-      console.log("[toggleGestorTaskCompletion] Updating non-recurring task directly.");
-      const { error } = await supabase.from('gestor_tasks').update({ is_completed: done }).eq('id', taskId).eq('user_id', user.id);
-      if (error) {
-        console.error("[toggleGestorTaskCompletion] Supabase Update Error (non-recurring):", error);
-        toast.error("Erro ao atualizar conclusão da tarefa pessoal.");
-        throw new Error(error.message);
-      }
-      setGestorTasks(prev => prev.map(t => t.id === taskId ? { ...t, is_completed: done } : t));
-    }
-  }, [user]);
-
-  // NOVO: Funções para Financial Entries
-  const addFinancialEntry = useCallback(async (entry: Omit<FinancialEntry, 'id' | 'user_id' | 'created_at'>): Promise<FinancialEntry> => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const { data, error } = await supabase.from('financial_entries').insert({ ...entry, user_id: user.id }).select().single();
-    if (error) { console.error(error); toast.error("Erro ao adicionar entrada financeira."); throw error; }
-    setFinancialEntries(prev => [...prev, data]);
-    return data;
-  }, [user]);
-
-  const updateFinancialEntry = useCallback(async (id: string, updates: Partial<FinancialEntry>) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const { error } = await supabase.from('financial_entries').update(updates).eq('id', id).eq('user_id', user.id);
-    if (error) { console.error(error); toast.error("Erro ao atualizar entrada financeira."); throw error; }
-    setFinancialEntries(prev => prev.map(entry => entry.id === id ? { ...entry, ...updates } : entry));
-  }, [user]);
-
-  const deleteFinancialEntry = useCallback(async (id: string) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const { error } = await supabase.from('financial_entries').delete().eq('id', id).eq('user_id', user.id);
-    if (error) { console.error(error); toast.error("Erro ao excluir entrada financeira."); throw error; }
-    setFinancialEntries(prev => prev.filter(entry => entry.id !== id));
-  }, [user]);
-
-  // NOVO: Funções para Form Cadastros
-  const getFormCadastro = useCallback((id: string) => formCadastros.find(s => s.id === id), [formCadastros]);
-  const getFormFilesForSubmission = useCallback((cadastroId: string) => formFiles.filter(f => f.submission_id === cadastroId), [formFiles]);
-
-  const updateFormCadastro = useCallback(async (id: string, updates: Partial<FormCadastro>) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const { error } = await supabase.from('form_submissions').update(updates).eq('id', id).eq('user_id', JOAO_GESTOR_AUTH_ID);
-    if (error) { console.error(error); toast.error("Erro ao atualizar cadastro do formulário."); throw error; }
-    setFormCadastros(prev => prev.map(sub => sub.id === id ? { ...sub, ...updates } : sub));
-  }, [user]);
-
-  const deleteFormCadastro = useCallback(async (id: string) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    // Primeiro, exclua os arquivos associados do storage e da tabela form_files
-    const filesToDelete = formFiles.filter(f => f.submission_id === id);
-    for (const file of filesToDelete) {
-      const filePath = file.file_url.split('/form_uploads/')[1];
-      if (filePath) {
-        const { error: storageError } = await supabase.storage.from('form_uploads').remove([filePath]);
-        if (storageError) console.error(`Erro ao deletar arquivo ${file.file_name} do storage:`, storageError.message);
-      }
-      await supabase.from('form_files').delete().eq('id', file.id);
-    }
-
-    // Em seguida, exclua o cadastro
-    const { error } = await supabase.from('form_submissions').delete().eq('id', id).eq('user_id', JOAO_GESTOR_AUTH_ID);
-    if (error) { console.error(error); toast.error("Erro ao excluir cadastro do formulário."); throw error; }
-    setFormCadastros(prev => prev.filter(sub => sub.id !== id));
-    setFormFiles(prev => prev.filter(file => file.submission_id !== id));
-  }, [user, formFiles]);
-
-
-  useEffect(() => { if (!user) return; const syncPendingCommissions = async () => { const pending = JSON.parse(localStorage.getItem('pending_commissions') || '[]') as any[]; if (pending.length === 0) return; for (const item of pending) { try { const { _localId, _timestamp, _attempts, ...cleanData } = item; const { data, error } = await supabase.from('commissions').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: cleanData }).select('id', 'created_at').maybeSingle(); if (!error && data) { setCommissions(prev => prev.map(c => c.db_id === _localId ? { ...c, db_id: data.id.toString(), criado_em: data.created_at } : c)); const updated = pending.filter((p: any) => p._localId !== _localId); localStorage.setItem('pending_commissions', JSON.stringify(updated)); } } catch (error) { console.log(`❌ Falha ao sincronizar ${item._localId}`); toast.error(`Falha ao sincronizar comissão ${item._localId}.`); } } }; const interval = setInterval(syncPendingCommissions, 2 * 60 * 1000); setTimeout(syncPendingCommissions, 5000); return () => clearInterval(interval); }, [user]);
+  const handleOpenRecordInterviewModal = (member: TeamMember) => {
+    setTeamMemberToRecordInterview(member);
+    setIsRecordInterviewModalOpen(true);
+  };
 
   return (
-    <AppContext.Provider value={{ 
-      isDataLoading,
-      candidates, templates, checklistStructure, consultantGoalsStructure, interviewStructure, commissions, supportMaterials, importantLinks: [], theme, origins, interviewers, pvs, teamMembers, cutoffPeriods, onboardingSessions, onboardingTemplateVideos, // importantLinks agora é um array vazio
-      crmPipelines, crmStages, crmFields, crmLeads, addCrmLead, updateCrmLead, deleteCrmLead, updateCrmLeadStage, addCrmStage, updateCrmStage, updateCrmStageOrder, deleteCrmStage, addCrmField, updateCrmField, crmOwnerUserId,
-      addCutoffPeriod, updateCutoffPeriod, deleteCutoffPeriod,
-      addTeamMember, updateTeamMember, deleteTeamMember, toggleTheme, addOrigin, deleteOrigin, resetOriginsToDefault, addInterviewer, deleteInterviewer, addPV, addCandidate, updateCandidate, deleteCandidate, toggleChecklistItem, toggleConsultantGoal, setChecklistDueDate, getCandidate, saveTemplate,
-      addChecklistItem, updateChecklistItem, deleteChecklistItem, moveChecklistItem, resetChecklistToDefault, addGoalItem, updateGoalItem, deleteGoalItem, moveGoalItem, resetGoalsToDefault,
-      updateInterviewSection, addInterviewQuestion, updateInterviewQuestion, deleteInterviewQuestion, moveInterviewQuestion, resetInterviewToDefault, addCommission, updateCommission, deleteCommission, updateInstallmentStatus, addSupportMaterial, deleteSupportMaterial,
-      addImportantLink: async () => { toast.error("Funcionalidade de Links Importantes foi removida."); throw new Error("Funcionalidade removida."); }, // REMOVIDO
-      updateImportantLink: async () => { toast.error("Funcionalidade de Links Importantes foi removida."); throw new Error("Funcionalidade removida."); }, // REMOVIDO
-      deleteImportantLink: async () => { toast.error("Funcionalidade de Links Importantes foi removida."); throw new Error("Funcionalidade removida."); }, // REMOVIDO
-      addFeedback, updateFeedback, deleteFeedback,
-      addTeamMemberFeedback, updateTeamMemberFeedback, deleteTeamMemberFeedback,
-      addOnlineOnboardingSession, deleteOnlineOnboardingSession, addVideoToTemplate, deleteVideoFromTemplate,
-      dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions,
-      addDailyChecklist, updateDailyChecklist, deleteDailyChecklist,
-      addDailyChecklistItem, updateDailyChecklistItem, deleteDailyChecklistItem, moveDailyChecklistItem,
-      assignDailyChecklistToConsultant, unassignDailyChecklistFromConsultant, toggleDailyChecklistCompletion,
-      weeklyTargets, weeklyTargetItems, weeklyTargetAssignments, metricLogs,
-      addWeeklyTarget, updateWeeklyTarget, deleteWeeklyTarget,
-      addWeeklyTargetItem, updateWeeklyTargetItem, deleteWeeklyTargetItem, moveWeeklyTargetItem,
-      assignWeeklyTargetToConsultant, unassignWeeklyTargetFromConsultant, addMetricLog,
-      supportMaterialsV2, supportMaterialAssignments,
-      addSupportMaterialV2, updateSupportMaterialV2, deleteSupportMaterialV2,
-      assignSupportMaterialToConsultant, unassignSupportMaterialFromConsultant,
-      leadTasks, addLeadTask, updateLeadTask, deleteLeadTask, toggleLeadTaskCompletion, updateLeadMeetingInvitationStatus,
-      gestorTasks, addGestorTask, updateGestorTask, deleteGestorTask, gestorTaskCompletions, toggleGestorTaskCompletion, // NOVO: Adicionado gestorTaskCompletions e toggleGestorTaskCompletion
-      isGestorTaskDueOnDate, // NOVO: Adicionado isGestorTaskDueOnDate
-      financialEntries, addFinancialEntry, updateFinancialEntry, deleteFinancialEntry, // NOVO: Adicionado financial entries
-      formCadastros, formFiles, getFormCadastro, getFormFilesForSubmission, updateFormCadastro, deleteFormCadastro, // NOVO: Adicionado form cadastros e funções
-      notifications, // NOVO: Adicionado notifications ao contexto
-    }}>
-      {children}
-    </AppContext.Provider>
-  );
-};
+    <div className="p-8 max-w-4xl mx-auto min-h-screen bg-gray-50 dark:bg-slate-900">
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Gestão de Equipe</h1>
+        <p className="text-gray-500 dark:text-gray-400">Cadastre os membros da equipe e defina seus cargos para uso nas comissões.</p>
+      </div>
 
-export const useApp = () => {
-  const context = useContext(AppContext);
-  if (context === undefined) {
-    throw new Error('useApp must be used within an AppProvider');
-  }
-  return context;
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="md:col-span-1">
+              <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm sticky top-8">
+                  <h2 className="font-semibold text-gray-900 dark:text-white mb-4">Adicionar Membro</h2>
+                  <form onSubmit={handleAdd} className="space-y-4">
+                      <div>
+                          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Nome Completo</label>
+                          <input 
+                            type="text" 
+                            required
+                            className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500 placeholder:text-gray-500 dark:placeholder:text-gray-400"
+                            placeholder="Ex: João Silva"
+                            value={newName}
+                            onChange={e => setNewName(e.target.value)}
+                          />
+                      </div>
+                      <div>
+                          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">E-mail</label>
+                          <div className="relative">
+                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                            <input 
+                                type="email" 
+                                required
+                                className="w-full pl-10 border border-gray-300 dark:border-slate-600 rounded-lg p-2 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500 placeholder:text-gray-500 dark:placeholder:text-gray-400"
+                                placeholder="email@exemplo.com"
+                                value={newEmail}
+                                onChange={e => setNewEmail(e.target.value)}
+                            />
+                          </div>
+                      </div>
+                      <div>
+                          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">CPF</label>
+                          <input 
+                            type="text" 
+                            required
+                            className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500 placeholder:text-gray-500 dark:placeholder:text-gray-400"
+                            placeholder="000.000.000-00"
+                            value={newCpf}
+                            onChange={e => setNewCpf(formatCpf(e.target.value))}
+                            maxLength={14}
+                          />
+                      </div>
+                      {/* NOVO: Campo de Data de Nascimento */}
+                      <div>
+                          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Data de Nascimento (Opcional)</label>
+                          <div className="relative">
+                            <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                            <input 
+                                type="date" 
+                                className="w-full pl-10 border border-gray-300 dark:border-slate-600 rounded-lg p-2 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500"
+                                value={newDateOfBirth}
+                                onChange={e => setNewDateOfBirth(e.target.value)}
+                            />
+                          </div>
+                      </div>
+                      <div>
+                          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Cargos / Funções</label>
+                          <div className="space-y-2">
+                            {ALL_ROLES.map(role => (
+                                <label key={role} className="flex items-center space-x-2 cursor-pointer">
+                                    <input 
+                                        type="checkbox"
+                                        checked={newRoles.includes(role)}
+                                        onChange={() => handleRoleChange(role, newRoles, setNewRoles)}
+                                        className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+                                    />
+                                    <span className="text-sm text-gray-700 dark:text-gray-300">{role}</span>
+                                </label>
+                            ))}
+                          </div>
+                      </div>
+                      <button type="submit" disabled={isAdding} className="w-full flex items-center justify-center space-x-2 bg-brand-600 hover:bg-brand-700 text-white py-2 rounded-lg transition font-medium disabled:opacity-50">
+                          {isAdding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                          <span>{isAdding ? 'Adicionando...' : 'Adicionar'}</span>
+                      </button>
+                  </form>
+              </div>
+          </div>
+
+          <div className="md:col-span-2">
+              <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
+                  <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
+                      <h3 className="font-semibold text-gray-900 dark:text-white">Membros da Equipe ({teamMembers.length})</h3>
+                  </div>
+                  <ul className="divide-y divide-gray-100 dark:divide-slate-700">
+                      {teamMembers.length === 0 ? (
+                          <li className="p-8 text-center text-gray-500 dark:text-gray-400">Nenhum membro cadastrado.</li>
+                      ) : (
+                          teamMembers.map(member => (
+                              <li key={member.id} className={`p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-slate-700/30 transition group ${!member.isActive ? 'opacity-60' : ''}`}>
+                                  {editingMember?.id === member.id ? (
+                                    <div className="flex-1 flex flex-col gap-3">
+                                      <input type="text" value={editingName} onChange={e => setEditingName(e.target.value)} className="w-full border-gray-300 dark:border-slate-600 rounded-md p-2 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400" />
+                                      <input type="email" value={editingEmail} onChange={e => setEditingEmail(e.target.value)} className="w-full border-gray-300 dark:border-slate-600 rounded-md p-2 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400" />
+                                      <input type="text" value={editingCpf} onChange={e => setEditingCpf(formatCpf(e.target.value))} maxLength={14} className="w-full border-gray-300 dark:border-slate-600 rounded-md p-2 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400" />
+                                      {/* NOVO: Campo de Data de Nascimento em edição */}
+                                      <div className="relative">
+                                        <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                        <input 
+                                            type="date" 
+                                            className="w-full pl-10 border border-gray-300 dark:border-slate-600 rounded-lg p-2 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500"
+                                            value={editingDateOfBirth}
+                                            onChange={e => setEditingDateOfBirth(e.target.value)}
+                                        />
+                                      </div>
+                                      <div className="grid grid-cols-2 gap-2">
+                                        {ALL_ROLES.map(role => (
+                                            <label key={role} className="flex items-center space-x-2 cursor-pointer">
+                                                <input type="checkbox" checked={editingRoles.includes(role)} onChange={() => handleRoleChange(role, editingRoles, setEditingRoles)} className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
+                                                <span className="text-sm text-gray-700 dark:text-gray-300">{role}</span>
+                                            </label>
+                                        ))}
+                                      </div>
+                                      <div className="flex justify-end gap-2 mt-2">
+                                        <button onClick={handleUpdate} disabled={isUpdating} className="px-3 py-1 bg-green-100 text-green-700 rounded text-sm font-medium hover:bg-green-200 disabled:opacity-50">
+                                            {isUpdating ? <Loader2 className="w-4 h-4 inline mr-1 animate-spin" /> : <Save className="w-4 h-4 inline mr-1" />}
+                                            Salvar
+                                        </button>
+                                        <button onClick={cancelEditing} className="px-3 py-1 bg-gray-100 text-gray-700 rounded text-sm font-medium hover:bg-gray-200"><X className="w-4 h-4 inline mr-1" />Cancelar</button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <>
+                                      <div className="flex items-center space-x-4">
+                                          <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-slate-700 flex items-center justify-center text-gray-500 dark:text-gray-400">
+                                              {member.roles && member.roles.length > 0 ? getRoleIcon(member.roles[0]) : <User className="w-4 h-4 text-gray-500" />}
+                                          </div>
+                                          <div>
+                                              <p className="font-medium text-gray-900 dark:text-white">{member.name}</p>
+                                              <div className="flex flex-wrap gap-1 mt-1">
+                                                {member.roles.map(role => (
+                                                    <span key={role} className={`text-xs px-2 py-0.5 rounded-full font-medium ${getRoleBadge(role)}`}>
+                                                        {role}
+                                                    </span>
+                                                ))}
+                                                {!member.isActive && <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300">Inativo</span>}
+                                              </div>
+                                              {member.email && (
+                                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Email: {member.email}</p>
+                                              )}
+                                              {member.cpf && (
+                                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">CPF: {formatCpf(member.cpf)}</p>
+                                              )}
+                                              {member.dateOfBirth && ( // NOVO: Exibir data de nascimento
+                                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Nascimento: {new Date(member.dateOfBirth + 'T00:00:00').toLocaleDateString('pt-BR')}</p>
+                                              )}
+                                          </div>
+                                      </div>
+                                      <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                        {/* Botão de Registrar Entrevista - AGORA SEM CONDIÇÕES DE CARGO OU CANDIDATO EXISTENTE */}
+                                          <button 
+                                            onClick={(e) => { e.stopPropagation(); handleOpenRecordInterviewModal(member); }} 
+                                            className="p-2 rounded-full text-gray-400 hover:text-brand-500 hover:bg-brand-50 dark:hover:bg-brand-900/20" 
+                                            title="Registrar Entrevista"
+                                          >
+                                            <CalendarPlus className="w-4 h-4" />
+                                          </button>
+                                        <button onClick={() => handleResetPassword(member)} className="p-2 rounded-full text-gray-400 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/20" title="Resetar Senha">
+                                            <KeyRound className="w-4 h-4" />
+                                        </button>
+                                        <button onClick={() => handleToggleActive(member)} className={`p-2 rounded-full ${member.isActive ? 'text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20' : 'text-gray-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20'}`} title={member.isActive ? 'Inativar' : 'Ativar'}>
+                                            <Archive className="w-4 h-4" />
+                                        </button>
+                                        <button onClick={() => startEditing(member)} className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full">
+                                          <Edit2 className="w-4 h-4" />
+                                        </button>
+                                        <button 
+                                          onClick={() => handleDelete(member.id)}
+                                          className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full"
+                                        >
+                                            <Trash2 className="w-5 h-5" />
+                                        </button>
+                                      </div>
+                                    </>
+                                  )}
+                              </li>
+                          ))
+                      )}
+                  </ul>
+              </div>
+          </div>
+      </div>
+      {showCredentialsModal && createdConsultantCredentials && (
+        <ConsultantCredentialsModal
+          isOpen={showCredentialsModal}
+          onClose={() => setShowCredentialsModal(false)}
+          consultantName={createdConsultantCredentials.name}
+          login={createdConsultantCredentials.login}
+          password={createdConsultantCredentials.password}
+          wasExistingUser={createdConsultantCredentials.wasExistingUser}
+        />
+      )}
+      {isRecordInterviewModalOpen && teamMemberToRecordInterview && (
+        <RecordTeamMemberInterviewModal
+          isOpen={isRecordInterviewModalOpen}
+          onClose={() => setIsRecordInterviewModalOpen(false)}
+          teamMember={teamMemberToRecordInterview}
+        />
+      )}
+    </div>
+  );
 };
