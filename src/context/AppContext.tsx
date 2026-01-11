@@ -557,16 +557,34 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           setPvs(pvs);
         }
 
-        // ⚠️ APLICANDO CÓPIA PROFUNDA AQUI PARA GARANTIR INDEPENDÊNCIA DOS OBJETOS
+        // ⚠️ APLICANDO CÓPIA PROFUNDA E GARANTINDO ID VÁLIDO AQUI
         setCandidates(candidatesData?.data?.map(item => {
-          console.log(`[fetchData] Original item.data for candidate ${item.id}:`, item.data);
-          const deepCopiedCandidate = JSON.parse(JSON.stringify(item.data)) as Candidate;
-          console.log(`[fetchData] Deep copied candidate for item ${item.id}:`, deepCopiedCandidate);
-          return { 
-            ...deepCopiedCandidate, 
-            db_id: item.id, 
-            lastUpdatedAt: item.last_updated_at 
+          console.log(`[fetchData] Processing raw item:`, item);
+          const rawCandidateData = item.data as Candidate; // Assume it's a Candidate structure
+          
+          // Ensure client-side ID is always present. Fallback to a new UUID if missing from JSONB data.
+          const clientSideId = rawCandidateData.id || crypto.randomUUID(); 
+          if (!rawCandidateData.id) {
+            console.warn(`[fetchData] Candidate with db_id "${item.id}" is missing client-side 'id' in JSONB data. Generating new client-side ID: "${clientSideId}"`);
+          }
+
+          // Create a deep copy of the data, ensuring all nested objects are new instances
+          const deepCopiedCandidate: Candidate = {
+            ...JSON.parse(JSON.stringify(rawCandidateData)), // Deep copy the entire JSONB data
+            id: clientSideId, // Ensure client-side ID is set
+            db_id: item.id, // Supabase primary key
+            lastUpdatedAt: item.last_updated_at,
+            // Explicitly ensure nested objects are deep copies if they exist
+            interviewScores: JSON.parse(JSON.stringify(rawCandidateData.interviewScores || { basicProfile: 0, commercialSkills: 0, behavioralProfile: 0, jobFit: 0, notes: '' })),
+            checkedQuestions: JSON.parse(JSON.stringify(rawCandidateData.checkedQuestions || {})),
+            checklistProgress: JSON.parse(JSON.stringify(rawCandidateData.checklistProgress || {})),
+            consultantGoalsProgress: JSON.parse(JSON.stringify(rawCandidateData.consultantGoalsProgress || {})),
+            feedbacks: JSON.parse(JSON.stringify(rawCandidateData.feedbacks || [])),
+            data: JSON.parse(JSON.stringify(rawCandidateData.data || {})), // Ensure 'data' field itself is deep copied if it exists
           };
+          
+          console.log(`[fetchData] Final candidate name before setCandidates:`, deepCopiedCandidate.name, `client-side ID:`, deepCopiedCandidate.id, `db_id:`, deepCopiedCandidate.db_id);
+          return deepCopiedCandidate;
         }) || []);
         
         const normalizedTeamMembers = teamMembersData?.map(item => {
@@ -737,12 +755,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             toast.info(`🔄 Candidato "${payload.new.data.name || payload.old.data.name}" atualizado em tempo real!`);
             
             // ⚠️ CORREÇÃO CRÍTICA: Garante que newCandidateData é uma cópia profunda do payload.new.data
+            const rawPayloadData = payload.new.data as Candidate;
+            const clientSideId = rawPayloadData.id || crypto.randomUUID(); // Fallback to new UUID if client-side ID is missing
+            if (!rawPayloadData.id) {
+              console.warn(`[Realtime: Candidate] Candidate with db_id "${payload.new.id}" is missing client-side 'id' in JSONB data. Generating new client-side ID: "${clientSideId}"`);
+            }
+            
             const newCandidateData: Candidate = {
-                ...(JSON.parse(JSON.stringify(payload.new.data)) as Candidate), // Cópia profunda do JSONB 'data'
+                ...JSON.parse(JSON.stringify(rawPayloadData)), // Deep copy the entire JSONB 'data'
+                id: clientSideId, // Ensure client-side ID is set
                 db_id: payload.new.id, // Adiciona a PK do Supabase
                 lastUpdatedAt: payload.new.last_updated_at, // Adiciona o timestamp de atualização
+                // Explicitly ensure nested objects are deep copies if they exist
+                interviewScores: JSON.parse(JSON.stringify(rawPayloadData.interviewScores || { basicProfile: 0, commercialSkills: 0, behavioralProfile: 0, jobFit: 0, notes: '' })),
+                checkedQuestions: JSON.parse(JSON.stringify(rawPayloadData.checkedQuestions || {})),
+                checklistProgress: JSON.parse(JSON.stringify(rawPayloadData.checklistProgress || {})),
+                consultantGoalsProgress: JSON.parse(JSON.stringify(rawPayloadData.consultantGoalsProgress || {})),
+                feedbacks: JSON.parse(JSON.stringify(rawPayloadData.feedbacks || [])),
+                data: JSON.parse(JSON.stringify(rawPayloadData.data || {})), // Ensure 'data' field itself is deep copied if it exists
             };
-            console.log('[Realtime: Candidate] Deep copied newCandidateData.name:', newCandidateData.name);
+            console.log('[Realtime: Candidate] Deep copied newCandidateData.name:', newCandidateData.name, `client-side ID:`, newCandidateData.id, `db_id:`, newCandidateData.db_id);
 
             if (payload.eventType === 'INSERT') {
                 setCandidates(prev => {
@@ -1000,31 +1032,32 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!user) throw new Error("Usuário não autenticado."); 
     
     // Generate client-side ID and createdAt if not provided
-    const clientSideId = crypto.randomUUID();
+    const clientSideId = crypto.randomUUID(); // This is the client-side UUID
     const createdAt = new Date().toISOString();
     const lastUpdatedAt = new Date().toISOString();
 
     // ⚠️ APLICANDO CÓPIA PROFUNDA AQUI PARA GARANTIR INDEPENDÊNCIA DOS OBJETOS
     const newCandidateData: Candidate = { 
-      ...JSON.parse(JSON.stringify(candidate)), // Cópia profunda do objeto base
-      id: clientSideId, // This is the client-side UUID, stored in the 'data' JSONB
+      ...JSON.parse(JSON.stringify(candidate)), // Deep copy do objeto base
+      id: clientSideId, // Atribui o UUID gerado para o ID do cliente
       status: candidate.status || 'Triagem', 
       screeningStatus: candidate.screeningStatus || 'Pending Contact',
       createdAt: createdAt, 
       lastUpdatedAt: lastUpdatedAt, 
-      // Garantir que objetos aninhados sejam cópias profundas
+      // Garante que objetos aninhados sejam cópias profundas
       interviewScores: JSON.parse(JSON.stringify(candidate.interviewScores || { basicProfile: 0, commercialSkills: 0, behavioralProfile: 0, jobFit: 0, notes: '' })),
       checkedQuestions: JSON.parse(JSON.stringify(candidate.checkedQuestions || {})),
       checklistProgress: JSON.parse(JSON.stringify(candidate.checklistProgress || {})),
       consultantGoalsProgress: JSON.parse(JSON.stringify(candidate.consultantGoalsProgress || {})),
       feedbacks: JSON.parse(JSON.stringify(candidate.feedbacks || [])),
+      data: JSON.parse(JSON.stringify(candidate.data || {})), // Garante que o campo 'data' seja copiado profundamente
     };
 
-    // Insert into Supabase. The 'id' column (primary key) is auto-generated.
-    // We only provide 'user_id', 'data' (which contains our client-side Candidate object), and 'last_updated_at'.
+    // Insere no Supabase. A coluna 'id' (chave primária) é auto-gerada.
+    // Fornecemos apenas 'user_id', 'data' (que contém nosso objeto Candidate do lado do cliente), e 'last_updated_at'.
     const { data, error } = await supabase.from('candidates').insert({ 
       user_id: JOAO_GESTOR_AUTH_ID, 
-      data: newCandidateData, // The entire client-side Candidate object goes into the 'data' JSONB column
+      data: newCandidateData, // O objeto Candidate completo do lado do cliente vai para a coluna JSONB 'data'
       last_updated_at: newCandidateData.lastUpdatedAt 
     }).select('id, created_at, last_updated_at').single(); 
     
@@ -1035,24 +1068,31 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     } 
     
     if (data) { 
-      // Update local state with the Supabase-generated 'id' (db_id) and actual 'created_at'
+      // Atualiza o estado local com o 'id' gerado pelo Supabase (db_id) e o 'created_at' real
       // ⚠️ CORREÇÃO: Adicionar o novo candidato no INÍCIO do array para que apareça no topo
       setCandidates(prev => [{ // Adiciona no início para que apareça no topo
         ...newCandidateData, 
-        db_id: data.id, // Store Supabase's primary key here
+        db_id: data.id, // Armazena a chave primária do Supabase aqui
         createdAt: data.created_at, 
         lastUpdatedAt: data.last_updated_at 
       }, ...prev]); 
     } 
-    return newCandidateData; // Return the client-side object
+    return newCandidateData; // Retorna o objeto do lado do cliente
   }, [user]);
   const updateCandidate = useCallback(async (id: string, updates: Partial<Candidate>) => { 
     if (!user) throw new Error("Usuário não autenticado."); 
-    const c = candidates.find(c => c.id === id); 
-    if (!c || !c.db_id) throw new Error("Candidato não encontrado"); 
     
-    console.log(`[updateCandidate] Original candidate name (c.name): "${c.name}"`);
-    console.log(`[updateCandidate] Updates object name (updates.name): "${updates.name}"`);
+    // Log the ID being passed to updateCandidate
+    console.log(`[updateCandidate] ID passed: "${id}"`);
+
+    const c = candidates.find(c => c.id === id); 
+    if (!c || !c.db_id) {
+      console.error(`[updateCandidate] Candidate with client-side ID "${id}" not found or missing db_id.`);
+      throw new Error("Candidato não encontrado ou ID do banco de dados ausente."); 
+    }
+    
+    console.log(`[updateCandidate] Found candidate (original name): "${c.name}", client-side ID: "${c.id}", db_id: "${c.db_id}"`);
+    console.log(`[updateCandidate] Updates object:`, updates);
 
     // 1. Create a deep copy of the *current* candidate object from state.
     const currentCandidateDeepCopy: Candidate = JSON.parse(JSON.stringify(c));
@@ -1105,8 +1145,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     
     // Update local state with the fully merged and deep-copied object
     setCandidates(prev => prev.map(p => {
+      // Log p.id for each item in the prev array
+      console.log(`[updateCandidate:setCandidates] Comparing p.id: "${p.id}" with target id: "${id}"`);
       if (p.id === id) {
-        console.log(`[updateCandidate] Setting candidate ${id} from "${p.name}" to "${mergedCandidateData.name}"`);
+        console.log(`[updateCandidate:setCandidates] MATCH! Updating candidate from "${p.name}" to "${mergedCandidateData.name}"`);
         return { ...mergedCandidateData, db_id: c.db_id }; // Ensure db_id is preserved for local state
       }
       return p;
@@ -1265,7 +1307,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       toast.error("Erro ao atualizar membro da equipe.");
       throw error;
     }
-    setTeamMembers(prev => prev.map(m => m.id === id ? { ...m, ...updates, data: updatedData, cpf: cleanedCpf } : m));
+    setTeamMembers(prev => prev.map(m => m.id === id ? { ...member, ...updates, data: updatedData, cpf: cleanedCpf } : m));
     return { success: true };
   }, [user, teamMembers]);
   const deleteTeamMember = useCallback(async (id: string) => {
@@ -1302,7 +1344,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const candidate = candidates.find(c => c.id === candidateId);
     if (!candidate) throw new Error("Candidato não encontrado.");
 
-    // ⚠️ Cópia profunda de checklistProgress
     const updatedProgress = JSON.parse(JSON.stringify(candidate.checklistProgress || {}));
     updatedProgress[itemId] = { ...updatedProgress[itemId], completed: !updatedProgress[itemId]?.completed };
 
@@ -1314,7 +1355,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const candidate = candidates.find(c => c.id === candidateId);
     if (!candidate) throw new Error("Candidato não encontrado.");
 
-    // ⚠️ Cópia profunda de checklistProgress
     const updatedProgress = JSON.parse(JSON.stringify(candidate.checklistProgress || {}));
     updatedProgress[itemId] = { ...updatedProgress[itemId], dueDate: dueDate || undefined };
 
@@ -1326,7 +1366,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const candidate = candidates.find(c => c.id === candidateId);
     if (!candidate) throw new Error("Candidato não encontrado.");
 
-    // ⚠️ Cópia profunda de consultantGoalsProgress
     const updatedProgress = JSON.parse(JSON.stringify(candidate.consultantGoalsProgress || {}));
     updatedProgress[goalId] = !updatedProgress[goalId];
 
@@ -1911,7 +1950,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         .upload(filePath, file, { contentType: file.type });
       if (uploadError) throw uploadError;
       const { data: publicUrlData } = supabase.storage.from('app_resources').getPublicUrl(filePath);
-      content = publicUrlData.publicUrl;
+      resourceContent = publicUrlData.publicUrl;
       resourceName = file.name;
     }
 
