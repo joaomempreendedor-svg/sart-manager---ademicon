@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { ChevronRight, User, Calendar, CheckCircle2, TrendingUp, AlertCircle, Clock, Users, Star, CheckSquare, CalendarCheck, XCircle, BellRing, UserRound, Plus, ListTodo, Send, DollarSign, Repeat } from 'lucide-react'; // Adicionado Repeat icon
+import { ChevronRight, User, Calendar, CheckCircle2, TrendingUp, AlertCircle, Clock, Users, Star, CheckSquare, CalendarCheck, XCircle, BellRing, UserRound, Plus, ListTodo, Send, DollarSign, Repeat, Filter, RotateCcw } from 'lucide-react'; // Adicionado Repeat icon, Filter, RotateCcw
 import { CandidateStatus, ChecklistTaskState, GestorTask, LeadTask } from '@/types'; // Importar GestorTask e LeadTask
 import { TableSkeleton } from '@/components/TableSkeleton';
 import { ScheduleInterviewModal } from '@/components/ScheduleInterviewModal';
@@ -55,6 +55,10 @@ export const Dashboard = () => {
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [isPendingTasksModalOpen, setIsPendingTasksModalOpen] = useState(false);
   const [isNotificationCenterOpen, setIsNotificationCenterOpen] = useState(false); // State for NotificationCenter
+
+  // NOVO: Estados para o filtro de data dos candidatos
+  const [filterStartDate, setFilterStartDate] = useState('');
+  const [filterEndDate, setFilterEndDate] = useState('');
 
   const handleOpenNotifications = () => {
     setIsNotificationCenterOpen(true);
@@ -354,10 +358,30 @@ export const Dashboard = () => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   };
 
-  // Filtrar candidatos para a tabela "Todos os Candidatos"
+  // Filtrar e ordenar candidatos para a tabela "Todos os Candidatos"
   const candidatesForTable = useMemo(() => {
-    return candidates.filter(c => c.status !== 'Triagem');
-  }, [candidates]);
+    let currentCandidates = candidates.filter(c => c.status !== 'Triagem');
+
+    // Aplicar filtro de data de criação
+    if (filterStartDate) {
+      const start = new Date(filterStartDate + 'T00:00:00');
+      currentCandidates = currentCandidates.filter(c => new Date(c.createdAt) >= start);
+    }
+    if (filterEndDate) {
+      const end = new Date(filterEndDate + 'T23:59:59'); // Inclui o dia inteiro
+      currentCandidates = currentCandidates.filter(c => new Date(c.createdAt) <= end);
+    }
+
+    // Ordenar por data de criação (mais recente primeiro)
+    return currentCandidates.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }, [candidates, filterStartDate, filterEndDate]);
+
+  const clearCandidateFilters = () => {
+    setFilterStartDate('');
+    setFilterEndDate('');
+  };
+
+  const hasActiveCandidateFilters = filterStartDate || filterEndDate;
 
   return (
     <div className="p-8 max-w-7xl mx-auto">
@@ -591,7 +615,7 @@ export const Dashboard = () => {
       </div>
 
       {/* Todos os Candidatos */}
-      <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Todos os Candidatos</h2>
           <button
@@ -601,6 +625,41 @@ export const Dashboard = () => {
             + Agendar Entrevista
           </button>
         </div>
+
+        {/* NOVO: Filtros de Data para Candidatos */}
+        <div className="p-6 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 flex items-center uppercase tracking-wide"><Filter className="w-4 h-4 mr-2" />Filtrar Candidatos por Data de Criação</h3>
+            {hasActiveCandidateFilters && (
+              <button onClick={clearCandidateFilters} className="text-xs flex items-center text-red-500 hover:text-red-700 transition">
+                <RotateCcw className="w-3 h-3 mr-1" />Limpar Filtros
+              </button>
+            )}
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="candidateFilterStartDate" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">De</label>
+              <input
+                type="date"
+                id="candidateFilterStartDate"
+                value={filterStartDate}
+                onChange={(e) => setFilterStartDate(e.target.value)}
+                className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2.5 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500"
+              />
+            </div>
+            <div>
+              <label htmlFor="candidateFilterEndDate" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Até</label>
+              <input
+                type="date"
+                id="candidateFilterEndDate"
+                value={filterEndDate}
+                onChange={(e) => setFilterEndDate(e.target.value)}
+                className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2.5 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500"
+              />
+            </div>
+          </div>
+        </div>
+
         {isDataLoading ? (
           <div className="p-6">
             <TableSkeleton />
