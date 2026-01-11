@@ -358,7 +358,7 @@ export const Commissions = () => {
       const matchesStatus = filterStatus ? overallStatus === filterStatus : true;
       
       return matchesSearch && matchesStart && matchesEnd && matchesConsultant && matchesAngel && matchesPV && matchesStatus;
-    });
+    }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()); // Ordena por data, mais recente primeiro
   }, [commissions, searchTerm, filterStartDate, filterEndDate, filterConsultant, filterAngel, filterPV, filterStatus, isAngelMode]);
 
   const summaryStats = useMemo(() => {
