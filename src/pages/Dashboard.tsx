@@ -373,7 +373,21 @@ export const Dashboard = () => {
     }
 
     // Ordenar por data de criação (mais recente primeiro)
-    return currentCandidates.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    const sortedCandidates = currentCandidates.sort((a, b) => {
+      const dateA = new Date(a.createdAt).getTime();
+      const dateB = new Date(b.createdAt).getTime();
+      
+      // Handle invalid dates gracefully, pushing them to the end
+      if (isNaN(dateA) && isNaN(dateB)) return 0;
+      if (isNaN(dateA)) return 1; // a is invalid, push to end
+      if (isNaN(dateB)) return -1; // b is invalid, push to end
+
+      return dateB - dateA; // Descending order (most recent first)
+    });
+
+    console.log("Candidates for table (sorted by createdAt):", sortedCandidates.map(c => ({ name: c.name, createdAt: c.createdAt })));
+
+    return sortedCandidates;
   }, [candidates, filterStartDate, filterEndDate]);
 
   const clearCandidateFilters = () => {

@@ -461,7 +461,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           formFilesData, // NOVO: Fetch form files
         ] = await Promise.all([
           (async () => { try { return await supabase.from('app_config').select('data').eq('user_id', effectiveGestorId).maybeSingle(); } catch (e) { console.error("Error fetching app_config:", e); return { data: null, error: e }; } })(),
-          (async () => { try { return await supabase.from('candidates').select('id, data, last_updated_at').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching candidates:", e); return { data: [], error: e }; } })(),
+          (async () => { try { return await supabase.from('candidates').select('id, data, created_at, last_updated_at').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching candidates:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('support_materials').select('id, data').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching support_materials:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('cutoff_periods').select('id, data').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching cutoff_periods:", e); return { data: null, error: e }; } })(),
           // (async () => { try { return await await supabase.from('important_links').select('id, data').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching important_links:", e); return { data: [], error: e }; } })(), // REMOVIDO
@@ -573,7 +573,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             ...JSON.parse(JSON.stringify(rawCandidateData)), // Deep copy the entire JSONB data
             id: clientSideId, // Ensure client-side ID is set
             db_id: item.id, // Supabase primary key
-            lastUpdatedAt: item.last_updated_at,
+            createdAt: item.created_at, // ⚠️ CORREÇÃO: Usar created_at da linha do DB
+            lastUpdatedAt: item.last_updated_at, // ⚠️ CORREÇÃO: Usar last_updated_at da linha do DB
             // Explicitly ensure nested objects are deep copies if they exist
             interviewScores: JSON.parse(JSON.stringify(rawCandidateData.interviewScores || { basicProfile: 0, commercialSkills: 0, behavioralProfile: 0, jobFit: 0, notes: '' })),
             checkedQuestions: JSON.parse(JSON.stringify(rawCandidateData.checkedQuestions || {})),
@@ -583,7 +584,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             data: JSON.parse(JSON.stringify(rawCandidateData.data || {})), // Ensure 'data' field itself is deep copied if it exists
           };
           
-          console.log(`[fetchData] Final candidate name before setCandidates:`, deepCopiedCandidate.name, `client-side ID:`, deepCopiedCandidate.id, `db_id:`, deepCopiedCandidate.db_id);
+          console.log(`[fetchData] Final candidate name before setCandidates:`, deepCopiedCandidate.name, `client-side ID:`, deepCopiedCandidate.id, `db_id:`, deepCopiedCandidate.db_id, `createdAt:`, deepCopiedCandidate.createdAt);
           return deepCopiedCandidate;
         }) || []);
         
@@ -765,16 +766,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 ...JSON.parse(JSON.stringify(rawPayloadData)), // Deep copy the entire JSONB 'data'
                 id: clientSideId, // Ensure client-side ID is set
                 db_id: payload.new.id, // Adiciona a PK do Supabase
-                lastUpdatedAt: payload.new.last_updated_at, // Adiciona o timestamp de atualização
+                createdAt: payload.new.created_at, // ⚠️ CORREÇÃO: Usar created_at da linha do DB
+                lastUpdatedAt: payload.new.last_updated_at, // ⚠️ CORREÇÃO: Usar last_updated_at da linha do DB
                 // Explicitly ensure nested objects are deep copies if they exist
                 interviewScores: JSON.parse(JSON.stringify(rawPayloadData.interviewScores || { basicProfile: 0, commercialSkills: 0, behavioralProfile: 0, jobFit: 0, notes: '' })),
                 checkedQuestions: JSON.parse(JSON.stringify(rawPayloadData.checkedQuestions || {})),
-                checklistProgress: JSON.parse(JSON.stringify(rawPayloadData.checklistProgress || {})),
-                consultantGoalsProgress: JSON.parse(JSON.stringify(rawPayloadData.consultantGoalsProgress || {})),
-                feedbacks: JSON.parse(JSON.stringify(rawPayloadData.feedbacks || [])),
-                data: JSON.parse(JSON.stringify(rawPayloadData.data || {})), // Ensure 'data' field itself is deep copied if it exists
+                checklistProgress: JSON.parse(JSON.stringify(rawCandidateData.checklistProgress || {})),
+                consultantGoalsProgress: JSON.parse(JSON.stringify(rawCandidateData.consultantGoalsProgress || {})),
+                feedbacks: JSON.parse(JSON.stringify(rawCandidateData.feedbacks || [])),
+                data: JSON.parse(JSON.stringify(rawCandidateData.data || {})), // Ensure 'data' field itself is deep copied if it exists
             };
-            console.log('[Realtime: Candidate] Deep copied newCandidateData.name:', newCandidateData.name, `client-side ID:`, newCandidateData.id, `db_id:`, newCandidateData.db_id);
+            console.log('[Realtime: Candidate] Deep copied newCandidateData.name:', newCandidateData.name, `client-side ID:`, newCandidateData.id, `db_id:`, newCandidateData.db_id, `createdAt:`, newCandidateData.createdAt);
 
             if (payload.eventType === 'INSERT') {
                 setCandidates(prev => {
@@ -1073,7 +1075,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setCandidates(prev => [{ // Adiciona no início para que apareça no topo
         ...newCandidateData, 
         db_id: data.id, // Armazena a chave primária do Supabase aqui
-        createdAt: data.created_at, 
+        createdAt: data.created_at, // ⚠️ CORREÇÃO: Usar created_at da linha do DB
         lastUpdatedAt: data.last_updated_at 
       }, ...prev]); 
     } 
@@ -1149,7 +1151,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       console.log(`[updateCandidate:setCandidates] Comparing p.id: "${p.id}" with target id: "${id}"`);
       if (p.id === id) {
         console.log(`[updateCandidate:setCandidates] MATCH! Updating candidate from "${p.name}" to "${mergedCandidateData.name}"`);
-        return { ...mergedCandidateData, db_id: c.db_id }; // Ensure db_id is preserved for local state
+        return { ...mergedCandidateData, db_id: c.db_id, createdAt: c.createdAt }; // Ensure db_id and createdAt are preserved for local state
       }
       return p;
     })); 
