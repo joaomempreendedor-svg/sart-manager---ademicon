@@ -1287,7 +1287,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     } else {
       throw new Error("E-mail é obrigatório para adicionar um membro da equipe.");
     }
-  }, [user, teamMembers]); // Added teamMembers to dependencies for refetching
+  }, [user, JOAO_GESTOR_AUTH_ID]); // Removed teamMembers from dependencies
   const updateTeamMember = useCallback(async (id: string, updates: Partial<TeamMember>) => {
     if (!user) throw new Error("Usuário não autenticado.");
     const member = teamMembers.find(m => m.id === id);
@@ -2075,7 +2075,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (error) throw error;
       setDailyChecklistCompletions(prev => prev.map(c => c.id === existingCompletion.id ? data : c));
     } else {
-      const { data, error } = await supabase.from('daily_checklist_completions').insert({ daily_checklist_item_id, consultant_id, date, done }).select('*').single();
+      const { data, error } = await supabase.from('daily_checklist_completions').insert({ daily_checklist_item_id, user_id: consultant_id, date, done }).select('*').single(); // Use user_id for consultant_id
       if (error) throw error;
       setDailyChecklistCompletions(prev => [...prev, data]);
     }
