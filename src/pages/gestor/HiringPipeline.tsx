@@ -248,7 +248,7 @@ const HiringPipeline = () => {
   };
 
   const getColumnClasses = (columnId: string) => {
-    let classes = "flex-shrink-0 w-full sm:w-72 bg-gray-100 dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700";
+    let classes = "flex-shrink-0 w-full bg-gray-100 dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700";
     if (dragOverColumn === columnId) {
       classes += " border-2 border-dashed border-brand-500 dark:border-brand-400";
     }
@@ -629,7 +629,7 @@ const HiringPipeline = () => {
                   </p>
                   {candidate.responsibleUserId && (
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center">
-                      <UserRound className="w-3 h-3 mr-1" /> Indicado por: {getResponsibleName(candidate.responsibleUserId)}
+                        <UserRound className="w-3 h-3 mr-1" /> Indicado por: {getResponsibleName(candidate.responsibleUserId)}
                     </p>
                   )}
                   <div className="flex justify-end mt-2">
