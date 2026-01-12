@@ -17,7 +17,7 @@ interface ScheduleInterviewModalProps {
 }
 
 export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({ isOpen, onClose }) => {
-  const { addCandidate, teamMembers, origins } = useApp(); // Adicionado 'origins'
+  const { addCandidate, teamMembers, origins } = useApp(); // Adicionado origins
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: '',
@@ -121,7 +121,7 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({ 
           </div>
         ) : (
           <form onSubmit={handleSubmit}>
-            <div className="p-6 space-y-4">
+            <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto custom-scrollbar">
               <div className="relative">
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome do Candidato</label>
                 <User className="absolute left-3 top-9 w-4 h-4 text-gray-400" />
@@ -184,11 +184,11 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({ 
                 </div>
               </div>
             </div>
-            <div className="px-6 py-4 bg-gray-50 dark:bg-slate-700/50 border-t border-gray-100 dark:border-slate-700 flex justify-end">
-              <button type="button" onClick={handleClose} className="px-4 py-2 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-50 dark:hover:bg-slate-600 mr-2">
+            <div className="px-6 py-4 bg-gray-50 dark:bg-slate-700/50 border-t border-gray-100 dark:border-slate-700 flex flex-col sm:flex-row justify-end">
+              <button type="button" onClick={handleClose} className="px-4 py-2 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-50 dark:hover:bg-slate-600 mr-2 w-full sm:w-auto mb-2 sm:mb-0">
                 Cancelar
               </button>
-              <button type="submit" disabled={isSaving} className="px-4 py-2 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 flex items-center space-x-2 disabled:opacity-50">
+              <button type="submit" disabled={isSaving} className="px-4 py-2 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 flex items-center space-x-2 disabled:opacity-50 w-full sm:w-auto">
                 {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
                 <span>Agendar</span>
               </button>

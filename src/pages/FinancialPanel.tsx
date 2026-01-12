@@ -186,13 +186,13 @@ export const FinancialPanel = () => {
   }
 
   return (
-    <div className="p-8 max-w-7xl mx-auto min-h-screen">
+    <div className="p-4 sm:p-8 max-w-7xl mx-auto min-h-screen">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Painel Financeiro</h1>
         <p className="text-gray-500 dark:text-gray-400">Controle suas entradas e saídas financeiras diárias.</p>
       </div>
 
-      <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm mb-6 flex items-center justify-between">
+      <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm mb-6 flex flex-col md:flex-row items-center justify-between gap-4">
         <button onClick={() => navigateMonth(-1)} className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-600 dark:text-gray-300">
           <ChevronLeft className="w-5 h-5" />
         </button>
@@ -245,63 +245,65 @@ export const FinancialPanel = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-        {displayedDates.map(date => {
-          const dateStr = formatDate(date);
-          const daily = dailyBalances[dateStr];
-          const entries = entriesByDate[dateStr] || [];
+      <div className="overflow-x-auto pb-4 custom-scrollbar">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 min-w-[700px]"> {/* min-w para garantir que o grid não quebre demais */}
+          {displayedDates.map(date => {
+            const dateStr = formatDate(date);
+            const daily = dailyBalances[dateStr];
+            const entries = entriesByDate[dateStr] || [];
 
-          return (
-            <div key={dateStr} className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
-              <div className="px-4 py-3 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
-                <h3 className="font-bold text-base text-gray-900 dark:text-white">{date.getDate()} {date.toLocaleDateString('pt-BR', { weekday: 'short' })}</h3>
-                <div className="flex items-center justify-between mt-1">
-                  <span className="text-xs text-gray-500 dark:text-gray-400">Saldo:</span>
-                  <span className={`font-bold text-sm ${daily.balance >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                    {formatCurrency(daily.balance)}
-                  </span>
+            return (
+              <div key={dateStr} className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
+                <div className="px-4 py-3 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
+                  <h3 className="font-bold text-base text-gray-900 dark:text-white">{date.getDate()} {date.toLocaleDateString('pt-BR', { weekday: 'short' })}</h3>
+                  <div className="flex items-center justify-between mt-1">
+                    <span className="text-xs text-gray-500 dark:text-gray-400">Saldo:</span>
+                    <span className={`font-bold text-sm ${daily.balance >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                      {formatCurrency(daily.balance)}
+                    </span>
+                  </div>
                 </div>
-              </div>
-              <div className="p-3 space-y-2 min-h-[100px] max-h-[200px] overflow-y-auto custom-scrollbar">
-                {entries.length === 0 ? (
-                  <p className="text-center text-xs text-gray-400 py-2">Nenhum lançamento.</p>
-                ) : (
-                  entries.map(entry => (
-                    <div key={entry.id} className="flex items-center justify-between p-2 rounded-lg bg-gray-50 dark:bg-slate-700/50 group">
-                      <div className="flex items-center space-x-1">
-                        {entry.type === 'income' ? (
-                          <ArrowUp className="w-3 h-3 text-green-600" />
-                        ) : (
-                          <ArrowDown className="w-3 h-3 text-red-600" />
-                        )}
-                        <div>
-                          <p className="text-xs font-medium text-gray-900 dark:text-white truncate max-w-[80px]">{entry.description || (entry.type === 'income' ? 'Entrada' : 'Saída')}</p>
-                          <p className={`text-[10px] font-semibold ${entry.type === 'income' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                            {formatCurrency(entry.amount)}
-                          </p>
+                <div className="p-3 space-y-2 min-h-[100px] max-h-[200px] overflow-y-auto custom-scrollbar">
+                  {entries.length === 0 ? (
+                    <p className="text-center text-xs text-gray-400 py-2">Nenhum lançamento.</p>
+                  ) : (
+                    entries.map(entry => (
+                      <div key={entry.id} className="flex items-center justify-between p-2 rounded-lg bg-gray-50 dark:bg-slate-700/50 group">
+                        <div className="flex items-center space-x-1">
+                          {entry.type === 'income' ? (
+                            <ArrowUp className="w-3 h-3 text-green-600" />
+                          ) : (
+                            <ArrowDown className="w-3 h-3 text-red-600" />
+                          )}
+                          <div>
+                            <p className="text-xs font-medium text-gray-900 dark:text-white truncate max-w-[80px]">{entry.description || (entry.type === 'income' ? 'Entrada' : 'Saída')}</p>
+                            <p className={`text-[10px] font-semibold ${entry.type === 'income' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                              {formatCurrency(entry.amount)}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-0.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex-wrap justify-end">
+                          <button onClick={() => handleOpenModalForEditEntry(entry)} className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md">
+                            <Edit2 className="w-3 h-3" />
+                          </button>
+                          <button onClick={() => handleDeleteEntry(entry.id)} className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md">
+                            <Trash2 className="w-3 h-3" />
+                          </button>
                         </div>
                       </div>
-                      <div className="flex items-center space-x-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => handleOpenModalForEditEntry(entry)} className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md">
-                          <Edit2 className="w-3 h-3" />
-                        </button>
-                        <button onClick={() => handleDeleteEntry(entry.id)} className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md">
-                          <Trash2 className="w-3 h-3" />
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )}
+                    ))
+                  )}
+                </div>
+                <div className="p-3 border-t border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
+                  <button onClick={() => handleOpenModalForNewEntry(dateStr)} className="w-full flex items-center justify-center space-x-1 bg-brand-600 hover:bg-brand-700 text-white py-1.5 rounded-lg transition text-sm font-medium">
+                    <Plus className="w-3 h-3" />
+                    <span>Adicionar</span>
+                  </button>
+                </div>
               </div>
-              <div className="p-3 border-t border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
-                <button onClick={() => handleOpenModalForNewEntry(dateStr)} className="w-full flex items-center justify-center space-x-1 bg-brand-600 hover:bg-brand-700 text-white py-1.5 rounded-lg transition text-sm font-medium">
-                  <Plus className="w-3 h-3" />
-                  <span>Adicionar</span>
-                </button>
-              </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
 
       <FinancialEntryModal

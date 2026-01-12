@@ -56,7 +56,7 @@ export const PendingLeadTasksModal: React.FC<PendingLeadTasksModalProps> = ({ is
                 const dueDate = task.due_date ? new Date(task.due_date + 'T00:00:00').toLocaleDateString('pt-BR') : 'Sem data';
 
                 return (
-                  <div key={task.id} className={`flex items-start space-x-3 p-3 rounded-lg border ${isOverdue ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800' : 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800'} group`}>
+                  <div key={task.id} className={`flex items-start space-x-3 p-3 rounded-lg border ${isOverdue ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800' : 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800'} group flex-col sm:flex-row`}>
                     <div className="flex-1">
                       <p className="font-medium text-gray-900 dark:text-white">{task.title}</p>
                       <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 space-y-0.5">
@@ -80,7 +80,7 @@ export const PendingLeadTasksModal: React.FC<PendingLeadTasksModalProps> = ({ is
                         )}
                       </div>
                     </div>
-                    <Button variant="ghost" size="icon" onClick={() => handleGoToLead(task.lead_id)} className="flex-shrink-0 text-gray-400 hover:text-brand-600" title="Ver Lead">
+                    <Button variant="ghost" size="icon" onClick={() => handleGoToLead(task.lead_id)} className="flex-shrink-0 text-gray-400 hover:text-brand-600 mt-2 sm:mt-0" title="Ver Lead">
                       <ChevronRight className="w-5 h-5" />
                     </Button>
                   </div>
@@ -90,8 +90,8 @@ export const PendingLeadTasksModal: React.FC<PendingLeadTasksModalProps> = ({ is
           )}
         </ScrollArea>
 
-        <DialogFooter className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-700">
-          <Button type="button" onClick={onClose} className="bg-gray-200 hover:bg-gray-300 text-gray-700 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-gray-200">
+        <DialogFooter className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-700 flex-col sm:flex-row">
+          <Button type="button" onClick={onClose} className="bg-gray-200 hover:bg-gray-300 text-gray-700 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-gray-200 w-full sm:w-auto">
             Fechar
           </Button>
         </DialogFooter>

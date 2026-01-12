@@ -142,7 +142,7 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
       googleCalendarUrl += `&add=${encodeURIComponent(user.email)}`;
     }
     
-    window.open(googleCalendarUrl, '_blank');
+    window.open(googleCalendarUrl.toString(), '_blank');
   };
 
   if (!isOpen) return null;
@@ -180,7 +180,7 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
                   className="dark:bg-slate-700 dark:text-white dark:border-slate-600"
                 />
               </div>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <Label htmlFor="date">Data</Label>
                   <Input
@@ -235,15 +235,15 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
             </div>
           </ScrollArea>
           <DialogFooter className="flex flex-col sm:flex-row sm:justify-between sm:items-center mt-4 pt-4 border-t border-gray-100 dark:border-slate-700">
-            <Button type="button" variant="outline" onClick={handleAddToGoogleCalendar} className="mb-2 sm:mb-0 flex items-center space-x-2 dark:bg-slate-700 dark:text-white dark:border-slate-600">
+            <Button type="button" variant="outline" onClick={handleAddToGoogleCalendar} className="mb-2 sm:mb-0 flex items-center space-x-2 dark:bg-slate-700 dark:text-white dark:border-slate-600 w-full sm:w-auto">
               <CalendarPlus className="w-4 h-4" />
               <span>Adicionar ao Google Agenda</span>
             </Button>
-            <div className="flex gap-2">
-              <Button type="button" variant="outline" onClick={onClose} className="dark:bg-slate-700 dark:text-white dark:border-slate-600">
+            <div className="flex gap-2 flex-col sm:flex-row w-full sm:w-auto">
+              <Button type="button" variant="outline" onClick={onClose} className="dark:bg-slate-700 dark:text-white dark:border-slate-600 w-full sm:w-auto">
                 Cancelar
               </Button>
-              <Button type="submit" disabled={isSaving} className="bg-brand-600 hover:bg-brand-700 text-white">
+              <Button type="submit" disabled={isSaving} className="bg-brand-600 hover:bg-brand-700 text-white w-full sm:w-auto">
                 {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
                 {isSaving ? 'Agendando...' : 'Agendar Reunião'}
               </Button>

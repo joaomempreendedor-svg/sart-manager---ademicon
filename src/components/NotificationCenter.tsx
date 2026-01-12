@@ -68,7 +68,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
                 <div
                   key={notification.id}
                   onClick={() => handleNotificationClick(notification)}
-                  className="flex items-start space-x-3 p-3 rounded-lg bg-gray-50 dark:bg-slate-700/50 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors cursor-pointer border border-gray-200 dark:border-slate-700"
+                  className="flex items-start space-x-3 p-3 rounded-lg bg-gray-50 dark:bg-slate-700/50 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors cursor-pointer border border-gray-200 dark:border-slate-700 flex-col sm:flex-row"
                 >
                   <div className="flex-shrink-0 mt-1">
                     {getIcon(notification.type)}
@@ -87,7 +87,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
           )}
         </ScrollArea>
 
-        <DialogFooter className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-700 px-6 py-4 bg-gray-50 dark:bg-slate-700/50">
+        <DialogFooter className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-700 px-6 py-4 bg-gray-50 dark:bg-slate-700/50 flex-col sm:flex-row">
           {/* <Button 
             onClick={onMarkAllAsRead} 
             disabled={notifications.length === 0}
@@ -96,7 +96,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
           >
             Marcar todas como lidas
           </Button> */}
-          <Button onClick={onClose} className="bg-brand-600 hover:bg-brand-700 text-white">
+          <Button onClick={onClose} className="bg-brand-600 hover:bg-brand-700 text-white w-full sm:w-auto">
             Fechar
           </Button>
         </DialogFooter>

@@ -114,7 +114,7 @@ export const AddScreeningCandidateModal: React.FC<AddScreeningCandidateModalProp
         </DialogHeader>
         
         <form onSubmit={handleSubmit}>
-          <div className="grid gap-4 py-4">
+          <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto custom-scrollbar">
             <div>
               <Label htmlFor="name">Nome Completo *</Label>
               <div className="relative">
@@ -160,11 +160,11 @@ export const AddScreeningCandidateModal: React.FC<AddScreeningCandidateModalProp
             {/* Removido o campo de Responsável */}
             {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
           </div>
-          <DialogFooter className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-700">
-            <Button type="button" variant="outline" onClick={handleClose} className="dark:bg-slate-700 dark:text-white dark:border-slate-600">
+          <DialogFooter className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-700 flex-col sm:flex-row">
+            <Button type="button" variant="outline" onClick={handleClose} className="dark:bg-slate-700 dark:text-white dark:border-slate-600 w-full sm:w-auto mb-2 sm:mb-0">
               Cancelar
             </Button>
-            <Button type="submit" disabled={isSaving} className="bg-brand-600 hover:bg-brand-700 text-white">
+            <Button type="submit" disabled={isSaving} className="bg-brand-600 hover:bg-brand-700 text-white w-full sm:w-auto">
               {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
               <span>Adicionar Candidato</span>
             </Button>

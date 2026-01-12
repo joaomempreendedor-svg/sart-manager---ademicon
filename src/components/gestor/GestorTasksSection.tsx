@@ -291,13 +291,13 @@ export const GestorTasksSection: React.FC = () => {
                 />
               </div>
             )}
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-col sm:flex-row">
               <Button type="submit" disabled={isAddingTask || isUpdatingTask} className="bg-brand-600 hover:bg-brand-700 text-white flex-1">
                 {isAddingTask || isUpdatingTask ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
                 {editingTask ? 'Salvar Edição' : 'Adicionar Tarefa'}
               </Button>
               {editingTask && (
-                <Button type="button" variant="outline" onClick={() => setEditingTask(null)} className="dark:bg-slate-700 dark:text-white dark:border-slate-600">
+                <Button type="button" variant="outline" onClick={() => setEditingTask(null)} className="dark:bg-slate-700 dark:text-white dark:border-slate-600 flex-1">
                   <X className="w-4 h-4 mr-2" /> Cancelar
                 </Button>
               )}
@@ -321,7 +321,7 @@ export const GestorTasksSection: React.FC = () => {
                   const isOverdue = !isRecurring && !task.is_completed && task.due_date && new Date(task.due_date + 'T00:00:00') < new Date(today + 'T00:00:00');
 
                   // Determine classes for the task item
-                  let itemClasses = 'flex items-start space-x-3 p-3 rounded-lg border group';
+                  let itemClasses = 'flex items-start space-x-3 p-3 rounded-lg border group flex-col sm:flex-row';
                   let titleClasses = 'font-medium';
                   let descriptionClasses = 'text-sm mt-1';
 
@@ -364,7 +364,7 @@ export const GestorTasksSection: React.FC = () => {
                             <CheckCircle2 className="w-4 h-4 mr-1 inline-block" /> {isRecurring ? 'Concluído hoje' : 'Concluído'}
                           </span>
                         ) : (
-                          <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400 mt-1 flex-wrap">
                             {task.due_date && !isRecurring && ( // Exibir data de vencimento apenas para tarefas não recorrentes
                               <span className="flex items-center">
                                 <Calendar className="w-3 h-3 mr-1" /> Vence: {new Date(task.due_date + 'T00:00:00').toLocaleDateString('pt-BR')}
@@ -389,7 +389,7 @@ export const GestorTasksSection: React.FC = () => {
                           </div>
                         )}
                       </div>
-                      <div className={`flex-shrink-0 flex items-center space-x-1`}> {/* Removido opacity-0 group-hover:opacity-100 */}
+                      <div className={`flex-shrink-0 flex items-center space-x-1 mt-2 sm:mt-0`}> {/* Removido opacity-0 group-hover:opacity-100 */}
                         {task.due_date && (
                           <Button variant="ghost" size="icon" onClick={() => handleAddToGoogleCalendar(task)} className="text-gray-400 hover:text-blue-600" title="Adicionar ao Google Agenda">
                             <CalendarPlus className="w-4 h-4" />

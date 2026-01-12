@@ -238,7 +238,7 @@ export const TeamConfig = () => {
   };
 
   return (
-    <div className="p-8 max-w-4xl mx-auto min-h-screen bg-gray-50 dark:bg-slate-900">
+    <div className="p-4 sm:p-8 max-w-4xl mx-auto min-h-screen bg-gray-50 dark:bg-slate-900">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Gestão de Equipe</h1>
         <p className="text-gray-500 dark:text-gray-400">Cadastre os membros da equipe e defina seus cargos para uso nas comissões.</p>
@@ -328,101 +328,103 @@ export const TeamConfig = () => {
                   <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
                       <h3 className="font-semibold text-gray-900 dark:text-white">Membros da Equipe ({teamMembers.length})</h3>
                   </div>
-                  <ul className="divide-y divide-gray-100 dark:divide-slate-700">
-                      {teamMembers.length === 0 ? (
-                          <li className="p-8 text-center text-gray-500 dark:text-gray-400">Nenhum membro cadastrado.</li>
-                      ) : (
-                          teamMembers.map(member => (
-                              <li key={member.id} className={`p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-slate-700/30 transition group ${!member.isActive ? 'opacity-60' : ''}`}>
-                                  {editingMember?.id === member.id ? (
-                                    <div className="flex-1 flex flex-col gap-3">
-                                      <input type="text" value={editingName} onChange={e => setEditingName(e.target.value)} className="w-full border-gray-300 dark:border-slate-600 rounded-md p-2 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400" />
-                                      <input type="email" value={editingEmail} onChange={e => setEditingEmail(e.target.value)} className="w-full border-gray-300 dark:border-slate-600 rounded-md p-2 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400" />
-                                      <input type="text" value={editingCpf} onChange={e => setEditingCpf(formatCpf(e.target.value))} maxLength={14} className="w-full border-gray-300 dark:border-slate-600 rounded-md p-2 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400" />
-                                      {/* NOVO: Campo de Data de Nascimento em edição */}
-                                      <div className="relative">
-                                        <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                        <input 
-                                            type="date" 
-                                            className="w-full pl-10 border border-gray-300 dark:border-slate-600 rounded-lg p-2 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500"
-                                            value={editingDateOfBirth}
-                                            onChange={e => setEditingDateOfBirth(e.target.value)}
-                                        />
-                                      </div>
-                                      <div className="grid grid-cols-2 gap-2">
-                                        {ALL_ROLES.map(role => (
-                                            <label key={role} className="flex items-center space-x-2 cursor-pointer">
-                                                <input type="checkbox" checked={editingRoles.includes(role)} onChange={() => handleRoleChange(role, editingRoles, setEditingRoles)} className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
-                                                <span className="text-sm text-gray-700 dark:text-gray-300">{role}</span>
-                                            </label>
-                                        ))}
-                                      </div>
-                                      <div className="flex justify-end gap-2 mt-2">
-                                        <button onClick={handleUpdate} disabled={isUpdating} className="px-3 py-1 bg-green-100 text-green-700 rounded text-sm font-medium hover:bg-green-200 disabled:opacity-50">
-                                            {isUpdating ? <Loader2 className="w-4 h-4 inline mr-1 animate-spin" /> : <Save className="w-4 h-4 inline mr-1" />}
-                                            Salvar
-                                        </button>
-                                        <button onClick={cancelEditing} className="px-3 py-1 bg-gray-100 text-gray-700 rounded text-sm font-medium hover:bg-gray-200"><X className="w-4 h-4 inline mr-1" />Cancelar</button>
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <>
-                                      <div className="flex items-center space-x-4">
-                                          <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-slate-700 flex items-center justify-center text-gray-500 dark:text-gray-400">
-                                              {member.roles && member.roles.length > 0 ? getRoleIcon(member.roles[0]) : <User className="w-4 h-4 text-gray-500" />}
-                                          </div>
-                                          <div>
-                                              <p className="font-medium text-gray-900 dark:text-white">{member.name}</p>
-                                              <div className="flex flex-wrap gap-1 mt-1">
-                                                {member.roles.map(role => (
-                                                    <span key={role} className={`text-xs px-2 py-0.5 rounded-full font-medium ${getRoleBadge(role)}`}>
-                                                        {role}
-                                                    </span>
-                                                ))}
-                                                {!member.isActive && <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300">Inativo</span>}
-                                              </div>
-                                              {member.email && (
-                                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Email: {member.email}</p>
-                                              )}
-                                              {member.cpf && (
-                                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">CPF: {formatCpf(member.cpf)}</p>
-                                              )}
-                                              {member.dateOfBirth && ( // NOVO: Exibir data de nascimento
-                                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Nascimento: {new Date(member.dateOfBirth + 'T00:00:00').toLocaleDateString('pt-BR')}</p>
-                                              )}
-                                          </div>
-                                      </div>
-                                      <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                        {/* Botão de Registrar Entrevista - AGORA SEM CONDIÇÕES DE CARGO OU CANDIDATO EXISTENTE */}
-                                          <button 
-                                            onClick={(e) => { e.stopPropagation(); handleOpenRecordInterviewModal(member); }} 
-                                            className="p-2 rounded-full text-gray-400 hover:text-brand-500 hover:bg-brand-50 dark:hover:bg-brand-900/20" 
-                                            title="Registrar Entrevista"
-                                          >
-                                            <CalendarPlus className="w-4 h-4" />
+                  <div className="overflow-x-auto">
+                    <ul className="divide-y divide-gray-100 dark:divide-slate-700">
+                        {teamMembers.length === 0 ? (
+                            <li className="p-8 text-center text-gray-500 dark:text-gray-400">Nenhum membro cadastrado.</li>
+                        ) : (
+                            teamMembers.map(member => (
+                                <li key={member.id} className={`p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between hover:bg-gray-50 dark:hover:bg-slate-700/30 transition group ${!member.isActive ? 'opacity-60' : ''}`}>
+                                    {editingMember?.id === member.id ? (
+                                      <div className="flex-1 flex flex-col gap-3 w-full">
+                                        <input type="text" value={editingName} onChange={e => setEditingName(e.target.value)} className="w-full border-gray-300 dark:border-slate-600 rounded-md p-2 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400" />
+                                        <input type="email" value={editingEmail} onChange={e => setEditingEmail(e.target.value)} className="w-full border-gray-300 dark:border-slate-600 rounded-md p-2 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400" />
+                                        <input type="text" value={editingCpf} onChange={e => setEditingCpf(formatCpf(e.target.value))} maxLength={14} className="w-full border-gray-300 dark:border-slate-600 rounded-md p-2 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400" />
+                                        {/* NOVO: Campo de Data de Nascimento em edição */}
+                                        <div className="relative">
+                                          <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                          <input 
+                                              type="date" 
+                                              className="w-full pl-10 border border-gray-300 dark:border-slate-600 rounded-lg p-2 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500"
+                                              value={editingDateOfBirth}
+                                              onChange={e => setEditingDateOfBirth(e.target.value)}
+                                          />
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2">
+                                          {ALL_ROLES.map(role => (
+                                              <label key={role} className="flex items-center space-x-2 cursor-pointer">
+                                                  <input type="checkbox" checked={editingRoles.includes(role)} onChange={() => handleRoleChange(role, editingRoles, setEditingRoles)} className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
+                                                  <span className="text-sm text-gray-700 dark:text-gray-300">{role}</span>
+                                              </label>
+                                          ))}
+                                        </div>
+                                        <div className="flex justify-end gap-2 mt-2">
+                                          <button onClick={handleUpdate} disabled={isUpdating} className="px-3 py-1 bg-green-100 text-green-700 rounded text-sm font-medium hover:bg-green-200 disabled:opacity-50">
+                                              {isUpdating ? <Loader2 className="w-4 h-4 inline mr-1 animate-spin" /> : <Save className="w-4 h-4 inline mr-1" />}
+                                              Salvar
                                           </button>
-                                        <button onClick={() => handleResetPassword(member)} className="p-2 rounded-full text-gray-400 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/20" title="Resetar Senha">
-                                            <KeyRound className="w-4 h-4" />
-                                        </button>
-                                        <button onClick={() => handleToggleActive(member)} className={`p-2 rounded-full ${member.isActive ? 'text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20' : 'text-gray-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20'}`} title={member.isActive ? 'Inativar' : 'Ativar'}>
-                                            <Archive className="w-4 h-4" />
-                                        </button>
-                                        <button onClick={() => startEditing(member)} className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full">
-                                          <Edit2 className="w-4 h-4" />
-                                        </button>
-                                        <button 
-                                          onClick={() => handleDelete(member.id)}
-                                          className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full"
-                                        >
-                                            <Trash2 className="w-5 h-5" />
-                                        </button>
+                                          <button onClick={cancelEditing} className="px-3 py-1 bg-gray-100 text-gray-700 rounded text-sm font-medium hover:bg-gray-200"><X className="w-4 h-4 inline mr-1" />Cancelar</button>
+                                        </div>
                                       </div>
-                                    </>
-                                  )}
-                              </li>
-                          ))
-                      )}
-                  </ul>
+                                    ) : (
+                                      <>
+                                        <div className="flex items-center space-x-4 flex-1 flex-wrap">
+                                            <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-slate-700 flex items-center justify-center text-gray-500 dark:text-gray-400">
+                                                {member.roles && member.roles.length > 0 ? getRoleIcon(member.roles[0]) : <User className="w-4 h-4 text-gray-500" />}
+                                            </div>
+                                            <div>
+                                                <p className="font-medium text-gray-900 dark:text-white">{member.name}</p>
+                                                <div className="flex flex-wrap gap-1 mt-1">
+                                                  {member.roles.map(role => (
+                                                      <span key={role} className={`text-xs px-2 py-0.5 rounded-full font-medium ${getRoleBadge(role)}`}>
+                                                          {role}
+                                                      </span>
+                                                  ))}
+                                                  {!member.isActive && <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300">Inativo</span>}
+                                                </div>
+                                                {member.email && (
+                                                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Email: {member.email}</p>
+                                                )}
+                                                {member.cpf && (
+                                                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">CPF: {formatCpf(member.cpf)}</p>
+                                                )}
+                                                {member.dateOfBirth && ( // NOVO: Exibir data de nascimento
+                                                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Nascimento: {new Date(member.dateOfBirth + 'T00:00:00').toLocaleDateString('pt-BR')}</p>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center space-x-1 mt-2 sm:mt-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex-wrap justify-end">
+                                          {/* Botão de Registrar Entrevista - AGORA SEM CONDIÇÕES DE CARGO OU CANDIDATO EXISTENTE */}
+                                            <button 
+                                              onClick={(e) => { e.stopPropagation(); handleOpenRecordInterviewModal(member); }} 
+                                              className="p-2 rounded-full text-gray-400 hover:text-brand-500 hover:bg-brand-50 dark:hover:bg-brand-900/20" 
+                                              title="Registrar Entrevista"
+                                            >
+                                              <CalendarPlus className="w-4 h-4" />
+                                            </button>
+                                          <button onClick={() => handleResetPassword(member)} className="p-2 rounded-full text-gray-400 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/20" title="Resetar Senha">
+                                              <KeyRound className="w-4 h-4" />
+                                          </button>
+                                          <button onClick={() => handleToggleActive(member)} className={`p-2 rounded-full ${member.isActive ? 'text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20' : 'text-gray-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20'}`} title={member.isActive ? 'Inativar' : 'Ativar'}>
+                                              <Archive className="w-4 h-4" />
+                                          </button>
+                                          <button onClick={() => startEditing(member)} className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full">
+                                            <Edit2 className="w-4 h-4" />
+                                          </button>
+                                          <button 
+                                            onClick={() => handleDelete(member.id)}
+                                            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full"
+                                          >
+                                              <Trash2 className="w-5 h-5" />
+                                          </button>
+                                        </div>
+                                      </>
+                                    )}
+                                </li>
+                            ))
+                        )}
+                    </ul>
+                  </div>
               </div>
           </div>
       </div>

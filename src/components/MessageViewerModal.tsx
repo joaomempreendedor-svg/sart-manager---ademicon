@@ -90,8 +90,8 @@ export const MessageViewerModal: React.FC<MessageViewerModalProps> = ({ isOpen, 
             {template.resource && (
                 <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Anexo para Enviar</label>
-                    <div className="flex items-center justify-between p-4 border border-gray-200 dark:border-slate-700 rounded-lg hover:bg-blue-50 dark:hover:bg-slate-700/50 transition group">
-                        <div className="flex items-center space-x-3">
+                    <div className="flex items-center justify-between p-4 border border-gray-200 dark:border-slate-700 rounded-lg hover:bg-blue-50 dark:hover:bg-slate-700/50 transition group flex-col sm:flex-row">
+                        <div className="flex items-center space-x-3 mb-2 sm:mb-0">
                             <div className="p-2 bg-brand-100 dark:bg-brand-900/40 text-brand-600 dark:text-brand-400 rounded-lg">
                                 {template.resource.type === 'image' ? <ImageIcon className="w-6 h-6" /> : <FileText className="w-6 h-6" />}
                             </div>
@@ -102,7 +102,7 @@ export const MessageViewerModal: React.FC<MessageViewerModalProps> = ({ isOpen, 
                         </div>
                         <button 
                             onClick={handleDownload} // Chama a nova função
-                            className="px-4 py-2 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-200 text-sm font-medium rounded-lg hover:bg-gray-50 dark:hover:bg-slate-600 flex items-center space-x-2 shadow-sm"
+                            className="px-4 py-2 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-200 text-sm font-medium rounded-lg hover:bg-gray-50 dark:hover:bg-slate-600 flex items-center space-x-2 shadow-sm w-full sm:w-auto"
                         >
                             <Download className="w-4 h-4" />
                             <span>Baixar</span>
@@ -117,10 +117,10 @@ export const MessageViewerModal: React.FC<MessageViewerModalProps> = ({ isOpen, 
             )}
         </div>
 
-        <div className="px-6 py-4 bg-gray-50 dark:bg-slate-700/50 border-t border-gray-100 dark:border-slate-700 flex justify-end">
+        <div className="px-6 py-4 bg-gray-50 dark:bg-slate-700/50 border-t border-gray-100 dark:border-slate-700 flex flex-col sm:flex-row justify-end">
             <button 
                 onClick={onClose}
-                className="px-4 py-2 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-50 dark:hover:bg-slate-600 mr-2"
+                className="px-4 py-2 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-50 dark:hover:bg-slate-600 mr-2 w-full sm:w-auto mb-2 sm:mb-0"
             >
                 Fechar
             </button>
@@ -129,7 +129,7 @@ export const MessageViewerModal: React.FC<MessageViewerModalProps> = ({ isOpen, 
                      const phone = "55" + "000000000"; // Placeholder
                      window.open(`https://wa.me/?text=${encodeURIComponent(processedText)}`, '_blank');
                 }}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 flex items-center space-x-2 shadow-lg shadow-green-500/20"
+                className="px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 flex items-center space-x-2 shadow-lg shadow-green-500/20 w-full sm:w-auto"
             >
                 <span>Abrir WhatsApp Web</span>
             </button>

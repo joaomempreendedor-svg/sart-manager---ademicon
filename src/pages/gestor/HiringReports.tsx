@@ -112,7 +112,7 @@ const HiringReports = () => {
           if (typeof val === 'number') {
             sectionScores[key].total += val;
             sectionScores[key].count++;
-            return sum + val;
+            return sum;
           }
           return sum;
         }, 0);
@@ -298,17 +298,17 @@ const HiringReports = () => {
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Relatórios de Contratação</h1>
           <p className="text-gray-500 dark:text-gray-400">Análise do pipeline de candidatos e desempenho do processo seletivo.</p>
         </div>
-        <button onClick={handleExportToExcel} className="flex items-center justify-center space-x-2 bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg transition font-medium">
+        <button onClick={handleExportToExcel} className="flex items-center justify-center space-x-2 bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg transition font-medium w-full sm:w-auto">
           <Download className="w-5 h-5" />
           <span>Exportar para Excel</span>
         </button>
       </div>
 
       <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm space-y-4 mb-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-col sm:flex-row">
           <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 flex items-center uppercase tracking-wide"><Filter className="w-4 h-4 mr-2" />Filtrar Relatório</h3>
           {hasActiveFilters && (
-            <button onClick={clearFilters} className="text-xs flex items-center text-red-500 hover:text-red-700 transition">
+            <button onClick={clearFilters} className="text-xs flex items-center text-red-500 hover:text-red-700 transition mt-2 sm:mt-0">
               <RotateCcw className="w-3 h-3 mr-1" />Limpar Filtros
             </button>
           )}

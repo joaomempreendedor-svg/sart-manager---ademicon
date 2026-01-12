@@ -170,11 +170,11 @@ export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ us
   return (
     <div className="space-y-6">
       {showConfetti && <ConfettiAnimation run={showConfetti} onConfettiComplete={handleConfettiComplete} />} {/* Renderiza o confete */}
-      <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center justify-between">
+      <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center justify-between flex-col sm:flex-row">
         <button onClick={() => navigateDay(-1)} className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-600 dark:text-gray-300">
           <ChevronLeft className="w-5 h-5" />
         </button>
-        <div className="flex items-center space-x-2 text-lg font-semibold text-gray-900 dark:text-white">
+        <div className="flex items-center space-x-2 text-lg font-semibold text-gray-900 dark:text-white my-2 sm:my-0">
           <CalendarDays className="w-5 h-5 text-brand-500" />
           <span>{displayDate(selectedDate)}</span>
         </div>
@@ -207,7 +207,7 @@ export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ us
                     const isCompleted = getCompletionStatus(item.id);
                     
                     // Determine classes for the task item
-                    let itemClasses = 'p-4 flex items-center justify-between';
+                    let itemClasses = 'p-4 flex items-center justify-between flex-col sm:flex-row';
                     let labelClasses = 'text-sm font-medium leading-none';
 
                     if (isCompleted) {
@@ -220,7 +220,7 @@ export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ us
 
                     return (
                       <div key={item.id} className={itemClasses}>
-                        <div className="flex items-center space-x-3">
+                        <div className="flex items-center space-x-3 mb-2 sm:mb-0">
                           <Checkbox
                             id={`item-${item.id}`}
                             checked={isCompleted}
@@ -241,7 +241,7 @@ export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ us
                             variant="outline" 
                             size="sm"
                             onClick={() => handleOpenResourceModal(item)}
-                            className="flex items-center space-x-1 px-2 py-1 rounded-md text-xs bg-brand-50 dark:bg-brand-900/20 text-brand-700 dark:text-brand-300 hover:bg-brand-100 dark:hover:bg-brand-900/30 transition border-brand-200 dark:border-brand-800"
+                            className="flex items-center space-x-1 px-2 py-1 rounded-md text-xs bg-brand-50 dark:bg-brand-900/20 text-brand-700 dark:text-brand-300 hover:bg-brand-100 dark:hover:bg-brand-900/30 transition border-brand-200 dark:border-brand-800 w-full sm:w-auto"
                           >
                             <Eye className="w-3 h-3 mr-1" />
                             <span>Como fazer?</span>

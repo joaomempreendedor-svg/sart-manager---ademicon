@@ -251,16 +251,16 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
           </ScrollArea>
           <DialogFooter className="flex flex-col sm:flex-row sm:justify-between sm:items-center mt-4 pt-4 border-t border-gray-100 dark:border-slate-700">
             {lead && (
-              <Button type="button" variant="destructive" onClick={handleDelete} disabled={isDeleting} className="mb-2 sm:mb-0">
+              <Button type="button" variant="destructive" onClick={handleDelete} disabled={isDeleting} className="mb-2 sm:mb-0 w-full sm:w-auto">
                 {isDeleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <X className="w-4 h-4 mr-2" />}
                 {isDeleting ? 'Excluindo...' : 'Excluir Lead'}
               </Button>
             )}
-            <div className="flex gap-2">
-              <Button type="button" variant="outline" onClick={onClose} className="dark:bg-slate-700 dark:text-white dark:border-slate-600">
+            <div className="flex gap-2 flex-col sm:flex-row w-full sm:w-auto">
+              <Button type="button" variant="outline" onClick={onClose} className="dark:bg-slate-700 dark:text-white dark:border-slate-600 w-full sm:w-auto">
                 Cancelar
               </Button>
-              <Button type="submit" disabled={isSaving} className="bg-brand-600 hover:bg-brand-700 text-white">
+              <Button type="submit" disabled={isSaving} className="bg-brand-600 hover:bg-brand-700 text-white w-full sm:w-auto">
                 {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
                 {isSaving ? 'Salvando...' : 'Salvar'}
               </Button>

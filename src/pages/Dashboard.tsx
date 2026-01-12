@@ -398,7 +398,7 @@ export const Dashboard = () => {
   const hasActiveCandidateFilters = filterStartDate || filterEndDate;
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
+    <div className="p-4 sm:p-8 max-w-7xl mx-auto">
       <div className="mb-8 flex items-center justify-between"> {/* Adicionado flex e justify-between */}
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Visão Geral do Gestor</h1>
@@ -448,8 +448,8 @@ export const Dashboard = () => {
           </div>
         </div>
         <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
-          <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-            <Send className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+          <div className="p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg">
+            <Send className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
           </div>
           <div>
             <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Valor Propostas (Mês)</p>
@@ -533,16 +533,16 @@ export const Dashboard = () => {
             <ul className="divide-y divide-gray-100 dark:divide-slate-700">
               {meetingInvitations.map((item) => (
                 <li key={item.id} onClick={() => handleAgendaItemClick(item)} className="p-4 hover:bg-purple-50 dark:hover:bg-purple-900/10 cursor-pointer transition">
-                  <div className="flex items-start justify-between">
+                  <div className="flex items-start justify-between flex-col sm:flex-row">
                     <div>
                       <p className="text-sm font-medium text-gray-900 dark:text-gray-200">{item.title}</p>
-                      <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 mt-1 space-x-2">
+                      <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 mt-1 space-x-2 flex-wrap">
                         <span className="flex items-center"><UserRound className="w-3 h-3 mr-1" /> Consultor: <span className="font-semibold ml-1">{item.meetingDetails?.consultantName}</span></span>
                         <span className="flex items-center"><Calendar className="w-3 h-3 mr-1" /> {new Date(item.dueDate + 'T00:00:00').toLocaleDateString()}</span>
                         <span className="flex items-center"><Clock className="w-3 h-3 mr-1" /> {item.meetingDetails?.startTime} - {item.meetingDetails?.endTime}</span>
                       </div>
                     </div>
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-2 mt-2 sm:mt-0 flex-wrap justify-end">
                       <button
                         onClick={() => handleInvitationResponse(item.meetingDetails!.taskId, 'accepted', item.meetingDetails)}
                         className="px-3 py-1.5 bg-green-500 text-white rounded-md text-xs font-medium hover:bg-green-600 flex items-center space-x-1"
@@ -583,7 +583,7 @@ export const Dashboard = () => {
                         {overdueTasks.map((task) => (
                             <li key={task.id} onClick={() => handleAgendaItemClick(task)} className="p-4 hover:bg-red-50 dark:hover:bg-red-900/10 cursor-pointer transition">
                                 <p className="text-sm font-medium text-gray-900 dark:text-gray-200">{task.title}</p>
-                                <div className="flex justify-between items-center mt-1">
+                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mt-1">
                                     <span className="text-xs text-gray-500 dark:text-gray-400">Pessoa: <span className="font-semibold">{task.personName}</span></span>
                                     <span className="text-xs text-red-600 dark:text-red-400 font-medium">Venceu: {new Date(task.dueDate + 'T00:00:00').toLocaleDateString()}</span>
                                 </div>
@@ -630,11 +630,11 @@ export const Dashboard = () => {
 
       {/* Todos os Candidatos */}
       <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
+        <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700 flex flex-col sm:flex-row justify-between items-start sm:items-center">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Todos os Candidatos</h2>
           <button
             onClick={() => setIsScheduleModalOpen(true)}
-            className="text-sm text-brand-600 dark:text-brand-400 font-medium hover:text-brand-700 dark:hover:text-brand-300"
+            className="text-sm text-brand-600 dark:text-brand-400 font-medium hover:text-brand-700 dark:hover:text-brand-300 mt-2 sm:mt-0"
           >
             + Agendar Entrevista
           </button>
@@ -642,10 +642,10 @@ export const Dashboard = () => {
 
         {/* NOVO: Filtros de Data para Candidatos */}
         <div className="p-6 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between flex-col sm:flex-row mb-4">
             <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 flex items-center uppercase tracking-wide"><Filter className="w-4 h-4 mr-2" />Filtrar Candidatos por Data de Criação</h3>
             {hasActiveCandidateFilters && (
-              <button onClick={clearCandidateFilters} className="text-xs flex items-center text-red-500 hover:text-red-700 transition">
+              <button onClick={clearCandidateFilters} className="text-xs flex items-center text-red-500 hover:text-red-700 transition mt-2 sm:mt-0">
                 <RotateCcw className="w-3 h-3 mr-1" />Limpar Filtros
               </button>
             )}

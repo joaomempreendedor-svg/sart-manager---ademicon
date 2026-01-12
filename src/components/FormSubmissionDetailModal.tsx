@@ -127,7 +127,7 @@ export const FormCadastroDetailModal: React.FC<FormCadastroDetailModalProps> = (
                       if (step.id === 'localizacao' && !cadastro.data.cep) return null;
 
                       return (
-                        <div key={fieldName} className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-slate-700 last:border-b-0">
+                        <div key={fieldName} className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-slate-700 last:border-b-0 flex-wrap">
                           <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{formatLabel(fieldName, cadastro.data)}:</span>
                           <span className="text-sm text-gray-900 dark:text-white text-right break-all">{String(value || 'N/A')}</span>
                         </div>
@@ -140,13 +140,13 @@ export const FormCadastroDetailModal: React.FC<FormCadastroDetailModalProps> = (
 
             {/* Coluna de Arquivos e Notas Internas */}
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Arquivos Anexados</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mt-6 md:mt-0 mb-3">Arquivos Anexados</h3>
               {files.length === 0 ? (
                 <p className="text-center text-gray-500 dark:text-gray-400 py-4">Nenhum arquivo anexado.</p>
               ) : (
                 <div className="space-y-3">
                   {files.map(file => (
-                    <div key={file.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-700/50 rounded-lg border border-gray-200 dark:border-slate-700">
+                    <div key={file.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-700/50 rounded-lg border border-gray-200 dark:border-slate-700 flex-wrap">
                       <div className="flex items-center space-x-3">
                         {file.file_name.toLowerCase().endsWith('.pdf') ? (
                           <FileText className="w-5 h-5 text-red-500" />
@@ -155,7 +155,7 @@ export const FormCadastroDetailModal: React.FC<FormCadastroDetailModalProps> = (
                         )}
                         <span className="text-sm font-medium text-gray-900 dark:text-white truncate max-w-[150px]">{file.file_name}</span>
                       </div>
-                      <Button variant="outline" size="sm" onClick={() => handleDownloadFile(file)} className="flex items-center space-x-1 dark:bg-slate-700 dark:text-white dark:border-slate-600">
+                      <Button variant="outline" size="sm" onClick={() => handleDownloadFile(file)} className="flex items-center space-x-1 dark:bg-slate-700 dark:text-white dark:border-slate-600 mt-2 sm:mt-0">
                         <Download className="w-4 h-4" />
                         <span>Baixar</span>
                       </Button>
@@ -189,11 +189,11 @@ export const FormCadastroDetailModal: React.FC<FormCadastroDetailModalProps> = (
           </div>
         </ScrollArea>
 
-        <DialogFooter className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-700">
-          <Button type="button" variant="outline" onClick={onClose} className="dark:bg-slate-700 dark:text-white dark:border-slate-600">
+        <DialogFooter className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-700 flex-col sm:flex-row">
+          <Button type="button" variant="outline" onClick={onClose} className="dark:bg-slate-700 dark:text-white dark:border-slate-600 w-full sm:w-auto mb-2 sm:mb-0">
             Fechar
           </Button>
-          <Button type="button" onClick={handleSaveNotesAndStatus} disabled={isSaving} className="bg-brand-600 hover:bg-brand-700 text-white">
+          <Button type="button" onClick={handleSaveNotesAndStatus} disabled={isSaving} className="bg-brand-600 hover:bg-brand-700 text-white w-full sm:w-auto">
             {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
             <span>Salvar Alterações</span>
           </Button>

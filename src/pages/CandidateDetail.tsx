@@ -35,7 +35,7 @@ export const CandidateDetail = () => {
   );
   // ⚠️ GARANTINDO CÓPIA PROFUNDA NA INICIALIZAÇÃO
   const [checkedQuestions, setCheckedQuestions] = useState<Record<string, boolean>>(
-    candidate?.checkedQuestions ? JSON.parse(JSON.stringify(candidate.checkedQuestions)) : {}
+    candidate?.checkedQuestions ? JSON.parse(JSON.stringify(candidate.checkedQuestions || {})) : {}
   );
   const [isSaving, setIsSaving] = useState(false);
 
@@ -68,7 +68,7 @@ export const CandidateDetail = () => {
 
   if (!candidate) {
     console.log("CandidateDetail: Candidate not found, rendering fallback."); // Log para o fallback
-    return <div className="p-8 text-gray-500 dark:text-gray-400">Candidato não encontrado.</div>;
+    return <div className="p-4 sm:p-8 text-gray-500 dark:text-gray-400">Candidato não encontrado.</div>;
   }
 
   const handleStatusChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -185,7 +185,7 @@ export const CandidateDetail = () => {
   };
 
   return (
-    <div className="p-8 max-w-6xl mx-auto">
+    <div className="p-4 sm:p-8 max-w-6xl mx-auto">
       <button onClick={() => navigate('/gestor/dashboard')} className="flex items-center text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white mb-6">
         <ArrowLeft className="w-4 h-4 mr-2" /> Voltar para Dashboard
       </button>
@@ -199,7 +199,7 @@ export const CandidateDetail = () => {
             </div>
             <div>
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{candidate.name}</h1>
-              <div className="flex items-center space-x-4 text-sm text-gray-500 dark:text-gray-400 mt-1">
+              <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-4 text-sm text-gray-500 dark:text-gray-400 mt-1">
                  <span className="flex items-center"><Phone className="w-3 h-3 mr-1" /> {candidate.phone || 'Não informado'}</span>
                  <div className="flex items-center">
                     <Calendar className="w-3 h-3 mr-1" /> Entrevista: {new Date(candidate.interviewDate + 'T00:00:00').toLocaleDateString()}
@@ -209,13 +209,13 @@ export const CandidateDetail = () => {
             </div>
           </div>
 
-          <div className="flex flex-col items-end">
+          <div className="flex flex-col items-end w-full md:w-auto">
             <label className="text-xs text-gray-500 dark:text-gray-400 font-medium uppercase mb-1">Status Atual</label>
-            <div className="flex items-center space-x-2">
+            <div className="flex flex-col sm:flex-row items-end sm:items-center space-y-2 sm:space-y-0 sm:space-x-2 w-full md:w-auto">
                 <select 
                     value={candidate.status} 
                     onChange={handleStatusChange}
-                    className="block w-48 pl-3 pr-10 py-2 text-base border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:outline-none focus:ring-brand-500 focus:border-brand-500 sm:text-sm rounded-md border"
+                    className="block w-full sm:w-48 pl-3 pr-10 py-2 text-base border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:outline-none focus:ring-brand-500 focus:border-brand-500 sm:text-sm rounded-md border"
                 >
                     <option>Entrevista</option>
                     <option>Aguardando Prévia</option>
@@ -227,7 +227,7 @@ export const CandidateDetail = () => {
                 </select>
                 <button
                     onClick={handleDelete}
-                    className="p-2.5 text-red-500 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 rounded-md transition border border-red-100 dark:border-red-900/30"
+                    className="p-2.5 text-red-500 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 rounded-md transition border border-red-100 dark:border-red-900/30 w-full sm:w-auto"
                     title="Excluir Candidato"
                 >
                     <Trash2 className="w-4 h-4" />
@@ -286,7 +286,7 @@ export const CandidateDetail = () => {
       </div>
 
       {/* Tabs */}
-      <div className="flex space-x-1 bg-gray-100 dark:bg-slate-800 p-1 rounded-lg w-fit mb-6">
+      <div className="flex flex-wrap space-x-1 bg-gray-100 dark:bg-slate-800 p-1 rounded-lg w-fit mb-6">
         <button
           onClick={() => setActiveTab('checklist')}
           className={`flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
@@ -328,9 +328,9 @@ export const CandidateDetail = () => {
               return (
                 <div key={stage.id} className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 overflow-hidden shadow-sm">
                   <div className="bg-gray-50 dark:bg-slate-700/50 px-6 py-4 border-b border-gray-200 dark:border-slate-700">
-                    <div className="flex justify-between items-center mb-2">
+                    <div className="flex justify-between items-center flex-col sm:flex-row mb-2">
                         <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{stage.title}</h3>
-                        <span className="text-xs font-semibold text-gray-500 dark:text-gray-300 bg-gray-200 dark:bg-slate-600 px-2 py-1 rounded">{progress}% Concluído</span>
+                        <span className="text-xs font-semibold text-gray-500 dark:text-gray-300 bg-gray-200 dark:bg-slate-600 px-2 py-1 rounded mt-2 sm:mt-0">{progress}% Concluído</span>
                     </div>
                     <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">{stage.description}</p>
                     <div className="w-full bg-gray-200 dark:bg-slate-600 rounded-full h-1.5">
@@ -378,7 +378,7 @@ export const CandidateDetail = () => {
                             </div>
                           </div>
                           
-                          <div className="flex items-center ml-8 sm:ml-0 space-x-2">
+                          <div className="flex items-center ml-8 sm:ml-0 space-x-2 flex-wrap justify-end">
                               <div className="relative">
                                   <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
                                      <Clock className={`w-4 h-4 ${state.dueDate ? 'text-brand-500' : 'text-gray-300 dark:text-gray-600'}`} />
@@ -456,9 +456,9 @@ export const CandidateDetail = () => {
 
         {activeTab === 'interview' && (
           <div className="bg-white dark:bg-slate-800 p-8 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm">
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
                 <h2 className="text-xl font-bold text-gray-900 dark:text-white">Formulário de Avaliação</h2>
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2 mt-2 sm:mt-0 flex-wrap justify-end">
                     <span className={`text-2xl font-bold ${totalScore >= 70 ? 'text-green-600 dark:text-green-400' : 'text-brand-900 dark:text-brand-400'}`}>{totalScore}/100</span>
                     <button onClick={handleSaveInterview} disabled={isSaving} className="flex items-center space-x-2 bg-brand-600 text-white px-4 py-2 rounded-lg hover:bg-brand-700 disabled:opacity-50">
                         {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}

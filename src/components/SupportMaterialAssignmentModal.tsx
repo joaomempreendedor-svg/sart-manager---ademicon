@@ -59,7 +59,7 @@ export const SupportMaterialAssignmentModal: React.FC<SupportMaterialAssignmentM
             Selecione os consultores que terão acesso a este material. Se nenhum for selecionado, ele será global.
           </DialogDescription>
         </DialogHeader>
-        <ScrollArea className="h-[300px] py-4">
+        <ScrollArea className="h-[300px] py-4 custom-scrollbar">
           <div className="grid gap-3">
             {consultants.length === 0 ? (
               <p className="text-center text-gray-500 dark:text-gray-400">Nenhum consultor encontrado.</p>
@@ -84,8 +84,8 @@ export const SupportMaterialAssignmentModal: React.FC<SupportMaterialAssignmentM
             )}
           </div>
         </ScrollArea>
-        <DialogFooter>
-          <Button type="button" onClick={onClose} className="bg-brand-600 hover:bg-brand-700 text-white">
+        <DialogFooter className="flex-col sm:flex-row">
+          <Button type="button" onClick={onClose} className="bg-brand-600 hover:bg-brand-700 text-white w-full sm:w-auto">
             Fechar
           </Button>
         </DialogFooter>

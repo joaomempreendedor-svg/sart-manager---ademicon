@@ -150,7 +150,7 @@ export const LeadTasksModal: React.FC<LeadTasksModalProps> = ({ isOpen, onClose,
           </DialogDescription>
         </DialogHeader>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4 max-h-[70vh] overflow-y-auto custom-scrollbar">
           {/* Coluna de Adicionar/Editar Tarefa */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -187,13 +187,13 @@ export const LeadTasksModal: React.FC<LeadTasksModalProps> = ({ isOpen, onClose,
                   className="dark:bg-slate-700 dark:text-white dark:border-slate-600"
                 />
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-col sm:flex-row">
                 <Button type="submit" disabled={isAddingTask || isUpdatingTask} className="bg-brand-600 hover:bg-brand-700 text-white flex-1">
                   {isAddingTask || isUpdatingTask ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
                   {editingTask ? 'Salvar Edição' : 'Adicionar Tarefa'}
                 </Button>
                 {editingTask && (
-                  <Button type="button" variant="outline" onClick={() => setEditingTask(null)} className="dark:bg-slate-700 dark:text-white dark:border-slate-600">
+                  <Button type="button" variant="outline" onClick={() => setEditingTask(null)} className="dark:bg-slate-700 dark:text-white dark:border-slate-600 flex-1">
                     <X className="w-4 h-4 mr-2" /> Cancelar
                   </Button>
                 )}
@@ -210,7 +210,7 @@ export const LeadTasksModal: React.FC<LeadTasksModalProps> = ({ isOpen, onClose,
               ) : (
                 <div className="space-y-3">
                   {tasksForLead.map(task => (
-                    <div key={task.id} className={`flex items-start space-x-3 p-3 rounded-lg border ${task.is_completed ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' : 'bg-gray-50 dark:bg-slate-700/50 border-gray-200 dark:border-slate-700'} group`}>
+                    <div key={task.id} className={`flex items-start space-x-3 p-3 rounded-lg border ${task.is_completed ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' : 'bg-gray-50 dark:bg-slate-700/50 border-gray-200 dark:border-slate-700'} group flex-col sm:flex-row`}>
                       <Button
                         variant="ghost"
                         size="icon"
@@ -226,7 +226,7 @@ export const LeadTasksModal: React.FC<LeadTasksModalProps> = ({ isOpen, onClose,
                         {task.description && (
                           <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{task.description}</p>
                         )}
-                        <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400 mt-1 flex-wrap">
                           {task.due_date && (
                             <span className="flex items-center">
                               <Clock className="w-3 h-3 mr-1" /> {new Date(task.due_date + 'T00:00:00').toLocaleDateString('pt-BR')}
@@ -239,7 +239,7 @@ export const LeadTasksModal: React.FC<LeadTasksModalProps> = ({ isOpen, onClose,
                           )}
                         </div>
                       </div>
-                      <div className="flex-shrink-0 flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex-shrink-0 flex items-center space-x-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity mt-2 sm:mt-0 flex-wrap justify-end">
                         {task.due_date && (
                           <Button variant="ghost" size="icon" onClick={() => handleAddToGoogleCalendar(task)} className="text-gray-400 hover:text-blue-600" title="Adicionar ao Google Agenda">
                             <CalendarPlus className="w-4 h-4" />
@@ -260,8 +260,8 @@ export const LeadTasksModal: React.FC<LeadTasksModalProps> = ({ isOpen, onClose,
           </div>
         </div>
 
-        <DialogFooter className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-700">
-          <Button type="button" onClick={onClose} className="bg-gray-200 hover:bg-gray-300 text-gray-700 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-gray-200">
+        <DialogFooter className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-700 flex-col sm:flex-row">
+          <Button type="button" onClick={onClose} className="bg-gray-200 hover:bg-gray-300 text-gray-700 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-gray-200 w-full sm:w-auto">
             Fechar
           </Button>
         </DialogFooter>

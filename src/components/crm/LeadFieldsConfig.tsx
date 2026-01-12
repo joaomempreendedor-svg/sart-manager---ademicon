@@ -35,18 +35,18 @@ const LeadFieldsConfig = () => {
 
   return (
     <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm">
-      <div className="flex justify-between items-center mb-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
         <div>
           <h3 className="text-lg font-bold text-gray-900 dark:text-white">Campos Personalizados do Lead</h3>
           <p className="text-sm text-gray-500 dark:text-gray-400">Defina as informações que devem ser coletadas para cada lead.</p>
         </div>
-        <button onClick={handleAddNew} className="flex items-center space-x-2 bg-brand-600 hover:bg-brand-700 text-white py-2 px-4 rounded-lg transition font-medium text-sm">
+        <button onClick={handleAddNew} className="flex items-center space-x-2 bg-brand-600 hover:bg-brand-700 text-white py-2 px-4 rounded-lg transition font-medium text-sm mt-4 sm:mt-0">
           <Plus className="w-4 h-4" />
           <span>Novo Campo</span>
         </button>
       </div>
 
-      <div className="border border-gray-200 dark:border-slate-700 rounded-lg overflow-hidden">
+      <div className="border border-gray-200 dark:border-slate-700 rounded-lg overflow-hidden overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead className="bg-gray-50 dark:bg-slate-700/50 text-gray-500 dark:text-gray-400">
             <tr>
@@ -71,7 +71,7 @@ const LeadFieldsConfig = () => {
                   </span>
                 </td>
                 <td className="p-4 text-right">
-                  <div className="flex items-center justify-end space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex items-center justify-end space-x-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex-wrap">
                     <button onClick={() => handleToggleActive(field)} className={`p-2 rounded-full ${field.is_active ? 'text-gray-400 hover:text-yellow-600' : 'text-gray-400 hover:text-green-600'}`} title={field.is_active ? 'Desativar' : 'Ativar'}>
                       {field.is_active ? <ToggleLeft className="w-5 h-5" /> : <ToggleRight className="w-5 h-5" />}
                     </button>
