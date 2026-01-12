@@ -369,7 +369,7 @@ const ConsultorCrmPage = () => { // Nome do componente corrigido para ConsultorC
                         <Select
                           value={lead.stage_id}
                           onValueChange={(newStageId) => handleStageChange(lead.id, newStageId)}
-                          onOpenChange={() => {}} // Adicionado para evitar propagação
+                          // onOpenChange={() => {}} // Removido para evitar conflitos
                         >
                           <SelectTrigger 
                             className="w-full h-auto py-1.5 text-xs dark:bg-slate-800 dark:text-white dark:border-slate-600"
