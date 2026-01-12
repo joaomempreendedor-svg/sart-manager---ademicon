@@ -230,6 +230,11 @@ export const TeamConfig = () => {
     setIsRecordInterviewModalOpen(true);
   };
 
+  // Ordena os membros da equipe por nome em ordem alfabética
+  const sortedTeamMembers = useMemo(() => {
+    return [...teamMembers].sort((a, b) => a.name.localeCompare(b.name));
+  }, [teamMembers]);
+
   return (
     <div className="p-4 sm:p-8 max-w-4xl mx-auto min-h-screen bg-gray-50 dark:bg-slate-900">
       <div className="mb-8">
@@ -318,14 +323,14 @@ export const TeamConfig = () => {
           <div className="md:col-span-2">
               <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
                   <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
-                      <h3 className="font-semibold text-gray-900 dark:text-white">Membros da Equipe ({teamMembers.length})</h3>
+                      <h3 className="font-semibold text-gray-900 dark:text-white">Membros da Equipe ({sortedTeamMembers.length})</h3>
                   </div>
                   <div className="overflow-x-auto">
                     <ul className="divide-y divide-gray-100 dark:divide-slate-700">
-                        {teamMembers.length === 0 ? (
+                        {sortedTeamMembers.length === 0 ? (
                             <li className="p-8 text-center text-gray-500 dark:text-gray-400">Nenhum membro cadastrado.</li>
                         ) : (
-                            teamMembers.map(member => (
+                            sortedTeamMembers.map(member => (
                                 <li key={member.id} className={`p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between hover:bg-gray-50 dark:hover:bg-slate-700/30 transition group ${!member.isActive ? 'opacity-60' : ''}`}>
                                     {editingMember?.id === member.id ? (
                                       <div className="flex-1 flex flex-col gap-3 w-full">
