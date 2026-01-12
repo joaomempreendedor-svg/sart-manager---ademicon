@@ -611,12 +611,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             db_id: item.id,
             name: data.name,
             email: data.email,
-            roles: Array.isArray(data.roles) ? data.roles : [data.role || 'Prévia'],
+            roles: Array.isArray(data.roles) ? data.roles : [item.data.role || 'Prévia'],
             isActive: data.isActive !== false,
             hasLogin: true,
             isLegacy: false,
             cpf: item.cpf,
-            dateOfBirth: data.dateOfBirth, // NOVO: Carregar data de nascimento
+            dateOfBirth: item.data.dateOfBirth, // NOVO: Carregar data de nascimento
           } as TeamMember;
         }) || [];
         setTeamMembers(normalizedTeamMembers);
@@ -1359,6 +1359,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       onboardingSessions,
       onboardingTemplateVideos,
       checklistStructure,
+      setChecklistStructure, // Adicionado setChecklistStructure
       consultantGoalsStructure,
       interviewStructure,
       templates,
@@ -1390,7 +1391,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       theme,
       toggleTheme,
       addCandidate,
-      getCandidate,
+      getCandidate: useCallback((id: string) => {
+        console.log("[getCandidate] Called with ID:", id);
+        console.log("[getCandidate] Current candidates state:", candidates);
+        if (!Array.isArray(candidates)) {
+          console.error("[getCandidate] 'candidates' is not an array!", candidates);
+          return undefined;
+        }
+        return candidates.find(c => c.id === id);
+      }, [candidates]),
       updateCandidate,
       deleteCandidate,
       toggleChecklistItem,
@@ -1491,6 +1500,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       updateTeamMemberFeedback,
       deleteTeamMemberFeedback,
       refetchCommissions,
+      addTeamMember, // Adicionado addTeamMember explicitamente aqui
     };
   }, [
     isDataLoading, candidates, teamMembers, commissions, supportMaterials, cutoffPeriods, onboardingSessions, onboardingTemplateVideos,
@@ -1500,7 +1510,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     weeklyTargets, weeklyTargetItems, weeklyTargetAssignments, metricLogs,
     supportMaterialsV2, supportMaterialAssignments, leadTasks, gestorTasks, gestorTaskCompletions,
     financialEntries, formCadastros, formFiles, notifications,
-    theme, toggleTheme, addCandidate, getCandidate, updateCandidate, deleteCandidate, toggleChecklistItem, setChecklistDueDate,
+    theme, toggleTheme, addCandidate, updateCandidate, deleteCandidate, toggleChecklistItem, setChecklistDueDate,
     toggleConsultantGoal, addChecklistItem, updateChecklistItem, deleteChecklistItem, moveChecklistItem, resetChecklistToDefault,
     addGoalItem, updateGoalItem, deleteGoalItem, moveGoalItem, resetGoalsToDefault,
     updateInterviewSection, addInterviewQuestion, updateInterviewQuestion, deleteInterviewQuestion, moveInterviewQuestion, resetInterviewToDefault,
@@ -1520,7 +1530,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addFinancialEntry, updateFinancialEntry, deleteFinancialEntry,
     getFormFilesForSubmission, updateFormCadastro, deleteFormCadastro,
     addFeedback, updateFeedback, deleteFeedback, addTeamMemberFeedback, updateTeamMemberFeedback, deleteTeamMemberFeedback,
-    refetchCommissions, addTeamMember, // Adicionado addTeamMember explicitamente aqui
+    refetchCommissions, addTeamMember,
   ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

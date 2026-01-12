@@ -19,6 +19,7 @@ export const CandidateDetail = () => {
   const location = useLocation();
   
   console.log("CandidateDetail: id from useParams", id); // Log para o ID
+  console.log("CandidateDetail: Type of getCandidate before call:", typeof getCandidate); // DEBUG LOG
   const candidate = getCandidate(id || '');
   console.log("CandidateDetail: fetched candidate", candidate); // Log para o objeto candidato
   
