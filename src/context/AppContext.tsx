@@ -491,7 +491,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           (async () => { try { return await supabase.from('daily_checklist_items').select('*'); } catch (e) { console.error("Error fetching daily_checklist_items:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('daily_checklist_assignments').select('*'); } catch (e) { console.error("Error fetching daily_checklist_assignments:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('daily_checklist_completions').select('*'); } catch (e) { console.error("Error fetching daily_checklist_completions:", e); return { data: [], error: e }; } })(),
-          (async () => { try { return await supabase.from('weekly_targets').select('*').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching weekly_targets:", e); return { data: null, error: e }; } })(),
+          (async () => { try { return await supabase.from('weekly_targets').select('*').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching weekly_targets:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('weekly_target_items').select('*'); } catch (e) { console.error("Error fetching weekly_target_items:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('weekly_target_assignments').select('*'); } catch (e) { console.error("Error fetching weekly_target_assignments:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('metric_logs').select('*'); } catch (e) { console.error("Error fetching metric_logs:", e); return { data: [], error: e }; } })(),
@@ -611,12 +611,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             db_id: item.id,
             name: data.name,
             email: data.email,
-            roles: Array.isArray(data.roles) ? data.roles : [data.role || 'Prévia'],
+            roles: Array.isArray(data.roles) ? data.roles : [item.data.role || 'Prévia'],
             isActive: data.isActive !== false,
             hasLogin: true,
             isLegacy: false,
             cpf: item.cpf,
-            dateOfBirth: data.dateOfBirth, // NOVO: Carregar data de nascimento
+            dateOfBirth: item.data.dateOfBirth, // NOVO: Carregar data de nascimento
           } as TeamMember;
         }) || [];
         setTeamMembers(normalizedTeamMembers);
@@ -1890,7 +1890,34 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       updated_at: new Date().toISOString(),
     };
 
-    const { error } = await supabase.from('crm_leads').update(updatedData).eq('id', id).eq('user_id', JOAO_GESTOR_AUTH_ID);
+    // Explicitly map camelCase to snake_case for top-level columns
+    const updatedDataForDb: any = { ...updatedData };
+    if (updates.proposalValue !== undefined) {
+      updatedDataForDb.proposal_value = updates.proposalValue;
+      delete updatedDataForDb.proposalValue;
+    }
+    if (updates.proposalClosingDate !== undefined) {
+      updatedDataForDb.proposal_closing_date = updates.proposalClosingDate;
+      delete updatedDataForDb.proposalClosingDate;
+    }
+    if (updates.soldCreditValue !== undefined) {
+      updatedDataForDb.sold_credit_value = updates.soldCreditValue;
+      delete updatedDataForDb.soldCreditValue;
+    }
+    if (updates.soldGroup !== undefined) {
+      updatedDataForDb.sold_group = updates.soldGroup;
+      delete updatedDataForDb.soldGroup;
+    }
+    if (updates.soldQuota !== undefined) {
+      updatedDataForDb.sold_quota = updates.soldQuota;
+      delete updatedDataForDb.soldQuota;
+    }
+    if (updates.saleDate !== undefined) {
+      updatedDataForDb.sale_date = updates.saleDate;
+      delete updatedDataForDb.saleDate;
+    }
+
+    const { error } = await supabase.from('crm_leads').update(updatedDataForDb).eq('id', id).eq('user_id', JOAO_GESTOR_AUTH_ID);
     if (error) throw error;
     setCrmLeads(prev => prev.map(l => l.id === id ? updatedData : l));
     return updatedData;
@@ -2655,7 +2682,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [
     isDataLoading, candidates, teamMembers, commissions, supportMaterials, cutoffPeriods, onboardingSessions, onboardingTemplateVideos,
     checklistStructure, consultantGoalsStructure, interviewStructure, templates, origins, interviewers, pvs,
-    crmPipelines, crmStages, crmFields, crmLeads, crmOwnerUserId,
+    crmPipelines, crmStages, crmLeads, crmOwnerUserId,
     dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions,
     weeklyTargets, weeklyTargetItems, weeklyTargetAssignments, metricLogs,
     supportMaterialsV2, supportMaterialAssignments, leadTasks, gestorTasks, gestorTaskCompletions,
