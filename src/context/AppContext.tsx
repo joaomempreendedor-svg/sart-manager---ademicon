@@ -1339,11 +1339,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     if (error) {
       console.error("Error deleting team member:", error);
-      toast.error("Erro ao remover membro da equipe."); // Reintroduzido toast.error
+      toast.error("Erro ao remover membro da equipe.");
       throw error;
     }
     setTeamMembers(prev => prev.filter(m => m.id !== id));
   }, [user, teamMembers]);
+
 
   const getCandidate = useCallback((id: string) => candidates.find(c => c.id === id), [candidates]);
 
