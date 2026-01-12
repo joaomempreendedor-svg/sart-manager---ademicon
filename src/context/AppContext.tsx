@@ -770,7 +770,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 lastUpdatedAt: payload.new.last_updated_at, // ⚠️ CORREÇÃO: Usar last_updated_at da linha do DB
                 // Explicitly ensure nested objects are deep copies if they exist
                 interviewScores: JSON.parse(JSON.stringify(rawPayloadData.interviewScores || { basicProfile: 0, commercialSkills: 0, behavioralProfile: 0, jobFit: 0, notes: '' })),
-                checkedQuestions: JSON.parse(JSON.stringify(rawPayloadData.checkedQuestions || {})),
+                checkedQuestions: JSON.parse(JSON.stringify(rawCandidateData.checkedQuestions || {})),
                 checklistProgress: JSON.parse(JSON.stringify(rawCandidateData.checklistProgress || {})),
                 consultantGoalsProgress: JSON.parse(JSON.stringify(rawCandidateData.consultantGoalsProgress || {})),
                 feedbacks: JSON.parse(JSON.stringify(rawCandidateData.feedbacks || [])),
@@ -1006,7 +1006,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             } else if (payload.eventType === 'UPDATE') {
                 setFormFiles(prev => prev.map(file => file.id === newFileData.id ? newFileData : file));
             } else if (payload.eventType === 'DELETE') {
-                setFormFiles(prev => prev.filter(file => file.id !== payload.old.id));
+                setFormFiles(prev => prev.filter(file => file.submission_id !== payload.old.submission_id)); // Corrigido para usar submission_id
             }
         })
         .subscribe();
@@ -1218,6 +1218,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const cleanedCpf = member.cpf ? member.cpf.replace(/\D/g, '') : '';
       const last4Cpf = cleanedCpf.length >= 4 ? cleanedCpf.slice(-4) : null;
       
+      // ⚠️ NOVO: Verificação para garantir que supabase.functions.invoke é uma função
+      if (!supabase.functions || typeof supabase.functions.invoke !== 'function') {
+        console.error("[AppContext] Supabase functions client or invoke method is not available.");
+        throw new Error("Serviço de funções Supabase não disponível.");
+      }
+
       const { data, error: invokeError } = await supabase.functions.invoke('create-or-link-consultant', {
         body: {
           email: member.email,
@@ -1349,7 +1355,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const updatedProgress = JSON.parse(JSON.stringify(candidate.checklistProgress || {}));
     updatedProgress[itemId] = { ...updatedProgress[itemId], completed: !updatedProgress[itemId]?.completed };
 
-    await updateCandidate(candidateId, { checklistProgress: updatedProgress });
+    await updateCandidate(candidate.id, { checklistProgress: updatedProgress });
   }, [candidates, updateCandidate, user]);
 
   const setChecklistDueDate = useCallback(async (candidateId: string, itemId: string, dueDate: string) => {
@@ -1360,7 +1366,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const updatedProgress = JSON.parse(JSON.stringify(candidate.checklistProgress || {}));
     updatedProgress[itemId] = { ...updatedProgress[itemId], dueDate: dueDate || undefined };
 
-    await updateCandidate(candidateId, { checklistProgress: updatedProgress });
+    await updateCandidate(candidate.id, { checklistProgress: updatedProgress });
   }, [candidates, updateCandidate, user]);
 
   const toggleConsultantGoal = useCallback(async (candidateId: string, goalId: string) => {
@@ -1371,7 +1377,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const updatedProgress = JSON.parse(JSON.stringify(candidate.consultantGoalsProgress || {}));
     updatedProgress[goalId] = !updatedProgress[goalId];
 
-    await updateCandidate(candidateId, { consultantGoalsProgress: updatedProgress });
+    await updateCandidate(candidate.id, { consultantGoalsProgress: updatedProgress });
   }, [candidates, updateCandidate, user]);
 
   const addChecklistItem = useCallback((stageId: string, label: string) => {
@@ -1804,7 +1810,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!user) throw new Error("Usuário não autenticado.");
     const { data, error } = await supabase.from('crm_stages').update(updates).eq('id', id).eq('user_id', JOAO_GESTOR_AUTH_ID).select('*').single();
     if (error) throw error;
-    setCrmStages(prev => prev.map(s => s.id === id ? data : p));
+    setCrmStages(prev => prev.map(s => s.id === id ? data : s));
     return data;
   }, [user]);
 
