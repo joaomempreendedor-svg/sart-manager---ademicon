@@ -50,8 +50,8 @@ const ConsultorDashboard = () => {
     newLeadsThisMonth, 
     meetingsThisMonth, 
     proposalValueThisMonth, 
-    soldValueThisMonth,
-    pendingLeadTasks // NOVO: Tarefas pendentes
+    soldValueThisMonth, 
+    pendingLeadTasks 
   } = useMemo(() => {
     const today = new Date();
     const todayFormatted = today.toISOString().split('T')[0];
@@ -261,7 +261,7 @@ const ConsultorDashboard = () => {
   }
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
+    <div className="p-4 sm:p-8 max-w-7xl mx-auto">
       <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Olá, {user?.name.split(' ')[0]}!</h1>
       <p className="text-gray-500 dark:text-gray-400 mb-8">Bem-vindo ao seu Dashboard. Aqui estão suas principais informações e atalhos.</p>
       
@@ -363,12 +363,12 @@ const ConsultorDashboard = () => {
                   <div className="flex items-start justify-between">
                     <div>
                       <p className="text-sm font-medium text-gray-900 dark:text-gray-200">{item.title}</p>
-                      <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 mt-1 space-x-2">
+                      <div className="flex flex-col sm:flex-row sm:items-center text-xs text-gray-500 dark:text-gray-400 mt-1 space-y-1 sm:space-y-0 sm:space-x-2">
                         <span className="flex items-center"><User className="w-3 h-3 mr-1" /> Lead: <span className="font-semibold ml-1">{item.personName}</span></span>
                         {item.dueDate && <span className="flex items-center"><Calendar className="w-3 h-3 mr-1" /> Vence: {new Date(item.dueDate + 'T00:00:00').toLocaleDateString()}</span>}
                       </div>
                     </div>
-                    <Link to={`/consultor/crm`} className="text-brand-600 hover:text-brand-700 text-sm font-medium">Ver Lead <ChevronRight className="w-4 h-4 inline ml-1" /></Link>
+                    <Link to={`/consultor/crm`} className="text-brand-600 hover:text-brand-700 text-sm font-medium flex-shrink-0">Ver Lead <ChevronRight className="w-4 h-4 inline ml-1" /></Link>
                   </div>
                 </li>
               ))}
@@ -393,13 +393,13 @@ const ConsultorDashboard = () => {
                   <div className="flex items-start justify-between">
                     <div>
                       <p className="text-sm font-medium text-gray-900 dark:text-gray-200">{item.title}</p>
-                      <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 mt-1 space-x-2">
+                      <div className="flex flex-col sm:flex-row sm:items-center text-xs text-gray-500 dark:text-gray-400 mt-1 space-y-1 sm:space-y-0 sm:space-x-2">
                         <span className="flex items-center"><User className="w-3 h-3 mr-1" /> Lead: <span className="font-semibold ml-1">{item.personName}</span></span>
                         <span className="flex items-center"><Calendar className="w-3 h-3 mr-1" /> {new Date(item.dueDate + 'T00:00:00').toLocaleDateString()}</span>
                         <span className="flex items-center"><Clock className="w-3 h-3 mr-1" /> {item.meetingDetails?.startTime} - {item.meetingDetails?.endTime}</span>
                       </div>
                     </div>
-                    <Link to={`/consultor/crm`} className="text-brand-600 hover:text-brand-700 text-sm font-medium">Ver Lead <ChevronRight className="w-4 h-4 inline ml-1" /></Link>
+                    <Link to={`/consultor/crm`} className="text-brand-600 hover:text-brand-700 text-sm font-medium flex-shrink-0">Ver Lead <ChevronRight className="w-4 h-4 inline ml-1" /></Link>
                   </div>
                 </li>
               ))}

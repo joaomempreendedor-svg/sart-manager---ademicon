@@ -7,7 +7,7 @@ const CrmConfigPage = () => {
   const [activeTab, setActiveTab] = useState<'stages' | 'fields'>('stages');
 
   return (
-    <div className="p-8 max-w-6xl mx-auto">
+    <div className="p-4 sm:p-8 max-w-6xl mx-auto">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Configurações do CRM</h1>
         <p className="text-gray-500 dark:text-gray-400">Personalize as etapas do funil de vendas e os campos dos leads.</p>

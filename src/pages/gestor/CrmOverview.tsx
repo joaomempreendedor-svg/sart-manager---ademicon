@@ -140,7 +140,7 @@ const CrmOverviewPage = () => {
   };
 
   // NOVO: Função para abrir o modal de marcar como vendido
-  const handleMarkAsWon = async (e: React.MouseEvent, lead: CrmLead) => {
+  const handleMarkAsWon = async (e: React.FormEvent, lead: CrmLead) => {
     e.stopPropagation();
     if (!user) return;
 
@@ -192,7 +192,7 @@ const CrmOverviewPage = () => {
 
   if (!activePipeline || pipelineStages.length === 0) {
     return (
-      <div className="p-8 max-w-4xl mx-auto text-center">
+      <div className="p-4 sm:p-8 max-w-4xl mx-auto text-center">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">CRM - Funil de Vendas</h1>
         <p className="text-gray-500 dark:text-gray-400 mb-6">
           Nenhum pipeline de vendas ativo ou etapas configuradas. Por favor, configure as etapas do CRM.
@@ -208,7 +208,7 @@ const CrmOverviewPage = () => {
   }
 
   return (
-    <div className="p-8 min-h-screen bg-gray-50 dark:bg-slate-900">
+    <div className="p-4 sm:p-8 min-h-screen bg-gray-50 dark:bg-slate-900">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Visão Geral do CRM - {activePipeline.name}</h1>
@@ -474,7 +474,10 @@ const CrmOverviewPage = () => {
       {isProposalModalOpen && selectedLeadForProposal && (
         <ProposalModal
           isOpen={isProposalModalOpen}
-          onClose={() => setIsProposalModalOpen(false)}
+        onClose={() => {
+          console.log("ProposalModal onClose called");
+          setIsProposalModalOpen(false);
+        }}
           lead={selectedLeadForProposal}
         />
       )}

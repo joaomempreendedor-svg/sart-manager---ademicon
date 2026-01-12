@@ -248,7 +248,7 @@ const HiringPipeline = () => {
   };
 
   const getColumnClasses = (columnId: string) => {
-    let classes = "bg-gray-100 dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700";
+    let classes = "flex-shrink-0 w-full sm:w-72 bg-gray-100 dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700";
     if (dragOverColumn === columnId) {
       classes += " border-2 border-dashed border-brand-500 dark:border-brand-400";
     }
@@ -278,7 +278,7 @@ const HiringPipeline = () => {
   }
 
   return (
-    <div className="p-8 max-w-7xl mx-auto min-h-screen bg-gray-50 dark:bg-slate-900">
+    <div className="p-4 sm:p-8 max-w-7xl mx-auto min-h-screen bg-gray-50 dark:bg-slate-900">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Pipeline de Contratação</h1>
@@ -380,7 +380,7 @@ const HiringPipeline = () => {
       </div>
 
       <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center"><Users className="w-5 h-5 mr-2 text-brand-500" />Fluxo de Candidatos</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 pb-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 pb-4 overflow-x-auto custom-scrollbar">
         <div 
           id="scheduled"
           className={getColumnClasses('scheduled')}

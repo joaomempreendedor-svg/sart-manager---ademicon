@@ -397,15 +397,15 @@ const ChecklistItemModal: React.FC<ChecklistItemModalProps> = ({ isOpen, onClose
         <form onSubmit={handleSubmit}>
           <ScrollArea className="h-[60vh] py-4 pr-4 custom-scrollbar">
             <div className="grid gap-4">
-              <div className="flex items-center gap-4">
-                <Label htmlFor="itemText" className="w-24 flex-shrink-0">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
+                <Label htmlFor="itemText" className="w-full sm:w-24 flex-shrink-0 text-left sm:text-right">
                   Tarefa *
                 </Label>
                 <Input
                   id="itemText"
                   value={text}
                   onChange={(e) => setText(e.target.value)}
-                  className="flex-1 dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                  className="flex-1 dark:bg-slate-700 dark:text-white dark:border-slate-600 w-full"
                   placeholder="Ex: Fazer 40 contatos diários"
                   required
                 />
@@ -425,7 +425,7 @@ const ChecklistItemModal: React.FC<ChecklistItemModalProps> = ({ isOpen, onClose
                         type="button"
                         variant={resourceType === type ? 'default' : 'outline'}
                         onClick={() => { setResourceType(type as DailyChecklistItemResourceType); setSelectedFile(null); setResourceContent(''); setResourceName(''); setTextAudioContentText(''); setTextAudioContentUrl(''); setTextAudioSelectedFile(null); }}
-                        className={`flex items-center space-x-1 ${resourceType === type ? 'bg-brand-600 hover:bg-brand-700 text-white' : 'dark:bg-slate-700 dark:text-white dark:border-slate-600'}`}
+                        className={`flex-1 sm:flex-auto flex items-center justify-center space-x-1 ${resourceType === type ? 'bg-brand-600 hover:bg-brand-700 text-white' : 'dark:bg-slate-700 dark:text-white dark:border-slate-600'}`}
                       >
                         {getResourceTypeIcon(type as DailyChecklistItemResourceType)}
                         <span>{type.charAt(0).toUpperCase() + type.slice(1).replace('_', ' ')}</span>
@@ -435,7 +435,7 @@ const ChecklistItemModal: React.FC<ChecklistItemModalProps> = ({ isOpen, onClose
                         type="button"
                         variant={resourceType === 'none' ? 'default' : 'outline'} // Highlight 'none'
                         onClick={() => { setResourceType('none'); setResourceContent(''); setResourceName(''); setSelectedFile(null); setTextAudioContentText(''); setTextAudioContentUrl(''); setTextAudioSelectedFile(null); }}
-                        className={`flex items-center space-x-1 ${resourceType === 'none' ? 'bg-brand-600 hover:bg-brand-700 text-white' : 'dark:bg-slate-700 dark:text-white dark:border-slate-600'}`}
+                        className={`flex-1 sm:flex-auto flex items-center justify-center space-x-1 ${resourceType === 'none' ? 'bg-brand-600 hover:bg-brand-700 text-white' : 'dark:bg-slate-700 dark:text-white dark:border-slate-600'}`}
                       >
                         <X className="w-4 h-4 mr-1" />
                         <span>Sem Recurso</span>
@@ -680,13 +680,13 @@ export const DailyChecklistConfig = () => {
   };
 
   return (
-    <div className="p-8 max-w-6xl mx-auto pb-20">
-      <div className="mb-8 flex justify-between items-start">
+    <div className="p-4 sm:p-8 max-w-6xl mx-auto pb-20">
+      <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Configurar Metas Diárias</h1>
           <p className="text-gray-500 dark:text-gray-400">Crie e gerencie as metas diárias para seus consultores.</p>
         </div>
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-2 mt-4 sm:mt-0">
           <Button onClick={handleAddNewChecklist} className="bg-brand-600 hover:bg-brand-700 text-white">
             <Plus className="w-4 h-4 mr-2" />
             Novo Checklist
@@ -704,14 +704,14 @@ export const DailyChecklistConfig = () => {
         ) : (
           sortedChecklists.map((checklist) => (
             <div key={checklist.id} className={`bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden ${!checklist.is_active ? 'opacity-60' : ''}`}>
-              <div className="bg-gray-50 dark:bg-slate-700/50 px-6 py-4 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
+              <div className="bg-gray-50 dark:bg-slate-700/50 px-6 py-4 border-b border-gray-200 dark:border-slate-700 flex flex-col sm:flex-row justify-between items-start sm:items-center">
                 <div>
                   <h3 className="text-lg font-bold text-gray-900 dark:text-white">{checklist.title}</h3>
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${checklist.is_active ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' : 'bg-gray-100 text-gray-700 dark:bg-slate-700 dark:text-gray-300'}`}>
                     {checklist.is_active ? 'Ativo' : 'Inativo'}
                   </span>
                 </div>
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2 mt-4 sm:mt-0 flex-wrap justify-end">
                   <Button variant="outline" size="sm" onClick={() => handleOpenAssignmentModal(checklist)} className="flex items-center space-x-1 dark:bg-slate-700 dark:text-white dark:border-slate-600">
                     <Users className="w-4 h-4" />
                     <span>Atribuir</span>
@@ -733,8 +733,8 @@ export const DailyChecklistConfig = () => {
                   .filter((item) => item.daily_checklist_id === checklist.id)
                   .sort((a, b) => a.order_index - b.order_index)
                   .map((item, index, arr) => (
-                    <div key={item.id} className="p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-slate-700/30 group">
-                      <div className="flex-1 mr-4 flex items-center space-x-2">
+                    <div key={item.id} className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between hover:bg-gray-50 dark:hover:bg-slate-700/30 group">
+                      <div className="flex-1 mr-4 flex items-center space-x-2 mb-2 sm:mb-0">
                         {item.resource && item.resource.type !== 'none' && ( // Only show icon if resource is not 'none'
                           <Button 
                             variant="ghost" 
@@ -749,7 +749,7 @@ export const DailyChecklistConfig = () => {
                         <span className="text-sm text-gray-700 dark:text-gray-200">{item.text}</span>
                       </div>
 
-                      <div className="flex items-center space-x-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center space-x-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex-wrap justify-end">
                         <Button 
                           variant="ghost" 
                           size="sm" 

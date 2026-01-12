@@ -75,7 +75,7 @@ export const OnlineOnboarding = () => {
   };
 
   return (
-    <div className="p-8 max-w-6xl mx-auto min-h-screen">
+    <div className="p-4 sm:p-8 max-w-6xl mx-auto min-h-screen">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Onboarding Online</h1>
         <p className="text-gray-500 dark:text-gray-400">Crie e gerencie os treinamentos em vídeo para novos consultores.</p>

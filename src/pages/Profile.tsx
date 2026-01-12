@@ -86,7 +86,7 @@ export const Profile = () => {
   };
 
   return (
-    <div className="p-8 max-w-4xl mx-auto">
+    <div className="p-4 sm:p-8 max-w-4xl mx-auto">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Meu Perfil</h1>
         <p className="text-gray-500 dark:text-gray-400">Gerencie suas informações de conta.</p>

@@ -221,15 +221,15 @@ export const Materials = () => {
   };
 
   return (
-    <div className="p-8 max-w-7xl mx-auto min-h-screen bg-gray-50 dark:bg-slate-900">
+    <div className="p-4 sm:p-8 max-w-7xl mx-auto min-h-screen bg-gray-50 dark:bg-slate-900">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Materiais de Apoio</h1>
           <p className="text-gray-500 dark:text-gray-400">Repositório de arquivos e links para consulta rápida (Tabelas, Scripts, Tutoriais).</p>
         </div>
         
-        <div className="flex items-center space-x-4 w-full md:w-auto">
-            <div className="relative flex-1 md:w-64">
+        <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-4 w-full md:w-auto">
+            <div className="relative flex-1 w-full">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <Search className="h-4 w-4 text-gray-400" />
                 </div>
@@ -290,7 +290,7 @@ export const Materials = () => {
                 </div>
                 <div className="md:col-span-2">
                     <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Tipo de Conteúdo</label>
-                    <div className="flex space-x-2">
+                    <div className="flex flex-wrap gap-2">
                         <button 
                             type="button"
                             onClick={() => { setContentTypeInput('pdf'); setSelectedFile(null); setContentInput(''); }}

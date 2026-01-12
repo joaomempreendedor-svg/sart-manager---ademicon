@@ -153,7 +153,7 @@ export const DailyChecklistMonitoring = () => {
   }
 
   return (
-    <div className="p-8 max-w-5xl mx-auto pb-20">
+    <div className="p-4 sm:p-8 max-w-5xl mx-auto pb-20">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Monitoramento de Checklists Diários</h1>
         <p className="text-gray-500 dark:text-gray-400">Acompanhe o progresso dos checklists diários de seus consultores.</p>
@@ -236,8 +236,8 @@ export const DailyChecklistMonitoring = () => {
                     {items.map(item => {
                       const isCompleted = getCompletionStatus(item.id);
                       return (
-                        <div key={item.id} className="p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-slate-700/30">
-                          <div className="flex items-center space-x-3">
+                        <div key={item.id} className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between hover:bg-gray-50 dark:hover:bg-slate-700/30">
+                          <div className="flex items-center space-x-3 mb-2 sm:mb-0">
                             <Checkbox
                               id={`item-${item.id}-${selectedConsultantId}`}
                               checked={isCompleted}

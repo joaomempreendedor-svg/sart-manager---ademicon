@@ -49,7 +49,7 @@ export const InterviewConfig = () => {
   }
 
   return (
-    <div className="p-8 max-w-5xl mx-auto pb-20">
+    <div className="p-4 sm:p-8 max-w-5xl mx-auto pb-20">
       <div className="mb-8 flex justify-between items-start">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Configurar Entrevista</h1>
@@ -64,16 +64,16 @@ export const InterviewConfig = () => {
       <div className="space-y-8">
         {interviewStructure.map((section) => (
           <div key={section.id} className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
-            <div className="bg-gray-50 dark:bg-slate-700/50 px-6 py-4 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
+            <div className="bg-gray-50 dark:bg-slate-700/50 px-6 py-4 border-b border-gray-200 dark:border-slate-700 flex flex-col sm:flex-row justify-between items-start sm:items-center">
               {editingSectionId === section.id ? (
-                <div className="flex items-center space-x-4 w-full">
+                <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-4 w-full">
                   <input
                     type="text"
                     value={sectionData.title}
                     onChange={(e) => setSectionData({...sectionData, title: e.target.value})}
-                    className="flex-1 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white rounded px-2 py-1 font-bold"
+                    className="flex-1 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white rounded px-2 py-1 font-bold w-full"
                   />
-                  <div className="flex items-center">
+                  <div className="flex items-center w-full sm:w-auto justify-between sm:justify-start">
                      <span className="text-sm mr-2 text-gray-500 dark:text-gray-400">Máx Pts:</span>
                      <input
                         type="number"
@@ -81,16 +81,18 @@ export const InterviewConfig = () => {
                         onChange={(e) => setSectionData({...sectionData, maxPoints: Number(e.target.value)})}
                         className="w-20 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white rounded px-2 py-1 text-sm"
                      />
+                     <div className="flex space-x-2 ml-4">
+                        <button onClick={() => saveSection(section.id)} className="p-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded"><Save className="w-5 h-5" /></button>
+                        <button onClick={() => setEditingSectionId(null)} className="p-1 bg-gray-200 dark:bg-slate-600 text-gray-700 dark:text-gray-300 rounded"><X className="w-5 h-5" /></button>
+                     </div>
                   </div>
-                  <button onClick={() => saveSection(section.id)} className="p-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded"><Save className="w-5 h-5" /></button>
-                  <button onClick={() => setEditingSectionId(null)} className="p-1 bg-gray-200 dark:bg-slate-600 text-gray-700 dark:text-gray-300 rounded"><X className="w-5 h-5" /></button>
                 </div>
               ) : (
                 <>
                   <div>
                       <h3 className="text-lg font-bold text-gray-900 dark:text-white">{section.title}</h3>
                   </div>
-                  <div className="flex items-center space-x-4">
+                  <div className="flex items-center space-x-4 mt-2 sm:mt-0">
                       <span className="text-sm font-semibold bg-brand-100 dark:bg-brand-900/40 text-brand-700 dark:text-brand-400 px-2 py-1 rounded">
                           Máx: {section.maxPoints} pts
                       </span>
@@ -107,36 +109,38 @@ export const InterviewConfig = () => {
 
             <div className="divide-y divide-gray-100 dark:divide-slate-700">
                 {section.questions.map((q, index) => (
-                    <div key={q.id} className="p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-slate-700/30 group">
+                    <div key={q.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between hover:bg-gray-50 dark:hover:bg-slate-700/30 group">
                         {editingQuestionId === q.id ? (
-                            <div className="flex items-center space-x-2 w-full">
+                            <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-2 w-full">
                                 <input
                                     type="text"
                                     value={questionData.text}
                                     onChange={(e) => setQuestionData({...questionData, text: e.target.value})}
-                                    className="flex-1 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white rounded px-2 py-1 text-sm"
+                                    className="flex-1 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white rounded px-2 py-1 text-sm w-full"
                                     autoFocus
                                 />
-                                <input
-                                    type="number"
-                                    value={questionData.points}
-                                    onChange={(e) => setQuestionData({...questionData, points: Number(e.target.value)})}
-                                    className="w-16 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white rounded px-2 py-1 text-sm text-center"
-                                />
-                                <button onClick={() => saveQuestion(section.id, q.id)} className="text-green-600 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-900/20 p-1 rounded"><Save className="w-4 h-4" /></button>
-                                <button onClick={() => setEditingQuestionId(null)} className="text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-600 p-1 rounded"><X className="w-4 h-4" /></button>
+                                <div className="flex items-center w-full sm:w-auto justify-between sm:justify-start space-x-2">
+                                    <input
+                                        type="number"
+                                        value={questionData.points}
+                                        onChange={(e) => setQuestionData({...questionData, points: Number(e.target.value)})}
+                                        className="w-16 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white rounded px-2 py-1 text-sm text-center"
+                                    />
+                                    <button onClick={() => saveQuestion(section.id, q.id)} className="text-green-600 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-900/20 p-1 rounded"><Save className="w-4 h-4" /></button>
+                                    <button onClick={() => setEditingQuestionId(null)} className="text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-600 p-1 rounded"><X className="w-4 h-4" /></button>
+                                </div>
                             </div>
                         ) : (
                             <>
-                                <div className="flex-1 mr-4 flex items-center">
+                                <div className="flex-1 mr-4 flex items-center w-full">
                                     <HelpCircle className="w-4 h-4 text-gray-300 dark:text-slate-500 mr-2" />
                                     <span className="text-sm text-gray-700 dark:text-gray-200">{q.text}</span>
                                 </div>
-                                <div className="flex items-center space-x-4">
+                                <div className="flex items-center space-x-4 mt-2 sm:mt-0">
                                     <span className="text-xs font-mono bg-gray-100 dark:bg-slate-600 text-gray-600 dark:text-gray-300 px-2 py-1 rounded border border-gray-200 dark:border-slate-500">
                                         {q.points} pts
                                     </span>
-                                    <div className="flex items-center space-x-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                                    <div className="flex items-center space-x-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex-wrap justify-end">
                                         <button 
                                           onClick={() => moveInterviewQuestion(section.id, q.id, 'up')}
                                           disabled={index === 0}

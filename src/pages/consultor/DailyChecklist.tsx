@@ -8,7 +8,7 @@ export const DailyChecklist = () => {
   const { isDataLoading } = useApp();
 
   return (
-    <div className="p-8 max-w-4xl mx-auto pb-20">
+    <div className="p-4 sm:p-8 max-w-4xl mx-auto pb-20">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Minhas Metas Diárias</h1>
         <p className="text-gray-500 dark:text-gray-400">Acompanhe suas tarefas e metas do dia.</p>

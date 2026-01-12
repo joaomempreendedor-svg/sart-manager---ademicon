@@ -39,7 +39,7 @@ export const ChecklistConfig = () => {
   }
 
   return (
-    <div className="p-8 max-w-5xl mx-auto pb-20">
+    <div className="p-4 sm:p-8 max-w-5xl mx-auto pb-20">
       <div className="mb-8 flex justify-between items-start">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Editar Processo (Checklist)</h1>
@@ -61,10 +61,10 @@ export const ChecklistConfig = () => {
             
             <div className="divide-y divide-gray-100 dark:divide-slate-700">
               {stage.items.map((item, index) => (
-                <div key={item.id} className="p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-slate-700/30 group">
+                <div key={item.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between hover:bg-gray-50 dark:hover:bg-slate-700/30 group">
                   
                   {editingItem?.itemId === item.id ? (
-                    <div className="flex-1 flex items-center space-x-2 mr-4">
+                    <div className="flex-1 flex items-center space-x-2 mr-4 w-full">
                       <input 
                         type="text" 
                         value={editLabel}
@@ -76,12 +76,12 @@ export const ChecklistConfig = () => {
                       <button onClick={() => setEditingItem(null)} className="p-1 text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-600 rounded"><X className="w-4 h-4" /></button>
                     </div>
                   ) : (
-                    <div className="flex-1 mr-4">
+                    <div className="flex-1 mr-4 w-full">
                       <span className="text-sm text-gray-700 dark:text-gray-200">{item.label}</span>
                     </div>
                   )}
 
-                  <div className="flex items-center space-x-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                  <div className="flex items-center space-x-1 mt-2 sm:mt-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex-wrap justify-end">
                     <button 
                       onClick={() => moveChecklistItem(stage.id, item.id, 'up')}
                       disabled={index === 0}

@@ -73,12 +73,12 @@ export const TemplateConfig = () => {
   return (
     <div className="flex flex-col h-[calc(100vh-theme(spacing.16))] max-h-screen overflow-hidden bg-gray-50 dark:bg-slate-900">
       
-      <div className="bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 px-6 py-4 flex justify-between items-center shrink-0">
+      <div className="bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 px-4 py-4 sm:px-6 flex flex-col sm:flex-row justify-between items-start sm:items-center shrink-0">
         <div>
             <h1 className="text-xl font-bold text-gray-900 dark:text-white">Configurar Mensagens</h1>
             <p className="text-sm text-gray-500 dark:text-gray-400">Personalize a comunicação para cada etapa do processo.</p>
         </div>
-        <div className="relative w-64">
+        <div className="relative w-full sm:w-64 mt-4 sm:mt-0">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <Search className="h-4 w-4 text-gray-400" />
             </div>
@@ -92,8 +92,8 @@ export const TemplateConfig = () => {
         </div>
       </div>
 
-      <div className="flex flex-1 overflow-hidden">
-        <aside className="w-80 bg-white dark:bg-slate-800 border-r border-gray-200 dark:border-slate-700 overflow-y-auto flex-shrink-0 custom-scrollbar">
+      <div className="flex flex-1 overflow-hidden flex-col md:flex-row">
+        <aside className="w-full md:w-80 bg-white dark:bg-slate-800 border-b md:border-b-0 md:border-r border-gray-200 dark:border-slate-700 overflow-y-auto flex-shrink-0 custom-scrollbar">
             <div className="p-4 space-y-6">
                 {filteredStages.map(stage => (
                     <div key={stage.id}>
@@ -136,7 +136,7 @@ export const TemplateConfig = () => {
             </div>
         </aside>
 
-        <main className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-8 custom-scrollbar">
             {selectedData ? (
                 <div className="max-w-3xl mx-auto space-y-8 animate-fade-in">
                     <div>
@@ -167,7 +167,7 @@ export const TemplateConfig = () => {
                                 placeholder="Olá [NOME], escreva sua mensagem aqui..."
                             />
                             
-                            <div className="mt-2 flex gap-2">
+                            <div className="mt-2 flex gap-2 flex-wrap">
                                 <span className="inline-flex items-center px-2 py-1 rounded bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 text-xs font-mono cursor-pointer hover:bg-gray-200 dark:hover:bg-slate-600" onClick={() => handleTextChange((currentTemplate.text || '') + ' [NOME]')}>[NOME]</span>
                                 <span className="inline-flex items-center px-2 py-1 rounded bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 text-xs font-mono cursor-pointer hover:bg-gray-200 dark:hover:bg-slate-600" onClick={() => handleTextChange((currentTemplate.text || '') + ' [LINK]')}>[LINK]</span>
                             </div>
@@ -188,8 +188,8 @@ export const TemplateConfig = () => {
                             <div className="border-2 border-dashed border-gray-200 dark:border-slate-600 rounded-xl p-8 flex flex-col items-center justify-center bg-gray-50 dark:bg-slate-700/50 transition-colors hover:border-brand-300 dark:hover:border-brand-700">
                                 {currentTemplate.resource ? (
                                     <div className="w-full">
-                                        <div className="flex items-center justify-between bg-white dark:bg-slate-700 p-4 rounded-lg border border-gray-200 dark:border-slate-600 shadow-sm mb-4">
-                                            <div className="flex items-center space-x-3">
+                                        <div className="flex flex-col sm:flex-row items-center justify-between bg-white dark:bg-slate-700 p-4 rounded-lg border border-gray-200 dark:border-slate-600 shadow-sm mb-4">
+                                            <div className="flex items-center space-x-3 mb-2 sm:mb-0">
                                                 <div className="w-10 h-10 bg-gray-100 dark:bg-slate-600 rounded-lg flex items-center justify-center text-gray-500 dark:text-gray-400">
                                                     {currentTemplate.resource.type === 'image' ? <ImageIcon className="w-6 h-6" /> : <FileText className="w-6 h-6" />}
                                                 </div>

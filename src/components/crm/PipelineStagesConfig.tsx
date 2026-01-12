@@ -67,12 +67,12 @@ const PipelineStagesConfig = () => {
 
   return (
     <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm">
-      <div className="flex justify-between items-center mb-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
         <div>
           <h3 className="text-lg font-bold text-gray-900 dark:text-white">Etapas do Pipeline: {activePipeline.name}</h3>
           <p className="text-sm text-gray-500 dark:text-gray-400">Arraste para reordenar, edite ou adicione novas etapas ao seu funil.</p>
         </div>
-        <Button onClick={handleAddNew} className="flex items-center space-x-2 bg-brand-600 hover:bg-brand-700 text-white py-2 px-4 rounded-lg transition font-medium text-sm">
+        <Button onClick={handleAddNew} className="flex items-center space-x-2 bg-brand-600 hover:bg-brand-700 text-white py-2 px-4 rounded-lg transition font-medium text-sm mt-4 sm:mt-0">
           <Plus className="w-4 h-4" />
           <span>Nova Etapa</span>
         </Button>
@@ -81,8 +81,8 @@ const PipelineStagesConfig = () => {
       <div className="border border-gray-200 dark:border-slate-700 rounded-lg overflow-hidden">
         <ul className="divide-y divide-gray-200 dark:divide-slate-700">
           {pipelineStages.map((stage, index) => (
-            <li key={stage.id} className={`p-4 flex items-center justify-between group ${!stage.is_active ? 'bg-gray-50 dark:bg-slate-800/50 opacity-60' : ''}`}>
-              <div className="flex items-center space-x-4">
+            <li key={stage.id} className={`p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between group ${!stage.is_active ? 'bg-gray-50 dark:bg-slate-800/50 opacity-60' : ''}`}>
+              <div className="flex items-center space-x-4 mb-2 sm:mb-0">
                 <div className="flex flex-col space-y-1">
                   <Button variant="ghost" size="sm" onClick={() => handleMove(index, 'up')} disabled={index === 0} className="p-1 text-gray-400 hover:text-brand-600 disabled:opacity-30"><ArrowUp className="w-4 h-4" /></Button>
                   <Button variant="ghost" size="sm" onClick={() => handleMove(index, 'down')} disabled={index === pipelineStages.length - 1} className="p-1 text-gray-400 hover:text-brand-600 disabled:opacity-30"><ArrowDown className="w-4 h-4" /></Button>
@@ -95,7 +95,7 @@ const PipelineStagesConfig = () => {
                   </div>
                 </div>
               </div>
-              <div className="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="flex items-center space-x-2 mt-2 sm:mt-0 flex-wrap justify-end">
                 <Button 
                   variant={stage.is_active ? "default" : "outline"} 
                   size="sm" 
