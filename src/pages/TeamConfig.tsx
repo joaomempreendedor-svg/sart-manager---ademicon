@@ -173,9 +173,12 @@ export const TeamConfig = () => {
   };
 
   const handleDelete = async (id: string) => {
+    console.log("TeamConfig: handleDelete called for ID:", id); // DEBUG LOG
+    console.log("TeamConfig: deleteTeamMember from context is:", deleteTeamMember); // DEBUG LOG
     if (window.confirm('Tem certeza que deseja remover este membro da equipe? Esta ação não pode ser desfeita.')) {
       try {
         await deleteTeamMember(id);
+        toast.success("Membro da equipe removido com sucesso!");
       } catch (error: any) {
         toast.error(`Falha ao remover membro: ${error.message}`);
       }

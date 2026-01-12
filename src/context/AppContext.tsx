@@ -1339,7 +1339,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     if (error) {
       console.error("Error deleting team member:", error);
-      toast.error("Erro ao remover membro da equipe.");
+      // toast.error("Erro ao remover membro da equipe."); // REMOVIDO PARA DEBUG
       throw error;
     }
     setTeamMembers(prev => prev.filter(m => m.id !== id));
