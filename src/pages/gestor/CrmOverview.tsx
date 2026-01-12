@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Plus, Search, Loader2, Phone, Mail, Tag, MessageSquare, TrendingUp, ListTodo, CalendarPlus, Send, DollarSign, Edit2, Trash2, Users, CheckCircle2, Filter, RotateCcw } from 'lucide-react';
+import { Plus, Search, Loader2, Phone, Mail, Tag, MessageSquare, TrendingUp, ListTodo, CalendarPlus, Send, DollarSign, Edit2, Trash2, Users, CheckCircle2, Filter, RotateCcw, UserRound } from 'lucide-react';
 import LeadModal from '@/components/crm/LeadModal';
 import { LeadTasksModal } from '@/components/crm/LeadTasksModal';
 import { ScheduleMeetingModal } from '@/components/crm/ScheduleMeetingModal';
@@ -329,6 +329,7 @@ const CrmOverviewPage = () => {
                   const isLostStage = currentLeadStage?.is_lost;
                   const canOpenProposalModal = !isWonStage && !isLostStage;
                   const canMarkAsWon = !isWonStage && !isLostStage;
+                  const consultant = teamMembers.find(member => member.id === lead.consultant_id); // Encontra o consultor
 
                   console.log(`[Card Render] Lead: ${lead.name}, ProposalValue: ${lead.proposalValue}, ProposalClosingDate: ${lead.proposalClosingDate}, SoldCreditValue: ${lead.soldCreditValue}, SaleDate: ${lead.saleDate}`); // DEBUG LOG
 
@@ -354,6 +355,7 @@ const CrmOverviewPage = () => {
                         </div>
                       </div>
                       <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 space-y-0.5">
+                        {consultant && <div className="flex items-center"><UserRound className="w-3 h-3 mr-1" /> Consultor: {consultant.name}</div>} {/* Adicionado nome do consultor */}
                         {lead.data.phone && <div className="flex items-center"><Phone className="w-3 h-3 mr-1" /> {lead.data.phone}</div>}
                         {lead.data.email && <div className="flex items-center"><Mail className="w-3 h-3 mr-1" /> {lead.data.email}</div>}
                         {lead.data.origin && <div className="flex items-center"><Tag className="w-3 h-3 mr-1" /> {lead.data.origin}</div>}
@@ -395,7 +397,6 @@ const CrmOverviewPage = () => {
                         <Select
                           value={lead.stage_id}
                           onValueChange={(newStageId) => handleStageChange(lead.id, newStageId)}
-                          // onOpenChange={() => {}} // Removido para evitar conflitos
                         >
                           <SelectTrigger 
                             className="w-full h-auto py-1.5 text-xs dark:bg-slate-800 dark:text-white dark:border-slate-600"
