@@ -249,25 +249,36 @@ const CandidateScreening = () => {
                         {candidate.lastUpdatedAt ? new Date(candidate.lastUpdatedAt).toLocaleDateString('pt-BR') : 'N/A'}
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <div className="flex justify-end items-center space-x-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex-wrap">
-                          {candidate.screeningStatus !== 'Contacted' && (
-                            <button
-                              onClick={() => handleUpdateScreeningStatus(candidate.id, 'Contacted')}
-                              className="p-2 rounded-full text-gray-400 hover:text-green-500 hover:bg-green-50 dark:hover:bg-green-900/20"
-                              title="Marcar como Contatado"
-                            >
-                              <CheckCircle2 className="w-4 h-4" />
-                            </button>
-                          )}
-                          {candidate.screeningStatus !== 'No Fit' && (
-                            <button
-                              onClick={() => handleUpdateScreeningStatus(candidate.id, 'No Fit')}
-                              className="p-2 rounded-full text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
-                              title="Marcar como Sem Perfil"
-                            >
-                              <XCircle className="w-4 h-4" />
-                            </button>
-                          )}
+                        <div className="flex justify-end items-center space-x-2 flex-wrap"> {/* Removido opacity classes */}
+                          {/* Button for "Contatado" */}
+                          <button
+                            onClick={() => handleUpdateScreeningStatus(candidate.id, 'Contacted')}
+                            disabled={candidate.screeningStatus === 'Contacted'}
+                            className={`p-2 rounded-full transition-colors ${
+                              candidate.screeningStatus === 'Contacted'
+                                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 cursor-not-allowed'
+                                : 'text-gray-400 hover:text-green-500 hover:bg-green-50 dark:hover:bg-green-900/20'
+                            }`}
+                            title={candidate.screeningStatus === 'Contacted' ? 'Já Contatado' : 'Marcar como Contatado'}
+                          >
+                            <CheckCircle2 className="w-4 h-4" />
+                          </button>
+
+                          {/* Button for "Sem Perfil" */}
+                          <button
+                            onClick={() => handleUpdateScreeningStatus(candidate.id, 'No Fit')}
+                            disabled={candidate.screeningStatus === 'No Fit'}
+                            className={`p-2 rounded-full transition-colors ${
+                              candidate.screeningStatus === 'No Fit'
+                                ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 cursor-not-allowed'
+                                : 'text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20'
+                            }`}
+                            title={candidate.screeningStatus === 'No Fit' ? 'Já Sem Perfil' : 'Marcar como Sem Perfil'}
+                          >
+                            <UserX className="w-4 h-4" />
+                          </button>
+
+                          {/* Delete button remains the same */}
                           <button
                             onClick={() => handleDeleteCandidate(candidate.id, candidate.name)}
                             className="p-2 rounded-full text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
