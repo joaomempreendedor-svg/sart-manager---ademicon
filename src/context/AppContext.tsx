@@ -2706,6 +2706,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       deleteTeamMemberFeedback,
       refetchCommissions,
       addTeamMember, // Adicionado addTeamMember explicitamente aqui
+      updateTeamMember, // ⚠️ Adicionado updateTeamMember explicitamente aqui
       deleteTeamMember, // ⚠️ Adicionado deleteTeamMember explicitamente aqui
     };
   }, [
@@ -2736,7 +2737,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addFinancialEntry, updateFinancialEntry, deleteFinancialEntry,
     getFormFilesForSubmission, updateFormCadastro, deleteFormCadastro,
     addFeedback, updateFeedback, deleteFeedback, addTeamMemberFeedback, updateTeamMemberFeedback, deleteTeamMemberFeedback,
-    refetchCommissions, addTeamMember, deleteTeamMember,
+    refetchCommissions, addTeamMember, updateTeamMember, deleteTeamMember,
   ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

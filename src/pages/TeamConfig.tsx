@@ -141,25 +141,17 @@ export const TeamConfig = () => {
     setIsUpdating(true);
     try {
       const cleanedCpf = editingCpf.replace(/\D/g, '');
-      const result = await updateTeamMember(editingMember.id, { 
+      // A função updateTeamMember não retorna tempPassword, então não precisamos verificar aqui.
+      await updateTeamMember(editingMember.id, { 
         name: editingName.trim(), 
         roles: editingRoles, 
         cpf: cleanedCpf,
         email: editingEmail.trim(),
         dateOfBirth: editingDateOfBirth || undefined, // NOVO: Incluir data de nascimento
       });
-
-      if (result?.tempPassword) {
-        setCreatedConsultantCredentials({
-          name: editingName.trim(),
-          login: editingEmail.trim(),
-          password: result.tempPassword,
-          wasExistingUser: true,
-        });
-        setShowCredentialsModal(true);
-      }
       
       cancelEditing();
+      toast.success("Membro da equipe atualizado com sucesso!");
     } catch (error: any) {
       toast.error(`Falha ao atualizar membro: ${error.message}`);
     } finally {
