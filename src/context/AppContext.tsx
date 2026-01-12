@@ -491,7 +491,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           (async () => { try { return await supabase.from('daily_checklist_items').select('*'); } catch (e) { console.error("Error fetching daily_checklist_items:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('daily_checklist_assignments').select('*'); } catch (e) { console.error("Error fetching daily_checklist_assignments:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('daily_checklist_completions').select('*'); } catch (e) { console.error("Error fetching daily_checklist_completions:", e); return { data: [], error: e }; } })(),
-          (async () => { try { return await supabase.from('weekly_targets').select('*').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching weekly_targets:", e); return { data: [], error: e }; } })(),
+          (async () => { try { return await supabase.from('weekly_targets').select('*').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching weekly_targets:", e); return { data: null, error: e }; } })(),
           (async () => { try { return await supabase.from('weekly_target_items').select('*'); } catch (e) { console.error("Error fetching weekly_target_items:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('weekly_target_assignments').select('*'); } catch (e) { console.error("Error fetching weekly_target_assignments:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('metric_logs').select('*'); } catch (e) { console.error("Error fetching metric_logs:", e); return { data: [], error: e }; } })(),
@@ -611,12 +611,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             db_id: item.id,
             name: data.name,
             email: data.email,
-            roles: Array.isArray(data.roles) ? data.roles : [item.data.role || 'Prévia'],
+            roles: Array.isArray(data.roles) ? data.roles : [data.role || 'Prévia'],
             isActive: data.isActive !== false,
             hasLogin: true,
             isLegacy: false,
             cpf: item.cpf,
-            dateOfBirth: item.data.dateOfBirth, // NOVO: Carregar data de nascimento
+            dateOfBirth: data.dateOfBirth, // NOVO: Carregar data de nascimento
           } as TeamMember;
         }) || [];
         setTeamMembers(normalizedTeamMembers);
@@ -1929,7 +1929,35 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!lead) throw new Error("Lead não encontrado.");
 
     const updatedLead = { ...lead, stage_id: newStageId, updated_by: user.id, updated_at: new Date().toISOString() };
-    const { error } = await supabase.from('crm_leads').update(updatedLead).eq('id', leadId).eq('user_id', JOAO_GESTOR_AUTH_ID);
+
+    // Explicitly map camelCase to snake_case for top-level columns
+    const updatedDataForDb: any = { ...updatedLead };
+    if (updatedLead.proposalValue !== undefined) {
+      updatedDataForDb.proposal_value = updatedLead.proposalValue;
+      delete updatedDataForDb.proposalValue;
+    }
+    if (updatedLead.proposalClosingDate !== undefined) {
+      updatedDataForDb.proposal_closing_date = updatedLead.proposalClosingDate;
+      delete updatedDataForDb.proposalClosingDate;
+    }
+    if (updatedLead.soldCreditValue !== undefined) {
+      updatedDataForDb.sold_credit_value = updatedLead.soldCreditValue;
+      delete updatedDataForDb.soldCreditValue;
+    }
+    if (updatedLead.soldGroup !== undefined) {
+      updatedDataForDb.sold_group = updatedLead.soldGroup;
+      delete updatedDataForDb.soldGroup;
+    }
+    if (updatedLead.soldQuota !== undefined) {
+      updatedDataForDb.sold_quota = updatedLead.soldQuota;
+      delete updatedDataForDb.soldQuota;
+    }
+    if (updatedLead.saleDate !== undefined) {
+      updatedDataForDb.sale_date = updatedLead.saleDate;
+      delete updatedDataForDb.saleDate;
+    }
+
+    const { error } = await supabase.from('crm_leads').update(updatedDataForDb).eq('id', leadId).eq('user_id', JOAO_GESTOR_AUTH_ID);
     if (error) throw error;
     setCrmLeads(prev => prev.map(l => l.id === leadId ? updatedLead : l));
   }, [user, crmLeads]);
@@ -2102,7 +2130,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (error) throw error;
       setDailyChecklistCompletions(prev => prev.map(c => c.id === existingCompletion.id ? data : c));
     } else {
-      const { data, error } = await supabase.from('daily_checklist_completions').insert({ daily_checklist_item_id, user_id: consultant_id, date, done }).select('*').single(); // Use user_id for consultant_id
+      const { data, error } = await supabase.from('daily_checklist_completions').insert({ daily_checklist_item_id, user_id: consultant_id, date, done }).select('*').single();
       if (error) throw error;
       setDailyChecklistCompletions(prev => [...prev, data]);
     }
