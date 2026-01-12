@@ -75,7 +75,7 @@ export const TeamConfig = () => {
     try {
       const cleanedCpf = newCpf.replace(/\D/g, '');
       
-      console.log("Type of addTeamMember before call:", typeof addTeamMember); // DEBUG LOG
+      console.log("TeamConfig: addTeamMember from context is:", addTeamMember); // DEBUG LOG
       if (typeof addTeamMember !== 'function') {
         throw new Error("addTeamMember is not a function. Context might not be correctly initialized.");
       }
