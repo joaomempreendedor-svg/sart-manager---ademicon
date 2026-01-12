@@ -20,7 +20,7 @@ export const GestorLayout = () => {
         isSidebarCollapsed={isSidebarCollapsed} // Passa o estado
         toggleSidebarCollapse={toggleSidebarCollapse} // Passa a função
       />
-      <div className={`flex-1 flex flex-col transition-all duration-300 ${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-64'}`}> {/* Ajusta margem */}
+      <div className={`flex-1 flex flex-col transition-all duration-300 ml-0 ${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-64'}`}> {/* Ajusta margem */}
         <Header isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar} user={user} /> {/* Passar o user para o Header */}
         <main className="flex-1">
           <Outlet />
