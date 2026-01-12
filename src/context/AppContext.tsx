@@ -1339,7 +1339,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     if (error) {
       console.error("Error deleting team member:", error);
-      // toast.error("Erro ao remover membro da equipe."); // REMOVIDO PARA DEBUG
+      toast.error("Erro ao remover membro da equipe."); // Reintroduzido toast.error
       throw error;
     }
     setTeamMembers(prev => prev.filter(m => m.id !== id));
@@ -2560,7 +2560,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
 
   const value = useMemo(() => {
-    console.log("AppContext: Re-calculating context value. addTeamMember is", addTeamMember); // Log aqui
     return {
       isDataLoading,
       candidates,
@@ -2706,6 +2705,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       deleteTeamMemberFeedback,
       refetchCommissions,
       addTeamMember, // Adicionado addTeamMember explicitamente aqui
+      deleteTeamMember, // ⚠️ Adicionado deleteTeamMember explicitamente aqui
     };
   }, [
     isDataLoading, candidates, teamMembers, commissions, supportMaterials, cutoffPeriods, onboardingSessions, onboardingTemplateVideos,
@@ -2735,7 +2735,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addFinancialEntry, updateFinancialEntry, deleteFinancialEntry,
     getFormFilesForSubmission, updateFormCadastro, deleteFormCadastro,
     addFeedback, updateFeedback, deleteFeedback, addTeamMemberFeedback, updateTeamMemberFeedback, deleteTeamMemberFeedback,
-    refetchCommissions, addTeamMember,
+    refetchCommissions, addTeamMember, deleteTeamMember,
   ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

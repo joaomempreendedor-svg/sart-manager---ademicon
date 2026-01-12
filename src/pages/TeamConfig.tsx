@@ -75,11 +75,6 @@ export const TeamConfig = () => {
     try {
       const cleanedCpf = newCpf.replace(/\D/g, '');
       
-      console.log("TeamConfig: addTeamMember from context is:", addTeamMember); // DEBUG LOG
-      if (typeof addTeamMember !== 'function') {
-        throw new Error("addTeamMember is not a function. Context might not be correctly initialized.");
-      }
-
       const result = await addTeamMember({
         name: newName.trim(),
         email: newEmail.trim(),
@@ -173,8 +168,6 @@ export const TeamConfig = () => {
   };
 
   const handleDelete = async (id: string) => {
-    console.log("TeamConfig: handleDelete called for ID:", id); // DEBUG LOG
-    console.log("TeamConfig: deleteTeamMember from context is:", deleteTeamMember); // DEBUG LOG
     if (window.confirm('Tem certeza que deseja remover este membro da equipe? Esta ação não pode ser desfeita.')) {
       try {
         await deleteTeamMember(id);
