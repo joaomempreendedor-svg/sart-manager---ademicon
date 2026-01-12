@@ -211,44 +211,50 @@ const CrmSalesReports = () => {
   const hasActiveFilters = filterStartDate || filterEndDate || filterSaleDateStart || filterSaleDateEnd || filterProposalDateStart || filterProposalDateEnd || filterStageId || selectedConsultantId;
 
   const handleExportToExcel = () => {
-    const dataToExport = reportData.consultantPerformance.map(c => ({
-      'Consultor': c.name,
-      'Leads Cadastrados': c.leadsRegistered,
-      'Reuniões Agendadas': c.meetingsScheduled,
-      'Propostas Enviadas': c.proposalsSent,
-      'Valor em Propostas': c.proposalValue,
-      'Vendas Fechadas': c.salesClosed,
-      'Valor Vendido': c.soldValue,
-      'Taxa de Conversão (%)': c.conversionRate,
+    if (!reportData || reportData.detailedInstallments.length === 0) {
+      alert("Não há dados para exportar. Gere um relatório primeiro.");
+      return;
+    }
+
+    const dataToExport = reportData.detailedInstallments.map(item => ({
+      'Cliente': item.commission.clientName,
+      'Consultor': item.commission.consultant,
+      'Gestor': item.commission.managerName,
+      'Anjo': item.commission.angelName || 'N/A',
+      'Parcela': parseInt(item.installmentNumber),
+      'Valor (Consultor)': item.values.cons,
+      'Valor (Gestor)': item.values.man,
+      'Valor (Anjo)': item.values.angel,
+      'Data Venda': new Date(item.commission.date + 'T00:00:00').toLocaleDateString('pt-BR'),
+      'Mês Competência': formatMonthYear(item.commission.installmentDetails[item.installmentNumber].competenceMonth!),
+      'PV': item.commission.pv, // Adicionado PV ao export
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(dataToExport);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Desempenho Consultores");
-
-    // Add summary data
-    const summaryData = [
-      { 'Métrica': 'Total de Leads', 'Valor': reportData.totalLeads },
-      { 'Métrica': 'Valor Total em Propostas', 'Valor': reportData.totalProposalValue },
-      { 'Métrica': 'Valor Total Vendido', 'Valor': reportData.totalSoldValue },
-      { 'Métrica': 'Valor Médio da Proposta', 'Valor': reportData.avgProposalValue },
-      { 'Métrica': 'Valor Médio da Venda', 'Valor': reportData.avgSoldValue },
-      { 'Métrica': 'Taxa de Conversão Geral (Proposta -> Venda)', 'Valor': reportData.overallConversionRate },
-    ];
-    // reportData.avgSectionScores.forEach(s => summaryData.push({ 'Métrica': `Média ${s.title}`, 'Valor': s.average.toFixed(1) })); // This line is for HiringReports, not CrmSalesReports
     
-    const summarySheet = XLSX.utils.json_to_sheet(summaryData);
-    XLSX.utils.book_append_sheet(workbook, summarySheet, "Resumo Geral");
+    const currencyFormat = 'R$ #,##0.00';
+    const currencyCols = ['F', 'G', 'H'];
+    
+    worksheet['!cols'] = [
+        { wch: 25 }, { wch: 25 }, { wch: 25 }, { wch: 25 }, { wch: 10 },
+        { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 15 }, { wch: 20 }, { wch: 15 }, // Ajustado para incluir PV
+    ];
 
-    // Add pipeline stage summary
-    const pipelineSheet = XLSX.utils.json_to_sheet(reportData.pipelineStageSummary.map(s => ({
-      'Etapa': s.name,
-      'Número de Leads': s.count,
-      'Valor Total': s.totalValue,
-    })));
-    XLSX.utils.book_append_sheet(workbook, pipelineSheet, "Resumo Pipeline");
+    Object.keys(worksheet).forEach(cellRef => {
+        if (cellRef[0] === '!') return;
+        const col = cellRef.replace(/[0-9]/g, '');
+        if (currencyCols.includes(col)) {
+            const cell = worksheet[cellRef];
+            if (cell.t === 'n') {
+                cell.z = currencyFormat;
+            }
+        }
+    });
 
-    XLSX.writeFile(workbook, `Relatorio_Vendas_CRM_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Comissões");
+
+    XLSX.writeFile(workbook, `Relatorio_Comissoes_${reportData.month}.xlsx`);
   };
 
   if (isAuthLoading || isDataLoading) {
@@ -260,23 +266,23 @@ const CrmSalesReports = () => {
   }
 
   return (
-    <div className="p-8 max-w-7xl mx-auto min-h-screen bg-gray-50 dark:bg-slate-900">
+    <div className="p-4 sm:p-8 max-w-7xl mx-auto min-h-screen bg-gray-50 dark:bg-slate-900">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Relatórios de Vendas do CRM</h1>
           <p className="text-gray-500 dark:text-gray-400">Análise de desempenho dos consultores e visão geral do pipeline.</p>
         </div>
-        <button onClick={handleExportToExcel} className="flex items-center justify-center space-x-2 bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg transition font-medium">
+        <button onClick={handleExportToExcel} className="flex items-center justify-center space-x-2 bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg transition font-medium w-full sm:w-auto">
           <Download className="w-5 h-5" />
           <span>Exportar para Excel</span>
         </button>
       </div>
 
       <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm space-y-4 mb-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-col sm:flex-row">
           <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 flex items-center uppercase tracking-wide"><Filter className="w-4 h-4 mr-2" />Filtrar Relatório</h3>
           {hasActiveFilters && (
-            <button onClick={clearFilters} className="text-xs flex items-center text-red-500 hover:text-red-700 transition">
+            <button onClick={clearFilters} className="text-xs flex items-center text-red-500 hover:text-red-700 transition mt-2 sm:mt-0">
               <RotateCcw className="w-3 h-3 mr-1" />Limpar Filtros
             </button>
           )}

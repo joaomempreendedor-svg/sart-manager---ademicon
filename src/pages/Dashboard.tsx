@@ -399,12 +399,12 @@ export const Dashboard = () => {
 
   return (
     <div className="p-4 sm:p-8 max-w-7xl mx-auto">
-      <div className="mb-8 flex items-center justify-between"> {/* Adicionado flex e justify-between */}
+      <div className="mb-8 flex items-center justify-between flex-col sm:flex-row"> {/* Adicionado flex e justify-between */}
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Visão Geral do Gestor</h1>
           <p className="text-gray-500 dark:text-gray-400">Acompanhe o progresso da equipe e as métricas chave.</p>
         </div>
-        <div className="flex items-center space-x-4"> {/* Container para o sino */}
+        <div className="flex items-center space-x-4 mt-4 sm:mt-0"> {/* Container para o sino */}
           <NotificationBell
             notificationCount={notifications.length}
             onClick={handleOpenNotifications}

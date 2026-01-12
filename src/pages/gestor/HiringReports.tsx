@@ -112,7 +112,7 @@ const HiringReports = () => {
           if (typeof val === 'number') {
             sectionScores[key].total += val;
             sectionScores[key].count++;
-            return sum;
+            return sum + val;
           }
           return sum;
         }, 0);

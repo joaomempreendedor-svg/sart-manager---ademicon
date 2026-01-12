@@ -594,12 +594,12 @@ export const PublicForm = () => {
             </div>
 
             {/* Navigation Buttons */}
-            <div className="flex justify-between pt-4">
+            <div className="flex justify-between pt-4 flex-col sm:flex-row space-y-2 sm:space-y-0">
               {currentStep > 0 && (
                 <button
                   type="button"
                   onClick={handlePrevious}
-                  className="flex items-center justify-center py-2 px-4 border border-gray-300 dark:border-slate-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-700 hover:bg-gray-50 dark:hover:bg-slate-600 transition-all"
+                  className="flex items-center justify-center py-2 px-4 border border-gray-300 dark:border-slate-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-700 hover:bg-gray-50 dark:hover:bg-slate-600 transition-all w-full sm:w-auto"
                 >
                   <ArrowLeft className="w-4 h-4 mr-2" /> Anterior
                 </button>
@@ -608,7 +608,7 @@ export const PublicForm = () => {
                 <button
                   type="button"
                   onClick={handleNext}
-                  className="flex items-center justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-500 transition-all ml-auto"
+                  className="flex items-center justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-500 transition-all ml-auto w-full sm:w-auto"
                 >
                   Próximo <ArrowRight className="w-4 h-4 ml-2" />
                 </button>
@@ -643,7 +643,7 @@ export const PublicForm = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="p-6 space-y-4">
-            <div className="flex space-x-4">
+            <div className="flex space-x-4 flex-col sm:flex-row space-y-2 sm:space-y-0">
               <Button
                 type="button"
                 onClick={() => {

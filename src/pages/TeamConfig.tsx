@@ -268,7 +268,6 @@ export const TeamConfig = () => {
                                 type="email" 
                                 required
                                 className="w-full pl-10 border border-gray-300 dark:border-slate-600 rounded-lg p-2 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500 placeholder:text-gray-500 dark:placeholder:text-gray-400"
-                                placeholder="email@exemplo.com"
                                 value={newEmail}
                                 onChange={e => setNewEmail(e.target.value)}
                             />
