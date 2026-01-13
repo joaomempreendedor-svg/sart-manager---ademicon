@@ -102,16 +102,17 @@ const HiringReports = () => {
         candidatesByResponsible[c.responsibleUserId].count++;
       }
 
-      const totalCandidateScore = Object.entries(c.interviewScores)
-        .filter(([key]) => key !== 'notes')
-        .reduce((sum, [_, val]) => {
-          if (typeof val === 'number') {
-            sectionScores[key].total += val;
-            sectionScores[key].count++;
-            return sum + val;
-          }
-          return sum;
-        }, 0);
+      // CORREÇÃO: Iterar sobre interviewStructure para garantir que as chaves existam em sectionScores
+      let totalCandidateScore = 0;
+      interviewStructure.forEach(section => {
+        const sectionId = section.id;
+        const score = c.interviewScores[sectionId];
+        if (typeof score === 'number') {
+          sectionScores[sectionId].total += score;
+          sectionScores[sectionId].count++;
+          totalCandidateScore += score;
+        }
+      });
 
       if (totalCandidateScore > 0) {
         totalInterviewScore += totalCandidateScore;
