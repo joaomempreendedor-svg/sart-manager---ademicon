@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { ScheduleMeetingModal } from './ScheduleMeetingModal'; // Importar o modal de agendamento/edição
 
 interface LeadTasksModalProps {
   isOpen: boolean;
@@ -37,6 +38,10 @@ export const LeadTasksModal: React.FC<LeadTasksModalProps> = ({ isOpen, onClose,
   const [editTaskDescription, setEditTaskDescription] = useState('');
   const [editTaskDueDate, setEditTaskDueDate] = useState('');
   const [isUpdatingTask, setIsUpdatingTask] = useState(false);
+
+  // NOVO: Estados para o modal de edição de reunião
+  const [isEditMeetingModalOpen, setIsEditMeetingModalOpen] = useState(false);
+  const [editingMeeting, setEditingMeeting] = useState<LeadTask | null>(null);
 
   const tasksForLead = leadTasks.filter(task => task.lead_id === lead.id).sort((a, b) => {
     // Sort by completion status (incomplete first), then by due date
@@ -134,8 +139,14 @@ export const LeadTasksModal: React.FC<LeadTasksModalProps> = ({ isOpen, onClose,
     const formatDateForGoogle = (date: Date) => date.toISOString().split('T')[0].replace(/-/g, '');
     const dates = `${formatDateForGoogle(startDate)}/${formatDateForGoogle(endDate)}`;
     const details = encodeURIComponent(`Tarefa para o Lead ${lead.name}:\n${task.description || ''}`);
-    const url = `https://www.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${dates}&details=${details}`;
+    const url = `https://www.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${dates}`;
     window.open(url, '_blank');
+  };
+
+  // NOVO: Função para abrir o modal de edição de reunião
+  const handleEditMeeting = (meeting: LeadTask) => {
+    setEditingMeeting(meeting);
+    setIsEditMeetingModalOpen(true);
   };
 
   if (!isOpen) return null;
@@ -240,6 +251,11 @@ export const LeadTasksModal: React.FC<LeadTasksModalProps> = ({ isOpen, onClose,
                         </div>
                       </div>
                       <div className="flex-shrink-0 flex items-center space-x-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity mt-2 sm:mt-0 flex-wrap justify-end">
+                        {task.type === 'meeting' && ( // NOVO: Botão de edição para reuniões
+                          <Button variant="ghost" size="icon" onClick={() => handleEditMeeting(task)} className="text-gray-400 hover:text-purple-600" title="Editar Reunião">
+                            <CalendarPlus className="w-4 h-4" />
+                          </Button>
+                        )}
                         {task.due_date && (
                           <Button variant="ghost" size="icon" onClick={() => handleAddToGoogleCalendar(task)} className="text-gray-400 hover:text-blue-600" title="Adicionar ao Google Agenda">
                             <CalendarPlus className="w-4 h-4" />
@@ -260,11 +276,18 @@ export const LeadTasksModal: React.FC<LeadTasksModalProps> = ({ isOpen, onClose,
           </div>
         </div>
 
-        <DialogFooter className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-700 flex-col sm:flex-row">
-          <Button type="button" onClick={onClose} className="bg-gray-200 hover:bg-gray-300 text-gray-700 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-gray-200 w-full sm:w-auto">
-            Fechar
-          </Button>
-        </DialogFooter>
+        {/* NOVO: Modal de Edição de Reunião */}
+        {isEditMeetingModalOpen && editingMeeting && (
+          <ScheduleMeetingModal
+            isOpen={isEditMeetingModalOpen}
+            onClose={() => {
+              setIsEditMeetingModalOpen(false);
+              setEditingMeeting(null);
+            }}
+            lead={lead} // Passa o lead atual
+            currentMeeting={editingMeeting} // Passa a reunião para edição
+          />
+        )}
       </DialogContent>
     </Dialog>
   );

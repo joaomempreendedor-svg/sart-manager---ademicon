@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { CrmLead, TeamMember } from '@/types';
+import { CrmLead, LeadTask, TeamMember } from '@/types'; // Importar LeadTask
 import { X, Save, Loader2, Calendar, Clock, MessageSquare, Users, CalendarPlus, Link as LinkIcon } from 'lucide-react';
 import {
   Dialog,
@@ -28,29 +28,20 @@ interface ScheduleMeetingModalProps {
   isOpen: boolean;
   onClose: () => void;
   lead: CrmLead;
+  currentMeeting?: LeadTask | null; // NOVO: Prop opcional para edição
 }
 
-export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOpen, onClose, lead }) => {
+export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOpen, onClose, lead, currentMeeting }) => {
   const { user } = useAuth();
-  const { addLeadTask, updateCrmLeadStage, crmStages } = useApp();
+  const { addLeadTask, updateLeadTask, updateCrmLeadStage, crmStages } = useApp();
 
-  const [title, setTitle] = useState(`Reunião com ${lead.name}`);
+  const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-  const [startTime, setStartTime] = useState('09:00');
-  const [endTime, setEndTime] = useState('10:00');
-  // const [invitedManagerId, setInvitedManagerId] = useState<string | undefined>(undefined); // Removido
+  const [date, setDate] = useState('');
+  const [startTime, setStartTime] = useState('');
+  const [endTime, setEndTime] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
-
-  // Removido o useMemo para 'managers' pois não será mais usado
-  // const managers = useMemo(() => {
-  //   return teamMembers.filter(member => 
-  //     member.roles.includes('Gestor') && 
-  //     member.isActive &&
-  //     member.hasLogin
-  //   );
-  // }, [teamMembers]);
 
   const meetingStage = useMemo(() => {
     return crmStages.find(stage => stage.name.toLowerCase().includes('reunião') && stage.is_active);
@@ -58,15 +49,24 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
 
   useEffect(() => {
     if (isOpen) {
-      setTitle(`Reunião com ${lead.name}`);
-      setDescription('');
-      setDate(new Date().toISOString().split('T')[0]);
-      setStartTime('09:00');
-      setEndTime('10:00');
-      // setInvitedManagerId(undefined); // Removido
+      if (currentMeeting) {
+        // Modo Edição: Preencher com dados da reunião existente
+        setTitle(currentMeeting.title);
+        setDescription(currentMeeting.description || '');
+        setDate(currentMeeting.due_date || (currentMeeting.meeting_start_time ? new Date(currentMeeting.meeting_start_time).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]));
+        setStartTime(currentMeeting.meeting_start_time ? new Date(currentMeeting.meeting_start_time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }) : '09:00');
+        setEndTime(currentMeeting.meeting_end_time ? new Date(currentMeeting.meeting_end_time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }) : '10:00');
+      } else {
+        // Modo Criação: Valores padrão
+        setTitle(`Reunião com ${lead.name}`);
+        setDescription('');
+        setDate(new Date().toISOString().split('T')[0]);
+        setStartTime('09:00');
+        setEndTime('10:00');
+      }
       setError('');
     }
-  }, [isOpen, lead.name]);
+  }, [isOpen, lead.name, currentMeeting]);
 
   const handleScheduleMeeting = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,28 +91,31 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
 
     setIsSaving(true);
     try {
-      // console.log("Attempting to add lead task with manager_id:", invitedManagerId); // DIAGNÓSTICO - Removido
-      await addLeadTask({
+      const meetingData = {
         lead_id: lead.id,
         title: title.trim(),
         description: description.trim() || undefined,
         due_date: date,
         is_completed: false,
-        type: 'meeting',
+        type: 'meeting' as const,
         meeting_start_time: startDateTime.toISOString(),
         meeting_end_time: endDateTime.toISOString(),
-        // manager_id: invitedManagerId, // Removido
-        // manager_invitation_status: invitedManagerId ? 'pending' : undefined, // Removido
-      });
+      };
 
-      if (meetingStage && lead.stage_id !== meetingStage.id) {
-        await updateCrmLeadStage(lead.id, meetingStage.id);
+      if (currentMeeting) {
+        // Atualizar reunião existente
+        await updateLeadTask(currentMeeting.id, meetingData);
+      } else {
+        // Adicionar nova reunião
+        await addLeadTask(meetingData);
+        if (meetingStage && lead.stage_id !== meetingStage.id) {
+          await updateCrmLeadStage(lead.id, meetingStage.id);
+        }
       }
-
       onClose();
     } catch (err: any) {
-      console.error("Erro ao agendar reunião:", err);
-      setError(err.message || 'Falha ao agendar reunião.');
+      console.error("Erro ao agendar/editar reunião:", err);
+      setError(err.message || 'Falha ao agendar/editar reunião.');
     } finally {
       setIsSaving(false);
     }
@@ -126,7 +129,6 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
     const formattedEndDate = endDateTime.toISOString().replace(/[-:]|\.\d{3}/g, '');
     const datesParam = `${formattedStartDate}/${formattedEndDate}`;
 
-    // Construir o título e a descrição explicitamente antes de codificar
     const eventTitle = `Reunião com ${lead.name}`;
     const eventDescription = description || `Reunião com o lead ${lead.name}`;
 
@@ -151,7 +153,7 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-2xl bg-white dark:bg-slate-800 dark:text-white p-6">
         <DialogHeader>
-          <DialogTitle>Agendar Reunião para: {lead.name}</DialogTitle>
+          <DialogTitle>{currentMeeting ? 'Editar Reunião' : 'Agendar Reunião'} para: {lead.name}</DialogTitle>
           <DialogDescription>
             Preencha os detalhes da reunião.
           </DialogDescription>
@@ -215,22 +217,6 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
                   />
                 </div>
               </div>
-              {/* Removido o campo de seleção do gestor */}
-              {/* <div>
-                <Label htmlFor="manager">Convidar Gestor (Opcional)</Label>
-                <Select value={invitedManagerId} onValueChange={setInvitedManagerId}>
-                  <SelectTrigger className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
-                    <SelectValue placeholder="Selecione um gestor" />
-                  </SelectTrigger>
-                  <SelectContent className="dark:bg-slate-800 dark:text-white dark:border-slate-700">
-                    {managers.map(manager => (
-                      <SelectItem key={manager.id} value={manager.id}>
-                        {manager.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div> */}
               {error && <p className="text-red-500 text-sm">{error}</p>}
             </div>
           </ScrollArea>
@@ -245,7 +231,7 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
               </Button>
               <Button type="submit" disabled={isSaving} className="bg-brand-600 hover:bg-brand-700 text-white w-full sm:w-auto">
                 {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-                {isSaving ? 'Agendando...' : 'Agendar Reunião'}
+                <span>{currentMeeting ? 'Salvar Alterações' : 'Agendar Reunião'}</span>
               </Button>
             </div>
           </DialogFooter>
