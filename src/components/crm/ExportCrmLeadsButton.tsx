@@ -6,17 +6,14 @@ import toast from 'react-hot-toast';
 
 interface ExportCrmLeadsButtonProps {
   leads: CrmLead[];
-  crmFields: CrmField[];
-  crmStages: CrmStage[];
-  teamMembers: TeamMember[];
+  crmFields: CrmField[]; // Mantido para compatibilidade, mas não usado para exportar
+  crmStages: CrmStage[]; // Mantido para compatibilidade, mas não usado para exportar
+  teamMembers: TeamMember[]; // Mantido para compatibilidade, mas não usado para exportar
   fileName?: string;
 }
 
 const ExportCrmLeadsButton: React.FC<ExportCrmLeadsButtonProps> = ({
   leads,
-  crmFields,
-  crmStages,
-  teamMembers,
   fileName = 'leads_crm',
 }) => {
   const handleExport = () => {
@@ -25,54 +22,18 @@ const ExportCrmLeadsButton: React.FC<ExportCrmLeadsButtonProps> = ({
       return;
     }
 
-    // Mapear campos personalizados para um objeto de fácil acesso
-    const customFieldsMap = new Map(crmFields.map(f => [f.key, f.label]));
-    const stagesMap = new Map(crmStages.map(s => [s.id, s.name]));
-    const consultantsMap = new Map(teamMembers.map(m => [m.id, m.name]));
-
-    // Definir cabeçalhos fixos e dinâmicos
-    const fixedHeaders = [
+    // Definir cabeçalhos fixos: apenas Nome do Lead e Origem
+    const headers = [
       'Nome do Lead',
-      'Consultor',
-      'Etapa',
-      'Valor Proposta',
-      'Data Fechamento Proposta',
-      'Valor Vendido',
-      'Grupo Vendido',
-      'Cota Vendida',
-      'Data Venda',
-      'Criado Em',
-      'Atualizado Em',
+      'Origem',
     ];
-
-    const dynamicHeaders = crmFields
-      .filter(f => f.is_active && f.key !== 'name') // Excluir 'name' pois já é um cabeçalho fixo
-      .map(f => f.label);
-
-    const headers = [...fixedHeaders, ...dynamicHeaders];
 
     const dataToExport = leads.map(lead => {
       const row: { [key: string]: any } = {};
 
       // Campos fixos
       row['Nome do Lead'] = lead.name;
-      row['Consultor'] = lead.consultant_id ? consultantsMap.get(lead.consultant_id) || 'Desconhecido' : 'Não Atribuído';
-      row['Etapa'] = lead.stage_id ? stagesMap.get(lead.stage_id) || 'Desconhecido' : 'Não Definida';
-      row['Valor Proposta'] = lead.proposalValue || '';
-      row['Data Fechamento Proposta'] = lead.proposalClosingDate || '';
-      row['Valor Vendido'] = lead.soldCreditValue || '';
-      row['Grupo Vendido'] = lead.soldGroup || '';
-      row['Cota Vendida'] = lead.soldQuota || '';
-      row['Data Venda'] = lead.saleDate || '';
-      row['Criado Em'] = new Date(lead.created_at).toLocaleDateString('pt-BR') + ' ' + new Date(lead.created_at).toLocaleTimeString('pt-BR');
-      row['Atualizado Em'] = new Date(lead.updated_at).toLocaleDateString('pt-BR') + ' ' + new Date(lead.updated_at).toLocaleTimeString('pt-BR');
-
-      // Campos dinâmicos
-      crmFields
-        .filter(f => f.is_active && f.key !== 'name')
-        .forEach(field => {
-          row[field.label] = lead.data?.[field.key] || '';
-        });
+      row['Origem'] = lead.data?.origin || ''; // Acessa a origem do objeto 'data'
 
       return row;
     });

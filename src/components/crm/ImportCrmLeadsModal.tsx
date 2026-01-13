@@ -8,7 +8,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
+import { Button } => '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import toast from 'react-hot-toast';
@@ -18,27 +18,25 @@ interface ImportCrmLeadsModalProps {
   isOpen: boolean;
   onClose: () => void;
   onImport: (leads: Omit<CrmLead, 'id' | 'created_at' | 'updated_at' | 'user_id' | 'created_by' | 'updated_by'>[]) => Promise<void>;
-  crmFields: CrmField[];
-  consultants: TeamMember[];
-  stages: CrmStage[];
+  crmFields: CrmField[]; // Mantido para compatibilidade, mas não usado para mapeamento dinâmico
+  consultants: TeamMember[]; // Mantido para compatibilidade, mas não usado para mapeamento dinâmico
+  stages: CrmStage[]; // Mantido para compatibilidade, mas não usado para mapeamento dinâmico
 }
 
 export const ImportCrmLeadsModal: React.FC<ImportCrmLeadsModalProps> = ({
   isOpen,
   onClose,
   onImport,
-  crmFields,
-  consultants,
-  stages,
+  crmFields, // Não será usado para mapeamento dinâmico de campos
+  consultants, // Não será usado para mapeamento dinâmico de consultores
+  stages, // Não será usado para mapeamento dinâmico de estágios
 }) => {
   const [pastedData, setPastedData] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [importResult, setImportResult] = useState<{ success: number; failed: number; errors: string[] } | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
 
-  const activeCrmFields = useMemo(() => crmFields.filter(f => f.is_active), [crmFields]);
-  const consultantsMap = useMemo(() => new Map(consultants.map(c => [c.name.toLowerCase(), c.id])), [consultants]);
-  const stagesMap = useMemo(() => new Map(stages.map(s => [s.name.toLowerCase(), s.id])), [stages]);
+  // Não precisamos de activeCrmFields, consultantsMap ou stagesMap para este cenário simplificado.
 
   const handleProcessImport = async () => {
     setIsProcessing(true);
@@ -73,15 +71,15 @@ export const ImportCrmLeadsModal: React.FC<ImportCrmLeadsModalProps> = ({
 
     // Heurística para detectar se a primeira linha é um cabeçalho
     const lowerCaseFirstLine = firstLine.toLowerCase();
-    const commonLeadHeaders = ['nome', 'consultor', 'etapa', 'valor proposta', 'data fechamento proposta', 'valor vendido', 'grupo vendido', 'cota vendida', 'data venda'];
+    const expectedHeaders = ['nome', 'origem'];
     
-    if (commonLeadHeaders.some(h => lowerCaseFirstLine.includes(h))) {
+    if (expectedHeaders.every(h => lowerCaseFirstLine.includes(h))) {
       hasHeader = true;
       headers = firstLine.split(delimiter).map(h => h.trim().toLowerCase());
       dataLines = allLines.slice(1);
     } else {
-      // Se não houver cabeçalho, assumir um conjunto mínimo e todas as linhas são dados
-      headers = ['nome']; // Apenas o nome é o mínimo obrigatório para tentar importar
+      // Se não houver cabeçalho, assumir 'nome' e 'origem' e todas as linhas são dados
+      headers = ['nome', 'origem'];
       dataLines = allLines;
     }
 
@@ -91,29 +89,17 @@ export const ImportCrmLeadsModal: React.FC<ImportCrmLeadsModalProps> = ({
       return;
     }
 
-    // Mapear cabeçalhos para chaves de campo do CRM
-    const headerToFieldKeyMap: { [key: string]: string } = {};
-    activeCrmFields.forEach(field => {
-      headerToFieldKeyMap[field.label.toLowerCase()] = field.key;
-      headerToFieldKeyMap[field.key.toLowerCase()] = field.key; // Permitir mapear pela chave também
-    });
-    // Mapear cabeçalhos fixos
-    headerToFieldKeyMap['nome'] = 'name';
-    headerToFieldKeyMap['nome do lead'] = 'name';
-    headerToFieldKeyMap['consultor'] = 'consultant_id';
-    headerToFieldKeyMap['etapa'] = 'stage_id';
-    headerToFieldKeyMap['valor proposta'] = 'proposalValue';
-    headerToFieldKeyMap['data fechamento proposta'] = 'proposalClosingDate';
-    headerToFieldKeyMap['valor vendido'] = 'soldCreditValue';
-    headerToFieldKeyMap['grupo vendido'] = 'soldGroup';
-    headerToFieldKeyMap['cota vendida'] = 'soldQuota';
-    headerToFieldKeyMap['data venda'] = 'saleDate';
-
+    // Mapear cabeçalhos para chaves de campo do CRM (simplificado)
+    const headerToFieldKeyMap: { [key: string]: string } = {
+      'nome': 'name',
+      'nome do lead': 'name',
+      'origem': 'origin',
+    };
 
     for (const line of dataLines) {
       const values = line.split(delimiter).map(v => v.trim());
       const leadData: Partial<Omit<CrmLead, 'id' | 'created_at' | 'updated_at' | 'user_id' | 'created_by' | 'updated_by'>> = {
-        data: {},
+        data: {}, // Inicializa data como um objeto vazio
       };
       let recordIsValid = true;
       const currentRecordErrors: string[] = [];
@@ -126,65 +112,22 @@ export const ImportCrmLeadsModal: React.FC<ImportCrmLeadsModalProps> = ({
         if (fieldKey && value) {
           if (fieldKey === 'name') {
             leadData.name = value;
-          } else if (fieldKey === 'consultant_id') {
-            const consultantId = consultantsMap.get(value.toLowerCase());
-            if (consultantId) {
-              leadData.consultant_id = consultantId;
-            } else {
-              currentRecordErrors.push(`Consultor "${value}" não encontrado.`);
-              recordIsValid = false;
-            }
-          } else if (fieldKey === 'stage_id') {
-            const stageId = stagesMap.get(value.toLowerCase());
-            if (stageId) {
-              leadData.stage_id = stageId;
-            } else {
-              currentRecordErrors.push(`Etapa "${value}" não encontrada.`);
-              recordIsValid = false;
-            }
-          } else if (['proposalValue', 'soldCreditValue'].includes(fieldKey)) {
-            const numericValue = parseFloat(value.replace(/\./g, '').replace(',', '.'));
-            if (!isNaN(numericValue)) {
-              (leadData as any)[fieldKey] = numericValue;
-            } else {
-              currentRecordErrors.push(`Valor inválido para "${header}".`);
-              recordIsValid = false;
-            }
-          } else if (['proposalClosingDate', 'saleDate'].includes(fieldKey)) {
-            // Validação básica de data (YYYY-MM-DD)
-            if (/\d{4}-\d{2}-\d{2}/.test(value)) {
-              (leadData as any)[fieldKey] = value;
-            } else {
-              currentRecordErrors.push(`Formato de data inválido para "${header}". Use YYYY-MM-DD.`);
-              recordIsValid = false;
-            }
-          } else {
-            // Campos personalizados
-            (leadData.data as any)[fieldKey] = value;
+          } else if (fieldKey === 'origin') {
+            (leadData.data as any).origin = value; // Armazena a origem dentro do objeto 'data'
           }
+          // Outros campos não são esperados neste modo simplificado
         }
       });
 
-      // Validação de campos obrigatórios
-      const nameField = activeCrmFields.find(f => f.key === 'name' || f.key === 'nome');
-      if (nameField?.is_required && !leadData.name?.trim()) {
+      // Validação de campos obrigatórios (apenas nome e origem)
+      if (!leadData.name?.trim()) {
         currentRecordErrors.push('Campo "Nome do Lead" é obrigatório.');
         recordIsValid = false;
-      } else if (!leadData.name?.trim() && !nameField) { // Se não há campo 'name' configurado, mas o nome é o primeiro campo
-        if (values[0]) {
-          leadData.name = values[0];
-        } else {
-          currentRecordErrors.push('Nome do lead é obrigatório (primeira coluna).');
-          recordIsValid = false;
-        }
       }
-
-      activeCrmFields.filter(f => f.is_required && f.key !== 'name' && f.key !== 'nome').forEach(field => {
-        if (!leadData.data?.[field.key]?.trim()) {
-          currentRecordErrors.push(`Campo obrigatório "${field.label}" ausente.`);
-          recordIsValid = false;
-        }
-      });
+      if (!(leadData.data as any)?.origin?.trim()) {
+        currentRecordErrors.push('Campo "Origem" é obrigatório.');
+        recordIsValid = false;
+      }
 
       if (recordIsValid) {
         newLeads.push(leadData as Omit<CrmLead, 'id' | 'created_at' | 'updated_at' | 'user_id' | 'created_by' | 'updated_by'>);
@@ -230,7 +173,7 @@ export const ImportCrmLeadsModal: React.FC<ImportCrmLeadsModalProps> = ({
             <span>Importar Leads do CRM</span>
           </DialogTitle>
           <DialogDescription>
-            Cole os dados da sua planilha (CSV ou tab-separated). O sistema tentará mapear as colunas para os campos do seu CRM.
+            Cole os dados da sua planilha (CSV ou tab-separated). O sistema buscará apenas as colunas 'Nome' e 'Origem'.
           </DialogDescription>
         </DialogHeader>
         
@@ -243,7 +186,7 @@ export const ImportCrmLeadsModal: React.FC<ImportCrmLeadsModalProps> = ({
               onChange={(e) => setPastedData(e.target.value)}
               rows={8}
               className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600 font-mono text-sm"
-              placeholder={`Cole aqui os dados da sua planilha. Use vírgula (,) ou tab (	) como separador.\n\nExemplo:\nNome,Email,Telefone,Etapa,Consultor\nJoão Silva,joao@email.com,(11) 98765-4321,Prospecção,Maria Souza\nMaria Oliveira,maria@email.com,(21) 91234-5678,Reunião Agendada,Pedro Alves`}
+              placeholder={`Cole aqui os dados da sua planilha. Use vírgula (,) ou tab (	) como separador.\n\nExemplo:\nNome,Origem\nJoão Silva,Indicação\nMaria Oliveira,Prospecção`}
             />
             {parseError && (
               <p className="text-red-500 text-sm mt-2 flex items-center"><AlertTriangle className="w-4 h-4 mr-2" />{parseError}</p>
