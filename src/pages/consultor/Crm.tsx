@@ -1,12 +1,14 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Plus, Search, Loader2, Phone, Mail, Tag, MessageSquare, TrendingUp, ListTodo, CalendarPlus, Send, DollarSign, Edit2, Trash2, Users, CheckCircle2, XCircle, Filter, RotateCcw, UserRound } from 'lucide-react'; // Importado UserRound
-import LeadModal from '@/components/crm/LeadModal'; // Novo componente
-import { LeadTasksModal } from '@/components/crm/LeadTasksModal'; // Importar o novo modal de tarefas
-import { ScheduleMeetingModal } from '@/components/crm/ScheduleMeetingModal'; // NOVO: Importar o modal de agendamento de reunião
-import { ProposalModal } from '@/components/crm/ProposalModal'; // Importar o novo modal de proposta
-import { MarkAsSoldModal } from '@/components/crm/MarkAsSoldModal'; // NOVO: Importar o modal de marcar como vendido
+import { Plus, Search, Loader2, Phone, Mail, Tag, MessageSquare, TrendingUp, ListTodo, CalendarPlus, Send, DollarSign, Edit2, Trash2, Users, CheckCircle2, XCircle, Filter, RotateCcw, UserRound, UploadCloud } from 'lucide-react'; // Adicionado UploadCloud
+import LeadModal from '@/components/crm/LeadModal';
+import { LeadTasksModal } from '@/components/crm/LeadTasksModal';
+import { ScheduleMeetingModal } from '@/components/crm/ScheduleMeetingModal';
+import { ProposalModal } from '@/components/crm/ProposalModal';
+import { MarkAsSoldModal } from '@/components/crm/MarkAsSoldModal';
+import ExportCrmLeadsButton from '@/components/crm/ExportCrmLeadsButton';
+import { ImportCrmLeadsModal } from '@/components/crm/ImportCrmLeadsModal'; // NOVO: Importar o modal de importação
 import {
   Select,
   SelectContent,
@@ -14,30 +16,30 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { CrmLead } from '@/types'; // Importar CrmLead para o onImport
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 };
 
-const ConsultorCrmPage = () => { // Nome do componente corrigido para ConsultorCrmPage
-  // DEBUG: Forçando reprocessamento do arquivo para resolver erro de cache/sintaxe.
+const ConsultorCrmPage = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
-  const { crmPipelines, crmStages, crmLeads, crmFields, teamMembers, isDataLoading, deleteCrmLead, updateCrmLeadStage } = useApp();
+  const { crmPipelines, crmStages, crmLeads, crmFields, teamMembers, isDataLoading, deleteCrmLead, updateCrmLeadStage, addCrmLead } = useApp(); // Adicionado addCrmLead
   const [isLeadModalOpen, setIsLeadModalOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<CrmLead | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [isTasksModalOpen, setIsTasksModalOpen] = useState(false); // Estado para o modal de tarefas
-  const [selectedLeadForTasks, setSelectedLeadForTasks] = useState<CrmLead | null>(null); // Lead selecionado para tarefas
-  const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false); // NOVO: Estado para o modal de reunião
-  const [selectedLeadForMeeting, setSelectedLeadForMeeting] = useState<CrmLead | null>(null); // NOVO: Lead selecionado para reunião
-  const [isProposalModalOpen, setIsProposalModalOpen] = useState(false); // NOVO: Estado para o modal de proposta
-  const [selectedLeadForProposal, setSelectedLeadForProposal] = useState<CrmLead | null>(null); // NOVO: Lead selecionado para proposta
-  const [isMarkAsSoldModalOpen, setIsMarkAsSoldModalOpen] = useState(false); // NOVO: Estado para o modal de marcar como vendido
-  const [selectedLeadForSold, setSelectedLeadForSold] = useState<CrmLead | null>(null); // NOVO: Lead selecionado para marcar como vendido
+  const [isTasksModalOpen, setIsTasksModalOpen] = useState(false);
+  const [selectedLeadForTasks, setSelectedLeadForTasks] = useState<CrmLead | null>(null);
+  const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false);
+  const [selectedLeadForMeeting, setSelectedLeadForMeeting] = useState<CrmLead | null>(null);
+  const [isProposalModalOpen, setIsProposalModalOpen] = useState(false);
+  const [selectedLeadForProposal, setSelectedLeadForProposal] = useState<CrmLead | null>(null);
+  const [isMarkAsSoldModalOpen, setIsMarkAsSoldModalOpen] = useState(false);
+  const [selectedLeadForSold, setSelectedLeadForSold] = useState<CrmLead | null>(null);
 
-  // NOVO: Estados para o filtro de data
   const [filterStartDate, setFilterStartDate] = useState('');
   const [filterEndDate, setFilterEndDate] = useState('');
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false); // NOVO: Estado para o modal de importação
 
   const activePipeline = useMemo(() => {
     return crmPipelines.find(p => p.is_active) || crmPipelines[0];
@@ -58,7 +60,6 @@ const ConsultorCrmPage = () => { // Nome do componente corrigido para ConsultorC
   const filteredLeads = useMemo(() => {
     let currentLeads = consultantLeads;
 
-    // Filtrar por termo de busca
     if (searchTerm) {
       const lowerCaseSearchTerm = searchTerm.toLowerCase();
       currentLeads = currentLeads.filter(lead =>
@@ -69,13 +70,12 @@ const ConsultorCrmPage = () => { // Nome do componente corrigido para ConsultorC
       );
     }
 
-    // NOVO: Filtrar por data de criação
     if (filterStartDate) {
       const start = new Date(filterStartDate + 'T00:00:00');
       currentLeads = currentLeads.filter(lead => new Date(lead.created_at) >= start);
     }
     if (filterEndDate) {
-      const end = new Date(filterEndDate + 'T23:59:59'); // Inclui o dia inteiro
+      const end = new Date(filterEndDate + 'T23:59:59');
       currentLeads = currentLeads.filter(lead => new Date(lead.created_at) <= end);
     }
 
@@ -101,7 +101,7 @@ const ConsultorCrmPage = () => { // Nome do componente corrigido para ConsultorC
   };
 
   const handleDeleteLead = async (e: React.MouseEvent, lead: CrmLead) => {
-    e.stopPropagation(); // Prevent opening the edit modal
+    e.stopPropagation();
     if (window.confirm(`Tem certeza que deseja excluir o lead "${lead.name}"? Esta ação não pode ser desfeita.`)) {
       try {
         await deleteCrmLead(lead.id);
@@ -112,27 +112,24 @@ const ConsultorCrmPage = () => { // Nome do componente corrigido para ConsultorC
   };
 
   const handleOpenTasksModal = (e: React.MouseEvent, lead: CrmLead) => {
-    e.stopPropagation(); // Evita que o clique no botão abra o modal de edição do lead
+    e.stopPropagation();
     setSelectedLeadForTasks(lead);
     setIsTasksModalOpen(true);
   };
 
-  // NOVO: Função para abrir o modal de agendamento de reunião
   const handleOpenMeetingModal = (e: React.MouseEvent, lead: CrmLead) => {
     e.stopPropagation();
     setSelectedLeadForMeeting(lead);
     setIsMeetingModalOpen(true);
   };
 
-  // NOVO: Função para abrir o modal de proposta
   const handleOpenProposalModal = (e: React.MouseEvent, lead: CrmLead) => {
     e.stopPropagation();
     setSelectedLeadForProposal(lead);
     setIsProposalModalOpen(true);
   };
 
-  // NOVO: Função para abrir o modal de marcar como vendido
-  const handleMarkAsWon = async (e: React.MouseEvent, lead: CrmLead) => {
+  const handleMarkAsWon = async (e: React.FormEvent, lead: CrmLead) => {
     e.stopPropagation();
     if (!user) return;
 
@@ -162,6 +159,12 @@ const ConsultorCrmPage = () => { // Nome do componente corrigido para ConsultorC
       await updateCrmLeadStage(leadId, newStageId);
     } catch (error: any) {
       alert(`Erro ao mover lead: ${error.message}`);
+    }
+  };
+
+  const handleImportLeads = async (leadsToImport: Omit<CrmLead, 'id' | 'created_at' | 'updated_at' | 'user_id' | 'created_by' | 'updated_by'>[]) => {
+    for (const leadData of leadsToImport) {
+      await addCrmLead(leadData);
     }
   };
 
@@ -218,9 +221,23 @@ const ConsultorCrmPage = () => { // Nome do componente corrigido para ConsultorC
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
+          <ExportCrmLeadsButton
+            leads={filteredLeads}
+            crmFields={crmFields}
+            crmStages={crmStages}
+            teamMembers={teamMembers}
+            fileName="leads_crm_consultor"
+          />
+          <button
+            onClick={() => setIsImportModalOpen(true)} // NOVO: Botão para abrir o modal de importação
+            className="flex items-center justify-center space-x-2 bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded-lg transition font-medium flex-shrink-0"
+          >
+            <UploadCloud className="w-5 h-5" />
+            <span>Importar Leads</span>
+          </button>
           <button
             onClick={handleAddNewLead}
-            className="flex items-center justify-center space-x-2 bg-brand-600 hover:bg-brand-700 text-white py-2 px-4 rounded-lg transition font-medium flex-shrink-0"
+            className="flex items-center justify-center space-x-2 bg-brand-600 hover:bg-brand-700 text-white py-2 px-4 rounded-lg transition font-medium w-full sm:w-auto flex-shrink-0"
           >
             <Plus className="w-5 h-5" />
             <span>Novo Lead</span>
@@ -262,10 +279,9 @@ const ConsultorCrmPage = () => { // Nome do componente corrigido para ConsultorC
         </div>
       </div>
 
-
-      <div className="flex overflow-x-auto pb-4 space-x-4 custom-scrollbar"> {/* Reduzido space-x-6 para space-x-4 */}
+      <div className="flex overflow-x-auto pb-4 space-x-4 custom-scrollbar">
         {pipelineStages.map(stage => (
-          <div key={stage.id} className="flex-shrink-0 w-56 bg-gray-100 dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700"> {/* Reduzido w-64 para w-56 */}
+          <div key={stage.id} className="flex-shrink-0 w-56 bg-gray-100 dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700">
             <div className="p-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
               <h3 className="font-semibold text-gray-900 dark:text-white flex items-center">
                 {stage.name.toLowerCase().includes('proposta') && <Send className="w-4 h-4 mr-2 text-purple-600 dark:text-purple-400" />}
@@ -329,7 +345,7 @@ const ConsultorCrmPage = () => { // Nome do componente corrigido para ConsultorC
                         </div>
                       </div>
                       <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 space-y-0.5">
-                        {consultant && <div className="flex items-center"><UserRound className="w-3 h-3 mr-1" /> Consultor: {consultant.name}</div>} {/* Adicionado nome do consultor */}
+                        {consultant && <div className="flex items-center"><UserRound className="w-3 h-3 mr-1" /> Consultor: {consultant.name}</div>}
                         {lead.data.phone && <div className="flex items-center"><Phone className="w-3 h-3 mr-1" /> {lead.data.phone}</div>}
                         {lead.data.email && <div className="flex items-center"><Mail className="w-3 h-3 mr-1" /> {lead.data.email}</div>}
                         {lead.data.origin && <div className="flex items-center"><Tag className="w-3 h-3 mr-1" /> {lead.data.origin}</div>}
@@ -374,7 +390,7 @@ const ConsultorCrmPage = () => { // Nome do componente corrigido para ConsultorC
                         >
                           <SelectTrigger 
                             className="w-full h-auto py-1.5 text-xs dark:bg-slate-800 dark:text-white dark:border-slate-600"
-                            onClick={(e) => e.stopPropagation()} // Reintroduzido
+                            onClick={(e) => e.stopPropagation()}
                           >
                             <SelectValue placeholder="Mover para..." />
                           </SelectTrigger>
@@ -460,6 +476,17 @@ const ConsultorCrmPage = () => { // Nome do componente corrigido para ConsultorC
           isOpen={isMarkAsSoldModalOpen}
           onClose={() => setIsMarkAsSoldModalOpen(false)}
           lead={selectedLeadForSold}
+        />
+      )}
+
+      {isImportModalOpen && (
+        <ImportCrmLeadsModal
+          isOpen={isImportModalOpen}
+          onClose={() => setIsImportModalOpen(false)}
+          onImport={handleImportLeads}
+          crmFields={crmFields}
+          consultants={teamMembers}
+          stages={crmStages}
         />
       )}
     </div>

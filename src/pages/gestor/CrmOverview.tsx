@@ -1,12 +1,14 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Plus, Search, Loader2, Phone, Mail, Tag, MessageSquare, TrendingUp, ListTodo, CalendarPlus, Send, DollarSign, Edit2, Trash2, Users, CheckCircle2, Filter, RotateCcw, UserRound } from 'lucide-react';
+import { Plus, Search, Loader2, Phone, Mail, Tag, MessageSquare, TrendingUp, ListTodo, CalendarPlus, Send, DollarSign, Edit2, Trash2, Users, CheckCircle2, Filter, RotateCcw, UserRound, UploadCloud } from 'lucide-react'; // Adicionado UploadCloud
 import LeadModal from '@/components/crm/LeadModal';
 import { LeadTasksModal } from '@/components/crm/LeadTasksModal';
 import { ScheduleMeetingModal } from '@/components/crm/ScheduleMeetingModal';
-import { ProposalModal } from '@/components/crm/ProposalModal'; // Importar o novo modal de proposta
-import { MarkAsSoldModal } from '@/components/crm/MarkAsSoldModal'; // NOVO: Importar o modal de marcar como vendido
+import { ProposalModal } from '@/components/crm/ProposalModal';
+import { MarkAsSoldModal } from '@/components/crm/MarkAsSoldModal';
+import ExportCrmLeadsButton from '@/components/crm/ExportCrmLeadsButton';
+import { ImportCrmLeadsModal } from '@/components/crm/ImportCrmLeadsModal'; // NOVO: Importar o modal de importação
 import {
   Select,
   SelectContent,
@@ -14,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { CrmLead } from '@/types'; // Importar CrmLead para o onImport
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -21,7 +24,7 @@ const formatCurrency = (value: number) => {
 
 const CrmOverviewPage = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
-  const { crmPipelines, crmStages, crmLeads, crmFields, teamMembers, isDataLoading, deleteCrmLead, updateCrmLeadStage } = useApp();
+  const { crmPipelines, crmStages, crmLeads, crmFields, teamMembers, isDataLoading, deleteCrmLead, updateCrmLeadStage, addCrmLead } = useApp(); // Adicionado addCrmLead
   const [isLeadModalOpen, setIsLeadModalOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<CrmLead | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -29,15 +32,15 @@ const CrmOverviewPage = () => {
   const [selectedLeadForTasks, setSelectedLeadForTasks] = useState<CrmLead | null>(null);
   const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false);
   const [selectedLeadForMeeting, setSelectedLeadForMeeting] = useState<CrmLead | null>(null);
-  const [isProposalModalOpen, setIsProposalModalOpen] = useState(false); // NOVO: Estado para o modal de proposta
-  const [selectedLeadForProposal, setSelectedLeadForProposal] = useState<CrmLead | null>(null); // NOVO: Lead selecionado para proposta
-  const [isMarkAsSoldModalOpen, setIsMarkAsSoldModalOpen] = useState(false); // NOVO: Estado para o modal de marcar como vendido
-  const [selectedLeadForSold, setSelectedLeadForSold] = useState<CrmLead | null>(null); // NOVO: Lead selecionado para marcar como vendido
-  const [selectedConsultantId, setSelectedConsultantId] = useState<string | null>(null); // Novo estado para filtrar por consultor
+  const [isProposalModalOpen, setIsProposalModalOpen] = useState(false);
+  const [selectedLeadForProposal, setSelectedLeadForProposal] = useState<CrmLead | null>(null);
+  const [isMarkAsSoldModalOpen, setIsMarkAsSoldModalOpen] = useState(false);
+  const [selectedLeadForSold, setSelectedLeadForSold] = useState<CrmLead | null>(null);
+  const [selectedConsultantId, setSelectedConsultantId] = useState<string | null>(null);
 
-  // NOVO: Estados para o filtro de data
   const [filterStartDate, setFilterStartDate] = useState('');
   const [filterEndDate, setFilterEndDate] = useState('');
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false); // NOVO: Estado para o modal de importação
 
   const activePipeline = useMemo(() => {
     return crmPipelines.find(p => p.is_active) || crmPipelines[0];
@@ -55,8 +58,6 @@ const CrmOverviewPage = () => {
   }, [teamMembers]);
 
   const allCrmLeads = useMemo(() => {
-    // Gestores/Admins veem todos os leads associados ao seu crmOwnerUserId
-    // O filtro por user_id já é feito no AppContext para crmLeads
     return crmLeads;
   }, [crmLeads]);
 
@@ -67,7 +68,6 @@ const CrmOverviewPage = () => {
       currentLeads = currentLeads.filter(lead => lead.consultant_id === selectedConsultantId);
     }
 
-    // Filtrar por termo de busca
     if (searchTerm) {
       const lowerCaseSearchTerm = searchTerm.toLowerCase();
       currentLeads = currentLeads.filter(lead =>
@@ -78,13 +78,12 @@ const CrmOverviewPage = () => {
       );
     }
 
-    // NOVO: Filtrar por data de criação
     if (filterStartDate) {
       const start = new Date(filterStartDate + 'T00:00:00');
       currentLeads = currentLeads.filter(lead => new Date(lead.created_at) >= start);
     }
     if (filterEndDate) {
-      const end = new Date(filterEndDate + 'T23:59:59'); // Inclui o dia inteiro
+      const end = new Date(filterEndDate + 'T23:59:59');
       currentLeads = currentLeads.filter(lead => new Date(lead.created_at) <= end);
     }
 
@@ -132,14 +131,12 @@ const CrmOverviewPage = () => {
     setIsMeetingModalOpen(true);
   };
 
-  // NOVO: Função para abrir o modal de proposta
   const handleOpenProposalModal = (e: React.MouseEvent, lead: CrmLead) => {
     e.stopPropagation();
     setSelectedLeadForProposal(lead);
     setIsProposalModalOpen(true);
   };
 
-  // NOVO: Função para abrir o modal de marcar como vendido
   const handleMarkAsWon = async (e: React.FormEvent, lead: CrmLead) => {
     e.stopPropagation();
     if (!user) return;
@@ -170,6 +167,12 @@ const CrmOverviewPage = () => {
       await updateCrmLeadStage(leadId, newStageId);
     } catch (error: any) {
       alert(`Erro ao mover lead: ${error.message}`);
+    }
+  };
+
+  const handleImportLeads = async (leadsToImport: Omit<CrmLead, 'id' | 'created_at' | 'updated_at' | 'user_id' | 'created_by' | 'updated_by'>[]) => {
+    for (const leadData of leadsToImport) {
+      await addCrmLead(leadData);
     }
   };
 
@@ -245,6 +248,20 @@ const CrmOverviewPage = () => {
               </SelectContent>
             </Select>
           </div>
+          <ExportCrmLeadsButton
+            leads={filteredLeads}
+            crmFields={crmFields}
+            crmStages={crmStages}
+            teamMembers={teamMembers}
+            fileName="leads_crm_gestor"
+          />
+          <button
+            onClick={() => setIsImportModalOpen(true)} // NOVO: Botão para abrir o modal de importação
+            className="flex items-center justify-center space-x-2 bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded-lg transition font-medium flex-shrink-0"
+          >
+            <UploadCloud className="w-5 h-5" />
+            <span>Importar Leads</span>
+          </button>
           <button
             onClick={handleAddNewLead}
             className="flex items-center justify-center space-x-2 bg-brand-600 hover:bg-brand-700 text-white py-2 px-4 rounded-lg transition font-medium w-full sm:w-auto flex-shrink-0"
@@ -355,7 +372,7 @@ const CrmOverviewPage = () => {
                         </div>
                       </div>
                       <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 space-y-0.5">
-                        {consultant && <div className="flex items-center"><UserRound className="w-3 h-3 mr-1" /> Consultor: {consultant.name}</div>} {/* Adicionado nome do consultor */}
+                        {consultant && <div className="flex items-center"><UserRound className="w-3 h-3 mr-1" /> Consultor: {consultant.name}</div>}
                         {lead.data.phone && <div className="flex items-center"><Phone className="w-3 h-3 mr-1" /> {lead.data.phone}</div>}
                         {lead.data.email && <div className="flex items-center"><Mail className="w-3 h-3 mr-1" /> {lead.data.email}</div>}
                         {lead.data.origin && <div className="flex items-center"><Tag className="w-3 h-3 mr-1" /> {lead.data.origin}</div>}
@@ -400,7 +417,7 @@ const CrmOverviewPage = () => {
                         >
                           <SelectTrigger 
                             className="w-full h-auto py-1.5 text-xs dark:bg-slate-800 dark:text-white dark:border-slate-600"
-                            onClick={(e) => e.stopPropagation()} // Reintroduzido
+                            onClick={(e) => e.stopPropagation()}
                           >
                             <SelectValue placeholder="Mover para..." />
                           </SelectTrigger>
@@ -486,6 +503,17 @@ const CrmOverviewPage = () => {
           isOpen={isMarkAsSoldModalOpen}
           onClose={() => setIsMarkAsSoldModalOpen(false)}
           lead={selectedLeadForSold}
+        />
+      )}
+
+      {isImportModalOpen && (
+        <ImportCrmLeadsModal
+          isOpen={isImportModalOpen}
+          onClose={() => setIsImportModalOpen(false)}
+          onImport={handleImportLeads}
+          crmFields={crmFields}
+          consultants={consultants}
+          stages={crmStages}
         />
       )}
     </div>

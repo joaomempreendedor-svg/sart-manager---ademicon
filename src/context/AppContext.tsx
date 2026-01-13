@@ -769,7 +769,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 createdAt: payload.new.created_at, // ⚠️ CORREÇÃO: Usar created_at da linha do DB
                 lastUpdatedAt: payload.new.last_updated_at, // ⚠️ CORREÇÃO: Usar last_updated_at da linha do DB
                 // Explicitly ensure nested objects are deep copies if they exist
-                interviewScores: JSON.parse(JSON.stringify(rawPayloadData.interviewScores || { basicProfile: 0, commercialSkills: 0, behavioralProfile: 0, jobFit: 0, notes: '' })),
+                interviewScores: JSON.parse(JSON.stringify(rawCandidateData.interviewScores || { basicProfile: 0, commercialSkills: 0, behavioralProfile: 0, jobFit: 0, notes: '' })),
                 checkedQuestions: JSON.parse(JSON.stringify(rawCandidateData.checkedQuestions || {})),
                 checklistProgress: JSON.parse(JSON.stringify(rawCandidateData.checklistProgress || {})),
                 consultantGoalsProgress: JSON.parse(JSON.stringify(rawCandidateData.consultantGoalsProgress || {})),
@@ -1272,7 +1272,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           db_id: item.id,
           name: item.data.name,
           email: item.data.email,
-          roles: Array.isArray(item.data.roles) ? item.data.roles : [item.data.role || 'Prévia'],
+          roles: Array.isArray(item.data.roles) ? data.roles : [item.data.role || 'Prévia'],
           isActive: item.data.isActive !== false,
           hasLogin: true,
           isLegacy: false,
