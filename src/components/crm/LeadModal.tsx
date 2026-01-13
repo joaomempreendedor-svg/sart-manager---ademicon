@@ -187,7 +187,7 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
             <SelectTrigger className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600 focus:outline-none focus:ring-0 focus:ring-offset-0 focus:border-transparent">
               <SelectValue placeholder={`Selecione ${field.label}`} />
             </SelectTrigger>
-            <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white border-gray-200 dark:border-slate-700 shadow-lg z-50">
+            <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white border-gray-200 dark:border-slate-700 shadow-lg z-50 max-h-[200px] overflow-y-auto">
               {field.options?.map(option => (
                 <SelectItem key={option} value={option}>{option}</SelectItem>
               ))}
@@ -273,7 +273,7 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
                     <SelectTrigger className="w-full pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600">
                       <SelectValue placeholder="Selecione a origem" />
                     </SelectTrigger>
-                    <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
+                    <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700 max-h-[200px] overflow-y-auto">
                       {salesOrigins.map(origin => (
                         <SelectItem key={origin} value={origin}>{origin}</SelectItem>
                       ))}
