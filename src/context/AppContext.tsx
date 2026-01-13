@@ -1107,7 +1107,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const mergedCandidateData: Candidate = {
       ...currentCandidateDeepCopy,
       ...updatesDeepCopy,
-      // Explicitly deep copy and merge nested objects if they are part of updates
+      // Explicitly deep copy and merge nested objects if they exist
       interviewScores: updatesDeepCopy.interviewScores 
         ? { ...currentCandidateDeepCopy.interviewScores, ...updatesDeepCopy.interviewScores } 
         : currentCandidateDeepCopy.interviewScores,
@@ -2143,7 +2143,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const existingCompletion = dailyChecklistCompletions.find(c =>
       c.daily_checklist_item_id === daily_checklist_item_id &&
       c.date === date &&
-      c.consultant_id === consultant_id
+      c.user_id === consultant_id // ⚠️ CORREÇÃO APLICADA AQUI
     );
 
     if (existingCompletion) {
