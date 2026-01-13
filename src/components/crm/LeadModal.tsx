@@ -42,22 +42,34 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState('');
 
+  // A lista de origens disponíveis é estritamente as salesOrigins configuradas
+  const allAvailableOrigins = useMemo(() => {
+    return [...salesOrigins].sort((a, b) => a.localeCompare(b));
+  }, [salesOrigins]);
+
   useEffect(() => {
     if (isOpen) {
+      const initialOrigin = lead?.data?.origin;
+      let validatedOrigin = '';
+
+      // Se houver uma origem inicial e ela estiver na lista de origens configuradas, use-a.
+      // Caso contrário, o campo de origem será vazio, forçando a seleção de uma opção válida.
+      if (initialOrigin && allAvailableOrigins.includes(initialOrigin)) {
+        validatedOrigin = initialOrigin;
+      }
+
       setFormData({
         name: lead?.name || '',
         stage_id: lead?.stage_id,
         consultant_id: lead?.consultant_id,
-        data: { ...lead?.data },
+        data: { 
+          ...lead?.data,
+          origin: validatedOrigin, // Usa a origem validada (ou vazia se inválida)
+        },
       });
       setError('');
     }
-  }, [lead, isOpen, assignedConsultantId]);
-
-  // CORREÇÃO FINAL: Usar APENAS salesOrigins para as opções de origem
-  const allAvailableOrigins = useMemo(() => {
-    return [...salesOrigins].sort((a, b) => a.localeCompare(b));
-  }, [salesOrigins]);
+  }, [lead, isOpen, assignedConsultantId, allAvailableOrigins]); // allAvailableOrigins como dependência
 
   const handleChange = (key: string, value: any) => {
     setFormData(prev => {
