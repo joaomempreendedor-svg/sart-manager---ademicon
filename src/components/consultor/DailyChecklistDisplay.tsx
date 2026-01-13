@@ -36,12 +36,20 @@ export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ us
   const formattedSelectedDate = useMemo(() => formatDate(selectedDate), [selectedDate]);
 
   const userTeamMember = useMemo(() => {
-    if (!user) return null;
-    return teamMembers.find(tm => tm.id === user.id || (tm.email && tm.email === user.email) || (tm.isLegacy && tm.name === user.name));
+    if (!user) {
+      console.log("[DailyChecklistDisplay] User is null.");
+      return null;
+    }
+    const foundMember = teamMembers.find(tm => tm.id === user.id || (tm.email && tm.email === user.email) || (tm.isLegacy && tm.name === user.name));
+    console.log("[DailyChecklistDisplay] User:", user);
+    console.log("[DailyChecklistDisplay] All Team Members:", teamMembers);
+    console.log("[DailyChecklistDisplay] Found User Team Member:", foundMember);
+    return foundMember;
   }, [user, teamMembers]);
 
   const assignedChecklists = useMemo(() => {
     if (!user || !userTeamMember) {
+      console.log("[DailyChecklistDisplay] No user or userTeamMember, returning empty checklists.");
       return [];
     }
 
@@ -52,6 +60,7 @@ export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ us
       );
       return !hasAnyAssignment; // GLOBAL = sem atribuições
     });
+    console.log("[DailyChecklistDisplay] Global Checklists:", globalChecklists);
 
     // 2. ESPECÍFICOS: checklists atribuídos a ESTE consultor
     const specificChecklists = dailyChecklists.filter(checklist => {
@@ -61,6 +70,7 @@ export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ us
           assignment.consultant_id === userTeamMember.id
       );
     });
+    console.log("[DailyChecklistDisplay] Specific Checklists for User Team Member:", specificChecklists);
 
     // 3. COMBINAR ambos (remover duplicados)
     const allChecklists = [...globalChecklists, ...specificChecklists];
@@ -70,6 +80,9 @@ export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ us
         checklist.is_active &&
         self.findIndex(c => c.id === checklist.id) === index
     );
+    console.log("[DailyChecklistDisplay] All Daily Checklists:", dailyChecklists);
+    console.log("[DailyChecklistDisplay] All Daily Checklist Assignments:", dailyChecklistAssignments);
+    console.log("[DailyChecklistDisplay] Final Unique & Active Assigned Checklists:", uniqueChecklists);
 
     return uniqueChecklists.sort((a, b) => a.title.localeCompare(b.title));
   }, [dailyChecklists, dailyChecklistAssignments, user, userTeamMember]);

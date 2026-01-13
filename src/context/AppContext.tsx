@@ -604,6 +604,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           return member;
         }) || [];
         setTeamMembers(normalizedTeamMembers);
+        console.log("[AppContext] Fetched Team Members:", normalizedTeamMembers); // Log para teamMembers
 
         setSupportMaterials(materialsData?.data?.map(item => ({ ...(item.data as SupportMaterial), db_id: item.id })) || []);
         // setImportantLinks(linksData?.data?.map(item => ({ ...(item.data as ImportantLink), db_id: item.id })) || []); // REMOVIDO
@@ -2678,7 +2679,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     supportMaterialsV2, supportMaterialAssignments, leadTasks, gestorTasks, gestorTaskCompletions,
     financialEntries, formCadastros, formFiles, notifications,
     theme, toggleTheme, addCandidate, getCandidate, updateCandidate, deleteCandidate, 
-    setChecklistDueDate, toggleConsultantGoal, addChecklistItem, updateChecklistItem, deleteChecklistItem, moveChecklistItem, resetChecklistToDefault,
+    setChecklistDueDate, toggleChecklistItem, addChecklistItem, updateChecklistItem, deleteChecklistItem, moveChecklistItem, resetChecklistToDefault,
     addGoalItem, updateGoalItem, deleteGoalItem, moveGoalItem, resetGoalsToDefault,
     updateInterviewSection, addInterviewQuestion, updateInterviewQuestion, deleteInterviewQuestion, moveInterviewQuestion, resetInterviewToDefault,
     saveTemplate, addOrigin, deleteOrigin, resetOriginsToDefault, addPV,
