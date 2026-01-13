@@ -67,7 +67,7 @@ const JOAO_GESTOR_AUTH_ID = "0c6d71b7-daeb-4dde-8eec-0e7a8ffef658"; // <--- ATUA
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { user, session } = useAuth();
-  const fetchedUserIdRef = useRef<string | null>(null);
+  const fetchedUserIdRef = useRef<string | null>(fetchedUserIdRef.current);
   const isFetchingRef = useRef(false);
 
   const [isDataLoading, setIsDataLoading] = useState(true);
@@ -853,6 +853,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 meeting_end_time: payload.new.meeting_end_time,
                 manager_id: payload.new.manager_id,
                 manager_invitation_status: payload.new.manager_invitation_status,
+                updated_at: payload.new.updated_at, // Adicionado updated_at
             };
 
             if (payload.eventType === 'INSERT') {
@@ -2316,7 +2317,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [user]);
 
   // Lead Task Functions
-  const addLeadTask = useCallback(async (task: Omit<LeadTask, 'id' | 'created_at' | 'completed_at'> & { user_id: string; manager_id?: string | null; }) => {
+  const addLeadTask = useCallback(async (task: Omit<LeadTask, 'id' | 'created_at' | 'completed_at' | 'updated_at'> & { user_id: string; manager_id?: string | null; }) => {
     if (!user) throw new Error("Usuário não autenticado.");
     const { data, error } = await supabase.from('lead_tasks').insert({ ...task, created_at: new Date().toISOString() }).select('*').single();
     if (error) throw error;
@@ -2326,7 +2327,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const updateLeadTask = useCallback(async (id: string, updates: Partial<LeadTask> & { user_id?: string; manager_id?: string | null; }) => {
     if (!user) throw new Error("Usuário não autenticado.");
-    const { data, error } = await supabase.from('lead_tasks').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id).select('*').single();
+    const { data, error } = await supabase.from('lead_tasks').update({ ...updates }).eq('id', id).select('*').single();
     if (error) throw error;
     setLeadTasks(prev => prev.map(task => task.id === id ? data : task));
     return data;
