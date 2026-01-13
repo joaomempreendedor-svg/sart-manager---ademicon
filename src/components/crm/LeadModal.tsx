@@ -54,9 +54,9 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
     }
   }, [lead, isOpen, assignedConsultantId]);
 
-  // CORREÇÃO: Usar apenas salesOrigins para as opções de origem
+  // CORREÇÃO FINAL: Usar APENAS salesOrigins para as opções de origem
   const allAvailableOrigins = useMemo(() => {
-    return salesOrigins.sort((a, b) => a.localeCompare(b));
+    return [...salesOrigins].sort((a, b) => a.localeCompare(b));
   }, [salesOrigins]);
 
   const handleChange = (key: string, value: any) => {
