@@ -601,7 +601,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             db_id: item.id,
             name: data.name,
             email: item.email,
-            roles: Array.isArray(data.roles) ? data.roles : [item.data.role || 'Prévia'],
+            roles: Array.isArray(item.data.roles) ? item.data.roles : [item.data.role || 'Prévia'],
             isActive: data.isActive !== false,
             hasLogin: true,
             isLegacy: false,
@@ -1033,7 +1033,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       user_id: JOAO_GESTOR_AUTH_ID, 
       data: newCandidateData,
       last_updated_at: newCandidateData.lastUpdatedAt 
-    }).select('id, created_at, last_updated_at').single(); 
+    }).select('id', 'created_at', 'last_updated_at').single(); 
     
     if (error) { 
       console.error("Erro ao adicionar candidato no Supabase:", error); 
@@ -2098,31 +2098,40 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       throw new Error("Usuário não autenticado.");
     }
 
-    const existingCompletion = dailyChecklistCompletions.find(c =>
-      c.daily_checklist_item_id === daily_checklist_item_id &&
-      c.date === date &&
-      c.consultant_id === consultant_id
-    );
+    // Use upsert to handle both insert and update based on the unique constraint
+    const { data, error } = await supabase.from('daily_checklist_completions')
+      .upsert(
+        {
+          daily_checklist_item_id,
+          consultant_id,
+          date,
+          done,
+          updated_at: new Date().toISOString(), // Always update timestamp on change
+        },
+        {
+          onConflict: 'daily_checklist_item_id,consultant_id,date', // Specify the unique constraint columns
+          ignoreDuplicates: false, // Ensure it updates if conflict
+        }
+      )
+      .select('*')
+      .single(); // Expect a single row back from upsert
 
-    if (existingCompletion) {
-      console.log(`[AppContext] Existing completion found: ${existingCompletion.id}. Updating 'done' to ${done}.`);
-      const { data, error } = await supabase.from('daily_checklist_completions').update({ done, updated_at: new Date().toISOString() }).eq('id', existingCompletion.id).select('*').single();
-      if (error) {
-        console.error("[AppContext] Erro ao atualizar conclusão existente:", error);
-        throw error;
-      }
-      setDailyChecklistCompletions(prev => prev.map(c => c.id === existingCompletion.id ? data : c));
-      console.log("[AppContext] Conclusão existente atualizada com sucesso.");
-    } else {
-      console.log(`[AppContext] No existing completion found. Inserting new completion with done=${done}.`);
-      const { data, error } = await supabase.from('daily_checklist_completions').insert({ daily_checklist_item_id, consultant_id, date, done }).select('*').single();
-      if (error) {
-        console.error("[AppContext] Erro ao inserir nova conclusão:", error);
-        throw error;
-      }
-      setDailyChecklistCompletions(prev => [...prev, data]);
-      console.log("[AppContext] Nova conclusão inserida com sucesso.");
+    if (error) {
+      console.error("[AppContext] Erro ao upsert conclusão do checklist:", error);
+      throw error;
     }
+
+    setDailyChecklistCompletions(prev => {
+      // Remove any existing record for this item/consultant/date
+      const filtered = prev.filter(c =>
+        !(c.daily_checklist_item_id === daily_checklist_item_id &&
+          c.consultant_id === consultant_id &&
+          c.date === date)
+      );
+      // Add the new/updated record
+      return [...filtered, data];
+    });
+    console.log("[AppContext] Conclusão do checklist upserted com sucesso.");
   }, [user, dailyChecklistCompletions]);
 
   // Weekly Target Functions
@@ -2497,7 +2506,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       toast.error("Erro ao adicionar feedback do membro da equipe.");
       throw error;
     }
-    setTeamMembers(prev => prev.map(m => m.id === teamMemberId ? { ...m, feedbacks: updatedFeedbacks } : m));
+    setTeamMembers(prev => prev.map(m => m.id !== teamMemberId ? m : { ...m, feedbacks: updatedFeedbacks }));
     return newFeedback;
   }, [teamMembers, user]);
 
@@ -2519,7 +2528,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       toast.error("Erro ao atualizar feedback do membro da equipe.");
       throw error;
     }
-    setTeamMembers(prev => prev.map(m => m.id === teamMemberId ? { ...m, feedbacks: updatedFeedbacks } : m));
+    setTeamMembers(prev => prev.map(m => m.id !== teamMemberId ? m : { ...m, feedbacks: updatedFeedbacks }));
     return feedback;
   }, [teamMembers, user]);
 
@@ -2541,7 +2550,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       toast.error("Erro ao excluir feedback do membro da equipe.");
       throw error;
     }
-    setTeamMembers(prev => prev.filter(m => m.id !== teamMemberId ? { ...m, feedbacks: updatedFeedbacks } : m));
+    setTeamMembers(prev => prev.map(m => m.id !== teamMemberId ? m : { ...m, feedbacks: updatedFeedbacks }));
   }, [teamMembers, user]);
 
 
