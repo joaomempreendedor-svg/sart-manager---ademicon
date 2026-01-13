@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { CrmLead, CrmField, CrmStage } from '@/types';
-import { X, Save, Loader2, SlidersHorizontal, MapPin } from 'lucide-react'; // Adicionado MapPin
+import { X, Save, Loader2, SlidersHorizontal, MapPin } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import toast from 'react-hot-toast'; // Importar toast
+import toast from 'react-hot-toast';
 
 interface LeadModalProps {
   isOpen: boolean;
@@ -33,14 +33,14 @@ interface LeadModalProps {
 }
 
 const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields, assignedConsultantId }) => {
-  const { addCrmLead, updateCrmLead, deleteCrmLead, crmOwnerUserId, crmStages, origins } = useApp(); // Adicionado origins
+  const { addCrmLead, updateCrmLead, deleteCrmLead, crmOwnerUserId, crmStages, origins } = useApp();
   const [formData, setFormData] = useState<Partial<CrmLead>>({
     name: '',
     data: {},
   });
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [error, setError] = useState(''); // Estado para erros de validação
+  const [error, setError] = useState('');
 
   useEffect(() => {
     if (isOpen) {
@@ -50,7 +50,7 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
         consultant_id: lead?.consultant_id,
         data: { ...lead?.data },
       });
-      setError(''); // Limpa erros ao abrir o modal
+      setError('');
     }
   }, [lead, isOpen, assignedConsultantId]);
 
@@ -76,13 +76,11 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
     e.preventDefault();
     setError('');
     
-    // Validação do campo 'name' principal
     if (!formData.name?.trim()) {
       setError('O campo "Nome do Lead" é obrigatório.');
       return;
     }
 
-    // Validação do campo 'origin'
     if (!formData.data?.origin?.trim()) {
       setError('O campo "Origem" é obrigatório.');
       return;
@@ -93,11 +91,10 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
       return;
     }
 
-    // Valida outros campos personalizados obrigatórios
     const missingRequiredFields = crmFields.filter(field => 
       field.is_required && 
-      field.key !== 'name' && // Exclui 'name' pois já foi tratado acima
-      field.key !== 'origin' && // Exclui 'origin' pois já foi tratado acima
+      field.key !== 'name' && 
+      field.key !== 'origin' && 
       !formData.data?.[field.key]
     );
     if (missingRequiredFields.length > 0) {
@@ -112,9 +109,9 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
         name: formData.name || null,
         consultant_id: formData.consultant_id || null,
         user_id: crmOwnerUserId,
-        data: { // Garante que 'data' é um objeto e inclui 'origin'
+        data: {
           ...formData.data,
-          origin: formData.data?.origin || null, // Garante que a origem está no data
+          origin: formData.data?.origin || null,
         },
       } as CrmLead;
 
@@ -151,8 +148,12 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
 
   const renderField = (field: CrmField) => {
     // O campo 'name' principal é tratado separadamente no JSX
-    if (field.key === 'name' || field.key === 'nome' || field.key === 'origin') {
-      return null; // Não renderiza campos 'name' ou 'origin' como campos personalizados aqui
+    // Campos 'nome' e 'origin' também são tratados como campos principais e não devem ser renderizados aqui
+    const systemReservedKeys = ['name', 'nome', 'origin'];
+    const systemReservedLabels = ['Nome do Lead', 'Origem'];
+
+    if (systemReservedKeys.includes(field.key) || systemReservedLabels.includes(field.label)) {
+      return null;
     }
 
     const value = formData.data?.[field.key] || '';
@@ -190,19 +191,17 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
     }
   };
 
-  // Filtra chaves reservadas do sistema que NÃO devem ser campos personalizados
+  // Filtra chaves e rótulos reservados do sistema que NÃO devem ser campos personalizados
   const filteredCrmFields = useMemo(() => {
-    // Exclui campos com chaves ou rótulos que já são tratados como campos principais do lead
-    const fixedFieldKeys = ['name', 'nome', 'origin']; 
-    const fixedFieldLabels = ['Nome do Lead', 'Origem']; // Adicionado rótulos para filtrar
+    const systemReservedKeys = ['stage_id', 'name', 'nome', 'origin', 'consultant_id', 'user_id', 'created_by', 'updated_by', 'proposal_value', 'proposal_closing_date', 'sold_credit_value', 'sold_group', 'sold_quota', 'sale_date'];
+    const systemReservedLabels = ['Nome do Lead', 'Origem', 'Etapa Atual'];
 
     return crmFields.filter(field => 
-      !fixedFieldKeys.includes(field.key) &&
-      !fixedFieldLabels.includes(field.label) // Filtra pelo rótulo também
+      !systemReservedKeys.includes(field.key) &&
+      !systemReservedLabels.includes(field.label)
     );
   }, [crmFields]);
 
-  // Obtém o nome da etapa atual para exibição
   const currentStageName = useMemo(() => {
     if (!lead?.stage_id) return 'N/A';
     const stage = crmStages.find(s => s.id === lead.stage_id);
