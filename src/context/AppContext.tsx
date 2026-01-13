@@ -22,8 +22,8 @@ const DEFAULT_APP_CONFIG_DATA = {
   consultantGoalsStructure: DEFAULT_GOALS,
   interviewStructure: INITIAL_INTERVIEW_STRUCTURE,
   templates: {},
-  hiringOrigins: ['Indicação', 'Prospecção', 'Tráfego Linkedin'], // NOVO: Origens para contratação
-  salesOrigins: ['WhatsApp', 'Frio', 'Instagram', 'Networking'], // NOVO: Origens para vendas
+  hiringOrigins: ['Indicação', 'Prospecção', 'Tráfego Linkedin'], // Origens para contratação
+  salesOrigins: ['WhatsApp', 'Frio', 'Instagram', 'Networking', 'Tráfego Pago', 'Indicação'], // NOVO: Adicionado 'Tráfego Pago' e 'Indicação'
   interviewers: ['João Müller'],
   pvs: ['SOARES E MORAES', 'SART INVESTIMENTOS', 'KR CONSÓRCIOS', 'SOLOM INVESTIMENTOS'],
 };
