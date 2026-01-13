@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useApp } from '@/context/AppContext'; // Importar useApp
+import { useApp } from '@/context/AppContext';
 import { CrmLead, CrmField, CrmStage } from '@/types';
 import { X, Save, Loader2, SlidersHorizontal, MapPin } from 'lucide-react';
 import {
@@ -33,7 +33,7 @@ interface LeadModalProps {
 }
 
 const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields, assignedConsultantId }) => {
-  const { addCrmLead, updateCrmLead, deleteCrmLead, crmOwnerUserId, crmStages, salesOrigins } = useApp(); // Consumir salesOrigins
+  const { addCrmLead, updateCrmLead, deleteCrmLead, crmOwnerUserId, crmStages, salesOrigins, crmLeads } = useApp(); // Adicionado crmLeads
   const [formData, setFormData] = useState<Partial<CrmLead>>({
     name: '',
     data: {},
@@ -53,6 +53,17 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
       setError('');
     }
   }, [lead, isOpen, assignedConsultantId]);
+
+  const allAvailableOrigins = useMemo(() => {
+    const uniqueOriginsFromLeads = new Set<string>();
+    crmLeads.forEach(l => {
+      if (l.data?.origin) {
+        uniqueOriginsFromLeads.add(l.data.origin);
+      }
+    });
+    const combinedOrigins = Array.from(new Set([...salesOrigins, ...Array.from(uniqueOriginsFromLeads)]));
+    return combinedOrigins.sort((a, b) => a.localeCompare(b));
+  }, [salesOrigins, crmLeads]);
 
   const handleChange = (key: string, value: any) => {
     setFormData(prev => {
@@ -158,7 +169,7 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
   };
 
   const renderField = (field: CrmField) => {
-    const systemReservedKeys = ['name', 'nome', 'origin', 'origem']; // Updated to include 'nome' and 'origem'
+    const systemReservedKeys = ['name', 'nome', 'origin', 'origem'];
 
     if (systemReservedKeys.includes(field.key)) {
       return null;
@@ -200,12 +211,11 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
   };
 
   const filteredCrmFields = useMemo(() => {
-    // These are the keys of fields that are handled by dedicated inputs in the modal
     const explicitlyHandledKeys = ['name', 'nome', 'origin', 'origem']; 
     
     return crmFields.filter(field => 
-      field.is_active && // Only active fields
-      !explicitlyHandledKeys.includes(field.key) // Exclude fields handled by dedicated inputs
+      field.is_active && 
+      !explicitlyHandledKeys.includes(field.key)
     );
   }, [crmFields]);
 
@@ -274,7 +284,7 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
                       <SelectValue placeholder="Selecione a origem" />
                     </SelectTrigger>
                     <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700 max-h-[200px] overflow-y-auto">
-                      {salesOrigins.map(origin => (
+                      {allAvailableOrigins.map(origin => (
                         <SelectItem key={origin} value={origin}>{origin}</SelectItem>
                       ))}
                     </SelectContent>
