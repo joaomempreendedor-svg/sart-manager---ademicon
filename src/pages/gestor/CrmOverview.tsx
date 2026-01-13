@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { CrmLead } from '@/types';
+import { CrmLead, LeadTask } from '@/types'; // Importar LeadTask
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -41,6 +41,7 @@ const CrmOverviewPage = () => { // Renomeado para CrmOverviewPage para evitar co
   const [filterEndDate, setFilterEndDate] = useState('');
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [selectedConsultantId, setSelectedConsultantId] = useState<string | null>(null); // NOVO: Estado para o filtro de consultor
+  const [meetingToEdit, setMeetingToEdit] = useState<LeadTask | null>(null); // NOVO: Estado para a reunião a ser editada
 
   const activePipeline = useMemo(() => {
     return crmPipelines.find(p => p.is_active) || crmPipelines[0];
@@ -129,6 +130,18 @@ const CrmOverviewPage = () => { // Renomeado para CrmOverviewPage para evitar co
   const handleOpenMeetingModal = (e: React.MouseEvent, lead: CrmLead) => {
     e.stopPropagation();
     setSelectedLeadForMeeting(lead);
+
+    // NOVO: Buscar a próxima reunião agendada para este lead
+    const now = new Date();
+    const nextMeeting = leadTasks.filter(task =>
+      task.lead_id === lead.id &&
+      task.type === 'meeting' &&
+      !task.is_completed &&
+      task.meeting_start_time &&
+      new Date(task.meeting_start_time).getTime() > now.getTime()
+    ).sort((a, b) => new Date(a.meeting_start_time!).getTime() - new Date(b.meeting_start_time!).getTime())[0];
+
+    setMeetingToEdit(nextMeeting || null); // Define a reunião para edição (ou null se não houver)
     setIsMeetingModalOpen(true);
   };
 
@@ -492,18 +505,23 @@ const CrmOverviewPage = () => { // Renomeado para CrmOverviewPage para evitar co
       {isMeetingModalOpen && selectedLeadForMeeting && (
         <ScheduleMeetingModal
           isOpen={isMeetingModalOpen}
-          onClose={() => setIsMeetingModalOpen(false)}
+          onClose={() => {
+            console.log("ScheduleMeetingModal onClose called");
+            setIsMeetingModalOpen(false);
+            setMeetingToEdit(null); // Limpa o estado da reunião a ser editada
+          }}
           lead={selectedLeadForMeeting}
+          currentMeeting={meetingToEdit} // Passa a reunião para edição
         />
       )}
 
       {isProposalModalOpen && selectedLeadForProposal && (
         <ProposalModal
           isOpen={isProposalModalOpen}
-          onClose={() => {
-            console.log("ProposalModal onClose called");
-            setIsProposalModalOpen(false);
-          }}
+        onClose={() => {
+          console.log("ProposalModal onClose called");
+          setIsProposalModalOpen(false);
+        }}
           lead={selectedLeadForProposal}
         />
       )}

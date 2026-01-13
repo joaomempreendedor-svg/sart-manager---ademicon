@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { CrmLead } from '@/types';
+import { CrmLead, LeadTask } from '@/types'; // Importar LeadTask
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -40,6 +40,7 @@ const ConsultorCrmPage = () => {
   const [filterStartDate, setFilterStartDate] = useState('');
   const [filterEndDate, setFilterEndDate] = useState('');
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [meetingToEdit, setMeetingToEdit] = useState<LeadTask | null>(null); // NOVO: Estado para a reunião a ser editada
 
   const activePipeline = useMemo(() => {
     return crmPipelines.find(p => p.is_active) || crmPipelines[0];
@@ -120,6 +121,18 @@ const ConsultorCrmPage = () => {
   const handleOpenMeetingModal = (e: React.MouseEvent, lead: CrmLead) => {
     e.stopPropagation();
     setSelectedLeadForMeeting(lead);
+
+    // NOVO: Buscar a próxima reunião agendada para este lead
+    const now = new Date();
+    const nextMeeting = leadTasks.filter(task =>
+      task.lead_id === lead.id &&
+      task.type === 'meeting' &&
+      !task.is_completed &&
+      task.meeting_start_time &&
+      new Date(task.meeting_start_time).getTime() > now.getTime()
+    ).sort((a, b) => new Date(a.meeting_start_time!).getTime() - new Date(b.meeting_start_time!).getTime())[0];
+
+    setMeetingToEdit(nextMeeting || null); // Define a reunião para edição (ou null se não houver)
     setIsMeetingModalOpen(true);
   };
 
@@ -352,7 +365,7 @@ const ConsultorCrmPage = () => {
                         {lead.data.origin && <div className="flex items-center"><Tag className="w-3 h-3 mr-1" /> {lead.data.origin}</div>}
                         
                         {nextMeeting && (
-                          <div className="flex items-center text-blue-600 dark:text-blue-400 font-semibold mt-2"> {/* Adicionado mt-2 para espaçamento */}
+                          <div className="flex items-center text-blue-600 dark:text-blue-400 font-semibold mt-2">
                             <Calendar className="w-3 h-3 mr-1" /> {new Date(nextMeeting.meeting_start_time!).toLocaleDateString('pt-BR')}
                             <Clock className="w-3 h-3 ml-2 mr-1" /> {new Date(nextMeeting.meeting_start_time!).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                           </div>
@@ -364,7 +377,7 @@ const ConsultorCrmPage = () => {
                               <CheckCircle2 className="w-3 h-3 mr-1" /> Vendido: {formatCurrency(lead.soldCreditValue)}
                               {lead.saleDate && (
                                 <span className="ml-1 text-xs text-gray-500 dark:text-gray-400 font-normal">
-                                  ({new Date(lead.saleDate + 'T00:00:00').toLocaleDateString('pt-BR')})
+                                  (até {new Date(lead.saleDate + 'T00:00:00').toLocaleDateString('pt-BR')})
                                 </span>
                               )}
                             </div>
@@ -463,8 +476,13 @@ const ConsultorCrmPage = () => {
       {isMeetingModalOpen && selectedLeadForMeeting && (
         <ScheduleMeetingModal
           isOpen={isMeetingModalOpen}
-          onClose={() => setIsMeetingModalOpen(false)}
+          onClose={() => {
+            console.log("ScheduleMeetingModal onClose called");
+            setIsMeetingModalOpen(false);
+            setMeetingToEdit(null); // Limpa o estado da reunião a ser editada
+          }}
           lead={selectedLeadForMeeting}
+          currentMeeting={meetingToEdit} // Passa a reunião para edição
         />
       )}
 
