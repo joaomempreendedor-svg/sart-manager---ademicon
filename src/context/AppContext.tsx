@@ -67,7 +67,7 @@ const JOAO_GESTOR_AUTH_ID = "0c6d71b7-daeb-4dde-8eec-0e7a8ffef658"; // <--- ATUA
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { user, session } = useAuth();
-  const fetchedUserIdRef = useRef<string | null>(fetchedUserIdRef.current);
+  const fetchedUserIdRef = useRef<string | null>(null); // Corrigido: Inicializado com null
   const isFetchingRef = useRef(false);
 
   const [isDataLoading, setIsDataLoading] = useState(true);
