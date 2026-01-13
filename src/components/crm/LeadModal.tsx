@@ -41,6 +41,7 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
   const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
+    console.log("[LeadModal] assignedConsultantId recebido:", assignedConsultantId); // NOVO LOG
     if (lead) {
       setFormData({
         name: lead.name || '', // Popula o name principal

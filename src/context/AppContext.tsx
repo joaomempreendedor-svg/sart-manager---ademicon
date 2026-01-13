@@ -591,33 +591,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const normalizedTeamMembers = teamMembersData?.map(item => {
           const data = item.data as any;
           
-          if (!data.id && data.name) {
-            return {
-              id: `legacy_${item.id}`,
-              db_id: item.id,
-              name: data.name,
-              email: data.email,
-              roles: Array.isArray(data.roles) ? data.roles : [data.role || 'Prévia'],
-              isActive: data.isActive !== false,
-              isLegacy: true,
-              hasLogin: false,
-              cpf: item.cpf,
-              dateOfBirth: data.dateOfBirth, // NOVO: Carregar data de nascimento
-            } as TeamMember;
-          }
-          
-          return {
-            id: data.id,
+          const member: TeamMember = {
+            id: data.id || `legacy_${item.id}`, // Use data.id if present, otherwise legacy
             db_id: item.id,
             name: data.name,
             email: data.email,
             roles: Array.isArray(data.roles) ? data.roles : [data.role || 'Prévia'],
             isActive: data.isActive !== false,
-            hasLogin: true,
-            isLegacy: false,
+            hasLogin: !!data.id, // If data.id exists, it's linked to auth.users
+            isLegacy: !data.id, // If data.id doesn't exist, it's legacy
             cpf: item.cpf,
             dateOfBirth: data.dateOfBirth, // NOVO: Carregar data de nascimento
-          } as TeamMember;
+          };
+          console.log(`[fetchData] Team Member Loaded: ID=${member.id}, Name=${member.name}, Email=${member.email}, HasLogin=${member.hasLogin}`); // NOVO LOG
+          return member;
         }) || [];
         setTeamMembers(normalizedTeamMembers);
 
@@ -756,14 +743,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             toast.info(`🔄 Candidato "${payload.new.data.name || payload.old.data.name}" atualizado em tempo real!`);
             
             // ⚠️ CORREÇÃO CRÍTICA: Garante que newCandidateData é uma cópia profunda do payload.new.data
-            const rawPayloadData = payload.new.data as Candidate;
-            const clientSideId = rawPayloadData.id || crypto.randomUUID(); // Fallback to new UUID if client-side ID is missing
-            if (!rawPayloadData.id) {
+            const rawCandidateData = payload.new.data as Candidate;
+            const clientSideId = rawCandidateData.id || crypto.randomUUID(); // Fallback to new UUID if client-side ID is missing
+            if (!rawCandidateData.id) {
               console.warn(`[Realtime: Candidate] Candidate with db_id "${payload.new.id}" is missing client-side 'id' in JSONB data. Generating new client-side ID: "${clientSideId}"`);
             }
             
             const newCandidateData: Candidate = {
-                ...JSON.parse(JSON.stringify(rawPayloadData)), // Deep copy the entire JSONB 'data'
+                ...JSON.parse(JSON.stringify(rawCandidateData)), // Deep copy the entire JSONB 'data'
                 id: clientSideId, // Ensure client-side ID is set
                 db_id: payload.new.id, // Adiciona a PK do Supabase
                 createdAt: payload.new.created_at, // ⚠️ CORREÇÃO: Usar created_at da linha do DB
@@ -1873,6 +1860,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
 
     console.log("[AppContext] Inserindo novo lead no Supabase:", newLeadData); // DEBUG LOG
+    console.log("[AppContext] User ID do usuário logado:", user.id); // NOVO LOG
+    console.log("[AppContext] Consultant ID no payload:", newLeadData.consultant_id); // NOVO LOG
 
     const { data, error } = await supabase.from('crm_leads').insert(newLeadData).select('*').single();
     if (error) {
