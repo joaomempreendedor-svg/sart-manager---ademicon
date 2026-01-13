@@ -70,14 +70,14 @@ export const ImportCrmLeadsModal: React.FC<ImportCrmLeadsModalProps> = ({
     let hasHeader = false;
 
     const lowerCaseFirstLine = firstLine.toLowerCase();
-    const expectedHeaders = ['nome', 'origem'];
-    
-    if (expectedHeaders.every(h => lowerCaseFirstLine.includes(h))) {
+    // Apenas 'nome' é um cabeçalho esperado para detecção
+    if (lowerCaseFirstLine.includes('nome')) {
       hasHeader = true;
       headers = firstLine.split(delimiter).map(h => h.trim().toLowerCase());
       dataLines = allLines.slice(1);
     } else {
-      headers = ['nome', 'origem'];
+      // Se não houver cabeçalho, assume que a primeira coluna é o nome e a segunda (se existir) é a origem
+      headers = ['nome', 'origem']; 
       dataLines = allLines;
     }
 
@@ -101,6 +101,7 @@ export const ImportCrmLeadsModal: React.FC<ImportCrmLeadsModalProps> = ({
       let recordIsValid = true;
       const currentRecordErrors: string[] = [];
 
+      // Mapeia os valores para os campos do lead
       headers.forEach((header, index) => {
         const fieldKey = headerToFieldKeyMap[header];
         const value = values[index];
@@ -109,7 +110,7 @@ export const ImportCrmLeadsModal: React.FC<ImportCrmLeadsModalProps> = ({
           if (fieldKey === 'name') {
             leadData.name = value;
           } else if (fieldKey === 'origin') {
-            // Valida a origem contra a lista de origens configuradas
+            // Valida a origem contra a lista de origens configuradas, se fornecida
             if (origins.includes(value)) {
               (leadData.data as any).origin = value;
             } else {
@@ -120,13 +121,15 @@ export const ImportCrmLeadsModal: React.FC<ImportCrmLeadsModalProps> = ({
         }
       });
 
+      // Validação: Nome do Lead é obrigatório
       if (!leadData.name?.trim()) {
         currentRecordErrors.push('Campo "Nome do Lead" é obrigatório.');
         recordIsValid = false;
       }
-      if (!(leadData.data as any)?.origin?.trim()) {
-        currentRecordErrors.push('Campo "Origem" é obrigatório.');
-        recordIsValid = false;
+      
+      // Se a origem não foi fornecida ou é inválida, define um valor padrão
+      if (!(leadData.data as any)?.origin?.trim() || !origins.includes((leadData.data as any)?.origin)) {
+        (leadData.data as any).origin = 'Não Informado';
       }
 
       if (recordIsValid) {
@@ -173,7 +176,7 @@ export const ImportCrmLeadsModal: React.FC<ImportCrmLeadsModalProps> = ({
             <span>Importar Leads do CRM</span>
           </DialogTitle>
           <DialogDescription>
-            Cole os dados da sua planilha (CSV ou tab-separated). O sistema buscará apenas as colunas 'Nome' e 'Origem'.
+            Cole os dados da sua planilha (CSV ou tab-separated). Apenas a coluna 'Nome' é obrigatória. A 'Origem' é opcional e será preenchida como 'Não Informado' se não for fornecida.
           </DialogDescription>
         </DialogHeader>
         
@@ -186,7 +189,7 @@ export const ImportCrmLeadsModal: React.FC<ImportCrmLeadsModalProps> = ({
               onChange={(e) => setPastedData(e.target.value)}
               rows={8}
               className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600 font-mono text-sm"
-              placeholder={`Cole aqui os dados da sua planilha. Use vírgula (,) ou tab (	) como separador.\n\nExemplo:\nNome,Origem\nJoão Silva,Indicação\nMaria Oliveira,Prospecção`}
+              placeholder={`Cole aqui os dados da sua planilha. Use vírgula (,) ou tab (	) como separador.\n\nExemplo:\nNome\nJoão Silva\nMaria Oliveira\n\nOu com origem (opcional):\nNome,Origem\nJoão Silva,Indicação\nMaria Oliveira,Prospecção`}
             />
             {parseError && (
               <p className="text-red-500 text-sm mt-2 flex items-center"><AlertTriangle className="w-4 h-4 mr-2" />{parseError}</p>
