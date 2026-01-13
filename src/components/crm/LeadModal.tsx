@@ -33,7 +33,7 @@ interface LeadModalProps {
 }
 
 const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields, assignedConsultantId }) => {
-  const { addCrmLead, updateCrmLead, deleteCrmLead, crmOwnerUserId, crmStages, salesOrigins } = useApp(); // ATUALIZADO: Usando salesOrigins
+  const { addCrmLead, updateCrmLead, deleteCrmLead, crmOwnerUserId, crmStages, salesOrigins } = useApp();
   const [formData, setFormData] = useState<Partial<CrmLead>>({
     name: '',
     data: {},
@@ -76,29 +76,40 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
     e.preventDefault();
     setError('');
     
+    const errorsList: string[] = [];
+
+    // 1. Validate hardcoded 'name' field
     if (!formData.name?.trim()) {
-      setError('O campo "Nome do Lead" é obrigatório.');
-      return;
+      errorsList.push('Nome do Lead');
     }
 
+    // 2. Validate hardcoded 'origin' field
     if (!formData.data?.origin?.trim()) {
-      setError('O campo "Origem" é obrigatório.');
-      return;
+      errorsList.push('Origem');
     }
 
+    // 3. Validate stage_id for existing leads (if applicable)
     if (lead && !formData.stage_id) {
-      setError('A Etapa é obrigatória para leads existentes.');
-      return;
+      errorsList.push('Etapa');
     }
 
-    const missingRequiredFields = crmFields.filter(field => 
+    // Keys that are handled by dedicated inputs and should not be re-validated as custom fields
+    const systemHandledKeys = ['name', 'nome', 'origin', 'origem']; 
+    
+    // 4. Validate other custom required fields
+    const missingRequiredCustomFields = crmFields.filter(field => 
+      field.is_active && 
       field.is_required && 
-      field.key !== 'name' && 
-      field.key !== 'origin' && 
-      !formData.data?.[field.key]
+      !systemHandledKeys.includes(field.key) && // Exclude fields handled by dedicated inputs
+      !formData.data?.[field.key] // Check if the value is missing in formData.data
     );
-    if (missingRequiredFields.length > 0) {
-      setError(`Os seguintes campos são obrigatórios: ${missingRequiredFields.map(f => f.label).join(', ')}`);
+
+    missingRequiredCustomFields.forEach(field => {
+      errorsList.push(field.label);
+    });
+
+    if (errorsList.length > 0) {
+      setError(`Os seguintes campos são obrigatórios: ${errorsList.join(', ')}.`);
       return;
     }
 
@@ -147,10 +158,9 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
   };
 
   const renderField = (field: CrmField) => {
-    const systemReservedKeys = ['name', 'nome', 'origin'];
-    const systemReservedLabels = ['Nome do Lead', 'Origem'];
+    const systemReservedKeys = ['name', 'nome', 'origin', 'origem']; // Updated to include 'nome' and 'origem'
 
-    if (systemReservedKeys.includes(field.key) || systemReservedLabels.includes(field.label)) {
+    if (systemReservedKeys.includes(field.key)) {
       return null;
     }
 
@@ -190,12 +200,12 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
   };
 
   const filteredCrmFields = useMemo(() => {
-    const systemReservedKeys = ['stage_id', 'name', 'nome', 'origin', 'consultant_id', 'user_id', 'created_by', 'updated_by', 'proposal_value', 'proposal_closing_date', 'sold_credit_value', 'sold_group', 'sold_quota', 'sale_date'];
-    const systemReservedLabels = ['Nome do Lead', 'Origem', 'Etapa Atual'];
-
+    // These are the keys of fields that are handled by dedicated inputs in the modal
+    const explicitlyHandledKeys = ['name', 'nome', 'origin', 'origem']; 
+    
     return crmFields.filter(field => 
-      !systemReservedKeys.includes(field.key) &&
-      !systemReservedLabels.includes(field.label)
+      field.is_active && // Only active fields
+      !explicitlyHandledKeys.includes(field.key) // Exclude fields handled by dedicated inputs
     );
   }, [crmFields]);
 
