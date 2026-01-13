@@ -14,7 +14,10 @@ serve(async (req) => {
   try {
     const { email, name, tempPassword, login: consultantLogin } = await req.json();
 
+    console.log("[create-or-link-consultant] Received request:", { email, name, consultantLogin });
+
     if (!email || !name || !tempPassword) {
+      console.error("[create-or-link-consultant] Missing required fields.");
       return new Response(JSON.stringify({ error: 'Email, name, and temporary password are required.' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
@@ -26,26 +29,38 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    console.log(`[Edge Function] Criando/vinculando consultor: ${email}`);
+    console.log(`[create-or-link-consultant] Attempting to list users for email: ${email}`);
 
     // 1. VERIFICAR SE USUÁRIO JÁ EXISTE COM ESTE EMAIL
-    const { data: existingUsers, error: listError } = await supabaseAdmin.auth.admin.listUsers();
+    const { data: existingUsersData, error: listError } = await supabaseAdmin.auth.admin.listUsers();
     
     if (listError) {
-      console.error(`[Edge Function] Erro ao listar usuários: ${listError.message}`);
+      console.error(`[create-or-link-consultant] Erro ao listar usuários: ${listError.message}`, { listError });
       return new Response(JSON.stringify({ error: `Falha ao verificar usuários: ${listError.message}` }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500,
       });
     }
 
-    const existingUser = existingUsers.users.find(user => user.email === email);
+    // ⚠️ Adicionado log para inspecionar a estrutura de existingUsersData
+    console.log("[create-or-link-consultant] Result from listUsers:", JSON.stringify(existingUsersData));
+
+    // Check if existingUsersData or existingUsersData.users is undefined
+    if (!existingUsersData || !Array.isArray(existingUsersData.users)) {
+        console.error("[create-or-link-consultant] Unexpected structure from listUsers: 'users' array is missing or not an array.", { existingUsersData });
+        return new Response(JSON.stringify({ error: `Falha ao verificar usuários: Resposta inesperada do serviço de autenticação.` }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 500,
+        });
+    }
+
+    const existingUser = existingUsersData.users.find(user => user.email === email);
     let authUserId: string;
     let userExists = false;
 
     if (existingUser) {
       // 2A. USUÁRIO EXISTE - APENAS RESETAR SENHA (NUNCA ALTERAR EMAIL)
-      console.log(`[Edge Function] Usuário ${email} já existe. Resetando senha.`);
+      console.log(`[create-or-link-consultant] Usuário ${email} já existe. Resetando senha.`);
       authUserId = existingUser.id;
       userExists = true;
 
@@ -63,15 +78,16 @@ serve(async (req) => {
       );
 
       if (updateError) {
-        console.error(`[Edge Function] Erro ao atualizar usuário existente: ${updateError.message}`);
+        console.error(`[create-or-link-consultant] Erro ao atualizar usuário existente: ${updateError.message}`, { updateError });
         return new Response(JSON.stringify({ error: `Falha ao resetar senha: ${updateError.message}` }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 400,
         });
       }
+      console.log(`[create-or-link-consultant] Senha do usuário existente ${email} resetada com sucesso.`);
     } else {
       // 2B. USUÁRIO NÃO EXISTE - CRIAR NOVO
-      console.log(`[Edge Function] Criando novo usuário: ${email}`);
+      console.log(`[create-or-link-consultant] Criando novo usuário: ${email}`);
       
       const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
         email: email,
@@ -87,7 +103,7 @@ serve(async (req) => {
       });
 
       if (createError) {
-        console.error(`[Edge Function] Erro ao criar usuário: ${createError.message}`);
+        console.error(`[create-or-link-consultant] Erro ao criar usuário: ${createError.message}`, { createError });
         return new Response(JSON.stringify({ error: `Falha ao criar usuário: ${createError.message}` }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 400,
@@ -96,9 +112,10 @@ serve(async (req) => {
       
       authUserId = newUser.user.id;
       userExists = false;
+      console.log(`[create-or-link-consultant] Novo usuário ${email} criado com sucesso. Auth ID: ${authUserId}`);
     }
 
-    console.log(`[Edge Function] Sucesso! AuthUserId: ${authUserId}, UserExists: ${userExists}`);
+    console.log(`[create-or-link-consultant] Sucesso! AuthUserId: ${authUserId}, UserExists: ${userExists}`);
 
     return new Response(JSON.stringify({ 
       authUserId, 
@@ -110,7 +127,7 @@ serve(async (req) => {
     });
 
   } catch (error) {
-    console.error('[Edge Function] Erro crítico:', error);
+    console.error('[create-or-link-consultant] Erro crítico na Edge Function:', error.message || error, { error });
     return new Response(JSON.stringify({ error: error.message || 'Falha ao processar solicitação' }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
