@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, Save, Loader2, Calendar as CalendarIcon, Users, CheckCircle2 } from 'lucide-react';
+import { X, Save, Loader2, Calendar as CalendarIcon, Users, CheckCircle2 } from 'lucide-react'; // Removido MapPin icon
 import { Candidate, InterviewScores, TeamMember } from '@/types';
 import { useApp } from '@/context/AppContext';
 import { useNavigate } from 'react-router-dom';
@@ -29,12 +29,12 @@ interface RecordTeamMemberInterviewModalProps {
 }
 
 export const RecordTeamMemberInterviewModal: React.FC<RecordTeamMemberInterviewModalProps> = ({ isOpen, onClose, teamMember }) => {
-  const { addCandidate, teamMembers, origins } = useApp(); // Adicionado origins
+  const { addCandidate, teamMembers } = useApp(); // Removido origins
   const navigate = useNavigate();
 
   const [interviewDate, setInterviewDate] = useState(new Date().toISOString().split('T')[0]);
   const [responsibleUserId, setResponsibleUserId] = useState('');
-  const [candidateOrigin, setCandidateOrigin] = useState(''); // NOVO: Estado para a origem
+  // const [candidateOrigin, setCandidateOrigin] = useState(''); // NOVO: Estado para a origem - REMOVIDO
   const [isSaving, setIsSaving] = useState(false);
   const [savedCandidate, setSavedCandidate] = useState<Candidate | null>(null);
 
@@ -46,15 +46,16 @@ export const RecordTeamMemberInterviewModal: React.FC<RecordTeamMemberInterviewM
     if (isOpen) {
       setInterviewDate(new Date().toISOString().split('T')[0]);
       setResponsibleUserId(''); // Reset responsible user on open
-      setCandidateOrigin(''); // Resetar origem
+      // setCandidateOrigin(''); // Resetar origem - REMOVIDO
       setSavedCandidate(null);
     }
   }, [isOpen, teamMember]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!interviewDate || !responsibleUserId || !candidateOrigin) { // Validação da origem
-      alert('A data da entrevista, o responsável e a origem são obrigatórios.');
+    // if (!interviewDate || !responsibleUserId || !candidateOrigin) { // Validação da origem - ALTERADO
+    if (!interviewDate || !responsibleUserId) {
+      alert('A data da entrevista e o responsável são obrigatórios.');
       return;
     }
     setIsSaving(true);
@@ -68,7 +69,7 @@ export const RecordTeamMemberInterviewModal: React.FC<RecordTeamMemberInterviewM
       phone: '', // Phone is not available on TeamMember directly, can be added later
       interviewDate: interviewDate,
       interviewer: 'Não definido', // Can be updated later
-      origin: candidateOrigin, // NOVO: Salva a origem
+      // origin: candidateOrigin, // NOVO: Salva a origem - REMOVIDO
       status: 'Entrevista',
       interviewScores: emptyScores,
       checkedQuestions: {},
@@ -135,8 +136,8 @@ export const RecordTeamMemberInterviewModal: React.FC<RecordTeamMemberInterviewM
                   className="pl-10 bg-white text-gray-900 dark:bg-slate-700 dark:text-white dark:border-slate-600 placeholder:text-gray-500 dark:placeholder:text-gray-400"
                 />
               </div>
-              {/* NOVO: Campo de seleção para a Origem */}
-              <div>
+              {/* NOVO: Campo de seleção para a Origem - REMOVIDO */}
+              {/* <div>
                 <Label htmlFor="candidateOrigin" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Origem do Candidato *</Label>
                 <div className="relative">
                   <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -157,7 +158,7 @@ export const RecordTeamMemberInterviewModal: React.FC<RecordTeamMemberInterviewM
                     </SelectContent>
                   </Select>
                 </div>
-              </div>
+              </div> */}
               <div>
                 <Label htmlFor="responsibleUser" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Indicado por (Responsável) *</Label>
                 <div className="relative">

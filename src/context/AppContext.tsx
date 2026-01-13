@@ -1878,6 +1878,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       created_by: user.id,
       updated_by: user.id,
       data: leadDataWithOriginInJsonb, // Usa o objeto 'data' com a origem ajustada
+      consultant_id: lead.consultant_id || user.id, // ⚠️ NOVO: Atribui ao usuário logado se não for especificado
     };
 
     console.log("[addCrmLead] Final payload before insert:", newLeadData); // DEBUG LOG

@@ -19,7 +19,7 @@ const HiringReports = () => {
   const [filterEndDate, setFilterEndDate] = useState('');
   const [selectedResponsibleId, setSelectedResponsibleId] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<string | null>(null); // Novo filtro por status
-  const [filterOrigin, setFilterOrigin] = useState<string | null>(null); // Novo filtro por origem
+  // const [filterOrigin, setFilterOrigin] = useState<string | null>(null); // Novo filtro por origem - REMOVIDO
 
   const responsibleMembers = useMemo(() => {
     return teamMembers.filter(m => m.isActive && (m.roles.includes('Gestor') || m.roles.includes('Anjo')));
@@ -46,9 +46,9 @@ const HiringReports = () => {
       currentCandidates = currentCandidates.filter(c => c.status === filterStatus);
     }
 
-    if (filterOrigin) {
-      currentCandidates = currentCandidates.filter(c => c.origin === filterOrigin);
-    }
+    // if (filterOrigin) { // REMOVIDO
+    //   currentCandidates = currentCandidates.filter(c => c.origin === filterOrigin);
+    // }
 
     if (filterStartDate) {
       const start = new Date(filterStartDate + 'T00:00:00');
@@ -60,7 +60,7 @@ const HiringReports = () => {
     }
 
     return currentCandidates;
-  }, [candidates, selectedResponsibleId, filterStatus, filterOrigin, filterStartDate, filterEndDate]);
+  }, [candidates, selectedResponsibleId, filterStatus, filterStartDate, filterEndDate]); // Removido filterOrigin
 
   const reportData = useMemo(() => {
     const dataByStatus: { [key: string]: number } = {
@@ -84,8 +84,8 @@ const HiringReports = () => {
     const candidatesByResponsible: { [key: string]: { name: string; count: number } } = {};
     responsibleMembers.forEach(m => candidatesByResponsible[m.id] = { name: m.name, count: 0 });
 
-    const candidatesByOrigin: { [key: string]: { count: number; authorizedCount: number; } } = {};
-    origins.forEach(o => candidatesByOrigin[o] = { count: 0, authorizedCount: 0 });
+    // const candidatesByOrigin: { [key: string]: { count: number; authorizedCount: number; } } = {}; // REMOVIDO
+    // origins.forEach(o => candidatesByOrigin[o] = { count: 0, authorizedCount: 0 }); // REMOVIDO
 
     // NOVO: Estrutura para tendências mensais
     const monthlyTrends: { [monthYear: string]: { totalCandidates: number; authorizedCandidates: number; totalInterviewScore: number; interviewCount: number; } } = {};
@@ -122,13 +122,13 @@ const HiringReports = () => {
         interviewCount++;
       }
 
-      // Candidates by Origin
-      if (c.origin && candidatesByOrigin[c.origin]) {
-        candidatesByOrigin[c.origin].count++;
-        if (c.status === 'Autorizado') {
-          candidatesByOrigin[c.origin].authorizedCount++;
-        }
-      }
+      // Candidates by Origin - REMOVIDO
+      // if (c.origin && candidatesByOrigin[c.origin]) {
+      //   candidatesByOrigin[c.origin].count++;
+      //   if (c.status === 'Autorizado') {
+      //     candidatesByOrigin[c.origin].authorizedCount++;
+      //   }
+      // }
 
       // NOVO: Preencher dados de tendências mensais
       const createdAtDate = new Date(c.createdAt);
@@ -155,11 +155,11 @@ const HiringReports = () => {
     }));
 
     const sortedCandidatesByResponsible = Object.values(candidatesByResponsible).sort((a, b) => b.count - a.count);
-    const sortedCandidatesByOrigin = Object.entries(candidatesByOrigin).map(([origin, data]) => ({
-      origin,
-      ...data,
-      conversionRate: data.count > 0 ? (data.authorizedCount / data.count) * 100 : 0,
-    })).sort((a, b) => b.count - a.count);
+    // const sortedCandidatesByOrigin = Object.entries(candidatesByOrigin).map(([origin, data]) => ({ // REMOVIDO
+    //   origin,
+    //   ...data,
+    //   conversionRate: data.count > 0 ? (data.authorizedCount / data.count) * 100 : 0,
+    // })).sort((a, b) => b.count - a.count); // REMOVIDO
 
     // Conversion Rates between stages
     const totalScheduled = dataByStatus['Entrevista Agendada'] + dataByStatus['Entrevista Realizada'];
@@ -188,7 +188,7 @@ const HiringReports = () => {
       avgInterviewScore,
       avgSectionScores,
       candidatesByResponsible: sortedCandidatesByResponsible,
-      candidatesByOrigin: sortedCandidatesByOrigin,
+      // candidatesByOrigin: sortedCandidatesByOrigin, // REMOVIDO
       conversionRates: {
         scheduledToConducted,
         conductedToAwaitingPreview,
@@ -197,24 +197,24 @@ const HiringReports = () => {
       },
       monthlyTrends: formattedMonthlyTrends, // NOVO: Adicionar tendências mensais
     };
-  }, [filteredCandidates, interviewStructure, responsibleMembers, origins]);
+  }, [filteredCandidates, interviewStructure, responsibleMembers]); // Removido origins
 
   const clearFilters = () => {
     setFilterStartDate('');
     setFilterEndDate('');
     setSelectedResponsibleId(null);
     setFilterStatus(null);
-    setFilterOrigin(null);
+    // setFilterOrigin(null); // REMOVIDO
   };
 
-  const hasActiveFilters = filterStartDate || filterEndDate || selectedResponsibleId || filterStatus || filterOrigin;
+  const hasActiveFilters = filterStartDate || filterEndDate || selectedResponsibleId || filterStatus; // Removido filterOrigin
 
   const handleExportToExcel = () => {
     const dataToExport = filteredCandidates.map(c => ({
       'Nome': c.name,
       'Telefone': c.phone,
       'Data Entrevista': new Date(c.interviewDate + 'T00:00:00').toLocaleDateString('pt-BR'),
-      'Origem': c.origin,
+      // 'Origem': c.origin, // REMOVIDO
       'Status': c.status,
       'Responsável': teamMembers.find(m => m.id === c.responsibleUserId)?.name || 'N/A',
       'Pontuação Total Entrevista': Object.entries(c.interviewScores).filter(([key]) => key !== 'notes').reduce((sum, [_, val]) => sum + (typeof val === 'number' ? val : 0), 0),
@@ -261,14 +261,14 @@ const HiringReports = () => {
     })));
     XLSX.utils.book_append_sheet(workbook, responsibleSheet, "Candidatos por Responsavel");
 
-    // Add candidates by origin
-    const originSheet = XLSX.utils.json_to_sheet(reportData.candidatesByOrigin.map(o => ({
-      'Origem': o.origin,
-      'Total de Candidatos': o.count,
-      'Autorizados': o.authorizedCount,
-      'Taxa de Conversão para Autorizado (%)': o.conversionRate.toFixed(1),
-    })));
-    XLSX.utils.book_append_sheet(workbook, originSheet, "Candidatos por Origem");
+    // Add candidates by origin - REMOVIDO
+    // const originSheet = XLSX.utils.json_to_sheet(reportData.candidatesByOrigin.map(o => ({
+    //   'Origem': o.origin,
+    //   'Total de Candidatos': o.count,
+    //   'Autorizados': o.authorizedCount,
+    //   'Taxa de Conversão para Autorizado (%)': o.conversionRate.toFixed(1),
+    // })));
+    // XLSX.utils.book_append_sheet(workbook, originSheet, "Candidatos por Origem");
 
     // NOVO: Adicionar tendências mensais ao Excel
     const monthlyTrendsSheet = XLSX.utils.json_to_sheet(reportData.monthlyTrends.map(m => ({
@@ -352,7 +352,7 @@ const HiringReports = () => {
               </SelectContent>
             </Select>
           </div>
-          <div className="w-full">
+          {/* <div className="w-full"> // REMOVIDO
             <label htmlFor="originFilter" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Origem do Candidato</label>
             <Select 
               value={filterOrigin || 'all'} 
@@ -370,7 +370,7 @@ const HiringReports = () => {
                 ))}
               </SelectContent>
             </Select>
-          </div>
+          </div> */}
           <div>
             <label htmlFor="filterStartDate" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Candidatos Criados de</label>
             <input
@@ -521,7 +521,7 @@ const HiringReports = () => {
                 </tr>
               ) : (
                 reportData.candidatesByResponsible.map(responsible => (
-                  <tr key={responsible.name} className="hover:bg-gray-50 dark:hover:bg-slate-700/30 transition">
+                  <tr key={responsible.name} className="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition">
                     <td className="px-4 py-3 font-medium text-gray-900 dark:text-white flex items-center space-x-2">
                       {responsible.name === user?.name ? <Crown className="w-4 h-4 text-yellow-500" /> : <UserRound className="w-4 h-4 text-gray-400" />}
                       <span>{responsible.name}</span>
@@ -535,8 +535,8 @@ const HiringReports = () => {
         </div>
       </div>
 
-      {/* Candidates by Origin */}
-      <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center"><Star className="w-5 h-5 mr-2 text-brand-500" />Candidatos por Origem</h2>
+      {/* Candidates by Origin - REMOVIDO */}
+      {/* <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center"><Star className="w-5 h-5 mr-2 text-brand-500" />Candidatos por Origem</h2>
       <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden mb-8">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300">
@@ -557,7 +557,7 @@ const HiringReports = () => {
                 </tr>
               ) : (
                 reportData.candidatesByOrigin.map(origin => (
-                  <tr key={origin.origin} className="hover:bg-gray-50 dark:hover:bg-slate-700/30 transition">
+                  <tr key={origin.origin} className="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition">
                     <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">{origin.origin}</td>
                     <td className="px-4 py-3">{origin.count}</td>
                     <td className="px-4 py-3">{origin.authorizedCount}</td>
@@ -568,7 +568,7 @@ const HiringReports = () => {
             </tbody>
           </table>
         </div>
-      </div>
+      </div> */}
 
       {/* NOVO: Seção de Tendências Mensais */}
       <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center"><LineChart className="w-5 h-5 mr-2 text-brand-500" />Tendências Mensais</h2>
@@ -592,7 +592,7 @@ const HiringReports = () => {
                 </tr>
               ) : (
                 reportData.monthlyTrends.map(trend => (
-                  <tr key={trend.month} className="hover:bg-gray-50 dark:hover:bg-slate-700/30 transition">
+                  <tr key={trend.month} className="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition">
                     <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">{trend.month}</td>
                     <td className="px-4 py-3">{trend.totalCandidates}</td>
                     <td className="px-4 py-3">{trend.authorizedCandidates}</td>

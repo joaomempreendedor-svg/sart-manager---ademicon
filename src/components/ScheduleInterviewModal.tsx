@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { Candidate, InterviewScores } from '@/types';
-import { X, Save, Loader2, User, Phone, Calendar as CalendarIcon, CheckCircle2, Users, MapPin } from 'lucide-react'; // Adicionado MapPin icon
+import { X, Save, Loader2, User, Phone, Calendar as CalendarIcon, CheckCircle2, Users } from 'lucide-react'; // Removido MapPin icon
 import { useNavigate } from 'react-router-dom';
 import {
   Select,
@@ -17,14 +17,14 @@ interface ScheduleInterviewModalProps {
 }
 
 export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({ isOpen, onClose }) => {
-  const { addCandidate, teamMembers, origins } = useApp(); // Adicionado origins
+  const { addCandidate, teamMembers } = useApp(); // Removido origins
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
     date: new Date().toISOString().split('T')[0],
     responsibleUserId: '',
-    origin: '', // NOVO: Adicionado campo de origem
+    // origin: '', // NOVO: Adicionado campo de origem - REMOVIDO
   });
   const [isSaving, setIsSaving] = useState(false);
   const [savedCandidate, setSavedCandidate] = useState<Candidate | null>(null);
@@ -39,7 +39,7 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({ 
       phone: '',
       date: new Date().toISOString().split('T')[0],
       responsibleUserId: '',
-      origin: '', // Resetar origem
+      // origin: '', // Resetar origem - REMOVIDO
     });
     setSavedCandidate(null);
   };
@@ -51,8 +51,9 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({ 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name || !formData.date || !formData.responsibleUserId || !formData.origin) { // Validação da origem
-      alert('Nome, data, responsável e origem são obrigatórios.');
+    // if (!formData.name || !formData.date || !formData.responsibleUserId || !formData.origin) { // Validação da origem - ALTERADO
+    if (!formData.name || !formData.date || !formData.responsibleUserId) {
+      alert('Nome, data e responsável são obrigatórios.');
       return;
     }
     setIsSaving(true);
@@ -67,7 +68,7 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({ 
       phone: formData.phone,
       interviewDate: formData.date,
       interviewer: 'Não definido', // Pode ser atualizado depois
-      origin: formData.origin, // NOVO: Salva a origem
+      // origin: formData.origin, // NOVO: Salva a origem - REMOVIDO
       status: 'Entrevista',
       interviewScores: emptyScores,
       checkedQuestions: {},
@@ -137,8 +138,8 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({ 
                 <CalendarIcon className="absolute left-3 top-9 w-4 h-4 text-gray-400" />
                 <input type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} required className="w-full pl-10 p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600" />
               </div>
-              {/* NOVO: Campo de seleção para a Origem */}
-              <div>
+              {/* NOVO: Campo de seleção para a Origem - REMOVIDO */}
+              {/* <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Origem do Candidato *</label>
                 <div className="relative">
                   <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -159,7 +160,7 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({ 
                     </SelectContent>
                   </Select>
                 </div>
-              </div>
+              </div> */}
               {/* Campo de seleção para o responsável */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">De quem é o candidato? *</label>

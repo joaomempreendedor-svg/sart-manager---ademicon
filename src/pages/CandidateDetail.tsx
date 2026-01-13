@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
-import { ArrowLeft, CheckSquare, FileText, Phone, Calendar, Clock, MessageCircle, Paperclip, CheckCircle2, Target, Trash2, CalendarPlus, Save, Loader2, Users, MapPin } from 'lucide-react'; // Adicionado Users e MapPin icon
+import { ArrowLeft, CheckSquare, FileText, Phone, Calendar, Clock, MessageCircle, Paperclip, CheckCircle2, Target, Trash2, CalendarPlus, Save, Loader2, Users } from 'lucide-react'; // Removido MapPin icon
 import { CandidateStatus, CommunicationTemplate, InterviewScores } from '@/types';
 import { MessageViewerModal } from '@/components/MessageViewerModal';
 import {
@@ -14,7 +14,7 @@ import {
 
 export const CandidateDetail = () => {
   const { id } = useParams<{ id: string }>();
-  const { getCandidate, toggleChecklistItem, toggleConsultantGoal, updateCandidate, deleteCandidate, setChecklistDueDate, templates, checklistStructure, consultantGoalsStructure, interviewStructure, teamMembers, origins } = useApp(); // Adicionado 'origins'
+  const { getCandidate, toggleChecklistItem, toggleConsultantGoal, updateCandidate, deleteCandidate, setChecklistDueDate, templates, checklistStructure, consultantGoalsStructure, interviewStructure, teamMembers } = useApp(); // Removido origins
   const navigate = useNavigate();
   const location = useLocation();
   
@@ -44,9 +44,9 @@ export const CandidateDetail = () => {
   const [responsibleUserId, setResponsibleUserId] = useState<string>(candidate?.responsibleUserId || '');
   const [isUpdatingResponsible, setIsUpdatingResponsible] = useState(false);
 
-  // NOVO: Estado para a origem do candidato
-  const [candidateOrigin, setCandidateOrigin] = useState<string>(candidate?.origin || '');
-  const [isUpdatingOrigin, setIsUpdatingOrigin] = useState(false);
+  // NOVO: Estado para a origem do candidato - REMOVIDO
+  // const [candidateOrigin, setCandidateOrigin] = useState<string>(candidate?.origin || '');
+  // const [isUpdatingOrigin, setIsUpdatingOrigin] = useState(false);
 
 
   const responsibleMembers = useMemo(() => {
@@ -63,7 +63,7 @@ export const CandidateDetail = () => {
       setScores(JSON.parse(JSON.stringify(candidate.interviewScores)));
       setCheckedQuestions(JSON.parse(JSON.stringify(candidate.checkedQuestions || {})));
       setResponsibleUserId(candidate.responsibleUserId || ''); // Atualiza o estado do responsável
-      setCandidateOrigin(candidate.origin || ''); // NOVO: Atualiza o estado da origem
+      // setCandidateOrigin(candidate.origin || ''); // NOVO: Atualiza o estado da origem - REMOVIDO
     }
   }, [candidate]);
 
@@ -157,19 +157,19 @@ export const CandidateDetail = () => {
     }
   };
 
-  // NOVO: Função para atualizar a origem
-  const handleUpdateOrigin = async (newOrigin: string) => {
-    setIsUpdatingOrigin(true);
-    try {
-      await updateCandidate(candidate.id, { origin: newOrigin });
-      setCandidateOrigin(newOrigin);
-      alert('Origem atualizada com sucesso!');
-    } catch (error: any) {
-      alert(`Erro ao atualizar origem: ${error.message}`);
-    } finally {
-      setIsUpdatingOrigin(false);
-    }
-  };
+  // NOVO: Função para atualizar a origem - REMOVIDO
+  // const handleUpdateOrigin = async (newOrigin: string) => {
+  //   setIsUpdatingOrigin(true);
+  //   try {
+  //     await updateCandidate(candidate.id, { origin: newOrigin });
+  //     setCandidateOrigin(newOrigin);
+  //     alert('Origem atualizada com sucesso!');
+  //   } catch (error: any) {
+  //     alert(`Erro ao atualizar origem: ${error.message}`);
+  //   } finally {
+  //     setIsUpdatingOrigin(false);
+  //   }
+  // };
 
   const totalScore = Object.entries(scores)
     .filter(([key]) => key !== 'notes')
@@ -258,8 +258,8 @@ export const CandidateDetail = () => {
                 {isUpdatingResponsible && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-brand-500" />}
               </div>
             </div>
-            {/* NOVO: Exibição e edição da origem */}
-            <div className="mt-4 w-full">
+            {/* NOVO: Exibição e edição da origem - REMOVIDO */}
+            {/* <div className="mt-4 w-full">
               <label className="block text-xs text-gray-500 dark:text-gray-400 font-medium uppercase mb-1">Origem</label>
               <div className="relative">
                 <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -281,7 +281,7 @@ export const CandidateDetail = () => {
                 </Select>
                 {isUpdatingOrigin && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-brand-500" />}
               </div>
-            </div>
+            </div> */}
           </div>
         </div>
       </div>

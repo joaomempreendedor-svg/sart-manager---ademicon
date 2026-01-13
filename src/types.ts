@@ -47,9 +47,10 @@ export interface Candidate {
   db_id?: string; // Database primary key
   name: string;
   phone: string;
+  email?: string; // NOVO: Adicionado email para triagem
   interviewDate: string;
   interviewer: string;
-  origin: string; // Indicação, Prospecção, etc.
+  // origin: string; // Indicação, Prospecção, etc. - REMOVIDO
   status: CandidateStatus;
   screeningStatus?: 'Pending Contact' | 'Contacted' | 'No Fit'; // NOVO: Status de triagem
   interviewScores: InterviewScores;
@@ -58,6 +59,7 @@ export interface Candidate {
   consultantGoalsProgress: Record<string, boolean>; // map of goalId -> completed
   feedbacks?: Feedback[];
   createdAt: string;
+  lastUpdatedAt?: string; // NOVO: Adicionado para controle de atualização
   responsibleUserId?: string; // NOVO: ID do gestor/anjo responsável pelo candidato
 }
 

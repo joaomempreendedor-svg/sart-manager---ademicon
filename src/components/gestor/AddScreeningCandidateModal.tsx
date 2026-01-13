@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { Candidate, TeamMember } from '@/types';
-import { X, Save, Loader2, User, Phone, Mail, MapPin, Users } from 'lucide-react';
+import { X, Save, Loader2, User, Phone, Mail, Users } from 'lucide-react'; // Removido MapPin
 import {
   Dialog,
   DialogContent,
@@ -30,12 +30,12 @@ interface AddScreeningCandidateModalProps {
 }
 
 export const AddScreeningCandidateModal: React.FC<AddScreeningCandidateModalProps> = ({ isOpen, onClose }) => {
-  const { addCandidate, origins, teamMembers } = useApp(); // Acessa origins e teamMembers do contexto
+  const { addCandidate, teamMembers } = useApp(); // Removido origins
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
     email: '',
-    origin: '',
+    // origin: '', // REMOVIDO
     responsibleUserId: '',
   });
   const [isSaving, setIsSaving] = useState(false);
@@ -50,7 +50,7 @@ export const AddScreeningCandidateModal: React.FC<AddScreeningCandidateModalProp
       name: '',
       phone: '',
       email: '',
-      origin: '',
+      // origin: '', // REMOVIDO
       responsibleUserId: '',
     });
     setError('');
@@ -77,7 +77,7 @@ export const AddScreeningCandidateModal: React.FC<AddScreeningCandidateModalProp
         name: formData.name.trim(),
         phone: formData.phone.trim(),
         email: formData.email.trim(),
-        origin: formData.origin || 'Não Informado', // Define um valor padrão se não for fornecido
+        // origin: formData.origin || 'Não Informado', // Define um valor padrão se não for fornecido - REMOVIDO
         status: 'Triagem', // Inicia no status de triagem
         screeningStatus: 'Pending Contact', // Inicia como pendente de contato
         interviewDate: '', // Não há data de entrevista inicial
