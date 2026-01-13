@@ -85,18 +85,15 @@ export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ us
     const isCompleted = dailyChecklistCompletions.some(
       completion =>
         completion.daily_checklist_item_id === itemId &&
-        completion.user_id === userTeamMember.id && // CORRIGIDO: Usar completion.user_id
+        completion.consultant_id === userTeamMember.id && // CORRIGIDO: Usar completion.consultant_id
         completion.date === formattedSelectedDate &&
         completion.done
     );
-    // console.log(`[DailyChecklistDisplay] getCompletionStatus for item ${itemId} on ${formattedSelectedDate} by ${userTeamMember.id}: ${isCompleted}`);
     return isCompleted;
   }, [dailyChecklistCompletions, user, userTeamMember, formattedSelectedDate]);
 
   const handleToggleCompletion = async (itemId: string, currentStatus: boolean) => {
-    console.log(`[DailyChecklistDisplay] handleToggleCompletion called for item ${itemId}, currentStatus: ${currentStatus}`);
     if (!user || !userTeamMember) {
-      console.log("[DailyChecklistDisplay] User or userTeamMember not available, cannot toggle completion.");
       return;
     }
     await toggleDailyChecklistCompletion(itemId, formattedSelectedDate, !currentStatus, userTeamMember.id);
@@ -123,7 +120,7 @@ export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ us
       dailyChecklistCompletions.some(
         completion =>
           completion.daily_checklist_item_id === item.id &&
-          completion.user_id === userTeamMember.id && // CORRIGIDO: Usar completion.user_id
+          completion.consultant_id === userTeamMember.id && // CORRIGIDO: Usar completion.consultant_id
           completion.date === formattedSelectedDate &&
           completion.done
       )
