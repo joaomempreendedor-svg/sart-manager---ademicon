@@ -59,13 +59,15 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
         data: { ...lead.data },
       });
     } else {
-      // Para novos leads:
       let defaultConsultantId: string | null = null;
-      if (userRole === 'CONSULTOR' && assignedConsultantId) {
-        defaultConsultantId = assignedConsultantId; // Consultor se auto-atribui
+      if (userRole === 'CONSULTOR') {
+        if (!assignedConsultantId) {
+          toast.error("Seu ID de consultor não foi encontrado. Por favor, recarregue a página ou contate o suporte.");
+          // Optionally, disable saving or close modal if critical data is missing
+        }
+        defaultConsultantId = assignedConsultantId; // Force auto-assignment for consultants
       }
-      // Se for Gestor/Admin, o default é null, e ele seleciona no dropdown.
-
+      
       setFormData({
         name: '',
         consultant_id: defaultConsultantId,
@@ -246,7 +248,7 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
               )}
 
               {/* Campo de seleção de Consultor (apenas para Gestores/Admins) */}
-              {(userRole === 'GESTOR' || userRole === 'ADMIN') && (
+              {(userRole === 'GESTOR' || userRole === 'ADMIN') ? (
                 <div className="grid gap-2">
                   <Label htmlFor="consultant_id" className="text-left">
                     Consultor Responsável
@@ -270,6 +272,26 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
                       </SelectContent>
                     </Select>
                   </div>
+                </div>
+              ) : ( // For CONSULTOR role
+                <div className="grid gap-2">
+                  <Label htmlFor="consultant_name_display" className="text-left">
+                    Consultor Responsável
+                  </Label>
+                  <div className="relative">
+                    <UserRound className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <Input
+                      id="consultant_name_display"
+                      value={allTeamMembers.find(m => m.id === assignedConsultantId)?.name || 'Seu nome não encontrado'}
+                      readOnly
+                      className="pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600 bg-gray-100 dark:bg-slate-700/50"
+                    />
+                  </div>
+                  {!assignedConsultantId && (
+                    <p className="text-red-500 text-sm mt-1">
+                      Seu ID de consultor não foi carregado. Por favor, recarregue a página.
+                    </p>
+                  )}
                 </div>
               )}
 
