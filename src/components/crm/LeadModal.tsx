@@ -27,7 +27,7 @@ import toast from 'react-hot-toast'; // Importar toast
 interface LeadModalProps {
   isOpen: boolean;
   onClose: () => void;
-  lead: CrmLead | null;
+  lead: CrmLead;
   crmFields: CrmField[];
   assignedConsultantId?: string | null;
 }
@@ -192,7 +192,8 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
 
   // Filtra chaves reservadas do sistema que NÃO devem ser campos personalizados
   const filteredCrmFields = useMemo(() => {
-    const systemReservedKeys = ['stage_id', 'name', 'origin']; // Adicionado 'name' e 'origin'
+    // Adicionado 'nome' para cobrir casos onde um campo personalizado com essa chave pode existir
+    const systemReservedKeys = ['stage_id', 'name', 'nome', 'origin']; 
     return crmFields.filter(field => !systemReservedKeys.includes(field.key));
   }, [crmFields]);
 
