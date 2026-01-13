@@ -103,7 +103,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // Módulo 4: Metas de Prospecção
   const [weeklyTargets, setWeeklyTargets] = useState<WeeklyTarget[]>([]);
   const [weeklyTargetItems, setWeeklyTargetItems] = useState<WeeklyTargetItem[]>([]);
-  const [weeklyTargetAssignments, setWeeklyTargetAssignments] = useState<WeeklyTargetAssignment[]>([]);
+  const [weeklyTargetAssignments, setWeeklyTargetAssignments] = useState<WeeklyTargetAssignment[]>(([]);
   const [metricLogs, setMetricLogs] = useState<MetricLog[]>([]);
 
   // Módulo 5: Materiais de Apoio (v2)
@@ -2147,7 +2147,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const existingCompletion = dailyChecklistCompletions.find(c =>
       c.daily_checklist_item_id === daily_checklist_item_id &&
       c.date === date &&
-      c.user_id === consultant_id
+      c.consultant_id === consultant_id
     );
 
     if (existingCompletion) {
@@ -2161,7 +2161,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       console.log("[AppContext] Conclusão existente atualizada com sucesso.");
     } else {
       console.log(`[AppContext] No existing completion found. Inserting new completion with done=${done}.`);
-      const { data, error } = await supabase.from('daily_checklist_completions').insert({ daily_checklist_item_id, user_id: consultant_id, date, done }).select('*').single();
+      const { data, error } = await supabase.from('daily_checklist_completions').insert({ daily_checklist_item_id, consultant_id, date, done }).select('*').single();
       if (error) {
         console.error("[AppContext] Erro ao inserir nova conclusão:", error);
         throw error;
