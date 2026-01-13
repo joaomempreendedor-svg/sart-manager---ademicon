@@ -6,7 +6,7 @@ import { CHECKLIST_STAGES as DEFAULT_STAGES } from '@/data/checklistData';
 import { CONSULTANT_GOALS as DEFAULT_GOALS } from '@/data/consultantGoals';
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
 import { generateRandomPassword } from '@/utils/authUtils';
-import toast from 'react-hot-toast'; // Importar toast
+import toast from 'react-hot-toast';
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
@@ -22,7 +22,8 @@ const DEFAULT_APP_CONFIG_DATA = {
   consultantGoalsStructure: DEFAULT_GOALS,
   interviewStructure: INITIAL_INTERVIEW_STRUCTURE,
   templates: {},
-  origins: ['Indicação', 'Prospecção', 'Tráfego Linkedin'],
+  hiringOrigins: ['Indicação', 'Prospecção', 'Tráfego Linkedin'], // NOVO: Origens para contratação
+  salesOrigins: ['WhatsApp', 'Frio', 'Instagram', 'Networking'], // NOVO: Origens para vendas
   interviewers: ['João Müller'],
   pvs: ['SOARES E MORAES', 'SART INVESTIMENTOS', 'KR CONSÓRCIOS', 'SOLOM INVESTIMENTOS'],
 };
@@ -66,7 +67,7 @@ const JOAO_GESTOR_AUTH_ID = "0c6d71b7-daeb-4dde-8eec-0e7a8ffef658"; // <--- ATUA
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { user, session } = useAuth();
-  const fetchedUserIdRef = useRef<string | null>(null); // CORREÇÃO: Inicializado com null
+  const fetchedUserIdRef = useRef<string | null>(null);
   const isFetchingRef = useRef(false);
 
   const [isDataLoading, setIsDataLoading] = useState(true);
@@ -74,7 +75,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [commissions, setCommissions] = useState<Commission[]>([]);
   const [supportMaterials, setSupportMaterials] = useState<SupportMaterial[]>([]);
-  // const [importantLinks, setImportantLinks] = useState<ImportantLink[]>([]); // REMOVIDO
   const [cutoffPeriods, setCutoffPeriods] = useState<CutoffPeriod[]>([]);
   const [onboardingSessions, setOnboardingSessions] = useState<OnboardingSession[]>([]);
   const [onboardingTemplateVideos, setOnboardingTemplateVideos] = useState<OnboardingVideoTemplate[]>([]);
@@ -83,7 +83,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [consultantGoalsStructure, setConsultantGoalsStructure] = useState<GoalStage[]>(DEFAULT_GOALS);
   const [interviewStructure, setInterviewStructure] = useState<InterviewSection[]>(INITIAL_INTERVIEW_STRUCTURE);
   const [templates, setTemplates] = useState<Record<string, CommunicationTemplate>>({});
-  const [origins, setOrigins] = useState<string[]>([]);
+  const [hiringOrigins, setHiringOrigins] = useState<string[]>([]); // NOVO: Estado para origens de contratação
+  const [salesOrigins, setSalesOrigins] = useState<string[]>([]); // NOVO: Estado para origens de vendas
   const [interviewers, setInterviewers] = useState<string[]>([]);
   const [pvs, setPvs] = useState<string[]>([]);
   
@@ -115,7 +116,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // NOVO: Tarefas pessoais do Gestor
   const [gestorTasks, setGestorTasks] = useState<GestorTask[]>([]);
-  const [gestorTaskCompletions, setGestorTaskCompletions] = useState<GestorTaskCompletion[]>([]); // NOVO: Conclusões de tarefas do gestor
+  const [gestorTaskCompletions, setGestorTaskCompletions] = useState<GestorTaskCompletion[]>([]);
 
   // NOVO: Entradas e Saídas Financeiras
   const [financialEntries, setFinancialEntries] = useState<FinancialEntry[]>([]);
@@ -178,17 +179,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const updateConfig = useCallback((updates: any) => {
     if (!user) return;
-    const currentConfig = { checklistStructure, consultantGoalsStructure, interviewStructure, templates, origins, interviewers, pvs };
+    const currentConfig = { checklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs }; // ATUALIZADO
     const newConfigData = { ...currentConfig, ...updates };
     debouncedUpdateConfig(newConfigData);
-  }, [user, checklistStructure, consultantGoalsStructure, interviewStructure, templates, origins, interviewers, pvs, debouncedUpdateConfig]);
+  }, [user, checklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs, debouncedUpdateConfig]); // ATUALIZADO
 
   const resetLocalState = () => {
     setCandidates([]);
     setTeamMembers([]);
     setCommissions([]);
     setSupportMaterials([]);
-    // setImportantLinks([]); // REMOVIDO
     setCutoffPeriods([]);
     setOnboardingSessions([]);
     setOnboardingTemplateVideos([]);
@@ -196,7 +196,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setConsultantGoalsStructure(DEFAULT_GOALS);
     setInterviewStructure(INITIAL_INTERVIEW_STRUCTURE);
     setTemplates({});
-    setOrigins(DEFAULT_APP_CONFIG_DATA.origins);
+    setHiringOrigins(DEFAULT_APP_CONFIG_DATA.hiringOrigins); // ATUALIZADO
+    setSalesOrigins(DEFAULT_APP_CONFIG_DATA.salesOrigins); // ATUALIZADO
     setInterviewers(DEFAULT_APP_CONFIG_DATA.interviewers);
     setPvs(DEFAULT_APP_CONFIG_DATA.pvs);
     setCrmPipelines([]);
@@ -215,12 +216,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setSupportMaterialsV2([]);
     setSupportMaterialAssignments([]);
     setLeadTasks([]);
-    setGestorTasks([]); // Reset gestor tasks
-    setGestorTaskCompletions([]); // Reset gestor task completions
-    setFinancialEntries([]); // NOVO: Reset financial entries
-    setFormCadastros([]); // NOVO: Reset form cadastros
-    setFormFiles([]); // NOVO: Reset form files
-    setNotifications([]); // NOVO: Reset notifications
+    setGestorTasks([]);
+    setGestorTaskCompletions([]);
+    setFinancialEntries([]);
+    setFormCadastros([]);
+    setFormFiles([]);
+    setNotifications([]);
     setIsDataLoading(false);
   };
 
@@ -276,8 +277,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const diffTime = Math.abs(targetDate.getTime() - taskCreationDate.getTime());
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
       
-      // Check if the target date is on or after the creation date
-      // And if the difference in days is a multiple of the interval
       return targetDate >= taskCreationDate && diffDays % interval === 0;
     }
 
@@ -292,14 +291,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const newNotifications: Notification[] = [];
     const today = new Date();
-    const todayFormatted = today.toISOString().split('T')[0]; // e.g., "2024-07-11"
+    const todayFormatted = today.toISOString().split('T')[0];
 
     const yesterday = new Date(today);
     yesterday.setDate(today.getDate() - 1);
-    const yesterdayFormatted = yesterday.toISOString().split('T')[0]; // e.g., "2024-07-10"
+    const yesterdayFormatted = yesterday.toISOString().split('T')[0];
 
     const currentMonth = today.getMonth();
-    // const currentYear = today.getFullYear(); // Não usado diretamente
 
     // 1. Aniversariantes do Mês
     teamMembers.forEach(member => {
@@ -312,7 +310,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             title: `Aniversário de ${member.name}!`,
             description: `Celebre o aniversário de ${member.name} neste mês.`,
             date: member.dateOfBirth,
-            link: `/gestor/config-team`, // Link para a gestão de equipe
+            link: `/gestor/config-team`,
             isRead: false,
           });
         }
@@ -322,7 +320,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     // 2. Documentação enviada no formulário (novos cadastros)
     formCadastros.filter(cadastro => {
       const submissionDate = new Date(cadastro.submission_date);
-      // Considerar "novo" se foi submetido nas últimas 24 horas e não está completo/verificado
       return (today.getTime() - submissionDate.getTime() < 24 * 60 * 60 * 1000) && !cadastro.is_complete;
     }).forEach(cadastro => {
       newNotifications.push({
@@ -331,26 +328,25 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         title: `Novo Cadastro de Formulário: ${cadastro.data.nome_completo || 'Desconhecido'}`,
         description: `Um novo formulário foi enviado e aguarda revisão.`,
         date: cadastro.submission_date.split('T')[0],
-        link: `/gestor/form-cadastros`, // Link para a página de formulários
+        link: `/gestor/form-cadastros`,
         isRead: false,
       });
     });
 
-    // 3. Nova Venda Registrada (CRM Leads) - Lógica ajustada
+    // 3. Nova Venda Registrada (CRM Leads)
     crmLeads.filter(lead => {
-      if (!lead.soldCreditValue || !lead.saleDate) return false; // Must have a sold value and sale date
+      if (!lead.soldCreditValue || !lead.saleDate) return false;
       
-      // Considerar "novo" se a venda foi registrada hoje ou ontem
       return lead.saleDate === todayFormatted || lead.saleDate === yesterdayFormatted;
     }).forEach(lead => {
       const consultant = teamMembers.find(tm => tm.id === lead.consultant_id);
       newNotifications.push({
-        id: `new-sale-lead-${lead.id}`, // Unique ID for lead-based sale
+        id: `new-sale-lead-${lead.id}`,
         type: 'new_sale',
         title: `Nova Venda Registrada: ${lead.name}`,
         description: `O consultor ${consultant?.name || 'Desconhecido'} registrou uma venda no valor de ${lead.soldCreditValue?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}.`,
         date: lead.saleDate,
-        link: `/gestor/crm`, // Link para a página do CRM
+        link: `/gestor/crm`,
         isRead: false,
       });
     });
@@ -362,23 +358,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const completedVideos = session.videos.filter(video => video.is_completed).length;
       const isCompleted100Percent = (completedVideos / totalVideos) === 1;
 
-      // Considerar "novo" se foi concluído 100% e a sessão foi criada recentemente (últimas 72h, por exemplo)
       const sessionCreationDate = new Date(session.created_at);
-      return isCompleted100Percent && (today.getTime() - sessionCreationDate.getTime() < 72 * 60 * 60 * 1000); // Notificar se 100% e criada nas últimas 72h
+      return isCompleted100Percent && (today.getTime() - sessionCreationDate.getTime() < 72 * 60 * 60 * 1000);
     }).forEach(session => {
       newNotifications.push({
         id: `onboarding-complete-${session.id}`,
         type: 'onboarding_complete',
         title: `Onboarding Concluído: ${session.consultant_name}`,
         description: `O consultor ${session.consultant_name} finalizou 100% do onboarding online.`,
-        date: session.created_at.split('T')[0], // Usar data de criação da sessão
-        link: `/gestor/onboarding-admin`, // Link para a página de onboarding
+        date: session.created_at.split('T')[0],
+        link: `/gestor/onboarding-admin`,
         isRead: false,
       });
     });
 
     setNotifications(newNotifications);
-  }, [user, teamMembers, formCadastros, crmLeads, onboardingSessions]); // Dependências atualizadas para crmLeads
+  }, [user, teamMembers, formCadastros, crmLeads, onboardingSessions]);
 
   useEffect(() => {
     clearStaleAuth();
@@ -436,7 +431,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           candidatesData,
           materialsData,
           cutoffData,
-          // linksData, // REMOVIDO
           onboardingData,
           templateVideosData,
           pipelinesData,
@@ -454,17 +448,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           supportMaterialsV2Data,
           supportMaterialAssignmentsData,
           leadTasksData,
-          gestorTasksData, // Fetch gestor tasks
-          gestorTaskCompletionsData, // NOVO: Fetch gestor task completions
-          financialEntriesData, // NOVO: Fetch financial entries
-          formCadastrosData, // NOVO: Fetch form cadastros
-          formFilesData, // NOVO: Fetch form files
+          gestorTasksData,
+          gestorTaskCompletionsData,
+          financialEntriesData,
+          formCadastrosData,
+          formFilesData,
         ] = await Promise.all([
           (async () => { try { return await supabase.from('app_config').select('data').eq('user_id', effectiveGestorId).maybeSingle(); } catch (e) { console.error("Error fetching app_config:", e); return { data: null, error: e }; } })(),
           (async () => { try { return await supabase.from('candidates').select('id, data, created_at, last_updated_at').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching candidates:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('support_materials').select('id, data').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching support_materials:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('cutoff_periods').select('id, data').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching cutoff_periods:", e); return { data: null, error: e }; } })(),
-          // (async () => { try { return await await supabase.from('important_links').select('id, data').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching important_links:", e); return { data: [], error: e }; } })(), // REMOVIDO
           (async () => { try { return await supabase.from('onboarding_sessions').select('*, videos:onboarding_videos(*)').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching onboarding_sessions:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('onboarding_video_templates').select('*').eq('user_id', effectiveGestorId).order('order', { ascending: true }); } catch (e) { console.error("Error fetching onboarding_video_templates:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('crm_pipelines').select('*').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching crm_pipelines:", e); return { data: [], error: e }; } })(),
@@ -498,18 +491,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           (async () => { try { return await supabase.from('support_materials_v2').select('*').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching support_materials_v2:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('support_material_assignments').select('*'); } catch (e) { console.error("Error fetching support_material_assignments:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('lead_tasks').select('*'); } catch (e) { console.error("Error fetching lead_tasks:", e); return { data: [], error: e }; } })(),
-          (async () => { try { return await supabase.from('gestor_tasks').select('*').eq('user_id', userId); } catch (e) { console.error("Error fetching gestor_tasks:", e); return { data: [], error: e }; } })(), // Fetch gestor tasks
-          (async () => { try { return await supabase.from('gestor_task_completions').select('*').eq('user_id', userId); } catch (e) { console.error("Error fetching gestor_task_completions:", e); return { data: [], error: e }; } })(), // NOVO: Fetch gestor task completions
-          (async () => { try { return await supabase.from('financial_entries').select('*').eq('user_id', userId); } catch (e) { console.error("Error fetching financial_entries:", e); return { data: [], error: e }; } })(), // NOVO: Fetch financial entries
-          (async () => { try { return await supabase.from('form_submissions').select('id, submission_date, data, internal_notes, is_complete').eq('user_id', effectiveGestorId).order('submission_date', { ascending: false }); } catch (e) { console.error("Error fetching form_submissions:", e); return { data: [], error: e }; } })(), // NOVO: Fetch form cadastros
-          (async () => { try { return await supabase.from('form_files').select('*'); } catch (e) { console.error("Error fetching form_files:", e); return { data: [], error: e }; } })(), // NOVO: Fetch form files
+          (async () => { try { return await supabase.from('gestor_tasks').select('*').eq('user_id', userId); } catch (e) { console.error("Error fetching gestor_tasks:", e); return { data: [], error: e }; } })(),
+          (async () => { try { return await supabase.from('gestor_task_completions').select('*').eq('user_id', userId); } catch (e) { console.error("Error fetching gestor_task_completions:", e); return { data: [], error: e }; } })(),
+          (async () => { try { return await supabase.from('financial_entries').select('*').eq('user_id', userId); } catch (e) { console.error("Error fetching financial_entries:", e); return { data: [], error: e }; } })(),
+          (async () => { try { return await supabase.from('form_submissions').select('id, submission_date, data, internal_notes, is_complete').eq('user_id', effectiveGestorId).order('submission_date', { ascending: false }); } catch (e) { console.error("Error fetching form_submissions:", e); return { data: [], error: e }; } })(),
+          (async () => { try { return await supabase.from('form_files').select('*'); } catch (e) { console.error("Error fetching form_files:", e); return { data: [], error: e }; } })(),
         ]);
 
         if (configResult.error) console.error("Config error:", configResult.error);
         if (candidatesData.error) console.error("Candidates error:", candidatesData.error);
         if (materialsData.error) console.error("Materials error:", materialsData.error);
         if (cutoffData.error) console.error("Cutoff Periods error:", cutoffData.error);
-        // if (linksData.error) console.error("Important Links error:", linksData.error); // REMOVIDO
         if (onboardingData.error) console.error("Onboarding error:", onboardingData.error);
         if (templateVideosData.error) console.error("Onboarding Template error:", templateVideosData.error);
         if (pipelinesData.error) console.error("Pipelines error:", pipelinesData.error);
@@ -528,10 +520,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (supportMaterialAssignmentsData.error) console.error("Support Material Assignments error:", supportMaterialAssignmentsData.error);
         if (leadTasksData.error) console.error("Lead Tasks error:", leadTasksData.error);
         if (gestorTasksData.error) console.error("Gestor Tasks error:", gestorTasksData.error);
-        if (gestorTaskCompletionsData.error) console.error("Gestor Task Completions error:", gestorTaskCompletionsData.error); // NOVO: Log de erro
-        if (financialEntriesData.error) console.error("Financial Entries error:", financialEntriesData.error); // NOVO: Log de erro
-        if (formCadastrosData.error) console.error("Form Cadastros error:", formCadastrosData.error); // NOVO: Log de erro
-        if (formFilesData.error) console.error("Form Files error:", formFilesData.error); // NOVO: Log de erro
+        if (gestorTaskCompletionsData.error) console.error("Gestor Task Completions error:", gestorTaskCompletionsData.error);
+        if (financialEntriesData.error) console.error("Financial Entries error:", financialEntriesData.error);
+        if (formCadastrosData.error) console.error("Form Cadastros error:", formCadastrosData.error);
+        if (formFilesData.error) console.error("Form Files error:", formFilesData.error);
 
 
         if (configResult.data) {
@@ -542,46 +534,44 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           const uniqueInterviewSections = Array.from(new Map(loadedInterviewStructure.map((item: InterviewSection) => [item.id, item])).values());
           setInterviewStructure(uniqueInterviewSections);
           setTemplates(data.templates || {});
-          setOrigins(data.origins || []);
+          setHiringOrigins(data.hiringOrigins || DEFAULT_APP_CONFIG_DATA.hiringOrigins); // ATUALIZADO
+          setSalesOrigins(data.salesOrigins || DEFAULT_APP_CONFIG_DATA.salesOrigins); // ATUALIZADO
           setInterviewers(data.interviewers || []);
           setPvs(data.pvs || []);
         } else {
           await supabase.from('app_config').insert({ user_id: effectiveGestorId, data: DEFAULT_APP_CONFIG_DATA });
-          const { checklistStructure, consultantGoalsStructure, interviewStructure, templates, origins, interviewers, pvs } = DEFAULT_APP_CONFIG_DATA;
+          const { checklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs } = DEFAULT_APP_CONFIG_DATA; // ATUALIZADO
           setChecklistStructure(checklistStructure);
           setConsultantGoalsStructure(consultantGoalsStructure);
           setInterviewStructure(interviewStructure);
           setTemplates(templates);
-          setOrigins(origins);
+          setHiringOrigins(hiringOrigins); // ATUALIZADO
+          setSalesOrigins(salesOrigins); // ATUALIZADO
           setInterviewers(interviewers);
           setPvs(pvs);
         }
 
-        // ⚠️ APLICANDO CÓPIA PROFUNDA E GARANTINDO ID VÁLIDO AQUI
         setCandidates(candidatesData?.data?.map(item => {
           console.log(`[fetchData] Processing raw item:`, item);
-          const rawCandidateData = item.data as Candidate; // Assume it's a Candidate structure
+          const rawCandidateData = item.data as Candidate;
           
-          // Ensure client-side ID is always present. Fallback to a new UUID if missing from JSONB data.
           const clientSideId = rawCandidateData.id || crypto.randomUUID(); 
           if (!rawCandidateData.id) {
             console.warn(`[fetchData] Candidate with db_id "${item.id}" is missing client-side 'id' in JSONB data. Generating new client-side ID: "${clientSideId}"`);
           }
 
-          // Create a deep copy of the data, ensuring all nested objects are new instances
           const deepCopiedCandidate: Candidate = {
-            ...JSON.parse(JSON.stringify(rawCandidateData)), // Deep copy the entire JSONB data
-            id: clientSideId, // Ensure client-side ID is set
-            db_id: item.id, // Supabase primary key
-            createdAt: item.created_at, // ⚠️ CORREÇÃO: Usar created_at da linha do DB
-            lastUpdatedAt: item.last_updated_at, // ⚠️ CORREÇÃO: Usar last_updated_at da linha do DB
-            // Explicitly ensure nested objects are deep copies if they exist
+            ...JSON.parse(JSON.stringify(rawCandidateData)),
+            id: clientSideId,
+            db_id: item.id,
+            createdAt: item.created_at,
+            lastUpdatedAt: item.last_updated_at,
             interviewScores: JSON.parse(JSON.stringify(rawCandidateData.interviewScores || { basicProfile: 0, commercialSkills: 0, behavioralProfile: 0, jobFit: 0, notes: '' })),
             checkedQuestions: JSON.parse(JSON.stringify(rawCandidateData.checkedQuestions || {})),
             checklistProgress: JSON.parse(JSON.stringify(rawCandidateData.checklistProgress || {})),
             consultantGoalsProgress: JSON.parse(JSON.stringify(rawCandidateData.consultantGoalsProgress || {})),
             feedbacks: JSON.parse(JSON.stringify(rawCandidateData.feedbacks || [])),
-            data: JSON.parse(JSON.stringify(rawCandidateData.data || {})), // Ensure 'data' field itself is deep copied if it exists
+            data: JSON.parse(JSON.stringify(rawCandidateData.data || {})),
           };
           
           console.log(`[fetchData] Final candidate name before setCandidates:`, deepCopiedCandidate.name, `client-side ID:`, deepCopiedCandidate.id, `db_id:`, deepCopiedCandidate.db_id, `createdAt:`, deepCopiedCandidate.createdAt);
@@ -602,7 +592,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               isLegacy: true,
               hasLogin: false,
               cpf: item.cpf,
-              dateOfBirth: data.dateOfBirth, // NOVO: Carregar data de nascimento
+              dateOfBirth: data.dateOfBirth,
             } as TeamMember;
           }
           
@@ -616,13 +606,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             hasLogin: true,
             isLegacy: false,
             cpf: item.cpf,
-            dateOfBirth: data.dateOfBirth, // NOVO: Carregar data de nascimento
+            dateOfBirth: data.dateOfBirth,
           } as TeamMember;
         }) || [];
         setTeamMembers(normalizedTeamMembers);
 
         setSupportMaterials(materialsData?.data?.map(item => ({ ...(item.data as SupportMaterial), db_id: item.id })) || []);
-        // setImportantLinks(linksData?.data?.map(item => ({ ...(item.data as ImportantLink), db_id: item.id })) || []); // REMOVIDO
         setCutoffPeriods(cutoffData?.data?.map(item => ({ ...(item.data as CutoffPeriod), db_id: item.id })) || []);
         setOnboardingSessions((onboardingData?.data as any[])?.map(s => ({...s, videos: s.videos.sort((a:any,b:any) => a.order - b.order)})) || []);
         setOnboardingTemplateVideos(templateVideosData?.data || []);
@@ -678,8 +667,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setSupportMaterialsV2(supportMaterialsV2Data?.data || []);
         setSupportMaterialAssignments(supportMaterialAssignmentsData?.data || []);
         setLeadTasks(leadTasksData?.data || []);
-        setGestorTasks(gestorTasksData?.data || []); // Set gestor tasks
-        setGestorTaskCompletions(gestorTaskCompletionsData?.data || []); // NOVO: Set gestor task completions
+        setGestorTasks(gestorTasksData?.data || []);
+        setGestorTaskCompletions(gestorTaskCompletionsData?.data || []);
         setFinancialEntries(financialEntriesData?.data?.map((entry: any) => ({
           id: entry.id,
           db_id: entry.id,
@@ -687,11 +676,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           entry_date: entry.entry_date,
           type: entry.type,
           description: entry.description,
-          amount: parseFloat(entry.amount), // Ensure amount is a number
+          amount: parseFloat(entry.amount),
           created_at: entry.created_at,
-        })) || []); // NOVO: Set financial entries
-        setFormCadastros(formCadastrosData?.data || []); // NOVO: Set form cadastros
-        setFormFiles(formFilesData?.data || []); // NOVO: Set form files
+        })) || []);
+        setFormCadastros(formCadastrosData?.data || []);
+        setFormFiles(formFilesData?.data || []);
         
         refetchCommissions();
 
@@ -744,37 +733,33 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, [user?.id, user?.role, refetchCommissions]);
 
-  // NOVO useEffect para Realtime Subscriptions
   useEffect(() => {
     if (!user || !crmOwnerUserId) return;
 
-    // Realtime para candidates
     const candidatesChannel = supabase
         .channel('candidates_changes')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'candidates', filter: `user_id=eq.${crmOwnerUserId}` }, (payload) => {
             console.log('Candidate Change (Realtime):', payload);
             toast.info(`🔄 Candidato "${payload.new.data.name || payload.old.data.name}" atualizado em tempo real!`);
             
-            // ⚠️ CORREÇÃO CRÍTICA: Garante que newCandidateData é uma cópia profunda do payload.new.data
             const rawPayloadData = payload.new.data as Candidate;
-            const clientSideId = rawPayloadData.id || crypto.randomUUID(); // Fallback to new UUID if client-side ID is missing
+            const clientSideId = rawPayloadData.id || crypto.randomUUID();
             if (!rawPayloadData.id) {
               console.warn(`[Realtime: Candidate] Candidate with db_id "${payload.new.id}" is missing client-side 'id' in JSONB data. Generating new client-side ID: "${clientSideId}"`);
             }
             
             const newCandidateData: Candidate = {
-                ...JSON.parse(JSON.stringify(rawPayloadData)), // Deep copy the entire JSONB 'data'
-                id: clientSideId, // Ensure client-side ID is set
-                db_id: payload.new.id, // Adiciona a PK do Supabase
-                createdAt: payload.new.created_at, // ⚠️ CORREÇÃO: Usar created_at da linha do DB
-                lastUpdatedAt: payload.new.last_updated_at, // ⚠️ CORREÇÃO: Usar last_updated_at da linha do DB
-                // Explicitly ensure nested objects are deep copies if they exist
-                interviewScores: JSON.parse(JSON.stringify(rawCandidateData.interviewScores || { basicProfile: 0, commercialSkills: 0, behavioralProfile: 0, jobFit: 0, notes: '' })),
-                checkedQuestions: JSON.parse(JSON.stringify(rawCandidateData.checkedQuestions || {})),
-                checklistProgress: JSON.parse(JSON.stringify(rawCandidateData.checklistProgress || {})),
-                consultantGoalsProgress: JSON.parse(JSON.stringify(rawCandidateData.consultantGoalsProgress || {})),
-                feedbacks: JSON.parse(JSON.stringify(rawCandidateData.feedbacks || [])),
-                data: JSON.parse(JSON.stringify(rawCandidateData.data || {})), // Ensure 'data' field itself is deep copied if it exists
+                ...JSON.parse(JSON.stringify(rawPayloadData)),
+                id: clientSideId,
+                db_id: payload.new.id,
+                createdAt: payload.new.created_at,
+                lastUpdatedAt: payload.new.last_updated_at,
+                interviewScores: JSON.parse(JSON.stringify(rawPayloadData.interviewScores || { basicProfile: 0, commercialSkills: 0, behavioralProfile: 0, jobFit: 0, notes: '' })),
+                checkedQuestions: JSON.parse(JSON.stringify(rawPayloadData.checkedQuestions || {})),
+                checklistProgress: JSON.parse(JSON.stringify(rawPayloadData.checklistProgress || {})),
+                consultantGoalsProgress: JSON.parse(JSON.stringify(rawPayloadData.consultantGoalsProgress || {})),
+                feedbacks: JSON.parse(JSON.stringify(rawPayloadData.feedbacks || [])),
+                data: JSON.parse(JSON.stringify(rawPayloadData.data || {})),
             };
             console.log('[Realtime: Candidate] Deep copied newCandidateData.name:', newCandidateData.name, `client-side ID:`, newCandidateData.id, `db_id:`, newCandidateData.db_id, `createdAt:`, newCandidateData.createdAt);
 
@@ -814,7 +799,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         })
         .subscribe();
 
-    // Realtime para crm_leads
     const leadsChannel = supabase
         .channel('crm_leads_changes')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'crm_leads' }, (payload) => {
@@ -849,7 +833,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         })
         .subscribe();
 
-    // Realtime para lead_tasks
     const tasksChannel = supabase
         .channel('lead_tasks_changes')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'lead_tasks' }, (payload) => {
@@ -882,7 +865,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         })
         .subscribe();
 
-    // Realtime para gestor_tasks
     const gestorTasksChannel = supabase
         .channel('gestor_tasks_changes')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'gestor_tasks' }, (payload) => {
@@ -896,7 +878,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 due_date: payload.new.due_date,
                 is_completed: payload.new.is_completed,
                 created_at: payload.new.created_at,
-                recurrence_pattern: payload.new.recurrence_pattern, // NOVO: Incluir recurrence_pattern
+                recurrence_pattern: payload.new.recurrence_pattern,
             };
 
             if (payload.eventType === 'INSERT') {
@@ -909,7 +891,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         })
         .subscribe();
 
-    // NOVO: Realtime para gestor_task_completions
     const gestorTaskCompletionsChannel = supabase
         .channel('gestor_task_completions_changes')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'gestor_task_completions' }, (payload) => {
@@ -934,7 +915,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         })
         .subscribe();
 
-    // NOVO: Realtime para financial_entries
     const financialEntriesChannel = supabase
         .channel('financial_entries_changes')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'financial_entries' }, (payload) => {
@@ -961,7 +941,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         })
         .subscribe();
 
-    // NOVO: Realtime para form_submissions
     const formCadastrosChannel = supabase
         .channel('form_submissions_changes')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'form_submissions' }, (payload) => {
@@ -986,7 +965,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         })
         .subscribe();
 
-    // NOVO: Realtime para form_files
     const formFilesChannel = supabase
         .channel('form_files_changes')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'form_files' }, (payload) => {
@@ -1006,7 +984,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             } else if (payload.eventType === 'UPDATE') {
                 setFormFiles(prev => prev.map(file => file.id === newFileData.id ? newFileData : file));
             } else if (payload.eventType === 'DELETE') {
-                setFormFiles(prev => prev.filter(file => file.submission_id !== payload.old.submission_id)); // Corrigido para usar submission_id
+                setFormFiles(prev => prev.filter(file => file.submission_id !== payload.old.submission_id));
             }
         })
         .subscribe();
@@ -1017,49 +995,43 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         supabase.removeChannel(leadsChannel);
         supabase.removeChannel(tasksChannel);
         supabase.removeChannel(gestorTasksChannel);
-        supabase.removeChannel(gestorTaskCompletionsChannel); // NOVO: Remover canal
-        supabase.removeChannel(financialEntriesChannel); // NOVO: Remover canal
-        supabase.removeChannel(formCadastrosChannel); // NOVO: Remover canal
-        supabase.removeChannel(formFilesChannel); // NOVO: Remover canal
+        supabase.removeChannel(gestorTaskCompletionsChannel);
+        supabase.removeChannel(financialEntriesChannel);
+        supabase.removeChannel(formCadastrosChannel);
+        supabase.removeChannel(formFilesChannel);
     };
-  }, [user, crmOwnerUserId]); // Depende de user e crmOwnerUserId para re-inscrever se eles mudarem
+  }, [user, crmOwnerUserId]);
 
-  // NOVO: useEffect para recalcular notificações sempre que os dados relevantes mudarem
   useEffect(() => {
     calculateNotifications();
-  }, [teamMembers, formCadastros, crmLeads, onboardingSessions, calculateNotifications]); // Dependências atualizadas
+  }, [teamMembers, formCadastros, crmLeads, onboardingSessions, calculateNotifications]);
 
   const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
   const addCandidate = useCallback(async (candidate: Omit<Candidate, 'id' | 'createdAt' | 'db_id'>) => { 
     if (!user) throw new Error("Usuário não autenticado."); 
     
-    // Generate client-side ID and createdAt if not provided
-    const clientSideId = crypto.randomUUID(); // This is the client-side UUID
+    const clientSideId = crypto.randomUUID();
     const createdAt = new Date().toISOString();
     const lastUpdatedAt = new Date().toISOString();
 
-    // ⚠️ APLICANDO CÓPIA PROFUNDA E GARANTINDO ID VÁLIDO AQUI
     const newCandidateData: Candidate = { 
-      ...JSON.parse(JSON.stringify(candidate)), // Deep copy do objeto base
-      id: clientSideId, // Atribui o UUID gerado para o ID do cliente
+      ...JSON.parse(JSON.stringify(candidate)),
+      id: clientSideId,
       status: candidate.status || 'Triagem', 
       screeningStatus: candidate.screeningStatus || 'Pending Contact',
       createdAt: createdAt, 
       lastUpdatedAt: lastUpdatedAt, 
-      // Garante que objetos aninhados sejam cópias profundas
       interviewScores: JSON.parse(JSON.stringify(candidate.interviewScores || { basicProfile: 0, commercialSkills: 0, behavioralProfile: 0, jobFit: 0, notes: '' })),
       checkedQuestions: JSON.parse(JSON.stringify(candidate.checkedQuestions || {})),
       checklistProgress: JSON.parse(JSON.stringify(candidate.checklistProgress || {})),
       consultantGoalsProgress: JSON.parse(JSON.stringify(candidate.consultantGoalsProgress || {})),
       feedbacks: JSON.parse(JSON.stringify(candidate.feedbacks || [])),
-      data: JSON.parse(JSON.stringify(candidate.data || {})), // Garante que o campo 'data' seja copiado profundamente
+      data: JSON.parse(JSON.stringify(candidate.data || {})),
     };
 
-    // Insere no Supabase. A coluna 'id' (chave primária) é auto-gerada.
-    // Fornecemos apenas 'user_id', 'data' (que contém nosso objeto Candidate do lado do cliente), e 'last_updated_at'.
     const { data, error } = await supabase.from('candidates').insert({ 
       user_id: JOAO_GESTOR_AUTH_ID, 
-      data: newCandidateData, // O objeto Candidate completo do lado do cliente vai para a coluna JSONB 'data'
+      data: newCandidateData,
       last_updated_at: newCandidateData.lastUpdatedAt 
     }).select('id, created_at, last_updated_at').single(); 
     
@@ -1070,21 +1042,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     } 
     
     if (data) { 
-      // Atualiza o estado local com o 'id' gerado pelo Supabase (db_id) e o 'created_at' real
-      // ⚠️ CORREÇÃO: Adicionar o novo candidato no INÍCIO do array para que apareça no topo
-      setCandidates(prev => [{ // Adiciona no início para que apareça no topo
+      setCandidates(prev => [{
         ...newCandidateData, 
-        db_id: data.id, // Armazena a chave primária do Supabase aqui
-        createdAt: data.created_at, // ⚠️ CORREÇÃO: Usar created_at da linha do DB
+        db_id: data.id,
+        createdAt: data.created_at,
         lastUpdatedAt: data.last_updated_at 
       }, ...prev]); 
     } 
-    return newCandidateData; // Retorna o objeto do lado do cliente
+    return newCandidateData;
   }, [user]);
   const updateCandidate = useCallback(async (id: string, updates: Partial<Candidate>) => { 
     if (!user) throw new Error("Usuário não autenticado."); 
     
-    // Log the ID being passed to updateCandidate
     console.log(`[updateCandidate] ID passed: "${id}"`);
 
     const c = candidates.find(c => c.id === id); 
@@ -1096,18 +1065,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     console.log(`[updateCandidate] Found candidate (original name): "${c.name}", client-side ID: "${c.id}", db_id: "${c.db_id}"`);
     console.log(`[updateCandidate] Updates object:`, updates);
 
-    // 1. Create a deep copy of the *current* candidate object from state.
     const currentCandidateDeepCopy: Candidate = JSON.parse(JSON.stringify(c));
 
-    // 2. Create a deep copy of the *updates* object.
     const updatesDeepCopy: Partial<Candidate> = JSON.parse(JSON.stringify(updates));
 
-    // 3. Merge the deep-copied updates into the deep-copied current candidate.
-    // This ensures that all nested objects are also new instances or merged correctly.
     const mergedCandidateData: Candidate = {
       ...currentCandidateDeepCopy,
       ...updatesDeepCopy,
-      // Explicitly deep copy and merge nested objects if they exist
       interviewScores: updatesDeepCopy.interviewScores 
         ? { ...currentCandidateDeepCopy.interviewScores, ...updatesDeepCopy.interviewScores } 
         : currentCandidateDeepCopy.interviewScores,
@@ -1132,12 +1096,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     
     console.log(`[updateCandidate] Merged updated candidate name (mergedCandidateData.name): "${mergedCandidateData.name}"`);
 
-    // Remove top-level properties that are not part of the 'data' JSONB column
-    // This object will be stored in the 'data' JSONB column in Supabase
-    const finalDataForSupabase = JSON.parse(JSON.stringify(mergedCandidateData)); // Deep copy the merged object
-    delete finalDataForSupabase.db_id; // This is the Supabase PK, not part of the JSONB 'data'
-    delete finalDataForSupabase.createdAt; // This is the Supabase 'created_at' column, not part of JSONB 'data'
-    delete finalDataForSupabase.lastUpdatedAt; // This is the Supabase 'last_updated_at' column, not part of JSONB 'data'
+    const finalDataForSupabase = JSON.parse(JSON.stringify(mergedCandidateData));
+    delete finalDataForSupabase.db_id;
+    delete finalDataForSupabase.createdAt;
+    delete finalDataForSupabase.lastUpdatedAt;
 
     const { error } = await supabase.from('candidates').update({ 
       data: finalDataForSupabase, 
@@ -1145,13 +1107,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }).match({ id: c.db_id, user_id: JOAO_GESTOR_AUTH_ID }); 
     if (error) { console.error(error); toast.error("Erro ao atualizar candidato."); throw error; } 
     
-    // Update local state with the fully merged and deep-copied object
     setCandidates(prev => prev.map(p => {
-      // Log p.id for each item in the prev array
       console.log(`[updateCandidate:setCandidates] Comparing p.id: "${p.id}" with target id: "${id}"`);
       if (p.id === id) {
         console.log(`[updateCandidate:setCandidates] MATCH! Updating candidate from "${p.name}" to "${mergedCandidateData.name}"`);
-        return { ...mergedCandidateData, db_id: c.db_id, createdAt: c.createdAt }; // Ensure db_id and createdAt are preserved for local state
+        return { ...mergedCandidateData, db_id: c.db_id, createdAt: c.createdAt };
       }
       return p;
     })); 
@@ -1173,7 +1133,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       throw new Error("Candidato não possui ID do banco de dados.");
     }
 
-    // CRITICAL LOGGING: Verify the exact values being used in the delete query
     console.log(`[deleteCandidate] Tentando excluir candidato:`);
     console.log(`  Client-side ID (c.id): "${c.id}"`);
     console.log(`  Supabase DB_ID (c.db_id): "${c.db_id}"`);
@@ -1193,8 +1152,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const { error } = await supabase
       .from('candidates')
       .delete()
-      .eq('id', c.db_id) // Use .eq() for explicit matching
-      .eq('user_id', JOAO_GESTOR_AUTH_ID); // And another .eq() for user_id
+      .eq('id', c.db_id)
+      .eq('user_id', JOAO_GESTOR_AUTH_ID);
 
     if (error) {
       console.error(`[deleteCandidate] Erro ao excluir candidato "${c.name}" (DB_ID: "${c.db_id}"):`, error);
@@ -1218,7 +1177,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const cleanedCpf = member.cpf ? member.cpf.replace(/\D/g, '') : '';
       const last4Cpf = cleanedCpf.length >= 4 ? cleanedCpf.slice(-4) : null;
       
-      // ⚠️ NOVO: Verificação para garantir que supabase.functions.invoke é uma função
       if (!supabase.functions || typeof supabase.functions.invoke !== 'function') {
         console.error("[AppContext] Supabase functions client or invoke method is not available.");
         throw new Error("Serviço de funções Supabase não disponível.");
@@ -1229,7 +1187,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           email: member.email,
           name: member.name,
           tempPassword: tempPassword,
-          login: last4Cpf, // Pass the last 4 digits of CPF as login
+          login: last4Cpf,
         },
       });
 
@@ -1239,15 +1197,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       authUserId = data.authUserId;
       wasExistingUser = data.userExists;
 
-      // Update or insert into public.profiles table (handled by handle_new_user trigger)
-      // Update or insert into public.team_members table
       const { error: teamMemberUpsertError } = await supabase
         .from('team_members')
         .upsert({
-          id: authUserId, // Use authUserId as the primary key for team_members
-          user_id: JOAO_GESTOR_AUTH_ID, // Link to the gestor
+          id: authUserId,
+          user_id: JOAO_GESTOR_AUTH_ID,
           data: {
-            id: authUserId, // Store authUserId inside JSONB data as well
+            id: authUserId,
             name: member.name,
             email: member.email,
             roles: member.roles,
@@ -1257,11 +1213,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             dateOfBirth: member.dateOfBirth,
           },
           cpf: cleanedCpf,
-        }, { onConflict: 'id' }); // Conflict on 'id' (authUserId)
+        }, { onConflict: 'id' });
 
       if (teamMemberUpsertError) throw teamMemberUpsertError;
 
-      // Refetch team members to ensure local state is consistent
       const { data: updatedTeamMembersData, error: fetchError } = await supabase
         .from('team_members')
         .select('id, data, cpf');
@@ -1296,7 +1251,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const updatedData = { ...member.data, ...updates };
     const cleanedCpf = updates.cpf ? updates.cpf.replace(/\D/g, '') : member.cpf;
 
-    // If email is updated, and it's a user with login, update auth.users
     if (updates.email && member.hasLogin && updates.email !== member.email) {
       const { error: authUpdateError } = await supabase.auth.admin.updateUserById(member.id, { email: updates.email });
       if (authUpdateError) {
@@ -1323,12 +1277,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const member = teamMembers.find(m => m.id === id);
     if (!member || !member.db_id) throw new Error("Membro da equipe não encontrado.");
 
-    // Delete auth user if they have a login
     if (member.hasLogin) {
       const { error: authDeleteError } = await supabase.auth.admin.deleteUser(member.id);
       if (authDeleteError) {
         console.error("Error deleting auth user:", authDeleteError);
-        // Don't throw, try to delete from public.team_members anyway
       }
     }
 
@@ -1549,26 +1501,46 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     updateConfig({ templates });
   }, [templates, updateConfig]);
 
-  const addOrigin = useCallback((newOrigin: string) => {
-    setOrigins(prev => {
-      const updated = [...prev, newOrigin];
-      updateConfig({ origins: updated });
-      return updated;
-    });
-  }, [updateConfig]);
+  const addOrigin = useCallback((newOrigin: string, type: 'sales' | 'hiring') => { // ATUALIZADO
+    if (type === 'sales') {
+      setSalesOrigins(prev => {
+        const updated = [...prev, newOrigin];
+        updateConfig({ salesOrigins: updated });
+        return updated;
+      });
+    } else {
+      setHiringOrigins(prev => {
+        const updated = [...prev, newOrigin];
+        updateConfig({ hiringOrigins: updated });
+        return updated;
+      });
+    }
+  }, [updateConfig]); // ATUALIZADO
 
-  const deleteOrigin = useCallback((originToDelete: string) => {
-    setOrigins(prev => {
-      const updated = prev.filter(o => o !== originToDelete);
-      updateConfig({ origins: updated });
-      return updated;
-    });
-  }, [updateConfig]);
+  const deleteOrigin = useCallback((originToDelete: string, type: 'sales' | 'hiring') => { // ATUALIZADO
+    if (type === 'sales') {
+      setSalesOrigins(prev => {
+        const updated = prev.filter(o => o !== originToDelete);
+        updateConfig({ salesOrigins: updated });
+        return updated;
+      });
+    } else {
+      setHiringOrigins(prev => {
+        const updated = prev.filter(o => o !== originToDelete);
+        updateConfig({ hiringOrigins: updated });
+        return updated;
+      });
+    }
+  }, [updateConfig]); // ATUALIZADO
 
   const resetOriginsToDefault = useCallback(() => {
-    setOrigins(DEFAULT_APP_CONFIG_DATA.origins);
-    updateConfig({ origins: DEFAULT_APP_CONFIG_DATA.origins });
-  }, [updateConfig]);
+    setHiringOrigins(DEFAULT_APP_CONFIG_DATA.hiringOrigins); // ATUALIZADO
+    setSalesOrigins(DEFAULT_APP_CONFIG_DATA.salesOrigins); // ATUALIZADO
+    updateConfig({ 
+      hiringOrigins: DEFAULT_APP_CONFIG_DATA.hiringOrigins, 
+      salesOrigins: DEFAULT_APP_CONFIG_DATA.salesOrigins 
+    });
+  }, [updateConfig]); // ATUALIZADO
 
   const addPV = useCallback((newPV: string) => {
     setPvs(prev => {
@@ -1596,7 +1568,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       toast.error("Erro ao salvar comissão. Tentando novamente em segundo plano.");
       const pendingCommissions = JSON.parse(localStorage.getItem('pending_commissions') || '[]');
       localStorage.setItem('pending_commissions', JSON.stringify([...pendingCommissions, { ...commission, _id: clientSideId, _timestamp: new Date().toISOString(), _retryCount: 0 }]));
-      setCommissions(prev => prev.filter(c => c.id !== tempCommission.id)); // Remove temp commission if it fails
+      setCommissions(prev => prev.filter(c => c.id !== tempCommission.id));
       throw error;
     }
   }, [user]);
@@ -1727,7 +1699,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const deleteOnlineOnboardingSession = useCallback(async (sessionId: string) => {
     if (!user) throw new Error("Usuário não autenticado.");
 
-    // Deleta os vídeos primeiro (ON DELETE CASCADE no DB cuidaria disso, mas é bom ser explícito)
     await supabase.from('onboarding_videos').delete().eq('session_id', sessionId);
 
     const { error } = await supabase
@@ -1795,8 +1766,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const { error } = await supabase.from('crm_pipelines').delete().eq('id', id).eq('user_id', JOAO_GESTOR_AUTH_ID);
     if (error) throw error;
     setCrmPipelines(prev => prev.filter(p => p.id !== id));
-    setCrmStages(prev => prev.filter(s => s.pipeline_id !== id)); // Also remove associated stages
-    setCrmLeads(prev => prev.filter(l => l.user_id !== id)); // Also remove associated leads
+    setCrmStages(prev => prev.filter(s => s.pipeline_id !== id));
+    setCrmLeads(prev => prev.filter(l => l.user_id !== id));
   }, [user]);
 
   const addCrmStage = useCallback(async (stage: Omit<CrmStage, 'id' | 'user_id' | 'created_at'>) => {
@@ -1828,7 +1799,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const deleteCrmStage = useCallback(async (id: string) => {
     if (!user) throw new Error("Usuário não autenticado.");
-    // First, update leads that are in this stage to null or a default stage
     await supabase.from('crm_leads').update({ stage_id: null }).eq('stage_id', id).eq('user_id', JOAO_GESTOR_AUTH_ID);
 
     const { error } = await supabase.from('crm_stages').delete().eq('id', id).eq('user_id', JOAO_GESTOR_AUTH_ID);
@@ -1856,7 +1826,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const addCrmLead = useCallback(async (lead: Omit<CrmLead, 'id' | 'created_at' | 'updated_at' | 'user_id' | 'created_by' | 'updated_by'>) => {
     if (!user) throw new Error("Usuário não autenticado.");
     
-    // Find the first active stage in the active pipeline to assign to new leads
     const activePipeline = crmPipelines.find(p => p.is_active);
     const firstStage = crmStages.find(s => s.pipeline_id === activePipeline?.id && s.is_active);
 
@@ -1864,28 +1833,27 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       throw new Error("Nenhuma etapa ativa encontrada no pipeline. Por favor, configure as etapas do CRM.");
     }
 
-    // ⚠️ CORREÇÃO: Garante que 'origin' seja movido para 'data.origin' se estiver no nível superior
     const leadDataWithOriginInJsonb = { ...lead.data };
-    if ((lead as any).origin) { // Verifica se 'origin' existe como propriedade de nível superior
+    if ((lead as any).origin) {
       leadDataWithOriginInJsonb.origin = (lead as any).origin;
-      delete (lead as any).origin; // Remove do nível superior para evitar duplicidade ou erro
+      delete (lead as any).origin;
     }
 
     const newLeadData = {
       ...lead,
       user_id: JOAO_GESTOR_AUTH_ID,
-      stage_id: firstStage.id, // Assign to the first active stage
+      stage_id: firstStage.id,
       created_by: user.id,
       updated_by: user.id,
-      data: leadDataWithOriginInJsonb, // Usa o objeto 'data' com a origem ajustada
-      consultant_id: lead.consultant_id || user.id, // ⚠️ NOVO: Atribui ao usuário logado se não for especificado
+      data: leadDataWithOriginInJsonb,
+      consultant_id: lead.consultant_id || user.id,
     };
 
-    console.log("[addCrmLead] Final payload before insert:", newLeadData); // DEBUG LOG
+    console.log("[addCrmLead] Final payload before insert:", newLeadData);
 
     const { data, error } = await supabase.from('crm_leads').insert(newLeadData).select('*').single();
     if (error) throw error;
-    setCrmLeads(prev => [data, ...prev]); // Add new lead to the beginning of the list
+    setCrmLeads(prev => [data, ...prev]);
     return data;
   }, [user, crmPipelines, crmStages]);
 
@@ -1894,22 +1862,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const lead = crmLeads.find(l => l.id === id);
     if (!lead) throw new Error("Lead não encontrado.");
 
-    // ⚠️ CORREÇÃO: Garante que 'origin' seja movido para 'data.origin' se estiver no nível superior
     const updatedDataJsonb = { ...lead.data, ...updates.data };
-    if ((updates as any).origin !== undefined) { // Verifica se 'origin' existe como propriedade de nível superior nas atualizações
+    if ((updates as any).origin !== undefined) {
       updatedDataJsonb.origin = (updates as any).origin;
-      delete (updates as any).origin; // Remove do nível superior para evitar duplicidade ou erro
+      delete (updates as any).origin;
     }
 
     const updatedData = {
       ...lead,
       ...updates,
-      data: updatedDataJsonb, // Usa o objeto 'data' com a origem ajustada
+      data: updatedDataJsonb,
       updated_by: user.id,
       updated_at: new Date().toISOString(),
     };
 
-    // Explicitly map camelCase to snake_case for top-level columns
     const updatedDataForDb: any = { ...updatedData };
     if (updates.proposalValue !== undefined) {
       updatedDataForDb.proposal_value = updates.proposalValue;
@@ -1936,7 +1902,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       delete updatedDataForDb.saleDate;
     }
 
-    console.log("[updateCrmLead] Final payload before update:", updatedDataForDb); // DEBUG LOG
+    console.log("[updateCrmLead] Final payload before update:", updatedDataForDb);
 
     const { error } = await supabase.from('crm_leads').update(updatedDataForDb).eq('id', id).eq('user_id', JOAO_GESTOR_AUTH_ID);
     if (error) throw error;
@@ -1951,7 +1917,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const updatedLead = { ...lead, stage_id: newStageId, updated_by: user.id, updated_at: new Date().toISOString() };
 
-    // Explicitly map camelCase to snake_case for top-level columns
     const updatedDataForDb: any = { ...updatedLead };
     if (updatedLead.proposalValue !== undefined) {
       updatedDataForDb.proposal_value = updatedLead.proposalValue;
@@ -2009,7 +1974,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const deleteDailyChecklist = useCallback(async (id: string) => {
     if (!user) throw new Error("Usuário não autenticado.");
-    // Deleta itens e atribuições via CASCADE no DB
     const { error } = await supabase.from('daily_checklists').delete().eq('id', id).eq('user_id', JOAO_GESTOR_AUTH_ID);
     if (error) throw error;
     setDailyChecklists(prev => prev.filter(c => c.id !== id));
@@ -2056,7 +2020,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const item = dailyChecklistItems.find(i => i.id === id);
       if (!item) throw new Error("Item do checklist não encontrado.");
 
-      // Delete old file if it exists and is being replaced
       if (item.resource?.content && (item.resource.type === 'image' || item.resource.type === 'pdf' || item.resource.type === 'audio')) {
         const oldFilePath = item.resource.content.split('app_resources/')[1];
         if (oldFilePath) {
@@ -2087,7 +2050,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const item = dailyChecklistItems.find(i => i.id === id);
     if (!item) throw new Error("Item do checklist não encontrado.");
 
-    // Delete associated file from storage
     if (item.resource?.content && (item.resource.type === 'image' || item.resource.type === 'pdf' || item.resource.type === 'audio')) {
       const filePath = item.resource.content.split('app_resources/')[1];
       if (filePath) {
@@ -2297,7 +2259,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     let content = updates.content || existingMaterial.content;
     if (file) {
-      // Delete old file if it exists and is being replaced
       if (existingMaterial.content_type !== 'link' && existingMaterial.content_type !== 'text' && existingMaterial.content) {
         const oldFilePath = existingMaterial.content.split('app_resources/')[1];
         if (oldFilePath) {
@@ -2325,7 +2286,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const material = supportMaterialsV2.find(m => m.id === id);
     if (!material) throw new Error("Material de apoio não encontrado.");
 
-    // Delete associated file from storage
     if (material.content_type !== 'link' && material.content_type !== 'text' && material.content) {
       const filePath = material.content.split('app_resources/')[1];
       if (filePath) {
@@ -2480,7 +2440,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const deleteFormCadastro = useCallback(async (id: string) => {
     if (!user) throw new Error("Usuário não autenticado.");
 
-    // Delete associated files from storage and database first
     const filesToDelete = formFiles.filter(f => f.submission_id === id);
     for (const file of filesToDelete) {
       const filePath = file.file_url.split('form_uploads/')[1];
@@ -2601,16 +2560,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       teamMembers,
       commissions,
       supportMaterials,
-      // importantLinks, // REMOVIDO
       cutoffPeriods,
       onboardingSessions,
       onboardingTemplateVideos,
       checklistStructure,
-      setChecklistStructure, // Adicionado setChecklistStructure
+      setChecklistStructure,
       consultantGoalsStructure,
       interviewStructure,
       templates,
-      origins,
+      hiringOrigins, // ATUALIZADO
+      salesOrigins, // ATUALIZADO
       interviewers,
       pvs,
       crmPipelines,
@@ -2739,20 +2698,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       updateTeamMemberFeedback,
       deleteTeamMemberFeedback,
       refetchCommissions,
-      addTeamMember, // Adicionado addTeamMember explicitamente aqui
-      updateTeamMember, // ⚠️ Adicionado updateTeamMember explicitamente aqui
-      deleteTeamMember, // ⚠️ Adicionado deleteTeamMember explicitamente aqui
+      addTeamMember,
+      updateTeamMember,
+      deleteTeamMember,
     };
   }, [
     isDataLoading, candidates, teamMembers, commissions, supportMaterials, cutoffPeriods, onboardingSessions, onboardingTemplateVideos,
-    checklistStructure, consultantGoalsStructure, interviewStructure, templates, origins, interviewers, pvs,
+    checklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs, // ATUALIZADO
     crmPipelines, crmStages, crmLeads, crmOwnerUserId,
     dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions,
     weeklyTargets, weeklyTargetItems, weeklyTargetAssignments, metricLogs,
     supportMaterialsV2, supportMaterialAssignments, leadTasks, gestorTasks, gestorTaskCompletions,
     financialEntries, formCadastros, formFiles, notifications,
     theme, toggleTheme, addCandidate, getCandidate, updateCandidate, deleteCandidate, 
-    setChecklistDueDate, toggleConsultantGoal, addChecklistItem, updateChecklistItem, deleteChecklistItem, moveChecklistItem, resetChecklistToDefault,
+    setChecklistDueDate, toggleChecklistItem, toggleConsultantGoal, addChecklistItem, updateChecklistItem, deleteChecklistItem, moveChecklistItem, resetChecklistToDefault,
     addGoalItem, updateGoalItem, deleteGoalItem, moveGoalItem, resetGoalsToDefault,
     updateInterviewSection, addInterviewQuestion, updateInterviewQuestion, deleteInterviewQuestion, moveInterviewQuestion, resetInterviewToDefault,
     saveTemplate, addOrigin, deleteOrigin, resetOriginsToDefault, addPV,

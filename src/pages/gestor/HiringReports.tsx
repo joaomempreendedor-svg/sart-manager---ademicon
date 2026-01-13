@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Loader2, Users, Calendar, FileText, UserCheck, UserX, Award, Filter, RotateCcw, UserRound, TrendingUp, Star, Download, Percent, LineChart } from 'lucide-react'; // Adicionado LineChart
+import { Loader2, Users, Calendar, FileText, UserCheck, UserX, Award, Filter, RotateCcw, UserRound, TrendingUp, Star, Download, Percent, LineChart, MapPin } from 'lucide-react'; // Adicionado MapPin
 import {
   Select,
   SelectContent,
@@ -9,17 +9,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import * as XLSX from 'xlsx'; // Importar a biblioteca XLSX
+import * as XLSX from 'xlsx';
 
 const HiringReports = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
-  const { candidates, teamMembers, interviewStructure, origins, isDataLoading } = useApp(); // Adicionado 'origins'
+  const { candidates, teamMembers, interviewStructure, hiringOrigins, isDataLoading } = useApp(); // ATUALIZADO: Usando hiringOrigins
 
   const [filterStartDate, setFilterStartDate] = useState('');
   const [filterEndDate, setFilterEndDate] = useState('');
   const [selectedResponsibleId, setSelectedResponsibleId] = useState<string | null>(null);
-  const [filterStatus, setFilterStatus] = useState<string | null>(null); // Novo filtro por status
-  // const [filterOrigin, setFilterOrigin] = useState<string | null>(null); // Novo filtro por origem - REMOVIDO
+  const [filterStatus, setFilterStatus] = useState<string | null>(null);
+  const [filterOrigin, setFilterOrigin] = useState<string | null>(null); // NOVO: Filtro por origem
 
   const responsibleMembers = useMemo(() => {
     return teamMembers.filter(m => m.isActive && (m.roles.includes('Gestor') || m.roles.includes('Anjo')));
@@ -46,9 +46,9 @@ const HiringReports = () => {
       currentCandidates = currentCandidates.filter(c => c.status === filterStatus);
     }
 
-    // if (filterOrigin) { // REMOVIDO
-    //   currentCandidates = currentCandidates.filter(c => c.origin === filterOrigin);
-    // }
+    if (filterOrigin) { // NOVO: Filtrar por origem
+      currentCandidates = currentCandidates.filter(c => c.origin === filterOrigin);
+    }
 
     if (filterStartDate) {
       const start = new Date(filterStartDate + 'T00:00:00');
@@ -60,7 +60,7 @@ const HiringReports = () => {
     }
 
     return currentCandidates;
-  }, [candidates, selectedResponsibleId, filterStatus, filterStartDate, filterEndDate]); // Removido filterOrigin
+  }, [candidates, selectedResponsibleId, filterStatus, filterOrigin, filterStartDate, filterEndDate]); // ATUALIZADO: Adicionado filterOrigin
 
   const reportData = useMemo(() => {
     const dataByStatus: { [key: string]: number } = {
@@ -84,14 +84,12 @@ const HiringReports = () => {
     const candidatesByResponsible: { [key: string]: { name: string; count: number } } = {};
     responsibleMembers.forEach(m => candidatesByResponsible[m.id] = { name: m.name, count: 0 });
 
-    // const candidatesByOrigin: { [key: string]: { count: number; authorizedCount: number; } } = {}; // REMOVIDO
-    // origins.forEach(o => candidatesByOrigin[o] = { count: 0, authorizedCount: 0 }); // REMOVIDO
+    const candidatesByOrigin: { [key: string]: { count: number; authorizedCount: number; } } = {}; // NOVO: Estrutura para origens
+    hiringOrigins.forEach(o => candidatesByOrigin[o] = { count: 0, authorizedCount: 0 }); // NOVO: Inicializa com hiringOrigins
 
-    // NOVO: Estrutura para tendências mensais
     const monthlyTrends: { [monthYear: string]: { totalCandidates: number; authorizedCandidates: number; totalInterviewScore: number; interviewCount: number; } } = {};
 
     filteredCandidates.forEach(c => {
-      // Pipeline Status Overview
       if (c.status === 'Entrevista' && c.interviewScores.basicProfile === 0 && c.interviewScores.commercialSkills === 0 && c.interviewScores.behavioralProfile === 0 && c.interviewScores.jobFit === 0 && c.interviewScores.notes === '') {
         dataByStatus['Entrevista Agendada']++;
       } else if (c.status === 'Entrevista') {
@@ -100,15 +98,13 @@ const HiringReports = () => {
         dataByStatus[c.status]++;
       }
 
-      // Candidates by Responsible
       if (c.responsibleUserId && candidatesByResponsible[c.responsibleUserId]) {
         candidatesByResponsible[c.responsibleUserId].count++;
       }
 
-      // Interview Scores
       const totalCandidateScore = Object.entries(c.interviewScores)
         .filter(([key]) => key !== 'notes')
-        .reduce((sum, [key, val]) => {
+        .reduce((sum, [_, val]) => {
           if (typeof val === 'number') {
             sectionScores[key].total += val;
             sectionScores[key].count++;
@@ -122,15 +118,14 @@ const HiringReports = () => {
         interviewCount++;
       }
 
-      // Candidates by Origin - REMOVIDO
-      // if (c.origin && candidatesByOrigin[c.origin]) {
-      //   candidatesByOrigin[c.origin].count++;
-      //   if (c.status === 'Autorizado') {
-      //     candidatesByOrigin[c.origin].authorizedCount++;
-      //   }
-      // }
+      // NOVO: Preencher dados de candidatos por origem
+      if (c.origin && candidatesByOrigin[c.origin]) {
+        candidatesByOrigin[c.origin].count++;
+        if (c.status === 'Autorizado') {
+          candidatesByOrigin[c.origin].authorizedCount++;
+        }
+      }
 
-      // NOVO: Preencher dados de tendências mensais
       const createdAtDate = new Date(c.createdAt);
       const monthYear = `${createdAtDate.getFullYear()}-${String(createdAtDate.getMonth() + 1).padStart(2, '0')}`;
       if (!monthlyTrends[monthYear]) {
@@ -155,20 +150,18 @@ const HiringReports = () => {
     }));
 
     const sortedCandidatesByResponsible = Object.values(candidatesByResponsible).sort((a, b) => b.count - a.count);
-    // const sortedCandidatesByOrigin = Object.entries(candidatesByOrigin).map(([origin, data]) => ({ // REMOVIDO
-    //   origin,
-    //   ...data,
-    //   conversionRate: data.count > 0 ? (data.authorizedCount / data.count) * 100 : 0,
-    // })).sort((a, b) => b.count - a.count); // REMOVIDO
+    const sortedCandidatesByOrigin = Object.entries(candidatesByOrigin).map(([origin, data]) => ({ // NOVO: Processa origens
+      origin,
+      ...data,
+      conversionRate: data.count > 0 ? (data.authorizedCount / data.count) * 100 : 0,
+    })).sort((a, b) => b.count - a.count);
 
-    // Conversion Rates between stages
     const totalScheduled = dataByStatus['Entrevista Agendada'] + dataByStatus['Entrevista Realizada'];
     const scheduledToConducted = totalScheduled > 0 ? (dataByStatus['Entrevista Realizada'] / totalScheduled) * 100 : 0;
     const conductedToAwaitingPreview = dataByStatus['Entrevista Realizada'] > 0 ? (dataByStatus['Aguardando Prévia'] / dataByStatus['Entrevista Realizada']) * 100 : 0;
     const awaitingPreviewToAuthorized = dataByStatus['Aguardando Prévia'] > 0 ? (dataByStatus['Autorizado'] / dataByStatus['Aguardando Prévia']) * 100 : 0;
     const overallToAuthorized = totalScheduled > 0 ? (dataByStatus['Autorizado'] / totalScheduled) * 100 : 0;
 
-    // NOVO: Formatar tendências mensais para exibição
     const formattedMonthlyTrends = Object.entries(monthlyTrends)
       .map(([monthYear, data]) => {
         const [year, month] = monthYear.split('-');
@@ -188,33 +181,33 @@ const HiringReports = () => {
       avgInterviewScore,
       avgSectionScores,
       candidatesByResponsible: sortedCandidatesByResponsible,
-      // candidatesByOrigin: sortedCandidatesByOrigin, // REMOVIDO
+      candidatesByOrigin: sortedCandidatesByOrigin, // NOVO: Adiciona ao retorno
       conversionRates: {
         scheduledToConducted,
         conductedToAwaitingPreview,
         awaitingPreviewToAuthorized,
         overallToAuthorized,
       },
-      monthlyTrends: formattedMonthlyTrends, // NOVO: Adicionar tendências mensais
+      monthlyTrends: formattedMonthlyTrends,
     };
-  }, [filteredCandidates, interviewStructure, responsibleMembers]); // Removido origins
+  }, [filteredCandidates, interviewStructure, responsibleMembers, hiringOrigins]); // ATUALIZADO: Adicionado hiringOrigins
 
   const clearFilters = () => {
     setFilterStartDate('');
     setFilterEndDate('');
     setSelectedResponsibleId(null);
     setFilterStatus(null);
-    // setFilterOrigin(null); // REMOVIDO
+    setFilterOrigin(null); // NOVO: Limpa filtro de origem
   };
 
-  const hasActiveFilters = filterStartDate || filterEndDate || selectedResponsibleId || filterStatus; // Removido filterOrigin
+  const hasActiveFilters = filterStartDate || filterEndDate || selectedResponsibleId || filterStatus || filterOrigin; // ATUALIZADO: Adicionado filterOrigin
 
   const handleExportToExcel = () => {
     const dataToExport = filteredCandidates.map(c => ({
       'Nome': c.name,
       'Telefone': c.phone,
       'Data Entrevista': new Date(c.interviewDate + 'T00:00:00').toLocaleDateString('pt-BR'),
-      // 'Origem': c.origin, // REMOVIDO
+      'Origem': c.origin, // NOVO: Exporta origem
       'Status': c.status,
       'Responsável': teamMembers.find(m => m.id === c.responsibleUserId)?.name || 'N/A',
       'Pontuação Total Entrevista': Object.entries(c.interviewScores).filter(([key]) => key !== 'notes').reduce((sum, [_, val]) => sum + (typeof val === 'number' ? val : 0), 0),
@@ -227,7 +220,6 @@ const HiringReports = () => {
     const worksheetCandidates = XLSX.utils.json_to_sheet(dataToExport);
     XLSX.utils.book_append_sheet(workbook, worksheetCandidates, "Candidatos Detalhado");
 
-    // Add summary data
     const summaryData = [
       { 'Métrica': 'Total de Candidatos Filtrados', 'Valor': filteredCandidates.length },
       { 'Métrica': 'Média Geral da Entrevista', 'Valor': reportData.avgInterviewScore.toFixed(1) },
@@ -238,14 +230,12 @@ const HiringReports = () => {
     const summarySheet = XLSX.utils.json_to_sheet(summaryData);
     XLSX.utils.book_append_sheet(workbook, summarySheet, "Resumo Geral");
 
-    // Add pipeline status overview
     const pipelineOverviewSheet = XLSX.utils.json_to_sheet(Object.entries(reportData.dataByStatus).map(([status, count]) => ({
       'Status do Pipeline': status,
       'Número de Candidatos': count,
     })));
     XLSX.utils.book_append_sheet(workbook, pipelineOverviewSheet, "Visao Geral Pipeline");
 
-    // Add conversion rates
     const conversionRatesSheet = XLSX.utils.json_to_sheet([
       { 'Conversão': 'Agendada -> Realizada', 'Taxa (%)': reportData.conversionRates.scheduledToConducted.toFixed(1) },
       { 'Conversão': 'Realizada -> Aguardando Prévia', 'Taxa (%)': reportData.conversionRates.conductedToAwaitingPreview.toFixed(1) },
@@ -254,23 +244,20 @@ const HiringReports = () => {
     ]);
     XLSX.utils.book_append_sheet(workbook, conversionRatesSheet, "Taxas de Conversao");
 
-    // Add candidates by responsible
     const responsibleSheet = XLSX.utils.json_to_sheet(reportData.candidatesByResponsible.map(r => ({
       'Responsável': r.name,
       'Candidatos Gerenciados': r.count,
     })));
     XLSX.utils.book_append_sheet(workbook, responsibleSheet, "Candidatos por Responsavel");
 
-    // Add candidates by origin - REMOVIDO
-    // const originSheet = XLSX.utils.json_to_sheet(reportData.candidatesByOrigin.map(o => ({
-    //   'Origem': o.origin,
-    //   'Total de Candidatos': o.count,
-    //   'Autorizados': o.authorizedCount,
-    //   'Taxa de Conversão para Autorizado (%)': o.conversionRate.toFixed(1),
-    // })));
-    // XLSX.utils.book_append_sheet(workbook, originSheet, "Candidatos por Origem");
+    const originSheet = XLSX.utils.json_to_sheet(reportData.candidatesByOrigin.map(o => ({ // NOVO: Exporta origens
+      'Origem': o.origin,
+      'Total de Candidatos': o.count,
+      'Autorizados': o.authorizedCount,
+      'Taxa de Conversão para Autorizado (%)': o.conversionRate.toFixed(1),
+    })));
+    XLSX.utils.book_append_sheet(workbook, originSheet, "Candidatos por Origem");
 
-    // NOVO: Adicionar tendências mensais ao Excel
     const monthlyTrendsSheet = XLSX.utils.json_to_sheet(reportData.monthlyTrends.map(m => ({
       'Mês': m.month,
       'Total de Candidatos': m.totalCandidates,
@@ -352,7 +339,7 @@ const HiringReports = () => {
               </SelectContent>
             </Select>
           </div>
-          {/* <div className="w-full"> // REMOVIDO
+          <div className="w-full">
             <label htmlFor="originFilter" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Origem do Candidato</label>
             <Select 
               value={filterOrigin || 'all'} 
@@ -363,14 +350,14 @@ const HiringReports = () => {
               </SelectTrigger>
               <SelectContent className="bg-white text-gray-900 dark:bg-slate-800 dark:text-white dark:border-slate-700">
                 <SelectItem value="all">Todas as Origens</SelectItem>
-                {origins.map(origin => (
+                {hiringOrigins.map(origin => (
                   <SelectItem key={origin} value={origin}>
                     {origin}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-          </div> */}
+          </div>
           <div>
             <label htmlFor="filterStartDate" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Candidatos Criados de</label>
             <input
@@ -394,7 +381,6 @@ const HiringReports = () => {
         </div>
       </div>
 
-      {/* Pipeline Status Overview */}
       <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center"><TrendingUp className="w-5 h-5 mr-2 text-brand-500" />Visão Geral do Pipeline</h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
@@ -435,7 +421,6 @@ const HiringReports = () => {
         </div>
       </div>
 
-      {/* Conversion Rates */}
       <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center"><Percent className="w-5 h-5 mr-2 text-brand-500" />Taxas de Conversão do Pipeline</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
@@ -476,7 +461,6 @@ const HiringReports = () => {
         </div>
       </div>
 
-      {/* Interview Scores */}
       <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center"><Award className="w-5 h-5 mr-2 text-brand-500" />Desempenho das Entrevistas</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm">
@@ -501,7 +485,6 @@ const HiringReports = () => {
         </div>
       </div>
 
-      {/* Candidates by Responsible */}
       <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center"><UserRound className="w-5 h-5 mr-2 text-brand-500" />Candidatos por Responsável</h2>
       <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden mb-8">
         <div className="overflow-x-auto">
@@ -535,8 +518,7 @@ const HiringReports = () => {
         </div>
       </div>
 
-      {/* Candidates by Origin - REMOVIDO */}
-      {/* <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center"><Star className="w-5 h-5 mr-2 text-brand-500" />Candidatos por Origem</h2>
+      <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center"><Star className="w-5 h-5 mr-2 text-brand-500" />Candidatos por Origem</h2>
       <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden mb-8">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300">
@@ -568,9 +550,8 @@ const HiringReports = () => {
             </tbody>
           </table>
         </div>
-      </div> */}
+      </div>
 
-      {/* NOVO: Seção de Tendências Mensais */}
       <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center"><LineChart className="w-5 h-5 mr-2 text-brand-500" />Tendências Mensais</h2>
       <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden mb-8">
         <div className="overflow-x-auto">

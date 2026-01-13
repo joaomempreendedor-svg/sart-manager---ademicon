@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { Candidate, TeamMember } from '@/types';
-import { X, Save, Loader2, User, Phone, Mail, Users } from 'lucide-react'; // Removido MapPin
+import { X, Save, Loader2, User, Phone, Mail, Users, MapPin } from 'lucide-react'; // Adicionado MapPin
 import {
   Dialog,
   DialogContent,
@@ -25,17 +25,15 @@ import toast from 'react-hot-toast';
 interface AddScreeningCandidateModalProps {
   isOpen: boolean;
   onClose: () => void;
-  // Removido origins: string[];
-  // Removido responsibleMembers: TeamMember[];
 }
 
 export const AddScreeningCandidateModal: React.FC<AddScreeningCandidateModalProps> = ({ isOpen, onClose }) => {
-  const { addCandidate, teamMembers } = useApp(); // Removido origins
+  const { addCandidate, teamMembers, hiringOrigins } = useApp(); // ATUALIZADO: Usando hiringOrigins
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
     email: '',
-    // origin: '', // REMOVIDO
+    origin: '', // NOVO: Adicionado campo de origem
     responsibleUserId: '',
   });
   const [isSaving, setIsSaving] = useState(false);
@@ -50,7 +48,7 @@ export const AddScreeningCandidateModal: React.FC<AddScreeningCandidateModalProp
       name: '',
       phone: '',
       email: '',
-      // origin: '', // REMOVIDO
+      origin: '', // Resetar origem
       responsibleUserId: '',
     });
     setError('');
@@ -65,8 +63,12 @@ export const AddScreeningCandidateModal: React.FC<AddScreeningCandidateModalProp
     e.preventDefault();
     setError('');
 
-    if (!formData.name.trim()) { // Apenas o nome é obrigatório agora
+    if (!formData.name.trim()) {
       setError('Nome é obrigatório.');
+      return;
+    }
+    if (!formData.origin.trim()) { // Validação da origem
+      setError('Origem é obrigatória.');
       return;
     }
 
@@ -77,17 +79,17 @@ export const AddScreeningCandidateModal: React.FC<AddScreeningCandidateModalProp
         name: formData.name.trim(),
         phone: formData.phone.trim(),
         email: formData.email.trim(),
-        // origin: formData.origin || 'Não Informado', // Define um valor padrão se não for fornecido - REMOVIDO
-        status: 'Triagem', // Inicia no status de triagem
-        screeningStatus: 'Pending Contact', // Inicia como pendente de contato
-        interviewDate: '', // Não há data de entrevista inicial
-        interviewer: '', // Não há entrevistador inicial
+        origin: formData.origin, // NOVO: Salva a origem
+        status: 'Triagem',
+        screeningStatus: 'Pending Contact',
+        interviewDate: '',
+        interviewer: '',
         interviewScores: { basicProfile: 0, commercialSkills: 0, behavioralProfile: 0, jobFit: 0, notes: '' },
         checklistProgress: {},
         consultantGoalsProgress: {},
         feedbacks: [],
         createdAt: new Date().toISOString(),
-        responsibleUserId: formData.responsibleUserId || undefined, // Define como undefined se não for fornecido
+        responsibleUserId: formData.responsibleUserId || undefined,
       };
 
       await addCandidate(newCandidate);
@@ -156,8 +158,51 @@ export const AddScreeningCandidateModal: React.FC<AddScreeningCandidateModalProp
                 />
               </div>
             </div>
-            {/* Removido o campo de Origem */}
-            {/* Removido o campo de Responsável */}
+            {/* NOVO: Campo de seleção para a Origem */}
+            <div>
+              <Label htmlFor="origin">Origem *</Label>
+              <div className="relative">
+                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Select
+                  value={formData.origin}
+                  onValueChange={(value) => setFormData({...formData, origin: value})}
+                  required
+                >
+                  <SelectTrigger className="w-full pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600">
+                    <SelectValue placeholder="Selecione a origem" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
+                    {hiringOrigins.map(origin => (
+                      <SelectItem key={origin} value={origin}>
+                        {origin}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            {/* Campo de seleção para o responsável */}
+            <div>
+              <Label htmlFor="responsibleUser">De quem é o candidato? (Opcional)</Label>
+              <div className="relative">
+                <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Select
+                  value={formData.responsibleUserId}
+                  onValueChange={(value) => setFormData({...formData, responsibleUserId: value})}
+                >
+                  <SelectTrigger className="w-full pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600">
+                    <SelectValue placeholder="Selecione um gestor ou anjo" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
+                    {responsibleMembers.map(member => (
+                      <SelectItem key={member.id} value={member.id}>
+                        {member.name} ({member.roles.join(', ')})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
             {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
           </div>
           <DialogFooter className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-700 flex-col sm:flex-row">

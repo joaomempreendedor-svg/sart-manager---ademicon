@@ -33,7 +33,7 @@ interface LeadModalProps {
 }
 
 const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields, assignedConsultantId }) => {
-  const { addCrmLead, updateCrmLead, deleteCrmLead, crmOwnerUserId, crmStages, origins } = useApp();
+  const { addCrmLead, updateCrmLead, deleteCrmLead, crmOwnerUserId, crmStages, salesOrigins } = useApp(); // ATUALIZADO: Usando salesOrigins
   const [formData, setFormData] = useState<Partial<CrmLead>>({
     name: '',
     data: {},
@@ -147,8 +147,6 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
   };
 
   const renderField = (field: CrmField) => {
-    // O campo 'name' principal é tratado separadamente no JSX
-    // Campos 'nome' e 'origin' também são tratados como campos principais e não devem ser renderizados aqui
     const systemReservedKeys = ['name', 'nome', 'origin'];
     const systemReservedLabels = ['Nome do Lead', 'Origem'];
 
@@ -191,7 +189,6 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
     }
   };
 
-  // Filtra chaves e rótulos reservados do sistema que NÃO devem ser campos personalizados
   const filteredCrmFields = useMemo(() => {
     const systemReservedKeys = ['stage_id', 'name', 'nome', 'origin', 'consultant_id', 'user_id', 'created_by', 'updated_by', 'proposal_value', 'proposal_closing_date', 'sold_credit_value', 'sold_group', 'sold_quota', 'sale_date'];
     const systemReservedLabels = ['Nome do Lead', 'Origem', 'Etapa Atual'];
@@ -267,7 +264,7 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
                       <SelectValue placeholder="Selecione a origem" />
                     </SelectTrigger>
                     <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
-                      {origins.map(origin => (
+                      {salesOrigins.map(origin => (
                         <SelectItem key={origin} value={origin}>
                           {origin}
                         </SelectItem>
