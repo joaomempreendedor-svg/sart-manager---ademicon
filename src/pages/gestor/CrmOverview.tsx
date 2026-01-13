@@ -1,14 +1,14 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Plus, Search, Loader2, Phone, Mail, Tag, MessageSquare, TrendingUp, ListTodo, CalendarPlus, Send, DollarSign, Edit2, Trash2, Users, CheckCircle2, Filter, RotateCcw, UserRound, UploadCloud } from 'lucide-react'; // Adicionado UploadCloud
+import { Plus, Search, Loader2, Phone, Mail, Tag, MessageSquare, TrendingUp, ListTodo, CalendarPlus, Send, DollarSign, Edit2, Trash2, Users, CheckCircle2, Filter, RotateCcw, UserRound, UploadCloud, Calendar, Clock } from 'lucide-react'; // Adicionado Calendar e Clock
 import LeadModal from '@/components/crm/LeadModal';
 import { LeadTasksModal } from '@/components/crm/LeadTasksModal';
 import { ScheduleMeetingModal } from '@/components/crm/ScheduleMeetingModal';
 import { ProposalModal } from '@/components/crm/ProposalModal';
 import { MarkAsSoldModal } from '@/components/crm/MarkAsSoldModal';
 import ExportCrmLeadsButton from '@/components/crm/ExportCrmLeadsButton';
-import { ImportCrmLeadsModal } from '@/components/crm/ImportCrmLeadsModal'; // NOVO: Importar o modal de importação
+import { ImportCrmLeadsModal } from '@/components/crm/ImportCrmLeadsModal';
 import {
   Select,
   SelectContent,
@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { CrmLead } from '@/types'; // Importar CrmLead para o onImport
+import { CrmLead } from '@/types';
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -24,7 +24,7 @@ const formatCurrency = (value: number) => {
 
 const CrmOverviewPage = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
-  const { crmPipelines, crmStages, crmLeads, crmFields, teamMembers, isDataLoading, deleteCrmLead, updateCrmLeadStage, addCrmLead, origins } = useApp(); // Adicionado addCrmLead e origins
+  const { crmPipelines, crmStages, crmLeads, crmFields, teamMembers, isDataLoading, deleteCrmLead, updateCrmLeadStage, addCrmLead, origins, leadTasks } = useApp(); // Adicionado leadTasks
   const [isLeadModalOpen, setIsLeadModalOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<CrmLead | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -40,7 +40,7 @@ const CrmOverviewPage = () => {
 
   const [filterStartDate, setFilterStartDate] = useState('');
   const [filterEndDate, setFilterEndDate] = useState('');
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false); // NOVO: Estado para o modal de importação
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   const activePipeline = useMemo(() => {
     return crmPipelines.find(p => p.is_active) || crmPipelines[0];
@@ -344,7 +344,12 @@ const CrmOverviewPage = () => {
                   const isLostStage = currentLeadStage?.is_lost;
                   const canOpenProposalModal = !isWonStage && !isLostStage;
                   const canMarkAsWon = !isWonStage && !isLostStage;
-                  const consultant = teamMembers.find(member => member.id === lead.consultant_id); // Encontra o consultor
+                  const consultant = teamMembers.find(member => member.id === lead.consultant_id);
+
+                  // Encontrar a próxima reunião para este lead
+                  const nextMeeting = leadTasks
+                    .filter(task => task.lead_id === lead.id && task.type === 'meeting' && !task.is_completed && task.meeting_start_time && new Date(task.meeting_start_time) > new Date())
+                    .sort((a, b) => new Date(a.meeting_start_time!).getTime() - new Date(b.meeting_start_time!).getTime())[0];
 
                   return (
                     <div key={lead.id} onClick={() => handleEditLead(lead)} className="bg-white dark:bg-slate-700 p-3 rounded-lg shadow-sm border border-gray-200 dark:border-slate-600 hover:border-brand-500 cursor-pointer transition-all group">
@@ -373,6 +378,13 @@ const CrmOverviewPage = () => {
                         {lead.data.email && <div className="flex items-center"><Mail className="w-3 h-3 mr-1" /> {lead.data.email}</div>}
                         {lead.data.origin && <div className="flex items-center"><Tag className="w-3 h-3 mr-1" /> {lead.data.origin}</div>}
                         
+                        {nextMeeting && (
+                          <div className="flex items-center text-blue-600 dark:text-blue-400 font-semibold">
+                            <Calendar className="w-3 h-3 mr-1" /> Reunião: {new Date(nextMeeting.meeting_start_time!).toLocaleDateString('pt-BR')}
+                            <Clock className="w-3 h-3 ml-2 mr-1" /> {new Date(nextMeeting.meeting_start_time!).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                          </div>
+                        )}
+
                         {isWonStage ? (
                           lead.soldCreditValue && lead.soldCreditValue > 0 ? (
                             <div className="flex items-center text-green-600 dark:text-green-400 font-semibold">
