@@ -110,6 +110,8 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
         user_id: crmOwnerUserId, // Use o ID do proprietário do CRM (ID do Gestor)
       } as CrmLead;
 
+      console.log("[LeadModal] Payload antes de chamar addCrmLead/updateCrmLead:", payload); // DEBUG LOG
+
       if (lead) {
         await updateCrmLead(lead.id, payload);
       } else {

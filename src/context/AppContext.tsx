@@ -1872,8 +1872,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       updated_by: user.id,
     };
 
+    console.log("[AppContext] Inserindo novo lead no Supabase:", newLeadData); // DEBUG LOG
+
     const { data, error } = await supabase.from('crm_leads').insert(newLeadData).select('*').single();
-    if (error) throw error;
+    if (error) {
+      console.error("[AppContext] Erro ao inserir lead no Supabase:", error); // DEBUG LOG
+      throw error;
+    }
     setCrmLeads(prev => [data, ...prev]); // Add new lead to the beginning of the list
     return data;
   }, [user, crmPipelines, crmStages]);
