@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useApp } from '@/context/AppContext';
+import { useApp } from '@/context/AppContext'; // Importar useApp
 import { CrmLead, CrmField, CrmStage } from '@/types';
 import { X, Save, Loader2, SlidersHorizontal, MapPin } from 'lucide-react';
 import {
@@ -33,7 +33,7 @@ interface LeadModalProps {
 }
 
 const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields, assignedConsultantId }) => {
-  const { addCrmLead, updateCrmLead, deleteCrmLead, crmOwnerUserId, crmStages, salesOrigins } = useApp();
+  const { addCrmLead, updateCrmLead, deleteCrmLead, crmOwnerUserId, crmStages, salesOrigins } = useApp(); // Consumir salesOrigins
   const [formData, setFormData] = useState<Partial<CrmLead>>({
     name: '',
     data: {},
@@ -275,9 +275,7 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
                     </SelectTrigger>
                     <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
                       {salesOrigins.map(origin => (
-                        <SelectItem key={origin} value={origin}>
-                          {origin}
-                        </SelectItem>
+                        <SelectItem key={origin} value={origin}>{origin}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
