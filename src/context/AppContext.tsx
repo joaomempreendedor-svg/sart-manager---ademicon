@@ -2734,7 +2734,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     refetchCommissions, addTeamMember, updateTeamMember, deleteTeamMember,
   ]);
 
-  return <AppContext.Provider value={value}>{children}</AppContextContext.Provider>;
+  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 };
 
 export const useApp = () => {
