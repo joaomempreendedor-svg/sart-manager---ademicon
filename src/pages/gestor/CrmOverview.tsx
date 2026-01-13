@@ -40,6 +40,7 @@ const CrmOverviewPage = () => { // Renomeado para CrmOverviewPage para evitar co
   const [filterStartDate, setFilterStartDate] = useState('');
   const [filterEndDate, setFilterEndDate] = useState('');
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [selectedConsultantId, setSelectedConsultantId] = useState<string | null>(null); // NOVO: Estado para o filtro de consultor
 
   const activePipeline = useMemo(() => {
     return crmPipelines.find(p => p.is_active) || crmPipelines[0];
@@ -57,8 +58,16 @@ const CrmOverviewPage = () => { // Renomeado para CrmOverviewPage para evitar co
     return crmLeads.filter(lead => lead.user_id === user.id);
   }, [crmLeads, user]);
 
+  const consultants = useMemo(() => { // NOVO: Lista de consultores para o filtro
+    return teamMembers.filter(m => m.isActive && (m.roles.includes('CONSULTOR') || m.roles.includes('Prévia') || m.roles.includes('Autorizado')));
+  }, [teamMembers]);
+
   const filteredLeads = useMemo(() => {
     let currentLeads = gestorLeads;
+
+    if (selectedConsultantId) { // NOVO: Filtrar por consultor
+      currentLeads = currentLeads.filter(lead => lead.consultant_id === selectedConsultantId);
+    }
 
     if (searchTerm) {
       const lowerCaseSearchTerm = searchTerm.toLowerCase();
@@ -80,7 +89,7 @@ const CrmOverviewPage = () => { // Renomeado para CrmOverviewPage para evitar co
     }
 
     return currentLeads;
-  }, [gestorLeads, searchTerm, filterStartDate, filterEndDate]);
+  }, [gestorLeads, searchTerm, filterStartDate, filterEndDate, selectedConsultantId]); // NOVO: Adicionado selectedConsultantId
 
   const groupedLeads = useMemo(() => {
     const groups: Record<string, CrmLead[]> = {};
@@ -172,9 +181,10 @@ const CrmOverviewPage = () => { // Renomeado para CrmOverviewPage para evitar co
     setSearchTerm('');
     setFilterStartDate('');
     setFilterEndDate('');
+    setSelectedConsultantId(null); // NOVO: Limpar filtro de consultor
   };
 
-  const hasActiveFilters = searchTerm || filterStartDate || filterEndDate;
+  const hasActiveFilters = searchTerm || filterStartDate || filterEndDate || selectedConsultantId; // NOVO: Incluir filtro de consultor
 
   if (isAuthLoading || isDataLoading) {
     return (
@@ -245,19 +255,38 @@ const CrmOverviewPage = () => { // Renomeado para CrmOverviewPage para evitar co
         </div>
       </div>
 
-      {/* NOVO: Filtros de Data */}
+      {/* NOVO: Filtros de Data e Consultor */}
       <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm space-y-4 mb-6">
         <div className="flex items-center justify-between flex-col sm:flex-row">
-          <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 flex items-center uppercase tracking-wide"><Filter className="w-4 h-4 mr-2" />Filtrar por Data de Criação</h3>
+          <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 flex items-center uppercase tracking-wide"><Filter className="w-4 h-4 mr-2" />Filtrar Leads</h3>
           {hasActiveFilters && (
             <button onClick={clearFilters} className="text-xs flex items-center text-red-500 hover:text-red-700 transition mt-2 sm:mt-0">
               <RotateCcw className="w-3 h-3 mr-1" />Limpar Filtros
             </button>
           )}
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4"> {/* Ajustado para 3 colunas */}
           <div>
-            <label htmlFor="filterStartDate" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">De</label>
+            <label htmlFor="filterConsultant" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Consultor</label>
+            <Select 
+              value={selectedConsultantId || 'all'} 
+              onValueChange={(value) => setSelectedConsultantId(value === 'all' ? null : value)}
+            >
+              <SelectTrigger className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
+                <SelectValue placeholder="Todos os Consultores" />
+              </SelectTrigger>
+              <SelectContent className="bg-white text-gray-900 dark:bg-slate-800 dark:text-white dark:border-slate-700">
+                <SelectItem value="all">Todos os Consultores</SelectItem>
+                {consultants.map(consultant => (
+                  <SelectItem key={consultant.id} value={consultant.id}>
+                    {consultant.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <label htmlFor="filterStartDate" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Criado de</label>
             <input
               type="date"
               id="filterStartDate"
@@ -267,7 +296,7 @@ const CrmOverviewPage = () => { // Renomeado para CrmOverviewPage para evitar co
             />
           </div>
           <div>
-            <label htmlFor="filterEndDate" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Até</label>
+            <label htmlFor="filterEndDate" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Criado até</label>
             <input
               type="date"
               id="filterEndDate"
