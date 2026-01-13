@@ -2316,17 +2316,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [user]);
 
   // Lead Task Functions
-  const addLeadTask = useCallback(async (task: Omit<LeadTask, 'id' | 'user_id' | 'created_at' | 'completed_at'>) => {
+  const addLeadTask = useCallback(async (task: Omit<LeadTask, 'id' | 'created_at' | 'completed_at'> & { user_id: string; manager_id?: string | null; }) => {
     if (!user) throw new Error("Usuário não autenticado.");
-    const { data, error } = await supabase.from('lead_tasks').insert({ user_id: user.id, ...task }).select('*').single();
+    const { data, error } = await supabase.from('lead_tasks').insert({ ...task, created_at: new Date().toISOString() }).select('*').single();
     if (error) throw error;
     setLeadTasks(prev => [...prev, data]);
     return data;
   }, [user]);
 
-  const updateLeadTask = useCallback(async (id: string, updates: Partial<LeadTask>) => {
+  const updateLeadTask = useCallback(async (id: string, updates: Partial<LeadTask> & { user_id?: string; manager_id?: string | null; }) => {
     if (!user) throw new Error("Usuário não autenticado.");
-    const { data, error } = await supabase.from('lead_tasks').update(updates).eq('id', id).select('*').single();
+    const { data, error } = await supabase.from('lead_tasks').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id).select('*').single();
     if (error) throw error;
     setLeadTasks(prev => prev.map(task => task.id === id ? data : task));
     return data;
@@ -2734,7 +2734,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     refetchCommissions, addTeamMember, updateTeamMember, deleteTeamMember,
   ]);
 
-  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+  return <AppContext.Provider value={value}>{children}</AppContextContext.Provider>;
 };
 
 export const useApp = () => {

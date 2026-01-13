@@ -64,10 +64,12 @@ export const LeadTasksModal: React.FC<LeadTasksModalProps> = ({ isOpen, onClose,
     try {
       await addLeadTask({
         lead_id: lead.id,
+        user_id: user.id, // O usuário logado é o criador da tarefa
         title: newTaskTitle.trim(),
         description: newTaskDescription.trim() || undefined,
         due_date: newTaskDueDate || undefined,
         is_completed: false,
+        type: 'task', // Tipo padrão é 'task'
       });
       setNewTaskTitle('');
       setNewTaskDescription('');
@@ -97,6 +99,8 @@ export const LeadTasksModal: React.FC<LeadTasksModalProps> = ({ isOpen, onClose,
         title: editTaskTitle.trim(),
         description: editTaskDescription.trim() || undefined,
         due_date: editTaskDueDate || undefined,
+        user_id: editingTask.user_id, // Garante que o user_id não seja alterado
+        manager_id: editingTask.manager_id, // Garante que o manager_id não seja alterado
       });
       setEditingTask(null);
     } catch (error) {
@@ -238,10 +242,21 @@ export const LeadTasksModal: React.FC<LeadTasksModalProps> = ({ isOpen, onClose,
                           <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{task.description}</p>
                         )}
                         <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400 mt-1 flex-wrap">
-                          {task.due_date && (
-                            <span className="flex items-center">
-                              <Clock className="w-3 h-3 mr-1" /> {new Date(task.due_date + 'T00:00:00').toLocaleDateString('pt-BR')}
-                            </span>
+                          {task.type === 'meeting' && task.meeting_start_time && task.meeting_end_time ? (
+                            <>
+                              <span className="flex items-center text-purple-600 dark:text-purple-400 font-semibold">
+                                <CalendarPlus className="w-3 h-3 mr-1" /> Reunião: {new Date(task.meeting_start_time).toLocaleDateString('pt-BR')}
+                              </span>
+                              <span className="flex items-center text-purple-600 dark:text-purple-400 font-semibold">
+                                <Clock className="w-3 h-3 mr-1" /> {new Date(task.meeting_start_time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} - {new Date(task.meeting_end_time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </>
+                          ) : (
+                            task.due_date && (
+                              <span className="flex items-center">
+                                <Clock className="w-3 h-3 mr-1" /> {new Date(task.due_date + 'T00:00:00').toLocaleDateString('pt-BR')}
+                              </span>
+                            )
                           )}
                           {task.is_completed && task.completed_at && (
                             <span className="flex items-center text-green-600 dark:text-green-400">
@@ -253,7 +268,7 @@ export const LeadTasksModal: React.FC<LeadTasksModalProps> = ({ isOpen, onClose,
                       <div className="flex-shrink-0 flex items-center space-x-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity mt-2 sm:mt-0 flex-wrap justify-end">
                         {task.type === 'meeting' && ( // NOVO: Botão de edição para reuniões
                           <Button variant="ghost" size="icon" onClick={() => handleEditMeeting(task)} className="text-gray-400 hover:text-purple-600" title="Editar Reunião">
-                            <CalendarPlus className="w-4 h-4" />
+                            <Edit2 className="w-4 h-4" />
                           </Button>
                         )}
                         {task.due_date && (
@@ -261,9 +276,11 @@ export const LeadTasksModal: React.FC<LeadTasksModalProps> = ({ isOpen, onClose,
                             <CalendarPlus className="w-4 h-4" />
                           </Button>
                         )}
-                        <Button variant="ghost" size="icon" onClick={() => startEditingTask(task)} className="text-gray-400 hover:text-brand-600" title="Editar Tarefa">
-                          <Edit2 className="w-4 h-4" />
-                        </Button>
+                        {task.type !== 'meeting' && ( // Não permite editar tarefas comuns aqui, apenas reuniões
+                          <Button variant="ghost" size="icon" onClick={() => startEditingTask(task)} className="text-gray-400 hover:text-brand-600" title="Editar Tarefa">
+                            <Edit2 className="w-4 h-4" />
+                          </Button>
+                        )}
                         <Button variant="ghost" size="icon" onClick={() => handleDeleteTask(task.id)} className="text-gray-400 hover:text-red-600" title="Excluir Tarefa">
                           <Trash2 className="w-4 h-4" />
                         </Button>

@@ -33,7 +33,7 @@ interface ScheduleMeetingModalProps {
 
 export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOpen, onClose, lead, currentMeeting }) => {
   const { user } = useAuth();
-  const { addLeadTask, updateLeadTask, updateCrmLeadStage, crmStages } = useApp();
+  const { addLeadTask, updateLeadTask, updateCrmLeadStage, crmStages, teamMembers } = useApp(); // Adicionado teamMembers
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -91,8 +91,31 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
 
     setIsSaving(true);
     try {
-      const meetingData = {
+      // Determine taskOwnerId (consultant) and invitedManagerId (gestor)
+      let taskOwnerId = lead.consultant_id; // Default to lead's consultant
+      let invitedManagerId: string | null = null;
+
+      if (user.role === 'GESTOR' || user.role === 'ADMIN') {
+        // If gestor is scheduling, the task owner is the lead's consultant
+        taskOwnerId = lead.consultant_id;
+        // The gestor themselves are the invited manager
+        invitedManagerId = user.id;
+      } else if (user.role === 'CONSULTOR') {
+        // If consultant is scheduling, they are the task owner
+        taskOwnerId = user.id;
+        // No manager invited by default, unless specified (not in this modal)
+        invitedManagerId = null; // Or could be lead.user_id if that's the manager
+      }
+
+      if (!taskOwnerId) {
+        setError('Não foi possível determinar o consultor responsável pela tarefa.');
+        setIsSaving(false);
+        return;
+      }
+
+      const meetingData: Omit<LeadTask, 'id' | 'created_at' | 'completed_at'> & { user_id: string; manager_id?: string | null; } = {
         lead_id: lead.id,
+        user_id: taskOwnerId, // ID do consultor responsável pela tarefa
         title: title.trim(),
         description: description.trim() || undefined,
         due_date: date,
@@ -100,6 +123,8 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
         type: 'meeting' as const,
         meeting_start_time: startDateTime.toISOString(),
         meeting_end_time: endDateTime.toISOString(),
+        manager_id: invitedManagerId, // ID do gestor convidado
+        manager_invitation_status: invitedManagerId ? 'pending' : undefined, // Status inicial
       };
 
       if (currentMeeting) {
