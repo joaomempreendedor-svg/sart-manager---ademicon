@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { CrmLead, CrmField, CrmStage } from '@/types';
-import { X, Save, Loader2, SlidersHorizontal } from 'lucide-react';
+import { X, Save, Loader2, SlidersHorizontal, MapPin } from 'lucide-react'; // Adicionado MapPin
 import {
   Dialog,
   DialogContent,
@@ -22,69 +22,74 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import toast from 'react-hot-toast'; // Importar toast
 
 interface LeadModalProps {
   isOpen: boolean;
   onClose: () => void;
   lead: CrmLead | null;
   crmFields: CrmField[];
-  assignedConsultantId?: string | null; // ⚠️ CORREÇÃO: Pode ser null
+  assignedConsultantId?: string | null;
 }
 
 const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields, assignedConsultantId }) => {
-  const { addCrmLead, updateCrmLead, deleteCrmLead, crmOwnerUserId, crmStages } = useApp();
+  const { addCrmLead, updateCrmLead, deleteCrmLead, crmOwnerUserId, crmStages, origins } = useApp(); // Adicionado origins
   const [formData, setFormData] = useState<Partial<CrmLead>>({
-    name: '', // Adicionado name aqui para ser a fonte primária
+    name: '',
     data: {},
   });
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [error, setError] = useState(''); // Estado para erros de validação
 
   useEffect(() => {
-    if (lead) {
+    if (isOpen) {
       setFormData({
-        name: lead.name || '', // Popula o name principal
-        stage_id: lead.stage_id,
-        consultant_id: lead.consultant_id, // ⚠️ Incluir consultant_id do lead existente
-        data: { ...lead.data }, // Mantém outros campos de dados
+        name: lead?.name || '',
+        stage_id: lead?.stage_id,
+        consultant_id: lead?.consultant_id,
+        data: { ...lead?.data },
       });
-    } else {
-      setFormData({
-        name: '', // Para novos leads
-        consultant_id: assignedConsultantId, // ⚠️ Usar assignedConsultantId para novos leads
-        data: {},
-      });
+      setError(''); // Limpa erros ao abrir o modal
     }
-  }, [lead, isOpen, assignedConsultantId]); // Adicionado assignedConsultantId como dependência
+  }, [lead, isOpen, assignedConsultantId]);
 
   const handleChange = (key: string, value: any) => {
-    if (key === 'stage_id' || key === 'consultant_id') { // ⚠️ Tratar consultant_id como campo direto
-      setFormData(prev => ({ ...prev, [key]: value }));
-    } else if (key === 'name' || key === 'nome') { // Trata 'name' ou 'nome' como o campo de nome principal
-      setFormData(prev => ({ ...prev, name: value }));
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        data: {
-          ...prev.data,
-          [key]: value,
-        },
-      }));
-    }
+    setFormData(prev => {
+      if (key === 'stage_id' || key === 'consultant_id') {
+        return { ...prev, [key]: value };
+      } else if (key === 'name') {
+        return { ...prev, name: value };
+      } else {
+        return {
+          ...prev,
+          data: {
+            ...prev.data,
+            [key]: value,
+          },
+        };
+      }
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
     
-    // Valida o campo 'name' principal
-    const nameField = crmFields.find(f => f.key === 'name' || f.key === 'nome');
-    if (nameField?.is_required && !formData.name?.trim()) { // Verifica formData.name diretamente
-      alert('O campo "Nome do Lead" é obrigatório.');
+    // Validação do campo 'name' principal
+    if (!formData.name?.trim()) {
+      setError('O campo "Nome do Lead" é obrigatório.');
+      return;
+    }
+
+    // Validação do campo 'origin'
+    if (!formData.data?.origin?.trim()) {
+      setError('O campo "Origem" é obrigatório.');
       return;
     }
 
     if (lead && !formData.stage_id) {
-      alert('A Etapa é obrigatória para leads existentes.');
+      setError('A Etapa é obrigatória para leads existentes.');
       return;
     }
 
@@ -92,11 +97,11 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
     const missingRequiredFields = crmFields.filter(field => 
       field.is_required && 
       field.key !== 'name' && // Exclui 'name' pois já foi tratado acima
-      field.key !== 'nome' && // Exclui 'nome' pois já foi tratado acima
+      field.key !== 'origin' && // Exclui 'origin' pois já foi tratado acima
       !formData.data?.[field.key]
     );
     if (missingRequiredFields.length > 0) {
-      alert(`Os seguintes campos são obrigatórios: ${missingRequiredFields.map(f => f.label).join(', ')}`);
+      setError(`Os seguintes campos são obrigatórios: ${missingRequiredFields.map(f => f.label).join(', ')}`);
       return;
     }
 
@@ -104,21 +109,26 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
     try {
       const payload = {
         ...formData,
-        name: formData.name || null, // Garante que o name de nível superior seja usado
-        // ⚠️ CORREÇÃO: Garante que consultant_id seja null se não for um UUID válido
-        consultant_id: formData.consultant_id || null, 
-        user_id: crmOwnerUserId, // Use o ID do proprietário do CRM (ID do Gestor)
+        name: formData.name || null,
+        consultant_id: formData.consultant_id || null,
+        user_id: crmOwnerUserId,
+        data: { // Garante que 'data' é um objeto e inclui 'origin'
+          ...formData.data,
+          origin: formData.data?.origin || null, // Garante que a origem está no data
+        },
       } as CrmLead;
 
       if (lead) {
         await updateCrmLead(lead.id, payload);
+        toast.success(`Lead "${payload.name}" atualizado com sucesso!`);
       } else {
-        const { stage_id, ...newLeadPayload } = payload; // Remove stage_id do payload para novos leads
-        await addCrmLead(newLeadPayload);
+        await addCrmLead(payload);
+        toast.success(`Lead "${payload.name}" adicionado com sucesso!`);
       }
       onClose();
     } catch (error: any) {
-      alert(`Erro ao salvar lead: ${error.message}`);
+      console.error("Erro ao salvar lead:", error);
+      toast.error(`Erro ao salvar lead: ${error.message}`);
     } finally {
       setIsSaving(false);
     }
@@ -129,30 +139,22 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
     setIsDeleting(true);
     try {
       await deleteCrmLead(lead.id);
+      toast.success(`Lead "${lead.name}" excluído com sucesso!`);
       onClose();
     } catch (error: any) {
-      alert(`Erro ao excluir lead: ${error.message}`);
+      console.error("Erro ao excluir lead:", error);
+      toast.error(`Erro ao excluir lead: ${error.message}`);
     } finally {
       setIsDeleting(false);
     }
   };
 
   const renderField = (field: CrmField) => {
-    // Tratamento especial para o campo de nome principal
-    if (field.key === 'name' || field.key === 'nome') {
-      const value = formData.name || ''; // Vincula ao name de nível superior
-      const commonProps = {
-        id: field.key,
-        name: field.key,
-        value: value,
-        onChange: (e: any) => handleChange(field.key, e.target.value), // Isso agora atualizará formData.name
-        className: "w-full p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 focus:outline-none focus:ring-0 focus:ring-offset-0 focus:border-transparent",
-        required: field.is_required,
-      };
-      return <Input type="text" {...commonProps} />;
+    // O campo 'name' principal é tratado separadamente no JSX
+    if (field.key === 'name' || field.key === 'nome' || field.key === 'origin') {
+      return null; // Não renderiza campos 'name' ou 'origin' como campos personalizados aqui
     }
 
-    // Para outros campos personalizados
     const value = formData.data?.[field.key] || '';
     const commonProps = {
       id: field.key,
@@ -190,7 +192,7 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
 
   // Filtra chaves reservadas do sistema que NÃO devem ser campos personalizados
   const filteredCrmFields = useMemo(() => {
-    const systemReservedKeys = ['stage_id']; 
+    const systemReservedKeys = ['stage_id', 'name', 'origin']; // Adicionado 'name' e 'origin'
     return crmFields.filter(field => !systemReservedKeys.includes(field.key));
   }, [crmFields]);
 
@@ -229,6 +231,47 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
                 </div>
               )}
 
+              {/* Campo Nome do Lead (sempre visível e obrigatório) */}
+              <div className="grid gap-2">
+                <Label htmlFor="name" className="text-left">
+                  Nome do Lead <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="name"
+                  type="text"
+                  value={formData.name || ''}
+                  onChange={(e) => handleChange('name', e.target.value)}
+                  className="w-full p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600"
+                  required
+                />
+              </div>
+
+              {/* Campo Origem (sempre visível e obrigatório) */}
+              <div className="grid gap-2">
+                <Label htmlFor="origin" className="text-left">
+                  Origem <span className="text-red-500">*</span>
+                </Label>
+                <div className="relative">
+                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Select
+                    value={formData.data?.origin || ''}
+                    onValueChange={(val) => handleChange('origin', val)}
+                    required
+                  >
+                    <SelectTrigger className="w-full pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600">
+                      <SelectValue placeholder="Selecione a origem" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
+                      {origins.map(origin => (
+                        <SelectItem key={origin} value={origin}>
+                          {origin}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
               <div className="col-span-4 border-t border-gray-200 dark:border-slate-700 pt-4 mt-4">
                 <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-3 flex items-center">
                   <SlidersHorizontal className="w-4 h-4 mr-2 text-brand-500" />
@@ -249,6 +292,7 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
               </div>
             </div>
           </ScrollArea>
+          {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
           <DialogFooter className="flex flex-col sm:flex-row sm:justify-between sm:items-center mt-4 pt-4 border-t border-gray-100 dark:border-slate-700">
             {lead && (
               <Button type="button" variant="destructive" onClick={handleDelete} disabled={isDeleting} className="mb-2 sm:mb-0 w-full sm:w-auto">

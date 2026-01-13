@@ -24,7 +24,7 @@ const formatCurrency = (value: number) => {
 
 const ConsultorCrmPage = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
-  const { crmPipelines, crmStages, crmLeads, crmFields, teamMembers, isDataLoading, deleteCrmLead, updateCrmLeadStage, addCrmLead } = useApp(); // Adicionado addCrmLead
+  const { crmPipelines, crmStages, crmLeads, crmFields, teamMembers, isDataLoading, deleteCrmLead, updateCrmLeadStage, addCrmLead, origins } = useApp(); // Adicionado addCrmLead e origins
   const [isLeadModalOpen, setIsLeadModalOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<CrmLead | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -229,7 +229,7 @@ const ConsultorCrmPage = () => {
             fileName="leads_crm_consultor"
           />
           <button
-            onClick={() => setIsImportModalOpen(true)} // NOVO: Botão para abrir o modal de importação
+            onClick={() => setIsImportModalOpen(true)}
             className="flex items-center justify-center space-x-2 bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded-lg transition font-medium flex-shrink-0"
           >
             <UploadCloud className="w-5 h-5" />
@@ -292,7 +292,6 @@ const ConsultorCrmPage = () => {
                 <div className="mt-1 text-sm font-bold text-purple-700 dark:text-purple-300">
                   Total Propostas: {formatCurrency(
                     groupedLeads[stage.id].reduce((sum, lead) => {
-                      console.log(`Lead ${lead.name} in stage ${stage.name}: proposalValue = ${lead.proposalValue}`); // DEBUG LOG
                       return sum + (lead.proposalValue || 0);
                     }, 0)
                   )}
@@ -302,7 +301,6 @@ const ConsultorCrmPage = () => {
                 <div className="mt-1 text-sm font-bold text-green-700 dark:text-green-300">
                   Total Vendido: {formatCurrency(
                     groupedLeads[stage.id].reduce((sum, lead) => {
-                      console.log(`Lead ${lead.name} in stage ${stage.name}: soldCreditValue = ${lead.soldCreditValue}`); // DEBUG LOG
                       return sum + (lead.soldCreditValue || 0);
                     }, 0)
                   )}
@@ -320,8 +318,6 @@ const ConsultorCrmPage = () => {
                   const canOpenProposalModal = !isWonStage && !isLostStage;
                   const canMarkAsWon = !isWonStage && !isLostStage;
                   const consultant = teamMembers.find(member => member.id === lead.consultant_id); // Encontra o consultor
-
-                  console.log(`[Card Render] Lead: ${lead.name}, ProposalValue: ${lead.proposalValue}, ProposalClosingDate: ${lead.proposalClosingDate}, SoldCreditValue: ${lead.soldCreditValue}, SaleDate: ${lead.saleDate}`); // DEBUG LOG
 
                   return (
                     <div key={lead.id} onClick={() => handleEditLead(lead)} className="bg-white dark:bg-slate-700 p-3 rounded-lg shadow-sm border border-gray-200 dark:border-slate-600 hover:border-brand-500 cursor-pointer transition-all group">

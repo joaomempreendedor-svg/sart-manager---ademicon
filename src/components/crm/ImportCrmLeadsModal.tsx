@@ -8,11 +8,12 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button'; // Corrigido: '=>' para 'from'
+import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import toast from 'react-hot-toast';
 import { CrmLead, CrmField, CrmStage, TeamMember } from '@/types';
+import { useApp } from '@/context/AppContext'; // Importar useApp
 
 interface ImportCrmLeadsModalProps {
   isOpen: boolean;
@@ -31,12 +32,11 @@ export const ImportCrmLeadsModal: React.FC<ImportCrmLeadsModalProps> = ({
   consultants, // Não será usado para mapeamento dinâmico de consultores
   stages, // Não será usado para mapeamento dinâmico de estágios
 }) => {
+  const { origins } = useApp(); // Acessar a lista de origens do AppContext
   const [pastedData, setPastedData] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [importResult, setImportResult] = useState<{ success: number; failed: number; errors: string[] } | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
-
-  // Não precisamos de activeCrmFields, consultantsMap ou stagesMap para este cenário simplificado.
 
   const handleProcessImport = async () => {
     setIsProcessing(true);
@@ -69,7 +69,6 @@ export const ImportCrmLeadsModal: React.FC<ImportCrmLeadsModalProps> = ({
     let dataLines: string[] = [];
     let hasHeader = false;
 
-    // Heurística para detectar se a primeira linha é um cabeçalho
     const lowerCaseFirstLine = firstLine.toLowerCase();
     const expectedHeaders = ['nome', 'origem'];
     
@@ -78,7 +77,6 @@ export const ImportCrmLeadsModal: React.FC<ImportCrmLeadsModalProps> = ({
       headers = firstLine.split(delimiter).map(h => h.trim().toLowerCase());
       dataLines = allLines.slice(1);
     } else {
-      // Se não houver cabeçalho, assumir 'nome' e 'origem' e todas as linhas são dados
       headers = ['nome', 'origem'];
       dataLines = allLines;
     }
@@ -89,7 +87,6 @@ export const ImportCrmLeadsModal: React.FC<ImportCrmLeadsModalProps> = ({
       return;
     }
 
-    // Mapear cabeçalhos para chaves de campo do CRM (simplificado)
     const headerToFieldKeyMap: { [key: string]: string } = {
       'nome': 'name',
       'nome do lead': 'name',
@@ -99,12 +96,11 @@ export const ImportCrmLeadsModal: React.FC<ImportCrmLeadsModalProps> = ({
     for (const line of dataLines) {
       const values = line.split(delimiter).map(v => v.trim());
       const leadData: Partial<Omit<CrmLead, 'id' | 'created_at' | 'updated_at' | 'user_id' | 'created_by' | 'updated_by'>> = {
-        data: {}, // Inicializa data como um objeto vazio
+        data: {},
       };
       let recordIsValid = true;
       const currentRecordErrors: string[] = [];
 
-      // Preencher leadData com base nos cabeçalhos e valores
       headers.forEach((header, index) => {
         const fieldKey = headerToFieldKeyMap[header];
         const value = values[index];
@@ -113,13 +109,17 @@ export const ImportCrmLeadsModal: React.FC<ImportCrmLeadsModalProps> = ({
           if (fieldKey === 'name') {
             leadData.name = value;
           } else if (fieldKey === 'origin') {
-            (leadData.data as any).origin = value; // Armazena a origem dentro do objeto 'data'
+            // Valida a origem contra a lista de origens configuradas
+            if (origins.includes(value)) {
+              (leadData.data as any).origin = value;
+            } else {
+              currentRecordErrors.push(`Origem "${value}" inválida. Origens permitidas: ${origins.join(', ')}.`);
+              recordIsValid = false;
+            }
           }
-          // Outros campos não são esperados neste modo simplificado
         }
       });
 
-      // Validação de campos obrigatórios (apenas nome e origem)
       if (!leadData.name?.trim()) {
         currentRecordErrors.push('Campo "Nome do Lead" é obrigatório.');
         recordIsValid = false;
