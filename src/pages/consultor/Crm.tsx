@@ -425,6 +425,8 @@ const ConsultorCrmPage = () => { // Nome do componente corrigido para ConsultorC
           lead={editingLead}
           crmFields={crmFields.filter(f => f.is_active)}
           assignedConsultantId={user?.id || null}
+          userRole={user?.role || 'CONSULTOR'}
+          allTeamMembers={teamMembers}
         />
       )}
 

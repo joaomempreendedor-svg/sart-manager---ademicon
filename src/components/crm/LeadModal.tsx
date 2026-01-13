@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
-import { CrmLead, CrmField, CrmStage } from '@/types';
-import { X, Save, Loader2, SlidersHorizontal } from 'lucide-react';
+import { CrmLead, CrmField, CrmStage, UserRole, TeamMember } from '@/types';
+import { X, Save, Loader2, SlidersHorizontal, UserRound } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -28,40 +28,55 @@ interface LeadModalProps {
   onClose: () => void;
   lead: CrmLead | null;
   crmFields: CrmField[];
-  assignedConsultantId?: string | null; // ⚠️ CORREÇÃO: Pode ser null
+  assignedConsultantId?: string | null; // ID do usuário logado (consultor) ou null
+  userRole: UserRole; // Role do usuário logado
+  allTeamMembers: TeamMember[]; // Lista completa de membros da equipe
 }
 
-const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields, assignedConsultantId }) => {
+const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields, assignedConsultantId, userRole, allTeamMembers }) => {
   const { addCrmLead, updateCrmLead, deleteCrmLead, crmOwnerUserId, crmStages } = useApp();
   const [formData, setFormData] = useState<Partial<CrmLead>>({
-    name: '', // Adicionado name aqui para ser a fonte primária
+    name: '',
     data: {},
   });
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  const consultants = useMemo(() => {
+    return allTeamMembers.filter(member => 
+      member.isActive && 
+      (member.roles.includes('CONSULTOR') || member.roles.includes('Prévia') || member.roles.includes('Autorizado'))
+    );
+  }, [allTeamMembers]);
+
   useEffect(() => {
-    console.log("[LeadModal] assignedConsultantId recebido:", assignedConsultantId); // NOVO LOG
     if (lead) {
       setFormData({
-        name: lead.name || '', // Popula o name principal
+        name: lead.name || '',
         stage_id: lead.stage_id,
-        consultant_id: lead.consultant_id, // ⚠️ Incluir consultant_id do lead existente
-        data: { ...lead.data }, // Mantém outros campos de dados
+        consultant_id: lead.consultant_id,
+        data: { ...lead.data },
       });
     } else {
+      // Para novos leads:
+      let defaultConsultantId: string | null = null;
+      if (userRole === 'CONSULTOR' && assignedConsultantId) {
+        defaultConsultantId = assignedConsultantId; // Consultor se auto-atribui
+      }
+      // Se for Gestor/Admin, o default é null, e ele seleciona no dropdown.
+
       setFormData({
-        name: '', // Para novos leads
-        consultant_id: assignedConsultantId, // ⚠️ Usar assignedConsultantId para novos leads
+        name: '',
+        consultant_id: defaultConsultantId,
         data: {},
       });
     }
-  }, [lead, isOpen, assignedConsultantId]); // Adicionado assignedConsultantId como dependência
+  }, [lead, isOpen, assignedConsultantId, userRole]);
 
   const handleChange = (key: string, value: any) => {
-    if (key === 'stage_id' || key === 'consultant_id') { // ⚠️ Tratar consultant_id como campo direto
+    if (key === 'stage_id' || key === 'consultant_id') {
       setFormData(prev => ({ ...prev, [key]: value }));
-    } else if (key === 'name' || key === 'nome') { // Trata 'name' ou 'nome' como o campo de nome principal
+    } else if (key === 'name' || key === 'nome') {
       setFormData(prev => ({ ...prev, name: value }));
     } else {
       setFormData(prev => ({
@@ -77,9 +92,8 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Valida o campo 'name' principal
     const nameField = crmFields.find(f => f.key === 'name' || f.key === 'nome');
-    if (nameField?.is_required && !formData.name?.trim()) { // Verifica formData.name diretamente
+    if (nameField?.is_required && !formData.name?.trim()) {
       alert('O campo "Nome do Lead" é obrigatório.');
       return;
     }
@@ -89,11 +103,10 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
       return;
     }
 
-    // Valida outros campos personalizados obrigatórios
     const missingRequiredFields = crmFields.filter(field => 
       field.is_required && 
-      field.key !== 'name' && // Exclui 'name' pois já foi tratado acima
-      field.key !== 'nome' && // Exclui 'nome' pois já foi tratado acima
+      field.key !== 'name' &&
+      field.key !== 'nome' &&
       !formData.data?.[field.key]
     );
     if (missingRequiredFields.length > 0) {
@@ -105,18 +118,15 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
     try {
       const payload = {
         ...formData,
-        name: formData.name || null, // Garante que o name de nível superior seja usado
-        // ⚠️ CORREÇÃO: Garante que consultant_id seja null se não for um UUID válido
+        name: formData.name || null,
         consultant_id: formData.consultant_id || null, 
-        user_id: crmOwnerUserId, // Use o ID do proprietário do CRM (ID do Gestor)
+        user_id: crmOwnerUserId, // ID do Gestor proprietário do CRM
       } as CrmLead;
-
-      console.log("[LeadModal] Payload antes de chamar addCrmLead/updateCrmLead:", payload); // DEBUG LOG
 
       if (lead) {
         await updateCrmLead(lead.id, payload);
       } else {
-        const { stage_id, ...newLeadPayload } = payload; // Remove stage_id do payload para novos leads
+        const { stage_id, ...newLeadPayload } = payload;
         await addCrmLead(newLeadPayload);
       }
       onClose();
@@ -141,21 +151,19 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
   };
 
   const renderField = (field: CrmField) => {
-    // Tratamento especial para o campo de nome principal
     if (field.key === 'name' || field.key === 'nome') {
-      const value = formData.name || ''; // Vincula ao name de nível superior
+      const value = formData.name || '';
       const commonProps = {
         id: field.key,
         name: field.key,
         value: value,
-        onChange: (e: any) => handleChange(field.key, e.target.value), // Isso agora atualizará formData.name
+        onChange: (e: any) => handleChange(field.key, e.target.value),
         className: "w-full p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 focus:outline-none focus:ring-0 focus:ring-offset-0 focus:border-transparent",
         required: field.is_required,
       };
       return <Input type="text" {...commonProps} />;
     }
 
-    // Para outros campos personalizados
     const value = formData.data?.[field.key] || '';
     const commonProps = {
       id: field.key,
@@ -191,13 +199,11 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
     }
   };
 
-  // Filtra chaves reservadas do sistema que NÃO devem ser campos personalizados
   const filteredCrmFields = useMemo(() => {
     const systemReservedKeys = ['stage_id']; 
     return crmFields.filter(field => !systemReservedKeys.includes(field.key));
   }, [crmFields]);
 
-  // Obtém o nome da etapa atual para exibição
   const currentStageName = useMemo(() => {
     if (!lead?.stage_id) return 'N/A';
     const stage = crmStages.find(s => s.id === lead.stage_id);
@@ -229,6 +235,34 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
                     readOnly
                     className="w-full p-2 border rounded bg-gray-100 dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-200"
                   />
+                </div>
+              )}
+
+              {/* Campo de seleção de Consultor (apenas para Gestores/Admins) */}
+              {(userRole === 'GESTOR' || userRole === 'ADMIN') && (
+                <div className="grid gap-2">
+                  <Label htmlFor="consultant_id" className="text-left">
+                    Consultor Responsável
+                  </Label>
+                  <div className="relative">
+                    <UserRound className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <Select
+                      value={formData.consultant_id || ''}
+                      onValueChange={(val) => handleChange('consultant_id', val === '' ? null : val)}
+                    >
+                      <SelectTrigger className="w-full pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600">
+                        <SelectValue placeholder="Selecione um consultor (Opcional)" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white border-gray-200 dark:border-slate-700 shadow-lg z-50">
+                        <SelectItem value="">Nenhum Consultor</SelectItem>
+                        {consultants.map(consultant => (
+                          <SelectItem key={consultant.id} value={consultant.id}>
+                            {consultant.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               )}
 
