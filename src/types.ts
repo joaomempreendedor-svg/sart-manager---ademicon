@@ -50,7 +50,7 @@ export interface Candidate {
   email?: string; // NOVO: Adicionado email para triagem
   interviewDate: string;
   interviewer: string;
-  // origin: string; // Indicação, Prospecção, etc. - REMOVIDO
+  origin?: string; // Indicação, Prospecção, etc. - REVERTIDO
   status: CandidateStatus;
   screeningStatus?: 'Pending Contact' | 'Contacted' | 'No Fit'; // NOVO: Status de triagem
   interviewScores: InterviewScores;
