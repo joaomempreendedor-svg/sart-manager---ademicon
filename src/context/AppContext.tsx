@@ -2138,22 +2138,36 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [user]);
 
   const toggleDailyChecklistCompletion = useCallback(async (daily_checklist_item_id: string, date: string, done: boolean, consultant_id: string) => {
-    if (!user) throw new Error("Usuário não autenticado.");
+    console.log(`[AppContext] toggleDailyChecklistCompletion called: item=${daily_checklist_item_id}, date=${date}, done=${done}, consultant=${consultant_id}`);
+    if (!user) {
+      console.error("[AppContext] Usuário não autenticado.");
+      throw new Error("Usuário não autenticado.");
+    }
 
     const existingCompletion = dailyChecklistCompletions.find(c =>
       c.daily_checklist_item_id === daily_checklist_item_id &&
       c.date === date &&
-      c.user_id === consultant_id // ⚠️ CORREÇÃO APLICADA AQUI
+      c.user_id === consultant_id
     );
 
     if (existingCompletion) {
+      console.log(`[AppContext] Existing completion found: ${existingCompletion.id}. Updating 'done' to ${done}.`);
       const { data, error } = await supabase.from('daily_checklist_completions').update({ done, updated_at: new Date().toISOString() }).eq('id', existingCompletion.id).select('*').single();
-      if (error) throw error;
+      if (error) {
+        console.error("[AppContext] Erro ao atualizar conclusão existente:", error);
+        throw error;
+      }
       setDailyChecklistCompletions(prev => prev.map(c => c.id === existingCompletion.id ? data : c));
+      console.log("[AppContext] Conclusão existente atualizada com sucesso.");
     } else {
+      console.log(`[AppContext] No existing completion found. Inserting new completion with done=${done}.`);
       const { data, error } = await supabase.from('daily_checklist_completions').insert({ daily_checklist_item_id, user_id: consultant_id, date, done }).select('*').single();
-      if (error) throw error;
+      if (error) {
+        console.error("[AppContext] Erro ao inserir nova conclusão:", error);
+        throw error;
+      }
       setDailyChecklistCompletions(prev => [...prev, data]);
+      console.log("[AppContext] Nova conclusão inserida com sucesso.");
     }
   }, [user, dailyChecklistCompletions]);
 
