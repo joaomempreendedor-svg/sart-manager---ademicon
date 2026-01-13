@@ -586,7 +586,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               id: `legacy_${item.id}`,
               db_id: item.id,
               name: data.name,
-              email: data.email,
+              email: data.email, // Corrigido: Acessar email diretamente do objeto 'data'
               roles: Array.isArray(data.roles) ? data.roles : [data.role || 'Prévia'],
               isActive: data.isActive !== false,
               isLegacy: true,
@@ -600,7 +600,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             id: data.id,
             db_id: item.id,
             name: data.name,
-            email: item.email,
+            email: data.email, // Corrigido: Acessar email diretamente do objeto 'data'
             roles: Array.isArray(item.data.roles) ? item.data.roles : [item.data.role || 'Prévia'],
             isActive: data.isActive !== false,
             hasLogin: true,
@@ -1227,7 +1227,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           id: item.data.id,
           db_id: item.id,
           name: item.data.name,
-          email: item.data.email,
+          email: item.data.email, // Corrigido: Acessar email diretamente do objeto 'data'
           roles: Array.isArray(item.data.roles) ? data.roles : [item.data.role || 'Prévia'],
           isActive: item.data.isActive !== false,
           hasLogin: true,
@@ -1874,7 +1874,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       ...updates,
       data: updatedDataJsonb,
       updated_by: user.id,
-      updated_at: new Date().toISOString(),
+      // updated_at: new Date().toISOString(), // Removido: O trigger do banco de dados cuidará disso
     };
 
     const finalDataForSupabase: any = { ...updatedLead };
@@ -1912,7 +1912,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const lead = crmLeads.find(l => l.id === leadId);
     if (!lead) throw new Error("Lead não encontrado.");
 
-    const updatedLead = { ...lead, stage_id: newStageId, updated_by: user.id, updated_at: new Date().toISOString() };
+    const updatedLead = { ...lead, stage_id: newStageId, updated_by: user.id, /* updated_at: new Date().toISOString() */ }; // Removido: O trigger do banco de dados cuidará disso
 
     const finalDataForSupabase: any = { ...updatedLead };
 
