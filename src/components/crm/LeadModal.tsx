@@ -33,7 +33,7 @@ interface LeadModalProps {
 }
 
 const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields, assignedConsultantId }) => {
-  const { addCrmLead, updateCrmLead, deleteCrmLead, crmOwnerUserId, crmStages, salesOrigins, crmLeads } = useApp(); // Adicionado crmLeads
+  const { addCrmLead, updateCrmLead, deleteCrmLead, crmOwnerUserId, crmStages, salesOrigins } = useApp();
   const [formData, setFormData] = useState<Partial<CrmLead>>({
     name: '',
     data: {},
@@ -54,16 +54,10 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
     }
   }, [lead, isOpen, assignedConsultantId]);
 
+  // CORREÇÃO: Usar apenas salesOrigins para as opções de origem
   const allAvailableOrigins = useMemo(() => {
-    const uniqueOriginsFromLeads = new Set<string>();
-    crmLeads.forEach(l => {
-      if (l.data?.origin) {
-        uniqueOriginsFromLeads.add(l.data.origin);
-      }
-    });
-    const combinedOrigins = Array.from(new Set([...salesOrigins, ...Array.from(uniqueOriginsFromLeads)]));
-    return combinedOrigins.sort((a, b) => a.localeCompare(b));
-  }, [salesOrigins, crmLeads]);
+    return salesOrigins.sort((a, b) => a.localeCompare(b));
+  }, [salesOrigins]);
 
   const handleChange = (key: string, value: any) => {
     setFormData(prev => {
