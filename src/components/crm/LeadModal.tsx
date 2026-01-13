@@ -192,9 +192,14 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
 
   // Filtra chaves reservadas do sistema que NÃO devem ser campos personalizados
   const filteredCrmFields = useMemo(() => {
-    // Adicionado 'nome' para cobrir casos onde um campo personalizado com essa chave pode existir
-    const systemReservedKeys = ['stage_id', 'name', 'nome', 'origin']; 
-    return crmFields.filter(field => !systemReservedKeys.includes(field.key));
+    // Exclui campos com chaves ou rótulos que já são tratados como campos principais do lead
+    const fixedFieldKeys = ['name', 'nome', 'origin']; 
+    const fixedFieldLabels = ['Nome do Lead', 'Origem']; // Adicionado rótulos para filtrar
+
+    return crmFields.filter(field => 
+      !fixedFieldKeys.includes(field.key) &&
+      !fixedFieldLabels.includes(field.label) // Filtra pelo rótulo também
+    );
   }, [crmFields]);
 
   // Obtém o nome da etapa atual para exibição
