@@ -85,7 +85,7 @@ export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ us
     return dailyChecklistCompletions.some(
       completion =>
         completion.daily_checklist_item_id === itemId &&
-        completion.consultant_id === userTeamMember.id &&
+        completion.user_id === userTeamMember.id && // CORRIGIDO: Usar completion.user_id
         completion.date === formattedSelectedDate &&
         completion.done
     );
@@ -117,7 +117,7 @@ export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ us
       dailyChecklistCompletions.some(
         completion =>
           completion.daily_checklist_item_id === item.id &&
-          completion.consultant_id === userTeamMember.id &&
+          completion.user_id === userTeamMember.id && // CORRIGIDO: Usar completion.user_id
           completion.date === formattedSelectedDate &&
           completion.done
       )

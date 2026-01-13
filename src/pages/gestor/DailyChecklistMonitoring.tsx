@@ -83,7 +83,7 @@ export const DailyChecklistMonitoring = () => {
     return dailyChecklistCompletions.some(
       completion =>
         completion.daily_checklist_item_id === itemId &&
-        completion.consultant_id === selectedConsultantId &&
+        completion.user_id === selectedConsultantId && // CORRIGIDO: Usar completion.user_id
         completion.date === formattedSelectedDate &&
         completion.done
     );
@@ -115,7 +115,7 @@ export const DailyChecklistMonitoring = () => {
       dailyChecklistCompletions.some(
         completion =>
           completion.daily_checklist_item_id === item.id &&
-          completion.consultant_id === selectedConsultantId &&
+          completion.user_id === selectedConsultantId && // CORRIGIDO: Usar completion.user_id
           completion.date === formattedSelectedDate &&
           completion.done
       )
