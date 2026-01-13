@@ -379,8 +379,8 @@ const CrmOverviewPage = () => {
                         {lead.data.origin && <div className="flex items-center"><Tag className="w-3 h-3 mr-1" /> {lead.data.origin}</div>}
                         
                         {nextMeeting && (
-                          <div className="flex items-center text-blue-600 dark:text-blue-400 font-semibold">
-                            <Calendar className="w-3 h-3 mr-1" /> Reunião: {new Date(nextMeeting.meeting_start_time!).toLocaleDateString('pt-BR')}
+                          <div className="flex items-center text-blue-600 dark:text-blue-400 font-semibold mt-2"> {/* Adicionado mt-2 para espaçamento */}
+                            <Calendar className="w-3 h-3 mr-1" /> {new Date(nextMeeting.meeting_start_time!).toLocaleDateString('pt-BR')}
                             <Clock className="w-3 h-3 ml-2 mr-1" /> {new Date(nextMeeting.meeting_start_time!).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                           </div>
                         )}
