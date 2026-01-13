@@ -559,6 +559,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
         // ⚠️ APLICANDO CÓPIA PROFUNDA E GARANTINDO ID VÁLIDO AQUI
         setCandidates(candidatesData?.data?.map(item => {
+          console.log(`[fetchData] Processing raw item:`, item);
           const rawCandidateData = item.data as Candidate; // Assume it's a Candidate structure
           
           // Ensure client-side ID is always present. Fallback to a new UUID if missing from JSONB data.
@@ -583,28 +584,42 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             data: JSON.parse(JSON.stringify(rawCandidateData.data || {})), // Ensure 'data' field itself is deep copied if it exists
           };
           
+          console.log(`[fetchData] Final candidate name before setCandidates:`, deepCopiedCandidate.name, `client-side ID:`, deepCopiedCandidate.id, `db_id:`, deepCopiedCandidate.db_id, `createdAt:`, deepCopiedCandidate.createdAt);
           return deepCopiedCandidate;
         }) || []);
         
         const normalizedTeamMembers = teamMembersData?.map(item => {
           const data = item.data as any;
           
-          const member: TeamMember = {
-            id: data.id || `legacy_${item.id}`, // Use data.id if present, otherwise legacy
+          if (!data.id && data.name) {
+            return {
+              id: `legacy_${item.id}`,
+              db_id: item.id,
+              name: data.name,
+              email: data.email,
+              roles: Array.isArray(data.roles) ? data.roles : [data.role || 'Prévia'],
+              isActive: data.isActive !== false,
+              isLegacy: true,
+              hasLogin: false,
+              cpf: item.cpf,
+              dateOfBirth: data.dateOfBirth, // NOVO: Carregar data de nascimento
+            } as TeamMember;
+          }
+          
+          return {
+            id: data.id,
             db_id: item.id,
             name: data.name,
             email: data.email,
             roles: Array.isArray(data.roles) ? data.roles : [data.role || 'Prévia'],
             isActive: data.isActive !== false,
-            hasLogin: !!data.id, // If data.id exists, it's linked to auth.users
-            isLegacy: !data.id, // If data.id doesn't exist, it's legacy
+            hasLogin: true,
+            isLegacy: false,
             cpf: item.cpf,
             dateOfBirth: data.dateOfBirth, // NOVO: Carregar data de nascimento
-          };
-          return member;
+          } as TeamMember;
         }) || [];
         setTeamMembers(normalizedTeamMembers);
-        console.log("[AppContext] Fetched Team Members:", normalizedTeamMembers); // Log para teamMembers
 
         setSupportMaterials(materialsData?.data?.map(item => ({ ...(item.data as SupportMaterial), db_id: item.id })) || []);
         // setImportantLinks(linksData?.data?.map(item => ({ ...(item.data as ImportantLink), db_id: item.id })) || []); // REMOVIDO
@@ -737,53 +752,62 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const candidatesChannel = supabase
         .channel('candidates_changes')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'candidates', filter: `user_id=eq.${crmOwnerUserId}` }, (payload) => {
+            console.log('Candidate Change (Realtime):', payload);
             toast.info(`🔄 Candidato "${payload.new.data.name || payload.old.data.name}" atualizado em tempo real!`);
             
             // ⚠️ CORREÇÃO CRÍTICA: Garante que newCandidateData é uma cópia profunda do payload.new.data
-            const rawCandidateData = payload.new.data as Candidate;
-            const clientSideId = rawCandidateData.id || crypto.randomUUID(); // Fallback to new UUID if client-side ID is missing
-            if (!rawCandidateData.id) {
+            const rawPayloadData = payload.new.data as Candidate;
+            const clientSideId = rawPayloadData.id || crypto.randomUUID(); // Fallback to new UUID if client-side ID is missing
+            if (!rawPayloadData.id) {
               console.warn(`[Realtime: Candidate] Candidate with db_id "${payload.new.id}" is missing client-side 'id' in JSONB data. Generating new client-side ID: "${clientSideId}"`);
             }
             
             const newCandidateData: Candidate = {
-                ...JSON.parse(JSON.stringify(rawCandidateData)), // Deep copy the entire JSONB 'data'
+                ...JSON.parse(JSON.stringify(rawPayloadData)), // Deep copy the entire JSONB 'data'
                 id: clientSideId, // Ensure client-side ID is set
                 db_id: payload.new.id, // Adiciona a PK do Supabase
                 createdAt: payload.new.created_at, // ⚠️ CORREÇÃO: Usar created_at da linha do DB
                 lastUpdatedAt: payload.new.last_updated_at, // ⚠️ CORREÇÃO: Usar last_updated_at da linha do DB
                 // Explicitly ensure nested objects are deep copies if they exist
-                interviewScores: JSON.parse(JSON.stringify(rawCandidateData.interviewScores || { basicProfile: 0, commercialSkills: 0, behavioralProfile: 0, jobFit: 0, notes: '' })),
+                interviewScores: JSON.parse(JSON.stringify(rawPayloadData.interviewScores || { basicProfile: 0, commercialSkills: 0, behavioralProfile: 0, jobFit: 0, notes: '' })),
                 checkedQuestions: JSON.parse(JSON.stringify(rawCandidateData.checkedQuestions || {})),
                 checklistProgress: JSON.parse(JSON.stringify(rawCandidateData.checklistProgress || {})),
                 consultantGoalsProgress: JSON.parse(JSON.stringify(rawCandidateData.consultantGoalsProgress || {})),
                 feedbacks: JSON.parse(JSON.stringify(rawCandidateData.feedbacks || [])),
                 data: JSON.parse(JSON.stringify(rawCandidateData.data || {})), // Ensure 'data' field itself is deep copied if it exists
             };
+            console.log('[Realtime: Candidate] Deep copied newCandidateData.name:', newCandidateData.name, `client-side ID:`, newCandidateData.id, `db_id:`, newCandidateData.db_id, `createdAt:`, newCandidateData.createdAt);
 
             if (payload.eventType === 'INSERT') {
                 setCandidates(prev => {
                     if (prev.some(c => c.db_id === newCandidateData.db_id)) {
+                        console.log('Skipping insert, candidate already exists (db_id):', newCandidateData.db_id);
                         return prev;
                     }
                     if (prev.some(c => c.id === newCandidateData.id && !c.db_id)) {
+                        console.log('Skipping insert, candidate already exists (client-side id):', newCandidateData.id);
                         return prev;
                     }
+                    console.log('[Realtime: Candidate] Inserting candidate with name:', newCandidateData.name);
                     return [newCandidateData, ...prev];
                 });
             } else if (payload.eventType === 'UPDATE') {
                 setCandidates(prev => {
                     const updatedArray = prev.map(c => {
                         if (c.db_id === newCandidateData.db_id) {
+                            console.log(`[Realtime: Candidate] Updating candidate from "${c.name}" to "${newCandidateData.name}"`);
                             return newCandidateData;
                         }
                         return c;
                     });
+                    console.log('[Realtime: Candidate] Array after update (names):', updatedArray.map(c => c.name));
                     return updatedArray;
                 });
             } else if (payload.eventType === 'DELETE') {
                 setCandidates(prev => {
+                    console.log('[Realtime: Candidate] Deleting candidate with name:', payload.old.data.name);
                     const filteredArray = prev.filter(c => c.db_id !== payload.old.id);
+                    console.log('[Realtime: Candidate] Array after delete (names):', filteredArray.map(c => c.name));
                     return filteredArray;
                 });
             }
@@ -794,6 +818,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const leadsChannel = supabase
         .channel('crm_leads_changes')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'crm_leads' }, (payload) => {
+            console.log('CRM Lead Change (Realtime):', payload);
             toast.info(`🔄 Lead "${payload.new.name || payload.old.name}" atualizado em tempo real!`);
             const newLeadData: CrmLead = {
                 id: payload.new.id,
@@ -828,6 +853,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const tasksChannel = supabase
         .channel('lead_tasks_changes')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'lead_tasks' }, (payload) => {
+            console.log('Lead Task Change (Realtime):', payload);
             toast.info(`📝 Tarefa "${payload.new.title || payload.old.title}" atualizada em tempo real!`);
             const newTaskData: LeadTask = {
                 id: payload.new.id,
@@ -860,6 +886,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const gestorTasksChannel = supabase
         .channel('gestor_tasks_changes')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'gestor_tasks' }, (payload) => {
+            console.log('Gestor Task Change (Realtime):', payload);
             toast.info(`📋 Tarefa pessoal "${payload.new.title || payload.old.title}" atualizada em tempo real!`);
             const newGestorTaskData: GestorTask = {
                 id: payload.new.id,
@@ -886,6 +913,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const gestorTaskCompletionsChannel = supabase
         .channel('gestor_task_completions_changes')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'gestor_task_completions' }, (payload) => {
+            console.log('Gestor Task Completion Change (Realtime):', payload);
             toast.info(`✅ Conclusão de tarefa do gestor atualizada em tempo real!`);
             const newCompletionData: GestorTaskCompletion = {
                 id: payload.new.id,
@@ -910,6 +938,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const financialEntriesChannel = supabase
         .channel('financial_entries_changes')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'financial_entries' }, (payload) => {
+            console.log('Financial Entry Change (Realtime):', payload);
             toast.info(`💰 Entrada/Saída financeira atualizada em tempo real!`);
             const newEntryData: FinancialEntry = {
                 id: payload.new.id,
@@ -936,6 +965,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const formCadastrosChannel = supabase
         .channel('form_submissions_changes')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'form_submissions' }, (payload) => {
+            console.log('Form Cadastro Change (Realtime):', payload);
             toast.info(`📄 Novo cadastro de formulário em tempo real!`);
             const newCadastroData: FormCadastro = {
                 id: payload.new.id,
@@ -960,6 +990,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const formFilesChannel = supabase
         .channel('form_files_changes')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'form_files' }, (payload) => {
+            console.log('Form File Change (Realtime):', payload);
             toast.info(`📎 Arquivo de formulário atualizado em tempo real!`);
             const newFileData: FormFile = {
                 id: payload.new.id,
@@ -1054,11 +1085,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!user) throw new Error("Usuário não autenticado."); 
     
     // Log the ID being passed to updateCandidate
+    console.log(`[updateCandidate] ID passed: "${id}"`);
+
     const c = candidates.find(c => c.id === id); 
     if (!c || !c.db_id) {
+      console.error(`[updateCandidate] Candidate with client-side ID "${id}" not found or missing db_id.`);
       throw new Error("Candidato não encontrado ou ID do banco de dados ausente."); 
     }
     
+    console.log(`[updateCandidate] Found candidate (original name): "${c.name}", client-side ID: "${c.id}", db_id: "${c.db_id}"`);
+    console.log(`[updateCandidate] Updates object:`, updates);
+
     // 1. Create a deep copy of the *current* candidate object from state.
     const currentCandidateDeepCopy: Candidate = JSON.parse(JSON.stringify(c));
 
@@ -1093,6 +1130,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       lastUpdatedAt: new Date().toISOString(),
     };
     
+    console.log(`[updateCandidate] Merged updated candidate name (mergedCandidateData.name): "${mergedCandidateData.name}"`);
+
     // Remove top-level properties that are not part of the 'data' JSONB column
     // This object will be stored in the 'data' JSONB column in Supabase
     const finalDataForSupabase = JSON.parse(JSON.stringify(mergedCandidateData)); // Deep copy the merged object
@@ -1108,7 +1147,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     
     // Update local state with the fully merged and deep-copied object
     setCandidates(prev => prev.map(p => {
+      // Log p.id for each item in the prev array
+      console.log(`[updateCandidate:setCandidates] Comparing p.id: "${p.id}" with target id: "${id}"`);
       if (p.id === id) {
+        console.log(`[updateCandidate:setCandidates] MATCH! Updating candidate from "${p.name}" to "${mergedCandidateData.name}"`);
         return { ...mergedCandidateData, db_id: c.db_id, createdAt: c.createdAt }; // Ensure db_id and createdAt are preserved for local state
       }
       return p;
@@ -1130,6 +1172,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       toast.error("Candidato não possui ID do banco de dados.");
       throw new Error("Candidato não possui ID do banco de dados.");
     }
+
+    // CRITICAL LOGGING: Verify the exact values being used in the delete query
+    console.log(`[deleteCandidate] Tentando excluir candidato:`);
+    console.log(`  Client-side ID (c.id): "${c.id}"`);
+    console.log(`  Supabase DB_ID (c.db_id): "${c.db_id}"`);
+    console.log(`  User ID (JOAO_GESTOR_AUTH_ID): "${JOAO_GESTOR_AUTH_ID}"`);
 
     if (!c.db_id || typeof c.db_id !== 'string' || c.db_id.length === 0) {
       console.error(`[deleteCandidate] c.db_id é inválido: "${c.db_id}"`);
@@ -1153,6 +1201,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       toast.error("Erro ao excluir candidato.");
       throw error;
     }
+    console.log(`[deleteCandidate] Candidato "${c.name}" (DB_ID: "${c.db_id}") excluído com sucesso.`);
     setCandidates(prev => prev.filter(p => p.id !== id));
   }, [user, candidates]);
 
@@ -1817,24 +1866,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const newLeadData = {
       ...lead,
-      user_id: JOAO_GESTOR_AUTH_ID, // O proprietário do CRM é sempre o Gestor principal
+      user_id: JOAO_GESTOR_AUTH_ID,
       stage_id: firstStage.id, // Assign to the first active stage
       created_by: user.id,
       updated_by: user.id,
-      // consultant_id já vem no payload 'lead'
     };
 
-    // DEBUG LOGS
-    console.log("[AppContext] addCrmLead: User Role:", user.role);
-    console.log("[AppContext] addCrmLead: Payload consultant_id:", newLeadData.consultant_id);
-    console.log("[AppContext] addCrmLead: Payload user_id (crmOwnerUserId):", newLeadData.user_id);
-
-
     const { data, error } = await supabase.from('crm_leads').insert(newLeadData).select('*').single();
-    if (error) {
-      console.error("[AppContext] addCrmLead: Erro ao inserir lead no Supabase:", error);
-      throw error;
-    }
+    if (error) throw error;
     setCrmLeads(prev => [data, ...prev]); // Add new lead to the beginning of the list
     return data;
   }, [user, crmPipelines, crmStages]);
@@ -2159,7 +2198,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [user]);
 
   const assignWeeklyTargetToConsultant = useCallback(async (weekly_target_id: string, consultant_id: string) => {
-    if (!user) throw new Error("Usuário não autenticated.");
+    if (!user) throw new Error("Usuário não autenticado.");
     const { data, error } = await supabase.from('weekly_target_assignments').insert({ weekly_target_id, consultant_id }).select('*').single();
     if (error) throw error;
     setWeeklyTargetAssignments(prev => [...prev, data]);
@@ -2679,7 +2718,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     supportMaterialsV2, supportMaterialAssignments, leadTasks, gestorTasks, gestorTaskCompletions,
     financialEntries, formCadastros, formFiles, notifications,
     theme, toggleTheme, addCandidate, getCandidate, updateCandidate, deleteCandidate, 
-    setChecklistDueDate, toggleChecklistItem, addChecklistItem, updateChecklistItem, deleteChecklistItem, moveChecklistItem, resetChecklistToDefault,
+    setChecklistDueDate, toggleConsultantGoal, addChecklistItem, updateChecklistItem, deleteChecklistItem, moveChecklistItem, resetChecklistToDefault,
     addGoalItem, updateGoalItem, deleteGoalItem, moveGoalItem, resetGoalsToDefault,
     updateInterviewSection, addInterviewQuestion, updateInterviewQuestion, deleteInterviewQuestion, moveInterviewQuestion, resetInterviewToDefault,
     saveTemplate, addOrigin, deleteOrigin, resetOriginsToDefault, addPV,
