@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import toast from 'react-hot-toast'; // Importar toast
 
 interface LeadModalProps {
   isOpen: boolean;
@@ -111,6 +112,12 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
     );
     if (missingRequiredFields.length > 0) {
       alert(`Os seguintes campos são obrigatórios: ${missingRequiredFields.map(f => f.label).join(', ')}`);
+      return;
+    }
+
+    // NOVO: Verificação para consultores
+    if (userRole === 'CONSULTOR' && !formData.consultant_id) {
+      toast.error("Erro: Seu ID de consultor não foi atribuído ao lead. Por favor, recarregue a página ou contate o suporte.");
       return;
     }
 

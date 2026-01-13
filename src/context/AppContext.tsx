@@ -1823,8 +1823,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       // consultant_id já vem no payload 'lead'
     };
 
+    // DEBUG LOGS
+    console.log("[AppContext] addCrmLead: User Role:", user.role);
+    console.log("[AppContext] addCrmLead: Payload consultant_id:", newLeadData.consultant_id);
+    console.log("[AppContext] addCrmLead: Payload user_id (crmOwnerUserId):", newLeadData.user_id);
+
+
     const { data, error } = await supabase.from('crm_leads').insert(newLeadData).select('*').single();
     if (error) {
+      console.error("[AppContext] addCrmLead: Erro ao inserir lead no Supabase:", error);
       throw error;
     }
     setCrmLeads(prev => [data, ...prev]); // Add new lead to the beginning of the list
