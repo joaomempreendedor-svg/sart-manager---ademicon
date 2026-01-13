@@ -600,7 +600,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             id: data.id,
             db_id: item.id,
             name: data.name,
-            email: data.email,
+            email: item.email,
             roles: Array.isArray(data.roles) ? data.roles : [item.data.role || 'Prévia'],
             isActive: data.isActive !== false,
             hasLogin: true,
@@ -756,10 +756,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 lastUpdatedAt: payload.new.last_updated_at,
                 interviewScores: JSON.parse(JSON.stringify(rawPayloadData.interviewScores || { basicProfile: 0, commercialSkills: 0, behavioralProfile: 0, jobFit: 0, notes: '' })),
                 checkedQuestions: JSON.parse(JSON.stringify(rawPayloadData.checkedQuestions || {})),
-                checklistProgress: JSON.parse(JSON.stringify(rawPayloadData.checklistProgress || {})),
-                consultantGoalsProgress: JSON.parse(JSON.stringify(rawPayloadData.consultantGoalsProgress || {})),
-                feedbacks: JSON.parse(JSON.stringify(rawPayloadData.feedbacks || [])),
-                data: JSON.parse(JSON.stringify(rawPayloadData.data || {})),
+                checklistProgress: JSON.parse(JSON.stringify(rawCandidateData.checklistProgress || {})),
+                consultantGoalsProgress: JSON.parse(JSON.stringify(rawCandidateData.consultantGoalsProgress || {})),
+                feedbacks: JSON.parse(JSON.stringify(rawCandidateData.feedbacks || [])),
+                data: JSON.parse(JSON.stringify(rawCandidateData.data || {})),
             };
             console.log('[Realtime: Candidate] Deep copied newCandidateData.name:', newCandidateData.name, `client-side ID:`, newCandidateData.id, `db_id:`, newCandidateData.db_id, `createdAt:`, newCandidateData.createdAt);
 
@@ -1868,7 +1868,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       delete (updates as any).origin;
     }
 
-    const updatedData = {
+    const updatedLead = {
       ...lead,
       ...updates,
       data: updatedDataJsonb,
@@ -1876,38 +1876,34 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       updated_at: new Date().toISOString(),
     };
 
-    const updatedDataForDb: any = { ...updatedData };
-    if (updates.proposalValue !== undefined) {
-      updatedDataForDb.proposal_value = updates.proposalValue;
-      delete updatedDataForDb.proposalValue;
-    }
-    if (updates.proposalClosingDate !== undefined) {
-      updatedDataForDb.proposal_closing_date = updates.proposalClosingDate;
-      delete updatedDataForDb.proposalClosingDate;
-    }
-    if (updates.soldCreditValue !== undefined) {
-      updatedDataForDb.sold_credit_value = updates.soldCreditValue;
-      delete updatedDataForDb.soldCreditValue;
-    }
-    if (updates.soldGroup !== undefined) {
-      updatedDataForDb.sold_group = updates.soldGroup;
-      delete updatedDataForDb.soldGroup;
-    }
-    if (updates.soldQuota !== undefined) {
-      updatedDataForDb.sold_quota = updates.soldQuota;
-      delete updatedDataForDb.soldQuota;
-    }
-    if (updates.saleDate !== undefined) {
-      updatedDataForDb.sale_date = updates.saleDate;
-      delete updatedDataForDb.saleDate;
+    const finalDataForSupabase: any = { ...updatedLead };
+
+    // Explicitly map camelCase to snake_case and delete camelCase keys
+    const fieldMappings = {
+      proposalValue: 'proposal_value',
+      proposalClosingDate: 'proposal_closing_date',
+      soldCreditValue: 'sold_credit_value',
+      soldGroup: 'sold_group',
+      soldQuota: 'sold_quota',
+      saleDate: 'sale_date',
+      createdBy: 'created_by',
+      updatedBy: 'updated_by',
+    };
+
+    for (const camelCaseKey in fieldMappings) {
+      const snakeCaseKey = fieldMappings[camelCaseKey as keyof typeof fieldMappings];
+      if (finalDataForSupabase[camelCaseKey] !== undefined) {
+        finalDataForSupabase[snakeCaseKey] = finalDataForSupabase[camelCaseKey];
+        delete finalDataForSupabase[camelCaseKey];
+      }
     }
 
-    console.log("[updateCrmLead] Final payload before update:", updatedDataForDb);
+    console.log("[updateCrmLead] Final payload before update:", finalDataForSupabase);
 
-    const { error } = await supabase.from('crm_leads').update(updatedDataForDb).eq('id', id).eq('user_id', JOAO_GESTOR_AUTH_ID);
+    const { error } = await supabase.from('crm_leads').update(finalDataForSupabase).eq('id', id).eq('user_id', JOAO_GESTOR_AUTH_ID);
     if (error) throw error;
-    setCrmLeads(prev => prev.map(l => l.id === id ? updatedData : l));
-    return updatedData;
+    setCrmLeads(prev => prev.map(l => l.id === id ? updatedLead : l));
+    return updatedLead;
   }, [user, crmLeads]);
 
   const updateCrmLeadStage = useCallback(async (leadId: string, newStageId: string) => {
@@ -1917,33 +1913,29 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const updatedLead = { ...lead, stage_id: newStageId, updated_by: user.id, updated_at: new Date().toISOString() };
 
-    const updatedDataForDb: any = { ...updatedLead };
-    if (updatedLead.proposalValue !== undefined) {
-      updatedDataForDb.proposal_value = updatedLead.proposalValue;
-      delete updatedDataForDb.proposalValue;
-    }
-    if (updatedLead.proposalClosingDate !== undefined) {
-      updatedDataForDb.proposal_closing_date = updatedLead.proposalClosingDate;
-      delete updatedDataForDb.proposalClosingDate;
-    }
-    if (updatedLead.soldCreditValue !== undefined) {
-      updatedDataForDb.sold_credit_value = updatedLead.soldCreditValue;
-      delete updatedDataForDb.soldCreditValue;
-    }
-    if (updatedLead.soldGroup !== undefined) {
-      updatedDataForDb.sold_group = updatedLead.soldGroup;
-      delete updatedDataForDb.soldGroup;
-    }
-    if (updatedLead.soldQuota !== undefined) {
-      updatedDataForDb.sold_quota = updatedLead.soldQuota;
-      delete updatedDataForDb.soldQuota;
-    }
-    if (updatedLead.saleDate !== undefined) {
-      updatedDataForDb.sale_date = updatedLead.saleDate;
-      delete updatedDataForDb.saleDate;
+    const finalDataForSupabase: any = { ...updatedLead };
+
+    // Explicitly map camelCase to snake_case and delete camelCase keys
+    const fieldMappings = {
+      proposalValue: 'proposal_value',
+      proposalClosingDate: 'proposal_closing_date',
+      soldCreditValue: 'sold_credit_value',
+      soldGroup: 'sold_group',
+      soldQuota: 'sold_quota',
+      saleDate: 'sale_date',
+      createdBy: 'created_by',
+      updatedBy: 'updated_by',
+    };
+
+    for (const camelCaseKey in fieldMappings) {
+      const snakeCaseKey = fieldMappings[camelCaseKey as keyof typeof fieldMappings];
+      if (finalDataForSupabase[camelCaseKey] !== undefined) {
+        finalDataForSupabase[snakeCaseKey] = finalDataForSupabase[camelCaseKey];
+        delete finalDataForSupabase[camelCaseKey];
+      }
     }
 
-    const { error } = await supabase.from('crm_leads').update(updatedDataForDb).eq('id', leadId).eq('user_id', JOAO_GESTOR_AUTH_ID);
+    const { error } = await supabase.from('crm_leads').update(finalDataForSupabase).eq('id', leadId).eq('user_id', JOAO_GESTOR_AUTH_ID);
     if (error) throw error;
     setCrmLeads(prev => prev.map(l => l.id === leadId ? updatedLead : l));
   }, [user, crmLeads]);
