@@ -1038,7 +1038,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const createdAt = new Date().toISOString();
     const lastUpdatedAt = new Date().toISOString();
 
-    // ⚠️ APLICANDO CÓPIA PROFUNDA AQUI PARA GARANTIR INDEPENDÊNCIA DOS OBJETOS
+    // ⚠️ APLICANDO CÓPIA PROFUNDA E GARANTINDO ID VÁLIDO AQUI
     const newCandidateData: Candidate = { 
       ...JSON.parse(JSON.stringify(candidate)), // Deep copy do objeto base
       id: clientSideId, // Atribui o UUID gerado para o ID do cliente
@@ -1853,7 +1853,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return data;
   }, [user]);
 
-  const addCrmLead = useCallback(async (lead: Omit<CrmLead, 'id' | 'created_at' | 'updated_at' | 'stage_id'>) => {
+  const addCrmLead = useCallback(async (lead: Omit<CrmLead, 'id' | 'created_at' | 'updated_at' | 'user_id' | 'created_by' | 'updated_by'>) => {
     if (!user) throw new Error("Usuário não autenticado.");
     
     // Find the first active stage in the active pipeline to assign to new leads
@@ -1864,13 +1864,23 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       throw new Error("Nenhuma etapa ativa encontrada no pipeline. Por favor, configure as etapas do CRM.");
     }
 
+    // ⚠️ CORREÇÃO: Garante que 'origin' seja movido para 'data.origin' se estiver no nível superior
+    const leadDataWithOriginInJsonb = { ...lead.data };
+    if ((lead as any).origin) { // Verifica se 'origin' existe como propriedade de nível superior
+      leadDataWithOriginInJsonb.origin = (lead as any).origin;
+      delete (lead as any).origin; // Remove do nível superior para evitar duplicidade ou erro
+    }
+
     const newLeadData = {
       ...lead,
       user_id: JOAO_GESTOR_AUTH_ID,
       stage_id: firstStage.id, // Assign to the first active stage
       created_by: user.id,
       updated_by: user.id,
+      data: leadDataWithOriginInJsonb, // Usa o objeto 'data' com a origem ajustada
     };
+
+    console.log("[addCrmLead] Final payload before insert:", newLeadData); // DEBUG LOG
 
     const { data, error } = await supabase.from('crm_leads').insert(newLeadData).select('*').single();
     if (error) throw error;
@@ -1883,10 +1893,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const lead = crmLeads.find(l => l.id === id);
     if (!lead) throw new Error("Lead não encontrado.");
 
+    // ⚠️ CORREÇÃO: Garante que 'origin' seja movido para 'data.origin' se estiver no nível superior
+    const updatedDataJsonb = { ...lead.data, ...updates.data };
+    if ((updates as any).origin !== undefined) { // Verifica se 'origin' existe como propriedade de nível superior nas atualizações
+      updatedDataJsonb.origin = (updates as any).origin;
+      delete (updates as any).origin; // Remove do nível superior para evitar duplicidade ou erro
+    }
+
     const updatedData = {
       ...lead,
       ...updates,
-      data: { ...lead.data, ...updates.data }, // Merge nested data object
+      data: updatedDataJsonb, // Usa o objeto 'data' com a origem ajustada
       updated_by: user.id,
       updated_at: new Date().toISOString(),
     };
@@ -1917,6 +1934,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       updatedDataForDb.sale_date = updates.saleDate;
       delete updatedDataForDb.saleDate;
     }
+
+    console.log("[updateCrmLead] Final payload before update:", updatedDataForDb); // DEBUG LOG
 
     const { error } = await supabase.from('crm_leads').update(updatedDataForDb).eq('id', id).eq('user_id', JOAO_GESTOR_AUTH_ID);
     if (error) throw error;
