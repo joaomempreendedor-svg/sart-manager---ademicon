@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { CalendarEvent, isSameDay, formatTime } from './utils';
-import { Plus, Edit2, Trash2, CheckCircle2, XCircle, Clock, UserRound, MessageSquare, Users, ListChecks, ListTodo } from 'lucide-react';
+import { Plus, Edit2, Trash2, CheckCircle2, XCircle, Clock, UserRound, MessageSquare, Users, ListChecks, ListTodo, CalendarDays } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import toast from 'react-hot-toast';
 import { GestorTask, DailyChecklistItem, LeadTask } from '@/types';
@@ -127,6 +127,26 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
 
   return (
     <div className="flex flex-col flex-1">
+      {/* Day Header */}
+      <div className={`h-16 flex flex-col items-center justify-center border-b border-gray-200 dark:border-slate-700 ${isCurrentDay ? 'bg-brand-50 dark:bg-brand-900/20' : 'bg-gray-50 dark:bg-slate-700/50'}`}>
+        <p className={`text-xs font-medium ${isCurrentDay ? 'text-brand-800 dark:text-brand-200' : 'text-gray-500 dark:text-gray-400'}`}>
+          {day.toLocaleDateString('pt-BR', { weekday: 'short' })}
+        </p>
+        <p className={`text-lg font-bold ${isCurrentDay ? 'text-brand-800 dark:text-brand-200' : 'text-gray-900 dark:text-white'}`}>
+          {day.getDate()}
+        </p>
+        {showPersonalEvents && (
+          <button
+            onClick={() => onOpenEventModal(day)}
+            className="absolute top-1 right-1 p-1 rounded-full bg-brand-100 dark:bg-brand-900/30 text-brand-700 dark:text-brand-400 hover:bg-brand-200 dark:hover:bg-brand-900/50 transition"
+            title="Adicionar Evento"
+          >
+            <Plus className="w-3 h-3" />
+          </button>
+        )}
+      </div>
+
+      {/* All-day events section */}
       {allDayEvents.length > 0 && (
         <div className="p-2 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
           {allDayEvents.map(event => (
@@ -302,5 +322,3 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
     </div>
   );
 };
-
-export default DayViewGrid;
