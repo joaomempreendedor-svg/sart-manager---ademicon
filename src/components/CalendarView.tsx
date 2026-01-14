@@ -97,8 +97,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     console.log("[CalendarView] Recalculating allEvents...");
     const events: CalendarEvent[] = [];
 
-    // 1. Eventos Pessoais do Consultor (se aplicável)
-    if (showPersonalEvents && userRole === 'CONSULTOR') {
+    // 1. Eventos Pessoais (para qualquer usuário que tenha showPersonalEvents ativado)
+    if (showPersonalEvents) { // Removida a condição userRole === 'CONSULTOR'
       consultantEvents.filter(event => event.user_id === userId).forEach(event => {
         const start = new Date(event.start_time);
         const end = new Date(event.end_time);
