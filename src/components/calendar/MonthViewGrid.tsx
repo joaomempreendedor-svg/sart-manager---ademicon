@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { CalendarEvent, isSameDay } from './utils';
-import { Plus, Edit2, Trash2, CheckCircle2, XCircle, Clock, UserRound, MessageSquare, Users, ListChecks, ListTodo } from 'lucide-react'; // Adicionado ListChecks e ListTodo
+import { Plus, Edit2, Trash2, CheckCircle2, XCircle, Clock, UserRound, MessageSquare, Users, ListChecks, ListTodo } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import toast from 'react-hot-toast';
 import { GestorTask } from '@/types';
@@ -33,8 +33,8 @@ const MonthViewGrid: React.FC<MonthViewGridProps> = ({
       case 'personal': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300';
       case 'meeting': return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300';
       case 'gestor_task': return 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-300';
-      case 'daily_checklist': return 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-300'; // NOVO
-      case 'lead_task': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300'; // NOVO
+      case 'daily_checklist': return 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-300';
+      case 'lead_task': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300';
       default: return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200';
     }
   };
@@ -44,8 +44,8 @@ const MonthViewGrid: React.FC<MonthViewGridProps> = ({
       case 'personal': return <CalendarDays className="w-3 h-3 mr-1" />;
       case 'meeting': return <Users className="w-3 h-3 mr-1" />;
       case 'gestor_task': return <MessageSquare className="w-3 h-3 mr-1" />;
-      case 'daily_checklist': return <ListChecks className="w-3 h-3 mr-1" />; // NOVO
-      case 'lead_task': return <ListTodo className="w-3 h-3 mr-1" />; // NOVO
+      case 'daily_checklist': return <ListChecks className="w-3 h-3 mr-1" />;
+      case 'lead_task': return <ListTodo className="w-3 h-3 mr-1" />;
       default: return null;
     }
   };

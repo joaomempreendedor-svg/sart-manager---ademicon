@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useEffect } from 'react';
 import { CalendarEvent, isSameDay, formatTime } from './utils';
-import { Plus, Edit2, Trash2, CheckCircle2, XCircle, Clock, UserRound, MessageSquare, Users, ListChecks, ListTodo } from 'lucide-react'; // Adicionado ListChecks e ListTodo
+import { Plus, Edit2, Trash2, CheckCircle2, XCircle, Clock, UserRound, MessageSquare, Users, ListChecks, ListTodo } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import toast from 'react-hot-toast';
 import { GestorTask } from '@/types';
@@ -26,7 +26,7 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
   userRole,
   showPersonalEvents,
 }) => {
-  const isCurrentWeek = weekDays.some(day => isSameDay(day, new Date())); // Check against current 'now'
+  const isCurrentWeek = weekDays.some(day => isSameDay(day, new Date()));
 
   // Calculate event positioning for timed events
   const positionedEventsByDay = useMemo(() => {
@@ -76,8 +76,8 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
       case 'personal': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300 border-blue-200 dark:border-blue-800';
       case 'meeting': return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300 border-green-200 dark:border-green-800';
       case 'gestor_task': return 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-300 border-purple-200 dark:border-purple-800';
-      case 'daily_checklist': return 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-300 border-orange-200 dark:border-orange-800'; // NOVO
-      case 'lead_task': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800'; // NOVO
+      case 'daily_checklist': return 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-300 border-orange-200 dark:border-orange-800';
+      case 'lead_task': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800';
       default: return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-700';
     }
   };
@@ -87,17 +87,21 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
       case 'personal': return <CalendarDays className="w-3 h-3 mr-1" />;
       case 'meeting': return <Users className="w-3 h-3 mr-1" />;
       case 'gestor_task': return <MessageSquare className="w-3 h-3 mr-1" />;
-      case 'daily_checklist': return <ListChecks className="w-3 h-3 mr-1" />; // NOVO
-      case 'lead_task': return <ListTodo className="w-3 h-3 mr-1" />; // NOVO
+      case 'daily_checklist': return <ListChecks className="w-3 h-3 mr-1" />;
+      case 'lead_task': return <ListTodo className="w-3 h-3 mr-1" />;
       default: return null;
     }
   };
 
   return (
-    <div className="flex flex-1"> {/* Removed overflow-x-auto custom-scrollbar */}
+    <div className="flex flex-1">
       {/* Time Column */}
       <div className="w-16 flex-shrink-0 border-r border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800">
         <div className="h-16 border-b border-gray-200 dark:border-slate-700"></div> {/* Corner for day headers */}
+        {/* All-day events header for time column */}
+        <div className="h-auto min-h-[30px] border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50 flex items-center justify-center text-xs text-gray-500 dark:text-gray-400">
+          {allDayEvents.length > 0 ? 'Dia Inteiro' : ''}
+        </div>
         <div className="relative h-[calc(100vh-200px)]"> {/* Adjust height */}
           {Array.from({ length: 24 }).map((_, hour) => (
             <div key={hour} className="h-[60px] text-xs text-gray-500 dark:text-gray-400 text-right pr-2 -mt-2">
@@ -108,10 +112,10 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
       </div>
 
       {/* Days Grid */}
-      <div className="grid grid-cols-7 flex-1"> {/* Use grid-cols-7 here */}
+      <div className="grid grid-cols-7 flex-1">
         {weekDays.map(day => {
           const dayStr = day.toISOString().split('T')[0];
-          const isCurrentDay = isSameDay(day, new Date()); // Check against current 'now'
+          const isCurrentDay = isSameDay(day, new Date());
           const allDayEvents = eventsByDay[dayStr]?.filter(e => e.allDay) || [];
           const positionedTimedEvents = positionedEventsByDay[dayStr] || [];
 
@@ -125,7 +129,7 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
                 <p className={`text-lg font-bold ${isCurrentDay ? 'text-brand-800 dark:text-brand-200' : 'text-gray-900 dark:text-white'}`}>
                   {day.getDate()}
                 </p>
-                {showPersonalEvents && ( // Agora showPersonalEvents será true para Gestores/Admins também
+                {showPersonalEvents && (
                   <button
                     onClick={() => onOpenEventModal(day)}
                     className="absolute top-1 right-1 p-1 rounded-full bg-brand-100 dark:bg-brand-900/30 text-brand-700 dark:text-brand-400 hover:bg-brand-200 dark:hover:bg-brand-900/50 transition"
@@ -136,7 +140,7 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
                 )}
               </div>
 
-              {/* All-day events */}
+              {/* All-day events for this day */}
               {allDayEvents.length > 0 && (
                 <div className="p-1 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
                   {allDayEvents.map(event => (
@@ -162,17 +166,15 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
               <div className="relative h-[calc(100vh-200px)]"> {/* Adjust height */}
                 {/* Hourly lines and clickable slots */}
                 {Array.from({ length: 24 }).map((_, hour) => (
-                  <div 
-                    key={hour} 
-                    className="absolute left-0 right-0 border-t border-gray-100 dark:border-slate-800 h-[60px] cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/30" 
+                  <div
+                    key={hour}
+                    className="absolute left-0 right-0 border-t border-gray-100 dark:border-slate-800 h-[60px] cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/30"
                     style={{ top: `${(hour / 24) * 100}%` }}
                     onClick={() => {
-                      console.log(`[WeekViewGrid] Clicked on day ${day.toDateString()} at hour ${hour}. User Role: ${userRole}, Show Personal Events: ${showPersonalEvents}`);
-                      if (showPersonalEvents) { // Agora showPersonalEvents será true para Gestores/Admins também
+                      if (showPersonalEvents) {
                         const newEventDate = new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour, 0);
                         onOpenEventModal(newEventDate);
                       } else {
-                        // Esta mensagem só deve aparecer se showPersonalEvents for false, o que não deve acontecer para Gestores/Admins agora
                         toast.info("Você não tem permissão para adicionar eventos pessoais aqui.");
                       }
                     }}
