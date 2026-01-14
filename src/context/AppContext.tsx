@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
-import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, CommissionStatus, InstallmentInfo, CutoffPeriod, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask, SupportMaterialContentType, DailyChecklistItemResource, DailyChecklistItemResourceType, GestorTask, GestorTaskCompletion, FinancialEntry, FormCadastro, FormFile, Notification, NotificationType, ConsultantEvent, Feedback } from '@/types';
+import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, InterviewQuestion, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, CommissionStatus, InstallmentInfo, CutoffPeriod, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask, SupportMaterialContentType, DailyChecklistItemResource, DailyChecklistItemResourceType, GestorTask, GestorTaskCompletion, FinancialEntry, FormCadastro, FormFile, Notification, NotificationType, ConsultantEvent, Feedback } from '@/types';
 import { CHECKLIST_STAGES as DEFAULT_STAGES } from '@/data/checklistData';
 import { CONSULTANT_GOALS as DEFAULT_GOALS } from '@/data/consultantGoals';
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
@@ -2664,15 +2664,230 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       .eq('id', id)
       .eq('user_id', user.id)
       .select('*')
-      .maybeSingle();
+      .single();
     if (error) {
       console.error("[AppContext] updateConsultantEvent: Error updating event:", error);
       throw error;
     }
-    if (data) {
-      setConsultantEvents(prev => prev.map(event => event.id === id ? data : event));
-      console.log("[AppContext] updateConsultantEvent: Event updated successfully:", data);
-      return data;
-    }
-    return null;
+    console.log("[AppContext] updateConsultantEvent: Event updated successfully:", data);
+    setConsultantEvents(prev => prev.map(event => event.id === id ? data : event));
+    return data;
   }, [user]);
+
+  const deleteConsultantEvent = useCallback(async (id: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    console.log("[AppContext] deleteConsultantEvent: Attempting to delete event ID:", id);
+    const { error } = await supabase
+      .from('consultant_events')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user.id);
+    if (error) {
+      console.error("[AppContext] deleteConsultantEvent: Error deleting event:", error);
+      throw error;
+    }
+    console.log("[AppContext] deleteConsultantEvent: Event deleted successfully");
+    setConsultantEvents(prev => prev.filter(event => event.id !== id));
+  }, [user]);
+
+  const value: AppContextType = {
+    // State
+    isDataLoading,
+    candidates,
+    teamMembers,
+    commissions,
+    supportMaterials,
+    cutoffPeriods,
+    onboardingSessions,
+    onboardingTemplateVideos,
+    checklistStructure,
+    consultantGoalsStructure,
+    interviewStructure,
+    templates,
+    hiringOrigins,
+    salesOrigins,
+    interviewers,
+    pvs,
+    crmPipelines,
+    crmStages,
+    crmFields,
+    crmLeads,
+    crmOwnerUserId,
+    dailyChecklists,
+    dailyChecklistItems,
+    dailyChecklistAssignments,
+    dailyChecklistCompletions,
+    weeklyTargets,
+    weeklyTargetItems,
+    weeklyTargetAssignments,
+    metricLogs,
+    supportMaterialsV2,
+    supportMaterialAssignments,
+    leadTasks,
+    gestorTasks,
+    gestorTaskCompletions,
+    financialEntries,
+    formCadastros,
+    formFiles,
+    consultantEvents,
+    notifications,
+    theme,
+
+    // Functions
+    toggleTheme,
+    updateConfig,
+    resetLocalState,
+    refetchCommissions,
+    calculateCompetenceMonth,
+    isGestorTaskDueOnDate,
+    calculateNotifications,
+
+    // Candidate functions
+    addCandidate,
+    updateCandidate,
+    deleteCandidate,
+    getCandidate,
+    toggleChecklistItem,
+    setChecklistDueDate,
+    toggleConsultantGoal,
+    addChecklistItem,
+    updateChecklistItem,
+    deleteChecklistItem,
+    moveChecklistItem,
+    resetChecklistToDefault,
+
+    // Goals functions
+    addGoalItem,
+    updateGoalItem,
+    deleteGoalItem,
+    moveGoalItem,
+    resetGoalsToDefault,
+
+    // Interview functions
+    updateInterviewSection,
+    addInterviewQuestion,
+    updateInterviewQuestion,
+    deleteInterviewQuestion,
+    moveInterviewQuestion,
+    resetInterviewToDefault,
+
+    // Templates & origins
+    saveTemplate,
+    addOrigin,
+    deleteOrigin,
+    resetOriginsToDefault,
+    addPV,
+
+    // Commission functions
+    addCommission,
+    updateCommission,
+    deleteCommission,
+    updateInstallmentStatus,
+
+    // Cutoff period functions
+    addCutoffPeriod,
+    updateCutoffPeriod,
+    deleteCutoffPeriod,
+
+    // Onboarding functions
+    addOnlineOnboardingSession,
+    deleteOnlineOnboardingSession,
+    addVideoToTemplate,
+    deleteVideoFromTemplate,
+
+    // CRM functions
+    addCrmPipeline,
+    updateCrmPipeline,
+    deleteCrmPipeline,
+    addCrmStage,
+    updateCrmStage,
+    updateCrmStageOrder,
+    deleteCrmStage,
+    addCrmField,
+    updateCrmField,
+    addCrmLead,
+    updateCrmLead,
+    updateCrmLeadStage,
+    deleteCrmLead,
+
+    // Daily checklist functions
+    addDailyChecklist,
+    updateDailyChecklist,
+    deleteDailyChecklist,
+    addDailyChecklistItem,
+    updateDailyChecklistItem,
+    deleteDailyChecklistItem,
+    moveDailyChecklistItem,
+    assignDailyChecklistToConsultant,
+    unassignDailyChecklistFromConsultant,
+    toggleDailyChecklistCompletion,
+
+    // Weekly target functions
+    addWeeklyTarget,
+    updateWeeklyTarget,
+    deleteWeeklyTarget,
+    addWeeklyTargetItem,
+    updateWeeklyTargetItem,
+    deleteWeeklyTargetItem,
+    updateWeeklyTargetItemOrder,
+    assignWeeklyTargetToConsultant,
+    unassignWeeklyTargetFromConsultant,
+    addMetricLog,
+    updateMetricLog,
+    deleteMetricLog,
+
+    // Support materials functions
+    addSupportMaterialV2,
+    updateSupportMaterialV2,
+    deleteSupportMaterialV2,
+    assignSupportMaterialToConsultant,
+    unassignSupportMaterialFromConsultant,
+
+    // Lead task functions
+    addLeadTask,
+    updateLeadTask,
+    deleteLeadTask,
+    toggleLeadTaskCompletion,
+    updateLeadMeetingInvitationStatus,
+
+    // Gestor task functions
+    addGestorTask,
+    updateGestorTask,
+    deleteGestorTask,
+    toggleGestorTaskCompletion,
+
+    // Financial entry functions
+    addFinancialEntry,
+    updateFinancialEntry,
+    deleteFinancialEntry,
+
+    // Form cadastro functions
+    getFormFilesForSubmission,
+    updateFormCadastro,
+    deleteFormCadastro,
+
+    // Feedback functions
+    addFeedback,
+    updateFeedback,
+    deleteFeedback,
+    addTeamMemberFeedback,
+    updateTeamMemberFeedback,
+    deleteTeamMemberFeedback,
+
+    // Team member functions
+    addTeamMember,
+    updateTeamMember,
+    deleteTeamMember,
+
+    // Consultant events functions
+    addConsultantEvent,
+    updateConsultantEvent,
+    deleteConsultantEvent,
+  };
+
+  return (
+    <AppContext.Provider value={value}>
+      {children}
+    </AppContext.Provider>
+  );
+}, );
