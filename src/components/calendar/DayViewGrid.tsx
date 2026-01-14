@@ -181,7 +181,7 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
           {Array.from({ length: 24 }).map((_, hour) => (
             <div
               key={hour}
-              className="absolute left-0 right-0 border-b border-gray-200 dark:border-slate-700 h-[60px] cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/30"
+              className="absolute left-0 right-0 border-b-2 border-gray-300 dark:border-slate-600 h-[60px] cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/30"
               style={{ top: `${(hour / 24) * 100}%` }}
               onClick={() => {
                 if (showPersonalEvents) {
