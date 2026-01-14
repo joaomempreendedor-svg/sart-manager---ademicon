@@ -47,9 +47,13 @@ export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave,
       if (event) {
         setTitle(event.title);
         setDescription(event.description || '');
-        setDate(new Date(event.start_time).toISOString().split('T')[0]);
-        setStartTime(formatTime(new Date(event.start_time)));
-        setEndTime(formatTime(new Date(event.end_time)));
+        
+        const eventStartDate = event.start_time ? new Date(event.start_time) : null;
+        const eventEndDate = event.end_time ? new Date(event.end_time) : null;
+
+        setDate(eventStartDate?.toISOString().split('T')[0] || new Date().toISOString().split('T')[0]);
+        setStartTime(eventStartDate && !isNaN(eventStartDate.getTime()) ? formatTime(eventStartDate) : '09:00');
+        setEndTime(eventEndDate && !isNaN(eventEndDate.getTime()) ? formatTime(eventEndDate) : '10:00');
         setEventType(event.event_type);
       } else {
         // Se for um novo evento, usa defaultStartDateTime se fornecido, senão a data/hora atual
