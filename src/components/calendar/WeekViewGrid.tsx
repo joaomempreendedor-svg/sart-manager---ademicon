@@ -28,6 +28,13 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
 }) => {
   const isCurrentWeek = weekDays.some(day => isSameDay(day, new Date()));
 
+  const hasAnyAllDayEventsInWeek = useMemo(() => {
+    return weekDays.some(day => {
+      const dayStr = day.toISOString().split('T')[0];
+      return (eventsByDay[dayStr]?.filter(e => e.allDay) || []).length > 0;
+    });
+  }, [weekDays, eventsByDay]);
+
   // Calculate event positioning for timed events
   const positionedEventsByDay = useMemo(() => {
     const result: Record<string, (CalendarEvent & { top: number; height: number; left: number; width: number; })[]> = {};
@@ -100,7 +107,7 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
         <div className="h-16 border-b border-gray-200 dark:border-slate-700"></div> {/* Corner for day headers */}
         {/* All-day events header for time column */}
         <div className="h-auto min-h-[30px] border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50 flex items-center justify-center text-xs text-gray-500 dark:text-gray-400">
-          {allDayEvents.length > 0 ? 'Dia Inteiro' : ''}
+          {hasAnyAllDayEventsInWeek ? 'Dia Inteiro' : ''}
         </div>
         <div className="relative h-[calc(100vh-200px)]"> {/* Adjust height */}
           {Array.from({ length: 24 }).map((_, hour) => (
