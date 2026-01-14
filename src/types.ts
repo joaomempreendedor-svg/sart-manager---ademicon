@@ -386,7 +386,7 @@ export interface ConsultantEvent {
   description?: string;
   start_time: string; // ISO string
   end_time: string;   // ISO string
-  event_type: 'personal_task' | 'training' | 'other';
+  // event_type: 'personal_task' | 'training' | 'other'; // REMOVIDO: Tipo de evento
   created_at: string;
 }
 

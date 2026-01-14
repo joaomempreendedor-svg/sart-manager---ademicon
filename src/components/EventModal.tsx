@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Loader2, Calendar, Clock, MessageSquare, Tag } from 'lucide-react';
+import { X, Save, Loader2, Calendar, Clock, MessageSquare } from 'lucide-react'; // Removido Tag
 import { ConsultantEvent } from '@/types';
 import { CalendarEvent } from './calendar/utils'; // Importar CalendarEvent
 import {
@@ -14,13 +14,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+// Removido Select imports
+// import {
+//   Select,
+//   SelectContent,
+//   SelectItem,
+//   SelectTrigger,
+//   SelectValue,
+// } from '@/components/ui/select';
 
 interface EventModalProps {
   isOpen: boolean;
@@ -39,7 +40,8 @@ export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave,
   const [date, setDate] = useState('');
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('10:00');
-  const [eventType, setEventType] = useState<'personal_task' | 'training' | 'other'>('personal_task');
+  // Removido eventType state
+  // const [eventType, setEventType] = useState<'personal_task' | 'training' | 'other'>('personal_task');
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -55,7 +57,8 @@ export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave,
         setDate(eventStartDate?.toISOString().split('T')[0] || new Date().toISOString().split('T')[0]);
         setStartTime(eventStartDate && !isNaN(eventStartDate.getTime()) ? formatTime(eventStartDate) : '09:00');
         setEndTime(eventEndDate && !isNaN(eventEndDate.getTime()) ? formatTime(eventEndDate) : '10:00');
-        setEventType((event.originalEvent as ConsultantEvent)?.event_type || 'personal_task'); // Usar event_type do originalEvent
+        // Removido setEventType
+        // setEventType((event.originalEvent as ConsultantEvent)?.event_type || 'personal_task'); // Usar event_type do originalEvent
       } else {
         // Se for um novo evento, usa defaultStartDateTime se fornecido, senão a data/hora atual
         const initialDate = defaultStartDateTime || new Date();
@@ -66,7 +69,8 @@ export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave,
         
         const initialEndTime = new Date(initialDate.getTime() + 60 * 60 * 1000); // Adiciona 1 hora
         setEndTime(formatTime(initialEndTime));
-        setEventType('personal_task');
+        // Removido setEventType
+        // setEventType('personal_task');
       }
       setError('');
     }
@@ -99,7 +103,8 @@ export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave,
         description: description || undefined,
         start_time: startDateTime.toISOString(),
         end_time: endDateTime.toISOString(),
-        event_type: eventType,
+        // Removido event_type
+        // event_type: eventType,
         created_at: event?.originalEvent?.created_at || new Date().toISOString(), // Manter created_at se for edição
       };
       
@@ -193,7 +198,8 @@ export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave,
                 </div>
               </div>
             </div>
-            <div>
+            {/* Removido o campo de seleção de tipo de evento */}
+            {/* <div>
               <Label htmlFor="eventType">Tipo de Evento</Label>
               <div className="relative">
                 <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -208,7 +214,7 @@ export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave,
                   </SelectContent>
                 </Select>
               </div>
-            </div>
+            </div> */}
             {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
           </div>
           <DialogFooter className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-700">
