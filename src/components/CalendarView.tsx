@@ -3,15 +3,16 @@ import { ChevronLeft, ChevronRight, Plus, CalendarDays, Clock, UserRound, Messag
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { CrmLead, LeadTask, GestorTask, ConsultantEvent, TeamMember } from '@/types';
-import { EventModal } from './EventModal'; // Importar o novo modal de eventos
+import { EventModal } from './EventModal';
 import toast from 'react-hot-toast';
 
 interface CalendarViewProps {
   userId: string;
   userRole: 'GESTOR' | 'CONSULTOR' | 'ADMIN';
-  showPersonalEvents?: boolean; // Para consultores
-  showLeadMeetings?: boolean; // Para gestores e consultores
-  showGestorTasks?: boolean; // Para gestores
+  showPersonalEvents?: boolean;
+  showLeadMeetings?: boolean;
+  showGestorTasks?: boolean;
+  view: 'day' | 'week' | 'month'; // NOVO: Prop para controlar a visualização
 }
 
 interface CalendarEvent {
@@ -21,10 +22,48 @@ interface CalendarEvent {
   start: Date;
   end: Date;
   type: 'personal' | 'meeting' | 'gestor_task';
-  personName?: string; // Nome do Lead ou Consultor associado
-  personId?: string; // ID do Lead ou Consultor associado
-  originalEvent?: LeadTask | GestorTask | ConsultantEvent; // Referência ao objeto original
+  personName?: string;
+  personId?: string;
+  originalEvent?: LeadTask | GestorTask | ConsultantEvent;
 }
+
+const getDaysInMonth = (date: Date) => {
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  const firstDayOfMonth = new Date(year, month, 1);
+  const lastDayOfMonth = new Date(year, month + 1, 0);
+
+  const days = [];
+  let currentDay = new Date(firstDayOfMonth);
+
+  // Add days from previous month to fill the first week
+  const firstDayOfWeek = firstDayOfMonth.getDay(); // 0 for Sunday, 1 for Monday, etc.
+  const startPadding = firstDayOfWeek; // Number of days from previous month to show
+
+  for (let i = 0; i < startPadding; i++) {
+    const prevDay = new Date(firstDayOfMonth);
+    prevDay.setDate(firstDayOfMonth.getDate() - (startPadding - i));
+    days.push(prevDay);
+  }
+
+  // Add days of the current month
+  while (currentDay <= lastDayOfMonth) {
+    days.push(new Date(currentDay));
+    currentDay.setDate(currentDay.getDate() + 1);
+  }
+
+  // Add days from next month to fill the last week (up to 6 weeks total)
+  const totalDays = days.length;
+  const endPadding = (7 - (totalDays % 7)) % 7; // Days to fill the last week
+  
+  for (let i = 0; i < endPadding; i++) {
+    const nextDay = new Date(lastDayOfMonth);
+    nextDay.setDate(lastDayOfMonth.getDate() + (i + 1));
+    days.push(nextDay);
+  }
+
+  return days;
+};
 
 const getWeekDays = (date: Date) => {
   const startOfWeek = new Date(date);
@@ -52,6 +91,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   showPersonalEvents = true,
   showLeadMeetings = true,
   showGestorTasks = true,
+  view, // NOVO: Recebe a prop de visualização
 }) => {
   const {
     crmLeads,
@@ -69,13 +109,22 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   } = useApp();
   const { user } = useAuth();
 
-  const [currentWeekStart, setCurrentWeekStart] = useState(new Date());
+  const [currentDate, setCurrentDate] = useState(new Date()); // Renomeado de currentWeekStart
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
   const [selectedDateForNewEvent, setSelectedDateForNewEvent] = useState<Date | null>(null);
 
-  const weekDays = useMemo(() => getWeekDays(currentWeekStart), [currentWeekStart]);
   const today = useMemo(() => new Date(), []);
+
+  const displayedDays = useMemo(() => {
+    if (view === 'day') {
+      return [currentDate];
+    } else if (view === 'week') {
+      return getWeekDays(currentDate);
+    } else { // month
+      return getDaysInMonth(currentDate);
+    }
+  }, [currentDate, view]);
 
   const allEvents = useMemo(() => {
     const events: CalendarEvent[] = [];
@@ -127,27 +176,25 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       gestorTasks.filter(task => task.user_id === userId).forEach(task => {
         const taskDueDate = task.due_date ? new Date(task.due_date + 'T00:00:00') : null;
         const isRecurring = task.recurrence_pattern && task.recurrence_pattern.type !== 'none';
-        const isCompletedToday = isRecurring && gestorTaskCompletions.some(c => c.gestor_task_id === task.id && c.user_id === userId && isSameDay(new Date(c.date), today) && c.done);
-        const isDueToday = isGestorTaskDueOnDate(task, today.toISOString().split('T')[0]);
-
-        // Para tarefas recorrentes, criamos um evento para cada dia da semana se for devido
-        if (isRecurring) {
-          weekDays.forEach(day => {
-            if (isGestorTaskDueOnDate(task, day.toISOString().split('T')[0])) {
-              const completionForDay = gestorTaskCompletions.find(c => c.gestor_task_id === task.id && c.user_id === userId && isSameDay(new Date(c.date), day));
-              events.push({
-                id: `${task.id}-${day.toISOString().split('T')[0]}`, // ID único para cada ocorrência diária
-                title: task.title,
-                description: task.description,
-                start: day,
-                end: day,
-                type: 'gestor_task',
-                personName: 'Eu',
-                originalEvent: { ...task, is_completed: completionForDay?.done || false }, // Adiciona status de conclusão para o dia
-              });
-            }
-          });
-        } else if (taskDueDate) { // Tarefas não recorrentes com data de vencimento
+        
+        // Para tarefas recorrentes, criamos um evento para cada dia da semana/mês se for devido
+        displayedDays.forEach(day => {
+          if (isGestorTaskDueOnDate(task, day.toISOString().split('T')[0])) {
+            const completionForDay = gestorTaskCompletions.find(c => c.gestor_task_id === task.id && c.user_id === userId && isSameDay(new Date(c.date), day));
+            events.push({
+              id: `${task.id}-${day.toISOString().split('T')[0]}`, // ID único para cada ocorrência diária
+              title: task.title,
+              description: task.description,
+              start: day,
+              end: day,
+              type: 'gestor_task',
+              personName: 'Eu',
+              originalEvent: { ...task, is_completed: completionForDay?.done || false }, // Adiciona status de conclusão para o dia
+            });
+          }
+        });
+        // Para tarefas não recorrentes, adicionamos apenas se a data de vencimento estiver no período exibido
+        if (!isRecurring && taskDueDate && displayedDays.some(day => isSameDay(day, taskDueDate))) {
           events.push({
             id: task.id,
             title: task.title,
@@ -166,27 +213,32 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   }, [
     userId, userRole, showPersonalEvents, showLeadMeetings, showGestorTasks,
     consultantEvents, leadTasks, crmLeads, teamMembers, gestorTasks, gestorTaskCompletions,
-    weekDays, today, isGestorTaskDueOnDate
+    displayedDays, isGestorTaskDueOnDate
   ]);
 
   const eventsByDay = useMemo(() => {
     const map: Record<string, CalendarEvent[]> = {};
-    weekDays.forEach(day => {
+    displayedDays.forEach(day => {
       const dayStr = day.toISOString().split('T')[0];
       map[dayStr] = allEvents.filter(event => {
-        // Check if event falls within the day
         const eventStartDay = event.start.toISOString().split('T')[0];
         const eventEndDay = event.end.toISOString().split('T')[0];
         return eventStartDay <= dayStr && eventEndDay >= dayStr;
-      }).sort((a, b) => a.start.getTime() - b.start.getTime()); // Sort by start time
+      }).sort((a, b) => a.start.getTime() - b.start.getTime());
     });
     return map;
-  }, [allEvents, weekDays]);
+  }, [allEvents, displayedDays]);
 
-  const navigateWeek = (offset: number) => {
-    setCurrentWeekStart(prevDate => {
+  const navigateDate = (offset: number, unit: 'day' | 'week' | 'month') => {
+    setCurrentDate(prevDate => {
       const newDate = new Date(prevDate);
-      newDate.setDate(prevDate.getDate() + (offset * 7));
+      if (unit === 'day') {
+        newDate.setDate(prevDate.getDate() + offset);
+      } else if (unit === 'week') {
+        newDate.setDate(prevDate.getDate() + (offset * 7));
+      } else { // month
+        newDate.setMonth(prevDate.getMonth() + offset);
+      }
       return newDate;
     });
   };
@@ -201,10 +253,10 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     if (!user) return;
 
     try {
-      if ('id' in eventData) { // Edição
+      if ('id' in eventData) {
         await updateConsultantEvent(eventData.id, eventData);
         toast.success("Evento atualizado com sucesso!");
-      } else { // Criação
+      } else {
         await addConsultantEvent(eventData);
         toast.success("Evento adicionado com sucesso!");
       }
@@ -261,47 +313,83 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     }
   };
 
+  const renderDayHeader = (day: Date) => (
+    <div className={`p-3 border-b ${isSameDay(day, today) ? 'border-brand-500 dark:border-brand-400 bg-brand-50 dark:bg-brand-900/20' : 'border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50'} flex justify-between items-center`}>
+      <div>
+        <p className={`text-sm font-semibold ${isSameDay(day, today) ? 'text-brand-800 dark:text-brand-200' : 'text-gray-900 dark:text-white'}`}>
+          {day.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit' })}
+        </p>
+        <p className={`text-xs ${isSameDay(day, today) ? 'text-brand-600 dark:text-brand-400' : 'text-gray-500 dark:text-gray-400'}`}>
+          {day.toLocaleDateString('pt-BR', { month: 'short' })}
+        </p>
+      </div>
+      {showPersonalEvents && userRole === 'CONSULTOR' && (
+        <button
+          onClick={() => handleOpenEventModal(day)}
+          className="p-1 rounded-full bg-brand-100 dark:bg-brand-900/30 text-brand-700 dark:text-brand-400 hover:bg-brand-200 dark:hover:bg-brand-900/50 transition"
+          title="Adicionar Evento"
+        >
+          <Plus className="w-4 h-4" />
+        </button>
+      )}
+    </div>
+  );
+
+  const renderMonthDayHeader = (day: Date) => {
+    const isCurrentMonth = day.getMonth() === currentDate.getMonth();
+    const isToday = isSameDay(day, today);
+    return (
+      <div className={`p-2 text-center border-b border-gray-200 dark:border-slate-700 ${isToday ? 'bg-brand-50 dark:bg-brand-900/20' : isCurrentMonth ? 'bg-gray-50 dark:bg-slate-700/50' : 'bg-gray-100 dark:bg-slate-800 opacity-70'}`}>
+        <p className={`text-sm font-semibold ${isToday ? 'text-brand-800 dark:text-brand-200' : isCurrentMonth ? 'text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}>
+          {day.getDate()}
+        </p>
+        {showPersonalEvents && userRole === 'CONSULTOR' && isCurrentMonth && (
+          <button
+            onClick={() => handleOpenEventModal(day)}
+            className="absolute top-1 right-1 p-1 rounded-full bg-brand-100 dark:bg-brand-900/30 text-brand-700 dark:text-brand-400 hover:bg-brand-200 dark:hover:bg-brand-900/50 transition"
+            title="Adicionar Evento"
+          >
+            <Plus className="w-3 h-3" />
+          </button>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="p-4 sm:p-8 max-w-7xl mx-auto min-h-screen">
       <div className="flex items-center justify-between mb-6 bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700">
-        <button onClick={() => navigateWeek(-1)} className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-600 dark:text-gray-300">
+        <button onClick={() => navigateDate(-1, view)} className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-600 dark:text-gray-300">
           <ChevronLeft className="w-5 h-5" />
         </button>
         <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-          {weekDays[0].toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })} - {weekDays[6].toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
+          {view === 'day' && currentDate.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
+          {view === 'week' && `${displayedDays[0].toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })} - ${displayedDays[6].toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}`}
+          {view === 'month' && currentDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
         </h2>
-        <button onClick={() => navigateWeek(1)} className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-600 dark:text-gray-300">
+        <button onClick={() => navigateDate(1, view)} className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-600 dark:text-gray-300">
           <ChevronRight className="w-5 h-5" />
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-7 gap-4">
-        {weekDays.map(day => {
+      {view === 'month' && (
+        <div className="grid grid-cols-7 text-center text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
+          {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(dayName => (
+            <div key={dayName} className="p-2">{dayName}</div>
+          ))}
+        </div>
+      )}
+
+      <div className={`grid ${view === 'month' ? 'grid-cols-7' : 'grid-cols-1 md:grid-cols-7'} gap-4`}>
+        {displayedDays.map(day => {
           const dayStr = day.toISOString().split('T')[0];
           const eventsToday = eventsByDay[dayStr] || [];
+          const isCurrentMonth = day.getMonth() === currentDate.getMonth();
           const isToday = isSameDay(day, today);
 
           return (
-            <div key={dayStr} className={`bg-white dark:bg-slate-800 rounded-xl shadow-sm border ${isToday ? 'border-brand-500 dark:border-brand-400' : 'border-gray-200 dark:border-slate-700'} flex flex-col`}>
-              <div className={`p-3 border-b ${isToday ? 'border-brand-500 dark:border-brand-400 bg-brand-50 dark:bg-brand-900/20' : 'border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50'} flex justify-between items-center`}>
-                <div>
-                  <p className={`text-sm font-semibold ${isToday ? 'text-brand-800 dark:text-brand-200' : 'text-gray-900 dark:text-white'}`}>
-                    {day.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit' })}
-                  </p>
-                  <p className={`text-xs ${isToday ? 'text-brand-600 dark:text-brand-400' : 'text-gray-500 dark:text-gray-400'}`}>
-                    {day.toLocaleDateString('pt-BR', { month: 'short' })}
-                  </p>
-                </div>
-                {showPersonalEvents && userRole === 'CONSULTOR' && (
-                  <button
-                    onClick={() => handleOpenEventModal(day)}
-                    className="p-1 rounded-full bg-brand-100 dark:bg-brand-900/30 text-brand-700 dark:text-brand-400 hover:bg-brand-200 dark:hover:bg-brand-900/50 transition"
-                    title="Adicionar Evento"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
+            <div key={dayStr} className={`bg-white dark:bg-slate-800 rounded-xl shadow-sm border ${isToday ? 'border-brand-500 dark:border-brand-400' : 'border-gray-200 dark:border-slate-700'} flex flex-col ${view === 'month' && !isCurrentMonth ? 'opacity-60' : ''}`}>
+              {view === 'month' ? renderMonthDayHeader(day) : renderDayHeader(day)}
               <div className="flex-1 p-2 space-y-2 overflow-y-auto custom-scrollbar min-h-[120px]">
                 {eventsToday.length === 0 ? (
                   <p className="text-center text-xs text-gray-400 py-4">Nenhum evento.</p>
@@ -337,7 +425,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                         </button>
                       )}
                       <div className="absolute top-1 right-1 flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        {(event.type === 'personal' || event.type === 'gestor_task') && ( // Apenas eventos pessoais e tarefas do gestor podem ser editados/excluídos diretamente aqui
+                        {(event.type === 'personal' || event.type === 'gestor_task') && (
                           <>
                             <button
                               onClick={() => handleOpenEventModal(event.start, event)}
@@ -355,7 +443,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                             </button>
                           </>
                         )}
-                        {event.type === 'meeting' && ( // Reuniões de leads são editadas/excluídas via modal de leads
+                        {event.type === 'meeting' && (
                           <button
                             onClick={() => toast.info("Reuniões de leads são gerenciadas na seção de CRM.")}
                             className="p-1 text-gray-400 hover:text-gray-600 rounded-md"
