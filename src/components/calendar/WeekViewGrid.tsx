@@ -351,6 +351,28 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
                             <UserRound className="w-3 h-3 mr-1 flex-shrink-0" /> Consultor: {teamMembers.find(m => m.id === (event.originalEvent as LeadTask).user_id)?.name || 'Desconhecido'}
                           </p>
                         )}
+
+                        {/* NOVO: Selo de status do convite do gestor */}
+                        {event.type === 'meeting' && (event.originalEvent as LeadTask)?.manager_invitation_status && (
+                          <div className="mt-1">
+                            {((event.originalEvent as LeadTask).manager_invitation_status === 'accepted') && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">
+                                Gestor: Aceito
+                              </span>
+                            )}
+                            {((event.originalEvent as LeadTask).manager_invitation_status === 'pending') && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
+                                Convite pendente
+                              </span>
+                            )}
+                            {((event.originalEvent as LeadTask).manager_invitation_status === 'declined') && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300">
+                                Gestor: Recusado
+                              </span>
+                            )}
+                          </div>
+                        )}
+
                         {event.personName && event.type !== 'gestor_task' && event.type !== 'meeting' && (
                           <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 flex items-center" title={event.personName}>
                             <UserRound className="w-3 h-3 mr-1 flex-shrink-0" /> <span className="truncate">{event.personName}</span>
