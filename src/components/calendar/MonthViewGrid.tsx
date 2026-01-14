@@ -164,7 +164,6 @@ const MonthViewGrid: React.FC<MonthViewGridProps> = ({
                       {(event.type === 'daily_checklist' || event.type === 'lead_task') && (
                         <Button variant="ghost" size="icon" onClick={() => toast.info("Itens de checklist e tarefas de lead são gerenciados em suas respectivas seções, não diretamente no calendário.")} className="p-1 text-gray-400 hover:text-gray-600"><XCircle className="w-3 h-3" /></Button>
                       )}
-                      {/* Removido o botão de edição para eventos do tipo 'meeting' */}
                     </div>
                   </div>
                 ))}
@@ -198,7 +197,6 @@ const MonthViewGrid: React.FC<MonthViewGridProps> = ({
                         <Button variant="ghost" size="icon" onClick={() => onDeleteEvent(event.id, event.type)} className="p-1 text-gray-400 hover:text-red-600"><Trash2 className="w-3 h-3" /></Button>
                       </>
                     )}
-                    {/* Removido o botão de edição para eventos do tipo 'meeting' */}
                   </div>
                 </div>
               ))}

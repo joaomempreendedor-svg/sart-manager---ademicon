@@ -3,7 +3,7 @@ import { CalendarEvent, isSameDay, formatTime } from './utils';
 import { Plus, Edit2, Trash2, CheckCircle2, XCircle, Clock, UserRound, MessageSquare, Users, ListChecks, ListTodo, CalendarDays } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import toast from 'react-hot-toast';
-import { GestorTask, DailyChecklistItem, LeadTask, TeamMember } from '@/types'; // Importar TeamMember
+import { GestorTask, DailyChecklistItem, LeadTask, TeamMember } from '@/types';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
 
@@ -223,7 +223,6 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
                             </Button>
                           </>
                         )}
-                        {/* Removido o botão de edição para eventos do tipo 'meeting' */}
                       </div>
                     </div>
                   ))}
@@ -331,7 +330,7 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
                       className={`absolute p-1 rounded-lg shadow-sm border ${getEventColorClass(event.type)} group overflow-hidden z-10 flex flex-col min-h-[64px]`}
                       style={{ top: `${event.top}%`, height: `${event.height}%`, left: `${event.left}%`, width: `${event.width}%` }}
                     >
-                      <div className="flex-1 min-h-0 overflow-hidden flex flex-col gap-1"> {/* Content area */}
+                      <div className="flex-1 min-h-0 flex flex-col gap-1"> {/* Content area */}
                         <div className="flex items-start text-xs font-medium">
                           {getEventIcon(event.type)}
                           {event.type === 'meeting' ? (
@@ -348,7 +347,7 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
                           <Clock className="w-3 h-3 mr-1 flex-shrink-0" /> {formatTime(event.start)} - {formatTime(event.end)}
                         </p>
                         {event.type === 'meeting' && event.originalEvent && (
-                          <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 flex items-center" title={`Consultor: ${teamMembers.find(m => m.id === (event.originalEvent as LeadTask).user_id)?.name || 'Desconhecido'}`}>
+                          <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 flex items-center truncate" title={`Consultor: ${teamMembers.find(m => m.id === (event.originalEvent as LeadTask).user_id)?.name || 'Desconhecido'}`}>
                             <UserRound className="w-3 h-3 mr-1 flex-shrink-0" /> Consultor: {teamMembers.find(m => m.id === (event.originalEvent as LeadTask).user_id)?.name || 'Desconhecido'}
                           </p>
                         )}
@@ -397,7 +396,6 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
                             </Button>
                           </>
                         )}
-                        {/* Removido o botão de edição para eventos do tipo 'meeting' */}
                       </div>
                     </div>
                   ))}
