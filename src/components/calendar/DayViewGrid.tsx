@@ -122,7 +122,6 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
 
   return (
     <div className="flex flex-col flex-1">
-      {/* All-day events section */}
       {allDayEvents.length > 0 && (
         <div className="p-2 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
           {allDayEvents.map(event => (
@@ -167,9 +166,7 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
         </div>
       )}
 
-      {/* Main content area: Time column + Timed events grid */}
       <div className="flex flex-1">
-        {/* Time Column */}
         <div className="w-16 flex-shrink-0 border-r border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800">
           <div className="relative h-full">
             {Array.from({ length: 24 }).map((_, hour) => (
@@ -180,14 +177,12 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
           </div>
         </div>
 
-        {/* Timed events grid */}
-        <div className="flex-1 relative border-l border-gray-200 dark:border-slate-700 overflow-y-auto custom-scrollbar">
-          {/* Hourly lines and clickable slots */}
+        <div className="flex-1 relative border-l border-gray-200 dark:border-slate-700 overflow-y-auto custom-scrollbar h-[calc(100vh-200px)]">
           {Array.from({ length: 24 }).map((_, hour) => (
             <div
               key={hour}
-              className="absolute left-0 right-0 border-b-4 border-gray-500 dark:border-slate-600 h-[60px] cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/30"
-              style={{ top: `${(hour / 24) * 100}%` }}
+              className="absolute left-0 right-0 border-b-4 border-gray-700 dark:border-gray-300 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/30"
+              style={{ top: `${(hour / 24) * 100}%`, height: `calc(100% / 24)` }}
               onClick={() => {
                 if (showPersonalEvents) {
                   const newEventDate = new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour, 0);
@@ -199,7 +194,6 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
             ></div>
           ))}
 
-          {/* Event blocks */}
           {positionedEvents.map(event => (
             <div
               key={event.id}

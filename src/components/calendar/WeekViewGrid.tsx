@@ -270,8 +270,8 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
                   {Array.from({ length: 24 }).map((_, hour) => (
                     <div
                       key={hour}
-                      className="absolute left-0 right-0 border-b-4 border-gray-500 dark:border-slate-600 h-[60px] cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/30"
-                      style={{ top: `${(hour / 24) * 100}%` }}
+                      className="absolute left-0 right-0 border-b-4 border-gray-700 dark:border-gray-300 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/30"
+                      style={{ top: `${(hour / 24) * 100}%`, height: `calc(100% / 24)` }}
                       onClick={() => {
                         if (showPersonalEvents) {
                           const newEventDate = new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour, 0);
