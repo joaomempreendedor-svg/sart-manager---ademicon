@@ -107,7 +107,7 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
   };
 
   return (
-    <>
+    <> {/* React.Fragment para envolver os dois blocos principais */}
       {/* All-day events section for the entire week */}
       {hasAnyAllDayEventsInWeek && (
         <div className="p-2 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
@@ -145,7 +145,6 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
         {/* Time Column */}
         <div className="w-16 flex-shrink-0 border-r border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800">
           <div className="h-16 border-b border-gray-200 dark:border-slate-700"></div> {/* Corner for day headers */}
-          {/* Removed "Dia Inteiro" header from here, it's now above */}
           <div className="relative h-[calc(100vh-200px)]"> {/* Adjust height */}
             {Array.from({ length: 24 }).map((_, hour) => (
               <div key={hour} className="h-[60px] text-xs text-gray-500 dark:text-gray-400 text-right pr-2 -mt-2">
@@ -160,7 +159,6 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
           {weekDays.map(day => {
             const dayStr = day.toISOString().split('T')[0];
             const isCurrentDay = isSameDay(day, new Date());
-            // All-day events are no longer rendered here
             const positionedTimedEvents = positionedEventsByDay[dayStr] || [];
 
             return (
