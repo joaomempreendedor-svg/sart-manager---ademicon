@@ -168,10 +168,14 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
 
       <div className="flex flex-1">
         <div className="w-16 flex-shrink-0 border-r border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800">
-          <div className="relative h-full">
+          <div className="relative h-[calc(100vh-200px)]"> {/* Adjust height */}
             {Array.from({ length: 24 }).map((_, hour) => (
-              <div key={hour} className="h-[60px] text-xs text-gray-500 dark:text-gray-400 text-right pr-2 -mt-2">
-                {hour === 0 ? '' : `${hour} ${hour < 12 ? 'AM' : 'PM'}`}
+              <div 
+                key={hour} 
+                className="absolute text-xs text-gray-500 dark:text-gray-400 text-right pr-2"
+                style={{ top: `${(hour / 24) * 100}%`, transform: 'translateY(-50%)' }} // Position at the line, center vertically
+              >
+                {hour === 0 ? '' : `${hour}:00`} {/* Explicitly show :00 */}
               </div>
             ))}
           </div>
