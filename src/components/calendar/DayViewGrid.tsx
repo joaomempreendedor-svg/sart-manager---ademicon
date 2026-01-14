@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { CalendarEvent, isSameDay, formatTime } from './utils';
+import { CalendarEvent, isSameDay, formatTime, PIXELS_PER_MINUTE } from './utils';
 import { Plus, Edit2, Trash2, CheckCircle2, XCircle, Clock, UserRound, MessageSquare, Users, ListChecks, ListTodo, CalendarDays } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import toast from 'react-hot-toast';
@@ -44,8 +44,8 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
       const startMinutes = Math.max(0, Math.floor((event.start.getTime() - dayStart.getTime()) / 60000));
       const endMinutesCalc = Math.ceil((event.end.getTime() - dayStart.getTime()) / 60000);
       const endMinutes = Math.min(1440, Math.max(startMinutes, endMinutesCalc));
-      const top = startMinutes; // 1px por minuto
-      const height = Math.max(1, endMinutes - startMinutes); // altura em pixels (mín. 1px)
+      const top = startMinutes * PIXELS_PER_MINUTE;
+      const height = Math.max(1, (endMinutes - startMinutes) * PIXELS_PER_MINUTE);
       return { ...event, top, height };
     });
   }, [timedEvents, day]);
@@ -127,7 +127,7 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
   const currentHour = now.getHours();
   const currentMinutes = now.getMinutes();
   const isTodayDisplayed = isSameDay(day, now);
-  const currentTimeTopPx = currentHour * 60 + currentMinutes;
+  const currentTimeTopPx = (currentHour * 60 + currentMinutes) * PIXELS_PER_MINUTE;
 
   return (
     <div className="flex flex-col flex-1">
@@ -198,12 +198,12 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
         {/* Time Column */}
         <div className="w-16 flex-shrink-0 border-r border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800">
           <div className="h-16 border-b border-gray-200 dark:border-slate-700"></div> {/* Corner for day headers */}
-          <div className="relative h-[1440px]"> {/* 24 hours * 60 minutes = 1440px height */}
+          <div className="relative" style={{ height: `${24 * 60 * PIXELS_PER_MINUTE}px` }}>
             {Array.from({ length: 24 }).map((_, hour) => (
               <div
                 key={hour}
                 className="absolute text-xs text-gray-500 dark:text-gray-400 text-right pr-2"
-                style={{ top: `${hour * 60}px` }}
+                style={{ top: `${hour * 60 * PIXELS_PER_MINUTE}px` }}
               >
                 {hour === 0 ? '' : `${hour}:00`}
               </div>
@@ -234,25 +234,25 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
             </div>
 
             {/* Timed events grid */}
-            <div className="relative h-[1440px]"> {/* 24 hours * 60 minutes = 1440px height */}
-              {/* Hourly and Half-Hourly Grid Lines */}
+            <div className="relative" style={{ height: `${24 * 60 * PIXELS_PER_MINUTE}px` }}>
+              {/* Hourly Grid Blocks (background only, no border) */}
               {Array.from({ length: 24 }).map((_, hour) => {
                 return (
                   <div
                     key={hour}
-                    className="absolute left-0 right-0 h-[60px] bg-gray-100 dark:bg-slate-700 opacity-10"
-                    style={{ top: `${hour * 60}px` }}
+                    className="absolute left-0 right-0 bg-gray-100 dark:bg-slate-700 opacity-10"
+                    style={{ top: `${hour * 60 * PIXELS_PER_MINUTE}px`, height: `${60 * PIXELS_PER_MINUTE}px` }}
                   ></div>
                 );
               })}
 
-              {/* Clickable slots for adding new events */}
+              {/* Clickable slots for adding new events (aligned to hours) */}
               {Array.from({ length: 24 }).map((_, hour) => {
                 return (
                   <div
                     key={`slot-${hour}`}
-                    className="absolute left-0 right-0 h-[60px] cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/30"
-                    style={{ top: `${hour * 60}px` }}
+                    className="absolute left-0 right-0 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/30"
+                    style={{ top: `${hour * 60 * PIXELS_PER_MINUTE}px`, height: `${60 * PIXELS_PER_MINUTE}px` }}
                     onClick={() => {
                       if (showPersonalEvents) {
                         const newEventDate = new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour, 0);

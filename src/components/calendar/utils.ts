@@ -1,5 +1,7 @@
 import { GestorTask, DailyChecklistItem, LeadTask } from '@/types'; // Importar tipos necessários
 
+export const PIXELS_PER_MINUTE = 1;
+
 export interface CalendarEvent {
   id: string;
   title: string;
