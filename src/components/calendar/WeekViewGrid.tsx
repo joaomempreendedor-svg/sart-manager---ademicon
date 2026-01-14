@@ -182,7 +182,7 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
               return (
                 <div key={dayStr} className="flex flex-col space-y-0.5 p-1 border-l border-gray-200 dark:border-slate-700">
                   {dayAllDayEvents.map(event => (
-                    <div key={event.id} className={`p-1.5 rounded-md text-xs font-medium ${getEventColorClass(event.type)} flex items-center justify-between group`}>
+                    <div key={event.id} className={`mb-1 p-1.5 rounded-md text-xs font-medium ${getEventColorClass(event.type)} flex items-center justify-between group`}>
                       <span className="truncate flex items-center">{getEventIcon(event.type)} {event.title}</span>
                       <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         {(event.type === 'personal' || event.type === 'gestor_task') && (
