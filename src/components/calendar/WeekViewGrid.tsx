@@ -361,4 +361,4 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
   );
 };
 
-export default DayViewGrid;
+export default WeekViewGrid;
