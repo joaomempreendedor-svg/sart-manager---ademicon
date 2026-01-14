@@ -42,8 +42,8 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
     return timedEvents.map(event => {
       const startMinutes = event.start.getHours() * 60 + event.start.getMinutes();
       const endMinutes = event.end.getHours() * 60 + event.end.getMinutes();
-      const top = (startMinutes / (24 * 60)) * 100; // Percentage of total height (1440 minutes)
-      const height = ((endMinutes - startMinutes) / (24 * 60)) * 100; // Percentage of total height
+      const top = startMinutes; // 1px por minuto
+      const height = endMinutes - startMinutes; // altura em pixels
       return { ...event, top, height };
     });
   }, [timedEvents]);
@@ -280,7 +280,7 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
                 <div
                   key={event.id}
                   className={`absolute p-1 rounded-lg shadow-sm border ${getEventColorClass(event.type)} group overflow-hidden z-10 flex flex-col min-h-[64px] relative`}
-                  style={{ top: `${event.top}%`, height: `${event.height}%`, left: `0%`, width: `100%` }}
+                  style={{ top: `${event.top}px`, height: `${event.height}px`, left: `0%`, width: `100%` }}
                 >
                   <div className="flex-1 min-h-0 flex flex-col gap-1"> {/* Content area */}
                     <div className="flex items-start text-xs font-medium">

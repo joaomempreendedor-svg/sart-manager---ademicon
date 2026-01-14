@@ -83,7 +83,7 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
     return Object.values(uniqueById).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   }, [teamMembers, crmOwnerUserId]);
 
-  const [selectedGestorId, setSelectedGestorId] = useState<string | null>(gestores[0]?.id || null);
+  const [selectedGestorId, setSelectedGestorId] = useState<string | null>(() => (crmOwnerUserId || gestores[0]?.id || null));
 
   // Mantém o gestor selecionado atualizado quando a lista muda
   useEffect(() => {

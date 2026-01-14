@@ -308,7 +308,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       }
       setIsEventModalOpen(false);
     } catch (error: any) {
-      toast.error(`Erro ao salvar evento: ${error.message}`);
+      console.error("Erro ao salvar evento:", error);
     }
   };
 
@@ -335,7 +335,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   const handleToggleGestorTaskCompletion = async (task: GestorTask, date: Date) => {
     if (!user) return;
     const dateStr = date.toISOString().split('T')[0];
-    const isCompleted = gestorTaskCompletions.some(c => c.gestor_task_id === task.id && c.user_id === userId && isSameDay(new Date(c.date), day));
+    const isCompleted = gestorTaskCompletions.some(c => c.gestor_task_id === task.id && c.user_id === userId && isSameDay(new Date(c.date), date));
     try {
       await toggleGestorTaskCompletion(task.id, !isCompleted, dateStr);
       toast.success(`Tarefa ${isCompleted ? 'marcada como pendente' : 'concluída'}!`);
