@@ -160,11 +160,14 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
                     className="absolute left-0 right-0 border-t border-gray-100 dark:border-slate-800 h-[60px] cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/30" 
                     style={{ top: `${(hour / 24) * 100}%` }}
                     onClick={() => {
+                      console.log(`[WeekViewGrid] Clicked on day ${day.toDateString()} at hour ${hour}`);
                       if (showPersonalEvents && userRole === 'CONSULTOR') {
                         const newEventDate = new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour, 0);
                         onOpenEventModal(newEventDate);
+                      } else if (userRole === 'GESTOR' || userRole === 'ADMIN') {
+                        toast.info("Gestores/Admins não adicionam eventos pessoais aqui. Para agendar reuniões com leads, use a seção de CRM.");
                       } else {
-                        toast.info("Você não tem permissão para adicionar eventos pessoais aqui.");
+                        toast.info("Você não tem permissão para adicionar eventos aqui.");
                       }
                     }}
                   ></div>

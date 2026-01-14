@@ -212,6 +212,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   };
 
   const handleOpenEventModal = (date: Date, event: CalendarEvent | null = null) => {
+    console.log(`[CalendarView] handleOpenEventModal called. Date: ${date.toISOString()}, Event:`, event);
     setSelectedDateForNewEvent(date);
     setEditingEvent(event);
     setIsEventModalOpen(true);
@@ -343,7 +344,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           onClose={() => setIsEventModalOpen(false)}
           onSave={handleSaveEvent}
           event={editingEvent}
-          defaultDate={selectedDateForNewEvent || undefined}
+          defaultStartDateTime={selectedDateForNewEvent || undefined}
           userId={userId}
         />
       )}
