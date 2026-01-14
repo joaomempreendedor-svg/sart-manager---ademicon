@@ -133,12 +133,16 @@ export const PublicForm = () => {
   const validateField = useCallback((name: keyof FormData, value: any) => {
     let error = '';
     switch (name) {
-      case 'nome_completo': case 'rg': case 'orgao_emissor_rg': case 'data_nascimento':
+      case 'nome_completo': case 'orgao_emissor_rg': case 'data_nascimento':
       case 'estado_nascimento': case 'cidade_nascimento': case 'profissao':
       case 'numero_endereco':
         if (!value?.trim()) error = 'Campo obrigatório.';
         break;
       case 'cpf': error = validateCpf(value); break;
+      case 'rg': 
+        if (!value?.trim()) error = 'Campo obrigatório.';
+        else if (value.replace(/\D/g, '').length < 8) error = 'RG inválido.'; // Mínimo de 8 dígitos para RG
+        break;
       case 'email': error = validateEmail(value); break;
       case 'celular': error = validateCelular(value); break;
       case 'nacionalidade': case 'estado_civil': case 'comprovante_nome_quem':
@@ -150,7 +154,10 @@ export const PublicForm = () => {
       case 'tipo_documento_identificacao':
         if (!value) error = 'Selecione o tipo de documento.';
         break;
-      case 'documento_identificacao_file': case 'comprovante_endereco_file':
+      case 'documento_identificacao_file':
+        if (formData.tipo_documento_identificacao && !value) error = 'Upload obrigatório.';
+        break;
+      case 'comprovante_endereco_file':
         if (!value) error = 'Upload obrigatório.';
         break;
       case 'certidao_nascimento_file':

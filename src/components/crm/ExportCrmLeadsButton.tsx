@@ -1,14 +1,11 @@
 import React from 'react';
 import * as XLSX from 'xlsx';
 import { Download } from 'lucide-react';
-import { CrmLead, CrmField, CrmStage, TeamMember } from '@/types';
+import { CrmLead } from '@/types'; // Removido CrmField, CrmStage, TeamMember
 import toast from 'react-hot-toast';
 
 interface ExportCrmLeadsButtonProps {
   leads: CrmLead[];
-  crmFields: CrmField[]; // Mantido para compatibilidade, mas não usado para exportar
-  crmStages: CrmStage[]; // Mantido para compatibilidade, mas não usado para exportar
-  teamMembers: TeamMember[]; // Mantido para compatibilidade, mas não usado para exportar
   fileName?: string;
 }
 

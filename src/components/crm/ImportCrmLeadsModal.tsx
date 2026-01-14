@@ -12,25 +12,19 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import toast from 'react-hot-toast';
-import { CrmLead, CrmField, CrmStage, TeamMember } from '@/types';
+import { CrmLead } from '@/types'; // Removido CrmField, CrmStage, TeamMember
 import { useApp } from '@/context/AppContext'; // Importar useApp
 
 interface ImportCrmLeadsModalProps {
   isOpen: boolean;
   onClose: () => void;
   onImport: (leads: Omit<CrmLead, 'id' | 'created_at' | 'updated_at' | 'user_id' | 'created_by' | 'updated_by'>[]) => Promise<void>;
-  crmFields: CrmField[]; // Mantido para compatibilidade, mas não usado para mapeamento dinâmico
-  consultants: TeamMember[]; // Mantido para compatibilidade, mas não usado para mapeamento dinâmico
-  stages: CrmStage[]; // Mantido para compatibilidade, mas não usado para mapeamento dinâmico
 }
 
 export const ImportCrmLeadsModal: React.FC<ImportCrmLeadsModalProps> = ({
   isOpen,
   onClose,
   onImport,
-  crmFields, // Não será usado para mapeamento dinâmico de campos
-  consultants, // Não será usado para mapeamento dinâmico de consultores
-  stages, // Não será usado para mapeamento dinâmico de estágios
 }) => {
   const { origins } = useApp(); // Acessar a lista de origens do AppContext
   const [pastedData, setPastedData] = useState('');

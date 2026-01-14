@@ -1034,7 +1034,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       user_id: JOAO_GESTOR_AUTH_ID, 
       data: newCandidateData,
       last_updated_at: newCandidateData.lastUpdatedAt 
-    }).select('id', 'created_at', 'last_updated_at').single(); 
+    }).select('id, created_at, last_updated_at').single(); 
     
     if (error) { 
       console.error("Erro ao adicionar candidato no Supabase:", error); 
@@ -1043,14 +1043,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     } 
     
     if (data) { 
-      setCandidates(prev => [{
+      const finalCandidate = {
         ...newCandidateData, 
         db_id: data.id,
         createdAt: data.created_at,
         lastUpdatedAt: data.last_updated_at 
-      }, ...prev]); 
+      };
+      setCandidates(prev => [finalCandidate, ...prev]); 
+      return finalCandidate; // Retorna o objeto completo com db_id e timestamps
     } 
-    return newCandidateData;
+    return newCandidateData; // Fallback, embora data deva existir
   }, [user]);
   const updateCandidate = useCallback(async (id: string, updates: Partial<Candidate>) => { 
     if (!user) throw new Error("Usuário não autenticado."); 
@@ -1092,7 +1094,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         ? { ...currentCandidateDeepCopy.data, ...updatesDeepCopy.data } 
         : currentCandidateDeepCopy.data,
       
-      lastUpdatedAt: new Date().toISOString(),
+      lastUpdatedAt: new Date().toISOString(), // Garante que lastUpdatedAt seja sempre atualizado
     };
     
     console.log(`[updateCandidate] Merged updated candidate name (mergedCandidateData.name): "${mergedCandidateData.name}"`);
@@ -2192,7 +2194,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }));
     const { error } = await supabase.from('weekly_target_items').upsert(updates, { onConflict: 'id' });
     if (error) throw error;
-    setWeeklyTargetItems(orderedItems.map((item, index) => ({ ...item, order_index: index })));
+    setWeeklyTargetItems(prev => {
+      const updatedItems = prev.map(item => {
+        const update = updates.find(u => u.id === item.id);
+        return update ? { ...item, order_index: update.order_index } : item;
+      });
+      return updatedItems.sort((a, b) => a.order_index - b.order_index);
+    });
   }, [user]);
 
   const assignWeeklyTargetToConsultant = useCallback(async (weekly_target_id: string, consultant_id: string) => {
