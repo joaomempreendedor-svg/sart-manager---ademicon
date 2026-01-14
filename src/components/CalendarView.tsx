@@ -336,7 +336,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   const handleToggleGestorTaskCompletion = async (task: GestorTask, date: Date) => {
     if (!user) return;
     const dateStr = date.toISOString().split('T')[0];
-    const isCompleted = gestorTaskCompletions.some(c => c.gestor_task_id === task.id && c.user_id === userId && isSameDay(new Date(c.date), day));
+    const isCompleted = gestorTaskCompletions.some(c => c.gestor_task_id === task.id && c.user_id === userId && isSameDay(new Date(c.date), date));
     try {
       await toggleGestorTaskCompletion(task.id, !isCompleted, dateStr);
       toast.success(`Tarefa ${isCompleted ? 'marcada como pendente' : 'concluída'}!`);
@@ -403,7 +403,17 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         </div>
       </div>
 
-      {/* Integração externa removida — agenda funciona apenas com dados internos */}
+      {/* Grade do Calendário */}
+      <div className="flex-1 overflow-y-auto custom-scrollbar">
+        {view === 'month' && (
+          <div className="grid grid-cols-7 text-center text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
+            {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(dayName => (
+              <div key={dayName} className="p-2">{dayName}</div>
+            ))}
+          </div>
+        )}
+        {renderCalendarGrid()}
+      </div>
 
       {isEventModalOpen && (
         <EventModal
