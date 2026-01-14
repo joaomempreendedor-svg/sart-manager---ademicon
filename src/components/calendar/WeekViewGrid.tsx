@@ -248,9 +248,9 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
                   ))}
                 </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     </div>
   );
