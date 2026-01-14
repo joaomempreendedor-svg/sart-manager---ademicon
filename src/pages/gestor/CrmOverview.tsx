@@ -48,7 +48,7 @@ const CrmOverviewPage = () => { // Renomeado para CrmOverviewPage para evitar co
 
   // Efeito para abrir o modal de tarefas se houver estado de navegação
   useEffect(() => {
-    if (location.state?.highlightLeadId && location.state?.highlightLeadTaskId) {
+    if (location.state?.highlightLeadId) {
       const leadToHighlight = crmLeads.filter(lead => lead.user_id === user?.id).find(l => l.id === location.state.highlightLeadId);
       if (leadToHighlight) {
         setSelectedLeadForTasks(leadToHighlight);
@@ -515,6 +515,7 @@ const CrmOverviewPage = () => { // Renomeado para CrmOverviewPage para evitar co
           isOpen={isTasksModalOpen}
           onClose={() => setIsTasksModalOpen(false)}
           lead={selectedLeadForTasks}
+          highlightedTaskId={location.state?.highlightLeadTaskId} // Passa o ID da tarefa destacada
         />
       )}
 

@@ -22,9 +22,10 @@ interface LeadTasksModalProps {
   isOpen: boolean;
   onClose: () => void;
   lead: CrmLead;
+  highlightedTaskId?: string | null; // NOVO: Prop para destacar uma tarefa específica
 }
 
-export const LeadTasksModal: React.FC<LeadTasksModalProps> = ({ isOpen, onClose, lead }) => {
+export const LeadTasksModal: React.FC<LeadTasksModalProps> = ({ isOpen, onClose, lead, highlightedTaskId }) => {
   const { user } = useAuth();
   const { leadTasks, addLeadTask, updateLeadTask, deleteLeadTask, toggleLeadTaskCompletion } = useApp();
 
@@ -55,6 +56,17 @@ export const LeadTasksModal: React.FC<LeadTasksModalProps> = ({ isOpen, onClose,
     if (b.due_date) return 1;
     return 0;
   });
+
+  // NOVO: Efeito para abrir o modal de reunião se highlightedTaskId for uma reunião
+  useEffect(() => {
+    if (isOpen && highlightedTaskId) {
+      const taskToHighlight = tasksForLead.find(task => task.id === highlightedTaskId);
+      if (taskToHighlight && taskToHighlight.type === 'meeting') {
+        setEditingMeeting(taskToHighlight);
+        setIsEditMeetingModalOpen(true);
+      }
+    }
+  }, [isOpen, highlightedTaskId, tasksForLead]);
 
   const handleAddTask = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -298,6 +310,7 @@ export const LeadTasksModal: React.FC<LeadTasksModalProps> = ({ isOpen, onClose,
           <ScheduleMeetingModal
             isOpen={isEditMeetingModalOpen}
             onClose={() => {
+              console.log("ScheduleMeetingModal onClose called");
               setIsEditMeetingModalOpen(false);
               setEditingMeeting(null);
             }}

@@ -4,6 +4,8 @@ import { Plus, Edit2, Trash2, CheckCircle2, XCircle, Clock, UserRound, MessageSq
 import { Button } from '@/components/ui/button';
 import toast from 'react-hot-toast';
 import { GestorTask } from '@/types';
+import { useNavigate } from 'react-router-dom';
+import { useApp } from '@/context/AppContext';
 
 interface MonthViewGridProps {
   displayedDays: Date[];
@@ -28,6 +30,9 @@ const MonthViewGrid: React.FC<MonthViewGridProps> = ({
   userRole,
   showPersonalEvents,
 }) => {
+  const navigate = useNavigate();
+  const { toggleDailyChecklistCompletion, toggleLeadTaskCompletion, deleteLeadTask } = useApp();
+
   const getEventColorClass = (type: CalendarEvent['type']) => {
     switch (type) {
       case 'personal': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300';
@@ -48,6 +53,63 @@ const MonthViewGrid: React.FC<MonthViewGridProps> = ({
       case 'lead_task': return <ListTodo className="w-3 h-3 mr-1 flex-shrink-0" />;
       default: return null;
     }
+  };
+
+  const handleToggleDailyChecklist = async (event: CalendarEvent) => {
+    if (!event.originalEvent || event.type !== 'daily_checklist') return;
+    const item = event.originalEvent as DailyChecklistItem;
+    const dateStr = event.start.toISOString().split('T')[0];
+    try {
+      await toggleDailyChecklistCompletion(item.id, dateStr, !item.is_completed, event.personId!);
+      toast.success(`Item de checklist ${item.is_completed ? 'marcado como pendente' : 'concluído'}!`);
+    } catch (error: any) {
+      toast.error(`Erro ao atualizar checklist: ${error.message}`);
+    }
+  };
+
+  const handleEditDailyChecklist = (event: CalendarEvent) => {
+    if (!event.originalEvent || event.type !== 'daily_checklist') return;
+    const item = event.originalEvent as DailyChecklistItem;
+    const dateStr = event.start.toISOString().split('T')[0];
+    navigate(`/consultor/daily-checklist`, { state: { highlightChecklistItemId: item.id, highlightChecklistDate: dateStr } });
+  };
+
+  const handleToggleLeadTask = async (event: CalendarEvent) => {
+    if (!event.originalEvent || event.type !== 'lead_task') return;
+    const task = event.originalEvent as LeadTask;
+    try {
+      await toggleLeadTaskCompletion(task.id, !task.is_completed);
+      toast.success(`Tarefa de lead ${task.is_completed ? 'marcada como pendente' : 'concluída'}!`);
+    } catch (error: any) {
+      toast.error(`Erro ao atualizar tarefa de lead: ${error.message}`);
+    }
+  };
+
+  const handleEditLeadTask = (event: CalendarEvent) => {
+    if (!event.originalEvent || event.type !== 'lead_task') return;
+    const task = event.originalEvent as LeadTask;
+    const path = userRole === 'CONSULTOR' ? '/consultor/crm' : '/gestor/crm';
+    navigate(path, { state: { highlightLeadId: task.lead_id, highlightLeadTaskId: task.id } });
+  };
+
+  const handleDeleteLeadTask = async (event: CalendarEvent) => {
+    if (!event.originalEvent || event.type !== 'lead_task') return;
+    const task = event.originalEvent as LeadTask;
+    if (window.confirm(`Tem certeza que deseja excluir a tarefa "${task.title}"?`)) {
+      try {
+        await deleteLeadTask(task.id);
+        toast.success("Tarefa de lead excluída com sucesso!");
+      } catch (error: any) {
+      toast.error(`Erro ao excluir tarefa de lead: ${error.message}`);
+      }
+    }
+  };
+
+  // NOVO: Handler para editar reunião
+  const handleEditMeetingEvent = (event: CalendarEvent) => {
+    if (event.type !== 'meeting' || !event.personId || !event.id) return;
+    const path = userRole === 'CONSULTOR' ? '/consultor/crm' : '/gestor/crm';
+    navigate(path, { state: { highlightLeadId: event.personId, highlightLeadTaskId: event.id, highlightLeadDate: event.start.toISOString().split('T')[0] } });
   };
 
   return (
@@ -99,6 +161,11 @@ const MonthViewGrid: React.FC<MonthViewGridProps> = ({
                       {(event.type === 'daily_checklist' || event.type === 'lead_task') && (
                         <Button variant="ghost" size="icon" onClick={() => toast.info("Itens de checklist e tarefas de lead são gerenciados em suas respectivas seções, não diretamente no calendário.")} className="p-1 text-gray-400 hover:text-gray-600"><XCircle className="w-3 h-3" /></Button>
                       )}
+                      {event.type === 'meeting' && (
+                        <Button variant="ghost" size="icon" onClick={() => handleEditMeetingEvent(event)} className="p-1 text-gray-400 hover:text-blue-600" title="Editar Reunião no CRM">
+                          <Edit2 className="w-3 h-3" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -125,7 +192,9 @@ const MonthViewGrid: React.FC<MonthViewGridProps> = ({
                       </>
                     )}
                     {event.type === 'meeting' && (
-                      <Button variant="ghost" size="icon" onClick={() => toast.info("Reuniões de leads são gerenciadas na seção de CRM.")} className="p-1 text-gray-400 hover:text-gray-600"><XCircle className="w-3 h-3" /></Button>
+                      <Button variant="ghost" size="icon" onClick={() => handleEditMeetingEvent(event)} className="p-1 text-gray-400 hover:text-blue-600" title="Editar Reunião no CRM">
+                        <Edit2 className="w-3 h-3" />
+                      </Button>
                     )}
                   </div>
                 </div>

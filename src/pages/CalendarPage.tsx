@@ -11,7 +11,7 @@ export const CalendarPage = () => {
 
   const [highlightedItemId, setHighlightedItemId] = useState<string | null>(null);
   const [highlightedDate, setHighlightedDate] = useState<string | null>(null);
-  const [highlightedEventType, setHighlightedEventType] = useState<'daily_checklist' | 'lead_task' | null>(null);
+  const [highlightedEventType, setHighlightedEventType] = useState<'daily_checklist' | 'lead_task' | 'meeting' | null>(null);
 
 
   useEffect(() => {
@@ -24,7 +24,7 @@ export const CalendarPage = () => {
     } else if (location.state?.highlightLeadId && location.state?.highlightLeadTaskId) {
       setHighlightedItemId(location.state.highlightLeadTaskId);
       setHighlightedDate(location.state.highlightLeadDate || new Date().toISOString().split('T')[0]); // Usar data atual se não houver
-      setHighlightedEventType('lead_task');
+      setHighlightedEventType('meeting'); // Assumimos que é uma reunião para edição via CRM
       setView('day'); // Mudar para visualização de dia para melhor destaque
       window.history.replaceState({}, document.title); // Limpar o estado
     }
