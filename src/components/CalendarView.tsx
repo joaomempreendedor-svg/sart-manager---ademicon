@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Plus, CalendarDays, Clock, UserRound, MessageSquare, Users } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
@@ -60,11 +60,19 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   const { user } = useAuth();
 
   const [currentDate, setCurrentDate] = useState(new Date()); // Data central para navegação
+  const [today, setToday] = useState(new Date()); // Estado para a data atual, atualizado a cada minuto
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
   const [selectedDateForNewEvent, setSelectedDateForNewEvent] = useState<Date | null>(null);
 
-  const today = useMemo(() => new Date(), []);
+  // Efeito para atualizar 'today' a cada minuto
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      setToday(new Date());
+    }, 60 * 1000); // Atualiza a cada 60 segundos
+
+    return () => clearInterval(intervalId);
+  }, []);
 
   const displayedDays = useMemo(() => {
     if (view === 'day') {
