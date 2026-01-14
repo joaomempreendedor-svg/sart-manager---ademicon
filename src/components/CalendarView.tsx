@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, Plus, CalendarDays, Clock, UserRound, MessageSquare, Tag, XCircle, Edit2, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, CalendarDays, Clock, UserRound, MessageSquare, Tag, XCircle, Edit2, Trash2, Users } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { CrmLead, LeadTask, GestorTask, ConsultantEvent, TeamMember } from '@/types';
@@ -44,7 +44,7 @@ const isSameDay = (d1: Date, d2: Date) => {
          d1.getDate() === d2.getDate();
 };
 
-const formatTime = (date: Date) => date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+const formatTime = (date: Date) => date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
 
 export const CalendarView: React.FC<CalendarViewProps> = ({
   userId,
