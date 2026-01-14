@@ -20,9 +20,9 @@ interface CalendarViewProps {
   showLeadMeetings?: boolean;
   showGestorTasks?: boolean;
   view: 'day' | 'week' | 'month';
-  highlightedItemId?: string | null; // NOVO: Prop para item destacado
-  highlightedDate?: string | null; // NOVO: Prop para data destacada
-  highlightedEventType?: 'daily_checklist' | 'lead_task' | null; // NOVO: Tipo do evento destacado
+  highlightedItemId?: string | null;
+  highlightedDate?: string | null;
+  highlightedEventType?: 'daily_checklist' | 'lead_task' | null;
 }
 
 export const CalendarView: React.FC<CalendarViewProps> = ({
@@ -345,9 +345,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     const commonGridProps = {
       eventsByDay,
       today,
-      onOpenEventModal,
-      onDeleteEvent,
-      onToggleGestorTaskCompletion,
+      onOpenEventModal: handleOpenEventModal, // Correctly reference the internal function
+      onDeleteEvent: handleDeleteEvent,
+      onToggleGestorTaskCompletion: handleToggleGestorTaskCompletion,
       userRole,
       showPersonalEvents,
     };
