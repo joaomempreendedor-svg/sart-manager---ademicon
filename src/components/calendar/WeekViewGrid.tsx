@@ -16,7 +16,7 @@ interface WeekViewGridProps {
   onToggleGestorTaskCompletion: (task: GestorTask, date: Date) => void;
   userRole: 'GESTOR' | 'CONSULTOR' | 'ADMIN';
   showPersonalEvents: boolean;
-  teamMembers: TeamMember[]; // Adicionado aqui
+  teamMembers: TeamMember[];
 }
 
 const WeekViewGrid: React.FC<WeekViewGridProps> = ({
@@ -28,12 +28,14 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
   onToggleGestorTaskCompletion,
   userRole,
   showPersonalEvents,
-  teamMembers, // Desestruturado aqui
+  teamMembers,
 }) => {
   const now = new Date();
   const isCurrentWeek = weekDays.some(day => isSameDay(day, now));
   const navigate = useNavigate();
   const { toggleDailyChecklistCompletion, toggleLeadTaskCompletion, deleteLeadTask } = useApp();
+
+  const containerHeightPx = 24 * 60 * PIXELS_PER_MINUTE;
 
   const allWeekAllDayEvents = useMemo(() => {
     const events: CalendarEvent[] = [];
@@ -46,12 +48,12 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
 
   const hasAnyAllDayEventsInWeek = allWeekAllDayEvents.length > 0;
 
+  // Posicionamento colunar de eventos (sem gaps verticais) usando escala/ origem única
   const positionedEventsByDay = useMemo(() => {
     const result: Record<string, (CalendarEvent & { top: number; height: number; left: number; width: number; })[]> = {};
-
     weekDays.forEach(day => {
       const dayStr = day.toISOString().split('T')[0];
-      const timedEvents = eventsByDay[dayStr]?.filter(e => !e.allDay) || [];
+      const timedEvents = (eventsByDay[dayStr] || []).filter(e => !e.allDay);
 
       timedEvents.sort((a, b) => {
         if (a.start.getTime() !== b.start.getTime()) {
@@ -61,9 +63,9 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
       });
 
       const columns: { end: number; events: (CalendarEvent & { top: number; height: number; left: number; width: number; })[] }[] = [];
-      
+      const dayStart = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 0, 0, 0, 0);
+
       result[dayStr] = timedEvents.map(event => {
-        const dayStart = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 0, 0, 0, 0);
         const startMinutes = Math.max(0, Math.floor((event.start.getTime() - dayStart.getTime()) / 60000));
         const endMinutesCalc = Math.ceil((event.end.getTime() - dayStart.getTime()) / 60000);
         const endMinutes = Math.min(1440, Math.max(startMinutes, endMinutesCalc));
@@ -74,13 +76,12 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
         while (columnIndex < columns.length && columns[columnIndex].end > startMinutes) {
           columnIndex++;
         }
-
         if (columnIndex === columns.length) {
           columns.push({ end: endMinutes, events: [] });
         }
         columns[columnIndex].end = endMinutes;
 
-        const left = (columnIndex / (columns.length || 1)) * 100; // Avoid division by zero
+        const left = (columnIndex / (columns.length || 1)) * 100;
         const width = (1 / (columns.length || 1)) * 100;
 
         return { ...event, top, height, left, width };
@@ -111,57 +112,7 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
     }
   };
 
-  const handleToggleDailyChecklist = async (event: CalendarEvent) => {
-    if (!event.originalEvent || event.type !== 'daily_checklist') return;
-    const item = event.originalEvent as DailyChecklistItem;
-    const dateStr = event.start.toISOString().split('T')[0];
-    try {
-      await toggleDailyChecklistCompletion(item.id, dateStr, !item.is_completed, event.personId!);
-      toast.success(`Item de checklist ${item.is_completed ? 'marcado como pendente' : 'concluído'}!`);
-    } catch (error: any) {
-      toast.error(`Erro ao atualizar checklist: ${error.message}`);
-    }
-  };
-
-  const handleEditDailyChecklist = (event: CalendarEvent) => {
-    if (!event.originalEvent || event.type !== 'daily_checklist') return;
-    const item = event.originalEvent as DailyChecklistItem;
-    const dateStr = event.start.toISOString().split('T')[0];
-    navigate(`/consultor/daily-checklist`, { state: { highlightChecklistItemId: item.id, highlightChecklistDate: dateStr } });
-  };
-
-  const handleToggleLeadTask = async (event: CalendarEvent) => {
-    if (!event.originalEvent || event.type !== 'lead_task') return;
-    const task = event.originalEvent as LeadTask;
-    try {
-      await toggleLeadTaskCompletion(task.id, !task.is_completed);
-      toast.success(`Tarefa de lead ${task.is_completed ? 'marcada como pendente' : 'concluída'}!`);
-    } catch (error: any) {
-      toast.error(`Erro ao atualizar tarefa de lead: ${error.message}`);
-    }
-  };
-
-  const handleEditLeadTask = (event: CalendarEvent) => {
-    if (!event.originalEvent || event.type !== 'lead_task') return;
-    const task = event.originalEvent as LeadTask;
-    const path = userRole === 'CONSULTOR' ? '/consultor/crm' : '/gestor/crm';
-    navigate(path, { state: { highlightLeadId: task.lead_id, highlightLeadTaskId: task.id } });
-  };
-
-  const handleDeleteLeadTask = async (event: CalendarEvent) => {
-    if (!event.originalEvent || event.type !== 'lead_task') return;
-    const task = event.originalEvent as LeadTask;
-    if (window.confirm(`Tem certeza que deseja excluir a tarefa "${task.title}"?`)) {
-      try {
-        await deleteLeadTask(task.id);
-        toast.success("Tarefa de lead excluída com sucesso!");
-      } catch (error: any) {
-      toast.error(`Erro ao excluir tarefa de lead: ${error.message}`);
-      }
-    }
-  };
-
-  // Calculate current time line position
+  // Linha de "agora" alinhada ao eixo único
   const currentTimeNow = new Date();
   const currentHour = currentTimeNow.getHours();
   const currentMinutes = currentTimeNow.getMinutes();
@@ -172,10 +123,7 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
       {/* All-day events section for the entire week */}
       {hasAnyAllDayEventsInWeek && (
         <div className="flex border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
-          {/* Empty spacer to align with time column */}
           <div className="w-16 flex-shrink-0 border-r border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800"></div>
-          
-          {/* Grid for 7 days of all-day events */}
           <div className="grid grid-cols-7 flex-1">
             {weekDays.map(day => {
               const dayStr = day.toISOString().split('T')[0];
@@ -183,20 +131,18 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
               return (
                 <div key={dayStr} className="flex flex-col space-y-0.5 p-1 border-l border-gray-200 dark:border-slate-700">
                   {dayAllDayEvents.map(event => (
-                    <div key={event.id} className={`mb-1 p-1.5 rounded-md text-xs font-medium ${getEventColorClass(event.type)} flex items-center group relative`}>
+                    <div key={event.id} className={`mb-1 p-1 rounded-sm text-xs font-medium ${getEventColorClass(event.type)} flex items-center group relative`}>
                       <div className="flex-1 flex items-center">
                         {getEventIcon(event.type)}
                         {event.type === 'meeting' ? (
-                          <>
-                            <span className="flex-1 line-clamp-2 overflow-hidden" title={`Reunião com ${event.personName}`}>
-                              Reunião com {event.personName}
-                            </span>
-                          </>
+                          <span className="flex-1 line-clamp-2 overflow-hidden" title={`Reunião com ${event.personName}`}>
+                            Reunião com {event.personName}
+                          </span>
                         ) : (
                           <span className="flex-1 line-clamp-2 overflow-hidden" title={event.title}>{event.title}</span>
                         )}
                       </div>
-                      <div className="absolute top-1 right-1 flex items-center space-x-1 bg-white/80 dark:bg-slate-800/70 rounded-md px-1 py-0.5 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="absolute top-1 right-1 flex items-center space-x-1 bg-white/80 dark:bg-slate-800/70 rounded-sm px-1 py-0.5 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity">
                         {(event.type === 'personal' || event.type === 'gestor_task') && (
                           <>
                             <Button variant="ghost" size="icon" onClick={() => onOpenEventModal(day, event)} className="p-1 text-gray-400 hover:text-blue-600"><Edit2 className="w-3 h-3" /></Button>
@@ -205,23 +151,38 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
                         )}
                         {event.type === 'daily_checklist' && (
                           <>
-                            <Button variant="ghost" size="icon" onClick={() => handleToggleDailyChecklist(event)} className="p-1 text-gray-400 hover:text-green-600" title={event.originalEvent?.is_completed ? 'Marcar como Pendente' : 'Marcar como Concluído'}>
+                            <Button variant="ghost" size="icon" onClick={() => {
+                              const item = event.originalEvent as DailyChecklistItem;
+                              const dateStr = day.toISOString().split('T')[0];
+                              toggleDailyChecklistCompletion(item.id, dateStr, !item.is_completed, event.personId!);
+                            }} className="p-1 text-gray-400 hover:text-green-600" title={event.originalEvent?.is_completed ? 'Marcar como Pendente' : 'Marcar como Concluído'}>
                               {event.originalEvent?.is_completed ? <XCircle className="w-3 h-3" /> : <CheckCircle2 className="w-3 h-3" />}
                             </Button>
-                            <Button variant="ghost" size="icon" onClick={() => handleEditDailyChecklist(event)} className="p-1 text-gray-400 hover:text-blue-600" title="Ver/Editar Checklist">
+                            <Button variant="ghost" size="icon" onClick={() => {
+                              const item = event.originalEvent as DailyChecklistItem;
+                              const dateStr = day.toISOString().split('T')[0];
+                              navigate(`/consultor/daily-checklist`, { state: { highlightChecklistItemId: item.id, highlightChecklistDate: dateStr } });
+                            }} className="p-1 text-gray-400 hover:text-blue-600" title="Ver/Editar Checklist">
                               <Edit2 className="w-3 h-3" />
                             </Button>
                           </>
                         )}
                         {event.type === 'lead_task' && (
                           <>
-                            <Button variant="ghost" size="icon" onClick={() => handleToggleLeadTask(event)} className="p-1 text-gray-400 hover:text-green-600" title={event.originalEvent?.is_completed ? 'Marcar como Pendente' : 'Marcar como Concluído'}>
+                            <Button variant="ghost" size="icon" onClick={() => {
+                              const task = event.originalEvent as LeadTask;
+                              toggleLeadTaskCompletion(task.id, !task.is_completed);
+                            }} className="p-1 text-gray-400 hover:text-green-600" title={event.originalEvent?.is_completed ? 'Marcar como Pendente' : 'Marcar como Concluído'}>
                               {event.originalEvent?.is_completed ? <XCircle className="w-3 h-3" /> : <CheckCircle2 className="w-3 h-3" />}
                             </Button>
-                            <Button variant="ghost" size="icon" onClick={() => handleEditLeadTask(event)} className="p-1 text-gray-400 hover:text-blue-600" title="Ver/Editar Tarefa">
+                            <Button variant="ghost" size="icon" onClick={() => {
+                              const task = event.originalEvent as LeadTask;
+                              const path = userRole === 'CONSULTOR' ? '/consultor/crm' : '/gestor/crm';
+                              navigate(path, { state: { highlightLeadId: task.lead_id, highlightLeadTaskId: task.id } });
+                            }} className="p-1 text-gray-400 hover:text-blue-600" title="Ver/Editar Tarefa">
                               <Edit2 className="w-3 h-3" />
                             </Button>
-                            <Button variant="ghost" size="icon" onClick={() => handleDeleteLeadTask(event)} className="p-1 text-gray-400 hover:text-red-600" title="Excluir Tarefa">
+                            <Button variant="ghost" size="icon" onClick={() => onDeleteEvent(event.id, event.type)} className="p-1 text-gray-400 hover:text-red-600" title="Excluir Tarefa">
                               <Trash2 className="w-3 h-3" />
                             </Button>
                           </>
@@ -236,12 +197,12 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
         </div>
       )}
 
-      {/* Main content area: Time column + Days Grid */}
+      {/* Área principal: coluna de horários + grid da semana */}
       <div className="flex flex-1">
-        {/* Time Column */}
+        {/* Coluna de horários (régua de tempo) */}
         <div className="w-16 flex-shrink-0 border-r border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800">
-          <div className="h-16 border-b border-gray-200 dark:border-slate-700"></div> {/* Corner for day headers */}
-          <div className="relative" style={{ height: `${24 * 60 * PIXELS_PER_MINUTE}px` }}>
+          <div className="h-16 border-b border-gray-200 dark:border-slate-700"></div>
+          <div className="relative" style={{ height: `${containerHeightPx}px` }}>
             {Array.from({ length: 24 }).map((_, hour) => (
               <div
                 key={hour}
@@ -254,16 +215,16 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
           </div>
         </div>
 
-        {/* Days Grid */}
+        {/* Grid da semana (ancorado ao mesmo eixo e escala) */}
         <div className="grid grid-cols-7 flex-1">
           {weekDays.map(day => {
             const dayStr = day.toISOString().split('T')[0];
-            const isCurrentDay = isSameDay(day, now); // Use 'now' for current day check
+            const isCurrentDay = isSameDay(day, now);
             const positionedTimedEvents = positionedEventsByDay[dayStr] || [];
 
             return (
               <div key={dayStr} className="flex-1 border-l border-gray-200 dark:border-slate-700 relative">
-                {/* Day Header */}
+                {/* Cabeçalho do dia */}
                 <div className={`h-16 flex flex-col items-center justify-center border-b border-gray-200 dark:border-slate-700 ${isCurrentDay ? 'bg-brand-50 dark:bg-brand-900/20' : 'bg-gray-50 dark:bg-slate-700/50'}`}>
                   <p className={`text-xs font-medium ${isCurrentDay ? 'text-brand-800 dark:text-brand-200' : 'text-gray-500 dark:text-gray-400'}`}>
                     {day.toLocaleDateString('pt-BR', { weekday: 'short' })}
@@ -274,7 +235,7 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
                   {showPersonalEvents && (
                     <button
                       onClick={() => onOpenEventModal(day)}
-                      className="absolute top-1 right-1 p-1 rounded-full bg-brand-100 dark:bg-brand-900/30 text-brand-700 dark:text-brand-400 hover:bg-brand-200 dark:hover:bg-brand-900/50 transition"
+                      className="absolute top-1 right-1 p-1 rounded-sm bg-brand-100 dark:bg-brand-900/30 text-brand-700 dark:text-brand-400 hover:bg-brand-200 dark:hover:bg-brand-900/50 transition"
                       title="Adicionar Evento"
                     >
                       <Plus className="w-3 h-3" />
@@ -282,39 +243,33 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
                   )}
                 </div>
 
-                {/* Timed events grid */}
-                <div className="relative h-[1440px]"> {/* 24 hours * 60 minutes = 1440px height */}
-                  {/* Hourly and Half-Hourly Grid Lines */}
-                  {Array.from({ length: 24 }).map((_, hour) => {
-                    return (
-                      <div
-                        key={hour}
-                        className="absolute left-0 right-0 bg-gray-100 dark:bg-slate-700 opacity-10"
-                        style={{ top: `${hour * 60 * PIXELS_PER_MINUTE}px`, height: `${60 * PIXELS_PER_MINUTE}px` }}
-                      ></div>
-                    );
-                  })}
+                {/* Linhas de fundo e slots clicáveis */}
+                <div className="relative" style={{ height: `${containerHeightPx}px` }}>
+                  {Array.from({ length: 24 }).map((_, hour) => (
+                    <div
+                      key={hour}
+                      className="absolute left-0 right-0 bg-gray-100 dark:bg-slate-700 opacity-10"
+                      style={{ top: `${hour * 60 * PIXELS_PER_MINUTE}px`, height: `${60 * PIXELS_PER_MINUTE}px` }}
+                    ></div>
+                  ))}
 
-                  {/* Clickable slots for adding new events */}
-                  {Array.from({ length: 24 }).map((_, hour) => {
-                    return (
-                      <div
-                        key={`slot-${hour}`}
-                        className="absolute left-0 right-0 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/30"
-                        style={{ top: `${hour * 60 * PIXELS_PER_MINUTE}px`, height: `${60 * PIXELS_PER_MINUTE}px` }}
-                        onClick={() => {
-                          if (showPersonalEvents) {
-                            const newEventDate = new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour, 0);
-                            onOpenEventModal(newEventDate);
-                          } else {
-                            toast.info("Você não tem permissão para adicionar eventos pessoais aqui.");
-                          }
-                        }}
-                      ></div>
-                    );
-                  })}
+                  {Array.from({ length: 24 }).map((_, hour) => (
+                    <div
+                      key={`slot-${hour}`}
+                      className="absolute left-0 right-0 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/30"
+                      style={{ top: `${hour * 60 * PIXELS_PER_MINUTE}px`, height: `${60 * PIXELS_PER_MINUTE}px` }}
+                      onClick={() => {
+                        if (showPersonalEvents) {
+                          const newEventDate = new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour, 0);
+                          onOpenEventModal(newEventDate);
+                        } else {
+                          toast.info("Você não tem permissão para adicionar eventos pessoais aqui.");
+                        }
+                      }}
+                    ></div>
+                  ))}
 
-                  {/* Current Time Indicator */}
+                  {/* Indicador de horário atual */}
                   {isCurrentDay && (
                     <div
                       className="absolute left-0 right-0 h-0.5 bg-red-500 z-20"
@@ -324,21 +279,20 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
                     </div>
                   )}
 
+                  {/* Eventos temporizados */}
                   {positionedTimedEvents.map(event => (
                     <div
                       key={event.id}
                       className={`absolute px-0 py-0 border-x box-border ${getEventColorClass(event.type)} group overflow-hidden z-10 flex flex-col relative`}
                       style={{ top: `${event.top}px`, height: `${event.height}px`, left: `${event.left}%`, width: `${event.width}%` }}
                     >
-                      <div className="flex-1 min-h-0 flex flex-col gap-1"> {/* Content area */}
+                      <div className="flex-1 min-h-0 flex flex-col gap-1">
                         <div className="flex items-start text-xs font-medium">
                           {getEventIcon(event.type)}
                           {event.type === 'meeting' ? (
-                            <>
-                              <span className="flex-1 line-clamp-2 overflow-hidden" title={`Reunião com ${event.personName}`}>
-                                Reunião com {event.personName}
-                              </span>
-                            </>
+                            <span className="flex-1 line-clamp-2 overflow-hidden" title={`Reunião com ${event.personName}`}>
+                              Reunião com {event.personName}
+                            </span>
                           ) : (
                             <span className="flex-1 line-clamp-2 overflow-hidden" title={event.title}>{event.title}</span>
                           )}
@@ -351,41 +305,35 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
                             <UserRound className="w-3 h-3 mr-1 flex-shrink-0" /> Consultor: {teamMembers.find(m => m.id === (event.originalEvent as LeadTask).user_id)?.name || 'Desconhecido'}
                           </p>
                         )}
-                        {/* NOVO: Selo de status do convite do gestor */}
                         {event.type === 'meeting' && (event.originalEvent as LeadTask)?.manager_invitation_status && (
                           <div className="mt-1">
                             {((event.originalEvent as LeadTask).manager_invitation_status === 'accepted') && (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-sm text-[10px] font-semibold bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
                                 Gestor: Aceito
                               </span>
                             )}
                             {((event.originalEvent as LeadTask).manager_invitation_status === 'pending') && (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-sm text-[10px] font-semibold bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300">
                                 Convite pendente
                               </span>
                             )}
                             {((event.originalEvent as LeadTask).manager_invitation_status === 'declined') && (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-sm text-[10px] font-semibold bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300">
                                 Gestor: Recusado
                               </span>
                             )}
                           </div>
                         )}
-                        {event.personName && event.type !== 'gestor_task' && event.type !== 'meeting' && (
-                          <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 flex items-center" title={event.personName}>
-                            <UserRound className="w-3 h-3 mr-1 flex-shrink-0" /> <span className="truncate">{event.personName}</span>
-                          </p>
-                        )}
-                        {event.type === 'gestor_task' && !(event.originalEvent as GestorTask)?.is_completed && isSameDay(event.start, today) && (
+                        {event.type === 'gestor_task' && !(event.originalEvent as GestorTask)?.is_completed && isSameDay(day, today) && (
                           <button
-                            onClick={() => onToggleGestorTaskCompletion(event.originalEvent as GestorTask, event.start)}
-                            className="mt-2 w-full flex items-center justify-center px-2 py-1 bg-purple-500 text-white rounded-md text-xs hover:bg-purple-600 transition"
+                            onClick={() => onToggleGestorTaskCompletion(event.originalEvent as GestorTask, day)}
+                            className="mt-2 w-full flex items-center justify-center px-2 py-1 bg-purple-500 text-white rounded-sm text-xs hover:bg-purple-600 transition"
                           >
                             <CheckCircle2 className="w-3 h-3 mr-1" /> Marcar como Concluída
                           </button>
                         )}
                       </div>
-                      <div className="absolute top-1 right-1 flex items-center space-x-1 bg-white/80 dark:bg-slate-800/70 rounded-md px-1 py-0.5 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="absolute top-1 right-1 flex items-center space-x-1 bg-white/80 dark:bg-slate-800/70 rounded-sm px-1 py-0.5 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity">
                         {(event.type === 'personal' || event.type === 'gestor_task') && (
                           <>
                             <Button variant="ghost" size="icon" onClick={() => onOpenEventModal(day, event)} className="p-1 text-gray-400 hover:text-blue-600"><Edit2 className="w-3 h-3" /></Button>
@@ -394,23 +342,38 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
                         )}
                         {event.type === 'daily_checklist' && (
                           <>
-                            <Button variant="ghost" size="icon" onClick={() => handleToggleDailyChecklist(event)} className="p-1 text-gray-400 hover:text-green-600" title={event.originalEvent?.is_completed ? 'Marcar como Pendente' : 'Marcar como Concluído'}>
+                            <Button variant="ghost" size="icon" onClick={() => {
+                              const item = event.originalEvent as DailyChecklistItem;
+                              const dateStr = day.toISOString().split('T')[0];
+                              toggleDailyChecklistCompletion(item.id, dateStr, !item.is_completed, event.personId!);
+                            }} className="p-1 text-gray-400 hover:text-green-600" title={event.originalEvent?.is_completed ? 'Marcar como Pendente' : 'Marcar como Concluído'}>
                               {event.originalEvent?.is_completed ? <XCircle className="w-3 h-3" /> : <CheckCircle2 className="w-3 h-3" />}
                             </Button>
-                            <Button variant="ghost" size="icon" onClick={() => handleEditDailyChecklist(event)} className="p-1 text-gray-400 hover:text-blue-600" title="Ver/Editar Checklist">
+                            <Button variant="ghost" size="icon" onClick={() => {
+                              const item = event.originalEvent as DailyChecklistItem;
+                              const dateStr = day.toISOString().split('T')[0];
+                              navigate(`/consultor/daily-checklist`, { state: { highlightChecklistItemId: item.id, highlightChecklistDate: dateStr } });
+                            }} className="p-1 text-gray-400 hover:text-blue-600" title="Ver/Editar Checklist">
                               <Edit2 className="w-3 h-3" />
                             </Button>
                           </>
                         )}
                         {event.type === 'lead_task' && (
                           <>
-                            <Button variant="ghost" size="icon" onClick={() => handleToggleLeadTask(event)} className="p-1 text-gray-400 hover:text-green-600" title={event.originalEvent?.is_completed ? 'Marcar como Pendente' : 'Marcar como Concluído'}>
+                            <Button variant="ghost" size="icon" onClick={() => {
+                              const task = event.originalEvent as LeadTask;
+                              toggleLeadTaskCompletion(task.id, !task.is_completed);
+                            }} className="p-1 text-gray-400 hover:text-green-600" title={event.originalEvent?.is_completed ? 'Marcar como Pendente' : 'Marcar como Concluído'}>
                               {event.originalEvent?.is_completed ? <XCircle className="w-3 h-3" /> : <CheckCircle2 className="w-3 h-3" />}
                             </Button>
-                            <Button variant="ghost" size="icon" onClick={() => handleEditLeadTask(event)} className="p-1 text-gray-400 hover:text-blue-600" title="Ver/Editar Tarefa">
+                            <Button variant="ghost" size="icon" onClick={() => {
+                              const task = event.originalEvent as LeadTask;
+                              const path = userRole === 'CONSULTOR' ? '/consultor/crm' : '/gestor/crm';
+                              navigate(path, { state: { highlightLeadId: task.lead_id, highlightLeadTaskId: task.id } });
+                            }} className="p-1 text-gray-400 hover:text-blue-600" title="Ver/Editar Tarefa">
                               <Edit2 className="w-3 h-3" />
                             </Button>
-                            <Button variant="ghost" size="icon" onClick={() => handleDeleteLeadTask(event)} className="p-1 text-gray-400 hover:text-red-600" title="Excluir Tarefa">
+                            <Button variant="ghost" size="icon" onClick={() => onDeleteEvent(event.id, event.type)} className="p-1 text-gray-400 hover:text-red-600" title="Excluir Tarefa">
                               <Trash2 className="w-3 h-3" />
                             </Button>
                           </>
