@@ -140,16 +140,16 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
             <div className="flex flex-col space-y-0.5 p-1">
               {allDayEvents.map(event => (
                 <div key={event.id} className={`mb-1 p-1.5 rounded-md text-xs font-medium ${getEventColorClass(event.type)} flex items-center group`}>
-                  <div className="flex-1 flex items-center overflow-hidden"> {/* New wrapper for text content */}
+                  <div className="flex-1 flex items-center"> {/* Removed overflow-hidden */}
                     {getEventIcon(event.type)}
                     {event.type === 'meeting' ? (
                       <>
-                        <span className="flex-1 line-clamp-1" title={`Reunião com ${event.personName}`}>
+                        <span className="flex-1 line-clamp-2" title={`Reunião com ${event.personName}`}> {/* Changed to line-clamp-2 */}
                           Reunião com {event.personName}
                         </span>
                       </>
                     ) : (
-                      <span className="flex-1 line-clamp-2" title={event.title}>{event.title}</span>
+                      <span className="flex-1 line-clamp-2" title={event.title}>{event.title}</span> {/* Changed to line-clamp-2 */}
                     )}
                   </div>
                   <div className="flex items-center space-x-1 flex-shrink-0 ml-auto opacity-0 group-hover:opacity-100 transition-opacity"> {/* Buttons moved to separate div, added ml-auto */}
