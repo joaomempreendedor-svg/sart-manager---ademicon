@@ -160,9 +160,9 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
   };
 
   // Calculate current time line position
-  const now = new Date();
-  const currentHour = now.getHours();
-  const currentMinutes = now.getMinutes();
+  const currentTimeNow = new Date();
+  const currentHour = currentTimeNow.getHours();
+  const currentMinutes = currentTimeNow.getMinutes();
   const currentTimeTop = ((currentHour * 60 + currentMinutes) / (24 * 60)) * 100;
 
   return (
