@@ -181,7 +181,7 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
           </div>
         </div>
 
-        <div className="flex-1 relative border-l border-gray-200 dark:border-slate-700 overflow-y-auto custom-scrollbar h-[calc(100vh-200px)]">
+        <div className="flex-1 relative border-t border-l border-gray-200 dark:border-slate-700 overflow-y-auto custom-scrollbar h-[calc(100vh-200px)]">
           {Array.from({ length: 24 }).map((_, hour) => ( // 24 slots for 60-minute intervals
             <div
               key={hour}

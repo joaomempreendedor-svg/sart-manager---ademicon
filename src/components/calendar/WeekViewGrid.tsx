@@ -226,7 +226,6 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
       <div className="flex flex-1">
         {/* Time Column */}
         <div className="w-16 flex-shrink-0 border-r border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800">
-          <div className="h-16 border-b border-gray-200 dark:border-slate-700"></div> {/* Corner for day headers */}
           <div className="relative h-[calc(100vh-200px)]"> {/* Adjust height */}
             {Array.from({ length: 24 }).map((_, hour) => (
               <div 
@@ -248,7 +247,7 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
             const positionedTimedEvents = positionedEventsByDay[dayStr] || [];
 
             return (
-              <div key={dayStr} className="flex-1 border-l border-gray-200 dark:border-slate-700 relative">
+              <div key={dayStr} className="flex-1 border-t border-l border-gray-200 dark:border-slate-700 relative">
                 {/* Day Header */}
                 <div className={`h-16 flex flex-col items-center justify-center border-b border-gray-200 dark:border-slate-700 ${isCurrentDay ? 'bg-brand-50 dark:bg-brand-900/20' : 'bg-gray-50 dark:bg-slate-700/50'}`}>
                   <p className={`text-xs font-medium ${isCurrentDay ? 'text-brand-800 dark:text-brand-200' : 'text-gray-500 dark:text-gray-400'}`}>
