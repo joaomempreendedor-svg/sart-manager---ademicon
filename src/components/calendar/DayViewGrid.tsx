@@ -268,35 +268,38 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
               {positionedEvents.map(event => (
                 <div
                   key={event.id}
-                  className={`absolute p-1 rounded-lg shadow-sm border ${getEventColorClass(event.type)} group overflow-hidden z-10`}
+                  className={`absolute p-1 rounded-lg shadow-sm border ${getEventColorClass(event.type)} group overflow-hidden z-10 flex flex-col`}
                   style={{ top: `${event.top}%`, height: `${event.height}%`, left: `0%`, width: `100%` }}
                 >
-                  <div className="flex items-center text-xs font-medium mb-1">
-                    {getEventIcon(event.type)}
-                    <span className="truncate">{event.title}</span>
+                  <div className="flex-1 min-h-0 overflow-hidden"> {/* Content area */}
+                    <div className="flex items-center text-xs font-medium mb-1">
+                      {getEventIcon(event.type)}
+                      <span className="truncate">{event.title}</span>
+                    </div>
+                    <p className="text-xs text-gray-600 dark:text-gray-400 flex items-center">
+                      <Clock className="w-3 h-3 mr-1" /> {formatTime(event.start)} - {formatTime(event.end)}
+                    </p>
+                    {event.personName && event.type !== 'gestor_task' && (
+                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 flex items-center">
+                        <UserRound className="w-3 h-3 mr-1" /> {event.personName}
+                      </p>
+                    )}
+                    {event.type === 'gestor_task' && (event.originalEvent as GestorTask)?.is_completed && (
+                      <p className="text-xs text-green-600 dark:text-green-400 mt-1 flex items-center">
+                        <CheckCircle2 className="w-3 h-3 mr-1" /> Concluída
+                      </p>
+                    )}
+                    {event.type === 'gestor_task' && !(event.originalEvent as GestorTask)?.is_completed && isSameDay(event.start, today) && (
+                      <button
+                        onClick={() => onToggleGestorTaskCompletion(event.originalEvent as GestorTask, event.start)}
+                        className="mt-2 w-full flex items-center justify-center px-2 py-1 bg-purple-500 text-white rounded-md text-xs hover:bg-purple-600 transition"
+                      >
+                        <CheckCircle2 className="w-3 h-3 mr-1" /> Marcar como Concluída
+                      </button>
+                    )}
                   </div>
-                  <p className="text-xs text-gray-600 dark:text-gray-400 flex items-center">
-                    <Clock className="w-3 h-3 mr-1" /> {formatTime(event.start)} - {formatTime(event.end)}
-                  </p>
-                  {event.personName && event.type !== 'gestor_task' && (
-                    <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 flex items-center">
-                      <UserRound className="w-3 h-3 mr-1" /> {event.personName}
-                    </p>
-                  )}
-                  {event.type === 'gestor_task' && (event.originalEvent as GestorTask)?.is_completed && (
-                    <p className="text-xs text-green-600 dark:text-green-400 mt-1 flex items-center">
-                      <CheckCircle2 className="w-3 h-3 mr-1" /> Concluída
-                    </p>
-                  )}
-                  {event.type === 'gestor_task' && !(event.originalEvent as GestorTask)?.is_completed && isSameDay(event.start, today) && (
-                    <button
-                      onClick={() => onToggleGestorTaskCompletion(event.originalEvent as GestorTask, event.start)}
-                      className="mt-2 w-full flex items-center justify-center px-2 py-1 bg-purple-500 text-white rounded-md text-xs hover:bg-purple-600 transition"
-                    >
-                      <CheckCircle2 className="w-3 h-3 mr-1" /> Marcar como Concluída
-                    </button>
-                  )}
-                  <div className="absolute top-1 right-1 flex items-center space-x-1">
+                  {/* Action buttons - positioned at the bottom right */}
+                  <div className="flex justify-end items-center space-x-1 mt-auto"> {/* mt-auto pushes it to the bottom */}
                     {(event.type === 'personal' || event.type === 'gestor_task') && (
                       <>
                         <Button variant="ghost" size="icon" onClick={() => onOpenEventModal(day, event)} className="p-1 text-gray-400 hover:text-blue-600"><Edit2 className="w-3 h-3" /></Button>
