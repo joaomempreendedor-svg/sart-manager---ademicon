@@ -763,12 +763,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 db_id: payload.new.id,
                 createdAt: payload.new.created_at,
                 lastUpdatedAt: payload.new.last_updated_at,
-                interviewScores: JSON.parse(JSON.stringify(rawCandidateData.interviewScores || { basicProfile: 0, commercialSkills: 0, behavioralProfile: 0, jobFit: 0, notes: '' })),
-                checkedQuestions: JSON.parse(JSON.stringify(rawCandidateData.checkedQuestions || {})),
-                checklistProgress: JSON.parse(JSON.stringify(rawCandidateData.checklistProgress || {})),
-                consultantGoalsProgress: JSON.parse(JSON.stringify(rawCandidateData.consultantGoalsProgress || {})),
-                feedbacks: JSON.parse(JSON.stringify(rawCandidateData.feedbacks || [])),
-                data: JSON.parse(JSON.stringify(rawCandidateData.data || {})),
+                interviewScores: JSON.parse(JSON.stringify(rawPayloadData.interviewScores || { basicProfile: 0, commercialSkills: 0, behavioralProfile: 0, jobFit: 0, notes: '' })),
+                checkedQuestions: JSON.parse(JSON.stringify(rawPayloadData.checkedQuestions || {})),
+                checklistProgress: JSON.parse(JSON.stringify(rawPayloadData.checklistProgress || {})),
+                consultantGoalsProgress: JSON.parse(JSON.stringify(rawPayloadData.consultantGoalsProgress || {})),
+                feedbacks: JSON.parse(JSON.stringify(rawPayloadData.feedbacks || [])),
+                data: JSON.parse(JSON.stringify(rawPayloadData.data || {})),
             };
             console.log('[Realtime: Candidate] Deep copied newCandidateData.name:', newCandidateData.name, `client-side ID:`, newCandidateData.id, `db_id:`, newCandidateData.db_id, `createdAt:`, newCandidateData.createdAt);
 
@@ -2657,4 +2657,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const updateConsultantEvent = useCallback(async (id: string, updates: Partial<ConsultantEvent>) => {
     if (!user) throw new Error("Usuário não autenticado.");
-    console.log("[AppContext] updateConsultantEvent: Attempting to update event ID:", id,
+    console.log("[AppContext] updateConsultantEvent: Attempting to update event ID:", id, "with updates:", updates);
+    const { data, error } = await supabase
+      .from('consultant_events')
+      .update(updates)
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .select('*')
+      .maybeSingle();
+    if (error) {
+      console.error("[AppContext] updateConsultantEvent: Error updating event:", error);
+      throw error;
+    }
+    if (data) {
+      setConsultantEvents(prev => prev.map(event => event.id === id ? data : event));
+      console.log("[AppContext] updateConsultantEvent: Event updated successfully:", data);
+      return data;
+    }
+    return null;
+  }, [user]);
