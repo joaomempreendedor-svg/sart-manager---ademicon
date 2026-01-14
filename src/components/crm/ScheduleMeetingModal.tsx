@@ -42,6 +42,12 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
   });
   const [isSaving, setIsSaving] = useState(false);
 
+  // Define formatTime antes de qualquer uso
+  function formatTime(iso: string) {
+    const d = new Date(iso);
+    return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+  }
+
   // NOVO: Seleção de Gestor e agenda do gestor
   const gestores: TeamMember[] = useMemo(
     () => teamMembers.filter(m => m.isActive && m.roles.includes('Gestor')),
@@ -140,11 +146,6 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
     };
     loadAgenda();
   }, [selectedGestorId, date]);
-
-  const formatTime = (iso: string) => {
-    const d = new Date(iso);
-    return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
