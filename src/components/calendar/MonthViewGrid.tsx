@@ -70,7 +70,7 @@ const MonthViewGrid: React.FC<MonthViewGridProps> = ({
               <span className={`text-sm font-bold ${isToday ? 'bg-brand-100 dark:bg-brand-900/30 rounded-full h-6 w-6 flex items-center justify-center' : ''}`}>
                 {day.getDate()}
               </span>
-              {showPersonalEvents && userRole === 'CONSULTOR' && isCurrentMonth && (
+              {showPersonalEvents && ( // Agora showPersonalEvents será true para Gestores/Admins também
                 <button
                   onClick={() => onOpenEventModal(day)}
                   className="p-1 rounded-full bg-brand-100 dark:bg-brand-900/30 text-brand-700 dark:text-brand-400 hover:bg-brand-200 dark:hover:bg-brand-900/50 transition"

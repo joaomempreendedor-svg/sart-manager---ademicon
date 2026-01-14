@@ -55,10 +55,10 @@ export const CalendarPage = () => {
       <CalendarView
         userId={user.id}
         userRole={user.role}
-        showPersonalEvents={user.role === 'CONSULTOR'}
+        showPersonalEvents={user.role === 'CONSULTOR' || user.role === 'GESTOR' || user.role === 'ADMIN'} {/* ATUALIZADO AQUI */}
         showLeadMeetings={true}
         showGestorTasks={user.role === 'GESTOR' || user.role === 'ADMIN'}
-        view={view} // NOVO: Passa a visualização selecionada
+        view={view}
       />
     </div>
   );
