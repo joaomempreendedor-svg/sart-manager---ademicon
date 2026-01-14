@@ -107,7 +107,7 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
   };
 
   return (
-    <div className="flex flex-1 overflow-x-auto custom-scrollbar">
+    <div className="flex flex-1"> {/* Removed overflow-x-auto custom-scrollbar */}
       {/* Time Column */}
       <div className="w-16 flex-shrink-0 border-r border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800">
         <div className="h-16 border-b border-gray-200 dark:border-slate-700"></div> {/* Corner for day headers */}
