@@ -53,6 +53,10 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
       const dayStr = day.toISOString().split('T')[0];
       const timedEvents = eventsByDay[dayStr]?.filter(e => !e.allDay) || [];
 
+      console.log(`[WeekViewGrid - ${dayStr}] Received events for day:`, eventsByDay[dayStr]);
+      console.log(`[WeekViewGrid - ${dayStr}] All-day events for day:`, eventsByDay[dayStr]?.filter(e => e.allDay));
+      console.log(`[WeekViewGrid - ${dayStr}] Timed events for day:`, timedEvents);
+
       // Sort events by start time, then by duration (longer first)
       timedEvents.sort((a, b) => {
         if (a.start.getTime() !== b.start.getTime()) {

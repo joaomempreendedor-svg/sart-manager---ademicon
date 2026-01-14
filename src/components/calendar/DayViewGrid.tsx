@@ -35,6 +35,11 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
   const allDayEvents = useMemo(() => events.filter(e => e.allDay), [events]);
   const timedEvents = useMemo(() => events.filter(e => !e.allDay), [events]);
 
+  console.log(`[DayViewGrid - ${day.toISOString().split('T')[0]}] Received events:`, events);
+  console.log(`[DayViewGrid - ${day.toISOString().split('T')[0]}] All-day events:`, allDayEvents);
+  console.log(`[DayViewGrid - ${day.toISOString().split('T')[0]}] Timed events:`, timedEvents);
+
+
   // Calculate event positioning for timed events
   const positionedEvents = useMemo(() => {
     const result = timedEvents.map(event => {
