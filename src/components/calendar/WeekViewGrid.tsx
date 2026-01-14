@@ -82,7 +82,7 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
       });
     });
     return result;
-  }, [weekDays, eventsByDay]); // Removido 'timedEvents' daqui
+  }, [weekDays, eventsByDay]);
 
   const getEventColorClass = (type: CalendarEvent['type']) => {
     switch (type) {
@@ -156,13 +156,6 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
     }
   };
 
-  // NOVO: Handler para editar reunião
-  const handleEditMeetingEvent = (event: CalendarEvent) => {
-    if (event.type !== 'meeting' || !event.personId || !event.id) return;
-    const path = userRole === 'CONSULTOR' ? '/consultor/crm' : '/gestor/crm';
-    navigate(path, { state: { highlightLeadId: event.personId, highlightLeadTaskId: event.id, highlightLeadDate: event.start.toISOString().split('T')[0] } });
-  };
-
   // Calculate current time line position
   const now = new Date();
   const currentHour = now.getHours();
@@ -220,11 +213,7 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
                             </Button>
                           </>
                         )}
-                        {event.type === 'meeting' && (
-                          <Button variant="ghost" size="icon" onClick={() => handleEditMeetingEvent(event)} className="p-1 text-gray-400 hover:text-blue-600" title="Editar Reunião no CRM">
-                            <Edit2 className="w-3 h-3" />
-                          </Button>
-                        )}
+                        {/* Removido o botão de edição para eventos do tipo 'meeting' */}
                       </div>
                     </div>
                   ))}
@@ -385,11 +374,7 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
                             </Button>
                           </>
                         )}
-                        {event.type === 'meeting' && (
-                          <Button variant="ghost" size="icon" onClick={() => handleEditMeetingEvent(event)} className="p-1 text-gray-400 hover:text-blue-600" title="Editar Reunião no CRM">
-                            <Edit2 className="w-3 h-3" />
-                          </Button>
-                        )}
+                        {/* Removido o botão de edição para eventos do tipo 'meeting' */}
                       </div>
                     </div>
                   ))}
