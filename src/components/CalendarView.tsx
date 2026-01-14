@@ -7,9 +7,9 @@ import { EventModal } from './EventModal';
 import toast from 'react-hot-toast';
 
 // Importar os novos componentes de visualização
-import { DayViewGrid } from './calendar/DayViewGrid';
-import { WeekViewGrid } from './calendar/WeekViewGrid';
-import { MonthViewGrid } from './calendar/MonthViewGrid';
+import DayViewGrid from './calendar/DayViewGrid';
+import WeekViewGrid from './calendar/WeekViewGrid';
+import MonthViewGrid from './calendar/MonthViewGrid';
 import { getDaysInMonth, getWeekDays, isSameDay, formatTime } from './calendar/utils';
 import { CalendarEvent } from './calendar/utils';
 
