@@ -103,13 +103,14 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         const start = new Date(event.start_time);
         const end = new Date(event.end_time);
         
-        // Refined isAllDayEvent logic: check if start and end times are exactly midnight
-        const isAllDayEvent = isSameDay(start, end) && 
-                              start.getHours() === 0 && start.getMinutes() === 0 && 
-                              end.getHours() === 0 && end.getMinutes() === 0;
+        // An event is considered all-day if it starts at midnight and ends at midnight on the same day,
+        // or if it starts at midnight and ends at 23:59 on the same day.
+        // Otherwise, it's a timed event.
+        const isAllDayEvent = (start.getHours() === 0 && start.getMinutes() === 0) &&
+                              (end.getHours() === 0 && end.getMinutes() === 0 || (end.getHours() === 23 && end.getMinutes() === 59)) &&
+                              isSameDay(start, end);
         
-        console.log(`[CalendarView - Personal Event] Title: ${event.title}, Start_time: ${event.start_time}, End_time: ${event.end_time}`);
-        console.log(`[CalendarView - Personal Event] Date Start: ${start.toISOString()}, Date End: ${end.toISOString()}, isAllDayEvent: ${isAllDayEvent}`);
+        console.log(`[CalendarView - Personal Event] Title: ${event.title}, Start: ${event.start_time}, End: ${event.end_time}, isAllDayEvent: ${isAllDayEvent}`);
 
         events.push({
           id: event.id,
@@ -141,9 +142,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         const start = new Date(task.meeting_start_time!);
         const end = new Date(task.meeting_end_time!);
         
-        const isAllDayEvent = isSameDay(start, end) && 
-                              start.getHours() === 0 && start.getMinutes() === 0 && 
-                              end.getHours() === 0 && end.getMinutes() === 0;
+        const isAllDayEvent = (start.getHours() === 0 && start.getMinutes() === 0) &&
+                              (end.getHours() === 0 && end.getMinutes() === 0 || (end.getHours() === 23 && end.getMinutes() === 59)) &&
+                              isSameDay(start, end);
 
         events.push({
           id: task.id,

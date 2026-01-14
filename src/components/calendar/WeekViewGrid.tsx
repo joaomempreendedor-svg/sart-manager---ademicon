@@ -184,7 +184,7 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
                   {dayAllDayEvents.map(event => (
                     <div key={event.id} className={`mb-1 p-1.5 rounded-md text-xs font-medium ${getEventColorClass(event.type)} flex items-center justify-between group`}>
                       <span className="truncate flex items-center">{getEventIcon(event.type)} {event.title}</span>
-                      <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center space-x-1"> {/* Removido opacity-0 group-hover:opacity-100 */}
                         {(event.type === 'personal' || event.type === 'gestor_task') && (
                           <>
                             <Button variant="ghost" size="icon" onClick={() => onOpenEventModal(day, event)} className="p-1 text-gray-400 hover:text-blue-600"><Edit2 className="w-3 h-3" /></Button>
@@ -324,7 +324,7 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
                           <CheckCircle2 className="w-3 h-3 mr-1" /> Marcar como Concluída
                         </button>
                       )}
-                      <div className="absolute top-1 right-1 flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="absolute top-1 right-1 flex items-center space-x-1"> {/* Removido opacity-0 group-hover:opacity-100 */}
                         {(event.type === 'personal' || event.type === 'gestor_task') && (
                           <>
                             <Button variant="ghost" size="icon" onClick={() => onOpenEventModal(day, event)} className="p-1 text-gray-400 hover:text-blue-600"><Edit2 className="w-3 h-3" /></Button>
