@@ -4,8 +4,9 @@ import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { CrmLead, LeadTask, GestorTask, ConsultantEvent, TeamMember } from '@/types';
 import { EventModal } from './EventModal';
-import GoogleCalendarConnectModal from './calendar/GoogleCalendarConnectModal';
 import toast from 'react-hot-toast';
+import GoogleCalendarConnectModal from './calendar/GoogleCalendarConnectModal';
+import { Button } from '@/components/ui/button';
 
 // ADDED: ICS parser (leve e sem dependências extras)
 const parseICS = (icsText: string) => {
