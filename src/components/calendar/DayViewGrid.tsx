@@ -26,7 +26,7 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
   userRole,
   showPersonalEvents,
 }) => {
-  const currentTimeRef = useRef<HTMLDivElement>(null);
+  // currentTimeRef removido
   const isCurrentDay = isSameDay(day, today);
 
   const allDayEvents = useMemo(() => events.filter(e => e.allDay), [events]);
@@ -44,21 +44,7 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
     });
   }, [timedEvents]);
 
-  // Update current time indicator position every minute
-  useEffect(() => {
-    const updateLinePosition = () => {
-      if (currentTimeRef.current && isCurrentDay) {
-        const now = new Date(); // Get current time inside the function
-        const currentMinutes = now.getHours() * 60 + now.getMinutes();
-        const topPercent = (currentMinutes / (24 * 60)) * 100;
-        currentTimeRef.current.style.top = `${topPercent}%`;
-      }
-    };
-
-    updateLinePosition();
-    const interval = setInterval(updateLinePosition, 60 * 1000); // Update every minute
-    return () => clearInterval(interval);
-  }, [isCurrentDay]); // Removed 'now' from dependencies as it's now local to updateLinePosition
+  // useEffect para atualizar a linha do tempo removido
 
   const getEventColorClass = (type: CalendarEvent['type']) => {
     switch (type) {
@@ -115,16 +101,7 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
 
         {/* Timed events grid */}
         <div className="relative h-[calc(100vh-200px)] overflow-y-auto custom-scrollbar"> {/* Adjust height based on header/footer */}
-          {/* Current time indicator */}
-          {isCurrentDay && (
-            <div
-              ref={currentTimeRef}
-              className="absolute left-0 right-0 h-0.5 bg-red-500 z-10"
-              style={{ top: `${(new Date().getHours() * 60 + new Date().getMinutes()) / (24 * 60) * 100}%` }}
-            >
-              <div className="absolute -left-1.5 -top-1.5 w-3 h-3 rounded-full bg-red-500"></div>
-            </div>
-          )}
+          {/* Current time indicator removido */}
 
           {/* Event blocks */}
           {positionedEvents.map(event => (

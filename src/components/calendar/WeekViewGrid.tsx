@@ -26,7 +26,7 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
   userRole,
   showPersonalEvents,
 }) => {
-  const currentTimeRef = useRef<HTMLDivElement>(null);
+  // currentTimeRef removido
   const isCurrentWeek = weekDays.some(day => isSameDay(day, new Date())); // Check against current 'now'
 
   // Calculate event positioning for timed events
@@ -72,21 +72,7 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
     return result;
   }, [weekDays, eventsByDay]);
 
-  // Update current time indicator position every minute
-  useEffect(() => {
-    const updateLinePosition = () => {
-      if (currentTimeRef.current && isCurrentWeek) {
-        const now = new Date(); // Get current time inside the function
-        const currentMinutes = now.getHours() * 60 + now.getMinutes();
-        const topPercent = (currentMinutes / (24 * 60)) * 100;
-        currentTimeRef.current.style.top = `${topPercent}%`;
-      }
-    };
-
-    updateLinePosition();
-    const interval = setInterval(updateLinePosition, 60 * 1000); // Update every minute
-    return () => clearInterval(interval);
-  }, [isCurrentWeek]); // Removed 'now' from dependencies as it's now local to updateLinePosition
+  // useEffect para atualizar a linha do tempo removido
 
   const getEventColorClass = (type: CalendarEvent['type']) => {
     switch (type) {
@@ -175,16 +161,7 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
                   <div key={hour} className="absolute left-0 right-0 border-t border-gray-100 dark:border-slate-800" style={{ top: `${(hour / 24) * 100}%`, height: '1px' }}></div>
                 ))}
 
-                {/* Current time indicator */}
-                {isCurrentDay && (
-                  <div
-                    ref={currentTimeRef}
-                    className="absolute left-0 right-0 h-0.5 bg-red-500 z-10"
-                    style={{ top: `${(new Date().getHours() * 60 + new Date().getMinutes()) / (24 * 60) * 100}%` }}
-                  >
-                    <div className="absolute -left-1.5 -top-1.5 w-3 h-3 rounded-full bg-red-500"></div>
-                  </div>
-                )}
+                {/* Current time indicator removido */}
 
                 {/* Event blocks */}
                 {positionedTimedEvents.map(event => (
