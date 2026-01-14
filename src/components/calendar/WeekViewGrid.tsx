@@ -64,9 +64,9 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
       
       result[dayStr] = timedEvents.map(event => {
         const dayStart = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 0, 0, 0, 0);
-        const startMinutes = Math.max(0, Math.round((event.start.getTime() - dayStart.getTime()) / 60000));
-        const endMinutesRaw = Math.round((event.end.getTime() - dayStart.getTime()) / 60000);
-        const endMinutes = Math.min(1440, Math.max(startMinutes, endMinutesRaw));
+        const startMinutes = Math.max(0, Math.floor((event.start.getTime() - dayStart.getTime()) / 60000));
+        const endMinutesCalc = Math.ceil((event.end.getTime() - dayStart.getTime()) / 60000);
+        const endMinutes = Math.min(1440, Math.max(startMinutes, endMinutesCalc));
         const top = startMinutes; // 1px por minuto
         const height = Math.max(1, endMinutes - startMinutes); // altura em pixels
 
