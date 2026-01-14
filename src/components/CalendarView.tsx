@@ -4,6 +4,7 @@ import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { CrmLead, LeadTask, GestorTask, ConsultantEvent, TeamMember } from '@/types';
 import { EventModal } from './EventModal';
+import GoogleCalendarConnectModal from './calendar/GoogleCalendarConnectModal';
 import toast from 'react-hot-toast';
 
 // ADDED: ICS parser (leve e sem dependências extras)
@@ -139,6 +140,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       return [];
     }
   });
+  const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
   const [googleEventsByDay, setGoogleEventsByDay] = useState<Record<string, CalendarEvent[]>>({});
   const [isFetchingGoogle, setIsFetchingGoogle] = useState(false);
 
@@ -550,48 +552,12 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             <input type="checkbox" checked={showGoogleEvents} onChange={(e) => setShowGoogleEvents(e.target.checked)} />
             Mostrar Google Agenda
           </label>
+          <Button type="button" onClick={() => setIsConnectModalOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white text-sm px-3 py-2">
+            Conectar Google Agenda
+          </Button>
           <button onClick={() => navigateDate(1, view)} className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-600 dark:text-gray-300">
             <ChevronRight className="w-5 h-5" />
           </button>
-        </div>
-      </div>
-
-      {/* Configuração simples de URLs ICS */}
-      <div className="bg-white dark:bg-slate-800 p-3 rounded-lg border border-gray-200 dark:border-slate-700 mb-4">
-        <p className="text-sm text-gray-700 dark:text-gray-200 font-medium mb-2">URLs do Google Agenda (ICS)</p>
-        <div className="flex flex-col gap-2">
-          {googleCalendarUrls.map((u, idx) => (
-            <div key={idx} className="flex items-center gap-2">
-              <input className="flex-1 p-2 text-sm rounded border dark:bg-slate-700 dark:text-white dark:border-slate-600" value={u} onChange={(e) => {
-                const next = [...googleCalendarUrls];
-                next[idx] = e.target.value;
-                setGoogleCalendarUrls(next);
-                localStorage.setItem('google_calendar_urls', JSON.stringify(next));
-                toast.success('URL atualizada');
-              }} />
-              <button className="text-xs px-2 py-1 rounded bg-red-500 text-white" onClick={() => {
-                const next = googleCalendarUrls.filter((_, i) => i !== idx);
-                setGoogleCalendarUrls(next);
-                localStorage.setItem('google_calendar_urls', JSON.stringify(next));
-              }}>Remover</button>
-            </div>
-          ))}
-          <div className="flex items-center gap-2 mt-2">
-            <input className="flex-1 p-2 text-sm rounded border dark:bg-slate-700 dark:text-white dark:border-slate-600" placeholder="Cole aqui o URL ICS do seu Google Calendar" onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                const val = (e.target as HTMLInputElement).value.trim();
-                if (val) {
-                  const next = [...googleCalendarUrls, val];
-                  setGoogleCalendarUrls(next);
-                  localStorage.setItem('google_calendar_urls', JSON.stringify(next));
-                  (e.target as HTMLInputElement).value = '';
-                  toast.success('Calendário adicionado');
-                }
-              }
-            }} />
-            <span className="text-xs text-gray-500 dark:text-gray-400">Pressione Enter para adicionar</span>
-          </div>
-          {isFetchingGoogle && <p className="text-xs text-gray-500 dark:text-gray-400">Carregando eventos do Google...</p>}
         </div>
       </div>
 
@@ -615,6 +581,20 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           event={editingEvent}
           defaultStartDateTime={selectedDateForNewEvent || undefined}
           userId={userId}
+        />
+      )}
+
+      {/* Modal de conexão com Google */}
+      {isConnectModalOpen && (
+        <GoogleCalendarConnectModal
+          isOpen={isConnectModalOpen}
+          onClose={() => setIsConnectModalOpen(false)}
+          urls={googleCalendarUrls}
+          onSave={(next) => {
+            setGoogleCalendarUrls(next);
+            localStorage.setItem('google_calendar_urls', JSON.stringify(next));
+            toast.success('Google Agenda conectado!');
+          }}
         />
       )}
     </div>
