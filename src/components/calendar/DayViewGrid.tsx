@@ -127,7 +127,7 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
   const currentHour = now.getHours();
   const currentMinutes = now.getMinutes();
   const isTodayDisplayed = isSameDay(day, now);
-  const currentTimeTop = ((currentHour * 60 + currentMinutes) / (24 * 60)) * 100;
+  const currentTimeTopPx = currentHour * 60 + currentMinutes;
 
   return (
     <div className="flex flex-col flex-1">
@@ -200,10 +200,10 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
           <div className="h-16 border-b border-gray-200 dark:border-slate-700"></div> {/* Corner for day headers */}
           <div className="relative h-[1440px]"> {/* 24 hours * 60 minutes = 1440px height */}
             {Array.from({ length: 24 }).map((_, hour) => (
-              <div 
-                key={hour} 
+              <div
+                key={hour}
                 className="absolute text-xs text-gray-500 dark:text-gray-400 text-right pr-2"
-                style={{ top: `${(hour * 60) / 1440 * 100}%`, transform: 'translateY(-50%)' }}
+                style={{ top: `${hour * 60}px` }}
               >
                 {hour === 0 ? '' : `${hour}:00`}
               </div>
@@ -269,7 +269,7 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
               {isTodayDisplayed && (
                 <div
                   className="absolute left-0 right-0 h-0.5 bg-red-500 z-20"
-                  style={{ top: `${currentTimeTop}%` }}
+                  style={{ top: `${currentTimeTopPx}px` }}
                 >
                   <div className="absolute -left-1.5 -top-1.5 w-3 h-3 bg-red-500 rounded-full"></div>
                 </div>
