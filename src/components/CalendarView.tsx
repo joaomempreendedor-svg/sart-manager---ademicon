@@ -6,6 +6,71 @@ import { CrmLead, LeadTask, GestorTask, ConsultantEvent, TeamMember } from '@/ty
 import { EventModal } from './EventModal';
 import toast from 'react-hot-toast';
 
+// ADDED: ICS parser (leve e sem dependências extras)
+const parseICS = (icsText: string) => {
+  // Minimal iCal parser: returns events with start/end/summary/description
+  const events: { start: Date; end: Date; title: string; description?: string }[] = [];
+  const lines = icsText.split(/\r?\n/);
+  let current: Record<string, string> = {};
+  let inEvent = false;
+
+  const parseDate = (val: string) => {
+    // Supports formats like 20240114T140000Z or local times without Z
+    const z = val.endsWith('Z');
+    const year = parseInt(val.slice(0,4),10);
+    const month = parseInt(val.slice(4,6),10)-1;
+    const day = parseInt(val.slice(6,8),10);
+    const hour = parseInt(val.slice(9,11)||'0',10);
+    const min = parseInt(val.slice(11,13)||'0',10);
+    const sec = parseInt(val.slice(13,15)||'0',10);
+    const d = new Date(Date.UTC(year, month, day, hour, min, sec));
+    if (!z) {
+      // treat as local by adjusting timezone
+      const local = new Date(year, month, day, hour, min, sec);
+      return local;
+    }
+    return d;
+  };
+
+  lines.forEach(line => {
+    if (line.startsWith('BEGIN:VEVENT')) {
+      inEvent = true;
+      current = {};
+    } else if (line.startsWith('END:VEVENT')) {
+      inEvent = false;
+      const startRaw = current['DTSTART'] || current['DTSTART;TZID'] || '';
+      const endRaw = current['DTEND'] || current['DTEND;TZID'] || '';
+      const summary = current['SUMMARY'] || 'Evento';
+      const desc = current['DESCRIPTION'] || undefined;
+      if (startRaw && endRaw) {
+        const start = parseDate(startRaw.replace(/^.*:/, ''));
+        const end = parseDate(endRaw.replace(/^.*:/, ''));
+        if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+          events.push({ start, end, title: summary, description: desc });
+        }
+      }
+      current = {};
+    } else if (inEvent) {
+      // Handle folded lines (continuations start with space)
+      if (line.startsWith(' ')) {
+        // continuation: append to last key
+        const lastKey = Object.keys(current)[Object.keys(current).length - 1];
+        current[lastKey] = (current[lastKey] || '') + line.trim();
+      } else {
+        const idx = line.indexOf(':');
+        if (idx > -1) {
+          const keyPart = line.slice(0, idx);
+          const valPart = line.slice(idx + 1);
+          const key = keyPart.split(';')[0]; // strip parameters
+          current[key] = valPart;
+        }
+      }
+    }
+  });
+
+  return events;
+};
+
 // Importar os novos componentes de visualização
 import DayViewGrid from './calendar/DayViewGrid';
 import WeekViewGrid from './calendar/WeekViewGrid';
@@ -63,12 +128,25 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
   const [selectedDateForNewEvent, setSelectedDateForNewEvent] = useState<Date | null>(null);
 
+  // NOVO: Integração Google via ICS
+  const [showGoogleEvents, setShowGoogleEvents] = useState<boolean>(true);
+  const [googleCalendarUrls, setGoogleCalendarUrls] = useState<string[]>(() => {
+    try {
+      const raw = localStorage.getItem('google_calendar_urls') || '[]';
+      const arr = JSON.parse(raw);
+      return Array.isArray(arr) ? arr : [];
+    } catch {
+      return [];
+    }
+  });
+  const [googleEventsByDay, setGoogleEventsByDay] = useState<Record<string, CalendarEvent[]>>({});
+  const [isFetchingGoogle, setIsFetchingGoogle] = useState(false);
+
   // Efeito para atualizar 'today' a cada minuto
   useEffect(() => {
     const intervalId = setInterval(() => {
       setToday(new Date());
     }, 60 * 1000);
-
     return () => clearInterval(intervalId);
   }, []);
 
@@ -82,7 +160,6 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     }
   }, [highlightedDate]);
 
-
   const displayedDays = useMemo(() => {
     if (view === 'day') {
       return [currentDate];
@@ -92,6 +169,69 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       return getDaysInMonth(currentDate);
     }
   }, [currentDate, view]);
+
+  // Fetch ICS Google events for displayed range
+  useEffect(() => {
+    const fetchIcsForRange = async () => {
+      if (!showGoogleEvents || googleCalendarUrls.length === 0) {
+        setGoogleEventsByDay({});
+        return;
+      }
+      setIsFetchingGoogle(true);
+      try {
+        const start = displayedDays[0];
+        const end = displayedDays[displayedDays.length - 1];
+        const startIso = new Date(start.getFullYear(), start.getMonth(), start.getDate(), 0, 0, 0);
+        const endIso = new Date(end.getFullYear(), end.getMonth(), end.getDate(), 23, 59, 59);
+
+        const allGoogleEvents: CalendarEvent[] = [];
+
+        // Baixar cada ICS e parsear
+        for (const url of googleCalendarUrls) {
+          const res = await fetch(url);
+          if (!res.ok) continue;
+          const text = await res.text();
+          const parsed = parseICS(text);
+          parsed.forEach(ev => {
+            // filtrar por intervalo exibido
+            if (ev.end >= startIso && ev.start <= endIso) {
+              allGoogleEvents.push({
+                id: `google_${ev.start.getTime()}_${ev.title}_${Math.random().toString(36).slice(2)}`,
+                title: ev.title,
+                description: ev.description,
+                start: ev.start,
+                end: ev.end,
+                type: 'personal', // renderizar como pessoal (cor azul)
+                personName: user?.name || 'Eu',
+                personId: userId,
+                originalEvent: { title: ev.title, description: ev.description, start_time: ev.start.toISOString(), end_time: ev.end.toISOString() } as unknown as ConsultantEvent,
+                allDay: (ev.start.getHours() === 0 && ev.start.getMinutes() === 0) && (ev.end.getHours() === 23 || ev.end.getHours() === 0),
+              });
+            }
+          });
+        }
+
+        // Agrupar por dia
+        const map: Record<string, CalendarEvent[]> = {};
+        displayedDays.forEach(day => {
+          const dayStr = day.toISOString().split('T')[0];
+          map[dayStr] = allGoogleEvents.filter(ev => {
+            const s = ev.start.toISOString().split('T')[0];
+            const e = ev.end.toISOString().split('T')[0];
+            return s <= dayStr && e >= dayStr;
+          }).sort((a, b) => a.start.getTime() - b.start.getTime());
+        });
+
+        setGoogleEventsByDay(map);
+      } catch (e) {
+        console.error('[CalendarView] Falha ao carregar ICS:', e);
+        toast.error('Falha ao carregar eventos do Google. Verifique o URL do calendário.');
+      } finally {
+        setIsFetchingGoogle(false);
+      }
+    };
+    fetchIcsForRange();
+  }, [showGoogleEvents, googleCalendarUrls, displayedDays, user?.name, userId]);
 
   const allEvents = useMemo(() => {
     console.log("[CalendarView] Recalculating allEvents...");
@@ -119,6 +259,15 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           originalEvent: event,
           allDay: isAllDayEvent,
         });
+      });
+    }
+
+    // 1.1 Eventos do Google (ICS)
+    if (showGoogleEvents) {
+      displayedDays.forEach(day => {
+        const dayStr = day.toISOString().split('T')[0];
+        const dayGoogleEvents = googleEventsByDay[dayStr] || [];
+        dayGoogleEvents.forEach(ev => events.push(ev));
       });
     }
 
@@ -255,7 +404,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   }, [
     userId, userRole, showPersonalEvents, showLeadMeetings, showGestorTasks,
     consultantEvents, leadTasks, crmLeads, teamMembers, gestorTasks, gestorTaskCompletions,
-    displayedDays, isGestorTaskDueOnDate, dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions, user?.name, user?.email
+    displayedDays, isGestorTaskDueOnDate, dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions, user?.name, user?.email,
+    showGoogleEvents, googleEventsByDay
   ]);
 
   const eventsByDay = useMemo(() => {
@@ -353,7 +503,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       onToggleGestorTaskCompletion: handleToggleGestorTaskCompletion,
       userRole,
       showPersonalEvents,
-      teamMembers, // <--- Passando teamMembers aqui
+      teamMembers,
     };
 
     if (view === 'day') {
@@ -395,13 +545,58 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           {view === 'week' && `${displayedDays[0].toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })} - ${displayedDays[displayedDays.length - 1].toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}`}
           {view === 'month' && currentDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
         </h2>
-        <button onClick={() => navigateDate(1, view)} className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-600 dark:text-gray-300">
-          <ChevronRight className="w-5 h-5" />
-        </button>
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+            <input type="checkbox" checked={showGoogleEvents} onChange={(e) => setShowGoogleEvents(e.target.checked)} />
+            Mostrar Google Agenda
+          </label>
+          <button onClick={() => navigateDate(1, view)} className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-600 dark:text-gray-300">
+            <ChevronRight className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+
+      {/* Configuração simples de URLs ICS */}
+      <div className="bg-white dark:bg-slate-800 p-3 rounded-lg border border-gray-200 dark:border-slate-700 mb-4">
+        <p className="text-sm text-gray-700 dark:text-gray-200 font-medium mb-2">URLs do Google Agenda (ICS)</p>
+        <div className="flex flex-col gap-2">
+          {googleCalendarUrls.map((u, idx) => (
+            <div key={idx} className="flex items-center gap-2">
+              <input className="flex-1 p-2 text-sm rounded border dark:bg-slate-700 dark:text-white dark:border-slate-600" value={u} onChange={(e) => {
+                const next = [...googleCalendarUrls];
+                next[idx] = e.target.value;
+                setGoogleCalendarUrls(next);
+                localStorage.setItem('google_calendar_urls', JSON.stringify(next));
+                toast.success('URL atualizada');
+              }} />
+              <button className="text-xs px-2 py-1 rounded bg-red-500 text-white" onClick={() => {
+                const next = googleCalendarUrls.filter((_, i) => i !== idx);
+                setGoogleCalendarUrls(next);
+                localStorage.setItem('google_calendar_urls', JSON.stringify(next));
+              }}>Remover</button>
+            </div>
+          ))}
+          <div className="flex items-center gap-2 mt-2">
+            <input className="flex-1 p-2 text-sm rounded border dark:bg-slate-700 dark:text-white dark:border-slate-600" placeholder="Cole aqui o URL ICS do seu Google Calendar" onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                const val = (e.target as HTMLInputElement).value.trim();
+                if (val) {
+                  const next = [...googleCalendarUrls, val];
+                  setGoogleCalendarUrls(next);
+                  localStorage.setItem('google_calendar_urls', JSON.stringify(next));
+                  (e.target as HTMLInputElement).value = '';
+                  toast.success('Calendário adicionado');
+                }
+              }
+            }} />
+            <span className="text-xs text-gray-500 dark:text-gray-400">Pressione Enter para adicionar</span>
+          </div>
+          {isFetchingGoogle && <p className="text-xs text-gray-500 dark:text-gray-400">Carregando eventos do Google...</p>}
+        </div>
       </div>
 
       {/* Renderização do Grid de Calendário */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar"> {/* Make this area scrollable */}
+      <div className="flex-1 overflow-y-auto custom-scrollbar">
         {view === 'month' && (
           <div className="grid grid-cols-7 text-center text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
             {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(dayName => (
