@@ -107,16 +107,20 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
   };
 
   return (
-    <div className="flex flex-col flex-1"> {/* Envolvendo tudo em uma única div */}
+    <div className="flex flex-col flex-1">
       {/* All-day events section for the entire week */}
       {hasAnyAllDayEventsInWeek && (
-        <div className="p-2 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
-          <div className="grid grid-cols-7 gap-1"> {/* Grid for 7 days */}
+        <div className="flex border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
+          {/* Empty spacer to align with time column */}
+          <div className="w-16 flex-shrink-0 border-r border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800"></div>
+          
+          {/* Grid for 7 days of all-day events */}
+          <div className="grid grid-cols-7 flex-1">
             {weekDays.map(day => {
               const dayStr = day.toISOString().split('T')[0];
               const dayAllDayEvents = allWeekAllDayEvents.filter(e => isSameDay(e.start, day));
               return (
-                <div key={dayStr} className="flex flex-col space-y-0.5">
+                <div key={dayStr} className="flex flex-col space-y-0.5 p-1 border-l border-gray-200 dark:border-slate-700">
                   {dayAllDayEvents.map(event => (
                     <div key={event.id} className={`p-1.5 rounded-md text-xs font-medium ${getEventColorClass(event.type)} flex items-center justify-between group`}>
                       <span className="truncate flex items-center">{getEventIcon(event.type)} {event.title}</span>
