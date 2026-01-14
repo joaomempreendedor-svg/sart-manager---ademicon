@@ -304,7 +304,6 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
                         <UserRound className="w-3 h-3 mr-1 flex-shrink-0" /> Consultor: {teamMembers.find(m => m.id === (event.originalEvent as LeadTask).user_id)?.name || 'Desconhecido'}
                       </p>
                     )}
-
                     {/* NOVO: Selo de status do convite do gestor */}
                     {event.type === 'meeting' && (event.originalEvent as LeadTask)?.manager_invitation_status && (
                       <div className="mt-1">
@@ -325,7 +324,6 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
                         )}
                       </div>
                     )}
-
                     {event.personName && event.type !== 'gestor_task' && event.type !== 'meeting' && ( // Exclude meeting here
                       <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 flex items-center" title={event.personName}>
                         <UserRound className="w-3 h-3 mr-1 flex-shrink-0" /> <span className="truncate">{event.personName}</span>

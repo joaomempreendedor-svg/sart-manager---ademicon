@@ -63,13 +63,12 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
   const [selectedDateForNewEvent, setSelectedDateForNewEvent] = useState<Date | null>(null);
 
-  // Integração externa removida: agenda funciona apenas internamente
-
   // Efeito para atualizar 'today' a cada minuto
   useEffect(() => {
     const intervalId = setInterval(() => {
       setToday(new Date());
     }, 60 * 1000);
+
     return () => clearInterval(intervalId);
   }, []);
 
@@ -82,6 +81,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       }
     }
   }, [highlightedDate]);
+
 
   const displayedDays = useMemo(() => {
     if (view === 'day') {
@@ -128,7 +128,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         if (task.type !== 'meeting' || !task.meeting_start_time || !task.meeting_end_time) return false;
         
         const isConsultantMeeting = userRole === 'CONSULTOR' && task.user_id === userId;
-        const isGestorMeeting = (userRole === 'GESTOR' || userRole === 'ADMIN') && task.manager_id === userId && task.manager_invitation_status === 'accepted';
+        const isGestorMeeting = (userRole === 'GESTOR' || userRole === 'ADMIN') && task.manager_id === userId;
         
         return isConsultantMeeting || isGestorMeeting;
       }).forEach(task => {
@@ -251,7 +251,6 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         });
       }
     }
-
     return events;
   }, [
     userId, userRole, showPersonalEvents, showLeadMeetings, showGestorTasks,
@@ -336,7 +335,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   const handleToggleGestorTaskCompletion = async (task: GestorTask, date: Date) => {
     if (!user) return;
     const dateStr = date.toISOString().split('T')[0];
-    const isCompleted = gestorTaskCompletions.some(c => c.gestor_task_id === task.id && c.user_id === userId && isSameDay(new Date(c.date), date));
+    const isCompleted = gestorTaskCompletions.some(c => c.gestor_task_id === task.id && c.user_id === userId && isSameDay(new Date(c.date), day));
     try {
       await toggleGestorTaskCompletion(task.id, !isCompleted, dateStr);
       toast.success(`Tarefa ${isCompleted ? 'marcada como pendente' : 'concluída'}!`);
