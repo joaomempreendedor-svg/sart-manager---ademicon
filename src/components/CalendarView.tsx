@@ -335,7 +335,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   const handleToggleGestorTaskCompletion = async (task: GestorTask, date: Date) => {
     if (!user) return;
     const dateStr = date.toISOString().split('T')[0];
-    const isCompleted = gestorTaskCompletions.some(c => c.gestor_task_id === task.id && c.user_id === userId && c.date === dateStr && c.done);
+    const isCompleted = gestorTaskCompletions.some(c => c.gestor_task_id === task.id && c.user_id === userId && isSameDay(new Date(c.date), day));
     try {
       await toggleGestorTaskCompletion(task.id, !isCompleted, dateStr);
       toast.success(`Tarefa ${isCompleted ? 'marcada como pendente' : 'concluída'}!`);
@@ -353,6 +353,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       onToggleGestorTaskCompletion: handleToggleGestorTaskCompletion,
       userRole,
       showPersonalEvents,
+      teamMembers, // <--- Passando teamMembers aqui
     };
 
     if (view === 'day') {

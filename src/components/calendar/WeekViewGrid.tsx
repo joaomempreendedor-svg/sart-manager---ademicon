@@ -3,7 +3,7 @@ import { CalendarEvent, isSameDay, formatTime } from './utils';
 import { Plus, Edit2, Trash2, CheckCircle2, XCircle, Clock, UserRound, MessageSquare, Users, ListChecks, ListTodo, CalendarDays } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import toast from 'react-hot-toast';
-import { GestorTask, DailyChecklistItem, LeadTask } from '@/types';
+import { GestorTask, DailyChecklistItem, LeadTask, TeamMember } from '@/types'; // Importar TeamMember
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
 
@@ -16,6 +16,7 @@ interface WeekViewGridProps {
   onToggleGestorTaskCompletion: (task: GestorTask, date: Date) => void;
   userRole: 'GESTOR' | 'CONSULTOR' | 'ADMIN';
   showPersonalEvents: boolean;
+  teamMembers: TeamMember[]; // Adicionado aqui
 }
 
 const WeekViewGrid: React.FC<WeekViewGridProps> = ({
@@ -27,6 +28,7 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
   onToggleGestorTaskCompletion,
   userRole,
   showPersonalEvents,
+  teamMembers, // Desestruturado aqui
 }) => {
   const isCurrentWeek = weekDays.some(day => isSameDay(day, new Date()));
   const navigate = useNavigate();
@@ -181,7 +183,15 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
                     <div key={event.id} className={`mb-1 p-1.5 rounded-md text-xs font-medium ${getEventColorClass(event.type)} flex items-center group`}>
                       <div className="flex-1 flex items-center overflow-hidden">
                         {getEventIcon(event.type)}
-                        <span className="truncate" title={event.title}>{event.title}</span>
+                        {event.type === 'meeting' ? (
+                          <>
+                            <span className="flex-1 line-clamp-1" title={`Reunião com ${event.personName}`}>
+                              Reunião com {event.personName}
+                            </span>
+                          </>
+                        ) : (
+                          <span className="flex-1 line-clamp-2" title={event.title}>{event.title}</span>
+                        )}
                       </div>
                       <div className="flex items-center space-x-1 flex-shrink-0 ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
                         {(event.type === 'personal' || event.type === 'gestor_task') && (
@@ -324,12 +334,25 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
                       <div className="flex-1 min-h-0 overflow-hidden flex flex-col gap-1"> {/* Content area */}
                         <div className="flex items-start text-xs font-medium">
                           {getEventIcon(event.type)}
-                          <span className="flex-1 line-clamp-2" title={event.title}>{event.title}</span>
+                          {event.type === 'meeting' ? (
+                            <>
+                              <span className="flex-1 line-clamp-1" title={`Reunião com ${event.personName}`}>
+                                Reunião com {event.personName}
+                              </span>
+                            </>
+                          ) : (
+                            <span className="flex-1 line-clamp-2" title={event.title}>{event.title}</span>
+                          )}
                         </div>
                         <p className="text-xs text-gray-600 dark:text-gray-400 flex items-center" title={`${formatTime(event.start)} - ${formatTime(event.end)}`}>
                           <Clock className="w-3 h-3 mr-1 flex-shrink-0" /> {formatTime(event.start)} - {formatTime(event.end)}
                         </p>
-                        {event.personName && event.type !== 'gestor_task' && (
+                        {event.type === 'meeting' && event.originalEvent && (
+                          <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 flex items-center" title={`Consultor: ${teamMembers.find(m => m.id === (event.originalEvent as LeadTask).user_id)?.name || 'Desconhecido'}`}>
+                            <UserRound className="w-3 h-3 mr-1 flex-shrink-0" /> Consultor: {teamMembers.find(m => m.id === (event.originalEvent as LeadTask).user_id)?.name || 'Desconhecido'}
+                          </p>
+                        )}
+                        {event.personName && event.type !== 'gestor_task' && event.type !== 'meeting' && (
                           <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 flex items-center" title={event.personName}>
                             <UserRound className="w-3 h-3 mr-1 flex-shrink-0" /> <span className="truncate">{event.personName}</span>
                           </p>

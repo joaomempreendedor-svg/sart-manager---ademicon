@@ -3,7 +3,7 @@ import { CalendarEvent, isSameDay, formatTime } from './utils';
 import { Plus, Edit2, Trash2, CheckCircle2, XCircle, Clock, UserRound, MessageSquare, Users, ListChecks, ListTodo, CalendarDays } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import toast from 'react-hot-toast';
-import { GestorTask } from '@/types';
+import { GestorTask, DailyChecklistItem, LeadTask, TeamMember } from '@/types'; // Importar TeamMember
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
 
@@ -17,6 +17,7 @@ interface MonthViewGridProps {
   onToggleGestorTaskCompletion: (task: GestorTask, date: Date) => void;
   userRole: 'GESTOR' | 'CONSULTOR' | 'ADMIN';
   showPersonalEvents: boolean;
+  teamMembers: TeamMember[]; // Adicionado aqui
 }
 
 const MonthViewGrid: React.FC<MonthViewGridProps> = ({
@@ -29,6 +30,7 @@ const MonthViewGrid: React.FC<MonthViewGridProps> = ({
   onToggleGestorTaskCompletion,
   userRole,
   showPersonalEvents,
+  teamMembers, // Desestruturado aqui
 }) => {
   const navigate = useNavigate();
   const { toggleDailyChecklistCompletion, toggleLeadTaskCompletion, deleteLeadTask } = useApp();
@@ -142,7 +144,15 @@ const MonthViewGrid: React.FC<MonthViewGridProps> = ({
                   <div key={event.id} className={`p-1 rounded-md ${getEventColorClass(event.type)} flex items-center group`}>
                     <div className="flex-1 flex items-center overflow-hidden">
                       {getEventIcon(event.type)}
-                      <span className="truncate" title={event.title}>{event.title}</span>
+                      {event.type === 'meeting' ? (
+                        <>
+                          <span className="flex-1 line-clamp-1" title={`Reunião com ${event.personName}`}>
+                            Reunião com {event.personName}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="flex-1 line-clamp-2" title={event.title}>{event.title}</span>
+                      )}
                     </div>
                     <div className="flex items-center space-x-1 flex-shrink-0 ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
                       {(event.type === 'personal' || event.type === 'gestor_task') && (
@@ -171,7 +181,15 @@ const MonthViewGrid: React.FC<MonthViewGridProps> = ({
                 <div key={event.id} className={`p-1 rounded-md ${getEventColorClass(event.type)} flex items-center group`}>
                   <div className="flex-1 flex items-center overflow-hidden">
                     {getEventIcon(event.type)}
-                    <span className="truncate" title={event.title}>{event.title}</span>
+                    {event.type === 'meeting' ? (
+                      <>
+                        <span className="flex-1 line-clamp-1" title={`Reunião com ${event.personName}`}>
+                          Reunião com {event.personName}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="flex-1 line-clamp-2" title={event.title}>{event.title}</span>
+                    )}
                   </div>
                   <div className="flex items-center space-x-1 flex-shrink-0 ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
                     {(event.type === 'personal' || event.type === 'gestor_task') && (
