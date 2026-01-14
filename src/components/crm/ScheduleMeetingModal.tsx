@@ -48,15 +48,14 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
     return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
   }
 
-  // NOVO: Seleção de Gestor e agenda do gestor
+  // Gestores disponíveis: inclui Gestor/Admin e fallback com crmOwnerUserId (João Müller)
   const gestores: TeamMember[] = useMemo(() => {
-    // Normaliza papéis e garante inclusão do gestor principal via crmOwnerUserId
     const normalized = teamMembers.filter(m => {
       const roles = (m.roles || []).map(r => r.toLowerCase());
       return m.isActive && (roles.includes('gestor') || roles.includes('admin'));
     });
 
-    // Fallback: incluir o gestor principal mesmo que não esteja em teamMembers
+    // Fallback: incluir gestor principal (crmOwnerUserId)
     if (crmOwnerUserId && !normalized.some(m => m.id === crmOwnerUserId)) {
       const existente = teamMembers.find(m => m.id === crmOwnerUserId);
       if (existente) {
@@ -64,19 +63,20 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
       } else {
         normalized.push({
           id: crmOwnerUserId,
-          name: 'Gestor',
+          name: 'João Müller',
           roles: ['Gestor'],
           isActive: true,
         } as TeamMember);
       }
     }
 
-    return normalized;
+    // Ordena por nome para UX melhor
+    return normalized.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   }, [teamMembers, crmOwnerUserId]);
 
   const [selectedGestorId, setSelectedGestorId] = useState<string | null>(gestores[0]?.id || null);
 
-  // Atualiza o gestor selecionado quando a lista mudar e não houver seleção
+  // Mantém o gestor selecionado atualizado quando a lista muda
   useEffect(() => {
     if (!selectedGestorId && gestores.length > 0) {
       setSelectedGestorId(gestores[0].id);
