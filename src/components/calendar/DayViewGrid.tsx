@@ -322,3 +322,5 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
     </div>
   );
 };
+
+export default DayViewGrid;

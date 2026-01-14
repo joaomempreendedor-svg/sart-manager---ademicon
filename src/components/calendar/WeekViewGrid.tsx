@@ -391,3 +391,5 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
     </div>
   );
 };
+
+export default WeekViewGrid;
