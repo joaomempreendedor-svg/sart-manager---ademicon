@@ -37,15 +37,16 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
 
   // Calculate event positioning for timed events
   const positionedEvents = useMemo(() => {
-    return timedEvents.map(event => {
+    const result = timedEvents.map(event => {
       const startHour = event.start.getHours() + event.start.getMinutes() / 60;
       const endHour = event.end.getHours() + event.end.getMinutes() / 60;
       const top = (startHour * 60) * (100 / (24 * 60)); // Percentage of total height (24 hours * 60 minutes)
       const height = ((endHour - startHour) * 60) * (100 / (24 * 60)); // Percentage of total height
-
       return { ...event, top, height };
     });
-  }, [timedEvents]);
+    console.log(`[DayViewGrid] Positioned events for ${day.toISOString().split('T')[0]}:`, result);
+    return result;
+  }, [timedEvents, day]);
 
   const getEventColorClass = (type: CalendarEvent['type']) => {
     switch (type) {

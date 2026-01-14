@@ -85,6 +85,7 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
         return { ...event, top, height, left, width };
       });
     });
+    console.log(`[WeekViewGrid] Positioned events by day:`, result);
     return result;
   }, [weekDays, eventsByDay]);
 
