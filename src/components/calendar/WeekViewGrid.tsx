@@ -82,7 +82,7 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
       });
     });
     return result;
-  }, [timedEvents, weekDays, eventsByDay]);
+  }, [weekDays, eventsByDay]); // Removido 'timedEvents' daqui
 
   const getEventColorClass = (type: CalendarEvent['type']) => {
     switch (type) {
