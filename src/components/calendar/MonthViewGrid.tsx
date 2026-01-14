@@ -54,12 +54,8 @@ const MonthViewGrid: React.FC<MonthViewGridProps> = ({
         const isCurrentMonth = day.getMonth() === currentMonth.getMonth();
         const isToday = isSameDay(day, today);
 
-        const sortedEvents = eventsToday.sort((a, b) => {
-          // All-day events first, then by start time
-          if (a.allDay && !b.allDay) return -1;
-          if (!a.allDay && b.allDay) return 1;
-          return a.start.getTime() - b.start.getTime();
-        });
+        const allDayEvents = eventsToday.filter(event => event.allDay);
+        const timedEvents = eventsToday.filter(event => !event.allDay).sort((a, b) => a.start.getTime() - b.start.getTime());
 
         return (
           <div
@@ -70,7 +66,7 @@ const MonthViewGrid: React.FC<MonthViewGridProps> = ({
               <span className={`text-sm font-bold ${isToday ? 'bg-brand-100 dark:bg-brand-900/30 rounded-full h-6 w-6 flex items-center justify-center' : ''}`}>
                 {day.getDate()}
               </span>
-              {showPersonalEvents && ( // Agora showPersonalEvents será true para Gestores/Admins também
+              {showPersonalEvents && (
                 <button
                   onClick={() => onOpenEventModal(day)}
                   className="p-1 rounded-full bg-brand-100 dark:bg-brand-900/30 text-brand-700 dark:text-brand-400 hover:bg-brand-200 dark:hover:bg-brand-900/50 transition"
@@ -80,8 +76,32 @@ const MonthViewGrid: React.FC<MonthViewGridProps> = ({
                 </button>
               )}
             </div>
+            {/* Seção para eventos de dia inteiro */}
+            {allDayEvents.length > 0 && (
+              <div className="space-y-0.5 text-xs mb-1">
+                {allDayEvents.slice(0, 1).map(event => ( // Limita a 1 evento de dia inteiro para não sobrecarregar
+                  <div key={event.id} className={`p-1 rounded-md ${getEventColorClass(event.type)} flex items-center justify-between group`}>
+                    <span className="truncate">{event.title}</span>
+                    <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {(event.type === 'personal' || event.type === 'gestor_task') && (
+                        <>
+                          <Button variant="ghost" size="icon" onClick={() => onOpenEventModal(day, event)} className="p-1 text-gray-400 hover:text-blue-600"><Edit2 className="w-3 h-3" /></Button>
+                          <Button variant="ghost" size="icon" onClick={() => onDeleteEvent(event.id, event.type)} className="p-1 text-gray-400 hover:text-red-600"><Trash2 className="w-3 h-3" /></Button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {allDayEvents.length > 1 && (
+                  <div className="p-1 text-gray-600 dark:text-gray-400">
+                    +{allDayEvents.length - 1} mais (dia inteiro)
+                  </div>
+                )}
+              </div>
+            )}
+            {/* Seção para eventos com horário */}
             <div className="space-y-0.5 text-xs">
-              {sortedEvents.slice(0, 2).map(event => ( // Show max 2 events, then "Mais X"
+              {timedEvents.slice(0, 2).map(event => ( // Show max 2 timed events
                 <div key={event.id} className={`p-1 rounded-md ${getEventColorClass(event.type)} flex items-center justify-between group`}>
                   <span className="truncate">{event.title}</span>
                   <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -94,9 +114,9 @@ const MonthViewGrid: React.FC<MonthViewGridProps> = ({
                   </div>
                 </div>
               ))}
-              {sortedEvents.length > 2 && (
+              {timedEvents.length > 2 && (
                 <div className="p-1 text-gray-600 dark:text-gray-400">
-                  +{sortedEvents.length - 2} mais
+                  +{timedEvents.length - 2} mais
                 </div>
               )}
             </div>
