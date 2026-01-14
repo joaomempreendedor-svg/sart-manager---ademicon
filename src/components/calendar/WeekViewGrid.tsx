@@ -107,7 +107,7 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
   };
 
   return (
-    <> {/* React.Fragment para envolver os dois blocos principais */}
+    <div className="flex flex-col flex-1"> {/* Envolvendo tudo em uma única div */}
       {/* All-day events section for the entire week */}
       {hasAnyAllDayEventsInWeek && (
         <div className="p-2 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
@@ -252,7 +252,7 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
           );
         })}
       </div>
-    </>
+    </div>
   );
 };
 
