@@ -45,6 +45,8 @@ const ConsultorDashboard = () => {
     isDataLoading 
   } = useApp();
 
+  const [activeTab, setActiveTab] = useState<'overview' | 'calendar'>('overview'); // NOVO: Estado para controlar a aba ativa
+
   // --- CRM Statistics ---
   const { 
     totalLeads, 
@@ -266,92 +268,211 @@ const ConsultorDashboard = () => {
       <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Olá, {user?.name.split(' ')[0]}!</h1>
       <p className="text-gray-500 dark:text-gray-400 mb-8">Bem-vindo ao seu Dashboard. Aqui estão suas principais informações e atalhos.</p>
       
-      {/* CRM Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
-          <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-            <TrendingUp className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-          </div>
-          <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Total de Leads</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{totalLeads}</p>
-          </div>
-        </div>
-        
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
-          <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
-            <Plus className="w-6 h-6 text-green-600 dark:text-green-400" />
-          </div>
-          <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Novos Leads (Mês)</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{newLeadsThisMonth}</p>
-          </div>
-        </div>
-        
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
-          <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
-            <Calendar className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
-          </div>
-          <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Reuniões Mês</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{meetingsThisMonth}</p>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
-          <div className="p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg">
-            <Send className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
-          </div>
-          <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Propostas Mês</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(proposalValueThisMonth || 0)}</p>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
-          <div className="p-3 bg-teal-50 dark:bg-teal-900/20 rounded-lg">
-            <DollarSign className="w-6 h-6 text-teal-600 dark:text-teal-400" />
-          </div>
-          <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Vendido Mês</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(soldValueThisMonth || 0)}</p>
-          </div>
-        </div>
-
-        {/* NOVO CARD: Tarefas Pendentes */}
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
-          <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
-            <ListTodo className="w-6 h-6 text-red-600 dark:text-red-400" />
-          </div>
-          <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Tarefas Pendentes</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{pendingLeadTasks}</p>
-          </div>
-        </div>
+      {/* Tabs */}
+      <div className="flex border-b border-gray-200 dark:border-slate-700 mb-6">
+        <button
+          onClick={() => setActiveTab('overview')}
+          className={`flex items-center space-x-2 px-4 py-3 font-medium text-sm transition-colors ${
+            activeTab === 'overview'
+              ? 'border-b-2 border-brand-500 text-brand-600 dark:text-brand-400'
+              : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+          }`}
+        >
+          <TrendingUp className="w-4 h-4" />
+          <span>Visão Geral</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('calendar')}
+          className={`flex items-center space-x-2 px-4 py-3 font-medium text-sm transition-colors ${
+            activeTab === 'calendar'
+              ? 'border-b-2 border-brand-500 text-brand-600 dark:text-brand-400'
+              : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+          }`}
+        >
+          <Calendar className="w-4 h-4" />
+          <span>Minha Agenda</span>
+        </button>
       </div>
 
-      {/* Daily Checklist Progress */}
-      <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm mb-8">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center"><ListChecks className="w-5 h-5 mr-2 text-brand-500" />Progresso das Metas Diárias</h2>
-          <span className="text-sm font-semibold text-gray-500 dark:text-gray-400">{completedDailyTasks}/{totalDailyTasks} Concluídas</span>
-        </div>
-        <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2.5">
-          <div className="bg-brand-500 h-2.5 rounded-full transition-all duration-500" style={{ width: `${dailyProgress}%` }}></div>
-        </div>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">{dailyProgress}% do seu checklist de hoje está completo.</p>
-      </div>
+      {activeTab === 'overview' && (
+        <div className="animate-fade-in">
+          {/* CRM Statistics */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
+              <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                <TrendingUp className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Total de Leads</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">{totalLeads}</p>
+              </div>
+            </div>
+            
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
+              <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                <Plus className="w-6 h-6 text-green-600 dark:text-green-400" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Novos Leads (Mês)</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">{newLeadsThisMonth}</p>
+              </div>
+            </div>
+            
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
+              <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+                <Calendar className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Reuniões Mês</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">{meetingsThisMonth}</p>
+              </div>
+            </div>
 
-      {/* Daily Checklist Display - NOVO */}
-      <div className="mb-8">
-        <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center mb-4"><ListChecks className="w-5 h-5 mr-2 text-brand-500" />Metas Diárias</h2>
-        <DailyChecklistDisplay user={user} isDataLoading={isDataLoading} />
-      </div>
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
+              <div className="p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg">
+                <Send className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Propostas Mês</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(proposalValueThisMonth || 0)}</p>
+              </div>
+            </div>
 
-      {/* Agenda Section */}
-      <div className="mb-8">
-        <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center"><Calendar className="w-5 h-5 mr-2 text-brand-500" />Minha Agenda Semanal</h2>
-        {user && user.role && (
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
+              <div className="p-3 bg-teal-50 dark:bg-teal-900/20 rounded-lg">
+                <DollarSign className="w-6 h-6 text-teal-600 dark:text-teal-400" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Vendido Mês</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(soldValueThisMonth || 0)}</p>
+              </div>
+            </div>
+
+            {/* NOVO CARD: Tarefas Pendentes */}
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
+              <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                <ListTodo className="w-6 h-6 text-red-600 dark:text-red-400" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Tarefas Pendentes</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">{pendingLeadTasks}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Daily Checklist Progress */}
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm mb-8">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center"><ListChecks className="w-5 h-5 mr-2 text-brand-500" />Progresso das Metas Diárias</h2>
+              <span className="text-sm font-semibold text-gray-500 dark:text-gray-400">{completedDailyTasks}/{totalDailyTasks} Concluídas</span>
+            </div>
+            <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2.5">
+              <div className="bg-brand-500 h-2.5 rounded-full transition-all duration-500" style={{ width: `${dailyProgress}%` }}></div>
+            </div>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">{dailyProgress}% do seu checklist de hoje está completo.</p>
+          </div>
+
+          {/* Daily Checklist Display - NOVO */}
+          <div className="mb-8">
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center mb-4"><ListChecks className="w-5 h-5 mr-2 text-brand-500" />Metas Diárias</h2>
+            <DailyChecklistDisplay user={user} isDataLoading={isDataLoading} />
+          </div>
+
+          {/* Minhas Tarefas */}
+          <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl shadow-sm flex flex-col mb-8">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700 flex items-center space-x-2 bg-blue-50 dark:bg-blue-900/20 rounded-t-xl">
+              <ListTodo className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              <h2 className="text-lg font-semibold text-blue-800 dark:text-blue-300">Minhas Tarefas ({allConsultantTasks.length})</h2>
+            </div>
+            <div className="flex-1 p-0 overflow-y-auto max-h-80 custom-scrollbar">
+              {allConsultantTasks.length === 0 ? (
+                <div className="p-6 text-center text-gray-400">Nenhuma tarefa pendente.</div>
+              ) : (
+                <ul className="divide-y divide-gray-100 dark:divide-slate-700">
+                  {allConsultantTasks.map((item) => (
+                    <li key={item.id} className="p-4 hover:bg-blue-50 dark:hover:bg-blue-900/10 transition">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-gray-900 dark:text-gray-200">{item.title}</p>
+                          <div className="flex flex-col sm:flex-row sm:items-center text-xs text-gray-500 dark:text-gray-400 mt-1 space-y-1 sm:space-y-0 sm:space-x-2">
+                            <span className="flex items-center"><User className="w-3 h-3 mr-1" /> Lead: <span className="font-semibold ml-1">{item.personName}</span></span>
+                            {item.dueDate && <span className="flex items-center"><Calendar className="w-3 h-3 mr-1" /> Vence: {new Date(item.dueDate + 'T00:00:00').toLocaleDateString()}</span>}
+                          </div>
+                        </div>
+                        <Link to={`/consultor/crm`} className="text-brand-600 hover:text-brand-700 text-sm font-medium flex-shrink-0">Ver Lead <ChevronRight className="w-4 h-4 inline ml-1" /></Link>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+
+          {/* Próximas Reuniões */}
+          <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl shadow-sm flex flex-col mb-8">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700 flex items-center space-x-2 bg-green-50 dark:bg-green-900/20 rounded-t-xl">
+              <CalendarCheck className="w-5 h-5 text-green-600 dark:text-green-400" />
+              <h2 className="text-lg font-semibold text-green-800 dark:text-green-300">Próximas Reuniões ({upcomingMeetings.length})</h2>
+            </div>
+            <div className="flex-1 p-0 overflow-y-auto max-h-80 custom-scrollbar">
+              {upcomingMeetings.length === 0 ? (
+                <div className="p-6 text-center text-gray-400">Nenhuma reunião futura agendada.</div>
+              ) : (
+                <ul className="divide-y divide-gray-100 dark:divide-slate-700">
+                  {upcomingMeetings.map((item) => (
+                    <li key={item.id} className="p-4 hover:bg-green-50 dark:hover:bg-green-900/10 transition">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-gray-900 dark:text-gray-200">{item.title}</p>
+                          <div className="flex flex-col sm:flex-row sm:items-center text-xs text-gray-500 dark:text-gray-400 mt-1 space-y-1 sm:space-y-0 sm:space-x-2">
+                            <span className="flex items-center"><User className="w-3 h-3 mr-1" /> Lead: <span className="font-semibold ml-1">{item.personName}</span></span>
+                            <span className="flex items-center"><Calendar className="w-3 h-3 mr-1" /> {new Date(item.dueDate + 'T00:00:00').toLocaleDateString()}</span>
+                            <span className="flex items-center"><Clock className="w-3 h-3 mr-1" /> {item.meetingDetails?.startTime} - {item.meetingDetails?.endTime}</span>
+                          </div>
+                        </div>
+                        <Link to={`/consultor/crm`} className="text-brand-600 hover:text-brand-700 text-sm font-medium flex-shrink-0">Ver Lead <ChevronRight className="w-4 h-4 inline ml-1" /></Link>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+
+          {/* Weekly Goals */}
+          {activeWeeklyTarget && weeklyGoalsProgress.length > 0 && (
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm mb-8">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center"><Target className="w-5 h-5 mr-2 text-green-500" />Metas da Semana ({activeWeeklyTarget.title})</h2>
+                <span className="text-sm text-gray-500 dark:text-gray-400">
+                  {new Date(activeWeeklyTarget.week_start).toLocaleDateString()} - {new Date(activeWeeklyTarget.week_end).toLocaleDateString()}
+                </span>
+              </div>
+              <div className="space-y-4">
+                {weeklyGoalsProgress.map(goal => (
+                  <div key={goal.id} className="flex items-center space-x-3">
+                    <div className={`w-5 h-5 rounded-full flex items-center justify-center ${goal.isCompleted ? 'bg-green-500 text-white' : 'bg-gray-200 dark:bg-slate-700 text-gray-500'}`}>
+                      {goal.isCompleted ? <CheckCircle2 className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
+                    </div>
+                    <div className="flex-1">
+                      <p className={`text-sm font-medium ${goal.isCompleted ? 'text-gray-500 line-through' : 'text-gray-900 dark:text-white'}`}>{goal.label}</p>
+                      <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-1.5 mt-1">
+                        <div className="bg-blue-500 h-1.5 rounded-full" style={{ width: `${goal.progressPercent}%` }}></div>
+                      </div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        {goal.currentValue} / {goal.target_value} ({Math.round(goal.progressPercent)}%)
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {/* REMOVIDO: Bloco de mensagem de "Nenhuma meta semanal ativa" */}
+        </div>
+      )}
+      {activeTab === 'calendar' && user && user.role && (
+        <div className="animate-fade-in">
           <CalendarView
             userId={user.id}
             userRole={user.role}
@@ -359,100 +480,8 @@ const ConsultorDashboard = () => {
             showLeadMeetings={true}
             showGestorTasks={false} // Consultor não vê tarefas do gestor
           />
-        )}
-      </div>
-
-      {/* Minhas Tarefas */}
-      <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl shadow-sm flex flex-col mb-8">
-        <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700 flex items-center space-x-2 bg-blue-50 dark:bg-blue-900/20 rounded-t-xl">
-          <ListTodo className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-          <h2 className="text-lg font-semibold text-blue-800 dark:text-blue-300">Minhas Tarefas ({allConsultantTasks.length})</h2>
-        </div>
-        <div className="flex-1 p-0 overflow-y-auto max-h-80 custom-scrollbar">
-          {allConsultantTasks.length === 0 ? (
-            <div className="p-6 text-center text-gray-400">Nenhuma tarefa pendente.</div>
-          ) : (
-            <ul className="divide-y divide-gray-100 dark:divide-slate-700">
-              {allConsultantTasks.map((item) => (
-                <li key={item.id} className="p-4 hover:bg-blue-50 dark:hover:bg-blue-900/10 transition">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-900 dark:text-gray-200">{item.title}</p>
-                      <div className="flex flex-col sm:flex-row sm:items-center text-xs text-gray-500 dark:text-gray-400 mt-1 space-y-1 sm:space-y-0 sm:space-x-2">
-                        <span className="flex items-center"><User className="w-3 h-3 mr-1" /> Lead: <span className="font-semibold ml-1">{item.personName}</span></span>
-                        {item.dueDate && <span className="flex items-center"><Calendar className="w-3 h-3 mr-1" /> Vence: {new Date(item.dueDate + 'T00:00:00').toLocaleDateString()}</span>}
-                      </div>
-                    </div>
-                    <Link to={`/consultor/crm`} className="text-brand-600 hover:text-brand-700 text-sm font-medium flex-shrink-0">Ver Lead <ChevronRight className="w-4 h-4 inline ml-1" /></Link>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
-
-      {/* Próximas Reuniões */}
-      <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl shadow-sm flex flex-col mb-8">
-        <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700 flex items-center space-x-2 bg-green-50 dark:bg-green-900/20 rounded-t-xl">
-          <CalendarCheck className="w-5 h-5 text-green-600 dark:text-green-400" />
-          <h2 className="text-lg font-semibold text-green-800 dark:text-green-300">Próximas Reuniões ({upcomingMeetings.length})</h2>
-        </div>
-        <div className="flex-1 p-0 overflow-y-auto max-h-80 custom-scrollbar">
-          {upcomingMeetings.length === 0 ? (
-            <div className="p-6 text-center text-gray-400">Nenhuma reunião futura agendada.</div>
-          ) : (
-            <ul className="divide-y divide-gray-100 dark:divide-slate-700">
-              {upcomingMeetings.map((item) => (
-                <li key={item.id} className="p-4 hover:bg-green-50 dark:hover:bg-green-900/10 transition">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-900 dark:text-gray-200">{item.title}</p>
-                      <div className="flex flex-col sm:flex-row sm:items-center text-xs text-gray-500 dark:text-gray-400 mt-1 space-y-1 sm:space-y-0 sm:space-x-2">
-                        <span className="flex items-center"><User className="w-3 h-3 mr-1" /> Lead: <span className="font-semibold ml-1">{item.personName}</span></span>
-                        <span className="flex items-center"><Calendar className="w-3 h-3 mr-1" /> {new Date(item.dueDate + 'T00:00:00').toLocaleDateString()}</span>
-                        <span className="flex items-center"><Clock className="w-3 h-3 mr-1" /> {item.meetingDetails?.startTime} - {item.meetingDetails?.endTime}</span>
-                      </div>
-                    </div>
-                    <Link to={`/consultor/crm`} className="text-brand-600 hover:text-brand-700 text-sm font-medium flex-shrink-0">Ver Lead <ChevronRight className="w-4 h-4 inline ml-1" /></Link>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
-
-      {/* Weekly Goals */}
-      {activeWeeklyTarget && weeklyGoalsProgress.length > 0 && (
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm mb-8">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center"><Target className="w-5 h-5 mr-2 text-green-500" />Metas da Semana ({activeWeeklyTarget.title})</h2>
-            <span className="text-sm text-gray-500 dark:text-gray-400">
-              {new Date(activeWeeklyTarget.week_start).toLocaleDateString()} - {new Date(activeWeeklyTarget.week_end).toLocaleDateString()}
-            </span>
-          </div>
-          <div className="space-y-4">
-            {weeklyGoalsProgress.map(goal => (
-              <div key={goal.id} className="flex items-center space-x-3">
-                <div className={`w-5 h-5 rounded-full flex items-center justify-center ${goal.isCompleted ? 'bg-green-500 text-white' : 'bg-gray-200 dark:bg-slate-700 text-gray-500'}`}>
-                  {goal.isCompleted ? <CheckCircle2 className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
-                </div>
-                <div className="flex-1">
-                  <p className={`text-sm font-medium ${goal.isCompleted ? 'text-gray-500 line-through' : 'text-gray-900 dark:text-white'}`}>{goal.label}</p>
-                  <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-1.5 mt-1">
-                    <div className="bg-blue-500 h-1.5 rounded-full" style={{ width: `${goal.progressPercent}%` }}></div>
-                  </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    {goal.currentValue} / {goal.target_value} ({Math.round(goal.progressPercent)}%)
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
         </div>
       )}
-      {/* REMOVIDO: Bloco de mensagem de "Nenhuma meta semanal ativa" */}
     </div>
   );
 };

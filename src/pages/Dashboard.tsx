@@ -56,6 +56,7 @@ export const Dashboard = () => {
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [isPendingTasksModalOpen, setIsPendingTasksModalOpen] = useState(false);
   const [isNotificationCenterOpen, setIsNotificationCenterOpen] = useState(false); // State for NotificationCenter
+  const [activeTab, setActiveTab] = useState<'overview' | 'calendar'>('overview'); // NOVO: Estado para controlar a aba ativa
 
   // NOVO: Estados para o filtro de data dos candidatos
   const [filterStartDate, setFilterStartDate] = useState('');
@@ -418,289 +419,324 @@ export const Dashboard = () => {
         </div>
       </div>
 
-      {/* Seção de Métricas Comerciais */}
-      <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center"><TrendingUp className="w-5 h-5 mr-2 text-brand-500" />Métricas Comerciais (Mês Atual)</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
-          <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-            <Users className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-          </div>
-          <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Total de Leads</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{totalCrmLeads}</p>
-          </div>
-        </div>
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
-          <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
-            <Plus className="w-6 h-6 text-green-600 dark:text-green-400" />
-          </div>
-          <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Novos Leads (Mês)</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{newLeadsThisMonth}</p>
-          </div>
-        </div>
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
-          <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
-            <Calendar className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
-          </div>
-          <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Reuniões Agendadas (Mês)</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{meetingsThisMonth}</p>
-          </div>
-        </div>
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
-          <div className="p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg">
-            <Send className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
-          </div>
-          <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Valor Propostas (Mês)</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatCurrency(proposalValueThisMonth)}</p>
-          </div>
-        </div>
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
-          <div className="p-3 bg-teal-50 dark:bg-teal-900/20 rounded-lg">
-            <DollarSign className="w-6 h-6 text-teal-600 dark:text-teal-400" />
-          </div>
-          <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Valor Vendido (Mês)</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatCurrency(soldValueThisMonth)}</p>
-          </div>
-        </div>
-        {/* NOVO CARD: Tarefas Pendentes - Agora clicável */}
-        <button 
-          onClick={() => setIsPendingTasksModalOpen(true)}
-          className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition cursor-pointer"
+      {/* Tabs */}
+      <div className="flex border-b border-gray-200 dark:border-slate-700 mb-6">
+        <button
+          onClick={() => setActiveTab('overview')}
+          className={`flex items-center space-x-2 px-4 py-3 font-medium text-sm transition-colors ${
+            activeTab === 'overview'
+              ? 'border-b-2 border-brand-500 text-brand-600 dark:text-brand-400'
+              : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+          }`}
         >
-          <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
-            <ListTodo className="w-6 h-6 text-red-600 dark:text-red-400" />
-          </div>
-          <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Tarefas de Lead Pendentes</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{pendingLeadTasks.length}</p>
-          </div>
+          <TrendingUp className="w-4 h-4" />
+          <span>Visão Geral</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('calendar')}
+          className={`flex items-center space-x-2 px-4 py-3 font-medium text-sm transition-colors ${
+            activeTab === 'calendar'
+              ? 'border-b-2 border-brand-500 text-brand-600 dark:text-brand-400'
+              : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+          }`}
+        >
+          <Calendar className="w-4 h-4" />
+          <span>Agenda</span>
         </button>
       </div>
 
-      {/* Seção de Métricas de Contratação */}
-      <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center"><User className="w-5 h-5 mr-2 text-brand-500" />Métricas de Contratação</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
-          <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-            <User className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-          </div>
-          <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Total Candidatos</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{totalCandidates}</p>
-          </div>
+      {isDataLoading ? (
+        <div className="flex items-center justify-center min-h-[calc(100vh-theme(spacing.16))]">
+          <Loader2 className="w-12 h-12 text-brand-500 animate-spin" />
         </div>
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
-          <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
-            <CheckCircle2 className="w-6 h-6 text-green-600 dark:text-green-400" />
-          </div>
-          <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Autorizados</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{authorized}</p>
-          </div>
-        </div>
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
-          <div className="p-3 bg-orange-50 dark:bg-brand-900/20 rounded-lg">
-            <TrendingUp className="w-6 h-6 text-brand-600 dark:text-brand-400" />
-          </div>
-          <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Prévias</p> {/* Alterado de 'Em Treinamento' para 'Prévias' */}
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{previas}</p> {/* Usando a nova contagem */}
-          </div>
-        </div>
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
-          <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-            <Users className="w-6 h-6 text-purple-600 dark:text-purple-400" />
-          </div>
-          <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Equipe Ativa</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{activeTeam}</p>
-          </div>
-        </div>
-      </div>
+      ) : (
+        <>
+          {activeTab === 'overview' && (
+            <div className="animate-fade-in">
+              {/* Seção de Métricas Comerciais */}
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center"><TrendingUp className="w-5 h-5 mr-2 text-brand-500" />Métricas Comerciais (Mês Atual)</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
+                  <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                    <Users className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Total de Leads</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{totalCrmLeads}</p>
+                  </div>
+                </div>
+                <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
+                  <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                    <Plus className="w-6 h-6 text-green-600 dark:text-green-400" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Novos Leads (Mês)</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{newLeadsThisMonth}</p>
+                  </div>
+                </div>
+                <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
+                  <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+                    <Calendar className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Reuniões Agendadas (Mês)</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{meetingsThisMonth}</p>
+                  </div>
+                </div>
+                <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
+                  <div className="p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg">
+                    <Send className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Valor Propostas (Mês)</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatCurrency(proposalValueThisMonth)}</p>
+                  </div>
+                </div>
+                <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
+                  <div className="p-3 bg-teal-50 dark:bg-teal-900/20 rounded-lg">
+                    <DollarSign className="w-6 h-6 text-teal-600 dark:text-teal-400" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Valor Vendido (Mês)</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatCurrency(soldValueThisMonth)}</p>
+                  </div>
+                </div>
+                {/* NOVO CARD: Tarefas Pendentes - Agora clicável */}
+                <button 
+                  onClick={() => setIsPendingTasksModalOpen(true)}
+                  className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition cursor-pointer"
+                >
+                  <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                    <ListTodo className="w-6 h-6 text-red-600 dark:text-red-400" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Tarefas de Lead Pendentes</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{pendingLeadTasks.length}</p>
+                  </div>
+                </button>
+              </div>
 
-      {/* Meeting Invitations Section */}
-      {user?.role === 'GESTOR' && meetingInvitations.length > 0 && (
-        <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl shadow-sm flex flex-col mb-8">
-          <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700 flex items-center space-x-2 bg-purple-50 dark:bg-purple-900/20 rounded-t-xl">
-            <BellRing className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-            <h2 className="text-lg font-semibold text-purple-800 dark:text-purple-300">Convites de Reunião</h2>
-            <span className="bg-purple-200 dark:bg-purple-800 text-purple-800 dark:text-purple-100 text-xs font-bold px-2 py-0.5 rounded-full">{meetingInvitations.length}</span>
-          </div>
-          <div className="flex-1 p-0 overflow-y-auto max-h-80 custom-scrollbar">
-            <ul className="divide-y divide-gray-100 dark:divide-slate-700">
-              {meetingInvitations.map((item) => (
-                <li key={item.id} onClick={() => handleAgendaItemClick(item)} className="p-4 hover:bg-purple-50 dark:hover:bg-purple-900/10 cursor-pointer transition">
-                  <div className="flex items-start justify-between flex-col sm:flex-row">
+              {/* Seção de Métricas de Contratação */}
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center"><User className="w-5 h-5 mr-2 text-brand-500" />Métricas de Contratação</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
+                  <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                    <User className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Total Candidatos</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{totalCandidates}</p>
+                  </div>
+                </div>
+                <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
+                  <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                    <CheckCircle2 className="w-6 h-6 text-green-600 dark:text-green-400" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Autorizados</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{authorized}</p>
+                  </div>
+                </div>
+                <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
+                  <div className="p-3 bg-orange-50 dark:bg-brand-900/20 rounded-lg">
+                    <TrendingUp className="w-6 h-6 text-brand-600 dark:text-brand-400" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Prévias</p> {/* Alterado de 'Em Treinamento' para 'Prévias' */}
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{previas}</p> {/* Usando a nova contagem */}
+                  </div>
+                </div>
+                <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
+                  <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                    <Users className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Equipe Ativa</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{activeTeam}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Meeting Invitations Section */}
+              {user?.role === 'GESTOR' && meetingInvitations.length > 0 && (
+                <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl shadow-sm flex flex-col mb-8">
+                  <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700 flex items-center space-x-2 bg-purple-50 dark:bg-purple-900/20 rounded-t-xl">
+                    <BellRing className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                    <h2 className="text-lg font-semibold text-purple-800 dark:text-purple-300">Convites de Reunião</h2>
+                    <span className="bg-purple-200 dark:bg-purple-800 text-purple-800 dark:text-purple-100 text-xs font-bold px-2 py-0.5 rounded-full">{meetingInvitations.length}</span>
+                  </div>
+                  <div className="flex-1 p-0 overflow-y-auto max-h-80 custom-scrollbar">
+                    <ul className="divide-y divide-gray-100 dark:divide-slate-700">
+                      {meetingInvitations.map((item) => (
+                        <li key={item.id} onClick={() => handleAgendaItemClick(item)} className="p-4 hover:bg-purple-50 dark:hover:bg-purple-900/10 cursor-pointer transition">
+                          <div className="flex items-start justify-between flex-col sm:flex-row">
+                            <div>
+                              <p className="text-sm font-medium text-gray-900 dark:text-gray-200">{item.title}</p>
+                              <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 mt-1 space-x-2 flex-wrap">
+                                <span className="flex items-center"><UserRound className="w-3 h-3 mr-1" /> Consultor: <span className="font-semibold ml-1">{item.meetingDetails?.consultantName}</span></span>
+                                <span className="flex items-center"><Calendar className="w-3 h-3 mr-1" /> {new Date(item.dueDate + 'T00:00:00').toLocaleDateString()}</span>
+                                <span className="flex items-center"><Clock className="w-3 h-3 mr-1" /> {item.meetingDetails?.startTime} - {item.meetingDetails?.endTime}</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-2 mt-2 sm:mt-0 flex-wrap justify-end">
+                              <button
+                                onClick={() => handleInvitationResponse(item.meetingDetails!.taskId, 'accepted', item.meetingDetails)}
+                                className="px-3 py-1.5 bg-green-500 text-white rounded-md text-xs font-medium hover:bg-green-600 flex items-center space-x-1"
+                              >
+                                <CheckCircle2 className="w-4 h-4" />
+                                <span>Aceitar</span>
+                              </button>
+                              <button
+                                onClick={() => handleInvitationResponse(item.meetingDetails!.taskId, 'declined', item.meetingDetails)}
+                                className="px-3 py-1.5 bg-red-500 text-white rounded-md text-xs font-medium hover:bg-red-600 flex items-center space-x-1"
+                              >
+                                <XCircle className="w-4 h-4" />
+                                <span>Recusar</span>
+                              </button>
+                            </div>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              )}
+
+              {/* Minhas Tarefas Pessoais (Gestor) */}
+              <div className="mb-8">
+                <GestorTasksSection key={`${gestorTasks.length}-${gestorTaskCompletions.length}`} /> {/* Added key */}
+              </div>
+
+              {/* Todos os Candidatos */}
+              <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700 flex flex-col sm:flex-row justify-between items-start sm:items-center">
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Todos os Candidatos</h2>
+                  <button
+                    onClick={() => setIsScheduleModalOpen(true)}
+                    className="text-sm text-brand-600 dark:text-brand-400 font-medium hover:text-brand-700 dark:hover:text-brand-300 mt-2 sm:mt-0"
+                  >
+                    + Agendar Entrevista
+                  </button>
+                </div>
+
+                {/* NOVO: Filtros de Data para Candidatos */}
+                <div className="p-6 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
+                  <div className="flex items-center justify-between flex-col sm:flex-row mb-4">
+                    <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 flex items-center uppercase tracking-wide"><Filter className="w-4 h-4 mr-2" />Filtrar Candidatos por Data de Criação</h3>
+                    {hasActiveCandidateFilters && (
+                      <button onClick={clearCandidateFilters} className="text-xs flex items-center text-red-500 hover:text-red-700 transition mt-2 sm:mt-0">
+                        <RotateCcw className="w-3 h-3 mr-1" />Limpar Filtros
+                      </button>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <p className="text-sm font-medium text-gray-900 dark:text-gray-200">{item.title}</p>
-                      <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 mt-1 space-x-2 flex-wrap">
-                        <span className="flex items-center"><UserRound className="w-3 h-3 mr-1" /> Consultor: <span className="font-semibold ml-1">{item.meetingDetails?.consultantName}</span></span>
-                        <span className="flex items-center"><Calendar className="w-3 h-3 mr-1" /> {new Date(item.dueDate + 'T00:00:00').toLocaleDateString()}</span>
-                        <span className="flex items-center"><Clock className="w-3 h-3 mr-1" /> {item.meetingDetails?.startTime} - {item.meetingDetails?.endTime}</span>
-                      </div>
+                      <label htmlFor="candidateFilterStartDate" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">De</label>
+                      <input
+                        type="date"
+                        id="candidateFilterStartDate"
+                        value={filterStartDate}
+                        onChange={(e) => setFilterStartDate(e.target.value)}
+                        className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2.5 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500"
+                      />
                     </div>
-                    <div className="flex items-center space-x-2 mt-2 sm:mt-0 flex-wrap justify-end">
-                      <button
-                        onClick={() => handleInvitationResponse(item.meetingDetails!.taskId, 'accepted', item.meetingDetails)}
-                        className="px-3 py-1.5 bg-green-500 text-white rounded-md text-xs font-medium hover:bg-green-600 flex items-center space-x-1"
-                      >
-                        <CheckCircle2 className="w-4 h-4" />
-                        <span>Aceitar</span>
-                      </button>
-                      <button
-                        onClick={() => handleInvitationResponse(item.meetingDetails!.taskId, 'declined', item.meetingDetails)}
-                        className="px-3 py-1.5 bg-red-500 text-white rounded-md text-xs font-medium hover:bg-red-600 flex items-center space-x-1"
-                      >
-                        <XCircle className="w-4 h-4" />
-                        <span>Recusar</span>
-                      </button>
+                    <div>
+                      <label htmlFor="candidateFilterEndDate" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Até</label>
+                      <input
+                        type="date"
+                        id="candidateFilterEndDate"
+                        value={filterEndDate}
+                        onChange={(e) => setFilterEndDate(e.target.value)}
+                        className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2.5 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500"
+                      />
                     </div>
                   </div>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      )}
+                </div>
 
-      {/* Agenda Section */}
-      <div className="mb-8">
-        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center"><Calendar className="w-5 h-5 mr-2 text-brand-500" />Agenda Semanal</h2>
-        {user && user.role && (
-          <CalendarView
-            userId={user.id}
-            userRole={user.role}
-            showPersonalEvents={false} // Gestor não tem eventos pessoais aqui, apenas tarefas
-            showLeadMeetings={true}
-            showGestorTasks={true}
-          />
-        )}
-      </div>
-
-      {/* Minhas Tarefas Pessoais (Gestor) */}
-      <div className="mb-8">
-        <GestorTasksSection key={`${gestorTasks.length}-${gestorTaskCompletions.length}`} /> {/* Added key */}
-      </div>
-
-      {/* Todos os Candidatos */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700 flex flex-col sm:flex-row justify-between items-start sm:items-center">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Todos os Candidatos</h2>
-          <button
-            onClick={() => setIsScheduleModalOpen(true)}
-            className="text-sm text-brand-600 dark:text-brand-400 font-medium hover:text-brand-700 dark:hover:text-brand-300 mt-2 sm:mt-0"
-          >
-            + Agendar Entrevista
-          </button>
-        </div>
-
-        {/* NOVO: Filtros de Data para Candidatos */}
-        <div className="p-6 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
-          <div className="flex items-center justify-between flex-col sm:flex-row mb-4">
-            <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 flex items-center uppercase tracking-wide"><Filter className="w-4 h-4 mr-2" />Filtrar Candidatos por Data de Criação</h3>
-            {hasActiveCandidateFilters && (
-              <button onClick={clearCandidateFilters} className="text-xs flex items-center text-red-500 hover:text-red-700 transition mt-2 sm:mt-0">
-                <RotateCcw className="w-3 h-3 mr-1" />Limpar Filtros
-              </button>
-            )}
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="candidateFilterStartDate" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">De</label>
-              <input
-                type="date"
-                id="candidateFilterStartDate"
-                value={filterStartDate}
-                onChange={(e) => setFilterStartDate(e.target.value)}
-                className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2.5 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500"
-              />
-            </div>
-            <div>
-              <label htmlFor="candidateFilterEndDate" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Até</label>
-              <input
-                type="date"
-                id="candidateFilterEndDate"
-                value={filterEndDate}
-                onChange={(e) => setFilterEndDate(e.target.value)}
-                className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2.5 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500"
-              />
-            </div>
-          </div>
-        </div>
-
-        {isDataLoading ? (
-          <div className="p-6">
-            <TableSkeleton />
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300">
-              <thead className="bg-gray-50 dark:bg-slate-700/50 text-gray-900 dark:text-white font-medium">
-                <tr>
-                  <th className="px-6 py-3">Nome</th>
-                  <th className="px-6 py-3">Data Entrevista</th>
-                  <th className="px-6 py-3">Nota</th>
-                  <th className="px-6 py-3">Status</th>
-                  <th className="px-6 py-3"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
-                {candidatesForTable.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-8 text-center text-gray-400">
-                      Nenhum candidato cadastrado ainda.
-                    </td>
-                  </tr>
+                {isDataLoading ? (
+                  <div className="p-6">
+                    <TableSkeleton />
+                  </div>
                 ) : (
-                  candidatesForTable.map((c) => {
-                    const totalScore =
-                      c.interviewScores.basicProfile +
-                      c.interviewScores.commercialSkills +
-                      c.interviewScores.behavioralProfile +
-                      c.interviewScores.jobFit;
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300">
+                      <thead className="bg-gray-50 dark:bg-slate-700/50 text-gray-900 dark:text-white font-medium">
+                        <tr>
+                          <th className="px-6 py-3">Nome</th>
+                          <th className="px-6 py-3">Data Entrevista</th>
+                          <th className="px-6 py-3">Nota</th>
+                          <th className="px-6 py-3">Status</th>
+                          <th className="px-6 py-3"></th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
+                        {candidatesForTable.length === 0 ? (
+                          <tr>
+                            <td colSpan={5} className="px-6 py-8 text-center text-gray-400">
+                              Nenhum candidato cadastrado ainda.
+                            </td>
+                          </tr>
+                        ) : (
+                          candidatesForTable.map((c) => {
+                            const totalScore =
+                              c.interviewScores.basicProfile +
+                              c.interviewScores.commercialSkills +
+                              c.interviewScores.behavioralProfile +
+                              c.interviewScores.jobFit;
 
-                    return (
-                      <tr
-                        key={c.id}
-                        onClick={() => navigate(`/gestor/candidate/${c.id}`)}
-                        className="hover:bg-gray-50 dark:hover:bg-slate-700/50 cursor-pointer transition-colors"
-                      >
-                        <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">
-                          <div className="flex items-center space-x-3">
-                              <div className="w-8 h-8 rounded-full bg-brand-100 dark:bg-brand-900/40 flex items-center justify-center text-brand-700 dark:text-brand-400 font-bold text-xs">
-                                  {c.name.substring(0,2).toUpperCase()}
-                              </div>
-                              <span>{c.name}</span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 flex items-center space-x-2">
-                           <Calendar className="w-4 h-4 text-gray-400" />
-                           <span>{new Date(c.interviewDate + 'T00:00:00').toLocaleDateString()}</span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className={`font-bold ${totalScore > 0 ? (totalScore >= 70 ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400') : 'text-gray-400'}`}>
-                              {totalScore > 0 ? `${totalScore}/100` : 'Pendente'}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <StatusBadge status={c.status} />
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <ChevronRight className="w-5 h-5 text-gray-400" />
-                        </td>
-                      </tr>
-                    );
-                  })
+                            return (
+                              <tr
+                                key={c.id}
+                                onClick={() => navigate(`/gestor/candidate/${c.id}`)}
+                                className="hover:bg-gray-50 dark:hover:bg-slate-700/50 cursor-pointer transition-colors"
+                              >
+                                <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">
+                                  <div className="flex items-center space-x-3">
+                                      <div className="w-8 h-8 rounded-full bg-brand-100 dark:bg-brand-900/40 flex items-center justify-center text-brand-700 dark:text-brand-400 font-bold text-xs">
+                                          {c.name.substring(0,2).toUpperCase()}
+                                      </div>
+                                      <span>{c.name}</span>
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4 flex items-center space-x-2">
+                                   <Calendar className="w-4 h-4 text-gray-400" />
+                                   <span>{new Date(c.interviewDate + 'T00:00:00').toLocaleDateString()}</span>
+                                </td>
+                                <td className="px-6 py-4">
+                                  <span className={`font-bold ${totalScore > 0 ? (totalScore >= 70 ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400') : 'text-gray-400'}`}>
+                                      {totalScore > 0 ? `${totalScore}/100` : 'Pendente'}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-4">
+                                  <StatusBadge status={c.status} />
+                                </td>
+                                <td className="px-6 py-4 text-right">
+                                  <ChevronRight className="w-5 h-5 text-gray-400" />
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+              </div>
+            </div>
+          )}
+          {activeTab === 'calendar' && user && user.role && (
+            <div className="animate-fade-in">
+              <CalendarView
+                userId={user.id}
+                userRole={user.role}
+                showPersonalEvents={false} // Gestor não tem eventos pessoais aqui, apenas tarefas
+                showLeadMeetings={true}
+                showGestorTasks={true}
+              />
+            </div>
+          )}
+        </>
+      )}
       <ScheduleInterviewModal isOpen={isScheduleModalOpen} onClose={() => setIsScheduleModalOpen(false)} />
       {/* NOVO: Renderiza o modal de tarefas pendentes */}
       <PendingLeadTasksModal
@@ -713,3 +749,5 @@ export const Dashboard = () => {
     </div>
   );
 };
+
+export default Dashboard;
