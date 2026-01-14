@@ -195,20 +195,19 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           }
           const parsed = parseICS(data.text as string);
           parsed.forEach(ev => {
-            if (ev.end >= startIso && ev.start <= endIso) {
-              allGoogleEvents.push({
-                id: `google_${ev.start.getTime()}_${ev.title}_${Math.random().toString(36).slice(2)}`,
-                title: ev.title,
-                description: ev.description,
-                start: ev.start,
-                end: ev.end,
-                type: 'personal',
-                personName: user?.name || 'Eu',
-                personId: userId,
-                originalEvent: { title: ev.title, description: ev.description, start_time: ev.start.toISOString(), end_time: ev.end.toISOString() } as unknown as ConsultantEvent,
-                allDay: (ev.start.getHours() === 0 && ev.start.getMinutes() === 0) && (ev.end.getHours() === 23 || ev.end.getHours() === 0),
-              });
-            }
+            // Empurra todos os eventos; o grid filtra por período exibido (evita perdas por timezone)
+            allGoogleEvents.push({
+              id: `google_${ev.start.getTime()}_${ev.title}_${Math.random().toString(36).slice(2)}`,
+              title: ev.title,
+              description: ev.description,
+              start: ev.start,
+              end: ev.end,
+              type: 'personal',
+              personName: user?.name || 'Eu',
+              personId: userId,
+              originalEvent: { title: ev.title, description: ev.description, start_time: ev.start.toISOString(), end_time: ev.end.toISOString() } as unknown as ConsultantEvent,
+              allDay: (ev.start.getHours() === 0 && ev.start.getMinutes() === 0) && (ev.end.getHours() === 23 || ev.end.getHours() === 0),
+            });
           });
         }
 
