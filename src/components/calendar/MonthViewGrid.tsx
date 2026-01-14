@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { CalendarEvent, isSameDay } from './utils';
+import { CalendarEvent, isSameDay, formatTime } from './utils';
 import { Plus, Edit2, Trash2, CheckCircle2, XCircle, Clock, UserRound, MessageSquare, Users, ListChecks, ListTodo } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import toast from 'react-hot-toast';
@@ -10,7 +10,7 @@ interface MonthViewGridProps {
   eventsByDay: Record<string, CalendarEvent[]>;
   today: Date;
   currentMonth: Date;
-  onOpenEventModal: (date: Date, event?: CalendarEvent) => void;
+  onOpenEventModal: (date: Date, event?: CalendarEvent) => void; // Adicionado aqui
   onDeleteEvent: (eventId: string, eventType: CalendarEvent['type']) => void;
   onToggleGestorTaskCompletion: (task: GestorTask, date: Date) => void;
   userRole: 'GESTOR' | 'CONSULTOR' | 'ADMIN';
@@ -22,7 +22,7 @@ const MonthViewGrid: React.FC<MonthViewGridProps> = ({
   eventsByDay,
   today,
   currentMonth,
-  onOpenEventModal,
+  onOpenEventModal, // Desestruturado aqui
   onDeleteEvent,
   onToggleGestorTaskCompletion,
   userRole,
