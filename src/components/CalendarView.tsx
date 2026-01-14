@@ -5,74 +5,6 @@ import { useAuth } from '@/context/AuthContext';
 import { CrmLead, LeadTask, GestorTask, ConsultantEvent, TeamMember } from '@/types';
 import { EventModal } from './EventModal';
 import toast from 'react-hot-toast';
-import GoogleCalendarConnectModal from './calendar/GoogleCalendarConnectModal';
-import { Button } from '@/components/ui/button';
-import { supabase } from '@/integrations/supabase/client';
-
-// ADDED: ICS parser (leve e sem dependências extras)
-const parseICS = (icsText: string) => {
-  // Minimal iCal parser: returns events with start/end/summary/description
-  const events: { start: Date; end: Date; title: string; description?: string }[] = [];
-  const lines = icsText.split(/\r?\n/);
-  let current: Record<string, string> = {};
-  let inEvent = false;
-
-  const parseDate = (val: string) => {
-    // Supports formats like 20240114T140000Z or local times without Z
-    const z = val.endsWith('Z');
-    const year = parseInt(val.slice(0,4),10);
-    const month = parseInt(val.slice(4,6),10)-1;
-    const day = parseInt(val.slice(6,8),10);
-    const hour = parseInt(val.slice(9,11)||'0',10);
-    const min = parseInt(val.slice(11,13)||'0',10);
-    const sec = parseInt(val.slice(13,15)||'0',10);
-    const d = new Date(Date.UTC(year, month, day, hour, min, sec));
-    if (!z) {
-      // treat as local by adjusting timezone
-      const local = new Date(year, month, day, hour, min, sec);
-      return local;
-    }
-    return d;
-  };
-
-  lines.forEach(line => {
-    if (line.startsWith('BEGIN:VEVENT')) {
-      inEvent = true;
-      current = {};
-    } else if (line.startsWith('END:VEVENT')) {
-      inEvent = false;
-      const startRaw = current['DTSTART'] || current['DTSTART;TZID'] || '';
-      const endRaw = current['DTEND'] || current['DTEND;TZID'] || '';
-      const summary = current['SUMMARY'] || 'Evento';
-      const desc = current['DESCRIPTION'] || undefined;
-      if (startRaw && endRaw) {
-        const start = parseDate(startRaw.replace(/^.*:/, ''));
-        const end = parseDate(endRaw.replace(/^.*:/, ''));
-        if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
-          events.push({ start, end, title: summary, description: desc });
-        }
-      }
-      current = {};
-    } else if (inEvent) {
-      // Handle folded lines (continuations start with space)
-      if (line.startsWith(' ')) {
-        // continuation: append to last key
-        const lastKey = Object.keys(current)[Object.keys(current).length - 1];
-        current[lastKey] = (current[lastKey] || '') + line.trim();
-      } else {
-        const idx = line.indexOf(':');
-        if (idx > -1) {
-          const keyPart = line.slice(0, idx);
-          const valPart = line.slice(idx + 1);
-          const key = keyPart.split(';')[0]; // strip parameters
-          current[key] = valPart;
-        }
-      }
-    }
-  });
-
-  return events;
-};
 
 // Importar os novos componentes de visualização
 import DayViewGrid from './calendar/DayViewGrid';
@@ -131,19 +63,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
   const [selectedDateForNewEvent, setSelectedDateForNewEvent] = useState<Date | null>(null);
 
-  // NOVO: Integração Google via ICS
-  const [googleCalendarUrls, setGoogleCalendarUrls] = useState<string[]>(() => {
-    try {
-      const raw = localStorage.getItem('google_calendar_urls') || '[]';
-      const arr = JSON.parse(raw);
-      return Array.isArray(arr) ? arr : [];
-    } catch {
-      return [];
-    }
-  });
-  const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
-  const [googleEventsByDay, setGoogleEventsByDay] = useState<Record<string, CalendarEvent[]>>({});
-  const [isFetchingGoogle, setIsFetchingGoogle] = useState(false);
+  // Integração externa removida: agenda funciona apenas internamente
 
   // Efeito para atualizar 'today' a cada minuto
   useEffect(() => {
@@ -162,77 +82,6 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       }
     }
   }, [highlightedDate]);
-
-  // Fetch ICS Google events for displayed range (via Edge Function para evitar CORS)
-  useEffect(() => {
-    const fetchIcsForRange = async () => {
-      if (googleCalendarUrls.length === 0) {
-        setGoogleEventsByDay({});
-        return;
-      }
-      setIsFetchingGoogle(true);
-      try {
-        const days =
-          view === 'day'
-            ? [currentDate]
-            : view === 'week'
-            ? getWeekDays(currentDate)
-            : getDaysInMonth(currentDate);
-
-        const start = days[0];
-        const end = days[days.length - 1];
-        const startIso = new Date(start.getFullYear(), start.getMonth(), start.getDate(), 0, 0, 0);
-        const endIso = new Date(end.getFullYear(), end.getMonth(), end.getDate(), 23, 59, 59);
-
-        const allGoogleEvents: CalendarEvent[] = [];
-
-        // Baixar cada ICS via Edge Function e parsear
-        for (const url of googleCalendarUrls) {
-          const { data, error } = await supabase.functions.invoke('fetch-ics', { body: { url } });
-          if (error || !data?.text) {
-            toast.error('Falha ao carregar ICS do Google. Verifique o URL (público ou endereço secreto).');
-            continue;
-          }
-          const parsed = parseICS(data.text as string);
-          parsed.forEach(ev => {
-            // Empurra todos os eventos; o grid filtra por período exibido (evita perdas por timezone)
-            allGoogleEvents.push({
-              id: `google_${ev.start.getTime()}_${ev.title}_${Math.random().toString(36).slice(2)}`,
-              title: ev.title,
-              description: ev.description,
-              start: ev.start,
-              end: ev.end,
-              type: 'personal',
-              personName: user?.name || 'Eu',
-              personId: userId,
-              originalEvent: { title: ev.title, description: ev.description, start_time: ev.start.toISOString(), end_time: ev.end.toISOString() } as unknown as ConsultantEvent,
-              allDay: (ev.start.getHours() === 0 && ev.start.getMinutes() === 0) && (ev.end.getHours() === 23 || ev.end.getHours() === 0),
-            });
-          });
-        }
-
-        const map: Record<string, CalendarEvent[]> = {};
-        days.forEach(day => {
-          const dayStr = day.toISOString().split('T')[0];
-          map[dayStr] = allGoogleEvents
-            .filter(ev => {
-              const s = ev.start.toISOString().split('T')[0];
-              const e = ev.end.toISOString().split('T')[0];
-              return s <= dayStr && e >= dayStr;
-            })
-            .sort((a, b) => a.start.getTime() - b.start.getTime());
-        });
-
-        setGoogleEventsByDay(map);
-      } catch (e) {
-        console.error('[CalendarView] Falha ao carregar ICS:', e);
-        toast.error('Falha ao carregar eventos do Google (ICS).');
-      } finally {
-        setIsFetchingGoogle(false);
-      }
-    };
-    fetchIcsForRange();
-  }, [googleCalendarUrls, view, currentDate, user?.name, userId]);
 
   const displayedDays = useMemo(() => {
     if (view === 'day') {
@@ -272,13 +121,6 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         });
       });
     }
-
-    // 1.1 Eventos do Google (ICS) — se URLs estiverem conectados, sempre mostra
-    displayedDays.forEach(day => {
-      const dayStr = day.toISOString().split('T')[0];
-      const dayGoogleEvents = googleEventsByDay[dayStr] || [];
-      dayGoogleEvents.forEach(ev => events.push(ev));
-    });
 
     // 2. Reuniões de Leads (para gestores e consultores)
     if (showLeadMeetings) {
@@ -414,8 +256,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   }, [
     userId, userRole, showPersonalEvents, showLeadMeetings, showGestorTasks,
     consultantEvents, leadTasks, crmLeads, teamMembers, gestorTasks, gestorTaskCompletions,
-    displayedDays, isGestorTaskDueOnDate, dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions, user?.name, user?.email,
-    googleEventsByDay
+    displayedDays, isGestorTaskDueOnDate, dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions, user?.name, user?.email
   ]);
 
   const eventsByDay = useMemo(() => {
@@ -434,15 +275,6 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     });
     return map;
   }, [allEvents, displayedDays]);
-
-  // NOVO: contador de eventos do Google no intervalo atual
-  const googleRangeEventsCount = useMemo(() => {
-    return displayedDays.reduce((sum, day) => {
-      const dayStr = day.toISOString().split('T')[0];
-      const dayGoogleEvents = googleEventsByDay[dayStr] || [];
-      return sum + dayGoogleEvents.length;
-    }, 0);
-  }, [googleEventsByDay, displayedDays]);
 
   const navigateDate = (offset: number, unit: 'day' | 'week' | 'month') => {
     setCurrentDate(prevDate => {
@@ -555,7 +387,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   return (
     <div className="flex flex-col h-full">
       {/* Header de Navegação */}
-      <div className="flex items-center justify-between mb-2 bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700">
+      <div className="flex items-center justify-between mb-6 bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700">
         <button onClick={() => navigateDate(-1, view)} className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-600 dark:text-gray-300">
           <ChevronLeft className="w-5 h-5" />
         </button>
@@ -565,41 +397,13 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           {view === 'month' && currentDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
         </h2>
         <div className="flex items-center gap-3">
-          <Button type="button" onClick={() => setIsConnectModalOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white text-sm px-3 py-2">
-            Conectar Google Agenda
-          </Button>
           <button onClick={() => navigateDate(1, view)} className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-600 dark:text-gray-300">
             <ChevronRight className="w-5 h-5" />
           </button>
         </div>
       </div>
 
-      {/* NOVO: Indicador de estado do Google Agenda */}
-      {googleCalendarUrls.length > 0 && (
-        <div className="px-4 mb-4 text-xs text-gray-600 dark:text-gray-300">
-          <div className="inline-flex items-center gap-2 bg-gray-50 dark:bg-slate-800/40 border border-gray-200 dark:border-slate-700 rounded-md px-3 py-2">
-            <CalendarDays className="w-4 h-4" />
-            <span>Google Agenda conectado: {googleCalendarUrls.length} calendário(s).</span>
-            <span className="ml-2">
-              {googleRangeEventsCount > 0
-                ? `${googleRangeEventsCount} evento(s) no período exibido.`
-                : 'Nenhum evento no período selecionado.'}
-            </span>
-          </div>
-        </div>
-      )}
-
-      {/* Renderização do Grid de Calendário */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar">
-        {view === 'month' && (
-          <div className="grid grid-cols-7 text-center text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
-            {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(dayName => (
-              <div key={dayName} className="p-2">{dayName}</div>
-            ))}
-          </div>
-        )}
-        {renderCalendarGrid()}
-      </div>
+      {/* Integração externa removida — agenda funciona apenas com dados internos */}
 
       {isEventModalOpen && (
         <EventModal
@@ -611,23 +415,6 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           userId={userId}
         />
       )}
-
-      {/* Modal de conexão do Google Agenda (ICS) */}
-      {isConnectModalOpen && (
-        <GoogleCalendarConnectModal
-          isOpen={isConnectModalOpen}
-          onClose={() => setIsConnectModalOpen(false)}
-          urls={googleCalendarUrls}
-          onSave={(next) => {
-            setGoogleCalendarUrls(next);
-            localStorage.setItem('google_calendar_urls', JSON.stringify(next));
-            toast.success('Google Agenda conectado!');
-          }}
-        />
-      )}
-
-      {/* Opcional: mensagem de carregamento */}
-      {isFetchingGoogle && <p className="text-xs text-gray-500 dark:text-gray-400 px-4">Carregando eventos do Google (ICS)...</p>}
     </div>
   );
 };
