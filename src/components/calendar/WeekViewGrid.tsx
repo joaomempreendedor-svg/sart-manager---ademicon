@@ -231,7 +231,7 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
         {/* Time Column */}
         <div className="w-16 flex-shrink-0 border-r border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800">
           <div className="h-16 border-b border-gray-200 dark:border-slate-700"></div> {/* Corner for day headers */}
-          <div className="relative h-[1440px]"> {/* 24 hours * 60 minutes = 1440px height */}
+          <div className="relative h-[1440px]"> {/* 24 hours * 60 minutes = 1440pxpx height */}
             {Array.from({ length: 24 }).map((_, hour) => (
               <div 
                 key={hour} 
@@ -320,13 +320,13 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
                   {positionedTimedEvents.map(event => (
                     <div
                       key={event.id}
-                      className={`absolute p-1 rounded-lg shadow-sm border ${getEventColorClass(event.type)} group overflow-hidden z-10 flex flex-col min-h-[50px]`}
+                      className={`absolute p-1 rounded-lg shadow-sm border ${getEventColorClass(event.type)} group overflow-hidden z-10 flex flex-col min-h-[64px]`}
                       style={{ top: `${event.top}%`, height: `${event.height}%`, left: `${event.left}%`, width: `${event.width}%` }}
                     >
                       <div className="flex-1 min-h-0 overflow-hidden flex flex-col gap-1"> {/* Content area */}
-                        <div className="flex items-center text-xs font-medium">
+                        <div className="flex items-start text-xs font-medium">
                           {getEventIcon(event.type)}
-                          <span className="line-clamp-2" title={event.title}>{event.title}</span>
+                          <span className="flex-1 line-clamp-2" title={event.title}>{event.title}</span>
                         </div>
                         <p className="text-xs text-gray-600 dark:text-gray-400 flex items-center" title={`${formatTime(event.start)} - ${formatTime(event.end)}`}>
                           <Clock className="w-3 h-3 mr-1 flex-shrink-0" /> {formatTime(event.start)} - {formatTime(event.end)}
