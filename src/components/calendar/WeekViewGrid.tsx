@@ -63,10 +63,12 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
       const columns: { end: number; events: (CalendarEvent & { top: number; height: number; left: number; width: number; })[] }[] = [];
       
       result[dayStr] = timedEvents.map(event => {
-        const startMinutes = event.start.getHours() * 60 + event.start.getMinutes();
-        const endMinutes = event.end.getHours() * 60 + event.end.getMinutes();
+        const dayStart = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 0, 0, 0, 0);
+        const startMinutes = Math.max(0, Math.round((event.start.getTime() - dayStart.getTime()) / 60000));
+        const endMinutesRaw = Math.round((event.end.getTime() - dayStart.getTime()) / 60000);
+        const endMinutes = Math.min(1440, Math.max(startMinutes, endMinutesRaw));
         const top = startMinutes; // 1px por minuto
-        const height = endMinutes - startMinutes; // altura em pixels
+        const height = Math.max(1, endMinutes - startMinutes); // altura em pixels
 
         let columnIndex = 0;
         while (columnIndex < columns.length && columns[columnIndex].end > startMinutes) {
