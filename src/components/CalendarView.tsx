@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, Plus, CalendarDays, Clock, UserRound, MessageSquare, Tag, XCircle, Edit2, Trash2, Users } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, CalendarDays, Clock, UserRound, MessageSquare, Tag, XCircle, Edit2, Trash2, Users, CheckCircle2 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { CrmLead, LeadTask, GestorTask, ConsultantEvent, TeamMember } from '@/types';
