@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Plus, CalendarDays, Clock, UserRound, MessageSquare, Users } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, CalendarDays, Clock, UserRound, MessageSquare, Users, ListChecks, ListTodo } from 'lucide-react'; // Adicionado ListChecks e ListTodo
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { CrmLead, LeadTask, GestorTask, ConsultantEvent, TeamMember } from '@/types';
@@ -11,19 +11,7 @@ import DayViewGrid from './calendar/DayViewGrid';
 import WeekViewGrid from './calendar/WeekViewGrid';
 import MonthViewGrid from './calendar/MonthViewGrid';
 import { getDaysInMonth, getWeekDays, isSameDay, formatTime } from './calendar/utils'; // Importar utilitários
-
-export interface CalendarEvent {
-  id: string;
-  title: string;
-  description?: string;
-  start: Date;
-  end: Date;
-  type: 'personal' | 'meeting' | 'gestor_task';
-  personName?: string;
-  personId?: string;
-  originalEvent?: LeadTask | GestorTask | ConsultantEvent;
-  allDay?: boolean; // NOVO: Indica se é um evento de dia inteiro
-}
+import { CalendarEvent } from './calendar/utils'; // Importar CalendarEvent do utils
 
 interface CalendarViewProps {
   userId: string;
@@ -49,6 +37,10 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     gestorTaskCompletions,
     consultantEvents,
     teamMembers,
+    dailyChecklists, // NOVO: Adicionado para daily checklists
+    dailyChecklistItems, // NOVO: Adicionado para daily checklists
+    dailyChecklistAssignments, // NOVO: Adicionado para daily checklists
+    dailyChecklistCompletions, // NOVO: Adicionado para daily checklists
     addConsultantEvent,
     updateConsultantEvent,
     deleteConsultantEvent,
@@ -100,6 +92,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           start,
           end,
           type: 'personal',
+          personName: user?.name || 'Eu',
+          personId: userId,
           originalEvent: event,
           allDay,
         });
@@ -140,10 +134,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     // 3. Tarefas Pessoais do Gestor (se aplicável)
     if (showGestorTasks && (userRole === 'GESTOR' || userRole === 'ADMIN')) {
       gestorTasks.filter(task => task.user_id === userId).forEach(task => {
-        const taskDueDate = task.due_date ? new Date(task.due_date + 'T00:00:00') : null;
-        const isRecurring = task.recurrence_pattern && task.recurrence_pattern.type !== 'none';
-        
-        // Para tarefas recorrentes, criamos um evento para cada dia da visualização se for devido
+        // Para tarefas recorrentes e não recorrentes, criamos um evento de dia inteiro para cada dia da visualização se for devido
         displayedDays.forEach(day => {
           if (isGestorTaskDueOnDate(task, day.toISOString().split('T')[0])) {
             const completionForDay = gestorTaskCompletions.find(c => c.gestor_task_id === task.id && c.user_id === userId && isSameDay(new Date(c.date), day));
@@ -160,28 +151,89 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             });
           }
         });
-        // Para tarefas não recorrentes, adicionamos apenas se a data de vencimento estiver no período exibido
-        if (!isRecurring && taskDueDate && displayedDays.some(day => isSameDay(day, taskDueDate))) {
+      });
+    }
+
+    // NOVO: 4. Tarefas de Lead (não reuniões) como eventos de dia inteiro
+    if (showLeadMeetings) { // Reutilizando a flag showLeadMeetings para mostrar tarefas de lead
+      leadTasks.filter(task => {
+        if (task.type !== 'task' || task.is_completed || !task.due_date) return false;
+        
+        const isConsultantTask = userRole === 'CONSULTOR' && task.user_id === userId;
+        const isGestorTask = (userRole === 'GESTOR' || userRole === 'ADMIN') && crmLeads.some(l => l.id === task.lead_id && l.user_id === userId);
+        
+        return isConsultantTask || isGestorTask;
+      }).forEach(task => {
+        const lead = crmLeads.find(l => l.id === task.lead_id);
+        const dueDate = new Date(task.due_date!);
+        
+        // Apenas adiciona se a data de vencimento estiver dentro dos dias exibidos
+        if (displayedDays.some(day => isSameDay(day, dueDate))) {
           events.push({
             id: task.id,
             title: task.title,
             description: task.description,
-            start: taskDueDate,
-            end: taskDueDate,
-            type: 'gestor_task',
-            personName: 'Eu',
+            start: dueDate,
+            end: dueDate,
+            type: 'lead_task',
+            personName: lead?.name || 'Lead Desconhecido',
+            personId: lead?.id,
             originalEvent: task,
-            allDay: true, // Tarefas do gestor são consideradas de dia inteiro para o calendário
+            allDay: true,
           });
         }
       });
+    }
+
+    // NOVO: 5. Itens de Daily Checklist (para consultores) como eventos de dia inteiro
+    if (userRole === 'CONSULTOR') {
+      const userTeamMember = teamMembers.find(tm => tm.id === userId || (tm.email && tm.email === user?.email) || (tm.isLegacy && tm.name === user?.name));
+      if (userTeamMember) {
+        const assignedChecklists = dailyChecklists
+          .filter(checklist => checklist.is_active && 
+            (dailyChecklistAssignments.some(assignment => assignment.daily_checklist_id === checklist.id && assignment.consultant_id === userTeamMember.id) ||
+             !dailyChecklistAssignments.some(assignment => assignment.daily_checklist_id === checklist.id))
+          );
+
+        assignedChecklists.forEach(checklist => {
+          dailyChecklistItems
+            .filter(item => item.daily_checklist_id === checklist.id && item.is_active)
+            .forEach(item => {
+              displayedDays.forEach(day => {
+                const dayStr = day.toISOString().split('T')[0];
+                const isCompleted = dailyChecklistCompletions.some(
+                  completion =>
+                    completion.daily_checklist_item_id === item.id &&
+                    completion.consultant_id === userTeamMember.id &&
+                    completion.date === dayStr &&
+                    completion.done
+                );
+                
+                if (!isCompleted) { // Apenas itens incompletos
+                  events.push({
+                    id: `${item.id}-${dayStr}`, // ID único para cada ocorrência diária
+                    title: item.text,
+                    description: checklist.title, // Usar o título do checklist como descrição
+                    start: day,
+                    end: day,
+                    type: 'daily_checklist',
+                    personName: user?.name || 'Eu',
+                    personId: userId,
+                    originalEvent: item,
+                    allDay: true,
+                  });
+                }
+              });
+            });
+        });
+      }
     }
 
     return events;
   }, [
     userId, userRole, showPersonalEvents, showLeadMeetings, showGestorTasks,
     consultantEvents, leadTasks, crmLeads, teamMembers, gestorTasks, gestorTaskCompletions,
-    displayedDays, isGestorTaskDueOnDate
+    displayedDays, isGestorTaskDueOnDate, dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions, user?.name, user?.email
   ]);
 
   const eventsByDay = useMemo(() => {
@@ -192,7 +244,12 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         const eventStartDay = event.start.toISOString().split('T')[0];
         const eventEndDay = event.end.toISOString().split('T')[0];
         return eventStartDay <= dayStr && eventEndDay >= dayStr;
-      }).sort((a, b) => a.start.getTime() - b.start.getTime());
+      }).sort((a, b) => {
+        // Sort all-day events first, then by start time
+        if (a.allDay && !b.allDay) return -1;
+        if (!a.allDay && b.allDay) return 1;
+        return a.start.getTime() - b.start.getTime();
+      });
     });
     return map;
   }, [allEvents, displayedDays]);
@@ -245,6 +302,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         await deleteLeadTask(eventId);
       } else if (eventType === 'gestor_task') {
         await deleteGestorTask(eventId);
+      } else if (eventType === 'daily_checklist' || eventType === 'lead_task') {
+        toast.error("Itens de checklist e tarefas de lead são gerenciados em suas respectivas seções, não diretamente no calendário.");
+        return;
       }
       toast.success("Evento excluído com sucesso!");
     } catch (error: any) {

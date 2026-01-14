@@ -7,10 +7,10 @@ export interface CalendarEvent {
   description?: string;
   start: Date;
   end: Date;
-  type: 'personal' | 'meeting' | 'gestor_task';
+  type: 'personal' | 'meeting' | 'gestor_task' | 'daily_checklist' | 'lead_task'; // NOVO: Adicionado 'daily_checklist' e 'lead_task'
   personName?: string;
   personId?: string;
-  originalEvent?: any; // Pode ser LeadTask, GestorTask, ConsultantEvent
+  originalEvent?: any; // Pode ser LeadTask, GestorTask, ConsultantEvent, DailyChecklistItem
   allDay?: boolean; // NOVO: Indica se é um evento de dia inteiro
 }
 

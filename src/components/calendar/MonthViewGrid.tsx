@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { CalendarEvent, isSameDay } from './utils';
-import { Plus, Edit2, Trash2, CheckCircle2, XCircle, Clock, UserRound, MessageSquare, Users } from 'lucide-react';
+import { Plus, Edit2, Trash2, CheckCircle2, XCircle, Clock, UserRound, MessageSquare, Users, ListChecks, ListTodo } from 'lucide-react'; // Adicionado ListChecks e ListTodo
 import { Button } from '@/components/ui/button';
 import toast from 'react-hot-toast';
 import { GestorTask } from '@/types';
@@ -33,6 +33,8 @@ const MonthViewGrid: React.FC<MonthViewGridProps> = ({
       case 'personal': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300';
       case 'meeting': return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300';
       case 'gestor_task': return 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-300';
+      case 'daily_checklist': return 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-300'; // NOVO
+      case 'lead_task': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300'; // NOVO
       default: return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200';
     }
   };
@@ -42,6 +44,8 @@ const MonthViewGrid: React.FC<MonthViewGridProps> = ({
       case 'personal': return <CalendarDays className="w-3 h-3 mr-1" />;
       case 'meeting': return <Users className="w-3 h-3 mr-1" />;
       case 'gestor_task': return <MessageSquare className="w-3 h-3 mr-1" />;
+      case 'daily_checklist': return <ListChecks className="w-3 h-3 mr-1" />; // NOVO
+      case 'lead_task': return <ListTodo className="w-3 h-3 mr-1" />; // NOVO
       default: return null;
     }
   };
@@ -81,13 +85,16 @@ const MonthViewGrid: React.FC<MonthViewGridProps> = ({
               <div className="space-y-0.5 text-xs mb-1">
                 {allDayEvents.slice(0, 1).map(event => ( // Limita a 1 evento de dia inteiro para não sobrecarregar
                   <div key={event.id} className={`p-1 rounded-md ${getEventColorClass(event.type)} flex items-center justify-between group`}>
-                    <span className="truncate">{event.title}</span>
+                    <span className="truncate flex items-center">{getEventIcon(event.type)} {event.title}</span>
                     <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       {(event.type === 'personal' || event.type === 'gestor_task') && (
                         <>
                           <Button variant="ghost" size="icon" onClick={() => onOpenEventModal(day, event)} className="p-1 text-gray-400 hover:text-blue-600"><Edit2 className="w-3 h-3" /></Button>
                           <Button variant="ghost" size="icon" onClick={() => onDeleteEvent(event.id, event.type)} className="p-1 text-gray-400 hover:text-red-600"><Trash2 className="w-3 h-3" /></Button>
                         </>
+                      )}
+                      {(event.type === 'daily_checklist' || event.type === 'lead_task') && (
+                        <Button variant="ghost" size="icon" onClick={() => toast.info("Itens de checklist e tarefas de lead são gerenciados em suas respectivas seções, não diretamente no calendário.")} className="p-1 text-gray-400 hover:text-gray-600"><XCircle className="w-3 h-3" /></Button>
                       )}
                     </div>
                   </div>
@@ -103,13 +110,16 @@ const MonthViewGrid: React.FC<MonthViewGridProps> = ({
             <div className="space-y-0.5 text-xs">
               {timedEvents.slice(0, 2).map(event => ( // Show max 2 timed events
                 <div key={event.id} className={`p-1 rounded-md ${getEventColorClass(event.type)} flex items-center justify-between group`}>
-                  <span className="truncate">{event.title}</span>
+                  <span className="truncate flex items-center">{getEventIcon(event.type)} {event.title}</span>
                   <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     {(event.type === 'personal' || event.type === 'gestor_task') && (
                       <>
                         <Button variant="ghost" size="icon" onClick={() => onOpenEventModal(day, event)} className="p-1 text-gray-400 hover:text-blue-600"><Edit2 className="w-3 h-3" /></Button>
                         <Button variant="ghost" size="icon" onClick={() => onDeleteEvent(event.id, event.type)} className="p-1 text-gray-400 hover:text-red-600"><Trash2 className="w-3 h-3" /></Button>
                       </>
+                    )}
+                    {event.type === 'meeting' && (
+                      <Button variant="ghost" size="icon" onClick={() => toast.info("Reuniões de leads são gerenciadas na seção de CRM.")} className="p-1 text-gray-400 hover:text-gray-600"><XCircle className="w-3 h-3" /></Button>
                     )}
                   </div>
                 </div>
