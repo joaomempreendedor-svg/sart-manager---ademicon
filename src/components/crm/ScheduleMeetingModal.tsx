@@ -1,28 +1,14 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '@/context/AppContext';
-import { useAuth } from '@/context/AuthContext';
-import { CrmLead, LeadTask, TeamMember } from '@/types'; // Importar LeadTask
-import { X, Save, Loader2, Calendar, Clock, MessageSquare, Users, CalendarPlus, Link as LinkIcon } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/ui/dialog';
+import { LeadTask, CrmLead, TeamMember } from '@/types';
+import { X, Save, Loader2, Calendar, Clock, Users, UserRound } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import toast from 'react-hot-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ScheduleMeetingModalProps {
   isOpen: boolean;
@@ -32,248 +18,278 @@ interface ScheduleMeetingModalProps {
 }
 
 export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOpen, onClose, lead, currentMeeting }) => {
-  const { user } = useAuth();
-  const { addLeadTask, updateLeadTask, updateCrmLeadStage, crmStages, teamMembers } = useApp(); // Adicionado teamMembers
-
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [date, setDate] = useState('');
-  const [startTime, setStartTime] = useState('09:00');
-  const [endTime, setEndTime] = useState('10:00');
+  const { addLeadTask, updateLeadTask, teamMembers } = useApp();
+  const [title, setTitle] = useState(currentMeeting?.title || 'Reunião com Lead');
+  const [date, setDate] = useState<string>(() => {
+    if (currentMeeting?.meeting_start_time) {
+      return new Date(currentMeeting.meeting_start_time).toISOString().split('T')[0];
+    }
+    return new Date().toISOString().split('T')[0];
+  });
+  const [startTime, setStartTime] = useState<string>(() => {
+    if (currentMeeting?.meeting_start_time) {
+      const d = new Date(currentMeeting.meeting_start_time);
+      return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+    }
+    return '09:00';
+  });
+  const [endTime, setEndTime] = useState<string>(() => {
+    if (currentMeeting?.meeting_end_time) {
+      const d = new Date(currentMeeting.meeting_end_time);
+      return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+    }
+    return '10:00';
+  });
   const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState('');
 
-  const meetingStage = useMemo(() => {
-    return crmStages.find(stage => stage.name.toLowerCase().includes('reunião') && stage.is_active);
-  }, [crmStages]);
+  // NOVO: Seleção de Gestor e agenda do gestor
+  const gestores: TeamMember[] = useMemo(
+    () => teamMembers.filter(m => m.isActive && m.roles.includes('Gestor')),
+    [teamMembers]
+  );
+  const [selectedGestorId, setSelectedGestorId] = useState<string | null>(gestores[0]?.id || null);
+  const [gestorEvents, setGestorEvents] = useState<{ id: string; title: string; start_time: string; end_time: string; description?: string }[]>([]);
+  const [isLoadingAgenda, setIsLoadingAgenda] = useState(false);
 
   useEffect(() => {
-    if (isOpen) {
-      if (currentMeeting) {
-        // Modo Edição: Preencher com dados da reunião existente
-        setTitle(currentMeeting.title);
-        setDescription(currentMeeting.description || '');
-        setDate(currentMeeting.due_date || (currentMeeting.meeting_start_time ? new Date(currentMeeting.meeting_start_time).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]));
-        setStartTime(currentMeeting.meeting_start_time ? new Date(currentMeeting.meeting_start_time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }) : '09:00');
-        setEndTime(currentMeeting.meeting_end_time ? new Date(currentMeeting.meeting_end_time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }) : '10:00');
-      } else {
-        // Modo Criação: Valores padrão
-        setTitle(`Reunião com ${lead.name}`);
-        setDescription('');
-        setDate(new Date().toISOString().split('T')[0]);
-        setStartTime('09:00');
-        setEndTime('10:00');
+    // Carrega agenda do gestor selecionado para o dia
+    const loadAgenda = async () => {
+      if (!selectedGestorId || !date) {
+        setGestorEvents([]);
+        return;
       }
-      setError('');
-    }
-  }, [isOpen, lead.name, currentMeeting]);
+      setIsLoadingAgenda(true);
+      try {
+        const { data, error } = await supabase.functions.invoke('get-manager-availability', {
+          body: {
+            manager_id: selectedGestorId,
+            start_date: date,
+            end_date: date,
+          },
+        });
+        if (error) {
+          toast.error('Falha ao carregar agenda do gestor.');
+          console.error('[ScheduleMeetingModal] invoke error', error);
+        } else {
+          setGestorEvents((data?.events || []).map((e: any) => ({
+            id: e.id,
+            title: e.title,
+            description: e.description,
+            start_time: e.start_time,
+            end_time: e.end_time,
+          })));
+        }
+      } finally {
+        setIsLoadingAgenda(false);
+      }
+    };
+    loadAgenda();
+  }, [selectedGestorId, date]);
 
-  const handleScheduleMeeting = async (e: React.FormEvent) => {
+  const formatTime = (iso: string) => {
+    const d = new Date(iso);
+    return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-
-    if (!user) {
-      setError('Usuário não autenticado.');
+    if (!date || !startTime || !endTime) {
+      toast.error('Preencha data e horários.');
       return;
     }
-    if (!title.trim() || !date || !startTime || !endTime) {
-      setError('Título, data e horários são obrigatórios.');
-      return;
-    }
-
     const startDateTime = new Date(`${date}T${startTime}:00`);
     const endDateTime = new Date(`${date}T${endTime}:00`);
-
     if (startDateTime >= endDateTime) {
-      setError('A hora de início deve ser anterior à hora de término.');
+      toast.error('A hora de início deve ser anterior à hora de término.');
       return;
     }
 
     setIsSaving(true);
     try {
-      // Determine taskOwnerId (consultant) and invitedManagerId (gestor)
-      let taskOwnerId = lead.consultant_id; // Default to lead's consultant
-      let invitedManagerId: string | null = null;
-
-      if (user.role === 'GESTOR' || user.role === 'ADMIN') {
-        // If gestor is scheduling, the task owner is the lead's consultant
-        taskOwnerId = lead.consultant_id;
-        // The gestor themselves are the invited manager
-        invitedManagerId = user.id;
-      } else if (user.role === 'CONSULTOR') {
-        // If consultant is scheduling, they are the task owner
-        taskOwnerId = user.id;
-        // No manager invited by default, unless specified (not in this modal)
-        invitedManagerId = null; // Or could be lead.user_id if that's the manager
-      }
-
-      if (!taskOwnerId) {
-        setError('Não foi possível determinar o consultor responsável pela tarefa.');
-        setIsSaving(false);
-        return;
-      }
-
-      const meetingData: Omit<LeadTask, 'id' | 'created_at' | 'completed_at'> & { user_id: string; manager_id?: string | null; } = {
-        lead_id: lead.id,
-        user_id: taskOwnerId, // ID do consultor responsável pela tarefa
-        title: title.trim(),
-        description: description.trim() || undefined,
-        due_date: date, // YYYY-MM-DD
-        is_completed: false,
-        type: 'meeting' as const,
+      const payload: Partial<LeadTask> = {
+        title,
+        type: 'meeting',
         meeting_start_time: startDateTime.toISOString(),
         meeting_end_time: endDateTime.toISOString(),
-        manager_id: invitedManagerId, // ID do gestor convidado
-        manager_invitation_status: invitedManagerId ? 'pending' : undefined, // Status inicial
       };
 
-      console.log("[ScheduleMeetingModal] Data being sent to update/add:", { id: currentMeeting?.id, meetingData });
-
       if (currentMeeting) {
-        // Atualizar reunião existente
-        await updateLeadTask(currentMeeting.id, meetingData);
-        console.log("[ScheduleMeetingModal] Meeting updated successfully.");
+        await updateLeadTask(currentMeeting.id, payload);
+        toast.success('Reunião atualizada!');
       } else {
-        // Adicionar nova reunião
-        await addLeadTask(meetingData);
-        if (meetingStage && lead.stage_id !== meetingStage.id) {
-          await updateCrmLeadStage(lead.id, meetingStage.id);
-        }
-        console.log("[ScheduleMeetingModal] Meeting added successfully.");
+        await addLeadTask({
+          lead_id: lead.id,
+          user_id: lead.consultant_id || '', // criador/consultor
+          title: title || 'Reunião',
+          type: 'meeting',
+          meeting_start_time: startDateTime.toISOString(),
+          meeting_end_time: endDateTime.toISOString(),
+        });
+        toast.success('Reunião criada!');
       }
+
       onClose();
     } catch (err: any) {
-      console.error("Erro ao agendar/editar reunião:", err);
-      setError(err.message || 'Falha ao agendar/editar reunião.');
+      console.error('[ScheduleMeetingModal] save error', err);
+      toast.error(err.message || 'Falha ao salvar reunião.');
     } finally {
       setIsSaving(false);
     }
   };
 
-  const handleAddToGoogleCalendar = () => {
+  // NOVO: Convidar Gestor (adiciona manager_id e status pendente)
+  const handleInviteGestor = async () => {
+    if (!selectedGestorId) {
+      toast.error('Selecione um gestor para convidar.');
+      return;
+    }
+    if (!date || !startTime || !endTime) {
+      toast.error('Preencha data e horários.');
+      return;
+    }
     const startDateTime = new Date(`${date}T${startTime}:00`);
     const endDateTime = new Date(`${date}T${endTime}:00`);
-
-    const formattedStartDate = startDateTime.toISOString().replace(/[-:]|\.\d{3}/g, '');
-    const formattedEndDate = endDateTime.toISOString().replace(/[-:]|\.\d{3}/g, '');
-    const datesParam = `${formattedStartDate}/${formattedEndDate}`;
-
-    const eventTitle = `Reunião com ${lead.name}`;
-    const eventDescription = description || `Reunião com o lead ${lead.name}`;
-
-    let googleCalendarUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE`;
-    googleCalendarUrl += `&text=${encodeURIComponent(eventTitle)}`;
-    googleCalendarUrl += `&dates=${datesParam}`;
-    googleCalendarUrl += `&details=${encodeURIComponent(eventDescription)}`;
-
-    if (lead.data.email) {
-      googleCalendarUrl += `&add=${encodeURIComponent(lead.data.email)}`;
+    if (startDateTime >= endDateTime) {
+      toast.error('A hora de início deve ser anterior à hora de término.');
+      return;
     }
-    if (user?.email) {
-      googleCalendarUrl += `&add=${encodeURIComponent(user.email)}`;
+
+    setIsSaving(true);
+    try {
+      if (currentMeeting) {
+        await updateLeadTask(currentMeeting.id, {
+          manager_id: selectedGestorId,
+          manager_invitation_status: 'pending',
+        });
+        toast.success('Convite ao gestor enviado!');
+      } else {
+        await addLeadTask({
+          lead_id: lead.id,
+          user_id: lead.consultant_id || '',
+          title: title || 'Reunião',
+          type: 'meeting',
+          meeting_start_time: startDateTime.toISOString(),
+          meeting_end_time: endDateTime.toISOString(),
+          manager_id: selectedGestorId,
+          manager_invitation_status: 'pending',
+        });
+        toast.success('Reunião criada e convite ao gestor enviado!');
+      }
+      onClose();
+    } catch (err: any) {
+      console.error('[ScheduleMeetingModal] invite error', err);
+      toast.error(err.message || 'Falha ao convidar gestor.');
+    } finally {
+      setIsSaving(false);
     }
-    
-    window.open(googleCalendarUrl.toString(), '_blank');
   };
 
   if (!isOpen) return null;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-2xl bg-white dark:bg-slate-800 dark:text-white p-6">
+      <DialogContent className="sm:max-w-lg bg-white dark:bg-slate-800 dark:text-white p-6">
         <DialogHeader>
-          <DialogTitle>{currentMeeting ? 'Editar Reunião' : 'Agendar Reunião'} para: {lead.name}</DialogTitle>
-          <DialogDescription>
-            Preencha os detalhes da reunião.
-          </DialogDescription>
+          <DialogTitle>Agendar Reunião</DialogTitle>
+          <DialogDescription>Defina data e horário, veja a agenda do gestor e convide-o se necessário.</DialogDescription>
         </DialogHeader>
-        
-        <form onSubmit={handleScheduleMeeting}>
-          <ScrollArea className="max-h-[60vh] py-4 pr-4 custom-scrollbar">
-            <div className="grid gap-4">
-              <div>
-                <Label htmlFor="title">Título da Reunião</Label>
-                <Input
-                  id="title"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  required
-                  className="dark:bg-slate-700 dark:text-white dark:border-slate-600"
-                  placeholder="Ex: Treinamento de Produto"
-                />
-              </div>
-              <div>
-                <Label htmlFor="description">Descrição (Opcional)</Label>
-                <Textarea
-                  id="description"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  rows={3}
-                  className="dark:bg-slate-700 dark:text-white dark:border-slate-600"
-                  placeholder="Detalhes do evento..."
-                />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <Label htmlFor="date">Data</Label>
-                  <div className="relative">
-                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <Input
-                      id="date"
-                      type="date"
-                      value={date}
-                      onChange={(e) => setDate(e.target.value)}
-                      required
-                      className="pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <Label htmlFor="startTime">Início</Label>
-                  <div className="relative">
-                    <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <Input
-                      id="startTime"
-                      type="time"
-                      value={startTime}
-                      onChange={(e) => setStartTime(e.target.value)}
-                      required
-                      className="pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <Label htmlFor="endTime">Fim</Label>
-                  <div className="relative">
-                    <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <Input
-                      id="endTime"
-                      type="time"
-                      value={endTime}
-                      onChange={(e) => setEndTime(e.target.value)}
-                      required
-                      className="pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600"
-                    />
-                  </div>
-                </div>
-              </div>
-              {error && <p className="text-red-500 text-sm">{error}</p>}
+
+        <form onSubmit={handleSubmit}>
+          <div className="grid gap-4 max-h-[70vh] overflow-y-auto custom-scrollbar">
+            <div>
+              <Label htmlFor="title">Título</Label>
+              <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} className="dark:bg-slate-700 dark:text-white dark:border-slate-600" />
             </div>
-          </ScrollArea>
-          <DialogFooter className="flex flex-col sm:flex-row sm:justify-between sm:items-center mt-4 pt-4 border-t border-gray-100 dark:border-slate-700">
-            <Button type="button" variant="outline" onClick={handleAddToGoogleCalendar} className="mb-2 sm:mb-0 flex items-center space-x-2 dark:bg-slate-700 dark:text-white dark:border-slate-600 w-full sm:w-auto">
-              <CalendarPlus className="w-4 h-4" />
-              <span>Adicionar ao Google Agenda</span>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="date">Data</Label>
+                <div className="relative">
+                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Input id="date" type="date" value={date} onChange={(e) => setDate(e.target.value)} className="pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600" />
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="startTime">Início</Label>
+                <div className="relative">
+                  <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Input id="startTime" type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600" />
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="endTime">Término</Label>
+                <div className="relative">
+                  <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Input id="endTime" type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600" />
+                </div>
+              </div>
+            </div>
+
+            {/* NOVO: Selecionar Gestor e ver agenda */}
+            <div className="border-t border-gray-200 dark:border-slate-700 pt-4 mt-2">
+              <Label>Convidar Gestor</Label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
+                <div>
+                  <Select value={selectedGestorId || 'none'} onValueChange={(val) => setSelectedGestorId(val === 'none' ? null : val)}>
+                    <SelectTrigger className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
+                      <SelectValue placeholder="Selecione um gestor" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white text-gray-900 dark:bg-slate-800 dark:text-white dark:border-slate-700">
+                      <SelectItem value="none">Sem gestor</SelectItem>
+                      {gestores.map(g => (
+                        <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
+                  <Users className="w-4 h-4 mr-2" /> Agenda do Gestor ({date})
+                </div>
+              </div>
+
+              <div className="mt-2 rounded-md border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/30 p-2">
+                {isLoadingAgenda ? (
+                  <div className="flex items-center justify-center py-6 text-sm text-gray-500 dark:text-gray-400">
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Carregando agenda...
+                  </div>
+                ) : selectedGestorId ? (
+                  gestorEvents.length === 0 ? (
+                    <div className="text-xs text-gray-600 dark:text-gray-400">Sem conflitos na data selecionada.</div>
+                  ) : (
+                    <ul className="space-y-1">
+                      {gestorEvents.map(ev => (
+                        <li key={ev.id} className="text-xs flex items-center justify-between">
+                          <div className="flex items-center">
+                            <Clock className="w-3 h-3 mr-1" /> {formatTime(ev.start_time)} - {formatTime(ev.end_time)}
+                          </div>
+                          <div className="truncate ml-2 text-gray-700 dark:text-gray-300">{ev.title}</div>
+                        </li>
+                      ))}
+                    </ul>
+                  )
+                ) : (
+                  <div className="text-xs text-gray-600 dark:text-gray-400">Selecione um gestor para visualizar a agenda.</div>
+                )}
+              </div>
+
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button type="button" onClick={handleInviteGestor} disabled={!selectedGestorId || isSaving} className="bg-purple-600 hover:bg-purple-700 text-white">
+                  Convidar Gestor
+                </Button>
+              </div>
+            </div>
+
+            { /* Mensagem: se houver conflitos visíveis, o consultor pode ajustar horários. */ }
+          </div>
+
+          <DialogFooter className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-700 flex-col sm:flex-row">
+            <Button type="button" variant="outline" onClick={onClose} className="dark:bg-slate-700 dark:text-white dark:border-slate-600 w-full sm:w-auto mb-2 sm:mb-0">
+              Cancelar
             </Button>
-            <div className="flex gap-2 flex-col sm:flex-row w-full sm:w-auto">
-              <Button type="button" variant="outline" onClick={onClose} className="dark:bg-slate-700 dark:text-white dark:border-slate-600 w-full sm:w-auto">
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={isSaving} className="bg-brand-600 hover:bg-brand-700 text-white w-full sm:w-auto">
-                {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-                <span>{currentMeeting ? 'Salvar Alterações' : 'Agendar Reunião'}</span>
-              </Button>
-            </div>
+            <Button type="submit" disabled={isSaving} className="bg-brand-600 hover:bg-brand-700 text-white w-full sm:w-auto">
+              {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+              {isSaving ? 'Salvando...' : 'Salvar Reunião'}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>
