@@ -436,6 +436,15 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     return map;
   }, [allEvents, displayedDays]);
 
+  // NOVO: contador de eventos do Google no intervalo atual
+  const googleRangeEventsCount = useMemo(() => {
+    return displayedDays.reduce((sum, day) => {
+      const dayStr = day.toISOString().split('T')[0];
+      const dayGoogleEvents = googleEventsByDay[dayStr] || [];
+      return sum + dayGoogleEvents.length;
+    }, 0);
+  }, [googleEventsByDay, displayedDays]);
+
   const navigateDate = (offset: number, unit: 'day' | 'week' | 'month') => {
     setCurrentDate(prevDate => {
       const newDate = new Date(prevDate);
@@ -547,7 +556,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   return (
     <div className="flex flex-col h-full">
       {/* Header de Navegação */}
-      <div className="flex items-center justify-between mb-6 bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700">
+      <div className="flex items-center justify-between mb-2 bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700">
         <button onClick={() => navigateDate(-1, view)} className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-600 dark:text-gray-300">
           <ChevronLeft className="w-5 h-5" />
         </button>
@@ -565,6 +574,21 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           </button>
         </div>
       </div>
+
+      {/* NOVO: Indicador de estado do Google Agenda */}
+      {googleCalendarUrls.length > 0 && (
+        <div className="px-4 mb-4 text-xs text-gray-600 dark:text-gray-300">
+          <div className="inline-flex items-center gap-2 bg-gray-50 dark:bg-slate-800/40 border border-gray-200 dark:border-slate-700 rounded-md px-3 py-2">
+            <CalendarDays className="w-4 h-4" />
+            <span>Google Agenda conectado: {googleCalendarUrls.length} calendário(s).</span>
+            <span className="ml-2">
+              {googleRangeEventsCount > 0
+                ? `${googleRangeEventsCount} evento(s) no período exibido.`
+                : 'Nenhum evento no período selecionado.'}
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Renderização do Grid de Calendário */}
       <div className="flex-1 overflow-y-auto custom-scrollbar">
