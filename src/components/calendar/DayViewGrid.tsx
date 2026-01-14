@@ -271,7 +271,7 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
               {positionedEvents.map(event => (
                 <div
                   key={event.id}
-                  className={`absolute p-1 rounded-lg shadow-sm border ${getEventColorClass(event.type)} group overflow-hidden z-10 flex flex-col`}
+                  className={`absolute p-1 rounded-lg shadow-sm border ${getEventColorClass(event.type)} group overflow-hidden z-10 flex flex-col min-h-[40px]`}
                   style={{ top: `${event.top}%`, height: `${event.height}%`, left: `0%`, width: `100%` }}
                 >
                   <div className="flex-1 min-h-0 overflow-hidden flex flex-col gap-1"> {/* Content area */}
@@ -279,11 +279,11 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
                       {getEventIcon(event.type)}
                       <span className="line-clamp-2" title={event.title}>{event.title}</span>
                     </div>
-                    <p className="text-xs text-gray-600 dark:text-gray-400 flex items-center">
+                    <p className="text-xs text-gray-600 dark:text-gray-400 flex items-center" title={`${formatTime(event.start)} - ${formatTime(event.end)}`}>
                       <Clock className="w-3 h-3 mr-1 flex-shrink-0" /> {formatTime(event.start)} - {formatTime(event.end)}
                     </p>
                     {event.personName && event.type !== 'gestor_task' && (
-                      <p className="text-xs text-gray-600 dark:text-gray-400 flex items-center">
+                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 flex items-center" title={event.personName}>
                         <UserRound className="w-3 h-3 mr-1 flex-shrink-0" /> <span className="truncate">{event.personName}</span>
                       </p>
                     )}
