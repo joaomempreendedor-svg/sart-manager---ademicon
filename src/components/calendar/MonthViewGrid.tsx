@@ -140,8 +140,8 @@ const MonthViewGrid: React.FC<MonthViewGridProps> = ({
             {/* Seção para eventos de dia inteiro */}
             {allDayEvents.length > 0 && (
               <div className="space-y-0.5 text-xs mb-1">
-                {allDayEvents.slice(0, 1).map(event => ( // Limita a 1 evento de dia inteiro para não sobrecarregar
-                  <div key={event.id} className={`p-1 rounded-md ${getEventColorClass(event.type)} flex items-center group`}>
+                {allDayEvents.slice(0, 1).map(event => ( // Limita a 1 evento de dia inteiro
+                  <div key={event.id} className={`p-1 rounded-md ${getEventColorClass(event.type)} flex items-center group relative`}>
                     <div className="flex-1 flex items-center">
                       {getEventIcon(event.type)}
                       {event.type === 'meeting' ? (
@@ -154,7 +154,7 @@ const MonthViewGrid: React.FC<MonthViewGridProps> = ({
                         <span className="flex-1 line-clamp-2 overflow-hidden" title={event.title}>{event.title}</span>
                       )}
                     </div>
-                    <div className="flex items-center space-x-1 flex-shrink-0 ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="absolute top-1 right-1 flex items-center space-x-1 bg-white/80 dark:bg-slate-800/70 rounded-md px-1 py-0.5 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity">
                       {(event.type === 'personal' || event.type === 'gestor_task') && (
                         <>
                           <Button variant="ghost" size="icon" onClick={() => onOpenEventModal(day, event)} className="p-1 text-gray-400 hover:text-blue-600"><Edit2 className="w-3 h-3" /></Button>
@@ -176,8 +176,8 @@ const MonthViewGrid: React.FC<MonthViewGridProps> = ({
             )}
             {/* Seção para eventos com horário */}
             <div className="space-y-0.5 text-xs">
-              {timedEvents.slice(0, 2).map(event => ( // Show max 2 timed events
-                <div key={event.id} className={`p-1 rounded-md ${getEventColorClass(event.type)} flex items-center group`}>
+              {timedEvents.slice(0, 2).map(event => (
+                <div key={event.id} className={`p-1 rounded-md ${getEventColorClass(event.type)} flex items-center group relative`}>
                   <div className="flex-1 flex items-center overflow-hidden">
                     {getEventIcon(event.type)}
                     {event.type === 'meeting' ? (
@@ -190,7 +190,7 @@ const MonthViewGrid: React.FC<MonthViewGridProps> = ({
                       <span className="flex-1 line-clamp-2 overflow-hidden" title={event.title}>{event.title}</span>
                     )}
                   </div>
-                  <div className="flex items-center space-x-1 flex-shrink-0 ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="absolute top-1 right-1 flex items-center space-x-1 bg-white/80 dark:bg-slate-800/70 rounded-md px-1 py-0.5 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity">
                     {(event.type === 'personal' || event.type === 'gestor_task') && (
                       <>
                         <Button variant="ghost" size="icon" onClick={() => onOpenEventModal(day, event)} className="p-1 text-gray-400 hover:text-blue-600"><Edit2 className="w-3 h-3" /></Button>

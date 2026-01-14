@@ -180,7 +180,7 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
               return (
                 <div key={dayStr} className="flex flex-col space-y-0.5 p-1 border-l border-gray-200 dark:border-slate-700">
                   {dayAllDayEvents.map(event => (
-                    <div key={event.id} className={`mb-1 p-1.5 rounded-md text-xs font-medium ${getEventColorClass(event.type)} flex items-center group`}>
+                    <div key={event.id} className={`mb-1 p-1.5 rounded-md text-xs font-medium ${getEventColorClass(event.type)} flex items-center group relative`}>
                       <div className="flex-1 flex items-center">
                         {getEventIcon(event.type)}
                         {event.type === 'meeting' ? (
@@ -193,7 +193,7 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
                           <span className="flex-1 line-clamp-2 overflow-hidden" title={event.title}>{event.title}</span>
                         )}
                       </div>
-                      <div className="flex items-center space-x-1 flex-shrink-0 ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="absolute top-1 right-1 flex items-center space-x-1 bg-white/80 dark:bg-slate-800/70 rounded-md px-1 py-0.5 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity">
                         {(event.type === 'personal' || event.type === 'gestor_task') && (
                           <>
                             <Button variant="ghost" size="icon" onClick={() => onOpenEventModal(day, event)} className="p-1 text-gray-400 hover:text-blue-600"><Edit2 className="w-3 h-3" /></Button>
@@ -327,7 +327,7 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
                   {positionedTimedEvents.map(event => (
                     <div
                       key={event.id}
-                      className={`absolute p-1 rounded-lg shadow-sm border ${getEventColorClass(event.type)} group overflow-hidden z-10 flex flex-col min-h-[64px]`}
+                      className={`absolute p-1 rounded-lg shadow-sm border ${getEventColorClass(event.type)} group overflow-hidden z-10 flex flex-col min-h-[64px] relative`}
                       style={{ top: `${event.top}%`, height: `${event.height}%`, left: `${event.left}%`, width: `${event.width}%` }}
                     >
                       <div className="flex-1 min-h-0 flex flex-col gap-1"> {/* Content area */}
@@ -365,8 +365,7 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
                           </button>
                         )}
                       </div>
-                      {/* Action buttons - positioned at the bottom right */}
-                      <div className="flex justify-end items-center space-x-1 mt-auto opacity-0 group-hover:opacity-100 transition-opacity"> {/* Added opacity for hover */}
+                      <div className="absolute top-1 right-1 flex items-center space-x-1 bg-white/80 dark:bg-slate-800/70 rounded-md px-1 py-0.5 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity">
                         {(event.type === 'personal' || event.type === 'gestor_task') && (
                           <>
                             <Button variant="ghost" size="icon" onClick={() => onOpenEventModal(day, event)} className="p-1 text-gray-400 hover:text-blue-600"><Edit2 className="w-3 h-3" /></Button>
