@@ -289,7 +289,7 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
                     return (
                       <div
                         key={hour}
-                        className="absolute left-0 right-0 h-[60px] border-t border-gray-200 dark:border-slate-600 opacity-50"
+                        className="absolute left-0 right-0 h-[60px] bg-gray-100 dark:bg-slate-700 opacity-10"
                         style={{ top: `${hour * 60}px` }}
                       ></div>
                     );
