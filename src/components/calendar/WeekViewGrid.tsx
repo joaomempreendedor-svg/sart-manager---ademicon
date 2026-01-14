@@ -181,16 +181,16 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
                 <div key={dayStr} className="flex flex-col space-y-0.5 p-1 border-l border-gray-200 dark:border-slate-700">
                   {dayAllDayEvents.map(event => (
                     <div key={event.id} className={`mb-1 p-1.5 rounded-md text-xs font-medium ${getEventColorClass(event.type)} flex items-center group`}>
-                      <div className="flex-1 flex items-center"> {/* Removed overflow-hidden */}
+                      <div className="flex-1 flex items-center">
                         {getEventIcon(event.type)}
                         {event.type === 'meeting' ? (
                           <>
-                            <span className="flex-1 line-clamp-2" title={`Reunião com ${event.personName}`}> {/* Changed to line-clamp-2 */}
+                            <span className="flex-1 line-clamp-2 overflow-hidden" title={`Reunião com ${event.personName}`}>
                               Reunião com {event.personName}
                             </span>
                           </>
                         ) : (
-                          <span className="flex-1 line-clamp-2" title={event.title}>{event.title}</span> {/* Changed to line-clamp-2 */}
+                          <span className="flex-1 line-clamp-2 overflow-hidden" title={event.title}>{event.title}</span>
                         )}
                       </div>
                       <div className="flex items-center space-x-1 flex-shrink-0 ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
@@ -335,12 +335,12 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
                           {getEventIcon(event.type)}
                           {event.type === 'meeting' ? (
                             <>
-                              <span className="flex-1 line-clamp-1" title={`Reunião com ${event.personName}`}>
+                              <span className="flex-1 line-clamp-2 overflow-hidden" title={`Reunião com ${event.personName}`}>
                                 Reunião com {event.personName}
                               </span>
                             </>
                           ) : (
-                            <span className="flex-1 line-clamp-2" title={event.title}>{event.title}</span>
+                            <span className="flex-1 line-clamp-2 overflow-hidden" title={event.title}>{event.title}</span>
                           )}
                         </div>
                         <p className="text-xs text-gray-600 dark:text-gray-400 flex items-center" title={`${formatTime(event.start)} - ${formatTime(event.end)}`}>
@@ -409,4 +409,4 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
   );
 };
 
-export default MonthViewGrid;
+export default WeekViewGrid;

@@ -140,19 +140,19 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
             <div className="flex flex-col space-y-0.5 p-1">
               {allDayEvents.map(event => (
                 <div key={event.id} className={`mb-1 p-1.5 rounded-md text-xs font-medium ${getEventColorClass(event.type)} flex items-center group`}>
-                  <div className="flex-1 flex items-center"> {/* Removed overflow-hidden */}
+                  <div className="flex-1 flex items-center">
                     {getEventIcon(event.type)}
                     {event.type === 'meeting' ? (
                       <>
-                        <span className="flex-1 line-clamp-2" title={`Reunião com ${event.personName}`}> {/* Changed to line-clamp-2 */}
+                        <span className="flex-1 line-clamp-2" title={`Reunião com ${event.personName}`}>
                           Reunião com {event.personName}
                         </span>
                       </>
                     ) : (
-                      <span className="flex-1 line-clamp-2" title={event.title}>{event.title}</span> {/* Changed to line-clamp-2 */}
+                      <span className="flex-1 line-clamp-2" title={event.title}>{event.title}</span>
                     )}
                   </div>
-                  <div className="flex items-center space-x-1 flex-shrink-0 ml-auto opacity-0 group-hover:opacity-100 transition-opacity"> {/* Buttons moved to separate div, added ml-auto */}
+                  <div className="flex items-center space-x-1 flex-shrink-0 ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
                     {(event.type === 'personal' || event.type === 'gestor_task') && (
                       <>
                         <Button variant="ghost" size="icon" onClick={() => onOpenEventModal(day, event)} className="p-1 text-gray-400 hover:text-blue-600"><Edit2 className="w-3 h-3" /></Button>
@@ -286,12 +286,12 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
                       {getEventIcon(event.type)}
                       {event.type === 'meeting' ? (
                         <>
-                          <span className="flex-1 line-clamp-1" title={`Reunião com ${event.personName}`}>
+                          <span className="flex-1 line-clamp-2 overflow-hidden" title={`Reunião com ${event.personName}`}>
                             Reunião com {event.personName}
                           </span>
                         </>
                       ) : (
-                        <span className="flex-1 line-clamp-2" title={event.title}>{event.title}</span>
+                        <span className="flex-1 line-clamp-2 overflow-hidden" title={event.title}>{event.title}</span>
                       )}
                     </div>
                     <p className="text-xs text-gray-600 dark:text-gray-400 flex items-center" title={`${formatTime(event.start)} - ${formatTime(event.end)}`}>

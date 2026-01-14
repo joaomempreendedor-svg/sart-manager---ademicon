@@ -3,7 +3,7 @@ import { CalendarEvent, isSameDay, formatTime } from './utils';
 import { Plus, Edit2, Trash2, CheckCircle2, XCircle, Clock, UserRound, MessageSquare, Users, ListChecks, ListTodo, CalendarDays } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import toast from 'react-hot-toast';
-import { GestorTask, DailyChecklistItem, LeadTask, TeamMember } from '@/types'; // Importar TeamMember
+import { GestorTask, DailyChecklistItem, LeadTask, TeamMember } from '@/types';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
 
@@ -142,16 +142,16 @@ const MonthViewGrid: React.FC<MonthViewGridProps> = ({
               <div className="space-y-0.5 text-xs mb-1">
                 {allDayEvents.slice(0, 1).map(event => ( // Limita a 1 evento de dia inteiro para não sobrecarregar
                   <div key={event.id} className={`p-1 rounded-md ${getEventColorClass(event.type)} flex items-center group`}>
-                    <div className="flex-1 flex items-center overflow-hidden">
+                    <div className="flex-1 flex items-center">
                       {getEventIcon(event.type)}
                       {event.type === 'meeting' ? (
                         <>
-                          <span className="flex-1 line-clamp-1" title={`Reunião com ${event.personName}`}>
+                          <span className="flex-1 line-clamp-2 overflow-hidden" title={`Reunião com ${event.personName}`}>
                             Reunião com {event.personName}
                           </span>
                         </>
                       ) : (
-                        <span className="flex-1 line-clamp-2" title={event.title}>{event.title}</span>
+                        <span className="flex-1 line-clamp-2 overflow-hidden" title={event.title}>{event.title}</span>
                       )}
                     </div>
                     <div className="flex items-center space-x-1 flex-shrink-0 ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
@@ -182,12 +182,12 @@ const MonthViewGrid: React.FC<MonthViewGridProps> = ({
                     {getEventIcon(event.type)}
                     {event.type === 'meeting' ? (
                       <>
-                        <span className="flex-1 line-clamp-1" title={`Reunião com ${event.personName}`}>
+                        <span className="flex-1 line-clamp-2 overflow-hidden" title={`Reunião com ${event.personName}`}>
                           Reunião com {event.personName}
                         </span>
                       </>
                     ) : (
-                      <span className="flex-1 line-clamp-2" title={event.title}>{event.title}</span>
+                      <span className="flex-1 line-clamp-2 overflow-hidden" title={event.title}>{event.title}</span>
                     )}
                   </div>
                   <div className="flex items-center space-x-1 flex-shrink-0 ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
