@@ -72,6 +72,10 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
                 <LayoutDashboard className="w-5 h-5" />
                 <span>Dashboard</span>
               </NavLink>
+              <NavLink to="/gestor/calendar" className={linkClass} onClick={toggleSidebar}> {/* NOVO: Link para a Agenda */}
+                <Calendar className="w-5 h-5" />
+                <span>Agenda</span>
+              </NavLink>
               <NavLink to="/gestor/crm" className={linkClass} onClick={toggleSidebar}>
                 <TrendingUp className="w-5 h-5" />
                 <span>CRM</span>
@@ -108,10 +112,6 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
                 <Star className="w-5 h-5" />
                 <span>Feedbacks</span>
               </NavLink>
-              <NavLink to="/gestor/materials" className={linkClass} onClick={toggleSidebar}>
-                <Library className="w-5 h-5" />
-                <span>Materiais de Apoio</span>
-              </NavLink>
               <NavLink to="/gestor/daily-checklist-monitoring" className={linkClass} onClick={toggleSidebar}>
                 <ClipboardCheck className="w-5 h-5" />
                 <span>Monitorar Metas Diárias</span>
@@ -126,6 +126,9 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
             <>
               <NavLink to="/gestor/dashboard" className={linkClass} onClick={toggleSidebar} title="Dashboard">
                 <LayoutDashboard className="w-5 h-5" />
+              </NavLink>
+              <NavLink to="/gestor/calendar" className={linkClass} onClick={toggleSidebar} title="Agenda"> {/* NOVO: Link para a Agenda */}
+                <Calendar className="w-5 h-5" />
               </NavLink>
               <NavLink to="/gestor/crm" className={linkClass} onClick={toggleSidebar} title="CRM">
                 <TrendingUp className="w-5 h-5" />
@@ -153,9 +156,6 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
               </NavLink>
               <NavLink to="/gestor/feedbacks" className={linkClass} onClick={toggleSidebar} title="Feedbacks">
                 <Star className="w-5 h-5" />
-              </NavLink>
-              <NavLink to="/gestor/materials" className={linkClass} onClick={toggleSidebar} title="Materiais de Apoio">
-                <Library className="w-5 h-5" />
               </NavLink>
               <NavLink to="/gestor/daily-checklist-monitoring" className={linkClass} onClick={toggleSidebar} title="Monitorar Metas Diárias">
                 <ClipboardCheck className="w-5 h-5" />

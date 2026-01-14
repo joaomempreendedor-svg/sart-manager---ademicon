@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom'; // Removido useNavigate
-import { LayoutDashboard, TrendingUp, LogOut, User as UserIcon, Sun, Moon, ListChecks, ChevronLeft, ChevronRight, Library } from 'lucide-react'; // Import ListChecks, Library e LinkIcon
+import { LayoutDashboard, TrendingUp, LogOut, User as UserIcon, Sun, Moon, ListChecks, ChevronLeft, ChevronRight, Library, Calendar } from 'lucide-react'; // Import ListChecks, Library e LinkIcon
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 
@@ -56,6 +56,10 @@ export const ConsultorSidebar: React.FC<ConsultorSidebarProps> = ({ isSidebarOpe
           <NavLink to="/consultor/dashboard" className={linkClass} onClick={toggleSidebar}>
             <LayoutDashboard className="w-5 h-5" />
             {!isSidebarCollapsed && <span>Dashboard</span>}
+          </NavLink>
+          <NavLink to="/consultor/calendar" className={linkClass} onClick={toggleSidebar}> {/* NOVO: Link para a Agenda */}
+            <Calendar className="w-5 h-5" />
+            {!isSidebarCollapsed && <span>Minha Agenda</span>}
           </NavLink>
           <NavLink to="/consultor/crm" className={linkClass} onClick={toggleSidebar}>
             <TrendingUp className="w-5 h-5" />

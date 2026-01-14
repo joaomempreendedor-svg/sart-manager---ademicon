@@ -11,7 +11,7 @@ import { PendingLeadTasksModal } from '@/components/gestor/PendingLeadTasksModal
 import toast from 'react-hot-toast';
 import { NotificationBell } from '@/components/NotificationBell'; // Importar NotificationBell
 import { NotificationCenter } from '@/components/NotificationCenter'; // Importar NotificationCenter
-import { CalendarView } from '@/components/CalendarView'; // NOVO: Importar CalendarView
+// import { CalendarView } from '@/components/CalendarView'; // REMOVIDO: CalendarView agora tem sua própria página
 
 const StatusBadge = ({ status }: { status: CandidateStatus }) => {
   const colors = {
@@ -56,7 +56,7 @@ export const Dashboard = () => {
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [isPendingTasksModalOpen, setIsPendingTasksModalOpen] = useState(false);
   const [isNotificationCenterOpen, setIsNotificationCenterOpen] = useState(false); // State for NotificationCenter
-  const [activeTab, setActiveTab] = useState<'overview' | 'calendar'>('overview'); // NOVO: Estado para controlar a aba ativa
+  // const [activeTab, setActiveTab] = useState<'overview' | 'calendar'>('overview'); // REMOVIDO: Estado para controlar a aba ativa
 
   // NOVO: Estados para o filtro de data dos candidatos
   const [filterStartDate, setFilterStartDate] = useState('');
@@ -420,7 +420,8 @@ export const Dashboard = () => {
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-gray-200 dark:border-slate-700 mb-6">
+      {/* REMOVIDO: Tabs de navegação */}
+      {/* <div className="flex border-b border-gray-200 dark:border-slate-700 mb-6">
         <button
           onClick={() => setActiveTab('overview')}
           className={`flex items-center space-x-2 px-4 py-3 font-medium text-sm transition-colors ${
@@ -443,7 +444,7 @@ export const Dashboard = () => {
           <Calendar className="w-4 h-4" />
           <span>Agenda</span>
         </button>
-      </div>
+      </div> */}
 
       {isDataLoading ? (
         <div className="flex items-center justify-center min-h-[calc(100vh-theme(spacing.16))]">
@@ -451,7 +452,7 @@ export const Dashboard = () => {
         </div>
       ) : (
         <>
-          {activeTab === 'overview' && (
+          {/* activeTab === 'overview' && ( */}
             <div className="animate-fade-in">
               {/* Seção de Métricas Comerciais */}
               <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center"><TrendingUp className="w-5 h-5 mr-2 text-brand-500" />Métricas Comerciais (Mês Atual)</h2>
@@ -723,8 +724,9 @@ export const Dashboard = () => {
                 )}
               </div>
             </div>
-          )}
-          {activeTab === 'calendar' && user && user.role && (
+          {/* ) */}
+          {/* REMOVIDO: CalendarView agora tem sua própria página */}
+          {/* {activeTab === 'calendar' && user && user.role && (
             <div className="animate-fade-in">
               <CalendarView
                 userId={user.id}
@@ -734,7 +736,7 @@ export const Dashboard = () => {
                 showGestorTasks={true}
               />
             </div>
-          )}
+          )} */}
         </>
       )}
       <ScheduleInterviewModal isOpen={isScheduleModalOpen} onClose={() => setIsScheduleModalOpen(false)} />

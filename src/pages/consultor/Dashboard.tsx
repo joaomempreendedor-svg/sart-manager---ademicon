@@ -7,7 +7,7 @@ import { DailyChecklistItem, WeeklyTargetItem, MetricLog } from '@/types';
 import { TableSkeleton } from '@/components/TableSkeleton';
 import { ScheduleInterviewModal } from '@/components/ScheduleInterviewModal';
 import { DailyChecklistDisplay } from '@/components/consultor/DailyChecklistDisplay'; // Importar o novo componente
-import { CalendarView } from '@/components/CalendarView'; // NOVO: Importar CalendarView
+// import { CalendarView } from '@/components/CalendarView'; // REMOVIDO: CalendarView agora tem sua própria página
 
 // Tipo para itens da agenda do consultor
 type AgendaItem = {
@@ -45,7 +45,7 @@ const ConsultorDashboard = () => {
     isDataLoading 
   } = useApp();
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'calendar'>('overview'); // NOVO: Estado para controlar a aba ativa
+  // const [activeTab, setActiveTab] = useState<'overview' | 'calendar'>('overview'); // REMOVIDO: Estado para controlar a aba ativa
 
   // --- CRM Statistics ---
   const { 
@@ -269,7 +269,8 @@ const ConsultorDashboard = () => {
       <p className="text-gray-500 dark:text-gray-400 mb-8">Bem-vindo ao seu Dashboard. Aqui estão suas principais informações e atalhos.</p>
       
       {/* Tabs */}
-      <div className="flex border-b border-gray-200 dark:border-slate-700 mb-6">
+      {/* REMOVIDO: Tabs de navegação */}
+      {/* <div className="flex border-b border-gray-200 dark:border-slate-700 mb-6">
         <button
           onClick={() => setActiveTab('overview')}
           className={`flex items-center space-x-2 px-4 py-3 font-medium text-sm transition-colors ${
@@ -292,9 +293,9 @@ const ConsultorDashboard = () => {
           <Calendar className="w-4 h-4" />
           <span>Minha Agenda</span>
         </button>
-      </div>
+      </div> */}
 
-      {activeTab === 'overview' && (
+      {/* activeTab === 'overview' && ( */}
         <div className="animate-fade-in">
           {/* CRM Statistics */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
@@ -470,8 +471,9 @@ const ConsultorDashboard = () => {
           )}
           {/* REMOVIDO: Bloco de mensagem de "Nenhuma meta semanal ativa" */}
         </div>
-      )}
-      {activeTab === 'calendar' && user && user.role && (
+      {/* ) */}
+      {/* REMOVIDO: CalendarView agora tem sua própria página */}
+      {/* {activeTab === 'calendar' && user && user.role && (
         <div className="animate-fade-in">
           <CalendarView
             userId={user.id}
@@ -481,7 +483,7 @@ const ConsultorDashboard = () => {
             showGestorTasks={false} // Consultor não vê tarefas do gestor
           />
         </div>
-      )}
+      )} */}
     </div>
   );
 };
