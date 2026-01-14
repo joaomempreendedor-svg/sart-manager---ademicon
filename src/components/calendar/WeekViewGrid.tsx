@@ -26,7 +26,6 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
   userRole,
   showPersonalEvents,
 }) => {
-  // currentTimeRef removido
   const isCurrentWeek = weekDays.some(day => isSameDay(day, new Date())); // Check against current 'now'
 
   // Calculate event positioning for timed events
@@ -71,8 +70,6 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
     });
     return result;
   }, [weekDays, eventsByDay]);
-
-  // useEffect para atualizar a linha do tempo removido
 
   const getEventColorClass = (type: CalendarEvent['type']) => {
     switch (type) {
@@ -156,12 +153,22 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
 
               {/* Timed events grid */}
               <div className="relative h-[calc(100vh-200px)]"> {/* Adjust height */}
-                {/* Hourly lines */}
+                {/* Hourly lines and clickable slots */}
                 {Array.from({ length: 24 }).map((_, hour) => (
-                  <div key={hour} className="absolute left-0 right-0 border-t border-gray-100 dark:border-slate-800" style={{ top: `${(hour / 24) * 100}%`, height: '1px' }}></div>
+                  <div 
+                    key={hour} 
+                    className="absolute left-0 right-0 border-t border-gray-100 dark:border-slate-800 h-[60px] cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/30" 
+                    style={{ top: `${(hour / 24) * 100}%` }}
+                    onClick={() => {
+                      if (showPersonalEvents && userRole === 'CONSULTOR') {
+                        const newEventDate = new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour, 0);
+                        onOpenEventModal(newEventDate);
+                      } else {
+                        toast.info("Você não tem permissão para adicionar eventos pessoais aqui.");
+                      }
+                    }}
+                  ></div>
                 ))}
-
-                {/* Current time indicator removido */}
 
                 {/* Event blocks */}
                 {positionedTimedEvents.map(event => (

@@ -26,7 +26,6 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
   userRole,
   showPersonalEvents,
 }) => {
-  // currentTimeRef removido
   const isCurrentDay = isSameDay(day, today);
 
   const allDayEvents = useMemo(() => events.filter(e => e.allDay), [events]);
@@ -43,8 +42,6 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
       return { ...event, top, height };
     });
   }, [timedEvents]);
-
-  // useEffect para atualizar a linha do tempo removido
 
   const getEventColorClass = (type: CalendarEvent['type']) => {
     switch (type) {
@@ -101,7 +98,22 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
 
         {/* Timed events grid */}
         <div className="relative h-[calc(100vh-200px)] overflow-y-auto custom-scrollbar"> {/* Adjust height based on header/footer */}
-          {/* Current time indicator removido */}
+          {/* Hourly lines and clickable slots */}
+          {Array.from({ length: 24 }).map((_, hour) => (
+            <div 
+              key={hour} 
+              className="absolute left-0 right-0 border-t border-gray-100 dark:border-slate-800 h-[60px] cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/30" 
+              style={{ top: `${(hour / 24) * 100}%` }}
+              onClick={() => {
+                if (showPersonalEvents && userRole === 'CONSULTOR') {
+                  const newEventDate = new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour, 0);
+                  onOpenEventModal(newEventDate);
+                } else {
+                  toast.info("Você não tem permissão para adicionar eventos pessoais aqui.");
+                }
+              }}
+            ></div>
+          ))}
 
           {/* Event blocks */}
           {positionedEvents.map(event => (

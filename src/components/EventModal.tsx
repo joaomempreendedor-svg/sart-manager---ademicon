@@ -26,13 +26,13 @@ interface EventModalProps {
   onClose: () => void;
   onSave: (event: Omit<ConsultantEvent, 'id' | 'user_id' | 'created_at'> | ConsultantEvent) => Promise<void>;
   event: ConsultantEvent | null; // Null for new event, object for editing
-  defaultDate?: Date; // Prop para a data padrão
+  defaultStartDateTime?: Date; // Prop para a data e hora de início padrão
   userId: string;
 }
 
 const formatTime = (date: Date) => date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
 
-export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave, event, defaultDate, userId }) => {
+export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave, event, defaultStartDateTime, userId }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [date, setDate] = useState('');
@@ -52,16 +52,20 @@ export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave,
         setEndTime(formatTime(new Date(event.end_time)));
         setEventType(event.event_type);
       } else {
+        // Se for um novo evento, usa defaultStartDateTime se fornecido, senão a data/hora atual
+        const initialDate = defaultStartDateTime || new Date();
         setTitle('');
         setDescription('');
-        setDate(defaultDate ? defaultDate.toISOString().split('T')[0] : new Date().toISOString().split('T')[0]);
-        setStartTime('09:00');
-        setEndTime('10:00');
+        setDate(initialDate.toISOString().split('T')[0]);
+        setStartTime(formatTime(initialDate));
+        
+        const initialEndTime = new Date(initialDate.getTime() + 60 * 60 * 1000); // Adiciona 1 hora
+        setEndTime(formatTime(initialEndTime));
         setEventType('personal_task');
       }
       setError('');
     }
-  }, [isOpen, event, defaultDate]);
+  }, [isOpen, event, defaultStartDateTime]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
