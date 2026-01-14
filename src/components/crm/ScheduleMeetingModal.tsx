@@ -38,8 +38,8 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [date, setDate] = useState('');
-  const [startTime, setStartTime] = useState('');
-  const [endTime, setEndTime] = useState('');
+  const [startTime, setStartTime] = useState('09:00');
+  const [endTime, setEndTime] = useState('10:00');
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -118,7 +118,7 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
         user_id: taskOwnerId, // ID do consultor responsável pela tarefa
         title: title.trim(),
         description: description.trim() || undefined,
-        due_date: date,
+        due_date: date, // YYYY-MM-DD
         is_completed: false,
         type: 'meeting' as const,
         meeting_start_time: startDateTime.toISOString(),
@@ -127,15 +127,19 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
         manager_invitation_status: invitedManagerId ? 'pending' : undefined, // Status inicial
       };
 
+      console.log("[ScheduleMeetingModal] Data being sent to update/add:", { id: currentMeeting?.id, meetingData });
+
       if (currentMeeting) {
         // Atualizar reunião existente
         await updateLeadTask(currentMeeting.id, meetingData);
+        console.log("[ScheduleMeetingModal] Meeting updated successfully.");
       } else {
         // Adicionar nova reunião
         await addLeadTask(meetingData);
         if (meetingStage && lead.stage_id !== meetingStage.id) {
           await updateCrmLeadStage(lead.id, meetingStage.id);
         }
+        console.log("[ScheduleMeetingModal] Meeting added successfully.");
       }
       onClose();
     } catch (err: any) {
@@ -195,6 +199,7 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
                   onChange={(e) => setTitle(e.target.value)}
                   required
                   className="dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                  placeholder="Ex: Treinamento de Produto"
                 />
               </div>
               <div>
@@ -205,41 +210,51 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
                   onChange={(e) => setDescription(e.target.value)}
                   rows={3}
                   className="dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                  placeholder="Detalhes do evento..."
                 />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <Label htmlFor="date">Data</Label>
-                  <Input
-                    id="date"
-                    type="date"
-                    value={date}
-                    onChange={(e) => setDate(e.target.value)}
-                    required
-                    className="dark:bg-slate-700 dark:text-white dark:border-slate-600"
-                  />
+                  <div className="relative">
+                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <Input
+                      id="date"
+                      type="date"
+                      value={date}
+                      onChange={(e) => setDate(e.target.value)}
+                      required
+                      className="pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                    />
+                  </div>
                 </div>
                 <div>
                   <Label htmlFor="startTime">Início</Label>
-                  <Input
-                    id="startTime"
-                    type="time"
-                    value={startTime}
-                    onChange={(e) => setStartTime(e.target.value)}
-                    required
-                    className="dark:bg-slate-700 dark:text-white dark:border-slate-600"
-                  />
+                  <div className="relative">
+                    <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <Input
+                      id="startTime"
+                      type="time"
+                      value={startTime}
+                      onChange={(e) => setStartTime(e.target.value)}
+                      required
+                      className="pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                    />
+                  </div>
                 </div>
                 <div>
                   <Label htmlFor="endTime">Fim</Label>
-                  <Input
-                    id="endTime"
-                    type="time"
-                    value={endTime}
-                    onChange={(e) => setEndTime(e.target.value)}
-                    required
-                    className="dark:bg-slate-700 dark:text-white dark:border-slate-600"
-                  />
+                  <div className="relative">
+                    <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <Input
+                      id="endTime"
+                      type="time"
+                      value={endTime}
+                      onChange={(e) => setEndTime(e.target.value)}
+                      required
+                      className="pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                    />
+                  </div>
                 </div>
               </div>
               {error && <p className="text-red-500 text-sm">{error}</p>}

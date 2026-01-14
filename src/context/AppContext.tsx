@@ -394,15 +394,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (user?.role === 'CONSULTOR') {
           try {
             const { data: teamMemberProfile, error: teamMemberProfileError } = await supabase
-              .from('team_members')
-              .select('user_id')
-              .eq('data->>id', userId)
+              .from('profiles')
+              .select('user_id') // Assuming profiles table has a user_id that links to the gestor
+              .eq('id', userId)
               .maybeSingle();
 
             if (teamMemberProfileError) {
               console.error("Error fetching team member profile for consultant:", teamMemberProfileError);
             } else if (teamMemberProfile) {
-              effectiveGestorId = JOAO_GESTOR_AUTH_ID;
+              // If the consultant has a linked gestor, use that gestor's ID for shared configs
+              // For now, we'll keep it simple and assume JOAO_GESTOR_AUTH_ID for shared configs
+              effectiveGestorId = JOAO_GESTOR_AUTH_ID; // Or teamMemberProfile.user_id if that's how it's structured
             } else {
               console.warn(`[AppContext] Consultant ${userId} not found in team_members or has no associated Gestor. Shared configs will default to ${JOAO_GESTOR_AUTH_ID}.`);
             }
@@ -750,7 +752,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             toast.info(`🔄 Candidato "${payload.new.data.name || payload.old.data.name}" atualizado em tempo real!`);
             
             const rawPayloadData = payload.new.data as Candidate;
-            const clientSideId = rawPayloadData.id || crypto.randomUUID();
+            const clientSideId = rawPayloadData.id || crypto.randomUUID(); 
             if (!rawPayloadData.id) {
               console.warn(`[Realtime: Candidate] Candidate with db_id "${payload.new.id}" is missing client-side 'id' in JSONB data. Generating new client-side ID: "${clientSideId}"`);
             }
@@ -761,8 +763,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 db_id: payload.new.id,
                 createdAt: payload.new.created_at,
                 lastUpdatedAt: payload.new.last_updated_at,
-                interviewScores: JSON.parse(JSON.stringify(rawPayloadData.interviewScores || { basicProfile: 0, commercialSkills: 0, behavioralProfile: 0, jobFit: 0, notes: '' })),
-                checkedQuestions: JSON.parse(JSON.stringify(rawPayloadData.checkedQuestions || {})),
+                interviewScores: JSON.parse(JSON.stringify(rawCandidateData.interviewScores || { basicProfile: 0, commercialSkills: 0, behavioralProfile: 0, jobFit: 0, notes: '' })),
+                checkedQuestions: JSON.parse(JSON.stringify(rawCandidateData.checkedQuestions || {})),
                 checklistProgress: JSON.parse(JSON.stringify(rawCandidateData.checklistProgress || {})),
                 consultantGoalsProgress: JSON.parse(JSON.stringify(rawCandidateData.consultantGoalsProgress || {})),
                 feedbacks: JSON.parse(JSON.stringify(rawCandidateData.feedbacks || [])),
@@ -2240,13 +2242,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }));
     const { error } = await supabase.from('weekly_target_items').upsert(updates, { onConflict: 'id' });
     if (error) throw error;
-    setWeeklyTargetItems(prev => {
-      const updatedItems = prev.map(item => {
-        const update = updates.find(u => u.id === item.id);
-        return update ? { ...item, order_index: update.order_index } : item;
-      });
-      return updatedItems.sort((a, b) => a.order_index - b.order_index);
-    });
+    setWeeklyTargetItems(prev => prev.map(item => {
+      const updated = updates.find(u => u.id === item.id);
+      return updated ? { ...item, order_index: updated.order_index } : item;
+    }).sort((a, b) => a.order_index - b.order_index));
   }, [user]);
 
   const assignWeeklyTargetToConsultant = useCallback(async (weekly_target_id: string, consultant_id: string) => {
@@ -2381,9 +2380,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const updateLeadTask = useCallback(async (id: string, updates: Partial<LeadTask> & { user_id?: string; manager_id?: string | null; }) => {
     if (!user) throw new Error("Usuário não autenticado.");
+    console.log("[AppContext] updateLeadTask: Received ID:", id, "Updates:", updates);
     const { data, error } = await supabase.from('lead_tasks').update({ ...updates }).eq('id', id).select('*').single();
-    if (error) throw error;
-    setLeadTasks(prev => prev.map(task => task.id === id ? data : task));
+    if (error) {
+      console.error("[AppContext] updateLeadTask: Error updating task:", error);
+      throw error;
+    }
+    console.log("[AppContext] updateLeadTask: Task updated successfully:", data);
+    setLeadTasks(prev => {
+      const newState = prev.map(task => task.id === id ? data : task);
+      console.log("[AppContext] updateLeadTask: New leadTasks state after update:", newState);
+      return newState;
+    });
     return data;
   }, [user]);
 
