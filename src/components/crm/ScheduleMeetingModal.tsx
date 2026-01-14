@@ -48,29 +48,27 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
     return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
   }
 
-  // Gestores disponíveis: inclui Gestor/Admin, fallback com crmOwnerUserId e nomes específicos (João Müller / João B Müller)
+  // Gestores disponíveis: SOMENTE João Müller (exclui João B. Müller) com fallback no crmOwnerUserId
   const gestores: TeamMember[] = useMemo(() => {
-    const toKey = (s?: string) =>
+    const normalize = (s?: string) =>
       (s || '')
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')
         .toLowerCase()
         .trim();
 
-    const isGestorOrAdmin = (m: TeamMember) => {
-      const roles = (m.roles || []).map(r => r.toLowerCase());
-      return m.isActive && (roles.includes('gestor') || roles.includes('admin'));
-    };
+    const targetKey = 'joao muller';
 
-    const base: TeamMember[] = teamMembers.filter(isGestorOrAdmin);
+    // Filtra apenas membros cujo nome é exatamente "João Müller" (normalizado)
+    const matched = teamMembers.filter(m => m.isActive && normalize(m.name) === targetKey);
 
-    // Fallback: incluir gestor principal (crmOwnerUserId) se não presente
-    if (crmOwnerUserId && !base.some(m => m.id === crmOwnerUserId)) {
+    // Fallback: inclui o gestor principal do sistema se não estiver na lista
+    if (crmOwnerUserId && !matched.some(m => m.id === crmOwnerUserId)) {
       const existente = teamMembers.find(m => m.id === crmOwnerUserId);
       if (existente) {
-        base.push(existente);
+        matched.push(existente);
       } else {
-        base.push({
+        matched.push({
           id: crmOwnerUserId,
           name: 'João Müller',
           roles: ['Gestor'],
@@ -79,18 +77,9 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
       }
     }
 
-    // Garantir presença por nome: João Müller e João B Müller
-    const targetNames = ['joao muller', 'joao b muller'];
-    teamMembers.forEach(m => {
-      const mk = toKey(m.name);
-      if (targetNames.includes(mk) && !base.some(x => x.id === m.id)) {
-        base.push(m);
-      }
-    });
-
-    // Ordena por nome para melhor UX e remove duplicados por id
+    // Remove duplicados por id e ordena por nome
     const uniqueById: Record<string, TeamMember> = {};
-    base.forEach(m => { uniqueById[m.id] = m; });
+    matched.forEach(m => { uniqueById[m.id] = m; });
     return Object.values(uniqueById).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   }, [teamMembers, crmOwnerUserId]);
 
