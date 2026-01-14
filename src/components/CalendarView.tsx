@@ -135,6 +135,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         const consultant = teamMembers.find(m => m.id === task.user_id);
         const start = new Date(task.meeting_start_time!);
         const end = new Date(task.meeting_end_time!);
+        
+        // Reuniões são eventos com horário, a menos que explicitamente 00:00-00:00
         const isAllDayEvent = isSameDay(start, end) && 
                               start.getHours() === 0 && start.getMinutes() === 0 && 
                               (end.getHours() === 0 && end.getMinutes() === 0 || (end.getHours() === 23 && end.getMinutes() === 59));
@@ -149,7 +151,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           personName: lead?.name || consultant?.name || 'Desconhecido',
           personId: lead?.id || consultant?.id,
           originalEvent: task,
-          allDay: isAllDayEvent,
+          allDay: isAllDayEvent, // Usar a nova lógica
         });
       });
     }
@@ -202,7 +204,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             personName: lead?.name || 'Lead Desconhecido',
             personId: lead?.id,
             originalEvent: task,
-            allDay: true,
+            allDay: true, // Tarefas de lead são consideradas de dia inteiro
           });
         }
       });
@@ -243,7 +245,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                     personName: user?.name || 'Eu',
                     personId: userId,
                     originalEvent: item,
-                    allDay: true,
+                    allDay: true, // Itens de checklist são considerados de dia inteiro
                   });
                 }
               });
