@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '@/context/AppContext';
-import { LeadTask, CrmLead, TeamMember } from '@/types';
+import { LeadTask, CrmLead, TeamMember, ConsultantEvent } from '@/types';
 import { X, Save, Loader2, Calendar, Clock, Users, UserRound } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -18,7 +18,7 @@ interface ScheduleMeetingModalProps {
 }
 
 export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOpen, onClose, lead, currentMeeting }) => {
-  const { addLeadTask, updateLeadTask, teamMembers } = useApp();
+  const { addLeadTask, updateLeadTask, teamMembers, leadTasks, consultantEvents } = useApp();
   const [title, setTitle] = useState(currentMeeting?.title || 'Reunião com Lead');
   const [date, setDate] = useState<string>(() => {
     if (currentMeeting?.meeting_start_time) {
@@ -50,6 +50,61 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
   const [selectedGestorId, setSelectedGestorId] = useState<string | null>(gestores[0]?.id || null);
   const [gestorEvents, setGestorEvents] = useState<{ id: string; title: string; start_time: string; end_time: string; description?: string }[]>([]);
   const [isLoadingAgenda, setIsLoadingAgenda] = useState(false);
+
+  // Utilitário: checa sobreposição de horários
+  const hasOverlap = (aStart: Date, aEnd: Date, bStart: Date, bEnd: Date) => {
+    return aStart < bEnd && bStart < aEnd;
+  };
+
+  // Conflitos do consultor (reuniões de leads e eventos pessoais)
+  const selectedStart = useMemo(() => new Date(`${date}T${startTime || '00:00'}:00`), [date, startTime]);
+  const selectedEnd = useMemo(() => new Date(`${date}T${endTime || '00:00'}:00`), [date, endTime]);
+  const consultantId = lead.consultant_id || '';
+
+  const conflicts = useMemo(() => {
+    const items: string[] = [];
+
+    // Conflitos com agenda do gestor (já carregada via função)
+    if (selectedGestorId) {
+      gestorEvents.forEach(ev => {
+        const evStart = new Date(ev.start_time);
+        const evEnd = new Date(ev.end_time);
+        if (hasOverlap(selectedStart, selectedEnd, evStart, evEnd)) {
+          items.push(`Gestor ocupado: ${formatTime(ev.start_time)} - ${formatTime(ev.end_time)} (${ev.title || 'Evento'})`);
+        }
+      });
+    }
+
+    // Conflitos com reuniões do consultor (leadTasks)
+    leadTasks.filter(t =>
+      t.type === 'meeting' &&
+      t.user_id === consultantId &&
+      t.meeting_start_time && t.meeting_end_time &&
+      new Date(t.meeting_start_time).toISOString().split('T')[0] === date
+    ).forEach(t => {
+      const tStart = new Date(t.meeting_start_time!);
+      const tEnd = new Date(t.meeting_end_time!);
+      if (hasOverlap(selectedStart, selectedEnd, tStart, tEnd)) {
+        items.push(`Você já tem reunião: ${formatTime(t.meeting_start_time!)} - ${formatTime(t.meeting_end_time!)} (${t.title})`);
+      }
+    });
+
+    // Conflitos com eventos pessoais do consultor
+    consultantEvents.filter(ev =>
+      ev.user_id === consultantId &&
+      new Date(ev.start_time).toISOString().split('T')[0] === date
+    ).forEach(ev => {
+      const evStart = new Date(ev.start_time);
+      const evEnd = new Date(ev.end_time);
+      if (hasOverlap(selectedStart, selectedEnd, evStart, evEnd)) {
+        items.push(`Você está ocupado: ${formatTime(ev.start_time)} - ${formatTime(ev.end_time)} (${ev.title})`);
+      }
+    });
+
+    return items;
+  }, [selectedGestorId, gestorEvents, selectedStart, selectedEnd, leadTasks, consultantEvents, consultantId, date]);
+
+  const hasConflicts = conflicts.length > 0;
 
   useEffect(() => {
     // Carrega agenda do gestor selecionado para o dia
@@ -95,6 +150,10 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
     e.preventDefault();
     if (!date || !startTime || !endTime) {
       toast.error('Preencha data e horários.');
+      return;
+    }
+    if (hasConflicts) {
+      toast.error('Horário indisponível. Ajuste o horário para continuar.');
       return;
     }
     const startDateTime = new Date(`${date}T${startTime}:00`);
@@ -145,6 +204,10 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
     }
     if (!date || !startTime || !endTime) {
       toast.error('Preencha data e horários.');
+      return;
+    }
+    if (hasConflicts) {
+      toast.error('Horário indisponível. Ajuste o horário para continuar.');
       return;
     }
     const startDateTime = new Date(`${date}T${startTime}:00`);
@@ -225,6 +288,19 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
               </div>
             </div>
 
+            {/* MENSAGEM DE CONFLITO */}
+            {hasConflicts && (
+              <div className="rounded-md border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 p-3 text-sm text-red-700 dark:text-red-300">
+                <p className="font-semibold mb-1">Horário indisponível</p>
+                <ul className="list-disc list-inside space-y-1">
+                  {conflicts.map((c, idx) => (
+                    <li key={idx}>{c}</li>
+                  ))}
+                </ul>
+                <p className="mt-2">Ajuste o horário ou escolha outro dia.</p>
+              </div>
+            )}
+
             {/* NOVO: Selecionar Gestor e ver agenda */}
             <div className="border-t border-gray-200 dark:border-slate-700 pt-4 mt-2">
               <Label>Convidar Gestor</Label>
@@ -273,7 +349,7 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
               </div>
 
               <div className="mt-3 flex flex-wrap gap-2">
-                <Button type="button" onClick={handleInviteGestor} disabled={!selectedGestorId || isSaving} className="bg-purple-600 hover:bg-purple-700 text-white">
+                <Button type="button" onClick={handleInviteGestor} disabled={!selectedGestorId || isSaving || hasConflicts} className="bg-purple-600 hover:bg-purple-700 text-white">
                   Convidar Gestor
                 </Button>
               </div>
@@ -286,7 +362,7 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
             <Button type="button" variant="outline" onClick={onClose} className="dark:bg-slate-700 dark:text-white dark:border-slate-600 w-full sm:w-auto mb-2 sm:mb-0">
               Cancelar
             </Button>
-            <Button type="submit" disabled={isSaving} className="bg-brand-600 hover:bg-brand-700 text-white w-full sm:w-auto">
+            <Button type="submit" disabled={isSaving || hasConflicts} className="bg-brand-600 hover:bg-brand-700 text-white w-full sm:w-auto">
               {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
               {isSaving ? 'Salvando...' : 'Salvar Reunião'}
             </Button>

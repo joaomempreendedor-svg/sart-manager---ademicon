@@ -128,7 +128,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         if (task.type !== 'meeting' || !task.meeting_start_time || !task.meeting_end_time) return false;
         
         const isConsultantMeeting = userRole === 'CONSULTOR' && task.user_id === userId;
-        const isGestorMeeting = (userRole === 'GESTOR' || userRole === 'ADMIN') && task.manager_id === userId;
+        const isGestorMeeting = (userRole === 'GESTOR' || userRole === 'ADMIN') && task.manager_id === userId && task.manager_invitation_status === 'accepted';
         
         return isConsultantMeeting || isGestorMeeting;
       }).forEach(task => {
