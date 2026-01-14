@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
-import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, CommissionStatus, InstallmentInfo, CutoffPeriod, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask, SupportMaterialContentType, DailyChecklistItemResource, DailyChecklistItemResourceType, GestorTask, GestorTaskCompletion, FinancialEntry, FormCadastro, FormFile, Notification, NotificationType, ConsultantEvent } from '@/types';
+import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, CommissionStatus, InstallmentInfo, CutoffPeriod, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask, SupportMaterialContentType, DailyChecklistItemResource, DailyChecklistItemResourceType, GestorTask, GestorTaskCompletion, FinancialEntry, FormCadastro, FormFile, Notification, NotificationType, ConsultantEvent, Feedback } from '@/types';
 import { CHECKLIST_STAGES as DEFAULT_STAGES } from '@/data/checklistData';
 import { CONSULTANT_GOALS as DEFAULT_GOALS } from '@/data/consultantGoals';
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
@@ -2009,22 +2009,37 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const updateDailyChecklist = useCallback(async (id: string, updates: Partial<DailyChecklist>) => {
     if (!user) throw new Error("Usuário não autenticado.");
-    const { data, error } = await supabase.from('daily_checklists').update(updates).eq('id', id).eq('user_id', JOAO_GESTOR_AUTH_ID).select('*').single();
+
+    const { data, error } = await supabase
+      .from('daily_checklists')
+      .update(updates)
+      .eq('id', id)
+      .eq('user_id', JOAO_GESTOR_AUTH_ID)
+      .select('*')
+      .single();
+
     if (error) throw error;
-    setDailyChecklists(prev => prev.map(c => c.id === id ? data : c));
+
+    setDailyChecklists(prev => prev.map(checklist => checklist.id === id ? data : checklist));
     return data;
   }, [user]);
 
   const deleteDailyChecklist = useCallback(async (id: string) => {
     if (!user) throw new Error("Usuário não autenticado.");
-    const { error } = await supabase.from('daily_checklists').delete().eq('id', id).eq('user_id', JOAO_GESTOR_AUTH_ID);
+
+    const { error } = await supabase
+      .from('daily_checklists')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', JOAO_GESTOR_AUTH_ID);
+
     if (error) throw error;
-    setDailyChecklists(prev => prev.filter(c => c.id !== id));
-    setDailyChecklistItems(prev => prev.filter(item => item.daily_checklist_id !== id));
+
+    setDailyChecklists(prev => prev.filter(checklist => checklist.id !== id));
     setDailyChecklistAssignments(prev => prev.filter(assignment => assignment.daily_checklist_id !== id));
     setDailyChecklistCompletions(prev => prev.filter(completion => {
-      const item = dailyChecklistItems.find(i => i.id === completion.daily_checklist_item_id);
-      return item?.daily_checklist_id !== id;
+      const item = dailyChecklistItems.find(item => item.id === completion.daily_checklist_item_id);
+      return item ? item.daily_checklist_id !== id : true;
     }));
   }, [user, dailyChecklistItems]);
 
@@ -2642,6 +2657,4 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const updateConsultantEvent = useCallback(async (id: string, updates: Partial<ConsultantEvent>) => {
     if (!user) throw new Error("Usuário não autenticado.");
-    console.log("[AppContext] updateConsultantEvent: Attempting to update event ID:", id, "with updates:", updates);
-
-    const {
+    console.log("[AppContext] updateConsultantEvent: Attempting to update event ID:", id,
