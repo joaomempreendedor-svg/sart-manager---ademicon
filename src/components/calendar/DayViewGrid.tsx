@@ -182,10 +182,11 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
         </div>
 
         <div className="flex-1 relative border-l border-gray-200 dark:border-slate-700 overflow-y-auto custom-scrollbar h-[calc(100vh-200px)]">
+          {/* Removed all internal grid lines */}
           {Array.from({ length: 24 }).map((_, hour) => ( // 24 slots for 60-minute intervals
             <div
               key={hour}
-              className="absolute left-0 right-0 border-b border-gray-200 dark:border-slate-700 h-[60px] cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/30" // 60px height for 60-min slot
+              className="absolute left-0 right-0 h-[60px] cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/30" // 60px height for 60-min slot
               style={{ top: `${(hour / 24) * 100}%` }} // Position based on 24 slots
               onClick={() => {
                 if (showPersonalEvents) {
@@ -201,8 +202,8 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
           {positionedEvents.map(event => (
             <div
               key={event.id}
-              className={`absolute p-1 rounded-lg shadow-sm border ${getEventColorClass(event.type)} group overflow-hidden`}
-              style={{ top: `${event.top}%`, height: `${event.height}%` }}
+              className={`absolute p-1 rounded-lg shadow-sm border ${getEventColorClass(event.type)} group overflow-hidden z-10`} // Added z-10
+              style={{ top: `${event.top}%`, height: `${event.height}%`, backgroundColor: 'red' }} // Temporary red background
             >
               <div className="flex items-center text-xs font-medium mb-1">
                 {getEventIcon(event.type)}

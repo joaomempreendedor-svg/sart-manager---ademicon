@@ -94,6 +94,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   }, [currentDate, view]);
 
   const allEvents = useMemo(() => {
+    console.log("[CalendarView] Recalculating allEvents...");
     const events: CalendarEvent[] = [];
 
     // 1. Eventos Pessoais do Consultor (se aplicável)
@@ -245,7 +246,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         });
       }
     }
-
+    console.log("[CalendarView] allEvents calculated:", events);
     return events;
   }, [
     userId, userRole, showPersonalEvents, showLeadMeetings, showGestorTasks,
@@ -254,6 +255,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   ]);
 
   const eventsByDay = useMemo(() => {
+    console.log("[CalendarView] Recalculating eventsByDay...");
     const map: Record<string, CalendarEvent[]> = {};
     displayedDays.forEach(day => {
       const dayStr = day.toISOString().split('T')[0];
@@ -268,6 +270,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         return a.start.getTime() - b.start.getTime();
       });
     });
+    console.log("[CalendarView] eventsByDay calculated:", map);
     return map;
   }, [allEvents, displayedDays]);
 

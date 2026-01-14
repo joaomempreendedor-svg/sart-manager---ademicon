@@ -1000,7 +1000,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const consultantEventsChannel = supabase
         .channel('consultant_events_changes')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'consultant_events' }, (payload) => {
-            console.log('Consultant Event Change (Realtime):', payload);
+            console.log('[AppContext] Consultant Event Change (Realtime):', payload);
             toast.info(`🗓️ Evento pessoal "${payload.new.title || payload.old.title}" atualizado em tempo real!`);
             const newEventData: ConsultantEvent = {
                 id: payload.new.id,
@@ -1014,11 +1014,23 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             };
 
             if (payload.eventType === 'INSERT') {
-                setConsultantEvents(prev => [...prev, newEventData]);
+                setConsultantEvents(prev => {
+                    const newState = [...prev, newEventData];
+                    console.log("[AppContext] Realtime INSERT: New consultantEvents state:", newState);
+                    return newState;
+                });
             } else if (payload.eventType === 'UPDATE') {
-                setConsultantEvents(prev => prev.map(event => event.id === newEventData.id ? newEventData : event));
+                setConsultantEvents(prev => {
+                    const newState = prev.map(event => event.id === newEventData.id ? newEventData : event);
+                    console.log("[AppContext] Realtime UPDATE: New consultantEvents state:", newState);
+                    return newState;
+                });
             } else if (payload.eventType === 'DELETE') {
-                setConsultantEvents(prev => prev.filter(event => event.id !== payload.old.id));
+                setConsultantEvents(prev => {
+                    const newState = prev.filter(event => event.id !== payload.old.id);
+                    console.log("[AppContext] Realtime DELETE: New consultantEvents state:", newState);
+                    return newState;
+                });
             }
         })
         .subscribe();
@@ -1068,7 +1080,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       user_id: JOAO_GESTOR_AUTH_ID, 
       data: newCandidateData,
       last_updated_at: newCandidateData.lastUpdatedAt 
-    }).select('id, created_at, last_updated_at').single(); 
+    }).select('id', 'created_at', 'last_updated_at').single(); 
     
     if (error) { 
       console.error("Erro ao adicionar candidato no Supabase:", error); 
@@ -2222,9 +2234,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const updateWeeklyTargetItemOrder = useCallback(async (orderedItems: WeeklyTargetItem[]) => {
     if (!user) throw new Error("Usuário não autenticado.");
-    const updates = orderedItems.map((item, index) => ({
+    const updates = orderedItems.map((item, idx) => ({
       id: item.id,
-      order_index: index,
+      order_index: idx,
     }));
     const { error } = await supabase.from('weekly_target_items').upsert(updates, { onConflict: 'id' });
     if (error) throw error;
@@ -2599,25 +2611,52 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // Consultant Events Functions
   const addConsultantEvent = useCallback(async (event: Omit<ConsultantEvent, 'id' | 'user_id' | 'created_at'>) => {
     if (!user) throw new Error("Usuário não autenticado.");
+    console.log("[AppContext] addConsultantEvent: Attempting to insert event:", event);
     const { data, error } = await supabase.from('consultant_events').insert({ user_id: user.id, ...event }).select('*').single();
-    if (error) throw error;
-    setConsultantEvents(prev => [...prev, data]);
+    if (error) {
+      console.error("[AppContext] addConsultantEvent: Error inserting event:", error);
+      throw error;
+    }
+    console.log("[AppContext] addConsultantEvent: Event inserted successfully:", data);
+    setConsultantEvents(prev => {
+      const newState = [...prev, data];
+      console.log("[AppContext] addConsultantEvent: New consultantEvents state after insert:", newState);
+      return newState;
+    });
     return data;
   }, [user]);
 
   const updateConsultantEvent = useCallback(async (id: string, updates: Partial<ConsultantEvent>) => {
     if (!user) throw new Error("Usuário não autenticado.");
+    console.log("[AppContext] updateConsultantEvent: Attempting to update event ID:", id, "with updates:", updates);
     const { data, error } = await supabase.from('consultant_events').update(updates).eq('id', id).eq('user_id', user.id).select('*').single();
-    if (error) throw error;
-    setConsultantEvents(prev => prev.map(event => event.id === id ? data : event));
+    if (error) {
+      console.error("[AppContext] updateConsultantEvent: Error updating event:", error);
+      throw error;
+    }
+    console.log("[AppContext] updateConsultantEvent: Event updated successfully:", data);
+    setConsultantEvents(prev => {
+      const newState = prev.map(event => event.id === id ? data : event);
+      console.log("[AppContext] updateConsultantEvent: New consultantEvents state after update:", newState);
+      return newState;
+    });
     return data;
   }, [user]);
 
   const deleteConsultantEvent = useCallback(async (id: string) => {
     if (!user) throw new Error("Usuário não autenticado.");
+    console.log("[AppContext] deleteConsultantEvent: Attempting to delete event ID:", id);
     const { error } = await supabase.from('consultant_events').delete().eq('id', id).eq('user_id', user.id);
-    if (error) throw error;
-    setConsultantEvents(prev => prev.filter(event => event.id !== id));
+    if (error) {
+      console.error("[AppContext] deleteConsultantEvent: Error deleting event:", error);
+      throw error;
+    }
+    console.log("[AppContext] deleteConsultantEvent: Event deleted successfully.");
+    setConsultantEvents(prev => {
+      const newState = prev.filter(event => event.id !== id);
+      console.log("[AppContext] deleteConsultantEvent: New consultantEvents state after delete:", newState);
+      return newState;
+    });
   }, [user]);
 
 
