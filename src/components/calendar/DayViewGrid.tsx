@@ -236,29 +236,26 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
             {/* Timed events grid */}
             <div className="relative h-[1440px]"> {/* 24 hours * 60 minutes = 1440px height */}
               {/* Hourly and Half-Hourly Grid Lines */}
-              {Array.from({ length: 24 * 2 }).map((_, index) => { // 48 half-hour slots
-                const isHalfHour = index % 2 !== 0;
+              {Array.from({ length: 24 }).map((_, hour) => {
                 return (
                   <div
-                    key={index}
-                    className={`absolute left-0 right-0 h-[30px] border-t ${isHalfHour ? 'border-gray-100 dark:border-slate-700' : 'border-gray-200 dark:border-slate-600'} ${isHalfHour ? '' : 'opacity-50'}`}
-                    style={{ top: `${(index * 30) / 1440 * 100}%` }}
+                    key={hour}
+                    className="absolute left-0 right-0 h-[60px] border-t border-gray-200 dark:border-slate-600 opacity-50"
+                    style={{ top: `${hour * 60}px` }}
                   ></div>
                 );
               })}
 
               {/* Clickable slots for adding new events */}
-              {Array.from({ length: 24 * 2 }).map((_, index) => { // 48 half-hour slots
-                const hour = Math.floor(index / 2);
-                const minute = (index % 2) * 30;
+              {Array.from({ length: 24 }).map((_, hour) => {
                 return (
                   <div
-                    key={`slot-${index}`}
-                    className="absolute left-0 right-0 h-[30px] cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/30"
-                    style={{ top: `${(index * 30) / 1440 * 100}%` }}
+                    key={`slot-${hour}`}
+                    className="absolute left-0 right-0 h-[60px] cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/30"
+                    style={{ top: `${hour * 60}px` }}
                     onClick={() => {
                       if (showPersonalEvents) {
-                        const newEventDate = new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour, minute);
+                        const newEventDate = new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour, 0);
                         onOpenEventModal(newEventDate);
                       } else {
                         toast.info("Você não tem permissão para adicionar eventos pessoais aqui.");
