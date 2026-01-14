@@ -145,6 +145,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   const [googleEventsByDay, setGoogleEventsByDay] = useState<Record<string, CalendarEvent[]>>({});
   const [isFetchingGoogle, setIsFetchingGoogle] = useState(false);
 
+  // Estado e efeito para buscar eventos via OAuth
+  const [useGoogleOAuth, setUseGoogleOAuth] = useState<boolean>(false)
+  const [oauthEventsByDay, setOauthEventsByDay] = useState<Record<string, CalendarEvent[]>>({})
+  const [isFetchingOAuth, setIsFetchingOAuth] = useState(false)
+
   // Efeito para atualizar 'today' a cada minuto
   useEffect(() => {
     const intervalId = setInterval(() => {
@@ -162,6 +167,80 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       }
     }
   }, [highlightedDate]);
+
+  // Botão "Conectar via Google OAuth" chama a função para iniciar o fluxo
+  const startGoogleOAuth = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('google-calendar-auth', {
+        body: { action: 'start', user_id: userId }
+      })
+      if (error) {
+        toast.error('Falha ao iniciar conexão com Google.')
+        return
+      }
+      const authUrl = data?.auth_url
+      if (authUrl) {
+        window.open(authUrl, '_blank')
+        toast.success('Abrimos a página de autorização do Google em uma nova aba.')
+      }
+    } catch (e) {
+      toast.error('Erro ao conectar com Google.')
+    }
+  }
+
+  // Efeito para buscar eventos via OAuth
+  useEffect(() => {
+    const fetchOauthEvents = async () => {
+      if (!useGoogleOAuth) {
+        setOauthEventsByDay({})
+        return
+      }
+      setIsFetchingOAuth(true)
+      try {
+        const startDay = displayedDays[0].toISOString().split('T')[0]
+        const endDay = displayedDays[displayedDays.length - 1].toISOString().split('T')[0]
+        const { data, error } = await supabase.functions.invoke('google-calendar-events', {
+          body: { user_id: userId, start_date: startDay, end_date: endDay }
+        })
+        if (error) {
+          toast.error('Falha ao carregar eventos do Google.')
+          return
+        }
+        const items = (data?.events || []) as { id: string; title: string; description?: string; start_time: string; end_time: string; all_day?: boolean; }[]
+        const events: CalendarEvent[] = items.map(ev => {
+          const start = new Date(ev.start_time)
+          const end = new Date(ev.end_time)
+          const isAllDayEvent = ev.all_day || ((start.getHours() === 0 && start.getMinutes() === 0) && (end.getHours() === 0 && end.getMinutes() === 0 || (end.getHours() === 23 && end.getMinutes() === 59)) && isSameDay(start, end))
+          return {
+            id: `google_oauth_${ev.id}`,
+            title: ev.title,
+            description: ev.description,
+            start, end,
+            type: 'personal',
+            personName: user?.name || 'Eu',
+            personId: userId,
+            originalEvent: { title: ev.title, description: ev.description, start_time: ev.start_time, end_time: ev.end_time } as unknown as ConsultantEvent,
+            allDay: isAllDayEvent,
+          }
+        })
+
+        // Agrupa por dia
+        const map: Record<string, CalendarEvent[]> = {}
+        displayedDays.forEach(day => {
+          const dayStr = day.toISOString().split('T')[0]
+          map[dayStr] = events.filter(ev => {
+            const s = ev.start.toISOString().split('T')[0]
+            const e = ev.end.toISOString().split('T')[0]
+            return s <= dayStr && e >= dayStr
+          }).sort((a, b) => a.start.getTime() - b.start.getTime())
+        })
+        setOauthEventsByDay(map)
+      } finally {
+        setIsFetchingOAuth(false)
+      }
+    }
+    fetchOauthEvents()
+  }, [useGoogleOAuth, displayedDays, user?.name, userId])
 
   const displayedDays = useMemo(() => {
     if (view === 'day') {
@@ -403,12 +482,22 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         });
       }
     }
+
+    // Inclui eventos de OAuth no allEvents
+    if (useGoogleOAuth) {
+      displayedDays.forEach(day => {
+        const dayStr = day.toISOString().split('T')[0]
+        const dayOauthEvents = oauthEventsByDay[dayStr] || []
+        dayOauthEvents.forEach(ev => events.push(ev))
+      })
+    }
+
     return events;
   }, [
     userId, userRole, showPersonalEvents, showLeadMeetings, showGestorTasks,
     consultantEvents, leadTasks, crmLeads, teamMembers, gestorTasks, gestorTaskCompletions,
     displayedDays, isGestorTaskDueOnDate, dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions, user?.name, user?.email,
-    showGoogleEvents, googleEventsByDay
+    showGoogleEvents, googleEventsByDay, useGoogleOAuth, oauthEventsByDay
   ]);
 
   const eventsByDay = useMemo(() => {
@@ -551,10 +640,14 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         <div className="flex items-center gap-3">
           <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
             <input type="checkbox" checked={showGoogleEvents} onChange={(e) => setShowGoogleEvents(e.target.checked)} />
-            Mostrar Google Agenda
+            Mostrar Google Agenda (ICS)
           </label>
-          <Button type="button" onClick={() => setIsConnectModalOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white text-sm px-3 py-2">
-            Conectar Google Agenda
+          <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+            <input type="checkbox" checked={useGoogleOAuth} onChange={(e) => setUseGoogleOAuth(e.target.checked)} />
+            Google via OAuth
+          </label>
+          <Button type="button" onClick={startGoogleOAuth} className="bg-blue-600 hover:bg-blue-700 text-white text-sm px-3 py-2">
+            Conectar via Google OAuth
           </Button>
           <button onClick={() => navigateDate(1, view)} className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-600 dark:text-gray-300">
             <ChevronRight className="w-5 h-5" />
@@ -598,6 +691,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           }}
         />
       )}
+
+      {/* Opcional: mensagem de carregamento */}
+      {isFetchingOAuth && <p className="text-xs text-gray-500 dark:text-gray-400 px-4">Carregando eventos do Google (OAuth)...</p>}
     </div>
   );
 };
