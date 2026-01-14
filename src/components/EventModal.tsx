@@ -95,20 +95,31 @@ export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave,
 
     setIsSaving(true);
     try {
-      // Construir o payload para o Supabase, excluindo 'allDay' e outras propriedades de UI
-      const finalEventPayload: ConsultantEvent = {
-        id: event?.id || crypto.randomUUID(), // Usar ID existente ou gerar um novo
-        user_id: userId,
-        title,
-        description: description || undefined,
-        start_time: startDateTime.toISOString(),
-        end_time: endDateTime.toISOString(),
-        // Removido event_type
-        // event_type: eventType,
-        created_at: event?.originalEvent?.created_at || new Date().toISOString(), // Manter created_at se for edição
-      };
-      
-      await onSave(finalEventPayload);
+      const isEditingPersonalEvent = !!event && event.type === 'personal';
+
+      if (isEditingPersonalEvent) {
+        // Atualização: mantém ID e created_at do evento original
+        const updatedEventPayload: ConsultantEvent = {
+          id: event!.id, // CalendarEvent.id == ConsultantEvent.id
+          user_id: userId,
+          title,
+          description: description || undefined,
+          start_time: startDateTime.toISOString(),
+          end_time: endDateTime.toISOString(),
+          created_at: (event!.originalEvent as ConsultantEvent)?.created_at || new Date().toISOString(),
+        };
+        await onSave(updatedEventPayload);
+      } else {
+        // Criação: NÃO enviar id/user_id/created_at (AppContext adiciona user_id e DB gera id/created_at)
+        const newEventPayload: Omit<ConsultantEvent, 'id' | 'user_id' | 'created_at'> = {
+          title,
+          description: description || undefined,
+          start_time: startDateTime.toISOString(),
+          end_time: endDateTime.toISOString(),
+        };
+        await onSave(newEventPayload);
+      }
+
       onClose();
     } catch (err: any) {
       console.error("Erro ao salvar evento:", err);
