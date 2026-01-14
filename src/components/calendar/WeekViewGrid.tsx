@@ -320,7 +320,7 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
                   {positionedTimedEvents.map(event => (
                     <div
                       key={event.id}
-                      className={`absolute p-1 rounded-lg shadow-sm border ${getEventColorClass(event.type)} group overflow-hidden z-10 flex flex-col min-h-[40px]`}
+                      className={`absolute p-1 rounded-lg shadow-sm border ${getEventColorClass(event.type)} group overflow-hidden z-10 flex flex-col min-h-[50px]`}
                       style={{ top: `${event.top}%`, height: `${event.height}%`, left: `${event.left}%`, width: `${event.width}%` }}
                     >
                       <div className="flex-1 min-h-0 overflow-hidden flex flex-col gap-1"> {/* Content area */}
