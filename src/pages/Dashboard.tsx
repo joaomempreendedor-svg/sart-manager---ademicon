@@ -559,47 +559,53 @@ export const Dashboard = () => {
               </div>
 
               {/* Meeting Invitations Section */}
-              {user?.role === 'GESTOR' && meetingInvitations.length > 0 && (
+              {(user?.role === 'GESTOR' || user?.role === 'ADMIN') && (
                 <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl shadow-sm flex flex-col mb-8">
                   <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700 flex items-center space-x-2 bg-purple-50 dark:bg-purple-900/20 rounded-t-xl">
                     <BellRing className="w-5 h-5 text-purple-600 dark:text-purple-400" />
                     <h2 className="text-lg font-semibold text-purple-800 dark:text-purple-300">Convites de Reunião</h2>
                     <span className="bg-purple-200 dark:bg-purple-800 text-purple-800 dark:text-purple-100 text-xs font-bold px-2 py-0.5 rounded-full">{meetingInvitations.length}</span>
                   </div>
-                  <div className="flex-1 p-0 overflow-y-auto max-h-80 custom-scrollbar">
-                    <ul className="divide-y divide-gray-100 dark:divide-slate-700">
-                      {meetingInvitations.map((item) => (
-                        <li key={item.id} onClick={() => handleAgendaItemClick(item)} className="p-4 hover:bg-purple-50 dark:hover:bg-purple-900/10 cursor-pointer transition">
-                          <div className="flex items-start justify-between flex-col sm:flex-row">
-                            <div>
-                              <p className="text-sm font-medium text-gray-900 dark:text-gray-200">{item.title}</p>
-                              <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 mt-1 space-x-2 flex-wrap">
-                                <span className="flex items-center"><UserRound className="w-3 h-3 mr-1" /> Consultor: <span className="font-semibold ml-1">{item.meetingDetails?.consultantName}</span></span>
-                                <span className="flex items-center"><Calendar className="w-3 h-3 mr-1" /> {new Date(item.dueDate + 'T00:00:00').toLocaleDateString()}</span>
-                                <span className="flex items-center"><Clock className="w-3 h-3 mr-1" /> {item.meetingDetails?.startTime} - {item.meetingDetails?.endTime}</span>
+                  {meetingInvitations.length > 0 ? (
+                    <div className="flex-1 p-0 overflow-y-auto max-h-80 custom-scrollbar">
+                      <ul className="divide-y divide-gray-100 dark:divide-slate-700">
+                        {meetingInvitations.map((item) => (
+                          <li key={item.id} onClick={() => handleAgendaItemClick(item)} className="p-4 hover:bg-purple-50 dark:hover:bg-purple-900/10 cursor-pointer transition">
+                            <div className="flex items-start justify-between flex-col sm:flex-row">
+                              <div>
+                                <p className="text-sm font-medium text-gray-900 dark:text-gray-200">{item.title}</p>
+                                <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 mt-1 space-x-2 flex-wrap">
+                                  <span className="flex items-center"><UserRound className="w-3 h-3 mr-1" /> Consultor: <span className="font-semibold ml-1">{item.meetingDetails?.consultantName}</span></span>
+                                  <span className="flex items-center"><Calendar className="w-3 h-3 mr-1" /> {new Date(item.dueDate + 'T00:00:00').toLocaleDateString()}</span>
+                                  <span className="flex items-center"><Clock className="w-3 h-3 mr-1" /> {item.meetingDetails?.startTime} - {item.meetingDetails?.endTime}</span>
+                                </div>
+                              </div>
+                              <div className="flex items-center space-x-2 mt-2 sm:mt-0 flex-wrap justify-end">
+                                <button
+                                  onClick={() => handleInvitationResponse(item.meetingDetails!.taskId, 'accepted', item.meetingDetails)}
+                                  className="px-3 py-1.5 bg-green-500 text-white rounded-md text-xs font-medium hover:bg-green-600 flex items-center space-x-1"
+                                >
+                                  <CheckCircle2 className="w-4 h-4" />
+                                  <span>Aceitar</span>
+                                </button>
+                                <button
+                                  onClick={() => handleInvitationResponse(item.meetingDetails!.taskId, 'declined', item.meetingDetails)}
+                                  className="px-3 py-1.5 bg-red-500 text-white rounded-md text-xs font-medium hover:bg-red-600 flex items-center space-x-1"
+                                >
+                                  <XCircle className="w-4 h-4" />
+                                  <span>Recusar</span>
+                                </button>
                               </div>
                             </div>
-                            <div className="flex items-center space-x-2 mt-2 sm:mt-0 flex-wrap justify-end">
-                              <button
-                                onClick={() => handleInvitationResponse(item.meetingDetails!.taskId, 'accepted', item.meetingDetails)}
-                                className="px-3 py-1.5 bg-green-500 text-white rounded-md text-xs font-medium hover:bg-green-600 flex items-center space-x-1"
-                              >
-                                <CheckCircle2 className="w-4 h-4" />
-                                <span>Aceitar</span>
-                              </button>
-                              <button
-                                onClick={() => handleInvitationResponse(item.meetingDetails!.taskId, 'declined', item.meetingDetails)}
-                                className="px-3 py-1.5 bg-red-500 text-white rounded-md text-xs font-medium hover:bg-red-600 flex items-center space-x-1"
-                              >
-                                <XCircle className="w-4 h-4" />
-                                <span>Recusar</span>
-                              </button>
-                            </div>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : (
+                    <div className="p-6 text-sm text-gray-600 dark:text-gray-400">
+                      Nenhum convite de reunião pendente no momento. Quando um consultor convidar você ao agendar uma reunião, os convites aparecerão aqui.
+                    </div>
+                  )}
                 </div>
               )}
 
