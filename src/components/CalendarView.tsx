@@ -7,6 +7,7 @@ import { EventModal } from './EventModal';
 import toast from 'react-hot-toast';
 import GoogleCalendarConnectModal from './calendar/GoogleCalendarConnectModal';
 import { Button } from '@/components/ui/button';
+import { supabase } from '@/integrations/supabase/client';
 
 // ADDED: ICS parser (leve e sem dependências extras)
 const parseICS = (icsText: string) => {
@@ -188,7 +189,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     }
   }
 
-  // Efeito para buscar eventos via OAuth
+  // Estado e efeito para buscar eventos via OAuth
   useEffect(() => {
     const fetchOauthEvents = async () => {
       if (!useGoogleOAuth) {
@@ -197,8 +198,17 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       }
       setIsFetchingOAuth(true)
       try {
-        const startDay = displayedDays[0].toISOString().split('T')[0]
-        const endDay = displayedDays[displayedDays.length - 1].toISOString().split('T')[0]
+        // Calcular intervalo sem usar displayedDays (evita TDZ)
+        const days =
+          view === 'day'
+            ? [currentDate]
+            : view === 'week'
+            ? getWeekDays(currentDate)
+            : getDaysInMonth(currentDate)
+
+        const startDay = days[0].toISOString().split('T')[0]
+        const endDay = days[days.length - 1].toISOString().split('T')[0]
+
         const { data, error } = await supabase.functions.invoke('google-calendar-events', {
           body: { user_id: userId, start_date: startDay, end_date: endDay }
         })
@@ -224,9 +234,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           }
         })
 
-        // Agrupa por dia
+        // Agrupa por dia usando days
         const map: Record<string, CalendarEvent[]> = {}
-        displayedDays.forEach(day => {
+        days.forEach(day => {
           const dayStr = day.toISOString().split('T')[0]
           map[dayStr] = events.filter(ev => {
             const s = ev.start.toISOString().split('T')[0]
@@ -240,7 +250,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       }
     }
     fetchOauthEvents()
-  }, [useGoogleOAuth, displayedDays, user?.name, userId])
+  }, [useGoogleOAuth, view, currentDate, user?.name, userId])
 
   const displayedDays = useMemo(() => {
     if (view === 'day') {
