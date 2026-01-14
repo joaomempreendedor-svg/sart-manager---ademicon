@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { CalendarEvent, isSameDay, formatTime } from './utils';
-import { Plus, Edit2, Trash2, CheckCircle2, XCircle, Clock, UserRound, MessageSquare, Users, ListChecks, ListTodo } from 'lucide-react';
+import { Plus, Edit2, Trash2, CheckCircle2, XCircle, Clock, UserRound, MessageSquare, Users, ListChecks, ListTodo, CalendarDays } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import toast from 'react-hot-toast';
 import { GestorTask } from '@/types';
@@ -86,7 +86,7 @@ const MonthViewGrid: React.FC<MonthViewGridProps> = ({
                 {allDayEvents.slice(0, 1).map(event => ( // Limita a 1 evento de dia inteiro para não sobrecarregar
                   <div key={event.id} className={`p-1 rounded-md ${getEventColorClass(event.type)} flex items-center justify-between group`}>
                     <span className="truncate flex items-center">{getEventIcon(event.type)} {event.title}</span>
-                    <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center space-x-1">
                       {(event.type === 'personal' || event.type === 'gestor_task') && (
                         <>
                           <Button variant="ghost" size="icon" onClick={() => onOpenEventModal(day, event)} className="p-1 text-gray-400 hover:text-blue-600"><Edit2 className="w-3 h-3" /></Button>
@@ -111,7 +111,7 @@ const MonthViewGrid: React.FC<MonthViewGridProps> = ({
               {timedEvents.slice(0, 2).map(event => ( // Show max 2 timed events
                 <div key={event.id} className={`p-1 rounded-md ${getEventColorClass(event.type)} flex items-center justify-between group`}>
                   <span className="truncate flex items-center">{getEventIcon(event.type)} {event.title}</span>
-                  <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex items-center space-x-1">
                     {(event.type === 'personal' || event.type === 'gestor_task') && (
                       <>
                         <Button variant="ghost" size="icon" onClick={() => onOpenEventModal(day, event)} className="p-1 text-gray-400 hover:text-blue-600"><Edit2 className="w-3 h-3" /></Button>

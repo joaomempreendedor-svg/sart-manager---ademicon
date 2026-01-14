@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { CalendarEvent, isSameDay, formatTime } from './utils';
-import { Plus, Edit2, Trash2, CheckCircle2, XCircle, Clock, UserRound, MessageSquare, Users, ListChecks, ListTodo } from 'lucide-react';
+import { Plus, Edit2, Trash2, CheckCircle2, XCircle, Clock, UserRound, MessageSquare, Users, ListChecks, ListTodo, CalendarDays } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import toast from 'react-hot-toast';
 import { GestorTask, DailyChecklistItem, LeadTask } from '@/types';
@@ -184,7 +184,7 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
                   {dayAllDayEvents.map(event => (
                     <div key={event.id} className={`mb-1 p-1.5 rounded-md text-xs font-medium ${getEventColorClass(event.type)} flex items-center justify-between group`}>
                       <span className="truncate flex items-center">{getEventIcon(event.type)} {event.title}</span>
-                      <div className="flex items-center space-x-1"> {/* Removido opacity-0 group-hover:opacity-100 */}
+                      <div className="flex items-center space-x-1">
                         {(event.type === 'personal' || event.type === 'gestor_task') && (
                           <>
                             <Button variant="ghost" size="icon" onClick={() => onOpenEventModal(day, event)} className="p-1 text-gray-400 hover:text-blue-600"><Edit2 className="w-3 h-3" /></Button>
@@ -324,7 +324,7 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
                           <CheckCircle2 className="w-3 h-3 mr-1" /> Marcar como Concluída
                         </button>
                       )}
-                      <div className="absolute top-1 right-1 flex items-center space-x-1"> {/* Removido opacity-0 group-hover:opacity-100 */}
+                      <div className="absolute top-1 right-1 flex items-center space-x-1">
                         {(event.type === 'personal' || event.type === 'gestor_task') && (
                           <>
                             <Button variant="ghost" size="icon" onClick={() => onOpenEventModal(day, event)} className="p-1 text-gray-400 hover:text-blue-600"><Edit2 className="w-3 h-3" /></Button>
