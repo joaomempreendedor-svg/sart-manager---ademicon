@@ -2643,4 +2643,5 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const updateConsultantEvent = useCallback(async (id: string, updates: Partial<ConsultantEvent>) => {
     if (!user) throw new Error("Usuário não autenticado.");
     console.log("[AppContext] updateConsultantEvent: Attempting to update event ID:", id, "with updates:", updates);
+
     const {
