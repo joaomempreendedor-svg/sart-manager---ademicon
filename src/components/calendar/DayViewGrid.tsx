@@ -178,14 +178,14 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
         </div>
 
         <div className="flex-1 relative border-l border-gray-200 dark:border-slate-700 overflow-y-auto custom-scrollbar h-[calc(100vh-200px)]">
-          {Array.from({ length: 48 }).map((_, index) => ( // 48 slots for 30-minute intervals
+          {Array.from({ length: 24 }).map((_, hour) => ( // 24 slots for 60-minute intervals
             <div
-              key={index}
-              className="absolute left-0 right-0 border-b border-gray-200 dark:border-slate-700 h-[30px] cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/30" // 30px height for 30-min slot
-              style={{ top: `${(index / 48) * 100}%` }} // Position based on 48 slots
+              key={hour}
+              className="absolute left-0 right-0 border-b border-gray-200 dark:border-slate-700 h-[60px] cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/30" // 60px height for 60-min slot
+              style={{ top: `${(hour / 24) * 100}%` }} // Position based on 24 slots
               onClick={() => {
                 if (showPersonalEvents) {
-                  const newEventDate = new Date(day.getFullYear(), day.getMonth(), day.getDate(), Math.floor(index / 2), (index % 2) * 30);
+                  const newEventDate = new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour, 0);
                   onOpenEventModal(newEventDate);
                 } else {
                   toast.info("Você não tem permissão para adicionar eventos pessoais aqui.");
