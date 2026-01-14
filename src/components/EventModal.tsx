@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Save, Loader2, Calendar, Clock, MessageSquare, Tag } from 'lucide-react';
 import { ConsultantEvent } from '@/types';
+import { CalendarEvent } from './calendar/utils'; // Importar CalendarEvent
 import {
   Dialog,
   DialogContent,
@@ -25,7 +26,7 @@ interface EventModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (event: Omit<ConsultantEvent, 'id' | 'user_id' | 'created_at'> | ConsultantEvent) => Promise<void>;
-  event: ConsultantEvent | null; // Null for new event, object for editing
+  event: CalendarEvent | null; // Agora aceita CalendarEvent
   defaultStartDateTime?: Date; // Prop para a data e hora de início padrão
   userId: string;
 }
@@ -44,17 +45,17 @@ export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave,
 
   useEffect(() => {
     if (isOpen) {
-      if (event) {
+      if (event && event.type === 'personal') { // Apenas preencher se for um evento pessoal
         setTitle(event.title);
         setDescription(event.description || '');
         
-        const eventStartDate = event.start_time ? new Date(event.start_time) : null;
-        const eventEndDate = event.end_time ? new Date(event.end_time) : null;
+        const eventStartDate = event.start ? new Date(event.start) : null;
+        const eventEndDate = event.end ? new Date(event.end) : null;
 
         setDate(eventStartDate?.toISOString().split('T')[0] || new Date().toISOString().split('T')[0]);
         setStartTime(eventStartDate && !isNaN(eventStartDate.getTime()) ? formatTime(eventStartDate) : '09:00');
         setEndTime(eventEndDate && !isNaN(eventEndDate.getTime()) ? formatTime(eventEndDate) : '10:00');
-        setEventType(event.event_type);
+        setEventType((event.originalEvent as ConsultantEvent)?.event_type || 'personal_task'); // Usar event_type do originalEvent
       } else {
         // Se for um novo evento, usa defaultStartDateTime se fornecido, senão a data/hora atual
         const initialDate = defaultStartDateTime || new Date();
@@ -90,11 +91,19 @@ export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave,
 
     setIsSaving(true);
     try {
-      const eventToSave: Omit<ConsultantEvent, 'id' | 'user_id' | 'created_at'> | ConsultantEvent = event
-        ? { ...event, title, description, start_time: startDateTime.toISOString(), end_time: endDateTime.toISOString(), event_type: eventType }
-        : { title, description, start_time: startDateTime.toISOString(), end_time: endDateTime.toISOString(), event_type: eventType, user_id: userId };
+      // Construir o payload para o Supabase, excluindo 'allDay' e outras propriedades de UI
+      const finalEventPayload: ConsultantEvent = {
+        id: event?.id || crypto.randomUUID(), // Usar ID existente ou gerar um novo
+        user_id: userId,
+        title,
+        description: description || undefined,
+        start_time: startDateTime.toISOString(),
+        end_time: endDateTime.toISOString(),
+        event_type: eventType,
+        created_at: event?.originalEvent?.created_at || new Date().toISOString(), // Manter created_at se for edição
+      };
       
-      await onSave(eventToSave);
+      await onSave(finalEventPayload);
       onClose();
     } catch (err: any) {
       console.error("Erro ao salvar evento:", err);
