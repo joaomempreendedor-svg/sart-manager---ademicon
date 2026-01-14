@@ -11,6 +11,7 @@ import { PendingLeadTasksModal } from '@/components/gestor/PendingLeadTasksModal
 import toast from 'react-hot-toast';
 import { NotificationBell } from '@/components/NotificationBell'; // Importar NotificationBell
 import { NotificationCenter } from '@/components/NotificationCenter'; // Importar NotificationCenter
+import { CalendarView } from '@/components/CalendarView'; // NOVO: Importar CalendarView
 
 const StatusBadge = ({ status }: { status: CandidateStatus }) => {
   const colors = {
@@ -567,60 +568,17 @@ export const Dashboard = () => {
       )}
 
       {/* Agenda Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {/* Overdue Tasks */}
-        <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl shadow-sm flex flex-col">
-            <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700 flex items-center space-x-2 bg-red-50 dark:bg-red-900/20 rounded-t-xl">
-                 <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
-                 <h2 className="text-lg font-semibold text-red-800 dark:text-red-300">Tarefas Atrasadas</h2>
-                 <span className="bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-100 text-xs font-bold px-2 py-0.5 rounded-full">{overdueTasks.length}</span>
-            </div>
-            <div className="flex-1 p-0 overflow-y-auto max-h-80 custom-scrollbar">
-                {overdueTasks.length === 0 ? (
-                    <div className="p-6 text-center text-gray-400">Nenhuma tarefa atrasada.</div>
-                ) : (
-                    <ul className="divide-y divide-gray-100 dark:divide-slate-700">
-                        {overdueTasks.map((task) => (
-                            <li key={task.id} onClick={() => handleAgendaItemClick(task)} className="p-4 hover:bg-red-50 dark:hover:bg-red-900/10 cursor-pointer transition">
-                                <p className="text-sm font-medium text-gray-900 dark:text-gray-200">{task.title}</p>
-                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mt-1">
-                                    <span className="text-xs text-gray-500 dark:text-gray-400">Pessoa: <span className="font-semibold">{task.personName}</span></span>
-                                    <span className="text-xs text-red-600 dark:text-red-400 font-medium">Venceu: {new Date(task.dueDate + 'T00:00:00').toLocaleDateString()}</span>
-                                </div>
-                            </li>
-                        ))}
-                    </ul>
-                )}
-            </div>
-        </div>
-
-        {/* Today Tasks */}
-        <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl shadow-sm flex flex-col">
-            <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700 flex items-center space-x-2 bg-blue-50 dark:bg-blue-900/20 rounded-t-xl">
-                 <Clock className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                 <h2 className="text-lg font-semibold text-blue-800 dark:text-blue-300">Agenda de Hoje</h2>
-                 <span className="bg-blue-200 dark:bg-blue-800 text-blue-800 dark:text-blue-100 text-xs font-bold px-2 py-0.5 rounded-full">{todayAgenda.length}</span>
-            </div>
-            <div className="flex-1 p-0 overflow-y-auto max-h-80 custom-scrollbar">
-                 {todayAgenda.length === 0 ? (
-                    <div className="p-6 text-center text-gray-400">Nenhuma tarefa agendada para hoje.</div>
-                ) : (
-                    <ul className="divide-y divide-gray-100 dark:divide-slate-700">
-                        {todayAgenda.map((item) => (
-                            <li key={item.id} onClick={() => handleAgendaItemClick(item)} className="p-4 hover:bg-blue-50 dark:hover:bg-blue-900/10 cursor-pointer transition">
-                                <div className="flex items-start space-x-3">
-                                    <div className="mt-0.5">{getAgendaIcon(item.type)}</div>
-                                    <div>
-                                        <p className="text-sm font-medium text-gray-900 dark:text-gray-200">{item.title}</p>
-                                        <span className="text-xs text-gray-500 dark:text-gray-400">Pessoa: <span className="font-semibold">{item.personName}</span></span>
-                                    </div>
-                                </div>
-                            </li>
-                        ))}
-                    </ul>
-                )}
-            </div>
-        </div>
+      <div className="mb-8">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center"><Calendar className="w-5 h-5 mr-2 text-brand-500" />Agenda Semanal</h2>
+        {user && user.role && (
+          <CalendarView
+            userId={user.id}
+            userRole={user.role}
+            showPersonalEvents={false} // Gestor não tem eventos pessoais aqui, apenas tarefas
+            showLeadMeetings={true}
+            showGestorTasks={true}
+          />
+        )}
       </div>
 
       {/* Minhas Tarefas Pessoais (Gestor) */}

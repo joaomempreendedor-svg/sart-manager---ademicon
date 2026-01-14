@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
-import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, CommissionStatus, InstallmentInfo, CutoffPeriod, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask, SupportMaterialContentType, DailyChecklistItemResource, DailyChecklistItemResourceType, GestorTask, GestorTaskCompletion, FinancialEntry, FormCadastro, FormFile, Notification, NotificationType } from '@/types';
+import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, CommissionStatus, InstallmentInfo, CutoffPeriod, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask, SupportMaterialContentType, DailyChecklistItemResource, DailyChecklistItemResourceType, GestorTask, GestorTaskCompletion, FinancialEntry, FormCadastro, FormFile, Notification, NotificationType, ConsultantEvent } from '@/types';
 import { CHECKLIST_STAGES as DEFAULT_STAGES } from '@/data/checklistData';
 import { CONSULTANT_GOALS as DEFAULT_GOALS } from '@/data/consultantGoals';
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
@@ -125,6 +125,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [formCadastros, setFormCadastros] = useState<FormCadastro[]>([]);
   const [formFiles, setFormFiles] = useState<FormFile[]>([]);
 
+  // NOVO: Eventos pessoais do Consultor
+  const [consultantEvents, setConsultantEvents] = useState<ConsultantEvent[]>([]);
+
   // NOVO: Notificações
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
@@ -221,6 +224,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setFinancialEntries([]);
     setFormCadastros([]);
     setFormFiles([]);
+    setConsultantEvents([]); // NOVO: Resetar eventos do consultor
     setNotifications([]);
     setIsDataLoading(false);
   };
@@ -453,6 +457,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           financialEntriesData,
           formCadastrosData,
           formFilesData,
+          consultantEventsData, // NOVO: Busca de eventos do consultor
         ] = await Promise.all([
           (async () => { try { return await supabase.from('app_config').select('data').eq('user_id', effectiveGestorId).maybeSingle(); } catch (e) { console.error("Error fetching app_config:", e); return { data: null, error: e }; } })(),
           (async () => { try { return await supabase.from('candidates').select('id, data, created_at, last_updated_at').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching candidates:", e); return { data: [], error: e }; } })(),
@@ -496,6 +501,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           (async () => { try { return await supabase.from('financial_entries').select('*').eq('user_id', userId); } catch (e) { console.error("Error fetching financial_entries:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('form_submissions').select('id, submission_date, data, internal_notes, is_complete').eq('user_id', effectiveGestorId).order('submission_date', { ascending: false }); } catch (e) { console.error("Error fetching form_submissions:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('form_files').select('*'); } catch (e) { console.error("Error fetching form_files:", e); return { data: [], error: e }; } })(),
+          (async () => { try { return await supabase.from('consultant_events').select('*').eq('user_id', userId); } catch (e) { console.error("Error fetching consultant_events:", e); return { data: [], error: e }; } })(), // NOVO: Busca de eventos do consultor
         ]);
 
         if (configResult.error) console.error("Config error:", configResult.error);
@@ -524,7 +530,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (financialEntriesData.error) console.error("Financial Entries error:", financialEntriesData.error);
         if (formCadastrosData.error) console.error("Form Cadastros error:", formCadastrosData.error);
         if (formFilesData.error) console.error("Form Files error:", formFilesData.error);
-
+        if (consultantEventsData.error) console.error("Consultant Events error:", consultantEventsData.error); // NOVO: Log de erro
 
         if (configResult.data) {
           const { data } = configResult.data;
@@ -681,6 +687,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         })) || []);
         setFormCadastros(formCadastrosData?.data || []);
         setFormFiles(formFilesData?.data || []);
+        setConsultantEvents(consultantEventsData?.data || []); // NOVO: Define eventos do consultor
         
         refetchCommissions();
 
@@ -990,6 +997,32 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         })
         .subscribe();
 
+    const consultantEventsChannel = supabase
+        .channel('consultant_events_changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'consultant_events' }, (payload) => {
+            console.log('Consultant Event Change (Realtime):', payload);
+            toast.info(`🗓️ Evento pessoal "${payload.new.title || payload.old.title}" atualizado em tempo real!`);
+            const newEventData: ConsultantEvent = {
+                id: payload.new.id,
+                user_id: payload.new.user_id,
+                title: payload.new.title,
+                description: payload.new.description,
+                start_time: payload.new.start_time,
+                end_time: payload.new.end_time,
+                event_type: payload.new.event_type,
+                created_at: payload.new.created_at,
+            };
+
+            if (payload.eventType === 'INSERT') {
+                setConsultantEvents(prev => [...prev, newEventData]);
+            } else if (payload.eventType === 'UPDATE') {
+                setConsultantEvents(prev => prev.map(event => event.id === newEventData.id ? newEventData : event));
+            } else if (payload.eventType === 'DELETE') {
+                setConsultantEvents(prev => prev.filter(event => event.id !== payload.old.id));
+            }
+        })
+        .subscribe();
+
 
     return () => {
         supabase.removeChannel(candidatesChannel);
@@ -1000,6 +1033,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         supabase.removeChannel(financialEntriesChannel);
         supabase.removeChannel(formCadastrosChannel);
         supabase.removeChannel(formFilesChannel);
+        supabase.removeChannel(consultantEventsChannel); // NOVO: Remove o canal de eventos do consultor
     };
   }, [user, crmOwnerUserId]);
 
@@ -2562,6 +2596,30 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setTeamMembers(prev => prev.map(m => m.id !== teamMemberId ? m : { ...m, feedbacks: updatedFeedbacks }));
   }, [teamMembers, user]);
 
+  // Consultant Events Functions
+  const addConsultantEvent = useCallback(async (event: Omit<ConsultantEvent, 'id' | 'user_id' | 'created_at'>) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('consultant_events').insert({ user_id: user.id, ...event }).select('*').single();
+    if (error) throw error;
+    setConsultantEvents(prev => [...prev, data]);
+    return data;
+  }, [user]);
+
+  const updateConsultantEvent = useCallback(async (id: string, updates: Partial<ConsultantEvent>) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('consultant_events').update(updates).eq('id', id).eq('user_id', user.id).select('*').single();
+    if (error) throw error;
+    setConsultantEvents(prev => prev.map(event => event.id === id ? data : event));
+    return data;
+  }, [user]);
+
+  const deleteConsultantEvent = useCallback(async (id: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { error } = await supabase.from('consultant_events').delete().eq('id', id).eq('user_id', user.id);
+    if (error) throw error;
+    setConsultantEvents(prev => prev.filter(event => event.id !== id));
+  }, [user]);
+
 
   const value = useMemo(() => {
     return {
@@ -2604,6 +2662,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       formCadastros,
       formFiles,
       notifications,
+      consultantEvents, // NOVO: Adicionado ao value
       theme,
       toggleTheme,
       addCandidate,
@@ -2711,6 +2770,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       addTeamMember,
       updateTeamMember,
       deleteTeamMember,
+      addConsultantEvent, // NOVO: Adicionado ao value
+      updateConsultantEvent, // NOVO: Adicionado ao value
+      deleteConsultantEvent, // NOVO: Adicionado ao value
     };
   }, [
     isDataLoading, candidates, teamMembers, commissions, supportMaterials, cutoffPeriods, onboardingSessions, onboardingTemplateVideos,
@@ -2719,7 +2781,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions,
     weeklyTargets, weeklyTargetItems, weeklyTargetAssignments, metricLogs,
     supportMaterialsV2, supportMaterialAssignments, leadTasks, gestorTasks, gestorTaskCompletions,
-    financialEntries, formCadastros, formFiles, notifications,
+    financialEntries, formCadastros, formFiles, notifications, consultantEvents, // NOVO: Adicionado consultantEvents
     theme, toggleTheme, addCandidate, getCandidate, updateCandidate, deleteCandidate, 
     setChecklistDueDate, toggleChecklistItem, toggleConsultantGoal, addChecklistItem, updateChecklistItem, deleteChecklistItem, moveChecklistItem, resetChecklistToDefault,
     addGoalItem, updateGoalItem, deleteGoalItem, moveGoalItem, resetGoalsToDefault,
@@ -2731,7 +2793,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addCrmPipeline, updateCrmPipeline, deleteCrmPipeline, addCrmStage, updateCrmStage, updateCrmStageOrder, deleteCrmStage,
     addCrmField, updateCrmField, addCrmLead, updateCrmLead, updateCrmLeadStage, deleteCrmLead,
     addDailyChecklist, updateDailyChecklist, deleteDailyChecklist, addDailyChecklistItem, updateDailyChecklistItem, deleteDailyChecklistItem, moveDailyChecklistItem,
-    assignDailyChecklistToConsultant, unassignDailyChecklistFromConsultant, toggleDailyChecklistCompletion,
+    assignDailyChecklistToConsultant, unassignDailyDailyChecklistFromConsultant, toggleDailyChecklistCompletion,
     addWeeklyTarget, updateWeeklyTarget, deleteWeeklyTarget, addWeeklyTargetItem, updateWeeklyTargetItem, deleteWeeklyTargetItem, updateWeeklyTargetItemOrder,
     assignWeeklyTargetToConsultant, unassignWeeklyTargetFromConsultant, addMetricLog, updateMetricLog, deleteMetricLog,
     addSupportMaterialV2, updateSupportMaterialV2, deleteSupportMaterialV2, assignSupportMaterialToConsultant, unassignSupportMaterialFromConsultant,
@@ -2741,6 +2803,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     getFormFilesForSubmission, updateFormCadastro, deleteFormCadastro,
     addFeedback, updateFeedback, deleteFeedback, addTeamMemberFeedback, updateTeamMemberFeedback, deleteTeamMemberFeedback,
     refetchCommissions, addTeamMember, updateTeamMember, deleteTeamMember,
+    addConsultantEvent, updateConsultantEvent, deleteConsultantEvent,
   ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

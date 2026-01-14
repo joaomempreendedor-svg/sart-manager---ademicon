@@ -7,6 +7,7 @@ import { DailyChecklistItem, WeeklyTargetItem, MetricLog } from '@/types';
 import { TableSkeleton } from '@/components/TableSkeleton';
 import { ScheduleInterviewModal } from '@/components/ScheduleInterviewModal';
 import { DailyChecklistDisplay } from '@/components/consultor/DailyChecklistDisplay'; // Importar o novo componente
+import { CalendarView } from '@/components/CalendarView'; // NOVO: Importar CalendarView
 
 // Tipo para itens da agenda do consultor
 type AgendaItem = {
@@ -345,6 +346,20 @@ const ConsultorDashboard = () => {
       <div className="mb-8">
         <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center mb-4"><ListChecks className="w-5 h-5 mr-2 text-brand-500" />Metas Diárias</h2>
         <DailyChecklistDisplay user={user} isDataLoading={isDataLoading} />
+      </div>
+
+      {/* Agenda Section */}
+      <div className="mb-8">
+        <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center"><Calendar className="w-5 h-5 mr-2 text-brand-500" />Minha Agenda Semanal</h2>
+        {user && user.role && (
+          <CalendarView
+            userId={user.id}
+            userRole={user.role}
+            showPersonalEvents={true}
+            showLeadMeetings={true}
+            showGestorTasks={false} // Consultor não vê tarefas do gestor
+          />
+        )}
       </div>
 
       {/* Minhas Tarefas */}

@@ -378,6 +378,18 @@ export interface GestorTaskCompletion {
   updated_at: string;
 }
 
+// NOVO: Tipo para eventos pessoais do Consultor
+export interface ConsultantEvent {
+  id: string;
+  user_id: string; // ID do consultor que criou o evento
+  title: string;
+  description?: string;
+  start_time: string; // ISO string
+  end_time: string;   // ISO string
+  event_type: 'personal_task' | 'training' | 'other';
+  created_at: string;
+}
+
 // NOVO: Tipos para Daily Checklist Item Resource
 export type DailyChecklistItemResourceType = 'link' | 'text' | 'image' | 'pdf' | 'video' | 'audio' | 'text_audio' | 'none'; // Adicionado 'text_audio'
 
@@ -429,6 +441,159 @@ export interface Notification {
   date: string; // YYYY-MM-DD
   link?: string; // Link para a página relevante
   isRead: boolean; // Para controle futuro de "lido"
+}
+
+export interface AppContextType {
+  isDataLoading: boolean;
+  candidates: Candidate[];
+  teamMembers: TeamMember[];
+  commissions: Commission[];
+  supportMaterials: SupportMaterial[];
+  cutoffPeriods: CutoffPeriod[];
+  onboardingSessions: OnboardingSession[];
+  onboardingTemplateVideos: OnboardingVideoTemplate[];
+  checklistStructure: ChecklistStage[];
+  setChecklistStructure: React.Dispatch<React.SetStateAction<ChecklistStage[]>>;
+  consultantGoalsStructure: GoalStage[];
+  interviewStructure: InterviewSection[];
+  templates: Record<string, CommunicationTemplate>;
+  hiringOrigins: string[];
+  salesOrigins: string[];
+  interviewers: string[];
+  pvs: string[];
+  crmPipelines: CrmPipeline[];
+  crmStages: CrmStage[];
+  crmFields: CrmField[];
+  crmLeads: CrmLead[];
+  crmOwnerUserId: string | null;
+  dailyChecklists: DailyChecklist[];
+  dailyChecklistItems: DailyChecklistItem[];
+  dailyChecklistAssignments: DailyChecklistAssignment[];
+  dailyChecklistCompletions: DailyChecklistCompletion[];
+  weeklyTargets: WeeklyTarget[];
+  weeklyTargetItems: WeeklyTargetItem[];
+  weeklyTargetAssignments: WeeklyTargetAssignment[];
+  metricLogs: MetricLog[];
+  supportMaterialsV2: SupportMaterialV2[];
+  supportMaterialAssignments: SupportMaterialAssignment[];
+  leadTasks: LeadTask[];
+  gestorTasks: GestorTask[];
+  gestorTaskCompletions: GestorTaskCompletion[];
+  financialEntries: FinancialEntry[];
+  formCadastros: FormCadastro[];
+  formFiles: FormFile[];
+  notifications: Notification[];
+  consultantEvents: ConsultantEvent[]; // NOVO: Estado para eventos do consultor
+  theme: 'light' | 'dark';
+  toggleTheme: () => void;
+  addCandidate: (candidate: Omit<Candidate, 'id' | 'createdAt' | 'db_id'>) => Promise<Candidate>;
+  getCandidate: (id: string) => Candidate | undefined;
+  updateCandidate: (id: string, updates: Partial<Candidate>) => Promise<void>;
+  deleteCandidate: (id: string) => Promise<void>;
+  toggleChecklistItem: (candidateId: string, itemId: string) => Promise<void>;
+  setChecklistDueDate: (candidateId: string, itemId: string, dueDate: string) => Promise<void>;
+  toggleConsultantGoal: (candidateId: string, goalId: string) => Promise<void>;
+  addChecklistItem: (stageId: string, label: string) => void;
+  updateChecklistItem: (stageId: string, itemId: string, newLabel: string) => void;
+  deleteChecklistItem: (stageId: string, itemId: string) => void;
+  moveChecklistItem: (stageId: string, itemId: string, direction: 'up' | 'down') => void;
+  resetChecklistToDefault: () => void;
+  addGoalItem: (stageId: string, label: string) => void;
+  updateGoalItem: (stageId: string, itemId: string, newLabel: string) => void;
+  deleteGoalItem: (stageId: string, itemId: string) => void;
+  moveGoalItem: (stageId: string, itemId: string, direction: 'up' | 'down') => void;
+  resetGoalsToDefault: () => void;
+  updateInterviewSection: (sectionId: string, updates: Partial<InterviewSection>) => void;
+  addInterviewQuestion: (sectionId: string, text: string, points: number) => void;
+  updateInterviewQuestion: (sectionId: string, questionId: string, updates: Partial<InterviewQuestion>) => void;
+  deleteInterviewQuestion: (sectionId: string, questionId: string) => void;
+  moveInterviewQuestion: (sectionId: string, questionId: string, direction: 'up' | 'down') => void;
+  resetInterviewToDefault: () => void;
+  saveTemplate: (itemId: string, updates: Partial<CommunicationTemplate>) => void;
+  addOrigin: (newOrigin: string, type: 'sales' | 'hiring') => void;
+  deleteOrigin: (originToDelete: string, type: 'sales' | 'hiring') => void;
+  resetOriginsToDefault: () => void;
+  addPV: (newPV: string) => void;
+  addCommission: (commission: Omit<Commission, 'id' | 'db_id' | 'criado_em'>) => Promise<{ success: boolean }>;
+  updateCommission: (id: string, updates: Partial<Commission>) => Promise<void>;
+  deleteCommission: (id: string) => Promise<void>;
+  updateInstallmentStatus: (commissionId: string, installmentNumber: number, newStatus: InstallmentStatus, paidDate?: string, saleType?: 'Imóvel' | 'Veículo') => Promise<void>;
+  addCutoffPeriod: (period: Omit<CutoffPeriod, 'id' | 'db_id'>) => Promise<void>;
+  updateCutoffPeriod: (id: string, updates: Partial<CutoffPeriod>) => Promise<void>;
+  deleteCutoffPeriod: (id: string) => Promise<void>;
+  addOnlineOnboardingSession: (consultantName: string) => Promise<void>;
+  deleteOnlineOnboardingSession: (sessionId: string) => Promise<void>;
+  addVideoToTemplate: (title: string, video_url: string) => Promise<void>;
+  deleteVideoFromTemplate: (videoId: string) => Promise<void>;
+  addCrmPipeline: (name: string) => Promise<CrmPipeline>;
+  updateCrmPipeline: (id: string, updates: Partial<CrmPipeline>) => Promise<CrmPipeline>;
+  deleteCrmPipeline: (id: string) => Promise<void>;
+  addCrmStage: (stage: Omit<CrmStage, 'id' | 'user_id' | 'created_at'>) => Promise<CrmStage>;
+  updateCrmStage: (id: string, updates: Partial<CrmStage>) => Promise<CrmStage>;
+  updateCrmStageOrder: (orderedStages: CrmStage[]) => Promise<void>;
+  deleteCrmStage: (id: string) => Promise<void>;
+  addCrmField: (field: Omit<CrmField, 'id' | 'user_id' | 'created_at'>) => Promise<CrmField>;
+  updateCrmField: (id: string, updates: Partial<CrmField>) => Promise<CrmField>;
+  addCrmLead: (lead: Omit<CrmLead, 'id' | 'created_at' | 'updated_at' | 'user_id' | 'created_by' | 'updated_by'>) => Promise<CrmLead>;
+  updateCrmLead: (id: string, updates: Partial<CrmLead>) => Promise<CrmLead>;
+  updateCrmLeadStage: (leadId: string, newStageId: string) => Promise<void>;
+  deleteCrmLead: (id: string) => Promise<void>;
+  addDailyChecklist: (title: string) => Promise<DailyChecklist>;
+  updateDailyChecklist: (id: string, updates: Partial<DailyChecklist>) => Promise<DailyChecklist>;
+  deleteDailyChecklist: (id: string) => Promise<void>;
+  addDailyChecklistItem: (daily_checklist_id: string, text: string, order_index: number, resource?: DailyChecklistItemResource, file?: File) => Promise<DailyChecklistItem>;
+  updateDailyChecklistItem: (id: string, updates: Partial<DailyChecklistItem>, file?: File) => Promise<DailyChecklistItem>;
+  deleteDailyChecklistItem: (id: string) => Promise<void>;
+  moveDailyChecklistItem: (checklistId: string, itemId: string, direction: 'up' | 'down') => Promise<void>;
+  assignDailyChecklistToConsultant: (daily_checklist_id: string, consultant_id: string) => Promise<DailyChecklistAssignment>;
+  unassignDailyChecklistFromConsultant: (daily_checklist_id: string, consultant_id: string) => Promise<void>;
+  toggleDailyChecklistCompletion: (daily_checklist_item_id: string, date: string, done: boolean, consultant_id: string) => Promise<void>;
+  addWeeklyTarget: (target: Omit<WeeklyTarget, 'id' | 'user_id' | 'created_at'>) => Promise<WeeklyTarget>;
+  updateWeeklyTarget: (id: string, updates: Partial<WeeklyTarget>) => Promise<WeeklyTarget>;
+  deleteWeeklyTarget: (id: string) => Promise<void>;
+  addWeeklyTargetItem: (item: Omit<WeeklyTargetItem, 'id' | 'created_at'>) => Promise<WeeklyTargetItem>;
+  updateWeeklyTargetItem: (id: string, updates: Partial<WeeklyTargetItem>) => Promise<WeeklyTargetItem>;
+  deleteWeeklyTargetItem: (id: string) => Promise<void>;
+  updateWeeklyTargetItemOrder: (orderedItems: WeeklyTargetItem[]) => Promise<void>;
+  assignWeeklyTargetToConsultant: (weekly_target_id: string, consultant_id: string) => Promise<WeeklyTargetAssignment>;
+  unassignWeeklyTargetFromConsultant: (weekly_target_id: string, consultant_id: string) => Promise<void>;
+  addMetricLog: (log: Omit<MetricLog, 'id' | 'created_at'>) => Promise<MetricLog>;
+  updateMetricLog: (id: string, updates: Partial<MetricLog>) => Promise<MetricLog>;
+  deleteMetricLog: (id: string) => Promise<void>;
+  addSupportMaterialV2: (material: Omit<SupportMaterialV2, 'id' | 'user_id' | 'created_at'>, file?: File) => Promise<SupportMaterialV2>;
+  updateSupportMaterialV2: (id: string, updates: Partial<SupportMaterialV2>, file?: File) => Promise<SupportMaterialV2>;
+  deleteSupportMaterialV2: (id: string) => Promise<void>;
+  assignSupportMaterialToConsultant: (material_id: string, consultant_id: string) => Promise<SupportMaterialAssignment>;
+  unassignSupportMaterialFromConsultant: (material_id: string, consultant_id: string) => Promise<void>;
+  addLeadTask: (task: Omit<LeadTask, 'id' | 'created_at' | 'completed_at' | 'updated_at'> & { user_id: string; manager_id?: string | null; }) => Promise<LeadTask>;
+  updateLeadTask: (id: string, updates: Partial<LeadTask> & { user_id?: string; manager_id?: string | null; }) => Promise<LeadTask>;
+  deleteLeadTask: (id: string) => Promise<void>;
+  toggleLeadTaskCompletion: (id: string, is_completed: boolean) => Promise<LeadTask>;
+  updateLeadMeetingInvitationStatus: (taskId: string, status: 'accepted' | 'declined') => Promise<LeadTask>;
+  addGestorTask: (task: Omit<GestorTask, 'id' | 'user_id' | 'created_at' | 'is_completed'>) => Promise<GestorTask>;
+  updateGestorTask: (id: string, updates: Partial<GestorTask>) => Promise<GestorTask>;
+  deleteGestorTask: (id: string) => Promise<void>;
+  toggleGestorTaskCompletion: (gestor_task_id: string, done: boolean, date: string) => Promise<void>;
+  isGestorTaskDueOnDate: (task: GestorTask, checkDate: string) => boolean;
+  addFinancialEntry: (entry: Omit<FinancialEntry, 'id' | 'user_id' | 'created_at'>) => Promise<FinancialEntry>;
+  updateFinancialEntry: (id: string, updates: Partial<FinancialEntry>) => Promise<FinancialEntry>;
+  deleteFinancialEntry: (id: string) => Promise<void>;
+  getFormFilesForSubmission: (submissionId: string) => FormFile[];
+  updateFormCadastro: (id: string, updates: Partial<FormCadastro>) => Promise<FormCadastro>;
+  deleteFormCadastro: (id: string) => Promise<void>;
+  addFeedback: (personId: string, feedback: Omit<Feedback, 'id'>) => Promise<Feedback>;
+  updateFeedback: (personId: string, feedback: Feedback) => Promise<Feedback>;
+  deleteFeedback: (personId: string, feedbackId: string) => Promise<void>;
+  addTeamMemberFeedback: (teamMemberId: string, feedback: Omit<Feedback, 'id'>) => Promise<Feedback>;
+  updateTeamMemberFeedback: (teamMemberId: string, feedback: Feedback) => Promise<Feedback>;
+  deleteTeamMemberFeedback: (teamMemberId: string, feedbackId: string) => Promise<void>;
+  refetchCommissions: () => Promise<void>;
+  addTeamMember: (member: Omit<TeamMember, 'id'> & { email: string }) => Promise<{ success: boolean; member: TeamMember; tempPassword: string; wasExistingUser: boolean; }>;
+  updateTeamMember: (id: string, updates: Partial<TeamMember>) => Promise<{ success: boolean }>;
+  deleteTeamMember: (id: string) => Promise<void>;
+  addConsultantEvent: (event: Omit<ConsultantEvent, 'id' | 'user_id' | 'created_at'>) => Promise<ConsultantEvent>; // NOVO: Função para adicionar evento do consultor
+  updateConsultantEvent: (id: string, updates: Partial<ConsultantEvent>) => Promise<ConsultantEvent>; // NOVO: Função para atualizar evento do consultor
+  deleteConsultantEvent: (id: string) => Promise<void>; // NOVO: Função para deletar evento do consultor
 }
 
 // --- FIM DOS NOVOS TIPOS ---
