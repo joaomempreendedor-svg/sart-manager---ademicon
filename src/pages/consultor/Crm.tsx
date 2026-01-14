@@ -206,6 +206,11 @@ const ConsultorCrmPage = () => {
 
   const hasActiveFilters = searchTerm || filterStartDate || filterEndDate;
 
+  // NOVO: Limites do mês atual para alinhar cálculo de propostas com o Dashboard
+  const today = new Date();
+  const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+  const currentMonthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+
   if (isAuthLoading || isDataLoading) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-theme(spacing.16))]">
@@ -320,9 +325,16 @@ const ConsultorCrmPage = () => {
               <span className="text-xs text-gray-500 dark:text-gray-400">{groupedLeads[stage.id]?.length || 0} leads</span>
               {stage.name.toLowerCase().includes('proposta') && (
                 <div className="mt-1 text-sm font-bold text-purple-700 dark:text-purple-300">
-                  Total Propostas: {formatCurrency(
+                  {/* Alterado para considerar apenas propostas do mês atual */}
+                  Total Propostas (Mês): {formatCurrency(
                     groupedLeads[stage.id].reduce((sum, lead) => {
-                      return sum + (lead.proposalValue || 0);
+                      if (lead.proposalValue && lead.proposalValue > 0 && lead.proposalClosingDate) {
+                        const proposalDate = new Date(lead.proposalClosingDate + 'T00:00:00');
+                        if (proposalDate >= currentMonthStart && proposalDate <= currentMonthEnd) {
+                          return sum + (lead.proposalValue || 0);
+                        }
+                      }
+                      return sum;
                     }, 0)
                   )}
                 </div>
