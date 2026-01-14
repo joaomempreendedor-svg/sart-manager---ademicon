@@ -59,11 +59,11 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
 
   const getEventIcon = (type: CalendarEvent['type']) => {
     switch (type) {
-      case 'personal': return <CalendarDays className="w-3 h-3 mr-1" />;
-      case 'meeting': return <Users className="w-3 h-3 mr-1" />;
-      case 'gestor_task': return <MessageSquare className="w-3 h-3 mr-1" />;
-      case 'daily_checklist': return <ListChecks className="w-3 h-3 mr-1" />;
-      case 'lead_task': return <ListTodo className="w-3 h-3 mr-1" />;
+      case 'personal': return <CalendarDays className="w-3 h-3 mr-1 flex-shrink-0" />;
+      case 'meeting': return <Users className="w-3 h-3 mr-1 flex-shrink-0" />;
+      case 'gestor_task': return <MessageSquare className="w-3 h-3 mr-1 flex-shrink-0" />;
+      case 'daily_checklist': return <ListChecks className="w-3 h-3 mr-1 flex-shrink-0" />;
+      case 'lead_task': return <ListTodo className="w-3 h-3 mr-1 flex-shrink-0" />;
       default: return null;
     }
   };
@@ -137,9 +137,12 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
           <div className="grid grid-cols-1 flex-1">
             <div className="flex flex-col space-y-0.5 p-1">
               {allDayEvents.map(event => (
-                <div key={event.id} className={`mb-1 p-1.5 rounded-md text-xs font-medium ${getEventColorClass(event.type)} flex items-center justify-between group`}>
-                  <span className="truncate flex items-center">{getEventIcon(event.type)} {event.title}</span>
-                  <div className="flex items-center space-x-1">
+                <div key={event.id} className={`mb-1 p-1.5 rounded-md text-xs font-medium ${getEventColorClass(event.type)} flex items-center group`}>
+                  <div className="flex-1 flex items-center overflow-hidden"> {/* New wrapper for text content */}
+                    {getEventIcon(event.type)}
+                    <span className="truncate" title={event.title}>{event.title}</span>
+                  </div>
+                  <div className="flex items-center space-x-1 flex-shrink-0 ml-auto opacity-0 group-hover:opacity-100 transition-opacity"> {/* Buttons moved to separate div, added ml-auto */}
                     {(event.type === 'personal' || event.type === 'gestor_task') && (
                       <>
                         <Button variant="ghost" size="icon" onClick={() => onOpenEventModal(day, event)} className="p-1 text-gray-400 hover:text-blue-600"><Edit2 className="w-3 h-3" /></Button>
@@ -271,22 +274,17 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
                   className={`absolute p-1 rounded-lg shadow-sm border ${getEventColorClass(event.type)} group overflow-hidden z-10 flex flex-col`}
                   style={{ top: `${event.top}%`, height: `${event.height}%`, left: `0%`, width: `100%` }}
                 >
-                  <div className="flex-1 min-h-0 overflow-hidden"> {/* Content area */}
-                    <div className="flex items-center text-xs font-medium mb-1">
+                  <div className="flex-1 min-h-0 overflow-hidden flex flex-col gap-1"> {/* Content area */}
+                    <div className="flex items-center text-xs font-medium">
                       {getEventIcon(event.type)}
-                      <span className="truncate">{event.title}</span>
+                      <span className="line-clamp-2" title={event.title}>{event.title}</span>
                     </div>
                     <p className="text-xs text-gray-600 dark:text-gray-400 flex items-center">
-                      <Clock className="w-3 h-3 mr-1" /> {formatTime(event.start)} - {formatTime(event.end)}
+                      <Clock className="w-3 h-3 mr-1 flex-shrink-0" /> {formatTime(event.start)} - {formatTime(event.end)}
                     </p>
                     {event.personName && event.type !== 'gestor_task' && (
-                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 flex items-center">
-                        <UserRound className="w-3 h-3 mr-1" /> {event.personName}
-                      </p>
-                    )}
-                    {event.type === 'gestor_task' && (event.originalEvent as GestorTask)?.is_completed && (
-                      <p className="text-xs text-green-600 dark:text-green-400 mt-1 flex items-center">
-                        <CheckCircle2 className="w-3 h-3 mr-1" /> Concluída
+                      <p className="text-xs text-gray-600 dark:text-gray-400 flex items-center">
+                        <UserRound className="w-3 h-3 mr-1 flex-shrink-0" /> <span className="truncate">{event.personName}</span>
                       </p>
                     )}
                     {event.type === 'gestor_task' && !(event.originalEvent as GestorTask)?.is_completed && isSameDay(event.start, today) && (
@@ -299,7 +297,7 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
                     )}
                   </div>
                   {/* Action buttons - positioned at the bottom right */}
-                  <div className="flex justify-end items-center space-x-1 mt-auto"> {/* mt-auto pushes it to the bottom */}
+                  <div className="flex justify-end items-center space-x-1 mt-auto opacity-0 group-hover:opacity-100 transition-opacity"> {/* Added opacity for hover */}
                     {(event.type === 'personal' || event.type === 'gestor_task') && (
                       <>
                         <Button variant="ghost" size="icon" onClick={() => onOpenEventModal(day, event)} className="p-1 text-gray-400 hover:text-blue-600"><Edit2 className="w-3 h-3" /></Button>
