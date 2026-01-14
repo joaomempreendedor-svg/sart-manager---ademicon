@@ -261,8 +261,16 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       }
       setIsFetchingGoogle(true);
       try {
-        const start = displayedDays[0];
-        const end = displayedDays[displayedDays.length - 1];
+        // Calcula o intervalo com base em view e currentDate (evita usar displayedDays antes de inicializar)
+        const days =
+          view === 'day'
+            ? [currentDate]
+            : view === 'week'
+            ? getWeekDays(currentDate)
+            : getDaysInMonth(currentDate);
+
+        const start = days[0];
+        const end = days[days.length - 1];
         const startIso = new Date(start.getFullYear(), start.getMonth(), start.getDate(), 0, 0, 0);
         const endIso = new Date(end.getFullYear(), end.getMonth(), end.getDate(), 23, 59, 59);
 
@@ -283,7 +291,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                 description: ev.description,
                 start: ev.start,
                 end: ev.end,
-                type: 'personal', // renderizar como pessoal (cor azul)
+                type: 'personal',
                 personName: user?.name || 'Eu',
                 personId: userId,
                 originalEvent: { title: ev.title, description: ev.description, start_time: ev.start.toISOString(), end_time: ev.end.toISOString() } as unknown as ConsultantEvent,
@@ -295,7 +303,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
         // Agrupar por dia
         const map: Record<string, CalendarEvent[]> = {};
-        displayedDays.forEach(day => {
+        days.forEach(day => {
           const dayStr = day.toISOString().split('T')[0];
           map[dayStr] = allGoogleEvents.filter(ev => {
             const s = ev.start.toISOString().split('T')[0];
@@ -313,7 +321,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       }
     };
     fetchIcsForRange();
-  }, [showGoogleEvents, googleCalendarUrls, displayedDays, user?.name, userId]);
+  }, [showGoogleEvents, googleCalendarUrls, view, currentDate, user?.name, userId]);
 
   const allEvents = useMemo(() => {
     console.log("[CalendarView] Recalculating allEvents...");
