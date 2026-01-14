@@ -11,20 +11,21 @@ const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token'
 
 // Ajuste para o seu projeto Supabase (redirect do callback)
 const PROJECT_URL = Deno.env.get('SUPABASE_URL') || 'https://jhhlktqhrdiashyjgbad.supabase.co'
-const REDIRECT_URI = `${PROJECT_URL}/functions/v1/google-calendar-auth`
+// Ajuste: garantir action=callback no redirect
+const REDIRECT_URI = `${PROJECT_URL}/functions/v1/google-calendar-auth?action=callback`
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
 
-  const url = new URL(req.url)
-  const action = url.searchParams.get('action')
-
-  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-  const supabase = createClient(PROJECT_URL, supabaseServiceKey!)
-
   try {
+    const url = new URL(req.url)
+    const action = url.searchParams.get('action')
+
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    const supabase = createClient(PROJECT_URL, supabaseServiceKey!)
+
     if (req.method === 'POST') {
       const body = await req.json().catch(() => ({}))
       if (body.action === 'start') {
@@ -53,7 +54,8 @@ serve(async (req) => {
       }
     }
 
-    if (req.method === 'GET' && action === 'callback') {
+    // Aceitar callback mesmo sem 'action', se houver 'code'
+    if (req.method === 'GET' && (action === 'callback' || url.searchParams.get('code'))) {
       const code = url.searchParams.get('code')
       const stateUserId = url.searchParams.get('state')
       const clientId = Deno.env.get('GOOGLE_CLIENT_ID')

@@ -176,7 +176,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         body: { action: 'start', user_id: userId }
       })
       if (error) {
-        toast.error('Falha ao iniciar conexão com Google.')
+        toast.error('Falha ao iniciar conexão com Google. Verifique se GOOGLE_CLIENT_ID/SECRET estão configurados.');
         return
       }
       const authUrl = data?.auth_url
@@ -185,7 +185,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         toast.success('Abrimos a página de autorização do Google em uma nova aba.')
       }
     } catch (e) {
-      toast.error('Erro ao conectar com Google.')
+      toast.error('Erro ao conectar com Google. Verifique a configuração.');
     }
   }
 
@@ -198,7 +198,6 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       }
       setIsFetchingOAuth(true)
       try {
-        // Calcular intervalo sem usar displayedDays (evita TDZ)
         const days =
           view === 'day'
             ? [currentDate]
@@ -208,12 +207,13 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
         const startDay = days[0].toISOString().split('T')[0]
         const endDay = days[days.length - 1].toISOString().split('T')[0]
-
         const { data, error } = await supabase.functions.invoke('google-calendar-events', {
           body: { user_id: userId, start_date: startDay, end_date: endDay }
         })
         if (error) {
-          toast.error('Falha ao carregar eventos do Google.')
+          // Orientação mais clara se não houver tokens ainda
+          toast.error('Conecte via Google OAuth primeiro (botão "Conectar via Google OAuth") e aceite o acesso.');
+          setOauthEventsByDay({})
           return
         }
         const items = (data?.events || []) as { id: string; title: string; description?: string; start_time: string; end_time: string; all_day?: boolean; }[]
