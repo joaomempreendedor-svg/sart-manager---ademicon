@@ -4,8 +4,8 @@ import { Plus, Edit2, Trash2, CheckCircle2, XCircle, Clock, UserRound, MessageSq
 import { Button } from '@/components/ui/button';
 import toast from 'react-hot-toast';
 import { GestorTask, DailyChecklistItem, LeadTask } from '@/types';
-import { useNavigate } from 'react-router-dom'; // Importar useNavigate
-import { useApp } from '@/context/AppContext'; // Importar useApp para funções de contexto
+import { useNavigate } from 'react-router-dom';
+import { useApp } from '@/context/AppContext';
 
 interface DayViewGridProps {
   day: Date;
@@ -29,29 +29,22 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
   showPersonalEvents,
 }) => {
   const isCurrentDay = isSameDay(day, today);
-  const navigate = useNavigate(); // Inicializar useNavigate
-  const { toggleDailyChecklistCompletion, toggleLeadTaskCompletion, deleteLeadTask } = useApp(); // Funções do AppContext
+  const navigate = useNavigate();
+  const { toggleDailyChecklistCompletion, toggleLeadTaskCompletion, deleteLeadTask } = useApp();
 
   const allDayEvents = useMemo(() => events.filter(e => e.allDay), [events]);
   const timedEvents = useMemo(() => events.filter(e => !e.allDay), [events]);
 
-  console.log(`[DayViewGrid - ${day.toISOString().split('T')[0]}] Received events:`, events);
-  console.log(`[DayViewGrid - ${day.toISOString().split('T')[0]}] All-day events:`, allDayEvents);
-  console.log(`[DayViewGrid - ${day.toISOString().split('T')[0]}] Timed events:`, timedEvents);
-
-
   // Calculate event positioning for timed events
   const positionedEvents = useMemo(() => {
-    const result = timedEvents.map(event => {
-      const startHour = event.start.getHours() + event.start.getMinutes() / 60;
-      const endHour = event.end.getHours() + event.end.getMinutes() / 60;
-      const top = (startHour * 60) * (100 / (24 * 60)); // Percentage of total height (24 hours * 60 minutes)
-      const height = ((endHour - startHour) * 60) * (100 / (24 * 60)); // Percentage of total height
+    return timedEvents.map(event => {
+      const startMinutes = event.start.getHours() * 60 + event.start.getMinutes();
+      const endMinutes = event.end.getHours() * 60 + event.end.getMinutes();
+      const top = (startMinutes / (24 * 60)) * 100; // Percentage of total height (1440 minutes)
+      const height = ((endMinutes - startMinutes) / (24 * 60)) * 100; // Percentage of total height
       return { ...event, top, height };
     });
-    console.log(`[DayViewGrid] Positioned events for ${day.toISOString().split('T')[0]}:`, result);
-    return result;
-  }, [timedEvents, day]);
+  }, [timedEvents]);
 
   const getEventColorClass = (type: CalendarEvent['type']) => {
     switch (type) {
@@ -75,7 +68,6 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
     }
   };
 
-  // Funções de ação para daily_checklist e lead_task
   const handleToggleDailyChecklist = async (event: CalendarEvent) => {
     if (!event.originalEvent || event.type !== 'daily_checklist') return;
     const item = event.originalEvent as DailyChecklistItem;
@@ -126,6 +118,13 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
     }
   };
 
+  // Calculate current time line position
+  const now = new Date();
+  const currentHour = now.getHours();
+  const currentMinutes = now.getMinutes();
+  const isTodayDisplayed = isSameDay(day, now);
+  const currentTimeTop = ((currentHour * 60 + currentMinutes) / (24 * 60)) * 100;
+
   return (
     <div className="flex flex-col flex-1">
       {allDayEvents.length > 0 && (
@@ -133,7 +132,7 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
           {allDayEvents.map(event => (
             <div key={event.id} className={`mb-1 p-1.5 rounded-md text-xs font-medium ${getEventColorClass(event.type)} flex items-center justify-between group`}>
               <span className="truncate flex items-center">{getEventIcon(event.type)} {event.title}</span>
-              <div className="flex items-center space-x-1"> {/* Removido opacity-0 group-hover:opacity-100 */}
+              <div className="flex items-center space-x-1">
                 {(event.type === 'personal' || event.type === 'gestor_task') && (
                   <>
                     <Button variant="ghost" size="icon" onClick={() => onOpenEventModal(day, event)} className="p-1 text-gray-400 hover:text-blue-600"><Edit2 className="w-3 h-3" /></Button>
@@ -174,36 +173,62 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
 
       <div className="flex flex-1">
         <div className="w-16 flex-shrink-0 border-r border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800">
-          <div className="relative h-[calc(100vh-200px)]"> {/* Adjust height */}
+          <div className="relative h-[1440px]"> {/* 24 hours * 60 minutes = 1440px height */}
             {Array.from({ length: 24 }).map((_, hour) => (
               <div 
                 key={hour} 
                 className="absolute text-xs text-gray-500 dark:text-gray-400 text-right pr-2"
-                style={{ top: `${(hour / 24) * 100}%`, transform: 'translateY(-50%)' }} // Position at the line, center vertically
+                style={{ top: `${(hour * 60) / 1440 * 100}%`, transform: 'translateY(-50%)' }}
               >
-                {hour === 0 ? '' : `${hour}:00`} {/* Explicitly show :00 */}
+                {hour === 0 ? '' : `${hour}:00`}
               </div>
             ))}
           </div>
         </div>
 
         <div className="flex-1 relative border-l border-gray-200 dark:border-slate-700 overflow-y-auto custom-scrollbar h-[calc(100vh-200px)]">
-          {/* Removed all internal grid lines */}
-          {Array.from({ length: 24 }).map((_, hour) => ( // 24 slots for 60-minute intervals
+          {/* Hourly and Half-Hourly Grid Lines */}
+          {Array.from({ length: 24 * 2 }).map((_, index) => { // 48 half-hour slots
+            const isHalfHour = index % 2 !== 0;
+            return (
+              <div
+                key={index}
+                className={`absolute left-0 right-0 h-[30px] border-t ${isHalfHour ? 'border-gray-100 dark:border-slate-700' : 'border-gray-200 dark:border-slate-600'} ${isHalfHour ? '' : 'opacity-50'}`}
+                style={{ top: `${(index * 30) / 1440 * 100}%` }}
+              ></div>
+            );
+          })}
+
+          {/* Clickable slots for adding new events */}
+          {Array.from({ length: 24 * 2 }).map((_, index) => { // 48 half-hour slots
+            const hour = Math.floor(index / 2);
+            const minute = (index % 2) * 30;
+            return (
+              <div
+                key={`slot-${index}`}
+                className="absolute left-0 right-0 h-[30px] cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/30"
+                style={{ top: `${(index * 30) / 1440 * 100}%` }}
+                onClick={() => {
+                  if (showPersonalEvents) {
+                    const newEventDate = new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour, minute);
+                    onOpenEventModal(newEventDate);
+                  } else {
+                    toast.info("Você não tem permissão para adicionar eventos pessoais aqui.");
+                  }
+                }}
+              ></div>
+            );
+          })}
+
+          {/* Current Time Indicator */}
+          {isTodayDisplayed && (
             <div
-              key={hour}
-              className="absolute left-0 right-0 h-[60px] cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/30" // 60px height for 60-min slot
-              style={{ top: `${(hour / 24) * 100}%` }} // Position based on 24 slots
-              onClick={() => {
-                if (showPersonalEvents) {
-                  const newEventDate = new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour, 0);
-                  onOpenEventModal(newEventDate);
-                } else {
-                  toast.info("Você não tem permissão para adicionar eventos pessoais aqui.");
-                }
-              }}
-            ></div>
-          ))}
+              className="absolute left-0 right-0 h-0.5 bg-red-500 z-20"
+              style={{ top: `${currentTimeTop}%` }}
+            >
+              <div className="absolute -left-1.5 -top-1.5 w-3 h-3 bg-red-500 rounded-full"></div>
+            </div>
+          )}
 
           {positionedEvents.map(event => (
             <div
@@ -236,7 +261,7 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
                   <CheckCircle2 className="w-3 h-3 mr-1" /> Marcar como Concluída
                 </button>
               )}
-              <div className="absolute top-1 right-1 flex items-center space-x-1"> {/* Removido opacity-0 group-hover:opacity-100 */}
+              <div className="absolute top-1 right-1 flex items-center space-x-1">
                 {(event.type === 'personal' || event.type === 'gestor_task') && (
                   <>
                     <Button variant="ghost" size="icon" onClick={() => onOpenEventModal(day, event)} className="p-1 text-gray-400 hover:text-blue-600"><Edit2 className="w-3 h-3" /></Button>
@@ -277,5 +302,3 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
     </div>
   );
 };
-
-export default DayViewGrid;

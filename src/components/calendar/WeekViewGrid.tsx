@@ -4,8 +4,8 @@ import { Plus, Edit2, Trash2, CheckCircle2, XCircle, Clock, UserRound, MessageSq
 import { Button } from '@/components/ui/button';
 import toast from 'react-hot-toast';
 import { GestorTask, DailyChecklistItem, LeadTask } from '@/types';
-import { useNavigate } from 'react-router-dom'; // Importar useNavigate
-import { useApp } from '@/context/AppContext'; // Importar useApp para funções de contexto
+import { useNavigate } from 'react-router-dom';
+import { useApp } from '@/context/AppContext';
 
 interface WeekViewGridProps {
   weekDays: Date[];
@@ -29,10 +29,9 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
   showPersonalEvents,
 }) => {
   const isCurrentWeek = weekDays.some(day => isSameDay(day, new Date()));
-  const navigate = useNavigate(); // Inicializar useNavigate
-  const { toggleDailyChecklistCompletion, toggleLeadTaskCompletion, deleteLeadTask } = useApp(); // Funções do AppContext
+  const navigate = useNavigate();
+  const { toggleDailyChecklistCompletion, toggleLeadTaskCompletion, deleteLeadTask } = useApp();
 
-  // Collect all all-day events for the entire week
   const allWeekAllDayEvents = useMemo(() => {
     const events: CalendarEvent[] = [];
     weekDays.forEach(day => {
@@ -42,10 +41,8 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
     return events;
   }, [weekDays, eventsByDay]);
 
-  // Check if there are any all-day events in the entire week to conditionally render the section
   const hasAnyAllDayEventsInWeek = allWeekAllDayEvents.length > 0;
 
-  // Calculate event positioning for timed events
   const positionedEventsByDay = useMemo(() => {
     const result: Record<string, (CalendarEvent & { top: number; height: number; left: number; width: number; })[]> = {};
 
@@ -53,11 +50,6 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
       const dayStr = day.toISOString().split('T')[0];
       const timedEvents = eventsByDay[dayStr]?.filter(e => !e.allDay) || [];
 
-      console.log(`[WeekViewGrid - ${dayStr}] Received events for day:`, eventsByDay[dayStr]);
-      console.log(`[WeekViewGrid - ${dayStr}] All-day events for day:`, eventsByDay[dayStr]?.filter(e => e.allDay));
-      console.log(`[WeekViewGrid - ${dayStr}] Timed events for day:`, timedEvents);
-
-      // Sort events by start time, then by duration (longer first)
       timedEvents.sort((a, b) => {
         if (a.start.getTime() !== b.start.getTime()) {
           return a.start.getTime() - b.start.getTime();
@@ -68,28 +60,27 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
       const columns: { end: number; events: (CalendarEvent & { top: number; height: number; left: number; width: number; })[] }[] = [];
       
       result[dayStr] = timedEvents.map(event => {
-        const startHour = event.start.getHours() + event.start.getMinutes() / 60;
-        const endHour = event.end.getHours() + event.end.getMinutes() / 60;
-        const top = (startHour * 60) * (100 / (24 * 60));
-        const height = ((endHour - startHour) * 60) * (100 / (24 * 60));
+        const startMinutes = event.start.getHours() * 60 + event.start.getMinutes();
+        const endMinutes = event.end.getHours() * 60 + event.end.getMinutes();
+        const top = (startMinutes / (24 * 60)) * 100;
+        const height = ((endMinutes - startMinutes) / (24 * 60)) * 100;
 
         let columnIndex = 0;
-        while (columnIndex < columns.length && columns[columnIndex].end > startHour) {
+        while (columnIndex < columns.length && columns[columnIndex].end > startMinutes) {
           columnIndex++;
         }
 
         if (columnIndex === columns.length) {
-          columns.push({ end: endHour, events: [] });
+          columns.push({ end: endMinutes, events: [] });
         }
-        columns[columnIndex].end = endHour;
+        columns[columnIndex].end = endMinutes;
 
-        const left = (columnIndex / columns.length) * 100;
-        const width = (1 / columns.length) * 100;
+        const left = (columnIndex / (columns.length || 1)) * 100; // Avoid division by zero
+        const width = (1 / (columns.length || 1)) * 100;
 
         return { ...event, top, height, left, width };
       });
     });
-    console.log(`[WeekViewGrid] Positioned events by day:`, result);
     return result;
   }, [weekDays, eventsByDay]);
 
@@ -115,7 +106,6 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
     }
   };
 
-  // Funções de ação para daily_checklist e lead_task
   const handleToggleDailyChecklist = async (event: CalendarEvent) => {
     if (!event.originalEvent || event.type !== 'daily_checklist') return;
     const item = event.originalEvent as DailyChecklistItem;
@@ -165,6 +155,12 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
       }
     }
   };
+
+  // Calculate current time line position
+  const now = new Date();
+  const currentHour = now.getHours();
+  const currentMinutes = now.getMinutes();
+  const currentTimeTop = ((currentHour * 60 + currentMinutes) / (24 * 60)) * 100;
 
   return (
     <div className="flex flex-col flex-1">
@@ -232,14 +228,14 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
         {/* Time Column */}
         <div className="w-16 flex-shrink-0 border-r border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800">
           <div className="h-16 border-b border-gray-200 dark:border-slate-700"></div> {/* Corner for day headers */}
-          <div className="relative h-[calc(100vh-200px)]"> {/* Adjust height */}
+          <div className="relative h-[1440px]"> {/* 24 hours * 60 minutes = 1440px height */}
             {Array.from({ length: 24 }).map((_, hour) => (
               <div 
                 key={hour} 
                 className="absolute text-xs text-gray-500 dark:text-gray-400 text-right pr-2"
-                style={{ top: `${(hour / 24) * 100}%`, transform: 'translateY(-50%)' }} // Position at the line, center vertically
+                style={{ top: `${(hour * 60) / 1440 * 100}%`, transform: 'translateY(-50%)' }}
               >
-                {hour === 0 ? '' : `${hour}:00`} {/* Explicitly show :00 */}
+                {hour === 0 ? '' : `${hour}:00`}
               </div>
             ))}
           </div>
@@ -249,7 +245,7 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
         <div className="grid grid-cols-7 flex-1">
           {weekDays.map(day => {
             const dayStr = day.toISOString().split('T')[0];
-            const isCurrentDay = isSameDay(day, new Date());
+            const isCurrentDay = isSameDay(day, now); // Use 'now' for current day check
             const positionedTimedEvents = positionedEventsByDay[dayStr] || [];
 
             return (
@@ -274,23 +270,49 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
                 </div>
 
                 {/* Timed events grid */}
-                <div className="relative h-[calc(100vh-200px)]"> {/* Adjust height */}
-                  {/* Removed all internal grid lines */}
-                  {Array.from({ length: 24 }).map((_, hour) => ( // 24 slots for 60-minute intervals
+                <div className="relative h-[1440px]"> {/* 24 hours * 60 minutes = 1440px height */}
+                  {/* Hourly and Half-Hourly Grid Lines */}
+                  {Array.from({ length: 24 * 2 }).map((_, index) => { // 48 half-hour slots
+                    const isHalfHour = index % 2 !== 0;
+                    return (
+                      <div
+                        key={index}
+                        className={`absolute left-0 right-0 h-[30px] border-t ${isHalfHour ? 'border-gray-100 dark:border-slate-700' : 'border-gray-200 dark:border-slate-600'} ${isHalfHour ? '' : 'opacity-50'}`}
+                        style={{ top: `${(index * 30) / 1440 * 100}%` }}
+                      ></div>
+                    );
+                  })}
+
+                  {/* Clickable slots for adding new events */}
+                  {Array.from({ length: 24 * 2 }).map((_, index) => { // 48 half-hour slots
+                    const hour = Math.floor(index / 2);
+                    const minute = (index % 2) * 30;
+                    return (
+                      <div
+                        key={`slot-${index}`}
+                        className="absolute left-0 right-0 h-[30px] cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/30"
+                        style={{ top: `${(index * 30) / 1440 * 100}%` }}
+                        onClick={() => {
+                          if (showPersonalEvents) {
+                            const newEventDate = new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour, minute);
+                            onOpenEventModal(newEventDate);
+                          } else {
+                            toast.info("Você não tem permissão para adicionar eventos pessoais aqui.");
+                          }
+                        }}
+                      ></div>
+                    );
+                  })}
+
+                  {/* Current Time Indicator */}
+                  {isCurrentDay && (
                     <div
-                      key={hour}
-                      className="absolute left-0 right-0 h-[60px] cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/30" // 60px height for 60-min slot
-                      style={{ top: `${(hour / 24) * 100}%` }} // Position based on 24 slots
-                      onClick={() => {
-                        if (showPersonalEvents) {
-                          const newEventDate = new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour, 0);
-                          onOpenEventModal(newEventDate);
-                        } else {
-                          toast.info("Você não tem permissão para adicionar eventos pessoais aqui.");
-                        }
-                      }}
-                    ></div>
-                  ))}
+                      className="absolute left-0 right-0 h-0.5 bg-red-500 z-20"
+                      style={{ top: `${currentTimeTop}%` }}
+                    >
+                      <div className="absolute -left-1.5 -top-1.5 w-3 h-3 bg-red-500 rounded-full"></div>
+                    </div>
+                  )}
 
                   {/* Event blocks */}
                   {positionedTimedEvents.map(event => (
@@ -369,5 +391,3 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
     </div>
   );
 };
-
-export default WeekViewGrid;

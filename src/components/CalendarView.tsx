@@ -98,20 +98,15 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     const events: CalendarEvent[] = [];
 
     // 1. Eventos Pessoais (para qualquer usuário que tenha showPersonalEvents ativado)
-    if (showPersonalEvents) { // Removida a condição userRole === 'CONSULTOR'
+    if (showPersonalEvents) {
       consultantEvents.filter(event => event.user_id === userId).forEach(event => {
         const start = new Date(event.start_time);
         const end = new Date(event.end_time);
         
-        // An event is considered all-day if it starts at midnight and ends at midnight on the same day,
-        // or if it starts at midnight and ends at 23:59 on the same day.
-        // Otherwise, it's a timed event.
         const isAllDayEvent = (start.getHours() === 0 && start.getMinutes() === 0) &&
                               (end.getHours() === 0 && end.getMinutes() === 0 || (end.getHours() === 23 && end.getMinutes() === 59)) &&
                               isSameDay(start, end);
         
-        console.log(`[CalendarView - Personal Event] Title: ${event.title}, Start: ${event.start_time}, End: ${event.end_time}, isAllDayEvent: ${isAllDayEvent}`);
-
         events.push({
           id: event.id,
           title: event.title,
@@ -164,28 +159,27 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     // 3. Tarefas Pessoais do Gestor (se aplicável)
     if (showGestorTasks && (userRole === 'GESTOR' || userRole === 'ADMIN')) {
       gestorTasks.filter(task => task.user_id === userId).forEach(task => {
-        // Para tarefas recorrentes e não recorrentes, criamos um evento de dia inteiro para cada dia da visualização se for devido
         displayedDays.forEach(day => {
           if (isGestorTaskDueOnDate(task, day.toISOString().split('T')[0])) {
             const completionForDay = gestorTaskCompletions.find(c => c.gestor_task_id === task.id && c.user_id === userId && isSameDay(new Date(c.date), day));
             events.push({
-              id: `${task.id}-${day.toISOString().split('T')[0]}`, // ID único para cada ocorrência diária
+              id: `${task.id}-${day.toISOString().split('T')[0]}`,
               title: task.title,
               description: task.description,
               start: day,
               end: day,
               type: 'gestor_task',
               personName: 'Eu',
-              originalEvent: { ...task, is_completed: completionForDay?.done || false }, // Adiciona status de conclusão para o dia
-              allDay: true, // Tarefas do gestor são consideradas de dia inteiro para o calendário
+              originalEvent: { ...task, is_completed: completionForDay?.done || false },
+              allDay: true,
             });
           }
         });
       });
     }
 
-    // NOVO: 4. Tarefas de Lead (não reuniões) como eventos de dia inteiro
-    if (showLeadMeetings) { // Reutilizando a flag showLeadMeetings para mostrar tarefas de lead
+    // 4. Tarefas de Lead (não reuniões) como eventos de dia inteiro
+    if (showLeadMeetings) {
       leadTasks.filter(task => {
         if (task.type !== 'task' || task.is_completed || !task.due_date) return false;
         
@@ -197,7 +191,6 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         const lead = crmLeads.find(l => l.id === task.lead_id);
         const dueDate = new Date(task.due_date!);
         
-        // Apenas adiciona se a data de vencimento estiver dentro dos dias exibidos
         if (displayedDays.some(day => isSameDay(day, dueDate))) {
           events.push({
             id: task.id,
@@ -215,7 +208,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       });
     }
 
-    // NOVO: 5. Itens de Daily Checklist (para consultores) como eventos de dia inteiro
+    // 5. Itens de Daily Checklist (para consultores) como eventos de dia inteiro
     if (userRole === 'CONSULTOR') {
       const userTeamMember = teamMembers.find(tm => tm.id === userId || (tm.email && tm.email === user?.email) || (tm.isLegacy && tm.name === user?.name));
       if (userTeamMember) {
@@ -239,11 +232,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                     completion.done
                 );
                 
-                if (!isCompleted) { // Apenas itens incompletos
+                if (!isCompleted) {
                   events.push({
-                    id: `${item.id}-${dayStr}`, // ID único para cada ocorrência diária
+                    id: `${item.id}-${dayStr}`,
                     title: item.text,
-                    description: checklist.title, // Usar o título do checklist como descrição
+                    description: checklist.title,
                     start: day,
                     end: day,
                     type: 'daily_checklist',
@@ -258,7 +251,6 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         });
       }
     }
-    console.log("[CalendarView] allEvents calculated:", events);
     return events;
   }, [
     userId, userRole, showPersonalEvents, showLeadMeetings, showGestorTasks,
@@ -267,7 +259,6 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   ]);
 
   const eventsByDay = useMemo(() => {
-    console.log("[CalendarView] Recalculating eventsByDay...");
     const map: Record<string, CalendarEvent[]> = {};
     displayedDays.forEach(day => {
       const dayStr = day.toISOString().split('T')[0];
@@ -276,13 +267,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         const eventEndDay = event.end.toISOString().split('T')[0];
         return eventStartDay <= dayStr && eventEndDay >= dayStr;
       }).sort((a, b) => {
-        // Sort all-day events first, then by start time
         if (a.allDay && !b.allDay) return -1;
         if (!a.allDay && b.allDay) return 1;
         return a.start.getTime() - b.start.getTime();
       });
     });
-    console.log("[CalendarView] eventsByDay calculated:", map);
     return map;
   }, [allEvents, displayedDays]);
 
@@ -301,7 +290,6 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   };
 
   const handleOpenEventModal = (date: Date, event: CalendarEvent | null = null) => {
-    console.log(`[CalendarView] handleOpenEventModal called. Date: ${date.toISOString()}, Event:`, event);
     setSelectedDateForNewEvent(date);
     setEditingEvent(event);
     setIsEventModalOpen(true);
@@ -360,7 +348,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     const commonGridProps = {
       eventsByDay,
       today,
-      onOpenEventModal: handleOpenEventModal, // Correctly reference the internal function
+      onOpenEventModal: handleOpenEventModal,
       onDeleteEvent: handleDeleteEvent,
       onToggleGestorTaskCompletion: handleToggleGestorTaskCompletion,
       userRole,
@@ -412,7 +400,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       </div>
 
       {/* Renderização do Grid de Calendário */}
-      <div className="flex-1">
+      <div className="flex-1 overflow-y-auto custom-scrollbar"> {/* Make this area scrollable */}
         {view === 'month' && (
           <div className="grid grid-cols-7 text-center text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
             {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(dayName => (
