@@ -18,7 +18,7 @@ interface ScheduleMeetingModalProps {
 }
 
 export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOpen, onClose, lead, currentMeeting }) => {
-  const { addLeadTask, updateLeadTask, teamMembers, leadTasks, consultantEvents } = useApp();
+  const { addLeadTask, updateLeadTask, teamMembers, leadTasks, consultantEvents, crmOwnerUserId } = useApp();
   const [title, setTitle] = useState(currentMeeting?.title || 'Reunião com Lead');
   const [date, setDate] = useState<string>(() => {
     if (currentMeeting?.meeting_start_time) {
@@ -49,11 +49,40 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
   }
 
   // NOVO: Seleção de Gestor e agenda do gestor
-  const gestores: TeamMember[] = useMemo(
-    () => teamMembers.filter(m => m.isActive && m.roles.includes('Gestor')),
-    [teamMembers]
-  );
+  const gestores: TeamMember[] = useMemo(() => {
+    // Normaliza papéis e garante inclusão do gestor principal via crmOwnerUserId
+    const normalized = teamMembers.filter(m => {
+      const roles = (m.roles || []).map(r => r.toLowerCase());
+      return m.isActive && (roles.includes('gestor') || roles.includes('admin'));
+    });
+
+    // Fallback: incluir o gestor principal mesmo que não esteja em teamMembers
+    if (crmOwnerUserId && !normalized.some(m => m.id === crmOwnerUserId)) {
+      const existente = teamMembers.find(m => m.id === crmOwnerUserId);
+      if (existente) {
+        normalized.push(existente);
+      } else {
+        normalized.push({
+          id: crmOwnerUserId,
+          name: 'Gestor',
+          roles: ['Gestor'],
+          isActive: true,
+        } as TeamMember);
+      }
+    }
+
+    return normalized;
+  }, [teamMembers, crmOwnerUserId]);
+
   const [selectedGestorId, setSelectedGestorId] = useState<string | null>(gestores[0]?.id || null);
+
+  // Atualiza o gestor selecionado quando a lista mudar e não houver seleção
+  useEffect(() => {
+    if (!selectedGestorId && gestores.length > 0) {
+      setSelectedGestorId(gestores[0].id);
+    }
+  }, [gestores, selectedGestorId]);
+
   const [gestorEvents, setGestorEvents] = useState<{ id: string; title: string; start_time: string; end_time: string; description?: string }[]>([]);
   const [isLoadingAgenda, setIsLoadingAgenda] = useState(false);
 
