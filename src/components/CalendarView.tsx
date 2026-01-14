@@ -169,21 +169,90 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     }
   }, [highlightedDate]);
 
+  // Fetch ICS Google events for displayed range (via Edge Function para evitar CORS)
+  useEffect(() => {
+    const fetchIcsForRange = async () => {
+      if (!showGoogleEvents || googleCalendarUrls.length === 0) {
+        setGoogleEventsByDay({});
+        return;
+      }
+      setIsFetchingGoogle(true);
+      try {
+        const days =
+          view === 'day'
+            ? [currentDate]
+            : view === 'week'
+            ? getWeekDays(currentDate)
+            : getDaysInMonth(currentDate);
+
+        const start = days[0];
+        const end = days[days.length - 1];
+        const startIso = new Date(start.getFullYear(), start.getMonth(), start.getDate(), 0, 0, 0);
+        const endIso = new Date(end.getFullYear(), end.getMonth(), end.getDate(), 23, 59, 59);
+
+        const allGoogleEvents: CalendarEvent[] = [];
+
+        // Baixar cada ICS via Edge Function e parsear
+        for (const url of googleCalendarUrls) {
+          const { data, error } = await supabase.functions.invoke('fetch-ics', { body: { url } });
+          if (error || !data?.text) {
+            toast.error('Falha ao carregar ICS do Google. Verifique o URL (público ou endereço secreto).');
+            continue;
+          }
+          const parsed = parseICS(data.text as string);
+          parsed.forEach(ev => {
+            if (ev.end >= startIso && ev.start <= endIso) {
+              allGoogleEvents.push({
+                id: `google_${ev.start.getTime()}_${ev.title}_${Math.random().toString(36).slice(2)}`,
+                title: ev.title,
+                description: ev.description,
+                start: ev.start,
+                end: ev.end,
+                type: 'personal',
+                personName: user?.name || 'Eu',
+                personId: userId,
+                originalEvent: { title: ev.title, description: ev.description, start_time: ev.start.toISOString(), end_time: ev.end.toISOString() } as unknown as ConsultantEvent,
+                allDay: (ev.start.getHours() === 0 && ev.start.getMinutes() === 0) && (ev.end.getHours() === 23 || ev.end.getHours() === 0),
+              });
+            }
+          });
+        }
+
+        const map: Record<string, CalendarEvent[]> = {};
+        days.forEach(day => {
+          const dayStr = day.toISOString().split('T')[0];
+          map[dayStr] = allGoogleEvents
+            .filter(ev => {
+              const s = ev.start.toISOString().split('T')[0];
+              const e = ev.end.toISOString().split('T')[0];
+              return s <= dayStr && e >= dayStr;
+            })
+            .sort((a, b) => a.start.getTime() - b.start.getTime());
+        });
+
+        setGoogleEventsByDay(map);
+      } catch (e) {
+        console.error('[CalendarView] Falha ao carregar ICS:', e);
+        toast.error('Falha ao carregar eventos do Google (ICS).');
+      } finally {
+        setIsFetchingGoogle(false);
+      }
+    };
+    fetchIcsForRange();
+  }, [showGoogleEvents, googleCalendarUrls, view, currentDate, user?.name, userId]);
+
   // Botão "Conectar via Google OAuth" chama a função para iniciar o fluxo
   const startGoogleOAuth = async () => {
     try {
       const { data, error } = await supabase.functions.invoke('google-calendar-auth', {
         body: { action: 'start', user_id: userId }
-      })
-      if (error) {
-        toast.error('Falha ao iniciar conexão com Google. Verifique se GOOGLE_CLIENT_ID/SECRET estão configurados.');
-        return
+      });
+      if (error || !data?.auth_url) {
+        toast.error('Falha ao iniciar conexão com Google. Verifique GOOGLE_CLIENT_ID/SECRET e o Redirect URI no Google Cloud.');
+        return;
       }
-      const authUrl = data?.auth_url
-      if (authUrl) {
-        window.open(authUrl, '_blank')
-        toast.success('Abrimos a página de autorização do Google em uma nova aba.')
-      }
+      window.open(data.auth_url, '_blank');
+      toast.success('Abrimos a página de autorização do Google em uma nova aba.');
     } catch (e) {
       toast.error('Erro ao conectar com Google. Verifique a configuração.');
     }
@@ -261,77 +330,6 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       return getDaysInMonth(currentDate);
     }
   }, [currentDate, view]);
-
-  // Fetch ICS Google events for displayed range
-  useEffect(() => {
-    const fetchIcsForRange = async () => {
-      if (!showGoogleEvents || googleCalendarUrls.length === 0) {
-        setGoogleEventsByDay({});
-        return;
-      }
-      setIsFetchingGoogle(true);
-      try {
-        // Calcula o intervalo com base em view e currentDate (evita usar displayedDays antes de inicializar)
-        const days =
-          view === 'day'
-            ? [currentDate]
-            : view === 'week'
-            ? getWeekDays(currentDate)
-            : getDaysInMonth(currentDate);
-
-        const start = days[0];
-        const end = days[days.length - 1];
-        const startIso = new Date(start.getFullYear(), start.getMonth(), start.getDate(), 0, 0, 0);
-        const endIso = new Date(end.getFullYear(), end.getMonth(), end.getDate(), 23, 59, 59);
-
-        const allGoogleEvents: CalendarEvent[] = [];
-
-        // Baixar cada ICS e parsear
-        for (const url of googleCalendarUrls) {
-          const res = await fetch(url);
-          if (!res.ok) continue;
-          const text = await res.text();
-          const parsed = parseICS(text);
-          parsed.forEach(ev => {
-            // filtrar por intervalo exibido
-            if (ev.end >= startIso && ev.start <= endIso) {
-              allGoogleEvents.push({
-                id: `google_${ev.start.getTime()}_${ev.title}_${Math.random().toString(36).slice(2)}`,
-                title: ev.title,
-                description: ev.description,
-                start: ev.start,
-                end: ev.end,
-                type: 'personal',
-                personName: user?.name || 'Eu',
-                personId: userId,
-                originalEvent: { title: ev.title, description: ev.description, start_time: ev.start.toISOString(), end_time: ev.end.toISOString() } as unknown as ConsultantEvent,
-                allDay: (ev.start.getHours() === 0 && ev.start.getMinutes() === 0) && (ev.end.getHours() === 23 || ev.end.getHours() === 0),
-              });
-            }
-          });
-        }
-
-        // Agrupar por dia
-        const map: Record<string, CalendarEvent[]> = {};
-        days.forEach(day => {
-          const dayStr = day.toISOString().split('T')[0];
-          map[dayStr] = allGoogleEvents.filter(ev => {
-            const s = ev.start.toISOString().split('T')[0];
-            const e = ev.end.toISOString().split('T')[0];
-            return s <= dayStr && e >= dayStr;
-          }).sort((a, b) => a.start.getTime() - b.start.getTime());
-        });
-
-        setGoogleEventsByDay(map);
-      } catch (e) {
-        console.error('[CalendarView] Falha ao carregar ICS:', e);
-        toast.error('Falha ao carregar eventos do Google. Verifique o URL do calendário.');
-      } finally {
-        setIsFetchingGoogle(false);
-      }
-    };
-    fetchIcsForRange();
-  }, [showGoogleEvents, googleCalendarUrls, view, currentDate, user?.name, userId]);
 
   const allEvents = useMemo(() => {
     console.log("[CalendarView] Recalculating allEvents...");
