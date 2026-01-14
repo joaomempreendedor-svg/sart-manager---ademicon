@@ -15,9 +15,11 @@ const displayDate = (date: Date) => date.toLocaleDateString('pt-BR', { weekday: 
 interface DailyChecklistDisplayProps {
   user: User | null;
   isDataLoading: boolean;
+  highlightedItemId?: string | null; // NOVO: Prop para item destacado
+  highlightedDate?: string | null; // NOVO: Prop para data destacada
 }
 
-export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ user, isDataLoading }) => {
+export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ user, isDataLoading, highlightedItemId, highlightedDate }) => {
   const { 
     dailyChecklists, 
     dailyChecklistItems, 
@@ -165,6 +167,22 @@ export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ us
     }
   };
 
+  // Efeito para rolar até o item destacado
+  const itemRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  useEffect(() => {
+    if (highlightedItemId && highlightedDate) {
+      // Se a data destacada for diferente da data atual, navegue para ela
+      if (highlightedDate !== formattedSelectedDate) {
+        setSelectedDate(new Date(highlightedDate + 'T00:00:00'));
+      }
+      // Aguarde a renderização e role
+      const timer = setTimeout(() => {
+        itemRefs.current[highlightedItemId]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 100); // Pequeno delay para garantir que o elemento esteja renderizado
+    }
+  }, [highlightedItemId, highlightedDate, formattedSelectedDate]);
+
+
   if (isDataLoading) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -211,6 +229,7 @@ export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ us
                 ) : (
                   items.map(item => {
                     const isCompleted = getCompletionStatus(item.id);
+                    const isHighlighted = highlightedItemId === item.id && highlightedDate === formattedSelectedDate;
                     
                     // Determine classes for the task item
                     let itemClasses = 'p-4 flex items-center justify-between flex-col sm:flex-row';
@@ -223,9 +242,16 @@ export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ us
                       itemClasses += ' bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800';
                       labelClasses += ' text-red-800 dark:text-red-200';
                     }
+                    if (isHighlighted) {
+                      itemClasses += ' ring-4 ring-brand-500/50 dark:ring-brand-400/50 animate-pulse';
+                    }
 
                     return (
-                      <div key={item.id} className={itemClasses}>
+                      <div 
+                        key={item.id} 
+                        ref={el => itemRefs.current[item.id] = el} // Atribuir a ref
+                        className={itemClasses}
+                      >
                         <div className="flex items-center space-x-3 mb-2 sm:mb-0">
                           <Checkbox
                             id={`item-${item.id}`}

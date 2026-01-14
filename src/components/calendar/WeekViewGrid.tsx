@@ -3,7 +3,9 @@ import { CalendarEvent, isSameDay, formatTime } from './utils';
 import { Plus, Edit2, Trash2, CheckCircle2, XCircle, Clock, UserRound, MessageSquare, Users, ListChecks, ListTodo } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import toast from 'react-hot-toast';
-import { GestorTask } from '@/types';
+import { GestorTask, DailyChecklistItem, LeadTask } from '@/types';
+import { useNavigate } from 'react-router-dom'; // Importar useNavigate
+import { useApp } from '@/context/AppContext'; // Importar useApp para funções de contexto
 
 interface WeekViewGridProps {
   weekDays: Date[];
@@ -27,6 +29,8 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
   showPersonalEvents,
 }) => {
   const isCurrentWeek = weekDays.some(day => isSameDay(day, new Date()));
+  const navigate = useNavigate(); // Inicializar useNavigate
+  const { toggleDailyChecklistCompletion, toggleLeadTaskCompletion, deleteLeadTask } = useApp(); // Funções do AppContext
 
   // Collect all all-day events for the entire week
   const allWeekAllDayEvents = useMemo(() => {
@@ -106,6 +110,57 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
     }
   };
 
+  // Funções de ação para daily_checklist e lead_task
+  const handleToggleDailyChecklist = async (event: CalendarEvent) => {
+    if (!event.originalEvent || event.type !== 'daily_checklist') return;
+    const item = event.originalEvent as DailyChecklistItem;
+    const dateStr = event.start.toISOString().split('T')[0];
+    try {
+      await toggleDailyChecklistCompletion(item.id, dateStr, !item.is_completed, event.personId!);
+      toast.success(`Item de checklist ${item.is_completed ? 'marcado como pendente' : 'concluído'}!`);
+    } catch (error: any) {
+      toast.error(`Erro ao atualizar checklist: ${error.message}`);
+    }
+  };
+
+  const handleEditDailyChecklist = (event: CalendarEvent) => {
+    if (!event.originalEvent || event.type !== 'daily_checklist') return;
+    const item = event.originalEvent as DailyChecklistItem;
+    const dateStr = event.start.toISOString().split('T')[0];
+    navigate(`/consultor/daily-checklist`, { state: { highlightChecklistItemId: item.id, highlightChecklistDate: dateStr } });
+  };
+
+  const handleToggleLeadTask = async (event: CalendarEvent) => {
+    if (!event.originalEvent || event.type !== 'lead_task') return;
+    const task = event.originalEvent as LeadTask;
+    try {
+      await toggleLeadTaskCompletion(task.id, !task.is_completed);
+      toast.success(`Tarefa de lead ${task.is_completed ? 'marcada como pendente' : 'concluída'}!`);
+    } catch (error: any) {
+      toast.error(`Erro ao atualizar tarefa de lead: ${error.message}`);
+    }
+  };
+
+  const handleEditLeadTask = (event: CalendarEvent) => {
+    if (!event.originalEvent || event.type !== 'lead_task') return;
+    const task = event.originalEvent as LeadTask;
+    const path = userRole === 'CONSULTOR' ? '/consultor/crm' : '/gestor/crm';
+    navigate(path, { state: { highlightLeadId: task.lead_id, highlightLeadTaskId: task.id } });
+  };
+
+  const handleDeleteLeadTask = async (event: CalendarEvent) => {
+    if (!event.originalEvent || event.type !== 'lead_task') return;
+    const task = event.originalEvent as LeadTask;
+    if (window.confirm(`Tem certeza que deseja excluir a tarefa "${task.title}"?`)) {
+      try {
+        await deleteLeadTask(task.id);
+        toast.success("Tarefa de lead excluída com sucesso!");
+      } catch (error: any) {
+        toast.error(`Erro ao excluir tarefa de lead: ${error.message}`);
+      }
+    }
+  };
+
   return (
     <div className="flex flex-col flex-1">
       {/* All-day events section for the entire week */}
@@ -131,8 +186,31 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
                             <Button variant="ghost" size="icon" onClick={() => onDeleteEvent(event.id, event.type)} className="p-1 text-gray-400 hover:text-red-600"><Trash2 className="w-3 h-3" /></Button>
                           </>
                         )}
-                        {(event.type === 'daily_checklist' || event.type === 'lead_task') && (
-                          <Button variant="ghost" size="icon" onClick={() => toast.info("Itens de checklist e tarefas de lead são gerenciados em suas respectivas seções, não diretamente no calendário.")} className="p-1 text-gray-400 hover:text-gray-600"><XCircle className="w-3 h-3" /></Button>
+                        {event.type === 'daily_checklist' && (
+                          <>
+                            <Button variant="ghost" size="icon" onClick={() => handleToggleDailyChecklist(event)} className="p-1 text-gray-400 hover:text-green-600" title={event.originalEvent?.is_completed ? 'Marcar como Pendente' : 'Marcar como Concluído'}>
+                              {event.originalEvent?.is_completed ? <XCircle className="w-3 h-3" /> : <CheckCircle2 className="w-3 h-3" />}
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => handleEditDailyChecklist(event)} className="p-1 text-gray-400 hover:text-blue-600" title="Ver/Editar Checklist">
+                              <Edit2 className="w-3 h-3" />
+                            </Button>
+                          </>
+                        )}
+                        {event.type === 'lead_task' && (
+                          <>
+                            <Button variant="ghost" size="icon" onClick={() => handleToggleLeadTask(event)} className="p-1 text-gray-400 hover:text-green-600" title={event.originalEvent?.is_completed ? 'Marcar como Pendente' : 'Marcar como Concluído'}>
+                              {event.originalEvent?.is_completed ? <XCircle className="w-3 h-3" /> : <CheckCircle2 className="w-3 h-3" />}
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => handleEditLeadTask(event)} className="p-1 text-gray-400 hover:text-blue-600" title="Ver/Editar Tarefa">
+                              <Edit2 className="w-3 h-3" />
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => handleDeleteLeadTask(event)} className="p-1 text-gray-400 hover:text-red-600" title="Excluir Tarefa">
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </>
+                        )}
+                        {event.type === 'meeting' && (
+                          <Button variant="ghost" size="icon" onClick={() => toast.info("Reuniões de leads são gerenciadas na seção de CRM.")} className="p-1 text-gray-400 hover:text-gray-600"><XCircle className="w-3 h-3" /></Button>
                         )}
                       </div>
                     </div>
@@ -242,6 +320,29 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
                           <>
                             <Button variant="ghost" size="icon" onClick={() => onOpenEventModal(day, event)} className="p-1 text-gray-400 hover:text-blue-600"><Edit2 className="w-3 h-3" /></Button>
                             <Button variant="ghost" size="icon" onClick={() => onDeleteEvent(event.id, event.type)} className="p-1 text-gray-400 hover:text-red-600"><Trash2 className="w-3 h-3" /></Button>
+                          </>
+                        )}
+                        {event.type === 'daily_checklist' && (
+                          <>
+                            <Button variant="ghost" size="icon" onClick={() => handleToggleDailyChecklist(event)} className="p-1 text-gray-400 hover:text-green-600" title={event.originalEvent?.is_completed ? 'Marcar como Pendente' : 'Marcar como Concluído'}>
+                              {event.originalEvent?.is_completed ? <XCircle className="w-3 h-3" /> : <CheckCircle2 className="w-3 h-3" />}
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => handleEditDailyChecklist(event)} className="p-1 text-gray-400 hover:text-blue-600" title="Ver/Editar Checklist">
+                              <Edit2 className="w-3 h-3" />
+                            </Button>
+                          </>
+                        )}
+                        {event.type === 'lead_task' && (
+                          <>
+                            <Button variant="ghost" size="icon" onClick={() => handleToggleLeadTask(event)} className="p-1 text-gray-400 hover:text-green-600" title={event.originalEvent?.is_completed ? 'Marcar como Pendente' : 'Marcar como Concluído'}>
+                              {event.originalEvent?.is_completed ? <XCircle className="w-3 h-3" /> : <CheckCircle2 className="w-3 h-3" />}
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => handleEditLeadTask(event)} className="p-1 text-gray-400 hover:text-blue-600" title="Ver/Editar Tarefa">
+                              <Edit2 className="w-3 h-3" />
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => handleDeleteLeadTask(event)} className="p-1 text-gray-400 hover:text-red-600" title="Excluir Tarefa">
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
                           </>
                         )}
                         {event.type === 'meeting' && (

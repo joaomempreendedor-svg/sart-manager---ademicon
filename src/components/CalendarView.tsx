@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Plus, CalendarDays, Clock, UserRound, MessageSquare, Users, ListChecks, ListTodo } from 'lucide-react'; // Adicionado ListChecks e ListTodo
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { ChevronLeft, ChevronRight, Plus, CalendarDays, Clock, UserRound, MessageSquare, Users, ListChecks, ListTodo } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { CrmLead, LeadTask, GestorTask, ConsultantEvent, TeamMember } from '@/types';
@@ -10,8 +10,8 @@ import toast from 'react-hot-toast';
 import DayViewGrid from './calendar/DayViewGrid';
 import WeekViewGrid from './calendar/WeekViewGrid';
 import MonthViewGrid from './calendar/MonthViewGrid';
-import { getDaysInMonth, getWeekDays, isSameDay, formatTime } from './calendar/utils'; // Importar utilitários
-import { CalendarEvent } from './calendar/utils'; // Importar CalendarEvent do utils
+import { getDaysInMonth, getWeekDays, isSameDay, formatTime } from './calendar/utils';
+import { CalendarEvent } from './calendar/utils';
 
 interface CalendarViewProps {
   userId: string;
@@ -19,7 +19,10 @@ interface CalendarViewProps {
   showPersonalEvents?: boolean;
   showLeadMeetings?: boolean;
   showGestorTasks?: boolean;
-  view: 'day' | 'week' | 'month'; // NOVO: Prop para controlar a visualização
+  view: 'day' | 'week' | 'month';
+  highlightedItemId?: string | null; // NOVO: Prop para item destacado
+  highlightedDate?: string | null; // NOVO: Prop para data destacada
+  highlightedEventType?: 'daily_checklist' | 'lead_task' | null; // NOVO: Tipo do evento destacado
 }
 
 export const CalendarView: React.FC<CalendarViewProps> = ({
@@ -28,7 +31,10 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   showPersonalEvents = true,
   showLeadMeetings = true,
   showGestorTasks = true,
-  view, // NOVO: Recebe a prop de visualização
+  view,
+  highlightedItemId,
+  highlightedDate,
+  highlightedEventType,
 }) => {
   const {
     crmLeads,
@@ -37,22 +43,22 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     gestorTaskCompletions,
     consultantEvents,
     teamMembers,
-    dailyChecklists, // NOVO: Adicionado para daily checklists
-    dailyChecklistItems, // NOVO: Adicionado para daily checklists
-    dailyChecklistAssignments, // NOVO: Adicionado para daily checklists
-    dailyChecklistCompletions, // NOVO: Adicionado para daily checklists
+    dailyChecklists,
+    dailyChecklistItems,
+    dailyChecklistAssignments,
+    dailyChecklistCompletions,
     addConsultantEvent,
     updateConsultantEvent,
     deleteConsultantEvent,
-    deleteLeadTask, // Usado para deletar reuniões
-    deleteGestorTask, // Usado para deletar tarefas do gestor
+    deleteLeadTask,
+    deleteGestorTask,
     toggleGestorTaskCompletion,
     isGestorTaskDueOnDate,
   } = useApp();
   const { user } = useAuth();
 
-  const [currentDate, setCurrentDate] = useState(new Date()); // Data central para navegação
-  const [today, setToday] = useState(new Date()); // Estado para a data atual, atualizado a cada minuto
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [today, setToday] = useState(new Date());
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
   const [selectedDateForNewEvent, setSelectedDateForNewEvent] = useState<Date | null>(null);
@@ -61,10 +67,21 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   useEffect(() => {
     const intervalId = setInterval(() => {
       setToday(new Date());
-    }, 60 * 1000); // Atualiza a cada 60 segundos
+    }, 60 * 1000);
 
     return () => clearInterval(intervalId);
   }, []);
+
+  // Efeito para ajustar a data atual se houver um item destacado
+  useEffect(() => {
+    if (highlightedDate) {
+      const newDate = new Date(highlightedDate + 'T00:00:00');
+      if (!isSameDay(currentDate, newDate)) {
+        setCurrentDate(newDate);
+      }
+    }
+  }, [highlightedDate]);
+
 
   const displayedDays = useMemo(() => {
     if (view === 'day') {
@@ -325,44 +342,37 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   };
 
   const renderCalendarGrid = () => {
+    const commonGridProps = {
+      eventsByDay,
+      today,
+      onOpenEventModal,
+      onDeleteEvent,
+      onToggleGestorTaskCompletion,
+      userRole,
+      showPersonalEvents,
+    };
+
     if (view === 'day') {
       return (
         <DayViewGrid
           day={displayedDays[0]}
           events={eventsByDay[displayedDays[0].toISOString().split('T')[0]] || []}
-          today={today}
-          onOpenEventModal={handleOpenEventModal}
-          onDeleteEvent={handleDeleteEvent}
-          onToggleGestorTaskCompletion={handleToggleGestorTaskCompletion}
-          userRole={userRole}
-          showPersonalEvents={showPersonalEvents}
+          {...commonGridProps}
         />
       );
     } else if (view === 'week') {
       return (
         <WeekViewGrid
           weekDays={displayedDays}
-          eventsByDay={eventsByDay}
-          today={today}
-          onOpenEventModal={handleOpenEventModal}
-          onDeleteEvent={handleDeleteEvent}
-          onToggleGestorTaskCompletion={handleToggleGestorTaskCompletion}
-          userRole={userRole}
-          showPersonalEvents={showPersonalEvents}
+          {...commonGridProps}
         />
       );
     } else if (view === 'month') {
       return (
         <MonthViewGrid
           displayedDays={displayedDays}
-          eventsByDay={eventsByDay}
-          today={today}
           currentMonth={currentDate}
-          onOpenEventModal={handleOpenEventModal}
-          onDeleteEvent={handleDeleteEvent}
-          onToggleGestorTaskCompletion={handleToggleGestorTaskCompletion}
-          userRole={userRole}
-          showPersonalEvents={showPersonalEvents}
+          {...commonGridProps}
         />
       );
     }

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { Plus, Search, Loader2, Phone, Mail, Tag, MessageSquare, TrendingUp, ListTodo, CalendarPlus, Send, DollarSign, Edit2, Trash2, Users, CheckCircle2, XCircle, Filter, RotateCcw, UserRound, UploadCloud, Calendar, Clock } from 'lucide-react'; // Adicionado Calendar e Clock
@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { CrmLead, LeadTask } from '@/types'; // Importar LeadTask
+import { useLocation } from 'react-router-dom'; // Importar useLocation
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -41,6 +42,22 @@ const ConsultorCrmPage = () => {
   const [filterEndDate, setFilterEndDate] = useState('');
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [meetingToEdit, setMeetingToEdit] = useState<LeadTask | null>(null); // NOVO: Estado para a reunião a ser editada
+
+  const location = useLocation(); // Hook para acessar o estado de navegação
+
+  // Efeito para abrir o modal de tarefas se houver estado de navegação
+  useEffect(() => {
+    if (location.state?.highlightLeadId && location.state?.highlightLeadTaskId) {
+      const leadToHighlight = crmLeads.filter(lead => lead.consultant_id === user?.id).find(l => l.id === location.state.highlightLeadId);
+      if (leadToHighlight) {
+        setSelectedLeadForTasks(leadToHighlight);
+        setIsTasksModalOpen(true);
+      }
+      // Limpar o estado para que não persista em recarregamentos futuros
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state, crmLeads, user]);
+
 
   const activePipeline = useMemo(() => {
     return crmPipelines.find(p => p.is_active) || crmPipelines[0];
@@ -334,7 +351,7 @@ const ConsultorCrmPage = () => {
 
                   // Encontrar a próxima reunião para este lead
                   const nextMeeting = leadTasks
-                    .filter(task => task.lead_id === lead.id && task.type === 'meeting' && !task.is_completed && task.meeting_start_time && new Date(task.meeting_start_time) > new Date())
+                    .filter(task => task.lead_id === lead.id && task.type === 'meeting' && !task.is_completed && task.meeting_start_time && new Date(task.meeting_start_time).getTime() > new Date())
                     .sort((a, b) => new Date(a.meeting_start_time!).getTime() - new Date(b.meeting_start_time!).getTime())[0];
 
                   return (

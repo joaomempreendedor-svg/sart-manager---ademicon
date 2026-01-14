@@ -1,11 +1,35 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { CalendarView } from '@/components/CalendarView';
-import { Loader2, CalendarDays, Calendar, LayoutGrid } from 'lucide-react'; // Importar LayoutGrid
+import { Loader2, CalendarDays, Calendar, LayoutGrid } from 'lucide-react';
+import { useLocation } from 'react-router-dom'; // Importar useLocation
 
 export const CalendarPage = () => {
   const { user, isLoading } = useAuth();
-  const [view, setView] = useState<'day' | 'week' | 'month'>('week'); // NOVO: Estado para a visualização
+  const [view, setView] = useState<'day' | 'week' | 'month'>('week');
+  const location = useLocation(); // Hook para acessar o estado de navegação
+
+  const [highlightedItemId, setHighlightedItemId] = useState<string | null>(null);
+  const [highlightedDate, setHighlightedDate] = useState<string | null>(null);
+  const [highlightedEventType, setHighlightedEventType] = useState<'daily_checklist' | 'lead_task' | null>(null);
+
+
+  useEffect(() => {
+    if (location.state?.highlightChecklistItemId && location.state?.highlightChecklistDate) {
+      setHighlightedItemId(location.state.highlightChecklistItemId);
+      setHighlightedDate(location.state.highlightChecklistDate);
+      setHighlightedEventType('daily_checklist');
+      setView('day'); // Mudar para visualização de dia para melhor destaque
+      window.history.replaceState({}, document.title); // Limpar o estado
+    } else if (location.state?.highlightLeadId && location.state?.highlightLeadTaskId) {
+      setHighlightedItemId(location.state.highlightLeadTaskId);
+      setHighlightedDate(location.state.highlightLeadDate || new Date().toISOString().split('T')[0]); // Usar data atual se não houver
+      setHighlightedEventType('lead_task');
+      setView('day'); // Mudar para visualização de dia para melhor destaque
+      window.history.replaceState({}, document.title); // Limpar o estado
+    }
+  }, [location.state]);
+
 
   if (isLoading) {
     return (
@@ -55,10 +79,13 @@ export const CalendarPage = () => {
       <CalendarView
         userId={user.id}
         userRole={user.role}
-        showPersonalEvents={user.role === 'CONSULTOR' || user.role === 'GESTOR' || user.role === 'ADMIN'} // ATUALIZADO AQUI
+        showPersonalEvents={user.role === 'CONSULTOR' || user.role === 'GESTOR' || user.role === 'ADMIN'}
         showLeadMeetings={true}
         showGestorTasks={user.role === 'GESTOR' || user.role === 'ADMIN'}
         view={view}
+        highlightedItemId={highlightedItemId}
+        highlightedDate={highlightedDate}
+        highlightedEventType={highlightedEventType}
       />
     </div>
   );
