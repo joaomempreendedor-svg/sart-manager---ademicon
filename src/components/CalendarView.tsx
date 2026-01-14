@@ -102,7 +102,10 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       consultantEvents.filter(event => event.user_id === userId).forEach(event => {
         const start = new Date(event.start_time);
         const end = new Date(event.end_time);
-        const allDay = isSameDay(start, end) && start.getHours() === 0 && start.getMinutes() === 0 && end.getHours() === 0 && end.getMinutes() === 0;
+        // Um evento é allDay se começar e terminar no mesmo dia E a hora de início for 00:00 e a hora de fim for 00:00 (ou 23:59:59)
+        const isAllDayEvent = isSameDay(start, end) && 
+                              start.getHours() === 0 && start.getMinutes() === 0 && 
+                              (end.getHours() === 0 && end.getMinutes() === 0 || (end.getHours() === 23 && end.getMinutes() === 59));
         events.push({
           id: event.id,
           title: event.title,
@@ -113,7 +116,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           personName: user?.name || 'Eu',
           personId: userId,
           originalEvent: event,
-          allDay,
+          allDay: isAllDayEvent, // Usar a nova lógica
         });
       });
     }
@@ -132,7 +135,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         const consultant = teamMembers.find(m => m.id === task.user_id);
         const start = new Date(task.meeting_start_time!);
         const end = new Date(task.meeting_end_time!);
-        const allDay = isSameDay(start, end) && start.getHours() === 0 && start.getMinutes() === 0 && end.getHours() === 0 && end.getMinutes() === 0;
+        const isAllDayEvent = isSameDay(start, end) && 
+                              start.getHours() === 0 && start.getMinutes() === 0 && 
+                              (end.getHours() === 0 && end.getMinutes() === 0 || (end.getHours() === 23 && end.getMinutes() === 59));
 
         events.push({
           id: task.id,
@@ -144,7 +149,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           personName: lead?.name || consultant?.name || 'Desconhecido',
           personId: lead?.id || consultant?.id,
           originalEvent: task,
-          allDay,
+          allDay: isAllDayEvent,
         });
       });
     }
