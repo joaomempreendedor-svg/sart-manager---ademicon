@@ -55,7 +55,7 @@ export const CalendarPage = () => {
       <CalendarView
         userId={user.id}
         userRole={user.role}
-        showPersonalEvents={user.role === 'CONSULTOR' || user.role === 'GESTOR' || user.role === 'ADMIN'} {/* ATUALIZADO AQUI */}
+        showPersonalEvents={user.role === 'CONSULTOR' || user.role === 'GESTOR' || user.role === 'ADMIN'} // ATUALIZADO AQUI
         showLeadMeetings={true}
         showGestorTasks={user.role === 'GESTOR' || user.role === 'ADMIN'}
         view={view}
