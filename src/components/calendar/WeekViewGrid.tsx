@@ -26,9 +26,8 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
   userRole,
   showPersonalEvents,
 }) => {
-  const now = new Date();
   const currentTimeRef = useRef<HTMLDivElement>(null);
-  const isCurrentWeek = weekDays.some(day => isSameDay(day, now));
+  const isCurrentWeek = weekDays.some(day => isSameDay(day, new Date())); // Check against current 'now'
 
   // Calculate event positioning for timed events
   const positionedEventsByDay = useMemo(() => {
@@ -77,6 +76,7 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
   useEffect(() => {
     const updateLinePosition = () => {
       if (currentTimeRef.current && isCurrentWeek) {
+        const now = new Date(); // Get current time inside the function
         const currentMinutes = now.getHours() * 60 + now.getMinutes();
         const topPercent = (currentMinutes / (24 * 60)) * 100;
         currentTimeRef.current.style.top = `${topPercent}%`;
@@ -86,7 +86,7 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
     updateLinePosition();
     const interval = setInterval(updateLinePosition, 60 * 1000); // Update every minute
     return () => clearInterval(interval);
-  }, [isCurrentWeek, now]);
+  }, [isCurrentWeek]); // Removed 'now' from dependencies as it's now local to updateLinePosition
 
   const getEventColorClass = (type: CalendarEvent['type']) => {
     switch (type) {
@@ -124,7 +124,7 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
       <div className="grid grid-cols-7 flex-1"> {/* Use grid-cols-7 here */}
         {weekDays.map(day => {
           const dayStr = day.toISOString().split('T')[0];
-          const isCurrentDay = isSameDay(day, now);
+          const isCurrentDay = isSameDay(day, new Date()); // Check against current 'now'
           const allDayEvents = eventsByDay[dayStr]?.filter(e => e.allDay) || [];
           const positionedTimedEvents = positionedEventsByDay[dayStr] || [];
 
@@ -180,7 +180,7 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
                   <div
                     ref={currentTimeRef}
                     className="absolute left-0 right-0 h-0.5 bg-red-500 z-10"
-                    style={{ top: `${(now.getHours() * 60 + now.getMinutes()) / (24 * 60) * 100}%` }}
+                    style={{ top: `${(new Date().getHours() * 60 + new Date().getMinutes()) / (24 * 60) * 100}%` }}
                   >
                     <div className="absolute -left-1.5 -top-1.5 w-3 h-3 rounded-full bg-red-500"></div>
                   </div>
