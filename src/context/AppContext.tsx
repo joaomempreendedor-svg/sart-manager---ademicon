@@ -464,7 +464,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           (async () => { try { return await supabase.from('support_materials').select('id, data').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching support_materials:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('cutoff_periods').select('id, data').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching cutoff_periods:", e); return { data: null, error: e }; } })(),
           (async () => { try { return await supabase.from('onboarding_sessions').select('*, videos:onboarding_videos(*)').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching onboarding_sessions:", e); return { data: [], error: e }; } })(),
-          (async () => { try { return await supabase.from('onboarding_video_templates').select('*').eq('user_id', effectiveGestorId).order('order', { ascending: true }); } } catch (e) { console.error("Error fetching onboarding_video_templates:", e); return { data: [], error: e }; } })(),
+          (async () => { try { return await supabase.from('onboarding_video_templates').select('*').eq('user_id', effectiveGestorId).order('order', { ascending: true }); } catch (e) { console.error("Error fetching onboarding_video_templates:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('crm_pipelines').select('*').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching crm_pipelines:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('crm_stages').select('*').eq('user_id', effectiveGestorId).order('order_index') ; } catch (e) { console.error("Error fetching crm_stages:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('crm_fields').select('*').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching crm_fields:", e); return { data: [], error: e }; } })(),
@@ -606,7 +606,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             id: data.id,
             db_id: item.id,
             name: data.name,
-            email: data.email, // Corrigido: Acessar email diretamente do objeto 'data'
+            email: item.data.email, // Corrigido: Acessar email diretamente do objeto 'data'
             roles: Array.isArray(item.data.roles) ? item.data.roles : [item.data.role || 'Prévia'],
             isActive: data.isActive !== false,
             hasLogin: true,
@@ -992,7 +992,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             } else if (payload.eventType === 'UPDATE') {
                 setFormFiles(prev => prev.map(file => file.id === newFileData.id ? newFileData : file));
             } else if (payload.eventType === 'DELETE') {
-                setFormFiles(prev => prev.filter(file => file.submission_id !== payload.old.submission_id));
+                setFormFiles(prev => prev.filter(file => file.submission_id !== payload.old.id));
             }
         })
         .subscribe();
