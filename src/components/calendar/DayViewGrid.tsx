@@ -46,8 +46,10 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
       const startMinutes = Math.max(0, Math.floor((event.start.getTime() - dayStart.getTime()) / 60000));
       const endMinutesCalc = Math.ceil((event.end.getTime() - dayStart.getTime()) / 60000);
       const endMinutes = Math.min(1440, Math.max(startMinutes, endMinutesCalc));
-      const top = startMinutes * PIXELS_PER_MINUTE;
-      const height = Math.max(1, (endMinutes - startMinutes) * PIXELS_PER_MINUTE);
+      const rawTop = startMinutes * PIXELS_PER_MINUTE;
+      const rawHeight = (endMinutes - startMinutes) * PIXELS_PER_MINUTE;
+      const top = Math.min(containerHeightPx - 1, rawTop);
+      const height = Math.max(1, Math.min(containerHeightPx - top, rawHeight));
       return { ...event, top, height };
     });
   }, [timedEvents, day]);
@@ -238,11 +240,6 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
                   style={{ top: `${hour * 60 * PIXELS_PER_MINUTE}px` }}
                 ></div>
               ))}
-              {/* Linha final das 24:00 para evitar eventos “fora” das linhas */}
-              <div
-                className="absolute left-0 right-0 border-t border-gray-200 dark:border-slate-600"
-                style={{ top: `${24 * 60 * PIXELS_PER_MINUTE}px` }}
-              ></div>
               {Array.from({ length: 24 }).map((_, hour) => (
                 <div
                   key={`slot-${hour}`}
