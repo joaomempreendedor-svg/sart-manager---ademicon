@@ -242,7 +242,7 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
                 <div
                   key={`slot-${hour}`}
                   className="absolute left-0 right-0 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/30"
-                  style={{ top: `${(hour * 60) / 1440 * 100}%`, height: `${60 / 1440 * 100}%` }}
+                  style={{ top: `${hour * 60 * PIXELS_PER_MINUTE}px`, height: `${60 * PIXELS_PER_MINUTE}px` }}
                   onClick={() => {
                     if (showPersonalEvents) {
                       const newEventDate = new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour, 0);
