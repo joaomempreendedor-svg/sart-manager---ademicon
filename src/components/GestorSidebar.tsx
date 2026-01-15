@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, MessageSquare, Settings, FileText, Sun, Moon, Banknote, PlusCircle, Library, TrendingUp, Target, Users, LogOut, User as UserIcon, Star, Video, ListChecks, ClipboardCheck, UserPlus, ChevronLeft, ChevronRight, ChevronDown, UserSearch, BarChart3, UserCog, MapPin, DollarSign, FileStack, UserCheck } from 'lucide-react';
+import { LayoutDashboard, MessageSquare, Settings, FileText, Sun, Moon, Banknote, PlusCircle, Library, TrendingUp, Target, Users, LogOut, User as UserIcon, Star, Video, ListChecks, ClipboardCheck, UserPlus, ChevronLeft, ChevronRight, ChevronDown, UserSearch, BarChart3, UserCog, MapPin, DollarSign, FileStack, UserCheck, Clock } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 
@@ -72,10 +72,6 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
                 <LayoutDashboard className="w-5 h-5" />
                 <span>Dashboard</span>
               </NavLink>
-              {/* <NavLink to="/gestor/calendar" className={linkClass} onClick={toggleSidebar}> REMOVED: Link para a Agenda
-                <Calendar className="w-5 h-5" />
-                <span>Agenda</span>
-              </NavLink> */}
               <NavLink to="/gestor/crm" className={linkClass} onClick={toggleSidebar}>
                 <TrendingUp className="w-5 h-5" />
                 <span>CRM</span>
@@ -127,9 +123,6 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
               <NavLink to="/gestor/dashboard" className={linkClass} onClick={toggleSidebar} title="Dashboard">
                 <LayoutDashboard className="w-5 h-5" />
               </NavLink>
-              {/* <NavLink to="/gestor/calendar" className={linkClass} onClick={toggleSidebar} title="Agenda"> REMOVED: Link para a Agenda
-                <Calendar className="w-5 h-5" />
-              </NavLink> */}
               <NavLink to="/gestor/crm" className={linkClass} onClick={toggleSidebar} title="CRM">
                 <TrendingUp className="w-5 h-5" />
               </NavLink>
@@ -196,7 +189,7 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
                 <span>Configurar Mensagens</span>
               </NavLink>
               <NavLink to="/gestor/config-cutoff" className={linkClass} onClick={toggleSidebar}>
-                <Calendar className="w-5 h-5" />
+                <Clock className="w-5 h-5" /> {/* Changed from Calendar to Clock */}
                 <span>Períodos de Corte</span>
               </NavLink>
               <NavLink to="/gestor/crm-config" className={linkClass} onClick={toggleSidebar}>
@@ -231,7 +224,7 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
                 <MessageSquare className="w-5 h-5" />
               </NavLink>
               <NavLink to="/gestor/config-cutoff" className={linkClass} onClick={toggleSidebar} title="Períodos de Corte">
-                <Calendar className="w-5 h-5" />
+                <Clock className="w-5 h-5" /> {/* Changed from Calendar to Clock */}
               </NavLink>
               <NavLink to="/gestor/crm-config" className={linkClass} onClick={toggleSidebar} title="Configurar CRM">
                 <PlusCircle className="w-5 h-5" />
