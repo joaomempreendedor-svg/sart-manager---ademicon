@@ -1,4 +1,4 @@
-import { GestorTask, DailyChecklistItem, LeadTask } from '@/types'; // Importar tipos necessários
+import { GestorTask, DailyChecklistItem, LeadTask } from '@/types';
 
 export const PIXELS_PER_MINUTE = 1;
 
@@ -11,7 +11,7 @@ export interface CalendarEvent {
   type: 'personal' | 'meeting' | 'gestor_task' | 'daily_checklist' | 'lead_task';
   personName?: string;
   personId?: string;
-  originalEvent?: GestorTask | DailyChecklistItem | LeadTask; // Pode ser LeadTask, GestorTask, ConsultantEvent, DailyChecklistItem
+  originalEvent?: GestorTask | DailyChecklistItem | LeadTask;
   allDay?: boolean;
 }
 
@@ -24,9 +24,8 @@ export const getDaysInMonth = (date: Date) => {
   const days = [];
   let currentDay = new Date(firstDayOfMonth);
 
-  // Add days from previous month to fill the first week
-  const firstDayOfWeek = firstDayOfMonth.getDay(); // 0 for Sunday, 1 for Monday, etc.
-  const startPadding = firstDayOfWeek; // Number of days from previous month to show
+  const firstDayOfWeek = firstDayOfMonth.getDay();
+  const startPadding = firstDayOfWeek;
 
   for (let i = 0; i < startPadding; i++) {
     const prevDay = new Date(firstDayOfMonth);
@@ -34,15 +33,13 @@ export const getDaysInMonth = (date: Date) => {
     days.push(prevDay);
   }
 
-  // Add days of the current month
   while (currentDay <= lastDayOfMonth) {
     days.push(new Date(currentDay));
     currentDay.setDate(currentDay.getDate() + 1);
   }
 
-  // Add days from next month to fill the last week (up to 6 weeks total)
   const totalDays = days.length;
-  const endPadding = (7 - (totalDays % 7)) % 7; // Days to fill the last week
+  const endPadding = (7 - (totalDays % 7)) % 7;
   
   for (let i = 0; i < endPadding; i++) {
     const nextDay = new Date(lastDayOfMonth);
@@ -55,7 +52,7 @@ export const getDaysInMonth = (date: Date) => {
 
 export const getWeekDays = (date: Date) => {
   const startOfWeek = new Date(date);
-  startOfWeek.setDate(date.getDate() - date.getDay()); // Sunday
+  startOfWeek.setDate(date.getDate() - date.getDay());
   const days = [];
   for (let i = 0; i < 7; i++) {
     const day = new Date(startOfWeek);
@@ -72,3 +69,16 @@ export const isSameDay = (d1: Date, d2: Date) => {
 };
 
 export const formatTime = (date: Date) => date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+
+export const timeToMinutes = (date: Date) => {
+  return date.getHours() * 60 + date.getMinutes();
+};
+
+export const getEventTop = (startTime: Date) => {
+  return timeToMinutes(startTime) * PIXELS_PER_MINUTE;
+};
+
+export const getEventHeight = (startTime: Date, endTime: Date) => {
+  const durationMinutes = (endTime.getTime() - startTime.getTime()) / 60000;
+  return Math.max(1, durationMinutes * PIXELS_PER_MINUTE);
+};

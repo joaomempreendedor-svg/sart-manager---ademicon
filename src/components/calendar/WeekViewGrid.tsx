@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { CalendarEvent, isSameDay, formatTime, PIXELS_PER_MINUTE } from './utils';
+import { CalendarEvent, isSameDay, formatTime, getEventTop, getEventHeight, PIXELS_PER_MINUTE } from './utils';
 import { Plus, Edit2, Trash2, CheckCircle2, XCircle, Clock, UserRound, MessageSquare, Users, ListChecks, ListTodo, CalendarDays } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import toast from 'react-hot-toast';
@@ -63,27 +63,19 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
       });
 
       const columns: { end: number; events: (CalendarEvent & { top: number; height: number; left: number; width: number; })[] }[] = [];
-      const dayStart = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 0, 0, 0, 0);
-
+      
       result[dayStr] = timedEvents.map(ev => {
-        const startMinutes = Math.max(0, Math.floor((ev.start.getTime() - dayStart.getTime()) / 60000));
-        const endMinutesCalc = Math.ceil((ev.end.getTime() - dayStart.getTime()) / 60000);
-        const endMinutes = Math.min(1440, Math.max(startMinutes, endMinutesCalc));
-
-        const rawTop = startMinutes * PIXELS_PER_MINUTE;
-        const rawHeight = (endMinutes - startMinutes) * PIXELS_PER_MINUTE;
-
-        const top = Math.min(containerHeightPx - 1, Math.max(0, Math.floor(rawTop)));
-        const height = Math.max(1, Math.min(containerHeightPx - top, Math.ceil(rawHeight)));
+        const top = getEventTop(ev.start);
+        const height = getEventHeight(ev.start, ev.end);
 
         let columnIndex = 0;
-        while (columnIndex < columns.length && columns[columnIndex].end > startMinutes) {
+        while (columnIndex < columns.length && columns[columnIndex].end > timeToMinutes(ev.start)) {
           columnIndex++;
         }
         if (columnIndex === columns.length) {
-          columns.push({ end: endMinutes, events: [] });
+          columns.push({ end: timeToMinutes(ev.end), events: [] });
         }
-        columns[columnIndex].end = Math.max(columns[columnIndex].end, endMinutes);
+        columns[columnIndex].end = Math.max(columns[columnIndex].end, timeToMinutes(ev.end));
 
         const totalCols = columns.length;
         const left = (columnIndex / totalCols) * 100;

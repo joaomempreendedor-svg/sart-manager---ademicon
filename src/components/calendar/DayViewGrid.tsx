@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { CalendarEvent, isSameDay, formatTime, PIXELS_PER_MINUTE } from './utils';
+import { CalendarEvent, isSameDay, formatTime, getEventTop, getEventHeight, PIXELS_PER_MINUTE } from './utils';
 import { Plus, Edit2, Trash2, CheckCircle2, XCircle, Clock, UserRound, MessageSquare, Users, ListChecks, ListTodo, CalendarDays } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import toast from 'react-hot-toast';
@@ -40,18 +40,12 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
   const timedEvents = useMemo(() => events.filter(e => !e.allDay), [events]);
 
   const positionedEvents = useMemo(() => {
-    const dayStart = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 0, 0, 0, 0);
-    return timedEvents.map(event => {
-      const startMinutes = Math.max(0, Math.floor((event.start.getTime() - dayStart.getTime()) / 60000));
-      const endMinutesCalc = Math.ceil((event.end.getTime() - dayStart.getTime()) / 60000);
-      const endMinutes = Math.min(1440, Math.max(startMinutes, endMinutesCalc));
-      const rawTop = startMinutes * PIXELS_PER_MINUTE;
-      const rawHeight = (endMinutes - startMinutes) * PIXELS_PER_MINUTE;
-      const top = Math.min(containerHeightPx - 1, Math.max(0, Math.floor(rawTop)));
-      const height = Math.max(1, Math.min(containerHeightPx - top, Math.ceil(rawHeight)));
-      return { ...event, top, height };
-    });
-  }, [timedEvents, day]);
+    return timedEvents.map(event => ({
+      ...event,
+      top: getEventTop(event.start),
+      height: getEventHeight(event.start, event.end),
+    }));
+  }, [timedEvents]);
 
   const getEventColorClass = (type: CalendarEvent['type']) => {
     switch (type) {
