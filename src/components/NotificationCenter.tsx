@@ -4,7 +4,14 @@ import { Notification } from '@/types';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
-import { DialogFooter } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription, // Keep DialogDescription if needed, or remove if not used
+  DialogFooter,
+} from '@/components/ui/dialog';
 
 interface NotificationCenterProps {
   isOpen: boolean;
@@ -43,17 +50,17 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50 backdrop-blur-sm">
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-fade-in border border-gray-200 dark:border-slate-700 sm:max-w-xl">
-        <div className="px-6 py-4 border-b border-gray-100 dark:border-slate-700 flex justify-between items-center bg-gray-50 dark:bg-slate-700/50">
-          <h3 className="font-semibold text-lg text-gray-900 dark:text-white flex items-center space-x-2">
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-xl bg-white dark:bg-slate-800 dark:text-white p-0 overflow-hidden"> {/* Adjusted padding and overflow */}
+        <DialogHeader className="px-6 py-4 border-b border-gray-100 dark:border-slate-700 flex justify-between items-center bg-gray-50 dark:bg-slate-700/50">
+          <DialogTitle className="font-semibold text-lg text-gray-900 dark:text-white flex items-center space-x-2">
             <Bell className="w-6 h-6 text-brand-500" />
             <span>Notificações ({notifications.length})</span>
-          </h3>
+          </DialogTitle>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
             <X className="w-5 h-5" />
           </button>
-        </div>
+        </DialogHeader>
         
         <ScrollArea className="max-h-[70vh] py-4 custom-scrollbar">
           {notifications.length === 0 ? (
