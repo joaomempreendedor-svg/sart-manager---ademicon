@@ -39,13 +39,11 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
   const [meetingDate, setMeetingDate] = useState('');
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
-  const [managerId, setManagerId] = useState<string | null>(null);
+  // Removido o estado managerId
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
 
-  const managers = useMemo(() => {
-    return teamMembers.filter(m => m.isActive && m.roles.includes('Gestor'));
-  }, [teamMembers]);
+  // Removido o useMemo para managers, pois não será mais usado
 
   useEffect(() => {
     if (isOpen) {
@@ -55,14 +53,14 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
         setMeetingDate(currentMeeting.meeting_start_time ? currentMeeting.meeting_start_time.split('T')[0] : '');
         setStartTime(currentMeeting.meeting_start_time ? currentMeeting.meeting_start_time.split('T')[1].substring(0, 5) : '');
         setEndTime(currentMeeting.meeting_end_time ? currentMeeting.meeting_end_time.split('T')[1].substring(0, 5) : '');
-        setManagerId(currentMeeting.manager_id || null);
+        // Removido setManagerId
       } else {
         setTitle(`Reunião com ${lead.name}`);
         setDescription('');
         setMeetingDate(new Date().toISOString().split('T')[0]);
         setStartTime('09:00');
         setEndTime('10:00');
-        setManagerId(user?.id || null); // Default to current user if manager
+        // Removido setManagerId
       }
       setError('');
     }
@@ -100,9 +98,8 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
         is_completed: false,
         type: 'meeting' as const,
         meeting_start_time: startDateTime.toISOString(),
-        meeting_end_time: endDateTime.toISOString(),
-        manager_id: managerId, // Manager invited to the meeting
-        manager_invitation_status: managerId ? 'pending' as const : undefined,
+        end_time: endDateTime.toISOString(),
+        // Removido manager_id e manager_invitation_status
       };
 
       if (currentMeeting) {
@@ -201,28 +198,7 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
                 </div>
               </div>
             </div>
-            <div>
-              <Label htmlFor="manager">Convidar Gestor (Opcional)</Label>
-              <div className="relative">
-                <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Select
-                  value={managerId || ''}
-                  onValueChange={(value) => setManagerId(value === 'none' ? null : value)}
-                >
-                  <SelectTrigger className="w-full pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600">
-                    <SelectValue placeholder="Nenhum gestor" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
-                    <SelectItem value="none">Nenhum</SelectItem>
-                    {managers.map(manager => (
-                      <SelectItem key={manager.id} value={manager.id}>
-                        {manager.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+            {/* Removido o campo de seleção para convidar gestor */}
             {error && <p className="text-red-500 text-sm mt-2 flex items-center"><XCircle className="w-4 h-4 mr-2" />{error}</p>}
           </div>
           <DialogFooter className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-700 flex-col sm:flex-row">

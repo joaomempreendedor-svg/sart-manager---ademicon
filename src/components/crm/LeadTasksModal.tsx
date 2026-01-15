@@ -109,7 +109,7 @@ export const LeadTasksModal: React.FC<LeadTasksModalProps> = ({ isOpen, onClose,
         description: editTaskDescription.trim() || undefined,
         due_date: editTaskDueDate || undefined,
         user_id: editingTask.user_id,
-        manager_id: editingTask.manager_id,
+        // Removido manager_id
       });
       setEditingTask(null);
     } catch (error) {
