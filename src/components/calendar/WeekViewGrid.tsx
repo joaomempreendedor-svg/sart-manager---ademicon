@@ -69,8 +69,8 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
         const startMinutes = Math.max(0, Math.floor((event.start.getTime() - dayStart.getTime()) / 60000));
         const endMinutesCalc = Math.ceil((event.end.getTime() - dayStart.getTime()) / 60000);
         const endMinutes = Math.min(1440, Math.max(startMinutes, endMinutesCalc));
-        const top = startMinutes * PIXELS_PER_MINUTE;
-        const height = Math.max(1, (endMinutes - startMinutes) * PIXELS_PER_MINUTE);
+        const top = (startMinutes / 1440) * 100;
+        const height = Math.max(1, ((endMinutes - startMinutes) / 1440) * 100);
 
         let columnIndex = 0;
         while (columnIndex < columns.length && columns[columnIndex].end > startMinutes) {
@@ -116,7 +116,7 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
   const currentTimeNow = new Date();
   const currentHour = currentTimeNow.getHours();
   const currentMinutes = currentTimeNow.getMinutes();
-  const currentTimeTopPx = (currentHour * 60 + currentMinutes) * PIXELS_PER_MINUTE;
+  const currentTimeTop = ((currentHour * 60 + currentMinutes) / (24 * 60)) * 100;
 
   return (
     <div className="flex flex-col flex-1">
@@ -207,7 +207,7 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
               <div
                 key={hour}
                 className="absolute text-xs text-gray-500 dark:text-gray-400 text-right pr-2"
-                style={{ top: `${hour * 60 * PIXELS_PER_MINUTE}px` }}
+                style={{ top: `${(hour * 60) / 1440 * 100}%` }}
               >
                 {hour === 0 ? '' : `${hour}:00`}
               </div>
@@ -244,30 +244,27 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
                 </div>
 
                 {/* Linhas de fundo e slots clicáveis */}
-                <div
-                  className="relative"
-                  style={{ height: `${containerHeightPx}px` }}
-                  onClick={(e) => {
-                    // Criar evento apenas se clicar no fundo (não em cards)
-                    if (e.target !== e.currentTarget) return;
-                    if (!showPersonalEvents) {
-                      toast.info("Você não tem permissão para adicionar eventos pessoais aqui.");
-                      return;
-                    }
-                    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                    const y = e.clientY - rect.top;
-                    const minutes = Math.max(0, Math.floor(y / PIXELS_PER_MINUTE));
-                    const hour = Math.floor(minutes / 60);
-                    const minute = minutes % 60;
-                    const newEventDate = new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour, minute);
-                    onOpenEventModal(newEventDate);
-                  }}
-                >
+                <div className="relative" style={{ height: `${containerHeightPx}px` }}>
                   {Array.from({ length: 24 }).map((_, hour) => (
                     <div
                       key={hour}
-                      className="absolute left-0 right-0 bg-gray-100 dark:bg-slate-700 opacity-10"
-                      style={{ top: `${hour * 60 * PIXELS_PER_MINUTE}px`, height: `${60 * PIXELS_PER_MINUTE}px` }}
+                      className="absolute left-0 right-0 border-t border-gray-200 dark:border-slate-600 opacity-50"
+                      style={{ top: `${(hour * 60) / 1440 * 100}%`, height: `${60 / 1440 * 100}%` }}
+                    ></div>
+                  ))}
+                  {Array.from({ length: 24 }).map((_, hour) => (
+                    <div
+                      key={`slot-${hour}`}
+                      className="absolute left-0 right-0 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/30"
+                      style={{ top: `${(hour * 60) / 1440 * 100}%`, height: `${60 / 1440 * 100}%` }}
+                      onClick={() => {
+                        if (showPersonalEvents) {
+                          const newEventDate = new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour, 0);
+                          onOpenEventModal(newEventDate);
+                        } else {
+                          toast.info("Você não tem permissão para adicionar eventos pessoais aqui.");
+                        }
+                      }}
                     ></div>
                   ))}
 
@@ -276,7 +273,7 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
                   {isCurrentDay && (
                     <div
                       className="absolute left-0 right-0 h-0.5 bg-red-500 z-20"
-                      style={{ top: `${currentTimeTopPx}px` }}
+                      style={{ top: `${currentTimeTop}%` }}
                     >
                       <div className="absolute -left-1.5 -top-1.5 w-3 h-3 bg-red-500 rounded-full"></div>
                     </div>
@@ -287,7 +284,7 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
                     <div
                       key={event.id}
                       className={`absolute p-1 shadow-sm border box-border ${getEventColorClass(event.type)} group overflow-hidden z-10 flex flex-col relative`}
-                      style={{ top: `${event.top}px`, height: `${event.height}px`, left: `${event.left}%`, width: `${event.width}%` }}
+                      style={{ top: `${event.top}%`, height: `${event.height}%`, left: `${event.left}%`, width: `${event.width}%` }}
                     >
                       <div className="flex-1 min-h-0 flex flex-col gap-1">
                         <div className="flex items-start text-xs font-medium">
