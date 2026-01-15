@@ -23,7 +23,6 @@ const ConsultorDashboard = () => {
     weeklyTargetAssignments,
     metricLogs,
     leadTasks,
-    consultantEvents, // RE-ADDED: consultantEvents
     isDataLoading 
   } = useApp();
 

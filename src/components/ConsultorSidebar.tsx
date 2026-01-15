@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, TrendingUp, LogOut, User as UserIcon, Sun, Moon, ListChecks, ChevronLeft, ChevronRight, Library, Calendar } from 'lucide-react';
+import { LayoutDashboard, TrendingUp, LogOut, User as UserIcon, Sun, Moon, ListChecks, ChevronLeft, ChevronRight, Library } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 
@@ -55,26 +55,23 @@ export const ConsultorSidebar: React.FC<ConsultorSidebarProps> = ({ isSidebarOpe
             <LayoutDashboard className="w-5 h-5" />
             {!isSidebarCollapsed && <span>Dashboard</span>}
           </NavLink>
-          <NavLink to="/consultor/calendar" className={linkClass} onClick={toggleSidebar}>
+          {/* REMOVIDO: Link para Minha Agenda */}
+          {/* <NavLink to="/consultor/calendar" className={linkClass} onClick={toggleSidebar}>
             <Calendar className="w-5 h-5" />
             {!isSidebarCollapsed && <span>Minha Agenda</span>}
-          </NavLink>
+          </NavLink> */}
           <NavLink to="/consultor/crm" className={linkClass} onClick={toggleSidebar}>
             <TrendingUp className="w-5 h-5" />
             {!isSidebarCollapsed && <span>CRM</span>}
           </NavLink>
-          {/* <NavLink to="/consultor/daily-checklist" className={linkClass} onClick={toggleSidebar}> 
+          <NavLink to="/consultor/daily-checklist" className={linkClass} onClick={toggleSidebar}> 
             <ListChecks className="w-5 h-5" />
             {!isSidebarCollapsed && <span>Checklist do Dia</span>}
-          </NavLink> */}
+          </NavLink>
           <NavLink to="/consultor/materials" className={linkClass} onClick={toggleSidebar}>
             <Library className="w-5 h-5" />
             {!isSidebarCollapsed && <span>Materiais de Apoio</span>}
           </NavLink>
-          {/* <NavLink to="/consultor/links" className={linkClass} onClick={toggleSidebar}>
-            <LinkIcon className="w-5 h-5" />
-            {!isSidebarCollapsed && <span>Links Importantes</span>}
-          </NavLink> */}
           <NavLink to="/profile" className={linkClass} onClick={toggleSidebar}>
             <UserIcon className="w-5 h-5" />
             {!isSidebarCollapsed && <span>Meu Perfil</span>}

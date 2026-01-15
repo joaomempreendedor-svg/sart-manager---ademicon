@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Loader2, Users, Calendar, FileText, UserCheck, UserX, Award, Filter, RotateCcw, UserRound, TrendingUp, Star, Download, Percent, LineChart, MapPin } from 'lucide-react'; // Adicionado MapPin
+import { Loader2, Users, Calendar, FileText, UserCheck, UserX, Award, Filter, RotateCcw, UserRound, TrendingUp, Star, Download, Percent, LineChart, MapPin } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -13,7 +13,7 @@ import * as XLSX from 'xlsx';
 
 const HiringReports = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
-  const { candidates, teamMembers, interviewStructure, hiringOrigins, isDataLoading } = useApp(); // ATUALIZADO: Usando hiringOrigins
+  const { candidates, teamMembers, interviewStructure, hiringOrigins, isDataLoading } = useApp();
 
   const [filterStartDate, setFilterStartDate] = useState('');
   const [filterEndDate, setFilterEndDate] = useState('');

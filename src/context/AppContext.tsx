@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
-import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, InterviewQuestion, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, CommissionStatus, InstallmentInfo, CutoffPeriod, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask, SupportMaterialContentType, DailyChecklistItemResource, DailyChecklistItemResourceType, GestorTask, GestorTaskCompletion, FinancialEntry, FormCadastro, FormFile, Notification, NotificationType, ConsultantEvent, Feedback } from '@/types';
+import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, InterviewQuestion, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, CommissionStatus, InstallmentInfo, CutoffPeriod, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask, SupportMaterialContentType, DailyChecklistItemResource, DailyChecklistItemResourceType, GestorTask, GestorTaskCompletion, FinancialEntry, FormCadastro, FormFile, Notification, NotificationType, Feedback } from '@/types';
 import { CHECKLIST_STAGES as DEFAULT_STAGES } from '@/data/checklistData';
 import { CONSULTANT_GOALS as DEFAULT_GOALS } from '@/data/consultantGoals';
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
@@ -125,8 +125,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [formCadastros, setFormCadastros] = useState<FormCadastro[]>([]);
   const [formFiles, setFormFiles] = useState<FormFile[]>([]);
 
-  // NOVO: Eventos pessoais do Consultor
-  const [consultantEvents, setConsultantEvents] = useState<ConsultantEvent[]>([]);
+  // REMOVIDO: Eventos pessoais do Consultor
+  // const [consultantEvents, setConsultantEvents] = useState<ConsultantEvent[]>([]);
 
   // NOVO: Notificações
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -224,7 +224,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setFinancialEntries([]);
     setFormCadastros([]);
     setFormFiles([]);
-    setConsultantEvents([]); // NOVO: Resetar eventos do consultor
+    // REMOVIDO: Resetar eventos do consultor
+    // setConsultantEvents([]); 
     setNotifications([]);
     setIsDataLoading(false);
   };
@@ -459,7 +460,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           financialEntriesData,
           formCadastrosData,
           formFilesData,
-          consultantEventsData, // NOVO: Busca de eventos do consultor
+          // REMOVIDO: Busca de eventos do consultor
+          // consultantEventsData, 
         ] = await Promise.all([
           (async () => { try { return await supabase.from('app_config').select('data').eq('user_id', effectiveGestorId).maybeSingle(); } catch (e) { console.error("Error fetching app_config:", e); return { data: null, error: e }; } })(),
           (async () => { try { return await supabase.from('candidates').select('id, data, created_at, last_updated_at').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching candidates:", e); return { data: [], error: e }; } })(),
@@ -503,7 +505,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           (async () => { try { return await supabase.from('financial_entries').select('*').eq('user_id', userId); } catch (e) { console.error("Error fetching financial_entries:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('form_submissions').select('id, submission_date, data, internal_notes, is_complete').eq('user_id', effectiveGestorId).order('submission_date', { ascending: false }); } catch (e) { console.error("Error fetching form_submissions:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('form_files').select('*'); } catch (e) { console.error("Error fetching form_files:", e); return { data: [], error: e }; } })(),
-          (async () => { try { return await supabase.from('consultant_events').select('*').eq('user_id', userId); } catch (e) { console.error("Error fetching consultant_events:", e); return { data: [], error: e }; } })(), // NOVO: Busca de eventos do consultor
         ]);
 
         if (configResult.error) console.error("Config error:", configResult.error);
@@ -532,7 +533,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (financialEntriesData.error) console.error("Financial Entries error:", financialEntriesData.error);
         if (formCadastrosData.error) console.error("Form Cadastros error:", formCadastrosData.error);
         if (formFilesData.error) console.error("Form Files error:", formFilesData.error);
-        if (consultantEventsData.error) console.error("Consultant Events error:", consultantEventsData.error); // NOVO: Log de erro
+        // REMOVIDO: Log de erro para eventos do consultor
+        // if (consultantEventsData.error) console.error("Consultant Events error:", consultantEventsData.error); 
 
         if (configResult.data) {
           const { data } = configResult.data;
@@ -689,7 +691,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         })) || []);
         setFormCadastros(formCadastrosData?.data || []);
         setFormFiles(formFilesData?.data || []);
-        setConsultantEvents(consultantEventsData?.data || []); // NOVO: Define eventos do consultor
+        // REMOVIDO: Define eventos do consultor
+        // setConsultantEvents(consultantEventsData?.data || []); 
         
         refetchCommissions();
 
@@ -763,12 +766,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 db_id: payload.new.id,
                 createdAt: payload.new.created_at,
                 lastUpdatedAt: payload.new.last_updated_at,
-                interviewScores: JSON.parse(JSON.stringify(rawPayloadData.interviewScores || { basicProfile: 0, commercialSkills: 0, behavioralProfile: 0, jobFit: 0, notes: '' })),
-                checkedQuestions: JSON.parse(JSON.stringify(rawPayloadData.checkedQuestions || {})),
-                checklistProgress: JSON.parse(JSON.stringify(rawPayloadData.checklistProgress || {})),
-                consultantGoalsProgress: JSON.parse(JSON.stringify(rawPayloadData.consultantGoalsProgress || {})),
-                feedbacks: JSON.parse(JSON.stringify(rawPayloadData.feedbacks || [])),
-                data: JSON.parse(JSON.stringify(rawPayloadData.data || {})),
+                interviewScores: JSON.parse(JSON.stringify(rawCandidateData.interviewScores || { basicProfile: 0, commercialSkills: 0, behavioralProfile: 0, jobFit: 0, notes: '' })),
+                checkedQuestions: JSON.parse(JSON.stringify(rawCandidateData.checkedQuestions || {})),
+                checklistProgress: JSON.parse(JSON.stringify(rawCandidateData.checklistProgress || {})),
+                consultantGoalsProgress: JSON.parse(JSON.stringify(rawCandidateData.consultantGoalsProgress || {})),
+                feedbacks: JSON.parse(JSON.stringify(rawCandidateData.feedbacks || [])),
+                data: JSON.parse(JSON.stringify(rawCandidateData.data || {})),
             };
             console.log('[Realtime: Candidate] Deep copied newCandidateData.name:', newCandidateData.name, `client-side ID:`, newCandidateData.id, `db_id:`, newCandidateData.db_id, `createdAt:`, newCandidateData.createdAt);
 
@@ -862,7 +865,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 meeting_end_time: payload.new.meeting_end_time,
                 manager_id: payload.new.manager_id,
                 manager_invitation_status: payload.new.manager_invitation_status,
-                updated_at: payload.new.updated_at, // Adicionado updated_at
+                updated_at: payload.new.updated_at,
             };
 
             if (payload.eventType === 'INSERT') {
@@ -999,43 +1002,44 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         })
         .subscribe();
 
-    const consultantEventsChannel = supabase
-        .channel('consultant_events_changes')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'consultant_events' }, (payload) => {
-            console.log('[AppContext] Consultant Event Change (Realtime):', payload);
-            toast.info(`🗓️ Evento pessoal "${payload.new.title || payload.old.title}" atualizado em tempo real!`);
-            const newEventData: ConsultantEvent = {
-                id: payload.new.id,
-                user_id: payload.new.user_id,
-                title: payload.new.title,
-                description: payload.new.description,
-                start_time: payload.new.start_time,
-                end_time: payload.new.end_time,
-                event_type: payload.new.event_type,
-                created_at: payload.new.created_at,
-            };
+    // REMOVIDO: Canal de eventos do consultor
+    // const consultantEventsChannel = supabase
+    //     .channel('consultant_events_changes')
+    //     .on('postgres_changes', { event: '*', schema: 'public', table: 'consultant_events' }, (payload) => {
+    //         console.log('[AppContext] Consultant Event Change (Realtime):', payload);
+    //         toast.info(`🗓️ Evento personal "${payload.new.title || payload.old.title}" atualizado em tempo real!`);
+    //         const newEventData: ConsultantEvent = {
+    //             id: payload.new.id,
+    //             user_id: payload.new.user_id,
+    //             title: payload.new.title,
+    //             description: payload.new.description,
+    //             start_time: payload.new.start_time,
+    //             end_time: payload.new.end_time,
+    //             event_type: payload.new.event_type,
+    //             created_at: payload.new.created_at,
+    //         };
 
-            if (payload.eventType === 'INSERT') {
-                setConsultantEvents(prev => {
-                    const newState = [...prev, newEventData];
-                    console.log("[AppContext] Realtime INSERT: New consultantEvents state:", newState);
-                    return newState;
-                });
-            } else if (payload.eventType === 'UPDATE') {
-                setConsultantEvents(prev => {
-                    const newState = prev.map(event => event.id === newEventData.id ? newEventData : event);
-                    console.log("[AppContext] Realtime UPDATE: New consultantEvents state:", newState);
-                    return newState;
-                });
-            } else if (payload.eventType === 'DELETE') {
-                setConsultantEvents(prev => {
-                    const newState = prev.filter(event => event.id !== payload.old.id);
-                    console.log("[AppContext] Realtime DELETE: New consultantEvents state:", newState);
-                    return newState;
-                });
-            }
-        })
-        .subscribe();
+    //         if (payload.eventType === 'INSERT') {
+    //             setConsultantEvents(prev => {
+    //                 const newState = [...prev, newEventData];
+    //                 console.log("[AppContext] Realtime INSERT: New consultantEvents state:", newState);
+    //                 return newState;
+    //             });
+    //         } else if (payload.eventType === 'UPDATE') {
+    //             setConsultantEvents(prev => {
+    //                 const newState = prev.map(event => event.id === newEventData.id ? newEventData : event);
+    //                 console.log("[AppContext] Realtime UPDATE: New consultantEvents state:", newState);
+    //                 return newState;
+    //             });
+    //         } else if (payload.eventType === 'DELETE') {
+    //             setConsultantEvents(prev => {
+    //                 const newState = prev.filter(event => event.id !== payload.old.id);
+    //                 console.log("[AppContext] Realtime DELETE: New consultantEvents state:", newState);
+    //                 return newState;
+    //             });
+    //         }
+    //     })
+    //     .subscribe();
 
 
     return () => {
@@ -1047,7 +1051,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         supabase.removeChannel(financialEntriesChannel);
         supabase.removeChannel(formCadastrosChannel);
         supabase.removeChannel(formFilesChannel);
-        supabase.removeChannel(consultantEventsChannel); // NOVO: Remove o canal de eventos do consultor
+        // REMOVIDO: Remove o canal de eventos do consultor
+        // supabase.removeChannel(consultantEventsChannel); 
     };
   }, [user, crmOwnerUserId]);
 
@@ -1277,7 +1282,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           id: item.data.id,
           db_id: item.id,
           name: item.data.name,
-          email: item.data.email, // Corrigido: Acessar email diretamente do objeto 'data'
+          email: item.data.email,
           roles: Array.isArray(item.data.roles) ? data.roles : [item.data.role || 'Prévia'],
           isActive: item.data.isActive !== false,
           hasLogin: true,
@@ -2164,7 +2169,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       throw new Error("Usuário não autenticado.");
     }
 
-    // Use upsert to handle both insert and update based on the unique constraint
     const { data, error } = await supabase.from('daily_checklist_completions')
       .upsert(
         {
@@ -2637,58 +2641,58 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setTeamMembers(prev => prev.map(m => m.id !== teamMemberId ? m : { ...m, feedbacks: updatedFeedbacks }));
   }, [teamMembers, user]);
 
-  // Consultant Events Functions
-  const addConsultantEvent = useCallback(async (event: Omit<ConsultantEvent, 'id' | 'user_id' | 'created_at'>) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    console.log("[AppContext] addConsultantEvent: Attempting to insert event:", event);
-    const { data, error } = await supabase.from('consultant_events').insert({ user_id: user.id, ...event }).select('*').single();
-    if (error) {
-      console.error("[AppContext] addConsultantEvent: Error inserting event:", error);
-      throw error;
-    }
-    console.log("[AppContext] addConsultantEvent: Event inserted successfully:", data);
-    setConsultantEvents(prev => {
-      const newState = [...prev, data];
-      console.log("[AppContext] addConsultantEvent: New consultantEvents state after insert:", newState);
-      return newState;
-    });
-    return data;
-  }, [user]);
+  // REMOVIDO: Consultant Events Functions
+  // const addConsultantEvent = useCallback(async (event: Omit<ConsultantEvent, 'id' | 'user_id' | 'created_at'>) => {
+  //   if (!user) throw new Error("Usuário não autenticado.");
+  //   console.log("[AppContext] addConsultantEvent: Attempting to insert event:", event);
+  //   const { data, error } = await supabase.from('consultant_events').insert({ user_id: user.id, ...event }).select('*').single();
+  //   if (error) {
+  //     console.error("[AppContext] addConsultantEvent: Error inserting event:", error);
+  //     throw error;
+  //   }
+  //   console.log("[AppContext] addConsultantEvent: Event inserted successfully:", data);
+  //   setConsultantEvents(prev => {
+  //     const newState = [...prev, data];
+  //     console.log("[AppContext] addConsultantEvent: New consultantEvents state after insert:", newState);
+  //     return newState;
+  //   });
+  //   return data;
+  // }, [user]);
 
-  const updateConsultantEvent = useCallback(async (id: string, updates: Partial<ConsultantEvent>) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    console.log("[AppContext] updateConsultantEvent: Attempting to update event ID:", id, "with updates:", updates);
-    const { data, error } = await supabase
-      .from('consultant_events')
-      .update(updates)
-      .eq('id', id)
-      .eq('user_id', user.id)
-      .select('*')
-      .single();
-    if (error) {
-      console.error("[AppContext] updateConsultantEvent: Error updating event:", error);
-      throw error;
-    }
-    console.log("[AppContext] updateConsultantEvent: Event updated successfully:", data);
-    setConsultantEvents(prev => prev.map(event => event.id === id ? data : event));
-    return data;
-  }, [user]);
+  // const updateConsultantEvent = useCallback(async (id: string, updates: Partial<ConsultantEvent>) => {
+  //   if (!user) throw new Error("Usuário não autenticado.");
+  //   console.log("[AppContext] updateConsultantEvent: Attempting to update event ID:", id, "with updates:", updates);
+  //   const { data, error } = await supabase
+  //     .from('consultant_events')
+  //     .update(updates)
+  //     .eq('id', id)
+  //     .eq('user_id', user.id)
+  //     .select('*')
+  //     .single();
+  //   if (error) {
+  //     console.error("[AppContext] updateConsultantEvent: Error updating event:", error);
+  //     throw error;
+  //   }
+  //   console.log("[AppContext] updateConsultantEvent: Event updated successfully:", data);
+  //   setConsultantEvents(prev => prev.map(event => event.id === id ? data : event));
+  //   return data;
+  // }, [user]);
 
-  const deleteConsultantEvent = useCallback(async (id: string) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    console.log("[AppContext] deleteConsultantEvent: Attempting to delete event ID:", id);
-    const { error } = await supabase
-      .from('consultant_events')
-      .delete()
-      .eq('id', id)
-      .eq('user_id', user.id);
-    if (error) {
-      console.error("[AppContext] deleteConsultantEvent: Error deleting event:", error);
-      throw error;
-    }
-    console.log("[AppContext] deleteConsultantEvent: Event deleted successfully");
-    setConsultantEvents(prev => prev.filter(event => event.id !== id));
-  }, [user]);
+  // const deleteConsultantEvent = useCallback(async (id: string) => {
+  //   if (!user) throw new Error("Usuário não autenticado.");
+  //   console.log("[AppContext] deleteConsultantEvent: Attempting to delete event ID:", id);
+  //   const { error } = await supabase
+  //     .from('consultant_events')
+  //     .delete()
+  //     .eq('id', id)
+  //     .eq('user_id', user.id);
+  //   if (error) {
+  //     console.error("[AppContext] deleteConsultantEvent: Error deleting event:", error);
+  //     throw error;
+  //   }
+  //   console.log("[AppContext] deleteConsultantEvent: Event deleted successfully");
+  //   setConsultantEvents(prev => prev.filter(event => event.id !== id));
+  // }, [user]);
 
   const value: AppContextType = {
     // State
@@ -2729,9 +2733,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     financialEntries,
     formCadastros,
     formFiles,
-    consultantEvents,
     notifications,
     theme,
+    // REMOVIDO: consultantEvents
+    // consultantEvents, 
 
     // Functions
     toggleTheme,
@@ -2879,10 +2884,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     updateTeamMember,
     deleteTeamMember,
 
-    // Consultant events functions
-    addConsultantEvent,
-    updateConsultantEvent,
-    deleteConsultantEvent,
+    // REMOVIDO: Consultant events functions
+    // addConsultantEvent,
+    // updateConsultantEvent,
+    // deleteConsultantEvent,
   };
 
   return (
