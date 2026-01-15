@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { ChevronLeft, ChevronRight } from 'lucide-react'; // Added import for ChevronLeft and ChevronRight
 
 interface CalendarViewProps {
   events: CalendarEvent[]; // These are ALL events, not pre-filtered
