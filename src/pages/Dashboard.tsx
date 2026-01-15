@@ -2,16 +2,15 @@ import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { ChevronRight, User, Calendar, CheckCircle2, TrendingUp, AlertCircle, Clock, Users, Star, CheckSquare, CalendarCheck, XCircle, BellRing, UserRound, Plus, ListTodo, Send, DollarSign, Repeat, Filter, RotateCcw } from 'lucide-react'; // Adicionado Repeat icon, Filter, RotateCcw
-import { CandidateStatus, ChecklistTaskState, GestorTask, LeadTask } from '@/types'; // Importar GestorTask e LeadTask
+import { ChevronRight, User, Calendar, CheckCircle2, TrendingUp, AlertCircle, Clock, Users, Star, CheckSquare, XCircle, BellRing, UserRound, Plus, ListTodo, Send, DollarSign, Repeat, Filter, RotateCcw } from 'lucide-react';
+import { CandidateStatus, ChecklistTaskState, GestorTask, LeadTask } from '@/types';
 import { TableSkeleton } from '@/components/TableSkeleton';
 import { ScheduleInterviewModal } from '@/components/ScheduleInterviewModal';
-import { GestorTasksSection } from '@/components/gestor/GestorTasksSection'; // Importar o novo componente
-import { PendingLeadTasksModal } from '@/components/gestor/PendingLeadTasksModal'; // NOVO: Importar o modal de tarefas pendentes
+import { GestorTasksSection } from '@/components/gestor/GestorTasksSection';
+import { PendingLeadTasksModal } from '@/components/gestor/PendingLeadTasksModal';
 import toast from 'react-hot-toast';
-import { NotificationBell } from '@/components/NotificationBell'; // Importar NotificationBell
-import { NotificationCenter } from '@/components/NotificationCenter'; // Importar NotificationCenter
-// import { CalendarView } from '@/components/CalendarView'; // REMOVIDO: CalendarView agora tem sua própria página
+import { NotificationBell } from '@/components/NotificationBell';
+import { NotificationCenter } from '@/components/NotificationCenter';
 
 const StatusBadge = ({ status }: { status: CandidateStatus }) => {
   const colors = {
@@ -22,7 +21,7 @@ const StatusBadge = ({ status }: { status: CandidateStatus }) => {
     'Acompanhamento 90 Dias': 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300',
     'Autorizado': 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
     'Reprovado': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
-    'Triagem': 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200', // Adicionado para evitar erro, mas não deve ser exibido
+    'Triagem': 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200',
   };
 
   return (
@@ -34,31 +33,22 @@ const StatusBadge = ({ status }: { status: CandidateStatus }) => {
 
 type AgendaItem = {
   id: string;
-  type: 'task' | 'interview' | 'feedback' | 'meeting' | 'gestor_task'; // Adicionado 'gestor_task'
+  type: 'task' | 'interview' | 'feedback' | 'gestor_task';
   title: string;
   personName: string;
   personId: string;
   personType: 'candidate' | 'teamMember' | 'lead';
   dueDate: string;
-  meetingDetails?: {
-    startTime: string;
-    endTime: string;
-    consultantName: string;
-    managerInvitationStatus?: 'pending' | 'accepted' | 'declined';
-    taskId: string;
-  };
 };
 
 export const Dashboard = () => {
   const { user } = useAuth();
-  const { candidates, checklistStructure, teamMembers, isDataLoading, leadTasks, crmLeads, updateLeadMeetingInvitationStatus, gestorTasks, gestorTaskCompletions, isGestorTaskDueOnDate, notifications } = useApp(); // Added notifications
+  const { candidates, checklistStructure, teamMembers, isDataLoading, leadTasks, crmLeads, gestorTasks, gestorTaskCompletions, isGestorTaskDueOnDate, notifications } = useApp();
   const navigate = useNavigate();
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [isPendingTasksModalOpen, setIsPendingTasksModalOpen] = useState(false);
-  const [isNotificationCenterOpen, setIsNotificationCenterOpen] = useState(false); // State for NotificationCenter
-  // const [activeTab, setActiveTab] = useState<'overview' | 'calendar'>('overview'); // REMOVIDO: Estado para controlar a aba ativa
+  const [isNotificationCenterOpen, setIsNotificationCenterOpen] = useState(false);
 
-  // NOVO: Estados para o filtro de data dos candidatos
   const [filterStartDate, setFilterStartDate] = useState('');
   const [filterEndDate, setFilterEndDate] = useState('');
 
@@ -77,7 +67,7 @@ export const Dashboard = () => {
     meetingsThisMonth,
     proposalValueThisMonth,
     soldValueThisMonth,
-    pendingLeadTasks, // NOVO: Agora é a lista de tarefas, não apenas a contagem
+    pendingLeadTasks,
   } = useMemo(() => {
     const today = new Date();
     const todayStr = today.toISOString().split('T')[0];
@@ -93,7 +83,6 @@ export const Dashboard = () => {
     const newLeadsThisMonth = leadsForGestor.filter(lead => new Date(lead.created_at) >= currentMonthStart).length;
 
     const meetingsThisMonth = leadTasks.filter(task => {
-      // A tarefa deve ser do tipo 'meeting' e estar associada a um lead que o gestor gerencia
       const lead = crmLeads.find(l => l.id === task.lead_id && l.user_id === user.id);
       if (!lead || task.type !== 'meeting') return false;
       
@@ -121,19 +110,16 @@ export const Dashboard = () => {
       return sum;
     }, 0);
 
-    // NOVO: Lista de Tarefas Pendentes (Hoje/Atrasadas)
     const pendingLeadTasksList: LeadTask[] = leadTasks.filter(task => {
-      // Tarefas pendentes para leads que o gestor gerencia
       const lead = crmLeads.find(l => l.id === task.lead_id && l.user_id === user.id);
       if (!lead || task.is_completed) return false;
-      if (!task.due_date) return false; // Only tasks with a due date
+      if (!task.due_date) return false;
       
       const taskDueDate = new Date(task.due_date + 'T00:00:00');
       const todayDate = new Date(todayStr + 'T00:00:00');
 
-      return taskDueDate <= todayDate; // Due today or overdue
+      return taskDueDate <= todayDate;
     }).sort((a, b) => {
-      // Sort by due date, with undated tasks at the end
       if (!a.due_date && !b.due_date) return 0;
       if (!a.due_date) return 1;
       if (!b.due_date) return -1;
@@ -153,17 +139,16 @@ export const Dashboard = () => {
   // --- Hiring Metrics (existing) ---
   const totalCandidates = candidates.length;
   const authorized = teamMembers.filter(m => m.isActive && m.roles.includes('Autorizado')).length;
-  const previas = teamMembers.filter(m => m.isActive && m.roles.includes('Prévia')).length; // NOVO: Contagem de Prévias
+  const previas = teamMembers.filter(m => m.isActive && m.roles.includes('Prévia')).length;
   const activeTeam = teamMembers.filter(m => m.isActive).length;
 
   // --- Agenda Items ---
-  const { todayAgenda, overdueTasks, meetingInvitations, allGestorTasks } = useMemo(() => {
+  const { todayAgenda, overdueTasks, allGestorTasks } = useMemo(() => {
     const today = new Date();
     const todayStr = today.toISOString().split('T')[0];
 
     const todayAgendaItems: AgendaItem[] = [];
     const overdueItems: AgendaItem[] = [];
-    const invitationsItems: AgendaItem[] = [];
     const gestorPersonalTasks: AgendaItem[] = [];
 
     // 1. Checklist Tasks (Candidatos)
@@ -227,55 +212,24 @@ export const Dashboard = () => {
       });
     });
 
-    // 4. Lead Tasks (CRM) - Meeting Invitations for Gestor
-    if (user?.role === 'GESTOR' || user?.role === 'ADMIN') {
-      leadTasks.filter(task =>
-        task.type === 'meeting' &&
-        task.manager_id === user.id &&
-        task.manager_invitation_status === 'pending'
-      ).forEach(task => {
-        const lead = crmLeads.find(l => l.id === task.lead_id && l.user_id === user.id);
-        const consultant = teamMembers.find(tm => tm.id === task.user_id);
-        if (lead && consultant && task.meeting_start_time && task.meeting_end_time) {
-          invitationsItems.push({
-            id: `meeting-invite-${task.id}`,
-            type: 'meeting',
-            title: `Convite de Reunião: ${task.title}`,
-            personName: lead.name || 'Lead Desconhecido',
-            personId: lead.id,
-            personType: 'lead',
-            dueDate: task.due_date || new Date(task.meeting_start_time).toISOString().split('T')[0],
-            meetingDetails: {
-              startTime: new Date(task.meeting_start_time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-              endTime: new Date(task.meeting_end_time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-              consultantName: consultant.name,
-              managerInvitationStatus: task.manager_invitation_status,
-              taskId: task.id,
-            }
-          });
-        }
-      });
-    }
-
-    // 5. Gestor Personal Tasks (Tarefas do Gestor)
+    // 4. Gestor Personal Tasks (Tarefas do Gestor)
     gestorTasks.filter(task => task.user_id === user?.id).forEach(task => {
       const isRecurring = task.recurrence_pattern && task.recurrence_pattern.type !== 'none';
       const isCompletedToday = isRecurring && gestorTaskCompletions.some(c => c.gestor_task_id === task.id && c.user_id === user.id && c.date === todayStr && c.done);
       const isDueToday = isGestorTaskDueOnDate(task, todayStr);
 
-      if (!isCompletedToday && isDueToday) { // Apenas tarefas devidas hoje e não concluídas hoje
+      if (!isCompletedToday && isDueToday) {
         const agendaItem: AgendaItem = {
           id: `gestor-task-${task.id}`,
-          type: 'gestor_task', // NOVO: Tipo específico para tarefas do gestor
+          type: 'gestor_task',
           title: task.title,
-          personName: 'Eu', // Tarefa pessoal do gestor
+          personName: 'Eu',
           personId: user!.id,
           personType: 'teamMember',
           dueDate: task.due_date || '',
         };
         todayAgendaItems.push(agendaItem);
       } else if (!isRecurring && task.due_date && task.due_date < todayStr && !task.is_completed) {
-        // Tarefas não recorrentes atrasadas
         overdueItems.push({
           id: `gestor-task-${task.id}`,
           type: 'gestor_task',
@@ -286,7 +240,7 @@ export const Dashboard = () => {
           dueDate: task.due_date,
         });
       }
-      gestorPersonalTasks.push({ // Todas as tarefas do gestor (para a seção)
+      gestorPersonalTasks.push({
         id: `gestor-task-${task.id}`,
         type: 'gestor_task',
         title: task.title,
@@ -298,7 +252,7 @@ export const Dashboard = () => {
     });
 
 
-    return { todayAgenda: todayAgendaItems, overdueTasks: overdueItems, meetingInvitations: invitationsItems, allGestorTasks: gestorPersonalTasks };
+    return { todayAgenda: todayAgendaItems, overdueTasks: overdueItems, allGestorTasks: gestorPersonalTasks };
   }, [candidates, teamMembers, checklistStructure, leadTasks, crmLeads, user, gestorTasks, gestorTaskCompletions, isGestorTaskDueOnDate]);
 
   const getAgendaIcon = (type: AgendaItem['type']) => {
@@ -306,8 +260,7 @@ export const Dashboard = () => {
       case 'task': return <CheckSquare className="w-4 h-4 text-blue-600 dark:text-blue-400" />;
       case 'interview': return <Calendar className="w-4 h-4 text-green-600 dark:text-green-400" />;
       case 'feedback': return <Star className="w-4 h-4 text-yellow-500 dark:text-yellow-400" />;
-      case 'meeting': return <CalendarCheck className="w-4 h-4 text-purple-600 dark:text-purple-400" />;
-      case 'gestor_task': return <ListTodo className="w-4 h-4 text-brand-600 dark:text-brand-400" />; // NOVO: Ícone para tarefas do gestor
+      case 'gestor_task': return <ListTodo className="w-4 h-4 text-brand-600 dark:text-brand-400" />;
     }
   };
 
@@ -316,43 +269,10 @@ export const Dashboard = () => {
       navigate(`/gestor/candidate/${item.personId}`);
     } else if (item.personType === 'lead') {
       navigate(`/gestor/crm`);
-    } else if (item.type === 'gestor_task') { // NOVO: Navegação para tarefas do gestor
-      // Não há navegação específica para a tarefa em si, pois ela é gerenciada na seção abaixo
+    } else if (item.type === 'gestor_task') {
       toast.info("Gerencie suas tarefas do gestor na seção 'Tarefas do Gestor'.");
     } else {
       navigate('/gestor/feedbacks');
-    }
-  };
-
-  const handleInvitationResponse = async (taskId: string, status: 'accepted' | 'declined', meetingDetails: AgendaItem['meetingDetails']) => {
-    if (!user || !meetingDetails) return;
-
-    try {
-      await updateLeadMeetingInvitationStatus(taskId, status);
-      toast.success(`Convite de reunião ${status === 'accepted' ? 'aceito' : 'recusado'} com sucesso!`);
-
-      if (status === 'accepted') {
-        const startDateTime = new Date(meetingDetails.dueDate + 'T' + meetingDetails.startTime);
-        const endDateTime = new Date(meetingDetails.dueDate + 'T' + meetingDetails.endTime);
-
-        const googleCalendarUrl = new URL('https://calendar.google.com/calendar/render');
-        googleCalendarUrl.searchParams.append('action', 'TEMPLATE');
-        googleCalendarUrl.searchParams.append('text', encodeURIComponent(meetingDetails.title || 'Reunião'));
-        googleCalendarUrl.searchParams.append('dates', `${startDateTime.toISOString().replace(/[-:]|\.\d{3}/g, '')}/${endDateTime.toISOString().replace(/[-:]|\.\d{3}/g, '')}`);
-        googleCalendarUrl.searchParams.append('details', encodeURIComponent(`Reunião com o lead ${meetingDetails.personName} e consultor ${meetingDetails.consultantName}`));
-        if (user.email) {
-          googleCalendarUrl.searchParams.append('add', encodeURIComponent(user.email));
-        }
-        const consultant = teamMembers.find(tm => tm.name === meetingDetails.consultantName);
-        if (consultant?.email) {
-          googleCalendarUrl.searchParams.append('add', encodeURIComponent(consultant.email));
-        }
-
-        window.open(googleCalendarUrl.toString(), '_blank');
-      }
-    } catch (error) {
-      console.error("Erro ao responder convite:", error);
-      toast.error("Erro ao responder ao convite. Tente novamente.");
     }
   };
 
@@ -360,31 +280,27 @@ export const Dashboard = () => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   };
 
-  // Filtrar e ordenar candidatos para a tabela "Todos os Candidatos"
   const candidatesForTable = useMemo(() => {
     let currentCandidates = candidates.filter(c => c.status !== 'Triagem');
 
-    // Aplicar filtro de data de criação
     if (filterStartDate) {
       const start = new Date(filterStartDate + 'T00:00:00');
       currentCandidates = currentCandidates.filter(c => new Date(c.createdAt) >= start);
     }
     if (filterEndDate) {
-      const end = new Date(filterEndDate + 'T23:59:59'); // Inclui o dia inteiro
+      const end = new Date(filterEndDate + 'T23:59:59');
       currentCandidates = currentCandidates.filter(c => new Date(c.createdAt) <= end);
     }
 
-    // Ordenar por data de criação (mais recente primeiro)
     const sortedCandidates = currentCandidates.sort((a, b) => {
       const dateA = new Date(a.createdAt).getTime();
       const dateB = new Date(b.createdAt).getTime();
       
-      // Handle invalid dates gracefully, pushing them to the end
       if (isNaN(dateA) && isNaN(dateB)) return 0;
-      if (isNaN(dateA)) return 1; // a is invalid, push to end
-      if (isNaN(dateB)) return -1; // b is invalid, push to end
+      if (isNaN(dateA)) return 1;
+      if (isNaN(dateB)) return -1;
 
-      return dateB - dateA; // Descending order (most recent first)
+      return dateB - dateA;
     });
 
     console.log("Candidates for table (sorted by createdAt):", sortedCandidates.map(c => ({ name: c.name, createdAt: c.createdAt })));
@@ -401,12 +317,12 @@ export const Dashboard = () => {
 
   return (
     <div className="p-4 sm:p-8 max-w-7xl mx-auto">
-      <div className="mb-8 flex items-center justify-between flex-col sm:flex-row"> {/* Adicionado flex e justify-between */}
+      <div className="mb-8 flex items-center justify-between flex-col sm:flex-row">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Visão Geral do Gestor</h1>
           <p className="text-gray-500 dark:text-gray-400">Acompanhe o progresso da equipe e as métricas chave.</p>
         </div>
-        <div className="flex items-center space-x-4 mt-4 sm:mt-0"> {/* Container para o sino */}
+        <div className="flex items-center space-x-4 mt-4 sm:mt-0">
           <NotificationBell
             notificationCount={notifications.length}
             onClick={handleOpenNotifications}
@@ -419,40 +335,12 @@ export const Dashboard = () => {
         </div>
       </div>
 
-      {/* Tabs */}
-      {/* REMOVIDO: Tabs de navegação */}
-      {/* <div className="flex border-b border-gray-200 dark:border-slate-700 mb-6">
-        <button
-          onClick={() => setActiveTab('overview')}
-          className={`flex items-center space-x-2 px-4 py-3 font-medium text-sm transition-colors ${
-            activeTab === 'overview'
-              ? 'border-b-2 border-brand-500 text-brand-600 dark:text-brand-400'
-              : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-          }`}
-        >
-          <TrendingUp className="w-4 h-4" />
-          <span>Visão Geral</span>
-        </button>
-        <button
-          onClick={() => setActiveTab('calendar')}
-          className={`flex items-center space-x-2 px-4 py-3 font-medium text-sm transition-colors ${
-            activeTab === 'calendar'
-              ? 'border-b-2 border-brand-500 text-brand-600 dark:text-brand-400'
-              : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-          }`}
-        >
-          <Calendar className="w-4 h-4" />
-          <span>Agenda</span>
-        </button>
-      </div> */}
-
       {isDataLoading ? (
         <div className="flex items-center justify-center min-h-[calc(100vh-theme(spacing.16))]">
           <Loader2 className="w-12 h-12 text-brand-500 animate-spin" />
         </div>
       ) : (
         <>
-          {/* activeTab === 'overview' && ( */}
             <div className="animate-fade-in">
               {/* Seção de Métricas Comerciais */}
               <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center"><TrendingUp className="w-5 h-5 mr-2 text-brand-500" />Métricas Comerciais (Mês Atual)</h2>
@@ -502,7 +390,6 @@ export const Dashboard = () => {
                     <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatCurrency(soldValueThisMonth)}</p>
                   </div>
                 </div>
-                {/* NOVO CARD: Tarefas Pendentes - Agora clicável */}
                 <button 
                   onClick={() => setIsPendingTasksModalOpen(true)}
                   className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition cursor-pointer"
@@ -543,8 +430,8 @@ export const Dashboard = () => {
                     <TrendingUp className="w-6 h-6 text-brand-600 dark:text-brand-400" />
                   </div>
                   <div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Prévias</p> {/* Alterado de 'Em Treinamento' para 'Prévias' */}
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{previas}</p> {/* Usando a nova contagem */}
+                    <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Prévias</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{previas}</p>
                   </div>
                 </div>
                 <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
@@ -558,60 +445,9 @@ export const Dashboard = () => {
                 </div>
               </div>
 
-              {/* Meeting Invitations Section */}
-              {(user?.role === 'GESTOR' || user?.role === 'ADMIN') && (
-                <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl shadow-sm flex flex-col mb-8">
-                  <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700 flex items-center space-x-2 bg-purple-50 dark:bg-purple-900/20 rounded-t-xl">
-                    <BellRing className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                    <h2 className="text-lg font-semibold text-purple-800 dark:text-purple-300">Convites de Reunião</h2>
-                    <span className="bg-purple-200 dark:bg-purple-800 text-purple-800 dark:text-purple-100 text-xs font-bold px-2 py-0.5 rounded-full">{meetingInvitations.length}</span>
-                  </div>
-                  {meetingInvitations.length > 0 ? (
-                    <div className="flex-1 p-0 overflow-y-auto max-h-80 custom-scrollbar">
-                      <ul className="divide-y divide-gray-100 dark:divide-slate-700">
-                        {meetingInvitations.map((item) => (
-                          <li key={item.id} onClick={() => handleAgendaItemClick(item)} className="p-4 hover:bg-purple-50 dark:hover:bg-purple-900/10 cursor-pointer transition">
-                            <div className="flex items-start justify-between flex-col sm:flex-row">
-                              <div>
-                                <p className="text-sm font-medium text-gray-900 dark:text-gray-200">{item.title}</p>
-                                <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 mt-1 space-x-2 flex-wrap">
-                                  <span className="flex items-center"><UserRound className="w-3 h-3 mr-1" /> Consultor: <span className="font-semibold ml-1">{item.meetingDetails?.consultantName}</span></span>
-                                  <span className="flex items-center"><Calendar className="w-3 h-3 mr-1" /> {new Date(item.dueDate + 'T00:00:00').toLocaleDateString()}</span>
-                                  <span className="flex items-center"><Clock className="w-3 h-3 mr-1" /> {item.meetingDetails?.startTime} - {item.meetingDetails?.endTime}</span>
-                                </div>
-                              </div>
-                              <div className="flex items-center space-x-2 mt-2 sm:mt-0 flex-wrap justify-end">
-                                <button
-                                  onClick={() => handleInvitationResponse(item.meetingDetails!.taskId, 'accepted', item.meetingDetails)}
-                                  className="px-3 py-1.5 bg-green-500 text-white rounded-md text-xs font-medium hover:bg-green-600 flex items-center space-x-1"
-                                >
-                                  <CheckCircle2 className="w-4 h-4" />
-                                  <span>Aceitar</span>
-                                </button>
-                                <button
-                                  onClick={() => handleInvitationResponse(item.meetingDetails!.taskId, 'declined', item.meetingDetails)}
-                                  className="px-3 py-1.5 bg-red-500 text-white rounded-md text-xs font-medium hover:bg-red-600 flex items-center space-x-1"
-                                >
-                                  <XCircle className="w-4 h-4" />
-                                  <span>Recusar</span>
-                                </button>
-                              </div>
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : (
-                    <div className="p-6 text-sm text-gray-600 dark:text-gray-400">
-                      Nenhum convite de reunião pendente no momento. Quando um consultor convidar você ao agendar uma reunião, os convites aparecerão aqui.
-                    </div>
-                  )}
-                </div>
-              )}
-
               {/* Minhas Tarefas Pessoais (Gestor) */}
               <div className="mb-8">
-                <GestorTasksSection key={`${gestorTasks.length}-${gestorTaskCompletions.length}`} /> {/* Added key */}
+                <GestorTasksSection key={`${gestorTasks.length}-${gestorTaskCompletions.length}`} />
               </div>
 
               {/* Todos os Candidatos */}
@@ -730,23 +566,9 @@ export const Dashboard = () => {
                 )}
               </div>
             </div>
-          {/* ) */}
-          {/* REMOVIDO: CalendarView agora tem sua própria página */}
-          {/* {activeTab === 'calendar' && user && user.role && (
-            <div className="animate-fade-in">
-              <CalendarView
-                userId={user.id}
-                userRole={user.role}
-                showPersonalEvents={false} // Gestor não tem eventos pessoais aqui, apenas tarefas
-                showLeadMeetings={true}
-                showGestorTasks={true}
-              />
-            </div>
-          )} */}
         </>
       )}
       <ScheduleInterviewModal isOpen={isScheduleModalOpen} onClose={() => setIsScheduleModalOpen(false)} />
-      {/* NOVO: Renderiza o modal de tarefas pendentes */}
       <PendingLeadTasksModal
         isOpen={isPendingTasksModalOpen}
         onClose={() => setIsPendingTasksModalOpen(false)}

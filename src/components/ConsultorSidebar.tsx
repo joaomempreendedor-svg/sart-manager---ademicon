@@ -1,24 +1,22 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom'; // Removido useNavigate
-import { LayoutDashboard, TrendingUp, LogOut, User as UserIcon, Sun, Moon, ListChecks, ChevronLeft, ChevronRight, Library, Calendar } from 'lucide-react'; // Import ListChecks, Library e LinkIcon
+import { NavLink } from 'react-router-dom';
+import { LayoutDashboard, TrendingUp, LogOut, User as UserIcon, Sun, Moon, ListChecks, ChevronLeft, ChevronRight, Library, Calendar } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 
 interface ConsultorSidebarProps {
   isSidebarOpen: boolean;
   toggleSidebar: () => void;
-  isSidebarCollapsed: boolean; // Nova prop
-  toggleSidebarCollapse: () => void; // Nova prop
+  isSidebarCollapsed: boolean;
+  toggleSidebarCollapse: () => void;
 }
 
 export const ConsultorSidebar: React.FC<ConsultorSidebarProps> = ({ isSidebarOpen, toggleSidebar, isSidebarCollapsed, toggleSidebarCollapse }) => {
   const { theme, toggleTheme } = useApp();
   const { user, logout } = useAuth();
-  // Removido useNavigate
 
   const handleLogout = async () => {
     await logout();
-    // Removido: navigate('/login'); // O redirecionamento agora é tratado pelo AuthContext e RequireAuth
   };
 
   const linkClass = ({ isActive }: { isActive: boolean }) =>
@@ -26,7 +24,7 @@ export const ConsultorSidebar: React.FC<ConsultorSidebarProps> = ({ isSidebarOpe
       isActive
         ? 'bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400 font-medium'
         : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800 hover:text-gray-900 dark:hover:text-gray-200'
-    } ${isSidebarCollapsed ? 'justify-center space-x-0' : ''}`; // Centraliza ícones quando recolhido
+    } ${isSidebarCollapsed ? 'justify-center space-x-0' : ''}`;
 
   return (
     <>
@@ -37,13 +35,13 @@ export const ConsultorSidebar: React.FC<ConsultorSidebarProps> = ({ isSidebarOpe
         ></div>
       )}
 
-      <div className={`bg-white dark:bg-slate-900 border-r border-gray-200 dark:border-slate-800 h-screen flex flex-col fixed left-0 top-0 transition-all duration-300 z-50 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'} ${isSidebarCollapsed ? 'md:w-20' : 'md:w-64'} w-64`}> {/* Ajusta largura */}
+      <div className={`bg-white dark:bg-slate-900 border-r border-gray-200 dark:border-slate-800 h-screen flex flex-col fixed left-0 top-0 transition-all duration-300 z-50 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'} ${isSidebarCollapsed ? 'md:w-20' : 'md:w-64'} w-64`}>
         <div className={`p-6 border-b border-gray-100 dark:border-slate-800 flex justify-center items-center h-24 ${isSidebarCollapsed ? 'px-2' : ''}`}>
           <div className="flex items-center space-x-2">
               <div className="bg-brand-500 text-white p-2 rounded-lg shadow-lg shadow-brand-500/30">
                   <TrendingUp className="w-6 h-6" strokeWidth={3} />
               </div>
-              {!isSidebarCollapsed && ( // Esconde texto quando recolhido
+              {!isSidebarCollapsed && (
                 <div className="flex flex-col leading-none">
                     <span className="text-sm font-bold text-gray-900 dark:text-white tracking-widest uppercase">Equipe</span>
                     <span className="text-2xl font-black text-brand-500 tracking-tighter -mt-1">SART</span>
@@ -57,10 +55,10 @@ export const ConsultorSidebar: React.FC<ConsultorSidebarProps> = ({ isSidebarOpe
             <LayoutDashboard className="w-5 h-5" />
             {!isSidebarCollapsed && <span>Dashboard</span>}
           </NavLink>
-          <NavLink to="/consultor/calendar" className={linkClass} onClick={toggleSidebar}> {/* NOVO: Link para a Agenda */}
+          {/* <NavLink to="/consultor/calendar" className={linkClass} onClick={toggleSidebar}> REMOVED: Link para a Agenda
             <Calendar className="w-5 h-5" />
             {!isSidebarCollapsed && <span>Minha Agenda</span>}
-          </NavLink>
+          </NavLink> */}
           <NavLink to="/consultor/crm" className={linkClass} onClick={toggleSidebar}>
             <TrendingUp className="w-5 h-5" />
             {!isSidebarCollapsed && <span>CRM</span>}
@@ -104,7 +102,7 @@ export const ConsultorSidebar: React.FC<ConsultorSidebarProps> = ({ isSidebarOpe
               </button>
           </div>
 
-          <div className={`bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg ${isSidebarCollapsed ? 'hidden' : ''}`}> {/* Esconde info do usuário quando recolhido */}
+          <div className={`bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg ${isSidebarCollapsed ? 'hidden' : ''}`}>
             <p className="text-xs text-blue-800 dark:text-blue-300 font-medium truncate">
               {user?.name || 'Usuário'}
             </p>
@@ -113,7 +111,6 @@ export const ConsultorSidebar: React.FC<ConsultorSidebarProps> = ({ isSidebarOpe
             </p>
           </div>
 
-          {/* Botão de recolher/expandir */}
           <button 
             onClick={toggleSidebarCollapse}
             className="hidden md:flex items-center justify-center w-full p-2 rounded-lg bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-700 transition"

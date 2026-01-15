@@ -4,7 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Plus, Search, Loader2, Phone, Mail, Tag, MessageSquare, TrendingUp, ListTodo, CalendarPlus, Send, DollarSign, Edit2, Trash2, Users, CheckCircle2, XCircle, Filter, RotateCcw, UserRound, UploadCloud, Calendar, Clock } from 'lucide-react';
 import LeadModal from '@/components/crm/LeadModal';
 import { LeadTasksModal } from '@/components/crm/LeadTasksModal';
-import { ScheduleMeetingModal } from '@/components/crm/ScheduleMeetingModal';
+// import { ScheduleMeetingModal } from '@/components/crm/ScheduleMeetingModal'; // REMOVED: ScheduleMeetingModal
 import { ProposalModal } from '@/components/crm/ProposalModal';
 import { MarkAsSoldModal } from '@/components/crm/MarkAsSoldModal';
 import ExportCrmLeadsButton from '@/components/crm/ExportCrmLeadsButton';
@@ -16,14 +16,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { CrmLead, LeadTask } from '@/types'; // Importar LeadTask
-import { useLocation } from 'react-router-dom'; // Importar useLocation
+import { CrmLead, LeadTask } from '@/types';
+import { useLocation } from 'react-router-dom';
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 };
 
-const CrmOverviewPage = () => { // Renomeado para CrmOverviewPage para evitar conflito com ConsultorCrmPage
+const CrmOverviewPage = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
   const { crmPipelines, crmStages, crmLeads, crmFields, teamMembers, isDataLoading, deleteCrmLead, updateCrmLeadStage, addCrmLead, leadTasks } = useApp();
   const [isLeadModalOpen, setIsLeadModalOpen] = useState(false);
@@ -31,8 +31,8 @@ const CrmOverviewPage = () => { // Renomeado para CrmOverviewPage para evitar co
   const [searchTerm, setSearchTerm] = useState('');
   const [isTasksModalOpen, setIsTasksModalOpen] = useState(false);
   const [selectedLeadForTasks, setSelectedLeadForTasks] = useState<CrmLead | null>(null);
-  const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false);
-  const [selectedLeadForMeeting, setSelectedLeadForMeeting] = useState<CrmLead | null>(null);
+  // const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false); // REMOVED: Meeting modal state
+  // const [selectedLeadForMeeting, setSelectedLeadForMeeting] = useState<CrmLead | null>(null); // REMOVED: Meeting modal state
   const [isProposalModalOpen, setIsProposalModalOpen] = useState(false);
   const [selectedLeadForProposal, setSelectedLeadForProposal] = useState<CrmLead | null>(null);
   const [isMarkAsSoldModalOpen, setIsMarkAsSoldModalOpen] = useState(false);
@@ -41,12 +41,11 @@ const CrmOverviewPage = () => { // Renomeado para CrmOverviewPage para evitar co
   const [filterStartDate, setFilterStartDate] = useState('');
   const [filterEndDate, setFilterEndDate] = useState('');
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [selectedConsultantId, setSelectedConsultantId] = useState<string | null>(null); // NOVO: Estado para o filtro de consultor
-  const [meetingToEdit, setMeetingToEdit] = useState<LeadTask | null>(null); // NOVO: Estado para a reunião a ser editada
+  const [selectedConsultantId, setSelectedConsultantId] = useState<string | null>(null);
+  // const [meetingToEdit, setMeetingToEdit] = useState<LeadTask | null>(null); // REMOVED: Meeting to edit state
 
-  const location = useLocation(); // Hook para acessar o estado de navegação
+  const location = useLocation();
 
-  // Efeito para abrir o modal de tarefas se houver estado de navegação
   useEffect(() => {
     if (location.state?.highlightLeadId) {
       const leadToHighlight = crmLeads.filter(lead => lead.user_id === user?.id).find(l => l.id === location.state.highlightLeadId);
@@ -54,7 +53,6 @@ const CrmOverviewPage = () => { // Renomeado para CrmOverviewPage para evitar co
         setSelectedLeadForTasks(leadToHighlight);
         setIsTasksModalOpen(true);
       }
-      // Limpar o estado para que não persista em recarregamentos futuros
       window.history.replaceState({}, document.title);
     }
   }, [location.state, crmLeads, user]);
@@ -75,14 +73,14 @@ const CrmOverviewPage = () => { // Renomeado para CrmOverviewPage para evitar co
     return crmLeads.filter(lead => lead.user_id === user.id);
   }, [crmLeads, user]);
 
-  const consultants = useMemo(() => { // NOVO: Lista de consultores para o filtro
+  const consultants = useMemo(() => {
     return teamMembers.filter(m => m.isActive && (m.roles.includes('CONSULTOR') || m.roles.includes('Prévia') || m.roles.includes('Autorizado')));
   }, [teamMembers]);
 
   const filteredLeads = useMemo(() => {
     let currentLeads = gestorLeads;
 
-    if (selectedConsultantId) { // NOVO: Filtrar por consultor
+    if (selectedConsultantId) {
       currentLeads = currentLeads.filter(lead => lead.consultant_id === selectedConsultantId);
     }
 
@@ -106,7 +104,7 @@ const CrmOverviewPage = () => { // Renomeado para CrmOverviewPage para evitar co
     }
 
     return currentLeads;
-  }, [gestorLeads, searchTerm, filterStartDate, filterEndDate, selectedConsultantId]); // NOVO: Adicionado selectedConsultantId
+  }, [gestorLeads, searchTerm, filterStartDate, filterEndDate, selectedConsultantId]);
 
   const groupedLeads = useMemo(() => {
     const groups: Record<string, CrmLead[]> = {};
@@ -143,23 +141,22 @@ const CrmOverviewPage = () => { // Renomeado para CrmOverviewPage para evitar co
     setIsTasksModalOpen(true);
   };
 
-  const handleOpenMeetingModal = (e: React.MouseEvent, lead: CrmLead) => {
-    e.stopPropagation();
-    setSelectedLeadForMeeting(lead);
+  // const handleOpenMeetingModal = (e: React.MouseEvent, lead: CrmLead) => { // REMOVED: Meeting modal handler
+  //   e.stopPropagation();
+  //   setSelectedLeadForMeeting(lead);
 
-    // NOVO: Buscar a próxima reunião agendada para este lead
-    const now = new Date();
-    const nextMeeting = leadTasks.filter(task =>
-      task.lead_id === lead.id &&
-      task.type === 'meeting' &&
-      !task.is_completed &&
-      task.meeting_start_time &&
-      new Date(task.meeting_start_time).getTime() > now.getTime()
-    ).sort((a, b) => new Date(a.meeting_start_time!).getTime() - new Date(b.meeting_start_time!).getTime())[0];
+  //   const now = new Date();
+  //   const nextMeeting = leadTasks.filter(task =>
+  //     task.lead_id === lead.id &&
+  //     task.type === 'meeting' &&
+  //     !task.is_completed &&
+  //     task.meeting_start_time &&
+  //     new Date(task.meeting_start_time).getTime() > now.getTime()
+  //   ).sort((a, b) => new Date(a.meeting_start_time!).getTime() - new Date(b.meeting_start_time!).getTime())[0];
 
-    setMeetingToEdit(nextMeeting || null); // Define a reunião para edição (ou null se não houver)
-    setIsMeetingModalOpen(true);
-  };
+  //   setMeetingToEdit(nextMeeting || null);
+  //   setIsMeetingModalOpen(true);
+  // };
 
   const handleOpenProposalModal = (e: React.MouseEvent, lead: CrmLead) => {
     e.stopPropagation();
@@ -210,12 +207,11 @@ const CrmOverviewPage = () => { // Renomeado para CrmOverviewPage para evitar co
     setSearchTerm('');
     setFilterStartDate('');
     setFilterEndDate('');
-    setSelectedConsultantId(null); // NOVO: Limpar filtro de consultor
+    setSelectedConsultantId(null);
   };
 
-  const hasActiveFilters = searchTerm || filterStartDate || filterEndDate || selectedConsultantId; // NOVO: Incluir filtro de consultor
+  const hasActiveFilters = searchTerm || filterStartDate || filterEndDate || selectedConsultantId;
 
-  // NOVO: Limites do mês atual para alinhar cálculo de propostas com o Dashboard
   const today = new Date();
   const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
   const currentMonthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
@@ -289,7 +285,6 @@ const CrmOverviewPage = () => { // Renomeado para CrmOverviewPage para evitar co
         </div>
       </div>
 
-      {/* NOVO: Filtros de Data e Consultor */}
       <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm space-y-4 mb-6">
         <div className="flex items-center justify-between flex-col sm:flex-row">
           <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 flex items-center uppercase tracking-wide"><Filter className="w-4 h-4 mr-2" />Filtrar Leads</h3>
@@ -299,7 +294,7 @@ const CrmOverviewPage = () => { // Renomeado para CrmOverviewPage para evitar co
             </button>
           )}
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4"> {/* Ajustado para 3 colunas */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
             <label htmlFor="filterConsultant" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Consultor</label>
             <Select 
@@ -353,7 +348,6 @@ const CrmOverviewPage = () => { // Renomeado para CrmOverviewPage para evitar co
               <span className="text-xs text-gray-500 dark:text-gray-400">{groupedLeads[stage.id]?.length || 0} leads</span>
               {stage.name.toLowerCase().includes('proposta') && (
                 <div className="mt-1 text-sm font-bold text-purple-700 dark:text-purple-300">
-                  {/* Alterado para considerar apenas propostas do mês atual */}
                   Total Propostas (Mês): {formatCurrency(
                     groupedLeads[stage.id].reduce((sum, lead) => {
                       if (lead.proposalValue && lead.proposalValue > 0 && lead.proposalClosingDate) {
@@ -389,10 +383,9 @@ const CrmOverviewPage = () => { // Renomeado para CrmOverviewPage para evitar co
                   const canMarkAsWon = !isWonStage && !isLostStage;
                   const consultant = teamMembers.find(member => member.id === lead.consultant_id);
 
-                  // Encontrar a próxima reunião para este lead
-                  const nextMeeting = leadTasks
-                    .filter(task => task.lead_id === lead.id && task.type === 'meeting' && !task.is_completed && task.meeting_start_time && new Date(task.meeting_start_time).getTime() > new Date())
-                    .sort((a, b) => new Date(a.meeting_start_time!).getTime() - new Date(b.meeting_start_time!).getTime())[0];
+                  // const nextMeeting = leadTasks // REMOVED: Next meeting calculation
+                  //   .filter(task => task.lead_id === lead.id && task.type === 'meeting' && !task.is_completed && task.meeting_start_time && new Date(task.meeting_start_time).getTime() > new Date())
+                  //   .sort((a, b) => new Date(a.meeting_start_time!).getTime() - new Date(b.meeting_start_time!).getTime())[0];
 
                   return (
                     <div key={lead.id} onClick={() => handleEditLead(lead)} className="bg-white dark:bg-slate-700 p-3 rounded-lg shadow-sm border border-gray-200 dark:border-slate-600 hover:border-brand-500 cursor-pointer transition-all group">
@@ -421,12 +414,12 @@ const CrmOverviewPage = () => { // Renomeado para CrmOverviewPage para evitar co
                         {lead.data.email && <div className="flex items-center"><Mail className="w-3 h-3 mr-1" /> {lead.data.email}</div>}
                         {lead.data.origin && <div className="flex items-center"><Tag className="w-3 h-3 mr-1" /> {lead.data.origin}</div>}
                         
-                        {nextMeeting && (
+                        {/* {nextMeeting && ( // REMOVED: Next meeting display
                           <div className="flex items-center text-blue-600 dark:text-blue-400 font-semibold mt-2">
                             <Calendar className="w-3 h-3 mr-1" /> {new Date(nextMeeting.meeting_start_time!).toLocaleDateString('pt-BR')}
                             <Clock className="w-3 h-3 ml-2 mr-1" /> {new Date(nextMeeting.meeting_start_time!).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                           </div>
-                        )}
+                        )} */}
 
                         {isWonStage ? (
                           lead.soldCreditValue && lead.soldCreditValue > 0 ? (
@@ -460,7 +453,6 @@ const CrmOverviewPage = () => { // Renomeado para CrmOverviewPage para evitar co
                           )
                         )}
                       </div>
-                      {/* Seletor de Estágio */}
                       <div className="mt-3 pt-3 border-t border-gray-100 dark:border-slate-600">
                         <Select
                           value={lead.stage_id}
@@ -485,9 +477,9 @@ const CrmOverviewPage = () => { // Renomeado para CrmOverviewPage para evitar co
                         <button onClick={(e) => handleOpenTasksModal(e, lead)} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition">
                           <ListTodo className="w-3 h-3 mr-1" /> Tarefas
                         </button>
-                        <button onClick={(e) => handleOpenMeetingModal(e, lead)} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-900/30 transition">
+                        {/* <button onClick={(e) => handleOpenMeetingModal(e, lead)} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-900/30 transition">
                           <CalendarPlus className="w-3 h-3 mr-1" /> Reunião
-                        </button>
+                        </button> */}
                         <button 
                           onClick={(e) => handleOpenProposalModal(e, lead)} 
                           className={`flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs transition ${canOpenProposalModal ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/30' : 'bg-gray-100 dark:bg-slate-600 text-gray-500 cursor-not-allowed opacity-70'}`}
@@ -527,22 +519,22 @@ const CrmOverviewPage = () => { // Renomeado para CrmOverviewPage para evitar co
           isOpen={isTasksModalOpen}
           onClose={() => setIsTasksModalOpen(false)}
           lead={selectedLeadForTasks}
-          highlightedTaskId={location.state?.highlightLeadTaskId} // Passa o ID da tarefa destacada
+          highlightedTaskId={location.state?.highlightLeadTaskId}
         />
       )}
 
-      {isMeetingModalOpen && selectedLeadForMeeting && (
+      {/* {isMeetingModalOpen && selectedLeadForMeeting && ( // REMOVED: Meeting modal render
         <ScheduleMeetingModal
           isOpen={isMeetingModalOpen}
           onClose={() => {
             console.log("ScheduleMeetingModal onClose called");
             setIsMeetingModalOpen(false);
-            setMeetingToEdit(null); // Limpa o estado da reunião a ser editada
+            setMeetingToEdit(null);
           }}
           lead={selectedLeadForMeeting}
-          currentMeeting={meetingToEdit} // Passa a reunião para edição
+          currentMeeting={meetingToEdit}
         />
-      )}
+      )} */}
 
       {isProposalModalOpen && selectedLeadForProposal && (
         <ProposalModal

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { LeadTask, CrmLead } from '@/types';
-import { X, Plus, CalendarPlus, CheckCircle2, Circle, Edit2, Trash2, Loader2, MessageSquare, Clock, Save } from 'lucide-react'; // Adicionado Save
+import { X, Plus, CalendarPlus, CheckCircle2, Circle, Edit2, Trash2, Loader2, MessageSquare, Clock, Save } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -16,13 +16,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ScheduleMeetingModal } from './ScheduleMeetingModal'; // Importar o modal de agendamento/edição
+// import { ScheduleMeetingModal } from './ScheduleMeetingModal'; // REMOVED: ScheduleMeetingModal
 
 interface LeadTasksModalProps {
   isOpen: boolean;
   onClose: () => void;
   lead: CrmLead;
-  highlightedTaskId?: string | null; // NOVO: Prop para destacar uma tarefa específica
+  highlightedTaskId?: string | null;
 }
 
 export const LeadTasksModal: React.FC<LeadTasksModalProps> = ({ isOpen, onClose, lead, highlightedTaskId }) => {
@@ -40,12 +40,10 @@ export const LeadTasksModal: React.FC<LeadTasksModalProps> = ({ isOpen, onClose,
   const [editTaskDueDate, setEditTaskDueDate] = useState('');
   const [isUpdatingTask, setIsUpdatingTask] = useState(false);
 
-  // NOVO: Estados para o modal de edição de reunião
-  const [isEditMeetingModalOpen, setIsEditMeetingModalOpen] = useState(false);
-  const [editingMeeting, setEditingMeeting] = useState<LeadTask | null>(null);
+  // const [isEditMeetingModalOpen, setIsEditMeetingModalOpen] = useState(false); // REMOVED: Meeting modal state
+  // const [editingMeeting, setEditingMeeting] = useState<LeadTask | null>(null); // REMOVED: Meeting to edit state
 
   const tasksForLead = leadTasks.filter(task => task.lead_id === lead.id).sort((a, b) => {
-    // Sort by completion status (incomplete first), then by due date
     if (a.is_completed !== b.is_completed) {
       return a.is_completed ? 1 : -1;
     }
@@ -57,16 +55,15 @@ export const LeadTasksModal: React.FC<LeadTasksModalProps> = ({ isOpen, onClose,
     return 0;
   });
 
-  // NOVO: Efeito para abrir o modal de reunião se highlightedTaskId for uma reunião
-  useEffect(() => {
-    if (isOpen && highlightedTaskId) {
-      const taskToHighlight = tasksForLead.find(task => task.id === highlightedTaskId);
-      if (taskToHighlight && taskToHighlight.type === 'meeting') {
-        setEditingMeeting(taskToHighlight);
-        setIsEditMeetingModalOpen(true);
-      }
-    }
-  }, [isOpen, highlightedTaskId, tasksForLead]);
+  // useEffect(() => { // REMOVED: Effect to open meeting modal
+  //   if (isOpen && highlightedTaskId) {
+  //     const taskToHighlight = tasksForLead.find(task => task.id === highlightedTaskId);
+  //     if (taskToHighlight && taskToHighlight.type === 'meeting') {
+  //       setEditingMeeting(taskToHighlight);
+  //       setIsEditMeetingModalOpen(true);
+  //     }
+  //   }
+  // }, [isOpen, highlightedTaskId, tasksForLead]);
 
   const handleAddTask = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,12 +73,12 @@ export const LeadTasksModal: React.FC<LeadTasksModalProps> = ({ isOpen, onClose,
     try {
       await addLeadTask({
         lead_id: lead.id,
-        user_id: user.id, // O usuário logado é o criador da tarefa
+        user_id: user.id,
         title: newTaskTitle.trim(),
         description: newTaskDescription.trim() || undefined,
         due_date: newTaskDueDate || undefined,
         is_completed: false,
-        type: 'task', // Tipo padrão é 'task'
+        type: 'task',
       });
       setNewTaskTitle('');
       setNewTaskDescription('');
@@ -111,8 +108,8 @@ export const LeadTasksModal: React.FC<LeadTasksModalProps> = ({ isOpen, onClose,
         title: editTaskTitle.trim(),
         description: editTaskDescription.trim() || undefined,
         due_date: editTaskDueDate || undefined,
-        user_id: editingTask.user_id, // Garante que o user_id não seja alterado
-        manager_id: editingTask.manager_id, // Garante que o manager_id não seja alterado
+        user_id: editingTask.user_id,
+        manager_id: editingTask.manager_id,
       });
       setEditingTask(null);
     } catch (error) {
@@ -151,7 +148,7 @@ export const LeadTasksModal: React.FC<LeadTasksModalProps> = ({ isOpen, onClose,
     const title = encodeURIComponent(`${task.title} - Lead: ${lead.name}`);
     const startDate = new Date(task.due_date + 'T00:00:00');
     const endDate = new Date(startDate);
-    endDate.setDate(startDate.getDate() + 1); // Evento de dia inteiro
+    endDate.setDate(startDate.getDate() + 1);
     const formatDateForGoogle = (date: Date) => date.toISOString().split('T')[0].replace(/-/g, '');
     const dates = `${formatDateForGoogle(startDate)}/${formatDateForGoogle(endDate)}`;
     const details = encodeURIComponent(`Tarefa para o Lead ${lead.name}:\n${task.description || ''}`);
@@ -159,11 +156,10 @@ export const LeadTasksModal: React.FC<LeadTasksModalProps> = ({ isOpen, onClose,
     window.open(url, '_blank');
   };
 
-  // NOVO: Função para abrir o modal de edição de reunião
-  const handleEditMeeting = (meeting: LeadTask) => {
-    setEditingMeeting(meeting);
-    setIsEditMeetingModalOpen(true);
-  };
+  // const handleEditMeeting = (meeting: LeadTask) => { // REMOVED: Meeting edit handler
+  //   setEditingMeeting(meeting);
+  //   setIsEditMeetingModalOpen(true);
+  // };
 
   if (!isOpen) return null;
 
@@ -278,17 +274,17 @@ export const LeadTasksModal: React.FC<LeadTasksModalProps> = ({ isOpen, onClose,
                         </div>
                       </div>
                       <div className="flex-shrink-0 flex items-center space-x-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity mt-2 sm:mt-0 flex-wrap justify-end">
-                        {task.type === 'meeting' && ( // NOVO: Botão de edição para reuniões
+                        {/* {task.type === 'meeting' && ( // REMOVED: Meeting edit button
                           <Button variant="ghost" size="icon" onClick={() => handleEditMeeting(task)} className="text-gray-400 hover:text-purple-600" title="Editar Reunião">
                             <Edit2 className="w-4 h-4" />
                           </Button>
-                        )}
+                        )} */}
                         {task.due_date && (
                           <Button variant="ghost" size="icon" onClick={() => handleAddToGoogleCalendar(task)} className="text-gray-400 hover:text-blue-600" title="Adicionar ao Google Agenda">
                             <CalendarPlus className="w-4 h-4" />
                           </Button>
                         )}
-                        {task.type !== 'meeting' && ( // Não permite editar tarefas comuns aqui, apenas reuniões
+                        {task.type !== 'meeting' && (
                           <Button variant="ghost" size="icon" onClick={() => startEditingTask(task)} className="text-gray-400 hover:text-brand-600" title="Editar Tarefa">
                             <Edit2 className="w-4 h-4" />
                           </Button>
@@ -305,8 +301,7 @@ export const LeadTasksModal: React.FC<LeadTasksModalProps> = ({ isOpen, onClose,
           </div>
         </div>
 
-        {/* NOVO: Modal de Edição de Reunião */}
-        {isEditMeetingModalOpen && editingMeeting && (
+        {/* {isEditMeetingModalOpen && editingMeeting && ( // REMOVED: Meeting modal render
           <ScheduleMeetingModal
             isOpen={isEditMeetingModalOpen}
             onClose={() => {
@@ -314,10 +309,10 @@ export const LeadTasksModal: React.FC<LeadTasksModalProps> = ({ isOpen, onClose,
               setIsEditMeetingModalOpen(false);
               setEditingMeeting(null);
             }}
-            lead={lead} // Passa o lead atual
-            currentMeeting={editingMeeting} // Passa a reunião para edição
+            lead={lead}
+            currentMeeting={editingMeeting}
           />
-        )}
+        )} */}
       </DialogContent>
     </Dialog>
   );

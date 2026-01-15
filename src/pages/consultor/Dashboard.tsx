@@ -6,26 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import { DailyChecklistItem, WeeklyTargetItem, MetricLog } from '@/types';
 import { TableSkeleton } from '@/components/TableSkeleton';
 import { ScheduleInterviewModal } from '@/components/ScheduleInterviewModal';
-import { DailyChecklistDisplay } from '@/components/consultor/DailyChecklistDisplay'; // Importar o novo componente
-// import { CalendarView } from '@/components/CalendarView'; // REMOVIDO: CalendarView agora tem sua própria página
-
-// Tipo para itens da agenda do consultor
-type AgendaItem = {
-  id: string;
-  type: 'task' | 'meeting';
-  title: string;
-  personName: string; // Nome do Lead
-  personId: string; // ID do Lead
-  personType: 'lead';
-  dueDate: string; // Data de vencimento ou data da reunião
-  meetingDetails?: {
-    startTime: string;
-    endTime: string;
-    consultantName: string;
-    managerInvitationStatus?: 'pending' | 'accepted' | 'declined';
-    taskId: string;
-  };
-};
+import { DailyChecklistDisplay } from '@/components/consultor/DailyChecklistDisplay';
 
 const ConsultorDashboard = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -41,11 +22,9 @@ const ConsultorDashboard = () => {
     weeklyTargetItems,
     weeklyTargetAssignments,
     metricLogs,
-    leadTasks, // Adicionado para reuniões
+    leadTasks,
     isDataLoading 
   } = useApp();
-
-  // const [activeTab, setActiveTab] = useState<'overview' | 'calendar'>('overview'); // REMOVIDO: Estado para controlar a aba ativa
 
   // --- CRM Statistics ---
   const { 
@@ -65,22 +44,18 @@ const ConsultorDashboard = () => {
     const totalLeads = consultantLeads.length;
 
     const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-    const currentMonthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0); // Last day of current month
+    const currentMonthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
 
     // Novos Leads do Mês
     const newLeadsThisMonth = consultantLeads.filter(lead => new Date(lead.created_at) >= currentMonthStart).length;
 
-    // Reuniões Agendadas no Mês
-    const meetingsThisMonth = leadTasks.filter(task => {
-      if (task.user_id !== user.id || task.type !== 'meeting') return false;
-      const taskDate = new Date(task.due_date || task.meeting_start_time || '');
-      return taskDate >= currentMonthStart && taskDate <= currentMonthEnd;
-    }).length;
+    // Reuniões Agendadas no Mês (REMOVED: meetingsThisMonth calculation)
+    const meetingsThisMonth = 0; // Meetings are no longer a separate metric here
 
     // Valor de Propostas Enviadas no Mês
     const proposalValueThisMonth = consultantLeads.reduce((sum, lead) => {
       if (lead.proposalValue && lead.proposalValue > 0 && lead.proposalClosingDate) {
-        const proposalDate = new Date(lead.proposalClosingDate + 'T00:00:00'); // Ensure date comparison is correct
+        const proposalDate = new Date(lead.proposalClosingDate + 'T00:00:00');
         if (proposalDate >= currentMonthStart && proposalDate <= currentMonthEnd) {
           return sum + (lead.proposalValue || 0);
         }
@@ -91,7 +66,7 @@ const ConsultorDashboard = () => {
     // Valor Vendido no Mês
     const soldValueThisMonth = consultantLeads.reduce((sum, lead) => {
       if (lead.soldCreditValue && lead.soldCreditValue > 0 && lead.saleDate) {
-        const saleDate = new Date(lead.saleDate + 'T00:00:00'); // Ensure date comparison is correct
+        const saleDate = new Date(lead.saleDate + 'T00:00:00');
         if (saleDate >= currentMonthStart && saleDate <= currentMonthEnd) {
           return sum + (lead.soldCreditValue || 0);
         }
@@ -102,12 +77,12 @@ const ConsultorDashboard = () => {
     // NOVO: Tarefas Pendentes (Hoje/Atrasadas)
     const pendingLeadTasks = leadTasks.filter(task => {
       if (task.user_id !== user.id || task.is_completed) return false;
-      if (!task.due_date) return false; // Only tasks with a due date
+      if (!task.due_date) return false;
       
       const taskDueDate = new Date(task.due_date + 'T00:00:00');
       const todayDate = new Date(todayFormatted + 'T00:00:00');
 
-      return taskDueDate <= todayDate; // Due today or overdue
+      return taskDueDate <= todayDate;
     }).length;
 
     return { 
@@ -162,9 +137,9 @@ const ConsultorDashboard = () => {
     if (!user) return { activeWeeklyTarget: null, weeklyGoalsProgress: [] };
 
     const currentWeekStart = new Date(today);
-    currentWeekStart.setDate(today.getDate() - today.getDay()); // Sunday
+    currentWeekStart.setDate(today.getDate() - today.getDay());
     const currentWeekEnd = new Date(currentWeekStart);
-    currentWeekEnd.setDate(currentWeekStart.getDate() + 6); // Saturday
+    currentWeekEnd.setDate(currentWeekStart.getDate() + 6);
 
     const activeTarget = weeklyTargets.find(target => {
       const targetStart = new Date(target.week_start);
@@ -200,19 +175,14 @@ const ConsultorDashboard = () => {
     return { activeWeeklyTarget: activeTarget, weeklyGoalsProgress: progress };
   }, [user, weeklyTargets, weeklyTargetItems, weeklyTargetAssignments, metricLogs]);
 
-  // --- Consultant's Tasks and Upcoming Meetings ---
-  const { allConsultantTasks, upcomingMeetings } = useMemo(() => {
-    if (!user) return { allConsultantTasks: [], upcomingMeetings: [] };
-
-    const today = new Date();
-    const now = today.getTime();
-    const todayFormatted = today.toISOString().split('T')[0];
+  // --- Consultant's Tasks ---
+  const allConsultantTasks = useMemo(() => {
+    if (!user) return [];
 
     const consultantTasks = leadTasks.filter(task => task.user_id === user.id);
 
-    // All incomplete tasks (excluding meetings, which are handled separately)
-    const allTasks: AgendaItem[] = consultantTasks
-      .filter(task => !task.is_completed && task.type === 'task') // Only incomplete tasks, not meetings
+    const allTasks = consultantTasks
+      .filter(task => !task.is_completed && task.type === 'task')
       .map(task => ({
         id: task.id,
         type: 'task',
@@ -220,38 +190,16 @@ const ConsultorDashboard = () => {
         personName: crmLeads.find(l => l.id === task.lead_id)?.name || 'Lead Desconhecido',
         personId: task.lead_id,
         personType: 'lead',
-        dueDate: task.due_date || '', // Use empty string if no due date
+        dueDate: task.due_date || '',
       }))
       .sort((a, b) => {
-        // Sort by due date, with undated tasks at the end
         if (!a.dueDate && !b.dueDate) return 0;
         if (!a.dueDate) return 1;
         if (!b.dueDate) return -1;
         return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
       });
 
-    // Upcoming meetings
-    const meetings: AgendaItem[] = consultantTasks
-      .filter(task => task.type === 'meeting' && !task.is_completed && task.meeting_start_time && new Date(task.meeting_start_time).getTime() > now)
-      .map(task => ({
-        id: task.id,
-        type: 'meeting',
-        title: task.title,
-        personName: crmLeads.find(l => l.id === task.lead_id)?.name || 'Lead Desconhecido',
-        personId: task.lead_id,
-        personType: 'lead',
-        dueDate: new Date(task.meeting_start_time || '').toISOString().split('T')[0], // Use meeting start date
-        meetingDetails: {
-          startTime: new Date(task.meeting_start_time || '').toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-          endTime: new Date(task.meeting_end_time || '').toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-          consultantName: user.name, // The consultant is the current user
-          managerInvitationStatus: task.manager_invitation_status,
-          taskId: task.id,
-        },
-      }))
-      .sort((a, b) => new Date(a.meetingDetails?.startTime || '').getTime() - new Date(b.meetingDetails?.startTime || '').getTime()); // Sort by meeting start time
-
-    return { allConsultantTasks: allTasks, upcomingMeetings: meetings };
+    return allTasks;
   }, [user, leadTasks, crmLeads]);
 
 
@@ -268,34 +216,6 @@ const ConsultorDashboard = () => {
       <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Olá, {user?.name.split(' ')[0]}!</h1>
       <p className="text-gray-500 dark:text-gray-400 mb-8">Bem-vindo ao seu Dashboard. Aqui estão suas principais informações e atalhos.</p>
       
-      {/* Tabs */}
-      {/* REMOVIDO: Tabs de navegação */}
-      {/* <div className="flex border-b border-gray-200 dark:border-slate-700 mb-6">
-        <button
-          onClick={() => setActiveTab('overview')}
-          className={`flex items-center space-x-2 px-4 py-3 font-medium text-sm transition-colors ${
-            activeTab === 'overview'
-              ? 'border-b-2 border-brand-500 text-brand-600 dark:text-brand-400'
-              : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-          }`}
-        >
-          <TrendingUp className="w-4 h-4" />
-          <span>Visão Geral</span>
-        </button>
-        <button
-          onClick={() => setActiveTab('calendar')}
-          className={`flex items-center space-x-2 px-4 py-3 font-medium text-sm transition-colors ${
-            activeTab === 'calendar'
-              ? 'border-b-2 border-brand-500 text-brand-600 dark:text-brand-400'
-              : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-          }`}
-        >
-          <Calendar className="w-4 h-4" />
-          <span>Minha Agenda</span>
-        </button>
-      </div> */}
-
-      {/* activeTab === 'overview' && ( */}
         <div className="animate-fade-in">
           {/* CRM Statistics */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
@@ -349,7 +269,6 @@ const ConsultorDashboard = () => {
               </div>
             </div>
 
-            {/* NOVO CARD: Tarefas Pendentes */}
             <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
               <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
                 <ListTodo className="w-6 h-6 text-red-600 dark:text-red-400" />
@@ -409,37 +328,6 @@ const ConsultorDashboard = () => {
             </div>
           </div>
 
-          {/* Próximas Reuniões */}
-          <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl shadow-sm flex flex-col mb-8">
-            <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700 flex items-center space-x-2 bg-green-50 dark:bg-green-900/20 rounded-t-xl">
-              <CalendarCheck className="w-5 h-5 text-green-600 dark:text-green-400" />
-              <h2 className="text-lg font-semibold text-green-800 dark:text-green-300">Próximas Reuniões ({upcomingMeetings.length})</h2>
-            </div>
-            <div className="flex-1 p-0 overflow-y-auto max-h-80 custom-scrollbar">
-              {upcomingMeetings.length === 0 ? (
-                <div className="p-6 text-center text-gray-400">Nenhuma reunião futura agendada.</div>
-              ) : (
-                <ul className="divide-y divide-gray-100 dark:divide-slate-700">
-                  {upcomingMeetings.map((item) => (
-                    <li key={item.id} className="p-4 hover:bg-green-50 dark:hover:bg-green-900/10 transition">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <p className="text-sm font-medium text-gray-900 dark:text-gray-200">{item.title}</p>
-                          <div className="flex flex-col sm:flex-row sm:items-center text-xs text-gray-500 dark:text-gray-400 mt-1 space-y-1 sm:space-y-0 sm:space-x-2">
-                            <span className="flex items-center"><User className="w-3 h-3 mr-1" /> Lead: <span className="font-semibold ml-1">{item.personName}</span></span>
-                            <span className="flex items-center"><Calendar className="w-3 h-3 mr-1" /> {new Date(item.dueDate + 'T00:00:00').toLocaleDateString()}</span>
-                            <span className="flex items-center"><Clock className="w-3 h-3 mr-1" /> {item.meetingDetails?.startTime} - {item.meetingDetails?.endTime}</span>
-                          </div>
-                        </div>
-                        <Link to={`/consultor/crm`} className="text-brand-600 hover:text-brand-700 text-sm font-medium flex-shrink-0">Ver Lead <ChevronRight className="w-4 h-4 inline ml-1" /></Link>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
-
           {/* Weekly Goals */}
           {activeWeeklyTarget && weeklyGoalsProgress.length > 0 && (
             <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm mb-8">
@@ -469,21 +357,7 @@ const ConsultorDashboard = () => {
               </div>
             </div>
           )}
-          {/* REMOVIDO: Bloco de mensagem de "Nenhuma meta semanal ativa" */}
         </div>
-      {/* ) */}
-      {/* REMOVIDO: CalendarView agora tem sua própria página */}
-      {/* {activeTab === 'calendar' && user && user.role && (
-        <div className="animate-fade-in">
-          <CalendarView
-            userId={user.id}
-            userRole={user.role}
-            showPersonalEvents={true}
-            showLeadMeetings={true}
-            showGestorTasks={false} // Consultor não vê tarefas do gestor
-          />
-        </div>
-      )} */}
     </div>
   );
 };

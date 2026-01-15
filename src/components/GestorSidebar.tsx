@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, MessageSquare, Settings, FileText, Sun, Moon, Banknote, PlusCircle, Library, TrendingUp, Target, Users, LogOut, User as UserIcon, Calendar, Star, Video, ListChecks, ClipboardCheck, UserPlus, ChevronLeft, ChevronRight, ChevronDown, UserSearch, BarChart3, UserCog, MapPin, DollarSign, FileStack, UserCheck } from 'lucide-react'; // Adicionado UserCheck
+import { LayoutDashboard, MessageSquare, Settings, FileText, Sun, Moon, Banknote, PlusCircle, Library, TrendingUp, Target, Users, LogOut, User as UserIcon, Star, Video, ListChecks, ClipboardCheck, UserPlus, ChevronLeft, ChevronRight, ChevronDown, UserSearch, BarChart3, UserCog, MapPin, DollarSign, FileStack, UserCheck } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 
@@ -8,7 +8,7 @@ interface GestorSidebarProps {
   isSidebarOpen: boolean;
   toggleSidebar: () => void;
   isSidebarCollapsed: boolean;
-  toggleSidebarCollapse: () => void; // Corrigido o tipo de retorno
+  toggleSidebarCollapse: () => void;
 }
 
 export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, toggleSidebar, isSidebarCollapsed, toggleSidebarCollapse }) => {
@@ -42,7 +42,7 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
         ></div>
       )}
 
-      <div className={`bg-white dark:bg-slate-900 border-r border-gray-200 dark:border-slate-800 h-screen flex flex-col fixed left-0 top-0 transition-all duration-300 z-50 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'} ${isSidebarCollapsed ? 'md:w-20' : 'md:w-64'} w-64`}> {/* Ajusta largura para mobile */}
+      <div className={`bg-white dark:bg-slate-900 border-r border-gray-200 dark:border-slate-800 h-screen flex flex-col fixed left-0 top-0 transition-all duration-300 z-50 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'} ${isSidebarCollapsed ? 'md:w-20' : 'md:w-64'} w-64`}>
         {/* Logo Area */}
         <div className={`p-6 border-b border-gray-100 dark:border-slate-800 flex justify-center items-center h-24 ${isSidebarCollapsed ? 'px-2' : ''}`}>
           <div className="flex items-center space-x-2">
@@ -72,10 +72,10 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
                 <LayoutDashboard className="w-5 h-5" />
                 <span>Dashboard</span>
               </NavLink>
-              <NavLink to="/gestor/calendar" className={linkClass} onClick={toggleSidebar}> {/* NOVO: Link para a Agenda */}
+              {/* <NavLink to="/gestor/calendar" className={linkClass} onClick={toggleSidebar}> REMOVED: Link para a Agenda
                 <Calendar className="w-5 h-5" />
                 <span>Agenda</span>
-              </NavLink>
+              </NavLink> */}
               <NavLink to="/gestor/crm" className={linkClass} onClick={toggleSidebar}>
                 <TrendingUp className="w-5 h-5" />
                 <span>CRM</span>
@@ -88,7 +88,7 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
                 <UserSearch className="w-5 h-5" />
                 <span>Pipeline Contratação</span>
               </NavLink>
-              <NavLink to="/gestor/candidate-screening" className={linkClass} onClick={toggleSidebar}> {/* NOVO LINK */}
+              <NavLink to="/gestor/candidate-screening" className={linkClass} onClick={toggleSidebar}>
                 <UserCheck className="w-5 h-5" />
                 <span>Controle Candidaturas</span>
               </NavLink>
@@ -122,14 +122,14 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
               </NavLink>
             </>
           )}
-          {isSidebarCollapsed && ( // Ícones para a seção recolhida
+          {isSidebarCollapsed && (
             <>
               <NavLink to="/gestor/dashboard" className={linkClass} onClick={toggleSidebar} title="Dashboard">
                 <LayoutDashboard className="w-5 h-5" />
               </NavLink>
-              <NavLink to="/gestor/calendar" className={linkClass} onClick={toggleSidebar} title="Agenda"> {/* NOVO: Link para a Agenda */}
+              {/* <NavLink to="/gestor/calendar" className={linkClass} onClick={toggleSidebar} title="Agenda"> REMOVED: Link para a Agenda
                 <Calendar className="w-5 h-5" />
-              </NavLink>
+              </NavLink> */}
               <NavLink to="/gestor/crm" className={linkClass} onClick={toggleSidebar} title="CRM">
                 <TrendingUp className="w-5 h-5" />
               </NavLink>
@@ -139,7 +139,7 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
               <NavLink to="/gestor/hiring-pipeline" className={linkClass} onClick={toggleSidebar} title="Pipeline Contratação">
                 <UserSearch className="w-5 h-5" />
               </NavLink>
-              <NavLink to="/gestor/candidate-screening" className={linkClass} onClick={toggleSidebar} title="Controle Candidaturas"> {/* NOVO LINK */}
+              <NavLink to="/gestor/candidate-screening" className={linkClass} onClick={toggleSidebar} title="Controle Candidaturas">
                 <UserCheck className="w-5 h-5" />
               </NavLink>
               <NavLink to="/gestor/hiring-reports" className={linkClass} onClick={toggleSidebar} title="Relatórios Contratação">
@@ -213,7 +213,7 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
               </NavLink>
             </>
           )}
-          {isSidebarCollapsed && ( // Ícones para a seção recolhida
+          {isSidebarCollapsed && (
             <>
               <NavLink to="/gestor/config-team" className={linkClass} onClick={toggleSidebar} title="Gestão de Equipe">
                 <Users className="w-5 h-5" />
@@ -258,7 +258,7 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
               <span>Meu Perfil</span>
             </NavLink>
           )}
-          {isSidebarCollapsed && ( // Ícones para a seção recolhida
+          {isSidebarCollapsed && (
             <NavLink to="/profile" className={linkClass} onClick={toggleSidebar} title="Meu Perfil">
               <UserIcon className="w-5 h-5" />
             </NavLink>

@@ -4,14 +4,14 @@ import { Notification } from '@/types';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
-import { DialogFooter } from '@/components/ui/dialog'; // Importação adicionada
+import { DialogFooter } from '@/components/ui/dialog';
 
 interface NotificationCenterProps {
   isOpen: boolean;
   onClose: () => void;
   notifications: Notification[];
-  onMarkAsRead?: (id: string) => void; // Para futuras implementações
-  onMarkAllAsRead?: () => void; // Para futuras implementações
+  onMarkAsRead?: (id: string) => void;
+  onMarkAllAsRead?: () => void;
 }
 
 export const NotificationCenter: React.FC<NotificationCenterProps> = ({
@@ -39,13 +39,12 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
     if (notification.link) {
       navigate(notification.link);
     }
-    // onMarkAsRead?.(notification.id); // Marcar como lido ao clicar (futuro)
     onClose();
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50 backdrop-blur-sm">
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-fade-in border border-gray-200 dark:border-slate-700 sm:max-w-xl"> {/* Alterado de 'sm:max-w-lg' para 'sm:max-w-xl' */}
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-fade-in border border-gray-200 dark:border-slate-700 sm:max-w-xl">
         <div className="px-6 py-4 border-b border-gray-100 dark:border-slate-700 flex justify-between items-center bg-gray-50 dark:bg-slate-700/50">
           <h3 className="font-semibold text-lg text-gray-900 dark:text-white flex items-center space-x-2">
             <Bell className="w-6 h-6 text-brand-500" />
@@ -88,19 +87,11 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
         </ScrollArea>
 
         <DialogFooter className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-700 px-6 py-4 bg-gray-50 dark:bg-slate-700/50 flex-col sm:flex-row">
-          {/* <Button 
-            onClick={onMarkAllAsRead} 
-            disabled={notifications.length === 0}
-            variant="outline" 
-            className="dark:bg-slate-700 dark:text-white dark:border-slate-600"
-          >
-            Marcar todas como lidas
-          </Button> */}
           <Button onClick={onClose} className="bg-brand-600 hover:bg-brand-700 text-white w-full sm:w-auto">
             Fechar
           </Button>
         </DialogFooter>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };
