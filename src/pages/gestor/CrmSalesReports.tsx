@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Loader2, TrendingUp, Users, Calendar, DollarSign, Send, ListTodo, Award, Filter, RotateCcw, UserRound, FileText, Download, Percent } from 'lucide-react';
+import { Loader2, TrendingUp, Users, Calendar, DollarSign, Send, ListTodo, Award, Filter, RotateCcw, UserRound, FileText, Download, Percent, MapPin } from 'lucide-react'; // Adicionado MapPin
 import {
   Select,
   SelectContent,
@@ -17,7 +17,7 @@ const formatCurrency = (value: number) => {
 
 const CrmSalesReports = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
-  const { crmLeads, leadTasks, crmStages, teamMembers, crmPipelines, isDataLoading } = useApp();
+  const { crmLeads, leadTasks, crmStages, teamMembers, crmPipelines, isDataLoading, salesOrigins } = useApp(); // Adicionado salesOrigins
 
   const [filterStartDate, setFilterStartDate] = useState(''); // Leads Created At
   const [filterEndDate, setFilterEndDate] = useState('');     // Leads Created At
@@ -27,6 +27,7 @@ const CrmSalesReports = () => {
   const [filterProposalDateEnd, setFilterProposalDateEnd] = useState('');     // Proposal Closing Date
   const [filterStageId, setFilterStageId] = useState<string | null>(null);
   const [selectedConsultantId, setSelectedConsultantId] = useState<string | null>(null);
+  const [filterOrigin, setFilterOrigin] = useState<string | null>(null); // NOVO: Filtro por origem
 
   const activePipeline = useMemo(() => {
     return crmPipelines.find(p => p.is_active) || crmPipelines[0];
@@ -85,8 +86,13 @@ const CrmSalesReports = () => {
       currentLeads = currentLeads.filter(lead => lead.stage_id === filterStageId);
     }
 
+    // NOVO: Filtrar por Origem
+    if (filterOrigin) {
+      currentLeads = currentLeads.filter(lead => lead.data?.origin === filterOrigin);
+    }
+
     return currentLeads;
-  }, [crmLeads, selectedConsultantId, filterStartDate, filterEndDate, filterSaleDateStart, filterSaleDateEnd, filterProposalDateStart, filterProposalDateEnd, filterStageId]);
+  }, [crmLeads, selectedConsultantId, filterStartDate, filterEndDate, filterSaleDateStart, filterSaleDateEnd, filterProposalDateStart, filterProposalDateEnd, filterStageId, filterOrigin]);
 
   const reportData = useMemo(() => {
     const dataByConsultant: {
@@ -126,6 +132,12 @@ const CrmSalesReports = () => {
       pipelineStageSummary[stage.id] = { name: stage.name, count: 0, totalValue: 0 };
     });
 
+    // NOVO: Objeto para armazenar leads por origem
+    const leadsByOrigin: { [key: string]: number } = {};
+    salesOrigins.forEach(origin => {
+      leadsByOrigin[origin] = 0;
+    });
+
     filteredLeads.forEach(lead => {
       totalLeads++;
       if (lead.consultant_id && dataByConsultant[lead.consultant_id]) {
@@ -158,6 +170,11 @@ const CrmSalesReports = () => {
           dataByConsultant[lead.consultant_id].salesClosed++;
           dataByConsultant[lead.consultant_id].soldValue += lead.soldCreditValue;
         }
+      }
+
+      // NOVO: Contar leads por origem
+      if (lead.data?.origin && leadsByOrigin[lead.data.origin] !== undefined) {
+        leadsByOrigin[lead.data.origin]++;
       }
     });
 
@@ -194,8 +211,9 @@ const CrmSalesReports = () => {
       topMeetingSchedulers,
       topClosers,
       pipelineStageSummary: Object.values(pipelineStageSummary).filter(s => s.count > 0),
+      leadsByOrigin: Object.entries(leadsByOrigin).map(([origin, count]) => ({ origin, count })).filter(o => o.count > 0).sort((a, b) => b.count - a.count), // NOVO: Inclui leads por origem
     };
-  }, [filteredLeads, leadTasks, consultants, crmStages, pipelineStages]);
+  }, [filteredLeads, leadTasks, consultants, crmStages, pipelineStages, salesOrigins]); // Adicionado salesOrigins como dependência
 
   const clearFilters = () => {
     setFilterStartDate('');
@@ -206,55 +224,82 @@ const CrmSalesReports = () => {
     setFilterProposalDateEnd('');
     setFilterStageId(null);
     setSelectedConsultantId(null);
+    setFilterOrigin(null); // NOVO: Limpa filtro de origem
   };
 
-  const hasActiveFilters = filterStartDate || filterEndDate || filterSaleDateStart || filterSaleDateEnd || filterProposalDateStart || filterProposalDateEnd || filterStageId || selectedConsultantId;
+  const hasActiveFilters = filterStartDate || filterEndDate || filterSaleDateStart || filterSaleDateEnd || filterProposalDateStart || filterProposalDateEnd || filterStageId || selectedConsultantId || filterOrigin; // NOVO: Adicionado filterOrigin
 
   const handleExportToExcel = () => {
-    if (!reportData || reportData.detailedInstallments.length === 0) {
-      alert("Não há dados para exportar. Gere um relatório primeiro.");
-      return;
-    }
-
-    const dataToExport = reportData.detailedInstallments.map(item => ({
-      'Cliente': item.commission.clientName,
-      'Consultor': item.commission.consultant,
-      'Gestor': item.commission.managerName,
-      'Anjo': item.commission.angelName || 'N/A',
-      'Parcela': parseInt(item.installmentNumber),
-      'Valor (Consultor)': item.values.cons,
-      'Valor (Gestor)': item.values.man,
-      'Valor (Anjo)': item.values.angel,
-      'Data Venda': new Date(item.commission.date + 'T00:00:00').toLocaleDateString('pt-BR'),
-      'Mês Competência': formatMonthYear(item.commission.installmentDetails[item.installmentNumber].competenceMonth!),
-      'PV': item.commission.pv, // Adicionado PV ao export
-    }));
-
-    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
-    
-    const currencyFormat = 'R$ #,##0.00';
-    const currencyCols = ['F', 'G', 'H'];
-    
-    worksheet['!cols'] = [
-        { wch: 25 }, { wch: 25 }, { wch: 25 }, { wch: 25 }, { wch: 10 },
-        { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 15 }, { wch: 20 }, { wch: 15 }, // Ajustado para incluir PV
-    ];
-
-    Object.keys(worksheet).forEach(cellRef => {
-        if (cellRef[0] === '!') return;
-        const col = cellRef.replace(/[0-9]/g, '');
-        if (currencyCols.includes(col)) {
-            const cell = worksheet[cellRef];
-            if (cell.t === 'n') {
-                cell.z = currencyFormat;
-            }
-        }
-    });
-
+    // A lógica de exportação de comissões não está presente aqui, mas se fosse, precisaria ser ajustada.
+    // Por enquanto, vamos exportar os dados do relatório de vendas.
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Comissões");
 
-    XLSX.writeFile(workbook, `Relatorio_Comissoes_${reportData.month}.xlsx`);
+    // Dados Detalhados dos Leads
+    const detailedLeadsData = filteredLeads.map(lead => {
+      const consultant = teamMembers.find(m => m.id === lead.consultant_id);
+      const stage = crmStages.find(s => s.id === lead.stage_id);
+      return {
+        'Nome do Lead': lead.name,
+        'Consultor': consultant?.name || 'N/A',
+        'Etapa': stage?.name || 'N/A',
+        'Origem': lead.data?.origin || 'N/A',
+        'Valor Proposta': lead.proposalValue || 0,
+        'Data Fechamento Proposta': lead.proposalClosingDate ? new Date(lead.proposalClosingDate + 'T00:00:00').toLocaleDateString('pt-BR') : 'N/A',
+        'Valor Vendido': lead.soldCreditValue || 0,
+        'Grupo Vendido': lead.soldGroup || 'N/A',
+        'Cota Vendida': lead.soldQuota || 'N/A',
+        'Data Venda': lead.saleDate ? new Date(lead.saleDate + 'T00:00:00').toLocaleDateString('pt-BR') : 'N/A',
+        'Criado Em': new Date(lead.created_at).toLocaleDateString('pt-BR'),
+      };
+    });
+    const wsDetailedLeads = XLSX.utils.json_to_sheet(detailedLeadsData);
+    XLSX.utils.book_append_sheet(workbook, wsDetailedLeads, "Leads Detalhado");
+
+    // Resumo Geral
+    const summaryData = [
+      { 'Métrica': 'Total de Leads Filtrados', 'Valor': reportData.totalLeads },
+      { 'Métrica': 'Valor Total em Propostas', 'Valor': reportData.totalProposalValue },
+      { 'Métrica': 'Valor Total Vendido', 'Valor': reportData.totalSoldValue },
+      { 'Métrica': 'Valor Médio da Proposta', 'Valor': reportData.avgProposalValue },
+      { 'Métrica': 'Valor Médio da Venda', 'Valor': reportData.avgSoldValue },
+      { 'Métrica': 'Taxa de Conversão Geral', 'Valor': reportData.overallConversionRate.toFixed(1) + '%' },
+    ];
+    const wsSummary = XLSX.utils.json_to_sheet(summaryData);
+    XLSX.utils.book_append_sheet(workbook, wsSummary, "Resumo Geral");
+
+    // Visão Geral do Pipeline por Etapa
+    const pipelineSummaryData = reportData.pipelineStageSummary.map(stage => ({
+      'Etapa': stage.name,
+      'Número de Leads': stage.count,
+      'Valor Total': stage.totalValue,
+    }));
+    const wsPipelineSummary = XLSX.utils.json_to_sheet(pipelineSummaryData);
+    XLSX.utils.book_append_sheet(workbook, wsPipelineSummary, "Visao Geral Pipeline");
+
+    // Desempenho Detalhado dos Consultores
+    const consultantPerformanceData = reportData.consultantPerformance.map(c => ({
+      'Consultor': c.name,
+      'Leads Cadastrados': c.leadsRegistered,
+      'Reuniões Agendadas': c.meetingsScheduled,
+      'Propostas Enviadas': c.proposalsSent,
+      'Valor em Propostas': c.proposalValue,
+      'Vendas Fechadas': c.salesClosed,
+      'Valor Vendido': c.soldValue,
+      'Taxa de Conversão (%)': c.conversionRate.toFixed(1),
+    }));
+    const wsConsultantPerformance = XLSX.utils.json_to_sheet(consultantPerformanceData);
+    XLSX.utils.book_append_sheet(workbook, wsConsultantPerformance, "Desempenho Consultores");
+
+    // NOVO: Leads por Origem
+    const leadsByOriginData = reportData.leadsByOrigin.map(o => ({
+      'Origem': o.origin,
+      'Número de Leads': o.count,
+    }));
+    const wsLeadsByOrigin = XLSX.utils.json_to_sheet(leadsByOriginData);
+    XLSX.utils.book_append_sheet(workbook, wsLeadsByOrigin, "Leads por Origem");
+
+    XLSX.writeFile(workbook, `Relatorio_Vendas_CRM_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    toast.success('Relatório exportado com sucesso!');
   };
 
   if (isAuthLoading || isDataLoading) {
@@ -326,6 +371,26 @@ const CrmSalesReports = () => {
               </SelectContent>
             </Select>
           </div>
+          {/* NOVO: Filtro por Origem */}
+          <div>
+            <label htmlFor="originFilter" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Origem do Lead</label>
+            <Select 
+              value={filterOrigin || 'all'} 
+              onValueChange={(value) => setFilterOrigin(value === 'all' ? null : value)}
+            >
+              <SelectTrigger className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
+                <SelectValue placeholder="Todas as Origens" />
+              </SelectTrigger>
+              <SelectContent className="bg-white text-gray-900 dark:bg-slate-800 dark:text-white dark:border-slate-700">
+                <SelectItem value="all">Todas as Origens</SelectItem>
+                {salesOrigins.map(origin => (
+                  <SelectItem key={origin} value={origin}>
+                    {origin}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <div>
             <label htmlFor="filterStartDate" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Leads Criados de</label>
             <input
@@ -390,6 +455,7 @@ const CrmSalesReports = () => {
       </div>
 
       {/* Overview Cards */}
+      <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center"><TrendingUp className="w-5 h-5 mr-2 text-brand-500" />Visão Geral</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
           <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
@@ -477,6 +543,37 @@ const CrmSalesReports = () => {
                     <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">{stage.name}</td>
                     <td className="px-4 py-3">{stage.count}</td>
                     <td className="px-4 py-3">{formatCurrency(stage.totalValue)}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* NOVO: Leads por Origem */}
+      <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center"><MapPin className="w-5 h-5 mr-2 text-brand-500" />Leads por Origem</h2>
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden mb-8">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300">
+            <thead className="bg-gray-50 dark:bg-slate-700/50 text-gray-500 dark:text-gray-400 text-xs uppercase">
+              <tr>
+                <th className="px-4 py-3">Origem</th>
+                <th className="px-4 py-3">Número de Leads</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
+              {reportData.leadsByOrigin.length === 0 ? (
+                <tr>
+                  <td colSpan={2} className="px-6 py-12 text-center text-gray-400">
+                    Nenhum lead encontrado para as origens.
+                  </td>
+                </tr>
+              ) : (
+                reportData.leadsByOrigin.map(origin => (
+                  <tr key={origin.origin} className="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition">
+                    <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">{origin.origin}</td>
+                    <td className="px-4 py-3">{origin.count}</td>
                   </tr>
                 ))
               )}
