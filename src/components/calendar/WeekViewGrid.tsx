@@ -244,7 +244,25 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
                 </div>
 
                 {/* Linhas de fundo e slots clicáveis */}
-                <div className="relative" style={{ height: `${containerHeightPx}px` }}>
+                <div
+                  className="relative"
+                  style={{ height: `${containerHeightPx}px` }}
+                  onClick={(e) => {
+                    // Criar evento apenas se clicar no fundo (não em cards)
+                    if (e.target !== e.currentTarget) return;
+                    if (!showPersonalEvents) {
+                      toast.info("Você não tem permissão para adicionar eventos pessoais aqui.");
+                      return;
+                    }
+                    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                    const y = e.clientY - rect.top;
+                    const minutes = Math.max(0, Math.floor(y / (containerHeightPx / 1440)));
+                    const hour = Math.floor(minutes / 60);
+                    const minute = minutes % 60;
+                    const newEventDate = new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour, minute);
+                    onOpenEventModal(newEventDate);
+                  }}
+                >
                   {Array.from({ length: 24 }).map((_, hour) => (
                     <div
                       key={hour}
@@ -253,21 +271,6 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
                     ></div>
                   ))}
 
-                  {Array.from({ length: 24 }).map((_, hour) => (
-                    <div
-                      key={`slot-${hour}`}
-                      className="absolute left-0 right-0 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/30"
-                      style={{ top: `${(hour * 60) / 1440 * 100}%`, height: `${60 / 1440 * 100}%` }}
-                      onClick={() => {
-                        if (showPersonalEvents) {
-                          const newEventDate = new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour, 0);
-                          onOpenEventModal(newEventDate);
-                        } else {
-                          toast.info("Você não tem permissão para adicionar eventos pessoais aqui.");
-                        }
-                      }}
-                    ></div>
-                  ))}
 
                   {/* Indicador de horário atual */}
                   {isCurrentDay && (
