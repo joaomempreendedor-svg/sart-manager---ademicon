@@ -271,7 +271,7 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
               {positionedEvents.map(event => (
                 <div
                   key={event.id}
-                  className={`absolute px-0 py-0 border-x box-border ${getEventColorClass(event.type)} group overflow-hidden z-10 flex flex-col relative`}
+                  className={`absolute p-2 rounded-sm shadow-sm box-border ${getEventColorClass(event.type)} group overflow-hidden z-10 flex flex-col relative`}
                   style={{ top: `${event.top}px`, height: `${event.height}px`, left: `0%`, width: `100%` }}
                 >
                   <div className="flex-1 min-h-0 flex flex-col gap-1">
