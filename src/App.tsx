@@ -19,6 +19,7 @@ import { Home } from '@/pages/Home';
 import { Loader2, RefreshCw } from 'lucide-react';
 import { PendingApproval } from '@/pages/PendingApproval';
 import { PublicForm } from '@/pages/PublicForm';
+import CalendarPage from '@/pages/CalendarPage'; // CORRECTED: Changed to default import
 import { CalendarPage } from '@/pages/CalendarPage'; // RE-ADDED: CalendarPage
 
 // Gestor Pages
