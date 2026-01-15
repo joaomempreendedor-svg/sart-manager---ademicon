@@ -14,8 +14,11 @@ export const DayViewGrid: React.FC<DayViewGridProps> = ({ currentDate, events, o
   const hours = Array.from({ length: 24 }, (_, i) => i);
 
   const dayEvents = useMemo(() => {
-    const startOfDay = new Date(currentDate.setHours(0, 0, 0, 0));
-    const endOfDay = new Date(currentDate.setHours(23, 59, 59, 999));
+    // Crie uma cópia de currentDate para evitar mutação da prop
+    const startOfDay = new Date(currentDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(currentDate);
+    endOfDay.setHours(23, 59, 59, 999);
 
     return events.filter(event =>
       (event.start >= startOfDay && event.start <= endOfDay) ||
@@ -25,8 +28,11 @@ export const DayViewGrid: React.FC<DayViewGridProps> = ({ currentDate, events, o
   }, [currentDate, events]);
 
   const renderEvents = (hour: number) => {
-    const hourStart = new Date(currentDate.setHours(hour, 0, 0, 0));
-    const hourEnd = new Date(currentDate.setHours(hour, 59, 59, 999));
+    // Crie uma cópia de currentDate para evitar mutação da prop
+    const hourStart = new Date(currentDate);
+    hourStart.setHours(hour, 0, 0, 0);
+    const hourEnd = new Date(currentDate);
+    hourEnd.setHours(hour, 59, 59, 999);
 
     return dayEvents.filter(event =>
       (event.start < hourEnd && event.end > hourStart)
@@ -66,7 +72,7 @@ export const DayViewGrid: React.FC<DayViewGridProps> = ({ currentDate, events, o
         <div className="border-r border-gray-200 dark:border-slate-700">
           {hours.map(hour => (
             <div key={hour} className="h-[60px] flex items-start justify-end pr-2 text-xs text-gray-500 dark:text-gray-400 relative">
-              {hour > 0 && <span className="-mt-2">{formatTime(new Date(currentDate.setHours(hour, 0, 0, 0)))}</span>}
+              {hour > 0 && <span className="-mt-2">{formatTime(new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), hour, 0, 0, 0))}</span>}
             </div>
           ))}
         </div>
@@ -75,7 +81,7 @@ export const DayViewGrid: React.FC<DayViewGridProps> = ({ currentDate, events, o
             <div
               key={hour}
               className="h-[60px] border-b border-gray-200 dark:border-slate-700 relative"
-              onClick={() => onSlotClick(new Date(currentDate.setHours(hour, 0, 0, 0)), new Date(currentDate.setHours(hour + 1, 0, 0, 0)))}
+              onClick={() => onSlotClick(new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), hour, 0, 0, 0), new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), hour + 1, 0, 0, 0))}
             >
               {renderEvents(hour)}
             </div>

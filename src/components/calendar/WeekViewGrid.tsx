@@ -31,8 +31,11 @@ export const WeekViewGrid: React.FC<WeekViewGridProps> = ({ currentDate, events,
 
   const renderEvents = (day: Date, hour: number) => {
     const dayStr = day.toISOString().split('T')[0];
-    const hourStart = new Date(day.setHours(hour, 0, 0, 0));
-    const hourEnd = new Date(day.setHours(hour, 59, 59, 999));
+    // Crie uma cópia de day para evitar mutação
+    const hourStart = new Date(day);
+    hourStart.setHours(hour, 0, 0, 0);
+    const hourEnd = new Date(day);
+    hourEnd.setHours(hour, 59, 59, 999);
 
     return (eventsByDay[dayStr] || []).filter(event =>
       (event.start < hourEnd && event.end > hourStart)
@@ -82,13 +85,13 @@ export const WeekViewGrid: React.FC<WeekViewGridProps> = ({ currentDate, events,
         {hours.map(hour => (
           <React.Fragment key={hour}>
             <div className="h-[60px] flex items-start justify-end pr-2 text-xs text-gray-500 dark:text-gray-400 relative border-r border-gray-200 dark:border-slate-700">
-              {hour > 0 && <span className="-mt-2">{formatTime(new Date(currentDate.setHours(hour, 0, 0, 0)))}</span>}
+              {hour > 0 && <span className="-mt-2">{formatTime(new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), hour, 0, 0, 0))}</span>}
             </div>
             {days.map(day => (
               <div
                 key={`${day.toISOString()}-${hour}`}
                 className="h-[60px] border-b border-l border-gray-200 dark:border-slate-700 relative"
-                onClick={() => onSlotClick(new Date(day.setHours(hour, 0, 0, 0)), new Date(day.setHours(hour + 1, 0, 0, 0)))}
+                onClick={() => onSlotClick(new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour, 0, 0, 0), new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour + 1, 0, 0, 0))}
               >
                 {renderEvents(day, hour)}
               </div>

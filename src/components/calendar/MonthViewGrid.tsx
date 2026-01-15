@@ -47,7 +47,7 @@ export const MonthViewGrid: React.FC<MonthViewGridProps> = ({ currentDate, event
             <div
               key={index}
               className={`relative h-32 p-2 border-b border-r border-gray-200 dark:border-slate-700 ${!isCurrentMonth ? 'bg-gray-50 dark:bg-slate-800 text-gray-400 dark:text-gray-600' : 'bg-white dark:bg-slate-900 text-gray-900 dark:text-white'} ${isToday ? 'ring-2 ring-brand-500 dark:ring-brand-400' : ''}`}
-              onClick={() => onSlotClick(new Date(day.setHours(9, 0, 0, 0)), new Date(day.setHours(10, 0, 0, 0)))}
+              onClick={() => onSlotClick(new Date(day.getFullYear(), day.getMonth(), day.getDate(), 9, 0, 0, 0), new Date(day.getFullYear(), day.getMonth(), day.getDate(), 10, 0, 0, 0))}
             >
               <span className={`absolute top-1 right-1 text-xs font-bold ${isToday ? 'text-brand-600 dark:text-brand-400' : ''}`}>
                 {day.getDate()}
