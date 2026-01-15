@@ -80,16 +80,16 @@ export const CandidateDetail = () => {
     }
   };
 
-  // const handleAddToGoogleCalendar = (taskLabel: string, dueDate: string) => { // REMOVED: Google Calendar integration
-  //   const title = encodeURIComponent(`${taskLabel} - ${candidate.name}`);
-  //   const startDate = new Date(dueDate + 'T00:00:00');
-  //   const endDate = new Date(startDate);
-  //   endDate.setDate(startDate.getDate() + 1);
-  //   const formatDateForGoogle = (date: Date) => date.toISOString().split('T')[0].replace(/-/g, '');
-  //   const dates = `${formatDateForGoogle(startDate)}/${formatDateForGoogle(endDate)}`;
-  //   const url = `https://www.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${dates}`;
-  //   window.open(url, '_blank');
-  // };
+  const handleAddToGoogleCalendar = (taskLabel: string, dueDate: string) => { // RE-ADDED: Google Calendar integration
+    const title = encodeURIComponent(`${taskLabel} - ${candidate.name}`);
+    const startDate = new Date(dueDate + 'T00:00:00');
+    const endDate = new Date(startDate);
+    endDate.setDate(startDate.getDate() + 1);
+    const formatDateForGoogle = (date: Date) => date.toISOString().split('T')[0].replace(/-/g, '');
+    const dates = `${formatDateForGoogle(startDate)}/${formatDateForGoogle(endDate)}`;
+    const url = `https://www.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${dates}`;
+    window.open(url, '_blank');
+  };
 
   const handleScoreChange = (sectionId: string, value: number) => {
     setScores(prev => ({ ...prev, [sectionId]: value }));
@@ -176,7 +176,7 @@ export const CandidateDetail = () => {
                  <span className="flex items-center"><Phone className="w-3 h-3 mr-1" /> {candidate.phone || 'Não informado'}</span>
                  <div className="flex items-center">
                     <Calendar className="w-3 h-3 mr-1" /> Entrevista: {new Date(candidate.interviewDate + 'T00:00:00').toLocaleDateString()}
-                    {/* <button onClick={() => handleAddToGoogleCalendar('Entrevista', candidate.interviewDate)} className="ml-2 p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full"><CalendarPlus className="w-4 h-4" /></button> */}
+                    <button onClick={() => handleAddToGoogleCalendar('Entrevista', candidate.interviewDate)} className="ml-2 p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full"><CalendarPlus className="w-4 h-4" /></button>
                  </div>
               </div>
             </div>
@@ -338,7 +338,7 @@ export const CandidateDetail = () => {
                                     className={`pl-8 pr-2 py-1 text-xs border rounded-md focus:outline-none focus:ring-1 focus:ring-brand-500 ${state.dueDate ? 'border-brand-200 bg-brand-50 text-brand-700 dark:bg-brand-900/20 dark:border-brand-800 dark:text-brand-400' : 'border-gray-200 bg-white text-gray-400 dark:bg-slate-700 dark:border-slate-600 dark:text-gray-500'}`}
                                   />
                               </div>
-                              {/* {state.dueDate && ( // REMOVED: Google Calendar integration
+                              {state.dueDate && ( // RE-ADDED: Google Calendar integration
                                 <button 
                                   onClick={() => handleAddToGoogleCalendar(item.label, state.dueDate!)}
                                   className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:text-blue-400 dark:hover:bg-blue-900/20 rounded-md transition"
@@ -346,7 +346,7 @@ export const CandidateDetail = () => {
                                 >
                                   <CalendarPlus className="w-4 h-4" />
                                 </button>
-                              )} */}
+                              )}
                           </div>
                         </li>
                       )})}

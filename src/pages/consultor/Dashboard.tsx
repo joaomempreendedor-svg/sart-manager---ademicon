@@ -23,6 +23,7 @@ const ConsultorDashboard = () => {
     weeklyTargetAssignments,
     metricLogs,
     leadTasks,
+    consultantEvents, // RE-ADDED: consultantEvents
     isDataLoading 
   } = useApp();
 
@@ -49,8 +50,12 @@ const ConsultorDashboard = () => {
     // Novos Leads do Mês
     const newLeadsThisMonth = consultantLeads.filter(lead => new Date(lead.created_at) >= currentMonthStart).length;
 
-    // Reuniões Agendadas no Mês (REMOVED: meetingsThisMonth calculation)
-    const meetingsThisMonth = 0; // Meetings are no longer a separate metric here
+    // Reuniões Agendadas no Mês (RE-ADDED: meetingsThisMonth calculation)
+    const meetingsThisMonth = leadTasks.filter(task => {
+      if (task.user_id !== user.id || task.type !== 'meeting') return false;
+      const taskDate = new Date(task.meeting_start_time || '');
+      return taskDate >= currentMonthStart && taskDate <= currentMonthEnd;
+    }).length;
 
     // Valor de Propostas Enviadas no Mês
     const proposalValueThisMonth = consultantLeads.reduce((sum, lead) => {

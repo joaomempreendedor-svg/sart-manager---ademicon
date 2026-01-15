@@ -16,7 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
-// import { ScheduleMeetingModal } from './ScheduleMeetingModal'; // REMOVED: ScheduleMeetingModal
+import { ScheduleMeetingModal } from './ScheduleMeetingModal'; // RE-ADDED: ScheduleMeetingModal
 
 interface LeadTasksModalProps {
   isOpen: boolean;
@@ -40,8 +40,8 @@ export const LeadTasksModal: React.FC<LeadTasksModalProps> = ({ isOpen, onClose,
   const [editTaskDueDate, setEditTaskDueDate] = useState('');
   const [isUpdatingTask, setIsUpdatingTask] = useState(false);
 
-  // const [isEditMeetingModalOpen, setIsEditMeetingModalOpen] = useState(false); // REMOVED: Meeting modal state
-  // const [editingMeeting, setEditingMeeting] = useState<LeadTask | null>(null); // REMOVED: Meeting to edit state
+  const [isEditMeetingModalOpen, setIsEditMeetingModalOpen] = useState(false); // RE-ADDED: Meeting modal state
+  const [editingMeeting, setEditingMeeting] = useState<LeadTask | null>(null); // RE-ADDED: Meeting to edit state
 
   const tasksForLead = leadTasks.filter(task => task.lead_id === lead.id).sort((a, b) => {
     if (a.is_completed !== b.is_completed) {
@@ -55,15 +55,15 @@ export const LeadTasksModal: React.FC<LeadTasksModalProps> = ({ isOpen, onClose,
     return 0;
   });
 
-  // useEffect(() => { // REMOVED: Effect to open meeting modal
-  //   if (isOpen && highlightedTaskId) {
-  //     const taskToHighlight = tasksForLead.find(task => task.id === highlightedTaskId);
-  //     if (taskToHighlight && taskToHighlight.type === 'meeting') {
-  //       setEditingMeeting(taskToHighlight);
-  //       setIsEditMeetingModalOpen(true);
-  //     }
-  //   }
-  // }, [isOpen, highlightedTaskId, tasksForLead]);
+  useEffect(() => { // RE-ADDED: Effect to open meeting modal
+    if (isOpen && highlightedTaskId) {
+      const taskToHighlight = tasksForLead.find(task => task.id === highlightedTaskId);
+      if (taskToHighlight && taskToHighlight.type === 'meeting') {
+        setEditingMeeting(taskToHighlight);
+        setIsEditMeetingModalOpen(true);
+      }
+    }
+  }, [isOpen, highlightedTaskId, tasksForLead]);
 
   const handleAddTask = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -156,10 +156,10 @@ export const LeadTasksModal: React.FC<LeadTasksModalProps> = ({ isOpen, onClose,
     window.open(url, '_blank');
   };
 
-  // const handleEditMeeting = (meeting: LeadTask) => { // REMOVED: Meeting edit handler
-  //   setEditingMeeting(meeting);
-  //   setIsEditMeetingModalOpen(true);
-  // };
+  const handleEditMeeting = (meeting: LeadTask) => { // RE-ADDED: Meeting edit handler
+    setEditingMeeting(meeting);
+    setIsEditMeetingModalOpen(true);
+  };
 
   if (!isOpen) return null;
 
@@ -274,11 +274,11 @@ export const LeadTasksModal: React.FC<LeadTasksModalProps> = ({ isOpen, onClose,
                         </div>
                       </div>
                       <div className="flex-shrink-0 flex items-center space-x-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity mt-2 sm:mt-0 flex-wrap justify-end">
-                        {/* {task.type === 'meeting' && ( // REMOVED: Meeting edit button
+                        {task.type === 'meeting' && ( // RE-ADDED: Meeting edit button
                           <Button variant="ghost" size="icon" onClick={() => handleEditMeeting(task)} className="text-gray-400 hover:text-purple-600" title="Editar Reunião">
                             <Edit2 className="w-4 h-4" />
                           </Button>
-                        )} */}
+                        )}
                         {task.due_date && (
                           <Button variant="ghost" size="icon" onClick={() => handleAddToGoogleCalendar(task)} className="text-gray-400 hover:text-blue-600" title="Adicionar ao Google Agenda">
                             <CalendarPlus className="w-4 h-4" />
@@ -301,7 +301,7 @@ export const LeadTasksModal: React.FC<LeadTasksModalProps> = ({ isOpen, onClose,
           </div>
         </div>
 
-        {/* {isEditMeetingModalOpen && editingMeeting && ( // REMOVED: Meeting modal render
+        {isEditMeetingModalOpen && editingMeeting && ( // RE-ADDED: Meeting modal render
           <ScheduleMeetingModal
             isOpen={isEditMeetingModalOpen}
             onClose={() => {
@@ -312,7 +312,7 @@ export const LeadTasksModal: React.FC<LeadTasksModalProps> = ({ isOpen, onClose,
             lead={lead}
             currentMeeting={editingMeeting}
           />
-        )} */}
+        )}
       </DialogContent>
     </Dialog>
   );

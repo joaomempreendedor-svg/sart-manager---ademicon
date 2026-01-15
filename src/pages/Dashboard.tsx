@@ -33,7 +33,7 @@ const StatusBadge = ({ status }: { status: CandidateStatus }) => {
 
 type AgendaItem = {
   id: string;
-  type: 'task' | 'interview' | 'feedback' | 'gestor_task';
+  type: 'task' | 'interview' | 'feedback' | 'gestor_task' | 'consultant_event';
   title: string;
   personName: string;
   personId: string;
@@ -43,7 +43,7 @@ type AgendaItem = {
 
 export const Dashboard = () => {
   const { user } = useAuth();
-  const { candidates, checklistStructure, teamMembers, isDataLoading, leadTasks, crmLeads, gestorTasks, gestorTaskCompletions, isGestorTaskDueOnDate, notifications } = useApp();
+  const { candidates, checklistStructure, teamMembers, isDataLoading, leadTasks, crmLeads, gestorTasks, gestorTaskCompletions, isGestorTaskDueOnDate, notifications, consultantEvents } = useApp();
   const navigate = useNavigate();
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [isPendingTasksModalOpen, setIsPendingTasksModalOpen] = useState(false);
@@ -253,7 +253,7 @@ export const Dashboard = () => {
 
 
     return { todayAgenda: todayAgendaItems, overdueTasks: overdueItems, allGestorTasks: gestorPersonalTasks };
-  }, [candidates, teamMembers, checklistStructure, leadTasks, crmLeads, user, gestorTasks, gestorTaskCompletions, isGestorTaskDueOnDate]);
+  }, [candidates, teamMembers, checklistStructure, leadTasks, crmLeads, user, gestorTasks, gestorTaskCompletions, isGestorTaskDueOnDate, consultantEvents]);
 
   const getAgendaIcon = (type: AgendaItem['type']) => {
     switch (type) {
@@ -261,6 +261,7 @@ export const Dashboard = () => {
       case 'interview': return <Calendar className="w-4 h-4 text-green-600 dark:text-green-400" />;
       case 'feedback': return <Star className="w-4 h-4 text-yellow-500 dark:text-yellow-400" />;
       case 'gestor_task': return <ListTodo className="w-4 h-4 text-brand-600 dark:text-brand-400" />;
+      case 'consultant_event': return <Calendar className="w-4 h-4 text-purple-600 dark:text-purple-400" />;
     }
   };
 
@@ -271,6 +272,8 @@ export const Dashboard = () => {
       navigate(`/gestor/crm`);
     } else if (item.type === 'gestor_task') {
       toast.info("Gerencie suas tarefas do gestor na seção 'Tarefas do Gestor'.");
+    } else if (item.type === 'consultant_event') {
+      navigate('/gestor/calendar');
     } else {
       navigate('/gestor/feedbacks');
     }
