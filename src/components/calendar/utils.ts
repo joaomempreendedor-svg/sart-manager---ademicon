@@ -80,5 +80,5 @@ export const getEventTop = (startTime: Date) => {
 
 export const getEventHeight = (startTime: Date, endTime: Date) => {
   const durationMinutes = (endTime.getTime() - startTime.getTime()) / 60000;
-  return Math.max(1, durationMinutes * PIXELS_PER_MINUTE);
+  return Math.max(1, Math.round(durationMinutes * PIXELS_PER_MINUTE));
 };
