@@ -23,7 +23,7 @@ const DEFAULT_APP_CONFIG_DATA = {
   interviewStructure: INITIAL_INTERVIEW_STRUCTURE,
   templates: {},
   hiringOrigins: ['Indicação', 'Prospecção', 'Tráfego Linkedin'], // Origens para contratação
-  salesOrigins: ['WhatsApp', 'Frio', 'Instagram', 'Networking', 'Tráfego Pago', 'Indicação'], // NOVO: Adicionado 'Tráfego Pago' e 'Indicação'
+  salesOrigins: ['WhatsApp', 'Instagram', 'Networking', 'Tráfego Pago', 'Indicação'], // REMOVIDO: 'Frio'
   interviewers: ['João Müller'],
   pvs: ['SOARES E MORAES', 'SART INVESTIMENTOS', 'KR CONSÓRCIOS', 'SOLOM INVESTIMENTOS'],
 };
@@ -692,7 +692,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setFormCadastros(formCadastrosData?.data || []);
         setFormFiles(formFilesData?.data || []);
         // REMOVIDO: Define eventos do consultor
-        // setConsultantEvents(consultantEventsData?.data || []); 
+        // setConsultantEvents([]); 
         
         refetchCommissions();
 
@@ -2031,6 +2031,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const deleteDailyChecklist = useCallback(async (id: string) => {
     if (!user) throw new Error("Usuário não autenticado.");
+
+    await supabase.from('onboarding_videos').delete().eq('session_id', id);
 
     const { error } = await supabase
       .from('daily_checklists')
