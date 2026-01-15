@@ -233,11 +233,16 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
             <div className="relative" style={{ height: `${containerHeightPx}px` }}>
               {Array.from({ length: 24 }).map((_, hour) => (
                 <div
-                  key={hour}
-                  className="absolute left-0 right-0 bg-gray-100 dark:bg-slate-700 opacity-10"
-                  style={{ top: `${hour * 60 * PIXELS_PER_MINUTE}px`, height: `${60 * PIXELS_PER_MINUTE}px` }}
+                  key={`line-${hour}`}
+                  className="absolute left-0 right-0 border-t border-gray-200 dark:border-slate-600"
+                  style={{ top: `${hour * 60 * PIXELS_PER_MINUTE}px` }}
                 ></div>
               ))}
+              {/* Linha final das 24:00 para evitar eventos “fora” das linhas */}
+              <div
+                className="absolute left-0 right-0 border-t border-gray-200 dark:border-slate-600"
+                style={{ top: `${24 * 60 * PIXELS_PER_MINUTE}px` }}
+              ></div>
               {Array.from({ length: 24 }).map((_, hour) => (
                 <div
                   key={`slot-${hour}`}
