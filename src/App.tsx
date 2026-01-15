@@ -19,8 +19,7 @@ import { Home } from '@/pages/Home';
 import { Loader2, RefreshCw } from 'lucide-react';
 import { PendingApproval } from '@/pages/PendingApproval';
 import { PublicForm } from '@/pages/PublicForm';
-import CalendarPage from '@/pages/CalendarPage'; // CORRECTED: Changed to default import
-import { CalendarPage } from '@/pages/CalendarPage'; // RE-ADDED: CalendarPage
+import CalendarPage from '@/pages/CalendarPage'; // Corrected to default import
 
 // Gestor Pages
 import { Dashboard } from '@/pages/Dashboard';
@@ -164,7 +163,7 @@ const AppRoutes = () => {
         {/* Gestor Routes */}
         <Route path="/gestor" element={<GestorLayout />}>
           <Route path="dashboard" element={<Dashboard />} />
-          <Route path="calendar" element={<CalendarPage />} /> {/* RE-ADDED: CalendarPage */}
+          <Route path="calendar" element={<CalendarPage />} />
           <Route path="candidate/:id" element={<CandidateDetail />} />
           <Route path="commissions" element={<Commissions />} />
           <Route path="financial-panel" element={<FinancialPanel />} />
@@ -194,7 +193,7 @@ const AppRoutes = () => {
         {/* Consultor Routes */}
         <Route path="/consultor" element={<ConsultorLayout />}>
           <Route path="dashboard" element={<ConsultorDashboard />} />
-          <Route path="calendar" element={<CalendarPage />} /> {/* RE-ADDED: CalendarPage */}
+          <Route path="calendar" element={<CalendarPage />} />
           <Route path="crm" element={<ConsultorCrmPage />} />
           <Route path="daily-checklist" element={<DailyChecklist />} />
           <Route path="materials" element={<Materials />} />
