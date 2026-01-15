@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { CalendarEvent, isSameDay, formatTime, getEventTop, getEventHeight, PIXELS_PER_MINUTE } from './utils';
+import { CalendarEvent, isSameDay, formatTime, getEventTop, getEventHeight, PIXELS_PER_MINUTE, timeToMinutes } from './utils';
 import { Plus, Edit2, Trash2, CheckCircle2, XCircle, Clock, UserRound, MessageSquare, Users, ListChecks, ListTodo, CalendarDays } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import toast from 'react-hot-toast';
