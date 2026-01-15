@@ -233,9 +233,6 @@ const ConsultorCrmPage = () => {
           </div>
           <ExportCrmLeadsButton
             leads={filteredLeads}
-            crmFields={crmFields}
-            crmStages={crmStages}
-            teamMembers={teamMembers}
             fileName="leads_crm_consultor"
           />
           <button
@@ -335,7 +332,7 @@ const ConsultorCrmPage = () => {
                   const consultant = teamMembers.find(member => member.id === lead.consultant_id);
 
                   const now = new Date();
-                  const nextMeeting = leadTasks // RE-ADDED: Next meeting calculation
+                  const nextMeeting = leadTasks
                     .filter(task => task.lead_id === lead.id && task.type === 'meeting' && !task.is_completed && task.meeting_start_time && new Date(task.meeting_start_time).getTime() > now.getTime())
                     .sort((a, b) => new Date(a.meeting_start_time!).getTime() - new Date(b.meeting_start_time!).getTime())[0];
 
@@ -366,7 +363,7 @@ const ConsultorCrmPage = () => {
                         {lead.data.email && <div className="flex items-center"><Mail className="w-3 h-3 mr-1" /> {lead.data.email}</div>}
                         {lead.data.origin && <div className="flex items-center"><Tag className="w-3 h-3 mr-1" /> {lead.data.origin}</div>}
                         
-                        {nextMeeting && ( // RE-ADDED: Next meeting display
+                        {nextMeeting && (
                           <div className="flex items-center text-blue-600 dark:text-blue-400 font-semibold mt-2">
                             <Calendar className="w-3 h-3 mr-1" /> {new Date(nextMeeting.meeting_start_time!).toLocaleDateString('pt-BR')}
                             <Clock className="w-3 h-3 ml-2 mr-1" /> {new Date(nextMeeting.meeting_start_time!).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
@@ -429,10 +426,6 @@ const ConsultorCrmPage = () => {
                         <button onClick={(e) => handleOpenTasksModal(e, lead)} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition">
                           <ListTodo className="w-3 h-3 mr-1" /> Tarefas
                         </button>
-                        {/* REMOVIDO: Botão de Reunião */}
-                        {/* <button onClick={(e) => handleOpenMeetingModal(e, lead)} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-900/30 transition">
-                          <CalendarPlus className="w-3 h-3 mr-1" /> Reunião
-                        </button> */}
                         <button 
                           onClick={(e) => handleOpenProposalModal(e, lead)} 
                           className={`flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs transition ${canOpenProposalModal ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/30' : 'bg-gray-100 dark:bg-slate-600 text-gray-500 cursor-not-allowed opacity-70'}`}
@@ -509,4 +502,4 @@ const ConsultorCrmPage = () => {
   );
 };
 
-export default CrmOverviewPage;
+export default ConsultorCrmPage;
