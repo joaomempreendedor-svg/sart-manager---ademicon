@@ -71,7 +71,7 @@ export const WeekViewGrid: React.FC<WeekViewGridProps> = ({ currentDate, events,
 
   return (
     <div className="flex-1 overflow-auto custom-scrollbar bg-white dark:bg-slate-900">
-      <div className="grid grid-cols-[50px_repeat(7,1fr)] min-w-[700px]">
+      <div className="grid grid-cols-[50px_repeat(7,1fr)] min-w-[700px] min-h-[1440px]"> {/* Adicionado min-h para 24 horas * 60px/hora */}
         {/* Header Row */}
         <div className="sticky top-0 bg-white dark:bg-slate-800 z-20 border-b border-gray-200 dark:border-slate-700"></div>
         {days.map(day => (
@@ -85,7 +85,7 @@ export const WeekViewGrid: React.FC<WeekViewGridProps> = ({ currentDate, events,
         {hours.map(hour => (
           <React.Fragment key={hour}>
             <div className="h-[60px] flex items-start justify-end pr-2 text-xs text-gray-500 dark:text-gray-400 relative border-r border-gray-200 dark:border-slate-700">
-              {hour > 0 && <span className="-mt-2">{formatTime(new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), hour, 0, 0, 0))}</span>}
+              <span className="-mt-2">{formatTime(new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), hour, 0, 0, 0))}</span> {/* Removida a condição hour > 0 */}
             </div>
             {days.map(day => (
               <div
