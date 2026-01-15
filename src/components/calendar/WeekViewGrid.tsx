@@ -34,7 +34,6 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
   const navigate = useNavigate();
   const { toggleDailyChecklistCompletion, toggleLeadTaskCompletion, deleteLeadTask } = useApp();
 
-  // Single time axis (24h * 60min) in pixels
   const containerHeightPx = 24 * 60 * PIXELS_PER_MINUTE;
 
   const allWeekAllDayEvents = useMemo(() => {
@@ -48,7 +47,6 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
 
   const hasAnyAllDayEventsInWeek = allWeekAllDayEvents.length > 0;
 
-  // Position timed events using same origin (00:00) and scale (px/min) as the time ruler
   const positionedEventsByDay = useMemo(() => {
     const result: Record<string, (CalendarEvent & { top: number; height: number; left: number; width: number; })[]> = {};
 
@@ -56,7 +54,6 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
       const dayStr = day.toISOString().split('T')[0];
       const timedEvents = (eventsByDay[dayStr] || []).filter(e => !e.allDay);
 
-      // Sort by start, longer first when equal start
       timedEvents.sort((a, b) => {
         const d = a.start.getTime() - b.start.getTime();
         if (d !== 0) return d;
@@ -76,11 +73,9 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
         const rawTop = startMinutes * PIXELS_PER_MINUTE;
         const rawHeight = (endMinutes - startMinutes) * PIXELS_PER_MINUTE;
 
-        // Clamp to container, rounding to integer pixels to avoid sub-pixel drift
         const top = Math.min(containerHeightPx - 1, Math.max(0, Math.floor(rawTop)));
         const height = Math.max(1, Math.min(containerHeightPx - top, Math.ceil(rawHeight)));
 
-        // Find non-overlapping column index
         let columnIndex = 0;
         while (columnIndex < columns.length && columns[columnIndex].end > startMinutes) {
           columnIndex++;
@@ -90,7 +85,6 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
         }
         columns[columnIndex].end = Math.max(columns[columnIndex].end, endMinutes);
 
-        // Compute left/width as fraction of total parallel columns at this time
         const totalCols = columns.length;
         const left = (columnIndex / totalCols) * 100;
         const width = (1 / totalCols) * 100;
@@ -126,7 +120,6 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
     }
   };
 
-  // Current time indicator (px on the same axis)
   const currentTimeNow = new Date();
   const currentHour = currentTimeNow.getHours();
   const currentMinutes = currentTimeNow.getMinutes();
@@ -134,10 +127,8 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
 
   return (
     <div className="flex flex-col flex-1">
-      {/* All-day events bar for the entire week */}
       {hasAnyAllDayEventsInWeek && (
         <div className="flex border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
-          {/* Empty time column spacer */}
           <div className="w-16 flex-shrink-0 border-r border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800"></div>
           <div className="grid grid-cols-7 flex-1">
             {weekDays.map(day => {
@@ -236,9 +227,7 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
         </div>
       )}
 
-      {/* Main: time ruler + week grid */}
       <div className="flex flex-1">
-        {/* Time ruler (left) */}
         <div className="w-16 flex-shrink-0 border-r border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800">
           <div className="h-16 border-b border-gray-200 dark:border-slate-700"></div>
           <div className="relative" style={{ height: `${containerHeightPx}px` }}>
@@ -254,7 +243,6 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
           </div>
         </div>
 
-        {/* Week days grid (shares same axis and scale) */}
         <div className="grid grid-cols-7 flex-1">
           {weekDays.map(day => {
             const dayStr = day.toISOString().split('T')[0];
@@ -263,7 +251,6 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
 
             return (
               <div key={dayStr} className="flex-1 border-l border-gray-200 dark:border-slate-700 relative">
-                {/* Day header */}
                 <div className={`h-16 flex flex-col items-center justify-center border-b border-gray-200 dark:border-slate-700 ${isCurrentDay ? 'bg-brand-50 dark:bg-brand-900/20' : 'bg-gray-50 dark:bg-slate-700/50'}`}>
                   <p className={`text-xs font-medium ${isCurrentDay ? 'text-brand-800 dark:text-brand-200' : 'text-gray-500 dark:text-gray-400'}`}>
                     {day.toLocaleDateString('pt-BR', { weekday: 'short' })}
@@ -282,7 +269,6 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
                   )}
                 </div>
 
-                {/* Hour lines and hourly clickable slots (both in px, z-index below events) */}
                 <div className="relative" style={{ height: `${containerHeightPx}px` }}>
                   {Array.from({ length: 24 }).map((_, hour) => (
                     <div
@@ -301,7 +287,6 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
                           toast.info("Você não tem permissão para adicionar eventos pessoais aqui.");
                           return;
                         }
-                        // Avoid click-through from event cards
                         if ((e.target as HTMLElement).closest('[data-event-card="true"]')) return;
                         const newEventDate = new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour, 0);
                         onOpenEventModal(newEventDate);
@@ -309,7 +294,6 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
                     ></div>
                   ))}
 
-                  {/* Current time indicator */}
                   {isCurrentDay && (
                     <div
                       className="absolute left-0 right-0 h-0.5 bg-red-500 z-20"
@@ -319,7 +303,6 @@ const WeekViewGrid: React.FC<WeekViewGridProps> = ({
                     </div>
                   )}
 
-                  {/* Timed events (cards) */}
                   {positionedTimedEvents.map(event => (
                     <div
                       key={event.id}

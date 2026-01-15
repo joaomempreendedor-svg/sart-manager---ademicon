@@ -39,7 +39,6 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
   const allDayEvents = useMemo(() => events.filter(e => e.allDay), [events]);
   const timedEvents = useMemo(() => events.filter(e => !e.allDay), [events]);
 
-  // Posicionamento de eventos usando a mesma origem (00:00) e escala (px/minuto) da barra lateral
   const positionedEvents = useMemo(() => {
     const dayStart = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 0, 0, 0, 0);
     return timedEvents.map(event => {
@@ -126,7 +125,6 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
     }
   };
 
-  // Linha de "agora" alinhada ao mesmo eixo
   const now = new Date();
   const currentHour = now.getHours();
   const currentMinutes = now.getMinutes();
@@ -135,12 +133,9 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
 
   return (
     <div className="flex flex-col flex-1">
-      {/* Seção de eventos de dia inteiro */}
       {allDayEvents.length > 0 && (
         <div className="flex border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
-          {/* Coluna de horários vazia (alinhada) */}
           <div className="w-16 flex-shrink-0 border-r border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800"></div>
-          {/* Grid 1 dia - all-day */}
           <div className="grid grid-cols-1 flex-1">
             <div className="flex flex-col space-y-0.5 p-1">
               {allDayEvents.map(event => (
@@ -191,9 +186,7 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
         </div>
       )}
 
-      {/* Área principal: coluna de horários + grid do dia */}
       <div className="flex flex-1">
-        {/* Coluna de horários (régua de tempo) */}
         <div className="w-16 flex-shrink-0 border-r border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800">
           <div className="h-16 border-b border-gray-200 dark:border-slate-700"></div>
           <div className="relative" style={{ height: `${containerHeightPx}px` }}>
@@ -209,10 +202,8 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
           </div>
         </div>
 
-        {/* Grid do dia (ancorado à mesma origem e escala) */}
         <div className="grid grid-cols-1 flex-1">
           <div className="flex-1 border-l border-gray-200 dark:border-slate-700 relative">
-            {/* Cabeçalho do dia */}
             <div className={`h-16 flex flex-col items-center justify-center border-b border-gray-200 dark:border-slate-700 ${isCurrentDay ? 'bg-brand-50 dark:bg-brand-900/20' : 'bg-gray-50 dark:bg-slate-700/50'}`}>
               <p className={`text-xs font-medium ${isCurrentDay ? 'text-brand-800 dark:text-brand-200' : 'text-gray-500 dark:text-gray-400'}`}>
                 {day.toLocaleDateString('pt-BR', { weekday: 'short' })}
@@ -231,7 +222,6 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
               )}
             </div>
 
-            {/* Linhas de fundo e slots clicáveis, usando a mesma escala */}
             <div className="relative" style={{ height: `${containerHeightPx}px` }}>
               {Array.from({ length: 24 }).map((_, hour) => (
                 <div
@@ -256,8 +246,6 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
                 ></div>
               ))}
 
-
-              {/* Indicador de horário atual */}
               {isCurrentDay && (
                 <div
                   className="absolute left-0 right-0 h-0.5 bg-red-500 z-20"
@@ -267,7 +255,6 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
                 </div>
               )}
 
-              {/* Eventos temporizados, alinhados ao eixo único */}
               {positionedEvents.map(event => (
                 <div
                   key={event.id}
@@ -313,7 +300,6 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
                       </div>
                     )}
                   </div>
-                  {/* Ações flutuantes */}
                   <div className="absolute top-1 right-1 flex items-center space-x-1 bg-white/80 dark:bg-slate-800/70 rounded-sm px-1 py-0.5 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity">
                     {(event.type === 'personal' || event.type === 'gestor_task') && (
                       <>
