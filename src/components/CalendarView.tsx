@@ -1,5 +1,4 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, ListTodo, UserRound, BellRing } from 'lucide-react';
 import { CalendarEvent } from '@/pages/CalendarPage';
 import { DayViewGrid } from './calendar/DayViewGrid';
 import { WeekViewGrid } from './calendar/WeekViewGrid';
@@ -14,7 +13,7 @@ import {
 } from '@/components/ui/select';
 
 interface CalendarViewProps {
-  events: CalendarEvent[];
+  events: CalendarEvent[]; // These are ALL events, not pre-filtered
   currentDate: Date;
   setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
   viewMode: 'day' | 'week' | 'month';
@@ -38,7 +37,7 @@ const getWeekRange = (date: Date) => {
 const getDay = (date: Date) => date.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
 
 export const CalendarView: React.FC<CalendarViewProps> = ({
-  events,
+  events, // This is now allEvents from CalendarPage
   currentDate,
   setCurrentDate,
   viewMode,
@@ -71,9 +70,12 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     return getDay(currentDate);
   }, [currentDate, viewMode]);
 
-  const filteredEvents = useMemo(() => {
-    if (!selectedConsultantId) return events;
-    return events.filter(event => {
+  const eventsToRender = useMemo(() => { // Renamed from filteredEvents to avoid confusion
+    if (!selectedConsultantId) {
+      console.log("[CalendarView] No consultant selected, showing all events:", events.length);
+      return events;
+    }
+    const filtered = events.filter(event => {
       if (event.type === 'lead_meeting') {
         return event.consultantId === selectedConsultantId || event.managerId === selectedConsultantId;
       }
@@ -82,6 +84,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       }
       return false;
     });
+    console.log("[CalendarView] Filtered events for selectedConsultantId:", selectedConsultantId, filtered.length, filtered);
+    return filtered;
   }, [events, selectedConsultantId]);
 
   return (
@@ -136,7 +140,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         {viewMode === 'day' && (
           <DayViewGrid
             currentDate={currentDate}
-            events={filteredEvents}
+            events={eventsToRender} // Pass eventsToRender
             onEventClick={onEventClick}
             onSlotClick={onSlotClick}
           />
@@ -144,7 +148,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         {viewMode === 'week' && (
           <WeekViewGrid
             currentDate={currentDate}
-            events={filteredEvents}
+            events={eventsToRender} // Pass eventsToRender
             onEventClick={onEventClick}
             onSlotClick={onSlotClick}
           />
@@ -152,7 +156,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         {viewMode === 'month' && (
           <MonthViewGrid
             currentDate={currentDate}
-            events={filteredEvents}
+            events={eventsToRender} // Pass eventsToRender
             onEventClick={onEventClick}
             onSlotClick={onSlotClick}
           />

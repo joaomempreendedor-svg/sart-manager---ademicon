@@ -155,7 +155,7 @@ const CalendarPage = () => {
       </div>
 
       <CalendarView
-        events={allEvents}
+        events={allEvents} // Pass all events
         currentDate={currentDate}
         setCurrentDate={setCurrentDate}
         viewMode={viewMode}
