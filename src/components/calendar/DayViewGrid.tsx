@@ -68,11 +68,11 @@ export const DayViewGrid: React.FC<DayViewGridProps> = ({ currentDate, events, o
 
   return (
     <div className="flex-1 overflow-y-auto custom-scrollbar bg-white dark:bg-slate-900">
-      <div className="grid grid-cols-[50px_1fr] min-h-[1440px]"> {/* Adicionado min-h para 24 horas * 60px/hora */}
+      <div className="grid grid-cols-[50px_1fr] min-h-[1440px]"> {/* Garante altura para 24 horas (24 * 60px) */}
         <div className="border-r border-gray-200 dark:border-slate-700">
           {hours.map(hour => (
             <div key={hour} className="h-[60px] flex items-start justify-end pr-2 text-xs text-gray-500 dark:text-gray-400 relative">
-              <span className="-mt-2">{formatTime(new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), hour, 0, 0, 0))}</span> {/* Removida a condição hour > 0 */}
+              <span className="-mt-2">{formatTime(new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), hour, 0, 0, 0))}</span> {/* Exibe todas as horas */}
             </div>
           ))}
         </div>
