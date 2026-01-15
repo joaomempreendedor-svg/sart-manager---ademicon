@@ -48,8 +48,8 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
       const endMinutes = Math.min(1440, Math.max(startMinutes, endMinutesCalc));
       const rawTop = startMinutes * PIXELS_PER_MINUTE;
       const rawHeight = (endMinutes - startMinutes) * PIXELS_PER_MINUTE;
-      const top = Math.min(containerHeightPx - 1, rawTop);
-      const height = Math.max(1, Math.min(containerHeightPx - top, rawHeight));
+      const top = Math.min(containerHeightPx - 1, Math.max(0, Math.floor(rawTop)));
+      const height = Math.max(1, Math.min(containerHeightPx - top, Math.ceil(rawHeight)));
       return { ...event, top, height };
     });
   }, [timedEvents, day]);
@@ -236,7 +236,7 @@ const DayViewGrid: React.FC<DayViewGridProps> = ({
               {Array.from({ length: 24 }).map((_, hour) => (
                 <div
                   key={`line-${hour}`}
-                  className="absolute left-0 right-0 border-t border-gray-200 dark:border-slate-600"
+                  className="absolute left-0 right-0 border-t border-gray-200 dark:border-slate-600 z-0"
                   style={{ top: `${hour * 60 * PIXELS_PER_MINUTE}px` }}
                 ></div>
               ))}
