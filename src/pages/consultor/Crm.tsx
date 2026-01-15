@@ -8,6 +8,7 @@ import { ProposalModal } from '@/components/crm/ProposalModal';
 import { MarkAsSoldModal } from '@/components/crm/MarkAsSoldModal';
 import ExportCrmLeadsButton from '@/components/crm/ExportCrmLeadsButton';
 import { ImportCrmLeadsModal } from '@/components/crm/ImportCrmLeadsModal';
+import { ScheduleMeetingModal } from '@/components/crm/ScheduleMeetingModal'; // RE-ADDED: ScheduleMeetingModal
 import {
   Select,
   SelectContent,
@@ -34,6 +35,8 @@ const ConsultorCrmPage = () => {
   const [selectedLeadForProposal, setSelectedLeadForProposal] = useState<CrmLead | null>(null);
   const [isMarkAsSoldModalOpen, setIsMarkAsSoldModalOpen] = useState(false);
   const [selectedLeadForSold, setSelectedLeadForSold] = useState<CrmLead | null>(null);
+  const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false); // RE-ADDED: Meeting modal state
+  const [selectedLeadForMeeting, setSelectedLeadForMeeting] = useState<CrmLead | null>(null); // RE-ADDED: Lead for meeting state
 
   const [filterStartDate, setFilterStartDate] = useState('');
   const [filterEndDate, setFilterEndDate] = useState('');
@@ -157,6 +160,12 @@ const ConsultorCrmPage = () => {
 
     setSelectedLeadForSold(lead);
     setIsMarkAsSoldModalOpen(true);
+  };
+
+  const handleOpenMeetingModal = (e: React.MouseEvent, lead: CrmLead) => { // RE-ADDED: Meeting modal handler
+    e.stopPropagation();
+    setSelectedLeadForMeeting(lead);
+    setIsMeetingModalOpen(true);
   };
 
   const handleStageChange = async (leadId: string, newStageId: string) => {
@@ -426,6 +435,9 @@ const ConsultorCrmPage = () => {
                         <button onClick={(e) => handleOpenTasksModal(e, lead)} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition">
                           <ListTodo className="w-3 h-3 mr-1" /> Tarefas
                         </button>
+                        <button onClick={(e) => handleOpenMeetingModal(e, lead)} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-900/30 transition">
+                          <CalendarPlus className="w-3 h-3 mr-1" /> Reunião
+                        </button>
                         <button 
                           onClick={(e) => handleOpenProposalModal(e, lead)} 
                           className={`flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs transition ${canOpenProposalModal ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/30' : 'bg-gray-100 dark:bg-slate-600 text-gray-500 cursor-not-allowed opacity-70'}`}
@@ -485,6 +497,14 @@ const ConsultorCrmPage = () => {
           isOpen={isMarkAsSoldModalOpen}
           onClose={() => setIsMarkAsSoldModalOpen(false)}
           lead={selectedLeadForSold}
+        />
+      )}
+
+      {isMeetingModalOpen && selectedLeadForMeeting && ( // RE-ADDED: Meeting modal render
+        <ScheduleMeetingModal
+          isOpen={isMeetingModalOpen}
+          onClose={() => setIsMeetingModalOpen(false)}
+          lead={selectedLeadForMeeting}
         />
       )}
 
