@@ -65,6 +65,17 @@ const clearStaleAuth = () => {
 // ID do gestor principal para centralizar todas as configurações e dados
 const JOAO_GESTOR_AUTH_ID = "0c6d71b7-daeb-4dde-8eec-0e7a8ffef658"; // <--- ATUALIZADO COM O SEU ID DE GESTOR!
 
+// Helper function to parse currency strings from the database into numbers
+const parseDbCurrency = (value: any): number => {
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') {
+    // Remove currency symbols, thousands separators (.), and replace decimal comma (,) with dot (.)
+    const cleaned = value.replace(/[^0-9,-]+/g, '').replace(/\./g, '').replace(',', '.');
+    return parseFloat(cleaned) || 0;
+  }
+  return 0;
+};
+
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { user, session } = useAuth();
   const fetchedUserIdRef = useRef<string | null>(null); // Corrigido: Inicializado com null
@@ -658,9 +669,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           updated_at: lead.updated_at,
           created_by: lead.created_by,
           updated_by: lead.updated_by,
-          proposalValue: parseFloat(lead.proposal_value || '0'),
+          proposalValue: parseDbCurrency(lead.proposal_value), // Use parseDbCurrency
           proposalClosingDate: lead.proposal_closing_date,
-          soldCreditValue: parseFloat(lead.sold_credit_value || '0'), // Explicitly parseFloat
+          soldCreditValue: parseDbCurrency(lead.sold_credit_value), // Use parseDbCurrency
           soldGroup: lead.sold_group,
           soldQuota: lead.sold_quota,
           saleDate: lead.sale_date,
@@ -827,9 +838,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 updated_at: payload.new.updated_at,
                 created_by: payload.new.created_by,
                 updated_by: payload.new.updated_by,
-                proposalValue: parseFloat(payload.new.proposal_value || '0'),
+                proposalValue: parseDbCurrency(payload.new.proposal_value), // Use parseDbCurrency
                 proposalClosingDate: payload.new.proposal_closing_date,
-                soldCreditValue: parseFloat(payload.new.sold_credit_value || '0'), // Explicitly parseFloat
+                soldCreditValue: parseDbCurrency(payload.new.sold_credit_value), // Use parseDbCurrency
                 soldGroup: payload.new.sold_group,
                 soldQuota: payload.new.sold_quota,
                 saleDate: payload.new.sale_date,
