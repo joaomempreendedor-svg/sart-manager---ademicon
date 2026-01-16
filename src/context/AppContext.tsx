@@ -658,9 +658,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           updated_at: lead.updated_at,
           created_by: lead.created_by,
           updated_by: lead.updated_by,
-          proposalValue: lead.proposal_value,
+          proposalValue: parseFloat(lead.proposal_value || '0'),
           proposalClosingDate: lead.proposal_closing_date,
-          soldCreditValue: lead.sold_credit_value,
+          soldCreditValue: parseFloat(lead.sold_credit_value || '0'), // Explicitly parseFloat
           soldGroup: lead.sold_group,
           soldQuota: lead.sold_quota,
           saleDate: lead.sale_date,
@@ -827,9 +827,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 updated_at: payload.new.updated_at,
                 created_by: payload.new.created_by,
                 updated_by: payload.new.updated_by,
-                proposalValue: payload.new.proposal_value,
+                proposalValue: parseFloat(payload.new.proposal_value || '0'),
                 proposalClosingDate: payload.new.proposal_closing_date,
-                soldCreditValue: payload.new.sold_credit_value,
+                soldCreditValue: parseFloat(payload.new.sold_credit_value || '0'), // Explicitly parseFloat
                 soldGroup: payload.new.sold_group,
                 soldQuota: payload.new.sold_quota,
                 saleDate: payload.new.sale_date,
