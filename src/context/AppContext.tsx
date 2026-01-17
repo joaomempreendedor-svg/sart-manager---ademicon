@@ -1901,27 +1901,72 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
 
     const leadDataWithOriginInJsonb = { ...lead.data };
-    if ((lead as any).origin) {
+    // Assuming 'origin' might come directly in the root 'lead' object from some modals/imports
+    // and needs to be moved into 'data' JSONB.
+    // This part is a bit ambiguous from the type definition (origin?: string; in CrmLead)
+    // but the current implementation puts it in data.origin. Let's stick to that.
+    if ((lead as any).origin) { // Check if 'origin' exists as a root property
       leadDataWithOriginInJsonb.origin = (lead as any).origin;
-      delete (lead as any).origin;
+      delete (lead as any).origin; // Remove from root if it was there
     }
 
-    const newLeadData = {
-      ...lead,
+    const basePayload: Partial<CrmLead> = {
+      ...lead, // This will bring camelCase properties
       user_id: JOAO_GESTOR_AUTH_ID,
       stage_id: firstStage.id,
       created_by: user.id,
       updated_by: user.id,
       data: leadDataWithOriginInJsonb,
       consultant_id: lead.consultant_id || user.id,
+      created_at: new Date().toISOString(), // Set created_at here
+      updated_at: new Date().toISOString(), // Set updated_at here
     };
 
-    console.log("[addCrmLead] Final payload before insert:", newLeadData);
+    // Map camelCase fields to snake_case for the DB insert
+    const dbPayload: any = {
+      user_id: basePayload.user_id,
+      consultant_id: basePayload.consultant_id,
+      stage_id: basePayload.stage_id,
+      name: basePayload.name,
+      data: basePayload.data,
+      created_at: basePayload.created_at,
+      updated_at: basePayload.updated_at,
+      created_by: basePayload.created_by,
+      updated_by: basePayload.updated_by,
+      // Map specific camelCase fields to snake_case
+      proposal_value: basePayload.proposalValue,
+      proposal_closing_date: basePayload.proposalClosingDate,
+      sold_credit_value: basePayload.soldCreditValue,
+      sold_group: basePayload.soldGroup,
+      sold_quota: basePayload.soldQuota,
+      sale_date: basePayload.saleDate,
+    };
 
-    const { data, error } = await supabase.from('crm_leads').insert(newLeadData).select('*').single();
+    console.log("[addCrmLead] Final dbPayload before insert:", dbPayload);
+
+    const { data, error } = await supabase.from('crm_leads').insert(dbPayload).select('*').single();
     if (error) throw error;
-    setCrmLeads(prev => [data, ...prev]);
-    return data;
+    // Reconstruct the CrmLead object in camelCase for the local state
+    const newLeadFromDb: CrmLead = {
+      id: data.id,
+      consultant_id: data.consultant_id,
+      stage_id: data.stage_id,
+      user_id: data.user_id,
+      name: data.name,
+      data: data.data,
+      created_at: data.created_at,
+      updated_at: data.updated_at,
+      created_by: data.created_by,
+      updated_by: data.updated_by,
+      proposalValue: parseDbCurrency(data.proposal_value),
+      proposalClosingDate: data.proposal_closing_date,
+      soldCreditValue: parseDbCurrency(data.sold_credit_value),
+      soldGroup: data.sold_group,
+      soldQuota: data.sold_quota,
+      saleDate: data.sale_date,
+    };
+    setCrmLeads(prev => [newLeadFromDb, ...prev]);
+    return newLeadFromDb;
   }, [user, crmPipelines, crmStages]);
 
   const updateCrmLead = useCallback(async (id: string, updates: Partial<CrmLead>) => {
@@ -1930,68 +1975,59 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!lead) throw new Error("Lead não encontrado.");
 
     const currentLeadDeepCopy: CrmLead = JSON.parse(JSON.stringify(lead));
+    const updatesDeepCopy: Partial<CrmLead> = JSON.parse(JSON.stringify(updates));
 
-    // Prepare data for Supabase with snake_case keys
-    const dataToUpdateInDb: any = {
-      updated_by: user.id, // Always update who last modified it
-      updated_at: new Date().toISOString(), // Always update timestamp
-    };
-
-    const fieldMappings = {
-      name: 'name',
-      stage_id: 'stage_id',
-      consultant_id: 'consultant_id',
-      proposalValue: 'proposal_value',
-      proposalClosingDate: 'proposal_closing_date',
-      soldCreditValue: 'sold_credit_value',
-      soldGroup: 'sold_group',
-      soldQuota: 'sold_quota',
-      saleDate: 'sale_date',
-      // 'data' is a special JSONB field, handled separately
-    };
-
-    for (const key in updates) {
-      if (key === 'data') {
-        // Merge the existing JSONB data with the new updates.data
-        dataToUpdateInDb.data = { ...currentLeadDeepCopy.data, ...updates.data };
-      } else if (fieldMappings[key as keyof typeof fieldMappings]) {
-        // Map camelCase to snake_case for direct columns
-        dataToUpdateInDb[fieldMappings[key as keyof typeof fieldMappings]] = (updates as any)[key];
-      } else {
-        // For any other direct column not explicitly mapped (e.g., 'name' if not in fieldMappings)
-        dataToUpdateInDb[key] = (updates as any)[key];
-      }
+    // Merge the existing JSONB data with the new updates.data
+    const updatedDataJsonb = { ...currentLeadDeepCopy.data, ...updatesDeepCopy.data };
+    // Ensure origin is correctly handled if it's part of the updates.data
+    if (updatesDeepCopy.data?.origin !== undefined) {
+      updatedDataJsonb.origin = updatesDeepCopy.data.origin;
     }
 
-    console.log("[updateCrmLead] Final payload before update:", dataToUpdateInDb);
+    // Construct the payload for the database update
+    const dbPayload: any = {
+      updated_by: user.id,
+      updated_at: new Date().toISOString(),
+      data: updatedDataJsonb, // Always include the merged JSONB data
+    };
 
-    const { data, error } = await supabase.from('crm_leads').update(dataToUpdateInDb).eq('id', id).eq('user_id', JOAO_GESTOR_AUTH_ID).select('*').single();
+    // Map camelCase fields from updates to snake_case for direct columns
+    if (updatesDeepCopy.name !== undefined) dbPayload.name = updatesDeepCopy.name;
+    if (updatesDeepCopy.consultant_id !== undefined) dbPayload.consultant_id = updatesDeepCopy.consultant_id;
+    if (updatesDeepCopy.stage_id !== undefined) dbPayload.stage_id = updatesDeepCopy.stage_id;
+    if (updatesDeepCopy.proposalValue !== undefined) dbPayload.proposal_value = updatesDeepCopy.proposalValue;
+    if (updatesDeepCopy.proposalClosingDate !== undefined) dbPayload.proposal_closing_date = updatesDeepCopy.proposalClosingDate;
+    if (updatesDeepCopy.soldCreditValue !== undefined) dbPayload.sold_credit_value = updatesDeepCopy.soldCreditValue;
+    if (updatesDeepCopy.soldGroup !== undefined) dbPayload.sold_group = updatesDeepCopy.soldGroup;
+    if (updatesDeepCopy.soldQuota !== undefined) dbPayload.sold_quota = updatesDeepCopy.soldQuota;
+    if (updatesDeepCopy.saleDate !== undefined) dbPayload.sale_date = updatesDeepCopy.saleDate;
+
+    console.log("[updateCrmLead] Final dbPayload before update:", dbPayload);
+
+    const { data, error } = await supabase.from('crm_leads').update(dbPayload).eq('id', id).eq('user_id', JOAO_GESTOR_AUTH_ID).select('*').single();
     if (error) {
       console.error("[updateCrmLead] Erro ao atualizar lead no Supabase:", error);
       throw error;
     }
 
-    // Update local state with the data returned from Supabase (which includes updated_at)
-    // We need to reconstruct the CrmLead object in camelCase for the local state
+    // Reconstruct the CrmLead object in camelCase for the local state
     const updatedLeadFromDb: CrmLead = {
-      ...currentLeadDeepCopy, // Start with existing data
-      ...updates, // Apply the updates from the function call
-      id: data.id, // Ensure ID is correct
-      created_at: data.created_at,
-      updated_at: data.updated_at,
-      user_id: data.user_id,
+      id: data.id,
       consultant_id: data.consultant_id,
       stage_id: data.stage_id,
+      user_id: data.user_id,
       name: data.name,
       data: data.data,
+      created_at: data.created_at,
+      updated_at: data.updated_at,
+      created_by: data.created_by,
+      updated_by: data.updated_by,
       proposalValue: parseDbCurrency(data.proposal_value),
       proposalClosingDate: data.proposal_closing_date,
       soldCreditValue: parseDbCurrency(data.sold_credit_value),
       soldGroup: data.sold_group,
       soldQuota: data.sold_quota,
       saleDate: data.sale_date,
-      created_by: data.created_by,
-      updated_by: data.updated_by,
     };
 
     setCrmLeads(prev => prev.map(l => l.id === id ? updatedLeadFromDb : l));
