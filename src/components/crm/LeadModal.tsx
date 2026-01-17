@@ -27,13 +27,13 @@ import toast from 'react-hot-toast';
 interface LeadModalProps {
   isOpen: boolean;
   onClose: () => void;
-  lead: CrmLead;
+  lead: CrmLead | null; // Pode ser null para novo lead
   crmFields: CrmField[];
   assignedConsultantId?: string | null;
 }
 
 const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields, assignedConsultantId }) => {
-  const { addCrmLead, updateCrmLead, deleteCrmLead, crmOwnerUserId, crmStages, salesOrigins } = useApp();
+  const { addCrmLead, updateCrmLead, deleteCrmLead, crmOwnerUserId, crmStages, salesOrigins, crmPipelines } = useApp();
   const [formData, setFormData] = useState<Partial<CrmLead>>({
     name: '',
     data: {},
@@ -62,6 +62,12 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
         name: lead?.name || '',
         stage_id: lead?.stage_id,
         consultant_id: lead?.consultant_id,
+        proposalValue: lead?.proposalValue,
+        proposalClosingDate: lead?.proposalClosingDate,
+        soldCreditValue: lead?.soldCreditValue,
+        soldGroup: lead?.soldGroup,
+        soldQuota: lead?.soldQuota,
+        saleDate: lead?.saleDate,
         data: { 
           ...lead?.data,
           origin: validatedOrigin, // Usa a origem validada (ou vazia se inválida)
@@ -73,10 +79,8 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
 
   const handleChange = (key: string, value: any) => {
     setFormData(prev => {
-      if (key === 'stage_id' || key === 'consultant_id') {
+      if (['name', 'stage_id', 'consultant_id', 'proposalValue', 'proposalClosingDate', 'soldCreditValue', 'soldGroup', 'soldQuota', 'saleDate'].includes(key)) {
         return { ...prev, [key]: value };
-      } else if (key === 'name') {
-        return { ...prev, name: value };
       } else {
         return {
           ...prev,
@@ -141,6 +145,12 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
           ...formData.data,
           origin: formData.data?.origin || null,
         },
+        proposalValue: formData.proposalValue || null,
+        proposalClosingDate: formData.proposalClosingDate || null,
+        soldCreditValue: formData.soldCreditValue || null,
+        soldGroup: formData.soldGroup || null,
+        soldQuota: formData.soldQuota || null,
+        saleDate: formData.saleDate || null,
       } as CrmLead;
 
       if (lead) {
@@ -234,7 +244,9 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
   if (!isOpen) return null;
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={(open) => {
+      if (!open) onClose();
+    }}>
       <DialogContent className="sm:max-w-2xl bg-white dark:bg-slate-800 dark:text-white p-6">
         <DialogHeader>
           <DialogTitle>{lead ? 'Editar Lead' : 'Novo Lead'}</DialogTitle>

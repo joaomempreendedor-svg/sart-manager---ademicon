@@ -34,15 +34,20 @@ const parseCurrencyInput = (value: string): number => {
 };
 
 export const ProposalModal: React.FC<ProposalModalProps> = ({ isOpen, onClose, lead }) => {
-  const { updateCrmLead, updateCrmLeadStage, crmStages } = useApp();
+  const { updateCrmLead, crmStages, crmPipelines } = useApp();
   const [proposalValue, setProposalValue] = useState<string>('');
   const [closingDate, setClosingDate] = useState<string>('');
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
 
+  const activePipeline = useMemo(() => {
+    return crmPipelines.find(p => p.is_active) || crmPipelines[0];
+  }, [crmPipelines]);
+
   const proposalSentStage = useMemo(() => {
-    return crmStages.find(stage => stage.name.toLowerCase().includes('proposta') && stage.is_active);
-  }, [crmStages]);
+    if (!activePipeline) return null;
+    return crmStages.find(stage => stage.pipeline_id === activePipeline.id && stage.name.toLowerCase().includes('proposta') && stage.is_active);
+  }, [crmStages, activePipeline]);
 
   useEffect(() => {
     if (isOpen) {
@@ -67,23 +72,20 @@ export const ProposalModal: React.FC<ProposalModalProps> = ({ isOpen, onClose, l
       setError('A data de fechamento esperada é obrigatória.');
       return;
     }
+    if (!proposalSentStage) {
+      setError("Nenhuma etapa de 'Proposta' ativa configurada no pipeline. Por favor, configure-a nas configurações do CRM.");
+      return;
+    }
 
     setIsSaving(true);
     try {
       await updateCrmLead(lead.id, {
         proposalValue: parsedValue,
         proposalClosingDate: closingDate,
+        stage_id: proposalSentStage.id, // Mover para a etapa de proposta
       });
 
-      // Se existir uma etapa de "Proposta Enviada" e o lead não estiver nela, mova-o.
-      if (proposalSentStage && lead.stage_id !== proposalSentStage.id) {
-        await updateCrmLeadStage(lead.id, proposalSentStage.id);
-        toast.success(`Lead "${lead.name}" movido para a etapa "${proposalSentStage.name}"!`);
-      } else if (!proposalSentStage) {
-        toast.warn("Nenhuma etapa de 'Proposta' ativa encontrada. O lead não foi movido automaticamente.");
-      }
-
-      toast.success(`Proposta para "${lead.name}" salva com sucesso!`);
+      toast.success(`Proposta para "${lead.name}" salva e lead movido para "${proposalSentStage.name}" com sucesso!`);
       console.log("ProposalModal: Calling onClose() after successful save.");
       onClose(); // <--- Isso deve fechar o modal
     } catch (err: any) {

@@ -34,7 +34,7 @@ const parseCurrencyInput = (value: string): number => {
 };
 
 export const MarkAsSoldModal: React.FC<MarkAsSoldModalProps> = ({ isOpen, onClose, lead }) => {
-  const { updateCrmLead, updateCrmLeadStage, crmStages } = useApp();
+  const { updateCrmLead, crmStages, crmPipelines } = useApp();
   const [soldCreditValue, setSoldCreditValue] = useState<string>('');
   const [soldGroup, setSoldGroup] = useState<string>('');
   const [soldQuota, setSoldQuota] = useState<string>('');
@@ -42,9 +42,14 @@ export const MarkAsSoldModal: React.FC<MarkAsSoldModalProps> = ({ isOpen, onClos
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
 
+  const activePipeline = useMemo(() => {
+    return crmPipelines.find(p => p.is_active) || crmPipelines[0];
+  }, [crmPipelines]);
+
   const wonStage = useMemo(() => {
-    return crmStages.find(stage => stage.is_won && stage.is_active);
-  }, [crmStages]);
+    if (!activePipeline) return null;
+    return crmStages.find(stage => stage.pipeline_id === activePipeline.id && stage.is_won && stage.is_active);
+  }, [crmStages, activePipeline]);
 
   useEffect(() => {
     if (isOpen) {
@@ -92,17 +97,10 @@ export const MarkAsSoldModal: React.FC<MarkAsSoldModalProps> = ({ isOpen, onClos
         soldGroup: soldGroup.trim(),
         soldQuota: soldQuota.trim(),
         saleDate: saleDate,
+        stage_id: wonStage.id, // Mover o lead para a etapa "Ganha"
       });
 
-      // Mover o lead para a etapa "Ganha"
-      if (lead.stage_id !== wonStage.id) {
-        await updateCrmLeadStage(lead.id, wonStage.id);
-        toast.success(`Lead "${lead.name}" movido para a etapa "${wonStage.name}"!`);
-      } else if (!wonStage) {
-        toast.warn("Nenhuma etapa de 'Ganha' ativa encontrada. O lead não foi movido automaticamente.");
-      }
-
-      toast.success(`Venda para "${lead.name}" registrada com sucesso!`);
+      toast.success(`Venda para "${lead.name}" registrada e lead movido para "${wonStage.name}" com sucesso!`);
       onClose();
     } catch (err: any) {
       console.error("Erro ao registrar venda:", err);

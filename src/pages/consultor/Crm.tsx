@@ -25,7 +25,7 @@ const formatCurrency = (value: number) => {
 
 const ConsultorCrmPage = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
-  const { crmPipelines, crmStages, crmLeads, crmFields, teamMembers, isDataLoading, deleteCrmLead, updateCrmLeadStage, addCrmLead, origins, leadTasks } = useApp();
+  const { crmPipelines, crmStages, crmLeads, crmFields, teamMembers, isDataLoading, deleteCrmLead, updateCrmLead, addCrmLead, origins, leadTasks } = useApp();
   const [isLeadModalOpen, setIsLeadModalOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<CrmLead | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -171,7 +171,32 @@ const ConsultorCrmPage = () => {
   const handleStageChange = async (leadId: string, newStageId: string) => {
     if (!user) return;
     try {
-      await updateCrmLeadStage(leadId, newStageId);
+      await updateCrmLead(leadId, { stage_id: newStageId }); // Usando updateCrmLead diretamente
+    } catch (error: any) {
+      alert(`Erro ao mover lead: ${error.message}`);
+    }
+  };
+
+  const handleDragStart = (e: React.DragEvent, leadId: string) => {
+    e.dataTransfer.setData('leadId', leadId);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = async (e: React.DragEvent, targetStageId: string) => {
+    e.preventDefault();
+    const leadId = e.dataTransfer.getData('leadId');
+    if (!leadId || !user) return;
+
+    const leadToUpdate = crmLeads.find(l => l.id === leadId);
+    if (!leadToUpdate) return;
+
+    try {
+      await updateCrmLead(leadId, { stage_id: targetStageId }); // Usando updateCrmLead diretamente
     } catch (error: any) {
       alert(`Erro ao mover lead: ${error.message}`);
     }
@@ -299,7 +324,12 @@ const ConsultorCrmPage = () => {
 
       <div className="flex overflow-x-auto pb-4 space-x-4 custom-scrollbar">
         {pipelineStages.map(stage => (
-          <div key={stage.id} className="flex-shrink-0 w-56 bg-gray-100 dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700">
+          <div 
+            key={stage.id} 
+            className="flex-shrink-0 w-56 bg-gray-100 dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700"
+            onDragOver={handleDragOver}
+            onDrop={(e) => handleDrop(e, stage.id)}
+          >
             <div className="p-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
               <h3 className="font-semibold text-gray-900 dark:text-white flex items-center">
                 {stage.name.toLowerCase().includes('proposta') && <Send className="w-4 h-4 mr-2 text-purple-600 dark:text-purple-400" />}
@@ -349,7 +379,13 @@ const ConsultorCrmPage = () => {
                     .sort((a, b) => new Date(a.meeting_start_time!).getTime() - new Date(b.meeting_start_time!).getTime())[0];
 
                   return (
-                    <div key={lead.id} onClick={() => handleEditLead(lead)} className="bg-white dark:bg-slate-700 p-3 rounded-lg shadow-sm border border-gray-200 dark:border-slate-600 hover:border-brand-500 cursor-pointer transition-all group">
+                    <div 
+                      key={lead.id} 
+                      onClick={() => handleEditLead(lead)} 
+                      className="bg-white dark:bg-slate-700 p-3 rounded-lg shadow-sm border border-gray-200 dark:border-slate-600 hover:border-brand-500 cursor-pointer transition-all group"
+                      draggable="true"
+                      onDragStart={(e) => handleDragStart(e, lead.id)}
+                    >
                       <div className="flex justify-between items-start mb-2">
                         <p className="font-medium text-gray-900 dark:text-white">{lead.name}</p>
                         <div className="flex items-center space-x-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex-wrap justify-end">

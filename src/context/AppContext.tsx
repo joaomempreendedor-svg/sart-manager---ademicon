@@ -2826,7 +2826,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     updateCrmField,
     addCrmLead,
     updateCrmLead,
-    updateCrmLeadStage,
+    // REMOVIDO: updateCrmLeadStage
+    // updateCrmLeadStage,
     deleteCrmLead,
 
     // Daily checklist functions
