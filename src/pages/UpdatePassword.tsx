@@ -5,10 +5,10 @@ import { Lock, Loader2, ArrowRight, TrendingUp, CheckCircle2 } from 'lucide-reac
 import { useAuth } from '@/context/AuthContext';
 
 export const UpdatePassword = () => {
-  const { session } = useAuth();
+  const { session, updateUserPassword, logout } = useAuth();
   const navigate = useNavigate();
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [confirmPassword, setConfirm] = useState('');
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
@@ -41,14 +41,13 @@ export const UpdatePassword = () => {
 
     setLoading(true);
     try {
-      const { error: updateError } = await supabase.auth.updateUser({ password });
-      if (updateError) throw updateError;
-      setMessage('Senha atualizada com sucesso! Você será redirecionado para a tela de login em 3 segundos.');
-      setTimeout(() => {
-        supabase.auth.signOut().then(() => {
-          navigate('/login');
-        });
-      }, 3000);
+      await updateUserPassword(password);
+      setMessage('Senha atualizada com sucesso! Redirecionando para a tela de login...');
+      
+      // Desconecta o usuário e redireciona imediatamente
+      await logout();
+      navigate('/login');
+      
     } catch (err: any) {
       setError(err.message || 'Falha ao atualizar a senha. O link pode ter expirado.');
     } finally {
@@ -87,7 +86,7 @@ export const UpdatePassword = () => {
               <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Confirmar Nova Senha</label>
               <div className="mt-1 relative rounded-md shadow-sm">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Lock className="h-5 w-5 text-gray-400" /></div>
-                <input id="confirmPassword" name="confirmPassword" type="password" required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="focus:ring-brand-500 focus:border-brand-500 block w-full pl-10 sm:text-sm border-gray-300 dark:border-slate-600 rounded-md py-2 dark:bg-slate-700 dark:text-white" placeholder="Repita a nova senha" />
+                <input id="confirmPassword" name="confirmPassword" type="password" required value={confirmPassword} onChange={(e) => setConfirm(e.target.value)} className="focus:ring-brand-500 focus:border-brand-500 block w-full pl-10 sm:text-sm border-gray-300 dark:border-slate-600 rounded-md py-2 dark:bg-slate-700 dark:text-white" placeholder="Repita a nova senha" />
               </div>
             </div>
             {message && <div className="rounded-md bg-green-50 dark:bg-green-900/20 p-4 flex items-start space-x-3"><CheckCircle2 className="h-5 w-5 text-green-400" /><p className="text-sm font-medium text-green-800 dark:text-green-200">{message}</p></div>}
