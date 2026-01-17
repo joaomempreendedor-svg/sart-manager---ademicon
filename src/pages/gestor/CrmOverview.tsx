@@ -411,7 +411,7 @@ const CrmOverviewPage = () => {
                         )}
 
                         {isWonStage ? (
-                          lead.soldCreditValue && lead.soldCreditValue > 0 ? (
+                          lead.soldCreditValue !== undefined && lead.soldCreditValue !== null ? (
                             <div className="flex items-center text-green-600 dark:text-green-400 font-semibold">
                               <CheckCircle2 className="w-3 h-3 mr-1" /> Vendido: {formatCurrency(lead.soldCreditValue)}
                               {lead.saleDate && (

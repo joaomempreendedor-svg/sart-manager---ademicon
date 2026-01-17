@@ -47,7 +47,8 @@ export const MarkAsSoldModal: React.FC<MarkAsSoldModalProps> = ({ isOpen, onClos
 
   useEffect(() => {
     if (isOpen) {
-      setSoldCreditValue(lead.soldCreditValue ? formatCurrencyInput(lead.soldCreditValue.toFixed(2).replace('.', ',')) : '');
+      // Inicializa com '0,00' se o valor for 0, null ou undefined, caso contrário, formata o valor existente.
+      setSoldCreditValue(lead.soldCreditValue !== undefined && lead.soldCreditValue !== null ? formatCurrencyInput(lead.soldCreditValue.toFixed(2).replace('.', ',')) : '0,00');
       setSoldGroup(lead.soldGroup || '');
       setSoldQuota(lead.soldQuota || '');
       setSaleDate(lead.saleDate || new Date().toISOString().split('T')[0]);
@@ -61,8 +62,8 @@ export const MarkAsSoldModal: React.FC<MarkAsSoldModalProps> = ({ isOpen, onClos
 
     const parsedSoldCreditValue = parseCurrencyInput(soldCreditValue);
 
-    if (!parsedSoldCreditValue || parsedSoldCreditValue <= 0) {
-      setError('O valor do crédito vendido deve ser maior que zero.');
+    if (!parsedSoldCreditValue || parsedSoldCreditValue < 0) { // Alterado para permitir 0, mas não negativo
+      setError('O valor do crédito vendido deve ser maior ou igual a zero.');
       return;
     }
     if (!soldGroup.trim()) {
