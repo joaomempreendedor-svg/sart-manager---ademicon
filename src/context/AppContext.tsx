@@ -623,8 +623,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               id: `legacy_${item.id}`,
               db_id: item.id,
               name: data.name,
-              email: data.email, // Corrigido: Acessar email diretamente do objeto 'data'
-              roles: Array.isArray(data.roles) ? data.roles : [data.role || 'Prévia'],
+              email: data.email, // Corrected: Access email from 'data'
+              roles: Array.isArray(data.roles) ? data.roles : [data.role || 'Prévia'], // Corrected: Access roles from 'data'
               isActive: data.isActive !== false,
               isLegacy: true,
               hasLogin: false,
@@ -637,8 +637,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             id: data.id,
             db_id: item.id,
             name: data.name,
-            email: item.data.email, // Corrigido: Acessar email diretamente do objeto 'data'
-            roles: Array.isArray(item.data.roles) ? item.data.roles : [item.data.role || 'Prévia'],
+            email: data.email, // Corrected: Access email from 'data'
+            roles: Array.isArray(data.roles) ? data.roles : [data.role || 'Prévia'], // Corrected: Access roles from 'data'
             isActive: data.isActive !== false,
             hasLogin: true,
             isLegacy: false,
@@ -1337,8 +1337,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           id: item.data.id,
           db_id: item.id,
           name: item.data.name,
-          email: item.data.email,
-          roles: Array.isArray(item.data.roles) ? data.roles : [item.data.role || 'Prévia'],
+          email: item.data.email, // Corrected: Access email from 'data'
+          roles: Array.isArray(item.data.roles) ? item.data.roles : [item.data.role || 'Prévia'], // Corrected: Access roles from 'data'
           isActive: item.data.isActive !== false,
           hasLogin: true,
           isLegacy: false,
@@ -2228,7 +2228,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (index === -1) return;
 
     const newIndex = direction === 'up' ? index - 1 : index + 1;
-    if (newIndex < 0 || newIndex >= items.length) return stage;
+    if (newIndex < 0 || newIndex >= items.length) return;
 
     const [removed] = items.splice(index, 1);
     items.splice(newIndex, 0, removed);
