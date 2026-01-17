@@ -1949,7 +1949,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const fieldMappings = {
       proposalValue: 'proposal_value',
       proposalClosingDate: 'proposal_closing_date',
-      soldCreditValue: 'sold_credit_value',
+      soldCreditValue: 'sold_credit_value', // HERE!
       soldGroup: 'sold_group',
       soldQuota: 'sold_quota',
       saleDate: 'sale_date',
@@ -2146,7 +2146,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (index === -1) return;
 
     const newIndex = direction === 'up' ? index - 1 : index + 1;
-    if (newIndex < 0 || newIndex >= items.length) return;
+    if (newIndex < 0 || newIndex >= items.length) return stage;
 
     const [removed] = items.splice(index, 1);
     items.splice(newIndex, 0, removed);
