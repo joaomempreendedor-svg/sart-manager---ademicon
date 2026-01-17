@@ -9,6 +9,18 @@ const corsHeaders = {
 // ID do gestor principal para vincular os cadastros do formulário
 const JOAO_GESTOR_AUTH_ID = "0c6d71b7-daeb-4dde-8eec-0e7a8ffef658"; // <--- ATUALIZADO COM O SEU ID DE GESTOR!
 
+// Helper function to sanitize filenames
+const sanitizeFilename = (filename: string): string => {
+  return filename
+    .normalize("NFD") // Normalize to decompose combined characters
+    .replace(/[\u0300-\u036f]/g, "") // Remove diacritics
+    .replace(/[^a-zA-Z0-9.]/g, "-") // Replace non-alphanumeric (except dot) with hyphen
+    .replace(/--+/g, "-") // Replace multiple hyphens with a single one
+    .replace(/^-/, "") // Remove leading hyphen
+    .replace(/-\./, ".") // Fix hyphen before dot
+    .toLowerCase();
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -51,11 +63,12 @@ serve(async (req) => {
 
     // 2. Processar e fazer upload dos arquivos para o Supabase Storage
     for (const fileData of files) {
-      const { fieldName, fileName, fileType, fileContent } = fileData;
+      const { fieldName, fileName: originalFileName, fileType, fileContent } = fileData;
       const fileBuffer = Uint8Array.from(fileContent);
 
-      const filePath = `public/${cadastroId}/${fieldName}-${fileName}`;
-      console.log(`[submit-form] Attempting to upload file: ${fileName} to ${filePath}`);
+      const sanitizedFileName = sanitizeFilename(originalFileName); // Sanitize the filename
+      const filePath = `${cadastroId}/${fieldName}-${sanitizedFileName}`; // Removed 'public/' prefix
+      console.log(`[submit-form] Attempting to upload file: ${originalFileName} (sanitized: ${sanitizedFileName}) to ${filePath}`);
 
       const { error: uploadError } = await supabaseAdmin.storage
         .from('form_uploads')
@@ -65,40 +78,40 @@ serve(async (req) => {
         });
 
       if (uploadError) {
-        console.error(`[submit-form] Error uploading file ${fileName}:`, uploadError);
+        console.error(`[submit-form] Error uploading file ${originalFileName}:`, uploadError);
         throw uploadError;
       }
-      console.log(`[submit-form] File ${fileName} uploaded successfully.`);
+      console.log(`[submit-form] File ${originalFileName} uploaded successfully.`);
 
       const { data: publicUrlData } = supabaseAdmin.storage
         .from('form_uploads')
         .getPublicUrl(filePath);
 
       if (!publicUrlData) {
-        console.error(`[submit-form] Could not get public URL for ${fileName}.`);
-        throw new Error(`Não foi possível obter a URL pública para ${fileName}.`);
+        console.error(`[submit-form] Could not get public URL for ${originalFileName}.`);
+        throw new Error(`Não foi possível obter a URL pública para ${originalFileName}.`);
       }
-      console.log(`[submit-form] Public URL for ${fileName}: ${publicUrlData.publicUrl}`);
+      console.log(`[submit-form] Public URL for ${originalFileName}: ${publicUrlData.publicUrl}`);
 
       // 3. Inserir metadados do arquivo na tabela form_files
-      console.log(`[submit-form] Attempting to insert file record for ${fileName}...`);
+      console.log(`[submit-form] Attempting to insert file record for ${originalFileName}...`);
       const { data: fileRecord, error: fileRecordError } = await supabaseAdmin
         .from('form_files')
         .insert({
           submission_id: cadastroId,
           field_name: fieldName,
-          file_name: fileName,
+          file_name: originalFileName, // Store original file name in DB
           file_url: publicUrlData.publicUrl,
         })
         .select('id')
         .single();
 
       if (fileRecordError) {
-        console.error(`[submit-form] Error inserting file record for ${fileName}:`, fileRecordError);
+        console.error(`[submit-form] Error inserting file record for ${originalFileName}:`, fileRecordError);
         throw fileRecordError;
       }
-      console.log(`[submit-form] File record for ${fileName} inserted successfully. ID: ${fileRecord.id}`);
-      uploadedFilesMetadata.push({ id: fileRecord.id, fileName, fileUrl: publicUrlData.publicUrl });
+      console.log(`[submit-form] File record for ${originalFileName} inserted successfully. ID: ${fileRecord.id}`);
+      uploadedFilesMetadata.push({ id: fileRecord.id, fileName: originalFileName, fileUrl: publicUrlData.publicUrl });
     }
 
     // 4. Criar notificação para o gestor
