@@ -32,6 +32,8 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
 
   if (!isOpen) return null;
 
+  const unreadNotifications = notifications.filter(n => !n.isRead);
+
   const getIcon = (type: Notification['type']) => {
     switch (type) {
       case 'birthday': return <Gift className="w-5 h-5 text-pink-500" />;
@@ -43,6 +45,9 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   };
 
   const handleNotificationClick = (notification: Notification) => {
+    if (onMarkAsRead) {
+      onMarkAsRead(notification.id);
+    }
     if (notification.link) {
       navigate(notification.link);
     }
@@ -55,7 +60,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
         <DialogHeader className="px-6 py-4 border-b border-gray-100 dark:border-slate-700 flex justify-between items-center bg-gray-50 dark:bg-slate-700/50">
           <DialogTitle className="font-semibold text-lg text-gray-900 dark:text-white flex items-center space-x-2">
             <Bell className="w-6 h-6 text-brand-500" />
-            <span>Notificações ({notifications.length})</span>
+            <span>Notificações ({unreadNotifications.length})</span>
           </DialogTitle>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
             <X className="w-5 h-5" />
@@ -63,14 +68,17 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
         </DialogHeader>
         
         <ScrollArea className="max-h-[70vh] py-4 custom-scrollbar">
-          {notifications.length === 0 ? (
+          {unreadNotifications.length === 0 ? (
             <div className="p-6 text-center text-gray-500 dark:text-gray-400">
               <Bell className="mx-auto w-12 h-12 mb-3" />
               <p>Nenhuma notificação nova.</p>
+              {notifications.length > 0 && (
+                <p className="text-sm mt-2">Você não tem notificações não lidas.</p>
+              )}
             </div>
           ) : (
             <div className="space-y-3 px-4">
-              {notifications.map(notification => (
+              {unreadNotifications.map(notification => (
                 <div
                   key={notification.id}
                   onClick={() => handleNotificationClick(notification)}
@@ -94,6 +102,16 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
         </ScrollArea>
 
         <DialogFooter className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-700 px-6 py-4 bg-gray-50 dark:bg-slate-700/50 flex-col sm:flex-row">
+          {unreadNotifications.length > 0 && onMarkAllAsRead && (
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={onMarkAllAsRead} 
+              className="dark:bg-slate-700 dark:text-white dark:border-slate-600 w-full sm:w-auto mb-2 sm:mb-0"
+            >
+              Marcar todas como lidas
+            </Button>
+          )}
           <Button onClick={onClose} className="bg-brand-600 hover:bg-brand-700 text-white w-full sm:w-auto">
             Fechar
           </Button>

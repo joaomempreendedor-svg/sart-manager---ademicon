@@ -90,6 +90,29 @@ serve(async (req) => {
       uploadedFilesMetadata.push({ id: fileRecord.id, fileName, fileUrl: publicUrlData.publicUrl });
     }
 
+    // 4. Criar notificação para o gestor
+    const clientName = cadastroData.nome_completo || 'Desconhecido';
+    const notificationTitle = `Novo Cadastro de Formulário: ${clientName}`;
+    const notificationDescription = `Um novo formulário foi enviado e aguarda revisão.`;
+    const notificationLink = `/gestor/form-cadastros`; // Link para a página de gerenciamento de formulários
+
+    const { error: notificationError } = await supabaseAdmin
+      .from('notifications')
+      .insert({
+        user_id: JOAO_GESTOR_AUTH_ID,
+        type: 'form_submission',
+        title: notificationTitle,
+        description: notificationDescription,
+        date: new Date().toISOString().split('T')[0],
+        link: notificationLink,
+        is_read: false,
+      });
+
+    if (notificationError) {
+      console.error("Erro ao criar notificação:", notificationError);
+      // Não lançar erro aqui para não impedir o envio do formulário
+    }
+
     return new Response(JSON.stringify({
       message: 'Formulário e arquivos enviados com sucesso!',
       cadastroId,

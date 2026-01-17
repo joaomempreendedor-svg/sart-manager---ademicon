@@ -334,20 +334,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     });
 
     // 2. Documentação enviada no formulário (novos cadastros)
-    formCadastros.filter(cadastro => {
-      const submissionDate = new Date(cadastro.submission_date);
-      return (today.getTime() - submissionDate.getTime() < 24 * 60 * 60 * 1000) && !cadastro.is_complete;
-    }).forEach(cadastro => {
-      newNotifications.push({
-        id: `form-submission-${cadastro.id}`,
-        type: 'form_submission',
-        title: `Novo Cadastro de Formulário: ${cadastro.data.nome_completo || 'Desconhecido'}`,
-        description: `Um novo formulário foi enviado e aguarda revisão.`,
-        date: cadastro.submission_date.split('T')[0],
-        link: `/gestor/form-cadastros`,
-        isRead: false,
-      });
-    });
+    // REMOVIDO: Esta lógica será substituída pela notificação inserida diretamente na Edge Function
+    // formCadastros.filter(cadastro => {
+    //   const submissionDate = new Date(cadastro.submission_date);
+    //   return (today.getTime() - submissionDate.getTime() < 24 * 60 * 60 * 1000) && !cadastro.is_complete;
+    // }).forEach(cadastro => {
+    //   newNotifications.push({
+    //     id: `form-submission-${cadastro.id}`,
+    //     type: 'form_submission',
+    //     title: `Novo Cadastro de Formulário: ${cadastro.data.nome_completo || 'Desconhecido'}`,
+    //     description: `Um novo formulário foi enviado e aguarda revisão.`,
+    //     date: cadastro.submission_date.split('T')[0],
+    //     link: `/gestor/form-cadastros`,
+    //     isRead: false,
+    //   });
+    // });
 
     // 3. Nova Venda Registrada (CRM Leads)
     crmLeads.filter(lead => {
@@ -390,6 +391,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     setNotifications(newNotifications);
   }, [user, teamMembers, formCadastros, crmLeads, onboardingSessions]);
+
+  const onMarkAsRead = useCallback(async (notificationId: string) => {
+    if (!user) return;
+    await supabase.from('notifications').update({ is_read: true }).eq('id', notificationId).eq('user_id', user.id);
+    setNotifications(prev => prev.map(n => n.id === notificationId ? { ...n, isRead: true } : n));
+  }, [user]);
+
+  const onMarkAllAsRead = useCallback(async () => {
+    if (!user) return;
+    await supabase.from('notifications').update({ is_read: true }).eq('user_id', user.id).eq('is_read', false);
+    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+  }, [user]);
 
   useEffect(() => {
     clearStaleAuth();
@@ -471,6 +484,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           financialEntriesData,
           formCadastrosData,
           formFilesData,
+          notificationsData, // NOVO: Busca de notificações
           // REMOVIDO: Busca de eventos do consultor
           // consultantEventsData, 
         ] = await Promise.all([
@@ -516,6 +530,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           (async () => { try { return await supabase.from('financial_entries').select('*').eq('user_id', userId); } catch (e) { console.error("Error fetching financial_entries:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('form_submissions').select('id, submission_date, data, internal_notes, is_complete').eq('user_id', effectiveGestorId).order('submission_date', { ascending: false }); } catch (e) { console.error("Error fetching form_submissions:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('form_files').select('*'); } catch (e) { console.error("Error fetching form_files:", e); return { data: [], error: e }; } })(),
+          (async () => { try { return await supabase.from('notifications').select('*').eq('user_id', userId).eq('is_read', false).order('created_at', { ascending: false }); } catch (e) { console.error("Error fetching notifications:", e); return { data: [], error: e }; } })(), // NOVO: Busca de notificações
         ]);
 
         if (configResult.error) console.error("Config error:", configResult.error);
@@ -544,6 +559,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (financialEntriesData.error) console.error("Financial Entries error:", financialEntriesData.error);
         if (formCadastrosData.error) console.error("Form Cadastros error:", formCadastrosData.error);
         if (formFilesData.error) console.error("Form Files error:", formFilesData.error);
+        if (notificationsData.error) console.error("Notifications error:", notificationsData.error); // NOVO: Log de erro para notificações
         // REMOVIDO: Log de erro para eventos do consultor
         // if (consultantEventsData.error) console.error("Consultant Events error:", consultantEventsData.error); 
 
@@ -702,6 +718,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         })) || []);
         setFormCadastros(formCadastrosData?.data || []);
         setFormFiles(formFilesData?.data || []);
+        setNotifications(notificationsData?.data || []); // NOVO: Define as notificações
         // REMOVIDO: Define eventos do consultor
         // setConsultantEvents([]); 
         
@@ -1013,6 +1030,32 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         })
         .subscribe();
 
+    const notificationsChannel = supabase // NOVO: Canal de notificações
+        .channel('notifications_changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${user?.id}` }, (payload) => {
+            console.log('Notification Change (Realtime):', payload);
+            toast.info(`🔔 Nova notificação: "${payload.new.title || payload.old.title}"`);
+            const newNotificationData: Notification = {
+                id: payload.new.id,
+                user_id: payload.new.user_id,
+                type: payload.new.type,
+                title: payload.new.title,
+                description: payload.new.description,
+                date: payload.new.date,
+                link: payload.new.link,
+                isRead: payload.new.is_read,
+            };
+
+            if (payload.eventType === 'INSERT') {
+                setNotifications(prev => [newNotificationData, ...prev]);
+            } else if (payload.eventType === 'UPDATE') {
+                setNotifications(prev => prev.map(notif => notif.id === newNotificationData.id ? newNotificationData : notif));
+            } else if (payload.eventType === 'DELETE') {
+                setNotifications(prev => prev.filter(notif => notif.id !== payload.old.id));
+            }
+        })
+        .subscribe();
+
     // REMOVIDO: Canal de eventos do consultor
     // const consultantEventsChannel = supabase
     //     .channel('consultant_events_changes')
@@ -1062,6 +1105,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         supabase.removeChannel(financialEntriesChannel);
         supabase.removeChannel(formCadastrosChannel);
         supabase.removeChannel(formFilesChannel);
+        supabase.removeChannel(notificationsChannel); // NOVO: Remove o canal de notificações
         // REMOVIDO: Remove o canal de eventos do consultor
         // supabase.removeChannel(consultantEventsChannel); 
     };

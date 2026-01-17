@@ -14,7 +14,7 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ isSidebarOpen, toggleSidebar, user }) => {
-  const { notifications } = useApp(); // Usar notificações do AppContext
+  const { notifications, onMarkAsRead, onMarkAllAsRead } = useApp(); // Usar notificações do AppContext
   const [isNotificationCenterOpen, setIsNotificationCenterOpen] = useState(false);
 
   const handleOpenNotifications = () => {
@@ -34,13 +34,15 @@ export const Header: React.FC<HeaderProps> = ({ isSidebarOpen, toggleSidebar, us
       {(user?.role === 'GESTOR' || user?.role === 'ADMIN') && (
         <div className="flex items-center space-x-4">
           <NotificationBell
-            notificationCount={notifications.length}
+            notificationCount={notifications.filter(n => !n.isRead).length} // Contar apenas não lidas
             onClick={handleOpenNotifications}
           />
           <NotificationCenter
             isOpen={isNotificationCenterOpen}
             onClose={handleCloseNotifications}
             notifications={notifications}
+            onMarkAsRead={onMarkAsRead}
+            onMarkAllAsRead={onMarkAllAsRead}
           />
         </div>
       )}
