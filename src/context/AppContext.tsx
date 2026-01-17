@@ -1929,83 +1929,84 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const lead = crmLeads.find(l => l.id === id);
     if (!lead) throw new Error("Lead não encontrado.");
 
-    // Deep copy para garantir imutabilidade
     const currentLeadDeepCopy: CrmLead = JSON.parse(JSON.stringify(lead));
-    const updatesDeepCopy: Partial<CrmLead> = JSON.parse(JSON.stringify(updates));
 
-    // Merge data field
-    const updatedDataJsonb = { ...currentLeadDeepCopy.data, ...updatesDeepCopy.data };
-    if (updatesDeepCopy.data?.origin !== undefined) { // Handle origin specifically if it's in updates.data
-      updatedDataJsonb.origin = updatesDeepCopy.data.origin;
-    }
-
-    // Construct the new lead object for local state update
-    const mergedLeadData: CrmLead = {
-      ...currentLeadDeepCopy,
-      ...updatesDeepCopy,
-      data: updatedDataJsonb,
-      updated_by: user.id,
-      // Ensure proposalValue and soldCreditValue are numbers, even if they come as null/undefined
-      proposalValue: updatesDeepCopy.proposalValue !== undefined ? updatesDeepCopy.proposalValue : currentLeadDeepCopy.proposalValue,
-      soldCreditValue: updatesDeepCopy.soldCreditValue !== undefined ? updatesDeepCopy.soldCreditValue : currentLeadDeepCopy.soldCreditValue,
+    // Prepare data for Supabase with snake_case keys
+    const dataToUpdateInDb: any = {
+      updated_by: user.id, // Always update who last modified it
+      updated_at: new Date().toISOString(), // Always update timestamp
     };
 
-    // Prepare data for Supabase (snake_case and remove client-side fields)
-    const finalDataForSupabase: any = { ...mergedLeadData };
-    delete finalDataForSupabase.id; // Supabase uses 'id' as primary key, not client-side 'id'
-    delete finalDataForSupabase.created_at;
-    delete finalDataForSupabase.updated_at;
-
     const fieldMappings = {
+      name: 'name',
+      stage_id: 'stage_id',
+      consultant_id: 'consultant_id',
       proposalValue: 'proposal_value',
       proposalClosingDate: 'proposal_closing_date',
       soldCreditValue: 'sold_credit_value',
       soldGroup: 'sold_group',
       soldQuota: 'sold_quota',
       saleDate: 'sale_date',
-      createdBy: 'created_by',
-      updatedBy: 'updated_by',
+      // 'data' is a special JSONB field, handled separately
     };
 
-    for (const camelCaseKey in fieldMappings) {
-      const snakeCaseKey = fieldMappings[camelCaseKey as keyof typeof fieldMappings];
-      if (finalDataForSupabase[camelCaseKey] !== undefined) {
-        finalDataForSupabase[snakeCaseKey] = finalDataForSupabase[camelCaseKey];
-        delete finalDataForSupabase[camelCaseKey];
+    for (const key in updates) {
+      if (key === 'data') {
+        // Merge the existing JSONB data with the new updates.data
+        dataToUpdateInDb.data = { ...currentLeadDeepCopy.data, ...updates.data };
+      } else if (fieldMappings[key as keyof typeof fieldMappings]) {
+        // Map camelCase to snake_case for direct columns
+        dataToUpdateInDb[fieldMappings[key as keyof typeof fieldMappings]] = (updates as any)[key];
+      } else {
+        // For any other direct column not explicitly mapped (e.g., 'name' if not in fieldMappings)
+        dataToUpdateInDb[key] = (updates as any)[key];
       }
     }
-    
-    // Ensure data field is correctly passed
-    finalDataForSupabase.data = updatedDataJsonb;
 
-    console.log("[updateCrmLead] Final payload before update:", finalDataForSupabase);
+    console.log("[updateCrmLead] Final payload before update:", dataToUpdateInDb);
 
-    const { data, error } = await supabase.from('crm_leads').update(finalDataForSupabase).eq('id', id).eq('user_id', JOAO_GESTOR_AUTH_ID).select('*').single();
+    const { data, error } = await supabase.from('crm_leads').update(dataToUpdateInDb).eq('id', id).eq('user_id', JOAO_GESTOR_AUTH_ID).select('*').single();
     if (error) {
       console.error("[updateCrmLead] Erro ao atualizar lead no Supabase:", error);
       throw error;
     }
 
     // Update local state with the data returned from Supabase (which includes updated_at)
-    setCrmLeads(prev => prev.map(l => l.id === id ? {
-      ...mergedLeadData, // Use merged data for immediate UI update
-      updated_at: data.updated_at, // Use updated_at from DB
-      // Ensure values are numbers from DB response
+    // We need to reconstruct the CrmLead object in camelCase for the local state
+    const updatedLeadFromDb: CrmLead = {
+      ...currentLeadDeepCopy, // Start with existing data
+      ...updates, // Apply the updates from the function call
+      id: data.id, // Ensure ID is correct
+      created_at: data.created_at,
+      updated_at: data.updated_at,
+      user_id: data.user_id,
+      consultant_id: data.consultant_id,
+      stage_id: data.stage_id,
+      name: data.name,
+      data: data.data,
       proposalValue: parseDbCurrency(data.proposal_value),
+      proposalClosingDate: data.proposal_closing_date,
       soldCreditValue: parseDbCurrency(data.sold_credit_value),
-    } : l));
-    return mergedLeadData; // Return the locally merged data for immediate use
+      soldGroup: data.sold_group,
+      soldQuota: data.sold_quota,
+      saleDate: data.sale_date,
+      created_by: data.created_by,
+      updated_by: data.updated_by,
+    };
+
+    setCrmLeads(prev => prev.map(l => l.id === id ? updatedLeadFromDb : l));
+    return updatedLeadFromDb;
   }, [user, crmLeads]);
 
   // REMOVIDO: updateCrmLeadStage
-  const updateCrmLeadStage = useCallback(async (leadId: string, newStageId: string) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const lead = crmLeads.find(l => l.id === leadId);
-    if (!lead) throw new Error("Lead não encontrado.");
+  // const updateCrmLeadStage = useCallback(async (leadId: string, newStageId: string) => {
+  //   if (!user) throw new Error("Usuário não autenticado.");
+  //   const lead = crmLeads.find(l => l.id === leadId);
+  //   if (!lead) throw new Error("Lead não encontrado.");
 
-    // Chamar updateCrmLead com a nova stage_id
-    await updateCrmLead(leadId, { stage_id: newStageId });
-  }, [user, crmLeads, updateCrmLead]);
+  //   // Chamar updateCrmLead com a nova stage_id
+  //   await updateCrmLead(leadId, { stage_id: newStageId });
+  // }, [user, crmLeads, updateCrmLead]);
 
 
   const deleteCrmLead = useCallback(async (id: string) => {
