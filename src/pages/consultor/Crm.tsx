@@ -395,7 +395,7 @@ const ConsultorCrmPage = () => {
                             </div>
                           )
                         ) : (
-                          lead.proposalValue && lead.proposalValue > 0 ? (
+                          lead.proposalValue !== undefined && lead.proposalValue !== null ? (
                             <div className="flex items-center text-purple-600 dark:text-purple-400 font-semibold">
                               <DollarSign className="w-3 h-3 mr-1" /> Proposta: {formatCurrency(lead.proposalValue)}
                               {lead.proposalClosingDate && (

@@ -13,6 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import toast from 'react-hot-toast';
 
 interface MarkAsSoldModalProps {
   isOpen: boolean;
@@ -96,8 +97,12 @@ export const MarkAsSoldModal: React.FC<MarkAsSoldModalProps> = ({ isOpen, onClos
       // Mover o lead para a etapa "Ganha"
       if (lead.stage_id !== wonStage.id) {
         await updateCrmLeadStage(lead.id, wonStage.id);
+        toast.success(`Lead "${lead.name}" movido para a etapa "${wonStage.name}"!`);
+      } else if (!wonStage) {
+        toast.warn("Nenhuma etapa de 'Ganha' ativa encontrada. O lead não foi movido automaticamente.");
       }
 
+      toast.success(`Venda para "${lead.name}" registrada com sucesso!`);
       onClose();
     } catch (err: any) {
       console.error("Erro ao registrar venda:", err);

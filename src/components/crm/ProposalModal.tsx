@@ -13,6 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import toast from 'react-hot-toast';
 
 interface ProposalModalProps {
   isOpen: boolean;
@@ -77,8 +78,12 @@ export const ProposalModal: React.FC<ProposalModalProps> = ({ isOpen, onClose, l
       // Se existir uma etapa de "Proposta Enviada" e o lead não estiver nela, mova-o.
       if (proposalSentStage && lead.stage_id !== proposalSentStage.id) {
         await updateCrmLeadStage(lead.id, proposalSentStage.id);
+        toast.success(`Lead "${lead.name}" movido para a etapa "${proposalSentStage.name}"!`);
+      } else if (!proposalSentStage) {
+        toast.warn("Nenhuma etapa de 'Proposta' ativa encontrada. O lead não foi movido automaticamente.");
       }
 
+      toast.success(`Proposta para "${lead.name}" salva com sucesso!`);
       console.log("ProposalModal: Calling onClose() after successful save.");
       onClose(); // <--- Isso deve fechar o modal
     } catch (err: any) {
