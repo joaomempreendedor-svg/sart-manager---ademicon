@@ -137,7 +137,7 @@ serve(async (req) => {
     });
 
   } catch (error: any) {
-    console.error('[submit-form] Erro crítico na Edge Function:', error.message || error, { error });
+    console.error('[submit-form] Erro crítico na Edge Function:', JSON.stringify(error, Object.getOwnPropertyNames(error)), { error });
     return new Response(JSON.stringify({ error: error.message || 'Falha ao processar cadastro do formulário.' }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
