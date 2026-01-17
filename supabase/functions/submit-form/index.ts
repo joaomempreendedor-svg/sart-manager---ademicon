@@ -119,7 +119,7 @@ serve(async (req) => {
     const notificationTitle = `Novo Cadastro de Formulário: ${clientName}`;
     const notificationDescription = `Um novo formulário foi enviado e aguarda revisão.`;
     const notificationLink = `/gestor/form-cadastros`;
-    console.log(`[submit-form] Attempting to insert notification for user ${JOAO_GESTOR_AUTH_ID}...`);
+    console.log(`[submit-form] Attempting to insert notification for user ${JOAO_GESTOR_AUTH_ID}...`); // Adicionado log aqui
 
     const { error: notificationError } = await supabaseAdmin
       .from('notifications')
