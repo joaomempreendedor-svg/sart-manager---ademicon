@@ -242,6 +242,9 @@ const ConsultorCrmPage = () => {
           </div>
           <ExportCrmLeadsButton
             leads={filteredLeads}
+            crmFields={crmFields}
+            crmStages={crmStages}
+            teamMembers={teamMembers}
             fileName="leads_crm_consultor"
           />
           <button
@@ -307,7 +310,7 @@ const ConsultorCrmPage = () => {
                 <div className="mt-1 text-sm font-bold text-purple-700 dark:text-purple-300">
                   Total Propostas (Mês): {formatCurrency(
                     groupedLeads[stage.id].reduce((sum, lead) => {
-                      if (lead.proposalValue && lead.proposalValue > 0 && lead.proposalClosingDate) {
+                      if (lead.proposalValue !== undefined && lead.proposalValue !== null && lead.proposalClosingDate) {
                         const proposalDate = new Date(lead.proposalClosingDate + 'T00:00:00');
                         if (proposalDate >= currentMonthStart && proposalDate <= currentMonthEnd) {
                           return sum + (lead.proposalValue || 0);

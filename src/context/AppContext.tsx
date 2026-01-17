@@ -66,14 +66,14 @@ const clearStaleAuth = () => {
 const JOAO_GESTOR_AUTH_ID = "0c6d71b7-daeb-4dde-8eec-0e7a8ffef658"; // <--- ATUALIZADO COM O SEU ID DE GESTOR!
 
 // Helper function to parse currency strings from the database into numbers
-const parseDbCurrency = (value: any): number => {
+const parseDbCurrency = (value: any): number | null => { // Alterado para retornar null se não for um número válido
   if (typeof value === 'number') return value;
   if (typeof value === 'string') {
-    // Remove currency symbols, thousands separators (.), and replace decimal comma (,) with dot (.)
     const cleaned = value.replace(/[^0-9,-]+/g, '').replace(/\./g, '').replace(',', '.');
-    return parseFloat(cleaned) || 0;
+    const parsed = parseFloat(cleaned);
+    return isNaN(parsed) ? null : parsed; // Retorna null se não for um número
   }
-  return 0;
+  return null;
 };
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -351,7 +351,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     // 3. Nova Venda Registrada (CRM Leads)
     crmLeads.filter(lead => {
-      if (!lead.soldCreditValue || !lead.saleDate) return false;
+      if (lead.soldCreditValue === undefined || lead.soldCreditValue === null || !lead.saleDate) return false; // Alterado para verificar se o valor foi informado
       
       return lead.saleDate === todayFormatted || lead.saleDate === yesterdayFormatted;
     }).forEach(lead => {
@@ -2697,8 +2697,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   //   const { error } = await supabase
   //     .from('consultant_events')
   //     .delete()
-  //     .eq('id', id)
-  //     .eq('user_id', user.id);
+      // .eq('id', id)
+      // .eq('user_id', user.id);
   //   if (error) {
   //     console.error("[AppContext] deleteConsultantEvent: Error deleting event:", error);
   //     throw error;

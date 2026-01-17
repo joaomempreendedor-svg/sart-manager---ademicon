@@ -46,7 +46,7 @@ export const ProposalModal: React.FC<ProposalModalProps> = ({ isOpen, onClose, l
 
   useEffect(() => {
     if (isOpen) {
-      setProposalValue(lead.proposalValue ? formatCurrencyInput(lead.proposalValue.toFixed(2).replace('.', ',')) : '');
+      setProposalValue(lead.proposalValue !== undefined && lead.proposalValue !== null ? formatCurrencyInput(lead.proposalValue.toFixed(2).replace('.', ',')) : '');
       setClosingDate(lead.proposalClosingDate || '');
       setError('');
     }
