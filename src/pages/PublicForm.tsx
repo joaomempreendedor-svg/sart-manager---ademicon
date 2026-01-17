@@ -487,7 +487,7 @@ export const PublicForm = () => {
                           value={formData[fieldName as keyof FormData] as string || ''} 
                           onChange={handleChange} // Adicionado onChange
                           readOnly={!['cep', 'numero_endereco', 'complemento_endereco'].includes(fieldName)} 
-                          className="mt-1 block w-full border-gray-300 dark:border-slate-600 rounded-md shadow-sm p-2 dark:bg-slate-700 dark:text-white" 
+                          className="mt-1 block w-full border-gray-400 dark:border-slate-500 rounded-md shadow-sm p-2 dark:bg-slate-700 dark:text-white" 
                         />
                       </div>
                     );
@@ -510,7 +510,7 @@ export const PublicForm = () => {
                           value={formData.cpf} 
                           onChange={handleChange} 
                           onBlur={() => setErrors(prev => ({ ...prev, cpf: validateField('cpf', formData.cpf) }))}
-                          className="mt-1 block w-full border-gray-300 dark:border-slate-600 rounded-md shadow-sm p-2 dark:bg-slate-700 dark:text-white" 
+                          className="mt-1 block w-full border-gray-400 dark:border-slate-500 rounded-md shadow-sm p-2 dark:bg-slate-700 dark:text-white" 
                           placeholder="000.000.000-00"
                           maxLength={14}
                         />
@@ -522,7 +522,7 @@ export const PublicForm = () => {
                           value={formData.celular} 
                           onChange={handleChange} 
                           onBlur={() => setErrors(prev => ({ ...prev, celular: validateField('celular', formData.celular) }))}
-                          className="mt-1 block w-full border-gray-300 dark:border-slate-600 rounded-md shadow-sm p-2 dark:bg-slate-700 dark:text-white" 
+                          className="mt-1 block w-full border-gray-400 dark:border-slate-500 rounded-md shadow-sm p-2 dark:bg-slate-700 dark:text-white" 
                           placeholder="(00) 00000-0000"
                           maxLength={15}
                         />
@@ -534,7 +534,7 @@ export const PublicForm = () => {
                           value={formData.cep} 
                           onChange={handleChange} 
                           onBlur={handleCepBlur}
-                          className="mt-1 block w-full border-gray-300 dark:border-slate-600 rounded-md shadow-sm p-2 dark:bg-slate-700 dark:text-white" 
+                          className="mt-1 block w-full border-gray-400 dark:border-slate-500 rounded-md shadow-sm p-2 dark:bg-slate-700 dark:text-white" 
                           placeholder="00000-000"
                           maxLength={9}
                         />
@@ -546,7 +546,7 @@ export const PublicForm = () => {
                           value={formData.rg} 
                           onChange={handleChange} 
                           onBlur={() => setErrors(prev => ({ ...prev, rg: validateField('rg', formData.rg) }))}
-                          className="mt-1 block w-full border-gray-300 dark:border-slate-600 rounded-md shadow-sm p-2 dark:bg-slate-700 dark:text-white" 
+                          className="mt-1 block w-full border-gray-400 dark:border-slate-500 rounded-md shadow-sm p-2 dark:bg-slate-700 dark:text-white" 
                           placeholder="00.000.000-0"
                           maxLength={12}
                         />
@@ -555,7 +555,7 @@ export const PublicForm = () => {
                           <button
                             type="button"
                             onClick={() => setIsDocumentTypeModalOpen(true)}
-                            className="mt-1 flex items-center justify-center w-full py-2 px-4 border border-gray-300 dark:border-slate-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-700 hover:bg-gray-50 dark:hover:bg-slate-600 transition-all"
+                            className="mt-1 flex items-center justify-center w-full py-2 px-4 border border-gray-400 dark:border-slate-500 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-700 hover:bg-gray-50 dark:hover:bg-slate-600 transition-all"
                           >
                             {formData.tipo_documento_identificacao ? (
                               <CheckCircle2 className="w-4 h-4 mr-2 text-green-500" />
@@ -579,7 +579,7 @@ export const PublicForm = () => {
                           {fieldName === 'certidao_nascimento_file' && <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Documento necessário para validação de vínculo.</p>}
                         </>
                       ) : ['nacionalidade', 'estado_civil', 'comprovante_nome_quem', 'rede_social'].includes(fieldName) ? (
-                        <select id={fieldName} name={fieldName} value={formData[fieldName as keyof FormData] as string || ''} onChange={handleChange} className="mt-1 block w-full border-gray-300 dark:border-slate-600 rounded-md shadow-sm p-2 dark:bg-slate-700 dark:text-white">
+                        <select id={fieldName} name={fieldName} value={formData[fieldName as keyof FormData] as string || ''} onChange={handleChange} className="mt-1 block w-full border-gray-400 dark:border-slate-500 rounded-md shadow-sm p-2 dark:bg-slate-700 dark:text-white">
                           <option value="">Selecione...</option>
                           {fieldName === 'nacionalidade' && (<><option value="Brasileiro">Brasileiro</option><option value="Estrangeiro">Estrangeiro</option></>)}
                           {fieldName === 'estado_civil' && (<><option value="Solteiro">Solteiro</option><option value="Casado">Casado</option><option value="Divorciado">Divorciado</option><option value="Viúvo">Viúvo</option></>)}
@@ -587,11 +587,11 @@ export const PublicForm = () => {
                           {fieldName === 'rede_social' && SOCIAL_MEDIA_OPTIONS.map(option => <option key={option} value={option}>{option}</option>)}
                         </select>
                       ) : fieldName === 'data_nascimento' ? (
-                        <input type="date" id={fieldName} name={fieldName} value={formData[fieldName as keyof FormData] as string || ''} onChange={handleChange} className="mt-1 block w-full border-gray-300 dark:border-slate-600 rounded-md shadow-sm p-2 dark:bg-slate-700 dark:text-white" />
+                        <input type="date" id={fieldName} name={fieldName} value={formData[fieldName as keyof FormData] as string || ''} onChange={handleChange} className="mt-1 block w-full border-gray-400 dark:border-slate-500 rounded-md shadow-sm p-2 dark:bg-slate-700 dark:text-white" />
                       ) : fieldName === 'email' ? (
-                        <input type="text" id={fieldName} name={fieldName} value={formData[fieldName as keyof FormData] as string || ''} onChange={handleChange} className="mt-1 block w-full border-gray-300 dark:border-slate-600 rounded-md shadow-sm p-2 dark:bg-slate-700 dark:text-white" placeholder="exemplo@gmail.com" />
+                        <input type="text" id={fieldName} name={fieldName} value={formData[fieldName as keyof FormData] as string || ''} onChange={handleChange} className="mt-1 block w-full border-gray-400 dark:border-slate-500 rounded-md shadow-sm p-2 dark:bg-slate-700 dark:text-white" placeholder="exemplo@gmail.com" />
                       ) : (
-                        <input type="text" id={fieldName} name={fieldName} value={formData[fieldName as keyof FormData] as string || ''} onChange={handleChange} className="mt-1 block w-full border-gray-300 dark:border-slate-600 rounded-md shadow-sm p-2 dark:bg-slate-700 dark:text-white" />
+                        <input type="text" id={fieldName} name={fieldName} value={formData[fieldName as keyof FormData] as string || ''} onChange={handleChange} className="mt-1 block w-full border-gray-400 dark:border-slate-500 rounded-md shadow-sm p-2 dark:bg-slate-700 dark:text-white" />
                       )}
                       {errors[fieldName] && <p className="text-red-500 text-xs mt-1">{errors[fieldName]}</p>}
                     </div>
@@ -624,7 +624,7 @@ export const PublicForm = () => {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                 >
                   {loading ? (
                     <Loader2 className="w-5 h-5 animate-spin" />
