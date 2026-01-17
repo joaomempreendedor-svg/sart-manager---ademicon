@@ -16,8 +16,11 @@ serve(async (req) => {
 
   try {
     const { cadastroData, files } = await req.json();
+    console.log("[submit-form] Received request with cadastroData:", cadastroData);
+    console.log("[submit-form] Received files:", files.map((f:any) => f.fileName));
 
     if (!cadastroData) {
+      console.error("[submit-form] Missing cadastroData.");
       return new Response(JSON.stringify({ error: 'Dados do formulário são obrigatórios.' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
@@ -30,16 +33,18 @@ serve(async (req) => {
     );
 
     // 1. Inserir os dados do formulário na tabela form_submissions
+    console.log("[submit-form] Attempting to insert into form_submissions...");
     const { data: cadastro, error: cadastroError } = await supabaseAdmin
       .from('form_submissions')
-      .insert({ user_id: JOAO_GESTOR_AUTH_ID, data: cadastroData, is_complete: files.length > 0 }) // Assume completo se tiver arquivos
+      .insert({ user_id: JOAO_GESTOR_AUTH_ID, data: cadastroData, is_complete: files.length > 0 })
       .select('id')
       .single();
 
     if (cadastroError) {
-      console.error("Erro ao inserir cadastro:", cadastroError);
+      console.error("[submit-form] Error inserting cadastro:", cadastroError);
       throw cadastroError;
     }
+    console.log("[submit-form] Cadastro inserted successfully. ID:", cadastro.id);
 
     const cadastroId = cadastro.id;
     const uploadedFilesMetadata = [];
@@ -50,6 +55,7 @@ serve(async (req) => {
       const fileBuffer = Uint8Array.from(fileContent);
 
       const filePath = `public/${cadastroId}/${fieldName}-${fileName}`;
+      console.log(`[submit-form] Attempting to upload file: ${fileName} to ${filePath}`);
 
       const { error: uploadError } = await supabaseAdmin.storage
         .from('form_uploads')
@@ -59,19 +65,23 @@ serve(async (req) => {
         });
 
       if (uploadError) {
-        console.error(`Erro ao fazer upload do arquivo ${fileName}:`, uploadError);
+        console.error(`[submit-form] Error uploading file ${fileName}:`, uploadError);
         throw uploadError;
       }
+      console.log(`[submit-form] File ${fileName} uploaded successfully.`);
 
       const { data: publicUrlData } = supabaseAdmin.storage
         .from('form_uploads')
         .getPublicUrl(filePath);
 
       if (!publicUrlData) {
+        console.error(`[submit-form] Could not get public URL for ${fileName}.`);
         throw new Error(`Não foi possível obter a URL pública para ${fileName}.`);
       }
+      console.log(`[submit-form] Public URL for ${fileName}: ${publicUrlData.publicUrl}`);
 
       // 3. Inserir metadados do arquivo na tabela form_files
+      console.log(`[submit-form] Attempting to insert file record for ${fileName}...`);
       const { data: fileRecord, error: fileRecordError } = await supabaseAdmin
         .from('form_files')
         .insert({
@@ -84,9 +94,10 @@ serve(async (req) => {
         .single();
 
       if (fileRecordError) {
-        console.error(`Erro ao inserir registro do arquivo ${fileName}:`, fileRecordError);
+        console.error(`[submit-form] Error inserting file record for ${fileName}:`, fileRecordError);
         throw fileRecordError;
       }
+      console.log(`[submit-form] File record for ${fileName} inserted successfully. ID: ${fileRecord.id}`);
       uploadedFilesMetadata.push({ id: fileRecord.id, fileName, fileUrl: publicUrlData.publicUrl });
     }
 
@@ -94,7 +105,8 @@ serve(async (req) => {
     const clientName = cadastroData.nome_completo || 'Desconhecido';
     const notificationTitle = `Novo Cadastro de Formulário: ${clientName}`;
     const notificationDescription = `Um novo formulário foi enviado e aguarda revisão.`;
-    const notificationLink = `/gestor/form-cadastros`; // Link para a página de gerenciamento de formulários
+    const notificationLink = `/gestor/form-cadastros`;
+    console.log(`[submit-form] Attempting to insert notification for user ${JOAO_GESTOR_AUTH_ID}...`);
 
     const { error: notificationError } = await supabaseAdmin
       .from('notifications')
@@ -109,8 +121,10 @@ serve(async (req) => {
       });
 
     if (notificationError) {
-      console.error("Erro ao criar notificação:", notificationError);
+      console.error("[submit-form] Error creating notification:", notificationError);
       // Não lançar erro aqui para não impedir o envio do formulário
+    } else {
+      console.log("[submit-form] Notification created successfully.");
     }
 
     return new Response(JSON.stringify({
@@ -122,8 +136,8 @@ serve(async (req) => {
       status: 200,
     });
 
-  } catch (error) {
-    console.error('Erro na Edge Function submit-form:', error);
+  } catch (error: any) {
+    console.error('[submit-form] Erro crítico na Edge Function:', error.message || error, { error });
     return new Response(JSON.stringify({ error: error.message || 'Falha ao processar cadastro do formulário.' }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
