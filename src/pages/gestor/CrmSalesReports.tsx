@@ -151,11 +151,11 @@ const CrmSalesReports = () => {
 
       if (lead.stage_id && pipelineStageSummary[lead.stage_id]) {
         pipelineStageSummary[lead.stage_id].count++;
-        if (lead.proposalValue) {
-          pipelineStageSummary[lead.stage_id].totalValue += lead.proposalValue;
-        } else if (lead.soldCreditValue) {
-          pipelineStageSummary[lead.stage_id].totalValue += lead.soldCreditValue;
-        }
+        // Use the determined sold value for pipeline stage summary if applicable
+        const currentSoldValue = crmStages.find(s => s.id === lead.stage_id && s.is_won)
+          ? (lead.soldCreditValue && lead.soldCreditValue > 0 ? lead.soldCreditValue : (lead.proposalValue || 0))
+          : (lead.proposalValue || 0); // For non-won stages, use proposal value
+        pipelineStageSummary[lead.stage_id].totalValue += currentSoldValue;
       }
 
       if (lead.proposalValue && lead.proposalValue > 0) {
@@ -168,11 +168,19 @@ const CrmSalesReports = () => {
       }
 
       const wonStage = crmStages.find(s => s.id === lead.stage_id && s.is_won);
-      if (wonStage && lead.soldCreditValue && lead.soldCreditValue > 0) {
-        totalSalesCount++;
-        if (lead.consultant_id && dataByConsultant[lead.consultant_id]) {
-          dataByConsultant[lead.consultant_id].salesClosed++;
-          dataByConsultant[lead.consultant_id].soldValue += lead.soldCreditValue;
+      if (wonStage) {
+        // Determine the actual sold value for this lead, with fallback
+        const actualSoldValue = (lead.soldCreditValue && lead.soldCreditValue > 0)
+          ? lead.soldCreditValue
+          : (lead.proposalValue || 0); // Fallback to proposalValue if soldCreditValue is 0 or null
+
+        if (actualSoldValue > 0) { // Only count as a sale if the value is positive
+          totalSalesCount++;
+          totalSoldValue += actualSoldValue;
+          if (lead.consultant_id && dataByConsultant[lead.consultant_id]) {
+            dataByConsultant[lead.consultant_id].salesClosed++;
+            dataByConsultant[lead.consultant_id].soldValue += actualSoldValue;
+          }
         }
       }
 
@@ -239,8 +247,12 @@ const CrmSalesReports = () => {
 
     leadsForChart.forEach(lead => {
       const wonStage = crmStages.find(s => s.id === lead.stage_id && s.is_won);
-      if (wonStage && lead.consultant_id && salesByConsultant[lead.consultant_id] && lead.soldCreditValue) {
-        salesByConsultant[lead.consultant_id].soldValue += lead.soldCreditValue;
+      if (wonStage && lead.consultant_id && salesByConsultant[lead.consultant_id]) {
+        // Use fallback logic for chart data as well
+        const actualSoldValue = (lead.soldCreditValue && lead.soldCreditValue > 0)
+          ? lead.soldCreditValue
+          : (lead.proposalValue || 0);
+        salesByConsultant[lead.consultant_id].soldValue += actualSoldValue;
       }
     });
 
@@ -273,6 +285,11 @@ const CrmSalesReports = () => {
     const detailedLeadsData = filteredLeads.map(lead => {
       const consultant = teamMembers.find(m => m.id === lead.consultant_id);
       const stage = crmStages.find(s => s.id === lead.stage_id);
+      const wonStage = crmStages.find(s => s.id === lead.stage_id && s.is_won);
+      const actualSoldValue = wonStage
+        ? ((lead.soldCreditValue && lead.soldCreditValue > 0) ? lead.soldCreditValue : (lead.proposalValue || 0))
+        : 0; // If not won, sold value is 0
+
       return {
         'Nome do Lead': lead.name,
         'Consultor': consultant?.name || 'N/A',
@@ -280,7 +297,7 @@ const CrmSalesReports = () => {
         'Origem': lead.data?.origin || 'N/A',
         'Valor Proposta': lead.proposalValue || 0,
         'Data Fechamento Proposta': lead.proposalClosingDate ? new Date(lead.proposalClosingDate + 'T00:00:00').toLocaleDateString('pt-BR') : 'N/A',
-        'Valor Vendido': lead.soldCreditValue || 0,
+        'Valor Vendido': actualSoldValue, // Use the actualSoldValue
         'Grupo Vendido': lead.soldGroup || 'N/A',
         'Cota Vendida': lead.soldQuota || 'N/A',
         'Data Venda': lead.saleDate ? new Date(lead.saleDate + 'T00:00:00').toLocaleDateString('pt-BR') : 'N/A',
