@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Loader2, TrendingUp, Users, Calendar, DollarSign, Send, ListTodo, Award, Filter, RotateCcw, UserRound, FileText, Download, Percent, MapPin } from 'lucide-react'; // Adicionado MapPin
+import { Loader2, TrendingUp, Users, Calendar, DollarSign, Send, ListTodo, Award, Filter, RotateCcw, UserRound, FileText, Download, Percent, MapPin, BarChart } from 'lucide-react'; // Adicionado MapPin e BarChart
 import {
   Select,
   SelectContent,
@@ -10,6 +10,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import * as XLSX from 'xlsx'; // Importar a biblioteca XLSX
+import TopSellersChart from '@/components/crm/TopSellersChart'; // Importar o novo componente de gráfico
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -28,6 +29,10 @@ const CrmSalesReports = () => {
   const [filterStageId, setFilterStageId] = useState<string | null>(null);
   const [selectedConsultantId, setSelectedConsultantId] = useState<string | null>(null);
   const [filterOrigin, setFilterOrigin] = useState<string | null>(null); // NOVO: Filtro por origem
+
+  // NOVO: Filtro de data para o gráfico de top vendedores
+  const [chartFilterSaleDateStart, setChartFilterSaleDateStart] = useState('');
+  const [chartFilterSaleDateEnd, setChartFilterSaleDateEnd] = useState('');
 
   const activePipeline = useMemo(() => {
     return crmPipelines.find(p => p.is_active) || crmPipelines[0];
@@ -164,7 +169,6 @@ const CrmSalesReports = () => {
 
       const wonStage = crmStages.find(s => s.id === lead.stage_id && s.is_won);
       if (wonStage && lead.soldCreditValue && lead.soldCreditValue > 0) {
-        totalSoldValue += lead.soldCreditValue;
         totalSalesCount++;
         if (lead.consultant_id && dataByConsultant[lead.consultant_id]) {
           dataByConsultant[lead.consultant_id].salesClosed++;
@@ -215,6 +219,35 @@ const CrmSalesReports = () => {
     };
   }, [filteredLeads, leadTasks, consultants, crmStages, pipelineStages, salesOrigins]); // Adicionado salesOrigins como dependência
 
+  // NOVO: Dados para o gráfico de top vendedores, aplicando o filtro de data específico
+  const topSellersChartData = useMemo(() => {
+    let leadsForChart = crmLeads;
+
+    if (chartFilterSaleDateStart) {
+      const start = new Date(chartFilterSaleDateStart + 'T00:00:00');
+      leadsForChart = leadsForChart.filter(lead => lead.saleDate && new Date(lead.saleDate + 'T00:00:00') >= start);
+    }
+    if (chartFilterSaleDateEnd) {
+      const end = new Date(chartFilterSaleDateEnd + 'T23:59:59');
+      leadsForChart = leadsForChart.filter(lead => lead.saleDate && new Date(lead.saleDate + 'T00:00:00') <= end);
+    }
+
+    const salesByConsultant: { [key: string]: { name: string; soldValue: number; } } = {};
+    consultants.forEach(c => {
+      salesByConsultant[c.id] = { name: c.name, soldValue: 0 };
+    });
+
+    leadsForChart.forEach(lead => {
+      const wonStage = crmStages.find(s => s.id === lead.stage_id && s.is_won);
+      if (wonStage && lead.consultant_id && salesByConsultant[lead.consultant_id] && lead.soldCreditValue) {
+        salesByConsultant[lead.consultant_id].soldValue += lead.soldCreditValue;
+      }
+    });
+
+    return Object.values(salesByConsultant).filter(c => c.soldValue > 0);
+  }, [crmLeads, crmStages, consultants, chartFilterSaleDateStart, chartFilterSaleDateEnd]);
+
+
   const clearFilters = () => {
     setFilterStartDate('');
     setFilterEndDate('');
@@ -225,9 +258,11 @@ const CrmSalesReports = () => {
     setFilterStageId(null);
     setSelectedConsultantId(null);
     setFilterOrigin(null); // NOVO: Limpa filtro de origem
+    setChartFilterSaleDateStart(''); // Limpa filtro do gráfico
+    setChartFilterSaleDateEnd(''); // Limpa filtro do gráfico
   };
 
-  const hasActiveFilters = filterStartDate || filterEndDate || filterSaleDateStart || filterSaleDateEnd || filterProposalDateStart || filterProposalDateEnd || filterStageId || selectedConsultantId || filterOrigin; // NOVO: Adicionado filterOrigin
+  const hasActiveFilters = filterStartDate || filterEndDate || filterSaleDateStart || filterSaleDateEnd || filterProposalDateStart || filterProposalDateEnd || filterStageId || selectedConsultantId || filterOrigin || chartFilterSaleDateStart || chartFilterSaleDateEnd; // NOVO: Adicionado filterOrigin e filtros do gráfico
 
   const handleExportToExcel = () => {
     // A lógica de exportação de comissões não está presente aqui, mas se fosse, precisaria ser ajustada.
@@ -344,9 +379,9 @@ const CrmSalesReports = () => {
               </SelectTrigger>
               <SelectContent className="bg-white text-gray-900 dark:bg-slate-800 dark:text-white dark:border-slate-700">
                 <SelectItem value="all">Todos os Consultores</SelectItem>
-                {consultants.map(consultant => (
-                  <SelectItem key={consultant.id} value={consultant.id}>
-                    {consultant.name}
+                {consultants.map(c => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -516,6 +551,40 @@ const CrmSalesReports = () => {
             <p className="text-xl font-bold text-gray-900 dark:text-white whitespace-nowrap">{formatCurrency(reportData.avgSoldValue)}</p>
           </div>
         </div>
+      </div>
+
+      {/* NOVO: Gráfico de Top Vendedores */}
+      <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center"><BarChart className="w-5 h-5 mr-2 text-brand-500" />Top Vendedores por Valor Vendido</h2>
+      <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+          <div>
+            <label htmlFor="chartFilterSaleDateStart" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Vendas de</label>
+            <input
+              type="date"
+              id="chartFilterSaleDateStart"
+              value={chartFilterSaleDateStart}
+              onChange={(e) => setChartFilterSaleDateStart(e.target.value)}
+              className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2.5 text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500"
+            />
+          </div>
+          <div>
+            <label htmlFor="chartFilterSaleDateEnd" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Vendas até</label>
+            <input
+              type="date"
+              id="chartFilterSaleDateEnd"
+              value={chartFilterSaleDateEnd}
+              onChange={(e) => setChartFilterSaleDateEnd(e.target.value)}
+              className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2.5 text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500"
+            />
+          </div>
+        </div>
+        {topSellersChartData.length > 0 ? (
+          <TopSellersChart data={topSellersChartData} />
+        ) : (
+          <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+            Nenhum dado de vendas para o período selecionado.
+          </div>
+        )}
       </div>
 
       {/* Pipeline Stage Summary */}
