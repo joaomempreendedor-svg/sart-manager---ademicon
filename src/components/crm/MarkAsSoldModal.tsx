@@ -141,9 +141,6 @@ export const MarkAsSoldModal: React.FC<MarkAsSoldModalProps> = ({ isOpen, onClos
                   placeholder="0,00"
                 />
               </div>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                Insira o valor total do crédito vendido nesta transação.
-              </p>
             </div>
             <div>
               <Label htmlFor="soldGroup">Grupo</Label>
