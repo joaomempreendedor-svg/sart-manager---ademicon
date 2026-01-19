@@ -51,6 +51,7 @@ import CandidateScreening from '@/pages/gestor/CandidateScreening';
 import ConsultorDashboard from '@/pages/consultor/Dashboard';
 import ConsultorCrmPage from '@/pages/consultor/Crm';
 import { DailyChecklist } from '@/pages/consultor/DailyChecklist';
+import ConsultorSalesReports from '@/pages/consultor/ConsultorSalesReports'; // NOVO: Importar o componente
 
 
 const AppLoader = () => (
@@ -197,6 +198,7 @@ const AppRoutes = () => {
           <Route path="crm" element={<ConsultorCrmPage />} />
           <Route path="daily-checklist" element={<DailyChecklist />} />
           <Route path="materials" element={<Materials />} />
+          <Route path="sales-reports" element={<ConsultorSalesReports />} /> {/* NOVO: Rota para o relatório de vendas */}
           {/* <Route path="links" element={<ImportantLinks />} /> REMOVIDO */}
           <Route path="*" element={<Navigate to="/consultor/dashboard" replace />} />
         </Route>

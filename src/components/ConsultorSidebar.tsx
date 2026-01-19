@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, TrendingUp, LogOut, User as UserIcon, Sun, Moon, ListChecks, ChevronLeft, ChevronRight, Library } from 'lucide-react';
+import { LayoutDashboard, TrendingUp, LogOut, User as UserIcon, Sun, Moon, ListChecks, ChevronLeft, ChevronRight, Library, DollarSign } from 'lucide-react'; // NOVO: Importar DollarSign
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 
@@ -71,6 +71,10 @@ export const ConsultorSidebar: React.FC<ConsultorSidebarProps> = ({ isSidebarOpe
           <NavLink to="/consultor/materials" className={linkClass} onClick={toggleSidebar}>
             <Library className="w-5 h-5" />
             {!isSidebarCollapsed && <span>Materiais de Apoio</span>}
+          </NavLink>
+          <NavLink to="/consultor/sales-reports" className={linkClass} onClick={toggleSidebar}> {/* NOVO: Link para o relatório de vendas */}
+            <DollarSign className="w-5 h-5" />
+            {!isSidebarCollapsed && <span>Relatório de Vendas</span>}
           </NavLink>
           <NavLink to="/profile" className={linkClass} onClick={toggleSidebar}>
             <UserIcon className="w-5 h-5" />
