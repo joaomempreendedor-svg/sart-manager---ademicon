@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import toast from 'react-hot-toast';
+import { Textarea } from '@/components/ui/textarea'; // Importar Textarea
 
 interface MarkAsSoldModalProps {
   isOpen: boolean;
@@ -37,7 +38,7 @@ export const MarkAsSoldModal: React.FC<MarkAsSoldModalProps> = ({ isOpen, onClos
   const { updateCrmLead, crmStages, crmPipelines } = useApp();
   const [soldCreditValue, setSoldCreditValue] = useState<string>('');
   const [soldGroup, setSoldGroup] = useState<string>('');
-  const [soldQuota, setSoldQuota] = useState<string>('');
+  const [soldQuota, setSoldQuota] = useState<string>(''); // Agora pode ser multi-linha
   const [saleDate, setSaleDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
@@ -56,7 +57,7 @@ export const MarkAsSoldModal: React.FC<MarkAsSoldModalProps> = ({ isOpen, onClos
       // Inicializa com '0,00' se o valor for 0, null ou undefined, caso contrário, formata o valor existente.
       setSoldCreditValue(lead.soldCreditValue !== undefined && lead.soldCreditValue !== null ? formatCurrencyInput(lead.soldCreditValue.toFixed(2).replace('.', ',')) : '0,00');
       setSoldGroup(lead.soldGroup || '');
-      setSoldQuota(lead.soldQuota || '');
+      setSoldQuota(lead.soldQuota || ''); // Inicializa com o valor existente (pode ser multi-linha)
       setSaleDate(lead.saleDate || new Date().toISOString().split('T')[0]);
       setError('');
     }
@@ -76,8 +77,8 @@ export const MarkAsSoldModal: React.FC<MarkAsSoldModalProps> = ({ isOpen, onClos
       setError('O campo Grupo é obrigatório.');
       return;
     }
-    if (!soldQuota.trim()) {
-      setError('O campo Cota é obrigatório.');
+    if (!soldQuota.trim()) { // A validação ainda funciona para texto multi-linha
+      setError('O campo Cota(s) é obrigatório.');
       return;
     }
     if (!saleDate) {
@@ -95,7 +96,7 @@ export const MarkAsSoldModal: React.FC<MarkAsSoldModalProps> = ({ isOpen, onClos
       await updateCrmLead(lead.id, {
         soldCreditValue: parsedSoldCreditValue,
         soldGroup: soldGroup.trim(),
-        soldQuota: soldQuota.trim(),
+        soldQuota: soldQuota.trim(), // Salva o texto multi-linha
         saleDate: saleDate,
         stage_id: wonStage.id, // Mover o lead para a etapa "Ganha"
       });
@@ -155,17 +156,17 @@ export const MarkAsSoldModal: React.FC<MarkAsSoldModalProps> = ({ isOpen, onClos
               </div>
             </div>
             <div>
-              <Label htmlFor="soldQuota">Cota</Label>
+              <Label htmlFor="soldQuota">Cota(s)</Label> {/* Rótulo atualizado */}
               <div className="relative">
-                <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input
+                <Hash className="absolute left-3 top-3 w-4 h-4 text-gray-400" /> {/* Ícone ajustado para o topo */}
+                <Textarea // Alterado para Textarea
                   id="soldQuota"
-                  type="text"
                   value={soldQuota}
                   onChange={(e) => setSoldQuota(e.target.value)}
                   required
+                  rows={3} // Definir número de linhas visíveis
                   className="pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600"
-                  placeholder="Ex: 150"
+                  placeholder="Ex: 150, 151, 152 (uma por linha)" // Placeholder atualizado
                 />
               </div>
             </div>
