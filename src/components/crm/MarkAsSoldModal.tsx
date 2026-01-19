@@ -56,6 +56,7 @@ export const MarkAsSoldModal: React.FC<MarkAsSoldModalProps> = ({ isOpen, onClos
 
   useEffect(() => {
     if (isOpen) {
+      console.log("MarkAsSoldModal is open. Checking for Add Cota button."); // Log de depuração
       setSoldCreditValue(lead.soldCreditValue !== undefined && lead.soldCreditValue !== null ? formatCurrencyInput(lead.soldCreditValue.toFixed(2).replace('.', ',')) : '0,00');
       setSoldGroup(lead.soldGroup || '');
       setSoldQuota(lead.soldQuota || '');
@@ -173,12 +174,12 @@ export const MarkAsSoldModal: React.FC<MarkAsSoldModalProps> = ({ isOpen, onClos
               </div>
               <Button
                 type="button"
-                variant="outline"
+                variant="default" // Alterado para variant="default"
                 onClick={() => {
                   setSoldQuota(prev => prev + '\n');
                   quotaTextareaRef.current?.focus();
                 }}
-                className="mt-2 flex items-center space-x-2 dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                className="mt-2 flex items-center space-x-2 bg-brand-600 hover:bg-brand-700 text-white" // Cores da marca para destaque
               >
                 <Plus className="w-4 h-4" />
                 <span>Adicionar Cota</span>
