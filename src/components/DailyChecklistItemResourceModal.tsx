@@ -1,7 +1,8 @@
 import React from 'react';
-import { X, FileText, Image as ImageIcon, Link as LinkIcon, MessageSquare, Video, Music, BookText } from 'lucide-react'; // Importar BookText icon
+import { X, FileText, Image as ImageIcon, Link as LinkIcon, MessageSquare, Video, Music, BookText, Download } from 'lucide-react'; // Importar Download icon
 import { DailyChecklistItemResource, DailyChecklistItemResourceType } from '@/types';
 import YouTube from 'react-youtube';
+import toast from 'react-hot-toast'; // Importar toast
 
 interface DailyChecklistItemResourceModalProps {
   isOpen: boolean;
@@ -23,6 +24,29 @@ export const DailyChecklistItemResourceModal: React.FC<DailyChecklistItemResourc
   resource,
 }) => {
   if (!isOpen || !resource) return null;
+
+  // Função para download direto de arquivos
+  const handleDownload = async (fileUrl: string, fileName: string) => {
+    try {
+        const response = await fetch(fileUrl);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        const blob = await response.blob();
+
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', fileName); // Define o nome do arquivo para download
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url); // Limpa a URL do objeto
+
+        toast.success(`Download de "${fileName}" iniciado.`);
+    } catch (error) {
+        console.error("Erro ao baixar o arquivo:", error);
+        toast.error("Falha ao iniciar o download do arquivo.");
+    }
+  };
 
   const renderContent = () => {
     switch (resource.type) {
@@ -95,8 +119,15 @@ export const DailyChecklistItemResourceModal: React.FC<DailyChecklistItemResourc
             {textAudioImageContent.imageUrl && (
               <div>
                 <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-2 flex items-center"><ImageIcon className="w-4 h-4 mr-2" /> Imagem</h4>
-                <div className="w-full flex flex-col items-center p-4 bg-gray-50 dark:bg-slate-700 rounded-lg">
+                <div className="w-full flex flex-col items-center p-4 bg-gray-50 dark:bg-slate-700 rounded-lg relative">
                   <img src={textAudioImageContent.imageUrl} alt={resource.name || "Imagem do Recurso"} className="max-w-full h-auto rounded-lg" />
+                  <button
+                    onClick={() => handleDownload(textAudioImageContent.imageUrl!, resource.name || 'imagem_recurso.png')}
+                    className="absolute top-2 right-2 p-2 bg-white dark:bg-slate-800 rounded-full shadow-sm border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 transition text-brand-600 dark:text-brand-400"
+                    title="Baixar Imagem"
+                  >
+                    <Download className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
             )}
@@ -104,14 +135,34 @@ export const DailyChecklistItemResourceModal: React.FC<DailyChecklistItemResourc
         );
       case 'pdf':
         return (
-          <iframe
-            src={resource.content as string} // Cast content to string
-            className="w-full h-[500px] border-0 rounded-lg"
-            title={resource.name || "Documento PDF"}
-          ></iframe>
+          <div className="relative">
+            <iframe
+              src={resource.content as string} // Cast content to string
+              className="w-full h-[500px] border-0 rounded-lg"
+              title={resource.name || "Documento PDF"}
+            ></iframe>
+            <button
+              onClick={() => handleDownload(resource.content as string, resource.name || 'documento.pdf')}
+              className="absolute top-2 right-2 p-2 bg-white dark:bg-slate-800 rounded-full shadow-sm border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 transition text-brand-600 dark:text-brand-400"
+              title="Baixar PDF"
+            >
+              <Download className="w-4 h-4" />
+            </button>
+          </div>
         );
       case 'image':
-        return <img src={resource.content as string} alt={resource.name || "Imagem"} className="max-w-full h-auto rounded-lg" />; // Cast content to string
+        return (
+          <div className="relative">
+            <img src={resource.content as string} alt={resource.name || "Imagem"} className="max-w-full h-auto rounded-lg" /> {/* Cast content to string */}
+            <button
+              onClick={() => handleDownload(resource.content as string, resource.name || 'imagem.png')}
+              className="absolute top-2 right-2 p-2 bg-white dark:bg-slate-800 rounded-full shadow-sm border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 transition text-brand-600 dark:text-brand-400"
+              title="Baixar Imagem"
+            >
+              <Download className="w-4 h-4" />
+            </button>
+          </div>
+        );
       case 'link':
         return (
           <div className="flex flex-col items-center justify-center p-6 bg-gray-50 dark:bg-slate-700 rounded-lg">
