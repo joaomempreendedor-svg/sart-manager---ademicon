@@ -531,6 +531,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           (async () => { try { return await supabase.from('form_submissions').select('id, submission_date, data, internal_notes, is_complete').eq('user_id', effectiveGestorId).order('submission_date', { ascending: false }); } catch (e) { console.error("Error fetching form_submissions:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('form_files').select('*'); } catch (e) { console.error("Error fetching form_files:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('notifications').select('*').eq('user_id', userId).eq('is_read', false).order('created_at', { ascending: false }); } catch (e) { console.error("Error fetching notifications:", e); return { data: [], error: e }; } })(), // NOVO: Busca de notificações
+          // REMOVIDO: Busca de eventos do consultor
+          // consultantEventsData, 
         ]);
 
         if (configResult.error) console.error("Config error:", configResult.error);
@@ -2143,24 +2145,51 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }));
   }, [user, dailyChecklistItems]);
 
-  const addDailyChecklistItem = useCallback(async (daily_checklist_id: string, text: string, order_index: number, resource?: DailyChecklistItemResource, file?: File) => {
+  const addDailyChecklistItem = useCallback(async (daily_checklist_id: string, text: string, order_index: number, resource?: DailyChecklistItemResource, audioFile?: File, imageFile?: File) => {
     if (!user) throw new Error("Usuário não autenticado.");
 
     let resourceContent = resource?.content;
     let resourceName = resource?.name;
 
-    if (file) {
-      const filePath = `daily_checklist_resources/${daily_checklist_id}/${crypto.randomUUID()}-${file.name}`;
+    let audioUrl: string | undefined;
+    let imageUrl: string | undefined;
+
+    if (audioFile) {
+      const audioPath = `daily_checklist_resources/${daily_checklist_id}/${crypto.randomUUID()}-${audioFile.name}`;
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('app_resources')
-        .upload(filePath, file, { contentType: file.type });
+        .upload(audioPath, audioFile, { contentType: audioFile.type });
       if (uploadError) throw uploadError;
-      const { data: publicUrlData } = supabase.storage.from('app_resources').getPublicUrl(filePath);
-      resourceContent = publicUrlData.publicUrl;
-      resourceName = file.name;
+      const { data: publicUrlData } = supabase.storage.from('app_resources').getPublicUrl(audioPath);
+      audioUrl = publicUrlData.publicUrl;
     }
 
-    const finalResource = resource ? { ...resource, content: resourceContent, name: resourceName } : undefined;
+    if (imageFile) {
+      const imagePath = `daily_checklist_resources/${daily_checklist_id}/${crypto.randomUUID()}-${imageFile.name}`;
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('app_resources')
+        .upload(imagePath, imageFile, { contentType: imageFile.type });
+      if (uploadError) throw uploadError;
+      const { data: publicUrlData } = supabase.storage.from('app_resources').getPublicUrl(imagePath);
+      imageUrl = publicUrlData.publicUrl;
+    }
+
+    let finalResource: DailyChecklistItemResource | undefined;
+    if (resource) {
+      if (resource.type === 'text_audio_image') {
+        finalResource = {
+          type: 'text_audio_image',
+          content: {
+            text: (resource.content as { text: string }).text,
+            audioUrl: audioUrl || (resource.content as { audioUrl?: string }).audioUrl,
+            imageUrl: imageUrl || (resource.content as { imageUrl?: string }).imageUrl,
+          },
+          name: resourceName,
+        };
+      } else {
+        finalResource = { ...resource, content: resourceContent, name: resourceName };
+      }
+    }
 
     const { data, error } = await supabase.from('daily_checklist_items').insert({ daily_checklist_id, text, order_index, is_active: true, resource: finalResource }).select('*').single();
     if (error) throw error;
@@ -2168,34 +2197,87 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return data;
   }, [user]);
 
-  const updateDailyChecklistItem = useCallback(async (id: string, updates: Partial<DailyChecklistItem>, file?: File) => {
+  const updateDailyChecklistItem = useCallback(async (id: string, updates: Partial<DailyChecklistItem>, audioFile?: File, imageFile?: File) => {
     if (!user) throw new Error("Usuário não autenticado.");
+    const item = dailyChecklistItems.find(i => i.id === id);
+    if (!item) throw new Error("Item do checklist não encontrado.");
 
     let resourceContent = updates.resource?.content;
     let resourceName = updates.resource?.name;
 
-    if (file) {
-      const item = dailyChecklistItems.find(i => i.id === id);
-      if (!item) throw new Error("Item do checklist não encontrado.");
+    let audioUrl: string | undefined;
+    let imageUrl: string | undefined;
 
-      if (item.resource?.content && (item.resource.type === 'image' || item.resource.type === 'pdf' || item.resource.type === 'audio')) {
-        const oldFilePath = item.resource.content.split('app_resources/')[1];
-        if (oldFilePath) {
-          await supabase.storage.from('app_resources').remove([oldFilePath]);
+    // Handle existing resource deletion if type changes or new file is uploaded
+    const oldResource = item.resource;
+    if (oldResource && oldResource.type !== updates.resource?.type) {
+      // If resource type changes, delete old files
+      if (oldResource.type === 'image' || oldResource.type === 'pdf' || oldResource.type === 'audio') {
+        const oldFilePath = (oldResource.content as string).split('app_resources/')[1];
+        if (oldFilePath) await supabase.storage.from('app_resources').remove([oldFilePath]);
+      } else if (oldResource.type === 'text_audio' || oldResource.type === 'text_audio_image') {
+        const content = oldResource.content as { audioUrl?: string; imageUrl?: string; };
+        if (content.audioUrl) {
+          const oldAudioPath = content.audioUrl.split('app_resources/')[1];
+          if (oldAudioPath) await supabase.storage.from('app_resources').remove([oldAudioPath]);
+        }
+        if (content.imageUrl) {
+          const oldImagePath = content.imageUrl.split('app_resources/')[1];
+          if (oldImagePath) await supabase.storage.from('app_resources').remove([oldImagePath]);
         }
       }
-
-      const filePath = `daily_checklist_resources/${item.daily_checklist_id}/${crypto.randomUUID()}-${file.name}`;
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('app_resources')
-        .upload(filePath, file, { contentType: file.type });
-      if (uploadError) throw uploadError;
-      const { data: publicUrlData } = supabase.storage.from('app_resources').getPublicUrl(filePath);
-      resourceContent = publicUrlData.publicUrl;
-      resourceName = file.name;
     }
 
-    const finalResource = updates.resource ? { ...updates.resource, content: resourceContent, name: resourceName } : undefined;
+    // Handle new file uploads
+    if (audioFile) {
+      const audioPath = `daily_checklist_resources/${item.daily_checklist_id}/${crypto.randomUUID()}-${audioFile.name}`;
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('app_resources')
+        .upload(audioPath, audioFile, { contentType: audioFile.type });
+      if (uploadError) throw uploadError;
+      const { data: publicUrlData } = supabase.storage.from('app_resources').getPublicUrl(audioPath);
+      audioUrl = publicUrlData.publicUrl;
+    } else if (updates.resource?.type === 'text_audio' || updates.resource?.type === 'text_audio_image') {
+      audioUrl = (updates.resource.content as { audioUrl?: string }).audioUrl || (oldResource?.content as { audioUrl?: string })?.audioUrl;
+    }
+
+    if (imageFile) {
+      const imagePath = `daily_checklist_resources/${item.daily_checklist_id}/${crypto.randomUUID()}-${imageFile.name}`;
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('app_resources')
+        .upload(imagePath, imageFile, { contentType: imageFile.type });
+      if (uploadError) throw uploadError;
+      const { data: publicUrlData } = supabase.storage.from('app_resources').getPublicUrl(imagePath);
+      imageUrl = publicUrlData.publicUrl;
+    } else if (updates.resource?.type === 'text_audio_image') {
+      imageUrl = (updates.resource.content as { imageUrl?: string }).imageUrl || (oldResource?.content as { imageUrl?: string })?.imageUrl;
+    }
+
+    let finalResource: DailyChecklistItemResource | undefined;
+    if (updates.resource) {
+      if (updates.resource.type === 'text_audio_image') {
+        finalResource = {
+          type: 'text_audio_image',
+          content: {
+            text: (updates.resource.content as { text: string }).text,
+            audioUrl: audioUrl,
+            imageUrl: imageUrl,
+          },
+          name: resourceName,
+        };
+      } else if (updates.resource.type === 'text_audio') {
+        finalResource = {
+          type: 'text_audio',
+          content: {
+            text: (updates.resource.content as { text: string }).text,
+            audioUrl: audioUrl,
+          },
+          name: resourceName,
+        };
+      } else {
+        finalResource = { ...updates.resource, content: resourceContent, name: resourceName };
+      }
+    }
 
     const { data, error } = await supabase.from('daily_checklist_items').update({ ...updates, resource: finalResource }).eq('id', id).select('*').single();
     if (error) throw error;
@@ -2208,10 +2290,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const item = dailyChecklistItems.find(i => i.id === id);
     if (!item) throw new Error("Item do checklist não encontrado.");
 
-    if (item.resource?.content && (item.resource.type === 'image' || item.resource.type === 'pdf' || item.resource.type === 'audio')) {
-      const filePath = item.resource.content.split('app_resources/')[1];
-      if (filePath) {
-        await supabase.storage.from('app_resources').remove([filePath]);
+    if (item.resource) {
+      if (item.resource.type === 'image' || item.resource.type === 'pdf' || item.resource.type === 'audio') {
+        const filePath = (item.resource.content as string).split('app_resources/')[1];
+        if (filePath) {
+          await supabase.storage.from('app_resources').remove([filePath]);
+        }
+      } else if (item.resource.type === 'text_audio' || item.resource.type === 'text_audio_image') {
+        const content = item.resource.content as { audioUrl?: string; imageUrl?: string; };
+        if (content.audioUrl) {
+          const audioPath = content.audioUrl.split('app_resources/')[1];
+          if (audioPath) await supabase.storage.from('app_resources').remove([audioPath]);
+        }
+        if (content.imageUrl) {
+          const imagePath = content.imageUrl.split('app_resources/')[1];
+          if (imagePath) await supabase.storage.from('app_resources').remove([imagePath]);
+        }
       }
     }
 

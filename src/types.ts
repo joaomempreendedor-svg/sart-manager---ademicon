@@ -358,11 +358,11 @@ export interface GestorTaskCompletion {
   updated_at: string;
 }
 
-export type DailyChecklistItemResourceType = 'link' | 'text' | 'image' | 'pdf' | 'video' | 'audio' | 'text_audio' | 'none';
+export type DailyChecklistItemResourceType = 'link' | 'text' | 'image' | 'pdf' | 'video' | 'audio' | 'text_audio' | 'text_audio_image' | 'none'; // NOVO: 'text_audio_image'
 
 export interface DailyChecklistItemResource {
   type: DailyChecklistItemResourceType;
-  content: string | { text: string; audioUrl: string; };
+  content: string | { text: string; audioUrl: string; imageUrl?: string; }; // NOVO: imageUrl opcional para text_audio_image
   name?: string;
 }
 
@@ -399,6 +399,7 @@ export type NotificationType = 'birthday' | 'form_submission' | 'new_sale' | 'on
 
 export interface Notification {
   id: string;
+  user_id: string;
   type: NotificationType;
   title: string;
   description: string;
@@ -484,7 +485,7 @@ export interface AppContextType {
   teamMembers: TeamMember[];
   commissions: Commission[];
   supportMaterials: SupportMaterial[];
-  cutoffPeriods: CutoffPeriod[];
+  cutoffPeriods: CutoffPeriods[];
   onboardingSessions: OnboardingSession[];
   onboardingTemplateVideos: OnboardingVideoTemplate[];
   checklistStructure: ChecklistStage[];
@@ -570,13 +571,12 @@ export interface AppContextType {
   updateCrmField: (id: string, updates: Partial<CrmField>) => Promise<CrmField>;
   addCrmLead: (lead: Omit<CrmLead, 'id' | 'created_at' | 'updated_at' | 'user_id' | 'created_by' | 'updated_by'>) => Promise<CrmLead>;
   updateCrmLead: (id: string, updates: Partial<CrmLead>) => Promise<CrmLead>;
-  updateCrmLeadStage: (leadId: string, newStageId: string) => Promise<void>;
   deleteCrmLead: (id: string) => Promise<void>;
   addDailyChecklist: (title: string) => Promise<DailyChecklist>;
   updateDailyChecklist: (id: string, updates: Partial<DailyChecklist>) => Promise<DailyChecklist>;
   deleteDailyChecklist: (id: string) => Promise<void>;
-  addDailyChecklistItem: (daily_checklist_id: string, text: string, order_index: number, resource?: DailyChecklistItemResource, file?: File) => Promise<DailyChecklistItem>;
-  updateDailyChecklistItem: (id: string, updates: Partial<DailyChecklistItem>, file?: File) => Promise<DailyChecklistItem>;
+  addDailyChecklistItem: (daily_checklist_id: string, text: string, order_index: number, resource?: DailyChecklistItemResource, audioFile?: File, imageFile?: File) => Promise<DailyChecklistItem>; // NOVO: audioFile e imageFile
+  updateDailyChecklistItem: (id: string, updates: Partial<DailyChecklistItem>, audioFile?: File, imageFile?: File) => Promise<DailyChecklistItem>; // NOVO: audioFile e imageFile
   deleteDailyChecklistItem: (id: string) => Promise<void>;
   moveDailyChecklistItem: (checklistId: string, itemId: string, direction: 'up' | 'down') => Promise<void>;
   assignDailyChecklistToConsultant: (daily_checklist_id: string, consultant_id: string) => Promise<DailyChecklistAssignment>;
