@@ -3,10 +3,11 @@ import { Link } from 'react-router-dom';
 import { TrendingUp, User, CheckCircle2, ListChecks, Target, CalendarDays, Loader2, Phone, Mail, Tag, Clock, AlertCircle, Plus, Calendar, DollarSign, Send, Users, ListTodo, CalendarCheck, ChevronRight } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { DailyChecklistItem, WeeklyTargetItem, MetricLog } from '@/types';
+import { DailyChecklistItem, WeeklyTargetItem, MetricLog, LeadTask } from '@/types'; // Importar LeadTask
 import { TableSkeleton } from '@/components/TableSkeleton';
 import { ScheduleInterviewModal } from '@/components/ScheduleInterviewModal';
 import { DailyChecklistDisplay } from '@/components/consultor/DailyChecklistDisplay';
+import { PendingLeadTasksModal } from '@/components/gestor/PendingLeadTasksModal'; // NOVO: Importar o modal
 
 const ConsultorDashboard = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -23,8 +24,11 @@ const ConsultorDashboard = () => {
     weeklyTargetAssignments,
     metricLogs,
     leadTasks,
+    teamMembers, // NOVO: Adicionar teamMembers para o modal
     isDataLoading 
   } = useApp();
+
+  const [isPendingTasksModalOpen, setIsPendingTasksModalOpen] = useState(false); // NOVO: Estado para o modal
 
   // --- CRM Statistics ---
   const { 
@@ -33,12 +37,13 @@ const ConsultorDashboard = () => {
     meetingsThisMonth, 
     proposalValueThisMonth, 
     soldValueThisMonth, 
-    pendingLeadTasks 
+    pendingLeadTasks, // Agora é a lista de tarefas
+    pendingLeadTasksCount // NOVO: Contagem para o card
   } = useMemo(() => {
     const today = new Date();
     const todayFormatted = today.toISOString().split('T')[0];
 
-    if (!user) return { totalLeads: 0, newLeadsThisMonth: 0, meetingsThisMonth: 0, proposalValueThisMonth: 0, soldValueThisMonth: 0, pendingLeadTasks: 0 };
+    if (!user) return { totalLeads: 0, newLeadsThisMonth: 0, meetingsThisMonth: 0, proposalValueThisMonth: 0, soldValueThisMonth: 0, pendingLeadTasks: [], pendingLeadTasksCount: 0 };
 
     const consultantLeads = crmLeads.filter(lead => lead.consultant_id === user.id);
     const totalLeads = consultantLeads.length;
@@ -78,8 +83,8 @@ const ConsultorDashboard = () => {
       return sum;
     }, 0);
 
-    // NOVO: Tarefas Pendentes (Hoje/Atrasadas)
-    const pendingLeadTasks = leadTasks.filter(task => {
+    // NOVO: Tarefas Pendentes (Hoje/Atrasadas) - AGORA RETORNA A LISTA DE TAREFAS
+    const pendingLeadTasksList: LeadTask[] = leadTasks.filter(task => {
       if (task.user_id !== user.id || task.is_completed) return false;
       if (!task.due_date) return false;
       
@@ -87,7 +92,12 @@ const ConsultorDashboard = () => {
       const todayDate = new Date(todayFormatted + 'T00:00:00');
 
       return taskDueDate <= todayDate;
-    }).length;
+    }).sort((a, b) => {
+      if (!a.due_date && !b.due_date) return 0;
+      if (!a.due_date) return 1;
+      if (!b.due_date) return -1;
+      return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+    });
 
     return { 
       totalLeads, 
@@ -95,7 +105,8 @@ const ConsultorDashboard = () => {
       meetingsThisMonth, 
       proposalValueThisMonth, 
       soldValueThisMonth,
-      pendingLeadTasks
+      pendingLeadTasks: pendingLeadTasksList, // Retorna a lista
+      pendingLeadTasksCount: pendingLeadTasksList.length // Retorna a contagem
     };
   }, [user, crmLeads, crmPipelines, crmStages, leadTasks]);
 
@@ -273,15 +284,18 @@ const ConsultorDashboard = () => {
               </div>
             </div>
 
-            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
+            <button 
+              onClick={() => setIsPendingTasksModalOpen(true)} // NOVO: Abre o modal
+              className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition cursor-pointer"
+            >
               <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
                 <ListTodo className="w-6 h-6 text-red-600 dark:text-red-400" />
               </div>
               <div>
                 <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Tarefas Pendentes</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{pendingLeadTasks}</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">{pendingLeadTasksCount}</p> {/* NOVO: Usa a contagem */}
               </div>
-            </div>
+            </button>
           </div>
 
           {/* Daily Checklist Progress */}
