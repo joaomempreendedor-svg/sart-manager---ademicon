@@ -70,11 +70,7 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
                 <LayoutDashboard className="w-5 h-5" />
                 <span>Dashboard</span>
               </NavLink>
-              {/* REMOVIDO: Link para Agenda */}
-              {/* <NavLink to="/gestor/calendar" className={linkClass} onClick={toggleSidebar}>
-                <Calendar className="w-5 h-5" />
-                <span>Agenda</span>
-              </NavLink> */}
+              
               <NavLink to="/gestor/crm" className={linkClass} onClick={toggleSidebar}>
                 <TrendingUp className="w-5 h-5" />
                 <span>CRM</span>
@@ -126,10 +122,7 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
               <NavLink to="/gestor/dashboard" className={linkClass} onClick={toggleSidebar} title="Dashboard">
                 <LayoutDashboard className="w-5 h-5" />
               </NavLink>
-              {/* REMOVIDO: Link para Agenda */}
-              {/* <NavLink to="/gestor/calendar" className={linkClass} onClick={toggleSidebar} title="Agenda">
-                <Calendar className="w-5 h-5" />
-              </NavLink> */}
+              
               <NavLink to="/gestor/crm" className={linkClass} onClick={toggleSidebar} title="CRM">
                 <TrendingUp className="w-5 h-5" />
               </NavLink>

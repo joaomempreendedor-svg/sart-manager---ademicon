@@ -55,11 +55,7 @@ export const ConsultorSidebar: React.FC<ConsultorSidebarProps> = ({ isSidebarOpe
             <LayoutDashboard className="w-5 h-5" />
             {!isSidebarCollapsed && <span>Dashboard</span>}
           </NavLink>
-          {/* REMOVIDO: Link para Minha Agenda */}
-          {/* <NavLink to="/consultor/calendar" className={linkClass} onClick={toggleSidebar}>
-            <Calendar className="w-5 h-5" />
-            {!isSidebarCollapsed && <span>Minha Agenda</span>}
-          </NavLink> */}
+          
           <NavLink to="/consultor/crm" className={linkClass} onClick={toggleSidebar}>
             <TrendingUp className="w-5 h-5" />
             {!isSidebarCollapsed && <span>CRM</span>}

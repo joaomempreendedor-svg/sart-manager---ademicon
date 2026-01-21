@@ -3,7 +3,7 @@ import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { ChevronRight, User, Calendar, CheckCircle2, TrendingUp, AlertCircle, Clock, Users, Star, CheckSquare, XCircle, BellRing, UserRound, Plus, ListTodo, Send, DollarSign, Repeat, Filter, RotateCcw } from 'lucide-react';
-import { CandidateStatus, ChecklistTaskState, GestorTask, LeadTask } from '@/types';
+import { CandidateStatus, ChecklistTaskState, GestorTask, LeadTask, CrmLead } from '@/types';
 import { TableSkeleton } from '@/components/TableSkeleton';
 import { ScheduleInterviewModal } from '@/components/ScheduleInterviewModal';
 import { GestorTasksSection } from '@/components/gestor/GestorTasksSection';
@@ -11,6 +11,7 @@ import { PendingLeadTasksModal } from '@/components/gestor/PendingLeadTasksModal
 import toast from 'react-hot-toast';
 import { NotificationBell } from '@/components/NotificationBell';
 import { NotificationCenter } from '@/components/NotificationCenter';
+import { LeadsDetailModal } from '@/components/gestor/LeadsDetailModal'; // NOVO: Importar o modal de detalhes de leads
 
 const StatusBadge = ({ status }: { status: CandidateStatus }) => {
   const colors = {
@@ -43,7 +44,7 @@ type AgendaItem = {
 
 export const Dashboard = () => {
   const { user } = useAuth();
-  const { candidates, checklistStructure, teamMembers, isDataLoading, leadTasks, crmLeads, gestorTasks, gestorTaskCompletions, isGestorTaskDueOnDate, notifications } = useApp();
+  const { candidates, checklistStructure, teamMembers, isDataLoading, leadTasks, crmLeads, crmStages, gestorTasks, gestorTaskCompletions, isGestorTaskDueOnDate, notifications } = useApp();
   const navigate = useNavigate();
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [isPendingTasksModalOpen, setIsPendingTasksModalOpen] = useState(false);
@@ -51,6 +52,13 @@ export const Dashboard = () => {
 
   const [filterStartDate, setFilterStartDate] = useState('');
   const [filterEndDate, setFilterEndDate] = useState('');
+
+  // NOVO: Estados para o modal de detalhes de leads
+  const [isLeadsDetailModalOpen, setIsLeadsDetailModalOpen] = useState(false);
+  const [leadsModalTitle, setLeadsModalTitle] = useState('');
+  const [leadsForModal, setLeadsForModal] = useState<CrmLead[]>([]);
+  const [leadsMetricType, setLeadsMetricType] = useState<'proposal' | 'sold'>('proposal');
+
 
   const handleOpenNotifications = () => {
     setIsNotificationCenterOpen(true);
@@ -68,11 +76,13 @@ export const Dashboard = () => {
     proposalValueThisMonth,
     soldValueThisMonth,
     pendingLeadTasks,
+    leadsWithProposalThisMonth, // NOVO: Lista de leads com proposta no mês
+    leadsSoldThisMonth, // NOVO: Lista de leads vendidos no mês
   } = useMemo(() => {
     const today = new Date();
     const todayStr = today.toISOString().split('T')[0];
 
-    if (!user) return { totalCrmLeads: 0, newLeadsThisMonth: 0, meetingsThisMonth: 0, proposalValueThisMonth: 0, soldValueThisMonth: 0, pendingLeadTasks: [] };
+    if (!user) return { totalCrmLeads: 0, newLeadsThisMonth: 0, meetingsThisMonth: 0, proposalValueThisMonth: 0, soldValueThisMonth: 0, pendingLeadTasks: [], leadsWithProposalThisMonth: [], leadsSoldThisMonth: [] };
 
     const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
     const currentMonthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
@@ -90,25 +100,29 @@ export const Dashboard = () => {
       return taskDate >= currentMonthStart && taskDate <= currentMonthEnd;
     }).length;
 
-    const proposalValueThisMonth = leadsForGestor.reduce((sum, lead) => {
+    let proposalValueThisMonth = 0;
+    const leadsWithProposalThisMonth: CrmLead[] = [];
+    leadsForGestor.forEach(lead => {
       if (lead.proposalValue && lead.proposalValue > 0 && lead.proposalClosingDate) {
         const proposalDate = new Date(lead.proposalClosingDate + 'T00:00:00');
         if (proposalDate >= currentMonthStart && proposalDate <= currentMonthEnd) {
-          return sum + (lead.proposalValue || 0);
+          proposalValueThisMonth += (lead.proposalValue || 0);
+          leadsWithProposalThisMonth.push(lead);
         }
       }
-      return sum;
-    }, 0);
+    });
 
-    const soldValueThisMonth = leadsForGestor.reduce((sum, lead) => {
+    let soldValueThisMonth = 0;
+    const leadsSoldThisMonth: CrmLead[] = [];
+    leadsForGestor.forEach(lead => {
       if (lead.soldCreditValue && lead.soldCreditValue > 0 && lead.saleDate) {
         const saleDate = new Date(lead.saleDate + 'T00:00:00');
         if (saleDate >= currentMonthStart && saleDate <= currentMonthEnd) {
-          return sum + (lead.soldCreditValue || 0);
+          soldValueThisMonth += (lead.soldCreditValue || 0);
+          leadsSoldThisMonth.push(lead);
         }
       }
-      return sum;
-    }, 0);
+    });
 
     const pendingLeadTasksList: LeadTask[] = leadTasks.filter(task => {
       const lead = crmLeads.find(l => l.id === task.lead_id && l.user_id === user.id);
@@ -133,8 +147,10 @@ export const Dashboard = () => {
       proposalValueThisMonth,
       soldValueThisMonth,
       pendingLeadTasks: pendingLeadTasksList,
+      leadsWithProposalThisMonth, // NOVO
+      leadsSoldThisMonth, // NOVO
     };
-  }, [crmLeads, leadTasks, user]);
+  }, [crmLeads, leadTasks, user, crmStages]);
 
   // --- Hiring Metrics (existing) ---
   const totalCandidates = candidates.length;
@@ -315,6 +331,14 @@ export const Dashboard = () => {
 
   const hasActiveCandidateFilters = filterStartDate || filterEndDate;
 
+  // NOVO: Funções para abrir o modal de detalhes de leads
+  const handleOpenLeadsDetailModal = (title: string, leads: CrmLead[], metricType: 'proposal' | 'sold') => {
+    setLeadsModalTitle(title);
+    setLeadsForModal(leads);
+    setLeadsMetricType(metricType);
+    setIsLeadsDetailModalOpen(true);
+  };
+
   return (
     <div className="p-4 sm:p-8 max-w-7xl mx-auto">
       <div className="mb-8 flex items-center justify-between flex-col sm:flex-row">
@@ -368,11 +392,14 @@ export const Dashboard = () => {
                     <Calendar className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
                   </div>
                   <div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Reuniões Agendadas (Mês)</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Reuniões Mês</p>
                     <p className="text-2xl font-bold text-gray-900 dark:text-white">{meetingsThisMonth}</p>
                   </div>
                 </div>
-                <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
+                <button 
+                  onClick={() => handleOpenLeadsDetailModal('Valor Propostas Mês', leadsWithProposalThisMonth, 'proposal')}
+                  className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition cursor-pointer"
+                >
                   <div className="p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg">
                     <Send className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
                   </div>
@@ -380,8 +407,11 @@ export const Dashboard = () => {
                     <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Valor Propostas (Mês)</p>
                     <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatCurrency(proposalValueThisMonth)}</p>
                   </div>
-                </div>
-                <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
+                </button>
+                <button 
+                  onClick={() => handleOpenLeadsDetailModal('Valor Vendido Mês', leadsSoldThisMonth, 'sold')}
+                  className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition cursor-pointer"
+                >
                   <div className="p-3 bg-teal-50 dark:bg-teal-900/20 rounded-lg">
                     <DollarSign className="w-6 h-6 text-teal-600 dark:text-teal-400" />
                   </div>
@@ -389,7 +419,7 @@ export const Dashboard = () => {
                     <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Valor Vendido (Mês)</p>
                     <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatCurrency(soldValueThisMonth)}</p>
                   </div>
-                </div>
+                </button>
                 <button 
                   onClick={() => setIsPendingTasksModalOpen(true)}
                   className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition cursor-pointer"
@@ -571,10 +601,23 @@ export const Dashboard = () => {
       <ScheduleInterviewModal isOpen={isScheduleModalOpen} onClose={() => setIsScheduleModalOpen(false)} />
       <PendingLeadTasksModal
         isOpen={isPendingTasksModalOpen}
-        onClose={() => setIsPendingTasksModalOpen(false)}
+        onClose={() => {
+          console.log("[ConsultorDashboard] PendingLeadTasksModal onClose called");
+          setIsPendingTasksModalOpen(false);
+        }}
         pendingTasks={pendingLeadTasks}
         crmLeads={crmLeads}
         teamMembers={teamMembers}
+      />
+      {/* NOVO: Renderiza o LeadsDetailModal */}
+      <LeadsDetailModal
+        isOpen={isLeadsDetailModalOpen}
+        onClose={() => setIsLeadsDetailModalOpen(false)}
+        title={leadsModalTitle}
+        leads={leadsForModal}
+        crmStages={crmStages}
+        teamMembers={teamMembers}
+        metricType={leadsMetricType}
       />
     </div>
   );
