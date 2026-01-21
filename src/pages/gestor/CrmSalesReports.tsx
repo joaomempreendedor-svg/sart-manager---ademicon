@@ -137,10 +137,10 @@ const CrmSalesReports = () => {
       pipelineStageSummary[stage.id] = { name: stage.name, count: 0, totalValue: 0 };
     });
 
-    // NOVO: Objeto para armazenar leads por origem
-    const leadsByOrigin: { [key: string]: number } = {};
+    // NOVO: Objeto para armazenar vendas por origem
+    const salesByOrigin: { [key: string]: { count: number; soldValue: number; } } = {};
     salesOrigins.forEach(origin => {
-      leadsByOrigin[origin] = 0;
+      salesByOrigin[origin] = { count: 0, soldValue: 0 };
     });
 
     filteredLeads.forEach(lead => {
@@ -181,12 +181,12 @@ const CrmSalesReports = () => {
             dataByConsultant[lead.consultant_id].salesClosed++;
             dataByConsultant[lead.consultant_id].soldValue += actualSoldValue;
           }
+          // NOVO: Adicionar à contagem de vendas por origem
+          if (lead.data?.origin && salesByOrigin[lead.data.origin] !== undefined) {
+            salesByOrigin[lead.data.origin].count++;
+            salesByOrigin[lead.data.origin].soldValue += actualSoldValue;
+          }
         }
-      }
-
-      // NOVO: Contar leads por origem
-      if (lead.data?.origin && leadsByOrigin[lead.data.origin] !== undefined) {
-        leadsByOrigin[lead.data.origin]++;
       }
     });
 
@@ -223,7 +223,7 @@ const CrmSalesReports = () => {
       topMeetingSchedulers,
       topClosers,
       pipelineStageSummary: Object.values(pipelineStageSummary).filter(s => s.count > 0),
-      leadsByOrigin: Object.entries(leadsByOrigin).map(([origin, count]) => ({ origin, count })).filter(o => o.count > 0).sort((a, b) => b.count - a.count), // NOVO: Inclui leads por origem
+      salesByOrigin: Object.entries(salesByOrigin).map(([origin, data]) => ({ origin, ...data })).filter(o => o.count > 0).sort((a, b) => b.soldValue - a.soldValue), // NOVO: Inclui vendas por origem
     };
   }, [filteredLeads, leadTasks, consultants, crmStages, pipelineStages, salesOrigins]); // Adicionado salesOrigins como dependência
 
@@ -342,13 +342,14 @@ const CrmSalesReports = () => {
     const wsConsultantPerformance = XLSX.utils.json_to_sheet(consultantPerformanceData);
     XLSX.utils.book_append_sheet(workbook, wsConsultantPerformance, "Desempenho Consultores");
 
-    // NOVO: Leads por Origem
-    const leadsByOriginData = reportData.leadsByOrigin.map(o => ({
+    // NOVO: Vendas por Origem
+    const salesByOriginData = reportData.salesByOrigin.map(o => ({
       'Origem': o.origin,
-      'Número de Leads': o.count,
+      'Número de Vendas': o.count,
+      'Valor Total Vendido': o.soldValue,
     }));
-    const wsLeadsByOrigin = XLSX.utils.json_to_sheet(leadsByOriginData);
-    XLSX.utils.book_append_sheet(workbook, wsLeadsByOrigin, "Leads por Origem");
+    const wsSalesByOrigin = XLSX.utils.json_to_sheet(salesByOriginData);
+    XLSX.utils.book_append_sheet(workbook, wsSalesByOrigin, "Vendas por Origem");
 
     XLSX.writeFile(workbook, `Relatorio_Vendas_CRM_${new Date().toISOString().slice(0, 10)}.xlsx`);
     toast.success('Relatório exportado com sucesso!');
@@ -637,29 +638,31 @@ const CrmSalesReports = () => {
         </div>
       </div>
 
-      {/* NOVO: Leads por Origem */}
-      <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center"><MapPin className="w-5 h-5 mr-2 text-brand-500" />Leads por Origem</h2>
+      {/* NOVO: Vendas por Origem */}
+      <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center"><MapPin className="w-5 h-5 mr-2 text-brand-500" />Vendas por Origem</h2>
       <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden mb-8">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300">
             <thead className="bg-gray-50 dark:bg-slate-700/50 text-gray-500 dark:text-gray-400 text-xs uppercase">
               <tr>
                 <th className="px-4 py-3">Origem</th>
-                <th className="px-4 py-3">Número de Leads</th>
+                <th className="px-4 py-3">Número de Vendas</th>
+                <th className="px-4 py-3">Valor Total Vendido</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
-              {reportData.leadsByOrigin.length === 0 ? (
+              {reportData.salesByOrigin.length === 0 ? (
                 <tr>
-                  <td colSpan={2} className="px-6 py-12 text-center text-gray-400">
-                    Nenhum lead encontrado para as origens.
+                  <td colSpan={3} className="px-6 py-12 text-center text-gray-400">
+                    Nenhuma venda encontrada para as origens.
                   </td>
                 </tr>
               ) : (
-                reportData.leadsByOrigin.map(origin => (
+                reportData.salesByOrigin.map(origin => (
                   <tr key={origin.origin} className="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition">
                     <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">{origin.origin}</td>
                     <td className="px-4 py-3">{origin.count}</td>
+                    <td className="px-4 py-3">{formatCurrency(origin.soldValue)}</td>
                   </tr>
                 ))
               )}
