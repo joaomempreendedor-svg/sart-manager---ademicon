@@ -2186,6 +2186,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           },
           name: resourceName,
         };
+      } else if (resource.type === 'text_audio') {
+        finalResource = {
+          type: 'text_audio',
+          content: {
+            text: (resource.content as { text: string }).text,
+            audioUrl: audioUrl || (resource.content as { audioUrl?: string }).audioUrl,
+          },
+          name: resourceName,
+        };
       } else {
         finalResource = { ...resource, content: resourceContent, name: resourceName };
       }
