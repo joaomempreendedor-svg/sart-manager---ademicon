@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, ListTodo, Calendar, Clock, UserRound, ChevronRight } from 'lucide-react';
+import { X, ListTodo, Calendar, Clock, UserRound, ChevronRight, Users } from 'lucide-react'; // Adicionado Users
 import { LeadTask, CrmLead, TeamMember } from '@/types';
 import {
   Dialog,
