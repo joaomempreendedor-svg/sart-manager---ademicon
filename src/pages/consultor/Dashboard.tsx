@@ -285,7 +285,10 @@ const ConsultorDashboard = () => {
             </div>
 
             <button 
-              onClick={() => setIsPendingTasksModalOpen(true)} // NOVO: Abre o modal
+              onClick={() => {
+                console.log("Tarefas Pendentes card clicked!");
+                setIsPendingTasksModalOpen(true);
+              }} // NOVO: Abre o modal
               className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition cursor-pointer"
             >
               <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
