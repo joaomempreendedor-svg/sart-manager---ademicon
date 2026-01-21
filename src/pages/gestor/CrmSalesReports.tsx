@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/select';
 import * as XLSX from 'xlsx'; // Importar a biblioteca XLSX
 import TopSellersChart from '@/components/crm/TopSellersChart'; // Importar o novo componente de gráfico
+import { SalesByOriginDetailModal } from '@/components/crm/SalesByOriginDetailModal'; // NOVO: Importar o modal de detalhes
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -33,6 +34,12 @@ const CrmSalesReports = () => {
   // NOVO: Filtro de data para o gráfico de top vendedores
   const [chartFilterSaleDateStart, setChartFilterSaleDateStart] = useState('');
   const [chartFilterSaleDateEnd, setChartFilterSaleDateEnd] = useState('');
+
+  // NOVO: Estados para o modal de detalhes de vendas por origem
+  const [isSalesByOriginDetailModalOpen, setIsSalesByOriginDetailModalOpen] = useState(false);
+  const [selectedOriginForDetail, setSelectedOriginForDetail] = useState('');
+  const [leadsForOriginDetail, setLeadsForOriginDetail] = useState([]);
+
 
   const activePipeline = useMemo(() => {
     return crmPipelines.find(p => p.is_active) || crmPipelines[0];
@@ -137,10 +144,10 @@ const CrmSalesReports = () => {
       pipelineStageSummary[stage.id] = { name: stage.name, count: 0, totalValue: 0 };
     });
 
-    // NOVO: Objeto para armazenar vendas por origem
-    const salesByOrigin: { [key: string]: { count: number; soldValue: number; } } = {};
+    // NOVO: Objeto para armazenar vendas por origem e os leads associados
+    const salesByOrigin: { [key: string]: { count: number; soldValue: number; leads: typeof filteredLeads } } = {};
     salesOrigins.forEach(origin => {
-      salesByOrigin[origin] = { count: 0, soldValue: 0 };
+      salesByOrigin[origin] = { count: 0, soldValue: 0, leads: [] };
     });
 
     filteredLeads.forEach(lead => {
@@ -181,10 +188,11 @@ const CrmSalesReports = () => {
             dataByConsultant[lead.consultant_id].salesClosed++;
             dataByConsultant[lead.consultant_id].soldValue += actualSoldValue;
           }
-          // NOVO: Adicionar à contagem de vendas por origem
+          // NOVO: Adicionar à contagem de vendas por origem e aos leads
           if (lead.data?.origin && salesByOrigin[lead.data.origin] !== undefined) {
             salesByOrigin[lead.data.origin].count++;
             salesByOrigin[lead.data.origin].soldValue += actualSoldValue;
+            salesByOrigin[lead.data.origin].leads.push(lead);
           }
         }
       }
@@ -353,6 +361,13 @@ const CrmSalesReports = () => {
 
     XLSX.writeFile(workbook, `Relatorio_Vendas_CRM_${new Date().toISOString().slice(0, 10)}.xlsx`);
     toast.success('Relatório exportado com sucesso!');
+  };
+
+  // NOVO: Função para abrir o modal de detalhes de vendas por origem
+  const handleOpenSalesByOriginDetailModal = (origin: string, leads: any[]) => {
+    setSelectedOriginForDetail(origin);
+    setLeadsForOriginDetail(leads);
+    setIsSalesByOriginDetailModalOpen(true);
   };
 
   if (isAuthLoading || isDataLoading) {
@@ -659,7 +674,11 @@ const CrmSalesReports = () => {
                 </tr>
               ) : (
                 reportData.salesByOrigin.map(origin => (
-                  <tr key={origin.origin} className="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition">
+                  <tr 
+                    key={origin.origin} 
+                    className="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition cursor-pointer"
+                    onClick={() => handleOpenSalesByOriginDetailModal(origin.origin, origin.leads)} // NOVO: Adiciona onClick
+                  >
                     <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">{origin.origin}</td>
                     <td className="px-4 py-3">{origin.count}</td>
                     <td className="px-4 py-3">{formatCurrency(origin.soldValue)}</td>
@@ -777,6 +796,17 @@ const CrmSalesReports = () => {
           </table>
         </div>
       </div>
+
+      {isSalesByOriginDetailModalOpen && (
+        <SalesByOriginDetailModal
+          isOpen={isSalesByOriginDetailModalOpen}
+          onClose={() => setIsSalesByOriginDetailModalOpen(false)}
+          originName={selectedOriginForDetail}
+          leads={leadsForOriginDetail}
+          crmStages={crmStages}
+          teamMembers={teamMembers}
+        />
+      )}
     </div>
   );
 };
