@@ -286,7 +286,7 @@ const ConsultorDashboard = () => {
 
             <button 
               onClick={() => {
-                console.log("Tarefas Pendentes card clicked!");
+                console.log("[ConsultorDashboard] Tarefas Pendentes card clicked!");
                 setIsPendingTasksModalOpen(true);
               }} // NOVO: Abre o modal
               className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition cursor-pointer"
@@ -379,6 +379,18 @@ const ConsultorDashboard = () => {
             </div>
           )}
         </div>
+        {isPendingTasksModalOpen && (
+          <PendingLeadTasksModal
+            isOpen={isPendingTasksModalOpen}
+            onClose={() => {
+              console.log("[ConsultorDashboard] PendingLeadTasksModal onClose called");
+              setIsPendingTasksModalOpen(false);
+            }}
+            pendingTasks={pendingLeadTasks}
+            crmLeads={crmLeads}
+            teamMembers={teamMembers}
+          />
+        )}
     </div>
   );
 };
