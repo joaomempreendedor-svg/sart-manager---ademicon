@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { TeamProductionGoal } from '@/types';
-import { Plus, Edit2, Trash2, Users, DollarSign, CalendarDays, Loader2, TrendingUp, Target, CheckCircle2, XCircle, RotateCcw, X } from 'lucide-react'; // Adicionado X
+import { Plus, Edit2, Trash2, Users, DollarSign, CalendarDays, Loader2, TrendingUp, Target, CheckCircle2, XCircle, RotateCcw, X, Save } from 'lucide-react'; // Adicionado Save
 import toast from 'react-hot-toast';
 
 const formatCurrency = (value: number) => {
