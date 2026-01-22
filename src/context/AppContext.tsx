@@ -797,12 +797,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 db_id: payload.new.id,
                 createdAt: payload.new.created_at,
                 lastUpdatedAt: payload.new.last_updated_at,
-                interviewScores: JSON.parse(JSON.stringify(rawCandidateData.interviewScores || { basicProfile: 0, commercialSkills: 0, behavioralProfile: 0, jobFit: 0, notes: '' })),
-                checkedQuestions: JSON.parse(JSON.stringify(rawCandidateData.checkedQuestions || {})),
-                checklistProgress: JSON.parse(JSON.stringify(rawCandidateData.checklistProgress || {})),
-                consultantGoalsProgress: JSON.parse(JSON.stringify(rawCandidateData.consultantGoalsProgress || {})),
-                feedbacks: JSON.parse(JSON.stringify(rawCandidateData.feedbacks || [])),
-                data: JSON.parse(JSON.stringify(rawCandidateData.data || {})),
+                interviewScores: JSON.parse(JSON.stringify(rawPayloadData.interviewScores || { basicProfile: 0, commercialSkills: 0, behavioralProfile: 0, jobFit: 0, notes: '' })),
+                checkedQuestions: JSON.parse(JSON.stringify(rawPayloadData.checkedQuestions || {})),
+                checklistProgress: JSON.parse(JSON.stringify(rawPayloadData.checklistProgress || {})),
+                consultantGoalsProgress: JSON.parse(JSON.stringify(rawPayloadData.consultantGoalsProgress || {})),
+                feedbacks: JSON.parse(JSON.stringify(rawPayloadData.feedbacks || [])),
+                data: JSON.parse(JSON.stringify(rawPayloadData.data || {})),
             };
             console.log('[Realtime: Candidate] Deep copied newCandidateData.name:', newCandidateData.name, `client-side ID:`, newCandidateData.id, `db_id:`, newCandidateData.db_id, `createdAt:`, newCandidateData.createdAt);
 
@@ -2831,27 +2831,27 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // Team Production Goals Functions
   const addTeamProductionGoal = useCallback(async (goal: Omit<TeamProductionGoal, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const { data, error } = await supabase.from('team_production_goals').insert({ user_id: JOAO_GESTOR_AUTH_ID, ...goal }).select('*').single();
+    if (!user || !crmOwnerUserId) throw new Error("Usuário não autenticado ou ID do gestor não definido.");
+    const { data, error } = await supabase.from('team_production_goals').insert({ user_id: crmOwnerUserId, ...goal }).select('*').single();
     if (error) throw error;
     setTeamProductionGoals(prev => [...prev, data]);
     return data;
-  }, [user]);
+  }, [user, crmOwnerUserId]);
 
   const updateTeamProductionGoal = useCallback(async (id: string, updates: Partial<TeamProductionGoal>) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const { data, error } = await supabase.from('team_production_goals').update(updates).eq('id', id).eq('user_id', JOAO_GESTOR_AUTH_ID).select('*').single();
+    if (!user || !crmOwnerUserId) throw new Error("Usuário não autenticado ou ID do gestor não definido.");
+    const { data, error } = await supabase.from('team_production_goals').update(updates).eq('id', id).eq('user_id', crmOwnerUserId).select('*').single();
     if (error) throw error;
     setTeamProductionGoals(prev => prev.map(goal => goal.id === id ? data : goal));
     return data;
-  }, [user]);
+  }, [user, crmOwnerUserId]);
 
   const deleteTeamProductionGoal = useCallback(async (id: string) => {
-    if (!user) throw new Error("Usuário não autenticado.");
-    const { error } = await supabase.from('team_production_goals').delete().eq('id', id).eq('user_id', JOAO_GESTOR_AUTH_ID);
+    if (!user || !crmOwnerUserId) throw new Error("Usuário não autenticado ou ID do gestor não definido.");
+    const { error } = await supabase.from('team_production_goals').delete().eq('id', id).eq('user_id', crmOwnerUserId);
     if (error) throw error;
     setTeamProductionGoals(prev => prev.filter(goal => goal.id !== id));
-  }, [user]);
+  }, [user, crmOwnerUserId]);
 
 
   const value: AppContextType = {
