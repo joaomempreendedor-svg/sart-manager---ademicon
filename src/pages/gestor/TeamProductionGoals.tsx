@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { TeamProductionGoal } from '@/types';
-import { Plus, Edit2, Trash2, Users, DollarSign, CalendarDays, Loader2, TrendingUp, Target, CheckCircle2, XCircle, RotateCcw, X, Save } from 'lucide-react'; // Adicionado Save
+import { Plus, Edit2, Trash2, Users, DollarSign, CalendarDays, Loader2, TrendingUp, Target, CheckCircle2, XCircle, RotateCcw, X, Save } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const formatCurrency = (value: number) => {
@@ -21,6 +21,8 @@ const TeamProductionGoals = () => {
   const [endDate, setEndDate] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
+
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear()); // NOVO: Estado para o ano selecionado
 
   const currentActiveGoal = useMemo(() => {
     const today = new Date().toISOString().split('T')[0];
@@ -46,6 +48,67 @@ const TeamProductionGoals = () => {
       return sum;
     }, 0);
   }, [currentActiveGoal, crmLeads]);
+
+  // NOVO: Resumo Anual
+  const annualSummary = useMemo(() => {
+    const startOfYear = new Date(selectedYear, 0, 1);
+    const endOfYear = new Date(selectedYear, 11, 31, 23, 59, 59, 999);
+
+    const goalsInSelectedYear = teamProductionGoals.filter(goal => {
+      const goalStart = new Date(goal.start_date + 'T00:00:00');
+      const goalEnd = new Date(goal.end_date + 'T23:59:59');
+      // Uma meta é relevante se seu período se sobrepõe ao ano selecionado
+      return (goalStart <= endOfYear && goalEnd >= startOfYear);
+    });
+
+    let totalTargetTeamSize = 0;
+    let totalTargetProductionValue = 0;
+    let totalActualProductionValueForYear = 0;
+    let goalsMetCount = 0; // Contagem de metas individuais onde o alvo de produção foi atingido
+
+    goalsInSelectedYear.forEach(goal => {
+      totalTargetTeamSize += goal.target_team_size;
+      totalTargetProductionValue += goal.target_production_value;
+
+      const goalPeriodStart = new Date(goal.start_date + 'T00:00:00');
+      const goalPeriodEnd = new Date(goal.end_date + 'T23:59:59');
+
+      const actualProductionForThisGoal = crmLeads.reduce((sum, lead) => {
+        if (lead.saleDate) {
+          const saleDate = new Date(lead.saleDate + 'T00:00:00');
+          if (saleDate >= goalPeriodStart && saleDate <= goalPeriodEnd && lead.soldCreditValue) {
+            return sum + lead.soldCreditValue;
+          }
+        }
+        return sum;
+      }, 0);
+
+      if (actualProductionForThisGoal >= goal.target_production_value) {
+        goalsMetCount++;
+      }
+    });
+
+    // Calcular a produção real total para o ano selecionado
+    totalActualProductionValueForYear = crmLeads.reduce((sum, lead) => {
+      if (lead.saleDate) {
+        const saleDate = new Date(lead.saleDate + 'T00:00:00');
+        if (saleDate >= startOfYear && saleDate <= endOfYear && lead.soldCreditValue) {
+          return sum + lead.soldCreditValue;
+        }
+      }
+      return sum;
+    }, 0);
+
+    return {
+      totalGoalsSet: goalsInSelectedYear.length,
+      goalsMetCount,
+      totalTargetTeamSize,
+      totalTargetProductionValue,
+      totalActualProductionValueForYear,
+      currentTeamSize, // Snapshot atual de membros ativos da equipe
+    };
+  }, [teamProductionGoals, selectedYear, crmLeads, currentTeamSize]);
+
 
   useEffect(() => {
     if (isFormOpen && editingGoal) {
@@ -221,6 +284,44 @@ const TeamProductionGoals = () => {
         )}
       </div>
 
+      {/* NOVO: Resumo Anual */}
+      <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm mb-8">
+        <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center">
+          <CalendarDays className="w-5 h-5 mr-2 text-brand-500" /> Resumo Anual
+        </h2>
+        <div className="flex items-center space-x-2 mb-4">
+          <label htmlFor="selectYear" className="text-sm font-medium text-gray-700 dark:text-gray-300">Ano:</label>
+          <select
+            id="selectYear"
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+            className="p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-gray-900 dark:text-white"
+          >
+            {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i).map(year => (
+              <option key={year} value={year}>{year}</option>
+            ))}
+          </select>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="bg-gray-50 dark:bg-slate-700/50 p-4 rounded-lg border border-gray-200 dark:border-slate-700">
+            <p className="text-sm text-gray-500 dark:text-gray-400">Metas Definidas</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{annualSummary.totalGoalsSet}</p>
+          </div>
+          <div className="bg-gray-50 dark:bg-slate-700/50 p-4 rounded-lg border border-gray-200 dark:border-slate-700">
+            <p className="text-sm text-gray-500 dark:text-gray-400">Metas de Produção Atingidas</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{annualSummary.goalsMetCount} / {annualSummary.totalGoalsSet}</p>
+          </div>
+          <div className="bg-gray-50 dark:bg-slate-700/50 p-4 rounded-lg border border-gray-200 dark:border-slate-700">
+            <p className="text-sm text-gray-500 dark:text-gray-400">Tamanho da Equipe (Alvo Total)</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{annualSummary.currentTeamSize} / {annualSummary.totalTargetTeamSize}</p>
+          </div>
+          <div className="bg-gray-50 dark:bg-slate-700/50 p-4 rounded-lg border border-gray-200 dark:border-slate-700">
+            <p className="text-sm text-gray-500 dark:text-gray-400">Valor de Produção (Alvo Total)</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatCurrency(annualSummary.totalActualProductionValueForYear)} / {formatCurrency(annualSummary.totalTargetProductionValue)}</p>
+          </div>
+        </div>
+      </div>
+
       {/* All Goals History */}
       <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
         <h2 className="text-lg font-bold text-gray-900 dark:text-white p-6 border-b border-gray-100 dark:border-slate-700">Histórico de Metas</h2>
@@ -304,7 +405,7 @@ const TeamProductionGoals = () => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tamanho da Equipe Alvo</label>
                   <div className="relative">
-                    <Users className="absolute left-3 top-9 w-4 h-4 text-gray-400" />
+                    <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                     <input
                       type="number"
                       value={targetTeamSize}
@@ -319,7 +420,7 @@ const TeamProductionGoals = () => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Valor de Produção Alvo (R$)</label>
                   <div className="relative">
-                    <DollarSign className="absolute left-3 top-9 w-4 h-4 text-gray-400" />
+                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                     <input
                       type="text"
                       value={targetProductionValue}
@@ -333,7 +434,7 @@ const TeamProductionGoals = () => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Data de Início</label>
                   <div className="relative">
-                    <CalendarDays className="absolute left-3 top-9 w-4 h-4 text-gray-400" />
+                    <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                     <input
                       type="date"
                       value={startDate}
@@ -346,7 +447,7 @@ const TeamProductionGoals = () => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Data de Fim</label>
                   <div className="relative">
-                    <CalendarDays className="absolute left-3 top-9 w-4 h-4 text-gray-400" />
+                    <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                     <input
                       type="date"
                       value={endDate}
