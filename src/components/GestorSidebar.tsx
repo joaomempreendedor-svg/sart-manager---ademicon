@@ -115,6 +115,10 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
                 <FileStack className="w-5 h-5" />
                 <span>Gerenciar Formulários</span>
               </NavLink>
+              <NavLink to="/gestor/team-production-goals" className={linkClass} onClick={toggleSidebar}> {/* NOVO: Link para Metas de Produção da Equipe */}
+                <Target className="w-5 h-5" />
+                <span>Metas de Produção</span>
+              </NavLink>
             </>
           )}
           {isSidebarCollapsed && (
@@ -155,6 +159,9 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
               </NavLink>
               <NavLink to="/gestor/form-cadastros" className={linkClass} onClick={toggleSidebar} title="Gerenciar Formulários">
                 <FileStack className="w-5 h-5" />
+              </NavLink>
+              <NavLink to="/gestor/team-production-goals" className={linkClass} onClick={toggleSidebar} title="Metas de Produção"> {/* NOVO: Link para Metas de Produção da Equipe */}
+                <Target className="w-5 h-5" />
               </NavLink>
             </>
           )}

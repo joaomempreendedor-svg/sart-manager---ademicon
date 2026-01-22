@@ -479,13 +479,25 @@ export interface MetricLog {
   created_at: string;
 }
 
+// NOVO: Interface para Metas de Produção da Equipe
+export interface TeamProductionGoal {
+  id: string;
+  user_id: string; // ID do gestor que criou a meta
+  target_team_size: number;
+  target_production_value: number;
+  start_date: string; // YYYY-MM-DD
+  end_date: string; // YYYY-MM-DD
+  created_at: string;
+  updated_at: string;
+}
+
 export interface AppContextType {
   isDataLoading: boolean;
   candidates: Candidate[];
   teamMembers: TeamMember[];
   commissions: Commission[];
   supportMaterials: SupportMaterial[];
-  cutoffPeriods: CutoffPeriods[];
+  cutoffPeriods: CutoffPeriod[];
   onboardingSessions: OnboardingSession[];
   onboardingTemplateVideos: OnboardingVideoTemplate[];
   checklistStructure: ChecklistStage[];
@@ -519,6 +531,7 @@ export interface AppContextType {
   formCadastros: FormCadastro[];
   formFiles: FormFile[];
   notifications: Notification[];
+  teamProductionGoals: TeamProductionGoal[]; // NOVO: Estado para metas de produção da equipe
   theme: 'light' | 'dark';
   toggleTheme: () => void;
   addCandidate: (candidate: Omit<Candidate, 'id' | 'createdAt' | 'db_id'>) => Promise<Candidate>;
@@ -621,8 +634,10 @@ export interface AppContextType {
   addTeamMemberFeedback: (teamMemberId: string, feedback: Omit<Feedback, 'id'>) => Promise<Feedback>;
   updateTeamMemberFeedback: (teamMemberId: string, feedback: Feedback) => Promise<Feedback>;
   deleteTeamMemberFeedback: (teamMemberId: string, feedbackId: string) => Promise<void>;
-  refetchCommissions: () => Promise<void>;
   addTeamMember: (member: Omit<TeamMember, 'id'> & { email: string }) => Promise<{ success: boolean; member: TeamMember; tempPassword: string; wasExistingUser: boolean; }>;
   updateTeamMember: (id: string, updates: Partial<TeamMember>) => Promise<{ success: boolean }>;
   deleteTeamMember: (id: string) => Promise<void>;
+  addTeamProductionGoal: (goal: Omit<TeamProductionGoal, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => Promise<TeamProductionGoal>; // NOVO: Função para adicionar meta de produção
+  updateTeamProductionGoal: (id: string, updates: Partial<TeamProductionGoal>) => Promise<TeamProductionGoal>; // NOVO: Função para atualizar meta de produção
+  deleteTeamProductionGoal: (id: string) => Promise<void>; // NOVO: Função para deletar meta de produção
 }

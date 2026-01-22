@@ -46,6 +46,7 @@ import { OriginConfig } from '@/pages/OriginConfig';
 import { FinancialPanel } from '@/pages/FinancialPanel';
 import { FormCadastros } from '@/pages/gestor/FormSubmissions';
 import CandidateScreening from '@/pages/gestor/CandidateScreening';
+import TeamProductionGoals from '@/pages/gestor/TeamProductionGoals'; // NOVO: Importar o componente
 
 // Consultor Pages
 import ConsultorDashboard from '@/pages/consultor/Dashboard';
@@ -188,6 +189,7 @@ const AppRoutes = () => {
           <Route path="config-origins" element={<OriginConfig />} />
           <Route path="form-cadastros" element={<FormCadastros />} />
           <Route path="candidate-screening" element={<CandidateScreening />} />
+          <Route path="team-production-goals" element={<TeamProductionGoals />} /> {/* NOVO: Rota para Metas de Produção da Equipe */}
           <Route path="*" element={<Navigate to="/gestor/dashboard" replace />} />
         </Route>
 

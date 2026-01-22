@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
-import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, InterviewQuestion, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, CommissionStatus, InstallmentInfo, CutoffPeriod, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask, SupportMaterialContentType, DailyChecklistItemResource, DailyChecklistItemResourceType, GestorTask, GestorTaskCompletion, FinancialEntry, FormCadastro, FormFile, Notification, NotificationType, Feedback } from '@/types';
+import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, InterviewQuestion, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, CommissionStatus, InstallmentInfo, CutoffPeriod, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask, SupportMaterialContentType, DailyChecklistItemResource, DailyChecklistItemResourceType, GestorTask, GestorTaskCompletion, FinancialEntry, FormCadastro, FormFile, Notification, NotificationType, Feedback, TeamProductionGoal } from '@/types';
 import { CHECKLIST_STAGES as DEFAULT_STAGES } from '@/data/checklistData';
 import { CONSULTANT_GOALS as DEFAULT_GOALS } from '@/data/consultantGoals';
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
@@ -143,6 +143,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // NOVO: Notificações
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
+  // NOVO: Metas de Produção da Equipe
+  const [teamProductionGoals, setTeamProductionGoals] = useState<TeamProductionGoal[]>([]);
+
 
   const [theme, setTheme] = useState<'light' | 'dark'>(() => (localStorage.getItem('sart_theme') as 'light' | 'dark') || 'light');
 
@@ -239,6 +242,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     // REMOVIDO: Resetar eventos do consultor
     // setConsultantEvents([]); 
     setNotifications([]);
+    setTeamProductionGoals([]); // NOVO: Resetar metas de produção da equipe
     setIsDataLoading(false);
   };
 
@@ -486,6 +490,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           formCadastrosData,
           formFilesData,
           notificationsData, // NOVO: Busca de notificações
+          teamProductionGoalsData, // NOVO: Busca de metas de produção da equipe
         ] = await Promise.all([
           (async () => { try { return await supabase.from('app_config').select('data').eq('user_id', effectiveGestorId).maybeSingle(); } catch (e) { console.error("Error fetching app_config:", e); return { data: null, error: e }; } })(),
           (async () => { try { return await supabase.from('candidates').select('id, data, created_at, last_updated_at').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching candidates:", e); return { data: [], error: e }; } })(),
@@ -528,8 +533,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           (async () => { try { return await supabase.from('gestor_task_completions').select('*').eq('user_id', userId); } catch (e) { console.error("Error fetching gestor_task_completions:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('financial_entries').select('*').eq('user_id', userId); } catch (e) { console.error("Error fetching financial_entries:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('form_submissions').select('id, submission_date, data, internal_notes, is_complete').eq('user_id', effectiveGestorId).order('submission_date', { ascending: false }); } catch (e) { console.error("Error fetching form_submissions:", e); return { data: [], error: e }; } })(),
-          (async () => { try { return await supabase.from('form_files').select('*'); } catch (e) { console.error("Error fetching form_files:", e); return { data: [], error: e }; } })(),
+          (async () => { try { return await supabase.from('form_files').select('*'); } catch (e) { console.error("Error fetching form_files:", e); return { data: [], error: e }; } } )(),
           (async () => { try { return await supabase.from('notifications').select('*').eq('user_id', userId).eq('is_read', false).order('created_at', { ascending: false }); } catch (e) { console.error("Error fetching notifications:", e); return { data: [], error: e }; } })(), // NOVO: Busca de notificações
+          (async () => { try { return await supabase.from('team_production_goals').select('*').eq('user_id', effectiveGestorId).order('start_date', { ascending: false }); } catch (e) { console.error("Error fetching team_production_goals:", e); return { data: [], error: e }; } })(), // NOVO: Busca de metas de produção da equipe
         ]);
 
         if (configResult.error) console.error("Config error:", configResult.error);
@@ -559,6 +565,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (formCadastrosData.error) console.error("Form Cadastros error:", formCadastrosData.error);
         if (formFilesData.error) console.error("Form Files error:", formFilesData.error);
         if (notificationsData.error) console.error("Notifications error:", notificationsData.error); // NOVO: Log de erro para notificações
+        if (teamProductionGoalsData.error) console.error("Team Production Goals error:", teamProductionGoalsData.error); // NOVO: Log de erro para metas de produção
 
         if (configResult.data) {
           const { data } = configResult.data;
@@ -716,6 +723,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setFormCadastros(formCadastrosData?.data || []);
         setFormFiles(formFilesData?.data || []);
         setNotifications(notificationsData?.data || []); // NOVO: Define as notificações
+        setTeamProductionGoals(teamProductionGoalsData?.data || []); // NOVO: Define as metas de produção da equipe
         
         refetchCommissions();
 
@@ -1051,6 +1059,32 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         })
         .subscribe();
 
+    const teamProductionGoalsChannel = supabase // NOVO: Canal de metas de produção da equipe
+        .channel('team_production_goals_changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'team_production_goals', filter: `user_id=eq.${user?.id}` }, (payload) => {
+            console.log('Team Production Goal Change (Realtime):', payload);
+            toast.info(`🎯 Meta de produção da equipe atualizada em tempo real!`);
+            const newGoalData: TeamProductionGoal = {
+                id: payload.new.id,
+                user_id: payload.new.user_id,
+                target_team_size: payload.new.target_team_size,
+                target_production_value: parseFloat(payload.new.target_production_value),
+                start_date: payload.new.start_date,
+                end_date: payload.new.end_date,
+                created_at: payload.new.created_at,
+                updated_at: payload.new.updated_at,
+            };
+
+            if (payload.eventType === 'INSERT') {
+                setTeamProductionGoals(prev => [...prev, newGoalData]);
+            } else if (payload.eventType === 'UPDATE') {
+                setTeamProductionGoals(prev => prev.map(goal => goal.id === newGoalData.id ? newGoalData : goal));
+            } else if (payload.eventType === 'DELETE') {
+                setTeamProductionGoals(prev => prev.filter(goal => goal.id !== payload.old.id));
+            }
+        })
+        .subscribe();
+
     return () => {
         supabase.removeChannel(candidatesChannel);
         supabase.removeChannel(leadsChannel);
@@ -1061,6 +1095,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         supabase.removeChannel(formCadastrosChannel);
         supabase.removeChannel(formFilesChannel);
         supabase.removeChannel(notificationsChannel); // NOVO: Remove o canal de notificações
+        supabase.removeChannel(teamProductionGoalsChannel); // NOVO: Remove o canal de metas de produção da equipe
     };
   }, [user, crmOwnerUserId]);
 
@@ -2794,6 +2829,31 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setTeamMembers(prev => prev.map(m => m.id !== teamMemberId ? m : { ...m, feedbacks: updatedFeedbacks }));
   }, [teamMembers, user]);
 
+  // Team Production Goals Functions
+  const addTeamProductionGoal = useCallback(async (goal: Omit<TeamProductionGoal, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('team_production_goals').insert({ user_id: JOAO_GESTOR_AUTH_ID, ...goal }).select('*').single();
+    if (error) throw error;
+    setTeamProductionGoals(prev => [...prev, data]);
+    return data;
+  }, [user]);
+
+  const updateTeamProductionGoal = useCallback(async (id: string, updates: Partial<TeamProductionGoal>) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('team_production_goals').update(updates).eq('id', id).eq('user_id', JOAO_GESTOR_AUTH_ID).select('*').single();
+    if (error) throw error;
+    setTeamProductionGoals(prev => prev.map(goal => goal.id === id ? data : goal));
+    return data;
+  }, [user]);
+
+  const deleteTeamProductionGoal = useCallback(async (id: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { error } = await supabase.from('team_production_goals').delete().eq('id', id).eq('user_id', JOAO_GESTOR_AUTH_ID);
+    if (error) throw error;
+    setTeamProductionGoals(prev => prev.filter(goal => goal.id !== id));
+  }, [user]);
+
+
   const value: AppContextType = {
     // State
     isDataLoading,
@@ -2834,6 +2894,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     formCadastros,
     formFiles,
     notifications,
+    teamProductionGoals, // NOVO: Adicionado ao contexto
     theme,
 
     // Functions
@@ -2980,6 +3041,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addTeamMember,
     updateTeamMember,
     deleteTeamMember,
+
+    // Team Production Goals functions
+    addTeamProductionGoal,
+    updateTeamProductionGoal,
+    deleteTeamProductionGoal,
   };
 
   return (
