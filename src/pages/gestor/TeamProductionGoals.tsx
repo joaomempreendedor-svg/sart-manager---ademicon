@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { TeamProductionGoal } from '@/types';
-import { Plus, Edit2, Trash2, Users, DollarSign, CalendarDays, Loader2, TrendingUp, Target, CheckCircle2, XCircle, RotateCcw } from 'lucide-react';
+import { Plus, Edit2, Trash2, Users, DollarSign, CalendarDays, Loader2, TrendingUp, Target, CheckCircle2, XCircle, RotateCcw, X } from 'lucide-react'; // Adicionado X
 import toast from 'react-hot-toast';
 
 const formatCurrency = (value: number) => {
@@ -340,7 +340,7 @@ const TeamProductionGoals = () => {
                       onChange={e => setStartDate(e.target.value)}
                       required
                       className="w-full pl-10 p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600"
-                    />
+                      />
                   </div>
                 </div>
                 <div>
