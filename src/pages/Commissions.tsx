@@ -1,8 +1,9 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '@/context/AppContext';
 import { Commission, CommissionStatus, CommissionRule, InstallmentStatus, InstallmentInfo, CommissionReport } from '@/types';
-import { Trash2, Search, DollarSign, Calendar, Calculator, Save, Table as TableIcon, Car, Home, ChevronDown, MapPin, Percent, Filter, XCircle, Crown, Plus, Wand2, Loader2, FileText, Download } from 'lucide-react';
+import { Trash2, Search, DollarSign, Calendar, Calculator, Save, Table as TableIcon, Car, Home, ChevronDown, MapPin, Percent, Filter, XCircle, Crown, Plus, Wand2, Loader2, FileText, Download, CheckCircle2 as MarkAllPaidIcon } from 'lucide-react'; // Adicionado MarkAllPaidIcon
 import * as XLSX from 'xlsx';
+import toast from 'react-hot-toast';
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -283,12 +284,12 @@ export const Commissions = () => {
       
       await addCommission(payload);
       
-      alert("Venda registrada com sucesso!");
+      toast.success("Venda registrada com sucesso!");
       resetCalculatorForm();
       setActiveTab('history');
 
     } catch (error: any) {
-      alert(error.message || "Falha ao salvar");
+      toast.error(error.message || "Falha ao salvar");
     } finally {
       setIsSaving(false);
     }
@@ -298,9 +299,40 @@ export const Commissions = () => {
     if (window.confirm('Tem certeza que deseja excluir este registro de comissão? Esta ação não pode ser desfeita.')) {
       try {
         await deleteCommission(id);
+        toast.success("Comissão excluída com sucesso!");
       } catch (error: any) {
-        alert(`Erro ao excluir comissão: ${error.message}`);
+        toast.error(`Erro ao excluir comissão: ${error.message}`);
       }
+    }
+  };
+
+  // NOVO: Função para marcar todas as parcelas como pagas
+  const handleMarkAllAsPaid = async (commission: Commission) => {
+    if (commission.status === 'Concluído') {
+      toast.info("Esta comissão já está marcada como concluída.");
+      return;
+    }
+    if (!window.confirm(`Tem certeza que deseja marcar TODAS as 15 parcelas da comissão de "${commission.clientName}" como PAGAS? Esta ação não pode ser desfeita.`)) {
+      return;
+    }
+
+    try {
+      const updatedInstallmentDetails: Record<string, InstallmentInfo> = {};
+      // Para dados antigos, não preenchemos paidDate nem competenceMonth
+      for (let i = 1; i <= 15; i++) {
+        updatedInstallmentDetails[i.toString()] = {
+          status: 'Pago',
+          // paidDate e competenceMonth são omitidos conforme a solicitação
+        };
+      }
+
+      await updateCommission(commission.id, {
+        installmentDetails: updatedInstallmentDetails,
+        status: 'Concluído',
+      });
+      toast.success(`Comissão de "${commission.clientName}" marcada como CONCLUÍDA!`);
+    } catch (error: any) {
+      toast.error(`Erro ao marcar comissão como concluída: ${error.message}`);
     }
   };
 
@@ -427,7 +459,7 @@ export const Commissions = () => {
   
     } catch (error) {
       console.error("Erro ao confirmar pagamento:", error);
-      alert("Erro ao salvar o pagamento. Por favor, verifique o histórico e tente novamente.");
+      toast.error("Erro ao salvar o pagamento. Por favor, verifique o histórico e tente novamente.");
     }
   };
 
@@ -490,7 +522,7 @@ export const Commissions = () => {
       'Valor (Gestor)': item.values.man,
       'Valor (Anjo)': item.values.angel,
       'Data Venda': new Date(item.commission.date + 'T00:00:00').toLocaleDateString('pt-BR'),
-      'Mês Competência': formatMonthYear(item.commission.installmentDetails[item.installmentNumber].competenceMonth!),
+      'Mês Competência': item.commission.installmentDetails[item.installmentNumber].competenceMonth ? formatMonthYear(item.commission.installmentDetails[item.installmentNumber].competenceMonth!) : 'N/A', // Ajustado para N/A
       'PV': item.commission.pv, // Adicionado PV ao export
     }));
 
@@ -568,7 +600,7 @@ export const Commissions = () => {
                         <input required placeholder="Nome do Cliente" className="w-full border-gray-300 dark:border-slate-600 rounded-md text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white p-2" value={clientName} onChange={e => setClientName(e.target.value)} />
                          <div className="flex space-x-2">
                              <div className="flex-1"><label className="text-xs text-gray-500 dark:text-gray-400">Data da Venda</label><input type="date" required className="w-full border-gray-300 dark:border-slate-600 rounded-md text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white p-2" value={saleDate} onChange={e => setSaleDate(e.target.value)} /></div>
-                             <div className="flex-1"><label className="text-xs text-gray-500 dark:text-gray-400">PV (Ponto de Venda)</label><div className="flex gap-2"><select required className="w-full border-gray-300 dark:border-slate-600 rounded-md text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white p-2" value={selectedPV} onChange={e => setSelectedPV(e.target.value)}><option value="">Selecione...</option>{pvs.map(pv => <option key={pv} value={pv}>{pv}</option>)}</select><button type="button" onClick={handleAddPV} className="p-2 bg-brand-100 text-brand-700 rounded dark:bg-brand-900/30 dark:text-brand-400 hover:bg-brand-200" title="Adicionar novo PV"><Plus className="w-5 h-5" /></button></div></div>
+                             <div className="flex-1"><label className="text-xs text-gray-500 dark:text-gray-400">PV (Ponto de Venda)</label><div className="flex gap-2"><select required className="w-full border-gray-300 dark:border-slate-600 rounded-md text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white p-2" value={selectedPV} onChange={e => setSelectedPV(e.target.value)}><option value="">Selecione...</option>{pvs.map(pv => <option key={pv} value={pv}>{pv}</option>))}</select><button type="button" onClick={handleAddPV} className="p-2 bg-brand-100 text-brand-700 rounded dark:bg-brand-900/30 dark:text-brand-400 hover:bg-brand-200" title="Adicionar novo PV"><Plus className="w-5 h-5" /></button></div></div>
                         </div>
                         <div className="flex space-x-2">
                              <button type="button" onClick={() => setSaleType('Imóvel')} className={`flex-1 flex items-center justify-center space-x-2 p-2 rounded-md text-sm border ${saleType === 'Imóvel' ? 'bg-brand-50 border-brand-500 text-brand-700 dark:bg-brand-900/20 dark:text-brand-300' : 'border-gray-300 dark:border-slate-600 text-gray-500'}`}><Home className="w-4 h-4" /><span>Imóvel</span></button>
@@ -580,9 +612,9 @@ export const Commissions = () => {
                             <div className="w-1/3 relative"><label className="text-xs text-gray-500 dark:text-gray-400 font-bold text-red-500">Imposto (%)</label><div className="relative"><input type="text" className="w-full border-red-200 dark:border-red-900/50 rounded-md text-sm bg-red-50 dark:bg-red-900/10 text-red-900 dark:text-red-300 p-2 pl-2" value={taxRateInput} onChange={e => setTaxRateInput(e.target.value)} /><Percent className="w-3 h-3 text-red-400 absolute right-2 top-2.5" /></div></div>
                         </div>
                         <div className="pt-2 border-t border-gray-100 dark:border-slate-700">
-                            <select required className="w-full border-gray-300 dark:border-slate-600 rounded-md text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white p-2 mb-2" value={selectedConsultant} onChange={e => setSelectedConsultant(e.target.value)}><option value="">Selecione o Prévia/Autorizado</option>{consultants.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}</select>
-                            <select className="w-full border-gray-300 dark:border-slate-600 rounded-md text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white p-2 mb-2" value={selectedManager} onChange={e => setSelectedManager(e.target.value)}><option value="">Selecione o Gestor</option>{managers.map(m => <option key={m.id} value={m.name}>{m.name}</option>)}</select>
-                            {hasAngel && (<select required className="w-full border-gray-300 dark:border-slate-600 rounded-md text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white p-2" value={selectedAngel} onChange={e => setSelectedAngel(e.target.value)}><option value="">Selecione o Anjo</option>{angels.map(a => <option key={a.id} value={a.name}>{a.name}</option>)}</select>)}
+                            <select required className="w-full border-gray-300 dark:border-slate-600 rounded-md text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white p-2 mb-2" value={selectedConsultant} onChange={e => setSelectedConsultant(e.target.value)}><option value="">Selecione o Prévia/Autorizado</option>{consultants.map(c => <option key={c.id} value={c.name}>{c.name}</option>))}</select>
+                            <select className="w-full border-gray-300 dark:border-slate-600 rounded-md text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white p-2 mb-2" value={selectedManager} onChange={e => setSelectedManager(e.target.value)}><option value="">Selecione o Gestor</option>{managers.map(m => <option key={m.id} value={m.name}>{m.name}</option>))}</select>
+                            {hasAngel && (<select required className="w-full border-gray-300 dark:border-slate-600 rounded-md text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white p-2" value={selectedAngel} onChange={e => setSelectedAngel(e.target.value)}><option value="">Selecione o Anjo</option>{angels.map(a => <option key={a.id} value={a.name}>{a.name}</option>))}</select>)}
                         </div>
                         <button 
                           type="submit" 
@@ -632,7 +664,7 @@ export const Commissions = () => {
                                 <input type="text" inputMode="numeric" placeholder="Até" value={rule.endInstallment} onChange={e => handleUpdateRuleText(rule.id, 'endInstallment', e.target.value, false)} className="w-full p-1.5 text-sm border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 rounded" />
                               </div>
                               <div className="col-span-2"><input type="text" inputMode="decimal" placeholder="Cons %" value={rule.consultantRate} onChange={e => handleUpdateRuleText(rule.id, 'consultantRate', e.target.value, true)} className="w-full p-1.5 text-sm border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 rounded" /></div>
-                              <div className="col-span-2"><input type="text" inputMode="decimal" placeholder="Gestor %" value={rule.managerRate} onChange={e => handleUpdateRuleText(rule.id, 'managerRate', e.target.value, true)} className="w-full p-1.5 text-sm border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 rounded" /></div>
+                              <div className="col-span-2"><input type="text" inputMode="decimal" placeholder="Gestor %" disabled={!hasAngel} value={rule.managerRate} onChange={e => handleUpdateRuleText(rule.id, 'managerRate', e.target.value, true)} className="w-full p-1.5 text-sm border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 rounded disabled:bg-gray-100 dark:disabled:bg-slate-800" /></div>
                               <div className="col-span-2"><input type="text" inputMode="decimal" placeholder="Anjo %" disabled={!hasAngel} value={rule.angelRate} onChange={e => handleUpdateRuleText(rule.id, 'angelRate', e.target.value, true)} className="w-full p-1.5 text-sm border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 rounded disabled:bg-gray-100 dark:disabled:bg-slate-800" /></div>
                               <div className="col-span-2 flex justify-end"><button onClick={() => handleRemoveRule(rule.id)} className="p-2 text-gray-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button></div>
                             </div>
@@ -769,6 +801,15 @@ export const Commissions = () => {
                                             <td className="px-4 py-3 align-top"><div className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${statusColors[status]}`}>{status}</div><div className="mt-2"><div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-1"><span>{paidCount}/{totalInstallments}</span><span>{Math.round(progressPercent)}%</span></div><div className="w-full bg-gray-200 dark:bg-slate-600 rounded-full h-1.5"><div className={`h-1.5 rounded-full ${progressColor}`} style={{ width: `${progressPercent}%` }}></div></div></div></td>
                                             <td className="px-4 py-3 text-right align-top">
                                                 <div className="flex justify-end items-center">
+                                                    {status !== 'Concluído' && (
+                                                      <button 
+                                                        onClick={() => handleMarkAllAsPaid(c)} 
+                                                        className="p-2 rounded-md hover:bg-green-100 dark:hover:bg-green-900/20 text-gray-400 hover:text-green-500"
+                                                        title="Marcar Todas as Parcelas como Pagas"
+                                                      >
+                                                        <MarkAllPaidIcon className="w-4 h-4" />
+                                                      </button>
+                                                    )}
                                                     <button 
                                                         onClick={() => handleDeleteCommission(c.id)} 
                                                         className="p-2 rounded-md hover:bg-red-100 dark:hover:bg-red-900/20 text-gray-400 hover:text-red-500"
@@ -844,20 +885,20 @@ export const Commissions = () => {
               </div>
               <div className="flex-1">
                 <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Filtrar por Consultor:</label>
-                <select value={reportConsultant} onChange={e => setReportConsultant(e.target.value)} className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2 bg-white dark:bg-slate-700 text-gray-900 dark:text-white"><option value="">Todos</option>{consultants.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}</select>
+                <select value={reportConsultant} onChange={e => setReportConsultant(e.target.value)} className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2 bg-white dark:bg-slate-700 text-gray-900 dark:text-white"><option value="">Todos</option>{consultants.map(c => <option key={c.id} value={c.name}>{c.name}</option>))}</select>
               </div>
               <div className="flex-1">
                 <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Filtrar por Gestor:</label>
-                <select value={reportManager} onChange={e => setReportManager(e.target.value)} className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2 bg-white dark:bg-slate-700 text-gray-900 dark:text-white"><option value="">Todos</option>{managers.map(m => <option key={m.id} value={m.name}>{m.name}</option>)}</select>
+                <select value={reportManager} onChange={e => setReportManager(e.target.value)} className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2 bg-white dark:bg-slate-700 text-gray-900 dark:text-white"><option value="">Todos</option>{managers.map(m => <option key={m.id} value={m.name}>{m.name}</option>))}</select>
               </div>
               <div className="flex-1">
                 <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Filtrar por Anjo:</label>
-                <select value={reportAngel} onChange={e => setReportAngel(e.target.value)} className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2 bg-white dark:bg-slate-700 text-gray-900 dark:text-white"><option value="">Todos</option>{angels.map(a => <option key={a.id} value={a.name}>{a.name}</option>)}</select>
+                <select value={reportAngel} onChange={e => setReportAngel(e.target.value)} className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2 bg-white dark:bg-slate-700 text-gray-900 dark:text-white"><option value="">Todos</option>{angels.map(a => <option key={a.id} value={a.name}>{a.name}</option>))}</select>
               </div>
               {/* NOVO: Filtro por PV */}
               <div className="flex-1">
                 <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Filtrar por PV:</label>
-                <select value={reportPV} onChange={e => setReportPV(e.target.value)} className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2 bg-white dark:bg-slate-700 text-gray-900 dark:text-white"><option value="">Todos</option>{pvs.map(pv => <option key={pv} value={pv}>{pv}</option>)}</select>
+                <select value={reportPV} onChange={e => setReportPV(e.target.value)} className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2 bg-white dark:bg-slate-700 text-gray-900 dark:text-white"><option value="">Todos</option>{pvs.map(pv => <option key={pv} value={pv}>{pv}</option>))}</select>
               </div>
               <button onClick={generateReport} className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition font-medium">
                 Gerar Relatório
