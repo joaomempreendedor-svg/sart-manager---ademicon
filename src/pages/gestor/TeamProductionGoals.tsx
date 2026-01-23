@@ -61,13 +61,23 @@ const TeamProductionGoals = () => {
       return (goalStart <= endOfYear && goalEnd >= startOfYear);
     });
 
-    let totalTargetTeamSize = 0;
+    let projectedTeamSizeTarget = 0; // Alterado de totalTargetTeamSize
+    let latestGoalEndDate: Date | null = null;
+
+    // Calcula o projectedTeamSizeTarget como a meta de tamanho da equipe do período mais recente
+    goalsInSelectedYear.forEach(goal => {
+      const goalEnd = new Date(goal.end_date + 'T00:00:00');
+      if (latestGoalEndDate === null || goalEnd > latestGoalEndDate) {
+        latestGoalEndDate = goalEnd;
+        projectedTeamSizeTarget = goal.target_team_size;
+      }
+    });
+
     let totalTargetProductionValue = 0;
     let totalActualProductionValueForYear = 0;
     let goalsMetCount = 0; // Contagem de metas individuais onde o alvo de produção foi atingido
 
     goalsInSelectedYear.forEach(goal => {
-      totalTargetTeamSize += goal.target_team_size;
       totalTargetProductionValue += goal.target_production_value;
 
       const goalPeriodStart = new Date(goal.start_date + 'T00:00:00');
@@ -102,7 +112,7 @@ const TeamProductionGoals = () => {
     return {
       totalGoalsSet: goalsInSelectedYear.length,
       goalsMetCount,
-      totalTargetTeamSize,
+      projectedTeamSizeTarget, // Alterado aqui
       totalTargetProductionValue,
       totalActualProductionValueForYear,
       currentTeamSize, // Snapshot atual de membros ativos da equipe
@@ -312,8 +322,8 @@ const TeamProductionGoals = () => {
             <p className="text-2xl font-bold text-gray-900 dark:text-white">{annualSummary.goalsMetCount} / {annualSummary.totalGoalsSet}</p>
           </div>
           <div className="bg-gray-50 dark:bg-slate-700/50 p-4 rounded-lg border border-gray-200 dark:border-slate-700">
-            <p className="text-sm text-gray-500 dark:text-gray-400">Tamanho da Equipe (Alvo Total)</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{annualSummary.currentTeamSize} / {annualSummary.totalTargetTeamSize}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Tamanho da Equipe (Alvo Projetado)</p> {/* Título alterado */}
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{annualSummary.currentTeamSize} / {annualSummary.projectedTeamSizeTarget}</p> {/* Usando projectedTeamSizeTarget */}
           </div>
           <div className="bg-gray-50 dark:bg-slate-700/50 p-4 rounded-lg border border-gray-200 dark:border-slate-700">
             <p className="text-sm text-gray-500 dark:text-gray-400">Valor de Produção (Alvo Total)</p>
