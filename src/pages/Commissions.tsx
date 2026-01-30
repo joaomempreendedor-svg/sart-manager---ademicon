@@ -27,6 +27,17 @@ const MONTHLY_CUTOFF_DAYS: Record<number, number> = {
 
 const calculateCompetenceMonth = (paidDate: string): string => {
   const date = new Date(paidDate + 'T00:00:00');
+  
+  const period = cutoffPeriods.find(p => {
+    const start = new Date(p.startDate + 'T00:00:00');
+    const end = new Date(p.endDate + 'T00:00:00');
+    return date >= start && date <= end;
+  });
+  
+  if (period) {
+    return period.competenceMonth;
+  }
+  
   const month = date.getMonth() + 1;
   const day = date.getDate();
   const cutoffDay = MONTHLY_CUTOFF_DAYS[month] || 19;
@@ -664,7 +675,7 @@ export const Commissions = () => {
                                 <input type="text" inputMode="numeric" placeholder="Até" value={rule.endInstallment} onChange={e => handleUpdateRuleText(rule.id, 'endInstallment', e.target.value, false)} className="w-full p-1.5 text-sm border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 rounded" />
                               </div>
                               <div className="col-span-2"><input type="text" inputMode="decimal" placeholder="Cons %" value={rule.consultantRate} onChange={e => handleUpdateRuleText(rule.id, 'consultantRate', e.target.value, true)} className="w-full p-1.5 text-sm border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 rounded" /></div>
-                              <div className="col-span-2"><input type="text" inputMode="decimal" placeholder="Gestor %" disabled={!hasAngel} value={rule.managerRate} onChange={e => handleUpdateRuleText(rule.id, 'managerRate', e.target.value, true)} className="w-full p-1.5 text-sm border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 rounded disabled:bg-gray-100 dark:disabled:bg-slate-800" /></div>
+                              <div className="col-span-2"><input type="text" inputMode="decimal" placeholder="Gestor %" value={rule.managerRate} onChange={e => handleUpdateRuleText(rule.id, 'managerRate', e.target.value, true)} className="w-full p-1.5 text-sm border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 rounded" /></div>
                               <div className="col-span-2"><input type="text" inputMode="decimal" placeholder="Anjo %" disabled={!hasAngel} value={rule.angelRate} onChange={e => handleUpdateRuleText(rule.id, 'angelRate', e.target.value, true)} className="w-full p-1.5 text-sm border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 rounded disabled:bg-gray-100 dark:disabled:bg-slate-800" /></div>
                               <div className="col-span-2 flex justify-end"><button onClick={() => handleRemoveRule(rule.id)} className="p-2 text-gray-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button></div>
                             </div>
