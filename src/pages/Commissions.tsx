@@ -163,7 +163,7 @@ export const Commissions = () => {
     setGroup('');
     setQuota('');
     setSelectedPV('');
-    setSelectConsultant('');
+    setSelectedConsultant(''); // Corrigido: de setSelectConsultant para setSelectedConsultant
     setSelectedManager('');
     setSelectedAngel('');
     setTaxRateInput('6');
