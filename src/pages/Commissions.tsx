@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '@/context/AppContext';
 import { Commission, CommissionStatus, CommissionRule, InstallmentStatus, InstallmentInfo, CommissionReport } from '@/types';
-import { Trash2, Search, DollarSign, Calendar, Calculator, Save, Table as TableIcon, Car, Home, ChevronDown, MapPin, Percent, Filter, XCircle, Crown, Plus, Wand2, Loader2, FileText, Download, CheckCircle2 as MarkAllPaidIcon, Edit2, CalendarCheck, TrendingUp } from 'lucide-react'; // Adicionado CalendarCheck e TrendingUp
+import { Trash2, Search, DollarSign, Calendar, Calculator, Save, Table as TableIcon, Car, Home, ChevronDown, MapPin, Percent, Filter, XCircle, Crown, Plus, Wand2, Loader2, FileText, Download, CheckCircle2 as MarkAllPaidIcon, Edit2, CalendarCheck, TrendingUp } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import toast from 'react-hot-toast';
 import { EditCommissionModal } from '@/components/EditCommissionModal';
@@ -163,7 +163,7 @@ export const Commissions = () => {
     setGroup('');
     setQuota('');
     setSelectedPV('');
-    setSelectedConsultant(''); // Corrigido: de setSelectConsultant para setSelectedConsultant
+    setSelectedConsultant('');
     setSelectedManager('');
     setSelectedAngel('');
     setTaxRateInput('6');
@@ -451,18 +451,25 @@ export const Commissions = () => {
     let nearCompletion = 0; // Mais de 70% pago, mas não 100%
     let totalValue = 0;
 
+    let inProgressCount = 0;
+    let delayedCount = 0;
+    let completedCount = 0;
+    let cancelledCount = 0;
+    let nearCompletionCount = 0;
+
     filteredHistory.forEach(c => {
         const status = getOverallStatus(c.installmentDetails);
         const paidCount = Object.values(c.installmentDetails).filter(s => s.status === 'Pago').length;
         const progressPercent = (paidCount / 15) * 100;
 
-        if (status === 'Em Andamento') inProgress++;
-        else if (status === 'Atraso') delayed++;
-        else if (status === 'Concluído') completed++;
-        else if (status === 'Cancelado') cancelled++;
+        if (status === 'Em Andamento') { inProgress++; inProgressCount++; }
+        else if (status === 'Atraso') { delayed++; delayedCount++; }
+        else if (status === 'Concluído') { completed++; completedCount++; }
+        else if (status === 'Cancelado') { cancelled++; cancelledCount++; }
 
         if (progressPercent > 70 && progressPercent < 100) {
             nearCompletion++;
+            nearCompletionCount++;
         }
         totalValue += c.value;
     });
@@ -480,6 +487,11 @@ export const Commissions = () => {
         completedPercentage: totalCommissions > 0 ? (completed / totalCommissions) * 100 : 0,
         cancelledPercentage: totalCommissions > 0 ? (cancelled / totalCommissions) * 100 : 0,
         nearCompletionPercentage: totalCommissions > 0 ? (nearCompletion / totalCommissions) * 100 : 0,
+        inProgressCount,
+        delayedCount,
+        completedCount,
+        cancelledCount,
+        nearCompletionCount,
     };
   }, [filteredHistory]);
 
@@ -881,23 +893,38 @@ export const Commissions = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                 <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-3">
                     <div className="p-2 bg-green-50 dark:bg-green-900/20 rounded-lg"><MarkAllPaidIcon className="w-5 h-5 text-green-600 dark:text-green-400" /></div>
-                    <div><p className="text-sm text-gray-500 dark:text-gray-400">Concluídas</p><p className="text-xl font-bold text-gray-900 dark:text-white">{formatPercent(summaryStats.completedPercentage)}</p></div>
+                    <div>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Concluídas</p>
+                        <p className="text-xl font-bold text-gray-900 dark:text-white">{formatPercent(summaryStats.completedPercentage)} <span className="text-sm font-normal text-gray-500 dark:text-gray-400">({summaryStats.completedCount})</span></p>
+                    </div>
                 </div>
                 <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-3">
                     <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg"><TrendingUp className="w-5 h-5 text-blue-600 dark:text-blue-400" /></div>
-                    <div><p className="text-sm text-gray-500 dark:text-gray-400">Em Andamento</p><p className="text-xl font-bold text-gray-900 dark:text-white">{formatPercent(summaryStats.inProgressPercentage)}</p></div>
+                    <div>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Em Andamento</p>
+                        <p className="text-xl font-bold text-gray-900 dark:text-white">{formatPercent(summaryStats.inProgressPercentage)} <span className="text-sm font-normal text-gray-500 dark:text-gray-400">({summaryStats.inProgressCount})</span></p>
+                    </div>
                 </div>
                 <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-3">
                     <div className="p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg"><Wand2 className="w-5 h-5 text-yellow-600 dark:text-yellow-400" /></div>
-                    <div><p className="text-sm text-gray-500 dark:text-gray-400">Próximas de Concluir</p><p className="text-xl font-bold text-gray-900 dark:text-white">{formatPercent(summaryStats.nearCompletionPercentage)}</p></div>
+                    <div>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Próximas de Concluir</p>
+                        <p className="text-xl font-bold text-gray-900 dark:text-white">{formatPercent(summaryStats.nearCompletionPercentage)} <span className="text-sm font-normal text-gray-500 dark:text-gray-400">({summaryStats.nearCompletionCount})</span></p>
+                    </div>
                 </div>
                 <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-3">
                     <div className="p-2 bg-red-50 dark:bg-red-900/20 rounded-lg"><XCircle className="w-5 h-5 text-red-600 dark:text-red-400" /></div>
-                    <div><p className="text-sm text-gray-500 dark:text-gray-400">Atrasadas</p><p className="text-xl font-bold text-gray-900 dark:text-white">{formatPercent(summaryStats.delayedPercentage)}</p></div>
+                    <div>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Atrasadas</p>
+                        <p className="text-xl font-bold text-gray-900 dark:text-white">{formatPercent(summaryStats.delayedPercentage)} <span className="text-sm font-normal text-gray-500 dark:text-gray-400">({summaryStats.delayedCount})</span></p>
+                    </div>
                 </div>
                 <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-3">
                     <div className="p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg"><Trash2 className="w-5 h-5 text-gray-600 dark:text-gray-300" /></div>
-                    <div><p className="text-sm text-gray-500 dark:text-gray-400">Canceladas</p><p className="text-xl font-bold text-gray-900 dark:text-white">{formatPercent(summaryStats.cancelledPercentage)}</p></div>
+                    <div>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Canceladas</p>
+                        <p className="text-xl font-bold text-gray-900 dark:text-white">{formatPercent(summaryStats.cancelledPercentage)} <span className="text-sm font-normal text-gray-500 dark:text-gray-400">({summaryStats.cancelledCount})</span></p>
+                    </div>
                 </div>
             </div>
 
