@@ -278,8 +278,8 @@ export const EditCommissionModal: React.FC<EditCommissionModalProps> = ({
                   <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
                     <SelectItem value="none">Nenhum</SelectItem> {/* Corrigido: valor não vazio */}
                     {managers.map(m => <SelectItem key={m.id} value={m.name}>{m.name}</SelectItem>)}
-                  </p>
-                </div>
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <Label htmlFor="taxRateInput">Imposto (%)</Label>
