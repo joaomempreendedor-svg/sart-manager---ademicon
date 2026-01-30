@@ -449,7 +449,7 @@ export const Commissions = () => {
     let completed = 0;
     let cancelled = 0;
     let nearCompletion = 0; // Mais de 70% pago, mas não 100%
-    let totalValue = 0;
+    let totalValue = 0; // NOVO: Valor total de todas as comissões filtradas
 
     let inProgressCount = 0;
     let delayedCount = 0;
@@ -471,7 +471,7 @@ export const Commissions = () => {
             nearCompletion++;
             nearCompletionCount++;
         }
-        totalValue += c.value;
+        totalValue += c.value; // Soma o valor total de cada comissão
     });
 
     return {
@@ -481,7 +481,7 @@ export const Commissions = () => {
         completed,
         cancelled,
         nearCompletion,
-        totalValue,
+        totalValue, // Inclui o valor total
         inProgressPercentage: totalCommissions > 0 ? (inProgress / totalCommissions) * 100 : 0,
         delayedPercentage: totalCommissions > 0 ? (delayed / totalCommissions) * 100 : 0,
         completedPercentage: totalCommissions > 0 ? (completed / totalCommissions) * 100 : 0,
@@ -925,6 +925,17 @@ export const Commissions = () => {
                         <p className="text-sm text-gray-500 dark:text-gray-400">Canceladas</p>
                         <p className="text-xl font-bold text-gray-900 dark:text-white">{formatPercent(summaryStats.cancelledPercentage)} <span className="text-sm font-normal text-gray-500 dark:text-gray-400">({summaryStats.cancelledCount})</span></p>
                     </div>
+                </div>
+            </div>
+
+            {/* NOVO: Card para o Valor Total Vendido */}
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center justify-center gap-4 mb-8">
+                <div className="p-3 bg-brand-50 dark:bg-brand-900/20 rounded-lg flex-shrink-0">
+                    <DollarSign className="w-6 h-6 text-brand-600 dark:text-brand-400" />
+                </div>
+                <div className="flex flex-col justify-center text-center">
+                    <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Valor Total Vendido</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white whitespace-nowrap">{formatCurrency(summaryStats.totalValue)}</p>
                 </div>
             </div>
 
