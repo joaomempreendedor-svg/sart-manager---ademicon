@@ -1,9 +1,10 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '@/context/AppContext';
 import { Commission, CommissionStatus, CommissionRule, InstallmentStatus, InstallmentInfo, CommissionReport } from '@/types';
-import { Trash2, Search, DollarSign, Calendar, Calculator, Save, Table as TableIcon, Car, Home, ChevronDown, MapPin, Percent, Filter, XCircle, Crown, Plus, Wand2, Loader2, FileText, Download, CheckCircle2 as MarkAllPaidIcon } from 'lucide-react'; // Adicionado MarkAllPaidIcon
+import { Trash2, Search, DollarSign, Calendar, Calculator, Save, Table as TableIcon, Car, Home, ChevronDown, MapPin, Percent, Filter, XCircle, Crown, Plus, Wand2, Loader2, FileText, Download, CheckCircle2 as MarkAllPaidIcon, Edit2 } from 'lucide-react'; // Adicionado MarkAllPaidIcon e Edit2
 import * as XLSX from 'xlsx';
 import toast from 'react-hot-toast';
+import { EditCommissionModal } from '@/components/EditCommissionModal'; // Importar o novo modal
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -86,7 +87,7 @@ interface DetailedInstallment {
 }
 
 export const Commissions = () => {
-  const { commissions, addCommission, updateCommission, deleteCommission, teamMembers, pvs, addPV, updateInstallmentStatus } = useApp();
+  const { commissions, addCommission, updateCommission, deleteCommission, teamMembers, pvs, addPV, updateInstallmentStatus, cutoffPeriods } = useApp();
   
   const [activeTab, setActiveTab] = useState<'calculator' | 'history' | 'reports'>('calculator');
   const [searchTerm, setSearchTerm] = useState('');
@@ -130,6 +131,10 @@ export const Commissions = () => {
   } | null>(null);
   const [paymentDate, setPaymentDate] = useState('');
   const [calculatedCompetence, setCalculatedCompetence] = useState('');
+
+  // NOVO: Estados para o modal de edição de comissão
+  const [isEditCommissionModalOpen, setIsEditCommissionModalOpen] = useState(false);
+  const [commissionToEdit, setCommissionToEdit] = useState<Commission | null>(null);
 
   // Relatórios
   const [reportMonth, setReportMonth] = useState(new Date().toISOString().slice(0, 7));
@@ -175,6 +180,8 @@ export const Commissions = () => {
     setEditingInstallment(null);
     setPaymentDate('');
     setCalculatedCompetence('');
+    setIsEditCommissionModalOpen(false); // Fechar modal de edição de comissão
+    setCommissionToEdit(null);
   }, [activeTab]);
 
   const parseCurrency = (value: string) => parseFloat(value.replace(/\./g, '').replace(',', '.')) || 0;
@@ -444,7 +451,7 @@ export const Commissions = () => {
     if (paymentDate && editingInstallment) {
       setCalculatedCompetence(calculateCompetenceMonth(paymentDate));
     }
-  }, [paymentDate, editingInstallment]);
+  }, [paymentDate, editingInstallment, cutoffPeriods]); // Adicionado cutoffPeriods como dependência
 
   const confirmPayment = async () => {
     if (!editingInstallment) return;
@@ -562,6 +569,60 @@ export const Commissions = () => {
     XLSX.utils.book_append_sheet(workbook, worksheet, "Comissões");
 
     XLSX.writeFile(workbook, `Relatorio_Comissoes_${reportData.month}.xlsx`);
+  };
+
+  const handleOpenEditCommissionModal = (commission: Commission) => {
+    setCommissionToEdit(commission);
+    setIsEditCommissionModalOpen(true);
+  };
+
+  const handleUpdateCommission = async (updatedCommission: Commission) => {
+    setIsSaving(true);
+    try {
+        const credit = updatedCommission.value;
+        const taxRate = updatedCommission.taxRate || 0;
+        const hasAngel = !!updatedCommission.angelName;
+        const isCustomRulesMode = !!updatedCommission.customRules && updatedCommission.customRules.length > 0;
+        const customRules = updatedCommission.customRules || [];
+
+        let recalculatedTotals = { consultant: 0, manager: 0, angel: 0, grandTotal: 0 };
+        if (isCustomRulesMode) {
+            customRules.forEach(rule => {
+                const numInstallments = (rule.endInstallment - rule.startInstallment + 1);
+                const calc = (pct: number) => credit * (pct / 100);
+                recalculatedTotals.consultant += calc(rule.consultantRate) * numInstallments;
+                recalculatedTotals.manager += calc(rule.managerRate) * numInstallments;
+                recalculatedTotals.angel += hasAngel ? calc(rule.angelRate) * numInstallments : 0;
+            });
+        } else {
+            const manRules = hasAngel ? DEFAULT_RULES.manager.withAngel : DEFAULT_RULES.manager.noAngel;
+            recalculatedTotals.consultant = (credit * (DEFAULT_RULES.consultant.p1_10 / 100) * 10) +
+                                            (credit * (DEFAULT_RULES.consultant.p11_13 / 100) * 3) +
+                                            (credit * (DEFAULT_RULES.consultant.p15 / 100) * 1);
+            recalculatedTotals.manager = (credit * (manRules.p1_10 / 100) * 10) +
+                                         (credit * (manRules.p11_13 / 100) * 3);
+            recalculatedTotals.angel = hasAngel ? ((credit * (DEFAULT_RULES.angel.p1_10 / 100) * 10) +
+                                                          (credit * (DEFAULT_RULES.angel.p11_13 / 100) * 3)) : 0;
+        }
+        recalculatedTotals.grandTotal = recalculatedTotals.consultant + recalculatedTotals.manager + recalculatedTotals.angel;
+
+        const finalUpdates: Partial<Commission> = {
+            ...updatedCommission,
+            netValue: recalculatedTotals.grandTotal * (1 - (taxRate / 100)),
+            consultantValue: recalculatedTotals.consultant,
+            managerValue: recalculatedTotals.manager,
+            angelValue: recalculatedTotals.angel,
+            status: getOverallStatus(updatedCommission.installmentDetails), // Re-evaluate overall status
+        };
+
+        await updateCommission(updatedCommission.id, finalUpdates);
+        toast.success("Comissão atualizada com sucesso!");
+        setIsEditCommissionModalOpen(false);
+    } catch (error: any) {
+        toast.error(error.message || "Falha ao atualizar comissão.");
+    } finally {
+        setIsSaving(false);
+    }
   };
 
   return (
@@ -830,6 +891,13 @@ export const Commissions = () => {
                                                       </button>
                                                     )}
                                                     <button 
+                                                        onClick={() => handleOpenEditCommissionModal(c)} // NOVO: Botão de editar
+                                                        className="p-2 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/20 text-gray-400 hover:text-blue-500"
+                                                        title="Editar Venda"
+                                                    >
+                                                        <Edit2 className="w-4 h-4" />
+                                                    </button>
+                                                    <button 
                                                         onClick={() => handleDeleteCommission(c.id)} 
                                                         className="p-2 rounded-md hover:bg-red-100 dark:hover:bg-red-900/20 text-gray-400 hover:text-red-500"
                                                         title="Excluir Venda"
@@ -983,6 +1051,17 @@ export const Commissions = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {isEditCommissionModalOpen && (
+        <EditCommissionModal
+          isOpen={isEditCommissionModalOpen}
+          onClose={() => setIsEditCommissionModalOpen(false)}
+          commissionToEdit={commissionToEdit}
+          onSave={handleUpdateCommission}
+          teamMembers={teamMembers}
+          pvs={pvs}
+        />
       )}
     </div>
   );
