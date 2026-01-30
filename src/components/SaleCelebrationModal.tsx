@@ -18,20 +18,15 @@ interface SaleCelebrationModalProps {
 }
 
 export const SaleCelebrationModal: React.FC<SaleCelebrationModalProps> = ({ isOpen, onClose, leadName }) => {
-  const audioRef = useRef<HTMLAudioElement>(null);
-
-  useEffect(() => {
-    if (isOpen && audioRef.current) {
-      audioRef.current.play().catch(e => console.error("Error playing audio:", e));
-    }
-  }, [isOpen]);
+  // Removido: useRef para o áudio
+  // Removido: useEffect para tocar o áudio
 
   if (!isOpen) return null;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <ConfettiAnimation run={isOpen} onConfettiComplete={() => {}} />
-      <audio ref={audioRef} src="/sounds/celebration.mp3" preload="auto" />
+      {/* Removido: Elemento de áudio */}
       <DialogContent className="sm:max-w-md bg-white dark:bg-slate-800 dark:text-white p-6 text-center">
         <DialogHeader>
           <PartyPopper className="w-16 h-16 text-brand-500 mx-auto mb-4 animate-bounce" />
