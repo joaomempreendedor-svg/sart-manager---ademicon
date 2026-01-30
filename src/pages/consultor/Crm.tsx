@@ -8,7 +8,8 @@ import { ProposalModal } from '@/components/crm/ProposalModal';
 import { MarkAsSoldModal } from '@/components/crm/MarkAsSoldModal';
 import ExportCrmLeadsButton from '@/components/crm/ExportCrmLeadsButton';
 import { ImportCrmLeadsModal } from '@/components/crm/ImportCrmLeadsModal';
-import { ScheduleMeetingModal } from '@/components/crm/ScheduleMeetingModal'; // RE-ADDED: ScheduleMeetingModal
+import { ScheduleMeetingModal } from '@/components/crm/ScheduleMeetingModal';
+import { SaleCelebrationModal } from '@/components/SaleCelebrationModal'; // NOVO: Importar o modal de celebração
 import {
   Select,
   SelectContent,
@@ -35,12 +36,15 @@ const ConsultorCrmPage = () => {
   const [selectedLeadForProposal, setSelectedLeadForProposal] = useState<CrmLead | null>(null);
   const [isMarkAsSoldModalOpen, setIsMarkAsSoldModalOpen] = useState(false);
   const [selectedLeadForSold, setSelectedLeadForSold] = useState<CrmLead | null>(null);
-  const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false); // RE-ADDED: Meeting modal state
-  const [selectedLeadForMeeting, setSelectedLeadForMeeting] = useState<CrmLead | null>(null); // RE-ADDED: Lead for meeting state
+  const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false);
+  const [selectedLeadForMeeting, setSelectedLeadForMeeting] = useState<CrmLead | null>(null);
 
   const [filterStartDate, setFilterStartDate] = useState('');
   const [filterEndDate, setFilterEndDate] = useState('');
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+
+  const [showCelebration, setShowCelebration] = useState(false); // NOVO: Estado para o modal de celebração
+  const [celebratedLeadName, setCelebratedLeadName] = useState(''); // NOVO: Nome do lead para a celebração
 
   const location = useLocation();
 
@@ -162,7 +166,7 @@ const ConsultorCrmPage = () => {
     setIsMarkAsSoldModalOpen(true);
   };
 
-  const handleOpenMeetingModal = (e: React.MouseEvent, lead: CrmLead) => { // RE-ADDED: Meeting modal handler
+  const handleOpenMeetingModal = (e: React.MouseEvent, lead: CrmLead) => {
     e.stopPropagation();
     setSelectedLeadForMeeting(lead);
     setIsMeetingModalOpen(true);
@@ -171,7 +175,7 @@ const ConsultorCrmPage = () => {
   const handleStageChange = async (leadId: string, newStageId: string) => {
     if (!user) return;
     try {
-      await updateCrmLead(leadId, { stage_id: newStageId }); // Usando updateCrmLead diretamente
+      await updateCrmLead(leadId, { stage_id: newStageId });
     } catch (error: any) {
       alert(`Erro ao mover lead: ${error.message}`);
     }
@@ -196,7 +200,7 @@ const ConsultorCrmPage = () => {
     if (!leadToUpdate) return;
 
     try {
-      await updateCrmLead(leadId, { stage_id: targetStageId }); // Usando updateCrmLead diretamente
+      await updateCrmLead(leadId, { stage_id: targetStageId });
     } catch (error: any) {
       alert(`Erro ao mover lead: ${error.message}`);
     }
@@ -206,6 +210,16 @@ const ConsultorCrmPage = () => {
     for (const leadData of leadsToImport) {
       await addCrmLead(leadData);
     }
+  };
+
+  const handleSaleSuccess = (leadName: string) => { // NOVO: Handler para o sucesso da venda
+    setCelebratedLeadName(leadName);
+    setShowCelebration(true);
+  };
+
+  const handleCloseCelebration = () => { // NOVO: Handler para fechar a celebração
+    setShowCelebration(false);
+    setCelebratedLeadName('');
   };
 
   const clearFilters = () => {
@@ -536,10 +550,11 @@ const ConsultorCrmPage = () => {
           isOpen={isMarkAsSoldModalOpen}
           onClose={() => setIsMarkAsSoldModalOpen(false)}
           lead={selectedLeadForSold}
+          onSaleSuccess={handleSaleSuccess} // NOVO: Passar o handler de sucesso
         />
       )}
 
-      {isMeetingModalOpen && selectedLeadForMeeting && ( // RE-ADDED: Meeting modal render
+      {isMeetingModalOpen && selectedLeadForMeeting && (
         <ScheduleMeetingModal
           isOpen={isMeetingModalOpen}
           onClose={() => setIsMeetingModalOpen(false)}
@@ -557,6 +572,13 @@ const ConsultorCrmPage = () => {
           stages={crmStages}
         />
       )}
+
+      {/* NOVO: Renderizar o modal de celebração */}
+      <SaleCelebrationModal
+        isOpen={showCelebration}
+        onClose={handleCloseCelebration}
+        leadName={celebratedLeadName}
+      />
     </div>
   );
 };

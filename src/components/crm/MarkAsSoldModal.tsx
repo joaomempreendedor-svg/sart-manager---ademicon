@@ -20,6 +20,7 @@ interface MarkAsSoldModalProps {
   isOpen: boolean;
   onClose: () => void;
   lead: CrmLead;
+  onSaleSuccess: (leadName: string) => void; // NOVO: Callback para sucesso da venda
 }
 
 const formatCurrencyInput = (value: string): string => {
@@ -34,7 +35,7 @@ const parseCurrencyInput = (value: string): number => {
   return parseFloat(value.replace(/\./g, '').replace(',', '.')) || 0;
 };
 
-export const MarkAsSoldModal: React.FC<MarkAsSoldModalProps> = ({ isOpen, onClose, lead }) => {
+export const MarkAsSoldModal: React.FC<MarkAsSoldModalProps> = ({ isOpen, onClose, lead, onSaleSuccess }) => {
   const { updateCrmLead, crmStages, crmPipelines } = useApp();
   const [soldCreditValue, setSoldCreditValue] = useState<string>('');
   const [soldGroup, setSoldGroup] = useState<string>('');
@@ -43,7 +44,7 @@ export const MarkAsSoldModal: React.FC<MarkAsSoldModalProps> = ({ isOpen, onClos
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
 
-  const quotaTextareaRef = useRef<HTMLTextAreaElement>(null); // Ref para a área de texto da cota
+  const quotaTextareaRef = useRef<HTMLTextAreaAreaElement>(null); // Ref para a área de texto da cota
 
   const activePipeline = useMemo(() => {
     return crmPipelines.find(p => p.is_active) || crmPipelines[0];
@@ -104,6 +105,7 @@ export const MarkAsSoldModal: React.FC<MarkAsSoldModalProps> = ({ isOpen, onClos
       });
 
       toast.success(`Venda para "${lead.name}" registrada e lead movido para "${wonStage.name}" com sucesso!`);
+      onSaleSuccess(lead.name); // Chamar o callback de sucesso
       onClose();
     } catch (err: any) {
       console.error("Erro ao registrar venda:", err);
@@ -207,7 +209,7 @@ export const MarkAsSoldModal: React.FC<MarkAsSoldModalProps> = ({ isOpen, onClos
             </Button>
             <Button type="submit" disabled={isSaving} className="bg-brand-600 hover:bg-brand-700 text-white w-full sm:w-auto">
               {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-              {isSaving ? 'Registrando...' : 'Registrar Venda'}
+              <span>{isSaving ? 'Registrando...' : 'Registrar Venda'}</span>
             </Button>
           </DialogFooter>
         </form>
