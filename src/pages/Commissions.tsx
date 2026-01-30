@@ -26,33 +26,6 @@ const MONTHLY_CUTOFF_DAYS: Record<number, number> = {
   1: 19, 2: 18, 3: 19, 4: 19, 5: 19, 6: 17, 7: 19, 8: 19, 9: 19, 10: 19, 11: 19, 12: 19,
 };
 
-const calculateCompetenceMonth = (paidDate: string): string => {
-  const date = new Date(paidDate + 'T00:00:00');
-  
-  const period = cutoffPeriods.find(p => {
-    const start = new Date(p.startDate + 'T00:00:00');
-    const end = new Date(p.endDate + 'T00:00:00');
-    return date >= start && date <= end;
-  });
-  
-  if (period) {
-    return period.competenceMonth;
-  }
-  
-  const month = date.getMonth() + 1;
-  const day = date.getDate();
-  const cutoffDay = MONTHLY_CUTOFF_DAYS[month] || 19;
-  let competenceDate = new Date(date);
-  if (day <= cutoffDay) {
-    competenceDate.setMonth(competenceDate.getMonth() + 1);
-  } else {
-    competenceDate.setMonth(competenceDate.getMonth() + 2);
-  }
-  const compYear = competenceDate.getFullYear();
-  const compMonth = String(competenceDate.getMonth() + 1).padStart(2, '0');
-  return `${compYear}-${compMonth}`;
-};
-
 const getOverallStatus = (details: Record<string, InstallmentInfo>): CommissionStatus => {
     const statuses = Object.values(details).map(info => info.status);
     if (statuses.some(s => s === 'Cancelado')) return 'Cancelado';
@@ -147,6 +120,35 @@ export const Commissions = () => {
     totalCommissions: { consultant: number; manager: number; angel: number; total: number; };
     detailedInstallments: DetailedInstallment[];
   } | null>(null);
+
+  // Movendo calculateCompetenceMonth para dentro do componente
+  const calculateCompetenceMonth = useMemo(() => (paidDate: string): string => {
+    const date = new Date(paidDate + 'T00:00:00');
+    
+    const period = cutoffPeriods.find(p => {
+      const start = new Date(p.startDate + 'T00:00:00');
+      const end = new Date(p.endDate + 'T00:00:00');
+      return date >= start && date <= end;
+    });
+  
+    if (period) {
+      return period.competenceMonth;
+    }
+  
+    const month = date.getMonth() + 1;
+    const day = date.getDate();
+    const cutoffDay = MONTHLY_CUTOFF_DAYS[month] || 19;
+    let competenceDate = new Date(date);
+    if (day <= cutoffDay) {
+      competenceDate.setMonth(competenceDate.getMonth() + 1);
+    } else {
+      competenceDate.setMonth(competenceDate.getMonth() + 2);
+    }
+    const compYear = competenceDate.getFullYear();
+    const compMonth = String(competenceDate.getMonth() + 1).padStart(2, '0');
+    return `${compYear}-${compMonth}`;
+  }, [cutoffPeriods]);
+
 
   const resetCalculatorForm = () => {
     setCreditValue('');
@@ -451,7 +453,7 @@ export const Commissions = () => {
     if (paymentDate && editingInstallment) {
       setCalculatedCompetence(calculateCompetenceMonth(paymentDate));
     }
-  }, [paymentDate, editingInstallment, cutoffPeriods]); // Adicionado cutoffPeriods como dependência
+  }, [paymentDate, editingInstallment, calculateCompetenceMonth]); // Removido cutoffPeriods, agora calculateCompetenceMonth é uma dependência
 
   const confirmPayment = async () => {
     if (!editingInstallment) return;
