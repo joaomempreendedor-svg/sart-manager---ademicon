@@ -90,7 +90,8 @@ export const EditCommissionModal: React.FC<EditCommissionModalProps> = ({
       setQuota(commissionToEdit.quota);
       setSelectedPV(commissionToEdit.pv);
       setSelectedConsultant(commissionToEdit.consultant);
-      setSelectedManager(commissionToEdit.managerName || '');
+      // Ajuste para o Select do Gestor: se for 'N/A' ou vazio, use 'none'
+      setSelectedManager(commissionToEdit.managerName === 'N/A' || !commissionToEdit.managerName ? 'none' : commissionToEdit.managerName);
       setSelectedAngel(commissionToEdit.angelName || '');
       setTaxRateInput(commissionToEdit.taxRate.toString().replace('.', ','));
       setCreditValue(formatCurrencyInput(commissionToEdit.value.toFixed(2).replace('.', ',')));
@@ -182,7 +183,8 @@ export const EditCommissionModal: React.FC<EditCommissionModalProps> = ({
         quota: quota.trim(),
         pv: selectedPV,
         consultant: selectedConsultant,
-        managerName: selectedManager || 'N/A',
+        // Ajuste para o Select do Gestor: se for 'none', salve como 'N/A'
+        managerName: selectedManager === 'none' ? 'N/A' : selectedManager,
         angelName: hasAngel ? selectedAngel : undefined,
         value: credit,
         taxRate: taxValue,
@@ -274,10 +276,10 @@ export const EditCommissionModal: React.FC<EditCommissionModalProps> = ({
                     <SelectValue placeholder="Selecione o Gestor" />
                   </SelectTrigger>
                   <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
-                    <SelectItem value="">Nenhum</SelectItem>
+                    <SelectItem value="none">Nenhum</SelectItem> {/* Corrigido: valor não vazio */}
                     {managers.map(m => <SelectItem key={m.id} value={m.name}>{m.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                  </p>
+                </div>
               </div>
               <div>
                 <Label htmlFor="taxRateInput">Imposto (%)</Label>
@@ -296,7 +298,7 @@ export const EditCommissionModal: React.FC<EditCommissionModalProps> = ({
               </div>
               <div className="flex items-center justify-between p-4 border border-blue-200 dark:border-blue-800 rounded-lg bg-blue-50 dark:bg-blue-900/20">
                 <div><span className="block font-medium text-blue-900 dark:text-blue-200">Personalizar Regras?</span></div>
-                <label className="relative inline-flex items-center cursor-pointer"><input type="checkbox" className="sr-only peer" checked={isCustomRulesMode} onChange={() => setIsCustomRulesMode(!isCustomRulesMode)} /><div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-600 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-500"></div></label>
+                <label className="relative inline-flex items-center cursor-pointer"><input type="checkbox" className="sr-only peer" checked={isCustomRulesMode} onChange={() => setIsCustomRulesMode(!isCustomRulesMode)} /><div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-600 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-brand-500"></div></label>
               </div>
 
               {isCustomRulesMode && (
