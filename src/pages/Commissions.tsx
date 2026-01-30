@@ -1,10 +1,11 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '@/context/AppContext';
 import { Commission, CommissionStatus, CommissionRule, InstallmentStatus, InstallmentInfo, CommissionReport } from '@/types';
-import { Trash2, Search, DollarSign, Calendar, Calculator, Save, Table as TableIcon, Car, Home, ChevronDown, MapPin, Percent, Filter, XCircle, Crown, Plus, Wand2, Loader2, FileText, Download, CheckCircle2 as MarkAllPaidIcon, Edit2 } from 'lucide-react'; // Adicionado MarkAllPaidIcon e Edit2
+import { Trash2, Search, DollarSign, Calendar, Calculator, Save, Table as TableIcon, Car, Home, ChevronDown, MapPin, Percent, Filter, XCircle, Crown, Plus, Wand2, Loader2, FileText, Download, CheckCircle2 as MarkAllPaidIcon, Edit2, CalendarCheck } from 'lucide-react'; // Adicionado CalendarCheck
 import * as XLSX from 'xlsx';
 import toast from 'react-hot-toast';
-import { EditCommissionModal } from '@/components/EditCommissionModal'; // Importar o novo modal
+import { EditCommissionModal } from '@/components/EditCommissionModal';
+import { MarkInstallmentRangeModal } from '@/components/MarkInstallmentRangeModal'; // Importar o novo modal
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -109,6 +110,10 @@ export const Commissions = () => {
   const [isEditCommissionModalOpen, setIsEditCommissionModalOpen] = useState(false);
   const [commissionToEdit, setCommissionToEdit] = useState<Commission | null>(null);
 
+  // NOVO: Estados para o modal de marcar faixa de parcelas
+  const [isRangeModalOpen, setIsRangeModalOpen] = useState(false);
+  const [selectedCommissionForRange, setSelectedCommissionForRange] = useState<Commission | null>(null);
+
   // Relatórios
   const [reportMonth, setReportMonth] = useState(new Date().toISOString().slice(0, 7));
   const [reportConsultant, setReportConsultant] = useState('');
@@ -184,6 +189,8 @@ export const Commissions = () => {
     setCalculatedCompetence('');
     setIsEditCommissionModalOpen(false); // Fechar modal de edição de comissão
     setCommissionToEdit(null);
+    setIsRangeModalOpen(false); // Fechar modal de faixa de parcelas
+    setSelectedCommissionForRange(null);
   }, [activeTab]);
 
   const parseCurrency = (value: string) => parseFloat(value.replace(/\./g, '').replace(',', '.')) || 0;
@@ -354,6 +361,28 @@ export const Commissions = () => {
     } catch (error: any) {
       toast.error(`Erro ao marcar comissão como concluída: ${error.message}`);
     }
+  };
+
+  // NOVO: Função para salvar o intervalo de parcelas
+  const handleSaveInstallmentRange = async (commissionId: string, start: number, end: number) => {
+    const commission = commissions.find(c => c.id === commissionId);
+    if (!commission) {
+      toast.error("Comissão não encontrada.");
+      return;
+    }
+
+    const updatedInstallmentDetails = { ...commission.installmentDetails };
+    for (let i = start; i <= end; i++) {
+      updatedInstallmentDetails[i.toString()] = { status: 'Pago' };
+    }
+
+    await updateCommission(commission.id, {
+      installmentDetails: updatedInstallmentDetails,
+      status: getOverallStatus(updatedInstallmentDetails), // Recalculate overall status
+    });
+    toast.success(`Parcelas ${start} a ${end} da comissão de "${commission.clientName}" marcadas como PAGAS!`);
+    setIsRangeModalOpen(false);
+    setSelectedCommissionForRange(null);
   };
 
   const handleUpdateRuleText = (id: string, field: keyof CustomRuleText, value: string, isDecimal: boolean) => {
@@ -892,6 +921,17 @@ export const Commissions = () => {
                                                         <MarkAllPaidIcon className="w-4 h-4" />
                                                       </button>
                                                     )}
+                                                    <button
+                                                      onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setSelectedCommissionForRange(c);
+                                                        setIsRangeModalOpen(true);
+                                                      }}
+                                                      className="p-2 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/20 text-gray-400 hover:text-blue-500"
+                                                      title="Marcar Faixa de Parcelas como Pagas"
+                                                    >
+                                                      <CalendarCheck className="w-4 h-4" />
+                                                    </button>
                                                     <button 
                                                         onClick={() => handleOpenEditCommissionModal(c)} // NOVO: Botão de editar
                                                         className="p-2 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/20 text-gray-400 hover:text-blue-500"
@@ -1063,6 +1103,15 @@ export const Commissions = () => {
           onSave={handleUpdateCommission}
           teamMembers={teamMembers}
           pvs={pvs}
+        />
+      )}
+
+      {isRangeModalOpen && selectedCommissionForRange && (
+        <MarkInstallmentRangeModal
+          isOpen={isRangeModalOpen}
+          onClose={() => setIsRangeModalOpen(false)}
+          commission={selectedCommissionForRange}
+          onSaveRange={handleSaveInstallmentRange}
         />
       )}
     </div>
