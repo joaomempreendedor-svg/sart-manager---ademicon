@@ -125,10 +125,11 @@ export const Dashboard = () => {
   }, [crmLeads, leadTasks, user, crmStages]);
 
   // --- Hiring Metrics (existing) ---
-  const totalCandidates = candidates.length;
-  const authorized = teamMembers.filter(m => m.isActive && m.roles.includes('Autorizado')).length;
-  const previas = teamMembers.filter(m => m.isActive && m.roles.includes('Prévia')).length;
-  const activeTeam = teamMembers.filter(m => m.isActive).length;
+  // REMOVIDO: totalCandidates, authorized, previas, activeTeam
+  // const totalCandidates = candidates.length;
+  // const authorized = teamMembers.filter(m => m.isActive && m.roles.includes('Autorizado')).length;
+  // const previas = teamMembers.filter(m => m.isActive && m.roles.includes('Prévia')).length;
+  // const activeTeam = teamMembers.filter(m => m.isActive).length;
 
   // --- Agenda Items ---
   const { todayAgenda, overdueTasks, allGestorTasks } = useMemo(() => {
@@ -365,47 +366,6 @@ export const Dashboard = () => {
                     <p className="text-2xl font-bold text-gray-900 dark:text-white">{pendingLeadTasks.length}</p>
                   </div>
                 </button>
-              </div>
-
-              {/* Seção de Métricas de Contratação */}
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center"><User className="w-5 h-5 mr-2 text-brand-500" />Métricas de Contratação</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
-                  <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                    <User className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Total Candidatos</p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{totalCandidates}</p>
-                  </div>
-                </div>
-                <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
-                  <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                    <CheckCircle2 className="w-6 h-6 text-green-600 dark:text-green-400" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Autorizados</p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{authorized}</p>
-                  </div>
-                </div>
-                <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
-                  <div className="p-3 bg-orange-50 dark:bg-brand-900/20 rounded-lg">
-                    <TrendingUp className="w-6 h-6 text-brand-600 dark:text-brand-400" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Prévias</p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{previas}</p>
-                  </div>
-                </div>
-                <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
-                  <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-                    <Users className="w-6 h-6 text-purple-600 dark:text-purple-400" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Equipe Ativa</p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{activeTeam}</p>
-                  </div>
-                </div>
               </div>
 
               {/* Minhas Tarefas Pessoais (Gestor) */}
