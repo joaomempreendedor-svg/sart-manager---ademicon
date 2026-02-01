@@ -89,11 +89,11 @@ export const Dashboard = () => {
       if (lead.proposalValue && lead.proposalValue > 0 && lead.proposalClosingDate) {
         const proposalDate = new Date(lead.proposalClosingDate + 'T00:00:00');
         if (proposalDate >= currentMonthStart && proposalDate <= currentMonthEnd) {
-          proposalValueThisMonth += (lead.proposalValue || 0);
-          leadsWithProposalThisMonth.push(lead);
+          return sum + (lead.proposalValue || 0);
         }
       }
-    });
+      return sum;
+    }, 0);
 
     let soldValueThisMonth = 0;
     const leadsSoldThisMonth: CrmLead[] = [];
@@ -348,7 +348,7 @@ export const Dashboard = () => {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Valor Propostas (Mês)</p>
-                        <p className="text-lg font-bold text-gray-900 dark:text-white whitespace-nowrap overflow-hidden">{formatLargeCurrency(proposalValueThisMonth)}</p>
+                        <p className="text-lg font-bold text-gray-900 dark:text-white whitespace-nowrap overflow-hidden">{formatCurrency(proposalValueThisMonth)}</p>
                       </div>
                     </button>
                     <button
@@ -360,7 +360,7 @@ export const Dashboard = () => {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Valor Vendido (Mês)</p>
-                        <p className="text-lg font-bold text-gray-900 dark:text-white whitespace-nowrap overflow-hidden">{formatLargeCurrency(soldValueThisMonth)}</p>
+                        <p className="text-lg font-bold text-gray-900 dark:text-white whitespace-nowrap overflow-hidden">{formatCurrency(soldValueThisMonth)}</p>
                       </div>
                     </button>
                     <button
