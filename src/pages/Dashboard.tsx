@@ -292,16 +292,16 @@ export const Dashboard = () => {
               {/* Seção de Ações Rápidas */}
               <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center"><Plus className="w-5 h-5 mr-2 text-brand-500" />Ações Rápidas</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                <Button onClick={() => navigate('/gestor/crm')} className="h-auto py-4 bg-blue-600 hover:bg-blue-700 text-white text-lg font-semibold shadow-md hover:shadow-lg transition-all">
+                <Button onClick={() => navigate('/gestor/crm')} className="h-auto py-4 bg-brand-600 hover:bg-brand-700 text-white text-lg font-semibold shadow-md hover:shadow-lg transition-all">
                   <TrendingUp className="w-6 h-6 mr-3" /> Monitorar CRM
                 </Button>
-                <Button onClick={() => setIsScheduleModalOpen(true)} className="h-auto py-4 bg-green-600 hover:bg-green-700 text-white text-lg font-semibold shadow-md hover:shadow-lg transition-all">
+                <Button onClick={() => setIsScheduleModalOpen(true)} className="h-auto py-4 bg-gray-200 hover:bg-gray-300 text-gray-800 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-gray-200 text-lg font-semibold shadow-md hover:shadow-lg transition-all">
                   <CalendarPlus className="w-6 h-6 mr-3" /> Agendar Entrevista
                 </Button>
-                <Button onClick={() => navigate('/gestor/daily-checklist-monitoring')} className="h-auto py-4 bg-purple-600 hover:bg-purple-700 text-white text-lg font-semibold shadow-md hover:shadow-lg transition-all">
+                <Button onClick={() => navigate('/gestor/daily-checklist-monitoring')} className="h-auto py-4 bg-gray-200 hover:bg-gray-300 text-gray-800 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-gray-200 text-lg font-semibold shadow-md hover:shadow-lg transition-all">
                   <ClipboardCheck className="w-6 h-6 mr-3" /> Monitorar Metas Diárias
                 </Button>
-                <Button onClick={() => navigate('/gestor/config-team')} className="h-auto py-4 bg-yellow-600 hover:bg-yellow-700 text-white text-lg font-semibold shadow-md hover:shadow-lg transition-all">
+                <Button onClick={() => navigate('/gestor/config-team')} className="h-auto py-4 bg-gray-200 hover:bg-gray-300 text-gray-800 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-gray-200 text-lg font-semibold shadow-md hover:shadow-lg transition-all">
                   <Users className="w-6 h-6 mr-3" /> Gerenciar Equipe
                 </Button>
               </div>
