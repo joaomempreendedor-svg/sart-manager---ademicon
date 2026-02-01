@@ -89,11 +89,11 @@ export const Dashboard = () => {
       if (lead.proposalValue && lead.proposalValue > 0 && lead.proposalClosingDate) {
         const proposalDate = new Date(lead.proposalClosingDate + 'T00:00:00');
         if (proposalDate >= currentMonthStart && proposalDate <= currentMonthEnd) {
-          return sum + (lead.proposalValue || 0);
+          proposalValueThisMonth += (lead.proposalValue || 0);
+          leadsWithProposalThisMonth.push(lead);
         }
       }
-      return sum;
-    }, 0);
+    });
 
     let soldValueThisMonth = 0;
     const leadsSoldThisMonth: CrmLead[] = [];
