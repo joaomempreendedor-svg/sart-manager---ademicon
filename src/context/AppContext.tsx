@@ -357,7 +357,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     // 3. Nova Venda Registrada (CRM Leads)
     crmLeads.filter(lead => {
-      if (lead.soldCreditValue === undefined || lead.soldCreditValue === null || !lead.saleDate) return false; // Alterado para verificar se o valor foi informado
+      if (lead.soldCreditValue === undefined || lead.soldCreditValue === null || !lead.saleDate) return false;
       
       return lead.saleDate === todayFormatted || lead.saleDate === yesterdayFormatted;
     }).forEach(lead => {
@@ -595,28 +595,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setCandidates(candidatesData?.data?.map(item => {
           console.log(`[fetchData] Processing raw item:`, item);
           const rawCandidateData = item.data as Candidate;
-          
           const clientSideId = rawCandidateData.id || crypto.randomUUID(); 
-          if (!rawCandidateData.id) {
-            console.warn(`[fetchData] Candidate with db_id "${item.id}" is missing client-side 'id' in JSONB data. Generating new client-side ID: "${clientSideId}"`);
-          }
-
-          const deepCopiedCandidate: Candidate = {
-            ...JSON.parse(JSON.stringify(rawCandidateData)),
+          
+          // Simplificando a normalização para evitar JSON.parse(JSON.stringify) desnecessário
+          const candidate: Candidate = {
+            ...rawCandidateData, // Atribui diretamente os dados brutos
             id: clientSideId,
             db_id: item.id,
             createdAt: item.created_at,
             lastUpdatedAt: item.last_updated_at,
-            interviewScores: JSON.parse(JSON.stringify(rawCandidateData.interviewScores || { basicProfile: 0, commercialSkills: 0, behavioralProfile: 0, jobFit: 0, notes: '' })),
-            checkedQuestions: JSON.parse(JSON.stringify(rawCandidateData.checkedQuestions || {})),
-            checklistProgress: JSON.parse(JSON.stringify(rawCandidateData.checklistProgress || {})),
-            consultantGoalsProgress: JSON.parse(JSON.stringify(rawCandidateData.consultantGoalsProgress || {})),
-            feedbacks: JSON.parse(JSON.stringify(rawCandidateData.feedbacks || [])),
-            data: JSON.parse(JSON.stringify(rawCandidateData.data || {})),
+            // Fornece valores padrão para objetos aninhados se forem nulos/indefinidos
+            interviewScores: rawCandidateData.interviewScores || { basicProfile: 0, commercialSkills: 0, behavioralProfile: 0, jobFit: 0, notes: '' },
+            checkedQuestions: rawCandidateData.checkedQuestions || {},
+            checklistProgress: rawCandidateData.checklistProgress || {},
+            consultantGoalsProgress: rawCandidateData.consultantGoalsProgress || {},
+            feedbacks: rawCandidateData.feedbacks || [],
+            data: rawCandidateData.data || {},
           };
           
-          console.log(`[fetchData] Final candidate name before setCandidates:`, deepCopiedCandidate.name, `client-side ID:`, deepCopiedCandidate.id, `db_id:`, deepCopiedCandidate.db_id, `createdAt:`, deepCopiedCandidate.createdAt);
-          return deepCopiedCandidate;
+          console.log(`[fetchData] Final candidate name before setCandidates:`, candidate.name, `client-side ID:`, candidate.id, `db_id:`, candidate.db_id, `createdAt:`, candidate.createdAt);
+          return candidate;
         }) || []);
         
         const normalizedTeamMembers = teamMembersData?.map(item => {
@@ -792,17 +790,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             }
             
             const newCandidateData: Candidate = {
-                ...JSON.parse(JSON.stringify(rawPayloadData)),
+                ...rawPayloadData, // Atribui diretamente os dados brutos
                 id: clientSideId,
                 db_id: payload.new.id,
                 createdAt: payload.new.created_at,
                 lastUpdatedAt: payload.new.last_updated_at,
-                interviewScores: JSON.parse(JSON.stringify(rawPayloadData.interviewScores || { basicProfile: 0, commercialSkills: 0, behavioralProfile: 0, jobFit: 0, notes: '' })),
-                checkedQuestions: JSON.parse(JSON.stringify(rawPayloadData.checkedQuestions || {})),
-                checklistProgress: JSON.parse(JSON.stringify(rawPayloadData.checklistProgress || {})),
-                consultantGoalsProgress: JSON.parse(JSON.stringify(rawPayloadData.consultantGoalsProgress || {})),
-                feedbacks: JSON.parse(JSON.stringify(rawPayloadData.feedbacks || [])),
-                data: JSON.parse(JSON.stringify(rawPayloadData.data || {})),
+                // Fornece valores padrão para objetos aninhados se forem nulos/indefinidos
+                interviewScores: rawPayloadData.interviewScores || { basicProfile: 0, commercialSkills: 0, behavioralProfile: 0, jobFit: 0, notes: '' },
+                checkedQuestions: rawPayloadData.checkedQuestions || {},
+                checklistProgress: rawPayloadData.checklistProgress || {},
+                consultantGoalsProgress: rawCandidateData.consultantGoalsProgress || {},
+                feedbacks: rawCandidateData.feedbacks || [],
+                data: rawCandidateData.data || {},
             };
             console.log('[Realtime: Candidate] Deep copied newCandidateData.name:', newCandidateData.name, `client-side ID:`, newCandidateData.id, `db_id:`, newCandidateData.db_id, `createdAt:`, newCandidateData.createdAt);
 
@@ -1112,18 +1111,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const lastUpdatedAt = new Date().toISOString();
 
     const newCandidateData: Candidate = { 
-      ...JSON.parse(JSON.stringify(candidate)),
+      ...candidate, // Atribui diretamente os dados brutos
       id: clientSideId,
       status: candidate.status || 'Triagem', 
       screeningStatus: candidate.screeningStatus || 'Pending Contact',
       createdAt: createdAt, 
       lastUpdatedAt: lastUpdatedAt, 
-      interviewScores: JSON.parse(JSON.stringify(candidate.interviewScores || { basicProfile: 0, commercialSkills: 0, behavioralProfile: 0, jobFit: 0, notes: '' })),
-      checkedQuestions: JSON.parse(JSON.stringify(candidate.checkedQuestions || {})),
-      checklistProgress: JSON.parse(JSON.stringify(candidate.checklistProgress || {})),
-      consultantGoalsProgress: JSON.parse(JSON.stringify(candidate.consultantGoalsProgress || {})),
-      feedbacks: JSON.parse(JSON.stringify(candidate.feedbacks || [])),
-      data: JSON.parse(JSON.stringify(candidate.data || {})),
+      // Fornece valores padrão para objetos aninhados se forem nulos/indefinidos
+      interviewScores: candidate.interviewScores || { basicProfile: 0, commercialSkills: 0, behavioralProfile: 0, jobFit: 0, notes: '' },
+      checkedQuestions: candidate.checkedQuestions || {},
+      checklistProgress: candidate.checklistProgress || {},
+      consultantGoalsProgress: candidate.consultantGoalsProgress || {},
+      feedbacks: candidate.feedbacks || [],
+      data: candidate.data || {},
     };
 
     const { data, error } = await supabase.from('candidates').insert({ 
@@ -1164,38 +1164,35 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     console.log(`[updateCandidate] Found candidate (original name): "${c.name}", client-side ID: "${c.id}", db_id: "${c.db_id}"`);
     console.log(`[updateCandidate] Updates object:`, updates);
 
-    const currentCandidateDeepCopy: Candidate = JSON.parse(JSON.stringify(c));
-
-    const updatesDeepCopy: Partial<Candidate> = JSON.parse(JSON.stringify(updates));
-
+    // Não fazemos deep copy do objeto inteiro, mas garantimos que os objetos aninhados sejam novos se atualizados
     const mergedCandidateData: Candidate = {
-      ...currentCandidateDeepCopy,
-      ...updatesDeepCopy,
-      interviewScores: updatesDeepCopy.interviewScores 
-        ? { ...currentCandidateDeepCopy.interviewScores, ...updatesDeepCopy.interviewScores } 
-        : currentCandidateDeepCopy.interviewScores,
-      checkedQuestions: updatesDeepCopy.checkedQuestions 
-        ? { ...currentCandidateDeepCopy.checkedQuestions, ...updatesDeepCopy.checkedQuestions } 
-        : currentCandidateDeepCopy.checkedQuestions,
-      checklistProgress: updatesDeepCopy.checklistProgress 
-        ? { ...currentCandidateDeepCopy.checklistProgress, ...updatesDeepCopy.checklistProgress } 
-        : currentCandidateDeepCopy.checklistProgress,
-      consultantGoalsProgress: updatesDeepCopy.consultantGoalsProgress 
-        ? { ...currentCandidateDeepCopy.consultantGoalsProgress, ...updatesDeepCopy.consultantGoalsProgress } 
-        : currentCandidateDeepCopy.consultantGoalsProgress,
-      feedbacks: updatesDeepCopy.feedbacks 
-        ? [...(currentCandidateDeepCopy.feedbacks || []), ...(updatesDeepCopy.feedbacks || [])] 
-        : currentCandidateDeepCopy.feedbacks,
-      data: updatesDeepCopy.data 
-        ? { ...currentCandidateDeepCopy.data, ...updatesDeepCopy.data } 
-        : currentCandidateDeepCopy.data,
+      ...c,
+      ...updates,
+      interviewScores: updates.interviewScores 
+        ? { ...c.interviewScores, ...updates.interviewScores } 
+        : c.interviewScores,
+      checkedQuestions: updates.checkedQuestions 
+        ? { ...c.checkedQuestions, ...updates.checkedQuestions } 
+        : c.checkedQuestions,
+      checklistProgress: updates.checklistProgress 
+        ? { ...c.checklistProgress, ...updates.checklistProgress } 
+        : c.checklistProgress,
+      consultantGoalsProgress: updates.consultantGoalsProgress 
+        ? { ...c.consultantGoalsProgress, ...updates.consultantGoalsProgress } 
+        : c.consultantGoalsProgress,
+      feedbacks: updates.feedbacks 
+        ? [...(c.feedbacks || []), ...(updates.feedbacks || [])] 
+        : c.feedbacks,
+      data: updates.data 
+        ? { ...c.data, ...updates.data } 
+        : c.data,
       
       lastUpdatedAt: new Date().toISOString(), // Garante que lastUpdatedAt seja sempre atualizado
     };
     
     console.log(`[updateCandidate] Merged updated candidate name (mergedCandidateData.name): "${mergedCandidateData.name}"`);
 
-    const finalDataForSupabase = JSON.parse(JSON.stringify(mergedCandidateData));
+    const finalDataForSupabase = { ...mergedCandidateData };
     delete finalDataForSupabase.db_id;
     delete finalDataForSupabase.createdAt;
     delete finalDataForSupabase.lastUpdatedAt;
@@ -1404,7 +1401,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const candidate = candidates.find(c => c.id === candidateId);
     if (!candidate) throw new Error("Candidato não encontrado.");
 
-    const updatedProgress = JSON.parse(JSON.stringify(candidate.checklistProgress || {}));
+    const updatedProgress = { ...candidate.checklistProgress || {} };
     updatedProgress[itemId] = { ...updatedProgress[itemId], completed: !updatedProgress[itemId]?.completed };
 
     await updateCandidate(candidate.id, { checklistProgress: updatedProgress });
@@ -1415,7 +1412,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const candidate = candidates.find(c => c.id === candidateId);
     if (!candidate) throw new Error("Candidato não encontrado.");
 
-    const updatedProgress = JSON.parse(JSON.stringify(candidate.checklistProgress || {}));
+    const updatedProgress = { ...candidate.checklistProgress || {} };
     updatedProgress[itemId] = { ...updatedProgress[itemId], dueDate: dueDate || undefined };
 
     await updateCandidate(candidate.id, { checklistProgress: updatedProgress });
@@ -1426,7 +1423,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const candidate = candidates.find(c => c.id === candidateId);
     if (!candidate) throw new Error("Candidato não encontrado.");
 
-    const updatedProgress = JSON.parse(JSON.stringify(candidate.consultantGoalsProgress || {}));
+    const updatedProgress = { ...candidate.consultantGoalsProgress || {} };
     updatedProgress[goalId] = !updatedProgress[goalId];
 
     await updateCandidate(candidate.id, { consultantGoalsProgress: updatedProgress });

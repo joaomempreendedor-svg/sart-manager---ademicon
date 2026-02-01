@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/select';
 import { CrmLead, LeadTask } from '@/types';
 import { useLocation } from 'react-router-dom';
+import { TableSkeleton } from '@/components/TableSkeleton'; // Importar TableSkeleton
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -243,7 +244,7 @@ const CrmOverviewPage = () => {
   const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
   const currentMonthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
 
-  if (isAuthLoading || isDataLoading) {
+  if (isAuthLoading) { // Apenas auth loading aqui
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-theme(spacing.16))]">
         <Loader2 className="w-12 h-12 text-brand-500 animate-spin" />
@@ -404,7 +405,9 @@ const CrmOverviewPage = () => {
               )}
             </div>
             <div className="p-4 space-y-3 min-h-[200px]">
-              {groupedLeads[stage.id]?.length === 0 ? (
+              {isDataLoading ? ( // Adicionar esqueleto de carregamento aqui
+                <TableSkeleton rows={3} />
+              ) : groupedLeads[stage.id]?.length === 0 ? (
                 <p className="text-center text-sm text-gray-400 py-4">Nenhum lead nesta etapa.</p>
               ) : (
                 groupedLeads[stage.id].map(lead => {
