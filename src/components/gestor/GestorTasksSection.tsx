@@ -202,17 +202,17 @@ export const GestorTasksSection: React.FC = () => {
 
   return (
     <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl shadow-sm flex flex-col">
-      <div className="px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex items-center space-x-2 bg-brand-50 dark:bg-brand-900/20 rounded-t-xl"> {/* Reduzido px-6 py-4 para px-4 py-3 */}
+      <div className="px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex items-center space-x-2 bg-brand-50 dark:bg-brand-900/20 rounded-t-xl">
         <ListTodo className="w-5 h-5 text-brand-600 dark:text-brand-400" />
         <h2 className="text-lg font-semibold text-brand-800 dark:text-brand-300">Tarefas do Gestor ({gestorTasks.length})</h2>
       </div>
-      <div className="p-3 grid grid-cols-1 md:grid-cols-2 gap-3"> {/* Reduzido p-4 para p-3 e gap-4 para gap-3 */}
+      <div className="p-3 grid grid-cols-1 md:grid-cols-2 gap-3">
         {/* Coluna de Adicionar/Editar Tarefa */}
-        <div className="space-y-2"> {/* Reduzido space-y-3 para space-y-2 */}
+        <div className="space-y-2">
           <h3 className="text-md font-semibold text-gray-900 dark:text-white">
             {editingTask ? 'Editar Tarefa' : 'Adicionar Nova Tarefa'}
           </h3>
-          <form onSubmit={editingTask ? handleUpdateTask : handleAddTask} className="space-y-2"> {/* Reduzido space-y-3 para space-y-2 */}
+          <form onSubmit={editingTask ? handleUpdateTask : handleAddTask} className="space-y-2">
             <div>
               <Label htmlFor="taskTitle">Título da Tarefa *</Label>
               <Input
@@ -229,7 +229,7 @@ export const GestorTasksSection: React.FC = () => {
                 id="taskDescription"
                 value={editingTask ? editTaskDescription : newTaskDescription}
                 onChange={(e) => (editingTask ? setEditTaskDescription(e.target.value) : setNewTaskDescription(e.target.value))}
-                rows={2} {/* Reduzido rows de 3 para 2 */}
+                rows={2}
                 className="dark:bg-slate-700 dark:text-white dark:border-slate-600"
               />
             </div>
@@ -306,13 +306,13 @@ export const GestorTasksSection: React.FC = () => {
         </div>
 
         {/* Coluna de Lista de Tarefas */}
-        <div className="space-y-2"> {/* Reduzido space-y-3 para space-y-2 */}
+        <div className="space-y-2">
           <h3 className="text-md font-semibold text-gray-900 dark:text-white">Lista de Tarefas ({sortedTasks.length})</h3>
-          <ScrollArea className="h-[250px] pr-4 custom-scrollbar"> {/* Reduzido h-[300px] para h-[250px] */}
+          <ScrollArea className="h-[250px] pr-4 custom-scrollbar">
             {sortedTasks.length === 0 ? (
               <p className="text-center text-gray-500 dark:text-gray-400 py-4">Nenhuma tarefa do gestor.</p>
             ) : (
-              <div className="space-y-2"> {/* Reduzido space-y-3 para space-y-2 */}
+              <div className="space-y-2">
                 {sortedTasks.map(task => {
                   const isRecurring = task.recurrence_pattern && task.recurrence_pattern.type !== 'none';
                   const isCompletedToday = isRecurring && gestorTaskCompletions.some(c => c.gestor_task_id === task.id && c.user_id === user?.id && c.date === today && c.done);
@@ -321,7 +321,7 @@ export const GestorTasksSection: React.FC = () => {
                   const isOverdue = !isRecurring && !task.is_completed && task.due_date && new Date(task.due_date + 'T00:00:00') < new Date(today + 'T00:00:00');
 
                   // Determine classes for the task item
-                  let itemClasses = 'flex items-start space-x-3 p-2 rounded-lg border group flex-col sm:flex-row'; // Reduzido p-3 para p-2
+                  let itemClasses = 'flex items-start space-x-3 p-2 rounded-lg border group flex-col sm:flex-row';
                   let titleClasses = 'font-medium';
                   let descriptionClasses = 'text-sm mt-1';
 
