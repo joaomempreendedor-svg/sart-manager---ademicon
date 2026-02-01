@@ -11,7 +11,8 @@ import { PendingLeadTasksModal } from '@/components/gestor/PendingLeadTasksModal
 import toast from 'react-hot-toast';
 import { NotificationBell } from '@/components/NotificationBell';
 import { NotificationCenter } from '@/components/NotificationCenter';
-import { LeadsDetailModal } from '@/components/gestor/LeadsDetailModal'; // NOVO: Importar o modal de detalhes de leads
+import { LeadsDetailModal } from '@/components/gestor/LeadsDetailModal';
+import { formatLargeCurrency } from '@/utils/currencyUtils'; // Importar a nova função
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -25,7 +26,6 @@ export const Dashboard = () => {
   const [isPendingTasksModalOpen, setIsPendingTasksModalOpen] = useState(false);
   const [isNotificationCenterOpen, setIsNotificationCenterOpen] = useState(false);
 
-  // NOVO: Estados para o modal de detalhes de leads
   const [isLeadsDetailModalOpen, setIsLeadsDetailModalOpen] = useState(false);
   const [leadsModalTitle, setLeadsModalTitle] = useState('');
   const [leadsForModal, setLeadsForModal] = useState<CrmLead[]>([]);
@@ -40,7 +40,6 @@ export const Dashboard = () => {
     setIsNotificationCenterOpen(false);
   };
 
-  // --- Commercial Metrics ---
   const {
     totalCrmLeads,
     newLeadsThisMonth,
@@ -48,8 +47,8 @@ export const Dashboard = () => {
     proposalValueThisMonth,
     soldValueThisMonth,
     pendingLeadTasks,
-    leadsWithProposalThisMonth, // NOVO: Lista de leads com proposta no mês
-    leadsSoldThisMonth, // NOVO: Lista de leads vendidos no mês
+    leadsWithProposalThisMonth,
+    leadsSoldThisMonth,
   } = useMemo(() => {
     const today = new Date();
     const todayStr = today.toISOString().split('T')[0];
@@ -119,12 +118,11 @@ export const Dashboard = () => {
       proposalValueThisMonth,
       soldValueThisMonth,
       pendingLeadTasks: pendingLeadTasksList,
-      leadsWithProposalThisMonth, // NOVO
-      leadsSoldThisMonth, // NOVO
+      leadsWithProposalThisMonth,
+      leadsSoldThisMonth,
     };
   }, [crmLeads, leadTasks, user, crmStages]);
 
-  // --- Agenda Items ---
   const { todayAgenda, overdueTasks, allGestorTasks } = useMemo(() => {
     const today = new Date();
     const todayStr = today.toISOString().split('T')[0];
@@ -133,7 +131,6 @@ export const Dashboard = () => {
     const overdueItems: AgendaItem[] = [];
     const gestorPersonalTasks: AgendaItem[] = [];
 
-    // 1. Checklist Tasks (Candidatos)
     candidates.forEach(candidate => {
       Object.entries(candidate.checklistProgress || {}).forEach(([taskId, state]) => {
         if (state.dueDate) {
@@ -158,7 +155,6 @@ export const Dashboard = () => {
       });
     });
 
-    // 2. Interviews (Candidatos)
     candidates.forEach(candidate => {
       if (candidate.interviewDate === todayStr) {
         todayAgendaItems.push({
@@ -173,7 +169,6 @@ export const Dashboard = () => {
       }
     });
 
-    // 3. Feedbacks (Candidatos e Membros da Equipe)
     const allPeople = [
       ...candidates.map(c => ({ ...c, personType: 'candidate' as const })),
       ...teamMembers.map(m => ({ ...m, personType: 'teamMember' as const }))
@@ -194,7 +189,6 @@ export const Dashboard = () => {
       });
     });
 
-    // 4. Gestor Personal Tasks (Tarefas do Gestor)
     gestorTasks.filter(task => task.user_id === user?.id).forEach(task => {
       const isRecurring = task.recurrence_pattern && task.recurrence_pattern.type !== 'none';
       const isCompletedToday = isRecurring && gestorTaskCompletions.some(c => c.gestor_task_id === task.id && c.user_id === user?.id && c.date === todayStr && c.done);
@@ -250,7 +244,6 @@ export const Dashboard = () => {
     }
   };
 
-  // NOVO: Funções para abrir o modal de detalhes de leads
   const handleOpenLeadsDetailModal = (title: string, leads: CrmLead[], metricType: 'proposal' | 'sold') => {
     setLeadsModalTitle(title);
     setLeadsForModal(leads);
@@ -292,29 +285,29 @@ export const Dashboard = () => {
                   <div className="p-1 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                     <Users className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                   </div>
-                  <div className="flex-1 min-w-0"> {/* Adicionado min-w-0 */}
+                  <div className="flex-1 min-w-0">
                     <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Total de Leads</p>
-                    <p className="text-lg font-bold text-gray-900 dark:text-white whitespace-nowrap overflow-hidden">{totalCrmLeads}</p> {/* Adicionado whitespace-nowrap e overflow-hidden */}
+                    <p className="text-lg font-bold text-gray-900 dark:text-white whitespace-nowrap overflow-hidden">{totalCrmLeads}</p>
                   </div>
                 </div>
                 <div className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-2">
                   <div className="p-1 bg-green-50 dark:bg-green-900/20 rounded-lg">
                     <Plus className="w-5 h-5 text-green-600 dark:text-green-400" />
                   </div>
-                  <div className="flex-1 min-w-0"> {/* Adicionado min-w-0 */}
+                  <div className="flex-1 min-w-0">
                     <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Novos Leads (Mês)</p>
-                    <p className="text-lg font-bold text-gray-900 dark:text-white whitespace-nowrap overflow-hidden">{newLeadsThisMonth}</p> {/* Adicionado whitespace-nowrap e overflow-hidden */}
+                    <p className="text-lg font-bold text-gray-900 dark:text-white whitespace-nowrap overflow-hidden">{newLeadsThisMonth}</p>
                   </div>
                 </div>
-                <button className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-2 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition cursor-pointer">
+                <div className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-2">
                   <div className="p-1 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
                     <Calendar className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
                   </div>
-                  <div className="flex-1 min-w-0"> {/* Adicionado min-w-0 */}
+                  <div className="flex-1 min-w-0">
                     <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Reuniões Mês</p>
-                    <p className="text-lg font-bold text-gray-900 dark:text-white whitespace-nowrap overflow-hidden">{meetingsThisMonth}</p> {/* Adicionado whitespace-nowrap e overflow-hidden */}
+                    <p className="text-lg font-bold text-gray-900 dark:text-white whitespace-nowrap overflow-hidden">{meetingsThisMonth}</p>
                   </div>
-                </button>
+                </div>
                 <button 
                   onClick={() => handleOpenLeadsDetailModal('Valor Propostas Mês', leadsWithProposalThisMonth, 'proposal')}
                   className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-2 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition cursor-pointer"
@@ -322,9 +315,9 @@ export const Dashboard = () => {
                   <div className="p-1 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg">
                     <Send className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
                   </div>
-                  <div className="flex-1 min-w-0"> {/* Adicionado min-w-0 */}
+                  <div className="flex-1 min-w-0">
                     <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Valor Propostas (Mês)</p>
-                    <p className="text-lg font-bold text-gray-900 dark:text-white whitespace-nowrap overflow-hidden">{formatCurrency(proposalValueThisMonth)}</p> {/* Adicionado whitespace-nowrap e overflow-hidden */}
+                    <p className="text-lg font-bold text-gray-900 dark:text-white whitespace-nowrap overflow-hidden">{formatLargeCurrency(proposalValueThisMonth)}</p>
                   </div>
                 </button>
                 <button 
@@ -334,9 +327,9 @@ export const Dashboard = () => {
                   <div className="p-1 bg-teal-50 dark:bg-teal-900/20 rounded-lg">
                     <DollarSign className="w-5 h-5 text-teal-600 dark:text-teal-400" />
                   </div>
-                  <div className="flex-1 min-w-0"> {/* Adicionado min-w-0 */}
+                  <div className="flex-1 min-w-0">
                     <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Valor Vendido (Mês)</p>
-                    <p className="text-lg font-bold text-gray-900 dark:text-white whitespace-nowrap overflow-hidden">{formatCurrency(soldValueThisMonth)}</p> {/* Adicionado whitespace-nowrap e overflow-hidden */}
+                    <p className="text-lg font-bold text-gray-900 dark:text-white whitespace-nowrap overflow-hidden">{formatLargeCurrency(soldValueThisMonth)}</p>
                   </div>
                 </button>
                 <button 
@@ -346,9 +339,9 @@ export const Dashboard = () => {
                   <div className="p-1 bg-red-50 dark:bg-red-900/20 rounded-lg">
                     <ListTodo className="w-5 h-5 text-red-600 dark:text-red-400" />
                   </div>
-                  <div className="flex-1 min-w-0"> {/* Adicionado min-w-0 */}
+                  <div className="flex-1 min-w-0">
                     <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Tarefas de Lead Pendentes</p>
-                    <p className="text-lg font-bold text-gray-900 dark:text-white whitespace-nowrap overflow-hidden">{pendingLeadTasks.length}</p> {/* Adicionado whitespace-nowrap e overflow-hidden */}
+                    <p className="text-lg font-bold text-gray-900 dark:text-white whitespace-nowrap overflow-hidden">{pendingLeadTasks.length}</p>
                   </div>
                 </button>
               </div>
@@ -371,7 +364,6 @@ export const Dashboard = () => {
         crmLeads={crmLeads}
         teamMembers={teamMembers}
       />
-      {/* NOVO: Renderiza o LeadsDetailModal */}
       <LeadsDetailModal
         isOpen={isLeadsDetailModalOpen}
         onClose={() => setIsLeadsDetailModalOpen(false)}
