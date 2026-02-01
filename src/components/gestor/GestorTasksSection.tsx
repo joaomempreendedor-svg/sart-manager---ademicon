@@ -308,7 +308,7 @@ export const GestorTasksSection: React.FC = () => {
         {/* Coluna de Lista de Tarefas */}
         <div className="space-y-2">
           <h3 className="text-md font-semibold text-gray-900 dark:text-white">Lista de Tarefas ({sortedTasks.length})</h3>
-          <ScrollArea className="h-[250px] pr-4 custom-scrollbar">
+          <ScrollArea className="h-[200px] pr-4 custom-scrollbar"> {/* Reduzido h-[250px] para h-[200px] */}
             {sortedTasks.length === 0 ? (
               <p className="text-center text-gray-500 dark:text-gray-400 py-4">Nenhuma tarefa do gestor.</p>
             ) : (
@@ -389,7 +389,7 @@ export const GestorTasksSection: React.FC = () => {
                           </div>
                         )}
                       </div>
-                      <div className={`flex-shrink-0 flex items-center space-x-1 mt-2 sm:mt-0`}> {/* Removido opacity-0 group-hover:opacity-100 */}
+                      <div className={`flex-shrink-0 flex items-center space-x-1 mt-2 sm:mt-0`}>
                         {task.due_date && (
                           <Button variant="ghost" size="icon" onClick={() => handleAddToGoogleCalendar(task)} className="text-gray-400 hover:text-blue-600" title="Adicionar ao Google Agenda">
                             <CalendarPlus className="w-4 h-4" />

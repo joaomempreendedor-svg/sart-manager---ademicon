@@ -197,7 +197,7 @@ export const Dashboard = () => {
     // 4. Gestor Personal Tasks (Tarefas do Gestor)
     gestorTasks.filter(task => task.user_id === user?.id).forEach(task => {
       const isRecurring = task.recurrence_pattern && task.recurrence_pattern.type !== 'none';
-      const isCompletedToday = isRecurring && gestorTaskCompletions.some(c => c.gestor_task_id === task.id && c.user_id === user?.id && c.date === todayStr && c.done);
+      const isCompletedToday = isRecurring && gestorTaskCompletions.some(c => c.gestor_task_id === task.id && c.user_id === user.id && c.date === todayStr && c.done);
       const isDueToday = isGestorTaskDueOnDate(task, todayStr);
 
       if (!isCompletedToday && isDueToday) {
@@ -212,15 +212,7 @@ export const Dashboard = () => {
         };
         todayAgendaItems.push(agendaItem);
       } else if (!isRecurring && task.due_date && task.due_date < todayStr && !task.is_completed) {
-        overdueItems.push({
-          id: `gestor-task-${task.id}`,
-          type: 'gestor_task',
-          title: task.title,
-          personName: 'Eu',
-          personId: user!.id,
-          personType: 'teamMember',
-          dueDate: task.due_date,
-        });
+        overdueItems.push(agendaItem);
       }
       gestorPersonalTasks.push({
         id: `gestor-task-${task.id}`,
@@ -268,7 +260,7 @@ export const Dashboard = () => {
 
   return (
     <div className="p-4 sm:p-8 max-w-7xl mx-auto">
-      <div className="mb-6 flex items-center justify-between flex-col sm:flex-row"> {/* Reduzido mb-8 para mb-6 */}
+      <div className="mb-6 flex items-center justify-between flex-col sm:flex-row">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Visão Geral do Gestor</h1>
           <p className="text-gray-500 dark:text-gray-400">Acompanhe o progresso da equipe e as métricas chave.</p>
@@ -295,68 +287,68 @@ export const Dashboard = () => {
             <div className="animate-fade-in">
               {/* Seção de Métricas Comerciais */}
               <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center"><TrendingUp className="w-5 h-5 mr-2 text-brand-500" />Métricas Comerciais (Mês Atual)</h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6"> {/* Ajustado para lg:grid-cols-6 */}
-                <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-3">
-                  <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                    <Users className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+                <div className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-2"> {/* Reduzido p-4 para p-3 e space-x-3 para space-x-2 */}
+                  <div className="p-1 bg-blue-50 dark:bg-blue-900/20 rounded-lg"> {/* Reduzido p-2 para p-1 */}
+                    <Users className="w-5 h-5 text-blue-600 dark:text-blue-400" /> {/* Reduzido w-6 h-6 para w-5 h-5 */}
                   </div>
                   <div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Total de Leads</p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{totalCrmLeads}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Total de Leads</p> {/* Reduzido text-sm para text-xs */}
+                    <p className="text-xl font-bold text-gray-900 dark:text-white">{totalCrmLeads}</p> {/* Reduzido text-2xl para text-xl */}
                   </div>
                 </div>
-                <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-3">
-                  <div className="p-2 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                    <Plus className="w-6 h-6 text-green-600 dark:text-green-400" />
+                <div className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-2"> {/* Reduzido p-4 para p-3 e space-x-3 para space-x-2 */}
+                  <div className="p-1 bg-green-50 dark:bg-green-900/20 rounded-lg"> {/* Reduzido p-2 para p-1 */}
+                    <Plus className="w-5 h-5 text-green-600 dark:text-green-400" /> {/* Reduzido w-6 h-6 para w-5 h-5 */}
                   </div>
                   <div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Novos Leads (Mês)</p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{newLeadsThisMonth}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Novos Leads (Mês)</p> {/* Reduzido text-sm para text-xs */}
+                    <p className="text-xl font-bold text-gray-900 dark:text-white">{newLeadsThisMonth}</p> {/* Reduzido text-2xl para text-xl */}
                   </div>
                 </div>
-                <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-3">
-                  <div className="p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
-                    <Calendar className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
+                <div className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-2"> {/* Reduzido p-4 para p-3 e space-x-3 para space-x-2 */}
+                  <div className="p-1 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg"> {/* Reduzido p-2 para p-1 */}
+                    <Calendar className="w-5 h-5 text-yellow-600 dark:text-yellow-400" /> {/* Reduzido w-6 h-6 para w-5 h-5 */}
                   </div>
                   <div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Reuniões Mês</p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{meetingsThisMonth}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Reuniões Mês</p> {/* Reduzido text-sm para text-xs */}
+                    <p className="text-xl font-bold text-gray-900 dark:text-white">{meetingsThisMonth}</p> {/* Reduzido text-2xl para text-xl */}
                   </div>
                 </div>
                 <button 
                   onClick={() => handleOpenLeadsDetailModal('Valor Propostas Mês', leadsWithProposalThisMonth, 'proposal')}
-                  className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-3 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition cursor-pointer"
+                  className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-2 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition cursor-pointer"
                 >
-                  <div className="p-2 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg">
-                    <Send className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
+                  <div className="p-1 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg">
+                    <Send className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
                   </div>
                   <div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Valor Propostas (Mês)</p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatCurrency(proposalValueThisMonth)}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Valor Propostas (Mês)</p>
+                    <p className="text-xl font-bold text-gray-900 dark:text-white">{formatCurrency(proposalValueThisMonth)}</p>
                   </div>
                 </button>
                 <button 
                   onClick={() => handleOpenLeadsDetailModal('Valor Vendido Mês', leadsSoldThisMonth, 'sold')}
-                  className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-3 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition cursor-pointer"
+                  className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-2 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition cursor-pointer"
                 >
-                  <div className="p-2 bg-teal-50 dark:bg-teal-900/20 rounded-lg">
-                    <DollarSign className="w-6 h-6 text-teal-600 dark:text-teal-400" />
+                  <div className="p-1 bg-teal-50 dark:bg-teal-900/20 rounded-lg">
+                    <DollarSign className="w-5 h-5 text-teal-600 dark:text-teal-400" />
                   </div>
                   <div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Valor Vendido (Mês)</p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatCurrency(soldValueThisMonth)}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Valor Vendido (Mês)</p>
+                    <p className="text-xl font-bold text-gray-900 dark:text-white">{formatCurrency(soldValueThisMonth)}</p>
                   </div>
                 </button>
                 <button 
                   onClick={() => setIsPendingTasksModalOpen(true)}
-                  className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-3 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition cursor-pointer"
+                  className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-2 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition cursor-pointer"
                 >
-                  <div className="p-2 bg-red-50 dark:bg-red-900/20 rounded-lg">
-                    <ListTodo className="w-6 h-6 text-red-600 dark:text-red-400" />
+                  <div className="p-1 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                    <ListTodo className="w-5 h-5 text-red-600 dark:text-red-400" />
                   </div>
                   <div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Tarefas de Lead Pendentes</p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{pendingLeadTasks.length}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Tarefas de Lead Pendentes</p>
+                    <p className="text-xl font-bold text-gray-900 dark:text-white">{pendingLeadTasks.length}</p>
                   </div>
                 </button>
               </div>
