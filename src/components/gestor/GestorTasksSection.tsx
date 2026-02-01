@@ -2,12 +2,12 @@ import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { GestorTask } from '@/types';
-import { Plus, Edit2, Trash2, CheckCircle2, Circle, Loader2, Calendar, MessageSquare, Clock, Save, X, ListTodo, CalendarPlus, Repeat, CalendarDays } from 'lucide-react'; // Adicionado CalendarDays icon
+import { Plus, Edit2, Trash2, CheckCircle2, Circle, Loader2, Calendar, MessageSquare, Clock, Save, X, ListTodo, CalendarPlus, Repeat, CalendarDays, ChevronDown, ChevronUp } from 'lucide-react'; // Adicionado ChevronDown e ChevronUp
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { ScrollArea } from '@/components/ui/scroll-area'; // Mantido para outros usos, mas removido da lista de tarefas
 import {
   Select,
   SelectContent,
@@ -26,19 +26,21 @@ export const GestorTasksSection: React.FC = () => {
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskDescription, setNewTaskDescription] = useState('');
   const [newTaskDueDate, setNewTaskDueDate] = useState('');
-  const [newTaskRecurrenceType, setNewTaskRecurrenceType] = useState<'none' | 'daily' | 'every_x_days'>('none'); // NOVO: Tipo de recorrência
-  const [newTaskRecurrenceInterval, setNewTaskRecurrenceInterval] = useState<number | undefined>(undefined); // NOVO: Intervalo de recorrência
+  const [newTaskRecurrenceType, setNewTaskRecurrenceType] = useState<'none' | 'daily' | 'every_x_days'>('none');
+  const [newTaskRecurrenceInterval, setNewTaskRecurrenceInterval] = useState<number | undefined>(undefined);
   const [isAddingTask, setIsAddingTask] = useState(false);
 
   const [editingTask, setEditingTask] = useState<GestorTask | null>(null);
   const [editTaskTitle, setEditTaskTitle] = useState('');
   const [editTaskDescription, setEditTaskDescription] = useState('');
   const [editTaskDueDate, setEditTaskDueDate] = useState('');
-  const [editTaskRecurrenceType, setEditTaskRecurrenceType] = useState<'none' | 'daily' | 'every_x_days'>('none'); // NOVO: Tipo de recorrência em edição
-  const [editTaskRecurrenceInterval, setEditTaskRecurrenceInterval] = useState<number | undefined>(undefined); // NOVO: Intervalo de recorrência em edição
+  const [editTaskRecurrenceType, setEditTaskRecurrenceType] = useState<'none' | 'daily' | 'every_x_days'>('none');
+  const [editTaskRecurrenceInterval, setEditTaskRecurrenceInterval] = useState<number | undefined>(undefined);
   const [isUpdatingTask, setIsUpdatingTask] = useState(false);
 
-  // CORREÇÃO: Calcular 'today' a cada renderização para garantir que esteja sempre atualizado
+  const [showAllTasks, setShowAllTasks] = useState(false); // NOVO: Estado para controlar a exibição de todas as tarefas
+  const VISIBLE_TASK_LIMIT = 3; // NOVO: Limite de tarefas visíveis por padrão
+
   const today = formatDate(new Date());
 
   const sortedTasks = useMemo(() => {
@@ -68,6 +70,10 @@ export const GestorTasksSection: React.FC = () => {
     });
   }, [gestorTasks, gestorTaskCompletions, user?.id, today, isGestorTaskDueOnDate]);
 
+  const tasksToDisplay = useMemo(() => {
+    return showAllTasks ? sortedTasks : sortedTasks.slice(0, VISIBLE_TASK_LIMIT);
+  }, [sortedTasks, showAllTasks]);
+
   const handleAddTask = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !newTaskTitle.trim()) {
@@ -95,13 +101,13 @@ export const GestorTasksSection: React.FC = () => {
         description: newTaskDescription.trim() || undefined,
         due_date: newTaskDueDate || undefined,
         is_completed: false, // Tarefas novas sempre começam como não concluídas
-        recurrence_pattern: recurrence_pattern, // NOVO: Incluir padrão de recorrência
+        recurrence_pattern: recurrence_pattern,
       });
       setNewTaskTitle('');
       setNewTaskDescription('');
       setNewTaskDueDate('');
-      setNewTaskRecurrenceType('none'); // Resetar estado
-      setNewTaskRecurrenceInterval(undefined); // Resetar estado
+      setNewTaskRecurrenceType('none');
+      setNewTaskRecurrenceInterval(undefined);
       toast.success("Tarefa do gestor adicionada!");
     } catch (error) {
       console.error("Failed to add gestor task:", error);
@@ -116,8 +122,8 @@ export const GestorTasksSection: React.FC = () => {
     setEditTaskTitle(task.title);
     setEditTaskDescription(task.description || '');
     setEditTaskDueDate(task.due_date || '');
-    setEditTaskRecurrenceType(task.recurrence_pattern?.type || 'none'); // NOVO: Setar tipo de recorrência
-    setEditTaskRecurrenceInterval(task.recurrence_pattern?.interval); // NOVO: Setar intervalo de recorrência
+    setEditTaskRecurrenceType(task.recurrence_pattern?.type || 'none');
+    setEditTaskRecurrenceInterval(task.recurrence_pattern?.interval);
   };
 
   const handleUpdateTask = async (e: React.FormEvent) => {
@@ -146,7 +152,7 @@ export const GestorTasksSection: React.FC = () => {
         title: editTaskTitle.trim(),
         description: editTaskDescription.trim() || undefined,
         due_date: editTaskDueDate || undefined,
-        recurrence_pattern: recurrence_pattern, // NOVO: Incluir padrão de recorrência
+        recurrence_pattern: recurrence_pattern,
       });
       setEditingTask(null);
       toast.success("Tarefa do gestor atualizada!");
@@ -204,7 +210,7 @@ export const GestorTasksSection: React.FC = () => {
     <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl shadow-sm flex flex-col">
       <div className="px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex items-center space-x-2 bg-brand-50 dark:bg-brand-900/20 rounded-t-xl">
         <ListTodo className="w-5 h-5 text-brand-600 dark:text-brand-400" />
-        <h2 className="text-lg font-semibold text-brand-800 dark:text-brand-300">Tarefas do Gestor ({gestorTasks.length})</h2>
+        <h2 className="text-lg font-semibold text-brand-800 dark:text-brand-300">Minhas Tarefas ({gestorTasks.length})</h2>
       </div>
       <div className="p-3 grid grid-cols-1 md:grid-cols-2 gap-3">
         {/* Coluna de Adicionar/Editar Tarefa */}
@@ -243,7 +249,6 @@ export const GestorTasksSection: React.FC = () => {
                 className="dark:bg-slate-700 dark:text-white dark:border-slate-600"
               />
             </div>
-            {/* NOVO: Seletor de Recorrência */}
             <div>
               <Label htmlFor="recurrenceType">Recorrência</Label>
               <Select
@@ -287,7 +292,7 @@ export const GestorTasksSection: React.FC = () => {
                   }}
                   className="dark:bg-slate-700 dark:text-white dark:border-slate-600"
                   placeholder="Ex: 3"
-                  required // Campo obrigatório quando 'every_x_days'
+                  required
                 />
               </div>
             )}
@@ -308,20 +313,18 @@ export const GestorTasksSection: React.FC = () => {
         {/* Coluna de Lista de Tarefas */}
         <div className="space-y-2">
           <h3 className="text-md font-semibold text-gray-900 dark:text-white">Lista de Tarefas ({sortedTasks.length})</h3>
-          <ScrollArea className="h-[240px] pr-4 custom-scrollbar"> {/* Aumentado h-[160px] para h-[240px] */}
-            {sortedTasks.length === 0 ? (
+          <div className="space-y-2"> {/* Removida a ScrollArea aqui */}
+            {tasksToDisplay.length === 0 ? (
               <p className="text-center text-gray-500 dark:text-gray-400 py-4">Nenhuma tarefa do gestor.</p>
             ) : (
-              <div className="space-y-2">
-                {sortedTasks.map(task => {
+              tasksToDisplay.map(task => {
                   const isRecurring = task.recurrence_pattern && task.recurrence_pattern.type !== 'none';
                   const isCompletedToday = isRecurring && gestorTaskCompletions.some(c => c.gestor_task_id === task.id && c.user_id === user?.id && c.date === today && c.done);
-                  const isVisuallyCompleted = isRecurring ? isCompletedToday : task.is_completed; // A chave para o estado visual
+                  const isVisuallyCompleted = isRecurring ? isCompletedToday : task.is_completed;
                   const isDueToday = isGestorTaskDueOnDate(task, today);
                   const isOverdue = !isRecurring && !task.is_completed && task.due_date && new Date(task.due_date + 'T00:00:00') < new Date(today + 'T00:00:00');
 
-                  // Determine classes for the task item
-                  let itemClasses = 'flex items-start space-x-2 p-2 rounded-lg border group flex-col sm:flex-row flex-wrap'; // Adicionado flex-wrap
+                  let itemClasses = 'flex items-start space-x-2 p-2 rounded-lg border group flex-col sm:flex-row flex-wrap';
                   let titleClasses = 'font-medium';
                   let descriptionClasses = 'text-sm mt-1';
 
@@ -329,11 +332,11 @@ export const GestorTasksSection: React.FC = () => {
                     itemClasses += ' bg-green-100 dark:bg-green-900/30 border-green-300 dark:border-green-700';
                     titleClasses += ' line-through text-gray-500 dark:text-gray-400';
                     descriptionClasses += ' line-through text-gray-500 dark:text-gray-400';
-                  } else if (isDueToday || isOverdue) { // Pendente e vencendo hoje ou atrasada
+                  } else if (isDueToday || isOverdue) {
                     itemClasses += ' bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800';
                     titleClasses += ' text-red-800 dark:text-red-200';
                     descriptionClasses += ' text-red-700 dark:text-red-300';
-                  } else { // Não concluída, não vencendo hoje, não atrasada (tarefas futuras ou recorrentes não devidas hoje)
+                  } else {
                     itemClasses += ' bg-gray-50 dark:bg-slate-700/50 border-gray-200 dark:border-slate-700';
                     titleClasses += ' text-gray-900 dark:text-white';
                     descriptionClasses += ' text-gray-600 dark:text-gray-300';
@@ -358,14 +361,13 @@ export const GestorTasksSection: React.FC = () => {
                             {task.description}
                           </p>
                         )}
-                        {/* NOVO: Indicador de conclusão explícito e mais proeminente */}
                         {isVisuallyCompleted ? (
                           <span className="flex items-center text-base text-green-600 dark:text-green-400 font-bold mt-1">
                             <CheckCircle2 className="w-4 h-4 mr-1 inline-block" /> {isRecurring ? 'Concluído hoje' : 'Concluído'}
                           </span>
                         ) : (
                           <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400 mt-1 flex-wrap">
-                            {task.due_date && !isRecurring && ( // Exibir data de vencimento apenas para tarefas não recorrentes
+                            {task.due_date && !isRecurring && (
                               <span className="flex items-center">
                                 <Calendar className="w-3 h-3 mr-1" /> Vence: {new Date(task.due_date + 'T00:00:00').toLocaleDateString('pt-BR')}
                               </span>
@@ -376,12 +378,12 @@ export const GestorTasksSection: React.FC = () => {
                                 {task.recurrence_pattern?.type === 'daily' ? 'Diária' : `A cada ${task.recurrence_pattern?.interval} dias`}
                               </span>
                             )}
-                            {isDueToday && ( // Task is due today (applies to both recurring and non-recurring if not completed)
+                            {isDueToday && (
                               <span className="flex items-center text-red-600 dark:text-red-400 font-medium">
                                 <Clock className="w-3 h-3 mr-1" /> Vence Hoje!
                               </span>
                             )}
-                            {isOverdue && !isDueToday && ( // Non-recurring task that is overdue but not due today (i.e., due in the past)
+                            {isOverdue && !isDueToday && (
                               <span className="flex items-center text-red-600 dark:text-red-400 font-medium">
                                 <Clock className="w-3 h-3 mr-1" /> Atrasada!
                               </span>
@@ -389,7 +391,7 @@ export const GestorTasksSection: React.FC = () => {
                           </div>
                         )}
                       </div>
-                      <div className={`flex-none flex items-center space-x-1 mt-2 sm:mt-0`}> {/* Ajustado space-x-1 para space-x-1 */}
+                      <div className={`flex-none flex items-center space-x-1 mt-2 sm:mt-0`}>
                         {task.due_date && (
                           <Button variant="ghost" size="icon" onClick={() => handleAddToGoogleCalendar(task)} className="text-gray-400 hover:text-blue-600" title="Adicionar ao Google Agenda">
                             <CalendarPlus className="w-4 h-4" />
@@ -407,7 +409,26 @@ export const GestorTasksSection: React.FC = () => {
                 })}
               </div>
             )}
-          </ScrollArea>
+            {sortedTasks.length > VISIBLE_TASK_LIMIT && (
+              <div className="mt-4 text-center">
+                <Button
+                  variant="ghost"
+                  onClick={() => setShowAllTasks(!showAllTasks)}
+                  className="text-sm text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300"
+                >
+                  {showAllTasks ? (
+                    <>
+                      <ChevronUp className="w-4 h-4 mr-1" /> Ver Menos
+                    </>
+                  ) : (
+                    <>
+                      <ChevronDown className="w-4 h-4 mr-1" /> Ver Mais ({sortedTasks.length - VISIBLE_TASK_LIMIT} mais)
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
