@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { ChevronRight, User, Calendar, CheckCircle2, TrendingUp, AlertCircle, Clock, Users, Star, CheckSquare, XCircle, BellRing, UserRound, Plus, ListTodo, Send, DollarSign, Repeat, Filter, RotateCcw, CalendarPlus, Mail, Phone } from 'lucide-react';
+import { ChevronRight, User, Calendar, CheckCircle2, TrendingUp, AlertCircle, Clock, Users, Star, CheckSquare, XCircle, BellRing, UserRound, Plus, ListTodo, Send, DollarSign, Repeat, Filter, RotateCcw, CalendarPlus, Mail, Phone, ClipboardCheck } from 'lucide-react';
 import { CandidateStatus, ChecklistTaskState, GestorTask, LeadTask, CrmLead } from '@/types';
 import { TableSkeleton } from '@/components/TableSkeleton';
 import { ScheduleInterviewModal } from '@/components/ScheduleInterviewModal';
@@ -90,11 +90,11 @@ export const Dashboard = () => {
       if (lead.proposalValue && lead.proposalValue > 0 && lead.proposalClosingDate) {
         const proposalDate = new Date(lead.proposalClosingDate + 'T00:00:00');
         if (proposalDate >= currentMonthStart && proposalDate <= currentMonthEnd) {
-          proposalValueThisMonth += (lead.proposalValue || 0);
-          leadsWithProposalThisMonth.push(lead);
+          return sum + (lead.proposalValue || 0);
         }
       }
-    });
+      return sum;
+    }, 0);
 
     let soldValueThisMonth = 0;
     const leadsSoldThisMonth: CrmLead[] = [];
@@ -102,11 +102,11 @@ export const Dashboard = () => {
       if (lead.soldCreditValue && lead.soldCreditValue > 0 && lead.saleDate) {
         const saleDate = new Date(lead.saleDate + 'T00:00:00');
         if (saleDate >= currentMonthStart && saleDate <= currentMonthEnd) {
-          soldValueThisMonth += (lead.soldCreditValue || 0);
-          leadsSoldThisMonth.push(lead);
+          return sum + (lead.soldCreditValue || 0);
         }
       }
-    });
+      return sum;
+    }, 0);
 
     const pendingLeadTasksList: LeadTask[] = leadTasks.filter(task => {
       const lead = crmLeads.find(l => l.id === task.lead_id && l.user_id === user.id);
