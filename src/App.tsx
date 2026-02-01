@@ -46,13 +46,14 @@ import { OriginConfig } from '@/pages/OriginConfig';
 import { FinancialPanel } from '@/pages/FinancialPanel';
 import { FormCadastros } from '@/pages/gestor/FormSubmissions';
 import CandidateScreening from '@/pages/gestor/CandidateScreening';
-import TeamProductionGoals from '@/pages/gestor/TeamProductionGoals'; // NOVO: Importar o componente
+import TeamProductionGoals from '@/pages/gestor/TeamProductionGoals';
+import { AllCandidates } from '@/pages/gestor/AllCandidates'; // NOVO: Importar a nova página
 
 // Consultor Pages
 import ConsultorDashboard from '@/pages/consultor/Dashboard';
 import ConsultorCrmPage from '@/pages/consultor/Crm';
 import { DailyChecklist } from '@/pages/consultor/DailyChecklist';
-import ConsultorSalesReports from '@/pages/consultor/ConsultorSalesReports'; // NOVO: Importar o componente
+import ConsultorSalesReports from '@/pages/consultor/ConsultorSalesReports';
 
 
 const AppLoader = () => (
@@ -189,7 +190,8 @@ const AppRoutes = () => {
           <Route path="config-origins" element={<OriginConfig />} />
           <Route path="form-cadastros" element={<FormCadastros />} />
           <Route path="candidate-screening" element={<CandidateScreening />} />
-          <Route path="team-production-goals" element={<TeamProductionGoals />} /> {/* NOVO: Rota para Metas de Produção da Equipe */}
+          <Route path="team-production-goals" element={<TeamProductionGoals />} />
+          <Route path="all-candidates" element={<AllCandidates />} /> {/* NOVO: Rota para a nova página */}
           <Route path="*" element={<Navigate to="/gestor/dashboard" replace />} />
         </Route>
 
@@ -200,7 +202,7 @@ const AppRoutes = () => {
           <Route path="crm" element={<ConsultorCrmPage />} />
           <Route path="daily-checklist" element={<DailyChecklist />} />
           <Route path="materials" element={<Materials />} />
-          <Route path="sales-reports" element={<ConsultorSalesReports />} /> {/* NOVO: Rota para o relatório de vendas */}
+          <Route path="sales-reports" element={<ConsultorSalesReports />} />
           {/* <Route path="links" element={<ImportantLinks />} /> REMOVIDO */}
           <Route path="*" element={<Navigate to="/consultor/dashboard" replace />} />
         </Route>

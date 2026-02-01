@@ -13,33 +13,8 @@ import { NotificationBell } from '@/components/NotificationBell';
 import { NotificationCenter } from '@/components/NotificationCenter';
 import { LeadsDetailModal } from '@/components/gestor/LeadsDetailModal'; // NOVO: Importar o modal de detalhes de leads
 
-const StatusBadge = ({ status }: { status: CandidateStatus }) => {
-  const colors = {
-    'Entrevista': 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200',
-    'Aguardando Prévia': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
-    'Onboarding Online': 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
-    'Integração Presencial': 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300',
-    'Acompanhamento 90 Dias': 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300',
-    'Autorizado': 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
-    'Reprovado': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
-    'Triagem': 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200',
-  };
-
-  return (
-    <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${colors[status] || 'bg-gray-100 text-gray-800'}`}>
-      {status}
-    </span>
-  );
-};
-
-type AgendaItem = {
-  id: string;
-  type: 'task' | 'interview' | 'feedback' | 'gestor_task';
-  title: string;
-  personName: string;
-  personId: string;
-  personType: 'candidate' | 'teamMember' | 'lead';
-  dueDate: string;
+const formatCurrency = (value: number) => {
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 };
 
 export const Dashboard = () => {
@@ -49,9 +24,6 @@ export const Dashboard = () => {
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [isPendingTasksModalOpen, setIsPendingTasksModalOpen] = useState(false);
   const [isNotificationCenterOpen, setIsNotificationCenterOpen] = useState(false);
-
-  const [filterStartDate, setFilterStartDate] = useState('');
-  const [filterEndDate, setFilterEndDate] = useState('');
 
   // NOVO: Estados para o modal de detalhes de leads
   const [isLeadsDetailModalOpen, setIsLeadsDetailModalOpen] = useState(false);
@@ -292,45 +264,6 @@ export const Dashboard = () => {
     }
   };
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-  };
-
-  const candidatesForTable = useMemo(() => {
-    let currentCandidates = candidates.filter(c => c.status !== 'Triagem');
-
-    if (filterStartDate) {
-      const start = new Date(filterStartDate + 'T00:00:00');
-      currentCandidates = currentCandidates.filter(c => new Date(c.createdAt) >= start);
-    }
-    if (filterEndDate) {
-      const end = new Date(filterEndDate + 'T23:59:59');
-      currentCandidates = currentCandidates.filter(c => new Date(c.createdAt) <= end);
-    }
-
-    const sortedCandidates = currentCandidates.sort((a, b) => {
-      const dateA = new Date(a.createdAt).getTime();
-      const dateB = new Date(b.createdAt).getTime();
-      
-      if (isNaN(dateA) && isNaN(dateB)) return 0;
-      if (isNaN(dateA)) return 1;
-      if (isNaN(dateB)) return -1;
-
-      return dateB - dateA;
-    });
-
-    console.log("Candidates for table (sorted by createdAt):", sortedCandidates.map(c => ({ name: c.name, createdAt: c.createdAt })));
-
-    return sortedCandidates;
-  }, [candidates, filterStartDate, filterEndDate]);
-
-  const clearCandidateFilters = () => {
-    setFilterStartDate('');
-    setFilterEndDate('');
-  };
-
-  const hasActiveCandidateFilters = filterStartDate || filterEndDate;
-
   // NOVO: Funções para abrir o modal de detalhes de leads
   const handleOpenLeadsDetailModal = (title: string, leads: CrmLead[], metricType: 'proposal' | 'sold') => {
     setLeadsModalTitle(title);
@@ -478,122 +411,6 @@ export const Dashboard = () => {
               {/* Minhas Tarefas Pessoais (Gestor) */}
               <div className="mb-8">
                 <GestorTasksSection key={`${gestorTasks.length}-${gestorTaskCompletions.length}`} />
-              </div>
-
-              {/* Todos os Candidatos */}
-              <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
-                <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700 flex flex-col sm:flex-row justify-between items-start sm:items-center">
-                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Todos os Candidatos</h2>
-                  <button
-                    onClick={() => setIsScheduleModalOpen(true)}
-                    className="text-sm text-brand-600 dark:text-brand-400 font-medium hover:text-brand-700 dark:hover:text-brand-300 mt-2 sm:mt-0"
-                  >
-                    + Agendar Entrevista
-                  </button>
-                </div>
-
-                {/* NOVO: Filtros de Data para Candidatos */}
-                <div className="p-6 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
-                  <div className="flex items-center justify-between flex-col sm:flex-row mb-4">
-                    <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 flex items-center uppercase tracking-wide"><Filter className="w-4 h-4 mr-2" />Filtrar Candidatos por Data de Criação</h3>
-                    {hasActiveCandidateFilters && (
-                      <button onClick={clearCandidateFilters} className="text-xs flex items-center text-red-500 hover:text-red-700 transition mt-2 sm:mt-0">
-                        <RotateCcw className="w-3 h-3 mr-1" />Limpar Filtros
-                      </button>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label htmlFor="candidateFilterStartDate" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">De</label>
-                      <input
-                        type="date"
-                        id="candidateFilterStartDate"
-                        value={filterStartDate}
-                        onChange={(e) => setFilterStartDate(e.target.value)}
-                        className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2.5 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500"
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="candidateFilterEndDate" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Até</label>
-                      <input
-                        type="date"
-                        id="candidateFilterEndDate"
-                        value={filterEndDate}
-                        onChange={(e) => setFilterEndDate(e.target.value)}
-                        className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2.5 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {isDataLoading ? (
-                  <div className="p-6">
-                    <TableSkeleton />
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300">
-                      <thead className="bg-gray-50 dark:bg-slate-700/50 text-gray-900 dark:text-white font-medium">
-                        <tr>
-                          <th className="px-6 py-3">Nome</th>
-                          <th className="px-6 py-3">Data Entrevista</th>
-                          <th className="px-6 py-3">Nota</th>
-                          <th className="px-6 py-3">Status</th>
-                          <th className="px-6 py-3"></th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
-                        {candidatesForTable.length === 0 ? (
-                          <tr>
-                            <td colSpan={5} className="px-6 py-8 text-center text-gray-400">
-                              Nenhum candidato cadastrado ainda.
-                            </td>
-                          </tr>
-                        ) : (
-                          candidatesForTable.map((c) => {
-                            const totalScore =
-                              c.interviewScores.basicProfile +
-                              c.interviewScores.commercialSkills +
-                              c.interviewScores.behavioralProfile +
-                              c.interviewScores.jobFit;
-
-                            return (
-                              <tr
-                                key={c.id}
-                                onClick={() => navigate(`/gestor/candidate/${c.id}`)}
-                                className="hover:bg-gray-50 dark:hover:bg-slate-700/50 cursor-pointer transition-colors"
-                              >
-                                <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">
-                                  <div className="flex items-center space-x-3">
-                                      <div className="w-8 h-8 rounded-full bg-brand-100 dark:bg-brand-900/40 flex items-center justify-center text-brand-700 dark:text-brand-400 font-bold text-xs">
-                                          {c.name.substring(0,2).toUpperCase()}
-                                      </div>
-                                      <span>{c.name}</span>
-                                  </div>
-                                </td>
-                                <td className="px-6 py-4 flex items-center space-x-2">
-                                   <Calendar className="w-4 h-4 text-gray-400" />
-                                   <span>{new Date(c.interviewDate + 'T00:00:00').toLocaleDateString()}</span>
-                                </td>
-                                <td className="px-6 py-4">
-                                  <span className={`font-bold ${totalScore > 0 ? (totalScore >= 70 ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400') : 'text-gray-400'}`}>
-                                      {totalScore > 0 ? `${totalScore}/100` : 'Pendente'}
-                                  </span>
-                                </td>
-                                <td className="px-6 py-4">
-                                  <StatusBadge status={c.status} />
-                                </td>
-                                <td className="px-6 py-4 text-right">
-                                  <ChevronRight className="w-5 h-5 text-gray-400" />
-                                </td>
-                              </tr>
-                            );
-                          })
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
               </div>
             </div>
         </>
