@@ -295,13 +295,13 @@ export const Dashboard = () => {
                 <Button onClick={() => navigate('/gestor/crm')} className="h-auto py-4 bg-brand-600 hover:bg-brand-700 text-white text-lg font-semibold shadow-md hover:shadow-lg transition-all">
                   <TrendingUp className="w-6 h-6 mr-3" /> Monitorar CRM
                 </Button>
-                <Button onClick={() => setIsScheduleModalOpen(true)} className="h-auto py-4 bg-gray-200 hover:bg-gray-300 text-gray-800 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-gray-200 text-lg font-semibold shadow-md hover:shadow-lg transition-all">
+                <Button onClick={() => setIsScheduleModalOpen(true)} className="h-auto py-4 bg-brand-600 hover:bg-brand-700 text-white text-lg font-semibold shadow-md hover:shadow-lg transition-all">
                   <CalendarPlus className="w-6 h-6 mr-3" /> Agendar Entrevista
                 </Button>
-                <Button onClick={() => navigate('/gestor/daily-checklist-monitoring')} className="h-auto py-4 bg-gray-200 hover:bg-gray-300 text-gray-800 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-gray-200 text-lg font-semibold shadow-md hover:shadow-lg transition-all">
+                <Button onClick={() => navigate('/gestor/daily-checklist-monitoring')} className="h-auto py-4 bg-brand-600 hover:bg-brand-700 text-white text-lg font-semibold shadow-md hover:shadow-lg transition-all">
                   <ClipboardCheck className="w-6 h-6 mr-3" /> Monitorar Metas Diárias
                 </Button>
-                <Button onClick={() => navigate('/gestor/config-team')} className="h-auto py-4 bg-gray-200 hover:bg-gray-300 text-gray-800 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-gray-200 text-lg font-semibold shadow-md hover:shadow-lg transition-all">
+                <Button onClick={() => navigate('/gestor/config-team')} className="h-auto py-4 bg-brand-600 hover:bg-brand-700 text-white text-lg font-semibold shadow-md hover:shadow-lg transition-all">
                   <Users className="w-6 h-6 mr-3" /> Gerenciar Equipe
                 </Button>
               </div>
@@ -380,10 +380,8 @@ export const Dashboard = () => {
 
                 {/* Agenda do Dia */}
                 <div>
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center"><Calendar className="w-5 h-5 mr-2 text-brand-500" /> Agenda do Dia</h2>
                   <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-md">
-                    <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-4 flex items-center">
-                      <Calendar className="w-5 h-5 mr-2 text-brand-500" /> Agenda do Dia
-                    </h3>
                     {todayAgenda.length === 0 ? (
                       <p className="text-center text-gray-500 dark:text-gray-400 py-4">Nenhum item na agenda para hoje.</p>
                     ) : (
@@ -415,10 +413,8 @@ export const Dashboard = () => {
 
                 {/* Tarefas Atrasadas */}
                 <div>
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center"><AlertCircle className="w-5 h-5 mr-2 text-red-600 dark:text-red-400" /> Tarefas Atrasadas</h2>
                   <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-md">
-                    <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-4 flex items-center">
-                      <AlertCircle className="w-5 h-5 mr-2 text-red-600 dark:text-red-400" /> Tarefas Atrasadas
-                    </h3>
                     {overdueTasks.length === 0 ? (
                       <p className="text-center text-gray-500 dark:text-gray-400 py-4">Nenhuma tarefa atrasada. Bom trabalho!</p>
                     ) : (
