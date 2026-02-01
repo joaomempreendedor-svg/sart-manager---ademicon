@@ -306,7 +306,7 @@ export const Dashboard = () => {
                     <p className="text-lg font-bold text-gray-900 dark:text-white whitespace-nowrap overflow-hidden">{newLeadsThisMonth}</p> {/* Adicionado whitespace-nowrap e overflow-hidden */}
                   </div>
                 </div>
-                <div className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-2">
+                <button className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-2 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition cursor-pointer">
                   <div className="p-1 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
                     <Calendar className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
                   </div>
@@ -314,7 +314,7 @@ export const Dashboard = () => {
                     <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Reuniões Mês</p>
                     <p className="text-lg font-bold text-gray-900 dark:text-white whitespace-nowrap overflow-hidden">{meetingsThisMonth}</p> {/* Adicionado whitespace-nowrap e overflow-hidden */}
                   </div>
-                </div>
+                </button>
                 <button 
                   onClick={() => handleOpenLeadsDetailModal('Valor Propostas Mês', leadsWithProposalThisMonth, 'proposal')}
                   className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-2 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition cursor-pointer"
