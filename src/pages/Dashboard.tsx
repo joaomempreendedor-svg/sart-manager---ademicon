@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { ChevronRight, User, Calendar, CheckCircle2, TrendingUp, AlertCircle, Clock, Users, Star, CheckSquare, XCircle, BellRing, UserRound, Plus, ListTodo, Send, DollarSign, Repeat, Filter, RotateCcw } from 'lucide-react';
+import { ChevronRight, User, Calendar, CheckCircle2, TrendingUp, AlertCircle, Clock, Users, Star, CheckSquare, XCircle, BellRing, UserRound, Plus, ListTodo, Send, DollarSign, Repeat, Filter, RotateCcw, CalendarPlus, Mail, Phone } from 'lucide-react';
 import { CandidateStatus, ChecklistTaskState, GestorTask, LeadTask, CrmLead } from '@/types';
 import { TableSkeleton } from '@/components/TableSkeleton';
 import { ScheduleInterviewModal } from '@/components/ScheduleInterviewModal';
@@ -12,11 +12,24 @@ import toast from 'react-hot-toast';
 import { NotificationBell } from '@/components/NotificationBell';
 import { NotificationCenter } from '@/components/NotificationCenter';
 import { LeadsDetailModal } from '@/components/gestor/LeadsDetailModal';
-import { formatLargeCurrency } from '@/utils/currencyUtils'; // Importar a nova função
+import { formatLargeCurrency } from '@/utils/currencyUtils';
+import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 };
+
+// Tipo para itens da agenda
+interface AgendaItem {
+  id: string;
+  type: 'task' | 'interview' | 'feedback' | 'gestor_task';
+  title: string;
+  personName: string;
+  personId: string;
+  personType: 'candidate' | 'teamMember' | 'lead';
+  dueDate: string;
+}
 
 export const Dashboard = () => {
   const { user } = useAuth();
@@ -123,15 +136,15 @@ export const Dashboard = () => {
     };
   }, [crmLeads, leadTasks, user, crmStages]);
 
-  const { todayAgenda, overdueTasks, allGestorTasks } = useMemo(() => {
+  const { todayAgenda, overdueTasks } = useMemo(() => {
     const today = new Date();
     const todayStr = today.toISOString().split('T')[0];
 
     const todayAgendaItems: AgendaItem[] = [];
     const overdueItems: AgendaItem[] = [];
-    const gestorPersonalTasks: AgendaItem[] = [];
 
-    candidates.forEach(candidate => {
+    // Candidatos: Tarefas de Checklist e Entrevistas
+    candidates.filter(c => c.responsibleUserId === user?.id).forEach(candidate => {
       Object.entries(candidate.checklistProgress || {}).forEach(([taskId, state]) => {
         if (state.dueDate) {
           const item = checklistStructure.flatMap(s => s.items).find(i => i.id === taskId);
@@ -153,9 +166,7 @@ export const Dashboard = () => {
           }
         }
       });
-    });
 
-    candidates.forEach(candidate => {
       if (candidate.interviewDate === todayStr) {
         todayAgendaItems.push({
           id: `interview-${candidate.id}`,
@@ -169,9 +180,10 @@ export const Dashboard = () => {
       }
     });
 
+    // Feedbacks (Candidatos e Membros da Equipe)
     const allPeople = [
-      ...candidates.map(c => ({ ...c, personType: 'candidate' as const })),
-      ...teamMembers.map(m => ({ ...m, personType: 'teamMember' as const }))
+      ...candidates.filter(c => c.responsibleUserId === user?.id).map(c => ({ ...c, personType: 'candidate' as const })),
+      ...teamMembers.filter(m => m.id === user?.id || m.roles.includes('Gestor')).map(m => ({ ...m, personType: 'teamMember' as const })) // Incluir o próprio gestor
     ];
     allPeople.forEach(person => {
       (person.feedbacks || []).forEach(feedback => {
@@ -189,6 +201,7 @@ export const Dashboard = () => {
       });
     });
 
+    // Tarefas do Gestor (pessoais)
     gestorTasks.filter(task => task.user_id === user?.id).forEach(task => {
       const isRecurring = task.recurrence_pattern && task.recurrence_pattern.type !== 'none';
       const isCompletedToday = isRecurring && gestorTaskCompletions.some(c => c.gestor_task_id === task.id && c.user_id === user?.id && c.date === todayStr && c.done);
@@ -199,28 +212,26 @@ export const Dashboard = () => {
           id: `gestor-task-${task.id}`,
           type: 'gestor_task',
           title: task.title,
-          personName: 'Eu',
+          personName: 'Eu', // Para tarefas pessoais do gestor
           personId: user!.id,
           personType: 'teamMember',
           dueDate: task.due_date || '',
         };
         todayAgendaItems.push(agendaItem);
       } else if (!isRecurring && task.due_date && task.due_date < todayStr && !task.is_completed) {
-        overdueItems.push(agendaItem);
+        overdueItems.push({
+          id: `gestor-task-${task.id}`,
+          type: 'gestor_task',
+          title: task.title,
+          personName: 'Eu',
+          personId: user!.id,
+          personType: 'teamMember',
+          dueDate: task.due_date,
+        });
       }
-      gestorPersonalTasks.push({
-        id: `gestor-task-${task.id}`,
-        type: 'gestor_task',
-        title: task.title,
-        personName: 'Eu',
-        personId: user!.id,
-        personType: 'teamMember',
-        dueDate: task.due_date || '',
-      });
     });
 
-
-    return { todayAgenda: todayAgendaItems, overdueTasks: overdueItems, allGestorTasks: gestorPersonalTasks };
+    return { todayAgenda: todayAgendaItems, overdueTasks: overdueItems };
   }, [candidates, teamMembers, checklistStructure, leadTasks, crmLeads, user, gestorTasks, gestorTaskCompletions, isGestorTaskDueOnDate]);
 
   const getAgendaIcon = (type: AgendaItem['type']) => {
@@ -236,9 +247,10 @@ export const Dashboard = () => {
     if (item.personType === 'candidate') {
       navigate(`/gestor/candidate/${item.personId}`);
     } else if (item.personType === 'lead') {
-      navigate(`/gestor/crm`);
+      navigate(`/gestor/crm`, { state: { highlightLeadId: item.personId, highlightLeadTaskId: item.id } });
     } else if (item.type === 'gestor_task') {
-      toast.info("Gerencie suas tarefas do gestor na seção 'Tarefas do Gestor'.");
+      // Para tarefas do gestor, podemos navegar para a seção de tarefas ou apenas mostrar um toast
+      toast.info("Gerencie suas tarefas pessoais na seção 'Minhas Tarefas'.");
     } else {
       navigate('/gestor/feedbacks');
     }
@@ -278,77 +290,168 @@ export const Dashboard = () => {
       ) : (
         <>
             <div className="animate-fade-in">
-              {/* Seção de Métricas Comerciais */}
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center"><TrendingUp className="w-5 h-5 mr-2 text-brand-500" />Métricas Comerciais (Mês Atual)</h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
-                <div className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-2">
-                  <div className="p-1 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                    <Users className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Total de Leads</p>
-                    <p className="text-lg font-bold text-gray-900 dark:text-white whitespace-nowrap overflow-hidden">{totalCrmLeads}</p>
+              {/* Seção de Ações Rápidas */}
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center"><Plus className="w-5 h-5 mr-2 text-brand-500" />Ações Rápidas</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                <Button onClick={() => navigate('/gestor/crm')} className="h-auto py-4 bg-blue-600 hover:bg-blue-700 text-white text-lg font-semibold shadow-md hover:shadow-lg transition-all">
+                  <TrendingUp className="w-6 h-6 mr-3" /> Novo Lead
+                </Button>
+                <Button onClick={() => setIsScheduleModalOpen(true)} className="h-auto py-4 bg-green-600 hover:bg-green-700 text-white text-lg font-semibold shadow-md hover:shadow-lg transition-all">
+                  <CalendarPlus className="w-6 h-6 mr-3" /> Agendar Entrevista
+                </Button>
+                <Button onClick={() => navigate('/gestor/daily-checklist-monitoring')} className="h-auto py-4 bg-purple-600 hover:bg-purple-700 text-white text-lg font-semibold shadow-md hover:shadow-lg transition-all">
+                  <ClipboardCheck className="w-6 h-6 mr-3" /> Monitorar Metas Diárias
+                </Button>
+                <Button onClick={() => navigate('/gestor/config-team')} className="h-auto py-4 bg-yellow-600 hover:bg-yellow-700 text-white text-lg font-semibold shadow-md hover:shadow-lg transition-all">
+                  <Users className="w-6 h-6 mr-3" /> Gerenciar Equipe
+                </Button>
+              </div>
+
+              {/* Main Content Grid */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Coluna Principal: Métricas Comerciais */}
+                <div className="lg:col-span-2">
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center"><TrendingUp className="w-5 h-5 mr-2 text-brand-500" />Métricas Comerciais (Mês Atual)</h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+                    <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-md hover:scale-[1.02] hover:shadow-lg transition-all duration-300 flex items-center space-x-3">
+                      <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                        <Users className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Total de Leads</p>
+                        <p className="text-lg font-bold text-gray-900 dark:text-white whitespace-nowrap overflow-hidden">{totalCrmLeads}</p>
+                      </div>
+                    </div>
+                    <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-md hover:scale-[1.02] hover:shadow-lg transition-all duration-300 flex items-center space-x-3">
+                      <div className="p-2 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                        <Plus className="w-5 h-5 text-green-600 dark:text-green-400" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Novos Leads (Mês)</p>
+                        <p className="text-lg font-bold text-gray-900 dark:text-white whitespace-nowrap overflow-hidden">{newLeadsThisMonth}</p>
+                      </div>
+                    </div>
+                    <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-md hover:scale-[1.02] hover:shadow-lg transition-all duration-300 flex items-center space-x-3">
+                      <div className="p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+                        <Calendar className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Reuniões Mês</p>
+                        <p className="text-lg font-bold text-gray-900 dark:text-white whitespace-nowrap overflow-hidden">{meetingsThisMonth}</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleOpenLeadsDetailModal('Valor Propostas Mês', leadsWithProposalThisMonth, 'proposal')}
+                      className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-md hover:scale-[1.02] hover:shadow-lg transition-all duration-300 flex items-center space-x-3"
+                    >
+                      <div className="p-2 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg">
+                        <Send className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Valor Propostas (Mês)</p>
+                        <p className="text-lg font-bold text-gray-900 dark:text-white whitespace-nowrap overflow-hidden">{formatLargeCurrency(proposalValueThisMonth)}</p>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => handleOpenLeadsDetailModal('Valor Vendido Mês', leadsSoldThisMonth, 'sold')}
+                      className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-md hover:scale-[1.02] hover:shadow-lg transition-all duration-300 flex items-center space-x-3"
+                    >
+                      <div className="p-2 bg-teal-50 dark:bg-teal-900/20 rounded-lg">
+                        <DollarSign className="w-5 h-5 text-teal-600 dark:text-teal-400" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Valor Vendido (Mês)</p>
+                        <p className="text-lg font-bold text-gray-900 dark:text-white whitespace-nowrap overflow-hidden">{formatLargeCurrency(soldValueThisMonth)}</p>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => setIsPendingTasksModalOpen(true)}
+                      className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-md hover:scale-[1.02] hover:shadow-lg transition-all duration-300 flex items-center space-x-3"
+                    >
+                      <div className="p-2 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                        <ListTodo className="w-5 h-5 text-red-600 dark:text-red-400" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Tarefas de Lead Pendentes</p>
+                        <p className="text-lg font-bold text-gray-900 dark:text-white whitespace-nowrap overflow-hidden">{pendingLeadTasks.length}</p>
+                      </div>
+                    </button>
                   </div>
                 </div>
-                <div className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-2">
-                  <div className="p-1 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                    <Plus className="w-5 h-5 text-green-600 dark:text-green-400" />
+
+                {/* Coluna Lateral: Agenda do Dia e Tarefas Atrasadas */}
+                <div className="lg:col-span-1 space-y-6">
+                  {/* Agenda do Dia */}
+                  <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-md">
+                    <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-4 flex items-center">
+                      <Calendar className="w-5 h-5 mr-2 text-brand-500" /> Agenda do Dia
+                    </h3>
+                    {todayAgenda.length === 0 ? (
+                      <p className="text-center text-gray-500 dark:text-gray-400 py-4">Nenhum item na agenda para hoje.</p>
+                    ) : (
+                      <ScrollArea className="h-[200px] pr-4 custom-scrollbar">
+                        <ul className="space-y-3">
+                          {todayAgenda.map(item => (
+                            <li key={item.id} onClick={() => handleAgendaItemClick(item)} className="flex items-start space-x-3 p-3 rounded-lg bg-gray-50 dark:bg-slate-700/50 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors cursor-pointer">
+                              <div className="flex-shrink-0 mt-0.5">
+                                {getAgendaIcon(item.type)}
+                              </div>
+                              <div className="flex-1">
+                                <p className="font-medium text-gray-900 dark:text-white">{item.title}</p>
+                                <p className="text-sm text-gray-600 dark:text-gray-300 mt-0.5">
+                                  {item.personName}
+                                </p>
+                                {item.dueDate && (
+                                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center">
+                                    <Clock className="w-3 h-3 mr-1" /> {new Date(item.dueDate + 'T00:00:00').toLocaleDateString('pt-BR')}
+                                  </p>
+                                )}
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      </ScrollArea>
+                    )}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Novos Leads (Mês)</p>
-                    <p className="text-lg font-bold text-gray-900 dark:text-white whitespace-nowrap overflow-hidden">{newLeadsThisMonth}</p>
+
+                  {/* Tarefas Atrasadas */}
+                  <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-md">
+                    <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-4 flex items-center">
+                      <AlertCircle className="w-5 h-5 mr-2 text-red-600 dark:text-red-400" /> Tarefas Atrasadas
+                    </h3>
+                    {overdueTasks.length === 0 ? (
+                      <p className="text-center text-gray-500 dark:text-gray-400 py-4">Nenhuma tarefa atrasada. Bom trabalho!</p>
+                    ) : (
+                      <ScrollArea className="h-[200px] pr-4 custom-scrollbar">
+                        <ul className="space-y-3">
+                          {overdueTasks.map(item => (
+                            <li key={item.id} onClick={() => handleAgendaItemClick(item)} className="flex items-start space-x-3 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors cursor-pointer border border-red-200 dark:border-red-800">
+                              <div className="flex-shrink-0 mt-0.5">
+                                {getAgendaIcon(item.type)}
+                              </div>
+                              <div className="flex-1">
+                                <p className="font-medium text-red-800 dark:text-red-200">{item.title}</p>
+                                <p className="text-sm text-red-700 dark:text-red-300 mt-0.5">
+                                  {item.personName}
+                                </p>
+                                {item.dueDate && (
+                                  <p className="text-xs text-red-600 dark:text-red-400 mt-1 flex items-center">
+                                    <Clock className="w-3 h-3 mr-1" /> Venceu em: {new Date(item.dueDate + 'T00:00:00').toLocaleDateString('pt-BR')}
+                                  </p>
+                                )}
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      </ScrollArea>
+                    )}
                   </div>
                 </div>
-                <div className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-2">
-                  <div className="p-1 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
-                    <Calendar className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Reuniões Mês</p>
-                    <p className="text-lg font-bold text-gray-900 dark:text-white whitespace-nowrap overflow-hidden">{meetingsThisMonth}</p>
-                  </div>
-                </div>
-                <button 
-                  onClick={() => handleOpenLeadsDetailModal('Valor Propostas Mês', leadsWithProposalThisMonth, 'proposal')}
-                  className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-2 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition cursor-pointer"
-                >
-                  <div className="p-1 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg">
-                    <Send className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Valor Propostas (Mês)</p>
-                    <p className="text-lg font-bold text-gray-900 dark:text-white whitespace-nowrap overflow-hidden">{formatLargeCurrency(proposalValueThisMonth)}</p>
-                  </div>
-                </button>
-                <button 
-                  onClick={() => handleOpenLeadsDetailModal('Valor Vendido Mês', leadsSoldThisMonth, 'sold')}
-                  className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-2 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition cursor-pointer"
-                >
-                  <div className="p-1 bg-teal-50 dark:bg-teal-900/20 rounded-lg">
-                    <DollarSign className="w-5 h-5 text-teal-600 dark:text-teal-400" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Valor Vendido (Mês)</p>
-                    <p className="text-lg font-bold text-gray-900 dark:text-white whitespace-nowrap overflow-hidden">{formatLargeCurrency(soldValueThisMonth)}</p>
-                  </div>
-                </button>
-                <button 
-                  onClick={() => setIsPendingTasksModalOpen(true)}
-                  className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-2 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition cursor-pointer"
-                >
-                  <div className="p-1 bg-red-50 dark:bg-red-900/20 rounded-lg">
-                    <ListTodo className="w-5 h-5 text-red-600 dark:text-red-400" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Tarefas de Lead Pendentes</p>
-                    <p className="text-lg font-bold text-gray-900 dark:text-white whitespace-nowrap overflow-hidden">{pendingLeadTasks.length}</p>
-                  </div>
-                </button>
               </div>
 
               {/* Minhas Tarefas Pessoais (Gestor) */}
-              <div className="mb-6">
-                <GestorTasksSection key={`${gestorTasks.length}-${gestorTaskCompletions.length}`} />
+              <div className="mt-6">
+                <GestorTasksSection />
               </div>
             </div>
         </>
