@@ -2,12 +2,12 @@ import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { GestorTask } from '@/types';
-import { Plus, Edit2, Trash2, CheckCircle2, Circle, Loader2, Calendar, MessageSquare, Clock, Save, X, ListTodo, CalendarPlus, Repeat, CalendarDays, ChevronDown, ChevronUp } from 'lucide-react'; // Adicionado ChevronDown e ChevronUp
+import { Plus, Edit2, Trash2, CheckCircle2, Circle, Loader2, Calendar, MessageSquare, Clock, Save, X, ListTodo, CalendarPlus, Repeat, CalendarDays, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { ScrollArea } from '@/components/ui/scroll-area'; // Mantido para outros usos, mas removido da lista de tarefas
+import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Select,
   SelectContent,
@@ -38,8 +38,8 @@ export const GestorTasksSection: React.FC = () => {
   const [editTaskRecurrenceInterval, setEditTaskRecurrenceInterval] = useState<number | undefined>(undefined);
   const [isUpdatingTask, setIsUpdatingTask] = useState(false);
 
-  const [showAllTasks, setShowAllTasks] = useState(false); // NOVO: Estado para controlar a exibição de todas as tarefas
-  const VISIBLE_TASK_LIMIT = 3; // NOVO: Limite de tarefas visíveis por padrão
+  const [showAllTasks, setShowAllTasks] = useState(false);
+  const VISIBLE_TASK_LIMIT = 3;
 
   const today = formatDate(new Date());
 
@@ -54,15 +54,12 @@ export const GestorTasksSection: React.FC = () => {
       const aIsDueToday = isGestorTaskDueOnDate(a, today);
       const bIsDueToday = isGestorTaskDueOnDate(b, today);
 
-      // Priorizar tarefas recorrentes ou com vencimento hoje que não foram concluídas
       if (aIsDueToday && !aIsCompletedToday && (!bIsDueToday || bIsCompletedToday)) return -1;
       if (bIsDueToday && !bIsCompletedToday && (!aIsDueToday || aIsCompletedToday)) return 1;
 
-      // Em seguida, tarefas não recorrentes incompletas
       if (!aIsRecurring && !a.is_completed && (!bIsRecurring && b.is_completed)) return -1;
       if (!bIsRecurring && !b.is_completed && (!aIsRecurring && a.is_completed)) return 1;
 
-      // Em seguida, por data de vencimento (mais próxima primeiro, sem data por último)
       if (!a.due_date && !b.due_date) return 0;
       if (!a.due_date) return 1;
       if (!b.due_date) return -1;
@@ -100,7 +97,7 @@ export const GestorTasksSection: React.FC = () => {
         title: newTaskTitle.trim(),
         description: newTaskDescription.trim() || undefined,
         due_date: newTaskDueDate || undefined,
-        is_completed: false, // Tarefas novas sempre começam como não concluídas
+        is_completed: false,
         recurrence_pattern: recurrence_pattern,
       });
       setNewTaskTitle('');
@@ -258,7 +255,7 @@ export const GestorTasksSection: React.FC = () => {
                     setEditTaskRecurrenceType(value);
                     if (value === 'none') setEditTaskRecurrenceInterval(undefined);
                     else if (value === 'daily') setEditTaskRecurrenceInterval(1);
-                    else setEditTaskRecurrenceInterval(2); // Default para 'a cada 2 dias'
+                    else setEditTaskRecurrenceInterval(2);
                   } else {
                     setNewTaskRecurrenceType(value);
                     if (value === 'none') setNewTaskRecurrenceInterval(undefined);
@@ -313,11 +310,12 @@ export const GestorTasksSection: React.FC = () => {
         {/* Coluna de Lista de Tarefas */}
         <div className="space-y-2">
           <h3 className="text-md font-semibold text-gray-900 dark:text-white">Lista de Tarefas ({sortedTasks.length})</h3>
-          <div className="space-y-2"> {/* Removida a ScrollArea aqui */}
-            {tasksToDisplay.length === 0 ? (
-              <p className="text-center text-gray-500 dark:text-gray-400 py-4">Nenhuma tarefa do gestor.</p>
-            ) : (
-              tasksToDisplay.map(task => {
+          {tasksToDisplay.length === 0 ? (
+            <p className="text-center text-gray-500 dark:text-gray-400 py-4">Nenhuma tarefa do gestor.</p>
+          ) : (
+            <> {/* Adicionado React.Fragment aqui */}
+              <div className="space-y-2">
+                {tasksToDisplay.map(task => {
                   const isRecurring = task.recurrence_pattern && task.recurrence_pattern.type !== 'none';
                   const isCompletedToday = isRecurring && gestorTaskCompletions.some(c => c.gestor_task_id === task.id && c.user_id === user?.id && c.date === today && c.done);
                   const isVisuallyCompleted = isRecurring ? isCompletedToday : task.is_completed;
@@ -408,27 +406,27 @@ export const GestorTasksSection: React.FC = () => {
                   );
                 })}
               </div>
-            )}
-            {sortedTasks.length > VISIBLE_TASK_LIMIT && (
-              <div className="mt-4 text-center">
-                <Button
-                  variant="ghost"
-                  onClick={() => setShowAllTasks(!showAllTasks)}
-                  className="text-sm text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300"
-                >
-                  {showAllTasks ? (
-                    <>
-                      <ChevronUp className="w-4 h-4 mr-1" /> Ver Menos
-                    </>
-                  ) : (
-                    <>
-                      <ChevronDown className="w-4 h-4 mr-1" /> Ver Mais ({sortedTasks.length - VISIBLE_TASK_LIMIT} mais)
-                    </>
-                  )}
-                </Button>
-              </div>
-            )}
-          </div>
+              {sortedTasks.length > VISIBLE_TASK_LIMIT && (
+                <div className="mt-4 text-center">
+                  <Button
+                    variant="ghost"
+                    onClick={() => setShowAllTasks(!showAllTasks)}
+                    className="text-sm text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300"
+                  >
+                    {showAllTasks ? (
+                      <>
+                        <ChevronUp className="w-4 h-4 mr-1" /> Ver Menos
+                      </>
+                    ) : (
+                      <>
+                        <ChevronDown className="w-4 h-4 mr-1" /> Ver Mais ({sortedTasks.length - VISIBLE_TASK_LIMIT} mais)
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
         </div>
       </div>
     </div>
