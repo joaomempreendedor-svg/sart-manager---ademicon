@@ -292,29 +292,29 @@ export const Dashboard = () => {
                   <div className="p-1 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                     <Users className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                   </div>
-                  <div className="flex-1"> {/* Adicionado flex-1 aqui */}
+                  <div className="flex-1 min-w-0"> {/* Adicionado min-w-0 */}
                     <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Total de Leads</p>
-                    <p className="text-lg font-bold text-gray-900 dark:text-white">{totalCrmLeads}</p> {/* Reduzido text-2xl para text-lg */}
+                    <p className="text-lg font-bold text-gray-900 dark:text-white whitespace-nowrap overflow-hidden">{totalCrmLeads}</p> {/* Adicionado whitespace-nowrap e overflow-hidden */}
                   </div>
                 </div>
                 <div className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-2">
                   <div className="p-1 bg-green-50 dark:bg-green-900/20 rounded-lg">
                     <Plus className="w-5 h-5 text-green-600 dark:text-green-400" />
                   </div>
-                  <div className="flex-1"> {/* Adicionado flex-1 aqui */}
+                  <div className="flex-1 min-w-0"> {/* Adicionado min-w-0 */}
                     <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Novos Leads (Mês)</p>
-                    <p className="text-lg font-bold text-gray-900 dark:text-white">{newLeadsThisMonth}</p> {/* Reduzido text-2xl para text-lg */}
+                    <p className="text-lg font-bold text-gray-900 dark:text-white whitespace-nowrap overflow-hidden">{newLeadsThisMonth}</p> {/* Adicionado whitespace-nowrap e overflow-hidden */}
                   </div>
                 </div>
                 <div className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-2">
                   <div className="p-1 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
                     <Calendar className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
                   </div>
-                  <div className="flex-1"> {/* Adicionado flex-1 aqui */}
+                  <div className="flex-1 min-w-0"> {/* Adicionado min-w-0 */}
                     <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Reuniões Mês</p>
-                    <p className="text-lg font-bold text-gray-900 dark:text-white">{meetingsThisMonth}</p> {/* Reduzido text-2xl para text-lg */}
+                    <p className="text-lg font-bold text-gray-900 dark:text-white whitespace-nowrap overflow-hidden">{meetingsThisMonth}</p> {/* Adicionado whitespace-nowrap e overflow-hidden */}
                   </div>
-                </div>
+                </button>
                 <button 
                   onClick={() => handleOpenLeadsDetailModal('Valor Propostas Mês', leadsWithProposalThisMonth, 'proposal')}
                   className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-2 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition cursor-pointer"
@@ -322,9 +322,9 @@ export const Dashboard = () => {
                   <div className="p-1 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg">
                     <Send className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
                   </div>
-                  <div className="flex-1"> {/* Adicionado flex-1 aqui */}
+                  <div className="flex-1 min-w-0"> {/* Adicionado min-w-0 */}
                     <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Valor Propostas (Mês)</p>
-                    <p className="text-lg font-bold text-gray-900 dark:text-white">{formatCurrency(proposalValueThisMonth)}</p> {/* Reduzido text-2xl para text-lg */}
+                    <p className="text-lg font-bold text-gray-900 dark:text-white whitespace-nowrap overflow-hidden">{formatCurrency(proposalValueThisMonth)}</p> {/* Adicionado whitespace-nowrap e overflow-hidden */}
                   </div>
                 </button>
                 <button 
@@ -334,9 +334,9 @@ export const Dashboard = () => {
                   <div className="p-1 bg-teal-50 dark:bg-teal-900/20 rounded-lg">
                     <DollarSign className="w-5 h-5 text-teal-600 dark:text-teal-400" />
                   </div>
-                  <div className="flex-1"> {/* Adicionado flex-1 aqui */}
+                  <div className="flex-1 min-w-0"> {/* Adicionado min-w-0 */}
                     <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Valor Vendido (Mês)</p>
-                    <p className="text-lg font-bold text-gray-900 dark:text-white">{formatCurrency(soldValueThisMonth)}</p> {/* Reduzido text-2xl para text-lg */}
+                    <p className="text-lg font-bold text-gray-900 dark:text-white whitespace-nowrap overflow-hidden">{formatCurrency(soldValueThisMonth)}</p> {/* Adicionado whitespace-nowrap e overflow-hidden */}
                   </div>
                 </button>
                 <button 
@@ -346,9 +346,9 @@ export const Dashboard = () => {
                   <div className="p-1 bg-red-50 dark:bg-red-900/20 rounded-lg">
                     <ListTodo className="w-5 h-5 text-red-600 dark:text-red-400" />
                   </div>
-                  <div className="flex-1"> {/* Adicionado flex-1 aqui */}
+                  <div className="flex-1 min-w-0"> {/* Adicionado min-w-0 */}
                     <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Tarefas de Lead Pendentes</p>
-                    <p className="text-lg font-bold text-gray-900 dark:text-white">{pendingLeadTasks.length}</p> {/* Reduzido text-2xl para text-lg */}
+                    <p className="text-lg font-bold text-gray-900 dark:text-white whitespace-nowrap overflow-hidden">{pendingLeadTasks.length}</p> {/* Adicionado whitespace-nowrap e overflow-hidden */}
                   </div>
                 </button>
               </div>
