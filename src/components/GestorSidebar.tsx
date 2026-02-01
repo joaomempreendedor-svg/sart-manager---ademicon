@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, MessageSquare, Settings, FileText, Sun, Moon, Banknote, PlusCircle, Library, TrendingUp, Target, Users, LogOut, User as UserIcon, Star, Video, ListChecks, ClipboardCheck, UserPlus, ChevronLeft, ChevronRight, ChevronDown, UserSearch, BarChart3, UserCog, MapPin, DollarSign, FileStack, UserCheck, Clock, Calendar, UsersRound } from 'lucide-react'; // Adicionado UsersRound
+import { LayoutDashboard, MessageSquare, Settings, FileText, Sun, Moon, Banknote, PlusCircle, Library, TrendingUp, Target, Users, LogOut, User as UserIcon, Star, Video, ListChecks, ClipboardCheck, UserPlus, ChevronLeft, ChevronRight, ChevronDown, UserSearch, BarChart3, UserCog, MapPin, DollarSign, FileStack, UserCheck, Clock, Calendar, UsersRound, ListTodo } from 'lucide-react'; // Adicionado ListTodo
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 
@@ -87,7 +87,7 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
                 <UserCheck className="w-5 h-5" />
                 <span>Controle Candidaturas</span>
               </NavLink>
-              <NavLink to="/gestor/all-candidates" className={linkClass} onClick={toggleSidebar}> {/* NOVO: Link para Todos os Candidatos */}
+              <NavLink to="/gestor/all-candidates" className={linkClass} onClick={toggleSidebar}>
                 <UsersRound className="w-5 h-5" />
                 <span>Todos os Candidatos</span>
               </NavLink>
@@ -123,6 +123,10 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
                 <Target className="w-5 h-5" />
                 <span>Metas de Produção</span>
               </NavLink>
+              <NavLink to="/gestor/my-tasks" className={linkClass} onClick={toggleSidebar}> {/* NOVO: Link para Minhas Tarefas Pessoais */}
+                <ListTodo className="w-5 h-5" />
+                <span>Minhas Tarefas</span>
+              </NavLink>
             </>
           )}
           {isSidebarCollapsed && (
@@ -143,7 +147,7 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
               <NavLink to="/gestor/candidate-screening" className={linkClass} onClick={toggleSidebar} title="Controle Candidaturas">
                 <UserCheck className="w-5 h-5" />
               </NavLink>
-              <NavLink to="/gestor/all-candidates" className={linkClass} onClick={toggleSidebar} title="Todos os Candidatos"> {/* NOVO: Link para Todos os Candidatos */}
+              <NavLink to="/gestor/all-candidates" className={linkClass} onClick={toggleSidebar} title="Todos os Candidatos">
                 <UsersRound className="w-5 h-5" />
               </NavLink>
               <NavLink to="/gestor/hiring-reports" className={linkClass} onClick={toggleSidebar} title="Relatórios Contratação">
@@ -169,6 +173,9 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
               </NavLink>
               <NavLink to="/gestor/team-production-goals" className={linkClass} onClick={toggleSidebar} title="Metas de Produção">
                 <Target className="w-5 h-5" />
+              </NavLink>
+              <NavLink to="/gestor/my-tasks" className={linkClass} onClick={toggleSidebar} title="Minhas Tarefas"> {/* NOVO: Link para Minhas Tarefas Pessoais */}
+                <ListTodo className="w-5 h-5" />
               </NavLink>
             </>
           )}

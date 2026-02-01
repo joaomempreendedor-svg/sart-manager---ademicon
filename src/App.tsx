@@ -47,7 +47,8 @@ import { FinancialPanel } from '@/pages/FinancialPanel';
 import { FormCadastros } from '@/pages/gestor/FormSubmissions';
 import CandidateScreening from '@/pages/gestor/CandidateScreening';
 import TeamProductionGoals from '@/pages/gestor/TeamProductionGoals';
-import { AllCandidates } from '@/pages/gestor/AllCandidates'; // NOVO: Importar a nova página
+import { AllCandidates } from '@/pages/gestor/AllCandidates';
+import GestorTasksPage from '@/pages/gestor/GestorTasksPage'; // NOVO: Importar a nova página
 
 // Consultor Pages
 import ConsultorDashboard from '@/pages/consultor/Dashboard';
@@ -191,7 +192,8 @@ const AppRoutes = () => {
           <Route path="form-cadastros" element={<FormCadastros />} />
           <Route path="candidate-screening" element={<CandidateScreening />} />
           <Route path="team-production-goals" element={<TeamProductionGoals />} />
-          <Route path="all-candidates" element={<AllCandidates />} /> {/* NOVO: Rota para a nova página */}
+          <Route path="all-candidates" element={<AllCandidates />} />
+          <Route path="my-tasks" element={<GestorTasksPage />} /> {/* NOVO: Rota para a nova página de tarefas do gestor */}
           <Route path="*" element={<Navigate to="/gestor/dashboard" replace />} />
         </Route>
 

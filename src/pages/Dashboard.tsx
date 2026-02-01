@@ -6,7 +6,6 @@ import { ChevronRight, User, Calendar, CheckCircle2, TrendingUp, AlertCircle, Cl
 import { CandidateStatus, ChecklistTaskState, GestorTask, LeadTask, CrmLead } from '@/types';
 import { TableSkeleton } from '@/components/TableSkeleton';
 import { ScheduleInterviewModal } from '@/components/ScheduleInterviewModal';
-import { GestorTasksSection } from '@/components/gestor/GestorTasksSection';
 import { PendingLeadTasksModal } from '@/components/gestor/PendingLeadTasksModal';
 import toast from 'react-hot-toast';
 import { NotificationBell } from '@/components/NotificationBell';
@@ -294,7 +293,7 @@ export const Dashboard = () => {
               <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center"><Plus className="w-5 h-5 mr-2 text-brand-500" />Ações Rápidas</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                 <Button onClick={() => navigate('/gestor/crm')} className="h-auto py-4 bg-blue-600 hover:bg-blue-700 text-white text-lg font-semibold shadow-md hover:shadow-lg transition-all">
-                  <TrendingUp className="w-6 h-6 mr-3" /> Novo Lead
+                  <TrendingUp className="w-6 h-6 mr-3" /> Monitorar CRM
                 </Button>
                 <Button onClick={() => setIsScheduleModalOpen(true)} className="h-auto py-4 bg-green-600 hover:bg-green-700 text-white text-lg font-semibold shadow-md hover:shadow-lg transition-all">
                   <CalendarPlus className="w-6 h-6 mr-3" /> Agendar Entrevista
@@ -448,11 +447,6 @@ export const Dashboard = () => {
                     )}
                   </div>
                 </div>
-              </div>
-
-              {/* Minhas Tarefas Pessoais (Gestor) */}
-              <div className="mt-6">
-                <GestorTasksSection />
               </div>
             </div>
         </>
