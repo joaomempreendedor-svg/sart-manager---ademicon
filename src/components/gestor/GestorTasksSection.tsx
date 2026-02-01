@@ -206,9 +206,9 @@ export const GestorTasksSection: React.FC = () => {
         <ListTodo className="w-5 h-5 text-brand-600 dark:text-brand-400" />
         <h2 className="text-lg font-semibold text-brand-800 dark:text-brand-300">Tarefas do Gestor ({gestorTasks.length})</h2>
       </div>
-      <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4"> {/* Reduzido gap-6 para gap-4 */}
         {/* Coluna de Adicionar/Editar Tarefa */}
-        <div className="space-y-4">
+        <div className="space-y-3"> {/* Reduzido space-y-4 para space-y-3 */}
           <h3 className="text-md font-semibold text-gray-900 dark:text-white">
             {editingTask ? 'Editar Tarefa' : 'Adicionar Nova Tarefa'}
           </h3>
@@ -306,7 +306,7 @@ export const GestorTasksSection: React.FC = () => {
         </div>
 
         {/* Coluna de Lista de Tarefas */}
-        <div className="space-y-4">
+        <div className="space-y-3"> {/* Reduzido space-y-4 para space-y-3 */}
           <h3 className="text-md font-semibold text-gray-900 dark:text-white">Lista de Tarefas ({sortedTasks.length})</h3>
           <ScrollArea className="h-[300px] pr-4 custom-scrollbar">
             {sortedTasks.length === 0 ? (

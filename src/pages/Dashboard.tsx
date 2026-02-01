@@ -124,13 +124,6 @@ export const Dashboard = () => {
     };
   }, [crmLeads, leadTasks, user, crmStages]);
 
-  // --- Hiring Metrics (existing) ---
-  // REMOVIDO: totalCandidates, authorized, previas, activeTeam
-  // const totalCandidates = candidates.length;
-  // const authorized = teamMembers.filter(m => m.isActive && m.roles.includes('Autorizado')).length;
-  // const previas = teamMembers.filter(m => m.isActive && m.roles.includes('Prévia')).length;
-  // const activeTeam = teamMembers.filter(m => m.isActive).length;
-
   // --- Agenda Items ---
   const { todayAgenda, overdueTasks, allGestorTasks } = useMemo(() => {
     const today = new Date();
@@ -302,7 +295,7 @@ export const Dashboard = () => {
             <div className="animate-fade-in">
               {/* Seção de Métricas Comerciais */}
               <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center"><TrendingUp className="w-5 h-5 mr-2 text-brand-500" />Métricas Comerciais (Mês Atual)</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-6 mb-8"> {/* Ajustado para lg:grid-cols-6 */}
                 <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
                   <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                     <Users className="w-6 h-6 text-blue-600 dark:text-blue-400" />
