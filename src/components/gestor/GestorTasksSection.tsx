@@ -308,7 +308,7 @@ export const GestorTasksSection: React.FC = () => {
         {/* Coluna de Lista de Tarefas */}
         <div className="space-y-2">
           <h3 className="text-md font-semibold text-gray-900 dark:text-white">Lista de Tarefas ({sortedTasks.length})</h3>
-          <ScrollArea className="h-[200px] pr-4 custom-scrollbar"> {/* Reduzido h-[250px] para h-[200px] */}
+          <ScrollArea className="h-[180px] pr-4 custom-scrollbar"> {/* Reduzido h-[200px] para h-[180px] */}
             {sortedTasks.length === 0 ? (
               <p className="text-center text-gray-500 dark:text-gray-400 py-4">Nenhuma tarefa do gestor.</p>
             ) : (
@@ -321,7 +321,7 @@ export const GestorTasksSection: React.FC = () => {
                   const isOverdue = !isRecurring && !task.is_completed && task.due_date && new Date(task.due_date + 'T00:00:00') < new Date(today + 'T00:00:00');
 
                   // Determine classes for the task item
-                  let itemClasses = 'flex items-start space-x-3 p-2 rounded-lg border group flex-col sm:flex-row';
+                  let itemClasses = 'flex items-start space-x-2 p-2 rounded-lg border group flex-col sm:flex-row'; // Reduzido space-x-3 para space-x-2
                   let titleClasses = 'font-medium';
                   let descriptionClasses = 'text-sm mt-1';
 
@@ -345,7 +345,7 @@ export const GestorTasksSection: React.FC = () => {
                         variant="ghost"
                         size="icon"
                         onClick={() => handleToggleCompletion(task)}
-                        className={`flex-shrink-0 ${isVisuallyCompleted ? 'text-green-600 hover:text-green-700' : 'text-gray-400 hover:text-brand-600'}`}
+                        className={`flex-none ${isVisuallyCompleted ? 'text-green-600 hover:text-green-700' : 'text-gray-400 hover:text-brand-600'}`} // Alterado flex-shrink-0 para flex-none
                       >
                         {isVisuallyCompleted ? <CheckCircle2 className="w-5 h-5" /> : <Circle className="w-5 h-5" />}
                       </Button>
@@ -389,7 +389,7 @@ export const GestorTasksSection: React.FC = () => {
                           </div>
                         )}
                       </div>
-                      <div className={`flex-shrink-0 flex items-center space-x-1 mt-2 sm:mt-0`}>
+                      <div className={`flex-none flex items-center space-x-1 mt-2 sm:mt-0`}> {/* Alterado flex-shrink-0 para flex-none e removido opacity classes */}
                         {task.due_date && (
                           <Button variant="ghost" size="icon" onClick={() => handleAddToGoogleCalendar(task)} className="text-gray-400 hover:text-blue-600" title="Adicionar ao Google Agenda">
                             <CalendarPlus className="w-4 h-4" />
