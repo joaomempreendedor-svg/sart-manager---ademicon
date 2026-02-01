@@ -307,10 +307,10 @@ export const Dashboard = () => {
                 </Button>
               </div>
 
-              {/* Main Content Grid */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Coluna Principal: Métricas Comerciais */}
-                <div className="lg:col-span-2">
+              {/* Main Content Grid - Agora em uma única coluna */}
+              <div className="grid grid-cols-1 gap-6">
+                {/* Métricas Comerciais */}
+                <div>
                   <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center"><TrendingUp className="w-5 h-5 mr-2 text-brand-500" />Métricas Comerciais (Mês Atual)</h2>
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-6">
                     <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-md hover:scale-[1.02] hover:shadow-lg transition-all duration-300 flex items-center space-x-3">
@@ -379,9 +379,8 @@ export const Dashboard = () => {
                   </div>
                 </div>
 
-                {/* Coluna Lateral: Agenda do Dia e Tarefas Atrasadas */}
-                <div className="lg:col-span-1 space-y-6">
-                  {/* Agenda do Dia */}
+                {/* Agenda do Dia */}
+                <div>
                   <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-md">
                     <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-4 flex items-center">
                       <Calendar className="w-5 h-5 mr-2 text-brand-500" /> Agenda do Dia
@@ -413,8 +412,10 @@ export const Dashboard = () => {
                       </ScrollArea>
                     )}
                   </div>
+                </div>
 
-                  {/* Tarefas Atrasadas */}
+                {/* Tarefas Atrasadas */}
+                <div>
                   <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-md">
                     <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-4 flex items-center">
                       <AlertCircle className="w-5 h-5 mr-2 text-red-600 dark:text-red-400" /> Tarefas Atrasadas
