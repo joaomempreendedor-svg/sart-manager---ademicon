@@ -89,11 +89,10 @@ export const Dashboard = () => {
       if (lead.proposalValue && lead.proposalValue > 0 && lead.proposalClosingDate) {
         const proposalDate = new Date(lead.proposalClosingDate + 'T00:00:00');
         if (proposalDate >= currentMonthStart && proposalDate <= currentMonthEnd) {
-          return proposalValueThisMonth += (lead.proposalValue || 0);
+          proposalValueThisMonth += (lead.proposalValue || 0);
           leadsWithProposalThisMonth.push(lead);
         }
       }
-      return proposalValueThisMonth;
     });
 
     let soldValueThisMonth = 0;
@@ -102,11 +101,10 @@ export const Dashboard = () => {
       if (lead.soldCreditValue && lead.soldCreditValue > 0 && lead.saleDate) {
         const saleDate = new Date(lead.saleDate + 'T00:00:00');
         if (saleDate >= currentMonthStart && saleDate <= currentMonthEnd) {
-          return soldValueThisMonth += (lead.soldCreditValue || 0);
+          soldValueThisMonth += (lead.soldCreditValue || 0);
           leadsSoldThisMonth.push(lead);
         }
       }
-      return soldValueThisMonth;
     });
 
     const pendingLeadTasksList: LeadTask[] = leadTasks.filter(task => {

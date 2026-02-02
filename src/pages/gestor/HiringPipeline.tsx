@@ -64,9 +64,9 @@ const HiringPipeline = () => {
       candidatesForGestor = candidatesForGestor.filter(c => {
         // A verificação `if (!c) return false;` já foi adicionada, mas `filter(Boolean)` acima já garante isso.
         return (
-            (c.name?.toLowerCase() || '').includes(lowerCaseSearchTerm) ||
-            (c.phone || '').includes(lowerCaseSearchTerm) ||
-            (c.email?.toLowerCase() || '').includes(lowerCaseSearchTerm)
+            String(c.name || '').toLowerCase().includes(lowerCaseSearchTerm) ||
+            String(c.phone || '').toLowerCase().includes(lowerCaseSearchTerm) ||
+            String(c.email || '').toLowerCase().includes(lowerCaseSearchTerm)
           );
         });
     }
@@ -83,12 +83,12 @@ const HiringPipeline = () => {
     const teamMemberIdentifiersInPreview = new Set(
       teamMembers
         .filter(m => m.isActive && m.roles.includes('Prévia'))
-        .flatMap(m => [m.name.toLowerCase().trim(), m.email?.toLowerCase().trim()].filter(Boolean))
+        .flatMap(m => [m.name?.toLowerCase().trim(), m.email?.toLowerCase().trim()].filter(Boolean))
     );
     const teamMemberIdentifiersAuthorized = new Set(
       teamMembers
         .filter(m => m.isActive && m.roles.includes('Autorizado'))
-        .flatMap(m => [m.name.toLowerCase().trim(), m.email?.toLowerCase().trim()].filter(Boolean))
+        .flatMap(m => [m.name?.toLowerCase().trim(), m.email?.toLowerCase().trim()].filter(Boolean))
     );
 
     const isCandidateAlsoTeamMember = (candidate: typeof candidates[0], teamMemberIdentifiers: Set<string>) => {

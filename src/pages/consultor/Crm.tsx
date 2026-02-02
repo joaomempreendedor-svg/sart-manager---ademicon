@@ -82,7 +82,7 @@ const ConsultorCrmPage = () => {
     if (searchTerm) {
       const lowerCaseSearchTerm = searchTerm.toLowerCase();
       currentLeads = currentLeads.filter(lead =>
-        (lead.name?.toLowerCase() || '').includes(lowerCaseSearchTerm) ||
+        (String(lead.name || '').toLowerCase()).includes(lowerCaseSearchTerm) ||
         Object.values(lead.data || {}).some(value =>
           String(value).toLowerCase().includes(lowerCaseSearchTerm)
         )
