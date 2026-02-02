@@ -1484,10 +1484,37 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addCandidate,
     updateCandidate,
     deleteCandidate,
-    getCandidate: useCallback((id: string) => candidates.find(c => c.id === id), [candidates]), // MOVIDO AQUI
-    toggleChecklistItem,
-    setChecklistDueDate,
-    toggleConsultantGoal,
+    getCandidate: useCallback((id: string) => candidates.find(c => c.id === id), [candidates]),
+    toggleChecklistItem: useCallback(async (candidateId: string, itemId: string) => {
+      if (!user) throw new Error("Usuário não autenticado.");
+      const candidate = candidates.find(c => c.id === candidateId);
+      if (!candidate) throw new Error("Candidato não encontrado.");
+  
+      const updatedProgress = { ...candidate.checklistProgress || {} };
+      updatedProgress[itemId] = { ...updatedProgress[itemId], completed: !updatedProgress[itemId]?.completed };
+  
+      await updateCandidate(candidate.id, { checklistProgress: updatedProgress });
+    }, [candidates, updateCandidate, user]),
+    setChecklistDueDate: useCallback(async (candidateId: string, itemId: string, dueDate: string) => {
+      if (!user) throw new Error("Usuário não autenticado.");
+      const candidate = candidates.find(c => c.id === candidateId);
+      if (!candidate) throw new Error("Candidato não encontrado.");
+  
+      const updatedProgress = { ...candidate.checklistProgress || {} };
+      updatedProgress[itemId] = { ...updatedProgress[itemId], dueDate: dueDate || undefined };
+  
+      await updateCandidate(candidate.id, { checklistProgress: updatedProgress });
+    }, [candidates, updateCandidate, user]),
+    toggleConsultantGoal: useCallback(async (candidateId: string, goalId: string) => {
+      if (!user) throw new Error("Usuário não autenticado.");
+      const candidate = candidates.find(c => c.id === candidateId);
+      if (!candidate) throw new Error("Candidato não encontrado.");
+  
+      const updatedProgress = { ...candidate.consultantGoalsProgress || {} };
+      updatedProgress[goalId] = !updatedProgress[goalId];
+  
+      await updateCandidate(candidate.id, { consultantGoalsProgress: updatedProgress });
+    }, [candidates, updateCandidate, user]),
     addChecklistItem,
     updateChecklistItem,
     deleteChecklistItem,
