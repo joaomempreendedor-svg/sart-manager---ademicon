@@ -16,6 +16,7 @@ import { AddScreeningCandidateModal } from '@/components/gestor/AddScreeningCand
 import { ImportCandidatesModal } from '@/components/gestor/ImportCandidatesModal'; // NOVO: Importar o modal de importação
 import { Candidate } from '@/types'; // Importar o tipo Candidate
 import { ScheduleInterviewModal } from '@/components/ScheduleInterviewModal'; // Adicionado: Importação do ScheduleInterviewModal
+import { highlightText } from '@/lib/utils'; // Importar highlightText
 
 const HiringPipeline = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
