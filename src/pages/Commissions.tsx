@@ -9,7 +9,7 @@ import { MarkInstallmentRangeModal } from '@/components/MarkInstallmentRangeModa
 import { MultiSelectFilter } from '@/components/ui/MultiSelectFilter'; // Importar o novo componente
 
 const formatCurrency = (value: number) => {
-  return new new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 };
 
 const formatPercent = (value: number) => {
