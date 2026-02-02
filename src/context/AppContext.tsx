@@ -628,7 +628,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             return {
               id: `legacy_${item.id}`,
               db_id: item.id,
-              name: data.name,
+              name: String(data.name || ''), // Ensure name is a string, default to empty
               email: data.email, // Corrected: Access email from 'data'
               roles: Array.isArray(data.roles) ? data.roles : [data.role || 'Prévia'], // Corrected: Access roles from 'data'
               isActive: data.isActive !== false,
@@ -642,7 +642,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           return {
             id: data.id,
             db_id: item.id,
-            name: data.name,
+            name: String(data.name || ''), // Ensure name is a string, default to empty
             email: data.email, // Corrected: Access email from 'data'
             roles: Array.isArray(data.roles) ? data.roles : [data.role || 'Prévia'], // Corrected: Access roles from 'data'
             isActive: data.isActive !== false,
@@ -806,9 +806,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 consultantGoalsProgress: rawCandidateData.consultantGoalsProgress || {},
                 feedbacks: rawCandidateData.feedbacks || [],
                 data: rawCandidateData.data || {},
-                name: String(rawPayloadData.name || ''), // Explicitamente default a ''
-                phone: String(rawCandidateData.phone || ''), // Explicitamente default a ''
-                email: String(rawPayloadData.email || ''), // Explicitamente default a ''
+                name: String(rawPayloadData.name || ''), // Explicitly default a ''
+                phone: String(rawCandidateData.phone || ''), // Explicitly default a ''
+                email: String(rawCandidateData.email || ''), // Explicitly default a ''
             };
             console.log('[Realtime: Candidate] Deep copied newCandidateData.name:', newCandidateData.name, `client-side ID:`, newCandidateData.id, `db_id:`, newCandidateData.db_id, `createdAt:`, newCandidateData.createdAt);
 
@@ -2483,7 +2483,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const normalized = updatedTeamMembersData.map(item => ({
           id: item.data.id,
           db_id: item.id,
-          name: item.data.name,
+          name: String(item.data.name || ''), // Ensure name is a string, default to empty
           email: item.data.email,
           roles: Array.isArray(item.data.roles) ? item.data.roles : [item.data.role || 'Prévia'],
           isActive: item.data.isActive !== false,
