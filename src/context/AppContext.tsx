@@ -807,7 +807,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 feedbacks: rawCandidateData.feedbacks || [],
                 data: rawCandidateData.data || {},
                 name: String(rawPayloadData.name || ''), // Explicitamente default a ''
-                phone: String(rawPayloadData.phone || ''), // Explicitamente default a ''
+                phone: String(rawCandidateData.phone || ''), // Explicitamente default a ''
                 email: String(rawPayloadData.email || ''), // Explicitamente default a ''
             };
             console.log('[Realtime: Candidate] Deep copied newCandidateData.name:', newCandidateData.name, `client-side ID:`, newCandidateData.id, `db_id:`, newCandidateData.db_id, `createdAt:`, newCandidateData.createdAt);
@@ -1110,6 +1110,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [teamMembers, formCadastros, crmLeads, onboardingSessions, calculateNotifications]);
 
   const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
+
+  // Candidate functions
   const addCandidate = useCallback(async (candidate: Omit<Candidate, 'id' | 'createdAt' | 'db_id'>) => { 
     if (!user) throw new Error("Usuário não autenticado."); 
     
@@ -1267,8 +1269,1160 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setCandidates(prev => prev.filter(p => p.id !== id));
   }, [user, candidates]);
 
+  const toggleChecklistItem = useCallback(async (candidateId: string, itemId: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const candidate = candidates.find(c => c.id === candidateId);
+    if (!candidate) throw new Error("Candidato não encontrado.");
+  
+    const updatedProgress = { ...candidate.checklistProgress || {} };
+    updatedProgress[itemId] = { ...updatedProgress[itemId], completed: !updatedProgress[itemId]?.completed };
+  
+    await updateCandidate(candidate.id, { checklistProgress: updatedProgress });
+  }, [candidates, updateCandidate, user]);
+
+  const setChecklistDueDate = useCallback(async (candidateId: string, itemId: string, dueDate: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const candidate = candidates.find(c => c.id === candidateId);
+    if (!candidate) throw new Error("Candidato não encontrado.");
+  
+    const updatedProgress = { ...candidate.checklistProgress || {} };
+    updatedProgress[itemId] = { ...updatedProgress[itemId], dueDate: dueDate || undefined };
+  
+    await updateCandidate(candidate.id, { checklistProgress: updatedProgress });
+  }, [candidates, updateCandidate, user]);
+
+  const toggleConsultantGoal = useCallback(async (candidateId: string, goalId: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const candidate = candidates.find(c => c.id === candidateId);
+    if (!candidate) throw new Error("Candidato não encontrado.");
+  
+    const updatedProgress = { ...candidate.consultantGoalsProgress || {} };
+    updatedProgress[goalId] = !updatedProgress[goalId];
+  
+    await updateCandidate(candidate.id, { consultantGoalsProgress: updatedProgress });
+  }, [candidates, updateCandidate, user]);
+
+  // Checklist structure functions
+  const addChecklistItem = useCallback((stageId: string, label: string) => {
+    setChecklistStructure(prev => prev.map(stage => 
+      stage.id === stageId 
+        ? { ...stage, items: [...stage.items, { id: crypto.randomUUID(), label }] }
+        : stage
+    ));
+    updateConfig({ checklistStructure });
+  }, [checklistStructure, updateConfig]);
+
+  const updateChecklistItem = useCallback((stageId: string, itemId: string, newLabel: string) => {
+    setChecklistStructure(prev => prev.map(stage => 
+      stage.id === stageId 
+        ? { ...stage, items: stage.items.map(item => item.id === itemId ? { ...item, label: newLabel } : item) }
+        : stage
+    ));
+    updateConfig({ checklistStructure });
+  }, [checklistStructure, updateConfig]);
+
+  const deleteChecklistItem = useCallback((stageId: string, itemId: string) => {
+    setChecklistStructure(prev => prev.map(stage => 
+      stage.id === stageId 
+        ? { ...stage, items: stage.items.filter(item => item.id !== itemId) }
+        : stage
+    ));
+    updateConfig({ checklistStructure });
+  }, [checklistStructure, updateConfig]);
+
+  const moveChecklistItem = useCallback((stageId: string, itemId: string, direction: 'up' | 'down') => {
+    setChecklistStructure(prev => prev.map(stage => {
+      if (stage.id === stageId) {
+        const items = [...stage.items];
+        const index = items.findIndex(item => item.id === itemId);
+        if (index === -1) return stage;
+
+        const newIndex = direction === 'up' ? index - 1 : index + 1;
+        if (newIndex < 0 || newIndex >= items.length) return stage;
+
+        const [removed] = items.splice(index, 1);
+        items.splice(newIndex, 0, removed);
+        return { ...stage, items };
+      }
+      return stage;
+    }));
+    updateConfig({ checklistStructure });
+  }, [checklistStructure, updateConfig]);
+
+  const resetChecklistToDefault = useCallback(() => {
+    setChecklistStructure(DEFAULT_STAGES);
+    updateConfig({ checklistStructure: DEFAULT_STAGES });
+  }, [updateConfig]);
+
+  // Consultant goals functions
+  const addGoalItem = useCallback((stageId: string, label: string) => {
+    setConsultantGoalsStructure(prev => prev.map(stage => 
+      stage.id === stageId 
+        ? { ...stage, items: [...stage.items, { id: crypto.randomUUID(), label }] }
+        : stage
+    ));
+    updateConfig({ consultantGoalsStructure });
+  }, [consultantGoalsStructure, updateConfig]);
+
+  const updateGoalItem = useCallback((stageId: string, itemId: string, newLabel: string) => {
+    setConsultantGoalsStructure(prev => prev.map(stage => 
+      stage.id === stageId 
+        ? { ...stage, items: stage.items.map(item => item.id === itemId ? { ...item, label: newLabel } : item) }
+        : stage
+    ));
+    updateConfig({ consultantGoalsStructure });
+  }, [consultantGoalsStructure, updateConfig]);
+
+  const deleteGoalItem = useCallback((stageId: string, itemId: string) => {
+    setConsultantGoalsStructure(prev => prev.map(stage => 
+      stage.id === stageId 
+        ? { ...stage, items: stage.items.filter(item => item.id !== itemId) }
+        : stage
+    ));
+    updateConfig({ consultantGoalsStructure });
+  }, [consultantGoalsStructure, updateConfig]);
+
+  const moveGoalItem = useCallback((stageId: string, itemId: string, direction: 'up' | 'down') => {
+    setConsultantGoalsStructure(prev => prev.map(stage => {
+      if (stage.id === stageId) {
+        const items = [...stage.items];
+        const index = items.findIndex(item => item.id === itemId);
+        if (index === -1) return stage;
+
+        const newIndex = direction === 'up' ? index - 1 : index + 1;
+        if (newIndex < 0 || newIndex >= items.length) return stage;
+
+        const [removed] = items.splice(index, 1);
+        items.splice(newIndex, 0, removed);
+        return { ...stage, items };
+      }
+      return stage;
+    }));
+    updateConfig({ consultantGoalsStructure });
+  }, [consultantGoalsStructure, updateConfig]);
+
+  const resetGoalsToDefault = useCallback(() => {
+    setConsultantGoalsStructure(DEFAULT_GOALS);
+    updateConfig({ consultantGoalsStructure: DEFAULT_GOALS });
+  }, [updateConfig]);
+
+  // Interview structure functions
+  const updateInterviewSection = useCallback((sectionId: string, updates: Partial<InterviewSection>) => {
+    setInterviewStructure(prev => prev.map(section => 
+      section.id === sectionId 
+        ? { ...section, ...updates }
+        : section
+    ));
+    updateConfig({ interviewStructure });
+  }, [interviewStructure, updateConfig]);
+
+  const addInterviewQuestion = useCallback((sectionId: string, text: string, points: number) => {
+    setInterviewStructure(prev => prev.map(section => 
+      section.id === sectionId 
+        ? { ...section, questions: [...section.questions, { id: crypto.randomUUID(), text, points }] }
+        : section
+    ));
+    updateConfig({ interviewStructure });
+  }, [interviewStructure, updateConfig]);
+
+  const updateInterviewQuestion = useCallback((sectionId: string, questionId: string, updates: Partial<InterviewQuestion>) => {
+    setInterviewStructure(prev => prev.map(section => 
+      section.id === sectionId 
+        ? { ...section, questions: section.questions.map(q => q.id === questionId ? { ...q, ...updates } : q) }
+        : section
+    ));
+    updateConfig({ interviewStructure });
+  }, [interviewStructure, updateConfig]);
+
+  const deleteInterviewQuestion = useCallback((sectionId: string, questionId: string) => {
+    setInterviewStructure(prev => prev.map(section => 
+      section.id === sectionId 
+        ? { ...section, questions: section.questions.filter(q => q.id !== questionId) }
+        : section
+    ));
+    updateConfig({ interviewStructure });
+  }, [interviewStructure, updateConfig]);
+
+  const moveInterviewQuestion = useCallback((sectionId: string, questionId: string, direction: 'up' | 'down') => {
+    setInterviewStructure(prev => prev.map(section => {
+      if (section.id === sectionId) {
+        const questions = [...section.questions];
+        const index = questions.findIndex(q => q.id === questionId);
+        if (index === -1) return section;
+
+        const newIndex = direction === 'up' ? index - 1 : index + 1;
+        if (newIndex < 0 || newIndex >= questions.length) return section;
+
+        const [removed] = questions.splice(index, 1);
+        questions.splice(newIndex, 0, removed);
+        return { ...section, questions };
+      }
+      return section;
+    }));
+    updateConfig({ interviewStructure });
+  }, [interviewStructure, updateConfig]);
+
+  const resetInterviewToDefault = useCallback(() => {
+    setInterviewStructure(INITIAL_INTERVIEW_STRUCTURE);
+    updateConfig({ interviewStructure: INITIAL_INTERVIEW_STRUCTURE });
+  }, [updateConfig]);
+
+  // Templates & origins
+  const saveTemplate = useCallback((itemId: string, updates: Partial<CommunicationTemplate>) => {
+    setTemplates(prev => ({
+      ...prev,
+      [itemId]: {
+        ...prev[itemId],
+        id: itemId,
+        label: updates.label || prev[itemId]?.label || '',
+        text: updates.text !== undefined ? updates.text : prev[itemId]?.text,
+        resource: updates.resource !== undefined ? updates.resource : prev[itemId]?.resource,
+      }
+    }));
+    updateConfig({ templates });
+  }, [templates, updateConfig]);
+
+  const addOrigin = useCallback((newOrigin: string, type: 'sales' | 'hiring') => {
+    if (type === 'sales') {
+      setSalesOrigins(prev => {
+        const updated = [...prev, newOrigin];
+        updateConfig({ salesOrigins: updated });
+        return updated;
+      });
+    } else {
+      setHiringOrigins(prev => {
+        const updated = [...prev, newOrigin];
+        updateConfig({ hiringOrigins: updated });
+        return updated;
+      });
+    }
+  }, [updateConfig]);
+
+  const deleteOrigin = useCallback((originToDelete: string, type: 'sales' | 'hiring') => {
+    if (type === 'sales') {
+      setSalesOrigins(prev => {
+        const updated = prev.filter(o => o !== originToDelete);
+        updateConfig({ salesOrigins: updated });
+        return updated;
+      });
+    } else {
+      setHiringOrigins(prev => {
+        const updated = prev.filter(o => o !== originToDelete);
+        updateConfig({ hiringOrigins: updated });
+        return updated;
+      });
+    }
+  }, [updateConfig]);
+
+  const resetOriginsToDefault = useCallback(() => {
+    setHiringOrigins(DEFAULT_APP_CONFIG_DATA.hiringOrigins);
+    setSalesOrigins(DEFAULT_APP_CONFIG_DATA.salesOrigins);
+    updateConfig({ 
+      hiringOrigins: DEFAULT_APP_CONFIG_DATA.hiringOrigins,
+      salesOrigins: DEFAULT_APP_CONFIG_DATA.salesOrigins,
+    });
+  }, [updateConfig]);
+
+  const addPV = useCallback((newPV: string) => {
+    setPvs(prev => {
+      const updated = [...prev, newPV];
+      updateConfig({ pvs: updated });
+      return updated;
+    });
+  }, [updateConfig]);
+
+  // Commission functions
+  const addCommission = useCallback(async (commission: Omit<Commission, 'id' | 'db_id' | 'criado_em'>) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const tempId = `temp_${crypto.randomUUID()}`;
+    const createdAt = new Date().toISOString();
+
+    const newCommission: Commission = {
+      ...commission,
+      id: tempId,
+      criado_em: createdAt,
+      db_id: undefined, // Ensure db_id is undefined for new items
+      _synced: false,
+    };
+
+    setCommissions(prev => [newCommission, ...prev]);
+
+    try {
+      const payload = { user_id: JOAO_GESTOR_AUTH_ID, data: commission };
+      const { data, error } = await supabase.from('commissions').insert(payload).select('id', 'created_at').maybeSingle();
+      if (error) throw error;
+
+      setCommissions(prev => prev.map(c => c.id === tempId ? { ...c, id: tempId, db_id: data.id, criado_em: data.created_at, _synced: true } : c));
+      return { success: true };
+    } catch (error) {
+      console.error("Failed to add commission to Supabase:", error);
+      setCommissions(prev => prev.map(c => c.id === tempId ? { ...c, _synced: false } : c));
+      throw error;
+    }
+  }, [user]);
+
+  const updateCommission = useCallback(async (id: string, updates: Partial<Commission>) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const commission = commissions.find(c => c.id === id);
+    if (!commission || !commission.db_id) throw new Error("Comissão não encontrada ou ID do banco de dados ausente.");
+
+    const updatedCommission = { ...commission, ...updates };
+    updatedCommission.status = getOverallStatus(updatedCommission.installmentDetails);
+
+    const payload = { data: updatedCommission };
+    const { error } = await supabase.from('commissions').update(payload).match({ id: commission.db_id, user_id: JOAO_GESTOR_AUTH_ID });
+    if (error) throw error;
+    setCommissions(prev => prev.map(c => c.id === id ? updatedCommission : c));
+  }, [user, commissions]);
+
+  const deleteCommission = useCallback(async (id: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const commission = commissions.find(c => c.id === id);
+    if (!commission || !commission.db_id) throw new Error("Comissão não encontrada ou ID do banco de dados ausente.");
+
+    const { error } = await supabase.from('commissions').delete().match({ id: commission.db_id, user_id: JOAO_GESTOR_AUTH_ID });
+    if (error) throw error;
+    setCommissions(prev => prev.filter(c => c.id !== id));
+  }, [user, commissions]);
+
+  const updateInstallmentStatus = useCallback(async (commissionId: string, installmentNumber: number, newStatus: InstallmentStatus, paidDate?: string, saleType?: 'Imóvel' | 'Veículo') => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const commission = commissions.find(c => c.id === commissionId);
+    if (!commission || !commission.db_id) throw new Error("Comissão não encontrada.");
+
+    const updatedInstallmentDetails = { ...commission.installmentDetails };
+    const competenceMonth = paidDate ? calculateCompetenceMonth(paidDate) : undefined;
+
+    updatedInstallmentDetails[installmentNumber.toString()] = {
+      status: newStatus,
+      paidDate: paidDate || updatedInstallmentDetails[installmentNumber.toString()]?.paidDate,
+      competenceMonth: competenceMonth || updatedInstallmentDetails[installmentNumber.toString()]?.competenceMonth,
+    };
+
+    const updatedCommission = {
+      ...commission,
+      installmentDetails: updatedInstallmentDetails,
+      status: getOverallStatus(updatedInstallmentDetails),
+    };
+
+    const payload = { data: updatedCommission };
+    const { error } = await supabase.from('commissions').update(payload).match({ id: commission.db_id, user_id: JOAO_GESTOR_AUTH_ID });
+    if (error) throw error;
+    setCommissions(prev => prev.map(c => c.id === commissionId ? updatedCommission : c));
+  }, [user, commissions, calculateCompetenceMonth]);
+
+  // Cutoff period functions
+  const addCutoffPeriod = useCallback(async (period: Omit<CutoffPeriod, 'id' | 'db_id'>) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('cutoff_periods').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: period }).select('id').single();
+    if (error) throw error;
+    const newPeriod = { ...period, id: crypto.randomUUID(), db_id: data.id };
+    setCutoffPeriods(prev => [...prev, newPeriod]);
+  }, [user]);
+
+  const updateCutoffPeriod = useCallback(async (id: string, updates: Partial<CutoffPeriod>) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const period = cutoffPeriods.find(p => p.id === id);
+    if (!period || !period.db_id) throw new Error("Período de corte não encontrado.");
+
+    const updatedPeriod = { ...period, ...updates };
+    const payload = { data: updatedPeriod };
+    const { error } = await supabase.from('cutoff_periods').update(payload).match({ id: period.db_id, user_id: JOAO_GESTOR_AUTH_ID });
+    if (error) throw error;
+    setCutoffPeriods(prev => prev.map(p => p.id === id ? updatedPeriod : p));
+  }, [user, cutoffPeriods]);
+
+  const deleteCutoffPeriod = useCallback(async (id: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const period = cutoffPeriods.find(p => p.id === id);
+    if (!period || !period.db_id) throw new Error("Período de corte não encontrado.");
+
+    const { error } = await supabase.from('cutoff_periods').delete().match({ id: period.db_id, user_id: JOAO_GESTOR_AUTH_ID });
+    if (error) throw error;
+    setCutoffPeriods(prev => prev.filter(p => p.id !== id));
+  }, [user, cutoffPeriods]);
+
+  // Onboarding functions
+  const addOnlineOnboardingSession = useCallback(async (consultantName: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    if (onboardingTemplateVideos.length === 0) throw new Error("Adicione vídeos ao template padrão primeiro.");
+
+    const { data: sessionData, error: sessionError } = await supabase
+      .from('onboarding_sessions')
+      .insert({ user_id: JOAO_GESTOR_AUTH_ID, consultant_name: consultantName })
+      .select('*')
+      .single();
+
+    if (sessionError) throw sessionError;
+
+    const videosToInsert = onboardingTemplateVideos.map(template => ({
+      session_id: sessionData.id,
+      title: template.title,
+      video_url: template.video_url,
+      order: template.order,
+      is_completed: false,
+    }));
+
+    const { error: videosError } = await supabase
+      .from('onboarding_videos')
+      .insert(videosToInsert);
+
+    if (videosError) throw videosError;
+
+    const newSession: OnboardingSession = { ...sessionData, videos: videosToInsert as OnboardingVideo[] };
+    setOnboardingSessions(prev => [...prev, newSession]);
+  }, [user, onboardingTemplateVideos]);
+
+  const deleteOnlineOnboardingSession = useCallback(async (sessionId: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { error } = await supabase.from('onboarding_sessions').delete().eq('id', sessionId).eq('user_id', JOAO_GESTOR_AUTH_ID);
+    if (error) throw error;
+    setOnboardingSessions(prev => prev.filter(s => s.id !== sessionId));
+  }, [user]);
+
+  const addVideoToTemplate = useCallback(async (title: string, video_url: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const newOrder = onboardingTemplateVideos.length > 0 ? Math.max(...onboardingTemplateVideos.map(v => v.order)) + 1 : 0;
+    const { data, error } = await supabase
+      .from('onboarding_video_templates')
+      .insert({ user_id: JOAO_GESTOR_AUTH_ID, title, video_url, order: newOrder })
+      .select('*')
+      .single();
+    if (error) throw error;
+    setOnboardingTemplateVideos(prev => [...prev, data].sort((a, b) => a.order - b.order));
+  }, [user, onboardingTemplateVideos]);
+
+  const deleteVideoFromTemplate = useCallback(async (videoId: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { error } = await supabase.from('onboarding_video_templates').delete().eq('id', videoId).eq('user_id', JOAO_GESTOR_AUTH_ID);
+    if (error) throw error;
+    setOnboardingTemplateVideos(prev => prev.filter(v => v.id !== videoId));
+  }, [user]);
+
+  // CRM functions
+  const addCrmPipeline = useCallback(async (name: string) => {
+    if (!user || !crmOwnerUserId) throw new Error("Usuário não autenticado ou ID do gestor não definido.");
+    const { data, error } = await supabase.from('crm_pipelines').insert({ user_id: crmOwnerUserId, name, is_active: true }).select('*').single();
+    if (error) throw error;
+    setCrmPipelines(prev => [...prev, data]);
+    return data;
+  }, [user, crmOwnerUserId]);
+
+  const updateCrmPipeline = useCallback(async (id: string, updates: Partial<CrmPipeline>) => {
+    if (!user || !crmOwnerUserId) throw new Error("Usuário não autenticado ou ID do gestor não definido.");
+    const { data, error } = await supabase.from('crm_pipelines').update(updates).eq('id', id).eq('user_id', crmOwnerUserId).select('*').single();
+    if (error) throw error;
+    setCrmPipelines(prev => prev.map(p => p.id === id ? data : p));
+    return data;
+  }, [user, crmOwnerUserId]);
+
+  const deleteCrmPipeline = useCallback(async (id: string) => {
+    if (!user || !crmOwnerUserId) throw new Error("Usuário não autenticado ou ID do gestor não definido.");
+    const { error } = await supabase.from('crm_pipelines').delete().eq('id', id).eq('user_id', crmOwnerUserId);
+    if (error) throw error;
+    setCrmPipelines(prev => prev.filter(p => p.id !== id));
+  }, [user, crmOwnerUserId]);
+
+  const addCrmStage = useCallback(async (stage: Omit<CrmStage, 'id' | 'user_id' | 'created_at'>) => {
+    if (!user || !crmOwnerUserId) throw new Error("Usuário não autenticado ou ID do gestor não definido.");
+    const { data, error } = await supabase.from('crm_stages').insert({ user_id: crmOwnerUserId, ...stage }).select('*').single();
+    if (error) throw error;
+    setCrmStages(prev => [...prev, data].sort((a, b) => a.order_index - b.order_index));
+    return data;
+  }, [user, crmOwnerUserId]);
+
+  const updateCrmStage = useCallback(async (id: string, updates: Partial<CrmStage>) => {
+    if (!user || !crmOwnerUserId) throw new Error("Usuário não autenticado ou ID do gestor não definido.");
+    const { data, error } = await supabase.from('crm_stages').update(updates).eq('id', id).eq('user_id', crmOwnerUserId).select('*').single();
+    if (error) throw error;
+    setCrmStages(prev => prev.map(s => s.id === id ? data : s).sort((a, b) => a.order_index - b.order_index));
+    return data;
+  }, [user, crmOwnerUserId]);
+
+  const updateCrmStageOrder = useCallback(async (orderedStages: CrmStage[]) => {
+    if (!user || !crmOwnerUserId) throw new Error("Usuário não autenticado ou ID do gestor não definido.");
+    const updates = orderedStages.map((stage, index) => ({
+      id: stage.id,
+      order_index: index,
+    }));
+    const { error } = await supabase.from('crm_stages').upsert(updates, { onConflict: 'id' });
+    if (error) throw error;
+    setCrmStages(prev => {
+      const updated = prev.map(s => {
+        const newOrder = updates.find(u => u.id === s.id)?.order_index;
+        return newOrder !== undefined ? { ...s, order_index: newOrder } : s;
+      });
+      return updated.sort((a, b) => a.order_index - b.order_index);
+    });
+  }, [user, crmOwnerUserId]);
+
+  const deleteCrmStage = useCallback(async (id: string) => {
+    if (!user || !crmOwnerUserId) throw new Error("Usuário não autenticado ou ID do gestor não definido.");
+    const { error } = await supabase.from('crm_stages').delete().eq('id', id).eq('user_id', crmOwnerUserId);
+    if (error) throw error;
+    setCrmStages(prev => prev.filter(s => s.id !== id));
+  }, [user, crmOwnerUserId]);
+
+  const addCrmField = useCallback(async (field: Omit<CrmField, 'id' | 'user_id' | 'created_at'>) => {
+    if (!user || !crmOwnerUserId) throw new Error("Usuário não autenticado ou ID do gestor não definido.");
+    const { data, error } = await supabase.from('crm_fields').insert({ user_id: crmOwnerUserId, ...field }).select('*').single();
+    if (error) throw error;
+    setCrmFields(prev => [...prev, data]);
+    return data;
+  }, [user, crmOwnerUserId]);
+
+  const updateCrmField = useCallback(async (id: string, updates: Partial<CrmField>) => {
+    if (!user || !crmOwnerUserId) throw new Error("Usuário não autenticado ou ID do gestor não definido.");
+    const { data, error } = await supabase.from('crm_fields').update(updates).eq('id', id).eq('user_id', crmOwnerUserId).select('*').single();
+    if (error) throw error;
+    setCrmFields(prev => prev.map(f => f.id === id ? data : f));
+    return data;
+  }, [user, crmOwnerUserId]);
+
+  const addCrmLead = useCallback(async (lead: Omit<CrmLead, 'id' | 'created_at' | 'updated_at' | 'user_id' | 'created_by' | 'updated_by'>) => {
+    if (!user || !crmOwnerUserId) throw new Error("Usuário não autenticado ou ID do gestor não definido.");
+    
+    const defaultStage = crmStages.find(s => s.pipeline_id === crmPipelines.find(p => p.is_active)?.id);
+    if (!defaultStage) throw new Error("Nenhuma etapa de pipeline ativa encontrada. Configure as etapas do CRM.");
+
+    const payload = {
+      ...lead,
+      user_id: crmOwnerUserId,
+      created_by: user.id,
+      stage_id: lead.stage_id || defaultStage.id,
+      consultant_id: lead.consultant_id || user.id, // Default to current user if not specified
+    };
+
+    const { data, error } = await supabase.from('crm_leads').insert(payload).select('*').single();
+    if (error) throw error;
+    setCrmLeads(prev => [data, ...prev]);
+    return data;
+  }, [user, crmOwnerUserId, crmStages, crmPipelines]);
+
+  const updateCrmLead = useCallback(async (id: string, updates: Partial<CrmLead>) => {
+    if (!user || !crmOwnerUserId) throw new Error("Usuário não autenticado ou ID do gestor não definido.");
+    const lead = crmLeads.find(l => l.id === id);
+    if (!lead) throw new Error("Lead não encontrado.");
+
+    const payload = {
+      ...updates,
+      updated_by: user.id,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data, error } = await supabase.from('crm_leads').update(payload).eq('id', id).eq('user_id', crmOwnerUserId).select('*').single();
+    if (error) throw error;
+    setCrmLeads(prev => prev.map(l => l.id === id ? data : l));
+    return data;
+  }, [user, crmOwnerUserId, crmLeads]);
+
+  const deleteCrmLead = useCallback(async (id: string) => {
+    if (!user || !crmOwnerUserId) throw new Error("Usuário não autenticado ou ID do gestor não definido.");
+    const { error } = await supabase.from('crm_leads').delete().eq('id', id).eq('user_id', crmOwnerUserId);
+    if (error) throw error;
+    setCrmLeads(prev => prev.filter(l => l.id !== id));
+  }, [user, crmOwnerUserId]);
+
+  // Daily Checklist functions
+  const addDailyChecklist = useCallback(async (title: string) => {
+    if (!user || !crmOwnerUserId) throw new Error("Usuário não autenticado ou ID do gestor não definido.");
+    const { data, error } = await supabase.from('daily_checklists').insert({ user_id: crmOwnerUserId, title, is_active: true }).select('*').single();
+    if (error) throw error;
+    setDailyChecklists(prev => [...prev, data]);
+    return data;
+  }, [user, crmOwnerUserId]);
+
+  const updateDailyChecklist = useCallback(async (id: string, updates: Partial<DailyChecklist>) => {
+    if (!user || !crmOwnerUserId) throw new Error("Usuário não autenticado ou ID do gestor não definido.");
+    const { data, error } = await supabase.from('daily_checklists').update(updates).eq('id', id).eq('user_id', crmOwnerUserId).select('*').single();
+    if (error) throw error;
+    setDailyChecklists(prev => prev.map(c => c.id === id ? data : c));
+    return data;
+  }, [user, crmOwnerUserId]);
+
+  const deleteDailyChecklist = useCallback(async (id: string) => {
+    if (!user || !crmOwnerUserId) throw new Error("Usuário não autenticado ou ID do gestor não definido.");
+    const { error } = await supabase.from('daily_checklists').delete().eq('id', id).eq('user_id', crmOwnerUserId);
+    if (error) throw error;
+    setDailyChecklists(prev => prev.filter(c => c.id !== id));
+  }, [user, crmOwnerUserId]);
+
+  const addDailyChecklistItem = useCallback(async (daily_checklist_id: string, text: string, order_index: number, resource?: DailyChecklistItemResource, audioFile?: File, imageFile?: File) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+
+    let finalResource = resource;
+    let audioUrl: string | undefined;
+    let imageUrl: string | undefined;
+
+    // Handle audio file upload
+    if (audioFile) {
+      const audioFilePath = `checklist_resources/${daily_checklist_id}/${crypto.randomUUID()}-${sanitizeFilename(audioFile.name)}`;
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('app_files')
+        .upload(audioFilePath, audioFile, { contentType: audioFile.type, upsert: true });
+      if (uploadError) throw uploadError;
+      const { data: publicUrlData } = supabase.storage.from('app_files').getPublicUrl(audioFilePath);
+      audioUrl = publicUrlData.publicUrl;
+    }
+
+    // Handle image file upload
+    if (imageFile) {
+      const imageFilePath = `checklist_resources/${daily_checklist_id}/${crypto.randomUUID()}-${sanitizeFilename(imageFile.name)}`;
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('app_files')
+        .upload(imageFilePath, imageFile, { contentType: imageFile.type, upsert: true });
+      if (uploadError) throw uploadError;
+      const { data: publicUrlData } = supabase.storage.from('app_files').getPublicUrl(imageFilePath);
+      imageUrl = publicUrlData.publicUrl;
+    }
+
+    // Update resource content based on uploads
+    if (finalResource?.type === 'text_audio' && audioUrl) {
+      finalResource.content = { ...(finalResource.content as { text: string; audioUrl: string; }), audioUrl };
+    } else if (finalResource?.type === 'text_audio_image' && audioUrl && imageUrl) {
+      finalResource.content = { ...(finalResource.content as { text: string; audioUrl: string; imageUrl: string; }), audioUrl, imageUrl };
+    } else if (finalResource?.type === 'text_audio_image' && audioUrl) {
+      finalResource.content = { ...(finalResource.content as { text: string; audioUrl: string; imageUrl: string; }), audioUrl };
+    } else if (finalResource?.type === 'text_audio_image' && imageUrl) {
+      finalResource.content = { ...(finalResource.content as { text: string; audioUrl: string; imageUrl: string; }), imageUrl };
+    } else if ((finalResource?.type === 'image' || finalResource?.type === 'pdf' || finalResource?.type === 'audio') && (audioUrl || imageUrl)) {
+      finalResource.content = (audioUrl || imageUrl)!;
+    }
+
+    const { data, error } = await supabase.from('daily_checklist_items').insert({ daily_checklist_id, text, order_index, is_active: true, resource: finalResource }).select('*').single();
+    if (error) throw error;
+    setDailyChecklistItems(prev => [...prev, data].sort((a, b) => a.order_index - b.order_index));
+    return data;
+  }, [user]);
+
+  const updateDailyChecklistItem = useCallback(async (id: string, updates: Partial<DailyChecklistItem>, audioFile?: File, imageFile?: File) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const item = dailyChecklistItems.find(i => i.id === id);
+    if (!item) throw new Error("Item do checklist não encontrado.");
+
+    let finalResource = updates.resource !== undefined ? updates.resource : item.resource;
+    let audioUrl: string | undefined;
+    let imageUrl: string | undefined;
+
+    // Handle audio file upload
+    if (audioFile) {
+      const audioFilePath = `checklist_resources/${item.daily_checklist_id}/${crypto.randomUUID()}-${sanitizeFilename(audioFile.name)}`;
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('app_files')
+        .upload(audioFilePath, audioFile, { contentType: audioFile.type, upsert: true });
+      if (uploadError) throw uploadError;
+      const { data: publicUrlData } = supabase.storage.from('app_files').getPublicUrl(audioFilePath);
+      audioUrl = publicUrlData.publicUrl;
+    }
+
+    // Handle image file upload
+    if (imageFile) {
+      const imageFilePath = `checklist_resources/${item.daily_checklist_id}/${crypto.randomUUID()}-${sanitizeFilename(imageFile.name)}`;
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('app_files')
+        .upload(imageFilePath, imageFile, { contentType: imageFile.type, upsert: true });
+      if (uploadError) throw uploadError;
+      const { data: publicUrlData } = supabase.storage.from('app_files').getPublicUrl(imageFilePath);
+      imageUrl = publicUrlData.publicUrl;
+    }
+
+    // Update resource content based on uploads
+    if (finalResource?.type === 'text_audio' && audioUrl) {
+      finalResource.content = { ...(finalResource.content as { text: string; audioUrl: string; }), audioUrl };
+    } else if (finalResource?.type === 'text_audio_image' && audioUrl && imageUrl) {
+      finalResource.content = { ...(finalResource.content as { text: string; audioUrl: string; imageUrl: string; }), audioUrl, imageUrl };
+    } else if (finalResource?.type === 'text_audio_image' && audioUrl) {
+      finalResource.content = { ...(finalResource.content as { text: string; audioUrl: string; imageUrl: string; }), audioUrl };
+    } else if (finalResource?.type === 'text_audio_image' && imageUrl) {
+      finalResource.content = { ...(finalResource.content as { text: string; audioUrl: string; imageUrl: string; }), imageUrl };
+    } else if ((finalResource?.type === 'image' || finalResource?.type === 'pdf' || finalResource?.type === 'audio') && (audioUrl || imageUrl)) {
+      finalResource.content = (audioUrl || imageUrl)!;
+    }
+
+    const { data, error } = await supabase.from('daily_checklist_items').update({ ...updates, resource: finalResource }).eq('id', id).select('*').single();
+    if (error) throw error;
+    setDailyChecklistItems(prev => prev.map(i => i.id === id ? data : i).sort((a, b) => a.order_index - b.order_index));
+    return data;
+  }, [user, dailyChecklistItems]);
+
+  const deleteDailyChecklistItem = useCallback(async (id: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { error } = await supabase.from('daily_checklist_items').delete().eq('id', id);
+    if (error) throw error;
+    setDailyChecklistItems(prev => prev.filter(i => i.id !== id));
+  }, [user]);
+
+  const moveDailyChecklistItem = useCallback(async (checklistId: string, itemId: string, direction: 'up' | 'down') => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const items = dailyChecklistItems.filter(i => i.daily_checklist_id === checklistId).sort((a, b) => a.order_index - b.order_index);
+    const index = items.findIndex(item => item.id === itemId);
+    if (index === -1) return;
+
+    const newIndex = direction === 'up' ? index - 1 : index + 1;
+    if (newIndex < 0 || newIndex >= items.length) return;
+
+    const itemToMove = items[index];
+    const itemToSwap = items[newIndex];
+
+    const updates = [
+      { id: itemToMove.id, order_index: itemToSwap.order_index },
+      { id: itemToSwap.id, order_index: itemToMove.order_index },
+    ];
+
+    const { error } = await supabase.from('daily_checklist_items').upsert(updates, { onConflict: 'id' });
+    if (error) throw error;
+
+    setDailyChecklistItems(prev => {
+      const updated = prev.map(i => {
+        const update = updates.find(u => u.id === i.id);
+        return update ? { ...i, order_index: update.order_index } : i;
+      });
+      return updated.sort((a, b) => a.order_index - b.order_index);
+    });
+  }, [user, dailyChecklistItems]);
+
+  const assignDailyChecklistToConsultant = useCallback(async (daily_checklist_id: string, consultant_id: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('daily_checklist_assignments').insert({ daily_checklist_id, consultant_id }).select('*').single();
+    if (error) throw error;
+    setDailyChecklistAssignments(prev => [...prev, data]);
+    return data;
+  }, [user]);
+
+  const unassignDailyChecklistFromConsultant = useCallback(async (daily_checklist_id: string, consultant_id: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { error } = await supabase.from('daily_checklist_assignments').delete().match({ daily_checklist_id, consultant_id });
+    if (error) throw error;
+    setDailyChecklistAssignments(prev => prev.filter(a => !(a.daily_checklist_id === daily_checklist_id && a.consultant_id === consultant_id)));
+  }, [user]);
+
+  const toggleDailyChecklistCompletion = useCallback(async (daily_checklist_item_id: string, date: string, done: boolean, consultant_id: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    
+    const existingCompletion = dailyChecklistCompletions.find(c => 
+      c.daily_checklist_item_id === daily_checklist_item_id && 
+      c.consultant_id === consultant_id && 
+      c.date === date
+    );
+
+    if (existingCompletion) {
+      const { data, error } = await supabase.from('daily_checklist_completions').update({ done, updated_at: new Date().toISOString() }).eq('id', existingCompletion.id).select('*').single();
+      if (error) throw error;
+      setDailyChecklistCompletions(prev => prev.map(c => c.id === existingCompletion.id ? data : c));
+    } else {
+      const { data, error } = await supabase.from('daily_checklist_completions').insert({ daily_checklist_item_id, consultant_id, date, done }).select('*').single();
+      if (error) throw error;
+      setDailyChecklistCompletions(prev => [...prev, data]);
+    }
+  }, [user, dailyChecklistCompletions]);
+
+  // Weekly target functions
+  const addWeeklyTarget = useCallback(async (target: Omit<WeeklyTarget, 'id' | 'user_id' | 'created_at'>) => {
+    if (!user || !crmOwnerUserId) throw new Error("Usuário não autenticado ou ID do gestor não definido.");
+    const { data, error } = await supabase.from('weekly_targets').insert({ user_id: crmOwnerUserId, ...target }).select('*').single();
+    if (error) throw error;
+    setWeeklyTargets(prev => [...prev, data]);
+    return data;
+  }, [user, crmOwnerUserId]);
+
+  const updateWeeklyTarget = useCallback(async (id: string, updates: Partial<WeeklyTarget>) => {
+    if (!user || !crmOwnerUserId) throw new Error("Usuário não autenticado ou ID do gestor não definido.");
+    const { data, error } = await supabase.from('weekly_targets').update(updates).eq('id', id).eq('user_id', crmOwnerUserId).select('*').single();
+    if (error) throw error;
+    setWeeklyTargets(prev => prev.map(t => t.id === id ? data : t));
+    return data;
+  }, [user, crmOwnerUserId]);
+
+  const deleteWeeklyTarget = useCallback(async (id: string) => {
+    if (!user || !crmOwnerUserId) throw new Error("Usuário não autenticado ou ID do gestor não definido.");
+    const { error } = await supabase.from('weekly_targets').delete().eq('id', id).eq('user_id', crmOwnerUserId);
+    if (error) throw error;
+    setWeeklyTargets(prev => prev.filter(t => t.id !== id));
+  }, [user, crmOwnerUserId]);
+
+  const addWeeklyTargetItem = useCallback(async (item: Omit<WeeklyTargetItem, 'id' | 'created_at'>) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('weekly_target_items').insert(item).select('*').single();
+    if (error) throw error;
+    setWeeklyTargetItems(prev => [...prev, data].sort((a, b) => a.order_index - b.order_index));
+    return data;
+  }, [user]);
+
+  const updateWeeklyTargetItem = useCallback(async (id: string, updates: Partial<WeeklyTargetItem>) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('weekly_target_items').update(updates).eq('id', id).select('*').single();
+    if (error) throw error;
+    setWeeklyTargetItems(prev => prev.map(i => i.id === id ? data : i).sort((a, b) => a.order_index - b.order_index));
+    return data;
+  }, [user]);
+
+  const deleteWeeklyTargetItem = useCallback(async (id: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { error } = await supabase.from('weekly_target_items').delete().eq('id', id);
+    if (error) throw error;
+    setWeeklyTargetItems(prev => prev.filter(i => i.id !== id));
+  }, [user]);
+
+  const updateWeeklyTargetItemOrder = useCallback(async (orderedItems: WeeklyTargetItem[]) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const updates = orderedItems.map((item, index) => ({
+      id: item.id,
+      order_index: index,
+    }));
+    const { error } = await supabase.from('weekly_target_items').upsert(updates, { onConflict: 'id' });
+    if (error) throw error;
+    setWeeklyTargetItems(prev => {
+      const updated = prev.map(i => {
+        const newOrder = updates.find(u => u.id === i.id)?.order_index;
+        return newOrder !== undefined ? { ...i, order_index: newOrder } : i;
+      });
+      return updated.sort((a, b) => a.order_index - b.order_index);
+    });
+  }, [user]);
+
+  const assignWeeklyTargetToConsultant = useCallback(async (weekly_target_id: string, consultant_id: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('weekly_target_assignments').insert({ weekly_target_id, consultant_id }).select('*').single();
+    if (error) throw error;
+    setWeeklyTargetAssignments(prev => [...prev, data]);
+    return data;
+  }, [user]);
+
+  const unassignWeeklyTargetFromConsultant = useCallback(async (weekly_target_id: string, consultant_id: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { error } = await supabase.from('weekly_target_assignments').delete().match({ weekly_target_id, consultant_id });
+    if (error) throw error;
+    setWeeklyTargetAssignments(prev => prev.filter(a => !(a.weekly_target_id === weekly_target_id && a.consultant_id === consultant_id)));
+  }, [user]);
+
+  const addMetricLog = useCallback(async (log: Omit<MetricLog, 'id' | 'created_at'>) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('metric_logs').insert(log).select('*').single();
+    if (error) throw error;
+    setMetricLogs(prev => [...prev, data]);
+    return data;
+  }, [user]);
+
+  const updateMetricLog = useCallback(async (id: string, updates: Partial<MetricLog>) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('metric_logs').update(updates).eq('id', id).select('*').single();
+    if (error) throw error;
+    setMetricLogs(prev => prev.map(l => l.id === id ? data : l));
+    return data;
+  }, [user]);
+
+  const deleteMetricLog = useCallback(async (id: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { error } = await supabase.from('metric_logs').delete().eq('id', id);
+    if (error) throw error;
+    setMetricLogs(prev => prev.filter(l => l.id !== id));
+  }, [user]);
+
+  // Support materials V2 functions
+  const addSupportMaterialV2 = useCallback(async (material: Omit<SupportMaterialV2, 'id' | 'user_id' | 'created_at'>, file?: File) => {
+    if (!user || !crmOwnerUserId) throw new Error("Usuário não autenticado ou ID do gestor não definido.");
+
+    let content = material.content;
+    if (file) {
+      const filePath = `support_materials/${crmOwnerUserId}/${crypto.randomUUID()}-${sanitizeFilename(file.name)}`;
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('app_files')
+        .upload(filePath, file, { contentType: file.type, upsert: true });
+      if (uploadError) throw uploadError;
+      const { data: publicUrlData } = supabase.storage.from('app_files').getPublicUrl(filePath);
+      content = publicUrlData.publicUrl;
+    }
+
+    const { data, error } = await supabase.from('support_materials_v2').insert({ user_id: crmOwnerUserId, ...material, content }).select('*').single();
+    if (error) throw error;
+    setSupportMaterialsV2(prev => [...prev, data]);
+    return data;
+  }, [user, crmOwnerUserId]);
+
+  const updateSupportMaterialV2 = useCallback(async (id: string, updates: Partial<SupportMaterialV2>, file?: File) => {
+    if (!user || !crmOwnerUserId) throw new Error("Usuário não autenticado ou ID do gestor não definido.");
+
+    let content = updates.content;
+    if (file) {
+      const filePath = `support_materials/${crmOwnerUserId}/${crypto.randomUUID()}-${sanitizeFilename(file.name)}`;
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('app_files')
+        .upload(filePath, file, { contentType: file.type, upsert: true });
+      if (uploadError) throw uploadError;
+      const { data: publicUrlData } = supabase.storage.from('app_files').getPublicUrl(filePath);
+      content = publicUrlData.publicUrl;
+    }
+
+    const { data, error } = await supabase.from('support_materials_v2').update({ ...updates, content }).eq('id', id).eq('user_id', crmOwnerUserId).select('*').single();
+    if (error) throw error;
+    setSupportMaterialsV2(prev => prev.map(m => m.id === id ? data : m));
+    return data;
+  }, [user, crmOwnerUserId]);
+
+  const deleteSupportMaterialV2 = useCallback(async (id: string) => {
+    if (!user || !crmOwnerUserId) throw new Error("Usuário não autenticado ou ID do gestor não definido.");
+    const { error } = await supabase.from('support_materials_v2').delete().eq('id', id).eq('user_id', crmOwnerUserId);
+    if (error) throw error;
+    setSupportMaterialsV2(prev => prev.filter(m => m.id !== id));
+  }, [user, crmOwnerUserId]);
+
+  const assignSupportMaterialToConsultant = useCallback(async (material_id: string, consultant_id: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('support_material_assignments').insert({ material_id, consultant_id }).select('*').single();
+    if (error) throw error;
+    setSupportMaterialAssignments(prev => [...prev, data]);
+    return data;
+  }, [user]);
+
+  const unassignSupportMaterialFromConsultant = useCallback(async (material_id: string, consultant_id: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { error } = await supabase.from('support_material_assignments').delete().match({ material_id, consultant_id });
+    if (error) throw error;
+    setSupportMaterialAssignments(prev => prev.filter(a => !(a.material_id === material_id && a.consultant_id === consultant_id)));
+  }, [user]);
+
+  // Lead task functions
+  const addLeadTask = useCallback(async (task: Omit<LeadTask, 'id' | 'created_at' | 'completed_at' | 'updated_at'> & { user_id: string; manager_id?: string | null; }) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('lead_tasks').insert({ ...task, user_id: task.user_id, manager_id: task.manager_id }).select('*').single();
+    if (error) throw error;
+    setLeadTasks(prev => [...prev, data]);
+    return data;
+  }, [user]);
+
+  const updateLeadTask = useCallback(async (id: string, updates: Partial<LeadTask> & { user_id?: string; manager_id?: string | null; }) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('lead_tasks').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id).select('*').single();
+    if (error) throw error;
+    setLeadTasks(prev => prev.map(t => t.id === id ? data : t));
+    return data;
+  }, [user]);
+
+  const deleteLeadTask = useCallback(async (id: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { error } = await supabase.from('lead_tasks').delete().eq('id', id);
+    if (error) throw error;
+    setLeadTasks(prev => prev.filter(t => t.id !== id));
+  }, [user]);
+
+  const toggleLeadTaskCompletion = useCallback(async (id: string, is_completed: boolean) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const completed_at = is_completed ? new Date().toISOString() : null;
+    const { data, error } = await supabase.from('lead_tasks').update({ is_completed, completed_at, updated_at: new Date().toISOString() }).eq('id', id).select('*').single();
+    if (error) throw error;
+    setLeadTasks(prev => prev.map(t => t.id === id ? data : t));
+    return data;
+  }, [user]);
+
+  const updateLeadMeetingInvitationStatus = useCallback(async (taskId: string, status: 'accepted' | 'declined') => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('lead_tasks').update({ manager_invitation_status: status, updated_at: new Date().toISOString() }).eq('id', taskId).select('*').single();
+    if (error) throw error;
+    setLeadTasks(prev => prev.map(t => t.id === taskId ? data : t));
+    return data;
+  }, [user]);
+
+  // Gestor task functions
+  const addGestorTask = useCallback(async (task: Omit<GestorTask, 'id' | 'user_id' | 'created_at' | 'is_completed'>) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('gestor_tasks').insert({ user_id: user.id, is_completed: false, ...task }).select('*').single();
+    if (error) throw error;
+    setGestorTasks(prev => [...prev, data]);
+    return data;
+  }, [user]);
+
+  const updateGestorTask = useCallback(async (id: string, updates: Partial<GestorTask>) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('gestor_tasks').update(updates).eq('id', id).eq('user_id', user.id).select('*').single();
+    if (error) throw error;
+    setGestorTasks(prev => prev.map(t => t.id === id ? data : t));
+    return data;
+  }, [user]);
+
+  const deleteGestorTask = useCallback(async (id: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { error } = await supabase.from('gestor_tasks').delete().eq('id', id).eq('user_id', user.id);
+    if (error) throw error;
+    setGestorTasks(prev => prev.filter(t => t.id !== id));
+  }, [user]);
+
+  const toggleGestorTaskCompletion = useCallback(async (gestor_task_id: string, done: boolean, date: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+
+    const existingCompletion = gestorTaskCompletions.find(c =>
+      c.gestor_task_id === gestor_task_id &&
+      c.user_id === user.id &&
+      c.date === date
+    );
+
+    if (existingCompletion) {
+      const { data, error } = await supabase.from('gestor_task_completions').update({ done, updated_at: new Date().toISOString() }).eq('id', existingCompletion.id).select('*').single();
+      if (error) throw error;
+      setGestorTaskCompletions(prev => prev.map(c => c.id === existingCompletion.id ? data : c));
+    } else {
+      const { data, error } = await supabase.from('gestor_task_completions').insert({ gestor_task_id, user_id: user.id, date, done }).select('*').single();
+      if (error) throw error;
+      setGestorTaskCompletions(prev => [...prev, data]);
+    }
+  }, [user, gestorTaskCompletions]);
+
+  // Financial entry functions
+  const addFinancialEntry = useCallback(async (entry: Omit<FinancialEntry, 'id' | 'user_id' | 'created_at'>) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('financial_entries').insert({ user_id: user.id, ...entry }).select('*').single();
+    if (error) throw error;
+    setFinancialEntries(prev => [...prev, data]);
+    return data;
+  }, [user]);
+
+  const updateFinancialEntry = useCallback(async (id: string, updates: Partial<FinancialEntry>) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('financial_entries').update(updates).eq('id', id).eq('user_id', user.id).select('*').single();
+    if (error) throw error;
+    setFinancialEntries(prev => prev.map(e => e.id === id ? data : e));
+    return data;
+  }, [user]);
+
+  const deleteFinancialEntry = useCallback(async (id: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { error } = await supabase.from('financial_entries').delete().eq('id', id).eq('user_id', user.id);
+    if (error) throw error;
+    setFinancialEntries(prev => prev.filter(e => e.id !== id));
+  }, [user]);
+
+  // Form cadastro functions
+  const getFormFilesForSubmission = useCallback((submissionId: string) => {
+    return formFiles.filter(f => f.submission_id === submissionId);
+  }, [formFiles]);
+
+  const updateFormCadastro = useCallback(async (id: string, updates: Partial<FormCadastro>) => {
+    if (!user || !crmOwnerUserId) throw new Error("Usuário não autenticado ou ID do gestor não definido.");
+    const { data, error } = await supabase.from('form_submissions').update(updates).eq('id', id).eq('user_id', crmOwnerUserId).select('*').single();
+    if (error) throw error;
+    setFormCadastros(prev => prev.map(c => c.id === id ? data : c));
+    return data;
+  }, [user, crmOwnerUserId]);
+
+  const deleteFormCadastro = useCallback(async (id: string) => {
+    if (!user || !crmOwnerUserId) throw new Error("Usuário não autenticado ou ID do gestor não definido.");
+    
+    // Delete associated files from storage first
+    const filesToDelete = formFiles.filter(f => f.submission_id === id);
+    for (const file of filesToDelete) {
+      const filePath = file.file_url.split('/form_uploads/')[1]; // Extract path from public URL
+      if (filePath) {
+        const { error: storageError } = await supabase.storage.from('form_uploads').remove([filePath]);
+        if (storageError) console.error(`Error deleting file ${filePath} from storage:`, storageError);
+      }
+    }
+
+    // Delete file records from database
+    const { error: deleteFilesError } = await supabase.from('form_files').delete().eq('submission_id', id);
+    if (deleteFilesError) console.error("Error deleting form_files records:", deleteFilesError);
+
+    // Delete the submission record
+    const { error } = await supabase.from('form_submissions').delete().eq('id', id).eq('user_id', crmOwnerUserId);
+    if (error) throw error;
+    setFormCadastros(prev => prev.filter(c => c.id !== id));
+    setFormFiles(prev => prev.filter(f => f.submission_id !== id)); // Update local state for files
+  }, [user, crmOwnerUserId, formFiles]);
+
+  // Feedback functions
+  const addFeedback = useCallback(async (personId: string, feedback: Omit<Feedback, 'id'>) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const candidate = candidates.find(c => c.id === personId);
+    if (!candidate) throw new Error("Pessoa não encontrada.");
+
+    const newFeedback: Feedback = { ...feedback, id: crypto.randomUUID() };
+    const updatedFeedbacks = [...(candidate.feedbacks || []), newFeedback];
+
+    await updateCandidate(candidate.id, { feedbacks: updatedFeedbacks });
+    return newFeedback;
+  }, [user, candidates, updateCandidate]);
+
+  const updateFeedback = useCallback(async (personId: string, feedback: Feedback) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const candidate = candidates.find(c => c.id === personId);
+    if (!candidate) throw new Error("Pessoa não encontrada.");
+
+    const updatedFeedbacks = (candidate.feedbacks || []).map(f => f.id === feedback.id ? feedback : f);
+    await updateCandidate(candidate.id, { feedbacks: updatedFeedbacks });
+    return feedback;
+  }, [user, candidates, updateCandidate]);
+
+  const deleteFeedback = useCallback(async (personId: string, feedbackId: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const candidate = candidates.find(c => c.id === personId);
+    if (!candidate) throw new Error("Pessoa não encontrada.");
+
+    const updatedFeedbacks = (candidate.feedbacks || []).filter(f => f.id !== feedbackId);
+    await updateCandidate(candidate.id, { feedbacks: updatedFeedbacks });
+  }, [user, candidates, updateCandidate]);
+
+  const addTeamMemberFeedback = useCallback(async (teamMemberId: string, feedback: Omit<Feedback, 'id'>) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const member = teamMembers.find(m => m.id === teamMemberId);
+    if (!member || !member.db_id) throw new Error("Membro da equipe não encontrado.");
+
+    const newFeedback: Feedback = { ...feedback, id: crypto.randomUUID() };
+    const updatedFeedbacks = [...(member.feedbacks || []), newFeedback];
+    const updatedData = { ...member.data, feedbacks: updatedFeedbacks };
+
+    const { error } = await supabase
+      .from('team_members')
+      .update({ data: updatedData })
+      .match({ id: member.db_id, user_id: JOAO_GESTOR_AUTH_ID });
+
+    if (error) {
+      console.error("Error adding team member feedback:", error);
+      throw error;
+    }
+    setTeamMembers(prev => prev.map(m => m.id === teamMemberId ? { ...member, feedbacks: updatedFeedbacks } : m));
+    return newFeedback;
+  }, [user, teamMembers]);
+
+  const updateTeamMemberFeedback = useCallback(async (teamMemberId: string, feedback: Feedback) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const member = teamMembers.find(m => m.id === teamMemberId);
+    if (!member || !member.db_id) throw new Error("Membro da equipe não encontrado.");
+
+    const updatedFeedbacks = (member.feedbacks || []).map(f => f.id === feedback.id ? feedback : f);
+    const updatedData = { ...member.data, feedbacks: updatedFeedbacks };
+
+    const { error } = await supabase
+      .from('team_members')
+      .update({ data: updatedData })
+      .match({ id: member.db_id, user_id: JOAO_GESTOR_AUTH_ID });
+
+    if (error) {
+      console.error("Error updating team member feedback:", error);
+      throw error;
+    }
+    setTeamMembers(prev => prev.map(m => m.id === teamMemberId ? { ...member, feedbacks: updatedFeedbacks } : m));
+    return feedback;
+  }, [user, teamMembers]);
+
+  const deleteTeamMemberFeedback = useCallback(async (teamMemberId: string, feedbackId: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const member = teamMembers.find(m => m.id === teamMemberId);
+    if (!member || !member.db_id) throw new Error("Membro da equipe não encontrado.");
+
+    const updatedFeedbacks = (member.feedbacks || []).filter(f => f.id !== feedbackId);
+    const updatedData = { ...member.data, feedbacks: updatedFeedbacks };
+
+    const { error } = await supabase
+      .from('team_members')
+      .update({ data: updatedData })
+      .match({ id: member.db_id, user_id: JOAO_GESTOR_AUTH_ID });
+
+    if (error) {
+      console.error("Error deleting team member feedback:", error);
+      throw error;
+    }
+    setTeamMembers(prev => prev.map(m => m.id === teamMemberId ? { ...member, feedbacks: updatedFeedbacks } : m));
+  }, [user, teamMembers]);
+
   const addTeamMember = useCallback(async (member: Omit<TeamMember, 'id'> & { email: string }) => {
-    // This is a placeholder comment to trigger recompilation
     if (!user) throw new Error("Usuário não autenticado.");
   
     let authUserId: string;
@@ -1485,36 +2639,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     updateCandidate,
     deleteCandidate,
     getCandidate: useCallback((id: string) => candidates.find(c => c.id === id), [candidates]),
-    toggleChecklistItem: useCallback(async (candidateId: string, itemId: string) => {
-      if (!user) throw new Error("Usuário não autenticado.");
-      const candidate = candidates.find(c => c.id === candidateId);
-      if (!candidate) throw new Error("Candidato não encontrado.");
-  
-      const updatedProgress = { ...candidate.checklistProgress || {} };
-      updatedProgress[itemId] = { ...updatedProgress[itemId], completed: !updatedProgress[itemId]?.completed };
-  
-      await updateCandidate(candidate.id, { checklistProgress: updatedProgress });
-    }, [candidates, updateCandidate, user]),
-    setChecklistDueDate: useCallback(async (candidateId: string, itemId: string, dueDate: string) => {
-      if (!user) throw new Error("Usuário não autenticado.");
-      const candidate = candidates.find(c => c.id === candidateId);
-      if (!candidate) throw new Error("Candidato não encontrado.");
-  
-      const updatedProgress = { ...candidate.checklistProgress || {} };
-      updatedProgress[itemId] = { ...updatedProgress[itemId], dueDate: dueDate || undefined };
-  
-      await updateCandidate(candidate.id, { checklistProgress: updatedProgress });
-    }, [candidates, updateCandidate, user]),
-    toggleConsultantGoal: useCallback(async (candidateId: string, goalId: string) => {
-      if (!user) throw new Error("Usuário não autenticado.");
-      const candidate = candidates.find(c => c.id === candidateId);
-      if (!candidate) throw new Error("Candidato não encontrado.");
-  
-      const updatedProgress = { ...candidate.consultantGoalsProgress || {} };
-      updatedProgress[goalId] = !updatedProgress[goalId];
-  
-      await updateCandidate(candidate.id, { consultantGoalsProgress: updatedProgress });
-    }, [candidates, updateCandidate, user]),
+    toggleChecklistItem,
+    setChecklistDueDate,
+    toggleConsultantGoal,
+
+    // Checklist structure functions
     addChecklistItem,
     updateChecklistItem,
     deleteChecklistItem,
