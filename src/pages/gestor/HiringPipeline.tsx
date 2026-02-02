@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Loader2, Search, User, Phone, Mail, CheckCircle2, XCircle, RotateCcw, ArrowRight, MessageSquare, UserX, Plus, Trash2, Users, Clock, UserRound, UploadCloud, CalendarDays, Filter, Calendar } from 'lucide-react'; // Adicionado Calendar
+import { Loader2, Search, User, Phone, Mail, CheckCircle2, XCircle, RotateCcw, ArrowRight, MessageSquare, UserX, Plus, Trash2, Users, Clock, UserRound, UploadCloud, CalendarDays, Filter, Calendar, FileText } from 'lucide-react'; // Adicionado FileText
 import { Link } from 'react-router-dom';
 import { TableSkeleton } from '@/components/TableSkeleton';
 import {
