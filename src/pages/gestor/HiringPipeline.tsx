@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Loader2, Search, User, Phone, Mail, CheckCircle2, XCircle, RotateCcw, ArrowRight, MessageSquare, UserX, Plus, Trash2, Users, Clock, UserRound, UploadCloud, CalendarDays, Filter, Calendar, FileText, UserCheck } from 'lucide-react'; // Adicionado UserCheck
+import { Loader2, Search, User, Phone, Mail, CheckCircle2, XCircle, RotateCcw, ArrowRight, MessageSquare, UserX, Plus, Trash2, Users, Clock, UserRound, UploadCloud, CalendarDays, Filter, Calendar, FileText, UserCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { TableSkeleton } from '@/components/TableSkeleton';
 import {
@@ -15,6 +15,7 @@ import toast from 'react-hot-toast';
 import { AddScreeningCandidateModal } from '@/components/gestor/AddScreeningCandidateModal';
 import { ImportCandidatesModal } from '@/components/gestor/ImportCandidatesModal'; // NOVO: Importar o modal de importação
 import { Candidate } from '@/types'; // Importar o tipo Candidate
+import { ScheduleInterviewModal } from '@/components/ScheduleInterviewModal'; // Adicionado: Importação do ScheduleInterviewModal
 
 const HiringPipeline = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
