@@ -70,11 +70,15 @@ const HiringPipeline = () => {
 
     if (searchTerm) {
       const lowerCaseSearchTerm = searchTerm.toLowerCase();
-      candidatesForGestor = candidatesForGestor.filter(c =>
-        ((c.name || '').toLowerCase().includes(lowerCaseSearchTerm)) || // Corrigido aqui
-        ((c.phone || '').includes(lowerCaseSearchTerm)) || // Corrigido aqui
-        ((c.email || '').toLowerCase().includes(lowerCaseSearchTerm))
-      );
+      candidatesForGestor = candidatesForGestor.filter(c => {
+        // Adiciona uma verificação explícita para 'c' ser um objeto válido
+        if (!c) return false; 
+        return (
+          ((c.name || '').toLowerCase().includes(lowerCaseSearchTerm)) ||
+          ((c.phone || '').includes(lowerCaseSearchTerm)) ||
+          ((c.email || '').toLowerCase().includes(lowerCaseSearchTerm))
+        );
+      });
     }
 
     if (filterStartDate) {
@@ -98,8 +102,8 @@ const HiringPipeline = () => {
     );
 
     const isCandidateAlsoTeamMember = (candidate: typeof candidates[0], teamMemberIdentifiers: Set<string>) => {
-      const candidateNameLower = (candidate.name || '').toLowerCase().trim(); // Aplicado (candidate.name || '')
-      const candidateEmailLower = (candidate.email || '').toLowerCase().trim(); // Aplicado (candidate.email || '')
+      const candidateNameLower = (candidate.name || '').toLowerCase().trim();
+      const candidateEmailLower = (candidate.email || '').toLowerCase().trim();
       
       if (teamMemberIdentifiers.has(candidateNameLower)) {
         return true;
@@ -112,8 +116,8 @@ const HiringPipeline = () => {
 
     const getResponsibleUserIdForTeamMember = (member: TeamMember) => {
       const matchingCandidate = candidatesForGestor.find(c => 
-        (c.name || '').toLowerCase().trim() === (member.name || '').toLowerCase().trim() || // Aplicado (c.name || '') e (member.name || '')
-        (c.email && member.email && (c.email || '').toLowerCase().trim() === (member.email || '').toLowerCase().trim()) // Aplicado (c.email || '') e (member.email || '')
+        (c.name || '').toLowerCase().trim() === (member.name || '').toLowerCase().trim() ||
+        (c.email && member.email && (c.email || '').toLowerCase().trim() === (member.email || '').toLowerCase().trim())
       );
       return matchingCandidate?.responsibleUserId;
     };
