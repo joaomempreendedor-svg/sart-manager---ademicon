@@ -73,7 +73,7 @@ const HiringPipeline = () => {
       candidatesForGestor = candidatesForGestor.filter(c =>
         (c.name && c.name.toLowerCase().includes(lowerCaseSearchTerm)) ||
         (c.phone && c.phone.includes(lowerCaseSearchTerm)) ||
-        (c.email && c.email.toLowerCase().includes(lowerCaseSearchTerm)) // Corrigido aqui
+        ((c.email || '').toLowerCase().includes(lowerCaseSearchTerm)) // Corrigido aqui: usa (c.email || '')
       );
     }
 
