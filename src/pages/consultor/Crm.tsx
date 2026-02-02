@@ -82,7 +82,7 @@ const ConsultorCrmPage = () => {
     if (searchTerm) {
       const lowerCaseSearchTerm = searchTerm.toLowerCase();
       currentLeads = currentLeads.filter(lead =>
-        (lead.name && lead.name.toLowerCase().includes(lowerCaseSearchTerm)) ||
+        (lead.name?.toLowerCase() || '').includes(lowerCaseSearchTerm) ||
         Object.values(lead.data || {}).some(value =>
           String(value).toLowerCase().includes(lowerCaseSearchTerm)
         )
@@ -376,7 +376,9 @@ const ConsultorCrmPage = () => {
               )}
             </div>
             <div className="p-4 space-y-3 min-h-[200px]">
-              {groupedLeads[stage.id]?.length === 0 ? (
+              {isDataLoading ? ( // Adicionar esqueleto de carregamento aqui
+                <TableSkeleton rows={3} />
+              ) : groupedLeads[stage.id]?.length === 0 ? (
                 <p className="text-center text-sm text-gray-400 py-4">Nenhum lead nesta etapa.</p>
               ) : (
                 groupedLeads[stage.id].map(lead => {

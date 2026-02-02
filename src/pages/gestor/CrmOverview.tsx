@@ -91,7 +91,7 @@ const CrmOverviewPage = () => {
     if (searchTerm) {
       const lowerCaseSearchTerm = searchTerm.toLowerCase();
       currentLeads = currentLeads.filter(lead =>
-        (lead.name && lead.name.toLowerCase().includes(lowerCaseSearchTerm)) ||
+        (lead.name?.toLowerCase() || '').includes(lowerCaseSearchTerm) ||
         Object.values(lead.data || {}).some(value =>
           String(value).toLowerCase().includes(lowerCaseSearchTerm)
         )

@@ -1,30 +1,20 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Loader2, Calendar, CheckCircle2, UserX, UserCheck, TrendingUp, Users, FileText, ArrowRight, UserRound, Plus, Search, Filter, RotateCcw } from 'lucide-react';
+import { Loader2, Search, User, Phone, Mail, CheckCircle2, XCircle, RotateCcw, ArrowRight, MessageSquare, UserX, Plus, Trash2, Users, Clock, UserRound, UploadCloud, CalendarDays } from 'lucide-react'; // Adicionado CalendarDays icon
 import { Link } from 'react-router-dom';
 import { TableSkeleton } from '@/components/TableSkeleton';
-import { CandidateStatus, InterviewScores, TeamMember } from '@/types';
-import { ScheduleInterviewModal } from '@/components/ScheduleInterviewModal';
-
-// Helper function to highlight text
-const highlightText = (text: string, highlight: string) => {
-  if (!highlight) return <span>{text}</span>;
-  const parts = text.split(new RegExp(`(${highlight})`, 'gi'));
-  return (
-    <span>
-      {parts.map((part, i) =>
-        part.toLowerCase() === highlight.toLowerCase() ? (
-          <span key={i} className="bg-yellow-200 dark:bg-yellow-700 text-gray-900 dark:text-white rounded px-0.5">
-            {part}
-          </span>
-        ) : (
-          part
-        )
-      )}
-    </span>
-  );
-};
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import toast from 'react-hot-toast';
+import { AddScreeningCandidateModal } from '@/components/gestor/AddScreeningCandidateModal';
+import { ImportCandidatesModal } from '@/components/gestor/ImportCandidatesModal'; // NOVO: Importar o modal de importação
+import { Candidate } from '@/types'; // Importar o tipo Candidate
 
 const HiringPipeline = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -74,11 +64,11 @@ const HiringPipeline = () => {
       candidatesForGestor = candidatesForGestor.filter(c => {
         // A verificação `if (!c) return false;` já foi adicionada, mas `filter(Boolean)` acima já garante isso.
         return (
-          ((c.name || '').toLowerCase().includes(lowerCaseSearchTerm)) ||
-          ((c.phone || '').includes(lowerCaseSearchTerm)) ||
-          ((c.email || '').toLowerCase().includes(lowerCaseSearchTerm))
-        );
-      });
+            (c.name?.toLowerCase() || '').includes(lowerCaseSearchTerm) ||
+            (c.phone || '').includes(lowerCaseSearchTerm) ||
+            (c.email?.toLowerCase() || '').includes(lowerCaseSearchTerm)
+          );
+        });
     }
 
     if (filterStartDate) {
@@ -403,7 +393,7 @@ const HiringPipeline = () => {
               pipelineStages.scheduled.map(candidate => (
                 <Link 
                   to={`/gestor/candidate/${candidate.id}`} 
-                  key={candidate.id} 
+                  key={`candidate-${candidate.id}`} 
                   className="block bg-white dark:bg-slate-700 p-3 rounded-lg shadow-sm border border-gray-200 dark:border-slate-600 hover:border-brand-500 cursor-pointer transition-all group"
                   draggable="true"
                   onDragStart={(e) => handleDragStart(e, candidate.id)}
@@ -445,7 +435,7 @@ const HiringPipeline = () => {
               pipelineStages.conducted.map(candidate => (
                 <Link 
                   to={`/gestor/candidate/${candidate.id}`} 
-                  key={candidate.id} 
+                  key={`candidate-${candidate.id}`} 
                   className="block bg-white dark:bg-slate-700 p-3 rounded-lg shadow-sm border border-gray-200 dark:border-slate-600 hover:border-brand-500 cursor-pointer transition-all group"
                   draggable="true"
                   onDragStart={(e) => handleDragStart(e, candidate.id)}
@@ -621,7 +611,7 @@ const HiringPipeline = () => {
               pipelineStages.droppedOut.map(candidate => (
                 <Link 
                   to={`/gestor/candidate/${candidate.id}`} 
-                  key={candidate.id} 
+                  key={`candidate-${candidate.id}`} 
                   className="block bg-white dark:bg-slate-700 p-3 rounded-lg shadow-sm border border-gray-200 dark:border-slate-600 hover:border-brand-500 cursor-pointer transition-all group"
                   draggable="true"
                   onDragStart={(e) => handleDragStart(e, candidate.id)}

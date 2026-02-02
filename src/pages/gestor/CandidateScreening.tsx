@@ -39,9 +39,9 @@ const CandidateScreening = () => {
     if (searchTerm) {
       const lowerCaseSearchTerm = searchTerm.toLowerCase();
       currentCandidates = currentCandidates.filter(c =>
-        (c.name && c.name.toLowerCase().includes(lowerCaseSearchTerm)) ||
-        (c.phone && c.phone.includes(lowerCaseSearchTerm)) ||
-        (c.email?.toLowerCase().includes(lowerCaseSearchTerm))
+        (c.name?.toLowerCase() || '').includes(lowerCaseSearchTerm) ||
+        (c.phone || '').includes(lowerCaseSearchTerm) ||
+        (c.email?.toLowerCase() || '').includes(lowerCaseSearchTerm)
       );
     }
 
