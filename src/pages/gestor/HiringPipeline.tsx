@@ -66,13 +66,13 @@ const HiringPipeline = () => {
       };
     }
 
-    let candidatesForGestor = candidates;
+    // Adiciona uma verificação explícita para remover quaisquer elementos nulos ou indefinidos
+    let candidatesForGestor = candidates.filter(Boolean);
 
     if (searchTerm) {
       const lowerCaseSearchTerm = searchTerm.toLowerCase();
       candidatesForGestor = candidatesForGestor.filter(c => {
-        // Adiciona uma verificação explícita para 'c' ser um objeto válido
-        if (!c) return false; 
+        // A verificação `if (!c) return false;` já foi adicionada, mas `filter(Boolean)` acima já garante isso.
         return (
           ((c.name || '').toLowerCase().includes(lowerCaseSearchTerm)) ||
           ((c.phone || '').includes(lowerCaseSearchTerm)) ||
