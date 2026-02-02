@@ -71,9 +71,9 @@ const HiringPipeline = () => {
     if (searchTerm) {
       const lowerCaseSearchTerm = searchTerm.toLowerCase();
       candidatesForGestor = candidatesForGestor.filter(c =>
-        (c.name && c.name.toLowerCase().includes(lowerCaseSearchTerm)) ||
-        (c.phone && c.phone.includes(lowerCaseSearchTerm)) ||
-        ((c.email || '').toLowerCase().includes(lowerCaseSearchTerm)) // Corrigido aqui: usa (c.email || '')
+        ((c.name || '').toLowerCase().includes(lowerCaseSearchTerm)) || // Aplicado (c.name || '')
+        ((c.phone || '').includes(lowerCaseSearchTerm)) || // Aplicado (c.phone || '')
+        ((c.email || '').toLowerCase().includes(lowerCaseSearchTerm))
       );
     }
 
@@ -98,8 +98,8 @@ const HiringPipeline = () => {
     );
 
     const isCandidateAlsoTeamMember = (candidate: typeof candidates[0], teamMemberIdentifiers: Set<string>) => {
-      const candidateNameLower = candidate.name.toLowerCase().trim();
-      const candidateEmailLower = candidate.email?.toLowerCase().trim();
+      const candidateNameLower = (candidate.name || '').toLowerCase().trim(); // Aplicado (candidate.name || '')
+      const candidateEmailLower = (candidate.email || '').toLowerCase().trim(); // Aplicado (candidate.email || '')
       
       if (teamMemberIdentifiers.has(candidateNameLower)) {
         return true;
@@ -112,8 +112,8 @@ const HiringPipeline = () => {
 
     const getResponsibleUserIdForTeamMember = (member: TeamMember) => {
       const matchingCandidate = candidatesForGestor.find(c => 
-        c.name.toLowerCase().trim() === member.name.toLowerCase().trim() ||
-        (c.email && member.email && c.email.toLowerCase().trim() === member.email.toLowerCase().trim())
+        (c.name || '').toLowerCase().trim() === (member.name || '').toLowerCase().trim() || // Aplicado (c.name || '') e (member.name || '')
+        (c.email && member.email && (c.email || '').toLowerCase().trim() === (member.email || '').toLowerCase().trim()) // Aplicado (c.email || '') e (member.email || '')
       );
       return matchingCandidate?.responsibleUserId;
     };
