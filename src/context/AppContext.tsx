@@ -497,7 +497,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           (async () => { try { return await supabase.from('support_materials').select('id, data').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching support_materials:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('cutoff_periods').select('id, data').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching cutoff_periods:", e); return { data: null, error: e }; } })(),
           (async () => { try { return await supabase.from('onboarding_sessions').select('*, videos:onboarding_videos(*)').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching onboarding_sessions:", e); return { data: [], error: e }; } })(),
-          (async () => { try { return await supabase.from('onboarding_video_templates').select('*').eq('user_id', effectiveGestorId).order('order', { ascending: true }); } catch (e) { console.error("Error fetching onboarding_video_templates:", e); return { data: [], error: e }; } })(),
+          (async () => { try { return await supabase.from('onboarding_video_templates').select('*').eq('user_id', effectiveGestorId).order('order', { ascending: true }); } } catch (e) { console.error("Error fetching onboarding_video_templates:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('crm_pipelines').select('*').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching crm_pipelines:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('crm_stages').select('*').eq('user_id', effectiveGestorId).order('order_index') ; } catch (e) { console.error("Error fetching crm_stages:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('crm_fields').select('*').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching crm_fields:", e); return { data: [], error: e }; } })(),
@@ -1785,12 +1785,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const defaultStage = crmStages.find(s => s.pipeline_id === crmPipelines.find(p => p.is_active)?.id);
     if (!defaultStage) throw new Error("Nenhuma etapa de pipeline ativa encontrada. Configure as etapas do CRM.");
 
+    // Mapear propriedades camelCase para snake_case para o payload do Supabase
     const payload = {
-      ...lead,
+      name: lead.name,
+      consultant_id: lead.consultant_id || user.id, // Default to current user if not specified
+      stage_id: lead.stage_id || defaultStage.id,
       user_id: crmOwnerUserId,
       created_by: user.id,
-      stage_id: lead.stage_id || defaultStage.id,
-      consultant_id: lead.consultant_id || user.id, // Default to current user if not specified
+      data: lead.data,
+      proposal_value: lead.proposalValue, // Mapeado
+      proposal_closing_date: lead.proposalClosingDate, // Mapeado
+      sold_credit_value: lead.soldCreditValue, // Mapeado
+      sold_group: lead.soldGroup, // Mapeado
+      sold_quota: lead.soldQuota, // Mapeado
+      sale_date: lead.saleDate, // Mapeado
     };
 
     const { data, error } = await supabase.from('crm_leads').insert(payload).select('*').single();
@@ -1804,8 +1812,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const lead = crmLeads.find(l => l.id === id);
     if (!lead) throw new Error("Lead não encontrado.");
 
+    // Mapear propriedades camelCase para snake_case para o payload do Supabase
     const payload = {
-      ...updates,
+      name: updates.name,
+      consultant_id: updates.consultant_id,
+      stage_id: updates.stage_id,
+      data: updates.data,
+      proposal_value: updates.proposalValue, // Mapeado
+      proposal_closing_date: updates.proposalClosingDate, // Mapeado
+      sold_credit_value: updates.soldCreditValue, // Mapeado
+      sold_group: updates.soldGroup, // Mapeado
+      sold_quota: updates.soldQuota, // Mapeado
+      sale_date: updates.saleDate, // Mapeado
       updated_by: user.id,
       updated_at: new Date().toISOString(),
     };
