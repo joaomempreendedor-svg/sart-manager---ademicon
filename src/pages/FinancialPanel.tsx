@@ -268,15 +268,15 @@ export const FinancialPanel = () => {
                     <p className="text-center text-xs text-gray-400 py-2">Nenhum lançamento.</p>
                   ) : (
                     entries.map(entry => (
-                      <div key={entry.id} className="flex items-center justify-between p-2 rounded-lg bg-gray-50 dark:bg-slate-700/50 group">
-                        <div className="flex items-center space-x-1">
+                      <div key={entry.id} className="flex items-start justify-between p-2 rounded-lg bg-gray-50 dark:bg-slate-700/50 group">
+                        <div className="flex items-start space-x-1 flex-1"> {/* Adicionado flex-1 aqui */}
                           {entry.type === 'income' ? (
-                            <ArrowUp className="w-3 h-3 text-green-600" />
+                            <ArrowUp className="w-3 h-3 text-green-600 mt-1" />
                           ) : (
-                            <ArrowDown className="w-3 h-3 text-red-600" />
+                            <ArrowDown className="w-3 h-3 text-red-600 mt-1" />
                           )}
-                          <div>
-                            <p className="text-xs font-medium text-gray-900 dark:text-white truncate max-w-[80px]">{entry.description || (entry.type === 'income' ? 'Entrada' : 'Saída')}</p>
+                          <div className="flex-1"> {/* Adicionado flex-1 aqui */}
+                            <p className="text-xs font-medium text-gray-900 dark:text-white">{entry.description || (entry.type === 'income' ? 'Entrada' : 'Saída')}</p> {/* Removido truncate e max-w */}
                             <p className={`text-[10px] font-semibold ${entry.type === 'income' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                               {formatCurrency(entry.amount)}
                             </p>
