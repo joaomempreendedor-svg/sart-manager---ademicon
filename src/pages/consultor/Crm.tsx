@@ -585,4 +585,4 @@ const ConsultorCrmPage = () => {
   );
 };
 
-export default ConsultorCrmPage;
+export default CrmOverviewPage;

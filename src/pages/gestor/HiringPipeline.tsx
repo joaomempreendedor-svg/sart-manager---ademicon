@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Loader2, Search, User, Phone, Mail, CheckCircle2, XCircle, RotateCcw, ArrowRight, MessageSquare, UserX, Plus, Trash2, Users, Clock, UserRound, UploadCloud, CalendarDays } from 'lucide-react'; // Adicionado CalendarDays icon
+import { Loader2, Search, User, Phone, Mail, CheckCircle2, XCircle, RotateCcw, ArrowRight, MessageSquare, UserX, Plus, Trash2, Users, Clock, UserRound, UploadCloud, CalendarDays, Filter } from 'lucide-react'; // Adicionado Filter icon
 import { Link } from 'react-router-dom';
 import { TableSkeleton } from '@/components/TableSkeleton';
 import {
@@ -64,9 +64,9 @@ const HiringPipeline = () => {
       candidatesForGestor = candidatesForGestor.filter(c => {
         // A verificação `if (!c) return false;` já foi adicionada, mas `filter(Boolean)` acima já garante isso.
         return (
-            String(c.name || '').toLowerCase().includes(lowerCaseSearchTerm) ||
-            String(c.phone || '').toLowerCase().includes(lowerCaseSearchTerm) ||
-            String(c.email || '').toLowerCase().includes(lowerCaseSearchTerm)
+            (String(c.name || '').toLowerCase()).includes(lowerCaseSearchTerm) ||
+            (String(c.phone || '').toLowerCase()).includes(lowerCaseSearchTerm) ||
+            (String(c.email || '').toLowerCase()).includes(lowerCaseSearchTerm)
           );
         });
     }
