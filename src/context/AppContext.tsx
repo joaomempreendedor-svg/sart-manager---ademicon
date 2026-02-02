@@ -1484,7 +1484,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addCandidate,
     updateCandidate,
     deleteCandidate,
-    getCandidate,
+    getCandidate: useCallback((id: string) => candidates.find(c => c.id === id), [candidates]), // MOVIDO AQUI
     toggleChecklistItem,
     setChecklistDueDate,
     toggleConsultantGoal,
