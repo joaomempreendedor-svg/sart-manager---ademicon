@@ -497,7 +497,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           (async () => { try { return await supabase.from('support_materials').select('id, data').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching support_materials:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('cutoff_periods').select('id, data').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching cutoff_periods:", e); return { data: null, error: e }; } })(),
           (async () => { try { return await supabase.from('onboarding_sessions').select('*, videos:onboarding_videos(*)').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching onboarding_sessions:", e); return { data: [], error: e }; } })(),
-          (async () => { try { return await supabase.from('onboarding_video_templates').select('*').eq('user_id', effectiveGestorId).order('order', { ascending: true }); } } catch (e) { console.error("Error fetching onboarding_video_templates:", e); return { data: [], error: e }; } })(),
+          (async () => { try { return await supabase.from('onboarding_video_templates').select('*').eq('user_id', effectiveGestorId).order('order', { ascending: true }); } catch (e) { console.error("Error fetching onboarding_video_templates:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('crm_pipelines').select('*').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching crm_pipelines:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('crm_stages').select('*').eq('user_id', effectiveGestorId).order('order_index') ; } catch (e) { console.error("Error fetching crm_stages:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('crm_fields').select('*').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching crm_fields:", e); return { data: [], error: e }; } })(),
@@ -807,8 +807,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 feedbacks: rawCandidateData.feedbacks || [],
                 data: rawCandidateData.data || {},
                 name: String(rawPayloadData.name || ''), // Explicitly default a ''
-                phone: String(rawCandidateData.phone || ''), // Explicitly default a ''
-                email: String(rawCandidateData.email || ''), // Explicitly default a ''
+                phone: String(rawPayloadData.phone || ''), // Explicitly default a ''
+                email: String(rawPayloadData.email || ''), // Explicitly default a ''
             };
             console.log('[Realtime: Candidate] Deep copied newCandidateData.name:', newCandidateData.name, `client-side ID:`, newCandidateData.id, `db_id:`, newCandidateData.db_id, `createdAt:`, newCandidateData.createdAt);
 
