@@ -612,9 +612,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             feedbacks: rawCandidateData.feedbacks || [],
             data: rawCandidateData.data || {},
             // Ensure top-level string properties are always strings
-            name: rawCandidateData.name || '', // Explicitly default to ''
-            phone: rawCandidateData.phone || '', // Explicitly default to ''
-            email: rawCandidateData.email || '', // Explicitly default to ''
+            name: String(rawCandidateData.name || ''), // Explicitly convert to string
+            phone: String(rawCandidateData.phone || ''), // Explicitly convert to string
+            email: String(rawCandidateData.email || ''), // Explicitly convert to string
           };
           
           console.log(`[fetchData] Final candidate name before setCandidates:`, candidate.name, `client-side ID:`, candidate.id, `db_id:`, candidate.db_id, `createdAt:`, candidate.createdAt);
@@ -806,9 +806,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 consultantGoalsProgress: rawCandidateData.consultantGoalsProgress || {},
                 feedbacks: rawCandidateData.feedbacks || [],
                 data: rawCandidateData.data || {},
-                name: rawPayloadData.name || '', // Explicitamente default a ''
-                phone: rawPayloadData.phone || '', // Explicitamente default a ''
-                email: rawPayloadData.email || '', // Explicitamente default a ''
+                name: String(rawPayloadData.name || ''), // Explicitamente default a ''
+                phone: String(rawPayloadData.phone || ''), // Explicitamente default a ''
+                email: String(rawPayloadData.email || ''), // Explicitamente default a ''
             };
             console.log('[Realtime: Candidate] Deep copied newCandidateData.name:', newCandidateData.name, `client-side ID:`, newCandidateData.id, `db_id:`, newCandidateData.db_id, `createdAt:`, newCandidateData.createdAt);
 
@@ -2832,6 +2832,87 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
     setTeamMembers(prev => prev.map(m => m.id !== teamMemberId ? m : { ...m, feedbacks: updatedFeedbacks }));
   }, [teamMembers, user]);
+
+  // Team member functions
+  const addTeamMember = useCallback(async (member: Omit<TeamMember, 'id'> & { email: string }) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+  
+    let authUserId: string;
+    let tempPassword = '';
+    let wasExistingUser = false;
+  
+    if (member.email) {
+      tempPassword = generateRandomPassword();
+      
+      const cleanedCpf = member.cpf ? member.cpf.replace(/\D/g, '') : '';
+      const last4Cpf = cleanedCpf.length >= 4 ? cleanedCpf.slice(-4) : null;
+      
+      if (!supabase.functions || typeof supabase.functions.invoke !== 'function') {
+        console.error("[AppContext] Supabase functions client or invoke method is not available.");
+        throw new Error("Serviço de funções Supabase não disponível.");
+      }
+
+      const { data, error: invokeError } = await supabase.functions.invoke('create-or-link-consultant', {
+        body: {
+          email: member.email,
+          name: member.name,
+          tempPassword: tempPassword,
+          login: last4Cpf,
+        },
+      });
+
+      if (invokeError) throw invokeError;
+      if (data.error) throw new Error(data.error);
+
+      authUserId = data.authUserId;
+      wasExistingUser = data.userExists;
+
+      const { error: teamMemberUpsertError } = await supabase
+        .from('team_members')
+        .upsert({
+          id: authUserId,
+          user_id: JOAO_GESTOR_AUTH_ID,
+          data: {
+            id: authUserId,
+            name: member.name,
+            email: member.email,
+            roles: member.roles,
+            isActive: member.isActive,
+            hasLogin: true,
+            isLegacy: false,
+            dateOfBirth: member.dateOfBirth,
+          },
+          cpf: cleanedCpf,
+        }, { onConflict: 'id' });
+
+      if (teamMemberUpsertError) throw teamMemberUpsertError;
+
+      const { data: updatedTeamMembersData, error: fetchError } = await supabase
+        .from('team_members')
+        .select('id, data, cpf');
+      if (fetchError) console.error("Error refetching team members:", fetchError);
+      else {
+        const normalized = updatedTeamMembersData.map(item => ({
+          id: item.data.id,
+          db_id: item.id,
+          name: item.data.name,
+          email: item.data.email,
+          roles: Array.isArray(item.data.roles) ? item.data.roles : [item.data.role || 'Prévia'],
+          isActive: item.data.isActive !== false,
+          hasLogin: true,
+          isLegacy: false,
+          cpf: item.cpf,
+          dateOfBirth: item.data.dateOfBirth,
+        })) as TeamMember[];
+        setTeamMembers(normalized);
+      }
+
+      return { success: true, member: { ...member, id: authUserId, hasLogin: true, tempPassword }, tempPassword, wasExistingUser };
+
+    } else {
+      throw new Error("E-mail é obrigatório para adicionar um membro da equipe.");
+    }
+  }, [user, JOAO_GESTOR_AUTH_ID]);
 
   // Team Production Goals Functions
   const addTeamProductionGoal = useCallback(async (goal: Omit<TeamProductionGoal, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
