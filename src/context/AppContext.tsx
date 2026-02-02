@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
-import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, InterviewQuestion, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, CommissionStatus, InstallmentInfo, CutoffPeriod, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask, SupportMaterialContentType, DailyChecklistItemResource, DailyChecklistItemResourceType, GestorTask, GestorTaskCompletion, FinancialEntry, FormCadastro, FormFile, Notification, NotificationType, Feedback, TeamProductionGoal } from '@/types';
+import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, InterviewQuestion, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, InstallmentInfo, CutoffPeriod, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask, SupportMaterialContentType, DailyChecklistItemResource, DailyChecklistItemResourceType, GestorTask, GestorTaskCompletion, FinancialEntry, FormCadastro, FormFile, Notification, NotificationType, Feedback, TeamProductionGoal } from '@/types';
 import { CHECKLIST_STAGES as DEFAULT_STAGES } from '@/data/checklistData';
 import { CONSULTANT_GOALS as DEFAULT_GOALS } from '@/data/consultantGoals';
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
@@ -594,23 +594,27 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
         setCandidates(candidatesData?.data?.map(item => {
           console.log(`[fetchData] Processing raw item:`, item);
-          const rawCandidateData = item.data as Candidate;
+          // Ensure item.data is an object, default to empty if null/undefined
+          const rawCandidateData = (item.data || {}) as Candidate; 
           const clientSideId = rawCandidateData.id || crypto.randomUUID(); 
           
-          // Simplificando a normalização para evitar JSON.parse(JSON.stringify) desnecessário
           const candidate: Candidate = {
-            ...rawCandidateData, // Atribui diretamente os dados brutos
+            ...rawCandidateData, 
             id: clientSideId,
             db_id: item.id,
             createdAt: item.created_at,
             lastUpdatedAt: item.last_updated_at,
-            // Fornece valores padrão para objetos aninhados se forem nulos/indefinidos
+            // Provide default values for nested objects if they are null/undefined
             interviewScores: rawCandidateData.interviewScores || { basicProfile: 0, commercialSkills: 0, behavioralProfile: 0, jobFit: 0, notes: '' },
             checkedQuestions: rawCandidateData.checkedQuestions || {},
             checklistProgress: rawCandidateData.checklistProgress || {},
             consultantGoalsProgress: rawCandidateData.consultantGoalsProgress || {},
             feedbacks: rawCandidateData.feedbacks || [],
             data: rawCandidateData.data || {},
+            // Ensure top-level string properties are always strings
+            name: rawCandidateData.name || '', // Explicitly default to ''
+            phone: rawCandidateData.phone || '', // Explicitly default to ''
+            email: rawCandidateData.email || '', // Explicitly default to ''
           };
           
           console.log(`[fetchData] Final candidate name before setCandidates:`, candidate.name, `client-side ID:`, candidate.id, `db_id:`, candidate.db_id, `createdAt:`, candidate.createdAt);
@@ -783,7 +787,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             console.log('Candidate Change (Realtime):', payload);
             toast.info(`🔄 Candidato "${payload.new.data.name || payload.old.data.name}" atualizado em tempo real!`);
             
-            const rawPayloadData = payload.new.data as Candidate;
+            const rawPayloadData = (payload.new.data || {}) as Candidate; // Defensivo
             const clientSideId = rawPayloadData.id || crypto.randomUUID(); 
             if (!rawPayloadData.id) {
               console.warn(`[Realtime: Candidate] Candidate with db_id "${payload.new.id}" is missing client-side 'id' in JSONB data. Generating new client-side ID: "${clientSideId}"`);
@@ -802,6 +806,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 consultantGoalsProgress: rawCandidateData.consultantGoalsProgress || {},
                 feedbacks: rawCandidateData.feedbacks || [],
                 data: rawCandidateData.data || {},
+                name: rawPayloadData.name || '', // Explicitamente default a ''
+                phone: rawPayloadData.phone || '', // Explicitamente default a ''
+                email: rawPayloadData.email || '', // Explicitamente default a ''
             };
             console.log('[Realtime: Candidate] Deep copied newCandidateData.name:', newCandidateData.name, `client-side ID:`, newCandidateData.id, `db_id:`, newCandidateData.db_id, `createdAt:`, newCandidateData.createdAt);
 
