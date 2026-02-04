@@ -199,7 +199,7 @@ export const TeamConfig = () => {
   }, [teamMembers]);
 
   return (
-    <div className="p-4 sm:p-8 max-w-6xl mx-auto min-h-screen bg-gray-50 dark:bg-slate-900"> {/* Alterado max-w-4xl para max-w-6xl */}
+    <div className="p-4 sm:p-8 min-h-screen bg-gray-50 dark:bg-slate-900"> {/* Removido max-w-6xl mx-auto */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Gestão de Equipe</h1>
         <p className="text-gray-500 dark:text-gray-400">Cadastre os membros da equipe e defina seus cargos para uso nas comissões.</p>
