@@ -83,30 +83,23 @@ export const Dashboard = () => {
       return taskDate >= currentMonthStart && taskDate <= currentMonthEnd;
     }).length;
 
-    let proposalValueThisMonth = 0;
-    const leadsWithProposalThisMonth: CrmLead[] = [];
-    leadsForGestor.forEach(lead => {
+    const leadsWithProposalThisMonthFiltered = leadsForGestor.filter(lead => {
       if (lead.proposalValue && lead.proposalValue > 0 && lead.proposalClosingDate) {
         const proposalDate = new Date(lead.proposalClosingDate + 'T00:00:00');
-        if (proposalDate >= currentMonthStart && proposalDate <= currentMonthEnd) {
-          return sum + (lead.proposalValue || 0);
-        }
+        return proposalDate >= currentMonthStart && proposalDate <= currentMonthEnd;
       }
-      return sum;
-    }, 0);
+      return false;
+    });
+    const proposalValueThisMonth = leadsWithProposalThisMonthFiltered.reduce((sum, lead) => sum + (lead.proposalValue || 0), 0);
 
-    let soldValueThisMonth = 0;
-    const leadsSoldThisMonth: CrmLead[] = [];
-    leadsForGestor.forEach(lead => {
+    const leadsSoldThisMonthFiltered = leadsForGestor.filter(lead => {
       if (lead.soldCreditValue && lead.soldCreditValue > 0 && lead.saleDate) {
         const saleDate = new Date(lead.saleDate + 'T00:00:00');
-        if (saleDate >= currentMonthStart && saleDate <= currentMonthEnd) {
-          soldValueThisMonth += (lead.soldCreditValue || 0);
-          leadsSoldThisMonth.push(lead);
-        }
+        return saleDate >= currentMonthStart && saleDate <= currentMonthEnd;
       }
-      return sum;
-    }, 0);
+      return false;
+    });
+    const soldValueThisMonth = leadsSoldThisMonthFiltered.reduce((sum, lead) => sum + (lead.soldCreditValue || 0), 0);
 
     const pendingLeadTasksList: LeadTask[] = leadTasks.filter(task => {
       const lead = crmLeads.find(l => l.id === task.lead_id && l.user_id === user.id);
@@ -131,8 +124,8 @@ export const Dashboard = () => {
       proposalValueThisMonth,
       soldValueThisMonth,
       pendingLeadTasks: pendingLeadTasksList,
-      leadsWithProposalThisMonth,
-      leadsSoldThisMonth,
+      leadsWithProposalThisMonth: leadsWithProposalThisMonthFiltered,
+      leadsSoldThisMonth: leadsSoldThisMonthFiltered,
     };
   }, [crmLeads, leadTasks, user, crmStages]);
 
