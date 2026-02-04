@@ -727,7 +727,7 @@ export const Commissions = () => {
   };
 
   return (
-    <div className="p-8 min-h-screen pb-20"> {/* Removido max-w-7xl mx-auto */}
+    <div className="p-8 max-w-7xl mx-auto min-h-screen pb-20">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Central de Comissões</h1>
@@ -1216,6 +1216,10 @@ export const Commissions = () => {
                 <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg"><div className="text-sm text-yellow-600 dark:text-yellow-300">Anjos</div><div className="text-2xl font-bold text-yellow-900 dark:text-yellow-100">{formatCurrency(reportData.totalCommissions.angel)}</div></div>
                 <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg"><div className="text-sm text-purple-600 dark:text-purple-300">Total do Mês</div><div className="text-2xl font-bold text-purple-900 dark:text-purple-100">{formatCurrency(reportData.totalCommissions.total)}</div></div>
               </div>
+              
+              {/* Linha divisória adicionada aqui */}
+              <hr className="my-6 border-gray-200 dark:border-slate-700" />
+
               <div className="overflow-x-auto">
                 <table className="w-full text-sm min-w-[1200px]"> {/* Adicionado min-w para espaçamento */}
                   <thead className="text-left text-gray-500 dark:text-gray-400">
