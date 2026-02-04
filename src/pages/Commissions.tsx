@@ -727,7 +727,7 @@ export const Commissions = () => {
   };
 
   return (
-    <div className="p-8 max-w-7xl mx-auto min-h-screen pb-20">
+    <div className="p-8 min-h-screen pb-20"> {/* Removido max-w-7xl mx-auto */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Central de Comissões</h1>
@@ -1217,38 +1217,38 @@ export const Commissions = () => {
                 <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg"><div className="text-sm text-purple-600 dark:text-purple-300">Total do Mês</div><div className="text-2xl font-bold text-purple-900 dark:text-purple-100">{formatCurrency(reportData.totalCommissions.total)}</div></div>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full text-sm min-w-[1200px]"> {/* Adicionado min-w para espaçamento */}
                   <thead className="text-left text-gray-500 dark:text-gray-400">
                     <tr className="border-b dark:border-slate-700">
-                      <th className="py-2">Data Venda</th> {/* Movido */}
-                      <th className="py-2">Valor Crédito</th> {/* Movido */}
-                      <th className="py-2">Cliente</th>
-                      <th className="py-2">Consultor</th>
-                      <th className="py-2">Gestor</th>
-                      <th className="py-2">Anjo</th>
-                      <th className="py-2">Parcela</th>
-                      <th className="py-2">PV</th>
-                      <th className="py-2">Mês Competência</th>
-                      <th className="py-2 text-right">Valor (Consultor)</th>
-                      <th className="py-2 text-right">Valor (Gestor)</th>
-                      <th className="py-2 text-right">Valor (Anjo)</th>
+                      <th className="py-2 px-4">Data Venda</th> {/* Movido e ajustado padding */}
+                      <th className="py-2 px-4">Valor Crédito</th> {/* Movido e ajustado padding */}
+                      <th className="py-2 px-4">Cliente</th>
+                      <th className="py-2 px-4">Consultor</th>
+                      <th className="py-2 px-4">Gestor</th>
+                      <th className="py-2 px-4">Anjo</th>
+                      <th className="py-2 px-4">Parcela</th>
+                      <th className="py-2 px-4">PV</th>
+                      <th className="py-2 px-4">Mês Competência</th>
+                      <th className="py-2 px-4 text-right">Valor (Consultor)</th>
+                      <th className="py-2 px-4 text-right">Valor (Gestor)</th>
+                      <th className="py-2 px-4 text-right">Valor (Anjo)</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
                     {reportData.detailedInstallments.map((item, index) => (
                       <tr key={index} className="hover:bg-gray-50 dark:hover:bg-slate-700/50">
-                        <td className="py-2">{new Date(item.saleDate + 'T00:00:00').toLocaleDateString('pt-BR')}</td> {/* Movido */}
-                        <td className="py-2">{formatCurrency(item.creditValue)}</td> {/* Movido */}
-                        <td className="py-2 font-medium text-gray-800 dark:text-gray-200">{item.commission.clientName}</td>
-                        <td>{item.commission.consultant}</td>
-                        <td>{item.commission.managerName}</td>
-                        <td>{item.commission.angelName || 'N/A'}</td>
-                        <td>{item.installmentNumber}</td>
-                        <td>{item.commission.pv}</td>
-                        <td>{item.commission.installmentDetails[item.installmentNumber].competenceMonth ? formatMonthYear(item.commission.installmentDetails[item.installmentNumber].competenceMonth!) : 'N/A'}</td>
-                        <td className="text-right font-mono">{formatCurrency(item.values.cons)}</td>
-                        <td className="text-right font-mono">{formatCurrency(item.values.man)}</td>
-                        <td className="text-right font-mono">{formatCurrency(item.values.angel)}</td>
+                        <td className="py-2 px-4">{new Date(item.saleDate + 'T00:00:00').toLocaleDateString('pt-BR')}</td> {/* Movido e ajustado padding */}
+                        <td className="py-2 px-4">{formatCurrency(item.creditValue)}</td> {/* Movido e ajustado padding */}
+                        <td className="py-2 px-4 font-medium text-gray-800 dark:text-gray-200">{item.commission.clientName}</td>
+                        <td className="py-2 px-4">{item.commission.consultant}</td>
+                        <td className="py-2 px-4">{item.commission.managerName}</td>
+                        <td className="py-2 px-4">{item.commission.angelName || 'N/A'}</td>
+                        <td className="py-2 px-4">{item.installmentNumber}</td>
+                        <td className="py-2 px-4">{item.commission.pv}</td>
+                        <td className="py-2 px-4">{item.commission.installmentDetails[item.installmentNumber].competenceMonth ? formatMonthYear(item.commission.installmentDetails[item.installmentNumber].competenceMonth!) : 'N/A'}</td>
+                        <td className="py-2 px-4 text-right font-mono">{formatCurrency(item.values.cons)}</td>
+                        <td className="py-2 px-4 text-right font-mono">{formatCurrency(item.values.man)}</td>
+                        <td className="py-2 px-4 text-right font-mono">{formatCurrency(item.values.angel)}</td>
                       </tr>
                     ))}
                   </tbody>
