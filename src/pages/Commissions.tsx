@@ -620,28 +620,39 @@ export const Commissions = () => {
     }
 
     const dataToExport = reportData.detailedInstallments.map(item => ({
+      'Data da Venda': item.saleDate ? new Date(item.saleDate + 'T00:00:00').toLocaleDateString('pt-BR') : 'N/A', // Movido para o início
+      'Valor do Crédito': item.creditValue, // Movido para o início
       'Cliente': item.commission.clientName,
       'Consultor': item.commission.consultant,
       'Gestor': item.commission.managerName,
       'Anjo': item.commission.angelName || 'N/A',
       'Parcela': parseInt(item.installmentNumber),
-      'Valor do Crédito': item.creditValue, // NOVO: Exporta Valor do Crédito
-      'Data da Venda': new Date(item.saleDate + 'T00:00:00').toLocaleDateString('pt-BR'), // NOVO: Exporta Data da Venda
+      'PV': item.commission.pv,
+      'Mês Competência': item.commission.installmentDetails[item.installmentNumber].competenceMonth ? formatMonthYear(item.commission.installmentDetails[item.installmentNumber].competenceMonth!) : 'N/A',
       'Valor (Consultor)': item.values.cons,
       'Valor (Gestor)': item.values.man,
       'Valor (Anjo)': item.values.angel,
-      'Mês Competência': item.commission.installmentDetails[item.installmentNumber].competenceMonth ? formatMonthYear(item.commission.installmentDetails[item.installmentNumber].competenceMonth!) : 'N/A', // Ajustado para N/A
-      'PV': item.commission.pv, // Adicionado PV ao export
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(dataToExport);
     
     const currencyFormat = 'R$ #,##0.00';
-    const currencyCols = ['F', 'I', 'J', 'K']; // Ajustado para as novas colunas de valor
+    // As colunas de moeda agora são: B (Valor do Crédito), I (Valor Consultor), J (Valor Gestor), K (Valor Anjo)
+    const currencyCols = ['B', 'I', 'J', 'K']; 
     
     worksheet['!cols'] = [
-        { wch: 25 }, { wch: 25 }, { wch: 25 }, { wch: 25 }, { wch: 10 },
-        { wch: 20 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 15 }, // Ajustado para incluir PV
+        { wch: 15 }, // Data da Venda
+        { wch: 20 }, // Valor do Crédito
+        { wch: 25 }, // Cliente
+        { wch: 25 }, // Consultor
+        { wch: 25 }, // Gestor
+        { wch: 25 }, // Anjo
+        { wch: 10 }, // Parcela
+        { wch: 15 }, // PV
+        { wch: 20 }, // Mês Competência
+        { wch: 20 }, // Valor (Consultor)
+        { wch: 20 }, // Valor (Gestor)
+        { wch: 20 }, // Valor (Anjo)
     ];
 
     Object.keys(worksheet).forEach(cellRef => {
@@ -1207,18 +1218,34 @@ export const Commissions = () => {
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="text-left text-gray-500 dark:text-gray-400"><tr className="border-b dark:border-slate-700"><th className="py-2">Cliente</th><th className="py-2">Consultor</th><th className="py-2">Gestor</th><th className="py-2">Anjo</th><th className="py-2">Parcela</th><th className="py-2">Valor Crédito</th><th className="py-2">Data Venda</th><th className="py-2">PV</th><th className="py-2 text-right">Valor (Consultor)</th><th className="py-2 text-right">Valor (Gestor)</th><th className="py-2 text-right">Valor (Anjo)</th></tr></thead>
+                  <thead className="text-left text-gray-500 dark:text-gray-400">
+                    <tr className="border-b dark:border-slate-700">
+                      <th className="py-2">Data Venda</th> {/* Movido */}
+                      <th className="py-2">Valor Crédito</th> {/* Movido */}
+                      <th className="py-2">Cliente</th>
+                      <th className="py-2">Consultor</th>
+                      <th className="py-2">Gestor</th>
+                      <th className="py-2">Anjo</th>
+                      <th className="py-2">Parcela</th>
+                      <th className="py-2">PV</th>
+                      <th className="py-2">Mês Competência</th>
+                      <th className="py-2 text-right">Valor (Consultor)</th>
+                      <th className="py-2 text-right">Valor (Gestor)</th>
+                      <th className="py-2 text-right">Valor (Anjo)</th>
+                    </tr>
+                  </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
                     {reportData.detailedInstallments.map((item, index) => (
                       <tr key={index} className="hover:bg-gray-50 dark:hover:bg-slate-700/50">
+                        <td className="py-2">{new Date(item.saleDate + 'T00:00:00').toLocaleDateString('pt-BR')}</td> {/* Movido */}
+                        <td className="py-2">{formatCurrency(item.creditValue)}</td> {/* Movido */}
                         <td className="py-2 font-medium text-gray-800 dark:text-gray-200">{item.commission.clientName}</td>
                         <td>{item.commission.consultant}</td>
                         <td>{item.commission.managerName}</td>
                         <td>{item.commission.angelName || 'N/A'}</td>
                         <td>{item.installmentNumber}</td>
-                        <td>{formatCurrency(item.creditValue)}</td> {/* NOVO: Exibe Valor do Crédito */}
-                        <td>{new Date(item.saleDate + 'T00:00:00').toLocaleDateString('pt-BR')}</td> {/* NOVO: Exibe Data da Venda */}
-                        <td>{item.commission.pv}</td> {/* Adicionado PV na tabela */}
+                        <td>{item.commission.pv}</td>
+                        <td>{item.commission.installmentDetails[item.installmentNumber].competenceMonth ? formatMonthYear(item.commission.installmentDetails[item.installmentNumber].competenceMonth!) : 'N/A'}</td>
                         <td className="text-right font-mono">{formatCurrency(item.values.cons)}</td>
                         <td className="text-right font-mono">{formatCurrency(item.values.man)}</td>
                         <td className="text-right font-mono">{formatCurrency(item.values.angel)}</td>
