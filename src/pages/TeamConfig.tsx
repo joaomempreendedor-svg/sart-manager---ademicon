@@ -1,11 +1,12 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Plus, Trash2, User, Shield, Crown, Star, Edit2, Save, X, Archive, UserCheck, Loader2, Copy, RefreshCw, KeyRound, Mail, CalendarPlus, CalendarDays, ChevronDown, ChevronUp } from 'lucide-react'; // Adicionado CalendarDays, ChevronDown, ChevronUp
+import { Plus, Trash2, User, Shield, Crown, Star, Edit2, Save, X, Archive, UserCheck, Loader2, Copy, RefreshCw, KeyRound, Mail, CalendarPlus, CalendarDays, ChevronDown, ChevronUp } from 'lucide-react';
 import { TeamMember, TeamRole, Candidate } from '@/types';
 import { formatCpf, generateRandomPassword } from '@/utils/authUtils';
 import { ConsultantCredentialsModal } from '@/components/ConsultantCredentialsModal';
 import { RecordTeamMemberInterviewModal } from '@/components/TeamConfig/RecordTeamMemberInterviewModal';
+import { EditTeamMemberModal } from '@/components/TeamConfig/EditTeamMemberModal'; // NOVO: Importar o modal de edição
 import toast from 'react-hot-toast';
 
 const ALL_ROLES: TeamRole[] = ['Prévia', 'Autorizado', 'Gestor', 'Anjo'];
@@ -18,19 +19,15 @@ export const TeamConfig = () => {
   const [newName, setNewName] = useState('');
   const [newEmail, setNewEmail] = useState('');
   const [newCpf, setNewCpf] = useState('');
-  const [newDateOfBirth, setNewDateOfBirth] = useState(''); // NOVO: Estado para data de nascimento
-  const [newRoles, setNewRoles] = useState<TeamRole[]>([]); // REMOVIDO: Valor padrão ['Prévia']
+  const [newDateOfBirth, setNewDateOfBirth] = useState('');
+  const [newRoles, setNewRoles] = useState<TeamRole[]>([]);
   const [generatedPassword, setGeneratedPassword] = useState(generateRandomPassword());
   const [isAdding, setIsAdding] = useState(false);
   const [copiedPassword, setCopiedPassword] = useState(false);
 
-  const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
-  const [editingName, setEditingName] = useState('');
-  const [editingEmail, setEditingEmail] = useState('');
-  const [editingCpf, setEditingCpf] = useState('');
-  const [editingDateOfBirth, setEditingDateOfBirth] = useState(''); // NOVO: Estado para data de nascimento em edição
-  const [editingRoles, setEditingRoles] = useState<TeamRole[]>([]);
-  const [isUpdating, setIsUpdating] = useState(false);
+  // Estados para o modal de edição
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false); // NOVO: Estado para abrir/fechar o modal de edição
+  const [memberToEdit, setMemberToEdit] = useState<TeamMember | null>(null); // NOVO: Membro a ser editado
 
   const [showCredentialsModal, setShowCredentialsModal] = useState(false);
   const [createdConsultantCredentials, setCreatedConsultantCredentials] = useState<{ name: string, login: string, password: string, wasExistingUser: boolean } | null>(null);
@@ -38,7 +35,7 @@ export const TeamConfig = () => {
   const [isRecordInterviewModalOpen, setIsRecordInterviewModalOpen] = useState(false);
   const [teamMemberToRecordInterview, setTeamMemberToRecordInterview] = useState<TeamMember | null>(null);
 
-  const [isAddFormCollapsed, setIsAddFormCollapsed] = useState(true); // NOVO: Estado para colapsar/expandir o formulário
+  const [isAddFormCollapsed, setIsAddFormCollapsed] = useState(true);
 
   const handleRoleChange = (role: TeamRole, currentRoles: TeamRole[], setRoles: React.Dispatch<React.SetStateAction<TeamRole[]>>) => {
     const updatedRoles = currentRoles.includes(role)
@@ -83,7 +80,7 @@ export const TeamConfig = () => {
         cpf: cleanedCpf,
         roles: newRoles,
         isActive: true,
-        dateOfBirth: newDateOfBirth || undefined, // NOVO: Incluir data de nascimento
+        dateOfBirth: newDateOfBirth || undefined,
       });
 
       if (result.success) {
@@ -101,10 +98,10 @@ export const TeamConfig = () => {
       setNewName('');
       setNewEmail('');
       setNewCpf('');
-      setNewDateOfBirth(''); // NOVO: Resetar campo
-      setNewRoles([]); // REMOVIDO: Valor padrão ['Prévia']
+      setNewDateOfBirth('');
+      setNewRoles([]);
       setGeneratedPassword(generateRandomPassword());
-      setIsAddFormCollapsed(true); // Colapsar o formulário após adicionar
+      setIsAddFormCollapsed(true);
     } catch (error: any) {
       toast.error(`Falha ao adicionar membro: ${error.message}`);
       console.error("Erro ao adicionar membro:", error);
@@ -113,53 +110,16 @@ export const TeamConfig = () => {
     }
   };
 
-  const startEditing = (member: TeamMember) => {
-    setEditingMember(member);
-    setEditingName(member.name);
-    setEditingEmail(member.email || '');
-    setEditingCpf(formatCpf(member.cpf || ''));
-    setEditingDateOfBirth(member.dateOfBirth || ''); // NOVO: Popular campo
-    setEditingRoles(member.roles);
+  // NOVO: Função para abrir o modal de edição
+  const handleOpenEditModal = (member: TeamMember) => {
+    setMemberToEdit(member);
+    setIsEditModalOpen(true);
   };
 
-  const cancelEditing = () => {
-    setEditingMember(null);
-    setEditingName('');
-    setEditingEmail('');
-    setEditingCpf('');
-    setEditingDateOfBirth(''); // NOVO: Resetar campo
-    setEditingRoles([]);
-  };
-
-  const handleUpdate = async () => {
-    if (!editingMember || !editingName.trim() || editingRoles.length === 0 || !editingCpf.trim() || !editingEmail.trim()) {
-      toast.error("O nome, E-mail, CPF e pelo menos um cargo são obrigatórios.");
-      return;
-    }
-    if (editingCpf.replace(/\D/g, '').length !== 11) {
-      toast.error("Por favor, insira um CPF válido com 11 dígitos.");
-      return;
-    }
-
-    setIsUpdating(true);
-    try {
-      const cleanedCpf = editingCpf.replace(/\D/g, '');
-      // A função updateTeamMember não retorna tempPassword, então não precisamos verificar aqui.
-      await updateTeamMember(editingMember.id, { 
-        name: editingName.trim(), 
-        roles: editingRoles, 
-        cpf: cleanedCpf,
-        email: editingEmail.trim(),
-        dateOfBirth: editingDateOfBirth || undefined, // NOVO: Incluir data de nascimento
-      });
-      
-      cancelEditing();
-      toast.success("Membro da equipe atualizado com sucesso!");
-    } catch (error: any) {
-      toast.error(`Falha ao atualizar membro: ${error.message}`);
-    } finally {
-      setIsUpdating(false);
-    }
+  // NOVO: Função para salvar as edições do modal
+  const handleSaveEditedMember = async (id: string, updates: Partial<TeamMember>) => {
+    // Esta função será chamada pelo EditTeamMemberModal
+    await updateTeamMember(id, updates);
   };
 
   const handleDelete = async (id: string) => {
@@ -245,7 +205,7 @@ export const TeamConfig = () => {
         <p className="text-gray-500 dark:text-gray-400">Cadastre os membros da equipe e defina seus cargos para uso nas comissões.</p>
       </div>
 
-      <div className="space-y-8"> {/* Container principal para as seções */}
+      <div className="space-y-8">
           {/* Seção de Adicionar Membro (Colapsável) */}
           <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm">
               <button 
@@ -294,7 +254,6 @@ export const TeamConfig = () => {
                           maxLength={14}
                         />
                     </div>
-                    {/* NOVO: Campo de Data de Nascimento */}
                     <div>
                         <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Data de Nascimento (Opcional)</label>
                         <div className="relative">
@@ -343,38 +302,6 @@ export const TeamConfig = () => {
                     ) : (
                         sortedTeamMembers.map(member => (
                             <li key={member.id} className={`p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between hover:bg-gray-50 dark:hover:bg-slate-700/30 transition group ${!member.isActive ? 'opacity-60' : ''}`}>
-                                {editingMember?.id === member.id ? (
-                                  <div className="flex-1 flex flex-col gap-3 w-full">
-                                    <input type="text" value={editingName} onChange={e => setEditingName(e.target.value)} className="w-full border-gray-300 dark:border-slate-600 rounded-md p-2 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400" />
-                                    <input type="email" value={editingEmail} onChange={e => setEditingEmail(e.target.value)} className="w-full border-gray-300 dark:border-slate-600 rounded-md p-2 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400" />
-                                    <input type="text" value={editingCpf} onChange={e => setEditingCpf(formatCpf(e.target.value))} maxLength={14} className="w-full border-gray-300 dark:border-slate-600 rounded-md p-2 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400" />
-                                    {/* NOVO: Campo de Data de Nascimento em edição */}
-                                    <div className="relative">
-                                      <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                      <input 
-                                          type="date" 
-                                          className="w-full pl-10 border border-gray-300 dark:border-slate-600 rounded-lg p-2 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500"
-                                          value={editingDateOfBirth}
-                                          onChange={e => setEditingDateOfBirth(e.target.value)}
-                                      />
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-2">
-                                      {ALL_ROLES.map(role => (
-                                          <label key={role} className="flex items-center space-x-2 cursor-pointer">
-                                              <input type="checkbox" checked={editingRoles.includes(role)} onChange={() => handleRoleChange(role, editingRoles, setEditingRoles)} className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
-                                              <span className="text-sm text-gray-700 dark:text-gray-300">{role}</span>
-                                          </label>
-                                      ))}
-                                    </div>
-                                    <div className="flex justify-end gap-2 mt-2">
-                                      <button onClick={handleUpdate} disabled={isUpdating} className="px-3 py-1 bg-green-100 text-green-700 rounded text-sm font-medium hover:bg-green-200 disabled:opacity-50">
-                                          {isUpdating ? <Loader2 className="w-4 h-4 inline mr-1 animate-spin" /> : <Save className="w-4 h-4 inline mr-1" />}
-                                          Salvar
-                                      </button>
-                                      <button onClick={cancelEditing} className="px-3 py-1 bg-gray-100 text-gray-700 rounded text-sm font-medium hover:bg-gray-200"><X className="w-4 h-4 inline mr-1" />Cancelar</button>
-                                    </div>
-                                  </div>
-                                ) : (
                                   <>
                                     <div className="flex items-center space-x-4 flex-1 flex-wrap">
                                         <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-slate-700 flex items-center justify-center text-gray-500 dark:text-gray-400">
@@ -396,13 +323,12 @@ export const TeamConfig = () => {
                                             {member.cpf && (
                                               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">CPF: {formatCpf(member.cpf)}</p>
                                             )}
-                                            {member.dateOfBirth && ( // NOVO: Exibir data de nascimento
+                                            {member.dateOfBirth && (
                                               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Nascimento: {new Date(member.dateOfBirth + 'T00:00:00').toLocaleDateString('pt-BR')}</p>
                                             )}
                                         </div>
                                     </div>
                                     <div className="flex items-center space-x-1 mt-2 sm:mt-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex-wrap justify-end">
-                                      {/* Botão de Registrar Entrevista - AGORA SEM CONDIÇÕES DE CARGO OU CANDIDATO EXISTENTE */}
                                         <button 
                                           onClick={(e) => { e.stopPropagation(); handleOpenRecordInterviewModal(member); }} 
                                           className="p-2 rounded-full text-gray-400 hover:text-brand-500 hover:bg-brand-50 dark:hover:bg-brand-900/20" 
@@ -416,7 +342,7 @@ export const TeamConfig = () => {
                                       <button onClick={() => handleToggleActive(member)} className={`p-2 rounded-full ${member.isActive ? 'text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20' : 'text-gray-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20'}`} title={member.isActive ? 'Inativar' : 'Ativar'}>
                                           <Archive className="w-4 h-4" />
                                       </button>
-                                      <button onClick={() => startEditing(member)} className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full">
+                                      <button onClick={() => handleOpenEditModal(member)} className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full">
                                         <Edit2 className="w-4 h-4" />
                                       </button>
                                       <button 
@@ -427,7 +353,6 @@ export const TeamConfig = () => {
                                       </button>
                                     </div>
                                   </>
-                                )}
                             </li>
                         ))
                     )}
@@ -452,6 +377,13 @@ export const TeamConfig = () => {
           teamMember={teamMemberToRecordInterview}
         />
       )}
+      {/* NOVO: Renderizar o modal de edição */}
+      <EditTeamMemberModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        member={memberToEdit}
+        onSave={handleSaveEditedMember}
+      />
     </div>
   );
 };
