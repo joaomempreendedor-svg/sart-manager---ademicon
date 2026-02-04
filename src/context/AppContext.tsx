@@ -629,31 +629,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         
         const normalizedTeamMembers = teamMembersData?.map(item => {
           const data = item.data as any;
-          
-          if (!data.id && data.name) {
-            return {
-              id: `legacy_${item.id}`,
-              db_id: item.id,
-              name: String(data.name || ''), // Ensure name is a string, default to empty
-              email: data.email, // Corrected: Access email from 'data'
-              roles: Array.isArray(data.roles) ? data.roles : [], // Corrigido: Default para array vazio
-              isActive: data.isActive !== false,
-              isLegacy: true,
-              hasLogin: false,
-              cpf: item.cpf,
-              dateOfBirth: data.dateOfBirth,
-            } as TeamMember;
-          }
-          
+          // Regex para validar formato UUID
+          const isAuthUserLinked = typeof data.id === 'string' && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(data.id);
+
           return {
-            id: data.id,
-            db_id: item.id,
-            name: String(data.name || ''), // Ensure name is a string, default to empty
-            email: data.email, // Corrected: Access email from 'data'
-            roles: Array.isArray(data.roles) ? data.roles : [], // Corrigido: Default para array vazio
+            id: isAuthUserLinked ? data.id : `legacy_${item.id}`, // Usa o ID do Auth se for UUID, senão um ID legado
+            db_id: item.id, // ID da tabela public.team_members
+            name: String(data.name || ''), // Garante que o nome seja string
+            email: data.email,
+            roles: Array.isArray(data.roles) ? data.roles : [],
             isActive: data.isActive !== false,
-            hasLogin: true,
-            isLegacy: false,
+            hasLogin: isAuthUserLinked, // hasLogin é true apenas se o ID for um UUID válido
+            isLegacy: !isAuthUserLinked,
             cpf: item.cpf,
             dateOfBirth: data.dateOfBirth,
           } as TeamMember;
@@ -799,7 +786,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               console.warn(`[Realtime: Candidate] Candidate with db_id "${payload.new.id}" is missing client-side 'id' in JSONB data. Generating new client-side ID: "${clientSideId}"`);
             }
             
-            const newCandidateData: Candidate = {
+            const candidate: Candidate = {
                 ...rawPayloadData, // Atribui diretamente os dados brutos
                 id: clientSideId,
                 db_id: payload.new.id,
@@ -816,27 +803,27 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 phone: String(rawPayloadData.phone || ''), // Explicitly default a ''
                 email: String(rawPayloadData.email || ''), // Explicitly default a ''
             };
-            console.log('[Realtime: Candidate] Deep copied newCandidateData.name:', newCandidateData.name, `client-side ID:`, newCandidateData.id, `db_id:`, newCandidateData.db_id, `createdAt:`, newCandidateData.createdAt);
+            console.log('[Realtime: Candidate] Deep copied newCandidateData.name:', candidate.name, `client-side ID:`, candidate.id, `db_id:`, candidate.db_id, `createdAt:`, candidate.createdAt);
 
             if (payload.eventType === 'INSERT') {
                 setCandidates(prev => {
-                    if (prev.some(c => c.db_id === newCandidateData.db_id)) {
-                        console.log('Skipping insert, candidate already exists (db_id):', newCandidateData.db_id);
+                    if (prev.some(c => c.db_id === candidate.db_id)) {
+                        console.log('Skipping insert, candidate already exists (db_id):', candidate.db_id);
                         return prev;
                     }
-                    if (prev.some(c => c.id === newCandidateData.id && !c.db_id)) {
-                        console.log('Skipping insert, candidate already exists (client-side id):', newCandidateData.id);
+                    if (prev.some(c => c.id === candidate.id && !c.db_id)) {
+                        console.log('Skipping insert, candidate already exists (client-side id):', candidate.id);
                         return prev;
                     }
-                    console.log('[Realtime: Candidate] Inserting candidate with name:', newCandidateData.name);
-                    return [newCandidateData, ...prev];
+                    console.log('[Realtime: Candidate] Inserting candidate with name:', candidate.name);
+                    return [candidate, ...prev];
                 });
             } else if (payload.eventType === 'UPDATE') {
                 setCandidates(prev => {
                     const updatedArray = prev.map(c => {
-                        if (c.db_id === newCandidateData.db_id) {
-                            console.log(`[Realtime: Candidate] Updating candidate from "${c.name}" to "${newCandidateData.name}"`);
-                            return newCandidateData;
+                        if (c.db_id === candidate.db_id) {
+                            console.log(`[Realtime: Candidate] Updating candidate from "${c.name}" to "${candidate.name}"`);
+                            return candidate;
                         }
                         return c;
                     });
@@ -2504,18 +2491,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         .select('id, data, cpf');
       if (fetchError) console.error("Error refetching team members:", fetchError);
       else {
-        const normalized = updatedTeamMembersData.map(item => ({
-          id: item.data.id,
-          db_id: item.id,
-          name: String(item.data.name || ''), // Ensure name is a string, default to empty
-          email: item.data.email,
-          roles: Array.isArray(item.data.roles) ? item.data.roles : [], // Corrigido: Default para array vazio
-          isActive: item.data.isActive !== false,
-          hasLogin: true,
-          isLegacy: false,
-          cpf: item.cpf,
-          dateOfBirth: item.data.dateOfBirth,
-        })) as TeamMember[];
+        const normalized = updatedTeamMembersData.map(item => {
+          const data = item.data as any;
+          const isAuthUserLinked = typeof data.id === 'string' && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(data.id);
+          return {
+            id: isAuthUserLinked ? data.id : `legacy_${item.id}`,
+            db_id: item.id,
+            name: String(data.name || ''),
+            email: data.email,
+            roles: Array.isArray(data.roles) ? data.roles : [],
+            isActive: data.isActive !== false,
+            hasLogin: isAuthUserLinked,
+            isLegacy: !isAuthUserLinked,
+            cpf: item.cpf,
+            dateOfBirth: data.dateOfBirth,
+          } as TeamMember;
+        });
         setTeamMembers(normalized);
       }
 
@@ -2561,11 +2552,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const member = teamMembers.find(m => m.id === id);
     if (!member || !member.db_id) throw new Error("Membro da equipe não encontrado.");
 
-    if (member.hasLogin) {
+    // Só tenta excluir do Auth se o membro tiver um login válido (UUID)
+    if (member.hasLogin && typeof member.id === 'string' && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(member.id)) {
       const { error: authDeleteError } = await supabase.auth.admin.deleteUser(member.id);
       if (authDeleteError) {
         console.error("Error deleting auth user:", authDeleteError);
+        // Não lançar erro aqui para permitir a exclusão do perfil público
       }
+    } else {
+      console.log(`[deleteTeamMember] Membro "${member.name}" (ID: ${member.id}) não tem login válido no Auth ou é legado. Pulando exclusão do Auth.`);
     }
 
     const { error } = await supabase
