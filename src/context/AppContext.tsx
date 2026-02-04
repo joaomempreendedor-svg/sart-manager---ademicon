@@ -2288,9 +2288,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const updateFinancialEntry = useCallback(async (id: string, updates: Partial<FinancialEntry>) => {
     if (!user) throw new Error("Usuário não autenticado.");
-    const { data, error } = await supabase.from('financial_entries').update(updates).eq('id', id).eq('user_id', user.id).select('*').single();
+    
+    // REMOVER CAMPOS INTERNOS QUE NÃO EXISTEM NO BANCO DE DADOS
+    const { db_id, id: entryId, created_at, user_id, ...cleanUpdates } = updates as any;
+
+    const { data, error } = await supabase
+      .from('financial_entries')
+      .update(cleanUpdates)
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .select('*')
+      .single();
+
     if (error) throw error;
-    setFinancialEntries(prev => prev.map(e => e.id === id ? data : e));
+    setFinancialEntries(prev => prev.map(e => e.id === id ? { ...e, ...data, amount: parseFloat(data.amount) } : e));
     return data;
   }, [user]);
 
