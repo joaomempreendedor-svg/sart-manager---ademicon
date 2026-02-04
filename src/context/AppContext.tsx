@@ -538,34 +538,40 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           (async () => { try { return await supabase.from('team_production_goals').select('*').eq('user_id', effectiveGestorId).order('start_date', { ascending: false }); } catch (e) { console.error("Error fetching team_production_goals:", e); return { data: [], error: e }; } })(), // NOVO: Busca de metas de produção da equipe
         ]);
 
-        if (configResult.error) console.error("Config error:", configResult.error);
-        if (candidatesData.error) console.error("Candidates error:", candidatesData.error);
-        if (materialsData.error) console.error("Materials error:", materialsData.error);
-        if (cutoffData.error) console.error("Cutoff Periods error:", cutoffData.error);
-        if (onboardingData.error) console.error("Onboarding error:", onboardingData.error);
-        if (templateVideosData.error) console.error("Onboarding Template error:", templateVideosData.error);
-        if (pipelinesData.error) console.error("Pipelines error:", pipelinesData.error);
-        if (stagesData.error) console.error("Stages error:", stagesData.error);
-        if (fieldsData.error) console.error("Fields error:", fieldsData.error);
-        if (crmLeadsData.error) console.error("CRM Leads error:", crmLeadsData.error);
-        if (dailyChecklistsData.error) console.error("Daily Checklists error:", dailyChecklistsData.error);
-        if (dailyChecklistItemsData.error) console.error("Daily Checklist Items error:", dailyChecklistItemsData.error);
-        if (dailyChecklistAssignmentsData.error) console.error("Daily Checklist Assignments error:", dailyChecklistAssignmentsData.error);
-        if (dailyChecklistCompletionsData.error) console.error("Daily Checklist Completions error:", dailyChecklistCompletionsData.error);
-        if (weeklyTargetsData.error) console.error("Weekly Targets error:", weeklyTargetsData.error);
-        if (weeklyTargetItemsData.error) console.error("Weekly Target Items error:", weeklyTargetItemsData.error);
-        if (weeklyTargetAssignmentsData.error) console.error("Weekly Target Assignments error:", weeklyTargetAssignmentsData.error);
-        if (metricLogsData.error) console.error("Metric Logs error:", metricLogsData.error);
-        if (supportMaterialsV2Data.error) console.error("Support Materials V2 error:", supportMaterialsV2Data.error);
-        if (supportMaterialAssignmentsData.error) console.error("Support Material Assignments error:", supportMaterialAssignmentsData.error);
-        if (leadTasksData.error) console.error("Lead Tasks error:", leadTasksData.error);
-        if (gestorTasksData.error) console.error("Gestor Tasks error:", gestorTasksData.error);
-        if (gestorTaskCompletionsData.error) console.error("Gestor Task Completions error:", gestorTaskCompletionsData.error);
-        if (financialEntriesData.error) console.error("Financial Entries error:", financialEntriesData.error);
-        if (formCadastrosData.error) console.error("Form Cadastros error:", formCadastrosData.error);
-        if (formFilesData.error) console.error("Form Files error:", formFilesData.error);
-        if (notificationsData.error) console.error("Notifications error:", notificationsData.error); // NOVO: Log de erro para notificações
-        if (teamProductionGoalsData.error) console.error("Team Production Goals error:", teamProductionGoalsData.error); // NOVO: Log de erro para metas de produção
+        // Centralized error logging for all promises
+        const logError = (source: string, error: any) => {
+          if (error) console.error(`${source} error:`, error);
+        };
+
+        logError("Config", configResult.error);
+        logError("Candidates", candidatesData.error);
+        logError("Materials", materialsData.error);
+        logError("Cutoff Periods", cutoffData.error);
+        logError("Onboarding", onboardingData.error);
+        logError("Onboarding Template", templateVideosData.error);
+        logError("Pipelines", pipelinesData.error);
+        logError("Stages", stagesData.error);
+        logError("Fields", fieldsData.error);
+        logError("CRM Leads", crmLeadsData.error);
+        logError("Daily Checklists", dailyChecklistsData.error);
+        logError("Daily Checklist Items", dailyChecklistItemsData.error);
+        logError("Daily Checklist Assignments", dailyChecklistAssignmentsData.error);
+        logError("Daily Checklist Completions", dailyChecklistCompletionsData.error);
+        logError("Weekly Targets", weeklyTargetsData.error);
+        logError("Weekly Target Items", weeklyTargetItemsData.error);
+        logError("Weekly Target Assignments", weeklyTargetAssignmentsData.error);
+        logError("Metric Logs", metricLogsData.error);
+        logError("Support Materials V2", supportMaterialsV2Data.error);
+        logError("Support Material Assignments", supportMaterialAssignmentsData.error);
+        logError("Lead Tasks", leadTasksData.error);
+        logError("Gestor Tasks", gestorTasksData.error);
+        logError("Gestor Task Completions", gestorTaskCompletionsData.error);
+        logError("Financial Entries", financialEntriesData.error);
+        logError("Form Cadastros", formCadastrosData.error);
+        logError("Form Files", formFilesData.error);
+        logError("Notifications", notificationsData.error);
+        logError("Team Production Goals", teamProductionGoalsData.error);
+
 
         if (configResult.data) {
           const { data } = configResult.data;
@@ -630,7 +636,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               db_id: item.id,
               name: String(data.name || ''), // Ensure name is a string, default to empty
               email: data.email, // Corrected: Access email from 'data'
-              roles: Array.isArray(data.roles) ? data.roles : [data.role || 'Prévia'], // Corrected: Access roles from 'data'
+              roles: Array.isArray(data.roles) ? data.roles : [], // Corrigido: Default para array vazio
               isActive: data.isActive !== false,
               isLegacy: true,
               hasLogin: false,
@@ -644,7 +650,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             db_id: item.id,
             name: String(data.name || ''), // Ensure name is a string, default to empty
             email: data.email, // Corrected: Access email from 'data'
-            roles: Array.isArray(data.roles) ? data.roles : [data.role || 'Prévia'], // Corrected: Access roles from 'data'
+            roles: Array.isArray(data.roles) ? data.roles : [], // Corrigido: Default para array vazio
             isActive: data.isActive !== false,
             hasLogin: true,
             isLegacy: false,
@@ -1992,7 +1998,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     setDailyChecklistItems(prev => {
       const updated = prev.map(i => {
-        const update = updates.find(u => u.id === i.id);
+        const update = updates.find(u => u.id === i.id)?.order_index;
         return update ? { ...i, order_index: update.order_index } : i;
       });
       return updated.sort((a, b) => a.order_index - b.order_index);
@@ -2503,7 +2509,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           db_id: item.id,
           name: String(item.data.name || ''), // Ensure name is a string, default to empty
           email: item.data.email,
-          roles: Array.isArray(item.data.roles) ? item.data.roles : [item.data.role || 'Prévia'],
+          roles: Array.isArray(item.data.roles) ? item.data.roles : [], // Corrigido: Default para array vazio
           isActive: item.data.isActive !== false,
           hasLogin: true,
           isLegacy: false,
