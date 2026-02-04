@@ -98,13 +98,18 @@ const CrmOverviewPage = () => {
       );
     }
 
-    if (filterStartDate) {
-      const start = new Date(filterStartDate + 'T00:00:00');
-      currentLeads = currentLeads.filter(lead => new Date(lead.created_at) >= start);
-    }
-    if (filterEndDate) {
-      const end = new Date(filterEndDate + 'T23:59:59');
-      currentLeads = currentLeads.filter(lead => new Date(lead.created_at) <= end);
+    if (filterStartDate || filterEndDate) {
+      const start = filterStartDate ? new Date(filterStartDate + 'T00:00:00') : null;
+      const end = filterEndDate ? new Date(filterEndDate + 'T23:59:59') : null;
+
+      currentLeads = currentLeads.filter(lead => {
+        // LÓGICA DE DATA DE REFERÊNCIA: Prioriza Data da Venda, senão usa Data de Criação
+        const referenceDate = lead.saleDate ? new Date(lead.saleDate + 'T00:00:00') : new Date(lead.created_at);
+        
+        const matchesStart = !start || referenceDate >= start;
+        const matchesEnd = !end || referenceDate <= end;
+        return matchesStart && matchesEnd;
+      });
     }
 
     return currentLeads;
@@ -343,7 +348,7 @@ const CrmOverviewPage = () => {
             </Select>
           </div>
           <div>
-            <label htmlFor="filterStartDate" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Criado de</label>
+            <label htmlFor="filterStartDate" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Período de (Criação/Venda)</label>
             <input
               type="date"
               id="filterStartDate"
@@ -353,7 +358,7 @@ const CrmOverviewPage = () => {
             />
           </div>
           <div>
-            <label htmlFor="filterEndDate" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Criado até</label>
+            <label htmlFor="filterEndDate" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Período até (Criação/Venda)</label>
             <input
               type="date"
               id="filterEndDate"
@@ -469,7 +474,7 @@ const CrmOverviewPage = () => {
                               <CheckCircle2 className="w-3 h-3 mr-1" /> Vendido: {formatCurrency(lead.soldCreditValue)}
                               {lead.saleDate && (
                                 <span className="ml-1 text-xs text-gray-500 dark:text-gray-400 font-normal">
-                                  (até {new Date(lead.saleDate + 'T00:00:00').toLocaleDateString('pt-BR')})
+                                  (em {new Date(lead.saleDate + 'T00:00:00').toLocaleDateString('pt-BR')})
                                 </span>
                               )}
                             </div>
@@ -519,7 +524,7 @@ const CrmOverviewPage = () => {
                         <button onClick={(e) => handleOpenTasksModal(e, lead)} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition">
                           <ListTodo className="w-3 h-3 mr-1" /> Tarefas
                         </button>
-                        <button onClick={(e) => handleOpenMeetingModal(e, lead)} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-900/30 transition">
+                        <button onClick={(e) => handleOpenMeetingModal(e, lead)} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 hover:bg-green-100 dark:hover:bg-blue-900/30 transition">
                           <CalendarPlus className="w-3 h-3 mr-1" /> Reunião
                         </button>
                         <button 
