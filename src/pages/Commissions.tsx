@@ -583,7 +583,7 @@ export const Commissions = () => {
       return true;
     });
 
-    const detailedInstallments: DetailedInstallment[] = [];
+    let detailedInstallments: DetailedInstallment[] = [];
     const totalCommissions = { consultant: 0, manager: 0, angel: 0, total: 0 };
 
     filteredCommissions.forEach(commission => {
@@ -603,6 +603,20 @@ export const Commissions = () => {
         }
       });
     });
+
+    // Ordenar por número de parcelas pagas (maior para menor) para o relatório
+    detailedInstallments.sort((a, b) => {
+      const paidCountA = Object.values(a.commission.installmentDetails).filter(s => s.status === 'Pago').length;
+      const paidCountB = Object.values(b.commission.installmentDetails).filter(s => s.status === 'Pago').length;
+      
+      if (paidCountA !== paidCountB) {
+        return paidCountB - paidCountA; // Maior número de parcelas pagas primeiro
+      }
+      
+      // Se o número de parcelas pagas for igual, ordenar pela data da venda (mais recente primeiro)
+      return new Date(b.saleDate).getTime() - new Date(a.saleDate).getTime();
+    });
+
 
     totalCommissions.total = totalCommissions.consultant + totalCommissions.manager + totalCommissions.angel;
     
