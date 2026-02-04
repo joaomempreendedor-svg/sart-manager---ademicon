@@ -59,6 +59,8 @@ interface DetailedInstallment {
   commission: Commission;
   installmentNumber: string;
   values: { cons: number; man: number; angel: number; };
+  creditValue: number; // NOVO: Valor do Crédito
+  saleDate: string;    // NOVO: Data da Venda
 }
 
 export const Commissions = () => {
@@ -592,6 +594,8 @@ export const Commissions = () => {
             commission,
             installmentNumber: num,
             values,
+            creditValue: commission.value, // NOVO: Adiciona Valor do Crédito
+            saleDate: commission.date,    // NOVO: Adiciona Data da Venda
           });
           totalCommissions.consultant += values.cons;
           totalCommissions.manager += values.man;
@@ -621,10 +625,11 @@ export const Commissions = () => {
       'Gestor': item.commission.managerName,
       'Anjo': item.commission.angelName || 'N/A',
       'Parcela': parseInt(item.installmentNumber),
+      'Valor do Crédito': item.creditValue, // NOVO: Exporta Valor do Crédito
+      'Data da Venda': new Date(item.saleDate + 'T00:00:00').toLocaleDateString('pt-BR'), // NOVO: Exporta Data da Venda
       'Valor (Consultor)': item.values.cons,
       'Valor (Gestor)': item.values.man,
       'Valor (Anjo)': item.values.angel,
-      'Data Venda': new Date(item.commission.date + 'T00:00:00').toLocaleDateString('pt-BR'),
       'Mês Competência': item.commission.installmentDetails[item.installmentNumber].competenceMonth ? formatMonthYear(item.commission.installmentDetails[item.installmentNumber].competenceMonth!) : 'N/A', // Ajustado para N/A
       'PV': item.commission.pv, // Adicionado PV ao export
     }));
@@ -632,11 +637,11 @@ export const Commissions = () => {
     const worksheet = XLSX.utils.json_to_sheet(dataToExport);
     
     const currencyFormat = 'R$ #,##0.00';
-    const currencyCols = ['F', 'G', 'H'];
+    const currencyCols = ['F', 'I', 'J', 'K']; // Ajustado para as novas colunas de valor
     
     worksheet['!cols'] = [
         { wch: 25 }, { wch: 25 }, { wch: 25 }, { wch: 25 }, { wch: 10 },
-        { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 15 }, { wch: 20 }, { wch: 15 }, // Ajustado para incluir PV
+        { wch: 20 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 15 }, // Ajustado para incluir PV
     ];
 
     Object.keys(worksheet).forEach(cellRef => {
@@ -1202,7 +1207,7 @@ export const Commissions = () => {
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="text-left text-gray-500 dark:text-gray-400"><tr className="border-b dark:border-slate-700"><th className="py-2">Cliente</th><th className="py-2">Consultor</th><th className="py-2">Gestor</th><th className="py-2">Anjo</th><th className="py-2">Parcela</th><th className="py-2">PV</th><th className="py-2 text-right">Valor (Consultor)</th><th className="py-2 text-right">Valor (Gestor)</th><th className="py-2 text-right">Valor (Anjo)</th></tr></thead>
+                  <thead className="text-left text-gray-500 dark:text-gray-400"><tr className="border-b dark:border-slate-700"><th className="py-2">Cliente</th><th className="py-2">Consultor</th><th className="py-2">Gestor</th><th className="py-2">Anjo</th><th className="py-2">Parcela</th><th className="py-2">Valor Crédito</th><th className="py-2">Data Venda</th><th className="py-2">PV</th><th className="py-2 text-right">Valor (Consultor)</th><th className="py-2 text-right">Valor (Gestor)</th><th className="py-2 text-right">Valor (Anjo)</th></tr></thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
                     {reportData.detailedInstallments.map((item, index) => (
                       <tr key={index} className="hover:bg-gray-50 dark:hover:bg-slate-700/50">
@@ -1211,6 +1216,8 @@ export const Commissions = () => {
                         <td>{item.commission.managerName}</td>
                         <td>{item.commission.angelName || 'N/A'}</td>
                         <td>{item.installmentNumber}</td>
+                        <td>{formatCurrency(item.creditValue)}</td> {/* NOVO: Exibe Valor do Crédito */}
+                        <td>{new Date(item.saleDate + 'T00:00:00').toLocaleDateString('pt-BR')}</td> {/* NOVO: Exibe Data da Venda */}
                         <td>{item.commission.pv}</td> {/* Adicionado PV na tabela */}
                         <td className="text-right font-mono">{formatCurrency(item.values.cons)}</td>
                         <td className="text-right font-mono">{formatCurrency(item.values.man)}</td>
