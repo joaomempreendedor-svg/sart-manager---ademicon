@@ -727,7 +727,7 @@ export const Commissions = () => {
   };
 
   return (
-    <div className="p-8 max-w-7xl mx-auto min-h-screen pb-20">
+    <div className="p-8 min-h-screen pb-20 w-full"> {/* Removido max-w-7xl mx-auto */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Central de Comissões</h1>
