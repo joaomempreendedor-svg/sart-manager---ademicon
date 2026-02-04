@@ -89,11 +89,11 @@ export const Dashboard = () => {
       if (lead.proposalValue && lead.proposalValue > 0 && lead.proposalClosingDate) {
         const proposalDate = new Date(lead.proposalClosingDate + 'T00:00:00');
         if (proposalDate >= currentMonthStart && proposalDate <= currentMonthEnd) {
-          proposalValueThisMonth += (lead.proposalValue || 0);
-          leadsWithProposalThisMonth.push(lead);
+          return sum + (lead.proposalValue || 0);
         }
       }
-    });
+      return sum;
+    }, 0);
 
     let soldValueThisMonth = 0;
     const leadsSoldThisMonth: CrmLead[] = [];
@@ -105,7 +105,8 @@ export const Dashboard = () => {
           leadsSoldThisMonth.push(lead);
         }
       }
-    });
+      return sum;
+    }, 0);
 
     const pendingLeadTasksList: LeadTask[] = leadTasks.filter(task => {
       const lead = crmLeads.find(l => l.id === task.lead_id && l.user_id === user.id);
@@ -262,6 +263,23 @@ export const Dashboard = () => {
     setIsLeadsDetailModalOpen(true);
   };
 
+  // Função para adicionar ao Google Calendar (reutilizada de outros componentes)
+  const handleAddToGoogleCalendar = (item: AgendaItem) => {
+    if (!item.dueDate) {
+      toast.error("Adicione uma data de vencimento ao item para agendar no Google Agenda.");
+      return;
+    }
+    const title = encodeURIComponent(`${item.title} - ${item.personName}`);
+    const startDate = new Date(item.dueDate + 'T00:00:00');
+    const endDate = new Date(startDate);
+    endDate.setDate(startDate.getDate() + 1); // Evento de dia inteiro
+    const formatDateForGoogle = (date: Date) => date.toISOString().split('T')[0].replace(/-/g, '');
+    const dates = `${formatDateForGoogle(startDate)}/${formatDateForGoogle(endDate)}`;
+    const details = encodeURIComponent(`Tipo: ${item.type === 'task' ? 'Tarefa de Checklist' : item.type === 'interview' ? 'Entrevista' : item.type === 'feedback' ? 'Feedback' : 'Tarefa Pessoal do Gestor'}\nCom: ${item.personName}`);
+    const url = `https://www.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${dates}&details=${details}`;
+    window.open(url, '_blank');
+  };
+
   return (
     <div className="p-4 sm:p-8 max-w-7xl mx-auto">
       <div className="mb-6 flex items-center justify-between flex-col sm:flex-row">
@@ -403,6 +421,13 @@ export const Dashboard = () => {
                                   </p>
                                 )}
                               </div>
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); handleAddToGoogleCalendar(item); }}
+                                className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md transition flex-shrink-0"
+                                title="Adicionar ao Google Agenda"
+                              >
+                                <CalendarPlus className="w-4 h-4" />
+                              </button>
                             </li>
                           ))}
                         </ul>
@@ -436,6 +461,13 @@ export const Dashboard = () => {
                                   </p>
                                 )}
                               </div>
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); handleAddToGoogleCalendar(item); }}
+                                className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md transition flex-shrink-0"
+                                title="Adicionar ao Google Agenda"
+                              >
+                                <CalendarPlus className="w-4 h-4" />
+                              </button>
                             </li>
                           ))}
                         </ul>
