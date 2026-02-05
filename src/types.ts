@@ -204,6 +204,7 @@ export interface TeamMember {
   hasLogin?: boolean;
   isLegacy?: boolean;
   tempPassword?: string;
+  user_id?: string; // NOVO: ID do gestor proprietário do registro
 }
 
 export type UserRole = 'GESTOR' | 'CONSULTOR' | 'ADMIN';
@@ -614,7 +615,7 @@ export interface AppContextType {
   assignSupportMaterialToConsultant: (material_id: string, consultant_id: string) => Promise<SupportMaterialAssignment>;
   unassignSupportMaterialFromConsultant: (material_id: string, consultant_id: string) => Promise<void>;
   addLeadTask: (task: Omit<LeadTask, 'id' | 'created_at' | 'completed_at' | 'updated_at'> & { user_id: string; manager_id?: string | null; }) => Promise<LeadTask>;
-  updateLeadTask: (id: string, updates: Partial<LeadTask> & { user_id?: string; manager_id?: string | null; }) => Promise<LeadTask>;
+  updateLeadTask: (id: string, updates: Partial<LeadTask>) => Promise<LeadTask>;
   deleteLeadTask: (id: string) => Promise<void>;
   toggleLeadTaskCompletion: (id: string, is_completed: boolean) => Promise<LeadTask>;
   updateLeadMeetingInvitationStatus: (taskId: string, status: 'accepted' | 'declined') => Promise<LeadTask>;
@@ -636,7 +637,7 @@ export interface AppContextType {
   updateTeamMemberFeedback: (teamMemberId: string, feedback: Feedback) => Promise<Feedback>;
   deleteTeamMemberFeedback: (teamMemberId: string, feedbackId: string) => Promise<void>;
   addTeamMember: (member: Omit<TeamMember, 'id'> & { email: string }) => Promise<{ success: boolean; member: TeamMember; tempPassword: string; wasExistingUser: boolean; }>;
-  updateTeamMember: (id: string, updates: Partial<TeamMember>) => Promise<{ success: boolean }>;
+  updateTeamMember: (id: string, updates: Partial<TeamMember>) => Promise<{ success: boolean; message?: string }>; // Adicionado message
   deleteTeamMember: (id: string) => Promise<void>;
   addTeamProductionGoal: (goal: Omit<TeamProductionGoal, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => Promise<TeamProductionGoal>; // NOVO: Função para adicionar meta de produção
   updateTeamProductionGoal: (id: string, updates: Partial<TeamProductionGoal>) => Promise<TeamProductionGoal>; // NOVO: Função para atualizar meta de produção

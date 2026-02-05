@@ -449,7 +449,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
         let teamMembersData = [];
         try {
-          let teamMembersQuery = supabase.from('team_members').select('id, data, cpf');
+          let teamMembersQuery = supabase.from('team_members').select('id, data, cpf, user_id'); // ADD user_id here
           if (user?.role === 'CONSULTOR') {
               teamMembersQuery = teamMembersQuery.or(`user_id.eq.${effectiveGestorId},data->>id.eq.${userId}`);
           } else {
@@ -644,8 +644,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             isLegacy: !isAuthUserLinked,
             cpf: item.cpf,
             dateOfBirth: data.dateOfBirth,
+            user_id: item.user_id, // Adicionado user_id aqui
           };
-          console.log(`[AppContext] Fetched Team Member: ID=${member.id}, AuthUserID=${member.authUserId}, Name=${member.name}, IsActive=${member.isActive}, Roles=${member.roles.join(', ')}, HasLogin=${member.hasLogin}, IsLegacy=${member.isLegacy}`);
+          console.log(`[AppContext] Fetched Team Member: ID=${member.id}, AuthUserID=${member.authUserId}, Name=${member.name}, IsActive=${member.isActive}, Roles=${member.roles.join(', ')}, HasLogin=${member.hasLogin}, IsLegacy=${member.isLegacy}, OwnerUserID=${member.user_id}`);
           return member;
         }) || [];
         setTeamMembers(normalizedTeamMembers);
@@ -1856,9 +1857,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const addDailyChecklistItem = useCallback(async (daily_checklist_id: string, text: string, order_index: number, resource?: DailyChecklistItemResource, audioFile?: File, imageFile?: File) => {
     if (!user) throw new Error("Usuário não autenticado.");
 
-    let finalResource = resource;
-    let audioUrl: string | undefined;
-    let imageUrl: string | undefined;
+    let contentToSave: string | { text: string; audioUrl: string; imageUrl?: string; } = '';
+    let resourceName = resource?.name;
 
     // Handle audio file upload
     if (audioFile) {
@@ -1869,6 +1869,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (uploadError) throw uploadError;
       const { data: publicUrlData } = supabase.storage.from('app_files').getPublicUrl(audioFilePath);
       audioUrl = publicUrlData.publicUrl;
+      if (!resourceName) resourceName = audioFile.name;
     }
 
     // Handle image file upload
@@ -1880,20 +1881,39 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (uploadError) throw uploadError;
       const { data: publicUrlData } = supabase.storage.from('app_files').getPublicUrl(imageFilePath);
       imageUrl = publicUrlData.publicUrl;
+      if (!resourceName) resourceName = imageFile.name;
     }
 
-    // Update resource content based on uploads
-    if (finalResource?.type === 'text_audio' && audioUrl) {
-      finalResource.content = { ...(finalResource.content as { text: string; audioUrl: string; }), audioUrl };
-    } else if (finalResource?.type === 'text_audio_image' && audioUrl && imageUrl) {
-      finalResource.content = { ...(finalResource.content as { text: string; audioUrl: string; imageUrl: string; }), audioUrl, imageUrl };
-    } else if (finalResource?.type === 'text_audio_image' && audioUrl) {
-      finalResource.content = { ...(finalResource.content as { text: string; audioUrl: string; imageUrl: string; }), audioUrl };
-    } else if (finalResource?.type === 'text_audio_image' && imageUrl) {
-      finalResource.content = { ...(finalResource.content as { text: string; audioUrl: string; imageUrl: string; }), imageUrl };
-    } else if ((finalResource?.type === 'image' || finalResource?.type === 'pdf' || finalResource?.type === 'audio') && (audioUrl || imageUrl)) {
-      finalResource.content = (audioUrl || imageUrl)!;
+    // Determine final content to save based on resource type and uploaded URLs
+    if (resource) {
+      switch (resource.type) {
+        case 'text':
+        case 'link':
+        case 'video':
+        case 'audio':
+        case 'image':
+        case 'pdf':
+          contentToSave = (audioUrl || imageUrl || resource.content) as string;
+          break;
+        case 'text_audio':
+          contentToSave = {
+            text: (resource.content as { text: string; audioUrl: string; }).text,
+            audioUrl: audioUrl || (resource.content as { text: string; audioUrl: string; }).audioUrl,
+          };
+          break;
+        case 'text_audio_image':
+          contentToSave = {
+            text: (resource.content as { text: string; audioUrl?: string; imageUrl?: string; }).text,
+            audioUrl: audioUrl || (resource.content as { text: string; audioUrl?: string; imageUrl?: string; }).audioUrl,
+            imageUrl: imageUrl || (resource.content as { text: string; audioUrl?: string; imageUrl?: string; }).imageUrl,
+          };
+          break;
+        default:
+          contentToSave = '';
+      }
     }
+
+    const finalResource = resource ? { ...resource, content: contentToSave, name: resourceName } : undefined;
 
     const { data, error } = await supabase.from('daily_checklist_items').insert({ daily_checklist_id, text, order_index, is_active: true, resource: finalResource }).select('*').single();
     if (error) throw error;
@@ -1906,9 +1926,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const item = dailyChecklistItems.find(i => i.id === id);
     if (!item) throw new Error("Item do checklist não encontrado.");
 
-    let finalResource = updates.resource !== undefined ? updates.resource : item.resource;
-    let audioUrl: string | undefined;
-    let imageUrl: string | undefined;
+    let contentToSave: string | { text: string; audioUrl: string; imageUrl?: string; } = '';
+    let resourceName = updates.resource?.name || item.resource?.name;
+
+    // Preserve existing content if not explicitly updated
+    let existingAudioUrl = (item.resource?.type === 'text_audio' || item.resource?.type === 'text_audio_image') ? (item.resource.content as any).audioUrl : (item.resource?.type === 'audio' ? item.resource.content : undefined);
+    let existingImageUrl = (item.resource?.type === 'text_audio_image') ? (item.resource.content as any).imageUrl : (item.resource?.type === 'image' ? item.resource.content : undefined);
+    let existingTextContent = (item.resource?.type === 'text_audio' || item.resource?.type === 'text_audio_image') ? (item.resource.content as any).text : (item.resource?.type === 'text' ? item.resource.content : undefined);
+    let existingLinkVideoContent = (item.resource?.type === 'link' || item.resource?.type === 'video') ? item.resource.content : undefined;
+
 
     // Handle audio file upload
     if (audioFile) {
@@ -1917,8 +1943,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         .from('app_files')
         .upload(audioFilePath, audioFile, { contentType: audioFile.type, upsert: true });
       if (uploadError) throw uploadError;
-      const { data: publicUrlData } = supabase.storage.from('app_files').getPublicUrl(audioFilePath);
-      audioUrl = publicUrlData.publicUrl;
+      existingAudioUrl = uploadData.path; // Use path for now, get public URL later
+      if (!resourceName) resourceName = audioFile.name;
     }
 
     // Handle image file upload
@@ -1928,25 +1954,50 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         .from('app_files')
         .upload(imageFilePath, imageFile, { contentType: imageFile.type, upsert: true });
       if (uploadError) throw uploadError;
-      const { data: publicUrlData } = supabase.storage.from('app_files').getPublicUrl(imageFilePath);
-      imageUrl = publicUrlData.publicUrl;
+      existingImageUrl = uploadData.path; // Use path for now, get public URL later
+      if (!resourceName) resourceName = imageFile.name;
     }
 
-    // Update resource content based on uploads
-    if (finalResource?.type === 'text_audio') {
-      finalResource.content = { 
-        ...(finalResource.content as { text: string; audioUrl: string; }), 
-        audioUrl: audioUrl || (finalResource.content as { text: string; audioUrl: string; }).audioUrl 
-      };
-    } else if (finalResource?.type === 'text_audio_image') {
-      finalResource.content = { 
-        ...(finalResource.content as { text: string; audioUrl?: string; imageUrl?: string; }), 
-        audioUrl: audioUrl || (finalResource.content as { text: string; audioUrl?: string; imageUrl?: string; }).audioUrl,
-        imageUrl: imageUrl || (finalResource.content as { text: string; audioUrl?: string; imageUrl?: string; }).imageUrl,
-      };
-    } else if ((finalResource?.type === 'image' || finalResource?.type === 'pdf' || finalResource?.type === 'audio') && (audioUrl || imageUrl)) {
-      finalResource.content = (audioUrl || imageUrl)!;
+    // Determine final content to save based on resource type and uploaded URLs
+    const newResourceType = updates.resource?.type !== undefined ? updates.resource.type : item.resource?.type;
+
+    if (newResourceType) {
+      switch (newResourceType) {
+        case 'text':
+          contentToSave = updates.resource?.content as string || existingTextContent || '';
+          break;
+        case 'link':
+        case 'video':
+          contentToSave = updates.resource?.content as string || existingLinkVideoContent || '';
+          break;
+        case 'audio':
+        case 'image':
+        case 'pdf':
+          contentToSave = (audioFile || imageFile) ? (audioFile ? existingAudioUrl : existingImageUrl) : (updates.resource?.content as string || item.resource?.content as string || '');
+          break;
+        case 'text_audio':
+          contentToSave = {
+            text: (updates.resource?.content as { text: string; audioUrl: string; })?.text || existingTextContent || '',
+            audioUrl: (audioFile ? existingAudioUrl : (updates.resource?.content as { text: string; audioUrl: string; })?.audioUrl || existingAudioUrl) || '',
+          };
+          break;
+        case 'text_audio_image':
+          contentToSave = {
+            text: (updates.resource?.content as { text: string; audioUrl?: string; imageUrl?: string; })?.text || existingTextContent || '',
+            audioUrl: (audioFile ? existingAudioUrl : (updates.resource?.content as { text: string; audioUrl?: string; imageUrl?: string; })?.audioUrl || existingAudioUrl) || '',
+            imageUrl: (imageFile ? existingImageUrl : (updates.resource?.content as { text: string; audioUrl?: string; imageUrl?: string; })?.imageUrl || existingImageUrl) || '',
+          };
+          break;
+        default:
+          contentToSave = '';
+      }
     }
+
+    const finalResource: DailyChecklistItemResource | undefined = newResourceType && newResourceType !== 'none' ? {
+      type: newResourceType,
+      content: contentToSave,
+      name: resourceName,
+    } : undefined;
 
     const { data, error } = await supabase.from('daily_checklist_items').update({ ...updates, resource: finalResource }).eq('id', id).select('*').single();
     if (error) throw error;
@@ -2493,7 +2544,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       const { data: updatedTeamMembersData, error: fetchError } = await supabase
         .from('team_members')
-        .select('id, data, cpf');
+        .select('id, data, cpf, user_id'); // Fetch user_id here
       if (fetchError) console.error("Error refetching team members:", fetchError);
       else {
         const normalized = updatedTeamMembersData.map(item => {
@@ -2511,6 +2562,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             isLegacy: !isAuthUserLinked,
             cpf: item.cpf,
             dateOfBirth: data.dateOfBirth,
+            user_id: item.user_id, // Set user_id
           } as TeamMember;
         });
         setTeamMembers(normalized);
@@ -2527,6 +2579,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!user) throw new Error("Usuário não autenticado.");
     const member = teamMembers.find(m => m.id === id); // 'id' here is the client-side ID (e.g., legacy_...)
     if (!member || !member.db_id) throw new Error("Membro da equipe não encontrado.");
+
+    console.log(`[updateTeamMember] Attempting to update member: ${member.name} (Client-side ID: ${id}, DB_ID: ${member.db_id})`);
+    console.log(`[updateTeamMember] Current member.user_id (owner): ${member.user_id}`);
+    console.log(`[updateTeamMember] Current logged-in user.id: ${user.id}`);
+
+    if (member.user_id !== user.id) {
+      console.error(`[updateTeamMember] Permission denied: Logged-in user (${user.id}) is not the owner (${member.user_id}) of this team member record.`);
+      throw new Error("Você não tem permissão para editar este membro da equipe. Apenas o criador pode editá-lo.");
+    }
 
     const updatedData = { ...member.data, ...updates }; // This updates the JSONB 'data' column
     const cleanedCpf = updates.cpf ? updates.cpf.replace(/\D/g, '') : member.cpf;
@@ -2547,7 +2608,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       if (!existingAuthUser) {
         console.log("[updateTeamMember] No existing auth user found for legacy member. Creating one.");
-        // If no auth user exists, create one
+        // If no auth user exists, create one (this is a bit aggressive for an update, but necessary for migration)
         const tempPassword = generateRandomPassword();
         const { data: newAuthUserData, error: createAuthError } = await supabase.auth.admin.createUser({
           email: member.email,
@@ -2624,6 +2685,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             ...updates, // Apply other updates
             data: { ...updatedData, id: newAuthUserId! }, // Ensure data.id is also updated
             cpf: cleanedCpf,
+            user_id: JOAO_GESTOR_AUTH_ID, // Ensure owner ID is set
           }];
         });
 
@@ -2663,6 +2725,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!user) throw new Error("Usuário não autenticado.");
     const member = teamMembers.find(m => m.id === id);
     if (!member || !member.db_id) throw new Error("Membro da equipe não encontrado.");
+
+    console.log(`[deleteTeamMember] Attempting to delete member: ${member.name} (Client-side ID: ${id}, DB_ID: ${member.db_id})`);
+    console.log(`[deleteTeamMember] Current member.user_id (owner): ${member.user_id}`);
+    console.log(`[deleteTeamMember] Current logged-in user.id: ${user.id}`);
+
+    if (member.user_id !== user.id) {
+      console.error(`[deleteDeleteMember] Permission denied: Logged-in user (${user.id}) is not the owner (${member.user_id}) of this team member record.`);
+      throw new Error("Você não tem permissão para excluir este membro da equipe. Apenas o criador pode excluí-lo.");
+    }
 
     if (member.hasLogin && typeof member.id === 'string' && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(member.id)) {
       const { error: authDeleteError } = await supabase.auth.admin.deleteUser(member.id);
