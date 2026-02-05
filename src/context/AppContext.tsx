@@ -649,6 +649,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           return member;
         }) || [];
         setTeamMembers(normalizedTeamMembers);
+        console.log("[AppContext] Normalized Team Members:", normalizedTeamMembers); // Adicionado log aqui
 
         setSupportMaterials(materialsData?.data?.map(item => ({ ...(item.data as SupportMaterial), db_id: item.id })) || []);
         setCutoffPeriods(cutoffData?.data?.map(item => ({ ...(item.data as CutoffPeriod), db_id: item.id })) || []);
@@ -783,30 +784,25 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             console.log('Candidate Change (Realtime):', payload);
             toast.info(`🔄 Candidato "${payload.new.data.name || payload.old.data.name}" atualizado em tempo real!`);
             
-            const rawPayloadData = (payload.new.data || {}) as Candidate; // Defensivo
+            const rawPayloadData = (payload.new.data || {}) as Candidate; 
             const clientSideId = rawPayloadData.id || crypto.randomUUID(); 
-            if (!rawPayloadData.id) {
-              console.warn(`[Realtime: Candidate] Candidate with db_id "${payload.new.id}" is missing client-side 'id' in JSONB data. Generating new client-side ID: "${clientSideId}"`);
-            }
             
             const candidate: Candidate = {
-                ...rawPayloadData, // Atribui diretamente os dados brutos
+                ...rawPayloadData, 
                 id: clientSideId,
                 db_id: payload.new.id,
                 createdAt: payload.new.created_at,
                 lastUpdatedAt: payload.new.last_updated_at,
-                // Fornece valores padrão para objetos aninhados se forem nulos/indefinidos
                 interviewScores: rawPayloadData.interviewScores || { basicProfile: 0, commercialSkills: 0, behavioralProfile: 0, jobFit: 0, notes: '' },
                 checkedQuestions: rawPayloadData.checkedQuestions || {},
                 checklistProgress: rawPayloadData.checklistProgress || {},
                 consultantGoalsProgress: rawCandidateData.consultantGoalsProgress || {},
                 feedbacks: rawCandidateData.feedbacks || [],
                 data: rawCandidateData.data || {},
-                name: String(rawPayloadData.name || ''), // Explicitly default a ''
-                phone: String(rawPayloadData.phone || ''), // Explicitly default a ''
-                email: String(rawPayloadData.email || ''), // Explicitly default a ''
+                name: String(rawPayloadData.name || ''), 
+                phone: String(rawPayloadData.phone || ''), 
+                email: String(rawPayloadData.email || ''), 
             };
-            console.log('[Realtime: Candidate] Deep copied newCandidateData.name:', candidate.name, `client-side ID:`, candidate.id, `db_id:`, candidate.db_id, `createdAt:`, candidate.createdAt);
 
             if (payload.eventType === 'INSERT') {
                 setCandidates(prev => {
@@ -1035,7 +1031,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         })
         .subscribe();
 
-    const notificationsChannel = supabase // NOVO: Canal de notificações
+    const notificationsChannel = supabase 
         .channel('notifications_changes')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${user?.id}` }, (payload) => {
             console.log('Notification Change (Realtime):', payload);
@@ -1061,7 +1057,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         })
         .subscribe();
 
-    const teamProductionGoalsChannel = supabase // NOVO: Canal de metas de produção da equipe
+    const teamProductionGoalsChannel = supabase 
         .channel('team_production_goals_changes')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'team_production_goals', filter: `user_id=eq.${user?.id}` }, (payload) => {
             console.log('Team Production Goal Change (Realtime):', payload);
@@ -1096,8 +1092,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         supabase.removeChannel(financialEntriesChannel);
         supabase.removeChannel(formCadastrosChannel);
         supabase.removeChannel(formFilesChannel);
-        supabase.removeChannel(notificationsChannel); // NOVO: Remove o canal de notificações
-        supabase.removeChannel(teamProductionGoalsChannel); // NOVO: Remove o canal de metas de produção da equipe
+        supabase.removeChannel(notificationsChannel); 
+        supabase.removeChannel(teamProductionGoalsChannel); 
     };
   }, [user, crmOwnerUserId]);
 
@@ -1116,13 +1112,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const lastUpdatedAt = new Date().toISOString();
 
     const newCandidateData: Candidate = { 
-      ...candidate, // Atribui diretamente os dados brutos
+      ...candidate, 
       id: clientSideId,
       status: candidate.status || 'Triagem', 
       screeningStatus: candidate.screeningStatus || 'Pending Contact',
       createdAt: createdAt, 
       lastUpdatedAt: lastUpdatedAt, 
-      // Fornece valores padrão para objetos aninhados se forem nulos/indefinidos
       interviewScores: candidate.interviewScores || { basicProfile: 0, commercialSkills: 0, behavioralProfile: 0, jobFit: 0, notes: '' },
       checkedQuestions: candidate.checkedQuestions || {},
       checklistProgress: candidate.checklistProgress || {},
@@ -1151,9 +1146,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         lastUpdatedAt: data.last_updated_at 
       };
       setCandidates(prev => [finalCandidate, ...prev]); 
-      return finalCandidate; // Retorna o objeto completo com db_id e timestamps
+      return finalCandidate; 
     } 
-    return newCandidateData; // Fallback, embora data deva existir
+    return newCandidateData; 
   }, [user]);
   const updateCandidate = useCallback(async (id: string, updates: Partial<Candidate>) => { 
     if (!user) throw new Error("Usuário não autenticado."); 
@@ -1169,7 +1164,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     console.log(`[updateCandidate] Found candidate (original name): "${c.name}", client-side ID: "${c.id}", db_id: "${c.db_id}"`);
     console.log(`[updateCandidate] Updates object:`, updates);
 
-    // Não fazemos deep copy do objeto inteiro, mas garantimos que os objetos aninhados sejam novos se atualizados
     const mergedCandidateData: Candidate = {
       ...c,
       ...updates,
@@ -1192,7 +1186,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         ? { ...c.data, ...updates.data } 
         : c.data,
       
-      lastUpdatedAt: new Date().toISOString(), // Garante que lastUpdatedAt seja sempre atualizado
+      lastUpdatedAt: new Date().toISOString(), 
     };
     
     console.log(`[updateCandidate] Merged updated candidate name (mergedCandidateData.name): "${mergedCandidateData.name}"`);
@@ -1781,20 +1775,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const defaultStage = crmStages.find(s => s.pipeline_id === crmPipelines.find(p => p.is_active)?.id);
     if (!defaultStage) throw new Error("Nenhuma etapa de pipeline ativa encontrada. Configure as etapas do CRM.");
 
-    // Mapear propriedades camelCase para snake_case para o payload do Supabase
     const payload = {
       name: lead.name,
-      consultant_id: lead.consultant_id || user.id, // Default to current user if not specified
+      consultant_id: lead.consultant_id || user.id, 
       stage_id: lead.stage_id || defaultStage.id,
       user_id: crmOwnerUserId,
       created_by: user.id,
       data: lead.data,
-      proposal_value: lead.proposalValue, // Mapeado
-      proposal_closing_date: lead.proposalClosingDate, // Mapeado
-      sold_credit_value: lead.soldCreditValue, // Mapeado
-      sold_group: lead.soldGroup, // Mapeado
-      sold_quota: lead.soldQuota, // Mapeado
-      sale_date: lead.saleDate, // Mapeado
+      proposal_value: lead.proposalValue, 
+      proposal_closing_date: lead.proposalClosingDate, 
+      sold_credit_value: lead.soldCreditValue, 
+      sold_group: lead.soldGroup, 
+      sold_quota: lead.soldQuota, 
+      sale_date: lead.saleDate, 
     };
 
     const { data, error } = await supabase.from('crm_leads').insert(payload).select('*').single();
@@ -1808,18 +1801,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const lead = crmLeads.find(l => l.id === id);
     if (!lead) throw new Error("Lead não encontrado.");
 
-    // Mapear propriedades camelCase para snake_case para o payload do Supabase
     const payload = {
       name: updates.name,
       consultant_id: updates.consultant_id,
       stage_id: updates.stage_id,
       data: updates.data,
-      proposal_value: updates.proposalValue, // Mapeado
-      proposal_closing_date: updates.proposalClosingDate, // Mapeado
-      sold_credit_value: updates.soldCreditValue, // Mapeado
-      sold_group: updates.soldGroup, // Mapeado
-      sold_quota: updates.soldQuota, // Mapeado
-      sale_date: updates.saleDate, // Mapeado
+      proposal_value: updates.proposalValue, 
+      proposal_closing_date: updates.proposalClosingDate, 
+      sold_credit_value: updates.soldCreditValue, 
+      sold_group: updates.soldGroup, 
+      sold_quota: updates.soldQuota, 
+      sale_date: updates.saleDate, 
       updated_by: user.id,
       updated_at: new Date().toISOString(),
     };
@@ -1991,7 +1983,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     setDailyChecklistItems(prev => {
       const updated = prev.map(i => {
-        const update = updates.find(u => u.id === i.id)?.order_index;
+        const update = updates.find(u => u.id === i.id);
         return update ? { ...i, order_index: update.order_index } : i;
       });
       return updated.sort((a, b) => a.order_index - b.order_index);
@@ -2090,8 +2082,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (error) throw error;
     setWeeklyTargetItems(prev => {
       const updated = prev.map(i => {
-        const update = updates.find(u => u.id === i.id)?.order_index;
-        return newOrder !== undefined ? { ...i, order_index: newOrder } : i;
+        const update = updates.find(u => u.id === i.id);
+        return update ? { ...i, order_index: update.order_index } : i;
       });
       return updated.sort((a, b) => a.order_index - b.order_index);
     });
@@ -2266,9 +2258,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const toggleGestorTaskCompletion = useCallback(async (gestor_task_id: string, done: boolean, date: string) => {
     if (!user) throw new Error("Usuário não autenticado.");
 
-    const existingCompletion = gestorTaskCompletions.find(c =>
-      c.gestor_task_id === gestor_task_id &&
-      c.user_id === user.id &&
+    const existingCompletion = gestorTaskCompletions.find(c => 
+      c.gestor_task_id === gestor_task_id && 
+      c.user_id === user.id && 
       c.date === date
     );
 
@@ -2295,7 +2287,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const updateFinancialEntry = useCallback(async (id: string, updates: Partial<FinancialEntry>) => {
     if (!user) throw new Error("Usuário não autenticado.");
     
-    // REMOVER CAMPOS INTERNOS QUE NÃO EXISTEM NO BANCO DE DADOS
     const { db_id, id: entryId, created_at, user_id, ...cleanUpdates } = updates as any;
 
     const { data, error } = await supabase
@@ -2334,25 +2325,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const deleteFormCadastro = useCallback(async (id: string) => {
     if (!user || !crmOwnerUserId) throw new Error("Usuário não autenticado ou ID do gestor não definido.");
     
-    // Delete associated files from storage first
     const filesToDelete = formFiles.filter(f => f.submission_id === id);
     for (const file of filesToDelete) {
-      const filePath = file.file_url.split('/form_uploads/')[1]; // Extract path from public URL
+      const filePath = file.file_url.split('/form_uploads/')[1]; 
       if (filePath) {
         const { error: storageError } = await supabase.storage.from('form_uploads').remove([filePath]);
         if (storageError) console.error(`Error deleting file ${filePath} from storage:`, storageError);
       }
     }
 
-    // Delete file records from database
     const { error: deleteFilesError } = await supabase.from('form_files').delete().eq('submission_id', id);
     if (deleteFilesError) console.error("Error deleting form_files records:", deleteFilesError);
 
-    // Delete the submission record
     const { error } = await supabase.from('form_submissions').delete().eq('id', id).eq('user_id', crmOwnerUserId);
     if (error) throw error;
     setFormCadastros(prev => prev.filter(c => c.id !== id));
-    setFormFiles(prev => prev.filter(f => f.submission_id !== id)); // Update local state for files
+    setFormFiles(prev => prev.filter(f => f.submission_id !== id)); 
   }, [user, crmOwnerUserId, formFiles]);
 
   // Feedback functions
@@ -2512,9 +2500,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           const data = item.data as any;
           const isAuthUserLinked = typeof data.id === 'string' && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(data.id);
           return {
-            id: isAuthUserLinked ? data.id : item.id, // Usa o ID do Auth se for UUID, senão o ID da tabela team_members
-            db_id: item.id, // ID da tabela public.team_members
-            authUserId: isAuthUserLinked ? data.id : null, // Armazena o auth.users.id explicitamente
+            id: isAuthUserLinked ? data.id : item.id, 
+            db_id: item.id, 
+            authUserId: isAuthUserLinked ? data.id : null, 
             name: String(data.name || ''),
             email: data.email,
             roles: Array.isArray(data.roles) ? data.roles : [],
@@ -2570,12 +2558,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const member = teamMembers.find(m => m.id === id);
     if (!member || !member.db_id) throw new Error("Membro da equipe não encontrado.");
 
-    // Só tenta excluir do Auth se o membro tiver um login válido (UUID)
     if (member.hasLogin && typeof member.id === 'string' && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(member.id)) {
       const { error: authDeleteError } = await supabase.auth.admin.deleteUser(member.id);
       if (authDeleteError) {
         console.error("Error deleting auth user:", authDeleteError);
-        // Não lançar erro aqui para permitir a exclusão do perfil público
       }
     } else {
       console.log(`[deleteTeamMember] Membro "${member.name}" (ID: ${member.id}) não tem login válido no Auth ou é legado. Pulando exclusão do Auth.`);
@@ -2659,7 +2645,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     formCadastros,
     formFiles,
     notifications,
-    teamProductionGoals, // NOVO: Adicionado ao contexto
+    teamProductionGoals, 
     theme,
 
     // Functions
