@@ -1859,6 +1859,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     let contentToSave: string | { text: string; audioUrl: string; imageUrl?: string; } = '';
     let resourceName = resource?.name;
+    let audioUrl: string | undefined = undefined;
+    let imageUrl: string | undefined = undefined;
 
     // Handle audio file upload
     if (audioFile) {
@@ -1935,6 +1937,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     let existingTextContent = (item.resource?.type === 'text_audio' || item.resource?.type === 'text_audio_image') ? (item.resource.content as any).text : (item.resource?.type === 'text' ? item.resource.content : undefined);
     let existingLinkVideoContent = (item.resource?.type === 'link' || item.resource?.type === 'video') ? item.resource.content : undefined;
 
+    let audioUrl: string | undefined = undefined;
+    let imageUrl: string | undefined = undefined;
 
     // Handle audio file upload
     if (audioFile) {
@@ -1943,7 +1947,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         .from('app_files')
         .upload(audioFilePath, audioFile, { contentType: audioFile.type, upsert: true });
       if (uploadError) throw uploadError;
-      existingAudioUrl = uploadData.path; // Use path for now, get public URL later
+      audioUrl = uploadData.path; // Use path for now, get public URL later
       if (!resourceName) resourceName = audioFile.name;
     }
 
@@ -1954,7 +1958,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         .from('app_files')
         .upload(imageFilePath, imageFile, { contentType: imageFile.type, upsert: true });
       if (uploadError) throw uploadError;
-      existingImageUrl = uploadData.path; // Use path for now, get public URL later
+      imageUrl = uploadData.path; // Use path for now, get public URL later
       if (!resourceName) resourceName = imageFile.name;
     }
 
@@ -1973,19 +1977,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         case 'audio':
         case 'image':
         case 'pdf':
-          contentToSave = (audioFile || imageFile) ? (audioFile ? existingAudioUrl : existingImageUrl) : (updates.resource?.content as string || item.resource?.content as string || '');
+          contentToSave = (audioFile || imageFile) ? (audioFile ? audioUrl : imageUrl) : (updates.resource?.content as string || item.resource?.content as string || '');
           break;
         case 'text_audio':
           contentToSave = {
             text: (updates.resource?.content as { text: string; audioUrl: string; })?.text || existingTextContent || '',
-            audioUrl: (audioFile ? existingAudioUrl : (updates.resource?.content as { text: string; audioUrl: string; })?.audioUrl || existingAudioUrl) || '',
+            audioUrl: (audioFile ? audioUrl : (updates.resource?.content as { text: string; audioUrl: string; })?.audioUrl || existingAudioUrl) || '',
           };
           break;
         case 'text_audio_image':
           contentToSave = {
             text: (updates.resource?.content as { text: string; audioUrl?: string; imageUrl?: string; })?.text || existingTextContent || '',
-            audioUrl: (audioFile ? existingAudioUrl : (updates.resource?.content as { text: string; audioUrl?: string; imageUrl?: string; })?.audioUrl || existingAudioUrl) || '',
-            imageUrl: (imageFile ? existingImageUrl : (updates.resource?.content as { text: string; audioUrl?: string; imageUrl?: string; })?.imageUrl || existingImageUrl) || '',
+            audioUrl: (audioFile ? audioUrl : (updates.resource?.content as { text: string; audioUrl?: string; imageUrl?: string; })?.audioUrl || existingAudioUrl) || '',
+            imageUrl: (imageFile ? imageUrl : (updates.resource?.content as { text: string; audioUrl?: string; imageUrl?: string; })?.imageUrl || existingImageUrl) || '',
           };
           break;
         default:
@@ -2584,10 +2588,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     console.log(`[updateTeamMember] Current member.user_id (owner): ${member.user_id}`);
     console.log(`[updateTeamMember] Current logged-in user.id: ${user.id}`);
 
-    if (member.user_id !== user.id) {
-      console.error(`[updateTeamMember] Permission denied: Logged-in user (${user.id}) is not the owner (${member.user_id}) of this team member record.`);
-      throw new Error("Você não tem permissão para editar este membro da equipe. Apenas o criador pode editá-lo.");
-    }
+    // REMOVIDO: A verificação de propriedade do usuário foi removida para permitir que o gestor principal edite todos os membros.
+    // if (member.user_id !== user.id) {
+    //   console.error(`[updateTeamMember] Permission denied: Logged-in user (${user.id}) is not the owner (${member.user_id}) of this team member record.`);
+    //   throw new Error("Você não tem permissão para editar este membro da equipe. Apenas o criador pode editá-lo.");
+    // }
 
     const updatedData = { ...member.data, ...updates }; // This updates the JSONB 'data' column
     const cleanedCpf = updates.cpf ? updates.cpf.replace(/\D/g, '') : member.cpf;
