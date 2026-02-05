@@ -37,14 +37,6 @@ export const TeamConfig = () => {
 
   const [isAddFormCollapsed, setIsAddFormCollapsed] = useState(true);
 
-  // Adicionando logs para depuração
-  console.log("[TeamConfig] Componente TeamConfig renderizado.");
-  console.log("[TeamConfig] teamMembers carregados:", teamMembers);
-  teamMembers.forEach(member => {
-    console.log(`  - Membro: ${member.name}, ID: ${member.id}, AuthUserID: ${member.authUserId}, DB_ID: ${member.db_id}, IsActive: ${member.isActive}, Roles: ${member.roles.join(', ')}, IsLegacy: ${member.isLegacy}, OwnerUserID: ${member.user_id}`);
-  });
-
-
   const handleRoleChange = (role: TeamRole, currentRoles: TeamRole[], setRoles: React.Dispatch<React.SetStateAction<TeamRole[]>>) => {
     const updatedRoles = currentRoles.includes(role)
       ? currentRoles.filter(r => r !== role)

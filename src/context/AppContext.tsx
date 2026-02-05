@@ -600,7 +600,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
 
         setCandidates(candidatesData?.data?.map(item => {
-          console.log(`[fetchData] Processing raw item:`, item);
           // Ensure item.data is an object, default to empty if null/undefined
           const rawCandidateData = (item.data || {}) as Candidate; 
           const clientSideId = rawCandidateData.id || crypto.randomUUID(); 
@@ -624,7 +623,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             email: String(rawCandidateData.email || ''), // Explicitly convert to string
           };
           
-          console.log(`[fetchData] Final candidate name before setCandidates:`, candidate.name, `client-side ID:`, candidate.id, `db_id:`, candidate.db_id, `createdAt:`, candidate.createdAt);
           return candidate;
         }) || []);
         
@@ -647,11 +645,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             dateOfBirth: data.dateOfBirth,
             user_id: item.user_id, // Adicionado user_id aqui
           };
-          console.log(`[AppContext] Fetched Team Member: ID=${member.id}, AuthUserID=${member.authUserId}, Name=${member.name}, IsActive=${member.isActive}, Roles=${member.roles.join(', ')}, HasLogin=${member.hasLogin}, IsLegacy=${member.isLegacy}, OwnerUserID=${member.user_id}`);
           return member;
         }) || [];
         setTeamMembers(normalizedTeamMembers);
-        console.log("[AppContext] Normalized Team Members:", normalizedTeamMembers); // Adicionado log aqui
 
         setSupportMaterials(materialsData?.data?.map(item => ({ ...(item.data as SupportMaterial), db_id: item.id })) || []);
         setCutoffPeriods(cutoffData?.data?.map(item => ({ ...(item.data as CutoffPeriod), db_id: item.id })) || []);
@@ -661,7 +657,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         let finalPipelines = pipelinesData?.data || [];
         if (finalPipelines.length === 0) {
           if (user?.role === 'GESTOR' || user?.role === 'ADMIN') {
-            console.log(`[AppContext] No CRM pipelines found for ${effectiveGestorId}. Creating default pipeline.`);
             const { data: newPipeline, error: insertPipelineError } = await supabase
               .from('crm_pipelines')
               .insert({ user_id: effectiveGestorId, name: 'Pipeline Padrão', is_active: true })
@@ -672,8 +667,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             } else if (newPipeline) {
               finalPipelines = [newPipeline];
             }
-          } else {
-            console.log(`[AppContext] No CRM pipelines found for Gestor ${effectiveGestorId} linked to consultant ${userId}.`);
           }
         }
         setCrmPipelines(finalPipelines);
@@ -783,7 +776,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const candidatesChannel = supabase
         .channel('candidates_changes')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'candidates', filter: `user_id=eq.${crmOwnerUserId}` }, (payload) => {
-            console.log('Candidate Change (Realtime):', payload);
             toast.info(`🔄 Candidato "${payload.new.data.name || payload.old.data.name}" atualizado em tempo real!`);
             
             const rawPayloadData = (payload.new.data || {}) as Candidate; 
@@ -809,33 +801,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             if (payload.eventType === 'INSERT') {
                 setCandidates(prev => {
                     if (prev.some(c => c.db_id === candidate.db_id)) {
-                        console.log('Skipping insert, candidate already exists (db_id):', candidate.db_id);
                         return prev;
                     }
                     if (prev.some(c => c.id === candidate.id && !c.db_id)) {
-                        console.log('Skipping insert, candidate already exists (client-side id):', candidate.id);
                         return prev;
                     }
-                    console.log('[Realtime: Candidate] Inserting candidate with name:', candidate.name);
                     return [candidate, ...prev];
                 });
             } else if (payload.eventType === 'UPDATE') {
                 setCandidates(prev => {
                     const updatedArray = prev.map(c => {
                         if (c.db_id === candidate.db_id) {
-                            console.log(`[Realtime: Candidate] Updating candidate from "${c.name}" to "${candidate.name}"`);
                             return candidate;
                         }
                         return c;
                     });
-                    console.log('[Realtime: Candidate] Array after update (names):', updatedArray.map(c => c.name));
                     return updatedArray;
                 });
             } else if (payload.eventType === 'DELETE') {
                 setCandidates(prev => {
-                    console.log('[Realtime: Candidate] Deleting candidate with name:', payload.old.data.name);
                     const filteredArray = prev.filter(c => c.db_id !== payload.old.id);
-                    console.log('[Realtime: Candidate] Array after delete (names):', filteredArray.map(c => c.name));
                     return filteredArray;
                 });
             }
@@ -845,7 +830,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const leadsChannel = supabase
         .channel('crm_leads_changes')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'crm_leads' }, (payload) => {
-            console.log('CRM Lead Change (Realtime):', payload);
             toast.info(`🔄 Lead "${payload.new.name || payload.old.name}" atualizado em tempo real!`);
             const newLeadData: CrmLead = {
                 id: payload.new.id,
@@ -879,7 +863,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const tasksChannel = supabase
         .channel('lead_tasks_changes')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'lead_tasks' }, (payload) => {
-            console.log('Lead Task Change (Realtime):', payload);
             toast.info(`📝 Tarefa "${payload.new.title || payload.old.title}" atualizada em tempo real!`);
             const newTaskData: LeadTask = {
                 id: payload.new.id,
@@ -912,7 +895,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const gestorTasksChannel = supabase
         .channel('gestor_tasks_changes')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'gestor_tasks' }, (payload) => {
-            console.log('Gestor Task Change (Realtime):', payload);
             toast.info(`📋 Tarefa pessoal "${payload.new.title || payload.old.title}" atualizada em tempo real!`);
             const newGestorTaskData: GestorTask = {
                 id: payload.new.id,
@@ -938,7 +920,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const gestorTaskCompletionsChannel = supabase
         .channel('gestor_task_completions_changes')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'gestor_task_completions' }, (payload) => {
-            console.log('Gestor Task Completion Change (Realtime):', payload);
             toast.info(`✅ Conclusão de tarefa do gestor atualizada em tempo real!`);
             const newCompletionData: GestorTaskCompletion = {
                 id: payload.new.id,
@@ -962,7 +943,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const financialEntriesChannel = supabase
         .channel('financial_entries_changes')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'financial_entries' }, (payload) => {
-            console.log('Financial Entry Change (Realtime):', payload);
             toast.info(`💰 Entrada/Saída financeira atualizada em tempo real!`);
             const newEntryData: FinancialEntry = {
                 id: payload.new.id,
@@ -988,7 +968,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const formCadastrosChannel = supabase
         .channel('form_submissions_changes')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'form_submissions' }, (payload) => {
-            console.log('Form Cadastro Change (Realtime):', payload);
             toast.info(`📄 Novo cadastro de formulário em tempo real!`);
             const newCadastroData: FormCadastro = {
                 id: payload.new.id,
@@ -1012,7 +991,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const formFilesChannel = supabase
         .channel('form_files_changes')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'form_files' }, (payload) => {
-            console.log('Form File Change (Realtime):', payload);
             toast.info(`📎 Arquivo de formulário atualizado em tempo real!`);
             const newFileData: FormFile = {
                 id: payload.new.id,
@@ -1036,7 +1014,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const notificationsChannel = supabase 
         .channel('notifications_changes')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${user?.id}` }, (payload) => {
-            console.log('Notification Change (Realtime):', payload);
             toast.info(`🔔 Nova notificação: "${payload.new.title || payload.old.title}"`);
             const newNotificationData: Notification = {
                 id: payload.new.id,
@@ -1062,7 +1039,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const teamProductionGoalsChannel = supabase 
         .channel('team_production_goals_changes')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'team_production_goals', filter: `user_id=eq.${user?.id}` }, (payload) => {
-            console.log('Team Production Goal Change (Realtime):', payload);
             toast.info(`🎯 Meta de produção da equipe atualizada em tempo real!`);
             const newGoalData: TeamProductionGoal = {
                 id: payload.new.id,
@@ -1155,17 +1131,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const updateCandidate = useCallback(async (id: string, updates: Partial<Candidate>) => { 
     if (!user) throw new Error("Usuário não autenticado."); 
     
-    console.log(`[updateCandidate] ID passed: "${id}"`);
-
     const c = candidates.find(c => c.id === id); 
     if (!c || !c.db_id) {
-      console.error(`[updateCandidate] Candidate with client-side ID "${id}" not found or missing db_id.`);
       throw new Error("Candidato não encontrado ou ID do banco de dados ausente."); 
     }
     
-    console.log(`[updateCandidate] Found candidate (original name): "${c.name}", client-side ID: "${c.id}", db_id: "${c.db_id}"`);
-    console.log(`[updateCandidate] Updates object:`, updates);
-
     const mergedCandidateData: Candidate = {
       ...c,
       ...updates,
@@ -1191,8 +1161,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       lastUpdatedAt: new Date().toISOString(), 
     };
     
-    console.log(`[updateCandidate] Merged updated candidate name (mergedCandidateData.name): "${mergedCandidateData.name}"`);
-
     const finalDataForSupabase = { ...mergedCandidateData };
     delete finalDataForSupabase.db_id;
     delete finalDataForSupabase.createdAt;
@@ -1202,12 +1170,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       data: finalDataForSupabase, 
       last_updated_at: mergedCandidateData.lastUpdatedAt 
     }).match({ id: c.db_id, user_id: JOAO_GESTOR_AUTH_ID }); 
-    if (error) { console.error(error); toast.error("Erro ao atualizar candidato."); throw error; } 
+    if (error) { toast.error("Erro ao atualizar candidato."); throw error; } 
     
     setCandidates(prev => prev.map(p => {
-      console.log(`[updateCandidate:setCandidates] Comparing p.id: "${p.id}" with target id: "${id}"`);
       if (p.id === id) {
-        console.log(`[updateUpdate:setCandidates] MATCH! Updating candidate from "${p.name}" to "${mergedCandidateData.name}"`);
         return { ...mergedCandidateData, db_id: c.db_id, createdAt: c.createdAt };
       }
       return p;
@@ -1220,28 +1186,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
     const c = candidates.find(c => c.id === id);
     if (!c) {
-      console.error(`[deleteCandidate] Candidato com client-side ID "${id}" não encontrado no estado local.`);
       toast.error("Candidato não encontrado no estado local.");
       throw new Error("Candidato não encontrado no estado local.");
     }
     if (!c.db_id) {
-      console.error(`[deleteCandidate] Candidato "${c.name}" (client-side ID: "${c.id}") não possui db_id. Não é possível excluir do Supabase.`);
       toast.error("Candidato não possui ID do banco de dados.");
       throw new Error("Candidato não possui ID do banco de dados.");
     }
 
-    console.log(`[deleteCandidate] Tentando excluir candidato:`);
-    console.log(`  Client-side ID (c.id): "${c.id}"`);
-    console.log(`  Supabase DB_ID (c.db_id): "${c.db_id}"`);
-    console.log(`  User ID (JOAO_GESTOR_AUTH_ID): "${JOAO_GESTOR_AUTH_ID}"`);
-
     if (!c.db_id || typeof c.db_id !== 'string' || c.db_id.length === 0) {
-      console.error(`[deleteCandidate] c.db_id é inválido: "${c.db_id}"`);
       toast.error("Erro interno: ID do candidato para exclusão é inválido.");
       throw new Error("ID do candidato para exclusão é inválido.");
     }
     if (!JOAO_GESTOR_AUTH_ID || typeof JOAO_GESTOR_AUTH_ID !== 'string' || JOAO_GESTOR_AUTH_ID.length === 0) {
-      console.error(`[deleteCandidate] JOAO_GESTOR_AUTH_ID é inválido: "${JOAO_GESTOR_AUTH_ID}"`);
       toast.error("Erro interno: ID do gestor para exclusão é inválido.");
       throw new Error("ID do gestor para exclusão é inválido.");
     }
@@ -1253,11 +1210,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       .eq('user_id', JOAO_GESTOR_AUTH_ID);
 
     if (error) {
-      console.error(`[deleteCandidate] Erro ao excluir candidato "${c.name}" (DB_ID: "${c.db_id}"):`, error);
       toast.error("Erro ao excluir candidato.");
       throw error;
     }
-    console.log(`[deleteCandidate] Candidato "${c.name}" (DB_ID: "${c.db_id}") excluído com sucesso.`);
     setCandidates(prev => prev.filter(p => p.id !== id));
   }, [user, candidates]);
 
@@ -1741,8 +1696,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (error) throw error;
     setCrmStages(prev => {
       const updated = prev.map(s => {
-        const newOrder = updates.find(u => u.id === s.id)?.order_index;
-        return newOrder !== undefined ? { ...s, order_index: newOrder } : s;
+        const update = updates.find(u => u.id === s.id);
+        return update ? { ...s, order_index: update.order_index } : s;
       });
       return updated.sort((a, b) => a.order_index - b.order_index);
     });
@@ -2075,7 +2030,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (error) throw error;
       setDailyChecklistCompletions(prev => prev.map(c => c.id === existingCompletion.id ? data : c));
     } else {
-      const { data, error } = await supabase.from('daily_checklist_completions').insert({ daily_checklist_item_id, consultant_id, date, done }).select('*').single();
+      const { data, error } = await supabase.from('daily_checklist_completions').insert({ gestor_task_id: daily_checklist_item_id, user_id: consultant_id, date, done }).select('*').single(); // Corrigido: Usar gestor_task_id e user_id
       if (error) throw error;
       setDailyChecklistCompletions(prev => [...prev, data]);
     }
@@ -2585,10 +2540,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const member = teamMembers.find(m => m.id === id); // 'id' here is the client-side ID (e.g., legacy_...)
     if (!member || !member.db_id) throw new Error("Membro da equipe não encontrado.");
 
-    console.log(`[updateTeamMember] Attempting to update member: ${member.name} (Client-side ID: ${id}, DB_ID: ${member.db_id})`);
-    console.log(`[updateTeamMember] Current member.user_id (owner): ${member.user_id}`);
-    console.log(`[updateTeamMember] Current logged-in user.id: ${user.id}`);
-
     const updatedData = { ...member.data, ...updates }; // This updates the JSONB 'data' column
     const cleanedCpf = updates.cpf ? updates.cpf.replace(/\D/g, '') : member.cpf;
 
@@ -2596,18 +2547,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     // Special handling for legacy members to link them to auth.users.id
     if (member.isLegacy) {
-      console.log(`[AppContext] Legacy Member Migration Started for ${member.name} (ID: ${member.id})`);
       // 1. Try to find the corresponding auth.users.id by email
       const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers({ email: member.email });
       let existingAuthUser = authUsers?.users?.[0];
 
       if (authError) {
-        console.error("[AppContext] Error listing auth users:", authError);
         throw authError;
       }
 
       if (!existingAuthUser) {
-        console.log("[AppContext] No existing auth user found for legacy member. Creating one.");
         // If no auth user exists, create one (this is a bit aggressive for an update, but necessary for migration)
         const tempPassword = generateRandomPassword();
         const { data: newAuthUserData, error: createAuthError } = await supabase.auth.admin.createUser({
@@ -2623,29 +2571,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           },
         });
         if (createAuthError) {
-          console.error("[AppContext] Error creating auth user for legacy member:", createAuthError);
           throw createAuthError;
         }
         existingAuthUser = newAuthUserData.user;
-        console.log("[AppContext] New auth user created:", existingAuthUser.id);
-      } else {
-        console.log("[AppContext] Existing auth user found for legacy member:", existingAuthUser.id);
       }
 
       if (existingAuthUser) {
         newAuthUserId = existingAuthUser.id;
         
         // 1. Delete the old legacy record
-        console.log(`[AppContext] Deleting legacy team_members record with db_id: ${member.db_id}`);
         const { error: deleteError } = await supabase
           .from('team_members')
           .delete()
           .eq('id', member.db_id); 
         if (deleteError) {
-          console.error("[AppContext] Error deleting legacy team member record:", deleteError);
           throw deleteError;
         }
-        console.log("[AppContext] Legacy Record Deleted Successfully");
 
         // 2. Prepare data for new insert (using the correct authUserId as PK)
         const newMemberDataForInsert = {
@@ -2659,17 +2600,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           },
           cpf: cleanedCpf, // Include CPF
         };
-        console.log("[AppContext] Prepared new member data for insert:", newMemberDataForInsert);
 
         // 3. Insert the new record
         const { error: insertError } = await supabase
           .from('team_members')
           .insert(newMemberDataForInsert);
         if (insertError) {
-          console.error("[AppContext] Error inserting new team member record after migration:", insertError);
           throw insertError;
         }
-        console.log("[AppContext] New record inserted successfully after migration.");
 
         // Update the local state to reflect the migration
         setTeamMembers(prev => {
@@ -2695,22 +2633,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     // Standard update for non-legacy or legacy without email change
     if (updates.email && member.hasLogin && updates.email !== member.email) {
-      console.log(`[AppContext] Updating auth user email for ${member.email} to ${updates.email}`);
       const { error: authUpdateError } = await supabase.auth.admin.updateUserById(member.id, { email: updates.email });
       if (authUpdateError) {
-        console.error("[AppContext] Error updating auth user email:", authUpdateError);
         throw authUpdateError;
       }
     }
 
-    console.log(`[AppContext] Performing standard update for member ${member.name} (DB_ID: ${member.db_id})`);
     const { error } = await supabase
       .from('team_members')
       .update({ data: updatedData, cpf: cleanedCpf }) // Only updates 'data' and 'cpf'
       .match({ id: member.db_id }); 
 
     if (error) {
-      console.error("[AppContext] Error updating team member:", error);
       toast.error("Erro ao atualizar membro da equipe.");
       throw error;
     }
@@ -2725,12 +2659,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const member = teamMembers.find(m => m.id === id);
     if (!member || !member.db_id) throw new Error("Membro da equipe não encontrado.");
 
-    console.log(`[AppContext] Attempting to delete member: ${member.name} (Client-side ID: ${id}, DB_ID: ${member.db_id})`);
-    console.log(`[AppContext] Current member.user_id (owner): ${member.user_id}`);
-    console.log(`[AppContext] Current logged-in user.id: ${user.id}`);
-
     if (member.user_id !== user.id) {
-      console.error(`[AppContext] Permission denied: Logged-in user (${user.id}) is not the owner (${member.user_id}) of this team member record.`);
       throw new Error("Você não tem permissão para excluir este membro da equipe. Apenas o criador pode excluí-lo.");
     }
 
@@ -2740,7 +2669,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         console.error("Error deleting auth user:", authDeleteError);
       }
     } else {
-      console.log(`[AppContext] Membro "${member.name}" (ID: ${member.id}) não tem login válido no Auth ou é legado. Pulando exclusão do Auth.`);
+      console.log(`Membro "${member.name}" (ID: ${member.id}) não tem login válido no Auth ou é legado. Pulando exclusão do Auth.`);
     }
 
     const { error } = await supabase
@@ -2749,7 +2678,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       .match({ id: member.db_id }); 
 
     if (error) {
-      console.error("Error deleting team member:", error);
       toast.error("Erro ao remover membro da equipe.");
       throw error;
     }
