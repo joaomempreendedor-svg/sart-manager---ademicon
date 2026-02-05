@@ -5,50 +5,42 @@ import { CrmLead, LeadTask, TeamMember } from '@/types';
 import { X, Save, Loader2, Calendar, Clock, MessageSquare, Users, CheckCircle2, XCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-interface ScheduleMeetingModalProps {
+interface RecordTeamMemberInterviewModalProps {
   isOpen: boolean;
   onClose: () => void;
-  lead: CrmLead;
-  currentMeeting?: LeadTask | null; // Optional, for editing an existing meeting
+  teamMember: TeamMember; // Alterado de 'lead' para 'teamMember'
 }
 
-export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOpen, onClose, lead, currentMeeting }) => {
+export const RecordTeamMemberInterviewModal: React.FC<RecordTeamMemberInterviewModalProps> = ({ isOpen, onClose, teamMember }) => { // Renomeado o componente e a prop
   const { user } = useAuth();
-  const { addLeadTask, updateLeadTask, teamMembers } = useApp();
+  const { addLeadTask, updateLeadTask, teamMembers } = useApp(); // Mantido addLeadTask/updateLeadTask por enquanto, mas a lógica será ajustada para entrevistas de candidatos
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [meetingDate, setMeetingDate] = useState('');
+  const [interviewDate, setInterviewDate] = useState(''); // Renomeado de meetingDate
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
-  const [managerId, setManagerId] = useState<string | null>(null);
+  const [interviewerId, setInterviewerId] = useState<string | null>(null); // Renomeado de managerId
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
 
-  const managers = useMemo(() => {
-    // Filtra apenas membros ativos que são Gestor E que possuem um authUserId
-    return teamMembers.filter(m => m.isActive && m.authUserId && m.roles.includes('Gestor'));
+  const interviewers = useMemo(() => { // Renomeado de managers
+    // Filtra apenas membros ativos que são Gestor ou Anjo E que possuem um authUserId
+    return teamMembers.filter(m => m.isActive && m.authUserId && (m.roles.includes('Gestor') || m.roles.includes('Anjo')));
   }, [teamMembers]);
 
   useEffect(() => {
     if (isOpen) {
-      if (currentMeeting) {
-        setTitle(currentMeeting.title);
-        setDescription(currentMeeting.description || '');
-        setMeetingDate(currentMeeting.meeting_start_time ? currentMeeting.meeting_start_time.split('T')[0] : '');
-        setStartTime(currentMeeting.meeting_start_time ? currentMeeting.meeting_start_time.split('T')[1].substring(0, 5) : '');
-        setEndTime(currentMeeting.meeting_end_time ? currentMeeting.meeting_end_time.split('T')[1].substring(0, 5) : '');
-        setManagerId(currentMeeting.manager_id || null);
-      } else {
-        setTitle(`Reunião com ${lead.name}`);
-        setDescription('');
-        setMeetingDate(new Date().toISOString().split('T')[0]); // Corrigido: Usando setMeetingDate
-        setStartTime('09:00');
-        setEndTime('10:00');
-        setManagerId(user?.id || null); // Default to current user if manager
-      }
+      // Lógica para preencher o modal com dados da entrevista, se houver
+      // Por enquanto, vamos assumir que é sempre uma nova entrevista para este modal
+      setTitle(`Entrevista com ${teamMember.name}`);
+      setDescription('');
+      setInterviewDate(new Date().toISOString().split('T')[0]);
+      setStartTime('09:00');
+      setEndTime('10:00');
+      setInterviewerId(user?.id || null); // Default para o usuário logado como entrevistador
       setError('');
     }
-  }, [isOpen, currentMeeting, lead.name, user]);
+  }, [isOpen, teamMember, user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,13 +50,13 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
       setError('Usuário não autenticado.');
       return;
     }
-    if (!title.trim() || !meetingDate || !startTime || !endTime) {
+    if (!title.trim() || !interviewDate || !startTime || !endTime) {
       setError('Título, data e horários de início/fim são obrigatórios.');
       return;
     }
 
-    const startDateTime = new Date(`${meetingDate}T${startTime}:00`);
-    const endDateTime = new Date(`${meetingDate}T${endTime}:00`);
+    const startDateTime = new Date(`${interviewDate}T${startTime}:00`);
+    const endDateTime = new Date(`${interviewDate}T${endTime}:00`);
 
     if (startDateTime >= endDateTime) {
       setError('O horário de início deve ser anterior ao horário de término.');
@@ -73,31 +65,26 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
 
     setIsSaving(true);
     try {
-      const taskData = {
-        lead_id: lead.id,
-        user_id: user.id, // Consultant who created the task
+      // A lógica aqui precisaria ser adaptada para registrar uma entrevista de candidato
+      // Atualmente, o `addLeadTask` e `updateLeadTask` não são adequados para isso.
+      // Você precisaria de uma função `addCandidateInterview` ou `updateCandidateInterview`
+      // no AppContext que lide com a atualização do `Candidate` com os dados da entrevista.
+      
+      // Por enquanto, vamos simular um sucesso e logar os dados
+      console.log("Dados da entrevista a serem salvos:", {
+        teamMemberId: teamMember.id,
         title: title.trim(),
         description: description.trim() || undefined,
-        due_date: meetingDate, // Due date is the meeting date
-        is_completed: false,
-        type: 'meeting' as const,
-        meeting_start_time: startDateTime.toISOString(),
-        meeting_end_time: endDateTime.toISOString(),
-        manager_id: managerId, // Manager invited to the meeting
-        manager_invitation_status: managerId ? 'pending' as const : undefined,
-      };
-
-      if (currentMeeting) {
-        await updateLeadTask(currentMeeting.id, taskData);
-        toast.success('Reunião atualizada com sucesso!');
-      } else {
-        await addLeadTask(taskData);
-        toast.success('Reunião agendada com sucesso!');
-      }
+        interviewDate: interviewDate,
+        startTime: startDateTime.toISOString(),
+        endTime: endDateTime.toISOString(),
+        interviewerId: interviewerId,
+      });
+      toast.success('Entrevista registrada com sucesso (simulado)!');
       onClose();
     } catch (err: any) {
-      console.error('Erro ao agendar/atualizar reunião:', err);
-      setError(err.message || 'Falha ao salvar a reunião.');
+      console.error('Erro ao registrar entrevista:', err);
+      setError(err.message || 'Falha ao registrar a entrevista.');
     } finally {
       setIsSaving(false);
     }
@@ -109,23 +96,23 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md bg-white dark:bg-slate-800 dark:text-white p-6">
         <DialogHeader>
-          <DialogTitle>{currentMeeting ? 'Editar Reunião' : 'Agendar Reunião'}</DialogTitle>
+          <DialogTitle>Registrar Entrevista para: {teamMember.name}</DialogTitle>
           <DialogDescription>
-            {currentMeeting ? `Edite os detalhes da reunião com ${lead.name}.` : `Agende uma nova reunião com ${lead.name}.`}
+            Registre os detalhes da entrevista realizada com este membro da equipe.
           </DialogDescription>
         </DialogHeader>
         
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto custom-scrollbar">
             <div>
-              <Label htmlFor="title">Título da Reunião *</Label>
+              <Label htmlFor="title">Título da Entrevista *</Label>
               <Input
                 id="title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 required
                 className="dark:bg-slate-700 dark:text-white dark:border-slate-600"
-                placeholder={`Reunião com ${lead.name}`}
+                placeholder={`Entrevista com ${teamMember.name}`}
               />
             </div>
             <div>
@@ -136,18 +123,18 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
                 onChange={(e) => setDescription(e.target.value)}
                 rows={3}
                 className="dark:bg-slate-700 dark:text-white dark:border-slate-600"
-                placeholder="Detalhes da pauta da reunião..."
+                placeholder="Detalhes da entrevista, observações..."
               />
             </div>
             <div>
-              <Label htmlFor="meetingDate">Data da Reunião *</Label>
+              <Label htmlFor="interviewDate">Data da Entrevista *</Label>
               <div className="relative">
                 <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <Input
-                  id="meetingDate"
+                  id="interviewDate"
                   type="date"
-                  value={meetingDate}
-                  onChange={(e) => setMeetingDate(e.target.value)}
+                  value={interviewDate}
+                  onChange={(e) => setInterviewDate(e.target.value)}
                   required
                   className="pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600"
                 />
@@ -184,21 +171,21 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
               </div>
             </div>
             <div>
-              <Label htmlFor="managerId">Convidar Gestor (Opcional)</Label>
+              <Label htmlFor="interviewerId">Entrevistador (Opcional)</Label>
               <div className="relative">
                 <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <Select
-                  value={managerId || ''}
-                  onValueChange={(value) => setManagerId(value === '' ? null : value)}
+                  value={interviewerId || ''}
+                  onValueChange={(value) => setInterviewerId(value === '' ? null : value)}
                 >
                   <SelectTrigger className="w-full pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600">
-                    <SelectValue placeholder="Selecione um gestor" />
+                    <SelectValue placeholder="Selecione um entrevistador" />
                   </SelectTrigger>
                   <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
                     <SelectItem value="">Nenhum</SelectItem>
-                    {managers.map(manager => (
-                      <SelectItem key={manager.authUserId} value={manager.authUserId!}> {/* Usar authUserId */}
-                        {manager.name}
+                    {interviewers.map(interviewer => (
+                      <SelectItem key={interviewer.authUserId} value={interviewer.authUserId!}>
+                        {interviewer.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -213,7 +200,7 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
             </Button>
             <Button type="submit" disabled={isSaving} className="bg-brand-600 hover:bg-brand-700 text-white w-full sm:w-auto">
               {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-              <span>{isSaving ? 'Salvando...' : (currentMeeting ? 'Atualizar Reunião' : 'Agendar Reunião')}</span>
+              <span>{isSaving ? 'Salvando...' : 'Registrar Entrevista'}</span>
             </Button>
           </DialogFooter>
         </form>

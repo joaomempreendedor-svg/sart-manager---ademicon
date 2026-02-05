@@ -214,6 +214,7 @@ export const AddScreeningCandidateModal: React.FC<AddScreeningCandidateModalProp
               {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
               <span>Adicionar Candidato</span>
             </Button>
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>
