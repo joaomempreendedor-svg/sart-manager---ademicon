@@ -1206,7 +1206,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setCandidates(prev => prev.map(p => {
       console.log(`[updateCandidate:setCandidates] Comparing p.id: "${p.id}" with target id: "${id}"`);
       if (p.id === id) {
-        console.log(`[updateCandidate:setCandidates] MATCH! Updating candidate from "${p.name}" to "${mergedCandidateData.name}"`);
+        console.log(`[updateUpdate:setCandidates] MATCH! Updating candidate from "${p.name}" to "${mergedCandidateData.name}"`);
         return { ...mergedCandidateData, db_id: c.db_id, createdAt: c.createdAt };
       }
       return p;
@@ -2588,12 +2588,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     console.log(`[updateTeamMember] Current member.user_id (owner): ${member.user_id}`);
     console.log(`[updateTeamMember] Current logged-in user.id: ${user.id}`);
 
-    // REMOVIDO: A verificação de propriedade do usuário foi removida para permitir que o gestor principal edite todos os membros.
-    // if (member.user_id !== user.id) {
-    //   console.error(`[updateTeamMember] Permission denied: Logged-in user (${user.id}) is not the owner (${member.user_id}) of this team member record.`);
-    //   throw new Error("Você não tem permissão para editar este membro da equipe. Apenas o criador pode editá-lo.");
-    // }
-
     const updatedData = { ...member.data, ...updates }; // This updates the JSONB 'data' column
     const cleanedCpf = updates.cpf ? updates.cpf.replace(/\D/g, '') : member.cpf;
 
@@ -2645,8 +2639,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const { error: deleteError } = await supabase
           .from('team_members')
           .delete()
-          .eq('id', member.db_id)
-          .eq('user_id', JOAO_GESTOR_AUTH_ID); // Ensure only the owner can delete
+          .eq('id', member.db_id); // REMOVIDO: user_id: JOAO_GESTOR_AUTH_ID
         if (deleteError) {
           console.error("[updateTeamMember] Error deleting legacy team member record:", deleteError);
           throw deleteError;
@@ -2713,7 +2706,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const { error } = await supabase
       .from('team_members')
       .update({ data: updatedData, cpf: cleanedCpf }) // Only updates 'data' and 'cpf'
-      .match({ id: member.db_id, user_id: JOAO_GESTOR_AUTH_ID }); // Matches on the DB PK (db_id)
+      .match({ id: member.db_id }); // REMOVIDO: user_id: JOAO_GESTOR_AUTH_ID
 
     if (error) {
       console.error("Error updating team member:", error);
@@ -2752,7 +2745,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const { error } = await supabase
       .from('team_members')
       .delete()
-      .match({ id: member.db_id, user_id: JOAO_GESTOR_AUTH_ID });
+      .match({ id: member.db_id }); // REMOVIDO: user_id: JOAO_GESTOR_AUTH_ID
 
     if (error) {
       console.error("Error deleting team member:", error);
