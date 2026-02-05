@@ -458,6 +458,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           const { data, error } = await teamMembersQuery;
           if (!error) teamMembersData = data || [];
           else console.error("Error fetching team_members (ignoring):", error);
+          console.log("[AppContext] Raw teamMembersData fetched from Supabase:", teamMembersData); // NOVO LOG
         } catch (e) {
           console.error("Falha ao buscar team_members:", e);
         }
@@ -1740,8 +1741,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (error) throw error;
     setCrmStages(prev => {
       const updated = prev.map(s => {
-        const update = updates.find(u => u.id === s.id);
-        return update ? { ...s, order_index: update.order_index } : s;
+        const newOrder = updates.find(u => u.id === s.id)?.order_index;
+        return newOrder !== undefined ? { ...s, order_index: newOrder } : s;
       });
       return updated.sort((a, b) => a.order_index - b.order_index);
     });
