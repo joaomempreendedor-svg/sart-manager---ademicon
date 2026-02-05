@@ -1856,9 +1856,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const addDailyChecklistItem = useCallback(async (daily_checklist_id: string, text: string, order_index: number, resource?: DailyChecklistItemResource, audioFile?: File, imageFile?: File) => {
     if (!user) throw new Error("Usuário não autenticado.");
 
-    let finalResource = resource;
-    let audioUrl: string | undefined;
-    let imageUrl: string | undefined;
+    let contentToSave: string | { text: string; audioUrl: string; imageUrl?: string; } = '';
+    let resourceName = resource?.name;
 
     // Handle audio file upload
     if (audioFile) {
@@ -1869,6 +1868,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (uploadError) throw uploadError;
       const { data: publicUrlData } = supabase.storage.from('app_files').getPublicUrl(audioFilePath);
       audioUrl = publicUrlData.publicUrl;
+      if (!resourceName) resourceName = audioFile.name;
     }
 
     // Handle image file upload
@@ -1880,20 +1880,39 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (uploadError) throw uploadError;
       const { data: publicUrlData } = supabase.storage.from('app_files').getPublicUrl(imageFilePath);
       imageUrl = publicUrlData.publicUrl;
+      if (!resourceName) resourceName = imageFile.name;
     }
 
-    // Update resource content based on uploads
-    if (finalResource?.type === 'text_audio' && audioUrl) {
-      finalResource.content = { ...(finalResource.content as { text: string; audioUrl: string; }), audioUrl };
-    } else if (finalResource?.type === 'text_audio_image' && audioUrl && imageUrl) {
-      finalResource.content = { ...(finalResource.content as { text: string; audioUrl: string; imageUrl: string; }), audioUrl, imageUrl };
-    } else if (finalResource?.type === 'text_audio_image' && audioUrl) {
-      finalResource.content = { ...(finalResource.content as { text: string; audioUrl: string; imageUrl: string; }), audioUrl };
-    } else if (finalResource?.type === 'text_audio_image' && imageUrl) {
-      finalResource.content = { ...(finalResource.content as { text: string; audioUrl: string; imageUrl: string; }), imageUrl };
-    } else if ((finalResource?.type === 'image' || finalResource?.type === 'pdf' || finalResource?.type === 'audio') && (audioUrl || imageUrl)) {
-      finalResource.content = (audioUrl || imageUrl)!;
+    // Determine final content to save based on resource type and uploaded URLs
+    if (resource) {
+      switch (resource.type) {
+        case 'text':
+        case 'link':
+        case 'video':
+        case 'audio':
+        case 'image':
+        case 'pdf':
+          contentToSave = (audioUrl || imageUrl || resource.content) as string;
+          break;
+        case 'text_audio':
+          contentToSave = {
+            text: (resource.content as { text: string; audioUrl: string; }).text,
+            audioUrl: audioUrl || (resource.content as { text: string; audioUrl: string; }).audioUrl,
+          };
+          break;
+        case 'text_audio_image':
+          contentToSave = {
+            text: (resource.content as { text: string; audioUrl?: string; imageUrl?: string; }).text,
+            audioUrl: audioUrl || (resource.content as { text: string; audioUrl?: string; imageUrl?: string; }).audioUrl,
+            imageUrl: imageUrl || (resource.content as { text: string; audioUrl?: string; imageUrl?: string; }).imageUrl,
+          };
+          break;
+        default:
+          contentToSave = '';
+      }
     }
+
+    const finalResource = resource ? { ...resource, content: contentToSave, name: resourceName } : undefined;
 
     const { data, error } = await supabase.from('daily_checklist_items').insert({ daily_checklist_id, text, order_index, is_active: true, resource: finalResource }).select('*').single();
     if (error) throw error;
@@ -1906,9 +1925,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const item = dailyChecklistItems.find(i => i.id === id);
     if (!item) throw new Error("Item do checklist não encontrado.");
 
-    let finalResource = updates.resource !== undefined ? updates.resource : item.resource;
-    let audioUrl: string | undefined;
-    let imageUrl: string | undefined;
+    let contentToSave: string | { text: string; audioUrl: string; imageUrl?: string; } = '';
+    let resourceName = updates.resource?.name || item.resource?.name;
+
+    // Preserve existing content if not explicitly updated
+    let existingAudioUrl = (item.resource?.type === 'text_audio' || item.resource?.type === 'text_audio_image') ? (item.resource.content as any).audioUrl : (item.resource?.type === 'audio' ? item.resource.content : undefined);
+    let existingImageUrl = (item.resource?.type === 'text_audio_image') ? (item.resource.content as any).imageUrl : (item.resource?.type === 'image' ? item.resource.content : undefined);
+    let existingTextContent = (item.resource?.type === 'text_audio' || item.resource?.type === 'text_audio_image') ? (item.resource.content as any).text : (item.resource?.type === 'text' ? item.resource.content : undefined);
+    let existingLinkVideoContent = (item.resource?.type === 'link' || item.resource?.type === 'video') ? item.resource.content : undefined;
+
 
     // Handle audio file upload
     if (audioFile) {
@@ -1917,8 +1942,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         .from('app_files')
         .upload(audioFilePath, audioFile, { contentType: audioFile.type, upsert: true });
       if (uploadError) throw uploadError;
-      const { data: publicUrlData } = supabase.storage.from('app_files').getPublicUrl(audioFilePath);
-      audioUrl = publicUrlData.publicUrl;
+      existingAudioUrl = uploadData.path; // Use path for now, get public URL later
+      if (!resourceName) resourceName = audioFile.name;
     }
 
     // Handle image file upload
@@ -1928,25 +1953,50 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         .from('app_files')
         .upload(imageFilePath, imageFile, { contentType: imageFile.type, upsert: true });
       if (uploadError) throw uploadError;
-      const { data: publicUrlData } = supabase.storage.from('app_files').getPublicUrl(imageFilePath);
-      imageUrl = publicUrlData.publicUrl;
+      existingImageUrl = uploadData.path; // Use path for now, get public URL later
+      if (!resourceName) resourceName = imageFile.name;
     }
 
-    // Update resource content based on uploads
-    if (finalResource?.type === 'text_audio') {
-      finalResource.content = { 
-        ...(finalResource.content as { text: string; audioUrl: string; }), 
-        audioUrl: audioUrl || (finalResource.content as { text: string; audioUrl: string; }).audioUrl 
-      };
-    } else if (finalResource?.type === 'text_audio_image') {
-      finalResource.content = { 
-        ...(finalResource.content as { text: string; audioUrl?: string; imageUrl?: string; }), 
-        audioUrl: audioUrl || (finalResource.content as { text: string; audioUrl?: string; imageUrl?: string; }).audioUrl,
-        imageUrl: imageUrl || (finalResource.content as { text: string; audioUrl?: string; imageUrl?: string; }).imageUrl,
-      };
-    } else if ((finalResource?.type === 'image' || finalResource?.type === 'pdf' || finalResource?.type === 'audio') && (audioUrl || imageUrl)) {
-      finalResource.content = (audioUrl || imageUrl)!;
+    // Determine final content to save based on resource type and uploaded URLs
+    const newResourceType = updates.resource?.type !== undefined ? updates.resource.type : item.resource?.type;
+
+    if (newResourceType) {
+      switch (newResourceType) {
+        case 'text':
+          contentToSave = updates.resource?.content as string || existingTextContent || '';
+          break;
+        case 'link':
+        case 'video':
+          contentToSave = updates.resource?.content as string || existingLinkVideoContent || '';
+          break;
+        case 'audio':
+        case 'image':
+        case 'pdf':
+          contentToSave = (audioFile || imageFile) ? (audioFile ? existingAudioUrl : existingImageUrl) : (updates.resource?.content as string || item.resource?.content as string || '');
+          break;
+        case 'text_audio':
+          contentToSave = {
+            text: (updates.resource?.content as { text: string; audioUrl: string; })?.text || existingTextContent || '',
+            audioUrl: (audioFile ? existingAudioUrl : (updates.resource?.content as { text: string; audioUrl: string; })?.audioUrl || existingAudioUrl) || '',
+          };
+          break;
+        case 'text_audio_image':
+          contentToSave = {
+            text: (updates.resource?.content as { text: string; audioUrl?: string; imageUrl?: string; })?.text || existingTextContent || '',
+            audioUrl: (audioFile ? existingAudioUrl : (updates.resource?.content as { text: string; audioUrl?: string; imageUrl?: string; })?.audioUrl || existingAudioUrl) || '',
+            imageUrl: (imageFile ? existingImageUrl : (updates.resource?.content as { text: string; audioUrl?: string; imageUrl?: string; })?.imageUrl || existingImageUrl) || '',
+          };
+          break;
+        default:
+          contentToSave = '';
+      }
     }
+
+    const finalResource: DailyChecklistItemResource | undefined = newResourceType && newResourceType !== 'none' ? {
+      type: newResourceType,
+      content: contentToSave,
+      name: resourceName,
+    } : undefined;
 
     const { data, error } = await supabase.from('daily_checklist_items').update({ ...updates, resource: finalResource }).eq('id', id).select('*').single();
     if (error) throw error;
@@ -2257,7 +2307,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const toggleGestorTaskCompletion = useCallback(async (gestor_task_id: string, done: boolean, date: string) => {
     if (!user) throw new Error("Usuário não autenticado.");
-
+    
     const existingCompletion = gestorTaskCompletions.find(c => 
       c.gestor_task_id === gestor_task_id && 
       c.user_id === user.id && 
@@ -2525,12 +2575,99 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const updateTeamMember = useCallback(async (id: string, updates: Partial<TeamMember>) => {
     if (!user) throw new Error("Usuário não autenticado.");
-    const member = teamMembers.find(m => m.id === id);
+    const member = teamMembers.find(m => m.id === id); // 'id' here is the client-side ID (e.g., legacy_...)
     if (!member || !member.db_id) throw new Error("Membro da equipe não encontrado.");
 
-    const updatedData = { ...member.data, ...updates };
+    const updatedData = { ...member.data, ...updates }; // This updates the JSONB 'data' column
     const cleanedCpf = updates.cpf ? updates.cpf.replace(/\D/g, '') : member.cpf;
 
+    let newAuthUserId: string | null = member.authUserId;
+
+    // Special handling for legacy members to link them to auth.users.id
+    if (member.isLegacy) {
+      // 1. Try to find the corresponding auth.users.id by email
+      const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers({ email: member.email });
+      let existingAuthUser = authUsers?.users?.[0];
+
+      if (!existingAuthUser) {
+        // If no auth user exists, create one (this is a bit aggressive for an update, but necessary for migration)
+        const tempPassword = generateRandomPassword();
+        const { data: newAuthUserData, error: createAuthError } = await supabase.auth.admin.createUser({
+          email: member.email,
+          password: tempPassword, // Temporary password
+          email_confirm: true,
+          user_metadata: {
+            first_name: updates.name?.split(' ')[0] || '',
+            last_name: updates.name?.split(' ').slice(1).join(' ') || '',
+            role: member.roles.includes('Gestor') ? 'GESTOR' : 'CONSULTOR', // Infer role
+            needs_password_change: true,
+            login: cleanedCpf?.slice(-4),
+          },
+        });
+        if (createAuthError) throw createAuthError;
+        existingAuthUser = newAuthUserData.user;
+      }
+
+      if (existingAuthUser) {
+        newAuthUserId = existingAuthUser.id;
+        // Now we have the correct authUserId. We need to migrate the team_members record.
+        // This means deleting the old legacy record and inserting a new one with the correct PK.
+
+        // 1. Delete the old legacy record
+        const { error: deleteError } = await supabase
+          .from('team_members')
+          .delete()
+          .eq('id', member.db_id)
+          .eq('user_id', JOAO_GESTOR_AUTH_ID); // Ensure only the owner can delete
+        if (deleteError) {
+          console.error("Error deleting legacy team member:", deleteError);
+          throw deleteError;
+        }
+
+        // 2. Prepare data for new insert (using the correct authUserId as PK)
+        const newMemberDataForInsert = {
+          id: newAuthUserId, // New PK
+          user_id: JOAO_GESTOR_AUTH_ID,
+          data: {
+            ...updatedData, // Use the updated JSONB data
+            id: newAuthUserId, // Ensure JSONB 'data ->id' also matches
+            hasLogin: true,
+            isLegacy: false,
+          },
+          cpf: cleanedCpf, // Include CPF
+        };
+
+        // 3. Insert the new record
+        const { error: insertError } = await supabase
+          .from('team_members')
+          .insert(newMemberDataForInsert);
+        if (insertError) {
+          console.error("Error migrating legacy team member during insert:", insertError);
+          throw insertError;
+        }
+
+        // Update the local state to reflect the migration
+        setTeamMembers(prev => {
+          const filtered = prev.filter(m => m.id !== id); // Remove old legacy entry
+          return [...filtered, {
+            ...member,
+            id: newAuthUserId!, // Update the client-side ID
+            db_id: newAuthUserId!, // Update the db_id to the new PK
+            authUserId: newAuthUserId,
+            isLegacy: false,
+            hasLogin: true,
+            ...updates, // Apply other updates
+            data: { ...updatedData, id: newAuthUserId! }, // Ensure data.id is also updated
+            cpf: cleanedCpf,
+          }];
+        });
+
+        toast.success(`Membro legado "${member.name}" migrado e atualizado com sucesso!`);
+        return { success: true, message: "Legacy member migrated successfully." };
+      }
+    }
+
+    // Standard update for non-legacy or legacy without email change
     if (updates.email && member.hasLogin && updates.email !== member.email) {
       const { error: authUpdateError } = await supabase.auth.admin.updateUserById(member.id, { email: updates.email });
       if (authUpdateError) {
@@ -2541,14 +2678,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const { error } = await supabase
       .from('team_members')
-      .update({ data: updatedData, cpf: cleanedCpf })
-      .match({ id: member.db_id, user_id: JOAO_GESTOR_AUTH_ID });
+      .update({ data: updatedData, cpf: cleanedCpf }) // Only updates 'data' and 'cpf'
+      .match({ id: member.db_id, user_id: JOAO_GESTOR_AUTH_ID }); // Matches on the DB PK (db_id)
 
     if (error) {
       console.error("Error updating team member:", error);
       toast.error("Erro ao atualizar membro da equipe.");
       throw error;
     }
+
+    // Update local state
     setTeamMembers(prev => prev.map(m => m.id === id ? { ...member, ...updates, data: updatedData, cpf: cleanedCpf } : m));
     return { success: true };
   }, [user, teamMembers]);
