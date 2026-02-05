@@ -1740,8 +1740,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (error) throw error;
     setCrmStages(prev => {
       const updated = prev.map(s => {
-        const newOrder = updates.find(u => u.id === s.id)?.order_index;
-        return newOrder !== undefined ? { ...s, order_index: newOrder } : s;
+        const update = updates.find(u => u.id === s.id);
+        return update ? { ...s, order_index: update.order_index } : s;
       });
       return updated.sort((a, b) => a.order_index - b.order_index);
     });
@@ -2023,7 +2023,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (index === -1) return;
 
     const newIndex = direction === 'up' ? index - 1 : index + 1;
-    if (newIndex < 0 || newIndex >= items.length) return stage;
+    if (newIndex < 0 || newIndex >= items.length) return;
 
     const itemToMove = items[index];
     const itemToSwap = items[newIndex];
