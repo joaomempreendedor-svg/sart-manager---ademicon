@@ -497,7 +497,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           (async () => { try { return await supabase.from('support_materials').select('id, data').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching support_materials:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('cutoff_periods').select('id, data').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching cutoff_periods:", e); return { data: null, error: e }; } })(),
           (async () => { try { return await supabase.from('onboarding_sessions').select('*, videos:onboarding_videos(*)').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching onboarding_sessions:", e); return { data: [], error: e }; } })(),
-          (async () => { try { return await supabase.from('onboarding_video_templates').select('*').eq('user_id', effectiveGestorId).order('order', { ascending: true }); } } catch (e) { console.error("Error fetching onboarding_video_templates:", e); return { data: [], error: e }; } })(),
+          (async () => { try { return await supabase.from('onboarding_video_templates').select('*').eq('user_id', effectiveGestorId).order('order', { ascending: true }); } catch (e) { console.error("Error fetching onboarding_video_templates:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('crm_pipelines').select('*').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching crm_pipelines:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('crm_stages').select('*').eq('user_id', effectiveGestorId).order('order_index') ; } catch (e) { console.error("Error fetching crm_stages:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('crm_fields').select('*').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching crm_fields:", e); return { data: [], error: e }; } })(),
@@ -2023,7 +2023,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (index === -1) return;
 
     const newIndex = direction === 'up' ? index - 1 : index + 1;
-    if (newIndex < 0 || newIndex >= items.length) return;
+    if (newIndex < 0 || newIndex >= items.length) return stage;
 
     const itemToMove = items[index];
     const itemToSwap = items[newIndex];
@@ -2636,11 +2636,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         
         // 1. Delete the old legacy record
         console.log(`[AppContext] Deleting legacy team_members record with db_id: ${member.db_id}`);
-        console.log(`[AppContext] RLS Check: Deleting member with authUserId: ${user?.id}`);
         const { error: deleteError } = await supabase
           .from('team_members')
           .delete()
-          .eq('id', member.db_id); // No need for user_id match here, RLS handles it
+          .eq('id', member.db_id); 
         if (deleteError) {
           console.error("[AppContext] Error deleting legacy team member record:", deleteError);
           throw deleteError;
@@ -2660,7 +2659,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           cpf: cleanedCpf, // Include CPF
         };
         console.log("[AppContext] Prepared new member data for insert:", newMemberDataForInsert);
-        console.log(`[AppContext] RLS Check: Inserting member with authUserId: ${user?.id}`);
 
         // 3. Insert the new record
         const { error: insertError } = await supabase
@@ -2708,7 +2706,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const { error } = await supabase
       .from('team_members')
       .update({ data: updatedData, cpf: cleanedCpf }) // Only updates 'data' and 'cpf'
-      .match({ id: member.db_id }); // No need for user_id match here, RLS handles it
+      .match({ id: member.db_id }); 
 
     if (error) {
       console.error("[AppContext] Error updating team member:", error);
@@ -2738,7 +2736,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (member.hasLogin && typeof member.id === 'string' && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(member.id)) {
       const { error: authDeleteError } = await supabase.auth.admin.deleteUser(member.id);
       if (authDeleteError) {
-        console.error("[AppContext] Error deleting auth user:", authDeleteError);
+        console.error("Error deleting auth user:", authDeleteError);
       }
     } else {
       console.log(`[AppContext] Membro "${member.name}" (ID: ${member.id}) não tem login válido no Auth ou é legado. Pulando exclusão do Auth.`);
@@ -2747,10 +2745,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const { error } = await supabase
       .from('team_members')
       .delete()
-      .match({ id: member.db_id }); // No need for user_id match here, RLS handles it
+      .match({ id: member.db_id }); 
 
     if (error) {
-      console.error("[AppContext] Error deleting team member:", error);
+      console.error("Error deleting team member:", error);
       toast.error("Erro ao remover membro da equipe.");
       throw error;
     }
