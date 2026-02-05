@@ -497,7 +497,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           (async () => { try { return await supabase.from('support_materials').select('id, data').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching support_materials:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('cutoff_periods').select('id, data').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching cutoff_periods:", e); return { data: null, error: e }; } })(),
           (async () => { try { return await supabase.from('onboarding_sessions').select('*, videos:onboarding_videos(*)').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching onboarding_sessions:", e); return { data: [], error: e }; } })(),
-          (async () => { try { return await supabase.from('onboarding_video_templates').select('*').eq('user_id', effectiveGestorId).order('order', { ascending: true }); } catch (e) { console.error("Error fetching onboarding_video_templates:", e); return { data: [], error: e }; } })(),
+          (async () => { try { return await supabase.from('onboarding_video_templates').select('*').eq('user_id', effectiveGestorId).order('order', { ascending: true }); } } catch (e) { console.error("Error fetching onboarding_video_templates:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('crm_pipelines').select('*').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching crm_pipelines:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('crm_stages').select('*').eq('user_id', effectiveGestorId).order('order_index') ; } catch (e) { console.error("Error fetching crm_stages:", e); return { data: [], error: e }; } })(),
           (async () => { try { return await supabase.from('crm_fields').select('*').eq('user_id', effectiveGestorId); } catch (e) { console.error("Error fetching crm_fields:", e); return { data: [], error: e }; } })(),
@@ -2595,18 +2595,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     // Special handling for legacy members to link them to auth.users.id
     if (member.isLegacy) {
-      console.log(`[updateTeamMember] Migrating legacy member: ${member.name} (ID: ${member.id})`);
+      console.log(`[AppContext] Legacy Member Migration Started for ${member.name} (ID: ${member.id})`);
       // 1. Try to find the corresponding auth.users.id by email
       const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers({ email: member.email });
       let existingAuthUser = authUsers?.users?.[0];
 
       if (authError) {
-        console.error("[updateTeamMember] Error listing auth users:", authError);
+        console.error("[AppContext] Error listing auth users:", authError);
         throw authError;
       }
 
       if (!existingAuthUser) {
-        console.log("[updateTeamMember] No existing auth user found for legacy member. Creating one.");
+        console.log("[AppContext] No existing auth user found for legacy member. Creating one.");
         // If no auth user exists, create one (this is a bit aggressive for an update, but necessary for migration)
         const tempPassword = generateRandomPassword();
         const { data: newAuthUserData, error: createAuthError } = await supabase.auth.admin.createUser({
@@ -2622,29 +2622,30 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           },
         });
         if (createAuthError) {
-          console.error("[updateTeamMember] Error creating auth user for legacy member:", createAuthError);
+          console.error("[AppContext] Error creating auth user for legacy member:", createAuthError);
           throw createAuthError;
         }
         existingAuthUser = newAuthUserData.user;
-        console.log("[updateTeamMember] New auth user created:", existingAuthUser.id);
+        console.log("[AppContext] New auth user created:", existingAuthUser.id);
       } else {
-        console.log("[updateTeamMember] Existing auth user found for legacy member:", existingAuthUser.id);
+        console.log("[AppContext] Existing auth user found for legacy member:", existingAuthUser.id);
       }
 
       if (existingAuthUser) {
         newAuthUserId = existingAuthUser.id;
         
         // 1. Delete the old legacy record
-        console.log(`[updateTeamMember] Deleting legacy team_members record with db_id: ${member.db_id}`);
+        console.log(`[AppContext] Deleting legacy team_members record with db_id: ${member.db_id}`);
+        console.log(`[AppContext] RLS Check: Deleting member with authUserId: ${user?.id}`);
         const { error: deleteError } = await supabase
           .from('team_members')
           .delete()
-          .eq('id', member.db_id); // REMOVIDO: user_id: JOAO_GESTOR_AUTH_ID
+          .eq('id', member.db_id); // No need for user_id match here, RLS handles it
         if (deleteError) {
-          console.error("[updateTeamMember] Error deleting legacy team member record:", deleteError);
+          console.error("[AppContext] Error deleting legacy team member record:", deleteError);
           throw deleteError;
         }
-        console.log("[updateTeamMember] Legacy record deleted successfully.");
+        console.log("[AppContext] Legacy Record Deleted Successfully");
 
         // 2. Prepare data for new insert (using the correct authUserId as PK)
         const newMemberDataForInsert = {
@@ -2658,17 +2659,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           },
           cpf: cleanedCpf, // Include CPF
         };
-        console.log("[updateTeamMember] Prepared new member data for insert:", newMemberDataForInsert);
+        console.log("[AppContext] Prepared new member data for insert:", newMemberDataForInsert);
+        console.log(`[AppContext] RLS Check: Inserting member with authUserId: ${user?.id}`);
 
         // 3. Insert the new record
         const { error: insertError } = await supabase
           .from('team_members')
           .insert(newMemberDataForInsert);
         if (insertError) {
-          console.error("[updateTeamMember] Error inserting new team member record after migration:", insertError);
+          console.error("[AppContext] Error inserting new team member record after migration:", insertError);
           throw insertError;
         }
-        console.log("[updateTeamMember] New record inserted successfully after migration.");
+        console.log("[AppContext] New record inserted successfully after migration.");
 
         // Update the local state to reflect the migration
         setTeamMembers(prev => {
@@ -2694,22 +2696,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     // Standard update for non-legacy or legacy without email change
     if (updates.email && member.hasLogin && updates.email !== member.email) {
-      console.log(`[updateTeamMember] Updating auth user email for ${member.email} to ${updates.email}`);
+      console.log(`[AppContext] Updating auth user email for ${member.email} to ${updates.email}`);
       const { error: authUpdateError } = await supabase.auth.admin.updateUserById(member.id, { email: updates.email });
       if (authUpdateError) {
-        console.error("Error updating auth user email:", authUpdateError);
+        console.error("[AppContext] Error updating auth user email:", authUpdateError);
         throw authUpdateError;
       }
     }
 
-    console.log(`[updateTeamMember] Performing standard update for member ${member.name} (DB_ID: ${member.db_id})`);
+    console.log(`[AppContext] Performing standard update for member ${member.name} (DB_ID: ${member.db_id})`);
     const { error } = await supabase
       .from('team_members')
       .update({ data: updatedData, cpf: cleanedCpf }) // Only updates 'data' and 'cpf'
-      .match({ id: member.db_id }); // REMOVIDO: user_id: JOAO_GESTOR_AUTH_ID
+      .match({ id: member.db_id }); // No need for user_id match here, RLS handles it
 
     if (error) {
-      console.error("Error updating team member:", error);
+      console.error("[AppContext] Error updating team member:", error);
       toast.error("Erro ao atualizar membro da equipe.");
       throw error;
     }
@@ -2724,31 +2726,31 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const member = teamMembers.find(m => m.id === id);
     if (!member || !member.db_id) throw new Error("Membro da equipe não encontrado.");
 
-    console.log(`[deleteTeamMember] Attempting to delete member: ${member.name} (Client-side ID: ${id}, DB_ID: ${member.db_id})`);
-    console.log(`[deleteTeamMember] Current member.user_id (owner): ${member.user_id}`);
-    console.log(`[deleteTeamMember] Current logged-in user.id: ${user.id}`);
+    console.log(`[AppContext] Attempting to delete member: ${member.name} (Client-side ID: ${id}, DB_ID: ${member.db_id})`);
+    console.log(`[AppContext] Current member.user_id (owner): ${member.user_id}`);
+    console.log(`[AppContext] Current logged-in user.id: ${user.id}`);
 
     if (member.user_id !== user.id) {
-      console.error(`[deleteDeleteMember] Permission denied: Logged-in user (${user.id}) is not the owner (${member.user_id}) of this team member record.`);
+      console.error(`[AppContext] Permission denied: Logged-in user (${user.id}) is not the owner (${member.user_id}) of this team member record.`);
       throw new Error("Você não tem permissão para excluir este membro da equipe. Apenas o criador pode excluí-lo.");
     }
 
     if (member.hasLogin && typeof member.id === 'string' && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(member.id)) {
       const { error: authDeleteError } = await supabase.auth.admin.deleteUser(member.id);
       if (authDeleteError) {
-        console.error("Error deleting auth user:", authDeleteError);
+        console.error("[AppContext] Error deleting auth user:", authDeleteError);
       }
     } else {
-      console.log(`[deleteTeamMember] Membro "${member.name}" (ID: ${member.id}) não tem login válido no Auth ou é legado. Pulando exclusão do Auth.`);
+      console.log(`[AppContext] Membro "${member.name}" (ID: ${member.id}) não tem login válido no Auth ou é legado. Pulando exclusão do Auth.`);
     }
 
     const { error } = await supabase
       .from('team_members')
       .delete()
-      .match({ id: member.db_id }); // REMOVIDO: user_id: JOAO_GESTOR_AUTH_ID
+      .match({ id: member.db_id }); // No need for user_id match here, RLS handles it
 
     if (error) {
-      console.error("Error deleting team member:", error);
+      console.error("[AppContext] Error deleting team member:", error);
       toast.error("Erro ao remover membro da equipe.");
       throw error;
     }
