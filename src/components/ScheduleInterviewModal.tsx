@@ -30,7 +30,8 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({ 
   const [savedCandidate, setSavedCandidate] = useState<Candidate | null>(null);
 
   const responsibleMembers = useMemo(() => {
-    return teamMembers.filter(m => m.isActive && (m.roles.includes('Gestor') || m.roles.includes('Anjo')));
+    // Filtra apenas membros ativos que são Gestor ou Anjo E que possuem um authUserId
+    return teamMembers.filter(m => m.isActive && m.authUserId && (m.roles.includes('Gestor') || m.roles.includes('Anjo')));
   }, [teamMembers]);
 
   const resetForm = () => {
@@ -175,7 +176,7 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({ 
                     </SelectTrigger>
                     <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
                       {responsibleMembers.map(member => (
-                        <SelectItem key={member.id} value={member.id}>
+                        <SelectItem key={member.authUserId} value={member.authUserId!}> {/* Usar authUserId */}
                           {member.name} ({member.roles.join(', ')})
                         </SelectItem>
                       ))}

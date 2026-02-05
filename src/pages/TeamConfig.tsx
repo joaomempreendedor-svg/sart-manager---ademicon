@@ -142,8 +142,8 @@ export const TeamConfig = () => {
   };
 
   const handleResetPassword = async (member: TeamMember) => {
-    if (!member.email) {
-      toast.error("Não é possível resetar a senha: E-mail do consultor não encontrado.");
+    if (!member.authUserId) { // Usar authUserId
+      toast.error("Não é possível resetar a senha: ID de autenticação do consultor não encontrado.");
       return;
     }
     if (!window.confirm(`Tem certeza que deseja resetar a senha de ${member.name}? Uma nova senha temporária será gerada e o consultor será forçado a trocá-la no próximo login.`)) {
@@ -153,11 +153,11 @@ export const TeamConfig = () => {
     try {
       const newTempPassword = generateRandomPassword();
       
-      await resetConsultantPasswordViaEdge(member.id, newTempPassword);
+      await resetConsultantPasswordViaEdge(member.authUserId, newTempPassword); // Usar authUserId
       
       setCreatedConsultantCredentials({ 
         name: member.name, 
-        login: member.email,
+        login: member.email || '',
         password: newTempPassword, 
         wasExistingUser: true
       });

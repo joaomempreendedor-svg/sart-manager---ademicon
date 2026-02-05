@@ -78,7 +78,8 @@ const CrmOverviewPage = () => {
   }, [crmLeads, user]);
 
   const consultants = useMemo(() => {
-    return teamMembers.filter(m => m.isActive && (m.roles.includes('CONSULTOR') || m.roles.includes('Prévia') || m.roles.includes('Autorizado')));
+    // Filtra apenas membros ativos que são CONSULTOR, Prévia ou Autorizado E que possuem um authUserId
+    return teamMembers.filter(m => m.isActive && m.authUserId && (m.roles.includes('CONSULTOR') || m.roles.includes('Prévia') || m.roles.includes('Autorizado')));
   }, [teamMembers]);
 
   const filteredLeads = useMemo(() => {
@@ -299,7 +300,7 @@ const CrmOverviewPage = () => {
             crmFields={crmFields}
             crmStages={crmStages}
             teamMembers={teamMembers}
-            fileName="leads_crm_gestor"
+            fileName="leads_crm_consultor"
           />
           <button
             onClick={() => setIsImportModalOpen(true)}
@@ -320,33 +321,14 @@ const CrmOverviewPage = () => {
 
       <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm space-y-4 mb-6">
         <div className="flex items-center justify-between flex-col sm:flex-row">
-          <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 flex items-center uppercase tracking-wide"><Filter className="w-4 h-4 mr-2" />Filtrar Leads</h3>
+          <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 flex items-center uppercase tracking-wide"><Filter className="w-4 h-4 mr-2" />Filtrar por Período</h3>
           {hasActiveFilters && (
             <button onClick={clearFilters} className="text-xs flex items-center text-red-500 hover:text-red-700 transition mt-2 sm:mt-0">
               <RotateCcw className="w-3 h-3 mr-1" />Limpar Filtros
             </button>
           )}
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div>
-            <label htmlFor="filterConsultant" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Consultor</label>
-            <Select 
-              value={selectedConsultantId || 'all'} 
-              onValueChange={(value) => setSelectedConsultantId(value === 'all' ? null : value)}
-            >
-              <SelectTrigger className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
-                <SelectValue placeholder="Todos os Consultores" />
-              </SelectTrigger>
-              <SelectContent className="bg-white text-gray-900 dark:bg-slate-800 dark:text-white dark:border-slate-700">
-                <SelectItem value="all">Todos os Consultores</SelectItem>
-                {consultants.map(consultant => (
-                  <SelectItem key={consultant.id} value={consultant.id}>
-                    {consultant.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label htmlFor="filterStartDate" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Período de (Criação/Venda)</label>
             <input

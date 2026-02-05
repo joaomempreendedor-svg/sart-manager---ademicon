@@ -635,6 +635,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           const member: TeamMember = {
             id: isAuthUserLinked ? data.id : `legacy_${item.id}`, // Usa o ID do Auth se for UUID, senão um ID legado
             db_id: item.id, // ID da tabela public.team_members
+            authUserId: isAuthUserLinked ? data.id : null, // NOVO: Armazena o auth.users.id explicitamente
             name: String(data.name || ''), // Garante que o nome seja string
             email: data.email,
             roles: Array.isArray(data.roles) ? data.roles : [],
@@ -644,7 +645,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             cpf: item.cpf,
             dateOfBirth: data.dateOfBirth,
           };
-          console.log(`[AppContext] Fetched Team Member: ID=${member.id}, Name=${member.name}, IsActive=${member.isActive}, Roles=${member.roles.join(', ')}`);
+          console.log(`[AppContext] Fetched Team Member: ID=${member.id}, AuthUserID=${member.authUserId}, Name=${member.name}, IsActive=${member.isActive}, Roles=${member.roles.join(', ')}, HasLogin=${member.hasLogin}, IsLegacy=${member.isLegacy}`);
           return member;
         }) || [];
         setTeamMembers(normalizedTeamMembers);
@@ -1863,7 +1864,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const addDailyChecklistItem = useCallback(async (daily_checklist_id: string, text: string, order_index: number, resource?: DailyChecklistItemResource, audioFile?: File, imageFile?: File) => {
     if (!user) throw new Error("Usuário não autenticado.");
 
-    let content = resource?.content;
+    let finalResource = resource;
     let audioUrl: string | undefined;
     let imageUrl: string | undefined;
 
@@ -1890,19 +1891,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
 
     // Update resource content based on uploads
-    if (resource?.type === 'text_audio') {
-      content = { ...(resource.content as { text: string; audioUrl: string; }), audioUrl: audioUrl || (resource.content as { text: string; audioUrl: string; }).audioUrl };
-    } else if (resource?.type === 'text_audio_image') {
-      content = { 
-        ...(resource.content as { text: string; audioUrl?: string; imageUrl?: string; }), 
-        audioUrl: audioUrl || (resource.content as { text: string; audioUrl?: string; imageUrl?: string; }).audioUrl,
-        imageUrl: imageUrl || (resource.content as { text: string; audioUrl?: string; imageUrl?: string; }).imageUrl,
-      };
-    } else if ((resource?.type === 'image' || resource?.type === 'pdf' || resource?.type === 'audio') && (audioUrl || imageUrl)) {
-      content = (audioUrl || imageUrl)!;
+    if (finalResource?.type === 'text_audio' && audioUrl) {
+      finalResource.content = { ...(finalResource.content as { text: string; audioUrl: string; }), audioUrl };
+    } else if (finalResource?.type === 'text_audio_image' && audioUrl && imageUrl) {
+      finalResource.content = { ...(finalResource.content as { text: string; audioUrl: string; imageUrl: string; }), audioUrl, imageUrl };
+    } else if (finalResource?.type === 'text_audio_image' && audioUrl) {
+      finalResource.content = { ...(finalResource.content as { text: string; audioUrl: string; imageUrl: string; }), audioUrl };
+    } else if (finalResource?.type === 'text_audio_image' && imageUrl) {
+      finalResource.content = { ...(finalResource.content as { text: string; audioUrl: string; imageUrl: string; }), imageUrl };
+    } else if ((finalResource?.type === 'image' || finalResource?.type === 'pdf' || finalResource?.type === 'audio') && (audioUrl || imageUrl)) {
+      finalResource.content = (audioUrl || imageUrl)!;
     }
 
-    const { data, error } = await supabase.from('daily_checklist_items').insert({ daily_checklist_id, text, order_index, is_active: true, resource: resource ? { ...resource, content } : undefined }).select('*').single();
+    const { data, error } = await supabase.from('daily_checklist_items').insert({ daily_checklist_id, text, order_index, is_active: true, resource: finalResource }).select('*').single();
     if (error) throw error;
     setDailyChecklistItems(prev => [...prev, data].sort((a, b) => a.order_index - b.order_index));
     return data;
@@ -2089,7 +2090,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (error) throw error;
     setWeeklyTargetItems(prev => {
       const updated = prev.map(i => {
-        const newOrder = updates.find(u => u.id === i.id)?.order_index;
+        const update = updates.find(u => u.id === i.id)?.order_index;
         return newOrder !== undefined ? { ...i, order_index: newOrder } : i;
       });
       return updated.sort((a, b) => a.order_index - b.order_index);
@@ -2511,8 +2512,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           const data = item.data as any;
           const isAuthUserLinked = typeof data.id === 'string' && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(data.id);
           return {
-            id: isAuthUserLinked ? data.id : `legacy_${item.id}`,
-            db_id: item.id,
+            id: isAuthUserLinked ? data.id : item.id, // Usa o ID do Auth se for UUID, senão o ID da tabela team_members
+            db_id: item.id, // ID da tabela public.team_members
+            authUserId: isAuthUserLinked ? data.id : null, // Armazena o auth.users.id explicitamente
             name: String(data.name || ''),
             email: data.email,
             roles: Array.isArray(data.roles) ? data.roles : [],

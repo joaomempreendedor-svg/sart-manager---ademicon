@@ -191,8 +191,9 @@ export interface SupportMaterialAssignment {
 export type TeamRole = 'Prévia' | 'Autorizado' | 'Gestor' | 'Anjo';
 
 export interface TeamMember {
-  id: string; // Client-side UUID (pode ser auth.uid() ou legacy_db_id)
+  id: string; // Client-side ID (pode ser auth.uid() ou legacy_db_id)
   db_id?: string; // Database primary key
+  authUserId?: string | null; // NOVO: ID do usuário de autenticação (auth.users.id)
   name: string;
   email?: string;
   roles: TeamRole[];

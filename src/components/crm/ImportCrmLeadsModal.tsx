@@ -26,7 +26,7 @@ export const ImportCrmLeadsModal: React.FC<ImportCrmLeadsModalProps> = ({
   onClose,
   onImport,
 }) => {
-  const { origins } = useApp(); // Acessar a lista de origens do AppContext
+  const { salesOrigins } = useApp(); // Acessar a lista de origens do AppContext
   const [pastedData, setPastedData] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [importResult, setImportResult] = useState<{ success: number; failed: number; errors: string[] } | null>(null);
@@ -105,10 +105,10 @@ export const ImportCrmLeadsModal: React.FC<ImportCrmLeadsModalProps> = ({
             leadData.name = value;
           } else if (fieldKey === 'origin') {
             // Valida a origem contra a lista de origens configuradas, se fornecida
-            if (origins.includes(value)) {
+            if (salesOrigins.includes(value)) {
               (leadData.data as any).origin = value;
             } else {
-              currentRecordErrors.push(`Origem "${value}" inválida. Origens permitidas: ${origins.join(', ')}.`);
+              currentRecordErrors.push(`Origem "${value}" inválida. Origens permitidas: ${salesOrigins.join(', ')}.`);
               recordIsValid = false;
             }
           }
@@ -122,7 +122,7 @@ export const ImportCrmLeadsModal: React.FC<ImportCrmLeadsModalProps> = ({
       }
       
       // Se a origem não foi fornecida ou é inválida, define um valor padrão
-      if (!(leadData.data as any)?.origin?.trim() || !origins.includes((leadData.data as any)?.origin)) {
+      if (!(leadData.data as any)?.origin?.trim() || !salesOrigins.includes((leadData.data as any)?.origin)) {
         (leadData.data as any).origin = 'Não Informado';
       }
 
@@ -183,7 +183,7 @@ export const ImportCrmLeadsModal: React.FC<ImportCrmLeadsModalProps> = ({
               onChange={(e) => setPastedData(e.target.value)}
               rows={8}
               className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600 font-mono text-sm"
-              placeholder={`Cole aqui os dados da sua planilha. Use vírgula (,) ou tab (	) como separador.\n\nExemplo:\nNome\nJoão Silva\nMaria Oliveira\n\nOu com origem (opcional):\nNome,Origem\nJoão Silva,Indicação\nMaria Oliveira,Prospecção`}
+              placeholder={`Cole aqui os dados da sua planilha. Use vírgula (,) ou tab (	) como separador.\n\nExemplo:\nNome,Origem\nJoão Silva,Indicação\nMaria Oliveira,Prospecção`}
             />
             {parseError && (
               <p className="text-red-500 text-sm mt-2 flex items-center"><AlertTriangle className="w-4 h-4 mr-2" />{parseError}</p>

@@ -1,97 +1,105 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, Save, Loader2, Calendar as CalendarIcon, Users, CheckCircle2, MapPin } from 'lucide-react';
-import { Candidate, InterviewScores, TeamMember } from '@/types';
 import { useApp } from '@/context/AppContext';
-import { useNavigate } from 'react-router-dom';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { useAuth } from '@/context/AuthContext';
+import { CrmLead, LeadTask, TeamMember } from '@/types';
+import { X, Save, Loader2, Calendar, Clock, MessageSquare, Users, CheckCircle2, XCircle } from 'lucide-react';
+import toast from 'react-hot-toast';
 
-interface RecordTeamMemberInterviewModalProps {
+interface ScheduleMeetingModalProps {
   isOpen: boolean;
   onClose: () => void;
-  teamMember: TeamMember;
+  lead: CrmLead;
+  currentMeeting?: LeadTask | null; // Optional, for editing an existing meeting
 }
 
-export const RecordTeamMemberInterviewModal: React.FC<RecordTeamMemberInterviewModalProps> = ({ isOpen, onClose, teamMember }) => {
-  const { addCandidate, teamMembers, hiringOrigins } = useApp(); // ATUALIZADO: Usando hiringOrigins
-  const navigate = useNavigate();
-
-  const [interviewDate, setInterviewDate] = useState(new Date().toISOString().split('T')[0]);
-  const [responsibleUserId, setResponsibleUserId] = useState('');
-  const [candidateOrigin, setCandidateOrigin] = useState(''); // NOVO: Estado para a origem
+export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOpen, onClose, lead, currentMeeting }) => {
+  const { user } = useAuth();
+  const { addLeadTask, updateLeadTask, teamMembers } = useApp();
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [meetingDate, setMeetingDate] = useState('');
+  const [startTime, setStartTime] = useState('');
+  const [endTime, setEndTime] = useState('');
+  const [managerId, setManagerId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [savedCandidate, setSavedCandidate] = useState<Candidate | null>(null);
+  const [error, setError] = useState('');
 
-  const responsibleMembers = useMemo(() => {
-    return teamMembers.filter(m => m.isActive && (m.roles.includes('Gestor') || m.roles.includes('Anjo')));
+  const managers = useMemo(() => {
+    // Filtra apenas membros ativos que são Gestor E que possuem um authUserId
+    return teamMembers.filter(m => m.isActive && m.authUserId && m.roles.includes('Gestor'));
   }, [teamMembers]);
 
   useEffect(() => {
     if (isOpen) {
-      setInterviewDate(new Date().toISOString().split('T')[0]);
-      setResponsibleUserId('');
-      setCandidateOrigin(''); // Resetar origem
-      setSavedCandidate(null);
+      if (currentMeeting) {
+        setTitle(currentMeeting.title);
+        setDescription(currentMeeting.description || '');
+        setMeetingDate(currentMeeting.meeting_start_time ? currentMeeting.meeting_start_time.split('T')[0] : '');
+        setStartTime(currentMeeting.meeting_start_time ? currentMeeting.meeting_start_time.split('T')[1].substring(0, 5) : '');
+        setEndTime(currentMeeting.meeting_end_time ? currentMeeting.meeting_end_time.split('T')[1].substring(0, 5) : '');
+        setManagerId(currentMeeting.manager_id || null);
+      } else {
+        setTitle(`Reunião com ${lead.name}`);
+        setDescription('');
+        setMeetingDate(new Date().toISOString().split('T')[0]); // Corrigido: Usando setMeetingDate
+        setStartTime('09:00');
+        setEndTime('10:00');
+        setManagerId(user?.id || null); // Default to current user if manager
+      }
+      setError('');
     }
-  }, [isOpen, teamMember]);
+  }, [isOpen, currentMeeting, lead.name, user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!interviewDate || !responsibleUserId || !candidateOrigin) { // Validação da origem
-      alert('A data da entrevista, o responsável e a origem são obrigatórios.');
+    setError('');
+
+    if (!user) {
+      setError('Usuário não autenticado.');
       return;
     }
+    if (!title.trim() || !meetingDate || !startTime || !endTime) {
+      setError('Título, data e horários de início/fim são obrigatórios.');
+      return;
+    }
+
+    const startDateTime = new Date(`${meetingDate}T${startTime}:00`);
+    const endDateTime = new Date(`${meetingDate}T${endTime}:00`);
+
+    if (startDateTime >= endDateTime) {
+      setError('O horário de início deve ser anterior ao horário de término.');
+      return;
+    }
+
     setIsSaving(true);
-
-    const emptyScores: InterviewScores = {
-      basicProfile: 0, commercialSkills: 0, behavioralProfile: 0, jobFit: 0, notes: ''
-    };
-
-    const newCandidate: Omit<Candidate, 'id' | 'createdAt' | 'db_id'> = {
-      name: teamMember.name,
-      phone: '',
-      interviewDate: interviewDate,
-      interviewer: 'Não definido',
-      origin: candidateOrigin, // NOVO: Salva a origem
-      status: 'Entrevista',
-      interviewScores: emptyScores,
-      checkedQuestions: {},
-      checklistProgress: {},
-      consultantGoalsProgress: {},
-      feedbacks: [],
-      responsibleUserId: responsibleUserId,
-    };
-
     try {
-      const addedCandidate = await addCandidate(newCandidate);
-      setSavedCandidate(addedCandidate);
-    } catch (error: any) {
-      alert(`Erro ao registrar entrevista: ${error.message}`);
+      const taskData = {
+        lead_id: lead.id,
+        user_id: user.id, // Consultant who created the task
+        title: title.trim(),
+        description: description.trim() || undefined,
+        due_date: meetingDate, // Due date is the meeting date
+        is_completed: false,
+        type: 'meeting' as const,
+        meeting_start_time: startDateTime.toISOString(),
+        meeting_end_time: endDateTime.toISOString(),
+        manager_id: managerId, // Manager invited to the meeting
+        manager_invitation_status: managerId ? 'pending' as const : undefined,
+      };
+
+      if (currentMeeting) {
+        await updateLeadTask(currentMeeting.id, taskData);
+        toast.success('Reunião atualizada com sucesso!');
+      } else {
+        await addLeadTask(taskData);
+        toast.success('Reunião agendada com sucesso!');
+      }
+      onClose();
+    } catch (err: any) {
+      console.error('Erro ao agendar/atualizar reunião:', err);
+      setError(err.message || 'Falha ao salvar a reunião.');
     } finally {
       setIsSaving(false);
-    }
-  };
-
-  const handleGoToCandidateDetail = () => {
-    if (savedCandidate) {
-      navigate(`/gestor/candidate/${savedCandidate.id}`, { state: { openInterviewTab: true } });
-      onClose();
     }
   };
 
@@ -101,97 +109,114 @@ export const RecordTeamMemberInterviewModal: React.FC<RecordTeamMemberInterviewM
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md bg-white dark:bg-slate-800 dark:text-white p-6">
         <DialogHeader>
-          <DialogTitle>Registrar Entrevista para: {teamMember.name}</DialogTitle>
+          <DialogTitle>{currentMeeting ? 'Editar Reunião' : 'Agendar Reunião'}</DialogTitle>
           <DialogDescription>
-            {savedCandidate 
-              ? 'Entrevista registrada com sucesso!' 
-              : 'Preencha os detalhes da entrevista para este membro da equipe.'}
+            {currentMeeting ? `Edite os detalhes da reunião com ${lead.name}.` : `Agende uma nova reunião com ${lead.name}.`}
           </DialogDescription>
         </DialogHeader>
         
-        {savedCandidate ? (
-          <div className="p-6 text-center">
-            <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
-            <p className="text-gray-800 dark:text-gray-200">A entrevista para <strong>{savedCandidate.name}</strong> foi registrada para <strong>{new Date(savedCandidate.interviewDate + 'T00:00:00').toLocaleDateString('pt-BR')}</strong>.</p>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Você pode agora ir para a avaliação completa do candidato.</p>
-            <div className="mt-6 flex flex-col space-y-2">
-              <Button onClick={handleGoToCandidateDetail} className="w-full bg-brand-600 hover:bg-brand-700 text-white">
-                Ir para Avaliação
-              </Button>
+        <form onSubmit={handleSubmit}>
+          <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto custom-scrollbar">
+            <div>
+              <Label htmlFor="title">Título da Reunião *</Label>
+              <Input
+                id="title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                required
+                className="dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                placeholder={`Reunião com ${lead.name}`}
+              />
             </div>
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit}>
-            <div className="grid gap-4 py-4">
+            <div>
+              <Label htmlFor="description">Descrição (Opcional)</Label>
+              <Textarea
+                id="description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={3}
+                className="dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                placeholder="Detalhes da pauta da reunião..."
+              />
+            </div>
+            <div>
+              <Label htmlFor="meetingDate">Data da Reunião *</Label>
               <div className="relative">
-                <Label htmlFor="interviewDate" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Data da Entrevista</Label>
-                <CalendarIcon className="absolute left-3 top-9 w-4 h-4 text-gray-400" />
+                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <Input
-                  id="interviewDate"
+                  id="meetingDate"
                   type="date"
-                  value={interviewDate}
-                  onChange={(e) => setInterviewDate(e.target.value)}
+                  value={meetingDate}
+                  onChange={(e) => setMeetingDate(e.target.value)}
                   required
-                  className="pl-10 bg-white text-gray-900 dark:bg-slate-700 dark:text-white dark:border-slate-600 placeholder:text-gray-500 dark:placeholder:text-gray-400"
+                  className="pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600"
                 />
               </div>
-              {/* NOVO: Campo de seleção para a Origem */}
+            </div>
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="candidateOrigin" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Origem do Candidato *</Label>
+                <Label htmlFor="startTime">Hora Início *</Label>
                 <div className="relative">
-                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <Select
-                    value={candidateOrigin}
-                    onValueChange={(value) => setCandidateOrigin(value)}
+                  <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Input
+                    id="startTime"
+                    type="time"
+                    value={startTime}
+                    onChange={(e) => setStartTime(e.target.value)}
                     required
-                  >
-                    <SelectTrigger className="w-full pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600">
-                      <SelectValue placeholder="Selecione a origem" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
-                      {hiringOrigins.map(origin => (
-                        <SelectItem key={origin} value={origin}>
-                          {origin}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    className="pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                  />
                 </div>
               </div>
               <div>
-                <Label htmlFor="responsibleUser" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Indicado por (Responsável) *</Label>
+                <Label htmlFor="endTime">Hora Fim *</Label>
                 <div className="relative">
-                  <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <Select
-                    value={responsibleUserId}
-                    onValueChange={setResponsibleUserId}
+                  <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Input
+                    id="endTime"
+                    type="time"
+                    value={endTime}
+                    onChange={(e) => setEndTime(e.target.value)}
                     required
-                  >
-                    <SelectTrigger className="w-full pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600">
-                      <SelectValue placeholder="Selecione um gestor ou anjo" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
-                      {responsibleMembers.map(member => (
-                        <SelectItem key={member.id} value={member.id}>
-                          {member.name} ({member.roles.join(', ')})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    className="pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                  />
                 </div>
               </div>
             </div>
-            <DialogFooter className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-700">
-              <Button type="button" variant="outline" onClick={onClose} className="dark:bg-slate-700 dark:text-white dark:border-slate-600">
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={isSaving} className="bg-brand-600 hover:bg-brand-700 text-white">
-                {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-                <span>Registrar</span>
-              </Button>
-            </DialogFooter>
-          </form>
-        )}
+            <div>
+              <Label htmlFor="managerId">Convidar Gestor (Opcional)</Label>
+              <div className="relative">
+                <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Select
+                  value={managerId || ''}
+                  onValueChange={(value) => setManagerId(value === '' ? null : value)}
+                >
+                  <SelectTrigger className="w-full pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600">
+                    <SelectValue placeholder="Selecione um gestor" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
+                    <SelectItem value="">Nenhum</SelectItem>
+                    {managers.map(manager => (
+                      <SelectItem key={manager.authUserId} value={manager.authUserId!}> {/* Usar authUserId */}
+                        {manager.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            {error && <p className="text-red-500 text-sm mt-2 flex items-center"><XCircle className="w-4 h-4 mr-2" />{error}</p>}
+          </div>
+          <DialogFooter className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-700 flex-col sm:flex-row">
+            <Button type="button" variant="outline" onClick={onClose} className="dark:bg-slate-700 dark:text-white dark:border-slate-600 w-full sm:w-auto mb-2 sm:mb-0">
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={isSaving} className="bg-brand-600 hover:bg-brand-700 text-white w-full sm:w-auto">
+              {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+              <span>{isSaving ? 'Salvando...' : (currentMeeting ? 'Atualizar Reunião' : 'Agendar Reunião')}</span>
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );

@@ -33,7 +33,7 @@ interface LeadModalProps {
 }
 
 const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields, assignedConsultantId }) => {
-  const { addCrmLead, updateCrmLead, deleteCrmLead, crmOwnerUserId, crmStages, salesOrigins, crmPipelines } = useApp();
+  const { addCrmLead, updateCrmLead, deleteCrmLead, crmOwnerUserId, crmStages, salesOrigins, crmPipelines, teamMembers } = useApp();
   const [formData, setFormData] = useState<Partial<CrmLead>>({
     name: '',
     data: {},
@@ -46,6 +46,11 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
   const allAvailableOrigins = useMemo(() => {
     return [...salesOrigins].sort((a, b) => a.localeCompare(b));
   }, [salesOrigins]);
+
+  const consultants = useMemo(() => {
+    // Filtra apenas membros ativos que são CONSULTOR, Prévia ou Autorizado E que possuem um authUserId
+    return teamMembers.filter(m => m.isActive && m.authUserId && (m.roles.includes('CONSULTOR') || m.roles.includes('Prévia') || m.roles.includes('Autorizado')));
+  }, [teamMembers]);
 
   useEffect(() => {
     if (isOpen) {
@@ -284,6 +289,29 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
                   className="w-full p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600"
                   required
                 />
+              </div>
+
+              {/* Campo Consultor (sempre visível e obrigatório) */}
+              <div className="grid gap-2">
+                <Label htmlFor="consultant_id" className="text-left">
+                  Consultor <span className="text-red-500">*</span>
+                </Label>
+                <Select
+                  value={formData.consultant_id || ''}
+                  onValueChange={(val) => handleChange('consultant_id', val)}
+                  required
+                >
+                  <SelectTrigger className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
+                    <SelectValue placeholder="Selecione o Consultor" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700 max-h-[200px] overflow-y-auto">
+                    {consultants.map(consultant => (
+                      <SelectItem key={consultant.authUserId} value={consultant.authUserId!}> {/* Usar authUserId */}
+                        {consultant.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Campo Origem (sempre visível e obrigatório) */}
