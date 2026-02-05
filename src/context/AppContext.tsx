@@ -632,7 +632,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           // Regex para validar formato UUID
           const isAuthUserLinked = typeof data.id === 'string' && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(data.id);
 
-          return {
+          const member: TeamMember = {
             id: isAuthUserLinked ? data.id : `legacy_${item.id}`, // Usa o ID do Auth se for UUID, senão um ID legado
             db_id: item.id, // ID da tabela public.team_members
             name: String(data.name || ''), // Garante que o nome seja string
@@ -643,7 +643,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             isLegacy: !isAuthUserLinked,
             cpf: item.cpf,
             dateOfBirth: data.dateOfBirth,
-          } as TeamMember;
+          };
+          console.log(`[AppContext] Fetched Team Member: ID=${member.id}, Name=${member.name}, IsActive=${member.isActive}, Roles=${member.roles.join(', ')}`);
+          return member;
         }) || [];
         setTeamMembers(normalizedTeamMembers);
 
@@ -1861,7 +1863,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const addDailyChecklistItem = useCallback(async (daily_checklist_id: string, text: string, order_index: number, resource?: DailyChecklistItemResource, audioFile?: File, imageFile?: File) => {
     if (!user) throw new Error("Usuário não autenticado.");
 
-    let finalResource = resource;
+    let content = resource?.content;
     let audioUrl: string | undefined;
     let imageUrl: string | undefined;
 
@@ -1888,19 +1890,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
 
     // Update resource content based on uploads
-    if (finalResource?.type === 'text_audio' && audioUrl) {
-      finalResource.content = { ...(finalResource.content as { text: string; audioUrl: string; }), audioUrl };
-    } else if (finalResource?.type === 'text_audio_image' && audioUrl && imageUrl) {
-      finalResource.content = { ...(finalResource.content as { text: string; audioUrl: string; imageUrl: string; }), audioUrl, imageUrl };
-    } else if (finalResource?.type === 'text_audio_image' && audioUrl) {
-      finalResource.content = { ...(finalResource.content as { text: string; audioUrl: string; imageUrl: string; }), audioUrl };
-    } else if (finalResource?.type === 'text_audio_image' && imageUrl) {
-      finalResource.content = { ...(finalResource.content as { text: string; audioUrl: string; imageUrl: string; }), imageUrl };
-    } else if ((finalResource?.type === 'image' || finalResource?.type === 'pdf' || finalResource?.type === 'audio') && (audioUrl || imageUrl)) {
-      finalResource.content = (audioUrl || imageUrl)!;
+    if (resource?.type === 'text_audio') {
+      content = { ...(resource.content as { text: string; audioUrl: string; }), audioUrl: audioUrl || (resource.content as { text: string; audioUrl: string; }).audioUrl };
+    } else if (resource?.type === 'text_audio_image') {
+      content = { 
+        ...(resource.content as { text: string; audioUrl?: string; imageUrl?: string; }), 
+        audioUrl: audioUrl || (resource.content as { text: string; audioUrl?: string; imageUrl?: string; }).audioUrl,
+        imageUrl: imageUrl || (resource.content as { text: string; audioUrl?: string; imageUrl?: string; }).imageUrl,
+      };
+    } else if ((resource?.type === 'image' || resource?.type === 'pdf' || resource?.type === 'audio') && (audioUrl || imageUrl)) {
+      content = (audioUrl || imageUrl)!;
     }
 
-    const { data, error } = await supabase.from('daily_checklist_items').insert({ daily_checklist_id, text, order_index, is_active: true, resource: finalResource }).select('*').single();
+    const { data, error } = await supabase.from('daily_checklist_items').insert({ daily_checklist_id, text, order_index, is_active: true, resource: resource ? { ...resource, content } : undefined }).select('*').single();
     if (error) throw error;
     setDailyChecklistItems(prev => [...prev, data].sort((a, b) => a.order_index - b.order_index));
     return data;
@@ -1938,14 +1940,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
 
     // Update resource content based on uploads
-    if (finalResource?.type === 'text_audio' && audioUrl) {
-      finalResource.content = { ...(finalResource.content as { text: string; audioUrl: string; }), audioUrl };
-    } else if (finalResource?.type === 'text_audio_image' && audioUrl && imageUrl) {
-      finalResource.content = { ...(finalResource.content as { text: string; audioUrl: string; imageUrl: string; }), audioUrl, imageUrl };
-    } else if (finalResource?.type === 'text_audio_image' && audioUrl) {
-      finalResource.content = { ...(finalResource.content as { text: string; audioUrl: string; imageUrl: string; }), audioUrl };
-    } else if (finalResource?.type === 'text_audio_image' && imageUrl) {
-      finalResource.content = { ...(finalResource.content as { text: string; audioUrl: string; imageUrl: string; }), imageUrl };
+    if (finalResource?.type === 'text_audio') {
+      finalResource.content = { 
+        ...(finalResource.content as { text: string; audioUrl: string; }), 
+        audioUrl: audioUrl || (finalResource.content as { text: string; audioUrl: string; }).audioUrl 
+      };
+    } else if (finalResource?.type === 'text_audio_image') {
+      finalResource.content = { 
+        ...(finalResource.content as { text: string; audioUrl?: string; imageUrl?: string; }), 
+        audioUrl: audioUrl || (finalResource.content as { text: string; audioUrl?: string; imageUrl?: string; }).audioUrl,
+        imageUrl: imageUrl || (finalResource.content as { text: string; audioUrl?: string; imageUrl?: string; }).imageUrl,
+      };
     } else if ((finalResource?.type === 'image' || finalResource?.type === 'pdf' || finalResource?.type === 'audio') && (audioUrl || imageUrl)) {
       finalResource.content = (audioUrl || imageUrl)!;
     }
