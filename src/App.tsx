@@ -8,7 +8,7 @@ import { UserRole } from '@/types';
 import { GestorSidebar } from '@/components/GestorSidebar';
 import { ConsultorLayout } from '@/components/ConsultorLayout';
 import { Header } from '@/components/Header';
-import { SecretariaLayout } from '@/layouts/SecretariaLayout'; // NOVO: Importar o novo layout da Secretaria
+import { SecretariaLayout } from '@/layouts/SecretariaLayout'; // CORRIGIDO: Importar o layout minimalista da Secretaria
 
 // Common Pages
 import { Login } from '@/pages/Login';
@@ -203,16 +203,8 @@ const AppRoutes = () => {
         </Route>
 
         {/* NOVO: Rotas para Secretaria */}
-        <Route path="/secretaria" element={<SecretariaLayout />}> {/* Usar o novo SecretariaLayout */}
+        <Route path="/secretaria" element={<SecretariaLayout />}> {/* Usar o layout minimalista */}
           <Route path="dashboard" element={<SecretariaDashboard />} />
-          {/* As rotas abaixo foram removidas do sidebar da Secretaria, mas mantidas aqui caso precise reativá-las no futuro */}
-          {/* <Route path="onboarding-admin" element={<OnlineOnboarding />} />
-          <Route path="hiring-pipeline" element={<HiringPipeline />} />
-          <Route path="candidate-screening" element={<CandidateScreening />} />
-          <Route path="all-candidates" element={<AllCandidates />} />
-          <Route path="hiring-reports" element={<HiringReports />} />
-          <Route path="form-cadastros" element={<FormCadastros />} />
-          <Route path="config-origins" element={<OriginConfig />} /> */}
           <Route path="*" element={<Navigate to="/secretaria/dashboard" replace />} />
         </Route>
         
