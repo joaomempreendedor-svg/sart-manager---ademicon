@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Loader2, Search, User, Phone, Mail, CheckCircle2, XCircle, RotateCcw, ArrowRight, MessageSquare, UserX, Plus, Trash2, Users, Clock, UserRound, UploadCloud, CalendarDays, Filter, Calendar, FileText, UserCheck, Star, TrendingUp, ChevronRight, Check } from 'lucide-react';
+import { Loader2, Search, User, Phone, Mail, CheckCircle2, XCircle, RotateCcw, ArrowRight, MessageSquare, UserX, Plus, Trash2, Users, Clock, UserRound, UploadCloud, CalendarDays, Filter, Calendar, FileText, UserCheck, Star, TrendingUp, ChevronRight, Check, CalendarClock, UserMinus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { TableSkeleton } from '@/components/TableSkeleton';
 import {
@@ -66,7 +66,6 @@ const HiringPipeline = () => {
 
     const entryPool = candidatesForGestor.filter(c => c.status === 'Triagem').sort(sortByRecentUpdate);
     
-    // Agendadas: Status Entrevista E NÃO confirmada E SEM notas
     const scheduled = candidatesForGestor.filter(c => 
       c.status === 'Entrevista' && 
       !c.interviewConducted &&
@@ -77,7 +76,6 @@ const HiringPipeline = () => {
       c.interviewScores.notes === ''
     ).sort(sortByRecentUpdate);
 
-    // Realizadas: Status Entrevista E (confirmada OU com notas)
     const conducted = candidatesForGestor.filter(c => 
       c.status === 'Entrevista' && 
       (c.interviewConducted || c.interviewScores.basicProfile > 0 || c.interviewScores.commercialSkills > 0 || c.interviewScores.behavioralProfile > 0 || c.interviewScores.jobFit > 0 || c.interviewScores.notes !== '')
@@ -87,14 +85,14 @@ const HiringPipeline = () => {
     const authorized = candidatesForGestor.filter(c => c.status === 'Autorizado').sort(sortByRecentUpdate);
     const droppedOut = candidatesForGestor.filter(c => c.status === 'Reprovado').sort(sortByRecentUpdate);
     const disqualified = candidatesForGestor.filter(c => c.status === 'Desqualificado').sort(sortByRecentUpdate);
-    const noShow = candidatesForGestor.filter(c => c.status === 'Faltou').sort(sortByRecentUpdate); // NOVO: Filtro para Faltou
+    const noShow = candidatesForGestor.filter(c => c.status === 'Faltou').sort(sortByRecentUpdate);
 
     return {
       pipelineStages: { 
         candidates: { title: 'Candidatos', list: entryPool, color: 'gray', icon: Users },
         scheduled: { title: 'Agendadas', list: scheduled, color: 'blue', icon: Calendar },
         conducted: { title: 'Realizadas', list: conducted, color: 'purple', icon: FileText },
-        noShow: { title: 'Faltou', list: noShow, color: 'red', icon: UserX }, // NOVO: Coluna Faltou
+        noShow: { title: 'Faltou', list: noShow, color: 'red', icon: UserX },
         awaitingPreview: { title: 'Em Prévia', list: awaitingPreview, color: 'yellow', icon: Clock },
         authorized: { title: 'Autorizados', list: authorized, color: 'green', icon: UserCheck },
         droppedOut: { title: 'Desistências', list: droppedOut, color: 'red', icon: UserX },
@@ -132,7 +130,7 @@ const HiringPipeline = () => {
         newStatus = 'Entrevista'; 
         updates.interviewConducted = true;
         break;
-      case 'noShow': newStatus = 'Faltou'; break; // NOVO: Drop para Faltou
+      case 'noShow': newStatus = 'Faltou'; break;
       case 'awaitingPreview': newStatus = 'Aguardando Prévia'; break;
       case 'authorized': newStatus = 'Autorizado'; break;
       case 'droppedOut': newStatus = 'Reprovado'; break;
@@ -144,23 +142,14 @@ const HiringPipeline = () => {
     setDraggingCandidateId(null);
   };
 
-  const handleConfirmAttendance = async (e: React.MouseEvent, candidate: Candidate) => {
+  const handleUpdateStatus = async (e: React.MouseEvent, candidateId: string, newStatus: CandidateStatus, updates: Partial<Candidate> = {}) => {
     e.preventDefault();
     e.stopPropagation();
     try {
-      await updateCandidate(candidate.id, { interviewConducted: true });
-      toast.success(`Presença de ${candidate.name} confirmada!`);
+      await updateCandidate(candidateId, { status: newStatus, ...updates });
+      toast.success(`Candidato movido para ${newStatus}`);
     } catch (error: any) {
-      toast.error("Erro ao confirmar presença.");
-    }
-  };
-
-  const handleQuickDisqualify = async (e: React.MouseEvent, candidateId: string, candidateName: string) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (window.confirm(`Deseja mover ${candidateName} para a coluna de Desqualificado?`)) {
-      await updateCandidate(candidateId, { status: 'Desqualificado' });
-      toast.success(`${candidateName} desqualificado.`);
+      toast.error("Erro ao atualizar status.");
     }
   };
 
@@ -235,8 +224,7 @@ const HiringPipeline = () => {
                 const isToday = candidate.interviewDate === todayStr;
 
                 return (
-                  <Link 
-                    to={`/gestor/candidate/${candidate.id}`} 
+                  <div 
                     key={candidate.id} 
                     draggable 
                     onDragStart={(e) => handleDragStart(e, candidate.id)} 
@@ -249,36 +237,15 @@ const HiringPipeline = () => {
                     )}
 
                     <div className="flex justify-between items-start mb-2">
-                      <p className="font-bold text-gray-900 dark:text-white leading-tight">{highlightText(candidate.name, searchTerm)}</p>
-                      <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        {id === 'scheduled' && (
-                          <button 
-                            onClick={(e) => handleConfirmAttendance(e, candidate)}
-                            className="p-1 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors"
-                            title="Confirmar Realização"
-                          >
-                            <CheckCircle2 className="w-4 h-4" />
-                          </button>
-                        )}
-                        {id === 'candidates' && (
-                          <button 
-                            onClick={(e) => handleOpenUpdateDate(e, candidate)}
-                            className="p-1 text-gray-400 hover:text-blue-500 transition-colors"
-                            title="Agendar Entrevista"
-                          >
-                            <Calendar className="w-4 h-4" />
-                          </button>
-                        )}
-                        {id !== 'disqualified' && (
-                          <button 
-                            onClick={(e) => handleQuickDisqualify(e, candidate.id, candidate.name)}
-                            className="p-1 text-gray-400 hover:text-red-500 transition-colors"
-                            title="Desqualificar Candidato"
-                          >
-                            <XCircle className="w-4 h-4" />
-                          </button>
-                        )}
-                      </div>
+                      <Link to={`/gestor/candidate/${candidate.id}`} className="font-bold text-gray-900 dark:text-white leading-tight hover:text-brand-600 transition-colors">
+                        {highlightText(candidate.name, searchTerm)}
+                      </Link>
+                      <button 
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); if(confirm('Excluir candidato?')) updateCandidate(candidate.id, { status: 'Desqualificado' }); }}
+                        className="p-1 text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
 
                     <div className="space-y-2">
@@ -298,10 +265,96 @@ const HiringPipeline = () => {
 
                       <div className="pt-2 border-t border-gray-50 dark:border-slate-600 flex items-center justify-between text-[10px] text-gray-400">
                         <span className="flex items-center"><Calendar className="w-3 h-3 mr-1" /> {candidate.interviewDate ? new Date(candidate.interviewDate + 'T00:00:00').toLocaleDateString('pt-BR') : 'Sem data'}</span>
-                        <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-brand-500 transition-colors" />
+                      </div>
+
+                      {/* BOTÕES DE AÇÃO RÁPIDA NO CARD */}
+                      <div className="pt-3 mt-1 border-t border-gray-50 dark:border-slate-600 grid grid-cols-2 gap-2">
+                        {id === 'candidates' && (
+                          <button 
+                            onClick={(e) => handleOpenUpdateDate(e, candidate)}
+                            className="col-span-2 flex items-center justify-center space-x-1 py-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg text-[10px] font-bold hover:bg-blue-100 transition"
+                          >
+                            <CalendarClock className="w-3 h-3" />
+                            <span>Agendar Entrevista</span>
+                          </button>
+                        )}
+
+                        {id === 'scheduled' && (
+                          <>
+                            <button 
+                              onClick={(e) => handleUpdateStatus(e, candidate.id, 'Entrevista', { interviewConducted: true })}
+                              className="flex items-center justify-center space-x-1 py-1.5 bg-green-600 text-white rounded-lg text-[10px] font-bold hover:bg-green-700 transition"
+                            >
+                              <Check className="w-3 h-3" />
+                              <span>Chegou</span>
+                            </button>
+                            <button 
+                              onClick={(e) => handleUpdateStatus(e, candidate.id, 'Faltou')}
+                              className="flex items-center justify-center space-x-1 py-1.5 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg text-[10px] font-bold hover:bg-red-100 transition"
+                            >
+                              <XCircle className="w-3 h-3" />
+                              <span>Faltou</span>
+                            </button>
+                            <button 
+                              onClick={(e) => handleUpdateStatus(e, candidate.id, 'Reprovado')}
+                              className="col-span-2 flex items-center justify-center space-x-1 py-1.5 border border-gray-200 dark:border-slate-600 text-gray-500 rounded-lg text-[10px] font-bold hover:bg-gray-50 transition"
+                            >
+                              <UserMinus className="w-3 h-3" />
+                              <span>Desistiu</span>
+                            </button>
+                          </>
+                        )}
+
+                        {id === 'conducted' && (
+                          <>
+                            <button 
+                              onClick={(e) => handleUpdateStatus(e, candidate.id, 'Aguardando Prévia')}
+                              className="flex items-center justify-center space-x-1 py-1.5 bg-brand-500 text-white rounded-lg text-[10px] font-bold hover:bg-brand-600 transition"
+                            >
+                              <ArrowRight className="w-3 h-3" />
+                              <span>Aprovar</span>
+                            </button>
+                            <button 
+                              onClick={(e) => handleUpdateStatus(e, candidate.id, 'Reprovado')}
+                              className="flex items-center justify-center space-x-1 py-1.5 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg text-[10px] font-bold hover:bg-red-100 transition"
+                            >
+                              <UserX className="w-3 h-3" />
+                              <span>Reprovar</span>
+                            </button>
+                          </>
+                        )}
+
+                        {id === 'noShow' && (
+                          <button 
+                            onClick={(e) => handleOpenUpdateDate(e, candidate)}
+                            className="col-span-2 flex items-center justify-center space-x-1 py-1.5 bg-blue-500 text-white rounded-lg text-[10px] font-bold hover:bg-blue-600 transition"
+                          >
+                            <RotateCcw className="w-3 h-3" />
+                            <span>Reagendar</span>
+                          </button>
+                        )}
+
+                        {id === 'awaitingPreview' && (
+                          <>
+                            <button 
+                              onClick={(e) => handleUpdateStatus(e, candidate.id, 'Autorizado')}
+                              className="flex items-center justify-center space-x-1 py-1.5 bg-green-600 text-white rounded-lg text-[10px] font-bold hover:bg-green-700 transition"
+                            >
+                              <UserCheck className="w-3 h-3" />
+                              <span>Autorizar</span>
+                            </button>
+                            <button 
+                              onClick={(e) => handleUpdateStatus(e, candidate.id, 'Reprovado')}
+                              className="flex items-center justify-center space-x-1 py-1.5 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg text-[10px] font-bold hover:bg-red-100 transition"
+                            >
+                              <UserX className="w-3 h-3" />
+                              <span>Reprovar</span>
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
-                  </Link>
+                  </div>
                 );
               })}
               {stage.list.length === 0 && (
