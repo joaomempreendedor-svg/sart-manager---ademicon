@@ -270,13 +270,22 @@ const HiringPipeline = () => {
                       {/* BOTÕES DE AÇÃO RÁPIDA NO CARD */}
                       <div className="pt-3 mt-1 border-t border-gray-50 dark:border-slate-600 grid grid-cols-2 gap-2">
                         {id === 'candidates' && (
-                          <button 
-                            onClick={(e) => handleOpenUpdateDate(e, candidate)}
-                            className="col-span-2 flex items-center justify-center space-x-1 py-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg text-[10px] font-bold hover:bg-blue-100 transition"
-                          >
-                            <CalendarClock className="w-3 h-3" />
-                            <span>Agendar Entrevista</span>
-                          </button>
+                          <>
+                            <button 
+                              onClick={(e) => handleOpenUpdateDate(e, candidate)}
+                              className="flex items-center justify-center space-x-1 py-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg text-[10px] font-bold hover:bg-blue-100 transition"
+                            >
+                              <CalendarClock className="w-3 h-3" />
+                              <span>Agendar</span>
+                            </button>
+                            <button 
+                              onClick={(e) => handleUpdateStatus(e, candidate.id, 'Desqualificado')}
+                              className="flex items-center justify-center space-x-1 py-1.5 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 rounded-lg text-[10px] font-bold hover:bg-red-100 transition"
+                            >
+                              <UserX className="w-3 h-3" />
+                              <span>Reprovar</span>
+                            </button>
+                          </>
                         )}
 
                         {id === 'scheduled' && (
