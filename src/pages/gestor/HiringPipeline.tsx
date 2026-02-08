@@ -196,7 +196,13 @@ const HiringPipeline = () => {
           {(searchTerm || filterStartDate || filterEndDate) && <button onClick={() => { setSearchTerm(''); setFilterStartDate(''); setFilterEndDate(''); }} className="text-xs flex items-center text-red-500 hover:text-red-700 transition"><RotateCcw className="w-3 h-3 mr-1" />Limpar Filtros</button>}
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" /><input type="text" placeholder="Buscar por nome, telefone ou email..." className="w-full pl-9 pr-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
+          <div className="flex flex-col">
+            <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 ml-1">Busca</label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input type="text" placeholder="Nome, telefone ou email..." className="w-full pl-9 pr-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+            </div>
+          </div>
           <div className="flex flex-col"><label className="text-[10px] font-bold text-gray-400 uppercase mb-1 ml-1">Criado de</label><input type="date" value={filterStartDate} onChange={(e) => setFilterStartDate(e.target.value)} className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2 text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white" /></div>
           <div className="flex flex-col"><label className="text-[10px] font-bold text-gray-400 uppercase mb-1 ml-1">Criado até</label><input type="date" value={filterEndDate} onChange={(e) => setFilterEndDate(e.target.value)} className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2 text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white" /></div>
         </div>
