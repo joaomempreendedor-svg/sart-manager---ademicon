@@ -24,6 +24,10 @@ export const Home = () => {
     return <Navigate to="/consultor/dashboard" replace />;
   }
 
+  if (user?.role === 'SECRETARIA') { // NOVO: Redirecionamento para Secretaria
+    return <Navigate to="/secretaria/onboarding-admin" replace />;
+  }
+
   // Fallback, embora o RequireAuth já devesse ter redirecionado
   return <Navigate to="/login" replace />;
 };
