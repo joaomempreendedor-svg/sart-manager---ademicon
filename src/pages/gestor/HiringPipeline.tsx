@@ -295,13 +295,6 @@ const HiringPipeline = () => {
                               <XCircle className="w-3 h-3" />
                               <span>Faltou</span>
                             </button>
-                            <button 
-                              onClick={(e) => handleUpdateStatus(e, candidate.id, 'Reprovado')}
-                              className="col-span-2 flex items-center justify-center space-x-1 py-1.5 border border-gray-200 dark:border-slate-600 text-gray-500 rounded-lg text-[10px] font-bold hover:bg-gray-50 transition"
-                            >
-                              <UserMinus className="w-3 h-3" />
-                              <span>Desistiu</span>
-                            </button>
                           </>
                         )}
 
@@ -349,6 +342,13 @@ const HiringPipeline = () => {
                             >
                               <UserX className="w-3 h-3" />
                               <span>Reprovar</span>
+                            </button>
+                            <button 
+                              onClick={(e) => handleUpdateStatus(e, candidate.id, 'Reprovado')}
+                              className="col-span-2 flex items-center justify-center space-x-1 py-1.5 border border-gray-200 dark:border-slate-600 text-gray-500 rounded-lg text-[10px] font-bold hover:bg-gray-50 transition"
+                            >
+                              <UserMinus className="w-3 h-3" />
+                              <span>Desistiu</span>
                             </button>
                           </>
                         )}
