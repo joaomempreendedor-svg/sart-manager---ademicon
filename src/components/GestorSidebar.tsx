@@ -32,44 +32,7 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
 
   const sectionTitleClass = `flex items-center justify-between w-full px-4 py-3 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg transition-colors`;
 
-  // Determine if the current user is a 'SECRETARIA'
   const isSecretaria = user?.role === 'SECRETARIA';
-
-  // Links visíveis para a Secretaria
-  const secretariaLinks = [
-    { to: "/secretaria/hiring-pipeline", icon: UserSearch, label: "Pipeline Contratação" },
-    { to: "/secretaria/candidate-screening", icon: UserCheck, label: "Controle Candidaturas" },
-    { to: "/secretaria/all-candidates", icon: UsersRound, label: "Todos os Candidatos" },
-    { to: "/secretaria/hiring-reports", icon: UserCog, label: "Relatórios Contratação" },
-    { to: "/secretaria/onboarding-admin", icon: Video, label: "Onboarding Online" },
-    { to: "/secretaria/form-cadastros", icon: FileStack, label: "Gerenciar Formulários" },
-    { to: "/secretaria/config-origins", icon: MapPin, label: "Configurar Origens" },
-  ];
-
-  // Links visíveis para Gestor/Admin (excluindo os da Secretaria)
-  const gestorAdminOverviewLinks = [
-    { to: "/gestor/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-    { to: "/gestor/crm", icon: TrendingUp, label: "CRM" },
-    { to: "/gestor/crm-sales-reports", icon: BarChart3, label: "Relatórios de Vendas" },
-    { to: "/gestor/commissions", icon: Banknote, label: "Comissões" },
-    { to: "/gestor/financial-panel", icon: DollarSign, label: "Painel Financeiro" },
-    { to: "/gestor/feedbacks", icon: Star, label: "Feedbacks" },
-    { to: "/gestor/daily-checklist-monitoring", icon: ClipboardCheck, label: "Monitorar Metas Diárias" },
-    { to: "/gestor/team-production-goals", icon: Target, label: "Metas de Produção" },
-    { to: "/gestor/my-tasks", icon: ListTodo, label: "Minhas Tarefas" },
-  ];
-
-  const gestorAdminConfigLinks = [
-    { to: "/gestor/config-team", icon: Users, label: "Gestão de Equipe" },
-    { to: "/gestor/daily-checklist-config", icon: ListChecks, label: "Config. Metas Diárias" },
-    { to: "/gestor/config-goals", icon: Target, label: "Configurar Metas" },
-    { to: "/gestor/config-interview", icon: FileText, label: "Configurar Entrevista" },
-    { to: "/gestor/config-templates", icon: MessageSquare, label: "Configurar Mensagens" },
-    { to: "/gestor/config-cutoff", icon: Clock, label: "Períodos de Corte" },
-    { to: "/gestor/crm-config", icon: PlusCircle, label: "Configurar CRM" },
-    { to: "/gestor/config-process", icon: Settings, label: "Editar Processo (Antigo)" },
-  ];
-
 
   return (
     <>
@@ -107,20 +70,101 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
             <>
               {isSecretaria ? (
                 // Links específicos para a Secretaria
-                secretariaLinks.map(link => (
-                  <NavLink key={link.to} to={link.to} className={linkClass} onClick={toggleSidebar}>
-                    <link.icon className="w-5 h-5" />
-                    <span>{link.label}</span>
+                <>
+                  <NavLink to="/secretaria/hiring-pipeline" className={linkClass} onClick={toggleSidebar}>
+                    <UserSearch className="w-5 h-5" />
+                    <span>Pipeline Contratação</span>
                   </NavLink>
-                ))
+                  <NavLink to="/secretaria/candidate-screening" className={linkClass} onClick={toggleSidebar}>
+                    <UserCheck className="w-5 h-5" />
+                    <span>Controle Candidaturas</span>
+                  </NavLink>
+                  <NavLink to="/secretaria/all-candidates" className={linkClass} onClick={toggleSidebar}>
+                    <UsersRound className="w-5 h-5" />
+                    <span>Todos os Candidatos</span>
+                  </NavLink>
+                  <NavLink to="/secretaria/hiring-reports" className={linkClass} onClick={toggleSidebar}>
+                    <UserCog className="w-5 h-5" />
+                    <span>Relatórios Contratação</span>
+                  </NavLink>
+                  <NavLink to="/secretaria/onboarding-admin" className={linkClass} onClick={toggleSidebar}>
+                    <Video className="w-5 h-5" />
+                    <span>Onboarding Online</span>
+                  </NavLink>
+                  <NavLink to="/secretaria/form-cadastros" className={linkClass} onClick={toggleSidebar}>
+                    <FileStack className="w-5 h-5" />
+                    <span>Gerenciar Formulários</span>
+                  </NavLink>
+                  <NavLink to="/secretaria/config-origins" className={linkClass} onClick={toggleSidebar}>
+                    <MapPin className="w-5 h-5" />
+                    <span>Configurar Origens</span>
+                  </NavLink>
+                </>
               ) : (
                 // Links para Gestor/Admin
-                gestorAdminOverviewLinks.map(link => (
-                  <NavLink key={link.to} to={link.to} className={linkClass} onClick={toggleSidebar}>
-                    <link.icon className="w-5 h-5" />
-                    <span>{link.label}</span>
+                <>
+                  <NavLink to="/gestor/dashboard" className={linkClass} onClick={toggleSidebar}>
+                    <LayoutDashboard className="w-5 h-5" />
+                    <span>Dashboard</span>
                   </NavLink>
-                ))
+                  
+                  <NavLink to="/gestor/crm" className={linkClass} onClick={toggleSidebar}>
+                    <TrendingUp className="w-5 h-5" />
+                    <span>CRM</span>
+                  </NavLink>
+                  <NavLink to="/gestor/crm-sales-reports" className={linkClass} onClick={toggleSidebar}>
+                    <BarChart3 className="w-5 h-5" />
+                    <span>Relatórios de Vendas</span>
+                  </NavLink>
+                  <NavLink to="/gestor/hiring-pipeline" className={linkClass} onClick={toggleSidebar}>
+                    <UserSearch className="w-5 h-5" />
+                    <span>Pipeline Contratação</span>
+                  </NavLink>
+                  <NavLink to="/gestor/candidate-screening" className={linkClass} onClick={toggleSidebar}>
+                    <UserCheck className="w-5 h-5" />
+                    <span>Controle Candidaturas</span>
+                  </NavLink>
+                  <NavLink to="/gestor/all-candidates" className={linkClass} onClick={toggleSidebar}>
+                    <UsersRound className="w-5 h-5" />
+                    <span>Todos os Candidatos</span>
+                  </NavLink>
+                  <NavLink to="/gestor/hiring-reports" className={linkClass} onClick={toggleSidebar}>
+                    <UserCog className="w-5 h-5" />
+                    <span>Relatórios Contratação</span>
+                  </NavLink>
+                  <NavLink to="/gestor/onboarding-admin" className={linkClass} onClick={toggleSidebar}>
+                    <Video className="w-5 h-5" />
+                    <span>Onboarding Online</span>
+                  </NavLink>
+                  <NavLink to="/gestor/form-cadastros" className={linkClass} onClick={toggleSidebar}>
+                    <FileStack className="w-5 h-5" />
+                    <span>Gerenciar Formulários</span>
+                  </NavLink>
+                  <NavLink to="/gestor/commissions" className={linkClass} onClick={toggleSidebar}>
+                    <Banknote className="w-5 h-5" />
+                    <span>Comissões</span>
+                  </NavLink>
+                  <NavLink to="/gestor/financial-panel" className={linkClass} onClick={toggleSidebar}>
+                    <DollarSign className="w-5 h-5" />
+                    <span>Painel Financeiro</span>
+                  </NavLink>
+                  <NavLink to="/gestor/feedbacks" className={linkClass} onClick={toggleSidebar}>
+                    <Star className="w-5 h-5" />
+                    <span>Feedbacks</span>
+                  </NavLink>
+                  <NavLink to="/gestor/daily-checklist-monitoring" className={linkClass} onClick={toggleSidebar}>
+                    <ClipboardCheck className="w-5 h-5" />
+                    <span>Monitorar Metas Diárias</span>
+                  </NavLink>
+                  <NavLink to="/gestor/team-production-goals" className={linkClass} onClick={toggleSidebar}>
+                    <Target className="w-5 h-5" />
+                    <span>Metas de Produção</span>
+                  </NavLink>
+                  <NavLink to="/gestor/my-tasks" className={linkClass} onClick={toggleSidebar}>
+                    <ListTodo className="w-5 h-5" />
+                    <span>Minhas Tarefas</span>
+                  </NavLink>
+                </>
               )}
             </>
           )}
@@ -128,46 +172,169 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
             <>
               {isSecretaria ? (
                 // Links específicos para a Secretaria (colapsado)
-                secretariaLinks.map(link => (
-                  <NavLink key={link.to} to={link.to} className={linkClass} onClick={toggleSidebar} title={link.label}>
-                    <link.icon className="w-5 h-5" />
+                <>
+                  <NavLink to="/secretaria/hiring-pipeline" className={linkClass} onClick={toggleSidebar} title="Pipeline Contratação">
+                    <UserSearch className="w-5 h-5" />
                   </NavLink>
-                ))
+                  <NavLink to="/secretaria/candidate-screening" className={linkClass} onClick={toggleSidebar} title="Controle Candidaturas">
+                    <UserCheck className="w-5 h-5" />
+                  </NavLink>
+                  <NavLink to="/secretaria/all-candidates" className={linkClass} onClick={toggleSidebar} title="Todos os Candidatos">
+                    <UsersRound className="w-5 h-5" />
+                  </NavLink>
+                  <NavLink to="/secretaria/hiring-reports" className={linkClass} onClick={toggleSidebar} title="Relatórios Contratação">
+                    <UserCog className="w-5 h-5" />
+                  </NavLink>
+                  <NavLink to="/secretaria/onboarding-admin" className={linkClass} onClick={toggleSidebar} title="Onboarding Online">
+                    <Video className="w-5 h-5" />
+                  </NavLink>
+                  <NavLink to="/secretaria/form-cadastros" className={linkClass} onClick={toggleSidebar} title="Gerenciar Formulários">
+                    <FileStack className="w-5 h-5" />
+                  </NavLink>
+                  <NavLink to="/secretaria/config-origins" className={linkClass} onClick={toggleSidebar} title="Configurar Origens">
+                    <MapPin className="w-5 h-5" />
+                  </NavLink>
+                </>
               ) : (
                 // Links para Gestor/Admin (colapsado)
-                gestorAdminOverviewLinks.map(link => (
-                  <NavLink key={link.to} to={link.to} className={linkClass} onClick={toggleSidebar} title={link.label}>
-                    <link.icon className="w-5 h-5" />
+                <>
+                  <NavLink to="/gestor/dashboard" className={linkClass} onClick={toggleSidebar} title="Dashboard">
+                    <LayoutDashboard className="w-5 h-5" />
                   </NavLink>
-                ))
+                  
+                  <NavLink to="/gestor/crm" className={linkClass} onClick={toggleSidebar} title="CRM">
+                    <TrendingUp className="w-5 h-5" />
+                  </NavLink>
+                  <NavLink to="/gestor/crm-sales-reports" className={linkClass} onClick={toggleSidebar} title="Relatórios de Vendas">
+                    <BarChart3 className="w-5 h-5" />
+                  </NavLink>
+                  <NavLink to="/gestor/hiring-pipeline" className={linkClass} onClick={toggleSidebar} title="Pipeline Contratação">
+                    <UserSearch className="w-5 h-5" />
+                  </NavLink>
+                  <NavLink to="/gestor/candidate-screening" className={linkClass} onClick={toggleSidebar} title="Controle Candidaturas">
+                    <UserCheck className="w-5 h-5" />
+                  </NavLink>
+                  <NavLink to="/gestor/all-candidates" className={linkClass} onClick={toggleSidebar} title="Todos os Candidatos">
+                    <UsersRound className="w-5 h-5" />
+                  </NavLink>
+                  <NavLink to="/gestor/hiring-reports" className={linkClass} onClick={toggleSidebar} title="Relatórios Contratação">
+                    <UserCog className="w-5 h-5" />
+                  </NavLink>
+                  <NavLink to="/gestor/onboarding-admin" className={linkClass} onClick={toggleSidebar} title="Onboarding Online">
+                    <Video className="w-5 h-5" />
+                  </NavLink>
+                  <NavLink to="/gestor/form-cadastros" className={linkClass} onClick={toggleSidebar} title="Gerenciar Formulários">
+                    <FileStack className="w-5 h-5" />
+                  </NavLink>
+                  <NavLink to="/gestor/commissions" className={linkClass} onClick={toggleSidebar} title="Comissões">
+                    <Banknote className="w-5 h-5" />
+                  </NavLink>
+                  <NavLink to="/gestor/financial-panel" className={linkClass} onClick={toggleSidebar} title="Painel Financeiro">
+                    <DollarSign className="w-5 h-5" />
+                  </NavLink>
+                  <NavLink to="/gestor/feedbacks" className={linkClass} onClick={toggleSidebar} title="Feedbacks">
+                    <Star className="w-5 h-5" />
+                  </NavLink>
+                  <NavLink to="/gestor/daily-checklist-monitoring" className={linkClass} onClick={toggleSidebar} title="Monitorar Metas Diárias">
+                    <ClipboardCheck className="w-5 h-5" />
+                  </NavLink>
+                  <NavLink to="/gestor/team-production-goals" className={linkClass} onClick={toggleSidebar} title="Metas de Produção">
+                    <Target className="w-5 h-5" />
+                  </NavLink>
+                  <NavLink to="/gestor/my-tasks" className={linkClass} onClick={toggleSidebar} title="Minhas Tarefas">
+                    <ListTodo className="w-5 h-5" />
+                  </NavLink>
+                </>
               )}
             </>
           )}
 
           {/* Configurações do Sistema */}
-          {!isSecretaria && !isSidebarCollapsed && ( // A Secretaria não vê esta seção, a menos que seja um link específico
+          {!isSidebarCollapsed && (
             <button onClick={() => setIsConfigCollapsed(!isConfigCollapsed)} className={`${sectionTitleClass} mt-4`}>
               <span>Configurações do Sistema</span>
               <ChevronDown className={`w-4 h-4 transition-transform ${isConfigCollapsed ? 'rotate-0' : '-rotate-90'}`} />
             </button>
           )}
-          {(!isSidebarCollapsed && !isConfigCollapsed && !isSecretaria) && ( // A Secretaria não vê esta seção
+          {(!isSidebarCollapsed && !isConfigCollapsed) && (
             <>
-              {gestorAdminConfigLinks.map(link => (
-                <NavLink key={link.to} to={link.to} className={linkClass} onClick={toggleSidebar}>
-                  <link.icon className="w-5 h-5" />
-                  <span>{link.label}</span>
-                </NavLink>
-              ))}
+              {/* Itens para Gestor/Admin */}
+              {!isSecretaria && (
+                <>
+                  <NavLink to="/gestor/config-team" className={linkClass} onClick={toggleSidebar}>
+                    <Users className="w-5 h-5" />
+                    <span>Gestão de Equipe</span>
+                  </NavLink>
+                  <NavLink to="/gestor/daily-checklist-config" className={linkClass} onClick={toggleSidebar}>
+                    <ListChecks className="w-5 h-5" />
+                    <span>Config. Metas Diárias</span>
+                  </NavLink>
+                  <NavLink to="/gestor/config-goals" className={linkClass} onClick={toggleSidebar}>
+                    <Target className="w-5 h-5" />
+                    <span>Configurar Metas</span>
+                  </NavLink>
+                  <NavLink to="/gestor/config-interview" className={linkClass} onClick={toggleSidebar}>
+                    <FileText className="w-5 h-5" />
+                    <span>Configurar Entrevista</span>
+                  </NavLink>
+                  <NavLink to="/gestor/config-templates" className={linkClass} onClick={toggleSidebar}>
+                    <MessageSquare className="w-5 h-5" />
+                    <span>Configurar Mensagens</span>
+                  </NavLink>
+                  <NavLink to="/gestor/config-cutoff" className={linkClass} onClick={toggleSidebar}>
+                    <Clock className="w-5 h-5" />
+                    <span>Períodos de Corte</span>
+                  </NavLink>
+                  <NavLink to="/gestor/crm-config" className={linkClass} onClick={toggleSidebar}>
+                    <PlusCircle className="w-5 h-5" />
+                    <span>Configurar CRM</span>
+                  </NavLink>
+                  <NavLink to="/gestor/config-origins" className={linkClass} onClick={toggleSidebar}>
+                    <MapPin className="w-5 h-5" />
+                    <span>Configurar Origens</span>
+                  </NavLink>
+                  <NavLink to="/gestor/config-process" className={linkClass} onClick={toggleSidebar}>
+                    <Settings className="w-5 h-5" />
+                    <span>Editar Processo (Antigo)</span>
+                  </NavLink>
+                </>
+              )}
             </>
           )}
-          {isSidebarCollapsed && !isSecretaria && ( // A Secretaria não vê esta seção (colapsado)
+          {isSidebarCollapsed && (
             <>
-              {gestorAdminConfigLinks.map(link => (
-                <NavLink key={link.to} to={link.to} className={linkClass} onClick={toggleSidebar} title={link.label}>
-                  <link.icon className="w-5 h-5" />
-                </NavLink>
-              ))}
+              {/* Itens para Gestor/Admin (colapsado) */}
+              {!isSecretaria && (
+                <>
+                  <NavLink to="/gestor/config-team" className={linkClass} onClick={toggleSidebar} title="Gestão de Equipe">
+                    <Users className="w-5 h-5" />
+                  </NavLink>
+                  <NavLink to="/gestor/daily-checklist-config" className={linkClass} onClick={toggleSidebar} title="Config. Metas Diárias">
+                    <ListChecks className="w-5 h-5" />
+                  </NavLink>
+                  <NavLink to="/gestor/config-goals" className={linkClass} onClick={toggleSidebar} title="Configurar Metas">
+                    <Target className="w-5 h-5" />
+                  </NavLink>
+                  <NavLink to="/gestor/config-interview" className={linkClass} onClick={toggleSidebar} title="Configurar Entrevista">
+                    <FileText className="w-5 h-5" />
+                  </NavLink>
+                  <NavLink to="/gestor/config-templates" className={linkClass} onClick={toggleSidebar} title="Configurar Mensagens">
+                    <MessageSquare className="w-5 h-5" />
+                  </NavLink>
+                  <NavLink to="/gestor/config-cutoff" className={linkClass} onClick={toggleSidebar} title="Períodos de Corte">
+                    <Clock className="w-5 h-5" />
+                  </NavLink>
+                  <NavLink to="/gestor/crm-config" className={linkClass} onClick={toggleSidebar} title="Configurar CRM">
+                    <PlusCircle className="w-5 h-5" />
+                  </NavLink>
+                  <NavLink to="/gestor/config-origins" className={linkClass} onClick={toggleSidebar} title="Configurar Origens">
+                    <MapPin className="w-5 h-5" />
+                  </NavLink>
+                  <NavLink to="/gestor/config-process" className={linkClass} onClick={toggleSidebar} title="Editar Processo (Antigo)">
+                    <Settings className="w-5 h-5" />
+                  </NavLink>
+                </>
+              )}
             </>
           )}
 
