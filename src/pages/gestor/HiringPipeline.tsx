@@ -14,7 +14,7 @@ import {
 import toast from 'react-hot-toast';
 import { Candidate, InterviewScores, CandidateStatus, TeamMember } from '@/types';
 import { AddScreeningCandidateModal } from '@/components/gestor/AddScreeningCandidateModal';
-import { UpdateInterviewDateModal } from '@/components/gestor/UpdateInterviewDateModal'; // Importando o novo modal
+import { UpdateInterviewDateModal } from '@/components/gestor/UpdateInterviewDateModal';
 import { highlightText } from '@/lib/utils';
 
 const HiringPipeline = () => {
@@ -32,6 +32,13 @@ const HiringPipeline = () => {
   const [filterEndDate, setFilterEndDate] = useState('');
 
   const todayStr = new Date().toISOString().split('T')[0];
+
+  // Função auxiliar para ordenar por data de atualização (mais recente primeiro)
+  const sortByRecentUpdate = (a: Candidate, b: Candidate) => {
+    const dateA = new Date(a.lastUpdatedAt || a.createdAt).getTime();
+    const dateB = new Date(b.lastUpdatedAt || b.createdAt).getTime();
+    return dateB - dateA;
+  };
 
   const {
     pipelineStages,
@@ -58,13 +65,14 @@ const HiringPipeline = () => {
       candidatesForGestor = candidatesForGestor.filter(c => new Date(c.createdAt) <= end);
     }
 
-    const entryPool = candidatesForGestor.filter(c => c.status === 'Triagem');
-    const scheduled = candidatesForGestor.filter(c => c.status === 'Entrevista' && c.interviewScores.basicProfile === 0 && c.interviewScores.commercialSkills === 0 && c.interviewScores.behavioralProfile === 0 && c.interviewScores.jobFit === 0 && c.interviewScores.notes === '');
-    const conducted = candidatesForGestor.filter(c => c.status === 'Entrevista' && (c.interviewScores.basicProfile > 0 || c.interviewScores.commercialSkills > 0 || c.interviewScores.behavioralProfile > 0 || c.interviewScores.jobFit > 0 || c.interviewScores.notes !== ''));
-    const awaitingPreview = candidatesForGestor.filter(c => c.status === 'Aguardando Prévia');
-    const authorized = candidatesForGestor.filter(c => c.status === 'Autorizado');
-    const droppedOut = candidatesForGestor.filter(c => c.status === 'Reprovado');
-    const disqualified = candidatesForGestor.filter(c => c.status === 'Desqualificado');
+    // Filtros de estágio com ordenação por atualização recente
+    const entryPool = candidatesForGestor.filter(c => c.status === 'Triagem').sort(sortByRecentUpdate);
+    const scheduled = candidatesForGestor.filter(c => c.status === 'Entrevista' && c.interviewScores.basicProfile === 0 && c.interviewScores.commercialSkills === 0 && c.interviewScores.behavioralProfile === 0 && c.interviewScores.jobFit === 0 && c.interviewScores.notes === '').sort(sortByRecentUpdate);
+    const conducted = candidatesForGestor.filter(c => c.status === 'Entrevista' && (c.interviewScores.basicProfile > 0 || c.interviewScores.commercialSkills > 0 || c.interviewScores.behavioralProfile > 0 || c.interviewScores.jobFit > 0 || c.interviewScores.notes !== '')).sort(sortByRecentUpdate);
+    const awaitingPreview = candidatesForGestor.filter(c => c.status === 'Aguardando Prévia').sort(sortByRecentUpdate);
+    const authorized = candidatesForGestor.filter(c => c.status === 'Autorizado').sort(sortByRecentUpdate);
+    const droppedOut = candidatesForGestor.filter(c => c.status === 'Reprovado').sort(sortByRecentUpdate);
+    const disqualified = candidatesForGestor.filter(c => c.status === 'Desqualificado').sort(sortByRecentUpdate);
 
     return {
       pipelineStages: { 
