@@ -179,18 +179,6 @@ const HiringPipeline = () => {
     }
   };
 
-  const getNextStep = (candidate: Candidate) => {
-    for (const stage of checklistStructure) {
-      for (const item of stage.items) {
-        const state = candidate.checklistProgress[item.id];
-        if (!state || !state.completed) {
-          return item.label;
-        }
-      }
-    }
-    return "Processo concluído";
-  };
-
   if (isAuthLoading || isDataLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="w-12 h-12 text-brand-500 animate-spin" /></div>;
 
   return (
@@ -241,7 +229,6 @@ const HiringPipeline = () => {
               {stage.list.map(candidate => {
                 const totalScore = candidate.interviewScores.basicProfile + candidate.interviewScores.commercialSkills + candidate.interviewScores.behavioralProfile + candidate.interviewScores.jobFit;
                 const isToday = candidate.interviewDate === todayStr;
-                const nextStep = getNextStep(candidate);
 
                 return (
                   <div 
@@ -282,14 +269,6 @@ const HiringPipeline = () => {
                       <div className="flex flex-wrap gap-1">
                         {candidate.phone && <span className="text-[10px] bg-gray-100 dark:bg-slate-600 px-1.5 py-0.5 rounded text-gray-600 dark:text-gray-300 flex items-center"><Phone className="w-2.5 h-2.5 mr-1" /> {candidate.phone}</span>}
                         {candidate.origin && <span className="text-[10px] bg-brand-50 dark:bg-brand-900/30 px-1.5 py-0.5 rounded text-brand-700 dark:text-brand-400 font-medium">{candidate.origin}</span>}
-                      </div>
-
-                      {/* PRÓXIMO PASSO */}
-                      <div className="bg-gray-50 dark:bg-slate-800/50 p-2 rounded-lg border border-gray-100 dark:border-slate-600 mt-2">
-                        <p className="text-[9px] font-bold text-gray-400 uppercase mb-1">Próximo Passo:</p>
-                        <p className="text-[10px] text-gray-700 dark:text-gray-300 font-medium line-clamp-2 leading-tight">
-                          {nextStep}
-                        </p>
                       </div>
 
                       <div className="pt-2 border-t border-gray-50 dark:border-slate-600 flex items-center justify-between text-[10px] text-gray-400">
