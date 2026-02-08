@@ -12,13 +12,13 @@ serve(async (req) => {
   }
 
   try {
-    const { email, name, tempPassword, login: consultantLogin } = await req.json();
+    const { email, name, tempPassword, login: consultantLogin, role: userRole } = await req.json(); // NOVO: Recebe 'role'
 
-    console.log("[create-or-link-consultant] Received request:", { email, name, consultantLogin });
+    console.log("[create-or-link-consultant] Received request:", { email, name, consultantLogin, userRole });
 
-    if (!email || !name || !tempPassword) {
+    if (!email || !name || !tempPassword || !userRole) { // NOVO: 'userRole' é obrigatório
       console.error("[create-or-link-consultant] Missing required fields.");
-      return new Response(JSON.stringify({ error: 'Email, name, and temporary password are required.' }), {
+      return new Response(JSON.stringify({ error: 'Email, name, temporary password, and role are required.' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
       });
@@ -42,10 +42,6 @@ serve(async (req) => {
       });
     }
 
-    // ⚠️ Adicionado log para inspecionar a estrutura de existingUsersData
-    console.log("[create-or-link-consultant] Result from listUsers:", JSON.stringify(existingUsersData));
-
-    // Check if existingUsersData or existingUsersData.users is undefined
     if (!existingUsersData || !Array.isArray(existingUsersData.users)) {
         console.error("[create-or-link-consultant] Unexpected structure from listUsers: 'users' array is missing or not an array.", { existingUsersData });
         return new Response(JSON.stringify({ error: `Falha ao verificar usuários: Resposta inesperada do serviço de autenticação.` }), {
@@ -59,20 +55,20 @@ serve(async (req) => {
     let userExists = false;
 
     if (existingUser) {
-      // 2A. USUÁRIO EXISTE - APENAS RESETAR SENHA (NUNCA ALTERAR EMAIL)
-      console.log(`[create-or-link-consultant] Usuário ${email} já existe. Resetando senha.`);
+      // 2A. USUÁRIO EXISTE - APENAS RESETAR SENHA E ATUALIZAR METADADOS
+      console.log(`[create-or-link-consultant] Usuário ${email} já existe. Resetando senha e atualizando metadados.`);
       authUserId = existingUser.id;
       userExists = true;
 
       const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
         authUserId,
         {
-          // ⚠️ NUNCA ATUALIZAR EMAIL AQUI - APENAS SENHA
           password: tempPassword,
           user_metadata: {
             ...existingUser.user_metadata,
             needs_password_change: true,
             login: consultantLogin || existingUser.user_metadata?.login,
+            role: userRole, // NOVO: Atualiza o papel nos metadados
           },
         }
       );
@@ -84,7 +80,7 @@ serve(async (req) => {
           status: 400,
         });
       }
-      console.log(`[create-or-link-consultant] Senha do usuário existente ${email} resetada com sucesso.`);
+      console.log(`[create-or-link-consultant] Senha e metadados do usuário existente ${email} atualizados com sucesso.`);
     } else {
       // 2B. USUÁRIO NÃO EXISTE - CRIAR NOVO
       console.log(`[create-or-link-consultant] Criando novo usuário: ${email}`);
@@ -96,7 +92,7 @@ serve(async (req) => {
         user_metadata: {
           first_name: name.split(' ')[0],
           last_name: name.split(' ').slice(1).join(' '),
-          role: 'CONSULTOR',
+          role: userRole, // NOVO: Usa o papel recebido
           needs_password_change: true,
           login: consultantLogin,
         },

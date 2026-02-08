@@ -305,7 +305,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, []);
 
   const calculateNotifications = useCallback(() => {
-    if (!user || (user.role !== 'GESTOR' && user.role !== 'ADMIN')) {
+    if (!user || (user.role !== 'GESTOR' && user.role !== 'ADMIN' && user.role !== 'SECRETARIA')) {
       setNotifications([]);
       return;
     }
@@ -2449,7 +2449,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setTeamMembers(prev => prev.map(m => m.id === teamMemberId ? { ...member, feedbacks: updatedFeedbacks } : m));
   }, [user, teamMembers]);
 
-  const addTeamMember = useCallback(async (member: Omit<TeamMember, 'id'> & { email: string }) => {
+  const addTeamMember = useCallback(async (member: Omit<TeamMember, 'id'> & { email: string; roles: UserRole[] }) => { // NOVO: Adicionado roles ao tipo
     if (!user) throw new Error("Usuário não autenticado.");
   
     let authUserId: string;
@@ -2473,6 +2473,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           name: member.name,
           tempPassword: tempPassword,
           login: last4Cpf,
+          role: member.roles[0], // NOVO: Passa a primeira role como a role principal para o Auth
         },
       });
 
@@ -2481,12 +2482,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       authUserId = data.authUserId;
       wasExistingUser = data.userExists;
-
-      // Determine the role to set in auth.users.user_metadata
-      let authUserRole: UserRole = 'CONSULTOR'; // Default
-      if (member.roles.includes('ADMIN')) authUserRole = 'ADMIN';
-      else if (member.roles.includes('GESTOR')) authUserRole = 'GESTOR';
-      else if (member.roles.includes('SECRETARIA')) authUserRole = 'SECRETARIA'; // NOVO: Atribuir SECRETARIA
 
       const { error: teamMemberUpsertError } = await supabase
         .from('team_members')
@@ -2571,7 +2566,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           user_metadata: {
             first_name: updates.name?.split(' ')[0] || '',
             last_name: updates.name?.split(' ').slice(1).join(' ') || '',
-            role: member.roles.includes('Gestor') ? 'GESTOR' : 'CONSULTOR', // Infer role
+            role: (updates.roles && updates.roles.length > 0) ? updates.roles[0] : 'CONSULTOR', // Infer role from updates
             needs_password_change: true,
             login: cleanedCpf?.slice(-4),
           },
@@ -2642,6 +2637,30 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const { error: authUpdateError } = await supabase.auth.admin.updateUserById(member.id, { email: updates.email });
       if (authUpdateError) {
         throw authUpdateError;
+      }
+    }
+
+    // NOVO: Atualizar a role no auth.users.user_metadata se a role for alterada
+    if (updates.roles && member.authUserId) {
+      const { data: authUserData, error: fetchAuthUserError } = await supabase.auth.admin.getUserById(member.authUserId);
+      if (fetchAuthUserError) {
+        console.error("Error fetching auth user for role update:", fetchAuthUserError);
+      } else if (authUserData.user) {
+        const currentAuthRole = authUserData.user.user_metadata?.role;
+        const newAuthRole = (updates.roles && updates.roles.length > 0) ? updates.roles[0] : 'CONSULTOR'; // Pega a primeira role como a principal
+        
+        if (currentAuthRole !== newAuthRole) {
+          const { error: updateAuthRoleError } = await supabase.auth.admin.updateUserById(member.authUserId, {
+            user_metadata: {
+              ...authUserData.user.user_metadata,
+              role: newAuthRole,
+            },
+          });
+          if (updateAuthRoleError) {
+            console.error("Error updating auth user role:", updateAuthRoleError);
+            throw updateAuthRoleError;
+          }
+        }
       }
     }
 
