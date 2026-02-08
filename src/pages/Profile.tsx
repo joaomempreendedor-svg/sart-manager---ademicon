@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { User, Mail, Lock, Save, Loader2, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { User, Mail, Lock, Save, Loader2, AlertTriangle, CheckCircle2, ShieldCheck } from 'lucide-react';
 
 export const Profile = () => {
   const { user, updateUserPassword } = useAuth();
@@ -70,7 +70,7 @@ export const Profile = () => {
     }
 
     try {
-      await updateUserPassword(password); // Usa a nova função do AuthContext
+      await updateUserPassword(password);
       setPasswordMessage('Senha atualizada com sucesso!');
       setPassword('');
       setConfirmPassword('');
@@ -90,6 +90,21 @@ export const Profile = () => {
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Meu Perfil</h1>
         <p className="text-gray-500 dark:text-gray-400">Gerencie suas informações de conta.</p>
+      </div>
+
+      {/* EXIBIÇÃO DO CARGO ATUAL */}
+      <div className="bg-brand-50 dark:bg-brand-900/20 border border-brand-200 dark:border-brand-800 p-4 rounded-xl mb-6 flex items-center justify-between">
+        <div className="flex items-center space-x-3">
+          <ShieldCheck className="w-6 h-6 text-brand-600 dark:text-brand-400" />
+          <div>
+            <p className="text-xs font-bold text-brand-600 dark:text-brand-400 uppercase tracking-wider">Seu Cargo Atual</p>
+            <p className="text-lg font-bold text-gray-900 dark:text-white">{user?.role || 'Carregando...'}</p>
+          </div>
+        </div>
+        <div className="text-right">
+          <p className="text-xs text-gray-500 dark:text-gray-400">ID do Usuário:</p>
+          <p className="text-[10px] font-mono text-gray-400">{user?.id}</p>
+        </div>
       </div>
 
       {user?.needs_password_change && (
@@ -116,15 +131,6 @@ export const Profile = () => {
                 <span className="text-gray-600 dark:text-gray-300">{user?.email}</span>
               </div>
             </div>
-            {user?.login && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Login (Últimos 4 dígitos CPF)</label>
-                <div className="mt-1 flex items-center space-x-2 p-2 bg-gray-100 dark:bg-slate-700 rounded-md">
-                  <User className="w-4 h-4 text-gray-400" />
-                  <span className="text-gray-600 dark:text-gray-300">{user.login}</span>
-                </div>
-              </div>
-            )}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nome</label>
               <input type="text" value={firstName} onChange={e => setFirstName(e.target.value)} className="mt-1 w-full border-gray-300 dark:border-slate-600 rounded-md p-2 border bg-white dark:bg-slate-700" />
