@@ -280,7 +280,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         
         const normalizedTeamMembers = teamMembersResult.data?.map(item => {
           const data = item.data as any;
-          // CORREÇÃO REGEX: UUID padrão tem 8-4-4-4-12 caracteres
           const isAuthUserLinked = typeof data.id === 'string' && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(data.id);
           return { 
             id: isAuthUserLinked ? data.id : `legacy_${item.id}`, 
@@ -341,7 +340,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, [user?.id, user?.role, refetchCommissions]);
 
-  // FUNÇÕES DE MUTAÇÃO COM ATUALIZAÇÃO DE ESTADO LOCAL IMEDIATA
   const addCandidate = async (candidate: Omit<Candidate, 'id' | 'createdAt' | 'db_id'>) => {
     const { data, error } = await supabase.from('candidates').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: candidate }).select().single();
     if (error) throw error;
@@ -388,106 +386,478 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     isDataLoading, candidates, teamMembers, commissions, supportMaterials, cutoffPeriods, onboardingSessions, onboardingTemplateVideos, checklistStructure, setChecklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs, crmPipelines, crmStages, crmFields, crmLeads, crmOwnerUserId, dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions, weeklyTargets, weeklyTargetItems, weeklyTargetAssignments, metricLogs, supportMaterialsV2, supportMaterialAssignments, leadTasks, gestorTasks, gestorTaskCompletions, financialEntries, formCadastros, formFiles, notifications, teamProductionGoals, theme,
     toggleTheme, updateConfig, resetLocalState, refetchCommissions, calculateCompetenceMonth, isGestorTaskDueOnDate, calculateNotifications,
     addCandidate, updateCandidate, deleteCandidate, getCandidate: useCallback((id: string) => candidates.find(c => c.id === id), [candidates]), 
-    toggleChecklistItem: async (candidateId, itemId) => {},
-    setChecklistDueDate: async (candidateId, itemId, dueDate) => {},
-    toggleConsultantGoal: async (candidateId, goalId) => {},
-    addChecklistItem: (stageId, label) => {},
-    updateChecklistItem: (stageId, itemId, newLabel) => {},
-    deleteChecklistItem: (stageId, itemId) => {},
-    moveChecklistItem: (stageId, itemId, direction) => {},
-    resetChecklistToDefault: () => {},
-    addGoalItem: (stageId, label) => {},
-    updateGoalItem: (stageId, itemId, newLabel) => {},
-    deleteGoalItem: (stageId, itemId) => {},
-    moveGoalItem: (stageId, itemId, direction) => {},
-    resetGoalsToDefault: () => {},
-    updateInterviewSection: (sectionId, updates) => {},
-    addInterviewQuestion: (sectionId, text, points) => {},
-    updateInterviewQuestion: (sectionId, questionId, updates) => {},
-    deleteInterviewQuestion: (sectionId, questionId) => {},
-    moveInterviewQuestion: (sectionId, questionId, direction) => {},
-    resetInterviewToDefault: () => {},
-    saveTemplate: (itemId, updates) => {},
-    addOrigin: (newOrigin, type) => {},
-    deleteOrigin: (originToDelete, type) => {},
-    resetOriginsToDefault: () => {},
-    addPV: (newPV) => {},
+    toggleChecklistItem: async (candidateId, itemId) => {
+      const candidate = candidates.find(c => c.id === candidateId);
+      if (!candidate) return;
+      const currentProgress = candidate.checklistProgress || {};
+      const currentState = currentProgress[itemId] || { completed: false };
+      const newProgress = { ...currentProgress, [itemId]: { ...currentState, completed: !currentState.completed } };
+      await updateCandidate(candidateId, { checklistProgress: newProgress });
+    },
+    setChecklistDueDate: async (candidateId, itemId, dueDate) => {
+      const candidate = candidates.find(c => c.id === candidateId);
+      if (!candidate) return;
+      const currentProgress = candidate.checklistProgress || {};
+      const currentState = currentProgress[itemId] || { completed: false };
+      const newProgress = { ...currentProgress, [itemId]: { ...currentState, dueDate } };
+      await updateCandidate(candidateId, { checklistProgress: newProgress });
+    },
+    toggleConsultantGoal: async (candidateId, goalId) => {
+      const candidate = candidates.find(c => c.id === candidateId);
+      if (!candidate) return;
+      const currentProgress = candidate.consultantGoalsProgress || {};
+      const newProgress = { ...currentProgress, [goalId]: !currentProgress[goalId] };
+      await updateCandidate(candidateId, { consultantGoalsProgress: newProgress });
+    },
+    addChecklistItem: (stageId, label) => {
+      const newStructure = checklistStructure.map(stage => {
+        if (stage.id === stageId) {
+          return { ...stage, items: [...stage.items, { id: crypto.randomUUID(), label }] };
+        }
+        return stage;
+      });
+      setChecklistStructure(newStructure);
+      updateConfig({ checklistStructure: newStructure });
+    },
+    updateChecklistItem: (stageId, itemId, newLabel) => {
+      const newStructure = checklistStructure.map(stage => {
+        if (stage.id === stageId) {
+          return { ...stage, items: stage.items.map(item => item.id === itemId ? { ...item, label: newLabel } : item) };
+        }
+        return stage;
+      });
+      setChecklistStructure(newStructure);
+      updateConfig({ checklistStructure: newStructure });
+    },
+    deleteChecklistItem: (stageId, itemId) => {
+      const newStructure = checklistStructure.map(stage => {
+        if (stage.id === stageId) {
+          return { ...stage, items: stage.items.filter(item => item.id !== itemId) };
+        }
+        return stage;
+      });
+      setChecklistStructure(newStructure);
+      updateConfig({ checklistStructure: newStructure });
+    },
+    moveChecklistItem: (stageId, itemId, direction) => {
+      const newStructure = checklistStructure.map(stage => {
+        if (stage.id === stageId) {
+          const index = stage.items.findIndex(i => i.id === itemId);
+          if (index === -1) return stage;
+          const newItems = [...stage.items];
+          const targetIndex = direction === 'up' ? index - 1 : index + 1;
+          if (targetIndex >= 0 && targetIndex < newItems.length) {
+            [newItems[index], newItems[targetIndex]] = [newItems[targetIndex], newItems[index]];
+          }
+          return { ...stage, items: newItems };
+        }
+        return stage;
+      });
+      setChecklistStructure(newStructure);
+      updateConfig({ checklistStructure: newStructure });
+    },
+    resetChecklistToDefault: () => {
+      setChecklistStructure(DEFAULT_STAGES);
+      updateConfig({ checklistStructure: DEFAULT_STAGES });
+    },
+    addGoalItem: (stageId, label) => {
+      const newStructure = consultantGoalsStructure.map(stage => {
+        if (stage.id === stageId) {
+          return { ...stage, items: [...stage.items, { id: crypto.randomUUID(), label }] };
+        }
+        return stage;
+      });
+      setConsultantGoalsStructure(newStructure);
+      updateConfig({ consultantGoalsStructure: newStructure });
+    },
+    updateGoalItem: (stageId, itemId, newLabel) => {
+      const newStructure = consultantGoalsStructure.map(stage => {
+        if (stage.id === stageId) {
+          return { ...stage, items: stage.items.map(item => item.id === itemId ? { ...item, label: newLabel } : item) };
+        }
+        return stage;
+      });
+      setConsultantGoalsStructure(newStructure);
+      updateConfig({ consultantGoalsStructure: newStructure });
+    },
+    deleteGoalItem: (stageId, itemId) => {
+      const newStructure = consultantGoalsStructure.map(stage => {
+        if (stage.id === stageId) {
+          return { ...stage, items: stage.items.filter(item => item.id !== itemId) };
+        }
+        return stage;
+      });
+      setConsultantGoalsStructure(newStructure);
+      updateConfig({ consultantGoalsStructure: newStructure });
+    },
+    moveGoalItem: (stageId, itemId, direction) => {
+      const newStructure = consultantGoalsStructure.map(stage => {
+        if (stage.id === stageId) {
+          const index = stage.items.findIndex(i => i.id === itemId);
+          if (index === -1) return stage;
+          const newItems = [...stage.items];
+          const targetIndex = direction === 'up' ? index - 1 : index + 1;
+          if (targetIndex >= 0 && targetIndex < newItems.length) {
+            [newItems[index], newItems[targetIndex]] = [newItems[targetIndex], newItems[index]];
+          }
+          return { ...stage, items: newItems };
+        }
+        return stage;
+      });
+      setConsultantGoalsStructure(newStructure);
+      updateConfig({ consultantGoalsStructure: newStructure });
+    },
+    resetGoalsToDefault: () => {
+      setConsultantGoalsStructure(DEFAULT_GOALS);
+      updateConfig({ consultantGoalsStructure: DEFAULT_GOALS });
+    },
+    updateInterviewSection: (sectionId, updates) => {
+      const newStructure = interviewStructure.map(s => s.id === sectionId ? { ...s, ...updates } : s);
+      setInterviewStructure(newStructure);
+      updateConfig({ interviewStructure: newStructure });
+    },
+    addInterviewQuestion: (sectionId, text, points) => {
+      const newStructure = interviewStructure.map(s => {
+        if (s.id === sectionId) {
+          return { ...s, questions: [...s.questions, { id: crypto.randomUUID(), text, points }] };
+        }
+        return s;
+      });
+      setInterviewStructure(newStructure);
+      updateConfig({ interviewStructure: newStructure });
+    },
+    updateInterviewQuestion: (sectionId, questionId, updates) => {
+      const newStructure = interviewStructure.map(s => {
+        if (s.id === sectionId) {
+          return { ...s, questions: s.questions.map(q => q.id === questionId ? { ...q, ...updates } : q) };
+        }
+        return s;
+      });
+      setInterviewStructure(newStructure);
+      updateConfig({ interviewStructure: newStructure });
+    },
+    deleteInterviewQuestion: (sectionId, questionId) => {
+      const newStructure = interviewStructure.map(s => {
+        if (s.id === sectionId) {
+          return { ...s, questions: s.questions.filter(q => q.id !== questionId) };
+        }
+        return s;
+      });
+      setInterviewStructure(newStructure);
+      updateConfig({ interviewStructure: newStructure });
+    },
+    moveInterviewQuestion: (sectionId, questionId, direction) => {
+      const newStructure = interviewStructure.map(s => {
+        if (s.id === sectionId) {
+          const index = s.questions.findIndex(q => q.id === questionId);
+          if (index === -1) return s;
+          const newQuestions = [...s.questions];
+          const targetIndex = direction === 'up' ? index - 1 : index + 1;
+          if (targetIndex >= 0 && targetIndex < newQuestions.length) {
+            [newQuestions[index], newQuestions[targetIndex]] = [newQuestions[targetIndex], newQuestions[index]];
+          }
+          return { ...s, questions: newQuestions };
+        }
+        return s;
+      });
+      setInterviewStructure(newStructure);
+      updateConfig({ interviewStructure: newStructure });
+    },
+    resetInterviewToDefault: () => {
+      setInterviewStructure(INITIAL_INTERVIEW_STRUCTURE);
+      updateConfig({ interviewStructure: INITIAL_INTERVIEW_STRUCTURE });
+    },
+    saveTemplate: (itemId, updates) => {
+      const newTemplates = { ...templates, [itemId]: { ...templates[itemId], ...updates } };
+      setTemplates(newTemplates);
+      updateConfig({ templates: newTemplates });
+    },
+    addOrigin: (newOrigin, type) => {
+      if (type === 'sales') {
+        const newOrigins = [...salesOrigins, newOrigin];
+        setSalesOrigins(newOrigins);
+        updateConfig({ salesOrigins: newOrigins });
+      } else {
+        const newOrigins = [...hiringOrigins, newOrigin];
+        setHiringOrigins(newOrigins);
+        updateConfig({ hiringOrigins: newOrigins });
+      }
+    },
+    deleteOrigin: (originToDelete, type) => {
+      if (type === 'sales') {
+        const newOrigins = salesOrigins.filter(o => o !== originToDelete);
+        setSalesOrigins(newOrigins);
+        updateConfig({ salesOrigins: newOrigins });
+      } else {
+        const newOrigins = hiringOrigins.filter(o => o !== originToDelete);
+        setHiringOrigins(newOrigins);
+        updateConfig({ hiringOrigins: newOrigins });
+      }
+    },
+    resetOriginsToDefault: () => {
+      setSalesOrigins(DEFAULT_APP_CONFIG_DATA.salesOrigins);
+      setHiringOrigins(DEFAULT_APP_CONFIG_DATA.hiringOrigins);
+      updateConfig({ salesOrigins: DEFAULT_APP_CONFIG_DATA.salesOrigins, hiringOrigins: DEFAULT_APP_CONFIG_DATA.hiringOrigins });
+    },
+    addPV: (newPV) => {
+      const newPvs = [...pvs, newPV];
+      setPvs(newPvs);
+      updateConfig({ pvs: newPvs });
+    },
     addCommission: async (commission) => { const { error } = await supabase.from('commissions').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: commission }); if (error) throw error; refetchCommissions(); return { success: true }; },
     updateCommission: async (id, updates) => { const { error } = await supabase.from('commissions').update({ data: updates }).eq('id', id); if (error) throw error; refetchCommissions(); },
     deleteCommission: async (id) => { const { error } = await supabase.from('commissions').delete().eq('id', id); if (error) throw error; refetchCommissions(); },
-    updateInstallmentStatus: async (commissionId, installmentNumber, newStatus, paidDate, saleType) => {},
-    addCutoffPeriod: async (period) => { const { error } = await supabase.from('cutoff_periods').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: period }); if (error) throw error; },
-    updateCutoffPeriod: async (id, updates) => { const { error } = await supabase.from('cutoff_periods').update({ data: updates }).eq('id', id); if (error) throw error; },
-    deleteCutoffPeriod: async (id) => { const { error } = await supabase.from('cutoff_periods').delete().eq('id', id); if (error) throw error; },
-    addOnlineOnboardingSession: async (consultantName) => {},
-    deleteOnlineOnboardingSession: async (sessionId) => {},
-    addVideoToTemplate: async (title, video_url) => {},
-    deleteVideoFromTemplate: async (videoId) => {},
-    addCrmPipeline: async (name) => { const { data, error } = await supabase.from('crm_pipelines').insert({ user_id: JOAO_GESTOR_AUTH_ID, name }).select().single(); if (error) throw error; return data; },
-    updateCrmPipeline: async (id, updates) => { const { data, error } = await supabase.from('crm_pipelines').update(updates).eq('id', id).select().single(); if (error) throw error; return data; },
-    deleteCrmPipeline: async (id) => { const { error } = await supabase.from('crm_pipelines').delete().eq('id', id); if (error) throw error; },
-    addCrmStage: async (stage) => { const { data, error } = await supabase.from('crm_stages').insert({ ...stage, user_id: JOAO_GESTOR_AUTH_ID }).select().single(); if (error) throw error; return data; },
-    updateCrmStage: async (id, updates) => { const { data, error } = await supabase.from('crm_stages').update(updates).eq('id', id).select().single(); if (error) throw error; return data; },
-    updateCrmStageOrder: async (orderedStages) => {},
-    deleteCrmStage: async (id) => { const { error } = await supabase.from('crm_stages').delete().eq('id', id); if (error) throw error; },
-    addCrmField: async (field) => { const { data, error } = await supabase.from('crm_fields').insert({ ...field, user_id: JOAO_GESTOR_AUTH_ID }).select().single(); if (error) throw error; return data; },
-    updateCrmField: async (id, updates) => { const { data, error } = await supabase.from('crm_fields').update(updates).eq('id', id).select().single(); if (error) throw error; return data; },
+    updateInstallmentStatus: async (commissionId, installmentNumber, newStatus, paidDate, saleType) => {
+      const commission = commissions.find(c => c.id === commissionId);
+      if (!commission) return;
+      const updatedDetails = { ...commission.installmentDetails, [installmentNumber]: { status: newStatus, paidDate, competenceMonth: paidDate ? calculateCompetenceMonth(paidDate) : undefined } };
+      await updateCommission(commissionId, { installmentDetails: updatedDetails, status: getOverallStatus(updatedDetails) });
+    },
+    addCutoffPeriod: async (period) => { const { error } = await supabase.from('cutoff_periods').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: period }); if (error) throw error; const { data } = await supabase.from('cutoff_periods').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID); setCutoffPeriods(data?.map(item => ({ ...(item.data as CutoffPeriod), db_id: item.id })) || []); },
+    updateCutoffPeriod: async (id, updates) => { const { error } = await supabase.from('cutoff_periods').update({ data: updates }).eq('id', id); if (error) throw error; const { data } = await supabase.from('cutoff_periods').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID); setCutoffPeriods(data?.map(item => ({ ...(item.data as CutoffPeriod), db_id: item.id })) || []); },
+    deleteCutoffPeriod: async (id) => { const { error } = await supabase.from('cutoff_periods').delete().eq('id', id); if (error) throw error; setCutoffPeriods(prev => prev.filter(p => p.db_id !== id)); },
+    addOnlineOnboardingSession: async (consultantName) => {
+      const { data: sessionData, error: sessionError } = await supabase.from('onboarding_sessions').insert({ user_id: JOAO_GESTOR_AUTH_ID, consultant_name: consultantName }).select().single();
+      if (sessionError) throw sessionError;
+      const videosToInsert = onboardingTemplateVideos.map(v => ({ session_id: sessionData.id, title: v.title, video_url: v.video_url, order: v.order }));
+      const { error: videosError } = await supabase.from('onboarding_videos').insert(videosToInsert);
+      if (videosError) throw videosError;
+      const { data: fullSession } = await supabase.from('onboarding_sessions').select('*, videos:onboarding_videos(*)').eq('id', sessionData.id).single();
+      setOnboardingSessions(prev => [...prev, fullSession]);
+    },
+    deleteOnlineOnboardingSession: async (sessionId) => {
+      const { error } = await supabase.from('onboarding_sessions').delete().eq('id', sessionId);
+      if (error) throw error;
+      setOnboardingSessions(prev => prev.filter(s => s.id !== sessionId));
+    },
+    addVideoToTemplate: async (title, video_url) => {
+      const order = onboardingTemplateVideos.length > 0 ? Math.max(...onboardingTemplateVideos.map(v => v.order)) + 1 : 0;
+      const { data, error } = await supabase.from('onboarding_video_templates').insert({ user_id: JOAO_GESTOR_AUTH_ID, title, video_url, order }).select().single();
+      if (error) throw error;
+      setOnboardingTemplateVideos(prev => [...prev, data]);
+    },
+    deleteVideoFromTemplate: async (videoId) => {
+      const { error } = await supabase.from('onboarding_video_templates').delete().eq('id', videoId);
+      if (error) throw error;
+      setOnboardingTemplateVideos(prev => prev.filter(v => v.id !== videoId));
+    },
+    addCrmPipeline: async (name) => { const { data, error } = await supabase.from('crm_pipelines').insert({ user_id: JOAO_GESTOR_AUTH_ID, name }).select().single(); if (error) throw error; setCrmPipelines(prev => [...prev, data]); return data; },
+    updateCrmPipeline: async (id, updates) => { const { data, error } = await supabase.from('crm_pipelines').update(updates).eq('id', id).select().single(); if (error) throw error; setCrmPipelines(prev => prev.map(p => p.id === id ? data : p)); return data; },
+    deleteCrmPipeline: async (id) => { const { error } = await supabase.from('crm_pipelines').delete().eq('id', id); if (error) throw error; setCrmPipelines(prev => prev.filter(p => p.id !== id)); },
+    addCrmStage: async (stage) => { const { data, error } = await supabase.from('crm_stages').insert({ ...stage, user_id: JOAO_GESTOR_AUTH_ID }).select().single(); if (error) throw error; setCrmStages(prev => [...prev, data]); return data; },
+    updateCrmStage: async (id, updates) => { const { data, error } = await supabase.from('crm_stages').update(updates).eq('id', id).select().single(); if (error) throw error; setCrmStages(prev => prev.map(s => s.id === id ? data : s)); return data; },
+    updateCrmStageOrder: async (orderedStages) => {
+      const updates = orderedStages.map((stage, index) => supabase.from('crm_stages').update({ order_index: index }).eq('id', stage.id));
+      await Promise.all(updates);
+      const { data } = await supabase.from('crm_stages').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID).order('order_index');
+      setCrmStages(data || []);
+    },
+    deleteCrmStage: async (id) => { const { error } = await supabase.from('crm_stages').delete().eq('id', id); if (error) throw error; setCrmStages(prev => prev.filter(s => s.id !== id)); },
+    addCrmField: async (field) => { const { data, error } = await supabase.from('crm_fields').insert({ ...field, user_id: JOAO_GESTOR_AUTH_ID }).select().single(); if (error) throw error; setCrmFields(prev => [...prev, data]); return data; },
+    updateCrmField: async (id, updates) => { const { data, error } = await supabase.from('crm_fields').update(updates).eq('id', id).select().single(); if (error) throw error; setCrmFields(prev => prev.map(f => f.id === id ? data : f)); return data; },
     addCrmLead, updateCrmLead, deleteCrmLead,
-    addDailyChecklist: async (title) => { const { data, error } = await supabase.from('daily_checklists').insert({ user_id: JOAO_GESTOR_AUTH_ID, title }).select().single(); if (error) throw error; return data; },
-    updateDailyChecklist: async (id, updates) => { const { data, error } = await supabase.from('daily_checklists').update(updates).eq('id', id).select().single(); if (error) throw error; return data; },
-    deleteDailyChecklist: async (id) => { const { error } = await supabase.from('daily_checklists').delete().eq('id', id); if (error) throw error; },
-    addDailyChecklistItem: async (daily_checklist_id, text, order_index, resource, audioFile, imageFile) => { return {} as any; },
-    updateDailyChecklistItem: async (id, updates, audioFile, imageFile) => { return {} as any; },
-    deleteDailyChecklistItem: async (id) => { const { error } = await supabase.from('daily_checklist_items').delete().eq('id', id); if (error) throw error; },
-    moveDailyChecklistItem: async (checklistId, itemId, direction) => {},
-    assignDailyChecklistToConsultant: async (daily_checklist_id, consultant_id) => { const { data, error } = await supabase.from('daily_checklist_assignments').insert({ daily_checklist_id, consultant_id }).select().single(); if (error) throw error; return data; },
-    unassignDailyChecklistFromConsultant: async (daily_checklist_id, consultant_id) => { const { error } = await supabase.from('daily_checklist_assignments').delete().eq('daily_checklist_id', daily_checklist_id).eq('consultant_id', consultant_id); if (error) throw error; },
-    toggleDailyChecklistCompletion: async (daily_checklist_item_id, date, done, consultant_id) => {},
-    addWeeklyTarget: async (target) => { const { data, error } = await supabase.from('weekly_targets').insert({ ...target, user_id: JOAO_GESTOR_AUTH_ID }).select().single(); if (error) throw error; return data; },
-    updateWeeklyTarget: async (id, updates) => { const { data, error } = await supabase.from('weekly_targets').update(updates).eq('id', id).select().single(); if (error) throw error; return data; },
-    deleteWeeklyTarget: async (id) => { const { error } = await supabase.from('weekly_targets').delete().eq('id', id); if (error) throw error; },
-    addWeeklyTargetItem: async (item) => { const { data, error } = await supabase.from('weekly_target_items').insert(item).select().single(); if (error) throw error; return data; },
-    updateWeeklyTargetItem: async (id, updates) => { const { data, error } = await supabase.from('weekly_target_items').update(updates).eq('id', id).select().single(); if (error) throw error; return data; },
-    deleteWeeklyTargetItem: async (id) => { const { error } = await supabase.from('weekly_target_items').delete().eq('id', id); if (error) throw error; },
-    updateWeeklyTargetItemOrder: async (orderedItems) => {},
-    assignWeeklyTargetToConsultant: async (weekly_target_id, consultant_id) => { const { data, error } = await supabase.from('weekly_target_assignments').insert({ weekly_target_id, consultant_id }).select().single(); if (error) throw error; return data; },
-    unassignWeeklyTargetFromConsultant: async (weekly_target_id, consultant_id) => { const { error } = await supabase.from('weekly_target_assignments').delete().eq('weekly_target_id', weekly_target_id).eq('consultant_id', consultant_id); if (error) throw error; },
-    addMetricLog: async (log) => { const { data, error } = await supabase.from('metric_logs').insert(log).select().single(); if (error) throw error; return data; },
-    updateMetricLog: async (id, updates) => { const { data, error } = await supabase.from('metric_logs').update(updates).eq('id', id).select().single(); if (error) throw error; return data; },
-    deleteMetricLog: async (id) => { const { error } = await supabase.from('metric_logs').delete().eq('id', id); if (error) throw error; },
-    addSupportMaterialV2: async (material, file) => { return {} as any; },
-    updateSupportMaterialV2: async (id, updates, file) => { return {} as any; },
-    deleteSupportMaterialV2: async (id) => { const { error } = await supabase.from('support_materials_v2').delete().eq('id', id); if (error) throw error; },
-    assignSupportMaterialToConsultant: async (material_id, consultant_id) => { const { data, error } = await supabase.from('support_material_assignments').insert({ material_id, consultant_id }).select().single(); if (error) throw error; return data; },
-    unassignSupportMaterialFromConsultant: async (material_id, consultant_id) => { const { error } = await supabase.from('support_material_assignments').delete().eq('material_id', material_id).eq('consultant_id', consultant_id); if (error) throw error; },
-    addLeadTask: async (task) => { const { data, error } = await supabase.from('lead_tasks').insert(task).select().single(); if (error) throw error; return data; },
-    updateLeadTask: async (id, updates) => { const { data, error } = await supabase.from('lead_tasks').update(updates).eq('id', id).select().single(); if (error) throw error; return data; },
-    deleteLeadTask: async (id) => { const { error } = await supabase.from('lead_tasks').delete().eq('id', id); if (error) throw error; },
-    toggleLeadTaskCompletion: async (id, is_completed) => { const { data, error } = await supabase.from('lead_tasks').update({ is_completed, completed_at: is_completed ? new Date().toISOString() : null }).eq('id', id).select().single(); if (error) throw error; return data; },
-    updateLeadMeetingInvitationStatus: async (taskId, status) => { const { data, error } = await supabase.from('lead_tasks').update({ manager_invitation_status: status }).eq('id', taskId).select().single(); if (error) throw error; return data; },
-    addGestorTask: async (task) => { const { data, error } = await supabase.from('gestor_tasks').insert({ ...task, user_id: JOAO_GESTOR_AUTH_ID }).select().single(); if (error) throw error; return data; },
-    updateGestorTask: async (id, updates) => { const { data, error } = await supabase.from('gestor_tasks').update(updates).eq('id', id).select().single(); if (error) throw error; return data; },
-    deleteGestorTask: async (id) => { const { error } = await supabase.from('gestor_tasks').delete().eq('id', id); if (error) throw error; },
-    toggleGestorTaskCompletion: async (gestor_task_id, done, date) => {},
+    addDailyChecklist: async (title) => { const { data, error } = await supabase.from('daily_checklists').insert({ user_id: JOAO_GESTOR_AUTH_ID, title }).select().single(); if (error) throw error; setDailyChecklists(prev => [...prev, data]); return data; },
+    updateDailyChecklist: async (id, updates) => { const { data, error } = await supabase.from('daily_checklists').update(updates).eq('id', id).select().single(); if (error) throw error; setDailyChecklists(prev => prev.map(d => d.id === id ? data : d)); return data; },
+    deleteDailyChecklist: async (id) => { const { error } = await supabase.from('daily_checklists').delete().eq('id', id); if (error) throw error; setDailyChecklists(prev => prev.filter(d => d.id !== id)); },
+    addDailyChecklistItem: async (daily_checklist_id, text, order_index, resource, audioFile, imageFile) => {
+      let finalResource = resource;
+      if (audioFile || imageFile) {
+        const uploadFile = async (file: File, prefix: string) => {
+          const sanitized = sanitizeFilename(file.name);
+          const path = `checklist_resources/${prefix}-${Date.now()}-${sanitized}`;
+          const { error: uploadError } = await supabase.storage.from('form_uploads').upload(path, file);
+          if (uploadError) throw uploadError;
+          return supabase.storage.from('form_uploads').getPublicUrl(path).data.publicUrl;
+        };
+        const audioUrl = audioFile ? await uploadFile(audioFile, 'audio') : (resource?.type === 'text_audio' || resource?.type === 'text_audio_image' ? (resource.content as any).audioUrl : undefined);
+        const imageUrl = imageFile ? await uploadFile(imageFile, 'image') : (resource?.type === 'text_audio_image' ? (resource.content as any).imageUrl : undefined);
+        if (resource?.type === 'text_audio') finalResource = { ...resource, content: { ...(resource.content as any), audioUrl } };
+        else if (resource?.type === 'text_audio_image') finalResource = { ...resource, content: { ...(resource.content as any), audioUrl, imageUrl } };
+        else if (resource?.type === 'image' || resource?.type === 'pdf' || resource?.type === 'audio') finalResource = { ...resource, content: audioUrl || imageUrl };
+      }
+      const { data, error } = await supabase.from('daily_checklist_items').insert({ daily_checklist_id, text, order_index, resource: finalResource }).select().single();
+      if (error) throw error;
+      setDailyChecklistItems(prev => [...prev, data]);
+      return data;
+    },
+    updateDailyChecklistItem: async (id, updates, audioFile, imageFile) => {
+      let finalResource = updates.resource;
+      if (audioFile || imageFile) {
+        const uploadFile = async (file: File, prefix: string) => {
+          const sanitized = sanitizeFilename(file.name);
+          const path = `checklist_resources/${prefix}-${Date.now()}-${sanitized}`;
+          const { error: uploadError } = await supabase.storage.from('form_uploads').upload(path, file);
+          if (uploadError) throw uploadError;
+          return supabase.storage.from('form_uploads').getPublicUrl(path).data.publicUrl;
+        };
+        const audioUrl = audioFile ? await uploadFile(audioFile, 'audio') : (updates.resource?.type === 'text_audio' || updates.resource?.type === 'text_audio_image' ? (updates.resource.content as any).audioUrl : undefined);
+        const imageUrl = imageFile ? await uploadFile(imageFile, 'image') : (updates.resource?.type === 'text_audio_image' ? (updates.resource.content as any).imageUrl : undefined);
+        if (updates.resource?.type === 'text_audio') finalResource = { ...updates.resource, content: { ...(updates.resource.content as any), audioUrl } };
+        else if (updates.resource?.type === 'text_audio_image') finalResource = { ...updates.resource, content: { ...(updates.resource.content as any), audioUrl, imageUrl } };
+        else if (updates.resource?.type === 'image' || updates.resource?.type === 'pdf' || updates.resource?.type === 'audio') finalResource = { ...updates.resource, content: audioUrl || imageUrl };
+      }
+      const { data, error } = await supabase.from('daily_checklist_items').update({ ...updates, resource: finalResource }).eq('id', id).select().single();
+      if (error) throw error;
+      setDailyChecklistItems(prev => prev.map(i => i.id === id ? data : i));
+      return data;
+    },
+    deleteDailyChecklistItem: async (id) => { const { error } = await supabase.from('daily_checklist_items').delete().eq('id', id); if (error) throw error; setDailyChecklistItems(prev => prev.filter(i => i.id !== id)); },
+    moveDailyChecklistItem: async (checklistId, itemId, direction) => {
+      const items = dailyChecklistItems.filter(i => i.daily_checklist_id === checklistId).sort((a, b) => a.order_index - b.order_index);
+      const index = items.findIndex(i => i.id === itemId);
+      if (index === -1) return;
+      const targetIndex = direction === 'up' ? index - 1 : index + 1;
+      if (targetIndex < 0 || targetIndex >= items.length) return;
+      const itemA = items[index]; const itemB = items[targetIndex];
+      await Promise.all([supabase.from('daily_checklist_items').update({ order_index: itemB.order_index }).eq('id', itemA.id), supabase.from('daily_checklist_items').update({ order_index: itemA.order_index }).eq('id', itemB.id)]);
+      const { data } = await supabase.from('daily_checklist_items').select('*'); setDailyChecklistItems(data || []);
+    },
+    assignDailyChecklistToConsultant: async (daily_checklist_id, consultant_id) => { const { data, error } = await supabase.from('daily_checklist_assignments').insert({ daily_checklist_id, consultant_id }).select().single(); if (error) throw error; setDailyChecklistAssignments(prev => [...prev, data]); return data; },
+    unassignDailyChecklistFromConsultant: async (daily_checklist_id, consultant_id) => { const { error } = await supabase.from('daily_checklist_assignments').delete().eq('daily_checklist_id', daily_checklist_id).eq('consultant_id', consultant_id); if (error) throw error; setDailyChecklistAssignments(prev => prev.filter(a => !(a.daily_checklist_id === daily_checklist_id && a.consultant_id === consultant_id))); },
+    toggleDailyChecklistCompletion: async (daily_checklist_item_id, date, done, consultant_id) => {
+      const { data, error } = await supabase.from('daily_checklist_completions').upsert({ daily_checklist_item_id, consultant_id, date, done }, { onConflict: 'daily_checklist_item_id,consultant_id,date' }).select().single();
+      if (error) throw error;
+      setDailyChecklistCompletions(prev => {
+        const filtered = prev.filter(c => !(c.daily_checklist_item_id === daily_checklist_item_id && c.consultant_id === consultant_id && c.date === date));
+        return [...filtered, data];
+      });
+    },
+    addWeeklyTarget: async (target) => { const { data, error } = await supabase.from('weekly_targets').insert({ ...target, user_id: JOAO_GESTOR_AUTH_ID }).select().single(); if (error) throw error; setWeeklyTargets(prev => [...prev, data]); return data; },
+    updateWeeklyTarget: async (id, updates) => { const { data, error } = await supabase.from('weekly_targets').update(updates).eq('id', id).select().single(); if (error) throw error; setWeeklyTargets(prev => prev.map(w => w.id === id ? data : w)); return data; },
+    deleteWeeklyTarget: async (id) => { const { error } = await supabase.from('weekly_targets').delete().eq('id', id); if (error) throw error; setWeeklyTargets(prev => prev.filter(w => w.id !== id)); },
+    addWeeklyTargetItem: async (item) => { const { data, error } = await supabase.from('weekly_target_items').insert(item).select().single(); if (error) throw error; setWeeklyTargetItems(prev => [...prev, data]); return data; },
+    updateWeeklyTargetItem: async (id, updates) => { const { data, error } = await supabase.from('weekly_target_items').update(updates).eq('id', id).select().single(); if (error) throw error; setWeeklyTargetItems(prev => prev.map(i => i.id === id ? data : i)); return data; },
+    deleteWeeklyTargetItem: async (id) => { const { error } = await supabase.from('weekly_target_items').delete().eq('id', id); if (error) throw error; setWeeklyTargetItems(prev => prev.filter(i => i.id !== id)); },
+    updateWeeklyTargetItemOrder: async (orderedItems) => {
+      const updates = orderedItems.map((item, index) => supabase.from('weekly_target_items').update({ order_index: index }).eq('id', item.id));
+      await Promise.all(updates);
+      const { data } = await supabase.from('weekly_target_items').select('*'); setWeeklyTargetItems(data || []);
+    },
+    assignWeeklyTargetToConsultant: async (weekly_target_id, consultant_id) => { const { data, error } = await supabase.from('weekly_target_assignments').insert({ weekly_target_id, consultant_id }).select().single(); if (error) throw error; setWeeklyTargetAssignments(prev => [...prev, data]); return data; },
+    unassignWeeklyTargetFromConsultant: async (weekly_target_id, consultant_id) => { const { error } = await supabase.from('weekly_target_assignments').delete().eq('weekly_target_id', weekly_target_id).eq('consultant_id', consultant_id); if (error) throw error; setWeeklyTargetAssignments(prev => prev.filter(a => !(a.weekly_target_id === weekly_target_id && a.consultant_id === consultant_id))); },
+    addMetricLog: async (log) => { const { data, error } = await supabase.from('metric_logs').insert(log).select().single(); if (error) throw error; setMetricLogs(prev => [...prev, data]); return data; },
+    updateMetricLog: async (id, updates) => { const { data, error } = await supabase.from('metric_logs').update(updates).eq('id', id).select().single(); if (error) throw error; setMetricLogs(prev => prev.map(m => m.id === id ? data : m)); return data; },
+    deleteMetricLog: async (id) => { const { error } = await supabase.from('metric_logs').delete().eq('id', id); if (error) throw error; setMetricLogs(prev => prev.filter(m => m.id !== id)); },
+    addSupportMaterialV2: async (material, file) => {
+      let content = material.content;
+      if (file) {
+        const sanitized = sanitizeFilename(file.name);
+        const path = `support_materials/${Date.now()}-${sanitized}`;
+        const { error: uploadError } = await supabase.storage.from('form_uploads').upload(path, file);
+        if (uploadError) throw uploadError;
+        content = supabase.storage.from('form_uploads').getPublicUrl(path).data.publicUrl;
+      }
+      const { data, error } = await supabase.from('support_materials_v2').insert({ ...material, content, user_id: JOAO_GESTOR_AUTH_ID }).select().single();
+      if (error) throw error;
+      setSupportMaterialsV2(prev => [...prev, data]);
+      return data;
+    },
+    updateSupportMaterialV2: async (id, updates, file) => {
+      let content = updates.content;
+      if (file) {
+        const sanitized = sanitizeFilename(file.name);
+        const path = `support_materials/${Date.now()}-${sanitized}`;
+        const { error: uploadError } = await supabase.storage.from('form_uploads').upload(path, file);
+        if (uploadError) throw uploadError;
+        content = supabase.storage.from('form_uploads').getPublicUrl(path).data.publicUrl;
+      }
+      const { data, error } = await supabase.from('support_materials_v2').update({ ...updates, content }).eq('id', id).select().single();
+      if (error) throw error;
+      setSupportMaterialsV2(prev => prev.map(m => m.id === id ? data : m));
+      return data;
+    },
+    deleteSupportMaterialV2: async (id) => { const { error } = await supabase.from('support_materials_v2').delete().eq('id', id); if (error) throw error; setSupportMaterialsV2(prev => prev.filter(m => m.id !== id)); },
+    assignSupportMaterialToConsultant: async (material_id, consultant_id) => { const { data, error } = await supabase.from('support_material_assignments').insert({ material_id, consultant_id }).select().single(); if (error) throw error; setSupportMaterialAssignments(prev => [...prev, data]); return data; },
+    unassignSupportMaterialFromConsultant: async (material_id, consultant_id) => { const { error } = await supabase.from('support_material_assignments').delete().eq('material_id', material_id).eq('consultant_id', consultant_id); if (error) throw error; setSupportMaterialAssignments(prev => prev.filter(a => !(a.material_id === material_id && a.consultant_id === consultant_id))); },
+    addLeadTask: async (task) => { const { data, error } = await supabase.from('lead_tasks').insert(task).select().single(); if (error) throw error; setLeadTasks(prev => [...prev, data]); return data; },
+    updateLeadTask: async (id, updates) => { const { data, error } = await supabase.from('lead_tasks').update(updates).eq('id', id).select().single(); if (error) throw error; setLeadTasks(prev => prev.map(t => t.id === id ? data : t)); return data; },
+    deleteLeadTask: async (id) => { const { error } = await supabase.from('lead_tasks').delete().eq('id', id); if (error) throw error; setLeadTasks(prev => prev.filter(t => t.id !== id)); },
+    toggleLeadTaskCompletion: async (id, is_completed) => { const { data, error } = await supabase.from('lead_tasks').update({ is_completed, completed_at: is_completed ? new Date().toISOString() : null }).eq('id', id).select().single(); if (error) throw error; setLeadTasks(prev => prev.map(t => t.id === id ? data : t)); return data; },
+    updateLeadMeetingInvitationStatus: async (taskId, status) => { const { data, error } = await supabase.from('lead_tasks').update({ manager_invitation_status: status }).eq('id', taskId).select().single(); if (error) throw error; setLeadTasks(prev => prev.map(t => t.id === taskId ? data : t)); return data; },
+    addGestorTask: async (task) => { const { data, error } = await supabase.from('gestor_tasks').insert({ ...task, user_id: JOAO_GESTOR_AUTH_ID }).select().single(); if (error) throw error; setGestorTasks(prev => [...prev, data]); return data; },
+    updateGestorTask: async (id, updates) => { const { data, error } = await supabase.from('gestor_tasks').update(updates).eq('id', id).select().single(); if (error) throw error; setGestorTasks(prev => prev.map(t => t.id === id ? data : t)); return data; },
+    deleteGestorTask: async (id) => { const { error } = await supabase.from('gestor_tasks').delete().eq('id', id); if (error) throw error; setGestorTasks(prev => prev.filter(t => t.id !== id)); },
+    toggleGestorTaskCompletion: async (gestor_task_id, done, date) => {
+      const { data, error } = await supabase.from('gestor_task_completions').upsert({ gestor_task_id, user_id: JOAO_GESTOR_AUTH_ID, date, done }, { onConflict: 'gestor_task_id,user_id,date' }).select().single();
+      if (error) throw error;
+      setGestorTaskCompletions(prev => {
+        const filtered = prev.filter(c => !(c.gestor_task_id === gestor_task_id && c.date === date));
+        return [...filtered, data];
+      });
+    },
     isGestorTaskDueOnDate,
-    addFinancialEntry: async (entry) => { const { data, error } = await supabase.from('financial_entries').insert({ ...entry, user_id: JOAO_GESTOR_AUTH_ID }).select().single(); if (error) throw error; return data; },
-    updateFinancialEntry: async (id, updates) => { const { data, error } = await supabase.from('financial_entries').update(updates).eq('id', id).select().single(); if (error) throw error; return data; },
-    deleteFinancialEntry: async (id) => { const { error } = await supabase.from('financial_entries').delete().eq('id', id); if (error) throw error; },
+    addFinancialEntry: async (entry) => { const { data, error } = await supabase.from('financial_entries').insert({ ...entry, user_id: JOAO_GESTOR_AUTH_ID }).select().single(); if (error) throw error; setFinancialEntries(prev => [...prev, { ...data, amount: parseFloat(data.amount) }]); return data; },
+    updateFinancialEntry: async (id, updates) => { const { data, error } = await supabase.from('financial_entries').update(updates).eq('id', id).select().single(); if (error) throw error; setFinancialEntries(prev => prev.map(e => e.id === id ? { ...data, amount: parseFloat(data.amount) } : e)); return data; },
+    deleteFinancialEntry: async (id) => { const { error } = await supabase.from('financial_entries').delete().eq('id', id); if (error) throw error; setFinancialEntries(prev => prev.filter(e => e.id !== id)); },
     getFormFilesForSubmission: (submissionId) => formFiles.filter(f => f.submission_id === submissionId),
-    updateFormCadastro: async (id, updates) => { const { data, error } = await supabase.from('form_submissions').update(updates).eq('id', id).select().single(); if (error) throw error; return data; },
-    deleteFormCadastro: async (id) => { const { error } = await supabase.from('form_submissions').delete().eq('id', id); if (error) throw error; },
-    addFeedback: async (personId, feedback) => { return {} as any; },
-    updateFeedback: async (personId, feedback) => { return {} as any; },
-    deleteFeedback: async (personId, feedbackId) => {},
-    addTeamMemberFeedback: async (teamMemberId, feedback) => { return {} as any; },
-    updateTeamMemberFeedback: async (teamMemberId, feedback) => { return {} as any; },
-    deleteTeamMemberFeedback: async (teamMemberId, feedbackId) => {},
-    addTeamMember: async (member) => { return { success: true } as any; },
-    updateTeamMember: async (id, updates) => { return { success: true } as any; },
-    deleteTeamMember: async (id) => { const { error } = await supabase.from('team_members').delete().eq('id', id); if (error) throw error; },
-    addTeamProductionGoal: async (goal) => { const { data, error } = await supabase.from('team_production_goals').insert({ ...goal, user_id: JOAO_GESTOR_AUTH_ID }).select().single(); if (error) throw error; return data; },
-    updateTeamProductionGoal: async (id, updates) => { const { data, error } = await supabase.from('team_production_goals').update(updates).eq('id', id).select().single(); if (error) throw error; return data; },
-    deleteTeamProductionGoal: async (id) => { const { error } = await supabase.from('team_production_goals').delete().eq('id', id); if (error) throw error; },
+    updateFormCadastro: async (id, updates) => { const { data, error } = await supabase.from('form_submissions').update(updates).eq('id', id).select().single(); if (error) throw error; setFormCadastros(prev => prev.map(f => f.id === id ? data : f)); return data; },
+    deleteFormCadastro: async (id) => { const { error } = await supabase.from('form_submissions').delete().eq('id', id); if (error) throw error; setFormCadastros(prev => prev.filter(f => f.id !== id)); },
+    addFeedback: async (personId, feedback) => {
+      const candidate = candidates.find(c => c.id === personId);
+      if (!candidate) throw new Error("Candidate not found");
+      const newFeedback = { ...feedback, id: crypto.randomUUID() };
+      const updatedFeedbacks = [...(candidate.feedbacks || []), newFeedback];
+      await updateCandidate(personId, { feedbacks: updatedFeedbacks });
+      return newFeedback;
+    },
+    updateFeedback: async (personId, feedback) => {
+      const candidate = candidates.find(c => c.id === personId);
+      if (!candidate) throw new Error("Candidate not found");
+      const updatedFeedbacks = (candidate.feedbacks || []).map(f => f.id === feedback.id ? feedback : f);
+      await updateCandidate(personId, { feedbacks: updatedFeedbacks });
+      return feedback;
+    },
+    deleteFeedback: async (personId, feedbackId) => {
+      const candidate = candidates.find(c => c.id === personId);
+      if (!candidate) return;
+      const updatedFeedbacks = (candidate.feedbacks || []).filter(f => f.id !== feedbackId);
+      await updateCandidate(personId, { feedbacks: updatedFeedbacks });
+    },
+    addTeamMemberFeedback: async (teamMemberId, feedback) => {
+      const member = teamMembers.find(m => m.id === teamMemberId);
+      if (!member) throw new Error("Member not found");
+      const newFeedback = { ...feedback, id: crypto.randomUUID() };
+      const updatedFeedbacks = [...(member.feedbacks || []), newFeedback];
+      await updateTeamMember(teamMemberId, { feedbacks: updatedFeedbacks });
+      return newFeedback;
+    },
+    updateTeamMemberFeedback: async (teamMemberId, feedback) => {
+      const member = teamMembers.find(m => m.id === teamMemberId);
+      if (!member) throw new Error("Member not found");
+      const updatedFeedbacks = (member.feedbacks || []).map(f => f.id === feedback.id ? feedback : f);
+      await updateTeamMember(teamMemberId, { feedbacks: updatedFeedbacks });
+      return feedback;
+    },
+    deleteTeamMemberFeedback: async (teamMemberId, feedbackId) => {
+      const member = teamMembers.find(m => m.id === teamMemberId);
+      if (!member) return;
+      const updatedFeedbacks = (member.feedbacks || []).filter(f => f.id !== feedbackId);
+      await updateTeamMember(teamMemberId, { feedbacks: updatedFeedbacks });
+    },
+    addTeamMember: async (member) => {
+      const tempPassword = generateRandomPassword();
+      const { data: authData, error: authError } = await supabase.functions.invoke('create-or-link-consultant', {
+        body: { email: member.email, name: member.name, tempPassword, login: member.cpf, role: 'CONSULTOR' }
+      });
+      if (authError) throw authError;
+      const { data, error } = await supabase.from('team_members').insert({ user_id: JOAO_GESTOR_AUTH_ID, cpf: member.cpf, data: { ...member, id: authData.authUserId } }).select().single();
+      if (error) throw error;
+      const newMember = { id: authData.authUserId, db_id: data.id, authUserId: authData.authUserId, name: member.name, email: member.email, roles: member.roles, isActive: member.isActive, cpf: member.cpf, dateOfBirth: member.dateOfBirth, user_id: data.user_id };
+      setTeamMembers(prev => [...prev, newMember]);
+      return { success: true, member: newMember, tempPassword, wasExistingUser: authData.userExists };
+    },
+    updateTeamMember: async (id, updates) => {
+      const member = teamMembers.find(m => m.id === id);
+      if (!member) throw new Error("Member not found");
+      const { error } = await supabase.from('team_members').update({ data: { ...member, ...updates }, cpf: updates.cpf || member.cpf }).eq('id', member.db_id);
+      if (error) throw error;
+      setTeamMembers(prev => prev.map(m => m.id === id ? { ...m, ...updates } : m));
+      return { success: true };
+    },
+    deleteTeamMember: async (id) => { const member = teamMembers.find(m => m.id === id); if (!member) return; const { error } = await supabase.from('team_members').delete().eq('id', member.db_id); if (error) throw error; setTeamMembers(prev => prev.filter(m => m.id !== id)); },
+    addTeamProductionGoal: async (goal) => { const { data, error } = await supabase.from('team_production_goals').insert({ ...goal, user_id: JOAO_GESTOR_AUTH_ID }).select().single(); if (error) throw error; setTeamProductionGoals(prev => [data, ...prev]); return data; },
+    updateTeamProductionGoal: async (id, updates) => { const { data, error } = await supabase.from('team_production_goals').update(updates).eq('id', id).select().single(); if (error) throw error; setTeamProductionGoals(prev => prev.map(g => g.id === id ? data : g)); return data; },
+    deleteTeamProductionGoal: async (id) => { const { error } = await supabase.from('team_production_goals').delete().eq('id', id); if (error) throw error; setTeamProductionGoals(prev => prev.filter(g => g.id !== id)); },
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
