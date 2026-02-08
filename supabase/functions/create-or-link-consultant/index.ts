@@ -12,12 +12,12 @@ serve(async (req) => {
   }
 
   try {
-    const { email, name, tempPassword, login: consultantLogin, role: userRole } = await req.json(); // NOVO: Recebe 'role'
+    const { email, name, tempPassword, login: consultantLogin, role: userRole } = await req.json();
 
     console.log("[create-or-link-consultant] Received request:", { email, name, consultantLogin, userRole });
 
-    if (!email || !name || !tempPassword || !userRole) { // NOVO: 'userRole' é obrigatório
-      console.error("[create-or-link-consultant] Missing required fields.");
+    if (!email || !name || !tempPassword || !userRole) {
+      console.error("[create-or-link-consultant] Missing required fields. Email, name, temporary password, and role are required.");
       return new Response(JSON.stringify({ error: 'Email, name, temporary password, and role are required.' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
@@ -35,7 +35,7 @@ serve(async (req) => {
     const { data: existingUsersData, error: listError } = await supabaseAdmin.auth.admin.listUsers();
     
     if (listError) {
-      console.error(`[create-or-link-consultant] Erro ao listar usuários: ${listError.message}`, { listError });
+      console.error(`[create-or-link-consultant] Error listing users: ${listError.message}`, { listError });
       return new Response(JSON.stringify({ error: `Falha ao verificar usuários: ${listError.message}` }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500,
@@ -56,7 +56,7 @@ serve(async (req) => {
 
     if (existingUser) {
       // 2A. USUÁRIO EXISTE - APENAS RESETAR SENHA E ATUALIZAR METADADOS
-      console.log(`[create-or-link-consultant] Usuário ${email} já existe. Resetando senha e atualizando metadados.`);
+      console.log(`[create-or-link-consultant] User ${email} already exists. Resetting password and updating metadata.`);
       authUserId = existingUser.id;
       userExists = true;
 
@@ -68,22 +68,22 @@ serve(async (req) => {
             ...existingUser.user_metadata,
             needs_password_change: true,
             login: consultantLogin || existingUser.user_metadata?.login,
-            role: userRole, // NOVO: Atualiza o papel nos metadados
+            role: userRole,
           },
         }
       );
 
       if (updateError) {
-        console.error(`[create-or-link-consultant] Erro ao atualizar usuário existente: ${updateError.message}`, { updateError });
+        console.error(`[create-or-link-consultant] Error updating existing user ${email}: ${updateError.message}`, { updateError });
         return new Response(JSON.stringify({ error: `Falha ao resetar senha: ${updateError.message}` }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 400,
         });
       }
-      console.log(`[create-or-link-consultant] Senha e metadados do usuário existente ${email} atualizados com sucesso.`);
+      console.log(`[create-or-link-consultant] Password and metadata for existing user ${email} updated successfully.`);
     } else {
       // 2B. USUÁRIO NÃO EXISTE - CRIAR NOVO
-      console.log(`[create-or-link-consultant] Criando novo usuário: ${email}`);
+      console.log(`[create-or-link-consultant] Creating new user: ${email}`);
       
       const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
         email: email,
@@ -92,14 +92,14 @@ serve(async (req) => {
         user_metadata: {
           first_name: name.split(' ')[0],
           last_name: name.split(' ').slice(1).join(' '),
-          role: userRole, // NOVO: Usa o papel recebido
+          role: userRole,
           needs_password_change: true,
           login: consultantLogin,
         },
       });
 
       if (createError) {
-        console.error(`[create-or-link-consultant] Erro ao criar usuário: ${createError.message}`, { createError });
+        console.error(`[create-or-link-consultant] Error creating user ${email}: ${createError.message}`, { createError });
         return new Response(JSON.stringify({ error: `Falha ao criar usuário: ${createError.message}` }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 400,
@@ -108,10 +108,10 @@ serve(async (req) => {
       
       authUserId = newUser.user.id;
       userExists = false;
-      console.log(`[create-or-link-consultant] Novo usuário ${email} criado com sucesso. Auth ID: ${authUserId}`);
+      console.log(`[create-or-link-consultant] New user ${email} created successfully. Auth ID: ${authUserId}`);
     }
 
-    console.log(`[create-or-link-consultant] Sucesso! AuthUserId: ${authUserId}, UserExists: ${userExists}`);
+    console.log(`[create-or-link-consultant] Success! AuthUserId: ${authUserId}, UserExists: ${userExists}`);
 
     return new Response(JSON.stringify({ 
       authUserId, 
@@ -123,7 +123,7 @@ serve(async (req) => {
     });
 
   } catch (error) {
-    console.error('[create-or-link-consultant] Erro crítico na Edge Function:', error.message || error, { error });
+    console.error('[create-or-link-consultant] Critical error in Edge Function:', error.message || error, { error });
     return new Response(JSON.stringify({ error: error.message || 'Falha ao processar solicitação' }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
