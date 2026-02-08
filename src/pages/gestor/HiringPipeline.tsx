@@ -13,7 +13,8 @@ import {
 } from '@/components/ui/select';
 import toast from 'react-hot-toast';
 import { Candidate, InterviewScores, CandidateStatus, TeamMember } from '@/types';
-import { AddScreeningCandidateModal } from '@/components/gestor/AddScreeningCandidateModal'; // Alterado para o modal de adição simples
+import { AddScreeningCandidateModal } from '@/components/gestor/AddScreeningCandidateModal';
+import { UpdateInterviewDateModal } from '@/components/gestor/UpdateInterviewDateModal'; // Importando o novo modal
 import { highlightText } from '@/lib/utils';
 
 const HiringPipeline = () => {
@@ -21,7 +22,10 @@ const HiringPipeline = () => {
   const { candidates, teamMembers, isDataLoading, updateCandidate, interviewStructure, origins } = useApp();
   const [draggingCandidateId, setDraggingCandidateId] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false); // Renomeado o estado
+  
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isUpdateDateModalOpen, setIsUpdateDateModalOpen] = useState(false);
+  const [selectedCandidateForDate, setSelectedCandidateForDate] = useState<Candidate | null>(null);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStartDate, setFilterStartDate] = useState('');
@@ -116,6 +120,13 @@ const HiringPipeline = () => {
     }
   };
 
+  const handleOpenUpdateDate = (e: React.MouseEvent, candidate: Candidate) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setSelectedCandidateForDate(candidate);
+    setIsUpdateDateModalOpen(true);
+  };
+
   const getResponsibleName = (responsibleUserId: string | undefined) => {
     if (!responsibleUserId) return 'Não atribuído';
     const member = teamMembers.find(m => m.id === responsibleUserId || m.authUserId === responsibleUserId);
@@ -195,15 +206,26 @@ const HiringPipeline = () => {
 
                     <div className="flex justify-between items-start mb-2">
                       <p className="font-bold text-gray-900 dark:text-white leading-tight">{highlightText(candidate.name, searchTerm)}</p>
-                      {id !== 'disqualified' && (
-                        <button 
-                          onClick={(e) => handleQuickDisqualify(e, candidate.id, candidate.name)}
-                          className="p-1 text-gray-400 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
-                          title="Desqualificar Candidato"
-                        >
-                          <XCircle className="w-4 h-4" />
-                        </button>
-                      )}
+                      <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {id === 'candidates' && (
+                          <button 
+                            onClick={(e) => handleOpenUpdateDate(e, candidate)}
+                            className="p-1 text-gray-400 hover:text-blue-500 transition-colors"
+                            title="Agendar Entrevista"
+                          >
+                            <Calendar className="w-4 h-4" />
+                          </button>
+                        )}
+                        {id !== 'disqualified' && (
+                          <button 
+                            onClick={(e) => handleQuickDisqualify(e, candidate.id, candidate.name)}
+                            className="p-1 text-gray-400 hover:text-red-500 transition-colors"
+                            title="Desqualificar Candidato"
+                          >
+                            <XCircle className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     <div className="space-y-2">
@@ -242,6 +264,14 @@ const HiringPipeline = () => {
       <AddScreeningCandidateModal 
         isOpen={isAddModalOpen} 
         onClose={() => setIsAddModalOpen(false)} 
+      />
+      <UpdateInterviewDateModal
+        isOpen={isUpdateDateModalOpen}
+        onClose={() => {
+          setIsUpdateDateModalOpen(false);
+          setSelectedCandidateForDate(null);
+        }}
+        candidate={selectedCandidateForDate}
       />
     </div>
   );
