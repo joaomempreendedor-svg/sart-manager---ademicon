@@ -186,6 +186,7 @@ export const CandidateDetail = () => {
                 >
                     <option value="Triagem">Candidatos</option>
                     <option value="Entrevista">Entrevista</option>
+                    <option value="Faltou">Faltou</option>
                     <option value="Aguardando Prévia">Aguardando Prévia</option>
                     <option value="Onboarding Online">Onboarding Online</option>
                     <option value="Integração Presencial">Integração Presencial</option>

@@ -7,7 +7,8 @@ export type CandidateStatus =
   | 'Autorizado'
   | 'Reprovado'
   | 'Triagem'
-  | 'Desqualificado';
+  | 'Desqualificado'
+  | 'Faltou'; // NOVO: Status para candidatos que não compareceram
 
 export interface InterviewScores {
   basicProfile: number;
@@ -55,7 +56,7 @@ export interface Candidate {
   status: CandidateStatus;
   screeningStatus?: 'Pending Contact' | 'Contacted' | 'No Fit';
   interviewScores: InterviewScores;
-  interviewConducted?: boolean; // NOVO: Flag para confirmação de presença/realização
+  interviewConducted?: boolean;
   checkedQuestions?: Record<string, boolean>;
   checklistProgress?: Record<string, ChecklistTaskState>;
   consultantGoalsProgress?: Record<string, boolean>;

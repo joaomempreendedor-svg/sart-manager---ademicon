@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Calendar, Clock, User, Phone, CheckCircle2, Loader2, Users, TrendingUp } from 'lucide-react';
+import { Calendar, Clock, User, Phone, CheckCircle2, Loader2, Users, TrendingUp, XCircle, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export const SecretariaDashboard = () => {
@@ -22,6 +22,17 @@ export const SecretariaDashboard = () => {
       toast.success(`Presença de ${name} confirmada!`);
     } catch (error: any) {
       toast.error("Erro ao confirmar presença.");
+    }
+  };
+
+  const handleMarkNoShow = async (candidateId: string, name: string) => {
+    if (window.confirm(`Confirmar que o candidato ${name} NÃO compareceu à entrevista?`)) {
+      try {
+        await updateCandidate(candidateId, { status: 'Faltou' });
+        toast.error(`Falta registrada para ${name}.`);
+      } catch (error: any) {
+        toast.error("Erro ao registrar falta.");
+      }
     }
   };
 
@@ -87,13 +98,22 @@ export const SecretariaDashboard = () => {
                   </div>
                 </div>
                 
-                <button
-                  onClick={() => handleConfirmAttendance(candidate.id, candidate.name)}
-                  className="flex items-center justify-center space-x-2 bg-green-600 hover:bg-green-700 text-white px-6 py-2.5 rounded-lg transition font-bold shadow-md shadow-green-600/20"
-                >
-                  <Check className="w-5 h-5" />
-                  <span>Confirmar Chegada</span>
-                </button>
+                <div className="flex items-center space-x-2 w-full sm:w-auto">
+                  <button
+                    onClick={() => handleMarkNoShow(candidate.id, candidate.name)}
+                    className="flex-1 sm:flex-none flex items-center justify-center space-x-2 bg-white dark:bg-slate-700 border border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 px-4 py-2.5 rounded-lg transition font-bold hover:bg-red-50 dark:hover:bg-red-900/20"
+                  >
+                    <XCircle className="w-5 h-5" />
+                    <span>Faltou</span>
+                  </button>
+                  <button
+                    onClick={() => handleConfirmAttendance(candidate.id, candidate.name)}
+                    className="flex-1 sm:flex-none flex items-center justify-center space-x-2 bg-green-600 hover:bg-green-700 text-white px-6 py-2.5 rounded-lg transition font-bold shadow-md shadow-green-600/20"
+                  >
+                    <Check className="w-5 h-5" />
+                    <span>Chegou</span>
+                  </button>
+                </div>
               </div>
             ))
           )}

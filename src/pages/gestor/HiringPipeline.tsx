@@ -42,7 +42,7 @@ const HiringPipeline = () => {
   const {
     pipelineStages,
   } = useMemo(() => {
-    if (!user) return { pipelineStages: { candidates: [], scheduled: [], conducted: [], awaitingPreview: [], authorized: [], droppedOut: [], disqualified: [] } };
+    if (!user) return { pipelineStages: { candidates: [], scheduled: [], conducted: [], awaitingPreview: [], authorized: [], droppedOut: [], disqualified: [], noShow: [] } };
 
     let candidatesForGestor = candidates.filter(Boolean);
 
@@ -87,12 +87,14 @@ const HiringPipeline = () => {
     const authorized = candidatesForGestor.filter(c => c.status === 'Autorizado').sort(sortByRecentUpdate);
     const droppedOut = candidatesForGestor.filter(c => c.status === 'Reprovado').sort(sortByRecentUpdate);
     const disqualified = candidatesForGestor.filter(c => c.status === 'Desqualificado').sort(sortByRecentUpdate);
+    const noShow = candidatesForGestor.filter(c => c.status === 'Faltou').sort(sortByRecentUpdate); // NOVO: Filtro para Faltou
 
     return {
       pipelineStages: { 
         candidates: { title: 'Candidatos', list: entryPool, color: 'gray', icon: Users },
         scheduled: { title: 'Agendadas', list: scheduled, color: 'blue', icon: Calendar },
         conducted: { title: 'Realizadas', list: conducted, color: 'purple', icon: FileText },
+        noShow: { title: 'Faltou', list: noShow, color: 'red', icon: UserX }, // NOVO: Coluna Faltou
         awaitingPreview: { title: 'Em Prévia', list: awaitingPreview, color: 'yellow', icon: Clock },
         authorized: { title: 'Autorizados', list: authorized, color: 'green', icon: UserCheck },
         droppedOut: { title: 'Desistências', list: droppedOut, color: 'red', icon: UserX },
@@ -130,6 +132,7 @@ const HiringPipeline = () => {
         newStatus = 'Entrevista'; 
         updates.interviewConducted = true;
         break;
+      case 'noShow': newStatus = 'Faltou'; break; // NOVO: Drop para Faltou
       case 'awaitingPreview': newStatus = 'Aguardando Prévia'; break;
       case 'authorized': newStatus = 'Autorizado'; break;
       case 'droppedOut': newStatus = 'Reprovado'; break;
