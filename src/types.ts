@@ -6,7 +6,8 @@ export type CandidateStatus =
   | 'Acompanhamento 90 Dias'
   | 'Autorizado'
   | 'Reprovado'
-  | 'Triagem';
+  | 'Triagem'
+  | 'Desqualificado'; // NOVO STATUS
 
 export interface InterviewScores {
   basicProfile: number; // Max 20

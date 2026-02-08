@@ -43,7 +43,6 @@ import HiringReports from '@/pages/gestor/HiringReports';
 import { OriginConfig } from '@/pages/OriginConfig';
 import { FinancialPanel } from '@/pages/FinancialPanel';
 import { FormCadastros } from '@/pages/gestor/FormSubmissions';
-import CandidateScreening from '@/pages/gestor/CandidateScreening';
 import TeamProductionGoals from '@/pages/gestor/TeamProductionGoals';
 import { AllCandidates } from '@/pages/gestor/AllCandidates';
 import GestorTasksPage from '@/pages/gestor/GestorTasksPage';
@@ -74,7 +73,6 @@ const RequireAuth: React.FC<{ allowedRoles: UserRole[] }> = ({ allowedRoles }) =
   if (user.needs_password_change && location.pathname !== '/profile') return <Navigate to="/profile" replace />;
 
   if (!allowedRoles.includes(user.role)) {
-    // Redirecionamento forçado se tentar acessar área não permitida
     if (user.role === 'SECRETARIA') return <Navigate to="/secretaria/dashboard" replace />;
     if (user.role === 'CONSULTOR') return <Navigate to="/consultor/dashboard" replace />;
     return <Navigate to="/gestor/dashboard" replace />;
@@ -124,7 +122,6 @@ const AppRoutes = () => {
       <Route element={<RequireAuth allowedRoles={['GESTOR', 'ADMIN', 'CONSULTOR', 'SECRETARIA']} />}>
         <Route path="/" element={<Home />} />
 
-        {/* Rotas de Gestão (Gestor, Admin e Secretaria) */}
         <Route element={<RequireAuth allowedRoles={['GESTOR', 'ADMIN', 'SECRETARIA']} />}>
           <Route path="/gestor" element={<MainLayout />}>
             <Route path="dashboard" element={<Dashboard />} />
@@ -149,19 +146,16 @@ const AppRoutes = () => {
             <Route path="hiring-reports" element={<HiringReports />} />
             <Route path="config-origins" element={<OriginConfig />} />
             <Route path="form-cadastros" element={<FormCadastros />} />
-            <Route path="candidate-screening" element={<CandidateScreening />} />
             <Route path="team-production-goals" element={<TeamProductionGoals />} />
             <Route path="all-candidates" element={<AllCandidates />} />
             <Route path="my-tasks" element={<GestorTasksPage />} />
           </Route>
         </Route>
 
-        {/* Rotas Específicas da Secretaria (Usando o mesmo layout do Gestor) */}
         <Route element={<RequireAuth allowedRoles={['SECRETARIA']} />}>
           <Route path="/secretaria" element={<MainLayout />}>
             <Route path="dashboard" element={<SecretariaDashboard />} />
             <Route path="hiring-pipeline" element={<HiringPipeline />} />
-            <Route path="candidate-screening" element={<CandidateScreening />} />
             <Route path="all-candidates" element={<AllCandidates />} />
             <Route path="hiring-reports" element={<HiringReports />} />
             <Route path="onboarding-admin" element={<OnlineOnboarding />} />
@@ -170,7 +164,6 @@ const AppRoutes = () => {
           </Route>
         </Route>
 
-        {/* Rotas do Consultor */}
         <Route element={<RequireAuth allowedRoles={['CONSULTOR']} />}>
           <Route path="/consultor" element={<ConsultorLayout />}>
             <Route path="dashboard" element={<ConsultorDashboard />} />

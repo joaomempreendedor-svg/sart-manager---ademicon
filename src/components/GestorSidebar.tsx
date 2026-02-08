@@ -37,7 +37,6 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
   // Links para a seção "Visão Geral e Operação"
   const overviewLinks = isSecretaria ? [
     { to: "/secretaria/hiring-pipeline", icon: UserSearch, label: "Pipeline Contratação" },
-    { to: "/secretaria/candidate-screening", icon: UserCheck, label: "Controle Candidaturas" },
     { to: "/secretaria/all-candidates", icon: UsersRound, label: "Todos os Candidatos" },
     { to: "/secretaria/hiring-reports", icon: UserCog, label: "Relatórios Contratação" },
     { to: "/secretaria/onboarding-admin", icon: Video, label: "Onboarding Online" },
@@ -47,7 +46,6 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
     { to: "/gestor/crm", icon: TrendingUp, label: "CRM" },
     { to: "/gestor/crm-sales-reports", icon: BarChart3, label: "Relatórios de Vendas" },
     { to: "/gestor/hiring-pipeline", icon: UserSearch, label: "Pipeline Contratação" },
-    { to: "/gestor/candidate-screening", icon: UserCheck, label: "Controle Candidaturas" },
     { to: "/gestor/all-candidates", icon: UsersRound, label: "Todos os Candidatos" },
     { to: "/gestor/hiring-reports", icon: UserCog, label: "Relatórios Contratação" },
     { to: "/gestor/onboarding-admin", icon: Video, label: "Onboarding Online" },

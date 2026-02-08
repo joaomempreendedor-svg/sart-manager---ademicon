@@ -32,7 +32,7 @@ const HiringPipeline = () => {
   const {
     pipelineStages,
   } = useMemo(() => {
-    if (!user) return { pipelineStages: { scheduled: [], conducted: [], awaitingPreview: [], authorized: [], droppedOut: [] } };
+    if (!user) return { pipelineStages: { candidates: [], scheduled: [], conducted: [], awaitingPreview: [], authorized: [], droppedOut: [], disqualified: [] } };
 
     let candidatesForGestor = candidates.filter(Boolean);
 
@@ -54,19 +54,23 @@ const HiringPipeline = () => {
       candidatesForGestor = candidatesForGestor.filter(c => new Date(c.createdAt) <= end);
     }
 
+    const entryPool = candidatesForGestor.filter(c => c.status === 'Triagem');
     const scheduled = candidatesForGestor.filter(c => c.status === 'Entrevista' && c.interviewScores.basicProfile === 0 && c.interviewScores.commercialSkills === 0 && c.interviewScores.behavioralProfile === 0 && c.interviewScores.jobFit === 0 && c.interviewScores.notes === '');
     const conducted = candidatesForGestor.filter(c => c.status === 'Entrevista' && (c.interviewScores.basicProfile > 0 || c.interviewScores.commercialSkills > 0 || c.interviewScores.behavioralProfile > 0 || c.interviewScores.jobFit > 0 || c.interviewScores.notes !== ''));
     const awaitingPreview = candidatesForGestor.filter(c => c.status === 'Aguardando Prévia');
     const authorized = candidatesForGestor.filter(c => c.status === 'Autorizado');
     const droppedOut = candidatesForGestor.filter(c => c.status === 'Reprovado');
+    const disqualified = candidatesForGestor.filter(c => c.status === 'Desqualificado');
 
     return {
       pipelineStages: { 
+        candidates: { title: 'Candidatos', list: entryPool, color: 'gray', icon: Users },
         scheduled: { title: 'Agendadas', list: scheduled, color: 'blue', icon: Calendar },
         conducted: { title: 'Realizadas', list: conducted, color: 'purple', icon: FileText },
         awaitingPreview: { title: 'Em Prévia', list: awaitingPreview, color: 'yellow', icon: Clock },
         authorized: { title: 'Autorizados', list: authorized, color: 'green', icon: UserCheck },
-        droppedOut: { title: 'Desistências', list: droppedOut, color: 'red', icon: UserX }
+        droppedOut: { title: 'Desistências', list: droppedOut, color: 'red', icon: UserX },
+        disqualified: { title: 'Desqualificado', list: disqualified, color: 'red', icon: XCircle }
       }
     };
   }, [user, candidates, searchTerm, filterStartDate, filterEndDate]);
@@ -89,11 +93,13 @@ const HiringPipeline = () => {
 
     let newStatus: CandidateStatus;
     switch (targetColumnId) {
+      case 'candidates': newStatus = 'Triagem'; break;
       case 'scheduled': newStatus = 'Entrevista'; break;
       case 'conducted': newStatus = 'Entrevista'; break;
       case 'awaitingPreview': newStatus = 'Aguardando Prévia'; break;
       case 'authorized': newStatus = 'Autorizado'; break;
       case 'droppedOut': newStatus = 'Reprovado'; break;
+      case 'disqualified': newStatus = 'Desqualificado'; break;
       default: return;
     }
 
@@ -114,6 +120,7 @@ const HiringPipeline = () => {
       case 'yellow': return 'bg-yellow-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-800 text-yellow-700 dark:text-yellow-300';
       case 'green': return 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800 text-green-700 dark:text-green-300';
       case 'red': return 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800 text-red-700 dark:text-red-300';
+      case 'gray': return 'bg-gray-50 border-gray-200 dark:bg-slate-800 dark:border-slate-700 text-gray-700 dark:text-gray-300';
       default: return 'bg-gray-50 border-gray-200 dark:bg-slate-800 dark:border-slate-700 text-gray-700 dark:text-gray-300';
     }
   };
@@ -125,9 +132,9 @@ const HiringPipeline = () => {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Pipeline de Contratação</h1>
-          <p className="text-gray-500 dark:text-gray-400">Acompanhe o fluxo de candidatos desde a entrevista até a contratação.</p>
+          <p className="text-gray-500 dark:text-gray-400">Acompanhe o fluxo de candidatos desde a entrada até a contratação.</p>
         </div>
-        <button onClick={() => setIsScheduleModalOpen(true)} className="flex items-center justify-center space-x-2 bg-brand-600 hover:bg-brand-700 text-white py-2.5 px-6 rounded-lg transition shadow-lg shadow-brand-600/20 font-bold"><Plus className="w-5 h-5" /><span>Agendar Entrevista</span></button>
+        <button onClick={() => setIsScheduleModalOpen(true)} className="flex items-center justify-center space-x-2 bg-brand-600 hover:bg-brand-700 text-white py-2.5 px-6 rounded-lg transition shadow-lg shadow-brand-600/20 font-bold"><Plus className="w-5 h-5" /><span>Novo Candidato</span></button>
       </div>
 
       <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm space-y-4 mb-6">
@@ -197,7 +204,7 @@ const HiringPipeline = () => {
                       </div>
 
                       <div className="pt-2 border-t border-gray-50 dark:border-slate-600 flex items-center justify-between text-[10px] text-gray-400">
-                        <span className="flex items-center"><Calendar className="w-3 h-3 mr-1" /> {new Date(candidate.interviewDate + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
+                        <span className="flex items-center"><Calendar className="w-3 h-3 mr-1" /> {candidate.interviewDate ? new Date(candidate.interviewDate + 'T00:00:00').toLocaleDateString('pt-BR') : 'Sem data'}</span>
                         <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-brand-500 transition-colors" />
                       </div>
                     </div>
