@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Loader2, Search, User, Phone, Mail, CheckCircle2, XCircle, RotateCcw, ArrowRight, MessageSquare, UserX, Plus, Trash2, Users, Clock, UserRound, UploadCloud, CalendarDays, Filter, Calendar, FileText, UserCheck, Star, TrendingUp, ChevronRight } from 'lucide-react';
+import { Loader2, Search, User, Phone, Mail, CheckCircle2, XCircle, RotateCcw, ArrowRight, MessageSquare, UserX, Plus, Trash2, Users, Clock, UserRound, UploadCloud, CalendarDays, Filter, Calendar, FileText, UserCheck, Star, TrendingUp, ChevronRight, Check } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { TableSkeleton } from '@/components/TableSkeleton';
 import {
@@ -33,7 +33,6 @@ const HiringPipeline = () => {
 
   const todayStr = new Date().toISOString().split('T')[0];
 
-  // Função auxiliar para ordenar por data de atualização (mais recente primeiro)
   const sortByRecentUpdate = (a: Candidate, b: Candidate) => {
     const dateA = new Date(a.lastUpdatedAt || a.createdAt).getTime();
     const dateB = new Date(b.lastUpdatedAt || b.createdAt).getTime();
@@ -65,10 +64,25 @@ const HiringPipeline = () => {
       candidatesForGestor = candidatesForGestor.filter(c => new Date(c.createdAt) <= end);
     }
 
-    // Filtros de estágio com ordenação por atualização recente
     const entryPool = candidatesForGestor.filter(c => c.status === 'Triagem').sort(sortByRecentUpdate);
-    const scheduled = candidatesForGestor.filter(c => c.status === 'Entrevista' && c.interviewScores.basicProfile === 0 && c.interviewScores.commercialSkills === 0 && c.interviewScores.behavioralProfile === 0 && c.interviewScores.jobFit === 0 && c.interviewScores.notes === '').sort(sortByRecentUpdate);
-    const conducted = candidatesForGestor.filter(c => c.status === 'Entrevista' && (c.interviewScores.basicProfile > 0 || c.interviewScores.commercialSkills > 0 || c.interviewScores.behavioralProfile > 0 || c.interviewScores.jobFit > 0 || c.interviewScores.notes !== '')).sort(sortByRecentUpdate);
+    
+    // Agendadas: Status Entrevista E NÃO confirmada E SEM notas
+    const scheduled = candidatesForGestor.filter(c => 
+      c.status === 'Entrevista' && 
+      !c.interviewConducted &&
+      c.interviewScores.basicProfile === 0 && 
+      c.interviewScores.commercialSkills === 0 && 
+      c.interviewScores.behavioralProfile === 0 && 
+      c.interviewScores.jobFit === 0 && 
+      c.interviewScores.notes === ''
+    ).sort(sortByRecentUpdate);
+
+    // Realizadas: Status Entrevista E (confirmada OU com notas)
+    const conducted = candidatesForGestor.filter(c => 
+      c.status === 'Entrevista' && 
+      (c.interviewConducted || c.interviewScores.basicProfile > 0 || c.interviewScores.commercialSkills > 0 || c.interviewScores.behavioralProfile > 0 || c.interviewScores.jobFit > 0 || c.interviewScores.notes !== '')
+    ).sort(sortByRecentUpdate);
+
     const awaitingPreview = candidatesForGestor.filter(c => c.status === 'Aguardando Prévia').sort(sortByRecentUpdate);
     const authorized = candidatesForGestor.filter(c => c.status === 'Autorizado').sort(sortByRecentUpdate);
     const droppedOut = candidatesForGestor.filter(c => c.status === 'Reprovado').sort(sortByRecentUpdate);
@@ -104,10 +118,18 @@ const HiringPipeline = () => {
     if (!candidateId) return;
 
     let newStatus: CandidateStatus;
+    let updates: Partial<Candidate> = {};
+
     switch (targetColumnId) {
       case 'candidates': newStatus = 'Triagem'; break;
-      case 'scheduled': newStatus = 'Entrevista'; break;
-      case 'conducted': newStatus = 'Entrevista'; break;
+      case 'scheduled': 
+        newStatus = 'Entrevista'; 
+        updates.interviewConducted = false;
+        break;
+      case 'conducted': 
+        newStatus = 'Entrevista'; 
+        updates.interviewConducted = true;
+        break;
       case 'awaitingPreview': newStatus = 'Aguardando Prévia'; break;
       case 'authorized': newStatus = 'Autorizado'; break;
       case 'droppedOut': newStatus = 'Reprovado'; break;
@@ -115,8 +137,19 @@ const HiringPipeline = () => {
       default: return;
     }
 
-    await updateCandidate(candidateId, { status: newStatus });
+    await updateCandidate(candidateId, { status: newStatus, ...updates });
     setDraggingCandidateId(null);
+  };
+
+  const handleConfirmAttendance = async (e: React.MouseEvent, candidate: Candidate) => {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      await updateCandidate(candidate.id, { interviewConducted: true });
+      toast.success(`Presença de ${candidate.name} confirmada!`);
+    } catch (error: any) {
+      toast.error("Erro ao confirmar presença.");
+    }
   };
 
   const handleQuickDisqualify = async (e: React.MouseEvent, candidateId: string, candidateName: string) => {
@@ -215,6 +248,15 @@ const HiringPipeline = () => {
                     <div className="flex justify-between items-start mb-2">
                       <p className="font-bold text-gray-900 dark:text-white leading-tight">{highlightText(candidate.name, searchTerm)}</p>
                       <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {id === 'scheduled' && (
+                          <button 
+                            onClick={(e) => handleConfirmAttendance(e, candidate)}
+                            className="p-1 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors"
+                            title="Confirmar Realização"
+                          >
+                            <CheckCircle2 className="w-4 h-4" />
+                          </button>
+                        )}
                         {id === 'candidates' && (
                           <button 
                             onClick={(e) => handleOpenUpdateDate(e, candidate)}

@@ -7,15 +7,15 @@ export type CandidateStatus =
   | 'Autorizado'
   | 'Reprovado'
   | 'Triagem'
-  | 'Desqualificado'; // NOVO STATUS
+  | 'Desqualificado';
 
 export interface InterviewScores {
-  basicProfile: number; // Max 20
-  commercialSkills: number; // Max 30
-  behavioralProfile: number; // Max 30
-  jobFit: number; // Max 20
+  basicProfile: number;
+  commercialSkills: number;
+  behavioralProfile: number;
+  jobFit: number;
   notes: string;
-  [key: string]: number | string; // Allow dynamic keys
+  [key: string]: number | string;
 }
 
 export interface InterviewQuestion {
@@ -25,7 +25,7 @@ export interface InterviewQuestion {
 }
 
 export interface InterviewSection {
-  id: string; // e.g., 'basicProfile'
+  id: string;
   title: string;
   maxPoints: number;
   questions: InterviewQuestion[];
@@ -33,19 +33,19 @@ export interface InterviewSection {
 
 export interface ChecklistTaskState {
   completed: boolean;
-  dueDate?: string; // ISO Date YYYY-MM-DD
+  dueDate?: string;
 }
 
 export interface Feedback {
   id: string;
-  date: string; // YYYY-MM-DD
+  date: string;
   title: string;
   notes: string;
 }
 
 export interface Candidate {
-  id: string; // Client-side UUID
-  db_id?: string; // Database primary key
+  id: string;
+  db_id?: string;
   name: string;
   phone: string;
   email?: string;
@@ -55,9 +55,10 @@ export interface Candidate {
   status: CandidateStatus;
   screeningStatus?: 'Pending Contact' | 'Contacted' | 'No Fit';
   interviewScores: InterviewScores;
-  checkedQuestions?: Record<string, boolean>; // questionId -> boolean
-  checklistProgress?: Record<string, ChecklistTaskState>; // map of taskId -> state
-  consultantGoalsProgress?: Record<string, boolean>; // map of goalId -> completed
+  interviewConducted?: boolean; // NOVO: Flag para confirmação de presença/realização
+  checkedQuestions?: Record<string, boolean>;
+  checklistProgress?: Record<string, ChecklistTaskState>;
+  consultantGoalsProgress?: Record<string, boolean>;
   feedbacks?: Feedback[];
   createdAt: string;
   lastUpdatedAt?: string;
@@ -71,10 +72,10 @@ export interface ChecklistResource {
 }
 
 export interface CommunicationTemplate {
-  id: string; // matches checklist item id
-  label: string; // name of the step
-  text?: string; // The message template
-  resource?: ChecklistResource; // Associated file
+  id: string;
+  label: string;
+  text?: string;
+  resource?: ChecklistResource;
 }
 
 export interface ChecklistItem {
@@ -110,8 +111,8 @@ export type InstallmentStatus = 'Pendente' | 'Pago' | 'Atraso' | 'Cancelado';
 
 export interface InstallmentInfo {
   status: InstallmentStatus;
-  paidDate?: string; // YYYY-MM-DD - Data real do pagamento
-  competenceMonth?: string; // YYYY-MM - Mês que a comissão entra (calculado)
+  paidDate?: string;
+  competenceMonth?: string;
 }
 
 export interface CommissionRule {
@@ -124,35 +125,29 @@ export interface CommissionRule {
 }
 
 export interface Commission {
-  id: string; // Client-side UUID
-  db_id?: string; // Database primary key
-  date: string; // YYYY-MM-DD
+  id: string;
+  db_id?: string;
+  date: string;
   clientName: string;
   type: 'Imóvel' | 'Veículo';
   group: string;
   quota: string;
   consultant: string;
-  managerName: string; // Nome do Gestor
-  angelName?: string; // Nome do Anjo (Opcional)
-
-  pv: string; // e.g. 'SOARES E MORAES'
-  value: number; // Valor Vendido / Crédito Base
-
-  // Financials
-  taxRate: number; // Imposto % (Descontado da comissão final)
-  netValue: number; // Total Líquido R$
-  installments: number; // Número de Parcelas Total
+  managerName: string;
+  angelName?: string;
+  pv: string;
+  value: number;
+  taxRate: number;
+  netValue: number;
+  installments: number;
   status: CommissionStatus;
-  installmentDetails: Record<string, InstallmentInfo>; // e.g. { '1': { status: 'Pago', paidDate: '2024-01-15' } }
-
-  // Split Values (Calculated per installment rules - Tax)
-  consultantValue: number; // Valor para o consultor
-  managerValue: number; // Valor para o gestor
-  angelValue: number; // Valor para o anjo
-  receivedValue: number; // Soma ou valor total da nota
-
-  customRules?: CommissionRule[]; // Se presente, ignora cálculo padrão
-  criado_em?: string; // Timestamp from Supabase
+  installmentDetails: Record<string, InstallmentInfo>;
+  consultantValue: number;
+  managerValue: number;
+  angelValue: number;
+  receivedValue: number;
+  customRules?: CommissionRule[];
+  criado_em?: string;
   _synced?: boolean;
 }
 
@@ -160,8 +155,8 @@ export type SupportMaterialContentType = 'link' | 'text' | 'image' | 'pdf';
 
 export interface SupportMaterialV2 {
   id: string;
-  db_id?: string; // Database primary key
-  user_id: string; // ID do gestor que criou
+  db_id?: string;
+  user_id: string;
   title: string;
   description?: string;
   category?: string;
@@ -182,9 +177,9 @@ export interface SupportMaterialAssignment {
 export type TeamRole = 'Prévia' | 'Autorizado' | 'Gestor' | 'Anjo' | 'Secretaria';
 
 export interface TeamMember {
-  id: string; // Client-side ID (pode ser auth.uid() ou legacy_db_id)
-  db_id?: string; // Database primary key
-  authUserId?: string | null; // NOVO: ID do usuário de autenticação (auth.users.id)
+  id: string;
+  db_id?: string;
+  authUserId?: string | null;
   name: string;
   email?: string;
   roles: TeamRole[];
@@ -195,7 +190,7 @@ export interface TeamMember {
   hasLogin?: boolean;
   isLegacy?: boolean;
   tempPassword?: string;
-  user_id?: string; // NOVO: ID do gestor proprietário do registro
+  user_id?: string;
 }
 
 export type UserRole = 'GESTOR' | 'CONSULTOR' | 'ADMIN' | 'SECRETARIA';
@@ -299,12 +294,10 @@ export interface CrmLead {
   data: Record<string, any>;
   proposalValue?: number;
   proposalClosingDate?: string;
-  
   soldCreditValue?: number;
   soldGroup?: string;
   soldQuota?: string;
   saleDate?: string;
-
   created_at: string;
   updated_at: string;
 }
@@ -351,11 +344,11 @@ export interface GestorTaskCompletion {
   updated_at: string;
 }
 
-export type DailyChecklistItemResourceType = 'link' | 'text' | 'image' | 'pdf' | 'video' | 'audio' | 'text_audio' | 'text_audio_image' | 'none'; // NOVO: 'text_audio_image'
+export type DailyChecklistItemResourceType = 'link' | 'text' | 'image' | 'pdf' | 'video' | 'audio' | 'text_audio' | 'text_audio_image' | 'none';
 
 export interface DailyChecklistItemResource {
   type: DailyChecklistItemResourceType;
-  content: string | { text: string; audioUrl: string; imageUrl?: string; }; // NOVO: imageUrl opcional para text_audio_image
+  content: string | { text: string; audioUrl: string; imageUrl?: string; };
   name?: string;
 }
 
@@ -472,14 +465,13 @@ export interface MetricLog {
   created_at: string;
 }
 
-// NOVO: Interface para Metas de Produção da Equipe
 export interface TeamProductionGoal {
   id: string;
-  user_id: string; // ID do gestor que criou a meta
+  user_id: string;
   target_team_size: number;
   target_production_value: number;
-  start_date: string; // YYYY-MM-DD
-  end_date: string; // YYYY-MM-DD
+  start_date: string;
+  end_date: string;
   created_at: string;
   updated_at: string;
 }
@@ -524,7 +516,7 @@ export interface AppContextType {
   formCadastros: FormCadastro[];
   formFiles: FormFile[];
   notifications: Notification[];
-  teamProductionGoals: TeamProductionGoal[]; // NOVO: Estado para metas de produção da equipe
+  teamProductionGoals: TeamProductionGoal[];
   theme: 'light' | 'dark';
   toggleTheme: () => void;
   addCandidate: (candidate: Omit<Candidate, 'id' | 'createdAt' | 'db_id'>) => Promise<Candidate>;
@@ -581,8 +573,8 @@ export interface AppContextType {
   addDailyChecklist: (title: string) => Promise<DailyChecklist>;
   updateDailyChecklist: (id: string, updates: Partial<DailyChecklist>) => Promise<DailyChecklist>;
   deleteDailyChecklist: (id: string) => Promise<void>;
-  addDailyChecklistItem: (daily_checklist_id: string, text: string, order_index: number, resource?: DailyChecklistItemResource, audioFile?: File, imageFile?: File) => Promise<DailyChecklistItem>; // NOVO: audioFile e imageFile
-  updateDailyChecklistItem: (id: string, updates: Partial<DailyChecklistItem>, audioFile?: File, imageFile?: File) => Promise<DailyChecklistItem>; // NOVO: audioFile e imageFile
+  addDailyChecklistItem: (daily_checklist_id: string, text: string, order_index: number, resource?: DailyChecklistItemResource, audioFile?: File, imageFile?: File) => Promise<DailyChecklistItem>;
+  updateDailyChecklistItem: (id: string, updates: Partial<DailyChecklistItem>, audioFile?: File, imageFile?: File) => Promise<DailyChecklistItem>;
   deleteDailyChecklistItem: (id: string) => Promise<void>;
   moveDailyChecklistItem: (checklistId: string, itemId: string, direction: 'up' | 'down') => Promise<void>;
   assignDailyChecklistToConsultant: (daily_checklist_id: string, consultant_id: string) => Promise<DailyChecklistAssignment>;
@@ -628,9 +620,9 @@ export interface AppContextType {
   updateTeamMemberFeedback: (teamMemberId: string, feedback: Feedback) => Promise<Feedback>;
   deleteTeamMemberFeedback: (teamMemberId: string, feedbackId: string) => Promise<void>;
   addTeamMember: (member: Omit<TeamMember, 'id'> & { email: string }) => Promise<{ success: boolean; member: TeamMember; tempPassword: string; wasExistingUser: boolean; }>;
-  updateTeamMember: (id: string, updates: Partial<TeamMember>) => Promise<{ success: boolean; message?: string }>; // Adicionado message
+  updateTeamMember: (id: string, updates: Partial<TeamMember>) => Promise<{ success: boolean; message?: string }>;
   deleteTeamMember: (id: string) => Promise<void>;
-  addTeamProductionGoal: (goal: Omit<TeamProductionGoal, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => Promise<TeamProductionGoal>; // NOVO: Função para adicionar meta de produção
-  updateTeamProductionGoal: (id: string, updates: Partial<TeamProductionGoal>) => Promise<TeamProductionGoal>; // NOVO: Função para atualizar meta de produção
-  deleteTeamProductionGoal: (id: string) => Promise<void>; // NOVO: Função para deletar meta de produção
+  addTeamProductionGoal: (goal: Omit<TeamProductionGoal, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => Promise<TeamProductionGoal>;
+  updateTeamProductionGoal: (id: string, updates: Partial<TeamProductionGoal>) => Promise<TeamProductionGoal>;
+  deleteTeamProductionGoal: (id: string) => Promise<void>;
 }
