@@ -8,6 +8,8 @@ import { UserRole } from '@/types';
 import { GestorSidebar } from '@/components/GestorSidebar';
 import { ConsultorLayout } from '@/components/ConsultorLayout';
 import { Header } from '@/components/Header';
+import { SecretariaLayout } from '@/components/SecretariaLayout'; // NOVO: Importar o novo layout da Secretaria
+import { SecretariaSidebar } from '@/components/SecretariaSidebar'; // NOVO: Importar o novo sidebar da Secretaria
 
 // Common Pages
 import { Login } from '@/pages/Login';
@@ -57,7 +59,7 @@ import { DailyChecklist } from '@/pages/consultor/DailyChecklist';
 import ConsultorSalesReports from '@/pages/consultor/ConsultorSalesReports';
 
 // Secretaria Pages
-import { SecretariaDashboard } from '@/pages/secretaria/SecretariaDashboard'; // NOVO: Importar o dashboard da Secretaria
+import { SecretariaDashboard } from '@/pages/secretaria/SecretariaDashboard';
 
 
 const AppLoader = () => (
@@ -99,7 +101,7 @@ const RequireAuth: React.FC<{ allowedRoles: UserRole[] }> = ({ allowedRoles }) =
       return <Navigate to="/consultor/dashboard" replace />;
     }
     if (user.role === 'SECRETARIA') {
-      return <Navigate to="/secretaria/dashboard" replace />; // CORRIGIDO: Redireciona para o dashboard da Secretaria
+      return <Navigate to="/secretaria/dashboard" replace />;
     }
     return <Navigate to="/login" replace />; // Fallback
   }
@@ -108,32 +110,6 @@ const RequireAuth: React.FC<{ allowedRoles: UserRole[] }> = ({ allowedRoles }) =
 };
 
 const GestorLayout = () => {
-  const { user } = useAuth();
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
-  const toggleSidebarCollapse = () => setIsSidebarCollapsed(!isSidebarCollapsed);
-
-  return (
-    <div className="min-h-screen bg-gray-50 dark:bg-slate-900 flex font-sans text-gray-900 dark:text-gray-100 transition-colors duration-200">
-      <GestorSidebar 
-        isSidebarOpen={isSidebarOpen} 
-        toggleSidebar={toggleSidebar} 
-        isSidebarCollapsed={isSidebarCollapsed} 
-        toggleSidebarCollapse={toggleSidebarCollapse} 
-      />
-      <div className={`flex-1 flex flex-col transition-all duration-300 ${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-64'}`}>
-        <Header isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar} user={user} />
-        <main className="flex-1">
-          <Outlet />
-        </main>
-      </div>
-    </div>
-  );
-};
-
-// NOVO: Layout para a Secretaria (reaproveita o GestorLayout)
-const SecretariaLayout = () => {
   const { user } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -228,16 +204,17 @@ const AppRoutes = () => {
         </Route>
 
         {/* NOVO: Rotas para Secretaria */}
-        <Route path="/secretaria" element={<SecretariaLayout />}>
-          <Route path="dashboard" element={<SecretariaDashboard />} /> {/* NOVO: Rota para o dashboard da Secretaria */}
-          <Route path="onboarding-admin" element={<OnlineOnboarding />} />
+        <Route path="/secretaria" element={<SecretariaLayout />}> {/* Usar o novo SecretariaLayout */}
+          <Route path="dashboard" element={<SecretariaDashboard />} />
+          {/* As rotas abaixo foram removidas do sidebar da Secretaria, mas mantidas aqui caso precise reativá-las no futuro */}
+          {/* <Route path="onboarding-admin" element={<OnlineOnboarding />} />
           <Route path="hiring-pipeline" element={<HiringPipeline />} />
           <Route path="candidate-screening" element={<CandidateScreening />} />
           <Route path="all-candidates" element={<AllCandidates />} />
           <Route path="hiring-reports" element={<HiringReports />} />
           <Route path="form-cadastros" element={<FormCadastros />} />
-          <Route path="config-origins" element={<OriginConfig />} />
-          <Route path="*" element={<Navigate to="/secretaria/dashboard" replace />} /> {/* CORRIGIDO: Fallback para Secretaria */}
+          <Route path="config-origins" element={<OriginConfig />} /> */}
+          <Route path="*" element={<Navigate to="/secretaria/dashboard" replace />} />
         </Route>
         
         {/* Common authenticated routes */}
