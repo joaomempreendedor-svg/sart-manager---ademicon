@@ -54,6 +54,9 @@ serve(async (req) => {
     let authUserId: string;
     let userExists = false;
 
+    const firstName = name.split(' ')[0];
+    const lastName = name.split(' ').slice(1).join(' ');
+
     if (existingUser) {
       // 2A. USUÁRIO EXISTE - APENAS RESETAR SENHA E ATUALIZAR METADADOS
       console.log(`[create-or-link-consultant] User ${email} already exists. Resetting password and updating metadata.`);
@@ -65,15 +68,17 @@ serve(async (req) => {
         {
           password: tempPassword,
           user_metadata: {
-            // Simplificando metadados para isolar o problema
+            first_name: firstName,
+            last_name: lastName,
+            login: consultantLogin,
             role: userRole,
+            needs_password_change: true, // Força a troca de senha após reset
           },
         }
       );
 
       if (updateError) {
         console.error(`[create-or-link-consultant] Error updating existing user ${email}: ${updateError.message}`, { updateError });
-        // Tentando logar mais detalhes do erro, se disponíveis
         if ((updateError as any).details) console.error("Update Error Details:", (updateError as any).details);
         if ((updateError as any).cause) console.error("Update Error Cause:", (updateError as any).cause);
         return new Response(JSON.stringify({ error: `Falha ao resetar senha: ${updateError.message}` }), {
@@ -91,14 +96,16 @@ serve(async (req) => {
         password: tempPassword,
         email_confirm: true,
         user_metadata: {
-          // Simplificando metadados para isolar o problema
+          first_name: firstName,
+          last_name: lastName,
+          login: consultantLogin,
           role: userRole,
+          needs_password_change: true, // Força a troca de senha no primeiro login
         },
       });
 
       if (createError) {
         console.error(`[create-or-link-consultant] Error creating user ${email}: ${createError.message}`, { createError });
-        // Tentando logar mais detalhes do erro, se disponíveis
         if ((createError as any).details) console.error("Create Error Details:", (createError as any).details);
         if ((createError as any).cause) console.error("Create Error Cause:", (createError as any).cause);
         return new Response(JSON.stringify({ error: `Falha ao criar usuário: ${createError.message}` }), {
