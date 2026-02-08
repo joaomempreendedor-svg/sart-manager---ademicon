@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Loader2, Search, User, Phone, Mail, CheckCircle2, XCircle, RotateCcw, ArrowRight, MessageSquare, UserX, Plus, Trash2, Users, Clock, UserRound, UploadCloud, CalendarDays, Filter, Calendar, FileText, UserCheck, Star, TrendingUp, ChevronRight, Check, CalendarClock, UserMinus } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Loader2, Search, User, Phone, Mail, CheckCircle2, XCircle, RotateCcw, ArrowRight, MessageSquare, UserX, Plus, Trash2, Users, Clock, UserRound, UploadCloud, CalendarDays, Filter, Calendar, FileText, UserCheck, Star, TrendingUp, ChevronRight, Check, CalendarClock, UserMinus, ArrowRightCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { TableSkeleton } from '@/components/TableSkeleton';
 import {
   Select,
@@ -19,7 +19,8 @@ import { highlightText } from '@/lib/utils';
 
 const HiringPipeline = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
-  const { candidates, teamMembers, isDataLoading, updateCandidate, interviewStructure, origins } = useApp();
+  const { candidates, teamMembers, isDataLoading, updateCandidate, interviewStructure, checklistStructure, origins } = useApp();
+  const navigate = useNavigate();
   const [draggingCandidateId, setDraggingCandidateId] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
   
@@ -178,6 +179,18 @@ const HiringPipeline = () => {
     }
   };
 
+  const getNextStep = (candidate: Candidate) => {
+    for (const stage of checklistStructure) {
+      for (const item of stage.items) {
+        const state = candidate.checklistProgress[item.id];
+        if (!state || !state.completed) {
+          return item.label;
+        }
+      }
+    }
+    return "Processo concluído";
+  };
+
   if (isAuthLoading || isDataLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="w-12 h-12 text-brand-500 animate-spin" /></div>;
 
   return (
@@ -228,13 +241,15 @@ const HiringPipeline = () => {
               {stage.list.map(candidate => {
                 const totalScore = candidate.interviewScores.basicProfile + candidate.interviewScores.commercialSkills + candidate.interviewScores.behavioralProfile + candidate.interviewScores.jobFit;
                 const isToday = candidate.interviewDate === todayStr;
+                const nextStep = getNextStep(candidate);
 
                 return (
                   <div 
                     key={candidate.id} 
                     draggable 
                     onDragStart={(e) => handleDragStart(e, candidate.id)} 
-                    className={`block bg-white dark:bg-slate-700 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 hover:border-brand-500 hover:shadow-md transition-all group relative overflow-hidden ${isToday ? 'ring-2 ring-brand-500' : ''}`}
+                    onClick={() => navigate(`/gestor/candidate/${candidate.id}`)}
+                    className={`block bg-white dark:bg-slate-700 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 hover:border-brand-500 hover:shadow-md transition-all group relative overflow-hidden cursor-pointer ${isToday ? 'ring-2 ring-brand-500' : ''}`}
                   >
                     {isToday && (
                       <div className="absolute top-0 right-0 bg-brand-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-bl-lg flex items-center">
@@ -243,9 +258,9 @@ const HiringPipeline = () => {
                     )}
 
                     <div className="flex justify-between items-start mb-2">
-                      <Link to={`/gestor/candidate/${candidate.id}`} className="font-bold text-gray-900 dark:text-white leading-tight hover:text-brand-600 transition-colors">
+                      <p className="font-bold text-gray-900 dark:text-white leading-tight group-hover:text-brand-600 transition-colors">
                         {highlightText(candidate.name, searchTerm)}
-                      </Link>
+                      </p>
                       <button 
                         onClick={(e) => { e.preventDefault(); e.stopPropagation(); if(confirm('Excluir candidato?')) updateCandidate(candidate.id, { status: 'Desqualificado' }); }}
                         className="p-1 text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
@@ -267,6 +282,14 @@ const HiringPipeline = () => {
                       <div className="flex flex-wrap gap-1">
                         {candidate.phone && <span className="text-[10px] bg-gray-100 dark:bg-slate-600 px-1.5 py-0.5 rounded text-gray-600 dark:text-gray-300 flex items-center"><Phone className="w-2.5 h-2.5 mr-1" /> {candidate.phone}</span>}
                         {candidate.origin && <span className="text-[10px] bg-brand-50 dark:bg-brand-900/30 px-1.5 py-0.5 rounded text-brand-700 dark:text-brand-400 font-medium">{candidate.origin}</span>}
+                      </div>
+
+                      {/* PRÓXIMO PASSO */}
+                      <div className="bg-gray-50 dark:bg-slate-800/50 p-2 rounded-lg border border-gray-100 dark:border-slate-600 mt-2">
+                        <p className="text-[9px] font-bold text-gray-400 uppercase mb-1">Próximo Passo:</p>
+                        <p className="text-[10px] text-gray-700 dark:text-gray-300 font-medium line-clamp-2 leading-tight">
+                          {nextStep}
+                        </p>
                       </div>
 
                       <div className="pt-2 border-t border-gray-50 dark:border-slate-600 flex items-center justify-between text-[10px] text-gray-400">
@@ -367,6 +390,13 @@ const HiringPipeline = () => {
                             </button>
                           </>
                         )}
+                      </div>
+
+                      {/* BOTÃO VER PROCESSO */}
+                      <div className="pt-2 mt-1 flex justify-center">
+                        <div className="flex items-center text-[10px] font-bold text-brand-600 dark:text-brand-400 group-hover:translate-x-1 transition-transform">
+                          VER PROCESSO <ArrowRightCircle className="w-3 h-3 ml-1" />
+                        </div>
                       </div>
                     </div>
                   </div>
