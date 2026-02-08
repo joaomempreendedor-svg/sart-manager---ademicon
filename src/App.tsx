@@ -68,18 +68,6 @@ const RequireAuth: React.FC<{ allowedRoles: UserRole[] }> = ({ allowedRoles }) =
   const { isDataLoading } = useApp();
   const location = useLocation();
 
-  // Adicionando logs para depuração
-  // useEffect(() => { // Removido logs de depuração
-  //   console.log("[RequireAuth] isAuthLoading:", isAuthLoading);
-  //   console.log("[RequireAuth] isDataLoading:", isDataLoading);
-  //   console.log("[RequireAuth] User:", user);
-  //   if (user) {
-  //     console.log("[RequireAuth] User Role:", user.role);
-  //     console.log("[RequireAuth] User isActive:", user.isActive);
-  //     console.log("[RequireAuth] User needs_password_change:", user.needs_password_change);
-  //   }
-  // }, [isAuthLoading, isDataLoading, user]);
-
 
   if (isAuthLoading || isDataLoading) {
     return <AppLoader />;
@@ -107,7 +95,7 @@ const RequireAuth: React.FC<{ allowedRoles: UserRole[] }> = ({ allowedRoles }) =
     if (user.role === 'CONSULTOR') {
       return <Navigate to="/consultor/dashboard" replace />;
     }
-    if (user.role === 'SECRETARIA') { // NOVO: Redirecionamento para Secretaria
+    if (user.role === 'SECRETARIA') {
       return <Navigate to="/secretaria/onboarding-admin" replace />;
     }
     return <Navigate to="/login" replace />; // Fallback
@@ -172,9 +160,6 @@ const AppRoutes = () => {
   const { isLoading } = useAuth();
   const location = useLocation();
 
-  // useEffect(() => { // Removido logs de depuração
-  //   console.log("Current route path:", location.pathname);
-  // }, [location.pathname]);
 
   if (isLoading) {
     return <AppLoader />;
@@ -191,7 +176,7 @@ const AppRoutes = () => {
       <Route path="/public-form" element={<PublicForm />} />
       
       {/* Authenticated Routes - ALL authenticated routes should be nested under RequireAuth */}
-      <Route element={<RequireAuth allowedRoles={['GESTOR', 'ADMIN', 'CONSULTOR', 'SECRETARIA']} />}> {/* Adicionado SECRETARIA */}
+      <Route element={<RequireAuth allowedRoles={['GESTOR', 'ADMIN', 'CONSULTOR', 'SECRETARIA']} />}>
         <Route path="/" element={<Home />} />
 
         {/* Gestor Routes */}
@@ -223,7 +208,7 @@ const AppRoutes = () => {
           <Route path="candidate-screening" element={<CandidateScreening />} />
           <Route path="team-production-goals" element={<TeamProductionGoals />} />
           <Route path="all-candidates" element={<AllCandidates />} />
-          <Route path="my-tasks" element={<GestorTasksPage />} /> {/* NOVO: Rota para a nova página de tarefas do gestor */}
+          <Route path="my-tasks" element={<GestorTasksPage />} />
           <Route path="*" element={<Navigate to="/gestor/dashboard" replace />} />
         </Route>
 
@@ -248,7 +233,7 @@ const AppRoutes = () => {
           <Route path="hiring-reports" element={<HiringReports />} />
           <Route path="form-cadastros" element={<FormCadastros />} />
           <Route path="config-origins" element={<OriginConfig />} />
-          <Route path="*" element={<Navigate to="/secretaria/onboarding-admin" replace />} />
+          <Route path="*" element={<Navigate to="/secretaria/onboarding-admin" replace />} /> {/* Fallback para Secretaria */}
         </Route>
         
         {/* Common authenticated routes */}
