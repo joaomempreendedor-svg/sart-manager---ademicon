@@ -65,9 +65,7 @@ serve(async (req) => {
         {
           password: tempPassword,
           user_metadata: {
-            ...existingUser.user_metadata,
-            needs_password_change: true,
-            login: consultantLogin || existingUser.user_metadata?.login,
+            // Simplificando metadados para isolar o problema
             role: userRole,
           },
         }
@@ -75,6 +73,9 @@ serve(async (req) => {
 
       if (updateError) {
         console.error(`[create-or-link-consultant] Error updating existing user ${email}: ${updateError.message}`, { updateError });
+        // Tentando logar mais detalhes do erro, se disponíveis
+        if ((updateError as any).details) console.error("Update Error Details:", (updateError as any).details);
+        if ((updateError as any).cause) console.error("Update Error Cause:", (updateError as any).cause);
         return new Response(JSON.stringify({ error: `Falha ao resetar senha: ${updateError.message}` }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 400,
@@ -90,16 +91,16 @@ serve(async (req) => {
         password: tempPassword,
         email_confirm: true,
         user_metadata: {
-          first_name: name.split(' ')[0],
-          last_name: name.split(' ').slice(1).join(' '),
+          // Simplificando metadados para isolar o problema
           role: userRole,
-          needs_password_change: true,
-          login: consultantLogin,
         },
       });
 
       if (createError) {
         console.error(`[create-or-link-consultant] Error creating user ${email}: ${createError.message}`, { createError });
+        // Tentando logar mais detalhes do erro, se disponíveis
+        if ((createError as any).details) console.error("Create Error Details:", (createError as any).details);
+        if ((createError as any).cause) console.error("Create Error Cause:", (createError as any).cause);
         return new Response(JSON.stringify({ error: `Falha ao criar usuário: ${createError.message}` }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 400,
