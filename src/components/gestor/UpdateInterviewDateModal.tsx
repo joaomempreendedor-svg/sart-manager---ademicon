@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { Candidate } from '@/types';
-import { X, Calendar as CalendarIcon, Save, Loader2, Users } from 'lucide-react';
+import { X, Calendar as CalendarIcon, Save, Loader2, Users, CalendarPlus } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -45,6 +45,22 @@ export const UpdateInterviewDateModal: React.FC<UpdateInterviewDateModalProps> =
     }
   }, [isOpen, candidate]);
 
+  const handleAddToGoogleCalendar = () => {
+    if (!candidate || !date) return;
+    
+    const title = encodeURIComponent(`Entrevista: ${candidate.name}`);
+    const startDate = new Date(date + 'T09:00:00'); // Default to 9 AM
+    const endDate = new Date(date + 'T10:00:00');   // Default to 10 AM
+    
+    const formatDateForGoogle = (date: Date) => date.toISOString().replace(/-|:|\.\d\d\d/g, "");
+    const dates = `${formatDateForGoogle(startDate)}/${formatDateForGoogle(endDate)}`;
+    
+    const details = encodeURIComponent(`Entrevista com o candidato ${candidate.name}.\nTelefone: ${candidate.phone || 'Não informado'}`);
+    const url = `https://www.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${dates}&details=${details}`;
+    
+    window.open(url, '_blank');
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!candidate || !date || !responsibleUserId) {
@@ -57,7 +73,7 @@ export const UpdateInterviewDateModal: React.FC<UpdateInterviewDateModalProps> =
       await updateCandidate(candidate.id, {
         interviewDate: date,
         responsibleUserId: responsibleUserId,
-        status: 'Entrevista' // Move automaticamente para a coluna de agendadas
+        status: 'Entrevista'
       });
       toast.success(`Entrevista com ${candidate.name} agendada!`);
       onClose();
@@ -119,13 +135,24 @@ export const UpdateInterviewDateModal: React.FC<UpdateInterviewDateModalProps> =
               </div>
             </div>
           </div>
-          <DialogFooter className="flex flex-col sm:flex-row gap-2">
-            <Button type="button" variant="outline" onClick={onClose} className="dark:bg-slate-700 dark:text-white dark:border-slate-600">
+          <DialogFooter className="flex flex-col gap-2">
+            <div className="flex flex-col sm:flex-row gap-2 w-full">
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={handleAddToGoogleCalendar}
+                className="flex-1 border-blue-200 text-blue-700 hover:bg-blue-50 dark:border-blue-900 dark:text-blue-400 dark:hover:bg-blue-900/20"
+              >
+                <CalendarPlus className="w-4 h-4 mr-2" />
+                Google Agenda
+              </Button>
+              <Button type="submit" disabled={isSaving} className="flex-1 bg-brand-600 hover:bg-brand-700 text-white">
+                {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                <span>Salvar</span>
+              </Button>
+            </div>
+            <Button type="button" variant="ghost" onClick={onClose} className="w-full text-gray-500">
               Cancelar
-            </Button>
-            <Button type="submit" disabled={isSaving} className="bg-brand-600 hover:bg-brand-700 text-white">
-              {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-              <span>Salvar Agendamento</span>
             </Button>
           </DialogFooter>
         </form>
