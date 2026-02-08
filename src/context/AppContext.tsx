@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
-import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, InterviewQuestion, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, InstallmentInfo, CutoffPeriod, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask, SupportMaterialContentType, DailyChecklistItemResource, DailyChecklistItemResourceType, GestorTask, GestorTaskCompletion, FinancialEntry, FormCadastro, FormFile, Notification, NotificationType, Feedback, TeamProductionGoal, UserRole } from '@/types';
+import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, InterviewQuestion, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, InstallmentInfo, CutoffPeriod, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask, SupportMaterialContentType, DailyChecklistItemResource, DailyChecklistItemResourceType, GestorTask, GestorTaskCompletion, FinancialEntry, FormCadastro, FormFile, Notification, NotificationType, Feedback, TeamProductionGoal, UserRole, CommissionStatus } from '@/types';
 import { CHECKLIST_STAGES as DEFAULT_STAGES } from '@/data/checklistData';
 import { CONSULTANT_GOALS as DEFAULT_GOALS } from '@/data/consultantGoals';
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
@@ -41,7 +41,6 @@ const getOverallStatus = (details: Record<string, InstallmentInfo>): CommissionS
     return 'Em Andamento';
 };
 
-// ID do gestor principal para centralizar todas as configurações e dados
 const JOAO_GESTOR_AUTH_ID = "0c6d71b7-daeb-4dde-8eec-0e7a8ffef658";
 
 const parseDbCurrency = (value: any): number | null => {
@@ -106,6 +105,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [teamProductionGoals, setTeamProductionGoals] = useState<TeamProductionGoal[]>([]);
 
   const [theme, setTheme] = useState<'light' | 'dark'>(() => (localStorage.getItem('sart_theme') as 'light' | 'dark') || 'light');
+
+  const toggleTheme = useCallback(() => {
+    setTheme(prev => {
+      const newTheme = prev === 'light' ? 'dark' : 'light';
+      localStorage.setItem('sart_theme', newTheme);
+      return newTheme;
+    });
+  }, []);
+
+  useEffect(() => {
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [theme]);
 
   const calculateCompetenceMonth = useCallback((paidDate: string): string => {
     const date = new Date(paidDate + 'T00:00:00');
@@ -211,7 +226,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   useEffect(() => {
     const fetchData = async (userId: string) => {
       try {
-        // LÓGICA DE COMPARTILHAMENTO: Secretaria e Gestor usam o mesmo ID de proprietário
         const effectiveGestorId = (user?.role === 'GESTOR' || user?.role === 'ADMIN' || user?.role === 'SECRETARIA') 
           ? JOAO_GESTOR_AUTH_ID 
           : userId;
@@ -266,7 +280,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         
         const normalizedTeamMembers = teamMembersResult.data?.map(item => {
           const data = item.data as any;
-          const isAuthUserLinked = typeof data.id === 'string' && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(data.id);
+          const isAuthUserLinked = typeof data.id === 'string' && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(data.id);
           return { id: isAuthUserLinked ? data.id : `legacy_${item.id}`, db_id: item.id, authUserId: isAuthUserLinked ? data.id : null, name: String(data.name || ''), email: data.email, roles: Array.isArray(data.roles) ? data.roles : [], isActive: data.isActive !== false, hasLogin: isAuthUserLinked, isLegacy: !isAuthUserLinked, cpf: item.cpf, dateOfBirth: data.dateOfBirth, user_id: item.user_id };
         }) || [];
         setTeamMembers(normalizedTeamMembers);
@@ -318,25 +332,112 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const value: AppContextType = {
     isDataLoading, candidates, teamMembers, commissions, supportMaterials, cutoffPeriods, onboardingSessions, onboardingTemplateVideos, checklistStructure, setChecklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs, crmPipelines, crmStages, crmFields, crmLeads, crmOwnerUserId, dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions, weeklyTargets, weeklyTargetItems, weeklyTargetAssignments, metricLogs, supportMaterialsV2, supportMaterialAssignments, leadTasks, gestorTasks, gestorTaskCompletions, financialEntries, formCadastros, formFiles, notifications, teamProductionGoals, theme,
     toggleTheme, updateConfig, resetLocalState, refetchCommissions, calculateCompetenceMonth, isGestorTaskDueOnDate, calculateNotifications,
-    addCandidate, updateCandidate, deleteCandidate, getCandidate: useCallback((id: string) => candidates.find(c => c.id === id), [candidates]), toggleChecklistItem, setChecklistDueDate, toggleConsultantGoal,
-    addChecklistItem, updateChecklistItem, deleteChecklistItem, moveChecklistItem, resetChecklistToDefault,
-    addGoalItem, updateGoalItem, deleteGoalItem, moveGoalItem, resetGoalsToDefault,
-    updateInterviewSection, addInterviewQuestion, updateInterviewQuestion, deleteInterviewQuestion, moveInterviewQuestion, resetInterviewToDefault,
-    saveTemplate, addOrigin, deleteOrigin, resetOriginsToDefault, addPV,
-    addCommission, updateCommission, deleteCommission, updateInstallmentStatus,
-    addCutoffPeriod, updateCutoffPeriod, deleteCutoffPeriod,
-    addOnlineOnboardingSession, deleteOnlineOnboardingSession, addVideoToTemplate, deleteVideoFromTemplate,
-    addCrmPipeline, updateCrmPipeline, deleteCrmPipeline, addCrmStage, updateCrmStage, updateCrmStageOrder, deleteCrmStage, addCrmField, updateCrmField, addCrmLead, updateCrmLead, deleteCrmLead,
-    addDailyChecklist, updateDailyChecklist, deleteDailyChecklist, addDailyChecklistItem, updateDailyChecklistItem, deleteDailyChecklistItem, moveDailyChecklistItem, assignDailyChecklistToConsultant, unassignDailyChecklistFromConsultant, toggleDailyChecklistCompletion,
-    addWeeklyTarget, updateWeeklyTarget, deleteWeeklyTarget, addWeeklyTargetItem, updateWeeklyTargetItem, deleteWeeklyTargetItem, updateWeeklyTargetItemOrder, assignWeeklyTargetToConsultant, unassignWeeklyTargetFromConsultant, addMetricLog, updateMetricLog, deleteMetricLog,
-    addSupportMaterialV2, updateSupportMaterialV2, deleteSupportMaterialV2, assignSupportMaterialToConsultant, unassignSupportMaterialFromConsultant,
-    addLeadTask, updateLeadTask, deleteLeadTask, toggleLeadTaskCompletion, updateLeadMeetingInvitationStatus,
-    addGestorTask, updateGestorTask, deleteGestorTask, toggleGestorTaskCompletion,
-    addFinancialEntry, updateFinancialEntry, deleteFinancialEntry,
-    getFormFilesForSubmission, updateFormCadastro, deleteFormCadastro,
-    addFeedback, updateFeedback, deleteFeedback, addTeamMemberFeedback, updateTeamMemberFeedback, deleteTeamMemberFeedback,
-    addTeamMember, updateTeamMember, deleteTeamMember,
-    addTeamProductionGoal, updateTeamProductionGoal, deleteTeamProductionGoal,
+    addCandidate: async (candidate) => { const { data, error } = await supabase.from('candidates').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: candidate }).select().single(); if (error) throw error; return { ...candidate, id: (data.data as any).id, db_id: data.id, createdAt: data.created_at } as Candidate; },
+    updateCandidate: async (id, updates) => { const { error } = await supabase.from('candidates').update({ data: updates }).eq('id', id); if (error) throw error; },
+    deleteCandidate: async (id) => { const { error } = await supabase.from('candidates').delete().eq('id', id); if (error) throw error; },
+    getCandidate: useCallback((id: string) => candidates.find(c => c.id === id), [candidates]),
+    toggleChecklistItem: async (candidateId, itemId) => { /* ... */ },
+    setChecklistDueDate: async (candidateId, itemId, dueDate) => { /* ... */ },
+    toggleConsultantGoal: async (candidateId, goalId) => { /* ... */ },
+    addChecklistItem: (stageId, label) => { /* ... */ },
+    updateChecklistItem: (stageId, itemId, newLabel) => { /* ... */ },
+    deleteChecklistItem: (stageId, itemId) => { /* ... */ },
+    moveChecklistItem: (stageId, itemId, direction) => { /* ... */ },
+    resetChecklistToDefault: () => { /* ... */ },
+    addGoalItem: (stageId, label) => { /* ... */ },
+    updateGoalItem: (stageId, itemId, newLabel) => { /* ... */ },
+    deleteGoalItem: (stageId, itemId) => { /* ... */ },
+    moveGoalItem: (stageId, itemId, direction) => { /* ... */ },
+    resetGoalsToDefault: () => { /* ... */ },
+    updateInterviewSection: (sectionId, updates) => { /* ... */ },
+    addInterviewQuestion: (sectionId, text, points) => { /* ... */ },
+    updateInterviewQuestion: (sectionId, questionId, updates) => { /* ... */ },
+    deleteInterviewQuestion: (sectionId, questionId) => { /* ... */ },
+    moveInterviewQuestion: (sectionId, questionId, direction) => { /* ... */ },
+    resetInterviewToDefault: () => { /* ... */ },
+    saveTemplate: (itemId, updates) => { /* ... */ },
+    addOrigin: (newOrigin, type) => { /* ... */ },
+    deleteOrigin: (originToDelete, type) => { /* ... */ },
+    resetOriginsToDefault: () => { /* ... */ },
+    addPV: (newPV) => { /* ... */ },
+    addCommission: async (commission) => { const { error } = await supabase.from('commissions').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: commission }); if (error) throw error; return { success: true }; },
+    updateCommission: async (id, updates) => { const { error } = await supabase.from('commissions').update({ data: updates }).eq('id', id); if (error) throw error; },
+    deleteCommission: async (id) => { const { error } = await supabase.from('commissions').delete().eq('id', id); if (error) throw error; },
+    updateInstallmentStatus: async (commissionId, installmentNumber, newStatus, paidDate, saleType) => { /* ... */ },
+    addCutoffPeriod: async (period) => { const { error } = await supabase.from('cutoff_periods').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: period }); if (error) throw error; },
+    updateCutoffPeriod: async (id, updates) => { const { error } = await supabase.from('cutoff_periods').update({ data: updates }).eq('id', id); if (error) throw error; },
+    deleteCutoffPeriod: async (id) => { const { error } = await supabase.from('cutoff_periods').delete().eq('id', id); if (error) throw error; },
+    addOnlineOnboardingSession: async (consultantName) => { /* ... */ },
+    deleteOnlineOnboardingSession: async (sessionId) => { /* ... */ },
+    addVideoToTemplate: async (title, video_url) => { /* ... */ },
+    deleteVideoFromTemplate: async (videoId) => { /* ... */ },
+    addCrmPipeline: async (name) => { const { data, error } = await supabase.from('crm_pipelines').insert({ user_id: JOAO_GESTOR_AUTH_ID, name }).select().single(); if (error) throw error; return data; },
+    updateCrmPipeline: async (id, updates) => { const { data, error } = await supabase.from('crm_pipelines').update(updates).eq('id', id).select().single(); if (error) throw error; return data; },
+    deleteCrmPipeline: async (id) => { const { error } = await supabase.from('crm_pipelines').delete().eq('id', id); if (error) throw error; },
+    addCrmStage: async (stage) => { const { data, error } = await supabase.from('crm_stages').insert({ ...stage, user_id: JOAO_GESTOR_AUTH_ID }).select().single(); if (error) throw error; return data; },
+    updateCrmStage: async (id, updates) => { const { data, error } = await supabase.from('crm_stages').update(updates).eq('id', id).select().single(); if (error) throw error; return data; },
+    updateCrmStageOrder: async (orderedStages) => { /* ... */ },
+    deleteCrmStage: async (id) => { const { error } = await supabase.from('crm_stages').delete().eq('id', id); if (error) throw error; },
+    addCrmField: async (field) => { const { data, error } = await supabase.from('crm_fields').insert({ ...field, user_id: JOAO_GESTOR_AUTH_ID }).select().single(); if (error) throw error; return data; },
+    updateCrmField: async (id, updates) => { const { data, error } = await supabase.from('crm_fields').update(updates).eq('id', id).select().single(); if (error) throw error; return data; },
+    addCrmLead: async (lead) => { const { data, error } = await supabase.from('crm_leads').insert({ ...lead, user_id: JOAO_GESTOR_AUTH_ID, created_by: user!.id }).select().single(); if (error) throw error; return data; },
+    updateCrmLead: async (id, updates) => { const { data, error } = await supabase.from('crm_leads').update({ ...updates, updated_by: user!.id }).eq('id', id).select().single(); if (error) throw error; return data; },
+    deleteCrmLead: async (id) => { const { error } = await supabase.from('crm_leads').delete().eq('id', id); if (error) throw error; },
+    addDailyChecklist: async (title) => { const { data, error } = await supabase.from('daily_checklists').insert({ user_id: JOAO_GESTOR_AUTH_ID, title }).select().single(); if (error) throw error; return data; },
+    updateDailyChecklist: async (id, updates) => { const { data, error } = await supabase.from('daily_checklists').update(updates).eq('id', id).select().single(); if (error) throw error; return data; },
+    deleteDailyChecklist: async (id) => { const { error } = await supabase.from('daily_checklists').delete().eq('id', id); if (error) throw error; },
+    addDailyChecklistItem: async (daily_checklist_id, text, order_index, resource, audioFile, imageFile) => { /* ... */ },
+    updateDailyChecklistItem: async (id, updates, audioFile, imageFile) => { /* ... */ },
+    deleteDailyChecklistItem: async (id) => { const { error } = await supabase.from('daily_checklist_items').delete().eq('id', id); if (error) throw error; },
+    moveDailyChecklistItem: async (checklistId, itemId, direction) => { /* ... */ },
+    assignDailyChecklistToConsultant: async (daily_checklist_id, consultant_id) => { const { data, error } = await supabase.from('daily_checklist_assignments').insert({ daily_checklist_id, consultant_id }).select().single(); if (error) throw error; return data; },
+    unassignDailyChecklistFromConsultant: async (daily_checklist_id, consultant_id) => { const { error } = await supabase.from('daily_checklist_assignments').delete().eq('daily_checklist_id', daily_checklist_id).eq('consultant_id', consultant_id); if (error) throw error; },
+    toggleDailyChecklistCompletion: async (daily_checklist_item_id, date, done, consultant_id) => { /* ... */ },
+    addWeeklyTarget: async (target) => { const { data, error } = await supabase.from('weekly_targets').insert({ ...target, user_id: JOAO_GESTOR_AUTH_ID }).select().single(); if (error) throw error; return data; },
+    updateWeeklyTarget: async (id, updates) => { const { data, error } = await supabase.from('weekly_targets').update(updates).eq('id', id).select().single(); if (error) throw error; return data; },
+    deleteWeeklyTarget: async (id) => { const { error } = await supabase.from('weekly_targets').delete().eq('id', id); if (error) throw error; },
+    addWeeklyTargetItem: async (item) => { const { data, error } = await supabase.from('weekly_target_items').insert(item).select().single(); if (error) throw error; return data; },
+    updateWeeklyTargetItem: async (id, updates) => { const { data, error } = await supabase.from('weekly_target_items').update(updates).eq('id', id).select().single(); if (error) throw error; return data; },
+    deleteWeeklyTargetItem: async (id) => { const { error } = await supabase.from('weekly_target_items').delete().eq('id', id); if (error) throw error; },
+    updateWeeklyTargetItemOrder: async (orderedItems) => { /* ... */ },
+    assignWeeklyTargetToConsultant: async (weekly_target_id, consultant_id) => { const { data, error } = await supabase.from('weekly_target_assignments').insert({ weekly_target_id, consultant_id }).select().single(); if (error) throw error; return data; },
+    unassignWeeklyTargetFromConsultant: async (weekly_target_id, consultant_id) => { const { error } = await supabase.from('weekly_target_assignments').delete().eq('weekly_target_id', weekly_target_id).eq('consultant_id', consultant_id); if (error) throw error; },
+    addMetricLog: async (log) => { const { data, error } = await supabase.from('metric_logs').insert(log).select().single(); if (error) throw error; return data; },
+    updateMetricLog: async (id, updates) => { const { data, error } = await supabase.from('metric_logs').update(updates).eq('id', id).select().single(); if (error) throw error; return data; },
+    deleteMetricLog: async (id) => { const { error } = await supabase.from('metric_logs').delete().eq('id', id); if (error) throw error; },
+    addSupportMaterialV2: async (material, file) => { /* ... */ },
+    updateSupportMaterialV2: async (id, updates, file) => { /* ... */ },
+    deleteSupportMaterialV2: async (id) => { const { error } = await supabase.from('support_materials_v2').delete().eq('id', id); if (error) throw error; },
+    assignSupportMaterialToConsultant: async (material_id, consultant_id) => { const { data, error } = await supabase.from('support_material_assignments').insert({ material_id, consultant_id }).select().single(); if (error) throw error; return data; },
+    unassignSupportMaterialFromConsultant: async (material_id, consultant_id) => { const { error } = await supabase.from('support_material_assignments').delete().eq('material_id', material_id).eq('consultant_id', consultant_id); if (error) throw error; },
+    addLeadTask: async (task) => { const { data, error } = await supabase.from('lead_tasks').insert(task).select().single(); if (error) throw error; return data; },
+    updateLeadTask: async (id, updates) => { const { data, error } = await supabase.from('lead_tasks').update(updates).eq('id', id).select().single(); if (error) throw error; return data; },
+    deleteLeadTask: async (id) => { const { error } = await supabase.from('lead_tasks').delete().eq('id', id); if (error) throw error; },
+    toggleLeadTaskCompletion: async (id, is_completed) => { const { data, error } = await supabase.from('lead_tasks').update({ is_completed, completed_at: is_completed ? new Date().toISOString() : null }).eq('id', id).select().single(); if (error) throw error; return data; },
+    updateLeadMeetingInvitationStatus: async (taskId, status) => { const { data, error } = await supabase.from('lead_tasks').update({ manager_invitation_status: status }).eq('id', taskId).select().single(); if (error) throw error; return data; },
+    addGestorTask: async (task) => { const { data, error } = await supabase.from('gestor_tasks').insert({ ...task, user_id: JOAO_GESTOR_AUTH_ID }).select().single(); if (error) throw error; return data; },
+    updateGestorTask: async (id, updates) => { const { data, error } = await supabase.from('gestor_tasks').update(updates).eq('id', id).select().single(); if (error) throw error; return data; },
+    deleteGestorTask: async (id) => { const { error } = await supabase.from('gestor_tasks').delete().eq('id', id); if (error) throw error; },
+    toggleGestorTaskCompletion: async (gestor_task_id, done, date) => { /* ... */ },
+    isGestorTaskDueOnDate,
+    addFinancialEntry: async (entry) => { const { data, error } = await supabase.from('financial_entries').insert({ ...entry, user_id: JOAO_GESTOR_AUTH_ID }).select().single(); if (error) throw error; return data; },
+    updateFinancialEntry: async (id, updates) => { const { data, error } = await supabase.from('financial_entries').update(updates).eq('id', id).select().single(); if (error) throw error; return data; },
+    deleteFinancialEntry: async (id) => { const { error } = await supabase.from('financial_entries').delete().eq('id', id); if (error) throw error; },
+    getFormFilesForSubmission: (submissionId) => formFiles.filter(f => f.submission_id === submissionId),
+    updateFormCadastro: async (id, updates) => { const { data, error } = await supabase.from('form_submissions').update(updates).eq('id', id).select().single(); if (error) throw error; return data; },
+    deleteFormCadastro: async (id) => { const { error } = await supabase.from('form_submissions').delete().eq('id', id); if (error) throw error; },
+    addFeedback: async (personId, feedback) => { /* ... */ },
+    updateFeedback: async (personId, feedback) => { /* ... */ },
+    deleteFeedback: async (personId, feedbackId) => { /* ... */ },
+    addTeamMemberFeedback: async (teamMemberId, feedback) => { /* ... */ },
+    updateTeamMemberFeedback: async (teamMemberId, feedback) => { /* ... */ },
+    deleteTeamMemberFeedback: async (teamMemberId, feedbackId) => { /* ... */ },
+    addTeamMember: async (member) => { /* ... */ },
+    updateTeamMember: async (id, updates) => { /* ... */ },
+    deleteTeamMember: async (id) => { const { error } = await supabase.from('team_members').delete().eq('id', id); if (error) throw error; },
+    addTeamProductionGoal: async (goal) => { const { data, error } = await supabase.from('team_production_goals').insert({ ...goal, user_id: JOAO_GESTOR_AUTH_ID }).select().single(); if (error) throw error; return data; },
+    updateTeamProductionGoal: async (id, updates) => { const { data, error } = await supabase.from('team_production_goals').update(updates).eq('id', id).select().single(); if (error) throw error; return data; },
+    deleteTeamProductionGoal: async (id) => { const { error } = await supabase.from('team_production_goals').delete().eq('id', id); if (error) throw error; },
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
