@@ -13,15 +13,15 @@ import {
 } from '@/components/ui/select';
 import toast from 'react-hot-toast';
 import { Candidate, InterviewScores, CandidateStatus, TeamMember } from '@/types';
-import { ScheduleInterviewModal } from '@/components/ScheduleInterviewModal';
+import { AddScreeningCandidateModal } from '@/components/gestor/AddScreeningCandidateModal'; // Alterado para o modal de adição simples
 import { highlightText } from '@/lib/utils';
 
 const HiringPipeline = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
-  const { candidates, teamMembers, isDataLoading, updateCandidate, interviewStructure } = useApp();
+  const { candidates, teamMembers, isDataLoading, updateCandidate, interviewStructure, origins } = useApp();
   const [draggingCandidateId, setDraggingCandidateId] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
-  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false); // Renomeado o estado
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStartDate, setFilterStartDate] = useState('');
@@ -143,7 +143,7 @@ const HiringPipeline = () => {
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Pipeline de Contratação</h1>
           <p className="text-gray-500 dark:text-gray-400">Acompanhe o fluxo de candidatos desde a entrada até a contratação.</p>
         </div>
-        <button onClick={() => setIsScheduleModalOpen(true)} className="flex items-center justify-center space-x-2 bg-brand-600 hover:bg-brand-700 text-white py-2.5 px-6 rounded-lg transition shadow-lg shadow-brand-600/20 font-bold"><Plus className="w-5 h-5" /><span>Novo Candidato</span></button>
+        <button onClick={() => setIsAddModalOpen(true)} className="flex items-center justify-center space-x-2 bg-brand-600 hover:bg-brand-700 text-white py-2.5 px-6 rounded-lg transition shadow-lg shadow-brand-600/20 font-bold"><Plus className="w-5 h-5" /><span>Novo Candidato</span></button>
       </div>
 
       <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm space-y-4 mb-6">
@@ -239,7 +239,10 @@ const HiringPipeline = () => {
           </div>
         ))}
       </div>
-      <ScheduleInterviewModal isOpen={isScheduleModalOpen} onClose={() => setIsScheduleModalOpen(false)} />
+      <AddScreeningCandidateModal 
+        isOpen={isAddModalOpen} 
+        onClose={() => setIsAddModalOpen(false)} 
+      />
     </div>
   );
 };
