@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
-import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, InterviewQuestion, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, InstallmentInfo, CutoffPeriod, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask, SupportMaterialContentType, DailyChecklistItemResource, DailyChecklistItemResourceType, GestorTask, GestorTaskCompletion, FinancialEntry, FormCadastro, FormFile, Notification, NotificationType, Feedback, TeamProductionGoal } from '@/types';
+import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, InterviewQuestion, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, InstallmentInfo, CutoffPeriod, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask, SupportMaterialContentType, DailyChecklistItemResource, DailyChecklistItemResourceType, GestorTask, GestorTaskCompletion, FinancialEntry, FormCadastro, FormFile, Notification, NotificationType, Feedback, TeamProductionGoal, UserRole } from '@/types';
 import { CHECKLIST_STAGES as DEFAULT_STAGES } from '@/data/checklistData';
 import { CONSULTANT_GOALS as DEFAULT_GOALS } from '@/data/consultantGoals';
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
@@ -441,9 +441,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           } catch (e) {
             console.error("Falha ao buscar perfil do membro da equipe para consultor:", e);
           }
-        } else if (user?.role === 'GESTOR' || user?.role === 'ADMIN') {
+        } else if (user?.role === 'GESTOR' || user?.role === 'ADMIN' || user?.role === 'SECRETARIA') { // Adicionado SECRETARIA
           effectiveGestorId = userId;
-          console.log(`[AppContext] User ${userId} is a Gestor/Admin. All shared configs will use ${effectiveGestorId}.`);
+          // console.log(`[AppContext] User ${userId} is a Gestor/Admin/Secretaria. All shared configs will use ${effectiveGestorId}.`); // Removido log
         }
         setCrmOwnerUserId(effectiveGestorId);
 
@@ -458,7 +458,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           const { data, error } = await teamMembersQuery;
           if (!error) teamMembersData = data || [];
           else console.error("Error fetching team_members (ignoring):", error);
-          console.log("[AppContext] Raw teamMembersData fetched from Supabase:", teamMembersData); // NOVO LOG
+          // console.log("[AppContext] Raw teamMembersData fetched from Supabase:", teamMembersData); // REMOVIDO LOG
         } catch (e) {
           console.error("Falha ao buscar team_members:", e);
         }
@@ -507,7 +507,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               let query = supabase.from('crm_leads').select('*');
               if (user?.role === 'CONSULTOR') {
                   query = query.eq('consultant_id', userId);
-              } else if (user?.role === 'GESTOR' || user?.role === 'ADMIN') {
+              } else if (user?.role === 'GESTOR' || user?.role === 'ADMIN' || user?.role === 'SECRETARIA') { // Adicionado SECRETARIA
                   query = query.eq('user_id', effectiveGestorId);
               } else {
                   console.warn(`[AppContext] Role de usuário ${user?.role} não reconhecida para buscar leads. Usando filtro padrão.`);
@@ -656,7 +656,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         
         let finalPipelines = pipelinesData?.data || [];
         if (finalPipelines.length === 0) {
-          if (user?.role === 'GESTOR' || user?.role === 'ADMIN') {
+          if (user?.role === 'GESTOR' || user?.role === 'ADMIN' || user?.role === 'SECRETARIA') { // Adicionado SECRETARIA
             const { data: newPipeline, error: insertPipelineError } = await supabase
               .from('crm_pipelines')
               .insert({ user_id: effectiveGestorId, name: 'Pipeline Padrão', is_active: true })
@@ -1862,8 +1862,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         case 'text_audio_image':
           contentToSave = {
             text: (resource.content as { text: string; audioUrl?: string; imageUrl?: string; }).text,
-            audioUrl: audioUrl || (resource.content as { text: string; audioUrl?: string; imageUrl?: string; }).audioUrl,
-            imageUrl: imageUrl || (resource.content as { text: string; audioUrl?: string; imageUrl?: string; }).imageUrl,
+            audioUrl: audioUrl || (resource.content as { text: string; audioUrl?: string; imageUrl?: string; })?.audioUrl || '',
+            imageUrl: imageUrl || (resource.content as { text: string; audioUrl?: string; imageUrl?: string; })?.imageUrl || '',
           };
           break;
         default:
@@ -2030,7 +2030,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (error) throw error;
       setDailyChecklistCompletions(prev => prev.map(c => c.id === existingCompletion.id ? data : c));
     } else {
-      const { data, error } = await supabase.from('daily_checklist_completions').insert({ gestor_task_id: daily_checklist_item_id, user_id: consultant_id, date, done }).select('*').single(); // Corrigido: Usar gestor_task_id e user_id
+      const { data, error } = await supabase.from('daily_checklist_completions').insert({ gestor_task_id: daily_checklist_item_id, user_id: consultant_id, date, done }).select('*').single();
       if (error) throw error;
       setDailyChecklistCompletions(prev => [...prev, data]);
     }
@@ -2482,6 +2482,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       authUserId = data.authUserId;
       wasExistingUser = data.userExists;
 
+      // Determine the role to set in auth.users.user_metadata
+      let authUserRole: UserRole = 'CONSULTOR'; // Default
+      if (member.roles.includes('ADMIN')) authUserRole = 'ADMIN';
+      else if (member.roles.includes('GESTOR')) authUserRole = 'GESTOR';
+      else if (member.roles.includes('SECRETARIA')) authUserRole = 'SECRETARIA'; // NOVO: Atribuir SECRETARIA
+
       const { error: teamMemberUpsertError } = await supabase
         .from('team_members')
         .upsert({
@@ -2669,7 +2675,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         console.error("Error deleting auth user:", authDeleteError);
       }
     } else {
-      console.log(`Membro "${member.name}" (ID: ${member.id}) não tem login válido no Auth ou é legado. Pulando exclusão do Auth.`);
+      // console.log(`Membro "${member.name}" (ID: ${member.id}) não tem login válido no Auth ou é legado. Pulando exclusão do Auth.`); // Removido log
     }
 
     const { error } = await supabase

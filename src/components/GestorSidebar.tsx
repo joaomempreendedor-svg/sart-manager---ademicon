@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, MessageSquare, Settings, FileText, Sun, Moon, Banknote, PlusCircle, Library, TrendingUp, Target, Users, LogOut, User as UserIcon, Star, Video, ListChecks, ClipboardCheck, UserPlus, ChevronLeft, ChevronRight, ChevronDown, UserSearch, BarChart3, UserCog, MapPin, DollarSign, FileStack, UserCheck, Clock, Calendar, UsersRound, ListTodo } from 'lucide-react'; // Adicionado ListTodo
+import { LayoutDashboard, MessageSquare, Settings, FileText, Sun, Moon, Banknote, PlusCircle, Library, TrendingUp, Target, Users, LogOut, User as UserIcon, Star, Video, ListChecks, ClipboardCheck, UserPlus, ChevronLeft, ChevronRight, ChevronDown, UserSearch, BarChart3, UserCog, MapPin, DollarSign, FileStack, UserCheck, Clock, Calendar, UsersRound, ListTodo } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 
@@ -31,6 +31,9 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
     } ${isSidebarCollapsed ? 'justify-center space-x-0' : ''}`;
 
   const sectionTitleClass = `flex items-center justify-between w-full px-4 py-3 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg transition-colors`;
+
+  // Determine if the current user is a 'SECRETARIA'
+  const isSecretaria = user?.role === 'SECRETARIA';
 
   return (
     <>
@@ -66,117 +69,143 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
           )}
           {(!isSidebarCollapsed && !isOverviewCollapsed) && (
             <>
-              <NavLink to="/gestor/dashboard" className={linkClass} onClick={toggleSidebar}>
-                <LayoutDashboard className="w-5 h-5" />
-                <span>Dashboard</span>
-              </NavLink>
-              
-              <NavLink to="/gestor/crm" className={linkClass} onClick={toggleSidebar}>
-                <TrendingUp className="w-5 h-5" />
-                <span>CRM</span>
-              </NavLink>
-              <NavLink to="/gestor/crm-sales-reports" className={linkClass} onClick={toggleSidebar}>
-                <BarChart3 className="w-5 h-5" />
-                <span>Relatórios de Vendas</span>
-              </NavLink>
-              <NavLink to="/gestor/hiring-pipeline" className={linkClass} onClick={toggleSidebar}>
+              {/* Itens para Gestor/Admin */}
+              {!isSecretaria && (
+                <>
+                  <NavLink to="/gestor/dashboard" className={linkClass} onClick={toggleSidebar}>
+                    <LayoutDashboard className="w-5 h-5" />
+                    <span>Dashboard</span>
+                  </NavLink>
+                  
+                  <NavLink to="/gestor/crm" className={linkClass} onClick={toggleSidebar}>
+                    <TrendingUp className="w-5 h-5" />
+                    <span>CRM</span>
+                  </NavLink>
+                  <NavLink to="/gestor/crm-sales-reports" className={linkClass} onClick={toggleSidebar}>
+                    <BarChart3 className="w-5 h-5" />
+                    <span>Relatórios de Vendas</span>
+                  </NavLink>
+                </>
+              )}
+
+              {/* Itens para Secretaria e Gestor/Admin */}
+              <NavLink to={isSecretaria ? "/secretaria/hiring-pipeline" : "/gestor/hiring-pipeline"} className={linkClass} onClick={toggleSidebar}>
                 <UserSearch className="w-5 h-5" />
                 <span>Pipeline Contratação</span>
               </NavLink>
-              <NavLink to="/gestor/candidate-screening" className={linkClass} onClick={toggleSidebar}>
+              <NavLink to={isSecretaria ? "/secretaria/candidate-screening" : "/gestor/candidate-screening"} className={linkClass} onClick={toggleSidebar}>
                 <UserCheck className="w-5 h-5" />
                 <span>Controle Candidaturas</span>
               </NavLink>
-              <NavLink to="/gestor/all-candidates" className={linkClass} onClick={toggleSidebar}>
+              <NavLink to={isSecretaria ? "/secretaria/all-candidates" : "/gestor/all-candidates"} className={linkClass} onClick={toggleSidebar}>
                 <UsersRound className="w-5 h-5" />
                 <span>Todos os Candidatos</span>
               </NavLink>
-              <NavLink to="/gestor/hiring-reports" className={linkClass} onClick={toggleSidebar}>
+              <NavLink to={isSecretaria ? "/secretaria/hiring-reports" : "/gestor/hiring-reports"} className={linkClass} onClick={toggleSidebar}>
                 <UserCog className="w-5 h-5" />
                 <span>Relatórios Contratação</span>
               </NavLink>
-              <NavLink to="/gestor/onboarding-admin" className={linkClass} onClick={toggleSidebar}>
+              <NavLink to={isSecretaria ? "/secretaria/onboarding-admin" : "/gestor/onboarding-admin"} className={linkClass} onClick={toggleSidebar}>
                 <Video className="w-5 h-5" />
                 <span>Onboarding Online</span>
               </NavLink>
-              <NavLink to="/gestor/commissions" className={linkClass} onClick={toggleSidebar}>
-                <Banknote className="w-5 h-5" />
-                <span>Comissões</span>
-              </NavLink>
-              <NavLink to="/gestor/financial-panel" className={linkClass} onClick={toggleSidebar}>
-                <DollarSign className="w-5 h-5" />
-                <span>Painel Financeiro</span>
-              </NavLink>
-              <NavLink to="/gestor/feedbacks" className={linkClass} onClick={toggleSidebar}>
-                <Star className="w-5 h-5" />
-                <span>Feedbacks</span>
-              </NavLink>
-              <NavLink to="/gestor/daily-checklist-monitoring" className={linkClass} onClick={toggleSidebar}>
-                <ClipboardCheck className="w-5 h-5" />
-                <span>Monitorar Metas Diárias</span>
-              </NavLink>
-              <NavLink to="/gestor/form-cadastros" className={linkClass} onClick={toggleSidebar}>
+              <NavLink to={isSecretaria ? "/secretaria/form-cadastros" : "/gestor/form-cadastros"} className={linkClass} onClick={toggleSidebar}>
                 <FileStack className="w-5 h-5" />
                 <span>Gerenciar Formulários</span>
               </NavLink>
-              <NavLink to="/gestor/team-production-goals" className={linkClass} onClick={toggleSidebar}>
-                <Target className="w-5 h-5" />
-                <span>Metas de Produção</span>
-              </NavLink>
-              <NavLink to="/gestor/my-tasks" className={linkClass} onClick={toggleSidebar}> {/* NOVO: Link para Minhas Tarefas Pessoais */}
-                <ListTodo className="w-5 h-5" />
-                <span>Minhas Tarefas</span>
-              </NavLink>
+
+              {/* Itens apenas para Gestor/Admin */}
+              {!isSecretaria && (
+                <>
+                  <NavLink to="/gestor/commissions" className={linkClass} onClick={toggleSidebar}>
+                    <Banknote className="w-5 h-5" />
+                    <span>Comissões</span>
+                  </NavLink>
+                  <NavLink to="/gestor/financial-panel" className={linkClass} onClick={toggleSidebar}>
+                    <DollarSign className="w-5 h-5" />
+                    <span>Painel Financeiro</span>
+                  </NavLink>
+                  <NavLink to="/gestor/feedbacks" className={linkClass} onClick={toggleSidebar}>
+                    <Star className="w-5 h-5" />
+                    <span>Feedbacks</span>
+                  </NavLink>
+                  <NavLink to="/gestor/daily-checklist-monitoring" className={linkClass} onClick={toggleSidebar}>
+                    <ClipboardCheck className="w-5 h-5" />
+                    <span>Monitorar Metas Diárias</span>
+                  </NavLink>
+                  <NavLink to="/gestor/team-production-goals" className={linkClass} onClick={toggleSidebar}>
+                    <Target className="w-5 h-5" />
+                    <span>Metas de Produção</span>
+                  </NavLink>
+                  <NavLink to="/gestor/my-tasks" className={linkClass} onClick={toggleSidebar}>
+                    <ListTodo className="w-5 h-5" />
+                    <span>Minhas Tarefas</span>
+                  </NavLink>
+                </>
+              )}
             </>
           )}
           {isSidebarCollapsed && (
             <>
-              <NavLink to="/gestor/dashboard" className={linkClass} onClick={toggleSidebar} title="Dashboard">
-                <LayoutDashboard className="w-5 h-5" />
-              </NavLink>
-              
-              <NavLink to="/gestor/crm" className={linkClass} onClick={toggleSidebar} title="CRM">
-                <TrendingUp className="w-5 h-5" />
-              </NavLink>
-              <NavLink to="/gestor/crm-sales-reports" className={linkClass} onClick={toggleSidebar} title="Relatórios de Vendas">
-                <BarChart3 className="w-5 h-5" />
-              </NavLink>
-              <NavLink to="/gestor/hiring-pipeline" className={linkClass} onClick={toggleSidebar} title="Pipeline Contratação">
+              {/* Itens para Gestor/Admin (colapsado) */}
+              {!isSecretaria && (
+                <>
+                  <NavLink to="/gestor/dashboard" className={linkClass} onClick={toggleSidebar} title="Dashboard">
+                    <LayoutDashboard className="w-5 h-5" />
+                  </NavLink>
+                  
+                  <NavLink to="/gestor/crm" className={linkClass} onClick={toggleSidebar} title="CRM">
+                    <TrendingUp className="w-5 h-5" />
+                  </NavLink>
+                  <NavLink to="/gestor/crm-sales-reports" className={linkClass} onClick={toggleSidebar} title="Relatórios de Vendas">
+                    <BarChart3 className="w-5 h-5" />
+                  </NavLink>
+                </>
+              )}
+
+              {/* Itens para Secretaria e Gestor/Admin (colapsado) */}
+              <NavLink to={isSecretaria ? "/secretaria/hiring-pipeline" : "/gestor/hiring-pipeline"} className={linkClass} onClick={toggleSidebar} title="Pipeline Contratação">
                 <UserSearch className="w-5 h-5" />
               </NavLink>
-              <NavLink to="/gestor/candidate-screening" className={linkClass} onClick={toggleSidebar} title="Controle Candidaturas">
+              <NavLink to={isSecretaria ? "/secretaria/candidate-screening" : "/gestor/candidate-screening"} className={linkClass} onClick={toggleSidebar} title="Controle Candidaturas">
                 <UserCheck className="w-5 h-5" />
               </NavLink>
-              <NavLink to="/gestor/all-candidates" className={linkClass} onClick={toggleSidebar} title="Todos os Candidatos">
+              <NavLink to={isSecretaria ? "/secretaria/all-candidates" : "/gestor/all-candidates"} className={linkClass} onClick={toggleSidebar} title="Todos os Candidatos">
                 <UsersRound className="w-5 h-5" />
               </NavLink>
-              <NavLink to="/gestor/hiring-reports" className={linkClass} onClick={toggleSidebar} title="Relatórios Contratação">
+              <NavLink to={isSecretaria ? "/secretaria/hiring-reports" : "/gestor/hiring-reports"} className={linkClass} onClick={toggleSidebar} title="Relatórios Contratação">
                 <UserCog className="w-5 h-5" />
               </NavLink>
-              <NavLink to="/gestor/onboarding-admin" className={linkClass} onClick={toggleSidebar} title="Onboarding Online">
+              <NavLink to={isSecretaria ? "/secretaria/onboarding-admin" : "/gestor/onboarding-admin"} className={linkClass} onClick={toggleSidebar} title="Onboarding Online">
                 <Video className="w-5 h-5" />
               </NavLink>
-              <NavLink to="/gestor/commissions" className={linkClass} onClick={toggleSidebar} title="Comissões">
-                <Banknote className="w-5 h-5" />
-              </NavLink>
-              <NavLink to="/gestor/financial-panel" className={linkClass} onClick={toggleSidebar} title="Painel Financeiro">
-                <DollarSign className="w-5 h-5" />
-              </NavLink>
-              <NavLink to="/gestor/feedbacks" className={linkClass} onClick={toggleSidebar} title="Feedbacks">
-                <Star className="w-5 h-5" />
-              </NavLink>
-              <NavLink to="/gestor/daily-checklist-monitoring" className={linkClass} onClick={toggleSidebar} title="Monitorar Metas Diárias">
-                <ClipboardCheck className="w-5 h-5" />
-              </NavLink>
-              <NavLink to="/gestor/form-cadastros" className={linkClass} onClick={toggleSidebar} title="Gerenciar Formulários">
+              <NavLink to={isSecretaria ? "/secretaria/form-cadastros" : "/gestor/form-cadastros"} className={linkClass} onClick={toggleSidebar} title="Gerenciar Formulários">
                 <FileStack className="w-5 h-5" />
               </NavLink>
-              <NavLink to="/gestor/team-production-goals" className={linkClass} onClick={toggleSidebar} title="Metas de Produção">
-                <Target className="w-5 h-5" />
-              </NavLink>
-              <NavLink to="/gestor/my-tasks" className={linkClass} onClick={toggleSidebar} title="Minhas Tarefas"> {/* NOVO: Link para Minhas Tarefas Pessoais */}
-                <ListTodo className="w-5 h-5" />
-              </NavLink>
+
+              {/* Itens apenas para Gestor/Admin (colapsado) */}
+              {!isSecretaria && (
+                <>
+                  <NavLink to="/gestor/commissions" className={linkClass} onClick={toggleSidebar} title="Comissões">
+                    <Banknote className="w-5 h-5" />
+                  </NavLink>
+                  <NavLink to="/gestor/financial-panel" className={linkClass} onClick={toggleSidebar} title="Painel Financeiro">
+                    <DollarSign className="w-5 h-5" />
+                  </NavLink>
+                  <NavLink to="/gestor/feedbacks" className={linkClass} onClick={toggleSidebar} title="Feedbacks">
+                    <Star className="w-5 h-5" />
+                  </NavLink>
+                  <NavLink to="/gestor/daily-checklist-monitoring" className={linkClass} onClick={toggleSidebar} title="Monitorar Metas Diárias">
+                    <ClipboardCheck className="w-5 h-5" />
+                  </NavLink>
+                  <NavLink to="/gestor/team-production-goals" className={linkClass} onClick={toggleSidebar} title="Metas de Produção">
+                    <Target className="w-5 h-5" />
+                  </NavLink>
+                  <NavLink to="/gestor/my-tasks" className={linkClass} onClick={toggleSidebar} title="Minhas Tarefas">
+                    <ListTodo className="w-5 h-5" />
+                  </NavLink>
+                </>
+              )}
             </>
           )}
 
@@ -189,73 +218,95 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
           )}
           {(!isSidebarCollapsed && !isConfigCollapsed) && (
             <>
-              <NavLink to="/gestor/config-team" className={linkClass} onClick={toggleSidebar}>
-                <Users className="w-5 h-5" />
-                <span>Gestão de Equipe</span>
-              </NavLink>
-              <NavLink to="/gestor/daily-checklist-config" className={linkClass} onClick={toggleSidebar}>
-                <ListChecks className="w-5 h-5" />
-                <span>Config. Metas Diárias</span>
-              </NavLink>
-              <NavLink to="/gestor/config-goals" className={linkClass} onClick={toggleSidebar}>
-                <Target className="w-5 h-5" />
-                <span>Configurar Metas</span>
-              </NavLink>
-              <NavLink to="/gestor/config-interview" className={linkClass} onClick={toggleSidebar}>
-                <FileText className="w-5 h-5" />
-                <span>Configurar Entrevista</span>
-              </NavLink>
-              <NavLink to="/gestor/config-templates" className={linkClass} onClick={toggleSidebar}>
-                <MessageSquare className="w-5 h-5" />
-                <span>Configurar Mensagens</span>
-              </NavLink>
-              <NavLink to="/gestor/config-cutoff" className={linkClass} onClick={toggleSidebar}>
-                <Clock className="w-5 h-5" />
-                <span>Períodos de Corte</span>
-              </NavLink>
-              <NavLink to="/gestor/crm-config" className={linkClass} onClick={toggleSidebar}>
-                <PlusCircle className="w-5 h-5" />
-                <span>Configurar CRM</span>
-              </NavLink>
-              <NavLink to="/gestor/config-origins" className={linkClass} onClick={toggleSidebar}>
+              {/* Itens para Gestor/Admin */}
+              {!isSecretaria && (
+                <>
+                  <NavLink to="/gestor/config-team" className={linkClass} onClick={toggleSidebar}>
+                    <Users className="w-5 h-5" />
+                    <span>Gestão de Equipe</span>
+                  </NavLink>
+                  <NavLink to="/gestor/daily-checklist-config" className={linkClass} onClick={toggleSidebar}>
+                    <ListChecks className="w-5 h-5" />
+                    <span>Config. Metas Diárias</span>
+                  </NavLink>
+                  <NavLink to="/gestor/config-goals" className={linkClass} onClick={toggleSidebar}>
+                    <Target className="w-5 h-5" />
+                    <span>Configurar Metas</span>
+                  </NavLink>
+                  <NavLink to="/gestor/config-interview" className={linkClass} onClick={toggleSidebar}>
+                    <FileText className="w-5 h-5" />
+                    <span>Configurar Entrevista</span>
+                  </NavLink>
+                  <NavLink to="/gestor/config-templates" className={linkClass} onClick={toggleSidebar}>
+                    <MessageSquare className="w-5 h-5" />
+                    <span>Configurar Mensagens</span>
+                  </NavLink>
+                  <NavLink to="/gestor/config-cutoff" className={linkClass} onClick={toggleSidebar}>
+                    <Clock className="w-5 h-5" />
+                    <span>Períodos de Corte</span>
+                  </NavLink>
+                  <NavLink to="/gestor/crm-config" className={linkClass} onClick={toggleSidebar}>
+                    <PlusCircle className="w-5 h-5" />
+                    <span>Configurar CRM</span>
+                  </NavLink>
+                </>
+              )}
+
+              {/* Itens para Secretaria e Gestor/Admin */}
+              <NavLink to={isSecretaria ? "/secretaria/config-origins" : "/gestor/config-origins"} className={linkClass} onClick={toggleSidebar}>
                 <MapPin className="w-5 h-5" />
                 <span>Configurar Origens</span>
               </NavLink>
-              <NavLink to="/gestor/config-process" className={linkClass} onClick={toggleSidebar}>
-                <Settings className="w-5 h-5" />
-                <span>Editar Processo (Antigo)</span>
-              </NavLink>
+
+              {/* Item apenas para Gestor/Admin */}
+              {!isSecretaria && (
+                <NavLink to="/gestor/config-process" className={linkClass} onClick={toggleSidebar}>
+                  <Settings className="w-5 h-5" />
+                  <span>Editar Processo (Antigo)</span>
+                </NavLink>
+              )}
             </>
           )}
           {isSidebarCollapsed && (
             <>
-              <NavLink to="/gestor/config-team" className={linkClass} onClick={toggleSidebar} title="Gestão de Equipe">
-                <Users className="w-5 h-5" />
-              </NavLink>
-              <NavLink to="/gestor/daily-checklist-config" className={linkClass} onClick={toggleSidebar} title="Config. Metas Diárias">
-                <ListChecks className="w-5 h-5" />
-              </NavLink>
-              <NavLink to="/gestor/config-goals" className={linkClass} onClick={toggleSidebar} title="Configurar Metas">
-                <Target className="w-5 h-5" />
-              </NavLink>
-              <NavLink to="/gestor/config-interview" className={linkClass} onClick={toggleSidebar} title="Configurar Entrevista">
-                <FileText className="w-5 h-5" />
-              </NavLink>
-              <NavLink to="/gestor/config-templates" className={linkClass} onClick={toggleSidebar} title="Configurar Mensagens">
-                <MessageSquare className="w-5 h-5" />
-              </NavLink>
-              <NavLink to="/gestor/config-cutoff" className={linkClass} onClick={toggleSidebar} title="Períodos de Corte">
-                <Clock className="w-5 h-5" />
-              </NavLink>
-              <NavLink to="/gestor/crm-config" className={linkClass} onClick={toggleSidebar} title="Configurar CRM">
-                <PlusCircle className="w-5 h-5" />
-              </NavLink>
-              <NavLink to="/gestor/config-origins" className={linkClass} onClick={toggleSidebar} title="Configurar Origens">
+              {/* Itens para Gestor/Admin (colapsado) */}
+              {!isSecretaria && (
+                <>
+                  <NavLink to="/gestor/config-team" className={linkClass} onClick={toggleSidebar} title="Gestão de Equipe">
+                    <Users className="w-5 h-5" />
+                  </NavLink>
+                  <NavLink to="/gestor/daily-checklist-config" className={linkClass} onClick={toggleSidebar} title="Config. Metas Diárias">
+                    <ListChecks className="w-5 h-5" />
+                  </NavLink>
+                  <NavLink to="/gestor/config-goals" className={linkClass} onClick={toggleSidebar} title="Configurar Metas">
+                    <Target className="w-5 h-5" />
+                  </NavLink>
+                  <NavLink to="/gestor/config-interview" className={linkClass} onClick={toggleSidebar} title="Configurar Entrevista">
+                    <FileText className="w-5 h-5" />
+                  </NavLink>
+                  <NavLink to="/gestor/config-templates" className={linkClass} onClick={toggleSidebar} title="Configurar Mensagens">
+                    <MessageSquare className="w-5 h-5" />
+                  </NavLink>
+                  <NavLink to="/gestor/config-cutoff" className={linkClass} onClick={toggleSidebar} title="Períodos de Corte">
+                    <Clock className="w-5 h-5" />
+                  </NavLink>
+                  <NavLink to="/gestor/crm-config" className={linkClass} onClick={toggleSidebar} title="Configurar CRM">
+                    <PlusCircle className="w-5 h-5" />
+                  </NavLink>
+                </>
+              )}
+
+              {/* Itens para Secretaria e Gestor/Admin (colapsado) */}
+              <NavLink to={isSecretaria ? "/secretaria/config-origins" : "/gestor/config-origins"} className={linkClass} onClick={toggleSidebar} title="Configurar Origens">
                 <MapPin className="w-5 h-5" />
               </NavLink>
-              <NavLink to="/gestor/config-process" className={linkClass} onClick={toggleSidebar} title="Editar Processo (Antigo)">
-                <Settings className="w-5 h-5" />
-              </NavLink>
+
+              {/* Item apenas para Gestor/Admin (colapsado) */}
+              {!isSecretaria && (
+                <NavLink to="/gestor/config-process" className={linkClass} onClick={toggleSidebar} title="Editar Processo (Antigo)">
+                  <Settings className="w-5 h-5" />
+                </NavLink>
+              )}
             </>
           )}
 

@@ -155,16 +155,6 @@ export interface Commission {
   _synced?: boolean;
 }
 
-export interface SupportMaterial {
-  id: string; // Client-side UUID
-  db_id?: string; // Database primary key
-  title: string;
-  category: string;
-  type: 'pdf' | 'image';
-  url: string; // URL from Supabase Storage
-  fileName: string;
-}
-
 export type SupportMaterialContentType = 'link' | 'text' | 'image' | 'pdf';
 
 export interface SupportMaterialV2 {
@@ -188,7 +178,7 @@ export interface SupportMaterialAssignment {
   created_at: string;
 }
 
-export type TeamRole = 'Prévia' | 'Autorizado' | 'Gestor' | 'Anjo';
+export type TeamRole = 'Prévia' | 'Autorizado' | 'Gestor' | 'Anjo' | 'Secretaria';
 
 export interface TeamMember {
   id: string; // Client-side ID (pode ser auth.uid() ou legacy_db_id)
@@ -207,7 +197,7 @@ export interface TeamMember {
   user_id?: string; // NOVO: ID do gestor proprietário do registro
 }
 
-export type UserRole = 'GESTOR' | 'CONSULTOR' | 'ADMIN';
+export type UserRole = 'GESTOR' | 'CONSULTOR' | 'ADMIN' | 'SECRETARIA';
 
 export interface User {
   id: string;

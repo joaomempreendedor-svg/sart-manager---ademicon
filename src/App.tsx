@@ -69,16 +69,16 @@ const RequireAuth: React.FC<{ allowedRoles: UserRole[] }> = ({ allowedRoles }) =
   const location = useLocation();
 
   // Adicionando logs para depuração
-  useEffect(() => {
-    console.log("[RequireAuth] isAuthLoading:", isAuthLoading);
-    console.log("[RequireAuth] isDataLoading:", isDataLoading);
-    console.log("[RequireAuth] User:", user);
-    if (user) {
-      console.log("[RequireAuth] User Role:", user.role);
-      console.log("[RequireAuth] User isActive:", user.isActive);
-      console.log("[RequireAuth] User needs_password_change:", user.needs_password_change);
-    }
-  }, [isAuthLoading, isDataLoading, user]);
+  // useEffect(() => { // Removido logs de depuração
+  //   console.log("[RequireAuth] isAuthLoading:", isAuthLoading);
+  //   console.log("[RequireAuth] isDataLoading:", isDataLoading);
+  //   console.log("[RequireAuth] User:", user);
+  //   if (user) {
+  //     console.log("[RequireAuth] User Role:", user.role);
+  //     console.log("[RequireAuth] User isActive:", user.isActive);
+  //     console.log("[RequireAuth] User needs_password_change:", user.needs_password_change);
+  //   }
+  // }, [isAuthLoading, isDataLoading, user]);
 
 
   if (isAuthLoading || isDataLoading) {
@@ -106,6 +106,9 @@ const RequireAuth: React.FC<{ allowedRoles: UserRole[] }> = ({ allowedRoles }) =
     }
     if (user.role === 'CONSULTOR') {
       return <Navigate to="/consultor/dashboard" replace />;
+    }
+    if (user.role === 'SECRETARIA') { // NOVO: Redirecionamento para Secretaria
+      return <Navigate to="/secretaria/onboarding-admin" replace />;
     }
     return <Navigate to="/login" replace />; // Fallback
   }
@@ -138,13 +141,40 @@ const GestorLayout = () => {
   );
 };
 
+// NOVO: Layout para a Secretaria (reaproveita o GestorLayout)
+const SecretariaLayout = () => {
+  const { user } = useAuth();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
+  const toggleSidebarCollapse = () => setIsSidebarCollapsed(!isSidebarCollapsed);
+
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-900 flex font-sans text-gray-900 dark:text-gray-100 transition-colors duration-200">
+      <GestorSidebar 
+        isSidebarOpen={isSidebarOpen} 
+        toggleSidebar={toggleSidebar} 
+        isSidebarCollapsed={isSidebarCollapsed} 
+        toggleSidebarCollapse={toggleSidebarCollapse} 
+      />
+      <div className={`flex-1 flex flex-col transition-all duration-300 ${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-64'}`}>
+        <Header isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar} user={user} />
+        <main className="flex-1">
+          <Outlet />
+        </main>
+      </div>
+    </div>
+  );
+};
+
+
 const AppRoutes = () => {
   const { isLoading } = useAuth();
   const location = useLocation();
 
-  useEffect(() => {
-    console.log("Current route path:", location.pathname);
-  }, [location.pathname]);
+  // useEffect(() => { // Removido logs de depuração
+  //   console.log("Current route path:", location.pathname);
+  // }, [location.pathname]);
 
   if (isLoading) {
     return <AppLoader />;
@@ -161,7 +191,7 @@ const AppRoutes = () => {
       <Route path="/public-form" element={<PublicForm />} />
       
       {/* Authenticated Routes - ALL authenticated routes should be nested under RequireAuth */}
-      <Route element={<RequireAuth allowedRoles={['GESTOR', 'ADMIN', 'CONSULTOR']} />}>
+      <Route element={<RequireAuth allowedRoles={['GESTOR', 'ADMIN', 'CONSULTOR', 'SECRETARIA']} />}> {/* Adicionado SECRETARIA */}
         <Route path="/" element={<Home />} />
 
         {/* Gestor Routes */}
@@ -207,6 +237,18 @@ const AppRoutes = () => {
           <Route path="sales-reports" element={<ConsultorSalesReports />} />
           {/* <Route path="links" element={<ImportantLinks />} /> REMOVIDO */}
           <Route path="*" element={<Navigate to="/consultor/dashboard" replace />} />
+        </Route>
+
+        {/* NOVO: Rotas para Secretaria */}
+        <Route path="/secretaria" element={<SecretariaLayout />}>
+          <Route path="onboarding-admin" element={<OnlineOnboarding />} />
+          <Route path="hiring-pipeline" element={<HiringPipeline />} />
+          <Route path="candidate-screening" element={<CandidateScreening />} />
+          <Route path="all-candidates" element={<AllCandidates />} />
+          <Route path="hiring-reports" element={<HiringReports />} />
+          <Route path="form-cadastros" element={<FormCadastros />} />
+          <Route path="config-origins" element={<OriginConfig />} />
+          <Route path="*" element={<Navigate to="/secretaria/onboarding-admin" replace />} />
         </Route>
         
         {/* Common authenticated routes */}

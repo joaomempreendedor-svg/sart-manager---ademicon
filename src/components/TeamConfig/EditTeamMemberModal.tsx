@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Loader2, Mail, CalendarDays, User, Shield, Crown, Star } from 'lucide-react';
+import { X, Save, Loader2, Mail, CalendarDays, User, Shield, Crown, Star, UserCheck } from 'lucide-react'; // Adicionado UserCheck
 import { TeamMember, TeamRole } from '@/types';
 import { formatCpf } from '@/utils/authUtils';
 import {
@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import toast from 'react-hot-toast';
 
-const ALL_ROLES: TeamRole[] = ['Prévia', 'Autorizado', 'Gestor', 'Anjo'];
+const ALL_ROLES: TeamRole[] = ['Prévia', 'Autorizado', 'Gestor', 'Anjo', 'Secretaria'];
 
 interface EditTeamMemberModalProps {
   isOpen: boolean;
@@ -91,6 +91,7 @@ export const EditTeamMemberModal: React.FC<EditTeamMemberModalProps> = ({ isOpen
         case 'Gestor': return <Crown className="w-4 h-4 text-blue-500" />;
         case 'Anjo': return <Star className="w-4 h-4 text-yellow-500" />;
         case 'Autorizado': return <Shield className="w-4 h-4 text-green-500" />;
+        case 'Secretaria': return <UserCheck className="w-4 h-4 text-purple-500" />; // Ícone para Secretaria
         default: return <User className="w-4 h-4 text-gray-500" />;
     }
   };
