@@ -131,7 +131,7 @@ export const SecretariaDashboard = () => {
                     className="flex-1 sm:flex-none flex items-center justify-center space-x-2 bg-green-600 hover:bg-green-700 text-white px-6 py-2.5 rounded-lg transition font-bold shadow-md shadow-green-600/20"
                   >
                     <Check className="w-5 h-5" />
-                    <span>Chegou</span>
+                    <span>Compareceu</span>
                   </button>
                 </div>
               </div>

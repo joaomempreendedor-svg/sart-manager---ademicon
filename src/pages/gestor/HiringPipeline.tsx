@@ -286,11 +286,11 @@ const HiringPipeline = () => {
                               className="flex items-center justify-center space-x-1 py-1.5 bg-green-600 text-white rounded-lg text-[10px] font-bold hover:bg-green-700 transition"
                             >
                               <Check className="w-3 h-3" />
-                              <span>Chegou</span>
+                              <span>Compareceu</span>
                             </button>
                             <button 
                               onClick={(e) => handleUpdateStatus(e, candidate.id, 'Faltou')}
-                              className="flex items-center justify-center space-x-1 py-1.5 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg text-[10px] font-bold hover:bg-red-100 transition"
+                              className="flex items-center justify-center space-x-1 py-1.5 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 rounded-lg text-[10px] font-bold hover:bg-red-100 transition"
                             >
                               <XCircle className="w-3 h-3" />
                               <span>Faltou</span>
