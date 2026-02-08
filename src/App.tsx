@@ -8,8 +8,7 @@ import { UserRole } from '@/types';
 import { GestorSidebar } from '@/components/GestorSidebar';
 import { ConsultorLayout } from '@/components/ConsultorLayout';
 import { Header } from '@/components/Header';
-import { SecretariaLayout } from '@/components/SecretariaLayout'; // NOVO: Importar o novo layout da Secretaria
-import { SecretariaSidebar } from '@/components/SecretariaSidebar'; // NOVO: Importar o novo sidebar da Secretaria
+import { SecretariaLayout } from '@/layouts/SecretariaLayout'; // NOVO: Importar o novo layout da Secretaria
 
 // Common Pages
 import { Login } from '@/pages/Login';
