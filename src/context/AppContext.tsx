@@ -304,6 +304,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setOnboardingTemplateVideos(templateVideosData?.data || []);
         setCrmPipelines(pipelinesData?.data || []);
         setCrmStages(stagesData?.data || []);
+        setCrmFields(fieldsData?.data || []);
         setCrmLeads(crmLeadsData?.data?.map((lead: any) => ({ id: lead.id, consultant_id: lead.consultant_id, stage_id: lead.stage_id, user_id: lead.user_id, name: lead.name, data: lead.data, created_at: lead.created_at, updated_at: lead.updated_at, created_by: lead.created_by, updated_by: lead.updated_by, proposalValue: parseDbCurrency(lead.proposal_value), proposalClosingDate: lead.proposal_closing_date, soldCreditValue: parseDbCurrency(lead.sold_credit_value), soldGroup: lead.sold_group, soldQuota: lead.sold_quota, saleDate: lead.sale_date })) || []);
         setCrmFields(fieldsData?.data || []);
         setDailyChecklists(dailyChecklistsData?.data || []);
@@ -349,9 +350,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const updateCandidate = async (id: string, updates: Partial<Candidate>) => {
+    const now = new Date().toISOString();
     const { error } = await supabase.from('candidates').update({ data: updates }).eq('id', id);
     if (error) throw error;
-    setCandidates(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
+    setCandidates(prev => prev.map(c => c.id === id ? { ...c, ...updates, lastUpdatedAt: now } : c));
   };
 
   const deleteCandidate = async (id: string) => {
