@@ -228,7 +228,7 @@ const HiringPipeline = () => {
                     key={candidate.id} 
                     draggable 
                     onDragStart={(e) => handleDragStart(e, candidate.id)} 
-                    className={`block bg-white dark:bg-slate-700 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-slate-600 hover:border-brand-500 hover:shadow-md transition-all group relative overflow-hidden ${isToday ? 'ring-2 ring-brand-500' : ''}`}
+                    className={`block bg-white dark:bg-slate-700 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 hover:border-brand-500 hover:shadow-md transition-all group relative overflow-hidden ${isToday ? 'ring-2 ring-brand-500' : ''}`}
                   >
                     {isToday && (
                       <div className="absolute top-0 right-0 bg-brand-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-bl-lg flex items-center">
@@ -315,7 +315,7 @@ const HiringPipeline = () => {
                               <span>Aprovar</span>
                             </button>
                             <button 
-                              onClick={(e) => handleUpdateStatus(e, candidate.id, 'Reprovado')}
+                              onClick={(e) => handleUpdateStatus(e, candidate.id, 'Desqualificado')}
                               className="flex items-center justify-center space-x-1 py-1.5 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg text-[10px] font-bold hover:bg-red-100 transition"
                             >
                               <UserX className="w-3 h-3" />
@@ -344,7 +344,7 @@ const HiringPipeline = () => {
                               <span>Autorizar</span>
                             </button>
                             <button 
-                              onClick={(e) => handleUpdateStatus(e, candidate.id, 'Reprovado')}
+                              onClick={(e) => handleUpdateStatus(e, candidate.id, 'Desqualificado')}
                               className="flex items-center justify-center space-x-1 py-1.5 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg text-[10px] font-bold hover:bg-red-100 transition"
                             >
                               <UserX className="w-3 h-3" />
