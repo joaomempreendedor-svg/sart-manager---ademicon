@@ -30,8 +30,8 @@ export const Header: React.FC<HeaderProps> = ({ isSidebarOpen, toggleSidebar, us
       <button onClick={toggleSidebar} className="text-gray-600 dark:text-gray-300">
         {isSidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
       </button>
-      {/* Renderizar sino de notificações apenas para Gestores/Admins */}
-      {(user?.role === 'GESTOR' || user?.role === 'ADMIN') && (
+      {/* Renderizar sino de notificações apenas para Gestores/Admins/Secretaria */}
+      {(user?.role === 'GESTOR' || user?.role === 'ADMIN' || user?.role === 'SECRETARIA') && (
         <div className="flex items-center space-x-4">
           <NotificationBell
             notificationCount={notifications.filter(n => !n.isRead).length} // Contar apenas não lidas
