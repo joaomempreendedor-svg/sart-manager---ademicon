@@ -37,7 +37,6 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
   // Links para a seção "Visão Geral e Operação"
   const overviewLinks = isSecretaria ? [
     { to: "/secretaria/hiring-pipeline", icon: UserSearch, label: "Pipeline Contratação" },
-    { to: "/secretaria/all-candidates", icon: UsersRound, label: "Todos os Candidatos" },
     { to: "/secretaria/hiring-reports", icon: UserCog, label: "Relatórios Contratação" },
     { to: "/secretaria/onboarding-admin", icon: Video, label: "Onboarding Online" },
     { to: "/secretaria/form-cadastros", icon: FileStack, label: "Gerenciar Formulários" },
@@ -46,7 +45,6 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
     { to: "/gestor/crm", icon: TrendingUp, label: "CRM" },
     { to: "/gestor/crm-sales-reports", icon: BarChart3, label: "Relatórios de Vendas" },
     { to: "/gestor/hiring-pipeline", icon: UserSearch, label: "Pipeline Contratação" },
-    { to: "/gestor/all-candidates", icon: UsersRound, label: "Todos os Candidatos" },
     { to: "/gestor/hiring-reports", icon: UserCog, label: "Relatórios Contratação" },
     { to: "/gestor/onboarding-admin", icon: Video, label: "Onboarding Online" },
     { to: "/gestor/form-cadastros", icon: FileStack, label: "Gerenciar Formulários" },
@@ -177,7 +175,7 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
           <div className={`flex ${isSidebarCollapsed ? 'flex-col space-y-2' : 'gap-2'}`}>
               <button 
               onClick={toggleTheme}
-              className={`flex-1 flex items-center justify-center space-x-2 p-2 rounded-lg bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-600 transition ${isSidebarCollapsed ? 'w-full' : ''}`}
+              className={`flex-1 flex items-center justify-center space-x-2 p-2 rounded-lg bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-700 transition ${isSidebarCollapsed ? 'w-full' : ''}`}
               title="Alternar Tema"
               >
               {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}

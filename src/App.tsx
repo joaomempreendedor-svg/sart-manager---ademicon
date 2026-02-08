@@ -44,7 +44,6 @@ import { OriginConfig } from '@/pages/OriginConfig';
 import { FinancialPanel } from '@/pages/FinancialPanel';
 import { FormCadastros } from '@/pages/gestor/FormSubmissions';
 import TeamProductionGoals from '@/pages/gestor/TeamProductionGoals';
-import { AllCandidates } from '@/pages/gestor/AllCandidates';
 import GestorTasksPage from '@/pages/gestor/GestorTasksPage';
 
 // Consultor Pages
@@ -147,7 +146,6 @@ const AppRoutes = () => {
             <Route path="config-origins" element={<OriginConfig />} />
             <Route path="form-cadastros" element={<FormCadastros />} />
             <Route path="team-production-goals" element={<TeamProductionGoals />} />
-            <Route path="all-candidates" element={<AllCandidates />} />
             <Route path="my-tasks" element={<GestorTasksPage />} />
           </Route>
         </Route>
@@ -156,7 +154,6 @@ const AppRoutes = () => {
           <Route path="/secretaria" element={<MainLayout />}>
             <Route path="dashboard" element={<SecretariaDashboard />} />
             <Route path="hiring-pipeline" element={<HiringPipeline />} />
-            <Route path="all-candidates" element={<AllCandidates />} />
             <Route path="hiring-reports" element={<HiringReports />} />
             <Route path="onboarding-admin" element={<OnlineOnboarding />} />
             <Route path="form-cadastros" element={<FormCadastros />} />
