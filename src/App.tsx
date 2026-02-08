@@ -56,6 +56,9 @@ import ConsultorCrmPage from '@/pages/consultor/Crm';
 import { DailyChecklist } from '@/pages/consultor/DailyChecklist';
 import ConsultorSalesReports from '@/pages/consultor/ConsultorSalesReports';
 
+// Secretaria Pages
+import { SecretariaDashboard } from '@/pages/secretaria/SecretariaDashboard'; // NOVO: Importar o dashboard da Secretaria
+
 
 const AppLoader = () => (
   <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-slate-900">
@@ -96,7 +99,7 @@ const RequireAuth: React.FC<{ allowedRoles: UserRole[] }> = ({ allowedRoles }) =
       return <Navigate to="/consultor/dashboard" replace />;
     }
     if (user.role === 'SECRETARIA') {
-      return <Navigate to="/secretaria/onboarding-admin" replace />;
+      return <Navigate to="/secretaria/dashboard" replace />; // CORRIGIDO: Redireciona para o dashboard da Secretaria
     }
     return <Navigate to="/login" replace />; // Fallback
   }
@@ -226,6 +229,7 @@ const AppRoutes = () => {
 
         {/* NOVO: Rotas para Secretaria */}
         <Route path="/secretaria" element={<SecretariaLayout />}>
+          <Route path="dashboard" element={<SecretariaDashboard />} /> {/* NOVO: Rota para o dashboard da Secretaria */}
           <Route path="onboarding-admin" element={<OnlineOnboarding />} />
           <Route path="hiring-pipeline" element={<HiringPipeline />} />
           <Route path="candidate-screening" element={<CandidateScreening />} />
@@ -233,7 +237,7 @@ const AppRoutes = () => {
           <Route path="hiring-reports" element={<HiringReports />} />
           <Route path="form-cadastros" element={<FormCadastros />} />
           <Route path="config-origins" element={<OriginConfig />} />
-          <Route path="*" element={<Navigate to="/secretaria/onboarding-admin" replace />} /> {/* Fallback para Secretaria */}
+          <Route path="*" element={<Navigate to="/secretaria/dashboard" replace />} /> {/* CORRIGIDO: Fallback para Secretaria */}
         </Route>
         
         {/* Common authenticated routes */}
