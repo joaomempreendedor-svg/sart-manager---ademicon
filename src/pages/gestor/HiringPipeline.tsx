@@ -107,6 +107,15 @@ const HiringPipeline = () => {
     setDraggingCandidateId(null);
   };
 
+  const handleQuickDisqualify = async (e: React.MouseEvent, candidateId: string, candidateName: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (window.confirm(`Deseja mover ${candidateName} para a coluna de Desqualificado?`)) {
+      await updateCandidate(candidateId, { status: 'Desqualificado' });
+      toast.success(`${candidateName} desqualificado.`);
+    }
+  };
+
   const getResponsibleName = (responsibleUserId: string | undefined) => {
     if (!responsibleUserId) return 'Não atribuído';
     const member = teamMembers.find(m => m.id === responsibleUserId || m.authUserId === responsibleUserId);
@@ -186,6 +195,15 @@ const HiringPipeline = () => {
 
                     <div className="flex justify-between items-start mb-2">
                       <p className="font-bold text-gray-900 dark:text-white leading-tight">{highlightText(candidate.name, searchTerm)}</p>
+                      {id !== 'disqualified' && (
+                        <button 
+                          onClick={(e) => handleQuickDisqualify(e, candidate.id, candidate.name)}
+                          className="p-1 text-gray-400 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                          title="Desqualificar Candidato"
+                        >
+                          <XCircle className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
 
                     <div className="space-y-2">

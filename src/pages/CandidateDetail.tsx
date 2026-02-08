@@ -18,10 +18,7 @@ export const CandidateDetail = () => {
   const navigate = useNavigate();
   const location = useLocation();
   
-  console.log("CandidateDetail: id from useParams", id);
-  console.log("CandidateDetail: Type of getCandidate before call:", typeof getCandidate);
   const candidate = getCandidate(id || '');
-  console.log("CandidateDetail: fetched candidate", candidate);
   
   const [activeTab, setActiveTab] = useState<'checklist' | 'goals' | 'interview'>(
     location.state?.openInterviewTab ? 'interview' : 'checklist'
@@ -44,10 +41,6 @@ export const CandidateDetail = () => {
     return teamMembers.filter(m => m.isActive && (m.roles.includes('Gestor') || m.roles.includes('Anjo')));
   }, [teamMembers]);
 
-  const currentResponsibleMember = useMemo(() => {
-    return responsibleMembers.find(m => m.id === responsibleUserId);
-  }, [responsibleMembers, responsibleUserId]);
-
   useEffect(() => {
     if (candidate) {
       setScores(JSON.parse(JSON.stringify(candidate.interviewScores)));
@@ -57,7 +50,6 @@ export const CandidateDetail = () => {
   }, [candidate]);
 
   if (!candidate) {
-    console.log("CandidateDetail: Candidate not found, rendering fallback.");
     return <div className="p-4 sm:p-8 text-gray-500 dark:text-gray-400">Candidato não encontrado.</div>;
   }
 
@@ -68,7 +60,7 @@ export const CandidateDetail = () => {
   const handleDelete = async () => {
     if (candidate && confirm(`Tem certeza que deseja excluir ${candidate.name}? Esta ação não pode ser desfeita.`)) {
       await deleteCandidate(candidate.id);
-      navigate('/gestor/dashboard');
+      navigate('/gestor/hiring-pipeline');
     }
   };
 
@@ -80,7 +72,7 @@ export const CandidateDetail = () => {
     }
   };
 
-  const handleAddToGoogleCalendar = (taskLabel: string, dueDate: string) => { // RE-ADDED: Google Calendar integration
+  const handleAddToGoogleCalendar = (taskLabel: string, dueDate: string) => {
     const title = encodeURIComponent(`${taskLabel} - ${candidate.name}`);
     const startDate = new Date(dueDate + 'T00:00:00');
     const endDate = new Date(startDate);
@@ -159,8 +151,8 @@ export const CandidateDetail = () => {
 
   return (
     <div className="p-4 sm:p-8 max-w-6xl mx-auto">
-      <button onClick={() => navigate('/gestor/dashboard')} className="flex items-center text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white mb-6">
-        <ArrowLeft className="w-4 h-4 mr-2" /> Voltar para Dashboard
+      <button onClick={() => navigate('/gestor/hiring-pipeline')} className="flex items-center text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white mb-6">
+        <ArrowLeft className="w-4 h-4 mr-2" /> Voltar para Pipeline
       </button>
 
       {/* Header */}
@@ -175,8 +167,10 @@ export const CandidateDetail = () => {
               <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-4 text-sm text-gray-500 dark:text-gray-400 mt-1">
                  <span className="flex items-center"><Phone className="w-3 h-3 mr-1" /> {candidate.phone || 'Não informado'}</span>
                  <div className="flex items-center">
-                    <Calendar className="w-3 h-3 mr-1" /> Entrevista: {new Date(candidate.interviewDate + 'T00:00:00').toLocaleDateString()}
-                    <button onClick={() => handleAddToGoogleCalendar('Entrevista', candidate.interviewDate)} className="ml-2 p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full"><CalendarPlus className="w-4 h-4" /></button>
+                    <Calendar className="w-3 h-3 mr-1" /> Entrevista: {candidate.interviewDate ? new Date(candidate.interviewDate + 'T00:00:00').toLocaleDateString() : 'Não agendada'}
+                    {candidate.interviewDate && (
+                      <button onClick={() => handleAddToGoogleCalendar('Entrevista', candidate.interviewDate)} className="ml-2 p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full"><CalendarPlus className="w-4 h-4" /></button>
+                    )}
                  </div>
               </div>
             </div>
@@ -190,13 +184,15 @@ export const CandidateDetail = () => {
                     onChange={handleStatusChange}
                     className="block w-full sm:w-48 pl-3 pr-10 py-2 text-base border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:outline-none focus:ring-brand-500 focus:border-brand-500 sm:text-sm rounded-md border"
                 >
-                    <option>Entrevista</option>
-                    <option>Aguardando Prévia</option>
-                    <option>Onboarding Online</option>
-                    <option>Integração Presencial</option>
-                    <option>Acompanhamento 90 Dias</option>
-                    <option>Autorizado</option>
-                    <option>Reprovado</option>
+                    <option value="Triagem">Candidatos</option>
+                    <option value="Entrevista">Entrevista</option>
+                    <option value="Aguardando Prévia">Aguardando Prévia</option>
+                    <option value="Onboarding Online">Onboarding Online</option>
+                    <option value="Integração Presencial">Integração Presencial</option>
+                    <option value="Acompanhamento 90 Dias">Acompanhamento 90 Dias</option>
+                    <option value="Autorizado">Autorizado</option>
+                    <option value="Reprovado">Desistência</option>
+                    <option value="Desqualificado">Desqualificado</option>
                 </select>
                 <button
                     onClick={handleDelete}
@@ -220,7 +216,7 @@ export const CandidateDetail = () => {
                   </SelectTrigger>
                   <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
                     {responsibleMembers.map(member => (
-                      <SelectItem key={member.id} value={member.id}>
+                      <SelectItem key={member.authUserId} value={member.authUserId!}>
                         {member.name} ({member.roles.join(', ')})
                       </SelectItem>
                     ))}
@@ -338,7 +334,7 @@ export const CandidateDetail = () => {
                                     className={`pl-8 pr-2 py-1 text-xs border rounded-md focus:outline-none focus:ring-1 focus:ring-brand-500 ${state.dueDate ? 'border-brand-200 bg-brand-50 text-brand-700 dark:bg-brand-900/20 dark:border-brand-800 dark:text-brand-400' : 'border-gray-200 bg-white text-gray-400 dark:bg-slate-700 dark:border-slate-600 dark:text-gray-500'}`}
                                   />
                               </div>
-                              {state.dueDate && ( // RE-ADDED: Google Calendar integration
+                              {state.dueDate && (
                                 <button 
                                   onClick={() => handleAddToGoogleCalendar(item.label, state.dueDate!)}
                                   className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:text-blue-400 dark:hover:bg-blue-900/20 rounded-md transition"
