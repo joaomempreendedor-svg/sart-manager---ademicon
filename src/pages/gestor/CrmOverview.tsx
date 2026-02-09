@@ -385,7 +385,7 @@ const CrmOverviewPage = () => {
                   // CORREÇÃO: Busca o consultor de forma mais robusta (atribuído ou quem cadastrou)
                   const consultant = teamMembers.find(m => 
                     (lead.consultant_id && (m.id === lead.consultant_id || m.authUserId === lead.consultant_id)) ||
-                    (m.id === lead.created_by || m.authUserId === lead.created_by)
+                    (!lead.consultant_id && (m.id === lead.created_by || m.authUserId === lead.created_by))
                   );
                   
                   const currentLeadStage = crmStages.find(s => s.id === lead.stage_id);
@@ -419,7 +419,7 @@ const CrmOverviewPage = () => {
                           </button>
                           <button 
                             onClick={(e) => handleDeleteLead(e, lead)} 
-                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md"
+                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-900/20 rounded-md"
                             title="Excluir Lead"
                           >
                             <Trash2 className="w-4 h-4" />

@@ -755,7 +755,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     updateWeeklyTargetItem: async (id, updates) => { const { data, error } = await supabase.from('weekly_target_items').update(updates).eq('id', id).select().single(); if (error) throw error; setWeeklyTargetItems(prev => prev.map(i => i.id === id ? data : i)); return data; },
     deleteWeeklyTargetItem: async (id) => { const { error } = await supabase.from('weekly_target_items').delete().eq('id', id); if (error) throw error; setWeeklyTargetItems(prev => prev.filter(i => i.id !== id)); },
     updateWeeklyTargetItemOrder: async (orderedItems) => {
-      const updates = orderedStages.map((item, index) => supabase.from('weekly_target_items').update({ order_index: index }).eq('id', item.id));
+      const updates = orderedItems.map((item, index) => supabase.from('weekly_target_items').update({ order_index: index }).eq('id', item.id));
       await Promise.all(updates);
       const { data } = await supabase.from('weekly_target_items').select('*'); setWeeklyTargetItems(data || []);
     },
