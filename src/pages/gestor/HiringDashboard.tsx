@@ -18,7 +18,9 @@ import {
   Briefcase,
   FileText,
   UserX,
-  XCircle
+  XCircle,
+  UserMinus,
+  Ghost
 } from 'lucide-react';
 
 const HiringDashboard = () => {
@@ -79,20 +81,19 @@ const HiringDashboard = () => {
     // 6. Contratados (Coluna 'Autorizados')
     const hired = filtered.filter(c => c.status === 'Autorizado').length;
 
-    // 7. Desistências e Faltas (Colunas 'Faltou', 'Desistências', 'Desqualificado')
-    const droppedOut = filtered.filter(c => 
-      ['Reprovado', 'Desqualificado', 'Faltou'].includes(c.status)
-    ).length;
+    // 7. Faltas (Coluna 'Faltou')
+    const noShow = filtered.filter(c => c.status === 'Faltou').length;
+
+    // 8. Desistências (Coluna 'Desistências')
+    const withdrawn = filtered.filter(c => c.status === 'Reprovado').length;
+
+    // 9. Desqualificados (Coluna 'Desqualificado')
+    const disqualified = filtered.filter(c => c.status === 'Desqualificado').length;
 
     // Taxas de Conversão Sincronizadas
-    // Taxa de Contato: Candidatos que saíram da primeira coluna
     const contactRate = total > 0 ? ((total - newCandidates) / total) * 100 : 0;
-    
-    // Taxa de Comparecimento: Realizadas / (Agendadas + Realizadas)
     const totalInterviews = scheduled + conducted;
     const attendanceRate = totalInterviews > 0 ? (conducted / totalInterviews) * 100 : 0;
-
-    // Taxa de Contratação: Autorizados / Total
     const hiringRate = total > 0 ? (hired / total) * 100 : 0;
 
     return {
@@ -103,7 +104,9 @@ const HiringDashboard = () => {
       conducted,
       awaitingPreview,
       hired,
-      droppedOut,
+      noShow,
+      withdrawn,
+      disqualified,
       contactRate,
       attendanceRate,
       hiringRate
@@ -140,7 +143,7 @@ const HiringDashboard = () => {
     <div className="p-4 sm:p-8 max-w-7xl mx-auto min-h-screen bg-gray-50 dark:bg-slate-900">
       <div className="mb-8">
         <h1 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">Dashboard de Candidaturas</h1>
-        <p className="text-gray-500 dark:text-gray-400 font-medium">Métricas sincronizadas com as etapas do pipeline.</p>
+        <p className="text-gray-500 dark:text-gray-400 font-medium">Métricas detalhadas e sincronizadas com o pipeline.</p>
       </div>
 
       {/* Filtros */}
@@ -231,11 +234,28 @@ const HiringDashboard = () => {
           colorClass="bg-emerald-600 text-white" 
           subValue="Contratações efetivas"
         />
+        
+        {/* Métricas de Perda Separadas */}
         <MetricCard 
-          title="Desistências / Faltas" 
-          value={metrics.droppedOut} 
-          icon={UserX} 
+          title="Faltas" 
+          value={metrics.noShow} 
+          icon={Ghost} 
+          colorClass="bg-rose-500 text-white" 
+          subValue="Não compareceram"
+        />
+        <MetricCard 
+          title="Desistências" 
+          value={metrics.withdrawn} 
+          icon={UserMinus} 
           colorClass="bg-rose-600 text-white" 
+          subValue="Candidato desistiu"
+        />
+        <MetricCard 
+          title="Desqualificados" 
+          value={metrics.disqualified} 
+          icon={XCircle} 
+          colorClass="bg-rose-700 text-white" 
+          subValue="Reprovados pelo gestor"
         />
         
         {/* Taxas de Conversão */}
