@@ -39,8 +39,16 @@ const ConsultorCrmPage = () => {
   const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false);
   const [selectedLeadForMeeting, setSelectedLeadForMeeting] = useState<CrmLead | null>(null);
 
-  const [filterStartDate, setFilterStartDate] = useState('');
-  const [filterEndDate, setFilterEndDate] = useState('');
+  // Filtros de Data Padrão: Mês Atual
+  const [filterStartDate, setFilterStartDate] = useState(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
+  });
+  const [filterEndDate, setFilterEndDate] = useState(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
+  });
+
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   const [showCelebration, setShowCelebration] = useState(false); // NOVO: Estado para o modal de celebração

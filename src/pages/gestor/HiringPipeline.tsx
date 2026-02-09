@@ -29,8 +29,16 @@ const HiringPipeline = () => {
   const [selectedCandidateForDate, setSelectedCandidateForDate] = useState<Candidate | null>(null);
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStartDate, setFilterStartDate] = useState('');
-  const [filterEndDate, setFilterEndDate] = useState('');
+  
+  // Filtros de Data Padrão: Mês Atual
+  const [filterStartDate, setFilterStartDate] = useState(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
+  });
+  const [filterEndDate, setFilterEndDate] = useState(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
+  });
 
   const todayStr = new Date().toISOString().split('T')[0];
 
