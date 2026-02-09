@@ -215,6 +215,6 @@ export const AddScreeningCandidateModal: React.FC<AddScreeningCandidateModalProp
           </DialogFooter>
         </form>
       </DialogContent>
-    </div>
+    </Dialog>
   );
 };
