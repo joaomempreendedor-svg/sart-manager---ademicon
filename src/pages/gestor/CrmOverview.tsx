@@ -28,6 +28,7 @@ const formatCurrency = (value: number) => {
 const CrmOverviewPage = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
   const { crmPipelines, crmStages, crmLeads, crmFields, teamMembers, isDataLoading, deleteCrmLead, updateCrmLead, addCrmLead, leadTasks, crmOwnerUserId } = useApp();
+  
   const [isLeadModalOpen, setIsLeadModalOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<CrmLead | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -80,7 +81,6 @@ const CrmOverviewPage = () => {
   }, [crmStages, activePipeline]);
 
   const consultants = useMemo(() => {
-    // Filtro mais abrangente para garantir que todos os consultores apareçam
     return teamMembers.filter(m => 
       m.isActive && 
       (m.roles.some(r => ['Prévia', 'Autorizado', 'Consultor', 'CONSULTOR'].includes(r)))
@@ -276,6 +276,10 @@ const CrmOverviewPage = () => {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
+          <ExportCrmLeadsButton
+            leads={filteredLeads}
+            fileName="leads_crm_gestor"
+          />
           <button
             onClick={() => setIsImportModalOpen(true)}
             className="flex items-center justify-center space-x-2 bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded-lg transition font-medium flex-shrink-0"
@@ -332,15 +336,43 @@ const CrmOverviewPage = () => {
         {pipelineStages.map(stage => (
           <div 
             key={stage.id} 
-            className="flex-shrink-0 w-64 bg-gray-100 dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700"
+            className="flex-shrink-0 w-72 bg-gray-100 dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700"
             onDragOver={handleDragOver}
             onDrop={(e) => handleDrop(e, stage.id)}
           >
             <div className="p-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
-              <h3 className="font-semibold text-gray-900 dark:text-white">{stage.name}</h3>
+              <h3 className="font-semibold text-gray-900 dark:text-white flex items-center">
+                {stage.name.toLowerCase().includes('proposta') && <Send className="w-4 h-4 mr-2 text-purple-600 dark:text-purple-400" />}
+                {stage.name}
+              </h3>
               <span className="text-xs text-gray-500 dark:text-gray-400">{groupedLeads[stage.id]?.length || 0} leads</span>
+              
+              {stage.name.toLowerCase().includes('proposta') && (
+                <div className="mt-1 text-xs font-bold text-purple-700 dark:text-purple-300">
+                  Total Propostas (Mês): {formatCurrency(
+                    groupedLeads[stage.id].reduce((sum, lead) => {
+                      if (lead.proposalValue && lead.proposalClosingDate) {
+                        const proposalDate = new Date(lead.proposalClosingDate + 'T00:00:00');
+                        if (proposalDate >= currentMonthStart && proposalDate <= currentMonthEnd) {
+                          return sum + (lead.proposalValue || 0);
+                        }
+                      }
+                      return sum;
+                    }, 0)
+                  )}
+                </div>
+              )}
+              {stage.is_won && (
+                <div className="mt-1 text-xs font-bold text-green-700 dark:text-green-300">
+                  Total Vendido: {formatCurrency(
+                    groupedLeads[stage.id].reduce((sum, lead) => {
+                      return sum + (lead.soldCreditValue || 0);
+                    }, 0)
+                  )}
+                </div>
+              )}
             </div>
-            <div className="p-4 space-y-3 min-h-[200px]">
+            <div className="p-3 space-y-3 min-h-[400px]">
               {isDataLoading ? (
                 <TableSkeleton rows={3} />
               ) : groupedLeads[stage.id]?.length === 0 ? (
@@ -348,6 +380,17 @@ const CrmOverviewPage = () => {
               ) : (
                 groupedLeads[stage.id].map(lead => {
                   const consultant = teamMembers.find(m => m.id === lead.consultant_id || m.authUserId === lead.consultant_id);
+                  const currentLeadStage = crmStages.find(s => s.id === lead.stage_id);
+                  const isWonStage = currentLeadStage?.is_won;
+                  const isLostStage = currentLeadStage?.is_lost;
+                  const canOpenProposalModal = !isWonStage && !isLostStage;
+                  const canMarkAsWon = !isWonStage && !isLostStage;
+
+                  const now = new Date();
+                  const nextMeeting = leadTasks
+                    .filter(task => task.lead_id === lead.id && task.type === 'meeting' && !task.is_completed && task.meeting_start_time && new Date(task.meeting_start_time).getTime() > now.getTime())
+                    .sort((a, b) => new Date(a.meeting_start_time!).getTime() - new Date(b.meeting_start_time!).getTime())[0];
+
                   return (
                     <div 
                       key={lead.id} 
@@ -358,18 +401,90 @@ const CrmOverviewPage = () => {
                     >
                       <div className="flex justify-between items-start mb-2">
                         <p className="font-medium text-gray-900 dark:text-white leading-tight">{lead.name}</p>
-                        <button onClick={(e) => handleDeleteLead(e, lead)} className="p-1 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 className="w-3.5 h-3.5" /></button>
+                        <div className="flex items-center space-x-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex-wrap justify-end">
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); handleEditLead(lead); }} 
+                            className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md"
+                            title="Editar Lead"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button 
+                            onClick={(e) => handleDeleteLead(e, lead)} 
+                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md"
+                            title="Excluir Lead"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
                       <div className="text-[10px] text-gray-500 dark:text-gray-400 space-y-1">
                         <div className="flex items-center font-bold text-brand-600 dark:text-brand-400">
                           <UserRound className="w-3 h-3 mr-1" /> {consultant?.name || 'Não atribuído'}
                         </div>
+                        {lead.data.phone && <div className="flex items-center"><Phone className="w-3 h-3 mr-1" /> {lead.data.phone}</div>}
                         {lead.data.origin && <div className="flex items-center"><Tag className="w-3 h-3 mr-1" /> {lead.data.origin}</div>}
-                        {stage.is_won ? (
-                          <div className="text-green-600 font-bold">{formatCurrency(lead.soldCreditValue || 0)}</div>
+                        
+                        {nextMeeting && (
+                          <div className="flex items-center text-blue-600 dark:text-blue-400 font-semibold mt-2">
+                            <Calendar className="w-3 h-3 mr-1" /> {new Date(nextMeeting.meeting_start_time!).toLocaleDateString('pt-BR')}
+                            <Clock className="w-3 h-3 ml-2 mr-1" /> {new Date(nextMeeting.meeting_start_time!).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                          </div>
+                        )}
+
+                        {isWonStage ? (
+                          <div className="flex items-center text-green-600 dark:text-green-400 font-semibold">
+                            <CheckCircle2 className="w-3 h-3 mr-1" /> Vendido: {formatCurrency(lead.soldCreditValue || 0)}
+                          </div>
                         ) : lead.proposalValue ? (
-                          <div className="text-purple-600 font-bold">{formatCurrency(lead.proposalValue)}</div>
+                          <div className="flex items-center text-purple-600 dark:text-purple-400 font-semibold">
+                            <DollarSign className="w-3 h-3 mr-1" /> Proposta: {formatCurrency(lead.proposalValue)}
+                          </div>
                         ) : null}
+                      </div>
+
+                      <div className="mt-3 pt-3 border-t border-gray-100 dark:border-slate-600">
+                        <Select
+                          value={lead.stage_id}
+                          onValueChange={(newStageId) => handleStageChange(lead.id, newStageId)}
+                        >
+                          <SelectTrigger 
+                            className="w-full h-auto py-1.5 text-[10px] dark:bg-slate-800 dark:text-white dark:border-slate-600"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <SelectValue placeholder="Mover para..." />
+                          </SelectTrigger>
+                          <SelectContent className="bg-white text-gray-900 dark:bg-slate-800 dark:text-white dark:border-slate-700">
+                            {pipelineStages.map(stageOption => (
+                              <SelectItem key={stageOption.id} value={stageOption.id}>
+                                {stageOption.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="mt-3 flex flex-wrap gap-1">
+                        <button onClick={(e) => handleOpenTasksModal(e, lead)} className="flex-1 flex items-center justify-center px-1.5 py-1 rounded-md text-[10px] bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 hover:bg-blue-100 transition">
+                          <ListTodo className="w-3 h-3 mr-1" /> Tarefas
+                        </button>
+                        <button onClick={(e) => handleOpenMeetingModal(e, lead)} className="flex-1 flex items-center justify-center px-1.5 py-1 rounded-md text-[10px] bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 hover:bg-green-100 transition">
+                          <CalendarPlus className="w-3 h-3 mr-1" /> Reunião
+                        </button>
+                        <button 
+                          onClick={(e) => handleOpenProposalModal(e, lead)} 
+                          className={`flex-1 flex items-center justify-center px-1.5 py-1 rounded-md text-[10px] transition ${canOpenProposalModal ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 hover:bg-purple-100' : 'bg-gray-100 dark:bg-slate-600 text-gray-500 cursor-not-allowed opacity-70'}`}
+                          disabled={!canOpenProposalModal}
+                        >
+                          <Send className="w-3 h-3 mr-1" /> Proposta
+                        </button>
+                        <button 
+                          onClick={(e) => handleMarkAsWon(e, lead)} 
+                          className={`flex-1 flex items-center justify-center px-1.5 py-1 rounded-md text-[10px] transition ${canMarkAsWon ? 'bg-brand-500 text-white hover:bg-brand-600' : 'bg-gray-100 dark:bg-slate-600 text-gray-500 cursor-not-allowed opacity-70'}`}
+                          disabled={!canMarkAsWon}
+                        >
+                          <DollarSign className="w-3 h-3 mr-1" /> Vendido
+                        </button>
                       </div>
                     </div>
                   );
