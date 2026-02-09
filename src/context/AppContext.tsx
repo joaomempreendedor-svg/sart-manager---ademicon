@@ -55,7 +55,7 @@ const parseDbCurrency = (value: any): number | null => {
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { user, session } = useAuth();
-  const fetchedUserIdRef = useRef<string | null>(null); // Corrigido: Inicializado com null
+  const fetchedUserIdRef = useRef<string | null>(null);
   const isFetchingRef = useRef(false);
 
   const [isDataLoading, setIsDataLoading] = useState(true);
@@ -407,6 +407,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     isDataLoading, candidates, teamMembers, commissions, supportMaterials, cutoffPeriods, onboardingSessions, onboardingTemplateVideos, checklistStructure, setChecklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs, crmPipelines, crmStages, crmFields, crmLeads, crmOwnerUserId, dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions, weeklyTargets, weeklyTargetItems, weeklyTargetAssignments, metricLogs, supportMaterialsV2, supportMaterialAssignments, leadTasks, gestorTasks, gestorTaskCompletions, financialEntries, formCadastros, formFiles, notifications, teamProductionGoals, theme,
     toggleTheme, updateConfig, resetLocalState, refetchCommissions, calculateCompetenceMonth, isGestorTaskDueOnDate, calculateNotifications,
     addCandidate, updateCandidate, deleteCandidate, getCandidate: useCallback((id: string) => candidates.find(c => c.id === id), [candidates]), 
+    setCandidates, // Adicionado setCandidates aqui
     toggleChecklistItem: async (candidateId, itemId) => {
       const candidate = candidates.find(c => c.id === candidateId);
       if (!candidate) return;
@@ -880,7 +881,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const member = teamMembers.find(m => m.id === teamMemberId);
       if (!member) return;
       const updatedFeedbacks = (member.feedbacks || []).filter(f => f.id !== feedbackId);
-      await updateTeamMember(teamMemberId, { feedbacks: updatedFeedbacks });
+      await updateTeamMember(teamMemberId, { feedbacks: updatedUpdatedFeedbacks });
     },
     addTeamMember: async (member) => {
       const tempPassword = generateRandomPassword();
