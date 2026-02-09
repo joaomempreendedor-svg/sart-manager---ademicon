@@ -53,11 +53,9 @@ const CrmSalesReports = () => {
       .sort((a, b) => a.order_index - b.order_index);
   }, [crmStages, activePipeline]);
 
-  const consultants = useMemo(() => {
-    return teamMembers.filter(m => 
-      m.isActive && 
-      (m.roles.some(r => ['Prévia', 'Autorizado', 'Consultor', 'CONSULTOR'].includes(r)))
-    );
+  // CORREÇÃO: Inclui todos os membros ativos para o relatório, inclusive o Gestor
+  const allTeamMembers = useMemo(() => {
+    return teamMembers.filter(m => m.isActive);
   }, [teamMembers]);
 
   const filteredLeads = useMemo(() => {
@@ -119,7 +117,8 @@ const CrmSalesReports = () => {
       };
     } = {};
 
-    consultants.forEach(c => {
+    // Inicializa com todos os membros da equipe
+    allTeamMembers.forEach(c => {
       dataByConsultant[c.id] = {
         name: c.name,
         leadsRegistered: 0,
@@ -131,6 +130,20 @@ const CrmSalesReports = () => {
         conversionRate: 0,
       };
     });
+
+    // Fallback para o Gestor principal se ele não estiver na lista de teamMembers
+    if (!dataByConsultant[JOAO_GESTOR_AUTH_ID]) {
+      dataByConsultant[JOAO_GESTOR_AUTH_ID] = {
+        name: 'João Müller',
+        leadsRegistered: 0,
+        meetingsScheduled: 0,
+        proposalsSent: 0,
+        proposalValue: 0,
+        salesClosed: 0,
+        soldValue: 0,
+        conversionRate: 0,
+      };
+    }
 
     let totalLeads = 0;
     let totalProposalValue = 0;
@@ -151,7 +164,6 @@ const CrmSalesReports = () => {
     filteredLeads.forEach(lead => {
       totalLeads++;
       
-      // CORREÇÃO: Identifica o consultor de forma mais robusta
       const consultantId = lead.consultant_id || lead.created_by;
       if (consultantId && dataByConsultant[consultantId]) {
         dataByConsultant[consultantId].leadsRegistered++;
@@ -205,7 +217,7 @@ const CrmSalesReports = () => {
     const sortedConsultantData = Object.values(dataByConsultant).map(c => {
       const conversionRate = c.proposalsSent > 0 ? (c.salesClosed / c.proposalsSent) * 100 : 0;
       return { ...c, conversionRate };
-    }).sort((a, b) => b.leadsRegistered - a.leadsRegistered);
+    }).sort((a, b) => b.soldValue - a.soldValue); // Ordena por valor vendido para o ranking
 
     return {
       totalLeads,
@@ -218,38 +230,13 @@ const CrmSalesReports = () => {
       pipelineStageSummary: Object.values(pipelineStageSummary).filter(s => s.count > 0),
       salesByOrigin: Object.entries(salesByOrigin).map(([origin, data]) => ({ origin, ...data })).filter(o => o.count > 0).sort((a, b) => b.soldValue - a.soldValue),
     };
-  }, [filteredLeads, leadTasks, consultants, crmStages, pipelineStages, salesOrigins]);
+  }, [filteredLeads, leadTasks, allTeamMembers, crmStages, pipelineStages, salesOrigins]);
 
   const topSellersChartData = useMemo(() => {
-    let leadsForChart = crmLeads;
-
-    if (chartFilterSaleDateStart) {
-      const start = new Date(chartFilterSaleDateStart + 'T00:00:00');
-      leadsForChart = leadsForChart.filter(lead => lead.saleDate && new Date(lead.saleDate + 'T00:00:00') >= start);
-    }
-    if (chartFilterSaleDateEnd) {
-      const end = new Date(chartFilterSaleDateEnd + 'T23:59:59');
-      leadsForChart = leadsForChart.filter(lead => lead.saleDate && new Date(lead.saleDate + 'T00:00:00') <= end);
-    }
-
-    const salesByConsultant: { [key: string]: { name: string; soldValue: number; } } = {};
-    consultants.forEach(c => {
-      salesByConsultant[c.id] = { name: c.name, soldValue: 0 };
-    });
-
-    leadsForChart.forEach(lead => {
-      const wonStage = crmStages.find(s => s.id === lead.stage_id && s.is_won);
-      const consultantId = lead.consultant_id || lead.created_by;
-      if (wonStage && consultantId && salesByConsultant[consultantId]) {
-        const actualSoldValue = (lead.soldCreditValue && lead.soldCreditValue > 0)
-          ? lead.soldCreditValue
-          : (lead.proposalValue || 0);
-        salesByConsultant[consultantId].soldValue += actualSoldValue;
-      }
-    });
-
-    return Object.values(salesByConsultant).filter(c => c.soldValue > 0);
-  }, [crmLeads, crmStages, consultants, chartFilterSaleDateStart, chartFilterSaleDateEnd]);
+    return reportData.consultantPerformance
+      .filter(c => c.soldValue > 0)
+      .map(c => ({ name: c.name, soldValue: c.soldValue }));
+  }, [reportData.consultantPerformance]);
 
   const clearFilters = () => {
     setFilterStartDate('');
@@ -337,7 +324,7 @@ const CrmSalesReports = () => {
               </SelectTrigger>
               <SelectContent className="bg-white text-gray-900 dark:bg-slate-800 dark:text-white dark:border-slate-700">
                 <SelectItem value="all">Todos os Consultores</SelectItem>
-                {consultants.map(c => (
+                {allTeamMembers.map(c => (
                   <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                 ))}
               </SelectContent>
