@@ -48,8 +48,15 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
   }, [salesOrigins]);
 
   const consultants = useMemo(() => {
-    // Filtra apenas membros ativos que são CONSULTOR, Prévia ou Autorizado E que possuem um authUserId
-    return teamMembers.filter(m => m.isActive && m.authUserId && (m.roles.includes('CONSULTOR') || m.roles.includes('Prévia') || m.roles.includes('Autorizado')));
+    // CORREÇÃO: Filtra membros ativos com os cargos corretos. 
+    // Incluímos Gestor e Anjo pois eles também podem ser responsáveis por leads.
+    return teamMembers.filter(m => 
+      m.isActive && 
+      (m.roles.includes('Prévia') || 
+       m.roles.includes('Autorizado') || 
+       m.roles.includes('Gestor') || 
+       m.roles.includes('Anjo'))
+    ).sort((a, b) => a.name.localeCompare(b.name));
   }, [teamMembers]);
 
   useEffect(() => {
@@ -65,7 +72,7 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
       setFormData({
         name: lead?.name || '',
         stage_id: lead?.stage_id,
-        // CORREÇÃO: Se for um novo lead, tenta usar o assignedConsultantId (consultor logado)
+        // Se for um novo lead, tenta usar o assignedConsultantId (consultor logado)
         consultant_id: lead?.consultant_id || assignedConsultantId || '',
         proposalValue: lead?.proposalValue,
         proposalClosingDate: lead?.proposalClosingDate,
@@ -299,8 +306,8 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
                   </SelectTrigger>
                   <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700 max-h-[200px] overflow-y-auto">
                     {consultants.map(consultant => (
-                      <SelectItem key={consultant.authUserId} value={consultant.authUserId!}>
-                        {consultant.name}
+                      <SelectItem key={consultant.id} value={consultant.id}>
+                        {consultant.name} ({consultant.roles.join(', ')})
                       </SelectItem>
                     ))}
                   </SelectContent>

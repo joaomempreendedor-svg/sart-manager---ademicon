@@ -83,10 +83,14 @@ const CrmOverviewPage = () => {
   }, [crmStages, activePipeline]);
 
   const consultants = useMemo(() => {
+    // CORREÇÃO: Filtra membros ativos com os cargos corretos para o filtro do topo.
     return teamMembers.filter(m => 
       m.isActive && 
-      (m.roles.some(r => ['Prévia', 'Autorizado', 'Consultor', 'CONSULTOR'].includes(r)))
-    );
+      (m.roles.includes('Prévia') || 
+       m.roles.includes('Autorizado') || 
+       m.roles.includes('Gestor') || 
+       m.roles.includes('Anjo'))
+    ).sort((a, b) => a.name.localeCompare(b.name));
   }, [teamMembers]);
 
   const filteredLeads = useMemo(() => {
