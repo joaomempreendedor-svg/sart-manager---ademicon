@@ -39,6 +39,7 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
     { to: "/secretaria/hiring-dashboard", icon: PieChart, label: "Dashboard Contratação" },
     { to: "/secretaria/hiring-pipeline", icon: UserSearch, label: "Pipeline Contratação" },
     { to: "/secretaria/hiring-origins-report", icon: MapPin, label: "Candidaturas por Origem" },
+    { to: "/secretaria/daily-checklist", icon: ListChecks, label: "Checklist do Dia" }, // NOVO: Link para o checklist da secretaria
     { to: "/secretaria/onboarding-admin", icon: Video, label: "Onboarding Online" },
     { to: "/secretaria/form-cadastros", icon: FileStack, label: "Gerenciar Formulários" },
   ] : [

@@ -128,20 +128,22 @@ const AssignmentModal: React.FC<AssignmentModalProps> = ({ isOpen, onClose, chec
   const { teamMembers, dailyChecklistAssignments, assignDailyChecklistToConsultant, unassignDailyChecklistFromConsultant } = useApp();
   const [isSaving, setIsSaving] = useState(false);
 
-  const consultants = useMemo(() => teamMembers.filter(m => m.isActive && (m.roles.includes('CONSULTOR') || m.roles.includes('Prévia') || m.roles.includes('Autorizado'))), [teamMembers]);
-  const assignedConsultantIds = useMemo(() => 
+  // ATUALIZADO: Incluindo 'Secretaria' na lista de membros que podem receber checklists
+  const assignableMembers = useMemo(() => teamMembers.filter(m => m.isActive && (m.roles.includes('CONSULTOR') || m.roles.includes('Prévia') || m.roles.includes('Autorizado') || m.roles.includes('Secretaria'))), [teamMembers]);
+  
+  const assignedMemberIds = useMemo(() => 
     new Set(dailyChecklistAssignments.filter(a => a.daily_checklist_id === checklist?.id).map(a => a.consultant_id))
   , [dailyChecklistAssignments, checklist]);
 
-  const handleToggleAssignment = async (consultantId: string, isAssigned: boolean) => {
+  const handleToggleAssignment = async (memberId: string, isAssigned: boolean) => {
     if (!checklist) return;
     setIsSaving(true);
     try {
       if (isAssigned) {
-        await unassignDailyChecklistFromConsultant(checklist.id, consultantId);
+        await unassignDailyChecklistFromConsultant(checklist.id, memberId);
         toast.success("Atribuição removida com sucesso!");
       } else {
-        await assignDailyChecklistToConsultant(checklist.id, consultantId);
+        await assignDailyChecklistToConsultant(checklist.id, memberId);
         toast.success("Atribuição adicionada com sucesso!");
       }
     } catch (error: any) {
@@ -160,27 +162,27 @@ const AssignmentModal: React.FC<AssignmentModalProps> = ({ isOpen, onClose, chec
         <DialogHeader>
           <DialogTitle>Atribuir "{checklist.title}"</DialogTitle>
           <DialogDescription>
-            Selecione os consultores que receberão este checklist. Se nenhum for selecionado, ele será global.
+            Selecione os membros da equipe que receberão este checklist. Se nenhum for selecionado, ele será global.
           </DialogDescription>
         </DialogHeader>
         <ScrollArea className="h-[300px] py-4 custom-scrollbar">
           <div className="grid gap-3">
-            {consultants.length === 0 ? (
-              <p className="text-center text-gray-500 dark:text-gray-400">Nenhum consultor encontrado.</p>
+            {assignableMembers.length === 0 ? (
+              <p className="text-center text-gray-500 dark:text-gray-400">Nenhum membro elegível encontrado.</p>
             ) : (
-              consultants.map(member => {
-                const isAssigned = assignedConsultantIds.has(member.id);
+              assignableMembers.map(member => {
+                const isAssigned = assignedMemberIds.has(member.id);
                 return (
                   <div key={member.id} className="flex items-center space-x-2">
                     <Checkbox
-                      id={`consultant-${member.id}`}
+                      id={`member-${member.id}`}
                       checked={isAssigned}
                       onCheckedChange={() => handleToggleAssignment(member.id, isAssigned)}
                       disabled={isSaving}
                       className="dark:border-slate-600 data-[state=checked]:bg-brand-600 data-[state=checked]:text-white"
                     />
-                    <Label htmlFor={`consultant-${member.id}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                      {member.name}
+                    <Label htmlFor={`member-${member.id}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                      {member.name} ({member.roles.join(', ')})
                     </Label>
                   </div>
                 );
@@ -926,7 +928,7 @@ export const DailyChecklistConfig = () => {
                           className="p-1.5 text-gray-400 hover:text-blue-600"
                         >
                           <Edit2 className="w-4 h-4" />
-                        </Button>
+                        </button>
                         <Button 
                           variant="ghost" 
                           size="sm" 

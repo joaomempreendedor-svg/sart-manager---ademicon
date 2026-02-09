@@ -55,6 +55,7 @@ import ConsultorSalesReports from '@/pages/consultor/ConsultorSalesReports';
 
 // Secretaria Pages
 import { SecretariaDashboard } from '@/pages/secretaria/SecretariaDashboard';
+import { SecretariaDailyChecklist } from '@/pages/secretaria/SecretariaDailyChecklist'; // NOVO: Importar a página de checklist da secretaria
 
 const AppLoader = () => (
   <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-slate-900">
@@ -158,6 +159,7 @@ const AppRoutes = () => {
             <Route path="hiring-dashboard" element={<HiringDashboard />} />
             <Route path="hiring-pipeline" element={<HiringPipeline />} />
             <Route path="hiring-origins-report" element={<HiringOriginsReport />} />
+            <Route path="daily-checklist" element={<SecretariaDailyChecklist />} /> {/* NOVO: Rota para o checklist da secretaria */}
             <Route path="onboarding-admin" element={<OnlineOnboarding />} />
             <Route path="form-cadastros" element={<FormCadastros />} />
             <Route path="config-origins" element={<OriginConfig />} />

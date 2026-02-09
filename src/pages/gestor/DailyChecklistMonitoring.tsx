@@ -38,18 +38,19 @@ export const DailyChecklistMonitoring = () => {
 
   const formattedSelectedDate = useMemo(() => formatDate(selectedDate), [selectedDate]);
 
-  const consultants = useMemo(() => {
+  // ATUALIZADO: Incluindo 'Secretaria' na lista de membros monitoráveis
+  const assignableMembers = useMemo(() => {
     return teamMembers
-      .filter(m => m.isActive && (m.roles.includes('CONSULTOR') || m.roles.includes('Prévia') || m.roles.includes('Autorizado')))
+      .filter(m => m.isActive && (m.roles.includes('CONSULTOR') || m.roles.includes('Prévia') || m.roles.includes('Autorizado') || m.roles.includes('Secretaria')))
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [teamMembers]);
 
   // Set initial selected consultant if available
   React.useEffect(() => {
-    if (consultants.length > 0 && !selectedConsultantId) {
-      setSelectedConsultantId(consultants[0].id);
+    if (assignableMembers.length > 0 && !selectedConsultantId) {
+      setSelectedConsultantId(assignableMembers[0].id);
     }
-  }, [consultants, selectedConsultantId]);
+  }, [assignableMembers, selectedConsultantId]);
 
   const assignedChecklists = useMemo(() => {
     if (!selectedConsultantId) return [];
@@ -156,20 +157,20 @@ export const DailyChecklistMonitoring = () => {
     <div className="p-4 sm:p-8 max-w-5xl mx-auto pb-20">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Monitoramento de Checklists Diários</h1>
-        <p className="text-gray-500 dark:text-gray-400">Acompanhe o progresso dos checklists diários de seus consultores.</p>
+        <p className="text-gray-500 dark:text-gray-400">Acompanhe o progresso dos checklists diários de seus consultores e secretaria.</p>
       </div>
 
       <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm mb-6 flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="flex items-center space-x-2 w-full md:w-auto">
           <User className="w-5 h-5 text-brand-500" />
           <Select value={selectedConsultantId || ''} onValueChange={setSelectedConsultantId}>
-            <SelectTrigger className="w-[180px] dark:bg-slate-700 dark:text-white dark:border-slate-600">
-              <SelectValue placeholder="Selecione o Consultor" />
+            <SelectTrigger className="w-[220px] dark:bg-slate-700 dark:text-white dark:border-slate-600">
+              <SelectValue placeholder="Selecione o Membro" />
             </SelectTrigger>
             <SelectContent className="bg-white text-gray-900 dark:bg-slate-800 dark:text-white dark:border-slate-700"> {/* Adicionado bg-white */}
-              {consultants.map(consultant => (
-                <SelectItem key={consultant.id} value={consultant.id}>
-                  {consultant.name}
+              {assignableMembers.map(member => (
+                <SelectItem key={member.id} value={member.id}>
+                  {member.name} ({member.roles.join(', ')})
                 </SelectItem>
               ))}
             </SelectContent>
@@ -193,12 +194,12 @@ export const DailyChecklistMonitoring = () => {
       {!selectedConsultantId ? (
         <div className="text-center py-16 bg-white dark:bg-slate-800 rounded-xl border border-dashed border-gray-200 dark:border-slate-700">
           <User className="mx-auto w-12 h-12 text-gray-300 dark:text-slate-600" />
-          <p className="mt-4 text-gray-500 dark:text-gray-400">Selecione um consultor para visualizar seus checklists.</p>
+          <p className="mt-4 text-gray-500 dark:text-gray-400">Selecione um membro da equipe para visualizar seus checklists.</p>
         </div>
       ) : assignedChecklists.length === 0 ? (
         <div className="text-center py-16 bg-white dark:bg-slate-800 rounded-xl border border-dashed border-gray-200 dark:border-slate-700">
           <ListChecks className="mx-auto w-12 h-12 text-gray-300 dark:text-slate-600" />
-          <p className="mt-4 text-gray-500 dark:text-gray-400">Nenhum checklist diário atribuído a este consultor ou ativo.</p>
+          <p className="mt-4 text-gray-500 dark:text-gray-400">Nenhum checklist diário atribuído a este membro ou ativo.</p>
           <p className="text-sm text-gray-400">Verifique as configurações de atribuição de checklists.</p>
         </div>
       ) : (
