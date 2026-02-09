@@ -22,7 +22,7 @@ import {
 
 export const SecretariaDashboard = () => {
   const { user } = useAuth();
-  const { candidates, isDataLoading } = useApp();
+  const { candidates, isDataLoading, hiringOrigins } = useApp();
   
   // Filtros de Data Padrão: Mês Atual
   const [startDate, setStartDate] = useState(() => {
@@ -67,9 +67,14 @@ export const SecretariaDashboard = () => {
     const withdrawn = filtered.filter(c => c.status === 'Reprovado').length;
     const disqualified = filtered.filter(c => c.status === 'Desqualificado').length;
 
+    // NOVA LÓGICA: Contratado é quem entra em Prévia ou avança além disso
+    const totalHired = filtered.filter(c => 
+      !['Triagem', 'Entrevista', 'Faltou', 'Reprovado', 'Desqualificado'].includes(c.status)
+    ).length;
+
     const totalInterviews = scheduled + conducted;
     const attendanceRate = totalInterviews > 0 ? (conducted / totalInterviews) * 100 : 0;
-    const hiringRate = total > 0 ? (hired / total) * 100 : 0;
+    const hiringRate = total > 0 ? (totalHired / total) * 100 : 0;
 
     return {
       total,
@@ -83,7 +88,8 @@ export const SecretariaDashboard = () => {
       withdrawn,
       disqualified,
       attendanceRate,
-      hiringRate
+      hiringRate,
+      totalHired
     };
   }, [candidates, startDate, endDate]);
 
@@ -200,10 +206,11 @@ export const SecretariaDashboard = () => {
             colorClass="bg-purple-600 text-white" 
           />
           <MetricCard 
-            title="Em Prévia" 
-            value={metrics.awaitingPreview} 
+            title="Contratados (Em Prévia)" 
+            value={metrics.totalHired} 
             icon={TrendingUp} 
             colorClass="bg-blue-600 text-white" 
+            subValue="Passaram na seleção"
           />
           <MetricCard 
             title="Autorizados" 

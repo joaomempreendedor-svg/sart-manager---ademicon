@@ -72,9 +72,14 @@ const HiringDashboard = () => {
     const withdrawn = filtered.filter(c => c.status === 'Reprovado').length;
     const disqualified = filtered.filter(c => c.status === 'Desqualificado').length;
 
+    // NOVA LÓGICA: Contratado é quem entra em Prévia ou avança além disso
+    const totalHired = filtered.filter(c => 
+      !['Triagem', 'Entrevista', 'Faltou', 'Reprovado', 'Desqualificado'].includes(c.status)
+    ).length;
+
     const totalInterviews = scheduled + conducted;
     const attendanceRate = totalInterviews > 0 ? (conducted / totalInterviews) * 100 : 0;
-    const hiringRate = total > 0 ? (hired / total) * 100 : 0;
+    const hiringRate = total > 0 ? (totalHired / total) * 100 : 0;
 
     const originCounts: Record<string, number> = {};
     hiringOrigins.forEach(origin => { originCounts[origin] = 0; });
@@ -107,7 +112,8 @@ const HiringDashboard = () => {
       disqualified,
       candidatesByOrigin,
       attendanceRate,
-      hiringRate
+      hiringRate,
+      totalHired
     };
   }, [candidates, startDate, endDate, hiringOrigins]);
 
@@ -209,10 +215,11 @@ const HiringDashboard = () => {
           colorClass="bg-purple-600 text-white" 
         />
         <MetricCard 
-          title="Em Prévia" 
-          value={metrics.awaitingPreview} 
+          title="Contratados (Em Prévia)" 
+          value={metrics.totalHired} 
           icon={TrendingUp} 
           colorClass="bg-blue-600 text-white" 
+          subValue="Passaram na seleção"
         />
         <MetricCard 
           title="Autorizados" 
