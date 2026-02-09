@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
-import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, InterviewQuestion, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, InstallmentInfo, CutoffPeriod, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask, SupportMaterialContentType, DailyChecklistItemResource, DailyChecklistItemResourceType, GestorTask, GestorTaskCompletion, FinancialEntry, FormCadastro, FormFile, Notification, NotificationType, Feedback, TeamProductionGoal, UserRole, CommissionStatus, InterviewScores } from '@/types';
+import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, InterviewQuestion, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, InstallmentInfo, CutoffPeriod, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask, SupportMaterialContentType, DailyChecklistItemResource, DailyChecklistItemResourceType, GestorTask, GestorTaskCompletion, FinancialEntry, FormCadastro, FormFile, Notification, NotificationType, Feedback, TeamProductionGoal, UserRole, CommissionStatus, InterviewScores, CandidateStatus } from '@/types';
 import { CHECKLIST_STAGES as DEFAULT_STAGES } from '@/data/checklistData';
 import { CONSULTANT_GOALS as DEFAULT_GOALS } from '@/data/consultantGoals';
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
@@ -344,16 +344,32 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const addCandidate = async (candidate: Omit<Candidate, 'id' | 'createdAt' | 'db_id'>) => {
     const { data, error } = await supabase.from('candidates').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: candidate }).select().single();
     if (error) throw error;
-    const newCandidate = { ...candidate, id: (data.data as any).id, db_id: data.id, createdAt: data.created_at } as Candidate;
+    const newCandidate = { ...candidate, id: data.id, db_id: data.id, createdAt: data.created_at } as Candidate;
     setCandidates(prev => [newCandidate, ...prev]);
     return newCandidate;
   };
 
   const updateCandidate = async (id: string, updates: Partial<Candidate>) => {
-    const now = new Date().toISOString();
-    const { error } = await supabase.from('candidates').update({ data: updates }).eq('id', id);
+    const candidate = candidates.find(c => c.id === id || c.db_id === id);
+    if (!candidate) return;
+
+    const dbId = candidate.db_id || id;
+    const updatedData = { ...candidate, ...updates };
+    
+    const dataToSave = { ...updatedData };
+    delete (dataToSave as any).db_id;
+    delete (dataToSave as any).createdAt;
+    delete (dataToSave as any).lastUpdatedAt;
+
+    const { error } = await supabase
+      .from('candidates')
+      .update({ data: dataToSave })
+      .eq('id', dbId);
+
     if (error) throw error;
-    setCandidates(prev => prev.map(c => c.id === id ? { ...c, ...updates, lastUpdatedAt: now } : c));
+
+    const now = new Date().toISOString();
+    setCandidates(prev => prev.map(c => (c.id === id || c.db_id === id) ? { ...c, ...updates, lastUpdatedAt: now } : c));
   };
 
   const deleteCandidate = async (id: string) => {
