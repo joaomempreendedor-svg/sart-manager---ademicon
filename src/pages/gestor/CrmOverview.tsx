@@ -382,8 +382,9 @@ const CrmOverviewPage = () => {
                   // CORREÇÃO: Busca o consultor de forma mais robusta (atribuído ou quem cadastrou)
                   const consultant = teamMembers.find(m => 
                     (lead.consultant_id && (m.id === lead.consultant_id || m.authUserId === lead.consultant_id)) ||
-                    (m.id === lead.created_by || m.authUserId === lead.created_by)
+                    (!lead.consultant_id && (m.id === lead.created_by || m.authUserId === lead.created_by))
                   );
+                  
                   const currentLeadStage = crmStages.find(s => s.id === lead.stage_id);
                   const isWonStage = currentLeadStage?.is_won;
                   const isLostStage = currentLeadStage?.is_lost;
@@ -424,7 +425,7 @@ const CrmOverviewPage = () => {
                       </div>
                       <div className="text-[10px] text-gray-500 dark:text-gray-400 space-y-1">
                         <div className="flex items-center font-bold text-brand-600 dark:text-brand-400">
-                          <UserRound className="w-3 h-3 mr-1" /> {consultant?.name || 'Não atribuído'}
+                          <UserRound className="w-3 h-3 mr-1" /> {consultant?.name || (lead.created_by === JOAO_GESTOR_AUTH_ID ? 'João Müller' : 'Não atribuído')}
                         </div>
                         {lead.data.phone && <div className="flex items-center"><Phone className="w-3 h-3 mr-1" /> {lead.data.phone}</div>}
                         {lead.data.origin && <div className="flex items-center"><Tag className="w-3 h-3 mr-1" /> {lead.data.origin}</div>}
