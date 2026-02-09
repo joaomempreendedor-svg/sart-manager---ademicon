@@ -38,6 +38,7 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
   const overviewLinks = isSecretaria ? [
     { to: "/secretaria/hiring-dashboard", icon: PieChart, label: "Dashboard Contratação" },
     { to: "/secretaria/hiring-pipeline", icon: UserSearch, label: "Pipeline Contratação" },
+    { to: "/secretaria/hiring-origins-report", icon: MapPin, label: "Candidaturas por Origem" },
     { to: "/secretaria/onboarding-admin", icon: Video, label: "Onboarding Online" },
     { to: "/secretaria/form-cadastros", icon: FileStack, label: "Gerenciar Formulários" },
   ] : [
@@ -46,6 +47,7 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
     { to: "/gestor/crm-sales-reports", icon: BarChart3, label: "Relatórios de Vendas" },
     { to: "/gestor/hiring-dashboard", icon: PieChart, label: "Dashboard Contratação" },
     { to: "/gestor/hiring-pipeline", icon: UserSearch, label: "Pipeline Contratação" },
+    { to: "/gestor/hiring-origins-report", icon: MapPin, label: "Candidaturas por Origem" },
     { to: "/gestor/onboarding-admin", icon: Video, label: "Onboarding Online" },
     { to: "/gestor/form-cadastros", icon: FileStack, label: "Gerenciar Formulários" },
     { to: "/gestor/commissions", icon: Banknote, label: "Comissões" },

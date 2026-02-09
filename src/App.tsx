@@ -40,6 +40,7 @@ import { DailyChecklistMonitoring } from '@/pages/gestor/DailyChecklistMonitorin
 import HiringPipeline from '@/pages/gestor/HiringPipeline';
 import CrmSalesReports from '@/pages/gestor/CrmSalesReports';
 import HiringDashboard from '@/pages/gestor/HiringDashboard'; 
+import HiringOriginsReport from '@/pages/gestor/HiringOriginsReport';
 import { OriginConfig } from '@/pages/OriginConfig';
 import { FinancialPanel } from '@/pages/FinancialPanel';
 import { FormCadastros } from '@/pages/gestor/FormSubmissions';
@@ -142,6 +143,7 @@ const AppRoutes = () => {
             <Route path="daily-checklist-monitoring" element={<DailyChecklistMonitoring />} />
             <Route path="hiring-dashboard" element={<HiringDashboard />} />
             <Route path="hiring-pipeline" element={<HiringPipeline />} />
+            <Route path="hiring-origins-report" element={<HiringOriginsReport />} />
             <Route path="crm-sales-reports" element={<CrmSalesReports />} />
             <Route path="config-origins" element={<OriginConfig />} />
             <Route path="form-cadastros" element={<FormCadastros />} />
@@ -155,6 +157,7 @@ const AppRoutes = () => {
             <Route path="dashboard" element={<SecretariaDashboard />} />
             <Route path="hiring-dashboard" element={<HiringDashboard />} />
             <Route path="hiring-pipeline" element={<HiringPipeline />} />
+            <Route path="hiring-origins-report" element={<HiringOriginsReport />} />
             <Route path="onboarding-admin" element={<OnlineOnboarding />} />
             <Route path="form-cadastros" element={<FormCadastros />} />
             <Route path="config-origins" element={<OriginConfig />} />
