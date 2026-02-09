@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { Loader2, Search, User, Phone, Mail, CheckCircle2, XCircle, RotateCcw, ArrowRight, MessageSquare, UserX, Plus, Trash2, Users, Clock, UserRound, UploadCloud, CalendarDays, Filter, Calendar, FileText, UserCheck, Star, TrendingUp, ChevronRight, Check, CalendarClock, UserMinus, ArrowRightCircle } from 'lucide-react';
@@ -16,6 +16,8 @@ import { Candidate, InterviewScores, CandidateStatus, TeamMember } from '@/types
 import { AddScreeningCandidateModal } from '@/components/gestor/AddScreeningCandidateModal';
 import { UpdateInterviewDateModal } from '@/components/gestor/UpdateInterviewDateModal';
 import { highlightText } from '@/lib/utils';
+import { Textarea } from '@/components/ui/textarea'; // Importar Textarea
+import { useDebouncedCallback } from '@/hooks/useDebouncedCallback'; // Importar useDebouncedCallback
 
 // ID do gestor principal para fallback de exibição
 const JOAO_GESTOR_AUTH_ID = "0c6d71b7-daeb-4dde-8eec-0e7a8ffef658";
@@ -63,7 +65,8 @@ const HiringPipeline = () => {
       candidatesForGestor = candidatesForGestor.filter(c => 
         (String(c.name || '').toLowerCase()).includes(lowerCaseSearchTerm) ||
         (String(c.phone || '').toLowerCase()).includes(lowerCaseSearchTerm) ||
-        (String(c.email || '').toLowerCase()).includes(lowerCaseSearchTerm)
+        (String(c.email || '').toLowerCase()).includes(lowerCaseSearchTerm) ||
+        (String(c.notes || '').toLowerCase()).includes(lowerCaseSearchTerm) // NOVO: Incluir busca nas notas
       );
     }
 
@@ -202,6 +205,23 @@ const HiringPipeline = () => {
     }
   };
 
+  const debouncedUpdateCandidateNotes = useDebouncedCallback(async (candidateId: string, notes: string) => {
+    try {
+      await updateCandidate(candidateId, { notes });
+      toast.success("Observações salvas!");
+    } catch (error) {
+      toast.error("Erro ao salvar observações.");
+      console.error("Failed to save candidate notes:", error);
+    }
+  }, 1000); // Salva 1 segundo após a última digitação
+
+  const handleNotesChange = (candidateId: string, newNotes: string) => {
+    // Atualiza o estado local imediatamente para feedback visual
+    setCandidates(prev => prev.map(c => c.id === candidateId ? { ...c, notes: newNotes } : c));
+    // Chama a função debounced para salvar no banco de dados
+    debouncedUpdateCandidateNotes(candidateId, newNotes);
+  };
+
   if (isAuthLoading || isDataLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="w-12 h-12 text-brand-500 animate-spin" /></div>;
 
   return (
@@ -290,12 +310,24 @@ const HiringPipeline = () => {
                       </div>
 
                       <div className="flex flex-wrap gap-1">
-                        {candidate.phone && <span className="text-[10px] bg-gray-100 dark:bg-slate-600 px-1.5 py-0.5 rounded text-gray-600 dark:text-gray-300 flex items-center"><Phone className="w-2.5 h-2.5 mr-1" /> {candidate.phone}</span>}
-                        {candidate.origin && <span className="text-[10px] bg-brand-50 dark:bg-brand-900/30 px-1.5 py-0.5 rounded text-brand-700 dark:text-brand-400 font-medium">{candidate.origin}</span>}
+                        {candidate.phone && <span className="text-[10px] bg-gray-100 dark:bg-slate-600 px-1.5 py-0.5 rounded text-gray-600 dark:text-gray-300 flex items-center"><Phone className="w-2.5 h-2.5 mr-1" /> {highlightText(candidate.phone, searchTerm)}</span>}
+                        {candidate.origin && <span className="text-[10px] bg-brand-50 dark:bg-brand-900/30 px-1.5 py-0.5 rounded text-brand-700 dark:text-brand-400 font-medium">{highlightText(candidate.origin, searchTerm)}</span>}
                       </div>
 
                       <div className="pt-2 border-t border-gray-50 dark:border-slate-600 flex items-center justify-between text-[10px] text-gray-400">
                         <span className="flex items-center"><Calendar className="w-3 h-3 mr-1" /> {candidate.interviewDate ? new Date(candidate.interviewDate + 'T00:00:00').toLocaleDateString('pt-BR') : 'Sem data'}</span>
+                      </div>
+
+                      {/* NOVO: Campo de Observações */}
+                      <div className="mt-3">
+                        <Textarea
+                          value={candidate.notes || ''}
+                          onChange={(e) => handleNotesChange(candidate.id, e.target.value)}
+                          onClick={(e) => e.stopPropagation()} // Impede que o clique na textarea abra o modal do candidato
+                          placeholder="Adicionar observações rápidas..."
+                          rows={2}
+                          className="w-full text-xs p-2 border border-gray-200 dark:border-slate-600 rounded-md bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 focus:ring-brand-500 focus:border-brand-500 resize-y"
+                        />
                       </div>
 
                       {/* BOTÕES DE AÇÃO RÁPIDA NO CARD */}

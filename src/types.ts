@@ -64,6 +64,7 @@ export interface Candidate {
   createdAt: string;
   lastUpdatedAt?: string;
   responsibleUserId?: string;
+  notes?: string; // NOVO: Campo para observações rápidas
 }
 
 export interface ChecklistResource {
@@ -147,7 +148,7 @@ export interface Commission {
   consultantValue: number;
   managerValue: number;
   angelValue: number;
-  receivedValue: number;
+  receivedValue: 0;
   customRules?: CommissionRule[];
   criado_em?: string;
   _synced?: boolean;
