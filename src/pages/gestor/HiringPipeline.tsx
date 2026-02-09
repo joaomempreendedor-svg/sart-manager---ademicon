@@ -43,7 +43,7 @@ const HiringPipeline = () => {
   const {
     pipelineStages,
   } = useMemo(() => {
-    if (!user) return { pipelineStages: { candidates: [], scheduled: [], conducted: [], awaitingPreview: [], authorized: [], droppedOut: [], disqualified: [], noShow: [] } };
+    if (!user) return { pipelineStages: { candidates: [], contacted: [], scheduled: [], conducted: [], awaitingPreview: [], authorized: [], droppedOut: [], disqualified: [], noShow: [] } };
 
     let candidatesForGestor = candidates.filter(Boolean);
 
@@ -65,7 +65,9 @@ const HiringPipeline = () => {
       candidatesForGestor = candidatesForGestor.filter(c => new Date(c.createdAt) <= end);
     }
 
-    const entryPool = candidatesForGestor.filter(c => c.status === 'Triagem').sort(sortByRecentUpdate);
+    // Split Triagem into Candidates (Pending) and Contacted
+    const entryPool = candidatesForGestor.filter(c => c.status === 'Triagem' && (c.screeningStatus === 'Pending Contact' || !c.screeningStatus)).sort(sortByRecentUpdate);
+    const contactedPool = candidatesForGestor.filter(c => c.status === 'Triagem' && c.screeningStatus === 'Contacted').sort(sortByRecentUpdate);
     
     const scheduled = candidatesForGestor.filter(c => 
       c.status === 'Entrevista' && 
@@ -91,6 +93,7 @@ const HiringPipeline = () => {
     return {
       pipelineStages: { 
         candidates: { title: 'Candidatos', list: entryPool, color: 'gray', icon: Users },
+        contacted: { title: 'Contatados', list: contactedPool, color: 'blue', icon: MessageSquare },
         scheduled: { title: 'Agendadas', list: scheduled, color: 'blue', icon: Calendar },
         conducted: { title: 'Realizadas', list: conducted, color: 'purple', icon: FileText },
         noShow: { title: 'Faltou', list: noShow, color: 'red', icon: UserX },
@@ -122,7 +125,14 @@ const HiringPipeline = () => {
     let updates: Partial<Candidate> = {};
 
     switch (targetColumnId) {
-      case 'candidates': newStatus = 'Triagem'; break;
+      case 'candidates': 
+        newStatus = 'Triagem'; 
+        updates.screeningStatus = 'Pending Contact';
+        break;
+      case 'contacted': 
+        newStatus = 'Triagem'; 
+        updates.screeningStatus = 'Contacted';
+        break;
       case 'scheduled': 
         newStatus = 'Entrevista'; 
         updates.interviewConducted = false;
@@ -280,8 +290,27 @@ const HiringPipeline = () => {
                         {id === 'candidates' && (
                           <>
                             <button 
-                              onClick={(e) => handleOpenUpdateDate(e, candidate)}
+                              onClick={(e) => handleUpdateStatus(e, candidate.id, 'Triagem', { screeningStatus: 'Contacted' })}
                               className="flex items-center justify-center space-x-1 py-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg text-[10px] font-bold hover:bg-blue-100 transition"
+                            >
+                              <MessageSquare className="w-3 h-3" />
+                              <span>Contatado</span>
+                            </button>
+                            <button 
+                              onClick={(e) => handleUpdateStatus(e, candidate.id, 'Desqualificado')}
+                              className="flex items-center justify-center space-x-1 py-1.5 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 rounded-lg text-[10px] font-bold hover:bg-red-100 transition"
+                            >
+                              <UserX className="w-3 h-3" />
+                              <span>Desqualificado</span>
+                            </button>
+                          </>
+                        )}
+
+                        {id === 'contacted' && (
+                          <>
+                            <button 
+                              onClick={(e) => handleOpenUpdateDate(e, candidate)}
+                              className="flex items-center justify-center space-x-1 py-1.5 bg-blue-600 text-white rounded-lg text-[10px] font-bold hover:bg-blue-700 transition"
                             >
                               <CalendarClock className="w-3 h-3" />
                               <span>Agendar</span>
