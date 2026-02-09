@@ -144,11 +144,13 @@ const AssignmentModal: React.FC<AssignmentModalProps> = ({ isOpen, onClose, chec
   // Filtra membros baseados no tipo de checklist
   const assignableMembers = useMemo(() => {
     return teamMembers.filter(m => {
-      if (!m.isActive || !m.authUserId) return false;
+      if (!m.isActive) return false;
+      
       if (isSecretariaChecklist) {
         return m.roles.includes('Secretaria');
       } else {
-        return m.roles.includes('CONSULTOR') || m.roles.includes('Prévia') || m.roles.includes('Autorizado');
+        // Ajustado para incluir todos os cargos de consultoria do sistema
+        return m.roles.includes('Prévia') || m.roles.includes('Autorizado') || m.roles.includes('Gestor') || m.roles.includes('Anjo');
       }
     });
   }, [teamMembers, isSecretariaChecklist]);

@@ -43,7 +43,7 @@ export const DailyChecklistMonitoring = () => {
 
   const assignableMembers = useMemo(() => {
     return teamMembers
-      .filter(m => m.isActive && (m.roles.includes('CONSULTOR') || m.roles.includes('Prévia') || m.roles.includes('Autorizado') || m.roles.includes('Secretaria')))
+      .filter(m => m.isActive && (m.roles.includes('Prévia') || m.roles.includes('Autorizado') || m.roles.includes('Secretaria') || m.roles.includes('Gestor') || m.roles.includes('Anjo')))
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [teamMembers]);
 
