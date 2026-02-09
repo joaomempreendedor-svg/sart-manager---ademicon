@@ -22,7 +22,7 @@ import {
   Loader2
 } from 'lucide-react';
 
-const SecretariaDashboard = () => {
+export const SecretariaDashboard = () => {
   const { user } = useAuth();
   const { candidates, isDataLoading, hiringOrigins } = useApp();
   
@@ -140,5 +140,3 @@ const SecretariaDashboard = () => {
     </div>
   );
 };
-
-export default SecretariaDashboard;
