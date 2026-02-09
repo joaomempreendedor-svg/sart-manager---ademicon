@@ -24,7 +24,7 @@ const JOAO_GESTOR_AUTH_ID = "0c6d71b7-daeb-4dde-8eec-0e7a8ffef658";
 
 const HiringPipeline = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
-  const { candidates, teamMembers, isDataLoading, updateCandidate, interviewStructure, checklistStructure, origins } = useApp();
+  const { candidates, setCandidates, teamMembers, isDataLoading, updateCandidate, interviewStructure, checklistStructure, origins } = useApp();
   const navigate = useNavigate();
   const [draggingCandidateId, setDraggingCandidateId] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
@@ -412,7 +412,7 @@ const HiringPipeline = () => {
                           <button 
                             onClick={(e) => handleOpenUpdateDate(e, candidate)}
                             className="col-span-2 flex items-center justify-center space-x-1 py-1.5 bg-blue-500 text-white rounded-lg text-[10px] font-bold hover:bg-blue-600 transition"
-                          >
+                            >
                             <RotateCcw className="w-3 h-3" />
                             <span>Reagendar</span>
                           </button>
