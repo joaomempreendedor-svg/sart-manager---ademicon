@@ -58,7 +58,6 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
       let validatedOrigin = '';
 
       // Se houver uma origem inicial e ela estiver na lista de origens configuradas, use-a.
-      // Caso contrário, o campo de origem será vazio, forçando a seleção de uma opção válida.
       if (initialOrigin && allAvailableOrigins.includes(initialOrigin)) {
         validatedOrigin = initialOrigin;
       }
@@ -66,7 +65,8 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
       setFormData({
         name: lead?.name || '',
         stage_id: lead?.stage_id,
-        consultant_id: lead?.consultant_id,
+        // CORREÇÃO: Se for um novo lead, tenta usar o assignedConsultantId (consultor logado)
+        consultant_id: lead?.consultant_id || assignedConsultantId || '',
         proposalValue: lead?.proposalValue,
         proposalClosingDate: lead?.proposalClosingDate,
         soldCreditValue: lead?.soldCreditValue,
@@ -75,12 +75,12 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
         saleDate: lead?.saleDate,
         data: { 
           ...lead?.data,
-          origin: validatedOrigin, // Usa a origem validada (ou vazia se inválida)
+          origin: validatedOrigin,
         },
       });
       setError('');
     }
-  }, [lead, isOpen, assignedConsultantId, allAvailableOrigins]); // allAvailableOrigins como dependência
+  }, [lead, isOpen, assignedConsultantId, allAvailableOrigins]);
 
   const handleChange = (key: string, value: any) => {
     setFormData(prev => {
@@ -104,30 +104,25 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
     
     const errorsList: string[] = [];
 
-    // 1. Validate hardcoded 'name' field
     if (!formData.name?.trim()) {
       errorsList.push('Nome do Lead');
     }
 
-    // 2. Validate hardcoded 'origin' field
     if (!formData.data?.origin?.trim()) {
       errorsList.push('Origem');
     }
 
-    // 3. Validate stage_id for existing leads (if applicable)
     if (lead && !formData.stage_id) {
       errorsList.push('Etapa');
     }
 
-    // Keys that are handled by dedicated inputs and should not be re-validated as custom fields
     const systemHandledKeys = ['name', 'nome', 'origin', 'origem']; 
     
-    // 4. Validate other custom required fields
     const missingRequiredCustomFields = crmFields.filter(field => 
       field.is_active && 
       field.is_required && 
-      !systemHandledKeys.includes(field.key) && // Exclude fields handled by dedicated inputs
-      !formData.data?.[field.key] // Check if the value is missing in formData.data
+      !systemHandledKeys.includes(field.key) && 
+      !formData.data?.[field.key]
     );
 
     missingRequiredCustomFields.forEach(field => {
@@ -276,7 +271,6 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
                 </div>
               )}
 
-              {/* Campo Nome do Lead (sempre visível e obrigatório) */}
               <div className="grid gap-2">
                 <Label htmlFor="name" className="text-left">
                   Nome do Lead <span className="text-red-500">*</span>
@@ -291,7 +285,6 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
                 />
               </div>
 
-              {/* Campo Consultor (sempre visível e obrigatório) */}
               <div className="grid gap-2">
                 <Label htmlFor="consultant_id" className="text-left">
                   Consultor <span className="text-red-500">*</span>
@@ -306,7 +299,7 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
                   </SelectTrigger>
                   <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700 max-h-[200px] overflow-y-auto">
                     {consultants.map(consultant => (
-                      <SelectItem key={consultant.authUserId} value={consultant.authUserId!}> {/* Usar authUserId */}
+                      <SelectItem key={consultant.authUserId} value={consultant.authUserId!}>
                         {consultant.name}
                       </SelectItem>
                     ))}
@@ -314,7 +307,6 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
                 </Select>
               </div>
 
-              {/* Campo Origem (sempre visível e obrigatório) */}
               <div className="grid gap-2">
                 <Label htmlFor="origin" className="text-left">
                   Origem <span className="text-red-500">*</span>
@@ -372,7 +364,7 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
               </Button>
               <Button type="submit" disabled={isSaving} className="bg-brand-600 hover:bg-brand-700 text-white w-full sm:w-auto">
                 {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-                {isSaving ? 'Salvando...' : 'Salvar'}
+                <span>Salvar</span>
               </Button>
             </div>
           </DialogFooter>

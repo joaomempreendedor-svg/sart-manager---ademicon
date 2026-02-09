@@ -379,7 +379,11 @@ const CrmOverviewPage = () => {
                 <p className="text-center text-sm text-gray-400 py-4">Vazio</p>
               ) : (
                 groupedLeads[stage.id].map(lead => {
-                  const consultant = teamMembers.find(m => m.id === lead.consultant_id || m.authUserId === lead.consultant_id);
+                  // CORREÇÃO: Busca o consultor de forma mais robusta (atribuído ou quem cadastrou)
+                  const consultant = teamMembers.find(m => 
+                    (lead.consultant_id && (m.id === lead.consultant_id || m.authUserId === lead.consultant_id)) ||
+                    (m.id === lead.created_by || m.authUserId === lead.created_by)
+                  );
                   const currentLeadStage = crmStages.find(s => s.id === lead.stage_id);
                   const isWonStage = currentLeadStage?.is_won;
                   const isLostStage = currentLeadStage?.is_lost;

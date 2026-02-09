@@ -51,7 +51,6 @@ const CrmSalesReports = () => {
   }, [crmStages, activePipeline]);
 
   const consultants = useMemo(() => {
-    // Filtro mais abrangente para garantir que todos os consultores apareçam
     return teamMembers.filter(m => 
       m.isActive && 
       (m.roles.some(r => ['Prévia', 'Autorizado', 'Consultor', 'CONSULTOR'].includes(r)))
@@ -148,8 +147,11 @@ const CrmSalesReports = () => {
 
     filteredLeads.forEach(lead => {
       totalLeads++;
-      if (lead.consultant_id && dataByConsultant[lead.consultant_id]) {
-        dataByConsultant[lead.consultant_id].leadsRegistered++;
+      
+      // CORREÇÃO: Identifica o consultor de forma mais robusta
+      const consultantId = lead.consultant_id || lead.created_by;
+      if (consultantId && dataByConsultant[consultantId]) {
+        dataByConsultant[consultantId].leadsRegistered++;
       }
 
       if (lead.stage_id && pipelineStageSummary[lead.stage_id]) {
@@ -163,9 +165,9 @@ const CrmSalesReports = () => {
       if (lead.proposalValue && lead.proposalValue > 0) {
         totalProposalValue += lead.proposalValue;
         totalProposalsCount++;
-        if (lead.consultant_id && dataByConsultant[lead.consultant_id]) {
-          dataByConsultant[lead.consultant_id].proposalsSent++;
-          dataByConsultant[lead.consultant_id].proposalValue += lead.proposalValue;
+        if (consultantId && dataByConsultant[consultantId]) {
+          dataByConsultant[consultantId].proposalsSent++;
+          dataByConsultant[consultantId].proposalValue += lead.proposalValue;
         }
       }
 
@@ -178,9 +180,9 @@ const CrmSalesReports = () => {
         if (actualSoldValue > 0) {
           totalSalesCount++;
           totalSoldValue += actualSoldValue;
-          if (lead.consultant_id && dataByConsultant[lead.consultant_id]) {
-            dataByConsultant[lead.consultant_id].salesClosed++;
-            dataByConsultant[lead.consultant_id].soldValue += actualSoldValue;
+          if (consultantId && dataByConsultant[consultantId]) {
+            dataByConsultant[consultantId].salesClosed++;
+            dataByConsultant[consultantId].soldValue += actualSoldValue;
           }
           if (lead.data?.origin && salesByOrigin[lead.data.origin] !== undefined) {
             salesByOrigin[lead.data.origin].count++;
@@ -202,10 +204,6 @@ const CrmSalesReports = () => {
       return { ...c, conversionRate };
     }).sort((a, b) => b.leadsRegistered - a.leadsRegistered);
 
-    const topRegistrars = [...sortedConsultantData].sort((a, b) => b.leadsRegistered - a.leadsRegistered).slice(0, 3);
-    const topMeetingSchedulers = [...sortedConsultantData].sort((a, b) => b.meetingsScheduled - a.meetingsScheduled).slice(0, 3);
-    const topClosers = [...sortedConsultantData].sort((a, b) => b.soldValue - a.soldValue).slice(0, 3);
-
     return {
       totalLeads,
       totalProposalValue,
@@ -214,9 +212,6 @@ const CrmSalesReports = () => {
       avgSoldValue: totalSalesCount > 0 ? totalSoldValue / totalSalesCount : 0,
       overallConversionRate: totalProposalsCount > 0 ? (totalSalesCount / totalProposalsCount) * 100 : 0,
       consultantPerformance: sortedConsultantData,
-      topRegistrars,
-      topMeetingSchedulers,
-      topClosers,
       pipelineStageSummary: Object.values(pipelineStageSummary).filter(s => s.count > 0),
       salesByOrigin: Object.entries(salesByOrigin).map(([origin, data]) => ({ origin, ...data })).filter(o => o.count > 0).sort((a, b) => b.soldValue - a.soldValue),
     };
@@ -241,11 +236,12 @@ const CrmSalesReports = () => {
 
     leadsForChart.forEach(lead => {
       const wonStage = crmStages.find(s => s.id === lead.stage_id && s.is_won);
-      if (wonStage && lead.consultant_id && salesByConsultant[lead.consultant_id]) {
+      const consultantId = lead.consultant_id || lead.created_by;
+      if (wonStage && consultantId && salesByConsultant[consultantId]) {
         const actualSoldValue = (lead.soldCreditValue && lead.soldCreditValue > 0)
           ? lead.soldCreditValue
           : (lead.proposalValue || 0);
-        salesByConsultant[lead.consultant_id].soldValue += actualSoldValue;
+        salesByConsultant[consultantId].soldValue += actualSoldValue;
       }
     });
 
@@ -271,7 +267,8 @@ const CrmSalesReports = () => {
   const handleExportToExcel = () => {
     const workbook = XLSX.utils.book_new();
     const detailedLeadsData = filteredLeads.map(lead => {
-      const consultant = teamMembers.find(m => m.id === lead.consultant_id || m.authUserId === lead.consultant_id);
+      const consultantId = lead.consultant_id || lead.created_by;
+      const consultant = teamMembers.find(m => m.id === consultantId || m.authUserId === consultantId);
       const stage = crmStages.find(s => s.id === lead.stage_id);
       const wonStage = crmStages.find(s => s.id === lead.stage_id && s.is_won);
       const actualSoldValue = wonStage
