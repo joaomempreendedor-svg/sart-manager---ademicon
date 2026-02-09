@@ -55,7 +55,7 @@ const parseDbCurrency = (value: any): number | null => {
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { user, session } = useAuth();
-  const fetchedUserIdRef = useRef<string | null>(null);
+  const fetchedUserIdRef = useRef<string | null>(fetchedUserIdRef.current); // Initialize with current ref value
   const isFetchingRef = useRef(false);
 
   const [isDataLoading, setIsDataLoading] = useState(true);
@@ -355,6 +355,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const dbId = candidate.db_id || id;
     const updatedData = { ...candidate, ...updates };
     
+    // Atualiza o estado local imediatamente para feedback visual
+    setCandidates(prev => prev.map(c => (c.id === id || c.db_id === id) ? { ...c, ...updates, lastUpdatedAt: new Date().toISOString() } : c));
+
     const dataToSave = { ...updatedData };
     delete (dataToSave as any).db_id;
     delete (dataToSave as any).createdAt;
@@ -367,8 +370,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     if (error) throw error;
 
-    const now = new Date().toISOString();
-    setCandidates(prev => prev.map(c => (c.id === id || c.db_id === id) ? { ...c, ...updates, lastUpdatedAt: now } : c));
+    // A atualização do lastUpdatedAt já foi feita no setCandidates acima
+    // A linha abaixo é redundante se o setCandidates acima já foi feito
+    // setCandidates(prev => prev.map(c => (c.id === id || c.db_id === id) ? { ...c, ...updates, lastUpdatedAt: now } : c));
   };
 
   const deleteCandidate = async (id: string) => {
@@ -400,7 +404,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const value: AppContextType = {
-    isDataLoading, candidates, teamMembers, commissions, supportMaterials, cutoffPeriods, onboardingSessions, onboardingTemplateVideos, checklistStructure, setChecklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs, crmPipelines, crmStages, crmFields, crmLeads, crmOwnerUserId, dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions, weeklyTargets, weeklyTargetItems, weeklyTargetItems, weeklyTargetAssignments, metricLogs, supportMaterialsV2, supportMaterialAssignments, leadTasks, gestorTasks, gestorTaskCompletions, financialEntries, formCadastros, formFiles, notifications, teamProductionGoals, theme,
+    isDataLoading, candidates, teamMembers, commissions, supportMaterials, cutoffPeriods, onboardingSessions, onboardingTemplateVideos, checklistStructure, setChecklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs, crmPipelines, crmStages, crmFields, crmLeads, crmOwnerUserId, dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions, weeklyTargets, weeklyTargetItems, weeklyTargetAssignments, metricLogs, supportMaterialsV2, supportMaterialAssignments, leadTasks, gestorTasks, gestorTaskCompletions, financialEntries, formCadastros, formFiles, notifications, teamProductionGoals, theme,
     toggleTheme, updateConfig, resetLocalState, refetchCommissions, calculateCompetenceMonth, isGestorTaskDueOnDate, calculateNotifications,
     addCandidate, updateCandidate, deleteCandidate, getCandidate: useCallback((id: string) => candidates.find(c => c.id === id), [candidates]), 
     toggleChecklistItem: async (candidateId, itemId) => {
