@@ -23,9 +23,12 @@ import {
   CheckSquare,
   ChevronRight,
   CalendarDays,
-  ListTodo
+  ListTodo,
+  Check,
+  Trash2
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import toast from 'react-hot-toast';
 
 interface AgendaItem {
   id: string;
@@ -35,14 +38,26 @@ interface AgendaItem {
   personId: string;
   personType: 'candidate' | 'teamMember';
   dueDate: string;
+  taskId?: string; // ID específico da tarefa no checklist
 }
 
 export const SecretariaDashboard = () => {
   const { user } = useAuth();
-  const { candidates, checklistStructure, isDataLoading, gestorTasks, gestorTaskCompletions, isGestorTaskDueOnDate, notifications } = useApp();
+  const { 
+    candidates, 
+    checklistStructure, 
+    isDataLoading, 
+    gestorTasks, 
+    gestorTaskCompletions, 
+    isGestorTaskDueOnDate, 
+    toggleChecklistItem,
+    setChecklistDueDate,
+    toggleGestorTaskCompletion,
+    deleteGestorTask,
+    updateCandidate
+  } = useApp();
   const navigate = useNavigate();
   
-  // Filtros de Data Padrão: Mês Atual
   const [startDate, setStartDate] = useState(() => {
     const d = new Date();
     return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
@@ -52,26 +67,66 @@ export const SecretariaDashboard = () => {
     return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
   });
 
-  // --- Lógica da Agenda (Tudo que envolve data) ---
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  // --- Handlers de Ação ---
+  const handleCompleteItem = async (e: React.MouseEvent, item: AgendaItem) => {
+    e.stopPropagation();
+    try {
+      if (item.type === 'task' && item.taskId) {
+        await toggleChecklistItem(item.personId, item.taskId);
+        toast.success("Tarefa concluída!");
+      } else if (item.type === 'gestor_task') {
+        await toggleGestorTaskCompletion(item.id, true, todayStr);
+        toast.success("Tarefa pessoal concluída!");
+      } else if (item.type === 'interview') {
+        await updateCandidate(item.personId, { interviewConducted: true });
+        toast.success("Entrevista marcada como realizada!");
+      }
+    } catch (error) {
+      toast.error("Erro ao concluir item.");
+    }
+  };
+
+  const handleDeleteItem = async (e: React.MouseEvent, item: AgendaItem) => {
+    e.stopPropagation();
+    if (!window.confirm("Deseja remover este lembrete/prazo?")) return;
+
+    try {
+      if (item.type === 'task' && item.taskId) {
+        await setChecklistDueDate(item.personId, item.taskId, '');
+        toast.success("Prazo removido.");
+      } else if (item.type === 'gestor_task') {
+        await deleteGestorTask(item.id);
+        toast.success("Tarefa excluída.");
+      } else if (item.type === 'interview') {
+        await updateCandidate(item.personId, { interviewDate: '' });
+        toast.success("Data da entrevista removida.");
+      }
+    } catch (error) {
+      toast.error("Erro ao remover item.");
+    }
+  };
+
+  // --- Lógica da Agenda ---
   const { todayAgenda, overdueTasks } = useMemo(() => {
-    const todayStr = new Date().toISOString().split('T')[0];
     const todayAgendaItems: AgendaItem[] = [];
     const overdueItems: AgendaItem[] = [];
 
-    // 1. Prazos nos Checklists dos Candidatos
     candidates.forEach(candidate => {
       Object.entries(candidate.checklistProgress || {}).forEach(([taskId, state]) => {
         if (state.dueDate) {
           const item = checklistStructure.flatMap(s => s.items).find(i => i.id === taskId);
           if (item) {
             const agendaItem: AgendaItem = { 
-              id: `${candidate.id}-${taskId}`, 
+              id: candidate.id, 
               type: 'task', 
               title: item.label, 
               personName: candidate.name, 
               personId: candidate.id, 
               personType: 'candidate', 
-              dueDate: state.dueDate 
+              dueDate: state.dueDate,
+              taskId: taskId
             };
             if (state.dueDate === todayStr && !state.completed) todayAgendaItems.push(agendaItem);
             else if (state.dueDate < todayStr && !state.completed) overdueItems.push(agendaItem);
@@ -79,10 +134,9 @@ export const SecretariaDashboard = () => {
         }
       });
 
-      // 2. Entrevistas Agendadas
-      if (candidate.interviewDate === todayStr) {
+      if (candidate.interviewDate === todayStr && !candidate.interviewConducted) {
         todayAgendaItems.push({ 
-          id: `interview-${candidate.id}`, 
+          id: candidate.id, 
           type: 'interview', 
           title: 'Entrevista Agendada', 
           personName: candidate.name, 
@@ -92,7 +146,7 @@ export const SecretariaDashboard = () => {
         });
       } else if (candidate.interviewDate && candidate.interviewDate < todayStr && candidate.status === 'Entrevista' && !candidate.interviewConducted) {
         overdueItems.push({
-          id: `interview-overdue-${candidate.id}`,
+          id: candidate.id,
           type: 'interview',
           title: 'Entrevista não realizada',
           personName: candidate.name,
@@ -103,7 +157,6 @@ export const SecretariaDashboard = () => {
       }
     });
 
-    // 3. Tarefas Pessoais da Secretaria
     gestorTasks.filter(task => task.user_id === user?.id).forEach(task => {
       const isRecurring = task.recurrence_pattern && task.recurrence_pattern.type !== 'none';
       const isCompletedToday = isRecurring && gestorTaskCompletions.some(c => c.gestor_task_id === task.id && c.user_id === user?.id && c.date === todayStr && c.done);
@@ -111,7 +164,7 @@ export const SecretariaDashboard = () => {
 
       if (!isCompletedToday && isDueToday) {
         todayAgendaItems.push({ 
-          id: `task-${task.id}`, 
+          id: task.id, 
           type: 'gestor_task', 
           title: task.title, 
           personName: 'Minha Tarefa', 
@@ -121,7 +174,7 @@ export const SecretariaDashboard = () => {
         });
       } else if (!isRecurring && task.due_date && task.due_date < todayStr && !task.is_completed) {
         overdueItems.push({ 
-          id: `task-overdue-${task.id}`, 
+          id: task.id, 
           type: 'gestor_task', 
           title: task.title, 
           personName: 'Minha Tarefa', 
@@ -133,7 +186,7 @@ export const SecretariaDashboard = () => {
     });
 
     return { todayAgenda: todayAgendaItems, overdueTasks: overdueItems };
-  }, [candidates, checklistStructure, user, gestorTasks, gestorTaskCompletions, isGestorTaskDueOnDate]);
+  }, [candidates, checklistStructure, user, gestorTasks, gestorTaskCompletions, isGestorTaskDueOnDate, todayStr]);
 
   const handleAgendaItemClick = (item: AgendaItem) => {
     if (item.personType === 'candidate') navigate(`/gestor/candidate/${item.personId}`);
@@ -149,50 +202,23 @@ export const SecretariaDashboard = () => {
     });
 
     const total = filtered.length;
-    
-    const newCandidates = filtered.filter(c => 
-      c.status === 'Triagem' && (c.screeningStatus === 'Pending Contact' || !c.screeningStatus)
-    ).length;
-
-    const contacted = filtered.filter(c => 
-      c.status === 'Triagem' && c.screeningStatus === 'Contacted'
-    ).length;
-
-    const scheduled = filtered.filter(c => 
-      c.status === 'Entrevista' && !c.interviewConducted
-    ).length;
-
-    const conducted = filtered.filter(c => 
-      c.status === 'Entrevista' && c.interviewConducted
-    ).length;
-
-    const awaitingPreview = filtered.filter(c => c.status === 'Aguardando Prévia').length;
-    const hired = filtered.filter(c => c.status === 'Autorizado').length;
-    const noShow = filtered.filter(c => c.status === 'Faltou').length;
-    const withdrawn = filtered.filter(c => c.status === 'Reprovado').length;
-    const disqualified = filtered.filter(c => c.status === 'Desqualificado').length;
-
-    const totalHired = filtered.filter(c => 
-      !['Triagem', 'Entrevista', 'Faltou', 'Reprovado', 'Desqualificado'].includes(c.status)
-    ).length;
-
-    const totalInterviews = scheduled + conducted;
-    const attendanceRate = totalInterviews > 0 ? (conducted / totalInterviews) * 100 : 0;
-    const hiringRate = total > 0 ? (totalHired / total) * 100 : 0;
+    const totalHired = filtered.filter(c => !['Triagem', 'Entrevista', 'Faltou', 'Reprovado', 'Desqualificado'].includes(c.status)).length;
+    const totalInterviews = filtered.filter(c => c.status === 'Entrevista').length;
+    const conducted = filtered.filter(c => c.status === 'Entrevista' && c.interviewConducted).length;
 
     return {
       total,
-      newCandidates,
-      contacted,
-      scheduled,
+      newCandidates: filtered.filter(c => c.status === 'Triagem' && (c.screeningStatus === 'Pending Contact' || !c.screeningStatus)).length,
+      contacted: filtered.filter(c => c.status === 'Triagem' && c.screeningStatus === 'Contacted').length,
+      scheduled: filtered.filter(c => c.status === 'Entrevista' && !c.interviewConducted).length,
       conducted,
-      awaitingPreview,
-      hired,
-      noShow,
-      withdrawn,
-      disqualified,
-      attendanceRate,
-      hiringRate,
+      awaitingPreview: filtered.filter(c => c.status === 'Aguardando Prévia').length,
+      hired: filtered.filter(c => c.status === 'Autorizado').length,
+      noShow: filtered.filter(c => c.status === 'Faltou').length,
+      withdrawn: filtered.filter(c => c.status === 'Reprovado').length,
+      disqualified: filtered.filter(c => c.status === 'Desqualificado').length,
+      attendanceRate: totalInterviews > 0 ? (conducted / totalInterviews) * 100 : 0,
+      hiringRate: total > 0 ? (totalHired / total) * 100 : 0,
       totalHired
     };
   }, [candidates, startDate, endDate]);
@@ -225,7 +251,7 @@ export const SecretariaDashboard = () => {
 
   return (
     <div className="p-4 sm:p-8 max-w-7xl mx-auto space-y-12">
-      {/* 1. SEÇÃO DE AGENDA E LEMBRETES (NOVO) */}
+      {/* 1. SEÇÃO DE AGENDA E LEMBRETES */}
       <section className="animate-fade-in">
         <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center">
           <CalendarDays className="w-5 h-5 mr-2 text-brand-500" /> Agenda e Lembretes de Prazos
@@ -238,18 +264,28 @@ export const SecretariaDashboard = () => {
             {todayAgenda.length === 0 ? (
               <p className="text-center text-gray-400 py-8">Nenhum compromisso com data para hoje.</p>
             ) : (
-              <ScrollArea className="h-[250px] pr-4">
+              <ScrollArea className="h-[300px] pr-4">
                 <ul className="space-y-3">
                   {todayAgenda.map(item => (
-                    <li key={item.id} onClick={() => handleAgendaItemClick(item)} className="flex items-start space-x-3 p-3 rounded-lg bg-gray-50 dark:bg-slate-700/50 hover:bg-gray-100 transition-colors cursor-pointer border border-transparent hover:border-brand-200">
-                      <div className="mt-1">
-                        {item.type === 'interview' ? <Calendar className="w-4 h-4 text-green-500" /> : <CheckSquare className="w-4 h-4 text-blue-500" />}
+                    <li key={item.id + item.type + item.taskId} onClick={() => handleAgendaItemClick(item)} className="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-slate-700/50 hover:bg-gray-100 transition-colors cursor-pointer border border-transparent hover:border-brand-200 group">
+                      <div className="flex items-start space-x-3 flex-1">
+                        <div className="mt-1">
+                          {item.type === 'interview' ? <Calendar className="w-4 h-4 text-green-500" /> : <CheckSquare className="w-4 h-4 text-blue-500" />}
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-bold text-sm text-gray-900 dark:text-white">{item.title}</p>
+                          <p className="text-xs text-gray-500">{item.personName}</p>
+                        </div>
                       </div>
-                      <div className="flex-1">
-                        <p className="font-bold text-sm text-gray-900 dark:text-white">{item.title}</p>
-                        <p className="text-xs text-gray-500">{item.personName}</p>
+                      <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={(e) => handleCompleteItem(e, item)} className="p-2 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-md" title="Concluir">
+                          <Check className="w-4 h-4" />
+                        </button>
+                        <button onClick={(e) => handleDeleteItem(e, item)} className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md" title="Remover Prazo">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                        <ChevronRight className="w-4 h-4 text-gray-300" />
                       </div>
-                      <ChevronRight className="w-4 h-4 text-gray-300" />
                     </li>
                   ))}
                 </ul>
@@ -264,14 +300,24 @@ export const SecretariaDashboard = () => {
             {overdueTasks.length === 0 ? (
               <p className="text-center text-gray-400 py-8">Nenhuma data atrasada. Tudo em dia!</p>
             ) : (
-              <ScrollArea className="h-[250px] pr-4">
+              <ScrollArea className="h-[300px] pr-4">
                 <ul className="space-y-3">
                   {overdueTasks.map(item => (
-                    <li key={item.id} onClick={() => handleAgendaItemClick(item)} className="flex items-start space-x-3 p-3 rounded-lg bg-red-50 dark:bg-red-900/10 hover:bg-red-100 transition-colors cursor-pointer border border-red-100 dark:border-red-900/20">
-                      <div className="mt-1"><AlertCircle className="w-4 h-4 text-red-500" /></div>
-                      <div className="flex-1">
-                        <p className="font-bold text-sm text-red-900 dark:text-red-200">{item.title}</p>
-                        <p className="text-xs text-red-700 dark:text-red-400">{item.personName} • Venceu em {new Date(item.dueDate + 'T00:00:00').toLocaleDateString('pt-BR')}</p>
+                    <li key={item.id + item.type + item.taskId} onClick={() => handleAgendaItemClick(item)} className="flex items-center justify-between p-3 rounded-lg bg-red-50 dark:bg-red-900/10 hover:bg-red-100 transition-colors cursor-pointer border border-red-100 dark:border-red-900/20 group">
+                      <div className="flex items-start space-x-3 flex-1">
+                        <div className="mt-1"><AlertCircle className="w-4 h-4 text-red-500" /></div>
+                        <div className="flex-1">
+                          <p className="font-bold text-sm text-red-900 dark:text-red-200">{item.title}</p>
+                          <p className="text-xs text-red-700 dark:text-red-400">{item.personName} • Venceu em {new Date(item.dueDate + 'T00:00:00').toLocaleDateString('pt-BR')}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={(e) => handleCompleteItem(e, item)} className="p-2 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-md" title="Concluir">
+                          <Check className="w-4 h-4" />
+                        </button>
+                        <button onClick={(e) => handleDeleteItem(e, item)} className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md" title="Remover Prazo">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
                     </li>
                   ))}
@@ -336,89 +382,18 @@ export const SecretariaDashboard = () => {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          <MetricCard 
-            title="Total de Candidaturas" 
-            value={metrics.total} 
-            icon={Users} 
-            colorClass="bg-indigo-600 text-white" 
-          />
-          <MetricCard 
-            title="Novos Candidatos" 
-            value={metrics.newCandidates} 
-            icon={UserPlus} 
-            colorClass="bg-slate-600 text-white" 
-            subValue="Aguardando contato"
-          />
-          <MetricCard 
-            title="Contatados" 
-            value={metrics.contacted} 
-            icon={MessageSquare} 
-            colorClass="bg-amber-500 text-white" 
-            subValue="Em triagem ativa"
-          />
-          <MetricCard 
-            title="Entrevistas Agendadas" 
-            value={metrics.scheduled} 
-            icon={Clock} 
-            colorClass="bg-orange-600 text-white" 
-          />
-          <MetricCard 
-            title="Entrevistas Realizadas" 
-            value={metrics.conducted} 
-            icon={FileText} 
-            colorClass="bg-purple-600 text-white" 
-          />
-          <MetricCard 
-            title="Contratados (Em Prévia)" 
-            value={metrics.totalHired} 
-            icon={TrendingUp} 
-            colorClass="bg-blue-600 text-white" 
-            subValue="Passaram na seleção"
-          />
-          <MetricCard 
-            title="Autorizados" 
-            value={metrics.hired} 
-            icon={UserCheck} 
-            colorClass="bg-emerald-600 text-white" 
-            subValue="Contratações efetivas"
-          />
-          
-          <MetricCard 
-            title="Faltas" 
-            value={metrics.noShow} 
-            icon={Ghost} 
-            colorClass="bg-rose-500 text-white" 
-            subValue="Não compareceram"
-          />
-          <MetricCard 
-            title="Desistências" 
-            value={metrics.withdrawn} 
-            icon={UserMinus} 
-            colorClass="bg-rose-600 text-white" 
-            subValue="Candidato desistiu"
-          />
-          <MetricCard 
-            title="Desqualificados" 
-            value={metrics.disqualified} 
-            icon={XCircle} 
-            colorClass="bg-rose-700 text-white" 
-            subValue="Reprovados pelo gestor"
-          />
-          
-          <MetricCard 
-            title="Taxa de Comparecimento" 
-            value={`${metrics.attendanceRate.toFixed(1)}%`} 
-            icon={Percent} 
-            colorClass="bg-slate-800 text-white dark:bg-slate-700" 
-            subValue="Efetividade Agenda"
-          />
-          <MetricCard 
-            title="Taxa de Contratação" 
-            value={`${metrics.hiringRate.toFixed(1)}%`} 
-            icon={Percent} 
-            colorClass="bg-slate-800 text-white dark:bg-slate-700" 
-            subValue="Conversão Final"
-          />
+          <MetricCard title="Total de Candidaturas" value={metrics.total} icon={Users} colorClass="bg-indigo-600 text-white" />
+          <MetricCard title="Novos Candidatos" value={metrics.newCandidates} icon={UserPlus} colorClass="bg-slate-600 text-white" subValue="Aguardando contato" />
+          <MetricCard title="Contatados" value={metrics.contacted} icon={MessageSquare} colorClass="bg-amber-500 text-white" subValue="Em triagem ativa" />
+          <MetricCard title="Entrevistas Agendadas" value={metrics.scheduled} icon={Clock} colorClass="bg-orange-600 text-white" />
+          <MetricCard title="Entrevistas Realizadas" value={metrics.conducted} icon={FileText} colorClass="bg-purple-600 text-white" />
+          <MetricCard title="Contratados (Em Prévia)" value={metrics.totalHired} icon={TrendingUp} colorClass="bg-blue-600 text-white" subValue="Passaram na seleção" />
+          <MetricCard title="Autorizados" value={metrics.hired} icon={UserCheck} colorClass="bg-emerald-600 text-white" subValue="Contratações efetivas" />
+          <MetricCard title="Faltas" value={metrics.noShow} icon={Ghost} colorClass="bg-rose-500 text-white" subValue="Não compareceram" />
+          <MetricCard title="Desistências" value={metrics.withdrawn} icon={UserMinus} colorClass="bg-rose-600 text-white" subValue="Candidato desistiu" />
+          <MetricCard title="Desqualificados" value={metrics.disqualified} icon={XCircle} colorClass="bg-rose-700 text-white" subValue="Reprovados pelo gestor" />
+          <MetricCard title="Taxa de Comparecimento" value={`${metrics.attendanceRate.toFixed(1)}%`} icon={Percent} colorClass="bg-slate-800 text-white dark:bg-slate-700" subValue="Efetividade Agenda" />
+          <MetricCard title="Taxa de Contratação" value={`${metrics.hiringRate.toFixed(1)}%`} icon={Percent} colorClass="bg-slate-800 text-white dark:bg-slate-700" subValue="Conversão Final" />
         </div>
       </section>
     </div>
