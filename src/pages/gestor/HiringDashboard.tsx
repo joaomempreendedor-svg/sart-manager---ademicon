@@ -20,11 +20,13 @@ import {
   UserX,
   XCircle,
   UserMinus,
-  Ghost
+  Ghost,
+  MapPin,
+  BarChart3
 } from 'lucide-react';
 
 const HiringDashboard = () => {
-  const { candidates, isDataLoading } = useApp();
+  const { candidates, isDataLoading, hiringOrigins } = useApp();
   
   // Filtros de Data Padrão: Mês Atual
   const [startDate, setStartDate] = useState(() => {
@@ -90,6 +92,25 @@ const HiringDashboard = () => {
     // 9. Desqualificados (Coluna 'Desqualificado')
     const disqualified = filtered.filter(c => c.status === 'Desqualificado').length;
 
+    // --- Candidaturas por Origem ---
+    const originCounts: Record<string, number> = {};
+    hiringOrigins.forEach(origin => { originCounts[origin] = 0; });
+    originCounts['Não Informado'] = 0;
+
+    filtered.forEach(c => {
+      const origin = c.origin || 'Não Informado';
+      originCounts[origin] = (originCounts[origin] || 0) + 1;
+    });
+
+    const candidatesByOrigin = Object.entries(originCounts)
+      .map(([name, count]) => ({
+        name,
+        count,
+        percentage: total > 0 ? (count / total) * 100 : 0
+      }))
+      .filter(o => o.count > 0)
+      .sort((a, b) => b.count - a.count);
+
     // Taxas de Conversão Sincronizadas
     const contactRate = total > 0 ? ((total - newCandidates) / total) * 100 : 0;
     const totalInterviews = scheduled + conducted;
@@ -107,11 +128,12 @@ const HiringDashboard = () => {
       noShow,
       withdrawn,
       disqualified,
+      candidatesByOrigin,
       contactRate,
       attendanceRate,
       hiringRate
     };
-  }, [candidates, startDate, endDate]);
+  }, [candidates, startDate, endDate, hiringOrigins]);
 
   if (isDataLoading) {
     return (
@@ -188,7 +210,7 @@ const HiringDashboard = () => {
       </div>
 
       {/* Grid de Métricas Sincronizadas */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-12">
         <MetricCard 
           title="Total de Candidaturas" 
           value={metrics.total} 
@@ -280,6 +302,55 @@ const HiringDashboard = () => {
           colorClass="bg-slate-800 text-white dark:bg-slate-700" 
           subValue="Conversão Final"
         />
+      </div>
+
+      {/* Relatório por Origem */}
+      <div className="grid grid-cols-1 gap-8">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50 flex items-center justify-between">
+            <h2 className="font-bold text-gray-900 dark:text-white flex items-center">
+              <MapPin className="w-5 h-5 mr-2 text-brand-500" /> Candidaturas por Origem
+            </h2>
+            <BarChart3 className="w-5 h-5 text-gray-400" />
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300">
+              <thead className="bg-gray-50 dark:bg-slate-700/30 text-gray-500 dark:text-gray-400 text-xs uppercase">
+                <tr>
+                  <th className="px-6 py-3">Origem</th>
+                  <th className="px-6 py-3">Quantidade</th>
+                  <th className="px-6 py-3">Representatividade</th>
+                  <th className="px-6 py-3">Barra de Volume</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
+                {metrics.candidatesByOrigin.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-6 py-12 text-center text-gray-400">
+                      Nenhum dado de origem encontrado para o período.
+                    </td>
+                  </tr>
+                ) : (
+                  metrics.candidatesByOrigin.map(origin => (
+                    <tr key={origin.name} className="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition">
+                      <td className="px-6 py-4 font-bold text-gray-900 dark:text-white">{origin.name}</td>
+                      <td className="px-6 py-4 font-medium">{origin.count} candidatos</td>
+                      <td className="px-6 py-4 font-bold text-brand-600 dark:text-brand-400">{origin.percentage.toFixed(1)}%</td>
+                      <td className="px-6 py-4 w-1/3">
+                        <div className="w-full bg-gray-100 dark:bg-slate-700 rounded-full h-2">
+                          <div 
+                            className="bg-brand-500 h-2 rounded-full transition-all duration-500" 
+                            style={{ width: `${origin.percentage}%` }}
+                          ></div>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
   );
