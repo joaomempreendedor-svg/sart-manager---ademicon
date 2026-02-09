@@ -164,7 +164,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setHiringOrigins(DEFAULT_APP_CONFIG_DATA.hiringOrigins); setSalesOrigins(DEFAULT_APP_CONFIG_DATA.salesOrigins); setInterviewers(DEFAULT_APP_CONFIG_DATA.interviewers); setPvs(DEFAULT_APP_CONFIG_DATA.pvs);
     setCrmPipelines([]); setCrmStages([]); setCrmFields([]); setCrmLeads([]); setCrmOwnerUserId(null);
     setDailyChecklists([]); setDailyChecklistItems([]); setDailyChecklistAssignments([]); setDailyChecklistCompletions([]);
-    setWeeklyTargets([]); setWeeklyTargetItems([]); setWeeklyTargetAssignments([]); setMetricLogs([]);
+    setWeeklyTargets([]); setWeeklyTargetItems([]); setWeeklyTargetItems([]); setWeeklyTargetAssignments([]); setMetricLogs([]);
     setSupportMaterialsV2([]); setSupportMaterialAssignments([]); setLeadTasks([]); setGestorTasks([]); setGestorTaskCompletions([]); setFinancialEntries([]);
     setFormCadastros([]); setFormFiles([]); setNotifications([]); setTeamProductionGoals([]);
     setIsDataLoading(false);
@@ -229,9 +229,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   useEffect(() => {
     const fetchData = async (userId: string) => {
       try {
-        const effectiveGestorId = (user?.role === 'GESTOR' || user?.role === 'ADMIN' || user?.role === 'SECRETARIA') 
-          ? JOAO_GESTOR_AUTH_ID 
-          : userId;
+        // ATUALIZADO: Todos os membros da equipe buscam configurações e dados compartilhados do Gestor principal
+        const effectiveGestorId = JOAO_GESTOR_AUTH_ID;
         
         setCrmOwnerUserId(effectiveGestorId);
 
@@ -283,7 +282,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         
         const normalizedTeamMembers = teamMembersResult.data?.map(item => {
           const data = item.data as any;
-          const isAuthUserLinked = typeof data.id === 'string' && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(data.id);
+          const isAuthUserLinked = typeof data.id === 'string' && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(data.id);
           return { 
             id: isAuthUserLinked ? data.id : `legacy_${item.id}`, 
             db_id: item.id, 
@@ -309,7 +308,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setCrmStages(stagesData?.data || []);
         setCrmFields(fieldsData?.data || []);
         setCrmLeads(crmLeadsData?.data?.map((lead: any) => ({ id: lead.id, consultant_id: lead.consultant_id, stage_id: lead.stage_id, user_id: lead.user_id, name: lead.name, data: lead.data, created_at: lead.created_at, updated_at: lead.updated_at, created_by: lead.created_by, updated_by: lead.updated_by, proposalValue: parseDbCurrency(lead.proposal_value), proposalClosingDate: lead.proposal_closing_date, soldCreditValue: parseDbCurrency(lead.sold_credit_value), soldGroup: lead.sold_group, soldQuota: lead.sold_quota, saleDate: lead.sale_date })) || []);
-        setCrmFields(fieldsData?.data || []);
         setDailyChecklists(dailyChecklistsData?.data || []);
         setDailyChecklistItems(dailyChecklistItemsData?.data || []);
         setDailyChecklistAssignments(dailyChecklistAssignmentsData?.data || []);
