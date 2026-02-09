@@ -40,6 +40,7 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
     { to: "/secretaria/hiring-pipeline", icon: UserSearch, label: "Pipeline Contratação" },
     { to: "/secretaria/onboarding-admin", icon: Video, label: "Onboarding Online" },
     { to: "/secretaria/form-cadastros", icon: FileStack, label: "Gerenciar Formulários" },
+    { to: "/secretaria/dashboard", icon: Calendar, label: "Recepção (Hoje)" },
   ] : [
     { to: "/gestor/dashboard", icon: LayoutDashboard, label: "Dashboard" },
     { to: "/gestor/crm", icon: TrendingUp, label: "CRM" },
