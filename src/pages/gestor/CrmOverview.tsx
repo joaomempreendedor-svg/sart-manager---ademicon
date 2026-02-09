@@ -25,6 +25,9 @@ const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 };
 
+// ID do gestor principal para fallback de exibição
+const JOAO_GESTOR_AUTH_ID = "0c6d71b7-daeb-4dde-8eec-0e7a8ffef658";
+
 const CrmOverviewPage = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
   const { crmPipelines, crmStages, crmLeads, crmFields, teamMembers, isDataLoading, deleteCrmLead, updateCrmLead, addCrmLead, leadTasks, crmOwnerUserId } = useApp();
