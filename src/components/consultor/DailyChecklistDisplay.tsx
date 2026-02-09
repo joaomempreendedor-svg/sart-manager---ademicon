@@ -3,11 +3,11 @@ import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { CalendarDays, ChevronLeft, ChevronRight, ListChecks, Loader2, Eye, Video, FileText, Image as ImageIcon, Link as LinkIcon, MessageSquare, CheckCircle2 } from 'lucide-react'; // Importar CheckCircle2 icon
-import { User, DailyChecklistItem, DailyChecklistItemResourceType } from '@/types'; // Importar o tipo User e DailyChecklistItem
-import { ConfettiAnimation } from '@/components/ConfettiAnimation'; // Importar o novo componente de animação
-import { DailyChecklistItemResourceModal } from '@/components/DailyChecklistItemResourceModal'; // Importar o novo modal
-import { Button } from '@/components/ui/button'; // Importar o componente Button
+import { CalendarDays, ChevronLeft, ChevronRight, ListChecks, Loader2, Eye, Video, FileText, Image as ImageIcon, Link as LinkIcon, MessageSquare, CheckCircle2 } from 'lucide-react';
+import { User, DailyChecklistItem, DailyChecklistItemResourceType } from '@/types';
+import { ConfettiAnimation } from '@/components/ConfettiAnimation';
+import { DailyChecklistItemResourceModal } from '@/components/DailyChecklistItemResourceModal';
+import { Button } from '@/components/ui/button';
 
 const formatDate = (date: Date) => date.toISOString().split('T')[0]; // YYYY-MM-DD
 const displayDate = (date: Date) => date.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
@@ -15,8 +15,8 @@ const displayDate = (date: Date) => date.toLocaleDateString('pt-BR', { weekday: 
 interface DailyChecklistDisplayProps {
   user: User | null;
   isDataLoading: boolean;
-  highlightedItemId?: string | null; // NOVO: Prop para item destacado
-  highlightedDate?: string | null; // NOVO: Prop para data destacada
+  highlightedItemId?: string | null;
+  highlightedDate?: string | null;
 }
 
 export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ user, isDataLoading, highlightedItemId, highlightedDate }) => {
@@ -29,8 +29,8 @@ export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ us
     toggleDailyChecklistCompletion,
   } = useApp();
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [showConfetti, setShowConfetti] = useState(false); // Novo estado para controlar o confete
-  const prevDailyProgressRef = useRef(0); // Ref para armazenar o progresso anterior
+  const [showConfetti, setShowConfetti] = useState(false);
+  const prevDailyProgressRef = useRef(0);
 
   const [isResourceModalOpen, setIsResourceModalOpen] = useState(false);
   const [selectedResourceItem, setSelectedResourceItem] = useState<DailyChecklistItem | null>(null);
@@ -47,15 +47,18 @@ export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ us
       return [];
     }
 
+    const isSecretaria = userTeamMember.roles.includes('Secretaria');
+
     // 1. GLOBAIS: checklists SEM atribuição específica
-    const globalChecklists = dailyChecklists.filter(checklist => {
+    // REGRA: Se for Secretaria, NÃO mostra globais (para não ver coisas de consultor por engano)
+    const globalChecklists = isSecretaria ? [] : dailyChecklists.filter(checklist => {
       const hasAnyAssignment = dailyChecklistAssignments.some(
         assignment => assignment.daily_checklist_id === checklist.id
       );
-      return !hasAnyAssignment; // GLOBAL = sem atribuições
+      return !hasAnyAssignment;
     });
 
-    // 2. ESPECÍFICOS: checklists atribuídos a ESTE consultor
+    // 2. ESPECÍFICOS: checklists atribuídos a ESTE usuário
     const specificChecklists = dailyChecklists.filter(checklist => {
       return dailyChecklistAssignments.some(
         assignment => 
@@ -68,7 +71,6 @@ export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ us
     const allChecklists = [...globalChecklists, ...specificChecklists];
     const uniqueChecklists = allChecklists.filter(
       (checklist, index, self) =>
-        // Filtra ativos E remove duplicados
         checklist.is_active &&
         self.findIndex(c => c.id === checklist.id) === index
     );
@@ -84,23 +86,17 @@ export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ us
 
   const getCompletionStatus = useCallback((itemId: string) => {
     if (!user || !userTeamMember) return false;
-    const isCompleted = dailyChecklistCompletions.some(
+    return dailyChecklistCompletions.some(
       completion =>
         completion.daily_checklist_item_id === itemId &&
         completion.consultant_id === userTeamMember.id &&
         completion.date === formattedSelectedDate &&
         completion.done
     );
-    console.log(`[DailyChecklistDisplay] getCompletionStatus for item ${itemId} on ${formattedSelectedDate} by ${userTeamMember.id}: ${isCompleted}`);
-    return isCompleted;
   }, [dailyChecklistCompletions, user, userTeamMember, formattedSelectedDate]);
 
   const handleToggleCompletion = async (itemId: string, currentStatus: boolean) => {
-    console.log(`[DailyChecklistDisplay] handleToggleCompletion called for item ${itemId}, currentStatus: ${currentStatus}, userTeamMember.id: ${userTeamMember?.id}`);
-    if (!user || !userTeamMember) {
-      console.log("[DailyChecklistDisplay] User or userTeamMember not available, cannot toggle completion.");
-      return;
-    }
+    if (!user || !userTeamMember) return;
     await toggleDailyChecklistCompletion(itemId, formattedSelectedDate, !currentStatus, userTeamMember.id);
   };
 
@@ -112,7 +108,6 @@ export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ us
     });
   };
 
-  // Calcular o progresso diário para o confete
   const { completedDailyTasks, totalDailyTasks, dailyProgress } = useMemo(() => {
     if (!user || !userTeamMember) return { completedDailyTasks: 0, totalDailyTasks: 0, dailyProgress: 0 };
 
@@ -138,15 +133,13 @@ export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ us
     };
   }, [user, userTeamMember, assignedChecklists, dailyChecklistItems, dailyChecklistCompletions, formattedSelectedDate]);
 
-  // Efeito para disparar o confete
   useEffect(() => {
-    if (dailyProgress === 100 && prevDailyProgressRef.current !== 100) {
+    if (dailyProgress === 100 && prevDailyProgressRef.current !== 100 && totalDailyTasks > 0) {
       setShowConfetti(true);
     }
     prevDailyProgressRef.current = dailyProgress;
-  }, [dailyProgress]);
+  }, [dailyProgress, totalDailyTasks]);
 
-  // Função para resetar o confete após a animação
   const handleConfettiComplete = useCallback(() => {
     setShowConfetti(false);
   }, []);
@@ -156,29 +149,16 @@ export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ us
     setIsResourceModalOpen(true);
   };
 
-  const getResourceTypeIcon = (type: DailyChecklistItemResourceType) => {
-    switch (type) {
-      case 'video': return <Video className="w-4 h-4 text-red-500" />;
-      case 'pdf': return <FileText className="w-4 h-4 text-red-500" />;
-      case 'image': return <ImageIcon className="w-4 h-4 text-green-500" />;
-      case 'link': return <LinkIcon className="w-4 h-4 text-blue-500" />;
-      case 'text': return <MessageSquare className="w-4 h-4 text-purple-500" />;
-      default: return null;
-    }
-  };
-
-  // Efeito para rolar até o item destacado
   const itemRefs = useRef<Record<string, HTMLDivElement | null>>({});
   useEffect(() => {
     if (highlightedItemId && highlightedDate) {
-      // Se a data destacada for diferente da data atual, navegue para ela
       if (highlightedDate !== formattedSelectedDate) {
         setSelectedDate(new Date(highlightedDate + 'T00:00:00'));
       }
-      // Aguarde a renderização e role
       const timer = setTimeout(() => {
         itemRefs.current[highlightedItemId]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }, 100); // Pequeno delay para garantir que o elemento esteja renderizado
+      }, 100);
+      return () => clearTimeout(timer);
     }
   }, [highlightedItemId, highlightedDate, formattedSelectedDate]);
 
@@ -193,7 +173,7 @@ export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ us
 
   return (
     <div className="space-y-6">
-      {showConfetti && <ConfettiAnimation run={showConfetti} onConfettiComplete={handleConfettiComplete} />} {/* Renderiza o confete */}
+      {showConfetti && <ConfettiAnimation run={showConfetti} onConfettiComplete={handleConfettiComplete} />}
       <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center justify-between flex-col sm:flex-row">
         <button onClick={() => navigateDay(-1)} className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-600 dark:text-gray-300">
           <ChevronLeft className="w-5 h-5" />
@@ -210,7 +190,7 @@ export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ us
       {assignedChecklists.length === 0 ? (
         <div className="text-center py-8 bg-white dark:bg-slate-800 rounded-xl border border-dashed border-gray-200 dark:border-slate-700">
           <ListChecks className="mx-auto w-12 h-12 text-gray-300 dark:text-slate-600 mb-4" />
-          <p className="mt-4 text-gray-500 dark:text-gray-400">Nenhum checklist diário atribuído a você ou ativo.</p>
+          <p className="mt-4 text-gray-500 dark:text-gray-400">Nenhum checklist diário atribuído a você.</p>
           <p className="text-sm text-gray-400">Entre em contato com seu gestor para mais informações.</p>
         </div>
       ) : (
@@ -231,7 +211,6 @@ export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ us
                     const isCompleted = getCompletionStatus(item.id);
                     const isHighlighted = highlightedItemId === item.id && highlightedDate === formattedSelectedDate;
                     
-                    // Determine classes for the task item
                     let itemClasses = 'p-4 flex items-center justify-between flex-col sm:flex-row';
                     let labelClasses = 'text-sm font-medium leading-none';
 
@@ -249,7 +228,7 @@ export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ us
                     return (
                       <div 
                         key={item.id} 
-                        ref={el => itemRefs.current[item.id] = el} // Atribuir a ref
+                        ref={el => itemRefs.current[item.id] = el}
                         className={itemClasses}
                       >
                         <div className="flex items-center space-x-3 mb-2 sm:mb-0">
@@ -261,7 +240,7 @@ export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ us
                           />
                           <Label htmlFor={`item-${item.id}`} className={labelClasses}>
                             {item.text}
-                            {isCompleted && ( // NOVO: Indicador de conclusão explícito e mais proeminente
+                            {isCompleted && (
                               <span className="ml-2 text-base text-green-600 dark:text-green-400 font-bold">
                                 <CheckCircle2 className="w-4 h-4 inline-block mr-1" /> Concluído
                               </span>

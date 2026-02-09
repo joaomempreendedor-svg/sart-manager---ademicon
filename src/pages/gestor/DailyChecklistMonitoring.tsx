@@ -38,14 +38,12 @@ export const DailyChecklistMonitoring = () => {
 
   const formattedSelectedDate = useMemo(() => formatDate(selectedDate), [selectedDate]);
 
-  // ATUALIZADO: Incluindo 'Secretaria' na lista de membros monitoráveis
   const assignableMembers = useMemo(() => {
     return teamMembers
       .filter(m => m.isActive && (m.roles.includes('CONSULTOR') || m.roles.includes('Prévia') || m.roles.includes('Autorizado') || m.roles.includes('Secretaria')))
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [teamMembers]);
 
-  // Set initial selected consultant if available
   React.useEffect(() => {
     if (assignableMembers.length > 0 && !selectedConsultantId) {
       setSelectedConsultantId(assignableMembers[0].id);
@@ -55,11 +53,15 @@ export const DailyChecklistMonitoring = () => {
   const assignedChecklists = useMemo(() => {
     if (!selectedConsultantId) return [];
 
+    const selectedMember = teamMembers.find(m => m.id === selectedConsultantId);
+    const isSecretaria = selectedMember?.roles.includes('Secretaria');
+
     const explicitAssignments = dailyChecklistAssignments
       .filter(assignment => assignment.consultant_id === selectedConsultantId)
       .map(assignment => assignment.daily_checklist_id);
 
-    const globalChecklists = dailyChecklists.filter(checklist => {
+    // REGRA: Se for Secretaria, NÃO mostra globais
+    const globalChecklists = isSecretaria ? [] : dailyChecklists.filter(checklist => {
       const hasAssignments = dailyChecklistAssignments.some(assignment => assignment.daily_checklist_id === checklist.id);
       return !hasAssignments;
     }).map(checklist => checklist.id);
@@ -69,7 +71,7 @@ export const DailyChecklistMonitoring = () => {
     return dailyChecklists
       .filter(checklist => checklist.is_active && relevantChecklistIds.has(checklist.id))
       .sort((a, b) => a.title.localeCompare(b.title));
-  }, [dailyChecklists, dailyChecklistAssignments, selectedConsultantId]);
+  }, [dailyChecklists, dailyChecklistAssignments, selectedConsultantId, teamMembers]);
 
   const getItemsForChecklist = useCallback((checklistId: string) => {
     return dailyChecklistItems
