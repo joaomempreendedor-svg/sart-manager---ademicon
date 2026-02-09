@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { Candidate, TeamMember } from '@/types';
-import { X, Save, Loader2, User, Phone, Mail, Users, MapPin } from 'lucide-react'; // Adicionado MapPin
+import { X, Save, Loader2, User, Phone, Mail, Users, MapPin } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -28,20 +28,20 @@ interface AddScreeningCandidateModalProps {
 }
 
 export const AddScreeningCandidateModal: React.FC<AddScreeningCandidateModalProps> = ({ isOpen, onClose }) => {
-  const { addCandidate, teamMembers, hiringOrigins } = useApp(); // ATUALIZADO: Usando hiringOrigins
+  const { addCandidate, teamMembers, hiringOrigins } = useApp();
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
     email: '',
-    origin: '', // NOVO: Adicionado campo de origem
+    origin: '',
     responsibleUserId: '',
   });
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
 
   const responsibleMembers = useMemo(() => {
-    // Filtra apenas membros ativos que são Gestor ou Anjo E que possuem um authUserId
-    return teamMembers.filter(m => m.isActive && m.authUserId && (m.roles.includes('Gestor') || m.roles.includes('Anjo')));
+    // Filtra apenas membros ativos que são Gestor ou Anjo
+    return teamMembers.filter(m => m.isActive && (m.roles.includes('Gestor') || m.roles.includes('Anjo')));
   }, [teamMembers]);
 
   const resetForm = () => {
@@ -49,7 +49,7 @@ export const AddScreeningCandidateModal: React.FC<AddScreeningCandidateModalProp
       name: '',
       phone: '',
       email: '',
-      origin: '', // Resetar origem
+      origin: '',
       responsibleUserId: '',
     });
     setError('');
@@ -68,7 +68,7 @@ export const AddScreeningCandidateModal: React.FC<AddScreeningCandidateModalProp
       setError('Nome é obrigatório.');
       return;
     }
-    if (!formData.origin.trim()) { // Validação da origem
+    if (!formData.origin.trim()) {
       setError('Origem é obrigatória.');
       return;
     }
@@ -80,7 +80,7 @@ export const AddScreeningCandidateModal: React.FC<AddScreeningCandidateModalProp
         name: formData.name.trim(),
         phone: formData.phone.trim(),
         email: formData.email.trim(),
-        origin: formData.origin, // NOVO: Salva a origem
+        origin: formData.origin,
         status: 'Triagem',
         screeningStatus: 'Pending Contact',
         interviewDate: '',
@@ -159,7 +159,6 @@ export const AddScreeningCandidateModal: React.FC<AddScreeningCandidateModalProp
                 />
               </div>
             </div>
-            {/* NOVO: Campo de seleção para a Origem */}
             <div>
               <Label htmlFor="origin">Origem *</Label>
               <div className="relative">
@@ -182,7 +181,6 @@ export const AddScreeningCandidateModal: React.FC<AddScreeningCandidateModalProp
                 </Select>
               </div>
             </div>
-            {/* Campo de seleção para o responsável */}
             <div>
               <Label htmlFor="responsibleUser">De quem é o candidato? (Opcional)</Label>
               <div className="relative">
@@ -196,7 +194,7 @@ export const AddScreeningCandidateModal: React.FC<AddScreeningCandidateModalProp
                   </SelectTrigger>
                   <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
                     {responsibleMembers.map(member => (
-                      <SelectItem key={member.authUserId} value={member.authUserId!}> {/* Usar authUserId */}
+                      <SelectItem key={member.id} value={member.id}>
                         {member.name} ({member.roles.join(', ')})
                       </SelectItem>
                     ))}
@@ -217,6 +215,6 @@ export const AddScreeningCandidateModal: React.FC<AddScreeningCandidateModalProp
           </DialogFooter>
         </form>
       </DialogContent>
-    </Dialog>
+    </div>
   );
 };

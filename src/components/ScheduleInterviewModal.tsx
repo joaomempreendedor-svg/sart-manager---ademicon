@@ -17,21 +17,21 @@ interface ScheduleInterviewModalProps {
 }
 
 export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({ isOpen, onClose }) => {
-  const { addCandidate, teamMembers, hiringOrigins } = useApp(); // ATUALIZADO: Usando hiringOrigins
+  const { addCandidate, teamMembers, hiringOrigins } = useApp();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
     date: new Date().toISOString().split('T')[0],
     responsibleUserId: '',
-    origin: '', // NOVO: Adicionado campo de origem
+    origin: '',
   });
   const [isSaving, setIsSaving] = useState(false);
   const [savedCandidate, setSavedCandidate] = useState<Candidate | null>(null);
 
   const responsibleMembers = useMemo(() => {
-    // Filtra apenas membros ativos que são Gestor ou Anjo E que possuem um authUserId
-    return teamMembers.filter(m => m.isActive && m.authUserId && (m.roles.includes('Gestor') || m.roles.includes('Anjo')));
+    // Filtra apenas membros ativos que são Gestor ou Anjo
+    return teamMembers.filter(m => m.isActive && (m.roles.includes('Gestor') || m.roles.includes('Anjo')));
   }, [teamMembers]);
 
   const resetForm = () => {
@@ -40,7 +40,7 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({ 
       phone: '',
       date: new Date().toISOString().split('T')[0],
       responsibleUserId: '',
-      origin: '', // Resetar origem
+      origin: '',
     });
     setSavedCandidate(null);
   };
@@ -52,7 +52,7 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({ 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name || !formData.date || !formData.responsibleUserId || !formData.origin) { // Validação da origem
+    if (!formData.name || !formData.date || !formData.responsibleUserId || !formData.origin) {
       alert('Nome, data, responsável e origem são obrigatórios.');
       return;
     }
@@ -68,7 +68,7 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({ 
       phone: formData.phone,
       interviewDate: formData.date,
       interviewer: 'Não definido',
-      origin: formData.origin, // NOVO: Salva a origem
+      origin: formData.origin,
       status: 'Entrevista',
       interviewScores: emptyScores,
       checkedQuestions: {},
@@ -138,7 +138,6 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({ 
                 <CalendarIcon className="absolute left-3 top-9 w-4 h-4 text-gray-400" />
                 <input type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} required className="w-full pl-10 p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600" />
               </div>
-              {/* NOVO: Campo de seleção para a Origem */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Origem do Candidato *</label>
                 <div className="relative">
@@ -161,7 +160,6 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({ 
                   </Select>
                 </div>
               </div>
-              {/* Campo de seleção para o responsável */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">De quem é o candidato? *</label>
                 <div className="relative">
@@ -176,7 +174,7 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({ 
                     </SelectTrigger>
                     <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
                       {responsibleMembers.map(member => (
-                        <SelectItem key={member.authUserId} value={member.authUserId!}> {/* Usar authUserId */}
+                        <SelectItem key={member.id} value={member.id}>
                           {member.name} ({member.roles.join(', ')})
                         </SelectItem>
                       ))}

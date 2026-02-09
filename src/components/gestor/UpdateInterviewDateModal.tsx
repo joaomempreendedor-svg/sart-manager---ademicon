@@ -35,7 +35,8 @@ export const UpdateInterviewDateModal: React.FC<UpdateInterviewDateModalProps> =
   const [isSaving, setIsSaving] = useState(false);
 
   const responsibleMembers = useMemo(() => {
-    return teamMembers.filter(m => m.isActive && m.authUserId && (m.roles.includes('Gestor') || m.roles.includes('Anjo')));
+    // Filtra apenas membros ativos que são Gestor ou Anjo
+    return teamMembers.filter(m => m.isActive && (m.roles.includes('Gestor') || m.roles.includes('Anjo')));
   }, [teamMembers]);
 
   useEffect(() => {
@@ -49,10 +50,11 @@ export const UpdateInterviewDateModal: React.FC<UpdateInterviewDateModalProps> =
     if (!candidate || !date) return;
     
     const title = encodeURIComponent(`Entrevista: ${candidate.name}`);
-    const startDate = new Date(date + 'T09:00:00'); // Default to 9 AM
-    const endDate = new Date(date + 'T10:00:00');   // Default to 10 AM
+    const startDate = new Date(date + 'T00:00:00');
+    const endDate = new Date(startDate);
+    endDate.setDate(startDate.getDate() + 1);
     
-    const formatDateForGoogle = (date: Date) => date.toISOString().replace(/-|:|\.\d\d\d/g, "");
+    const formatDateForGoogle = (date: Date) => date.toISOString().split('T')[0].replace(/-/g, '');
     const dates = `${formatDateForGoogle(startDate)}/${formatDateForGoogle(endDate)}`;
     
     const details = encodeURIComponent(`Entrevista com o candidato ${candidate.name}.\nTelefone: ${candidate.phone || 'Não informado'}`);
@@ -126,7 +128,7 @@ export const UpdateInterviewDateModal: React.FC<UpdateInterviewDateModalProps> =
                   </SelectTrigger>
                   <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
                     {responsibleMembers.map(member => (
-                      <SelectItem key={member.authUserId} value={member.authUserId!}>
+                      <SelectItem key={member.id} value={member.id}>
                         {member.name}
                       </SelectItem>
                     ))}
