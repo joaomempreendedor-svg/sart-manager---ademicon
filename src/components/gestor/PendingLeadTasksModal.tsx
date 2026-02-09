@@ -14,6 +14,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 
+const JOAO_GESTOR_AUTH_ID = "0c6d71b7-daeb-4dde-8eec-0e7a8ffef658";
+
 interface PendingLeadTasksModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -34,9 +36,18 @@ export const PendingLeadTasksModal: React.FC<PendingLeadTasksModalProps> = ({ is
   };
 
   const getConsultantName = (userId: string) => {
+    if (!userId) return 'Não atribuído';
+
+    // 1. Tenta encontrar na lista de membros da equipe
     const member = teamMembers.find(m => m.id === userId || m.authUserId === userId);
     if (member) return member.name;
-    if (userId === user?.id) return user.name;
+
+    // 2. Verifica se é o Gestor João (ID fixo)
+    if (userId === JOAO_GESTOR_AUTH_ID) return 'João Müller';
+
+    // 3. Verifica se é o usuário logado no momento
+    if (user && userId === user.id) return user.name;
+
     return 'Não atribuído';
   };
 

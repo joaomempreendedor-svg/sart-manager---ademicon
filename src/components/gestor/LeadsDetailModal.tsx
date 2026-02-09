@@ -14,6 +14,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 
+const JOAO_GESTOR_AUTH_ID = "0c6d71b7-daeb-4dde-8eec-0e7a8ffef658";
+
 interface LeadsDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -48,10 +50,20 @@ export const LeadsDetailModal: React.FC<LeadsDetailModalProps> = ({
   };
 
   const getConsultantName = (lead: CrmLead) => {
-    const consultantId = lead.consultant_id || lead.created_by;
-    const member = teamMembers.find(m => m.id === consultantId || m.authUserId === consultantId);
+    const targetId = lead.consultant_id || lead.created_by;
+    
+    if (!targetId) return 'Não atribuído';
+
+    // 1. Tenta encontrar na lista de membros da equipe
+    const member = teamMembers.find(m => m.id === targetId || m.authUserId === targetId);
     if (member) return member.name;
-    if (consultantId === user?.id) return user.name;
+
+    // 2. Verifica se é o Gestor João (ID fixo)
+    if (targetId === JOAO_GESTOR_AUTH_ID) return 'João Müller';
+
+    // 3. Verifica se é o usuário logado no momento
+    if (user && targetId === user.id) return user.name;
+
     return 'Não atribuído';
   };
 

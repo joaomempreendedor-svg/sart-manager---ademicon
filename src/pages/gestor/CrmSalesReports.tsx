@@ -14,6 +14,8 @@ import TopSellersChart from '@/components/crm/TopSellersChart';
 import { SalesByOriginDetailModal } from '@/components/crm/SalesByOriginDetailModal';
 import toast from 'react-hot-toast';
 
+const JOAO_GESTOR_AUTH_ID = "0c6d71b7-daeb-4dde-8eec-0e7a8ffef658";
+
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 };
@@ -62,6 +64,16 @@ const CrmSalesReports = () => {
         roles: [user.role as any],
         isActive: true,
       } as any);
+    }
+    // Garante que o João Müller esteja na lista se o ID bater
+    if (!members.some(m => m.id === JOAO_GESTOR_AUTH_ID || m.authUserId === JOAO_GESTOR_AUTH_ID)) {
+        members.push({
+            id: JOAO_GESTOR_AUTH_ID,
+            authUserId: JOAO_GESTOR_AUTH_ID,
+            name: 'João Müller',
+            roles: ['Gestor'],
+            isActive: true
+        } as any);
     }
     return members;
   }, [teamMembers, user]);
@@ -125,7 +137,7 @@ const CrmSalesReports = () => {
       };
     } = {};
 
-    // Inicializa com todos os membros da equipe (incluindo o gestor virtual se adicionado)
+    // Inicializa com todos os membros da equipe
     allTeamMembers.forEach(c => {
       dataByConsultant[c.id] = {
         name: c.name,
@@ -158,8 +170,9 @@ const CrmSalesReports = () => {
     filteredLeads.forEach(lead => {
       totalLeads++;
       
-      // CORREÇÃO: Identifica o consultor responsável (atribuído ou criador)
+      // RESOLUÇÃO DE ID DO CONSULTOR
       const consultantId = lead.consultant_id || lead.created_by;
+      
       if (consultantId && dataByConsultant[consultantId]) {
         dataByConsultant[consultantId].leadsRegistered++;
       }
@@ -262,7 +275,7 @@ const CrmSalesReports = () => {
 
       return {
         'Nome do Lead': lead.name,
-        'Consultor': consultant?.name || 'N/A',
+        'Consultor': consultant?.name || (consultantId === JOAO_GESTOR_AUTH_ID ? 'João Müller' : 'N/A'),
         'Etapa': stage?.name || 'N/A',
         'Origem': lead.data?.origin || 'N/A',
         'Valor Proposta': lead.proposalValue || 0,

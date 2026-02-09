@@ -21,6 +21,8 @@ import { CrmLead, LeadTask } from '@/types';
 import { useLocation } from 'react-router-dom';
 import { TableSkeleton } from '@/components/TableSkeleton';
 
+const JOAO_GESTOR_AUTH_ID = "0c6d71b7-daeb-4dde-8eec-0e7a8ffef658";
+
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 };
@@ -126,6 +128,25 @@ const CrmOverviewPage = () => {
     });
     return groups;
   }, [pipelineStages, filteredLeads]);
+
+  // FUNÇÃO DE RESOLUÇÃO DE NOME ROBUSTA
+  const getConsultantName = (lead: CrmLead) => {
+    const targetId = lead.consultant_id || lead.created_by;
+    
+    if (!targetId) return 'Não atribuído';
+
+    // 1. Tenta encontrar na lista de membros da equipe
+    const member = teamMembers.find(m => m.id === targetId || m.authUserId === targetId);
+    if (member) return member.name;
+
+    // 2. Verifica se é o Gestor João (ID fixo)
+    if (targetId === JOAO_GESTOR_AUTH_ID) return 'João Müller';
+
+    // 3. Verifica se é o usuário logado no momento
+    if (user && targetId === user.id) return user.name;
+
+    return 'Não atribuído';
+  };
 
   const handleAddNewLead = () => {
     setEditingLead(null);
@@ -379,12 +400,7 @@ const CrmOverviewPage = () => {
                 <p className="text-center text-sm text-gray-400 py-4">Vazio</p>
               ) : (
                 groupedLeads[stage.id].map(lead => {
-                  // CORREÇÃO: Busca o consultor de forma mais robusta (atribuído ou quem cadastrou)
-                  const consultant = teamMembers.find(m => 
-                    (lead.consultant_id && (m.id === lead.consultant_id || m.authUserId === lead.consultant_id)) ||
-                    (!lead.consultant_id && (m.id === lead.created_by || m.authUserId === lead.created_by))
-                  );
-                  
+                  const consultantName = getConsultantName(lead);
                   const currentLeadStage = crmStages.find(s => s.id === lead.stage_id);
                   const isWonStage = currentLeadStage?.is_won;
                   const isLostStage = currentLeadStage?.is_lost;
@@ -425,7 +441,7 @@ const CrmOverviewPage = () => {
                       </div>
                       <div className="text-[10px] text-gray-500 dark:text-gray-400 space-y-1">
                         <div className="flex items-center font-bold text-brand-600 dark:text-brand-400">
-                          <UserRound className="w-3 h-3 mr-1" /> {consultant?.name || (lead.created_by === user?.id ? user?.name : 'Não atribuído')}
+                          <UserRound className="w-3 h-3 mr-1" /> {consultantName}
                         </div>
                         {lead.data.phone && <div className="flex items-center"><Phone className="w-3 h-3 mr-1" /> {lead.data.phone}</div>}
                         {lead.data.origin && <div className="flex items-center"><Tag className="w-3 h-3 mr-1" /> {lead.data.origin}</div>}
