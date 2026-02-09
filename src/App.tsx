@@ -40,6 +40,7 @@ import { DailyChecklistMonitoring } from '@/pages/gestor/DailyChecklistMonitorin
 import HiringPipeline from '@/pages/gestor/HiringPipeline';
 import CrmSalesReports from '@/pages/gestor/CrmSalesReports';
 import HiringReports from '@/pages/gestor/HiringReports';
+import HiringDashboard from '@/pages/gestor/HiringDashboard'; // NOVO
 import { OriginConfig } from '@/pages/OriginConfig';
 import { FinancialPanel } from '@/pages/FinancialPanel';
 import { FormCadastros } from '@/pages/gestor/FormSubmissions';
@@ -140,6 +141,7 @@ const AppRoutes = () => {
             <Route path="crm" element={<CrmOverviewPage />} />
             <Route path="daily-checklist-config" element={<DailyChecklistConfig />} />
             <Route path="daily-checklist-monitoring" element={<DailyChecklistMonitoring />} />
+            <Route path="hiring-dashboard" element={<HiringDashboard />} /> {/* NOVO */}
             <Route path="hiring-pipeline" element={<HiringPipeline />} />
             <Route path="crm-sales-reports" element={<CrmSalesReports />} />
             <Route path="hiring-reports" element={<HiringReports />} />
@@ -153,6 +155,7 @@ const AppRoutes = () => {
         <Route element={<RequireAuth allowedRoles={['SECRETARIA']} />}>
           <Route path="/secretaria" element={<MainLayout />}>
             <Route path="dashboard" element={<SecretariaDashboard />} />
+            <Route path="hiring-dashboard" element={<HiringDashboard />} /> {/* NOVO */}
             <Route path="hiring-pipeline" element={<HiringPipeline />} />
             <Route path="hiring-reports" element={<HiringReports />} />
             <Route path="onboarding-admin" element={<OnlineOnboarding />} />
