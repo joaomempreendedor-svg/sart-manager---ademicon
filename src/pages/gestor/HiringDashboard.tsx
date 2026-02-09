@@ -15,7 +15,10 @@ import {
   Filter, 
   RotateCcw,
   ArrowUpRight,
-  Briefcase
+  Briefcase,
+  FileText,
+  UserX,
+  XCircle
 } from 'lucide-react';
 
 const HiringDashboard = () => {
@@ -35,6 +38,7 @@ const HiringDashboard = () => {
     const start = new Date(startDate + 'T00:00:00');
     const end = new Date(endDate + 'T23:59:59');
 
+    // Filtro base por data de criação
     const filtered = candidates.filter(c => {
       const created = new Date(c.createdAt);
       return created >= start && created <= end;
@@ -42,61 +46,66 @@ const HiringDashboard = () => {
 
     const total = filtered.length;
     
-    // Em Pipeline (Não finalizados)
-    const inPipeline = filtered.filter(c => 
-      !['Autorizado', 'Reprovado', 'Desqualificado'].includes(c.status)
+    // 1. Novos Candidatos (Coluna 'Candidatos')
+    const newCandidates = filtered.filter(c => 
+      c.status === 'Triagem' && (c.screeningStatus === 'Pending Contact' || !c.screeningStatus)
     ).length;
 
-    // Finalizadas (Contratados ou Desistências/Reprovados)
-    const finished = filtered.filter(c => 
-      ['Autorizado', 'Reprovado', 'Desqualificado'].includes(c.status)
-    ).length;
-
-    // Este Mês (Candidaturas criadas no mês atual)
-    const now = new Date();
-    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const thisMonth = candidates.filter(c => new Date(c.createdAt) >= thisMonthStart).length;
-
-    // Contatados (Triagem com status 'Contacted' ou que já avançaram de etapa)
+    // 2. Contatados (Coluna 'Contatados')
     const contacted = filtered.filter(c => 
-      c.screeningStatus === 'Contacted' || c.status !== 'Triagem'
+      c.status === 'Triagem' && c.screeningStatus === 'Contacted'
     ).length;
 
-    // Entrevistas Agendadas (Status 'Entrevista' mas ainda não realizada)
+    // 3. Entrevistas Agendadas (Coluna 'Agendadas')
     const scheduled = filtered.filter(c => 
-      c.status === 'Entrevista' && !c.interviewConducted
+      c.status === 'Entrevista' && 
+      !c.interviewConducted &&
+      c.interviewScores.basicProfile === 0 && 
+      c.interviewScores.commercialSkills === 0 && 
+      c.interviewScores.behavioralProfile === 0 && 
+      c.interviewScores.jobFit === 0 && 
+      c.interviewScores.notes === ''
     ).length;
 
-    // Contratados (Status 'Autorizado')
+    // 4. Entrevistas Realizadas (Coluna 'Realizadas')
+    const conducted = filtered.filter(c => 
+      c.status === 'Entrevista' && 
+      (c.interviewConducted || c.interviewScores.basicProfile > 0 || c.interviewScores.commercialSkills > 0 || c.interviewScores.behavioralProfile > 0 || c.interviewScores.jobFit > 0 || c.interviewScores.notes !== '')
+    ).length;
+
+    // 5. Em Prévia (Coluna 'Em Prévia')
+    const awaitingPreview = filtered.filter(c => c.status === 'Aguardando Prévia').length;
+
+    // 6. Contratados (Coluna 'Autorizados')
     const hired = filtered.filter(c => c.status === 'Autorizado').length;
 
-    // Iniciaram Trabalho (Integração Presencial ou além)
-    const startedWork = filtered.filter(c => 
-      ['Integração Presencial', 'Acompanhamento 90 Dias', 'Autorizado'].includes(c.status)
+    // 7. Desistências e Faltas (Colunas 'Faltou', 'Desistências', 'Desqualificado')
+    const droppedOut = filtered.filter(c => 
+      ['Reprovado', 'Desqualificado', 'Faltou'].includes(c.status)
     ).length;
 
-    // Completaram Onboarding (Acompanhamento 90 Dias ou além)
-    const completedOnboarding = filtered.filter(c => 
-      ['Acompanhamento 90 Dias', 'Autorizado'].includes(c.status)
-    ).length;
+    // Taxas de Conversão Sincronizadas
+    // Taxa de Contato: Candidatos que saíram da primeira coluna
+    const contactRate = total > 0 ? ((total - newCandidates) / total) * 100 : 0;
+    
+    // Taxa de Comparecimento: Realizadas / (Agendadas + Realizadas)
+    const totalInterviews = scheduled + conducted;
+    const attendanceRate = totalInterviews > 0 ? (conducted / totalInterviews) * 100 : 0;
 
-    // Taxas de Conversão
-    const contactRate = total > 0 ? (contacted / total) * 100 : 0;
-    const interviewRate = total > 0 ? (filtered.filter(c => c.status !== 'Triagem').length / total) * 100 : 0;
+    // Taxa de Contratação: Autorizados / Total
     const hiringRate = total > 0 ? (hired / total) * 100 : 0;
 
     return {
       total,
-      inPipeline,
-      finished,
-      thisMonth,
+      newCandidates,
       contacted,
       scheduled,
+      conducted,
+      awaitingPreview,
       hired,
-      startedWork,
-      completedOnboarding,
+      droppedOut,
       contactRate,
-      interviewRate,
+      attendanceRate,
       hiringRate
     };
   }, [candidates, startDate, endDate]);
@@ -121,7 +130,6 @@ const HiringDashboard = () => {
           <Icon className="w-6 h-6" />
         </div>
       </div>
-      {/* Decorative background element */}
       <div className="absolute -right-4 -bottom-4 opacity-10">
         <Icon size={100} strokeWidth={3} />
       </div>
@@ -132,7 +140,7 @@ const HiringDashboard = () => {
     <div className="p-4 sm:p-8 max-w-7xl mx-auto min-h-screen bg-gray-50 dark:bg-slate-900">
       <div className="mb-8">
         <h1 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">Dashboard de Candidaturas</h1>
-        <p className="text-gray-500 dark:text-gray-400 font-medium">Visão geral do funil de recrutamento e seleção.</p>
+        <p className="text-gray-500 dark:text-gray-400 font-medium">Métricas sincronizadas com as etapas do pipeline.</p>
       </div>
 
       {/* Filtros */}
@@ -176,7 +184,7 @@ const HiringDashboard = () => {
         </div>
       </div>
 
-      {/* Grid de Métricas */}
+      {/* Grid de Métricas Sincronizadas */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         <MetricCard 
           title="Total de Candidaturas" 
@@ -185,29 +193,18 @@ const HiringDashboard = () => {
           colorClass="bg-indigo-600 text-white" 
         />
         <MetricCard 
-          title="Em Pipeline" 
-          value={metrics.inPipeline} 
-          icon={TrendingUp} 
-          colorClass="bg-blue-600 text-white" 
-        />
-        <MetricCard 
-          title="Finalizadas" 
-          value={metrics.finished} 
-          icon={CheckCircle2} 
-          colorClass="bg-emerald-600 text-white" 
-        />
-        <MetricCard 
-          title="Este Mês" 
-          value={metrics.thisMonth} 
-          icon={Calendar} 
-          colorClass="bg-green-700 text-white" 
-          subValue="Novas entradas"
+          title="Novos Candidatos" 
+          value={metrics.newCandidates} 
+          icon={UserPlus} 
+          colorClass="bg-slate-600 text-white" 
+          subValue="Aguardando contato"
         />
         <MetricCard 
           title="Contatados" 
           value={metrics.contacted} 
           icon={MessageSquare} 
           colorClass="bg-amber-500 text-white" 
+          subValue="Em triagem ativa"
         />
         <MetricCard 
           title="Entrevistas Agendadas" 
@@ -216,22 +213,29 @@ const HiringDashboard = () => {
           colorClass="bg-orange-600 text-white" 
         />
         <MetricCard 
-          title="Contratados" 
+          title="Entrevistas Realizadas" 
+          value={metrics.conducted} 
+          icon={FileText} 
+          colorClass="bg-purple-600 text-white" 
+        />
+        <MetricCard 
+          title="Em Prévia" 
+          value={metrics.awaitingPreview} 
+          icon={TrendingUp} 
+          colorClass="bg-blue-600 text-white" 
+        />
+        <MetricCard 
+          title="Autorizados" 
           value={metrics.hired} 
           icon={UserCheck} 
+          colorClass="bg-emerald-600 text-white" 
+          subValue="Contratações efetivas"
+        />
+        <MetricCard 
+          title="Desistências / Faltas" 
+          value={metrics.droppedOut} 
+          icon={UserX} 
           colorClass="bg-rose-600 text-white" 
-        />
-        <MetricCard 
-          title="Iniciaram Trabalho" 
-          value={metrics.startedWork} 
-          icon={Briefcase} 
-          colorClass="bg-violet-700 text-white" 
-        />
-        <MetricCard 
-          title="Completaram Onboarding" 
-          value={metrics.completedOnboarding} 
-          icon={UserPlus} 
-          colorClass="bg-cyan-700 text-white" 
         />
         
         {/* Taxas de Conversão */}
@@ -240,18 +244,21 @@ const HiringDashboard = () => {
           value={`${metrics.contactRate.toFixed(1)}%`} 
           icon={Percent} 
           colorClass="bg-slate-800 text-white dark:bg-slate-700" 
+          subValue="Conversão Triagem"
         />
         <MetricCard 
-          title="Taxa de Entrevista" 
-          value={`${metrics.interviewRate.toFixed(1)}%`} 
+          title="Taxa de Comparecimento" 
+          value={`${metrics.attendanceRate.toFixed(1)}%`} 
           icon={Percent} 
           colorClass="bg-slate-800 text-white dark:bg-slate-700" 
+          subValue="Efetividade Agenda"
         />
         <MetricCard 
           title="Taxa de Contratação" 
           value={`${metrics.hiringRate.toFixed(1)}%`} 
           icon={Percent} 
           colorClass="bg-slate-800 text-white dark:bg-slate-700" 
+          subValue="Conversão Final"
         />
       </div>
     </div>
