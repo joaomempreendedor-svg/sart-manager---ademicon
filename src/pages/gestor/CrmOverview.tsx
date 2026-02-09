@@ -385,7 +385,7 @@ const CrmOverviewPage = () => {
                   // CORREÇÃO: Busca o consultor de forma mais robusta (atribuído ou quem cadastrou)
                   const consultant = teamMembers.find(m => 
                     (lead.consultant_id && (m.id === lead.consultant_id || m.authUserId === lead.consultant_id)) ||
-                    (!lead.consultant_id && (m.id === lead.created_by || m.authUserId === lead.created_by))
+                    (m.id === lead.created_by || m.authUserId === lead.created_by)
                   );
                   
                   const currentLeadStage = crmStages.find(s => s.id === lead.stage_id);

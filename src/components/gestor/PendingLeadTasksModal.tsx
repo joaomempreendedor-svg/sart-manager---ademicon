@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, ListTodo, Calendar, Clock, UserRound, ChevronRight, Users } from 'lucide-react'; // Adicionado Users
+import { X, ListTodo, Calendar, Clock, UserRound, ChevronRight, Users } from 'lucide-react';
 import { LeadTask, CrmLead, TeamMember } from '@/types';
 import {
   Dialog,
@@ -13,25 +13,32 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useNavigate } from 'react-router-dom';
 
+// ID do gestor principal para fallback de exibição
+const JOAO_GESTOR_AUTH_ID = "0c6d71b7-daeb-4dde-8eec-0e7a8ffef658";
+
 interface PendingLeadTasksModalProps {
   isOpen: boolean;
   onClose: () => void;
   pendingTasks: LeadTask[];
   crmLeads: CrmLead[]; // Para obter o nome do lead
-  teamMembers: TeamMember[]; // NOVO: Para obter o nome do consultor
+  teamMembers: TeamMember[]; // Para obter o nome do consultor
 }
 
 export const PendingLeadTasksModal: React.FC<PendingLeadTasksModalProps> = ({ isOpen, onClose, pendingTasks, crmLeads, teamMembers }) => {
   const navigate = useNavigate();
 
-  console.log("[PendingLeadTasksModal] Modal is rendering. isOpen:", isOpen);
-  console.log("[PendingLeadTasksModal] pendingTasks.length:", pendingTasks.length);
-
   if (!isOpen) return null;
 
   const handleGoToLead = (leadId: string) => {
     onClose(); // Fecha o modal antes de navegar
-    navigate(`/consultor/crm`, { state: { highlightLeadId: leadId } }); // Navega para o CRM, pode adicionar um estado para destacar o lead
+    navigate(`/gestor/crm`, { state: { highlightLeadId: leadId } }); // Navega para o CRM
+  };
+
+  const getConsultantName = (userId: string) => {
+    const member = teamMembers.find(m => m.id === userId || m.authUserId === userId);
+    if (member) return member.name;
+    if (userId === JOAO_GESTOR_AUTH_ID) return 'João Müller';
+    return 'Não atribuído';
   };
 
   return (
@@ -54,7 +61,7 @@ export const PendingLeadTasksModal: React.FC<PendingLeadTasksModalProps> = ({ is
             <div className="space-y-3">
               {pendingTasks.map(task => {
                 const lead = crmLeads.find(l => l.id === task.lead_id);
-                const consultant = teamMembers.find(tm => tm.id === task.user_id);
+                const consultantName = getConsultantName(task.user_id);
                 const isOverdue = task.due_date && new Date(task.due_date + 'T00:00:00') < new Date(new Date().toISOString().split('T')[0] + 'T00:00:00');
 
                 return (
@@ -70,11 +77,9 @@ export const PendingLeadTasksModal: React.FC<PendingLeadTasksModalProps> = ({ is
                             <UserRound className="w-3 h-3 mr-1" /> Lead: <span className="font-semibold">{lead.name}</span>
                           </span>
                         )}
-                        {consultant && (
-                          <span className="flex items-center">
-                            <Users className="w-3 h-3 mr-1" /> Consultor: <span className="font-semibold">{consultant.name}</span>
-                          </span>
-                        )}
+                        <span className="flex items-center">
+                          <Users className="w-3 h-3 mr-1" /> Consultor: <span className="font-semibold">{consultantName}</span>
+                        </span>
                         {task.due_date && (
                           <span className="flex items-center">
                             <Calendar className="w-3 h-3 mr-1" /> Vence: <span className="font-semibold">{new Date(task.due_date + 'T00:00:00').toLocaleDateString('pt-BR')}</span>

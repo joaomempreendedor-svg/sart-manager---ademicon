@@ -278,7 +278,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const normalizedTeamMembers = teamMembersResult.data?.map(item => {
           const data = item.data as any;
           // CORREÇÃO: Prioriza o campo user_id da tabela para o vínculo com auth.users
-          const authId = data.id || null;
+          const authId = data.id || data.authUserId || null;
           const isAuthUserLinked = typeof authId === 'string' && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(authId);
           
           return { 

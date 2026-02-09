@@ -13,6 +13,9 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useNavigate } from 'react-router-dom';
 
+// ID do gestor principal para fallback de exibição
+const JOAO_GESTOR_AUTH_ID = "0c6d71b7-daeb-4dde-8eec-0e7a8ffef658";
+
 interface LeadsDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -42,7 +45,15 @@ export const LeadsDetailModal: React.FC<LeadsDetailModalProps> = ({
 
   const handleGoToLead = (leadId: string) => {
     onClose(); // Fecha o modal antes de navegar
-    navigate(`/gestor/crm`, { state: { highlightLeadId: leadId } }); // Navega para o CRM, pode adicionar um estado para destacar o lead
+    navigate(`/gestor/crm`, { state: { highlightLeadId: leadId } }); // Navega para o CRM
+  };
+
+  const getConsultantName = (lead: CrmLead) => {
+    const consultantId = lead.consultant_id || lead.created_by;
+    const member = teamMembers.find(m => m.id === consultantId || m.authUserId === consultantId);
+    if (member) return member.name;
+    if (consultantId === JOAO_GESTOR_AUTH_ID) return 'João Müller';
+    return 'Não atribuído';
   };
 
   return (
@@ -68,7 +79,7 @@ export const LeadsDetailModal: React.FC<LeadsDetailModalProps> = ({
           ) : (
             <div className="space-y-3">
               {leads.map(lead => {
-                const consultant = teamMembers.find(tm => tm.id === lead.consultant_id);
+                const consultantName = getConsultantName(lead);
                 const stage = crmStages.find(s => s.id === lead.stage_id);
                 const displayValue = metricType === 'proposal' 
                   ? (lead.proposalValue || 0) 
@@ -82,11 +93,9 @@ export const LeadsDetailModal: React.FC<LeadsDetailModalProps> = ({
                     <div className="flex-1">
                       <p className="font-medium text-gray-900 dark:text-white">{lead.name}</p>
                       <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 space-y-0.5">
-                        {consultant && (
-                          <span className="flex items-center">
-                            <Users className="w-3 h-3 mr-1" /> Consultor: <span className="font-semibold">{consultant.name}</span>
-                          </span>
-                        )}
+                        <span className="flex items-center">
+                          <Users className="w-3 h-3 mr-1" /> Consultor: <span className="font-semibold">{consultantName}</span>
+                        </span>
                         {stage && (
                           <span className="flex items-center">
                             <Tag className="w-3 h-3 mr-1" /> Etapa: <span className="font-semibold">{stage.name}</span>

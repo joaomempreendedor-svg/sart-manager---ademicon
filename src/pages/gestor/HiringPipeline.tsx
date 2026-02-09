@@ -17,6 +17,9 @@ import { AddScreeningCandidateModal } from '@/components/gestor/AddScreeningCand
 import { UpdateInterviewDateModal } from '@/components/gestor/UpdateInterviewDateModal';
 import { highlightText } from '@/lib/utils';
 
+// ID do gestor principal para fallback de exibição
+const JOAO_GESTOR_AUTH_ID = "0c6d71b7-daeb-4dde-8eec-0e7a8ffef658";
+
 const HiringPipeline = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
   const { candidates, teamMembers, isDataLoading, updateCandidate, interviewStructure, checklistStructure, origins } = useApp();
@@ -182,7 +185,9 @@ const HiringPipeline = () => {
   const getResponsibleName = (responsibleUserId: string | undefined) => {
     if (!responsibleUserId) return 'Não atribuído';
     const member = teamMembers.find(m => m.id === responsibleUserId || m.authUserId === responsibleUserId);
-    return member ? member.name : 'Desconhecido';
+    if (member) return member.name;
+    if (responsibleUserId === JOAO_GESTOR_AUTH_ID) return 'João Müller';
+    return 'Desconhecido';
   };
 
   const getColumnColorClasses = (color: string) => {

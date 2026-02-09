@@ -18,6 +18,9 @@ const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 };
 
+// ID do gestor principal para fallback de exibição
+const JOAO_GESTOR_AUTH_ID = "0c6d71b7-daeb-4dde-8eec-0e7a8ffef658";
+
 const CrmSalesReports = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
   const { crmLeads, leadTasks, crmStages, teamMembers, crmPipelines, isDataLoading, salesOrigins } = useApp();
@@ -277,7 +280,7 @@ const CrmSalesReports = () => {
 
       return {
         'Nome do Lead': lead.name,
-        'Consultor': consultant?.name || 'N/A',
+        'Consultor': consultant?.name || (consultantId === JOAO_GESTOR_AUTH_ID ? 'João Müller' : 'N/A'),
         'Etapa': stage?.name || 'N/A',
         'Origem': lead.data?.origin || 'N/A',
         'Valor Proposta': lead.proposalValue || 0,
