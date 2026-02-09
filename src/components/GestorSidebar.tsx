@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, MessageSquare, Settings, FileText, Sun, Moon, Banknote, PlusCircle, Library, TrendingUp, Target, Users, LogOut, User as UserIcon, Star, Video, ListChecks, ClipboardCheck, UserPlus, ChevronLeft, ChevronRight, ChevronDown, UserSearch, BarChart3, UserCog, MapPin, DollarSign, FileStack, UserCheck, Clock, Calendar, UsersRound, ListTodo, PieChart } from 'lucide-react';
+import { LayoutDashboard, MessageSquare, Settings, FileText, Sun, Moon, Banknote, PlusCircle, Library, TrendingUp, Target, Users, LogOut, User as UserIcon, Star, Video, ListChecks, ClipboardCheck, UserPlus, ChevronLeft, ChevronRight, ChevronDown, UserSearch, BarChart3, MapPin, DollarSign, FileStack, UserCheck, Clock, Calendar, UsersRound, ListTodo, PieChart } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 
@@ -38,7 +38,6 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
   const overviewLinks = isSecretaria ? [
     { to: "/secretaria/hiring-dashboard", icon: PieChart, label: "Dashboard Contratação" },
     { to: "/secretaria/hiring-pipeline", icon: UserSearch, label: "Pipeline Contratação" },
-    { to: "/secretaria/hiring-reports", icon: UserCog, label: "Relatórios Contratação" },
     { to: "/secretaria/onboarding-admin", icon: Video, label: "Onboarding Online" },
     { to: "/secretaria/form-cadastros", icon: FileStack, label: "Gerenciar Formulários" },
   ] : [
@@ -47,7 +46,6 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
     { to: "/gestor/crm-sales-reports", icon: BarChart3, label: "Relatórios de Vendas" },
     { to: "/gestor/hiring-dashboard", icon: PieChart, label: "Dashboard Contratação" },
     { to: "/gestor/hiring-pipeline", icon: UserSearch, label: "Pipeline Contratação" },
-    { to: "/gestor/hiring-reports", icon: UserCog, label: "Relatórios Contratação" },
     { to: "/gestor/onboarding-admin", icon: Video, label: "Onboarding Online" },
     { to: "/gestor/form-cadastros", icon: FileStack, label: "Gerenciar Formulários" },
     { to: "/gestor/commissions", icon: Banknote, label: "Comissões" },
