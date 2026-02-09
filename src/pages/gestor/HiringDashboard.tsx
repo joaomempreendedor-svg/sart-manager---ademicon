@@ -21,13 +21,15 @@ import {
 const HiringDashboard = () => {
   const { candidates, isDataLoading } = useApp();
   
-  // Filtros de Data (Padrão: últimos 90 dias)
+  // Filtros de Data Padrão: Mês Atual
   const [startDate, setStartDate] = useState(() => {
     const d = new Date();
-    d.setDate(d.getDate() - 90);
-    return d.toISOString().split('T')[0];
+    return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
   });
-  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+  const [endDate, setEndDate] = useState(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
+  });
 
   const metrics = useMemo(() => {
     const start = new Date(startDate + 'T00:00:00');
@@ -163,9 +165,8 @@ const HiringDashboard = () => {
           <button 
             onClick={() => {
               const d = new Date();
-              d.setDate(d.getDate() - 90);
-              setStartDate(d.toISOString().split('T')[0]);
-              setEndDate(new Date().toISOString().split('T')[0]);
+              setStartDate(new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0]);
+              setEndDate(new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0]);
             }}
             className="p-3 text-gray-400 hover:text-brand-500 transition-colors"
             title="Resetar Filtros"
