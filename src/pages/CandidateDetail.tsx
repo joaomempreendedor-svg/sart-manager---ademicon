@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
-import { ArrowLeft, CheckSquare, FileText, Phone, Calendar, Clock, MessageCircle, Paperclip, CheckCircle2, Target, Trash2, CalendarPlus, Save, Loader2, Users } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { ArrowLeft, CheckSquare, FileText, Phone, Calendar, Clock, MessageCircle, Paperclip, CheckCircle2, Target, Trash2, CalendarPlus, Save, Loader2, Users, Filter, ShieldCheck, UserRound } from 'lucide-react';
 import { CandidateStatus, CommunicationTemplate, InterviewScores } from '@/types';
 import { MessageViewerModal } from '@/components/MessageViewerModal';
 import {
@@ -14,6 +15,7 @@ import {
 
 export const CandidateDetail = () => {
   const { id } = useParams<{ id: string }>();
+  const { user } = useAuth();
   const { getCandidate, toggleChecklistItem, toggleConsultantGoal, updateCandidate, deleteCandidate, setChecklistDueDate, templates, checklistStructure, consultantGoalsStructure, interviewStructure, teamMembers } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
@@ -23,6 +25,7 @@ export const CandidateDetail = () => {
   const [activeTab, setActiveTab] = useState<'checklist' | 'goals' | 'interview'>(
     location.state?.openInterviewTab ? 'interview' : 'checklist'
   );
+  const [checklistFilter, setChecklistFilter] = useState<'ALL' | 'MINE'>('MINE');
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<CommunicationTemplate | null>(null);
   
@@ -265,7 +268,32 @@ export const CandidateDetail = () => {
       <div className="grid grid-cols-1 gap-6">
         {activeTab === 'checklist' && (
           <div className="space-y-6">
+            {/* Filtro de Responsabilidade */}
+            <div className="flex justify-end mb-2">
+                <div className="flex bg-gray-100 dark:bg-slate-800 p-1 rounded-lg">
+                    <button 
+                        onClick={() => setChecklistFilter('MINE')}
+                        className={`px-3 py-1 text-xs font-bold rounded transition-all ${checklistFilter === 'MINE' ? 'bg-brand-500 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                    >
+                        Minhas Tarefas
+                    </button>
+                    <button 
+                        onClick={() => setChecklistFilter('ALL')}
+                        className={`px-3 py-1 text-xs font-bold rounded transition-all ${checklistFilter === 'ALL' ? 'bg-brand-500 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                    >
+                        Todas
+                    </button>
+                </div>
+            </div>
+
             {checklistStructure.map((stage) => {
+              const filteredItems = stage.items.filter(item => {
+                  if (checklistFilter === 'ALL') return true;
+                  return item.responsibleRole === user?.role;
+              });
+
+              if (filteredItems.length === 0) return null;
+
               const completedCount = stage.items.filter(i => candidate.checklistProgress[i.id]?.completed).length;
               const totalCount = stage.items.length;
               const progress = totalCount === 0 ? 0 : Math.round((completedCount / totalCount) * 100);
@@ -284,13 +312,14 @@ export const CandidateDetail = () => {
                   </div>
                   <div className="p-0">
                     <ul className="divide-y divide-gray-100 dark:divide-slate-700">
-                      {stage.items.map((item) => {
+                      {filteredItems.map((item) => {
                         const state = candidate.checklistProgress[item.id] || { completed: false };
                         const hasTemplate = !!templates[item.id];
                         const template = templates[item.id];
+                        const isMyTask = item.responsibleRole === user?.role;
                         
                         return (
-                        <li key={item.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-slate-700/30 transition">
+                        <li key={item.id} className={`flex flex-col sm:flex-row sm:items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-slate-700/30 transition ${isMyTask ? 'border-l-4 border-brand-500' : ''}`}>
                           <div className="flex items-start sm:items-center space-x-3 mb-2 sm:mb-0 flex-1">
                             <div className="flex items-center h-5">
                               <input
@@ -302,9 +331,17 @@ export const CandidateDetail = () => {
                               />
                             </div>
                             <div className="flex flex-col">
-                                <label htmlFor={item.id} className={`text-sm font-medium cursor-pointer select-none ${state.completed ? 'text-gray-400 dark:text-gray-500 line-through' : 'text-gray-700 dark:text-gray-200'}`}>
-                                {item.label}
-                                </label>
+                                <div className="flex items-center space-x-2">
+                                    <label htmlFor={item.id} className={`text-sm font-medium cursor-pointer select-none ${state.completed ? 'text-gray-400 dark:text-gray-500 line-through' : 'text-gray-700 dark:text-gray-200'}`}>
+                                        {item.label}
+                                    </label>
+                                    {item.responsibleRole && (
+                                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-tighter ${item.responsibleRole === 'SECRETARIA' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'}`}>
+                                            {item.responsibleRole === 'SECRETARIA' ? <ShieldCheck className="w-2.5 h-2.5 inline mr-1" /> : <UserRound className="w-2.5 h-2.5 inline mr-1" />}
+                                            {item.responsibleRole}
+                                        </span>
+                                    )}
+                                </div>
                                 {hasTemplate && (template.text || template.resource) && (
                                     <div className="flex space-x-2 mt-1">
                                         <button 

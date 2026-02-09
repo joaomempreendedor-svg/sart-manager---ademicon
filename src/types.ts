@@ -8,7 +8,7 @@ export type CandidateStatus =
   | 'Reprovado'
   | 'Triagem'
   | 'Desqualificado'
-  | 'Faltou'; // NOVO: Status para candidatos que não compareceram
+  | 'Faltou';
 
 export interface InterviewScores {
   basicProfile: number;
@@ -85,6 +85,7 @@ export interface ChecklistItem {
   isHeader?: boolean;
   whatsappTemplate?: string;
   resource?: ChecklistResource;
+  responsibleRole?: 'GESTOR' | 'SECRETARIA'; // NOVO: Define quem é o responsável pela tarefa
 }
 
 export interface ChecklistStage {
@@ -527,8 +528,8 @@ export interface AppContextType {
   toggleChecklistItem: (candidateId: string, itemId: string) => Promise<void>;
   setChecklistDueDate: (candidateId: string, itemId: string, dueDate: string) => Promise<void>;
   toggleConsultantGoal: (candidateId: string, goalId: string) => Promise<void>;
-  addChecklistItem: (stageId: string, label: string) => void;
-  updateChecklistItem: (stageId: string, itemId: string, newLabel: string) => void;
+  addChecklistItem: (stageId: string, label: string, responsibleRole?: 'GESTOR' | 'SECRETARIA') => void;
+  updateChecklistItem: (stageId: string, itemId: string, updates: Partial<ChecklistItem>) => void;
   deleteChecklistItem: (stageId: string, itemId: string) => void;
   moveChecklistItem: (stageId: string, itemId: string, direction: 'up' | 'down') => void;
   resetChecklistToDefault: () => void;

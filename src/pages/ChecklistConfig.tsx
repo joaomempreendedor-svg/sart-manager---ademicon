@@ -1,24 +1,27 @@
 import React, { useState } from 'react';
 import { useApp } from '@/context/AppContext';
-import { Edit2, Trash2, Plus, ArrowUp, ArrowDown, Save, X, RotateCcw } from 'lucide-react';
+import { Edit2, Trash2, Plus, ArrowUp, ArrowDown, Save, X, RotateCcw, ShieldCheck, UserRound } from 'lucide-react';
 
 export const ChecklistConfig = () => {
   const { checklistStructure, addChecklistItem, updateChecklistItem, deleteChecklistItem, moveChecklistItem, resetChecklistToDefault } = useApp();
   
   const [editingItem, setEditingItem] = useState<{stageId: string, itemId: string} | null>(null);
   const [editLabel, setEditLabel] = useState('');
+  const [editRole, setEditRole] = useState<'GESTOR' | 'SECRETARIA'>('GESTOR');
 
   const [addingToStage, setAddingToStage] = useState<string | null>(null);
   const [newLabel, setNewLabel] = useState('');
+  const [newRole, setNewRole] = useState<'GESTOR' | 'SECRETARIA'>('GESTOR');
 
-  const startEdit = (stageId: string, itemId: string, currentLabel: string) => {
+  const startEdit = (stageId: string, itemId: string, currentLabel: string, currentRole?: 'GESTOR' | 'SECRETARIA') => {
     setEditingItem({ stageId, itemId });
     setEditLabel(currentLabel);
+    setEditRole(currentRole || 'GESTOR');
   };
 
   const handleSaveEdit = () => {
     if (editingItem && editLabel.trim()) {
-      updateChecklistItem(editingItem.stageId, editingItem.itemId, editLabel);
+      updateChecklistItem(editingItem.stageId, editingItem.itemId, { label: editLabel, responsibleRole: editRole });
       setEditingItem(null);
       setEditLabel('');
     }
@@ -26,9 +29,10 @@ export const ChecklistConfig = () => {
 
   const handleSaveNew = (stageId: string) => {
     if (newLabel.trim()) {
-      addChecklistItem(stageId, newLabel);
+      addChecklistItem(stageId, newLabel, newRole);
       setAddingToStage(null);
       setNewLabel('');
+      setNewRole('GESTOR');
     }
   };
 
@@ -43,7 +47,7 @@ export const ChecklistConfig = () => {
       <div className="mb-8 flex justify-between items-start">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Editar Processo (Checklist)</h1>
-            <p className="text-gray-500 dark:text-gray-400">Adicione, remova ou reordene as tarefas do checklist.</p>
+            <p className="text-gray-500 dark:text-gray-400">Adicione, remova ou reordene as tarefas do checklist e defina os responsáveis.</p>
           </div>
           <button onClick={handleReset} className="text-xs flex items-center text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 border border-red-200 dark:border-red-900 rounded px-3 py-1.5 transition">
               <RotateCcw className="w-3 h-3 mr-1.5" />
@@ -64,7 +68,7 @@ export const ChecklistConfig = () => {
                 <div key={item.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between hover:bg-gray-50 dark:hover:bg-slate-700/30 group">
                   
                   {editingItem?.itemId === item.id ? (
-                    <div className="flex-1 flex items-center space-x-2 mr-4 w-full">
+                    <div className="flex-1 flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-2 mr-4 w-full">
                       <input 
                         type="text" 
                         value={editLabel}
@@ -72,12 +76,27 @@ export const ChecklistConfig = () => {
                         className="flex-1 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white rounded px-3 py-1 text-sm focus:ring-brand-500 focus:border-brand-500"
                         autoFocus
                       />
-                      <button onClick={handleSaveEdit} className="p-1 text-green-600 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-900/20 rounded"><Save className="w-4 h-4" /></button>
-                      <button onClick={() => setEditingItem(null)} className="p-1 text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-600 rounded"><X className="w-4 h-4" /></button>
+                      <select 
+                        value={editRole}
+                        onChange={(e) => setEditRole(e.target.value as 'GESTOR' | 'SECRETARIA')}
+                        className="border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-xs rounded px-2 py-1"
+                      >
+                        <option value="GESTOR">Gestor</option>
+                        <option value="SECRETARIA">Secretaria</option>
+                      </select>
+                      <div className="flex space-x-1">
+                        <button onClick={handleSaveEdit} className="p-1 text-green-600 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-900/20 rounded"><Save className="w-4 h-4" /></button>
+                        <button onClick={() => setEditingItem(null)} className="p-1 text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-600 rounded"><X className="w-4 h-4" /></button>
+                      </div>
                     </div>
                   ) : (
-                    <div className="flex-1 mr-4 w-full">
+                    <div className="flex-1 mr-4 w-full flex items-center space-x-2">
                       <span className="text-sm text-gray-700 dark:text-gray-200">{item.label}</span>
+                      {item.responsibleRole && (
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-tighter ${item.responsibleRole === 'SECRETARIA' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'}`}>
+                            {item.responsibleRole}
+                        </span>
+                      )}
                     </div>
                   )}
 
@@ -98,7 +117,7 @@ export const ChecklistConfig = () => {
                     </button>
                     <div className="w-px h-4 bg-gray-200 dark:bg-slate-600 mx-1"></div>
                     <button 
-                      onClick={() => startEdit(stage.id, item.id, item.label)}
+                      onClick={() => startEdit(stage.id, item.id, item.label, item.responsibleRole)}
                       className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:text-blue-400 dark:hover:bg-blue-900/20 rounded"
                     >
                       <Edit2 className="w-4 h-4" />
@@ -119,7 +138,7 @@ export const ChecklistConfig = () => {
 
               <div className="p-4 bg-gray-50/50 dark:bg-slate-700/30">
                 {addingToStage === stage.id ? (
-                   <div className="flex items-center space-x-2">
+                   <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-2">
                       <input 
                         type="text" 
                         value={newLabel}
@@ -128,18 +147,28 @@ export const ChecklistConfig = () => {
                         className="flex-1 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white rounded px-3 py-2 text-sm focus:ring-brand-500 focus:border-brand-500"
                         autoFocus
                       />
-                      <button 
-                        onClick={() => handleSaveNew(stage.id)} 
-                        className="px-3 py-2 bg-brand-600 text-white rounded text-sm font-medium hover:bg-brand-700"
+                      <select 
+                        value={newRole}
+                        onChange={(e) => setNewRole(e.target.value as 'GESTOR' | 'SECRETARIA')}
+                        className="border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm rounded px-3 py-2"
                       >
-                        Adicionar
-                      </button>
-                      <button 
-                        onClick={() => setAddingToStage(null)} 
-                        className="px-3 py-2 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300 rounded text-sm font-medium hover:bg-gray-50 dark:hover:bg-slate-600"
-                      >
-                        Cancelar
-                      </button>
+                        <option value="GESTOR">Gestor</option>
+                        <option value="SECRETARIA">Secretaria</option>
+                      </select>
+                      <div className="flex space-x-2">
+                        <button 
+                            onClick={() => handleSaveNew(stage.id)} 
+                            className="px-3 py-2 bg-brand-600 text-white rounded text-sm font-medium hover:bg-brand-700"
+                        >
+                            Adicionar
+                        </button>
+                        <button 
+                            onClick={() => setAddingToStage(null)} 
+                            className="px-3 py-2 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300 rounded text-sm font-medium hover:bg-gray-50 dark:hover:bg-slate-600"
+                        >
+                            Cancelar
+                        </button>
+                      </div>
                    </div>
                 ) : (
                   <button 
