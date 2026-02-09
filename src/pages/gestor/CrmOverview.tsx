@@ -86,10 +86,7 @@ const CrmOverviewPage = () => {
     // CORREÇÃO: Filtra membros ativos com os cargos corretos para o filtro do topo.
     return teamMembers.filter(m => 
       m.isActive && 
-      (m.roles.includes('Prévia') || 
-       m.roles.includes('Autorizado') || 
-       m.roles.includes('Gestor') || 
-       m.roles.includes('Anjo'))
+      (m.roles.some(r => ['prévia', 'autorizado', 'gestor', 'anjo', 'consultor'].includes(r.toLowerCase())))
     ).sort((a, b) => a.name.localeCompare(b.name));
   }, [teamMembers]);
 

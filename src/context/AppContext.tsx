@@ -277,20 +277,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         
         const normalizedTeamMembers = teamMembersResult.data?.map(item => {
           const data = item.data as any;
-          // CORREÇÃO: O ID principal do objeto TeamMember DEVE ser o UUID de autenticação para bater com os leads
+          // CORREÇÃO: O ID principal do objeto TeamMember DEVE ser o UUID da tabela para garantir unicidade
+          const dbId = item.id;
           const authId = data.id || data.authUserId || null;
-          const isAuthUserLinked = typeof authId === 'string' && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(authId);
           
           return { 
-            id: isAuthUserLinked ? authId : `legacy_${item.id}`, 
-            db_id: item.id, 
-            authUserId: isAuthUserLinked ? authId : null, 
+            id: dbId, // Usar o ID da tabela como ID principal
+            db_id: dbId, 
+            authUserId: authId, 
             name: String(data.name || ''), 
             email: data.email, 
             roles: Array.isArray(data.roles) ? data.roles : [], 
             isActive: data.isActive !== false, 
-            hasLogin: isAuthUserLinked, 
-            isLegacy: !isAuthUserLinked, 
+            hasLogin: !!authId, 
+            isLegacy: !authId, 
             cpf: item.cpf, 
             dateOfBirth: data.dateOfBirth, 
             user_id: item.user_id 
@@ -400,7 +400,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const value: AppContextType = {
-    isDataLoading, candidates, teamMembers, commissions, supportMaterials, cutoffPeriods, onboardingSessions, onboardingTemplateVideos, checklistStructure, setChecklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs, crmPipelines, crmStages, crmFields, crmLeads, crmOwnerUserId, dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions, weeklyTargets, weeklyTargetItems, weeklyTargetAssignments, metricLogs, supportMaterialsV2, supportMaterialAssignments, leadTasks, gestorTasks, gestorTaskCompletions, financialEntries, formCadastros, formFiles, notifications, teamProductionGoals, theme,
+    isDataLoading, candidates, teamMembers, commissions, supportMaterials, cutoffPeriods, onboardingSessions, onboardingTemplateVideos, checklistStructure, setChecklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs, crmPipelines, crmStages, crmFields, crmLeads, crmOwnerUserId, dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions, weeklyTargets, weeklyTargetItems, weeklyTargetItems, weeklyTargetAssignments, metricLogs, supportMaterialsV2, supportMaterialAssignments, leadTasks, gestorTasks, gestorTaskCompletions, financialEntries, formCadastros, formFiles, notifications, teamProductionGoals, theme,
     toggleTheme, updateConfig, resetLocalState, refetchCommissions, calculateCompetenceMonth, isGestorTaskDueOnDate, calculateNotifications,
     addCandidate, updateCandidate, deleteCandidate, getCandidate: useCallback((id: string) => candidates.find(c => c.id === id), [candidates]), 
     toggleChecklistItem: async (candidateId, itemId) => {
@@ -886,7 +886,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (authError) throw authError;
       const { data, error } = await supabase.from('team_members').insert({ user_id: JOAO_GESTOR_AUTH_ID, cpf: member.cpf, data: { ...member, id: authData.authUserId } }).select().single();
       if (error) throw error;
-      const newMember = { id: authData.authUserId, db_id: data.id, authUserId: authData.authUserId, name: member.name, email: member.email, roles: member.roles, isActive: member.isActive, cpf: member.cpf, dateOfBirth: member.dateOfBirth, user_id: data.user_id };
+      const newMember = { id: data.id, db_id: data.id, authUserId: authData.authUserId, name: member.name, email: member.email, roles: member.roles, isActive: member.isActive, cpf: member.cpf, dateOfBirth: member.dateOfBirth, user_id: data.user_id };
       setTeamMembers(prev => [...prev, newMember]);
       return { success: true, member: newMember, tempPassword, wasExistingUser: authData.userExists };
     },

@@ -48,14 +48,12 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
   }, [salesOrigins]);
 
   const consultants = useMemo(() => {
-    // CORREÇÃO: Filtra membros ativos com os cargos corretos. 
-    // Incluímos Gestor e Anjo pois eles também podem ser responsáveis por leads.
+    // CORREÇÃO: Filtra membros ativos com busca insensível a maiúsculas nos cargos.
+    const allowedRoles = ['prévia', 'autorizado', 'gestor', 'anjo', 'consultor'];
+    
     return teamMembers.filter(m => 
       m.isActive && 
-      (m.roles.includes('Prévia') || 
-       m.roles.includes('Autorizado') || 
-       m.roles.includes('Gestor') || 
-       m.roles.includes('Anjo'))
+      m.roles.some(role => allowedRoles.includes(role.toLowerCase()))
     ).sort((a, b) => a.name.localeCompare(b.name));
   }, [teamMembers]);
 
