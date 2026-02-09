@@ -12,9 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useNavigate } from 'react-router-dom';
-
-// ID do gestor principal para fallback de exibição
-const JOAO_GESTOR_AUTH_ID = "0c6d71b7-daeb-4dde-8eec-0e7a8ffef658";
+import { useAuth } from '@/context/AuthContext';
 
 interface PendingLeadTasksModalProps {
   isOpen: boolean;
@@ -26,6 +24,7 @@ interface PendingLeadTasksModalProps {
 
 export const PendingLeadTasksModal: React.FC<PendingLeadTasksModalProps> = ({ isOpen, onClose, pendingTasks, crmLeads, teamMembers }) => {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   if (!isOpen) return null;
 
@@ -37,7 +36,7 @@ export const PendingLeadTasksModal: React.FC<PendingLeadTasksModalProps> = ({ is
   const getConsultantName = (userId: string) => {
     const member = teamMembers.find(m => m.id === userId || m.authUserId === userId);
     if (member) return member.name;
-    if (userId === JOAO_GESTOR_AUTH_ID) return 'João Müller';
+    if (userId === user?.id) return user.name;
     return 'Não atribuído';
   };
 

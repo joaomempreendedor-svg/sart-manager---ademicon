@@ -18,9 +18,6 @@ const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 };
 
-// ID do gestor principal para fallback de exibição
-const JOAO_GESTOR_AUTH_ID = "0c6d71b7-daeb-4dde-8eec-0e7a8ffef658";
-
 const CrmSalesReports = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
   const { crmLeads, leadTasks, crmStages, teamMembers, crmPipelines, isDataLoading, salesOrigins } = useApp();
@@ -53,16 +50,27 @@ const CrmSalesReports = () => {
       .sort((a, b) => a.order_index - b.order_index);
   }, [crmStages, activePipeline]);
 
-  // CORREÇÃO: Inclui todos os membros ativos para o relatório, inclusive o Gestor
+  // CORREÇÃO: Inclui todos os membros ativos para o relatório, inclusive o Gestor logado
   const allTeamMembers = useMemo(() => {
-    return teamMembers.filter(m => m.isActive);
-  }, [teamMembers]);
+    const members = [...teamMembers.filter(m => m.isActive)];
+    // Se o usuário logado não estiver na lista de membros (comum para gestores), adiciona ele virtualmente
+    if (user && !members.some(m => m.id === user.id || m.authUserId === user.id)) {
+      members.push({
+        id: user.id,
+        authUserId: user.id,
+        name: user.name,
+        roles: [user.role as any],
+        isActive: true,
+      } as any);
+    }
+    return members;
+  }, [teamMembers, user]);
 
   const filteredLeads = useMemo(() => {
     let currentLeads = crmLeads;
 
     if (selectedConsultantId) {
-      currentLeads = currentLeads.filter(lead => lead.consultant_id === selectedConsultantId);
+      currentLeads = currentLeads.filter(lead => lead.consultant_id === selectedConsultantId || (!lead.consultant_id && lead.created_by === selectedConsultantId));
     }
 
     if (filterStartDate) {
@@ -117,7 +125,7 @@ const CrmSalesReports = () => {
       };
     } = {};
 
-    // Inicializa com todos os membros da equipe
+    // Inicializa com todos os membros da equipe (incluindo o gestor virtual se adicionado)
     allTeamMembers.forEach(c => {
       dataByConsultant[c.id] = {
         name: c.name,
@@ -130,20 +138,6 @@ const CrmSalesReports = () => {
         conversionRate: 0,
       };
     });
-
-    // Fallback para o Gestor principal se ele não estiver na lista de teamMembers
-    if (!dataByConsultant[JOAO_GESTOR_AUTH_ID]) {
-      dataByConsultant[JOAO_GESTOR_AUTH_ID] = {
-        name: 'João Müller',
-        leadsRegistered: 0,
-        meetingsScheduled: 0,
-        proposalsSent: 0,
-        proposalValue: 0,
-        salesClosed: 0,
-        soldValue: 0,
-        conversionRate: 0,
-      };
-    }
 
     let totalLeads = 0;
     let totalProposalValue = 0;
@@ -164,6 +158,7 @@ const CrmSalesReports = () => {
     filteredLeads.forEach(lead => {
       totalLeads++;
       
+      // CORREÇÃO: Identifica o consultor responsável (atribuído ou criador)
       const consultantId = lead.consultant_id || lead.created_by;
       if (consultantId && dataByConsultant[consultantId]) {
         dataByConsultant[consultantId].leadsRegistered++;
@@ -217,7 +212,7 @@ const CrmSalesReports = () => {
     const sortedConsultantData = Object.values(dataByConsultant).map(c => {
       const conversionRate = c.proposalsSent > 0 ? (c.salesClosed / c.proposalsSent) * 100 : 0;
       return { ...c, conversionRate };
-    }).sort((a, b) => b.soldValue - a.soldValue); // Ordena por valor vendido para o ranking
+    }).sort((a, b) => b.soldValue - a.soldValue);
 
     return {
       totalLeads,
@@ -258,7 +253,7 @@ const CrmSalesReports = () => {
     const workbook = XLSX.utils.book_new();
     const detailedLeadsData = filteredLeads.map(lead => {
       const consultantId = lead.consultant_id || lead.created_by;
-      const consultant = teamMembers.find(m => m.id === consultantId || m.authUserId === consultantId);
+      const consultant = allTeamMembers.find(m => m.id === consultantId || m.authUserId === consultantId);
       const stage = crmStages.find(s => s.id === lead.stage_id);
       const wonStage = crmStages.find(s => s.id === lead.stage_id && s.is_won);
       const actualSoldValue = wonStage
@@ -267,7 +262,7 @@ const CrmSalesReports = () => {
 
       return {
         'Nome do Lead': lead.name,
-        'Consultor': consultant?.name || (consultantId === JOAO_GESTOR_AUTH_ID ? 'João Müller' : 'N/A'),
+        'Consultor': consultant?.name || 'N/A',
         'Etapa': stage?.name || 'N/A',
         'Origem': lead.data?.origin || 'N/A',
         'Valor Proposta': lead.proposalValue || 0,

@@ -25,9 +25,6 @@ const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 };
 
-// ID do gestor principal para fallback de exibição
-const JOAO_GESTOR_AUTH_ID = "0c6d71b7-daeb-4dde-8eec-0e7a8ffef658";
-
 const CrmOverviewPage = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
   const { crmPipelines, crmStages, crmLeads, crmFields, teamMembers, isDataLoading, deleteCrmLead, updateCrmLead, addCrmLead, leadTasks, crmOwnerUserId } = useApp();
@@ -316,7 +313,7 @@ const CrmOverviewPage = () => {
               <SelectTrigger className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
                 <SelectValue placeholder="Todos os Consultores" />
               </SelectTrigger>
-              <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
+              <SelectContent className="bg-white text-gray-900 dark:bg-slate-800 dark:text-white dark:border-slate-700">
                 <SelectItem value="all">Todos os Consultores</SelectItem>
                 {consultants.map(c => (
                   <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
@@ -428,7 +425,7 @@ const CrmOverviewPage = () => {
                       </div>
                       <div className="text-[10px] text-gray-500 dark:text-gray-400 space-y-1">
                         <div className="flex items-center font-bold text-brand-600 dark:text-brand-400">
-                          <UserRound className="w-3 h-3 mr-1" /> {consultant?.name || (lead.created_by === JOAO_GESTOR_AUTH_ID ? 'João Müller' : 'Não atribuído')}
+                          <UserRound className="w-3 h-3 mr-1" /> {consultant?.name || (lead.created_by === user?.id ? user?.name : 'Não atribuído')}
                         </div>
                         {lead.data.phone && <div className="flex items-center"><Phone className="w-3 h-3 mr-1" /> {lead.data.phone}</div>}
                         {lead.data.origin && <div className="flex items-center"><Tag className="w-3 h-3 mr-1" /> {lead.data.origin}</div>}
