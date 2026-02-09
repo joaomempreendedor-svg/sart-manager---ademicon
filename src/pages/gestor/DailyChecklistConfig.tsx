@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { useApp } from '@/context/AppContext';
 import { DailyChecklist, DailyChecklistItem, TeamMember, DailyChecklistItemResource, DailyChecklistItemResourceType } from '@/types';
-import { Plus, Edit2, Trash2, ArrowUp, ArrowDown, ToggleLeft, ToggleRight, Users, Check, X, ListChecks, Loader2, Video, FileText, Image as ImageIcon, Link as LinkIcon, MessageSquare, Eye, Music, XCircle, BookText } from 'lucide-react';
+import { Plus, Edit2, Trash2, ArrowUp, ArrowDown, ToggleLeft, ToggleRight, Users, Check, X, ListChecks, Loader2, Video, FileText, Image as ImageIcon, Link as LinkIcon, MessageSquare, Eye, Music, XCircle, BookText, UserRound, ShieldCheck } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -18,21 +18,29 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { DailyChecklistItemResourceModal } from '@/components/DailyChecklistItemResourceModal';
 import toast from 'react-hot-toast';
 
+// Prefixo interno para identificar checklists da secretaria sem precisar mudar o banco
+const SECRETARIA_PREFIX = "[SEC] ";
+
 // Componente para o modal de criação/edição de Checklist
 interface ChecklistModalProps {
   isOpen: boolean;
   onClose: () => void;
   checklist: DailyChecklist | null;
+  targetRole: 'CONSULTOR' | 'SECRETARIA';
 }
 
-const ChecklistModal: React.FC<ChecklistModalProps> = ({ isOpen, onClose, checklist }) => {
+const ChecklistModal: React.FC<ChecklistModalProps> = ({ isOpen, onClose, checklist, targetRole }) => {
   const { addDailyChecklist, updateDailyChecklist } = useApp();
-  const [title, setTitle] = useState(checklist?.title || '');
+  const [title, setTitle] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   
   React.useEffect(() => {
     if (isOpen) {
-      setTitle(checklist?.title || '');
+      // Remove o prefixo para edição amigável
+      const displayTitle = checklist?.title.startsWith(SECRETARIA_PREFIX) 
+        ? checklist.title.replace(SECRETARIA_PREFIX, '') 
+        : checklist?.title || '';
+      setTitle(displayTitle);
     }
   }, [isOpen, checklist]);
 
@@ -45,12 +53,15 @@ const ChecklistModal: React.FC<ChecklistModalProps> = ({ isOpen, onClose, checkl
     
     setIsSaving(true);
     try {
+      // Adiciona o prefixo se for para a secretaria
+      const finalTitle = targetRole === 'SECRETARIA' ? `${SECRETARIA_PREFIX}${title.trim()}` : title.trim();
+
       if (checklist) {
-        await updateDailyChecklist(checklist.id, { title });
-        toast.success(`✅ Checklist "${title}" atualizado com sucesso!`);
+        await updateDailyChecklist(checklist.id, { title: finalTitle });
+        toast.success(`✅ Checklist atualizado com sucesso!`);
       } else {
-        await addDailyChecklist(title);
-        toast.success(`✅ Checklist "${title}" criado com sucesso!\n\nEle estará disponível para TODOS os consultores.`);
+        await addDailyChecklist(finalTitle);
+        toast.success(`✅ Checklist criado com sucesso!`);
       }
       onClose();
     } catch (error: any) {
@@ -67,9 +78,9 @@ const ChecklistModal: React.FC<ChecklistModalProps> = ({ isOpen, onClose, checkl
         <DialogHeader>
           <DialogTitle>{checklist ? 'Editar Checklist' : 'Novo Checklist'}</DialogTitle>
           <DialogDescription>
-            {checklist 
-              ? 'Altere o título do checklist.' 
-              : 'Crie um novo checklist diário para seus consultores. Ele será global por padrão.'}
+            {targetRole === 'SECRETARIA' 
+              ? 'Criando checklist exclusivo para a equipe de Secretaria.' 
+              : 'Criando checklist para a equipe de Consultores.'}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
@@ -83,7 +94,7 @@ const ChecklistModal: React.FC<ChecklistModalProps> = ({ isOpen, onClose, checkl
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 className="col-span-3 dark:bg-slate-700 dark:text-white dark:border-slate-600"
-                placeholder="Ex: Checklist Matinal"
+                placeholder="Ex: Rotina Diária"
                 required
               />
             </div>
@@ -128,8 +139,19 @@ const AssignmentModal: React.FC<AssignmentModalProps> = ({ isOpen, onClose, chec
   const { teamMembers, dailyChecklistAssignments, assignDailyChecklistToConsultant, unassignDailyChecklistFromConsultant } = useApp();
   const [isSaving, setIsSaving] = useState(false);
 
-  // CORREÇÃO: Apenas membros com authUserId (conta vinculada) podem receber checklists
-  const assignableMembers = useMemo(() => teamMembers.filter(m => m.isActive && m.authUserId && (m.roles.includes('CONSULTOR') || m.roles.includes('Prévia') || m.roles.includes('Autorizado') || m.roles.includes('Secretaria'))), [teamMembers]);
+  const isSecretariaChecklist = checklist?.title.startsWith(SECRETARIA_PREFIX);
+
+  // Filtra membros baseados no tipo de checklist
+  const assignableMembers = useMemo(() => {
+    return teamMembers.filter(m => {
+      if (!m.isActive || !m.authUserId) return false;
+      if (isSecretariaChecklist) {
+        return m.roles.includes('Secretaria');
+      } else {
+        return m.roles.includes('CONSULTOR') || m.roles.includes('Prévia') || m.roles.includes('Autorizado');
+      }
+    });
+  }, [teamMembers, isSecretariaChecklist]);
   
   const assignedMemberIds = useMemo(() => 
     new Set(dailyChecklistAssignments.filter(a => a.daily_checklist_id === checklist?.id).map(a => a.consultant_id))
@@ -141,14 +163,14 @@ const AssignmentModal: React.FC<AssignmentModalProps> = ({ isOpen, onClose, chec
     try {
       if (isAssigned) {
         await unassignDailyChecklistFromConsultant(checklist.id, memberId);
-        toast.success("Atribuição removida com sucesso!");
+        toast.success("Atribuição removida!");
       } else {
         await assignDailyChecklistToConsultant(checklist.id, memberId);
-        toast.success("Atribuição adicionada com sucesso!");
+        toast.success("Atribuição adicionada!");
       }
     } catch (error: any) {
       console.error("Failed to update assignment:", error);
-      toast.error(`Erro ao atualizar atribuição: ${error.message || 'Verifique o console para mais detalhes.'}`);
+      toast.error(`Erro: ${error.message}`);
     } finally {
       setIsSaving(false);
     }
@@ -160,17 +182,16 @@ const AssignmentModal: React.FC<AssignmentModalProps> = ({ isOpen, onClose, chec
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px] bg-white dark:bg-slate-800 dark:text-white">
         <DialogHeader>
-          <DialogTitle>Atribuir "{checklist.title}"</DialogTitle>
+          <DialogTitle>Atribuir Checklist</DialogTitle>
           <DialogDescription>
-            Selecione os membros da equipe que receberão este checklist. Se nenhum for selecionado, ele será global.
+            Selecione quem deve visualizar este checklist.
           </DialogDescription>
         </DialogHeader>
         <ScrollArea className="h-[300px] py-4 custom-scrollbar">
           <div className="grid gap-3">
             {assignableMembers.length === 0 ? (
               <div className="p-4 text-center">
-                <p className="text-sm text-gray-500 dark:text-gray-400">Nenhum membro com conta ativa encontrado.</p>
-                <p className="text-xs text-gray-400 mt-2">Vá em "Gestão de Equipe" e resete a senha do membro para ativar sua conta.</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Nenhum membro compatível encontrado.</p>
               </div>
             ) : (
               assignableMembers.map(member => {
@@ -185,7 +206,7 @@ const AssignmentModal: React.FC<AssignmentModalProps> = ({ isOpen, onClose, chec
                       className="dark:border-slate-600 data-[state=checked]:bg-brand-600 data-[state=checked]:text-white"
                     />
                     <Label htmlFor={`member-${member.id}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                      {member.name} ({member.roles.join(', ')})
+                      {member.name}
                     </Label>
                   </div>
                 );
@@ -718,16 +739,13 @@ export const DailyChecklistConfig = () => {
     dailyChecklists, 
     dailyChecklistItems, 
     dailyChecklistAssignments, 
-    addDailyChecklistItem, 
-    updateDailyChecklistItem, 
     deleteDailyChecklistItem, 
     moveDailyChecklistItem,
     updateDailyChecklist,
     deleteDailyChecklist,
-    teamMembers,
-    addDailyChecklist,
-    assignDailyChecklistToConsultant
   } = useApp();
+
+  const [activeTab, setActiveTab] = useState<'CONSULTOR' | 'SECRETARIA'>('CONSULTOR');
 
   const [isChecklistModalOpen, setIsChecklistModalOpen] = useState(false);
   const [editingChecklist, setEditingChecklist] = useState<DailyChecklist | null>(null);
@@ -796,9 +814,13 @@ export const DailyChecklistConfig = () => {
     setIsResourceModalOpen(true);
   };
 
-  const sortedChecklists = useMemo(() => {
-    return [...dailyChecklists].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-  }, [dailyChecklists]);
+  // Filtra os checklists baseados na aba ativa
+  const filteredChecklists = useMemo(() => {
+    return dailyChecklists.filter(c => {
+      const isSec = c.title.startsWith(SECRETARIA_PREFIX);
+      return activeTab === 'SECRETARIA' ? isSec : !isSec;
+    }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }, [dailyChecklists, activeTab]);
 
   const getResourceTypeIcon = (type: DailyChecklistItemResourceType) => {
     switch (type) {
@@ -820,7 +842,7 @@ export const DailyChecklistConfig = () => {
       <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Configurar Metas Diárias</h1>
-          <p className="text-gray-500 dark:text-gray-400">Crie e gerencie as metas diárias para seus consultores.</p>
+          <p className="text-gray-500 dark:text-gray-400">Crie e gerencie as metas diárias para sua equipe.</p>
         </div>
         <div className="flex items-center space-x-2 mt-4 sm:mt-0">
           <Button onClick={handleAddNewChecklist} className="bg-brand-600 hover:bg-brand-700 text-white">
@@ -830,21 +852,45 @@ export const DailyChecklistConfig = () => {
         </div>
       </div>
 
+      {/* Seletor de Abas */}
+      <div className="flex space-x-1 bg-gray-100 dark:bg-slate-800 p-1 rounded-lg w-fit mb-8">
+        <button
+          onClick={() => setActiveTab('CONSULTOR')}
+          className={`flex items-center space-x-2 px-6 py-2.5 rounded-md text-sm font-bold transition-all ${
+            activeTab === 'CONSULTOR' ? 'bg-white dark:bg-slate-700 text-brand-600 dark:text-brand-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+          }`}
+        >
+          <UserRound className="w-4 h-4" />
+          <span>Consultores</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('SECRETARIA')}
+          className={`flex items-center space-x-2 px-6 py-2.5 rounded-md text-sm font-bold transition-all ${
+            activeTab === 'SECRETARIA' ? 'bg-white dark:bg-slate-700 text-brand-600 dark:text-brand-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+          }`}
+        >
+          <ShieldCheck className="w-4 h-4" />
+          <span>Secretaria</span>
+        </button>
+      </div>
+
       <div className="space-y-8">
-        {sortedChecklists.length === 0 ? (
+        {filteredChecklists.length === 0 ? (
           <div className="text-center py-16 bg-white dark:bg-slate-800 rounded-xl border border-dashed border-gray-200 dark:border-slate-700">
             <ListChecks className="mx-auto w-12 h-12 text-gray-300 dark:text-slate-600" />
-            <p className="mt-4 text-gray-500 dark:text-gray-400">Nenhum checklist criado ainda.</p>
+            <p className="mt-4 text-gray-500 dark:text-gray-400">Nenhum checklist para {activeTab.toLowerCase()} criado ainda.</p>
             <p className="text-sm text-gray-400">Clique em "Novo Checklist" para começar.</p>
           </div>
         ) : (
-          sortedChecklists.map((checklist) => (
+          filteredChecklists.map((checklist) => (
             <div key={checklist.id} className={`bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden ${!checklist.is_active ? 'opacity-60' : ''}`}>
               <div className="bg-gray-50 dark:bg-slate-700/50 px-6 py-4 border-b border-gray-200 dark:border-slate-700 flex flex-col sm:flex-row justify-between items-start sm:items-center">
                 <div>
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">{checklist.title}</h3>
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                    {checklist.title.replace(SECRETARIA_PREFIX, '')}
+                  </h3>
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${checklist.is_active ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' : 'bg-gray-100 text-gray-700 dark:bg-slate-700 dark:text-gray-300'}`}>
-                    {checklist.is_active ? 'Ativo' : 'Inativo'}
+                    {checklist.is_active ? 'Ativo' : 'Inativa'}
                   </span>
                 </div>
                 <div className="flex items-center space-x-2 mt-4 sm:mt-0 flex-wrap justify-end">
@@ -945,6 +991,7 @@ export const DailyChecklistConfig = () => {
         isOpen={isChecklistModalOpen} 
         onClose={() => setIsChecklistModalOpen(false)} 
         checklist={editingChecklist} 
+        targetRole={activeTab}
       />
       <AssignmentModal
         isOpen={isAssignmentModalOpen}

@@ -12,6 +12,9 @@ import { Button } from '@/components/ui/button';
 const formatDate = (date: Date) => date.toISOString().split('T')[0]; // YYYY-MM-DD
 const displayDate = (date: Date) => date.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
 
+// Prefixo interno para identificar checklists da secretaria
+const SECRETARIA_PREFIX = "[SEC] ";
+
 interface DailyChecklistDisplayProps {
   user: User | null;
   isDataLoading: boolean;
@@ -50,12 +53,13 @@ export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ us
     const isSecretaria = userTeamMember.roles.includes('Secretaria');
 
     // 1. GLOBAIS: checklists SEM atribuição específica
-    // REGRA: Se for Secretaria, NÃO mostra globais (para não ver coisas de consultor por engano)
+    // REGRA: Se for Secretaria, NÃO mostra globais. Se for Consultor, mostra apenas os que NÃO têm o prefixo [SEC]
     const globalChecklists = isSecretaria ? [] : dailyChecklists.filter(checklist => {
       const hasAnyAssignment = dailyChecklistAssignments.some(
         assignment => assignment.daily_checklist_id === checklist.id
       );
-      return !hasAnyAssignment;
+      const isSecChecklist = checklist.title.startsWith(SECRETARIA_PREFIX);
+      return !hasAnyAssignment && !isSecChecklist;
     });
 
     // 2. ESPECÍFICOS: checklists atribuídos a ESTE usuário
@@ -199,7 +203,9 @@ export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ us
           return (
             <div key={checklist.id} className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
               <div className="bg-gray-50 dark:bg-slate-700/50 px-6 py-4 border-b border-gray-200 dark:border-slate-700">
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white">{checklist.title}</h3>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                  {checklist.title.replace(SECRETARIA_PREFIX, '')}
+                </h3>
               </div>
               <div className="divide-y divide-gray-100 dark:divide-slate-700">
                 {items.length === 0 ? (

@@ -18,6 +18,9 @@ import { Button } from '@/components/ui/button';
 const formatDate = (date: Date) => date.toISOString().split('T')[0]; // YYYY-MM-DD
 const displayDate = (date: Date) => date.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
 
+// Prefixo interno para identificar checklists da secretaria
+const SECRETARIA_PREFIX = "[SEC] ";
+
 export const DailyChecklistMonitoring = () => {
   const {
     dailyChecklists,
@@ -60,10 +63,12 @@ export const DailyChecklistMonitoring = () => {
       .filter(assignment => assignment.consultant_id === selectedConsultantId)
       .map(assignment => assignment.daily_checklist_id);
 
-    // REGRA: Se for Secretaria, NÃO mostra globais
+    // REGRA: Se for Secretaria, mostra apenas os que têm o prefixo [SEC]
+    // Se for Consultor, mostra os Globais (sem prefixo) + os atribuídos a ele
     const globalChecklists = isSecretaria ? [] : dailyChecklists.filter(checklist => {
       const hasAssignments = dailyChecklistAssignments.some(assignment => assignment.daily_checklist_id === checklist.id);
-      return !hasAssignments;
+      const isSecChecklist = checklist.title.startsWith(SECRETARIA_PREFIX);
+      return !hasAssignments && !isSecChecklist;
     }).map(checklist => checklist.id);
 
     const relevantChecklistIds = new Set([...explicitAssignments, ...globalChecklists]);
@@ -224,7 +229,9 @@ export const DailyChecklistMonitoring = () => {
                 <div key={checklist.id} className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden mb-4">
                   <div className="bg-gray-50 dark:bg-slate-700/50 px-6 py-4 border-b border-gray-200 dark:border-slate-700">
                     <div className="flex justify-between items-center mb-2">
-                      <h3 className="text-lg font-bold text-gray-900 dark:text-white">{checklist.title}</h3>
+                      <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                        {checklist.title.replace(SECRETARIA_PREFIX, '')}
+                      </h3>
                       <span className="text-xs font-semibold text-gray-500 dark:text-gray-300 bg-gray-200 dark:bg-slate-600 px-2 py-1 rounded">{checklistProgress}% Concluído</span>
                     </div>
                     <div className="w-full bg-gray-200 dark:bg-slate-600 rounded-full h-1.5">
