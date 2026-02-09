@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import { DailyChecklistDisplay } from '@/components/consultor/DailyChecklistDisplay';
 import { 
   Users, 
@@ -17,12 +18,29 @@ import {
   Calendar, 
   RotateCcw,
   ListChecks,
-  Loader2
+  Loader2,
+  AlertCircle,
+  CheckSquare,
+  ChevronRight,
+  CalendarDays,
+  ListTodo
 } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
+
+interface AgendaItem {
+  id: string;
+  type: 'task' | 'interview' | 'gestor_task';
+  title: string;
+  personName: string;
+  personId: string;
+  personType: 'candidate' | 'teamMember';
+  dueDate: string;
+}
 
 export const SecretariaDashboard = () => {
   const { user } = useAuth();
-  const { candidates, isDataLoading, hiringOrigins } = useApp();
+  const { candidates, checklistStructure, isDataLoading, gestorTasks, gestorTaskCompletions, isGestorTaskDueOnDate, notifications } = useApp();
+  const navigate = useNavigate();
   
   // Filtros de Data Padrão: Mês Atual
   const [startDate, setStartDate] = useState(() => {
@@ -33,6 +51,93 @@ export const SecretariaDashboard = () => {
     const d = new Date();
     return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
   });
+
+  // --- Lógica da Agenda (Tudo que envolve data) ---
+  const { todayAgenda, overdueTasks } = useMemo(() => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const todayAgendaItems: AgendaItem[] = [];
+    const overdueItems: AgendaItem[] = [];
+
+    // 1. Prazos nos Checklists dos Candidatos
+    candidates.forEach(candidate => {
+      Object.entries(candidate.checklistProgress || {}).forEach(([taskId, state]) => {
+        if (state.dueDate) {
+          const item = checklistStructure.flatMap(s => s.items).find(i => i.id === taskId);
+          if (item) {
+            const agendaItem: AgendaItem = { 
+              id: `${candidate.id}-${taskId}`, 
+              type: 'task', 
+              title: item.label, 
+              personName: candidate.name, 
+              personId: candidate.id, 
+              personType: 'candidate', 
+              dueDate: state.dueDate 
+            };
+            if (state.dueDate === todayStr && !state.completed) todayAgendaItems.push(agendaItem);
+            else if (state.dueDate < todayStr && !state.completed) overdueItems.push(agendaItem);
+          }
+        }
+      });
+
+      // 2. Entrevistas Agendadas
+      if (candidate.interviewDate === todayStr) {
+        todayAgendaItems.push({ 
+          id: `interview-${candidate.id}`, 
+          type: 'interview', 
+          title: 'Entrevista Agendada', 
+          personName: candidate.name, 
+          personId: candidate.id, 
+          personType: 'candidate', 
+          dueDate: candidate.interviewDate 
+        });
+      } else if (candidate.interviewDate && candidate.interviewDate < todayStr && candidate.status === 'Entrevista' && !candidate.interviewConducted) {
+        overdueItems.push({
+          id: `interview-overdue-${candidate.id}`,
+          type: 'interview',
+          title: 'Entrevista não realizada',
+          personName: candidate.name,
+          personId: candidate.id,
+          personType: 'candidate',
+          dueDate: candidate.interviewDate
+        });
+      }
+    });
+
+    // 3. Tarefas Pessoais da Secretaria
+    gestorTasks.filter(task => task.user_id === user?.id).forEach(task => {
+      const isRecurring = task.recurrence_pattern && task.recurrence_pattern.type !== 'none';
+      const isCompletedToday = isRecurring && gestorTaskCompletions.some(c => c.gestor_task_id === task.id && c.user_id === user?.id && c.date === todayStr && c.done);
+      const isDueToday = isGestorTaskDueOnDate(task, todayStr);
+
+      if (!isCompletedToday && isDueToday) {
+        todayAgendaItems.push({ 
+          id: `task-${task.id}`, 
+          type: 'gestor_task', 
+          title: task.title, 
+          personName: 'Minha Tarefa', 
+          personId: user!.id, 
+          personType: 'teamMember', 
+          dueDate: task.due_date || todayStr 
+        });
+      } else if (!isRecurring && task.due_date && task.due_date < todayStr && !task.is_completed) {
+        overdueItems.push({ 
+          id: `task-overdue-${task.id}`, 
+          type: 'gestor_task', 
+          title: task.title, 
+          personName: 'Minha Tarefa', 
+          personId: user!.id, 
+          personType: 'teamMember', 
+          dueDate: task.due_date 
+        });
+      }
+    });
+
+    return { todayAgenda: todayAgendaItems, overdueTasks: overdueItems };
+  }, [candidates, checklistStructure, user, gestorTasks, gestorTaskCompletions, isGestorTaskDueOnDate]);
+
+  const handleAgendaItemClick = (item: AgendaItem) => {
+    if (item.personType === 'candidate') navigate(`/gestor/candidate/${item.personId}`);
+  };
 
   const metrics = useMemo(() => {
     const start = new Date(startDate + 'T00:00:00');
@@ -67,7 +172,6 @@ export const SecretariaDashboard = () => {
     const withdrawn = filtered.filter(c => c.status === 'Reprovado').length;
     const disqualified = filtered.filter(c => c.status === 'Desqualificado').length;
 
-    // NOVA LÓGICA: Contratado é quem entra em Prévia ou avança além disso
     const totalHired = filtered.filter(c => 
       !['Triagem', 'Entrevista', 'Faltou', 'Reprovado', 'Desqualificado'].includes(c.status)
     ).length;
@@ -121,20 +225,79 @@ export const SecretariaDashboard = () => {
 
   return (
     <div className="p-4 sm:p-8 max-w-7xl mx-auto space-y-12">
-      {/* 1. SEÇÃO DE METAS DIÁRIAS */}
+      {/* 1. SEÇÃO DE AGENDA E LEMBRETES (NOVO) */}
+      <section className="animate-fade-in">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center">
+          <CalendarDays className="w-5 h-5 mr-2 text-brand-500" /> Agenda e Lembretes de Prazos
+        </h2>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-md">
+            <h3 className="text-sm font-bold text-gray-400 uppercase mb-4 flex items-center">
+              <Clock className="w-4 h-4 mr-2" /> Compromissos de Hoje
+            </h3>
+            {todayAgenda.length === 0 ? (
+              <p className="text-center text-gray-400 py-8">Nenhum compromisso com data para hoje.</p>
+            ) : (
+              <ScrollArea className="h-[250px] pr-4">
+                <ul className="space-y-3">
+                  {todayAgenda.map(item => (
+                    <li key={item.id} onClick={() => handleAgendaItemClick(item)} className="flex items-start space-x-3 p-3 rounded-lg bg-gray-50 dark:bg-slate-700/50 hover:bg-gray-100 transition-colors cursor-pointer border border-transparent hover:border-brand-200">
+                      <div className="mt-1">
+                        {item.type === 'interview' ? <Calendar className="w-4 h-4 text-green-500" /> : <CheckSquare className="w-4 h-4 text-blue-500" />}
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-bold text-sm text-gray-900 dark:text-white">{item.title}</p>
+                        <p className="text-xs text-gray-500">{item.personName}</p>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-gray-300" />
+                    </li>
+                  ))}
+                </ul>
+              </ScrollArea>
+            )}
+          </div>
+
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-red-100 dark:border-red-900/30 shadow-md">
+            <h3 className="text-sm font-bold text-red-500 uppercase mb-4 flex items-center">
+              <AlertCircle className="w-4 h-4 mr-2" /> Prazos e Datas Atrasadas
+            </h3>
+            {overdueTasks.length === 0 ? (
+              <p className="text-center text-gray-400 py-8">Nenhuma data atrasada. Tudo em dia!</p>
+            ) : (
+              <ScrollArea className="h-[250px] pr-4">
+                <ul className="space-y-3">
+                  {overdueTasks.map(item => (
+                    <li key={item.id} onClick={() => handleAgendaItemClick(item)} className="flex items-start space-x-3 p-3 rounded-lg bg-red-50 dark:bg-red-900/10 hover:bg-red-100 transition-colors cursor-pointer border border-red-100 dark:border-red-900/20">
+                      <div className="mt-1"><AlertCircle className="w-4 h-4 text-red-500" /></div>
+                      <div className="flex-1">
+                        <p className="font-bold text-sm text-red-900 dark:text-red-200">{item.title}</p>
+                        <p className="text-xs text-red-700 dark:text-red-400">{item.personName} • Venceu em {new Date(item.dueDate + 'T00:00:00').toLocaleDateString('pt-BR')}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </ScrollArea>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <hr className="border-gray-200 dark:border-slate-800" />
+
+      {/* 2. SEÇÃO DE METAS DIÁRIAS */}
       <section className="animate-fade-in">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
-            <ListChecks className="w-6 h-6 mr-2 text-brand-500" /> Minhas Metas Diárias
-          </h1>
-          <p className="text-gray-500 dark:text-gray-400">Acompanhe suas tarefas e rotinas do dia.</p>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
+            <ListChecks className="w-6 h-6 mr-2 text-brand-500" /> Minhas Rotinas Diárias
+          </h2>
+          <p className="text-gray-500 dark:text-gray-400">Checklist de tarefas operacionais recorrentes.</p>
         </div>
         <DailyChecklistDisplay user={user} isDataLoading={isDataLoading} />
       </section>
 
       <hr className="border-gray-200 dark:border-slate-800" />
 
-      {/* 2. SEÇÃO DE DASHBOARD DE CANDIDATURAS */}
+      {/* 3. SEÇÃO DE DASHBOARD DE CANDIDATURAS */}
       <section className="animate-fade-in">
         <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
