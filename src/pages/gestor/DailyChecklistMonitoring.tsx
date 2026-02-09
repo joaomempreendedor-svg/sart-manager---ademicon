@@ -11,9 +11,9 @@ import {
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { DailyChecklistItem, DailyChecklistItemResourceType } from '@/types'; // Importar DailyChecklistItem
-import { DailyChecklistItemResourceModal } from '@/components/DailyChecklistItemResourceModal'; // Importar o novo modal
-import { Button } from '@/components/ui/button'; // Importar o componente Button
+import { DailyChecklistItem, DailyChecklistItemResourceType } from '@/types';
+import { DailyChecklistItemResourceModal } from '@/components/DailyChecklistItemResourceModal';
+import { Button } from '@/components/ui/button';
 
 const formatDate = (date: Date) => date.toISOString().split('T')[0]; // YYYY-MM-DD
 const displayDate = (date: Date) => date.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
@@ -26,7 +26,7 @@ export const DailyChecklistMonitoring = () => {
     dailyChecklistCompletions,
     teamMembers,
     isDataLoading,
-    toggleDailyChecklistCompletion // Gestor pode marcar como concluído também
+    toggleDailyChecklistCompletion
   } = useApp();
   const { user } = useAuth();
 
@@ -55,15 +55,13 @@ export const DailyChecklistMonitoring = () => {
   const assignedChecklists = useMemo(() => {
     if (!selectedConsultantId) return [];
 
-    // Find checklists explicitly assigned to the selected consultant
     const explicitAssignments = dailyChecklistAssignments
       .filter(assignment => assignment.consultant_id === selectedConsultantId)
       .map(assignment => assignment.daily_checklist_id);
 
-    // Find global checklists (not assigned to anyone specifically)
     const globalChecklists = dailyChecklists.filter(checklist => {
       const hasAssignments = dailyChecklistAssignments.some(assignment => assignment.daily_checklist_id === checklist.id);
-      return !hasAssignments; // If no assignments exist for this checklist, it's global
+      return !hasAssignments;
     }).map(checklist => checklist.id);
 
     const relevantChecklistIds = new Set([...explicitAssignments, ...globalChecklists]);
@@ -84,7 +82,7 @@ export const DailyChecklistMonitoring = () => {
     return dailyChecklistCompletions.some(
       completion =>
         completion.daily_checklist_item_id === itemId &&
-        completion.user_id === selectedConsultantId && // CORRIGIDO: Usar completion.user_id
+        completion.consultant_id === selectedConsultantId &&
         completion.date === formattedSelectedDate &&
         completion.done
     );
@@ -103,7 +101,6 @@ export const DailyChecklistMonitoring = () => {
     });
   };
 
-  // Calcular o progresso diário geral para o consultor selecionado
   const { completedDailyTasks, totalDailyTasks, dailyProgress } = useMemo(() => {
     if (!selectedConsultantId) return { completedDailyTasks: 0, totalDailyTasks: 0, dailyProgress: 0 };
 
@@ -116,7 +113,7 @@ export const DailyChecklistMonitoring = () => {
       dailyChecklistCompletions.some(
         completion =>
           completion.daily_checklist_item_id === item.id &&
-          completion.user_id === selectedConsultantId && // CORRIGIDO: Usar completion.user_id
+          completion.consultant_id === selectedConsultantId &&
           completion.date === formattedSelectedDate &&
           completion.done
       )
@@ -167,7 +164,7 @@ export const DailyChecklistMonitoring = () => {
             <SelectTrigger className="w-[220px] dark:bg-slate-700 dark:text-white dark:border-slate-600">
               <SelectValue placeholder="Selecione o Membro" />
             </SelectTrigger>
-            <SelectContent className="bg-white text-gray-900 dark:bg-slate-800 dark:text-white dark:border-slate-700"> {/* Adicionado bg-white */}
+            <SelectContent className="bg-white text-gray-900 dark:bg-slate-800 dark:text-white dark:border-slate-700">
               {assignableMembers.map(member => (
                 <SelectItem key={member.id} value={member.id}>
                   {member.name} ({member.roles.join(', ')})
@@ -204,7 +201,6 @@ export const DailyChecklistMonitoring = () => {
         </div>
       ) : (
         <div className="space-y-6">
-          {/* Overall Daily Progress Bar */}
           <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center"><ListChecks className="w-5 h-5 mr-2 text-brand-500" />Progresso Diário Geral</h2>
