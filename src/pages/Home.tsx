@@ -15,7 +15,6 @@ export const Home = () => {
   }
 
   // O redirecionamento para /login se !user é tratado pelo RequireAuth
-  // Este componente só será renderizado se o usuário estiver autenticado.
   if (user?.role === 'GESTOR' || user?.role === 'ADMIN') {
     return <Navigate to="/gestor/dashboard" replace />;
   }
@@ -24,10 +23,9 @@ export const Home = () => {
     return <Navigate to="/consultor/dashboard" replace />;
   }
 
-  if (user?.role === 'SECRETARIA') { // NOVO: Redirecionamento para Secretaria
-    return <Navigate to="/secretaria/onboarding-admin" replace />;
+  if (user?.role === 'SECRETARIA') {
+    return <Navigate to="/secretaria/dashboard" replace />;
   }
 
-  // Fallback, embora o RequireAuth já devesse ter redirecionado
   return <Navigate to="/login" replace />;
 };

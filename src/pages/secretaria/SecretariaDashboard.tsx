@@ -1,57 +1,61 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Calendar, Clock, User, Phone, CheckCircle2, Loader2, Users, TrendingUp, XCircle, Check, UserX, UserRound } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { DailyChecklistDisplay } from '@/components/consultor/DailyChecklistDisplay';
+import { 
+  Users, 
+  UserPlus, 
+  MessageSquare, 
+  Clock, 
+  FileText, 
+  TrendingUp, 
+  UserCheck, 
+  Ghost, 
+  UserMinus, 
+  XCircle, 
+  Percent, 
+  MapPin, 
+  BarChart3, 
+  Calendar, 
+  RotateCcw,
+  ListChecks,
+  Loader2
+} from 'lucide-react';
 
-export const SecretariaDashboard = () => {
-  const { candidates, teamMembers, isDataLoading, updateCandidate } = useApp();
+const SecretariaDashboard = () => {
   const { user } = useAuth();
+  const { candidates, isDataLoading, hiringOrigins } = useApp();
+  
+  // Filtros de Data Padrão: Mês Atual para o Dashboard
+  const [startDate, setStartDate] = useState(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
+  });
+  const [endDate, setEndDate] = useState(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
+  });
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const metrics = useMemo(() => {
+    const start = new Date(startDate + 'T00:00:00');
+    const end = new Date(endDate + 'T23:59:59');
 
-  const todayInterviews = useMemo(() => {
-    return candidates
-      .filter(c => c.interviewDate === todayStr && c.status === 'Entrevista' && !c.interviewConducted)
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [candidates, todayStr]);
+    const filtered = candidates.filter(c => {
+      const created = new Date(c.createdAt);
+      return created >= start && created <= end;
+    });
 
-  const handleConfirmAttendance = async (candidateId: string, name: string) => {
-    try {
-      await updateCandidate(candidateId, { interviewConducted: true });
-      toast.success(`Presença de ${name} confirmada!`);
-    } catch (error: any) {
-      toast.error("Erro ao confirmar presença.");
-    }
-  };
+    const total = filtered.length;
+    const newCandidates = filtered.filter(c => c.status === 'Triagem' && (c.screeningStatus === 'Pending Contact' || !c.screeningStatus)).length;
+    const contacted = filtered.filter(c => c.status === 'Triagem' && c.screeningStatus === 'Contacted').length;
+    const totalInterviews = filtered.filter(c => c.status === 'Entrevista').length;
+    const conducted = filtered.filter(c => c.status === 'Entrevista' && (c.interviewConducted || c.interviewScores.basicProfile > 0)).length;
+    const hired = filtered.filter(c => c.status === 'Autorizado').length;
 
-  const handleMarkNoShow = async (candidateId: string, name: string) => {
-    if (window.confirm(`Confirmar que o candidato ${name} NÃO compareceu à entrevista?`)) {
-      try {
-        await updateCandidate(candidateId, { status: 'Faltou' });
-        toast.error(`Falta registrada para ${name}.`);
-      } catch (error: any) {
-        toast.error("Erro ao registrar falta.");
-      }
-    }
-  };
+    const hiringRate = total > 0 ? (hired / total) * 100 : 0;
 
-  const handleMarkWithdrawal = async (candidateId: string, name: string) => {
-    if (window.confirm(`Confirmar desistência do candidato ${name}?`)) {
-      try {
-        await updateCandidate(candidateId, { status: 'Reprovado' }); // 'Reprovado' é usado para Desistências no sistema
-        toast.success(`Desistência registrada para ${name}.`);
-      } catch (error: any) {
-        toast.error("Erro ao registrar desistência.");
-      }
-    }
-  };
-
-  const getResponsibleName = (responsibleUserId: string | undefined) => {
-    if (!responsibleUserId) return 'Não atribuído';
-    const member = teamMembers.find(m => m.id === responsibleUserId || m.authUserId === responsibleUserId);
-    return member ? member.name : 'Desconhecido';
-  };
+    return { total, newCandidates, contacted, totalInterviews, conducted, hired, hiringRate };
+  }, [candidates, startDate, endDate]);
 
   if (isDataLoading) {
     return (
@@ -61,84 +65,80 @@ export const SecretariaDashboard = () => {
     );
   }
 
-  return (
-    <div className="p-4 sm:p-8 max-w-5xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Controle de Recepção</h1>
-        <p className="text-gray-500 dark:text-gray-400">Gerencie a chegada dos candidatos para as entrevistas de hoje.</p>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
-          <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-            <Calendar className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-          </div>
-          <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Entrevistas Hoje</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{todayInterviews.length}</p>
-          </div>
+  const MetricCard = ({ title, value, icon: Icon, colorClass }: any) => (
+    <div className={`p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm ${colorClass}`}>
+      <div className="flex justify-between items-center">
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-wider opacity-70">{title}</p>
+          <h3 className="text-2xl font-black">{value}</h3>
         </div>
-      </div>
-
-      <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
-          <h2 className="font-bold text-gray-900 dark:text-white flex items-center">
-            <Users className="w-5 h-5 mr-2 text-brand-500" /> Candidatos Aguardados (Hoje)
-          </h2>
-        </div>
-        
-        <div className="divide-y divide-gray-100 dark:divide-slate-700">
-          {todayInterviews.length === 0 ? (
-            <div className="p-12 text-center text-gray-400">
-              <CheckCircle2 className="w-12 h-12 mx-auto mb-3 opacity-20" />
-              <p>Nenhuma entrevista pendente para hoje.</p>
-            </div>
-          ) : (
-            todayInterviews.map(candidate => (
-              <div key={candidate.id} className="p-6 flex flex-col sm:flex-row sm:items-center justify-between hover:bg-gray-50 dark:hover:bg-slate-700/30 transition">
-                <div className="flex items-start space-x-4 mb-4 sm:mb-0">
-                  <div className="w-12 h-12 rounded-full bg-brand-100 dark:bg-brand-900/40 flex items-center justify-center text-brand-700 dark:text-brand-400 font-bold">
-                    {candidate.name.substring(0, 2).toUpperCase()}
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-gray-900 dark:text-white">{candidate.name}</h3>
-                    <div className="flex flex-wrap gap-3 mt-1 text-sm text-gray-500 dark:text-gray-400">
-                      <span className="flex items-center"><Phone className="w-3.5 h-3.5 mr-1" /> {candidate.phone || 'N/A'}</span>
-                      <span className="flex items-center"><UserRound className="w-3.5 h-3.5 mr-1" /> Resp: {getResponsibleName(candidate.responsibleUserId)}</span>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="flex items-center space-x-2 w-full sm:w-auto">
-                  <button
-                    onClick={() => handleMarkWithdrawal(candidate.id, candidate.name)}
-                    className="flex-1 sm:flex-none flex items-center justify-center space-x-2 bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-400 px-4 py-2.5 rounded-lg transition font-bold hover:bg-gray-50 dark:hover:bg-slate-600"
-                    title="Candidato desistiu da vaga"
-                  >
-                    <UserX className="w-5 h-5" />
-                    <span>Desistiu</span>
-                  </button>
-                  <button
-                    onClick={() => handleMarkNoShow(candidate.id, candidate.name)}
-                    className="flex-1 sm:flex-none flex items-center justify-center space-x-2 bg-white dark:bg-slate-700 border border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 px-4 py-2.5 rounded-lg transition font-bold hover:bg-red-50 dark:hover:bg-red-900/20"
-                    title="Candidato não compareceu"
-                  >
-                    <XCircle className="w-5 h-5" />
-                    <span>Faltou</span>
-                  </button>
-                  <button
-                    onClick={() => handleConfirmAttendance(candidate.id, candidate.name)}
-                    className="flex-1 sm:flex-none flex items-center justify-center space-x-2 bg-green-600 hover:bg-green-700 text-white px-6 py-2.5 rounded-lg transition font-bold shadow-md shadow-green-600/20"
-                  >
-                    <Check className="w-5 h-5" />
-                    <span>Compareceu</span>
-                  </button>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
+        <Icon className="w-5 h-5 opacity-50" />
       </div>
     </div>
   );
+
+  return (
+    <div className="p-4 sm:p-8 max-w-6xl mx-auto space-y-10">
+      {/* 1. SEÇÃO DE METAS DIÁRIAS */}
+      <section>
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
+            <ListChecks className="w-6 h-6 mr-2 text-brand-500" /> Minhas Metas Diárias
+          </h1>
+          <p className="text-gray-500 dark:text-gray-400">Acompanhe suas tarefas e rotinas do dia.</p>
+        </div>
+        <DailyChecklistDisplay user={user} isDataLoading={isDataLoading} />
+      </section>
+
+      <hr className="border-gray-200 dark:border-slate-800" />
+
+      {/* 2. SEÇÃO DE DASHBOARD DE CANDIDATURAS */}
+      <section>
+        <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
+              <TrendingUp className="w-6 h-6 mr-2 text-brand-500" /> Dashboard de Candidaturas
+            </h2>
+            <p className="text-gray-500 dark:text-gray-400">Resumo do fluxo de contratação (Mês Atual).</p>
+          </div>
+          
+          <div className="flex items-center space-x-2 bg-white dark:bg-slate-800 p-2 rounded-lg border border-gray-200 dark:border-slate-700">
+            <Calendar className="w-4 h-4 text-gray-400" />
+            <input 
+              type="date" 
+              value={startDate} 
+              onChange={(e) => setStartDate(e.target.value)}
+              className="text-xs bg-transparent border-none focus:ring-0 dark:text-white"
+            />
+            <span className="text-gray-400">até</span>
+            <input 
+              type="date" 
+              value={endDate} 
+              onChange={(e) => setEndDate(e.target.value)}
+              className="text-xs bg-transparent border-none focus:ring-0 dark:text-white"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <MetricCard title="Total" value={metrics.total} icon={Users} colorClass="bg-indigo-50 text-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-300" />
+          <MetricCard title="Novos" value={metrics.newCandidates} icon={UserPlus} colorClass="bg-slate-50 text-slate-700 dark:bg-slate-800 dark:text-slate-300" />
+          <MetricCard title="Contatados" value={metrics.contacted} icon={MessageSquare} colorClass="bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-300" />
+          <MetricCard title="Entrevistas" value={metrics.totalInterviews} icon={Clock} colorClass="bg-orange-50 text-orange-700 dark:bg-orange-900/20 dark:text-orange-300" />
+          <MetricCard title="Realizadas" value={metrics.conducted} icon={FileText} colorClass="bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-300" />
+          <MetricCard title="Contratados" value={metrics.hired} icon={UserCheck} colorClass="bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300" />
+        </div>
+
+        <div className="mt-6 bg-brand-50 dark:bg-brand-900/10 p-4 rounded-xl border border-brand-100 dark:border-brand-900/30 flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <Percent className="w-5 h-5 text-brand-600" />
+            <span className="text-sm font-bold text-brand-900 dark:text-brand-200 uppercase tracking-tight">Taxa de Conversão Final</span>
+          </div>
+          <span className="text-2xl font-black text-brand-600">{metrics.hiringRate.toFixed(1)}%</span>
+        </div>
+      </section>
+    </div>
+  );
 };
+
+export default SecretariaDashboard;
