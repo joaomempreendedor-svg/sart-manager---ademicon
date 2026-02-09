@@ -34,13 +34,6 @@ const CrmSalesReports = () => {
   const [selectedConsultantId, setSelectedConsultantId] = useState<string | null>(null);
   const [filterOrigin, setFilterOrigin] = useState<string | null>(null);
 
-  const [chartFilterSaleDateStart, setChartFilterSaleDateStart] = useState('');
-  const [chartFilterSaleDateEnd, setChartFilterSaleDateEnd] = useState('');
-
-  const [isSalesByOriginDetailModalOpen, setIsSalesByOriginDetailModalOpen] = useState(false);
-  const [selectedOriginForDetail, setSelectedOriginForDetail] = useState('');
-  const [leadsForOriginDetail, setLeadsForOriginDetail] = useState([]);
-
   const activePipeline = useMemo(() => {
     return crmPipelines.find(p => p.is_active) || crmPipelines[0];
   }, [crmPipelines]);
@@ -52,23 +45,14 @@ const CrmSalesReports = () => {
       .sort((a, b) => a.order_index - b.order_index);
   }, [crmStages, activePipeline]);
 
-  // CORREÇÃO: Inclui todos os membros ativos para o relatório, inclusive o Gestor logado
+  // CORREÇÃO: Lista de membros normalizada para usar authUserId como chave de busca
   const allTeamMembers = useMemo(() => {
     const members = [...teamMembers.filter(m => m.isActive)];
-    // Se o usuário logado não estiver na lista de membros (comum para gestores), adiciona ele virtualmente
-    if (user && !members.some(m => m.id === user.id || m.authUserId === user.id)) {
-      members.push({
-        id: user.id,
-        authUserId: user.id,
-        name: user.name,
-        roles: [user.role as any],
-        isActive: true,
-      } as any);
-    }
+    
     // Garante que o João Müller esteja na lista se o ID bater
-    if (!members.some(m => m.id === JOAO_GESTOR_AUTH_ID || m.authUserId === JOAO_GESTOR_AUTH_ID)) {
+    if (!members.some(m => m.authUserId === JOAO_GESTOR_AUTH_ID)) {
         members.push({
-            id: JOAO_GESTOR_AUTH_ID,
+            id: 'gestor-joao',
             authUserId: JOAO_GESTOR_AUTH_ID,
             name: 'João Müller',
             roles: ['Gestor'],
@@ -76,7 +60,7 @@ const CrmSalesReports = () => {
         } as any);
     }
     return members;
-  }, [teamMembers, user]);
+  }, [teamMembers]);
 
   const filteredLeads = useMemo(() => {
     let currentLeads = crmLeads;
@@ -137,10 +121,11 @@ const CrmSalesReports = () => {
       };
     } = {};
 
-    // Inicializa com todos os membros da equipe
-    allTeamMembers.forEach(c => {
-      dataByConsultant[c.id] = {
-        name: c.name,
+    // Inicializa o mapa usando o authUserId como chave
+    allTeamMembers.forEach(m => {
+      const key = m.authUserId || m.id;
+      dataByConsultant[key] = {
+        name: m.name,
         leadsRegistered: 0,
         meetingsScheduled: 0,
         proposalsSent: 0,
@@ -162,7 +147,7 @@ const CrmSalesReports = () => {
       pipelineStageSummary[stage.id] = { name: stage.name, count: 0, totalValue: 0 };
     });
 
-    const salesByOrigin: { [key: string]: { count: number; soldValue: number; leads: typeof filteredLeads } } = {};
+    const salesByOrigin: { [key: string]: { count: number; soldValue: number; leads: any[] } } = {};
     salesOrigins.forEach(origin => {
       salesByOrigin[origin] = { count: 0, soldValue: 0, leads: [] };
     });
@@ -170,7 +155,7 @@ const CrmSalesReports = () => {
     filteredLeads.forEach(lead => {
       totalLeads++;
       
-      // RESOLUÇÃO DE ID DO CONSULTOR
+      // RESOLUÇÃO DE ID DO CONSULTOR (Prioriza consultant_id, depois quem criou)
       const consultantId = lead.consultant_id || lead.created_by;
       
       if (consultantId && dataByConsultant[consultantId]) {
@@ -179,10 +164,8 @@ const CrmSalesReports = () => {
 
       if (lead.stage_id && pipelineStageSummary[lead.stage_id]) {
         pipelineStageSummary[lead.stage_id].count++;
-        const currentSoldValue = crmStages.find(s => s.id === lead.stage_id && s.is_won)
-          ? (lead.soldCreditValue && lead.soldCreditValue > 0 ? lead.soldCreditValue : (lead.proposalValue || 0))
-          : (lead.proposalValue || 0);
-        pipelineStageSummary[lead.stage_id].totalValue += currentSoldValue;
+        const currentVal = lead.proposalValue || 0;
+        pipelineStageSummary[lead.stage_id].totalValue += currentVal;
       }
 
       if (lead.proposalValue && lead.proposalValue > 0) {
@@ -216,13 +199,14 @@ const CrmSalesReports = () => {
       }
     });
 
+    // Contabiliza reuniões
     leadTasks.forEach(task => {
       if (task.type === 'meeting' && task.user_id && dataByConsultant[task.user_id]) {
         dataByConsultant[task.user_id].meetingsScheduled++;
       }
     });
 
-    const sortedConsultantData = Object.values(dataByConsultant).map(c => {
+    const performanceList = Object.values(dataByConsultant).map(c => {
       const conversionRate = c.proposalsSent > 0 ? (c.salesClosed / c.proposalsSent) * 100 : 0;
       return { ...c, conversionRate };
     }).sort((a, b) => b.soldValue - a.soldValue);
@@ -231,10 +215,8 @@ const CrmSalesReports = () => {
       totalLeads,
       totalProposalValue,
       totalSoldValue,
-      avgProposalValue: totalProposalsCount > 0 ? totalProposalValue / totalProposalsCount : 0,
-      avgSoldValue: totalSalesCount > 0 ? totalSoldValue / totalSalesCount : 0,
       overallConversionRate: totalProposalsCount > 0 ? (totalSalesCount / totalProposalsCount) * 100 : 0,
-      consultantPerformance: sortedConsultantData,
+      consultantPerformance: performanceList,
       pipelineStageSummary: Object.values(pipelineStageSummary).filter(s => s.count > 0),
       salesByOrigin: Object.entries(salesByOrigin).map(([origin, data]) => ({ origin, ...data })).filter(o => o.count > 0).sort((a, b) => b.soldValue - a.soldValue),
     };
@@ -256,17 +238,15 @@ const CrmSalesReports = () => {
     setFilterStageId(null);
     setSelectedConsultantId(null);
     setFilterOrigin(null);
-    setChartFilterSaleDateStart('');
-    setChartFilterSaleDateEnd('');
   };
 
-  const hasActiveFilters = filterStartDate || filterEndDate || filterSaleDateStart || filterSaleDateEnd || filterProposalDateStart || filterProposalDateEnd || filterStageId || selectedConsultantId || filterOrigin || chartFilterSaleDateStart || chartFilterSaleDateEnd;
+  const hasActiveFilters = filterStartDate || filterEndDate || filterSaleDateStart || filterSaleDateEnd || filterProposalDateStart || filterProposalDateEnd || filterStageId || selectedConsultantId || filterOrigin;
 
   const handleExportToExcel = () => {
     const workbook = XLSX.utils.book_new();
     const detailedLeadsData = filteredLeads.map(lead => {
       const consultantId = lead.consultant_id || lead.created_by;
-      const consultant = allTeamMembers.find(m => m.id === consultantId || m.authUserId === consultantId);
+      const consultant = allTeamMembers.find(m => m.authUserId === consultantId || m.id === consultantId);
       const stage = crmStages.find(s => s.id === lead.stage_id);
       const wonStage = crmStages.find(s => s.id === lead.stage_id && s.is_won);
       const actualSoldValue = wonStage
@@ -275,14 +255,11 @@ const CrmSalesReports = () => {
 
       return {
         'Nome do Lead': lead.name,
-        'Consultor': consultant?.name || (consultantId === JOAO_GESTOR_AUTH_ID ? 'João Müller' : 'N/A'),
+        'Consultor': consultant?.name || 'N/A',
         'Etapa': stage?.name || 'N/A',
         'Origem': lead.data?.origin || 'N/A',
         'Valor Proposta': lead.proposalValue || 0,
-        'Data Fechamento Proposta': lead.proposalClosingDate ? new Date(lead.proposalClosingDate + 'T00:00:00').toLocaleDateString('pt-BR') : 'N/A',
         'Valor Vendido': actualSoldValue,
-        'Grupo Vendido': lead.soldGroup || 'N/A',
-        'Cota Vendida': lead.soldQuota || 'N/A',
         'Data Venda': lead.saleDate ? new Date(lead.saleDate + 'T00:00:00').toLocaleDateString('pt-BR') : 'N/A',
         'Criado Em': new Date(lead.created_at).toLocaleDateString('pt-BR'),
       };
@@ -333,7 +310,7 @@ const CrmSalesReports = () => {
               <SelectContent className="bg-white text-gray-900 dark:bg-slate-800 dark:text-white dark:border-slate-700">
                 <SelectItem value="all">Todos os Consultores</SelectItem>
                 {allTeamMembers.map(c => (
-                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  <SelectItem key={c.authUserId || c.id} value={c.authUserId || c.id}>{c.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
