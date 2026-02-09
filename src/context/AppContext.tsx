@@ -53,6 +53,9 @@ const parseDbCurrency = (value: any): number | null => {
   return null;
 };
 
+// Helper to strip legacy prefix from IDs before DB operations
+const getCleanId = (id: string) => id.startsWith('legacy_') ? id.replace('legacy_', '') : id;
+
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { user, session } = useAuth();
   const fetchedUserIdRef = useRef<string | null>(null);
@@ -730,13 +733,25 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       await Promise.all([supabase.from('daily_checklist_items').update({ order_index: itemB.order_index }).eq('id', itemA.id), supabase.from('daily_checklist_items').update({ order_index: itemA.order_index }).eq('id', itemB.id)]);
       const { data } = await supabase.from('daily_checklist_items').select('*'); setDailyChecklistItems(data || []);
     },
-    assignDailyChecklistToConsultant: async (daily_checklist_id, consultant_id) => { const { data, error } = await supabase.from('daily_checklist_assignments').insert({ daily_checklist_id, consultant_id }).select().single(); if (error) throw error; setDailyChecklistAssignments(prev => [...prev, data]); return data; },
-    unassignDailyChecklistFromConsultant: async (daily_checklist_id, consultant_id) => { const { error } = await supabase.from('daily_checklist_assignments').delete().eq('daily_checklist_id', daily_checklist_id).eq('consultant_id', consultant_id); if (error) throw error; setDailyChecklistAssignments(prev => prev.filter(a => !(a.daily_checklist_id === daily_checklist_id && a.consultant_id === consultant_id))); },
+    assignDailyChecklistToConsultant: async (daily_checklist_id, consultant_id) => { 
+      const cleanConsultantId = getCleanId(consultant_id);
+      const { data, error } = await supabase.from('daily_checklist_assignments').insert({ daily_checklist_id, consultant_id: cleanConsultantId }).select().single(); 
+      if (error) throw error; 
+      setDailyChecklistAssignments(prev => [...prev, data]); 
+      return data; 
+    },
+    unassignDailyChecklistFromConsultant: async (daily_checklist_id, consultant_id) => { 
+      const cleanConsultantId = getCleanId(consultant_id);
+      const { error } = await supabase.from('daily_checklist_assignments').delete().eq('daily_checklist_id', daily_checklist_id).eq('consultant_id', cleanConsultantId); 
+      if (error) throw error; 
+      setDailyChecklistAssignments(prev => prev.filter(a => !(a.daily_checklist_id === daily_checklist_id && a.consultant_id === cleanConsultantId))); 
+    },
     toggleDailyChecklistCompletion: async (daily_checklist_item_id, date, done, consultant_id) => {
-      const { data, error } = await supabase.from('daily_checklist_completions').upsert({ daily_checklist_item_id, consultant_id, date, done }, { onConflict: 'daily_checklist_item_id,consultant_id,date' }).select().single();
+      const cleanConsultantId = getCleanId(consultant_id);
+      const { data, error } = await supabase.from('daily_checklist_completions').upsert({ daily_checklist_item_id, consultant_id: cleanConsultantId, date, done }, { onConflict: 'daily_checklist_item_id,consultant_id,date' }).select().single();
       if (error) throw error;
       setDailyChecklistCompletions(prev => {
-        const filtered = prev.filter(c => !(c.daily_checklist_item_id === daily_checklist_item_id && c.consultant_id === consultant_id && c.date === date));
+        const filtered = prev.filter(c => !(c.daily_checklist_item_id === daily_checklist_item_id && c.consultant_id === cleanConsultantId && c.date === date));
         return [...filtered, data];
       });
     },
@@ -751,8 +766,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       await Promise.all(updates);
       const { data } = await supabase.from('weekly_target_items').select('*'); setWeeklyTargetItems(data || []);
     },
-    assignWeeklyTargetToConsultant: async (weekly_target_id, consultant_id) => { const { data, error } = await supabase.from('weekly_target_assignments').insert({ weekly_target_id, consultant_id }).select().single(); if (error) throw error; setWeeklyTargetAssignments(prev => [...prev, data]); return data; },
-    unassignWeeklyTargetFromConsultant: async (weekly_target_id, consultant_id) => { const { error } = await supabase.from('weekly_target_assignments').delete().eq('weekly_target_id', weekly_target_id).eq('consultant_id', consultant_id); if (error) throw error; setWeeklyTargetAssignments(prev => prev.filter(a => !(a.weekly_target_id === weekly_target_id && a.consultant_id === consultant_id))); },
+    assignWeeklyTargetToConsultant: async (weekly_target_id, consultant_id) => { 
+      const cleanConsultantId = getCleanId(consultant_id);
+      const { data, error } = await supabase.from('weekly_target_assignments').insert({ weekly_target_id, consultant_id: cleanConsultantId }).select().single(); 
+      if (error) throw error; 
+      setWeeklyTargetAssignments(prev => [...prev, data]); 
+      return data; 
+    },
+    unassignWeeklyTargetFromConsultant: async (weekly_target_id, consultant_id) => { 
+      const cleanConsultantId = getCleanId(consultant_id);
+      const { error } = await supabase.from('weekly_target_assignments').delete().eq('weekly_target_id', weekly_target_id).eq('consultant_id', cleanConsultantId); 
+      if (error) throw error; 
+      setWeeklyTargetAssignments(prev => prev.filter(a => !(a.weekly_target_id === weekly_target_id && a.consultant_id === cleanConsultantId))); 
+    },
     addMetricLog: async (log) => { const { data, error } = await supabase.from('metric_logs').insert(log).select().single(); if (error) throw error; setMetricLogs(prev => [...prev, data]); return data; },
     updateMetricLog: async (id, updates) => { const { data, error } = await supabase.from('metric_logs').update(updates).eq('id', id).select().single(); if (error) throw error; setMetricLogs(prev => prev.map(m => m.id === id ? data : m)); return data; },
     deleteMetricLog: async (id) => { const { error } = await supabase.from('metric_logs').delete().eq('id', id); if (error) throw error; setMetricLogs(prev => prev.filter(m => m.id !== id)); },
@@ -785,8 +811,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       return data;
     },
     deleteSupportMaterialV2: async (id) => { const { error } = await supabase.from('support_materials_v2').delete().eq('id', id); if (error) throw error; setSupportMaterialsV2(prev => prev.filter(m => m.id !== id)); },
-    assignSupportMaterialToConsultant: async (material_id, consultant_id) => { const { data, error } = await supabase.from('support_material_assignments').insert({ material_id, consultant_id }).select().single(); if (error) throw error; setSupportMaterialAssignments(prev => [...prev, data]); return data; },
-    unassignSupportMaterialFromConsultant: async (material_id, consultant_id) => { const { error } = await supabase.from('support_material_assignments').delete().eq('material_id', material_id).eq('consultant_id', consultant_id); if (error) throw error; setSupportMaterialAssignments(prev => prev.filter(a => !(a.material_id === material_id && a.consultant_id === consultant_id))); },
+    assignSupportMaterialToConsultant: async (material_id, consultant_id) => { 
+      const cleanConsultantId = getCleanId(consultant_id);
+      const { data, error } = await supabase.from('support_material_assignments').insert({ material_id, consultant_id: cleanConsultantId }).select().single(); 
+      if (error) throw error; 
+      setSupportMaterialAssignments(prev => [...prev, data]); 
+      return data; 
+    },
+    unassignSupportMaterialFromConsultant: async (material_id, consultant_id) => { 
+      const cleanConsultantId = getCleanId(consultant_id);
+      const { error } = await supabase.from('support_material_assignments').delete().eq('material_id', material_id).eq('consultant_id', cleanConsultantId); 
+      if (error) throw error; 
+      setSupportMaterialAssignments(prev => prev.filter(a => !(a.material_id === material_id && a.consultant_id === cleanConsultantId))); 
+    },
     addLeadTask: async (task) => { const { data, error } = await supabase.from('lead_tasks').insert(task).select().single(); if (error) throw error; setLeadTasks(prev => [...prev, data]); return data; },
     updateLeadTask: async (id, updates) => { const { data, error } = await supabase.from('lead_tasks').update(updates).eq('id', id).select().single(); if (error) throw error; setLeadTasks(prev => prev.map(t => t.id === id ? data : t)); return data; },
     deleteLeadTask: async (id) => { const { error } = await supabase.from('lead_tasks').delete().eq('id', id); if (error) throw error; setLeadTasks(prev => prev.filter(t => t.id !== id)); },

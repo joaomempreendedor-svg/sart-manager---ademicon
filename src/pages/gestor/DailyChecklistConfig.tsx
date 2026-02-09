@@ -128,7 +128,8 @@ const AssignmentModal: React.FC<AssignmentModalProps> = ({ isOpen, onClose, chec
   const { teamMembers, dailyChecklistAssignments, assignDailyChecklistToConsultant, unassignDailyChecklistFromConsultant } = useApp();
   const [isSaving, setIsSaving] = useState(false);
 
-  const assignableMembers = useMemo(() => teamMembers.filter(m => m.isActive && (m.roles.includes('CONSULTOR') || m.roles.includes('Prévia') || m.roles.includes('Autorizado') || m.roles.includes('Secretaria'))), [teamMembers]);
+  // CORREÇÃO: Apenas membros com authUserId (conta vinculada) podem receber checklists
+  const assignableMembers = useMemo(() => teamMembers.filter(m => m.isActive && m.authUserId && (m.roles.includes('CONSULTOR') || m.roles.includes('Prévia') || m.roles.includes('Autorizado') || m.roles.includes('Secretaria'))), [teamMembers]);
   
   const assignedMemberIds = useMemo(() => 
     new Set(dailyChecklistAssignments.filter(a => a.daily_checklist_id === checklist?.id).map(a => a.consultant_id))
@@ -167,7 +168,10 @@ const AssignmentModal: React.FC<AssignmentModalProps> = ({ isOpen, onClose, chec
         <ScrollArea className="h-[300px] py-4 custom-scrollbar">
           <div className="grid gap-3">
             {assignableMembers.length === 0 ? (
-              <p className="text-center text-gray-500 dark:text-gray-400">Nenhum membro elegível encontrado.</p>
+              <div className="p-4 text-center">
+                <p className="text-sm text-gray-500 dark:text-gray-400">Nenhum membro com conta ativa encontrado.</p>
+                <p className="text-xs text-gray-400 mt-2">Vá em "Gestão de Equipe" e resete a senha do membro para ativar sua conta.</p>
+              </div>
             ) : (
               assignableMembers.map(member => {
                 const isAssigned = assignedMemberIds.has(member.id);
