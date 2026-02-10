@@ -477,11 +477,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [teamMembers, updateTeamMember]);
 
 
-  const value: AppContextType = {
+  const value: AppContextType = useMemo(() => ({
     isDataLoading, candidates, teamMembers, commissions, supportMaterials, cutoffPeriods, onboardingSessions, onboardingTemplateVideos, checklistStructure, setChecklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs, crmPipelines, crmStages, crmFields, crmLeads, crmOwnerUserId, dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions, weeklyTargets, weeklyTargetItems, weeklyTargetAssignments, metricLogs, supportMaterialsV2, supportMaterialAssignments, leadTasks, gestorTasks, gestorTaskCompletions, financialEntries, formCadastros, formFiles, notifications, teamProductionGoals, theme,
     toggleTheme, updateConfig, resetLocalState, refetchCommissions, calculateCompetenceMonth, isGestorTaskDueOnDate, calculateNotifications,
-    addCandidate, updateCandidate, deleteCandidate, getCandidate: useCallback((id: string) => candidates.find(c => c.id === id), [candidates]), 
-    setCandidates, // Adicionado setCandidates aqui
+    addCandidate, updateCandidate, deleteCandidate, getCandidate: (id: string) => candidates.find(c => c.id === id), 
+    setCandidates,
     toggleChecklistItem: async (candidateId, itemId) => {
       const candidate = candidates.find(c => c.id === candidateId);
       if (!candidate) return;
@@ -505,10 +505,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const newProgress = { ...currentProgress, [goalId]: !currentProgress[goalId] };
       await updateCandidate(candidateId, { consultantGoalsProgress: newProgress });
     },
-    addChecklistItem: (stageId, label) => {
+    addChecklistItem: (stageId, label, responsibleRole) => {
       const newStructure = checklistStructure.map(stage => {
         if (stage.id === stageId) {
-          return { ...stage, items: [...stage.items, { id: crypto.randomUUID(), label }] };
+          return { ...stage, items: [...stage.items, { id: crypto.randomUUID(), label, responsibleRole }] };
         }
         return stage;
       });
@@ -951,12 +951,97 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setTeamMembers(prev => [...prev, newMember]);
       return { success: true, member: newMember, tempPassword, wasExistingUser: authData.userExists };
     },
-    updateTeamMember, // Referência ao useCallback
+    updateTeamMember,
     deleteTeamMember: async (id) => { const member = teamMembers.find(m => m.id === id); if (!member) return; const { error } = await supabase.from('team_members').delete().eq('id', member.db_id); if (error) throw error; setTeamMembers(prev => prev.filter(m => m.id !== id)); },
     addTeamProductionGoal: async (goal) => { const { data, error } = await supabase.from('team_production_goals').insert({ ...goal, user_id: JOAO_GESTOR_AUTH_ID }).select().single(); if (error) throw error; setTeamProductionGoals(prev => [data, ...prev]); return data; },
     updateTeamProductionGoal: async (id, updates) => { const { data, error } = await supabase.from('team_production_goals').update(updates).eq('id', id).select().single(); if (error) throw error; setTeamProductionGoals(prev => prev.map(g => g.id === id ? data : g)); return data; },
     deleteTeamProductionGoal: async (id) => { const { error } = await supabase.from('team_production_goals').delete().eq('id', id); if (error) throw error; setTeamProductionGoals(prev => prev.filter(g => g.id !== id)); },
-  };
+  }), [
+    isDataLoading, candidates, teamMembers, commissions, supportMaterials, cutoffPeriods, onboardingSessions, onboardingTemplateVideos, checklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs, crmPipelines, crmStages, crmFields, crmLeads, crmOwnerUserId, dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions, weeklyTargets, weeklyTargetItems, weeklyTargetAssignments, metricLogs, supportMaterialsV2, supportMaterialAssignments, leadTasks, gestorTasks, gestorTaskCompletions, financialEntries, formCadastros, formFiles, notifications, teamProductionGoals, theme,
+    toggleTheme, updateConfig, resetLocalState, refetchCommissions, calculateCompetenceMonth, isGestorTaskDueOnDate, calculateNotifications,
+    addCandidate, updateCandidate, deleteCandidate, setCandidates,
+    addCrmLead, updateCrmLead, deleteCrmLead,
+    addDailyChecklist, updateDailyChecklist, deleteDailyChecklist,
+    addDailyChecklistItem, updateDailyChecklistItem, deleteDailyChecklistItem, moveDailyChecklistItem,
+    assignDailyChecklistToConsultant, unassignDailyChecklistFromConsultant, toggleDailyChecklistCompletion,
+    addWeeklyTarget, updateWeeklyTarget, deleteWeeklyTarget,
+    addWeeklyTargetItem, updateWeeklyTargetItem, deleteWeeklyTargetItem, updateWeeklyTargetItemOrder,
+    assignWeeklyTargetToConsultant, unassignWeeklyTargetFromConsultant,
+    addMetricLog, updateMetricLog, deleteMetricLog,
+    addSupportMaterialV2, updateSupportMaterialV2, deleteSupportMaterialV2,
+    assignSupportMaterialToConsultant, unassignSupportMaterialFromConsultant,
+    addLeadTask, updateLeadTask, deleteLeadTask, toggleLeadTaskCompletion, updateLeadMeetingInvitationStatus,
+    addGestorTask, updateGestorTask, deleteGestorTask, toggleGestorTaskCompletion,
+    addFinancialEntry, updateFinancialEntry, deleteFinancialEntry,
+    getFormFilesForSubmission: useCallback((submissionId) => formFiles.filter(f => f.submission_id === submissionId), [formFiles]),
+    updateFormCadastro, deleteFormCadastro,
+    addFeedback: useCallback(async (personId, feedback) => {
+      const candidate = candidates.find(c => c.id === personId);
+      if (!candidate) throw new Error("Candidate not found");
+      const newFeedback = { ...feedback, id: crypto.randomUUID() };
+      const updatedFeedbacks = [...(candidate.feedbacks || []), newFeedback];
+      await updateCandidate(personId, { feedbacks: updatedFeedbacks });
+      return newFeedback;
+    }, [candidates, updateCandidate]),
+    updateFeedback: useCallback(async (personId, feedback) => {
+      const candidate = candidates.find(c => c.id === personId);
+      if (!candidate) throw new Error("Candidate not found");
+      const updatedFeedbacks = (candidate.feedbacks || []).map(f => f.id === feedback.id ? feedback : f);
+      await updateCandidate(personId, { feedbacks: updatedFeedbacks });
+      return feedback;
+    }, [candidates, updateCandidate]),
+    deleteFeedback: useCallback(async (personId, feedbackId) => {
+      const candidate = candidates.find(c => c.id === personId);
+      if (!candidate) return;
+      const updatedFeedbacks = (candidate.feedbacks || []).filter(f => f.id !== feedbackId);
+      await updateCandidate(personId, { feedbacks: updatedFeedbacks });
+    }, [candidates, updateCandidate]),
+    addTeamMemberFeedback,
+    updateTeamMemberFeedback,
+    deleteTeamMemberFeedback,
+    addTeamMember: useCallback(async (member) => {
+      const tempPassword = generateRandomPassword();
+      const { data: authData, error: authError } = await supabase.functions.invoke('create-or-link-consultant', {
+        body: { email: member.email, name: member.name, tempPassword, login: member.cpf, role: 'CONSULTOR' }
+      });
+      if (authError) throw authError;
+      const { data, error } = await supabase.from('team_members').insert({ user_id: JOAO_GESTOR_AUTH_ID, cpf: member.cpf, data: { ...member, id: authData.authUserId } }).select().single();
+      if (error) throw error;
+      const newMember = { id: data.id, db_id: data.id, authUserId: authData.authUserId, name: member.name, email: member.email, roles: member.roles, isActive: member.isActive, cpf: member.cpf, dateOfBirth: member.dateOfBirth, user_id: data.user_id };
+      setTeamMembers(prev => [...prev, newMember]);
+      return { success: true, member: newMember, tempPassword, wasExistingUser: authData.userExists };
+    }, [setTeamMembers, user]),
+    updateTeamMember,
+    deleteTeamMember: useCallback(async (id) => {
+      const member = teamMembers.find(m => m.id === id);
+      if (!member) return;
+      const { error } = await supabase.from('team_members').delete().eq('id', member.db_id);
+      if (error) throw error;
+      setTeamMembers(prev => prev.filter(m => m.id !== id));
+    }, [teamMembers, setTeamMembers]),
+    addTeamProductionGoal, updateTeamProductionGoal, deleteTeamProductionGoal,
+  ]), [
+    isDataLoading, candidates, teamMembers, commissions, supportMaterials, cutoffPeriods, onboardingSessions, onboardingTemplateVideos, checklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs, crmPipelines, crmStages, crmFields, crmLeads, crmOwnerUserId, dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions, weeklyTargets, weeklyTargetItems, weeklyTargetAssignments, metricLogs, supportMaterialsV2, supportMaterialAssignments, leadTasks, gestorTasks, gestorTaskCompletions, financialEntries, formCadastros, formFiles, notifications, teamProductionGoals, theme,
+    toggleTheme, updateConfig, resetLocalState, refetchCommissions, calculateCompetenceMonth, isGestorTaskDueOnDate, calculateNotifications,
+    addCandidate, updateCandidate, deleteCandidate, setCandidates,
+    addCrmLead, updateCrmLead, deleteCrmLead,
+    addDailyChecklist, updateDailyChecklist, deleteDailyChecklist,
+    addDailyChecklistItem, updateDailyChecklistItem, deleteDailyChecklistItem, moveDailyChecklistItem,
+    assignDailyChecklistToConsultant, unassignDailyChecklistFromConsultant, toggleDailyChecklistCompletion,
+    addWeeklyTarget, updateWeeklyTarget, deleteWeeklyTarget,
+    addWeeklyTargetItem, updateWeeklyTargetItem, deleteWeeklyTargetItem, updateWeeklyTargetItemOrder,
+    assignWeeklyTargetToConsultant, unassignWeeklyTargetFromConsultant,
+    addMetricLog, updateMetricLog, deleteMetricLog,
+    addSupportMaterialV2, updateSupportMaterialV2, deleteSupportMaterialV2,
+    assignSupportMaterialToConsultant, unassignSupportMaterialFromConsultant,
+    addLeadTask, updateLeadTask, deleteLeadTask, toggleLeadTaskCompletion, updateLeadMeetingInvitationStatus,
+    addGestorTask, updateGestorTask, deleteGestorTask, toggleGestorTaskCompletion,
+    addFinancialEntry, updateFinancialEntry, deleteFinancialEntry,
+    addTeamMemberFeedback, updateTeamMemberFeedback, deleteTeamMemberFeedback,
+    updateTeamMember,
+    addTeamProductionGoal, updateTeamProductionGoal, deleteTeamProductionGoal,
+    user,
+  ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 };
