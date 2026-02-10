@@ -69,11 +69,19 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
         validatedOrigin = initialOrigin;
       }
 
+      // Lógica para definir o consultant_id automaticamente ou permitir seleção
+      let initialConsultantId = lead?.consultant_id || '';
+      if (!lead && user?.role === 'CONSULTOR' && user.id) {
+        initialConsultantId = user.id; // Preenche automaticamente para consultores em novo lead
+      } else if (!initialConsultantId && assignedConsultantId) {
+        initialConsultantId = assignedConsultantId; // Fallback para assignedConsultantId se não houver lead e não for consultor
+      }
+
+
       setFormData({
         name: lead?.name || '',
         stage_id: lead?.stage_id,
-        // Se for um novo lead, atribui o ID do usuário logado (consultor) automaticamente
-        consultant_id: lead?.consultant_id || (user?.role === 'CONSULTOR' ? user.id : assignedConsultantId) || '',
+        consultant_id: initialConsultantId,
         proposal_value: lead?.proposal_value, // Usando snake_case
         proposal_closing_date: lead?.proposal_closing_date, // Usando snake_case
         sold_credit_value: lead?.sold_credit_value, // Usando snake_case
@@ -253,6 +261,10 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
   const isConsultorRole = user?.role === 'CONSULTOR';
   const isNewLead = !lead;
 
+  // Determina se o campo de consultor deve ser desabilitado
+  const isConsultantFieldDisabled = isConsultorRole && isNewLead;
+
+
   if (!isOpen) return null;
 
   return (
@@ -305,7 +317,7 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
                   value={formData.consultant_id || ''}
                   onValueChange={(val) => handleChange('consultant_id', val)}
                   required
-                  // Removed the disabled prop to allow selection for all users
+                  disabled={isConsultantFieldDisabled} // Desabilita se for consultor e novo lead
                 >
                   <SelectTrigger className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
                     <SelectValue placeholder="Selecione o Consultor" />
