@@ -1156,7 +1156,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addFeedback,
     updateFeedback,
     deleteFeedback,
-    addTeamMemberFeedback, // Corrected: This was 'updatedFeedbacks'
+    addTeamMemberFeedback,
     updateTeamMemberFeedback,
     deleteTeamMemberFeedback,
     addTeamMember: async (member) => {
@@ -1196,7 +1196,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     getFormFilesForSubmission,
     updateFormCadastro, deleteFormCadastro,
     addFeedback, updateFeedback, deleteFeedback,
-    addTeamMemberFeedback, updateTeamMemberFeedback, deleteTeamMemberFeedback, // Corrected: This was 'updatedFeedbacks'
+    addTeamMemberFeedback, updateTeamMemberFeedback, deleteTeamMemberFeedback,
     addTeamMember, updateTeamMember, deleteTeamMember,
     addTeamProductionGoal, updateTeamProductionGoal, deleteTeamProductionGoal,
     user,
