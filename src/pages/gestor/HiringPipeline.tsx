@@ -24,7 +24,7 @@ const JOAO_GESTOR_AUTH_ID = "0c6d71b7-daeb-4dde-8eec-0e7a8ffef658";
 
 const HiringPipeline = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
-  const { candidates, setCandidates, teamMembers, isDataLoading, updateCandidate, interviewStructure, checklistStructure, origins } = useApp();
+  const { candidates, setCandidates, teamMembers, isDataLoading, updateCandidate, deleteCandidate, interviewStructure, checklistStructure, origins } = useApp();
   const navigate = useNavigate();
   const [draggingCandidateId, setDraggingCandidateId] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
@@ -222,6 +222,19 @@ const HiringPipeline = () => {
     debouncedUpdateCandidateNotes(candidateId, newNotes);
   };
 
+  const handleDeleteCandidatePermanently = async (e: React.MouseEvent, candidateId: string, candidateName: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (window.confirm(`Tem certeza que deseja EXCLUIR PERMANENTEMENTE o candidato "${candidateName}"? Esta ação não pode ser desfeita.`)) {
+      try {
+        await deleteCandidate(candidateId);
+        toast.success(`Candidato "${candidateName}" excluído permanentemente!`);
+      } catch (error: any) {
+        toast.error(`Erro ao excluir candidato: ${error.message}`);
+      }
+    }
+  };
+
   if (isAuthLoading || isDataLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="w-12 h-12 text-brand-500 animate-spin" /></div>;
 
   return (
@@ -292,8 +305,9 @@ const HiringPipeline = () => {
                         {highlightText(candidate.name, searchTerm)}
                       </p>
                       <button 
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); if(confirm('Excluir candidato?')) updateCandidate(candidate.id, { status: 'Desqualificado' }); }}
+                        onClick={(e) => handleDeleteCandidatePermanently(e, candidate.id, candidate.name)}
                         className="p-1 text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                        title="Excluir Candidato Permanentemente"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
