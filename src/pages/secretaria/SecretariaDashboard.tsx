@@ -25,10 +25,15 @@ import {
   CalendarDays,
   ListTodo,
   Check,
-  Trash2
+  Trash2,
+  Mail,
+  Phone,
+  MapPin
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import toast from 'react-hot-toast';
+import { Candidate } from '@/types';
+import { CandidatesDetailModal } from '@/components/gestor/CandidatesDetailModal'; // Importar o novo modal
 
 interface AgendaItem {
   id: string;
@@ -40,6 +45,43 @@ interface AgendaItem {
   dueDate: string;
   taskId?: string; // ID específico da tarefa no checklist
 }
+
+// Componente MetricCard movido para cá
+const MetricCard = ({ title, value, icon: Icon, colorClass, subValue, onClick }: any) => {
+  const CardContent = (
+    <>
+      <div className="flex justify-between items-start">
+        <div className="space-y-1">
+          <p className="text-[10px] font-bold uppercase tracking-wider opacity-70">{title}</p>
+          <h3 className="text-4xl font-black">{value}</h3>
+          {subValue && <p className="text-xs font-medium opacity-60">{subValue}</p>}
+        </div>
+        <div className="p-3 rounded-xl bg-white/20 dark:bg-black/20">
+          <Icon className="w-6 h-6" />
+        </div>
+      </div>
+      <div className="absolute -right-4 -bottom-4 opacity-10">
+        <Icon size={100} strokeWidth={3} />
+      </div>
+    </>
+  );
+
+  const baseClasses = `relative overflow-hidden p-6 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm transition-all hover:shadow-md ${colorClass}`;
+
+  if (onClick) {
+    return (
+      <button onClick={onClick} className={`${baseClasses} text-left w-full`}>
+        {CardContent}
+      </button>
+    );
+  }
+
+  return (
+    <div className={baseClasses}>
+      {CardContent}
+    </div>
+  );
+};
 
 export const SecretariaDashboard = () => {
   const { user } = useAuth();
@@ -54,7 +96,8 @@ export const SecretariaDashboard = () => {
     setChecklistDueDate,
     toggleGestorTaskCompletion,
     deleteGestorTask,
-    updateCandidate
+    updateCandidate,
+    teamMembers
   } = useApp();
   const navigate = useNavigate();
   
@@ -68,6 +111,11 @@ export const SecretariaDashboard = () => {
   });
 
   const todayStr = new Date().toISOString().split('T')[0];
+
+  const [isCandidatesDetailModalOpen, setIsCandidatesDetailModalOpen] = useState(false); // NOVO: Estado para o modal de candidatos
+  const [candidatesModalTitle, setCandidatesModalTitle] = useState(''); // NOVO: Título do modal de candidatos
+  const [candidatesForModal, setCandidatesForModal] = useState<Candidate[]>([]); // NOVO: Lista de candidatos para o modal
+  const [candidatesMetricType, setCandidatesMetricType] = useState<'total' | 'newCandidates' | 'contacted' | 'scheduled' | 'conducted' | 'awaitingPreview' | 'hired' | 'noShow' | 'withdrawn' | 'disqualified'>('total'); // NOVO: Tipo de métrica para o modal de candidatos
 
   // --- Handlers de Ação ---
   const handleCompleteItem = async (e: React.MouseEvent, item: AgendaItem) => {
@@ -202,75 +250,93 @@ export const SecretariaDashboard = () => {
       return date >= start && date <= end;
     };
 
-    const total = candidates.filter(c => isInFilterRange(c.createdAt)).length;
+    const totalCandidates = candidates.filter(c => isInFilterRange(c.createdAt));
     
-    const newCandidates = candidates.filter(c => 
-      isInFilterRange(c.createdAt) && (c.screeningStatus === 'Pending Contact' || !c.screeningStatus)
-    ).length;
+    const newCandidatesList = totalCandidates.filter(c => 
+      (c.screeningStatus === 'Pending Contact' || !c.screeningStatus)
+    );
 
-    const contactedInScreening = candidates.filter(c => 
+    const contactedList = totalCandidates.filter(c => 
       isInFilterRange(c.contactedDate) && c.screeningStatus === 'Contacted'
-    ).length;
+    );
 
-    const scheduled = candidates.filter(c => 
-      isInFilterRange(c.interviewScheduledDate) // Usa interviewScheduledDate
-    ).length;
+    const scheduledList = totalCandidates.filter(c => 
+      isInFilterRange(c.interviewScheduledDate)
+    );
 
-    const conducted = candidates.filter(c => 
-      isInFilterRange(c.interviewConductedDate) // Usa interviewConductedDate
-    ).length;
+    const conductedList = totalCandidates.filter(c => 
+      isInFilterRange(c.interviewConductedDate)
+    );
 
-    const awaitingPreview = candidates.filter(c => 
-      isInFilterRange(c.awaitingPreviewDate) // Usa awaitingPreviewDate
-    ).length;
+    const awaitingPreviewList = totalCandidates.filter(c => 
+      isInFilterRange(c.awaitingPreviewDate)
+    );
 
-    const hired = candidates.filter(c => 
-      isInFilterRange(c.authorizedDate) // Usa authorizedDate
-    ).length;
+    const hiredList = totalCandidates.filter(c => 
+      isInFilterRange(c.authorizedDate)
+    );
 
-    const noShow = candidates.filter(c => 
-      isInFilterRange(c.faltouDate) // Usa faltouDate
-    ).length;
+    const noShowList = totalCandidates.filter(c => 
+      isInFilterRange(c.faltouDate)
+    );
 
-    const withdrawn = candidates.filter(c => 
-      isInFilterRange(c.reprovadoDate) // Usa reprovadoDate
-    ).length;
+    const withdrawnList = totalCandidates.filter(c => 
+      isInFilterRange(c.reprovadoDate)
+    );
 
-    const disqualified = candidates.filter(c => 
-      isInFilterRange(c.disqualifiedDate) // Usa disqualifiedDate
-    ).length;
+    const disqualifiedList = totalCandidates.filter(c => 
+      isInFilterRange(c.disqualifiedDate)
+    );
 
-    // NOVA LÓGICA: Total de Contratados (que passaram da triagem)
-    const totalHired = candidates.filter(c => 
-      isInFilterRange(c.awaitingPreviewDate) || // Entrou em 'Aguardando Prévia'
-      isInFilterRange(c.onboardingOnlineDate) || // Entrou em 'Onboarding Online'
-      isInFilterRange(c.integrationPresencialDate) || // Entrou em 'Integração Presencial'
-      isInFilterRange(c.acompanhamento90DiasDate) || // Entrou em 'Acompanhamento 90 Dias'
-      isInFilterRange(c.authorizedDate) // Entrou em 'Autorizado'
-    ).length;
+    const totalHiredList = totalCandidates.filter(c => 
+      isInFilterRange(c.awaitingPreviewDate) ||
+      isInFilterRange(c.onboardingOnlineDate) ||
+      isInFilterRange(c.integrationPresencialDate) ||
+      isInFilterRange(c.acompanhamento90DiasDate) ||
+      isInFilterRange(c.authorizedDate)
+    );
 
-    const totalInterviewsScheduled = candidates.filter(c => isInFilterRange(c.interviewScheduledDate)).length;
-    const totalInterviewsConducted = candidates.filter(c => isInFilterRange(c.interviewConductedDate)).length;
+    const totalInterviewsScheduled = scheduledList.length;
+    const totalInterviewsConducted = conductedList.length;
 
     const attendanceRate = totalInterviewsScheduled > 0 ? (totalInterviewsConducted / totalInterviewsScheduled) * 100 : 0;
-    const hiringRate = total > 0 ? (totalHired / total) * 100 : 0;
+    const hiringRate = totalCandidates.length > 0 ? (totalHiredList.length / totalCandidates.length) * 100 : 0;
 
     return {
-      total,
-      newCandidates, // Adicionado
-      contactedInScreening, // Adicionado
-      scheduled,
-      conducted,
-      awaitingPreview,
-      hired,
-      noShow,
-      withdrawn,
-      disqualified,
+      total: totalCandidates.length,
+      newCandidates: newCandidatesList.length,
+      contacted: contactedList.length,
+      scheduled: scheduledList.length,
+      conducted: conductedList.length,
+      awaitingPreview: awaitingPreviewList.length,
+      hired: hiredList.length,
+      noShow: noShowList.length,
+      withdrawn: withdrawnList.length,
+      disqualified: disqualifiedList.length,
       attendanceRate,
       hiringRate,
-      totalHired
+      totalHired: totalHiredList.length,
+      // Listas para o modal
+      newCandidatesList,
+      contactedList,
+      scheduledList,
+      conductedList,
+      awaitingPreviewList,
+      hiredList,
+      noShowList,
+      withdrawnList,
+      disqualifiedList,
+      totalCandidatesList: totalCandidates,
+      totalHiredList,
     };
   }, [candidates, startDate, endDate]);
+
+  const handleOpenCandidatesDetailModal = (title: string, candidates: Candidate[], metricType: 'total' | 'newCandidates' | 'contacted' | 'scheduled' | 'conducted' | 'awaitingPreview' | 'hired' | 'noShow' | 'withdrawn' | 'disqualified') => {
+    setCandidatesModalTitle(title);
+    setCandidatesForModal(candidates);
+    setCandidatesMetricType(metricType);
+    setIsCandidatesDetailModalOpen(true);
+  };
 
   if (isDataLoading) {
     return (
@@ -279,24 +345,6 @@ export const SecretariaDashboard = () => {
       </div>
     );
   }
-
-  const MetricCard = ({ title, value, icon: Icon, colorClass, subValue }: any) => (
-    <div className={`relative overflow-hidden p-6 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm transition-all hover:shadow-md ${colorClass}`}>
-      <div className="flex justify-between items-start">
-        <div className="space-y-1">
-          <p className="text-[10px] font-bold uppercase tracking-wider opacity-70">{title}</p>
-          <h3 className="text-4xl font-black">{value}</h3>
-          {subValue && <p className="text-xs font-medium opacity-60">{subValue}</p>}
-        </div>
-        <div className="p-3 rounded-xl bg-white/20 dark:bg-black/20">
-          <Icon className="w-6 h-6" />
-        </div>
-      </div>
-      <div className="absolute -right-4 -bottom-4 opacity-10">
-        <Icon size={100} strokeWidth={3} />
-      </div>
-    </div>
-  );
 
   return (
     <div className="p-4 sm:p-8 max-w-7xl mx-auto space-y-12">
@@ -436,6 +484,7 @@ export const SecretariaDashboard = () => {
             value={metrics.total} 
             icon={Users} 
             colorClass="bg-indigo-600 text-white" 
+            onClick={() => handleOpenCandidatesDetailModal('Total de Candidaturas', metrics.totalCandidatesList, 'total')}
           />
           <MetricCard 
             title="Novos Candidatos" 
@@ -443,25 +492,29 @@ export const SecretariaDashboard = () => {
             icon={UserPlus} 
             colorClass="bg-slate-600 text-white" 
             subValue="Aguardando contato"
+            onClick={() => handleOpenCandidatesDetailModal('Novos Candidatos', metrics.newCandidatesList, 'newCandidates')}
           />
           <MetricCard 
             title="Contatados" 
-            value={metrics.contactedInScreening} 
+            value={metrics.contacted} 
             icon={MessageSquare} 
             colorClass="bg-amber-500 text-white" 
             subValue="Em triagem ativa"
+            onClick={() => handleOpenCandidatesDetailModal('Contatados', metrics.contactedList, 'contacted')}
           />
           <MetricCard 
             title="Entrevistas Agendadas" 
             value={metrics.scheduled} 
             icon={Clock} 
             colorClass="bg-orange-600 text-white" 
+            onClick={() => handleOpenCandidatesDetailModal('Entrevistas Agendadas', metrics.scheduledList, 'scheduled')}
           />
           <MetricCard 
             title="Entrevistas Realizadas" 
             value={metrics.conducted} 
             icon={FileText} 
             colorClass="bg-purple-600 text-white" 
+            onClick={() => handleOpenCandidatesDetailModal('Entrevistas Realizadas', metrics.conductedList, 'conducted')}
           />
           <MetricCard 
             title="Contratados (Em Prévia)" 
@@ -469,6 +522,7 @@ export const SecretariaDashboard = () => {
             icon={TrendingUp} 
             colorClass="bg-blue-600 text-white" 
             subValue="Passaram na seleção"
+            onClick={() => handleOpenCandidatesDetailModal('Contratados (Em Prévia)', metrics.totalHiredList, 'awaitingPreview')}
           />
           <MetricCard 
             title="Autorizados" 
@@ -476,6 +530,7 @@ export const SecretariaDashboard = () => {
             icon={UserCheck} 
             colorClass="bg-emerald-600 text-white" 
             subValue="Contratações efetivas"
+            onClick={() => handleOpenCandidatesDetailModal('Autorizados', metrics.hiredList, 'hired')}
           />
           <MetricCard 
             title="Faltas" 
@@ -483,6 +538,7 @@ export const SecretariaDashboard = () => {
             icon={Ghost} 
             colorClass="bg-rose-500 text-white" 
             subValue="Não compareceram"
+            onClick={() => handleOpenCandidatesDetailModal('Faltas', metrics.noShowList, 'noShow')}
           />
           <MetricCard 
             title="Desistências" 
@@ -490,6 +546,7 @@ export const SecretariaDashboard = () => {
             icon={UserMinus} 
             colorClass="bg-rose-600 text-white" 
             subValue="Candidato desistiu"
+            onClick={() => handleOpenCandidatesDetailModal('Desistências', metrics.withdrawnList, 'withdrawn')}
           />
           <MetricCard 
             title="Desqualificados" 
@@ -497,7 +554,9 @@ export const SecretariaDashboard = () => {
             icon={XCircle} 
             colorClass="bg-rose-700 text-white" 
             subValue="Reprovados pelo gestor"
+            onClick={() => handleOpenCandidatesDetailModal('Desqualificados', metrics.disqualifiedList, 'disqualified')}
           />
+          
           <MetricCard 
             title="Taxa de Comparecimento" 
             value={`${metrics.attendanceRate.toFixed(1)}%`} 

@@ -3,7 +3,7 @@ import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { ChevronRight, User, Calendar, CheckCircle2, TrendingUp, AlertCircle, Clock, Users, Star, CheckSquare, XCircle, BellRing, UserRound, Plus, ListTodo, Send, DollarSign, Repeat, Filter, RotateCcw, CalendarPlus, Mail, Phone, ClipboardCheck, UserPlus, UserCheck, PieChart, MessageSquare, UserX, UserMinus, Ghost, MapPin, BarChart3, FileText, Percent } from 'lucide-react';
-import { CandidateStatus, ChecklistTaskState, GestorTask, LeadTask, CrmLead } from '@/types';
+import { CandidateStatus, ChecklistTaskState, GestorTask, LeadTask, CrmLead, Candidate } from '@/types';
 import { TableSkeleton } from '@/components/TableSkeleton';
 import { ScheduleInterviewModal } from '@/components/ScheduleInterviewModal';
 import { PendingLeadTasksModal } from '@/components/gestor/PendingLeadTasksModal';
@@ -11,6 +11,7 @@ import toast from 'react-hot-toast';
 import { NotificationBell } from '@/components/NotificationBell';
 import { NotificationCenter } from '@/components/NotificationCenter';
 import { LeadsDetailModal } from '@/components/gestor/LeadsDetailModal';
+import { CandidatesDetailModal } from '@/components/gestor/CandidatesDetailModal'; // Importar o novo modal
 import { formatLargeCurrency } from '@/utils/currencyUtils';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -79,6 +80,12 @@ export const Dashboard = () => {
   const [leadsForModal, setLeadsForModal] = useState<CrmLead[]>([]);
   const [leadsMetricType, setLeadsMetricType] = useState<'proposal' | 'sold' | 'meeting'>('proposal');
 
+  const [isCandidatesDetailModalOpen, setIsCandidatesDetailModalOpen] = useState(false); // NOVO: Estado para o modal de candidatos
+  const [candidatesModalTitle, setCandidatesModalTitle] = useState(''); // NOVO: Título do modal de candidatos
+  const [candidatesForModal, setCandidatesForModal] = useState<Candidate[]>([]); // NOVO: Lista de candidatos para o modal
+  const [candidatesMetricType, setCandidatesMetricType] = useState<'total' | 'newCandidates' | 'contacted' | 'scheduled' | 'conducted' | 'awaitingPreview' | 'hired' | 'noShow' | 'withdrawn' | 'disqualified'>('total'); // NOVO: Tipo de métrica para o modal de candidatos
+
+
   const handleOpenNotifications = () => setIsNotificationCenterOpen(true);
   const handleCloseNotifications = () => setIsNotificationCenterOpen(false);
 
@@ -145,73 +152,84 @@ export const Dashboard = () => {
       return date >= currentMonthStart && date <= currentMonthEnd;
     };
 
-    const total = candidates.filter(c => isInFilterRange(c.createdAt)).length;
+    const totalCandidates = candidates.filter(c => isInFilterRange(c.createdAt));
     
-    const newCandidates = candidates.filter(c => 
-      isInFilterRange(c.createdAt) && (c.screeningStatus === 'Pending Contact' || !c.screeningStatus)
-    ).length;
+    const newCandidatesList = totalCandidates.filter(c => 
+      (c.screeningStatus === 'Pending Contact' || !c.screeningStatus)
+    );
 
-    const contactedInScreening = candidates.filter(c => 
+    const contactedList = totalCandidates.filter(c => 
       isInFilterRange(c.contactedDate) && c.screeningStatus === 'Contacted'
-    ).length;
+    );
 
-    const scheduled = candidates.filter(c => 
-      isInFilterRange(c.interviewScheduledDate) // Usa interviewScheduledDate
-    ).length;
+    const scheduledList = totalCandidates.filter(c => 
+      isInFilterRange(c.interviewScheduledDate)
+    );
 
-    const conducted = candidates.filter(c => 
-      isInFilterRange(c.interviewConductedDate) // Usa interviewConductedDate
-    ).length;
+    const conductedList = totalCandidates.filter(c => 
+      isInFilterRange(c.interviewConductedDate)
+    );
 
-    const awaitingPreview = candidates.filter(c => 
-      isInFilterRange(c.awaitingPreviewDate) // Usa awaitingPreviewDate
-    ).length;
+    const awaitingPreviewList = totalCandidates.filter(c => 
+      isInFilterRange(c.awaitingPreviewDate)
+    );
 
-    const hired = candidates.filter(c => 
-      isInFilterRange(c.authorizedDate) // Usa authorizedDate
-    ).length;
+    const hiredList = totalCandidates.filter(c => 
+      isInFilterRange(c.authorizedDate)
+    );
 
-    const noShow = candidates.filter(c => 
-      isInFilterRange(c.faltouDate) // Usa faltouDate
-    ).length;
+    const noShowList = totalCandidates.filter(c => 
+      isInFilterRange(c.faltouDate)
+    );
 
-    const withdrawn = candidates.filter(c => 
-      isInFilterRange(c.reprovadoDate) // Usa reprovadoDate
-    ).length;
+    const withdrawnList = totalCandidates.filter(c => 
+      isInFilterRange(c.reprovadoDate)
+    );
 
-    const disqualified = candidates.filter(c => 
-      isInFilterRange(c.disqualifiedDate) // Usa disqualifiedDate
-    ).length;
+    const disqualifiedList = totalCandidates.filter(c => 
+      isInFilterRange(c.disqualifiedDate)
+    );
 
-    // NOVA LÓGICA: Total de Contratados (que passaram da triagem)
-    const totalHired = candidates.filter(c => 
-      isInFilterRange(c.awaitingPreviewDate) || // Entrou em 'Aguardando Prévia'
-      isInFilterRange(c.onboardingOnlineDate) || // Entrou em 'Onboarding Online'
-      isInFilterRange(c.integrationPresencialDate) || // Entrou em 'Integração Presencial'
-      isInFilterRange(c.acompanhamento90DiasDate) || // Entrou em 'Acompanhamento 90 Dias'
-      isInFilterRange(c.authorizedDate) // Entrou em 'Autorizado'
-    ).length;
+    const totalHiredList = totalCandidates.filter(c => 
+      isInFilterRange(c.awaitingPreviewDate) ||
+      isInFilterRange(c.onboardingOnlineDate) ||
+      isInFilterRange(c.integrationPresencialDate) ||
+      isInFilterRange(c.acompanhamento90DiasDate) ||
+      isInFilterRange(c.authorizedDate)
+    );
 
-    const totalInterviewsScheduled = candidates.filter(c => isInFilterRange(c.interviewScheduledDate)).length;
-    const totalInterviewsConducted = candidates.filter(c => isInFilterRange(c.interviewConductedDate)).length;
+    const totalInterviewsScheduled = scheduledList.length;
+    const totalInterviewsConducted = conductedList.length;
 
     const attendanceRate = totalInterviewsScheduled > 0 ? (totalInterviewsConducted / totalInterviewsScheduled) * 100 : 0;
-    const hiringRate = total > 0 ? (totalHired / total) * 100 : 0;
+    const hiringRate = totalCandidates.length > 0 ? (totalHiredList.length / totalCandidates.length) * 100 : 0;
 
     return {
-      total,
-      newCandidates,
-      contactedInScreening,
-      scheduled,
-      conducted,
-      awaitingPreview,
-      hired,
-      noShow,
-      withdrawn,
-      disqualified,
+      total: totalCandidates.length,
+      newCandidates: newCandidatesList.length,
+      contacted: contactedList.length,
+      scheduled: scheduledList.length,
+      conducted: conductedList.length,
+      awaitingPreview: awaitingPreviewList.length,
+      hired: hiredList.length,
+      noShow: noShowList.length,
+      withdrawn: withdrawnList.length,
+      disqualified: disqualifiedList.length,
       attendanceRate,
       hiringRate,
-      totalHired
+      totalHired: totalHiredList.length,
+      // Listas para o modal
+      newCandidatesList,
+      contactedList,
+      scheduledList,
+      conductedList,
+      awaitingPreviewList,
+      hiredList,
+      noShowList,
+      withdrawnList,
+      disqualifiedList,
+      totalCandidatesList: totalCandidates,
+      totalHiredList,
     };
   }, [candidates, hiringOrigins]);
 
@@ -262,6 +280,13 @@ export const Dashboard = () => {
     setLeadsForModal(leads);
     setLeadsMetricType(metricType);
     setIsLeadsDetailModalOpen(true);
+  };
+
+  const handleOpenCandidatesDetailModal = (title: string, candidates: Candidate[], metricType: 'total' | 'newCandidates' | 'contacted' | 'scheduled' | 'conducted' | 'awaitingPreview' | 'hired' | 'noShow' | 'withdrawn' | 'disqualified') => {
+    setCandidatesModalTitle(title);
+    setCandidatesForModal(candidates);
+    setCandidatesMetricType(metricType);
+    setIsCandidatesDetailModalOpen(true);
   };
 
   if (isDataLoading) return <div className="flex items-center justify-center h-screen"><Loader2 className="w-12 h-12 text-brand-500 animate-spin" /></div>;
@@ -339,6 +364,7 @@ export const Dashboard = () => {
             value={hiringMetrics.total} 
             icon={Users} 
             colorClass="bg-indigo-600 text-white" 
+            onClick={() => handleOpenCandidatesDetailModal('Total de Candidaturas', hiringMetrics.totalCandidatesList, 'total')}
           />
           <MetricCard 
             title="Novos Candidatos" 
@@ -346,25 +372,29 @@ export const Dashboard = () => {
             icon={UserPlus} 
             colorClass="bg-slate-600 text-white" 
             subValue="Aguardando contato"
+            onClick={() => handleOpenCandidatesDetailModal('Novos Candidatos', hiringMetrics.newCandidatesList, 'newCandidates')}
           />
           <MetricCard 
             title="Contatados" 
-            value={hiringMetrics.contactedInScreening} 
+            value={hiringMetrics.contacted} 
             icon={MessageSquare} 
             colorClass="bg-amber-500 text-white" 
             subValue="Em triagem ativa"
+            onClick={() => handleOpenCandidatesDetailModal('Contatados', hiringMetrics.contactedList, 'contacted')}
           />
           <MetricCard 
             title="Entrevistas Agendadas" 
             value={hiringMetrics.scheduled} 
             icon={Clock} 
             colorClass="bg-orange-600 text-white" 
+            onClick={() => handleOpenCandidatesDetailModal('Entrevistas Agendadas', hiringMetrics.scheduledList, 'scheduled')}
           />
           <MetricCard 
             title="Entrevistas Realizadas" 
             value={hiringMetrics.conducted} 
             icon={FileText} 
             colorClass="bg-purple-600 text-white" 
+            onClick={() => handleOpenCandidatesDetailModal('Entrevistas Realizadas', hiringMetrics.conductedList, 'conducted')}
           />
           <MetricCard 
             title="Contratados (Em Prévia)" 
@@ -372,6 +402,7 @@ export const Dashboard = () => {
             icon={TrendingUp} 
             colorClass="bg-blue-600 text-white" 
             subValue="Passaram na seleção"
+            onClick={() => handleOpenCandidatesDetailModal('Contratados (Em Prévia)', hiringMetrics.totalHiredList, 'awaitingPreview')}
           />
           <MetricCard 
             title="Autorizados" 
@@ -379,6 +410,7 @@ export const Dashboard = () => {
             icon={UserCheck} 
             colorClass="bg-emerald-600 text-white" 
             subValue="Contratações efetivas"
+            onClick={() => handleOpenCandidatesDetailModal('Autorizados', hiringMetrics.hiredList, 'hired')}
           />
           <MetricCard 
             title="Faltas" 
@@ -386,6 +418,7 @@ export const Dashboard = () => {
             icon={Ghost} 
             colorClass="bg-rose-500 text-white" 
             subValue="Não compareceram"
+            onClick={() => handleOpenCandidatesDetailModal('Faltas', hiringMetrics.noShowList, 'noShow')}
           />
           <MetricCard 
             title="Desistências" 
@@ -393,6 +426,7 @@ export const Dashboard = () => {
             icon={UserMinus} 
             colorClass="bg-rose-600 text-white" 
             subValue="Candidato desistiu"
+            onClick={() => handleOpenCandidatesDetailModal('Desistências', hiringMetrics.withdrawnList, 'withdrawn')}
           />
           <MetricCard 
             title="Desqualificados" 
@@ -400,6 +434,7 @@ export const Dashboard = () => {
             icon={XCircle} 
             colorClass="bg-rose-700 text-white" 
             subValue="Reprovados pelo gestor"
+            onClick={() => handleOpenCandidatesDetailModal('Desqualificados', hiringMetrics.disqualifiedList, 'disqualified')}
           />
           
           <MetricCard 
@@ -463,7 +498,6 @@ export const Dashboard = () => {
                         <p className="font-bold text-sm text-red-900 dark:text-red-200">{item.title}</p>
                         <p className="text-xs text-red-700 dark:text-red-400">{item.personName} • Venceu em {new Date(item.dueDate + 'T00:00:00').toLocaleDateString('pt-BR')}</p>
                       </div>
-                      <ChevronRight className="w-4 h-4 text-gray-300" />
                     </li>
                   ))}
                 </ul>
@@ -476,6 +510,14 @@ export const Dashboard = () => {
       <ScheduleInterviewModal isOpen={isScheduleModalOpen} onClose={() => setIsScheduleModalOpen(false)} />
       <PendingLeadTasksModal isOpen={isPendingTasksModalOpen} onClose={() => setIsPendingTasksModalOpen(false)} pendingTasks={commercialMetrics?.pendingTasks || []} crmLeads={crmLeads} teamMembers={teamMembers} />
       <LeadsDetailModal isOpen={isLeadsDetailModalOpen} onClose={() => setIsLeadsDetailModalOpen(false)} title={leadsModalTitle} leads={leadsForModal} crmStages={crmStages} teamMembers={teamMembers} metricType={leadsMetricType} />
+      <CandidatesDetailModal 
+        isOpen={isCandidatesDetailModalOpen} 
+        onClose={() => setIsCandidatesDetailModalOpen(false)} 
+        title={candidatesModalTitle} 
+        candidates={candidatesForModal} 
+        teamMembers={teamMembers} 
+        metricType={candidatesMetricType} 
+      />
     </div>
   );
 };
