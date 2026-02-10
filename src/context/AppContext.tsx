@@ -222,14 +222,75 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setNotifications(newNotifications);
   }, [user, teamMembers]);
 
+  const fetchAppConfig = useCallback(async (effectiveGestorId: string) => {
+    const { data: configResult, error: configError } = await supabase.from('app_config').select('data').eq('user_id', effectiveGestorId).maybeSingle();
+    if (configError) {
+      console.error("Error fetching app config:", configError);
+      throw configError;
+    }
+
+    if (configResult?.data) {
+      const { data } = configResult.data;
+      setChecklistStructure(data.checklistStructure || DEFAULT_STAGES);
+      setConsultantGoalsStructure(data.consultantGoalsStructure || DEFAULT_GOALS);
+      setInterviewStructure(data.interviewStructure || INITIAL_INTERVIEW_STRUCTURE);
+      setTemplates(data.templates || {});
+      setSalesOrigins(data.salesOrigins || DEFAULT_APP_CONFIG_DATA.salesOrigins);
+      setHiringOrigins(data.hiringOrigins !== undefined ? data.hiringOrigins : DEFAULT_APP_CONFIG_DATA.hiringOrigins);
+      setPvs(data.pvs || []);
+    } else {
+      setChecklistStructure(DEFAULT_STAGES);
+      setConsultantGoalsStructure(DEFAULT_GOALS);
+      setInterviewStructure(INITIAL_INTERVIEW_STRUCTURE);
+      setTemplates({});
+      setSalesOrigins(DEFAULT_APP_CONFIG_DATA.salesOrigins);
+      setHiringOrigins(DEFAULT_APP_CONFIG_DATA.hiringOrigins);
+      setPvs([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    let subscription: any = null;
+    const effectiveGestorId = JOAO_GESTOR_AUTH_ID;
+
+    const setupRealtimeSubscription = () => {
+      subscription = supabase
+        .channel('app_config_changes')
+        .on('postgres_changes', { 
+          event: '*', 
+          schema: 'public', 
+          table: 'app_config', 
+          filter: `user_id=eq.${effectiveGestorId}` 
+        }, (payload) => {
+          console.log('Realtime change received!', payload);
+          // Re-fetch only the app_config data on change
+          fetchAppConfig(effectiveGestorId);
+        })
+        .subscribe();
+    };
+
+    if (user && user.id) {
+      setupRealtimeSubscription();
+    }
+
+    return () => {
+      if (subscription) {
+        supabase.removeChannel(subscription);
+      }
+    };
+  }, [user, fetchAppConfig]);
+
+
   useEffect(() => {
     const fetchData = async (userId: string) => {
       try {
         const effectiveGestorId = JOAO_GESTOR_AUTH_ID;
         setCrmOwnerUserId(effectiveGestorId);
 
-        const [configResult, candidatesData, materialsData, cutoffData, onboardingData, templateVideosData, pipelinesData, stagesData, fieldsData, crmLeadsData, dailyChecklistsData, dailyChecklistItemsData, dailyChecklistAssignmentsData, dailyChecklistCompletionsData, weeklyTargetsData, weeklyTargetItemsData, weeklyTargetAssignmentsData, metricLogsData, supportMaterialsV2Data, supportMaterialAssignmentsData, leadTasksData, gestorTasksData, gestorTaskCompletionsData, financialEntriesData, formCadastrosData, formFilesData, notificationsData, teamProductionGoalsData, teamMembersResult] = await Promise.all([
-          supabase.from('app_config').select('data').eq('user_id', effectiveGestorId).maybeSingle(),
+        // Fetch app config first
+        await fetchAppConfig(effectiveGestorId);
+
+        const [candidatesData, materialsData, cutoffData, onboardingData, templateVideosData, pipelinesData, stagesData, fieldsData, crmLeadsData, dailyChecklistsData, dailyChecklistItemsData, dailyChecklistAssignmentsData, dailyChecklistCompletionsData, weeklyTargetsData, weeklyTargetItemsData, weeklyTargetAssignmentsData, metricLogsData, supportMaterialsV2Data, supportMaterialAssignmentsData, leadTasksData, gestorTasksData, gestorTaskCompletionsData, financialEntriesData, formCadastrosData, formFilesData, notificationsData, teamProductionGoalsData, teamMembersResult] = await Promise.all([
           supabase.from('candidates').select('id, data, created_at, last_updated_at').eq('user_id', effectiveGestorId),
           supabase.from('support_materials').select('id, data').eq('user_id', effectiveGestorId),
           supabase.from('cutoff_periods').select('id, data').eq('user_id', effectiveGestorId),
@@ -259,29 +320,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           supabase.from('team_production_goals').select('*').eq('user_id', effectiveGestorId).order('start_date', { ascending: false }),
           supabase.from('team_members').select('id, data, cpf, user_id').eq('user_id', effectiveGestorId)
         ]);
-
-        if (configResult.data) {
-          const { data } = configResult.data;
-          setChecklistStructure(data.checklistStructure || DEFAULT_STAGES);
-          setConsultantGoalsStructure(data.consultantGoalsStructure || DEFAULT_GOALS);
-          setInterviewStructure(data.interviewStructure || INITIAL_INTERVIEW_STRUCTURE);
-          setTemplates(data.templates || {});
-          setSalesOrigins(data.salesOrigins || DEFAULT_APP_CONFIG_DATA.salesOrigins);
-          // CORREÇÃO: Se data.hiringOrigins for undefined, usa o default. Se for um array (mesmo que vazio), usa o array.
-          setHiringOrigins(data.hiringOrigins !== undefined ? data.hiringOrigins : DEFAULT_APP_CONFIG_DATA.hiringOrigins);
-          setInterviewers(data.interviewers || []);
-          setPvs(data.pvs || []);
-        } else {
-          // Se não houver config, usa os padrões
-          setChecklistStructure(DEFAULT_STAGES);
-          setConsultantGoalsStructure(DEFAULT_GOALS);
-          setInterviewStructure(INITIAL_INTERVIEW_STRUCTURE);
-          setTemplates({});
-          setSalesOrigins(DEFAULT_APP_CONFIG_DATA.salesOrigins);
-          setHiringOrigins(DEFAULT_APP_CONFIG_DATA.hiringOrigins); // Usa o default de hiringOrigins
-          setInterviewers([]);
-          setPvs([]);
-        }
 
         setCandidates(candidatesData?.data?.map(item => {
           const candidateData = item.data as Candidate;
@@ -386,7 +424,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       fetchedUserIdRef.current = null;
       resetLocalState();
     }
-  }, [user?.id, user?.role, refetchCommissions]);
+  }, [user?.id, user?.role, refetchCommissions, fetchAppConfig]);
 
   const addCandidate = useCallback(async (candidate: Omit<Candidate, 'id' | 'createdAt' | 'db_id'>) => {
     const { data, error } = await supabase.from('candidates').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: candidate }).select().single();
