@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { ChevronRight, User, Calendar, CheckCircle2, TrendingUp, AlertCircle, Clock, Users, Star, CheckSquare, XCircle, BellRing, UserRound, Plus, ListTodo, Send, DollarSign, Repeat, Filter, RotateCcw, CalendarPlus, Mail, Phone, ClipboardCheck, UserPlus, UserCheck, PieChart } from 'lucide-react';
+import { ChevronRight, User, Calendar, CheckCircle2, TrendingUp, AlertCircle, Clock, Users, Star, CheckSquare, XCircle, BellRing, UserRound, Plus, ListTodo, Send, DollarSign, Repeat, Filter, RotateCcw, CalendarPlus, Mail, Phone, ClipboardCheck, UserPlus, UserCheck, PieChart, MessageSquare, UserX, UserMinus, Ghost, MapPin, BarChart3 } from 'lucide-react';
 import { CandidateStatus, ChecklistTaskState, GestorTask, LeadTask, CrmLead } from '@/types';
 import { TableSkeleton } from '@/components/TableSkeleton';
 import { ScheduleInterviewModal } from '@/components/ScheduleInterviewModal';
@@ -29,9 +29,28 @@ interface AgendaItem {
   dueDate: string;
 }
 
+// Componente MetricCard movido para cá
+const MetricCard = ({ title, value, icon: Icon, colorClass, subValue }: any) => (
+  <div className={`relative overflow-hidden p-6 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm transition-all hover:shadow-md ${colorClass}`}>
+    <div className="flex justify-between items-start">
+      <div className="space-y-1">
+        <p className="text-[10px] font-bold uppercase tracking-wider opacity-70">{title}</p>
+        <h3 className="text-4xl font-black">{value}</h3>
+        {subValue && <p className="text-xs font-medium opacity-60">{subValue}</p>}
+      </div>
+      <div className="p-3 rounded-xl bg-white/20 dark:bg-black/20">
+        <Icon className="w-6 h-6" />
+      </div>
+    </div>
+    <div className="absolute -right-4 -bottom-4 opacity-10">
+      <Icon size={100} strokeWidth={3} />
+    </div>
+  </div>
+);
+
 export const Dashboard = () => {
   const { user } = useAuth();
-  const { candidates, checklistStructure, teamMembers, isDataLoading, leadTasks, crmLeads, crmStages, gestorTasks, gestorTaskCompletions, isGestorTaskDueOnDate, notifications } = useApp();
+  const { candidates, checklistStructure, teamMembers, isDataLoading, leadTasks, crmLeads, crmStages, gestorTasks, gestorTaskCompletions, isGestorTaskDueOnDate, notifications, hiringOrigins } = useApp();
   const navigate = useNavigate();
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [isPendingTasksModalOpen, setIsPendingTasksModalOpen] = useState(false);
@@ -40,7 +59,7 @@ export const Dashboard = () => {
   const [isLeadsDetailModalOpen, setIsLeadsDetailModalOpen] = useState(false);
   const [leadsModalTitle, setLeadsModalTitle] = useState('');
   const [leadsForModal, setLeadsForModal] = useState<CrmLead[]>([]);
-  const [leadsMetricType, setLeadsMetricType] = useState<'proposal' | 'sold' | 'meeting'>('proposal'); // Adicionado 'meeting'
+  const [leadsMetricType, setLeadsMetricType] = useState<'proposal' | 'sold' | 'meeting'>('proposal');
 
   const handleOpenNotifications = () => setIsNotificationCenterOpen(true);
   const handleCloseNotifications = () => setIsNotificationCenterOpen(false);
@@ -115,7 +134,7 @@ export const Dashboard = () => {
     ).length;
 
     const scheduled = candidates.filter(c => 
-      isInFilterRange(c.interviewScheduledDate) // Usa interviewScheduledDate, removida a condição !c.interviewConducted
+      isInFilterRange(c.interviewScheduledDate) // Usa interviewScheduledDate
     ).length;
 
     const conducted = candidates.filter(c => 
@@ -157,6 +176,24 @@ export const Dashboard = () => {
     const attendanceRate = totalInterviewsScheduled > 0 ? (totalInterviewsConducted / totalInterviewsScheduled) * 100 : 0;
     const hiringRate = total > 0 ? (totalHired / total) * 100 : 0;
 
+    const originCounts: Record<string, number> = {};
+    hiringOrigins.forEach(origin => { originCounts[origin] = 0; });
+    originCounts['Não Informado'] = 0;
+
+    candidates.filter(c => isInFilterRange(c.createdAt)).forEach(c => { // Conta a origem apenas para candidatos criados no período
+      const origin = c.origin || 'Não Informado';
+      originCounts[origin] = (originCounts[origin] || 0) + 1;
+    });
+
+    const candidatesByOrigin = Object.entries(originCounts)
+      .map(([name, count]) => ({
+        name,
+        count,
+        percentage: total > 0 ? (count / total) * 100 : 0
+      }))
+      .filter(o => o.count > 0)
+      .sort((a, b) => b.count - a.count);
+
     return {
       total,
       contacted,
@@ -167,11 +204,12 @@ export const Dashboard = () => {
       noShow,
       withdrawn,
       disqualified,
+      candidatesByOrigin,
       attendanceRate,
       hiringRate,
       totalHired
     };
-  }, [candidates]);
+  }, [candidates, hiringOrigins]);
 
   // --- Agenda do Dia ---
   const { todayAgenda, overdueTasks } = useMemo(() => {
@@ -275,27 +313,77 @@ export const Dashboard = () => {
         <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center">
           <PieChart className="w-5 h-5 mr-2 text-brand-500" /> Dashboard de Contratação (Mês Atual)
         </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-          <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm text-center">
-            <p className="text-xs font-bold text-gray-400 uppercase mb-2">Candidatos (Entrada no Funil)</p>
-            <p className="text-3xl font-black text-indigo-600">{hiringMetrics.total}</p>
-          </div>
-          <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm text-center">
-            <p className="text-xs font-bold text-gray-400 uppercase mb-2">Contatados</p>
-            <p className="text-3xl font-black text-orange-500">{hiringMetrics.contacted}</p>
-          </div>
-          <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm text-center">
-            <p className="text-xs font-bold text-gray-400 uppercase mb-2">Agendadas</p>
-            <p className="text-3xl font-black text-purple-600">{hiringMetrics.scheduled}</p>
-          </div>
-          <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm text-center">
-            <p className="text-xs font-bold text-gray-400 uppercase mb-2">Realizadas</p>
-            <p className="text-3xl font-black text-blue-500">{hiringMetrics.conducted}</p>
-          </div>
-          <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm text-center">
-            <p className="text-xs font-bold text-gray-400 uppercase mb-2">Em Prévia</p>
-            <p className="text-3xl font-black text-emerald-600">{hiringMetrics.awaitingPreview}</p>
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <MetricCard 
+            title="Candidatos (Entrada no Funil)" 
+            value={hiringMetrics.total} 
+            icon={Users} 
+            colorClass="bg-indigo-600 text-white" 
+          />
+          <MetricCard 
+            title="Contatados (no Período)" 
+            value={hiringMetrics.contacted} 
+            icon={MessageSquare} 
+            colorClass="bg-amber-500 text-white" 
+          />
+          <MetricCard 
+            title="Entrevistas Agendadas (no Período)" 
+            value={hiringMetrics.scheduled} 
+            icon={Clock} 
+            colorClass="bg-orange-600 text-white" 
+          />
+          <MetricCard 
+            title="Entrevistas Realizadas (no Período)" 
+            value={hiringMetrics.conducted} 
+            icon={FileText} 
+            colorClass="bg-purple-600 text-white" 
+          />
+          <MetricCard 
+            title="Em Prévia (no Período)" 
+            value={hiringMetrics.awaitingPreview} 
+            icon={TrendingUp} 
+            colorClass="bg-blue-600 text-white" 
+          />
+          <MetricCard 
+            title="Autorizados (no Período)" 
+            value={hiringMetrics.hired} 
+            icon={UserCheck} 
+            colorClass="bg-emerald-600 text-white" 
+          />
+          
+          <MetricCard 
+            title="Faltas (no Período)" 
+            value={hiringMetrics.noShow} 
+            icon={Ghost} 
+            colorClass="bg-rose-500 text-white" 
+          />
+          <MetricCard 
+            title="Desistências (no Período)" 
+            value={hiringMetrics.withdrawn} 
+            icon={UserMinus} 
+            colorClass="bg-rose-600 text-white" 
+          />
+          <MetricCard 
+            title="Desqualificados (no Período)" 
+            value={hiringMetrics.disqualified} 
+            icon={XCircle} 
+            colorClass="bg-rose-700 text-white" 
+          />
+          
+          <MetricCard 
+            title="Taxa de Comparecimento" 
+            value={`${hiringMetrics.attendanceRate.toFixed(1)}%`} 
+            icon={Percent} 
+            colorClass="bg-slate-800 text-white dark:bg-slate-700" 
+            subValue="Efetividade Agenda"
+          />
+          <MetricCard 
+            title="Taxa de Contratação" 
+            value={`${hiringMetrics.hiringRate.toFixed(1)}%`} 
+            icon={Percent} 
+            colorClass="bg-slate-800 text-white dark:bg-slate-700" 
+            subValue="Conversão Final"
+          />
         </div>
       </section>
 
