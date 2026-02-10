@@ -55,7 +55,7 @@ const parseDbCurrency = (value: any): number | null => {
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { user, session } = useAuth();
-  const fetchedUserIdRef = useRef<string | null>(fetchedUserIdRef.current);
+  const fetchedUserIdRef = useRef<string | null>(null); // Corrigido: Inicialização com null
   const isFetchingRef = useRef(false);
 
   const [isDataLoading, setIsDataLoading] = useState(true);
