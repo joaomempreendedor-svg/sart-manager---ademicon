@@ -77,9 +77,7 @@ export const Dashboard = () => {
     const leadsSold = leadsForGestor.filter(lead => {
       if (lead.sold_credit_value && lead.sold_credit_value > 0 && lead.sale_date) { // Usando snake_case
         const saleDate = new Date(lead.sale_date + 'T00:00:00'); // Usando snake_case
-        if (saleDate >= currentMonthStart && saleDate <= currentMonthEnd) {
-          return sum + (lead.sold_credit_value || 0); // Usando snake_case
-        }
+        return saleDate >= currentMonthStart && saleDate <= currentMonthEnd;
       }
       return false;
     });
