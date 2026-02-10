@@ -30,23 +30,41 @@ interface AgendaItem {
 }
 
 // Componente MetricCard movido para cá
-const MetricCard = ({ title, value, icon: Icon, colorClass, subValue }: any) => (
-  <div className={`relative overflow-hidden p-6 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm transition-all hover:shadow-md ${colorClass}`}>
-    <div className="flex justify-between items-start">
-      <div className="space-y-1">
-        <p className="text-[10px] font-bold uppercase tracking-wider opacity-70">{title}</p>
-        <h3 className="text-4xl font-black">{value}</h3>
-        {subValue && <p className="text-xs font-medium opacity-60">{subValue}</p>}
+const MetricCard = ({ title, value, icon: Icon, colorClass, subValue, onClick }: any) => {
+  const CardContent = (
+    <>
+      <div className="flex justify-between items-start">
+        <div className="space-y-1">
+          <p className="text-[10px] font-bold uppercase tracking-wider opacity-70">{title}</p>
+          <h3 className="text-4xl font-black">{value}</h3>
+          {subValue && <p className="text-xs font-medium opacity-60">{subValue}</p>}
+        </div>
+        <div className="p-3 rounded-xl bg-white/20 dark:bg-black/20">
+          <Icon className="w-6 h-6" />
+        </div>
       </div>
-      <div className="p-3 rounded-xl bg-white/20 dark:bg-black/20">
-        <Icon className="w-6 h-6" />
+      <div className="absolute -right-4 -bottom-4 opacity-10">
+        <Icon size={100} strokeWidth={3} />
       </div>
+    </>
+  );
+
+  const baseClasses = `relative overflow-hidden p-6 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm transition-all hover:shadow-md ${colorClass}`;
+
+  if (onClick) {
+    return (
+      <button onClick={onClick} className={`${baseClasses} text-left w-full`}>
+        {CardContent}
+      </button>
+    );
+  }
+
+  return (
+    <div className={baseClasses}>
+      {CardContent}
     </div>
-    <div className="absolute -right-4 -bottom-4 opacity-10">
-      <Icon size={100} strokeWidth={3} />
-    </div>
-  </div>
-);
+  );
+};
 
 export const Dashboard = () => {
   const { user } = useAuth();
@@ -262,30 +280,46 @@ export const Dashboard = () => {
           <TrendingUp className="w-5 h-5 mr-2 text-brand-500" /> Métricas Comerciais (Mês Atual)
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-          <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-3">
-            <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg"><Users className="w-5 h-5 text-blue-600" /></div>
-            <div><p className="text-[10px] text-gray-500 uppercase font-bold">Total Leads</p><p className="text-lg font-bold">{commercialMetrics?.totalLeads}</p></div>
-          </div>
-          <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-3">
-            <div className="p-2 bg-green-50 dark:bg-green-900/20 rounded-lg"><Plus className="w-5 h-5 text-green-600" /></div>
-            <div><p className="text-[10px] text-gray-500 uppercase font-bold">Novos Leads</p><p className="text-lg font-bold">{commercialMetrics?.newLeads}</p></div>
-          </div>
-          <button onClick={() => handleOpenLeadsDetailModal('Reuniões do Mês', commercialMetrics?.leadsWithMeetings || [], 'meeting')} className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-3 hover:bg-gray-50 transition text-left">
-            <div className="p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg"><Calendar className="w-5 h-5 text-yellow-600" /></div>
-            <div><p className="text-[10px] text-gray-500 uppercase font-bold">Reuniões</p><p className="text-lg font-bold">{commercialMetrics?.meetingsCount}</p></div>
-          </button>
-          <button onClick={() => handleOpenLeadsDetailModal('Propostas do Mês', commercialMetrics?.leadsWithProposal || [], 'proposal')} className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-3 hover:bg-gray-50 transition text-left">
-            <div className="p-2 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg"><Send className="w-5 h-5 text-indigo-600" /></div>
-            <div><p className="text-[10px] text-gray-500 uppercase font-bold">Propostas</p><p className="text-lg font-bold">{formatLargeCurrency(commercialMetrics?.proposalValue || 0)}</p></div>
-          </button>
-          <button onClick={() => handleOpenLeadsDetailModal('Vendas do Mês', commercialMetrics?.leadsSold || [], 'sold')} className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-3 hover:bg-gray-50 transition text-left">
-            <div className="p-2 bg-teal-50 dark:bg-teal-900/20 rounded-lg"><DollarSign className="w-5 h-5 text-teal-600" /></div>
-            <div><p className="text-[10px] text-gray-500 uppercase font-bold">Vendido</p><p className="text-lg font-bold">{formatLargeCurrency(commercialMetrics?.soldValue || 0)}</p></div>
-          </button>
-          <button onClick={() => setIsPendingTasksModalOpen(true)} className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-3 hover:bg-gray-50 transition text-left">
-            <div className="p-2 bg-red-50 dark:bg-red-900/20 rounded-lg"><ListTodo className="w-5 h-5 text-red-600" /></div>
-            <div><p className="text-[10px] text-gray-500 uppercase font-bold">Pendências</p><p className="text-lg font-bold">{commercialMetrics?.pendingTasks.length}</p></div>
-          </button>
+          <MetricCard
+            title="Total Leads"
+            value={commercialMetrics?.totalLeads}
+            icon={Users}
+            colorClass="bg-indigo-600 text-white"
+          />
+          <MetricCard
+            title="Novos Leads"
+            value={commercialMetrics?.newLeads}
+            icon={Plus}
+            colorClass="bg-green-600 text-white"
+          />
+          <MetricCard
+            title="Reuniões"
+            value={commercialMetrics?.meetingsCount}
+            icon={Calendar}
+            colorClass="bg-orange-600 text-white"
+            onClick={() => handleOpenLeadsDetailModal('Reuniões do Mês', commercialMetrics?.leadsWithMeetings || [], 'meeting')}
+          />
+          <MetricCard
+            title="Propostas"
+            value={formatLargeCurrency(commercialMetrics?.proposalValue || 0)}
+            icon={Send}
+            colorClass="bg-purple-600 text-white"
+            onClick={() => handleOpenLeadsDetailModal('Propostas do Mês', commercialMetrics?.leadsWithProposal || [], 'proposal')}
+          />
+          <MetricCard
+            title="Vendido"
+            value={formatLargeCurrency(commercialMetrics?.soldValue || 0)}
+            icon={DollarSign}
+            colorClass="bg-teal-600 text-white"
+            onClick={() => handleOpenLeadsDetailModal('Vendas do Mês', commercialMetrics?.leadsSold || [], 'sold')}
+          />
+          <MetricCard
+            title="Pendências"
+            value={commercialMetrics?.pendingTasks.length}
+            icon={ListTodo}
+            colorClass="bg-red-600 text-white"
+            onClick={() => setIsPendingTasksModalOpen(true)}
+          />
         </div>
       </section>
 
