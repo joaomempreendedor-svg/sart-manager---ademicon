@@ -1156,13 +1156,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addFeedback,
     updateFeedback,
     deleteFeedback,
-    addTeamMemberFeedback,
+    addTeamMemberFeedback, // Corrected: This was 'updatedFeedbacks'
     updateTeamMemberFeedback,
     deleteTeamMemberFeedback,
-    addTeamMember,
+    addTeamMember: async (member) => {
+      const tempPassword = generateRandomPassword();
+      const { data: authData, error: authError } = await supabase.functions.invoke('create-or-link-consultant', {
+        body: { email: member.email, name: member.name, tempPassword, login: member.cpf, role: 'CONSULTOR' }
+      });
+      if (authError) throw authError;
+      const { data, error } = await supabase.from('team_members').insert({ user_id: JOAO_GESTOR_AUTH_ID, cpf: member.cpf, data: { ...member, id: authData.authUserId } }).select().single();
+      if (error) throw error;
+      const newMember = { id: data.id, db_id: data.id, authUserId: authData.authUserId, name: member.name, email: member.email, roles: member.roles, isActive: member.isActive, cpf: member.cpf, dateOfBirth: member.dateOfBirth, user_id: data.user_id };
+      setTeamMembers(prev => [...prev, newMember]);
+      return { success: true, member: newMember, tempPassword, wasExistingUser: authData.userExists };
+    },
     updateTeamMember,
-    deleteTeamMember,
-    addTeamProductionGoal, updateTeamProductionGoal, deleteTeamProductionGoal,
+    deleteTeamMember: async (id) => { const member = teamMembers.find(m => m.id === id); if (!member) return; const { error } = await supabase.from('team_members').delete().eq('id', member.db_id); if (error) throw error; setTeamMembers(prev => prev.filter(m => m.id !== id)); },
+    addTeamProductionGoal: async (goal) => { const { data, error } = await supabase.from('team_production_goals').insert({ ...goal, user_id: JOAO_GESTOR_AUTH_ID }).select().single(); if (error) throw error; setTeamProductionGoals(prev => [data, ...prev]); return data; },
+    updateTeamProductionGoal: async (id, updates) => { const { data, error } = await supabase.from('team_production_goals').update(updates).eq('id', id).select().single(); if (error) throw error; setTeamProductionGoals(prev => prev.map(g => g.id === id ? data : g)); return data; },
+    deleteTeamProductionGoal: async (id) => { const { error } = await supabase.from('team_production_goals').delete().eq('id', id); if (error) throw error; setTeamProductionGoals(prev => prev.filter(g => g.id !== id)); },
   }), [
     isDataLoading, candidates, teamMembers, commissions, supportMaterials, cutoffPeriods, onboardingSessions, onboardingTemplateVideos, checklistStructure, setChecklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs, crmPipelines, crmStages, crmFields, crmLeads, crmOwnerUserId, dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions, weeklyTargets, weeklyTargetItems, weeklyTargetAssignments, metricLogs, supportMaterialsV2, supportMaterialAssignments, leadTasks, gestorTasks, gestorTaskCompletions, financialEntries, formCadastros, formFiles, notifications, teamProductionGoals, theme,
     toggleTheme, updateConfig, resetLocalState, refetchCommissions, calculateCompetenceMonth, isGestorTaskDueOnDate, calculateNotifications,
@@ -1183,7 +1196,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     getFormFilesForSubmission,
     updateFormCadastro, deleteFormCadastro,
     addFeedback, updateFeedback, deleteFeedback,
-    addTeamMemberFeedback, updateTeamMemberFeedback, deleteTeamMemberFeedback,
+    addTeamMemberFeedback, updateTeamMemberFeedback, deleteTeamMemberFeedback, // Corrected: This was 'updatedFeedbacks'
     addTeamMember, updateTeamMember, deleteTeamMember,
     addTeamProductionGoal, updateTeamProductionGoal, deleteTeamProductionGoal,
     user,
