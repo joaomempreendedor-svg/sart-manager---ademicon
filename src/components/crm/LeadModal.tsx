@@ -330,28 +330,31 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
                 />
               </div>
 
-              <div className="grid gap-2">
-                <Label htmlFor="consultant_id" className="text-left">
-                  Consultor <span className="text-red-500">*</span>
-                </Label>
-                <Select
-                  value={formData.consultant_id || ''}
-                  onValueChange={(val) => handleChange('consultant_id', val)}
-                  required
-                  disabled={isConsultantFieldDisabled} // Desabilita se for consultor e novo lead
-                >
-                  <SelectTrigger className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
-                    <SelectValue placeholder="Selecione o Consultor" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700 max-h-[200px] overflow-y-auto">
-                    {consultants.map(consultant => (
-                      <SelectItem key={consultant.id} value={consultant.id}>
-                        {consultant.name} ({consultant.roles.join(', ')})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {/* Conditionally render the "Consultor" field */}
+              {!(isConsultorRole && isNewLead) && (
+                <div className="grid gap-2">
+                  <Label htmlFor="consultant_id" className="text-left">
+                    Consultor <span className="text-red-500">*</span>
+                  </Label>
+                  <Select
+                    value={formData.consultant_id || ''}
+                    onValueChange={(val) => handleChange('consultant_id', val)}
+                    required
+                    disabled={isConsultantFieldDisabled}
+                  >
+                    <SelectTrigger className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
+                      <SelectValue placeholder="Selecione o Consultor" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700 max-h-[200px] overflow-y-auto">
+                      {consultants.map(consultant => (
+                        <SelectItem key={consultant.id} value={consultant.id}>
+                          {consultant.name} ({consultant.roles.join(', ')})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               <div className="grid gap-2">
                 <Label htmlFor="origin" className="text-left">
