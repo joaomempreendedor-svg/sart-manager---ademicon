@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { ChevronRight, User, Calendar, CheckCircle2, TrendingUp, AlertCircle, Clock, Users, Star, CheckSquare, XCircle, BellRing, UserRound, Plus, ListTodo, Send, DollarSign, Repeat, Filter, RotateCcw, CalendarPlus, Mail, Phone, ClipboardCheck, UserPlus, UserCheck, PieChart, MessageSquare, UserX, UserMinus, Ghost, MapPin, BarChart3 } from 'lucide-react';
+import { ChevronRight, User, Calendar, CheckCircle2, TrendingUp, AlertCircle, Clock, Users, Star, CheckSquare, XCircle, BellRing, UserRound, Plus, ListTodo, Send, DollarSign, Repeat, Filter, RotateCcw, CalendarPlus, Mail, Phone, ClipboardCheck, UserPlus, UserCheck, PieChart, MessageSquare, UserX, UserMinus, Ghost, MapPin, BarChart3, FileText } from 'lucide-react';
 import { CandidateStatus, ChecklistTaskState, GestorTask, LeadTask, CrmLead } from '@/types';
 import { TableSkeleton } from '@/components/TableSkeleton';
 import { ScheduleInterviewModal } from '@/components/ScheduleInterviewModal';
@@ -176,24 +176,6 @@ export const Dashboard = () => {
     const attendanceRate = totalInterviewsScheduled > 0 ? (totalInterviewsConducted / totalInterviewsScheduled) * 100 : 0;
     const hiringRate = total > 0 ? (totalHired / total) * 100 : 0;
 
-    const originCounts: Record<string, number> = {};
-    hiringOrigins.forEach(origin => { originCounts[origin] = 0; });
-    originCounts['Não Informado'] = 0;
-
-    candidates.filter(c => isInFilterRange(c.createdAt)).forEach(c => { // Conta a origem apenas para candidatos criados no período
-      const origin = c.origin || 'Não Informado';
-      originCounts[origin] = (originCounts[origin] || 0) + 1;
-    });
-
-    const candidatesByOrigin = Object.entries(originCounts)
-      .map(([name, count]) => ({
-        name,
-        count,
-        percentage: total > 0 ? (count / total) * 100 : 0
-      }))
-      .filter(o => o.count > 0)
-      .sort((a, b) => b.count - a.count);
-
     return {
       total,
       contacted,
@@ -204,7 +186,6 @@ export const Dashboard = () => {
       noShow,
       withdrawn,
       disqualified,
-      candidatesByOrigin,
       attendanceRate,
       hiringRate,
       totalHired
