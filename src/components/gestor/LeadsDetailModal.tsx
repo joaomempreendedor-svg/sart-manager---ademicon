@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, DollarSign, Calendar, Users, Tag, ChevronRight, Send, Clock } from 'lucide-react'; // Adicionado Clock
+import { X, DollarSign, Calendar, Users, Tag, ChevronRight, Send, Clock } from 'lucide-react';
 import { CrmLead, CrmStage, TeamMember } from '@/types';
 import {
   Dialog,
@@ -23,7 +23,7 @@ interface LeadsDetailModalProps {
   leads: CrmLead[];
   crmStages: CrmStage[];
   teamMembers: TeamMember[];
-  metricType: 'proposal' | 'sold' | 'meeting'; // Adicionado 'meeting'
+  metricType: 'proposal' | 'sold' | 'meeting';
 }
 
 const formatCurrency = (value: number) => {
@@ -45,8 +45,8 @@ export const LeadsDetailModal: React.FC<LeadsDetailModalProps> = ({
   if (!isOpen) return null;
 
   const handleGoToLead = (leadId: string) => {
-    onClose(); // Fecha o modal antes de navegar
-    navigate(`/gestor/crm`, { state: { highlightLeadId: leadId } }); // Navega para o CRM
+    onClose();
+    navigate(`/gestor/crm`, { state: { highlightLeadId: leadId } });
   };
 
   const getConsultantName = (lead: CrmLead) => {
@@ -54,14 +54,11 @@ export const LeadsDetailModal: React.FC<LeadsDetailModalProps> = ({
     
     if (!targetId) return 'Não atribuído';
 
-    // 1. Tenta encontrar na lista de membros da equipe
     const member = teamMembers.find(m => m.id === targetId || m.authUserId === targetId);
     if (member) return member.name;
 
-    // 2. Verifica se é o Gestor João (ID fixo)
     if (targetId === JOAO_GESTOR_AUTH_ID) return 'João Müller';
 
-    // 3. Verifica se é o usuário logado no momento
     if (user && targetId === user.id) return user.name;
 
     return 'Não atribuído';
@@ -76,7 +73,7 @@ export const LeadsDetailModal: React.FC<LeadsDetailModalProps> = ({
               <Send className="w-6 h-6 text-purple-600 dark:text-purple-400" />
             ) : metricType === 'sold' ? (
               <DollarSign className="w-6 h-6 text-green-600 dark:text-green-400" />
-            ) : ( // Novo ícone para 'meeting'
+            ) : (
               <Calendar className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
             )}
             <span>{title} ({leads.length})</span>
@@ -131,11 +128,17 @@ export const LeadsDetailModal: React.FC<LeadsDetailModalProps> = ({
                         )}
                         <span className={`flex items-center font-medium ${metricType === 'proposal' ? 'text-purple-600 dark:text-purple-400' : metricType === 'sold' ? 'text-green-600 dark:text-green-400' : 'text-yellow-600 dark:text-yellow-400'}`}>
                           {metricType === 'proposal' ? (
-                            <DollarSign className="w-3 h-3 mr-1" /> Valor Proposta: <span className="font-semibold">{formatCurrency(displayValue)}</span>
+                            <>
+                              <DollarSign className="w-3 h-3 mr-1" /> Valor Proposta: <span className="font-semibold">{formatCurrency(displayValue)}</span>
+                            </>
                           ) : metricType === 'sold' ? (
-                            <DollarSign className="w-3 h-3 mr-1" /> Valor Vendido: <span className="font-semibold">{formatCurrency(displayValue)}</span>
+                            <>
+                              <DollarSign className="w-3 h-3 mr-1" /> Valor Vendido: <span className="font-semibold">{formatCurrency(displayValue)}</span>
+                            </>
                           ) : (
-                            <Users className="w-3 h-3 mr-1" /> Lead com Reunião
+                            <>
+                              <Users className="w-3 h-3 mr-1" /> Lead com Reunião
+                            </>
                           )}
                         </span>
                       </div>
