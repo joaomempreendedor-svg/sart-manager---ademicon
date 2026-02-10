@@ -162,8 +162,6 @@ const AppRoutes = () => {
             <Route path="daily-checklist" element={<SecretariaDailyChecklist />} />
             <Route path="onboarding-admin" element={<OnlineOnboarding />} />
             <Route path="form-cadastros" element={<FormCadastros />} />
-            {/* Removido: Rota para OriginConfig para Secretaria */}
-            {/* <Route path="config-origins" element={<OriginConfig />} /> */}
           </Route>
         </Route>
 

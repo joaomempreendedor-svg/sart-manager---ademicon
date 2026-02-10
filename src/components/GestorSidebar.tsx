@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { NavLink } from 'react-router-dom';
 import { LayoutDashboard, MessageSquare, Settings, FileText, Sun, Moon, Banknote, PlusCircle, Library, TrendingUp, Target, Users, LogOut, User as UserIcon, Star, Video, ListChecks, ClipboardCheck, UserPlus, ChevronLeft, ChevronRight, ChevronDown, UserSearch, BarChart3, MapPin, DollarSign, FileStack, UserCheck, Clock, Calendar, UsersRound, ListTodo, PieChart } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
+import { UserRole } from '@/types'; // Importar UserRole
 
 interface GestorSidebarProps {
   isSidebarOpen: boolean;
@@ -32,45 +33,49 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
 
   const sectionTitleClass = `flex items-center justify-between w-full px-4 py-3 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg transition-colors`;
 
-  const isSecretaria = user?.role === 'SECRETARIA';
-  const isGestorOrAdmin = user?.role === 'GESTOR' || user?.role === 'ADMIN';
+  const userRole = user?.role || 'CONSULTOR'; // Default para CONSULTOR se não houver usuário ou role
 
-  // Links para a seção "Visão Geral e Operação"
-  const overviewLinks = isSecretaria ? [
-    { to: "/secretaria/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-    { to: "/secretaria/hiring-pipeline", icon: UserSearch, label: "Pipeline Contratação" },
-    { to: "/secretaria/hiring-origins-report", icon: MapPin, label: "Candidaturas por Origem" },
-    { to: "/secretaria/onboarding-admin", icon: Video, label: "Onboarding Online" },
-    { to: "/secretaria/form-cadastros", icon: FileStack, label: "Gerenciar Formulários" },
-  ] : [
-    { to: "/gestor/crm", icon: TrendingUp, label: "CRM" },
-    { to: "/gestor/crm-sales-reports", icon: BarChart3, label: "Relatórios de Vendas" },
-    { to: "/gestor/hiring-pipeline", icon: UserSearch, label: "Pipeline Contratação" },
-    { to: "/gestor/hiring-origins-report", icon: MapPin, label: "Candidaturas por Origem" },
-    { to: "/gestor/onboarding-admin", icon: Video, label: "Onboarding Online" },
-    { to: "/gestor/form-cadastros", icon: FileStack, label: "Gerenciar Formulários" },
-    { to: "/gestor/commissions", icon: Banknote, label: "Comissões" },
-    { to: "/gestor/financial-panel", icon: DollarSign, label: "Painel Financeiro" },
-    { to: "/gestor/feedbacks", icon: Star, label: "Feedbacks" },
-    { to: "/gestor/daily-checklist-monitoring", icon: ClipboardCheck, label: "Monitorar Metas Diárias" },
-    { to: "/gestor/team-production-goals", icon: Target, label: "Metas de Produção" },
-    { to: "/gestor/my-tasks", icon: ListTodo, label: "Minhas Tarefas" },
-  ];
+  const baseRoute = userRole === 'SECRETARIA' ? "/secretaria" : "/gestor";
+  const dashboardPath = `${baseRoute}/dashboard`;
 
-  // Links para a seção "Configurações do Sistema"
-  const configLinks = isSecretaria ? [] : [ // Se for Secretaria, a lista de links de configuração é vazia
-    { to: "/gestor/config-team", icon: Users, label: "Gestão de Equipe" },
-    { to: "/gestor/daily-checklist-config", icon: ListChecks, label: "Config. Metas Diárias" },
-    { to: "/gestor/config-goals", icon: Target, label: "Configurar Metas" },
-    { to: "/gestor/config-interview", icon: FileText, label: "Configurar Entrevista" },
-    { to: "/gestor/config-templates", icon: MessageSquare, label: "Configurar Mensagens" },
-    { to: "/gestor/config-cutoff", icon: Clock, label: "Períodos de Corte" },
-    { to: "/gestor/crm-config", icon: PlusCircle, label: "Configurar CRM" },
-    { to: "/gestor/config-origins", icon: MapPin, label: "Configurar Origens" },
-    { to: "/gestor/config-process", icon: Settings, label: "Editar Processo (Antigo)" },
-  ];
+  const allLinks = useMemo(() => [
+    // Dashboard (conditional path)
+    { to: dashboardPath, icon: LayoutDashboard, label: "Dashboard", roles: ['GESTOR', 'ADMIN', 'SECRETARIA'], section: 'overview' },
 
-  const dashboardPath = isSecretaria ? "/secretaria/dashboard" : "/gestor/dashboard";
+    // CRM & Sales (Gestor/Admin only)
+    { to: `${baseRoute}/crm`, icon: TrendingUp, label: "CRM", roles: ['GESTOR', 'ADMIN'], section: 'overview' },
+    { to: `${baseRoute}/crm-sales-reports`, icon: BarChart3, label: "Relatórios de Vendas", roles: ['GESTOR', 'ADMIN'], section: 'overview' },
+    { to: `${baseRoute}/commissions`, icon: Banknote, label: "Comissões", roles: ['GESTOR', 'ADMIN'], section: 'overview' },
+    { to: `${baseRoute}/financial-panel`, icon: DollarSign, label: "Painel Financeiro", roles: ['GESTOR', 'ADMIN'], section: 'overview' },
+    { to: `${baseRoute}/feedbacks`, icon: Star, label: "Feedbacks", roles: ['GESTOR', 'ADMIN'], section: 'overview' },
+    { to: `${baseRoute}/team-production-goals`, icon: Target, label: "Metas de Produção", roles: ['GESTOR', 'ADMIN'], section: 'overview' },
+    { to: `${baseRoute}/my-tasks`, icon: ListTodo, label: "Minhas Tarefas", roles: ['GESTOR', 'ADMIN'], section: 'overview' },
+
+    // Hiring & Onboarding (Shared, but some pages might be Gestor/Admin specific)
+    { to: `${baseRoute}/hiring-pipeline`, icon: UserSearch, label: "Pipeline Contratação", roles: ['GESTOR', 'ADMIN', 'SECRETARIA'], section: 'overview' },
+    { to: `${baseRoute}/hiring-origins-report`, icon: MapPin, label: "Candidaturas por Origem", roles: ['GESTOR', 'ADMIN', 'SECRETARIA'], section: 'overview' },
+    { to: `${baseRoute}/onboarding-admin`, icon: Video, label: "Onboarding Online", roles: ['GESTOR', 'ADMIN', 'SECRETARIA'], section: 'overview' },
+    { to: `${baseRoute}/form-cadastros`, icon: FileStack, label: "Gerenciar Formulários", roles: ['GESTOR', 'ADMIN', 'SECRETARIA'], section: 'overview' },
+    { to: `${baseRoute}/daily-checklist-monitoring`, icon: ClipboardCheck, label: "Monitorar Metas Diárias", roles: ['GESTOR', 'ADMIN'], section: 'overview' },
+    { to: `${baseRoute}/daily-checklist`, icon: ListChecks, label: "Minhas Rotinas Diárias", roles: ['SECRETARIA'], section: 'overview' }, // Specific for Secretaria
+
+    // Materials (Gestor/Admin only, as per current GestorSidebar)
+    { to: `${baseRoute}/materials`, icon: Library, label: "Materiais de Apoio", roles: ['GESTOR', 'ADMIN'], section: 'overview' },
+
+    // Config Links (Gestor/Admin only)
+    { to: `${baseRoute}/config-team`, icon: Users, label: "Gestão de Equipe", roles: ['GESTOR', 'ADMIN'], section: 'config' },
+    { to: `${baseRoute}/daily-checklist-config`, icon: ListChecks, label: "Config. Metas Diárias", roles: ['GESTOR', 'ADMIN'], section: 'config' },
+    { to: `${baseRoute}/config-goals`, icon: Target, label: "Configurar Metas", roles: ['GESTOR', 'ADMIN'], section: 'config' },
+    { to: `${baseRoute}/config-interview`, icon: FileText, label: "Configurar Entrevista", roles: ['GESTOR', 'ADMIN'], section: 'config' },
+    { to: `${baseRoute}/config-templates`, icon: MessageSquare, label: "Configurar Mensagens", roles: ['GESTOR', 'ADMIN'], section: 'config' },
+    { to: `${baseRoute}/config-cutoff`, icon: Clock, label: "Períodos de Corte", roles: ['GESTOR', 'ADMIN'], section: 'config' },
+    { to: `${baseRoute}/crm-config`, icon: PlusCircle, label: "Configurar CRM", roles: ['GESTOR', 'ADMIN'], section: 'config' },
+    { to: `${baseRoute}/config-origins`, icon: MapPin, label: "Configurar Origens", roles: ['GESTOR', 'ADMIN'], section: 'config' },
+    { to: `${baseRoute}/config-process`, icon: Settings, label: "Editar Processo (Antigo)", roles: ['GESTOR', 'ADMIN'], section: 'config' },
+  ], [dashboardPath, baseRoute, userRole]);
+
+  const overviewLinks = allLinks.filter(link => link.section === 'overview' && link.roles.includes(userRole));
+  const configLinks = allLinks.filter(link => link.section === 'config' && link.roles.includes(userRole));
 
   return (
     <>
@@ -129,7 +134,7 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
           )}
 
           {/* Configurações do Sistema */}
-          {isGestorOrAdmin && ( // Renderiza a seção de configurações apenas para Gestor/Admin
+          {userRole !== 'SECRETARIA' && ( // Renderiza a seção de configurações apenas para Gestor/Admin
             <>
               {!isSidebarCollapsed && (
                 <button onClick={() => setIsConfigCollapsed(!isConfigCollapsed)} className={`${sectionTitleClass} mt-4`}>

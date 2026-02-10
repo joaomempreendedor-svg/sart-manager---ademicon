@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { X, UploadCloud, Loader2, CheckCircle2, AlertTriangle, Save } from 'lucide-react';
 import {
   Dialog,
@@ -17,7 +17,7 @@ import { Candidate, TeamMember } from '@/types';
 interface ImportCandidatesModalProps {
   isOpen: boolean;
   onClose: () => void;
-  origins: string[];
+  origins: string[]; // This is the prop for hiring origins
   responsibleMembers: TeamMember[];
   onImport: (candidates: Omit<Candidate, 'id' | 'createdAt' | 'db_id'>[]) => Promise<void>;
 }
@@ -25,7 +25,7 @@ interface ImportCandidatesModalProps {
 export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
   isOpen,
   onClose,
-  origins,
+  origins, // Use this prop for validation
   responsibleMembers,
   onImport,
 }) => {
@@ -84,7 +84,7 @@ export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
       dataLines = allLines.slice(1);
     } else {
       // If no header, assume default headers and all lines are data
-      headers = ['nome', 'status']; // Hardcode expected headers
+      headers = ['nome', 'status', 'origem']; // Added 'origem' as a default header
       dataLines = allLines;
     }
 
@@ -97,17 +97,15 @@ export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
     // Identify column indices based on detected/assumed headers
     const nameIndex = headers.findIndex(h => h.includes('nome'));
     const statusIndex = headers.findIndex(h => h.includes('status') || h.includes('triagem'));
+    const originIndex = headers.findIndex(h => h.includes('origem')); // Get origin index
 
     if (nameIndex === -1) {
       setParseError("Coluna 'Nome' não encontrada nos dados. Verifique o formato.");
       setIsProcessing(false);
       return;
     }
-    if (statusIndex === -1) {
-      setParseError("Coluna 'Status' ou 'Triagem' não encontrada nos dados. Verifique o formato.");
-      setIsProcessing(false);
-      return;
-    }
+    // Status is not strictly required for import, can default to 'Pending Contact'
+    // Origin is also not strictly required, can default to 'Não Informado'
 
     for (const line of dataLines) {
       const values = line.split(delimiter).map(v => v.trim());
@@ -136,21 +134,32 @@ export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
         recordIsValid = false;
       }
 
-      // Extract Screening Status
-      if (values[statusIndex]) {
+      // Extract Screening Status (optional, defaults to 'Pending Contact')
+      if (statusIndex !== -1 && values[statusIndex]) {
         const mappedStatus = mapIncomingStatus(values[statusIndex]);
         if (mappedStatus) {
           candidateData.screeningStatus = mappedStatus;
         } else {
           currentRecordErrors.push(`Status de triagem "${values[statusIndex]}" inválido. Use: "Sem perfil", "Contato Feito" ou "Pendente".`);
-          recordIsValid = false;
+          // Do not set recordIsValid to false for invalid status, just use default
         }
-      } else {
-        currentRecordErrors.push("Status de triagem ausente.");
-        recordIsValid = false;
       }
 
-      // Validate required fields
+      // Extract Origin (optional, defaults to 'Não Informado')
+      if (originIndex !== -1 && values[originIndex]) {
+        const incomingOrigin = values[originIndex];
+        if (origins.includes(incomingOrigin)) { // Validate against provided hiring origins
+          candidateData.origin = incomingOrigin;
+        } else {
+          currentRecordErrors.push(`Origem "${incomingOrigin}" inválida. Origens de contratação permitidas: ${origins.join(', ')}.`);
+          // Do not set recordIsValid to false for invalid origin, just use default
+        }
+      }
+      if (!candidateData.origin) {
+        candidateData.origin = 'Não Informado';
+      }
+
+      // Validate required fields (only 'name' for now)
       requiredFields.forEach(field => {
         if (!(candidateData as any)[field] || (candidateData as any)[field].trim() === '') {
           currentRecordErrors.push(`Campo obrigatório "${field}" ausente.`);
@@ -202,7 +211,7 @@ export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
             <span>Importar Candidatos da Planilha</span>
           </DialogTitle>
           <DialogDescription>
-            Cole os dados da sua planilha (CSV ou tab-separated). O sistema buscará apenas as colunas 'Nome' e 'Status'.
+            Cole os dados da sua planilha (CSV ou tab-separated). O sistema buscará as colunas 'Nome', 'Status' e 'Origem'.
           </DialogDescription>
         </DialogHeader>
         
@@ -215,7 +224,7 @@ export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
               onChange={(e) => setPastedData(e.target.value)}
               rows={8}
               className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600 font-mono text-sm"
-              placeholder="Cole aqui os dados da sua planilha. Use vírgula (,) ou tab (	) como separador.&#10;&#10;Exemplo:&#10;Nome,Status&#10;Susana,Sem perfil&#10;Rafinha,Contato Feito&#10;Gislaine Aparecida,Pendente"
+              placeholder="Cole aqui os dados da sua planilha. Use vírgula (,) ou tab (	) como separador.&#10;&#10;Exemplo:&#10;Nome,Status,Origem&#10;Susana,Sem perfil,Indicação&#10;Rafinha,Contato Feito,Prospecção&#10;Gislaine Aparecida,Pendente,Tráfego Linkedin"
             />
             {parseError && (
               <p className="text-red-500 text-sm mt-2 flex items-center"><AlertTriangle className="w-4 h-4 mr-2" />{parseError}</p>
