@@ -208,7 +208,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [user]); // Added user to dependencies
 
   const isGestorTaskDueOnDate = useCallback((task: GestorTask, checkDate: string): boolean => {
-    // ... (existing implementation)
+    if (!task.recurrence_pattern || task.recurrence_pattern.type === 'none') return task.due_date === checkDate;
+    const taskCreationDate = new Date(task.created_at);
+    const targetDate = new Date(checkDate);
+    if (task.recurrence_pattern.type === 'daily') return targetDate >= taskCreationDate;
+    if (task.recurrence_pattern.type === 'every_x_days' && task.recurrence_pattern.interval) {
+      const interval = task.recurrence_pattern.interval;
+      const diffDays = Math.ceil(Math.abs(targetDate.getTime() - taskCreationDate.getTime()) / (1000 * 60 * 60 * 24));
+      return targetDate >= taskCreationDate && diffDays % interval === 0;
+    }
+    return false;
   }, []);
 
   const calculateNotifications = useCallback(() => {
@@ -233,25 +242,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const fetchAppConfig = useCallback(async (effectiveGestorId: string) => {
     console.log(`[fetchAppConfig] Fetching app config for user_id: ${effectiveGestorId}`);
-    const { data: configResult, error: configError } = await supabase.from('app_config').select('data').eq('user_id', effectiveGestorId).maybeSingle();
+    const { data: configRow, error: configError } = await supabase.from('app_config').select('data').eq('user_id', effectiveGestorId).maybeSingle();
     if (configError) {
       console.error("[fetchAppConfig] Error fetching app config:", configError);
       toast.error(`Erro ao carregar configurações do aplicativo: ${configError.message}`);
       throw configError;
     }
 
-    if (configResult?.data) {
-      const { data } = configResult.data;
-      setChecklistStructure(data.checklistStructure || DEFAULT_STAGES);
-      setConsultantGoalsStructure(data.consultantGoalsStructure || DEFAULT_GOALS);
-      setInterviewStructure(data.interviewStructure || INITIAL_INTERVIEW_STRUCTURE);
-      setTemplates(data.templates || {});
-      setSalesOrigins(data.salesOrigins || DEFAULT_APP_CONFIG_DATA.salesOrigins);
-      setHiringOrigins(data.hiringOrigins !== undefined ? data.hiringOrigins : DEFAULT_APP_CONFIG_DATA.hiringOrigins);
-      setPvs(data.pvs || []);
+    // Check if a row was found AND if its 'data' column is not null
+    if (configRow && configRow.data) {
+      const appConfigData = configRow.data; // This is the JSONB content
+      setChecklistStructure(appConfigData.checklistStructure || DEFAULT_STAGES);
+      setConsultantGoalsStructure(appConfigData.consultantGoalsStructure || DEFAULT_GOALS);
+      setInterviewStructure(appConfigData.interviewStructure || INITIAL_INTERVIEW_STRUCTURE);
+      setTemplates(appConfigData.templates || {});
+      setSalesOrigins(appConfigData.salesOrigins || DEFAULT_APP_CONFIG_DATA.salesOrigins);
+      setHiringOrigins(appConfigData.hiringOrigins !== undefined ? appConfigData.hiringOrigins : DEFAULT_APP_CONFIG_DATA.hiringOrigins);
+      setPvs(appConfigData.pvs || []);
       console.log("[fetchAppConfig] App config loaded from DB.");
     } else {
-      console.log("[fetchAppConfig] No app config found in DB, using defaults.");
+      console.log("[fetchAppConfig] No app config row found or 'data' column is NULL in DB, using defaults.");
       setChecklistStructure(DEFAULT_STAGES);
       setConsultantGoalsStructure(DEFAULT_GOALS);
       setInterviewStructure(INITIAL_INTERVIEW_STRUCTURE);
@@ -483,6 +493,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     if (user && user.id !== fetchedUserIdRef.current) {
       fetchedUserIdRef.current = user.id;
+      setIsDataLoading(true);
       fetchData(user.id);
     } else if (!user) {
       fetchedUserIdRef.current = null;
