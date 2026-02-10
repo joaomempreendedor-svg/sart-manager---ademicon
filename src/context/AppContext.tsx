@@ -249,36 +249,37 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, []);
 
-  useEffect(() => {
-    let subscription: any = null;
-    const effectiveGestorId = JOAO_GESTOR_AUTH_ID;
+  // Removido o useEffect com a realtime subscription
+  // useEffect(() => {
+  //   let subscription: any = null;
+  //   const effectiveGestorId = JOAO_GESTOR_AUTH_ID;
 
-    const setupRealtimeSubscription = () => {
-      subscription = supabase
-        .channel('app_config_changes')
-        .on('postgres_changes', { 
-          event: '*', 
-          schema: 'public', 
-          table: 'app_config', 
-          filter: `user_id=eq.${effectiveGestorId}` 
-        }, (payload) => {
-          console.log('Realtime change received!', payload);
-          // Re-fetch only the app_config data on change
-          fetchAppConfig(effectiveGestorId);
-        })
-        .subscribe();
-    };
+  //   const setupRealtimeSubscription = () => {
+  //     subscription = supabase
+  //       .channel('app_config_changes')
+  //       .on('postgres_changes', { 
+  //         event: '*', 
+  //         schema: 'public', 
+  //         table: 'app_config', 
+  //         filter: `user_id=eq.${effectiveGestorId}` 
+  //       }, (payload) => {
+  //         console.log('Realtime change received!', payload);
+  //         // Re-fetch only the app_config data on change
+  //         fetchAppConfig(effectiveGestorId);
+  //       })
+  //       .subscribe();
+  //   };
 
-    if (user && user.id) {
-      setupRealtimeSubscription();
-    }
+  //   if (user && user.id) {
+  //     setupRealtimeSubscription();
+  //   }
 
-    return () => {
-      if (subscription) {
-        supabase.removeChannel(subscription);
-      }
-    };
-  }, [user, fetchAppConfig]);
+  //   return () => {
+  //     if (subscription) {
+  //       supabase.removeChannel(subscription);
+  //     }
+  //   };
+  // }, [user, fetchAppConfig]);
 
 
   useEffect(() => {
