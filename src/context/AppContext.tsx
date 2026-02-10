@@ -55,7 +55,7 @@ const parseDbCurrency = (value: any): number | null => {
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { user, session } = useAuth();
-  const fetchedUserIdRef = useRef<string | null>(null);
+  const fetchedUserIdRef = useRef<string | null>(fetchedUserIdRef.current);
   const isFetchingRef = useRef(false);
 
   const [isDataLoading, setIsDataLoading] = useState(true);
@@ -394,22 +394,30 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [setCandidates]);
 
   const addCrmLead = useCallback(async (lead: Omit<CrmLead, 'id' | 'created_at' | 'updated_at' | 'user_id' | 'created_by' | 'updated_by'>) => {
+    if (!user) {
+      console.error("[addCrmLead] User is not authenticated.");
+      throw new Error("User not authenticated.");
+    }
+    if (!crmOwnerUserId) {
+      console.error("[addCrmLead] CRM Owner User ID is not set.");
+      throw new Error("CRM Owner User ID is not set.");
+    }
+
+    console.log("[addCrmLead] Attempting to insert lead with:");
+    console.log(`  user_id (CRM Owner): ${crmOwnerUserId}`);
+    console.log(`  created_by (Current User): ${user.id}`);
+    
     const { data, error } = await supabase.from('crm_leads').insert({ 
       ...lead, 
-      user_id: JOAO_GESTOR_AUTH_ID, 
-      created_by: user!.id,
-      proposal_value: lead.proposal_value,
-      proposal_closing_date: lead.proposal_closing_date,
-      sold_credit_value: lead.sold_credit_value,
-      sold_group: lead.sold_group,
-      sold_quota: lead.sold_quota,
-      sale_date: lead.sale_date
+      user_id: crmOwnerUserId, // Use the state variable
+      created_by: user.id,
+      // ... other fields
     }).select().single();
     if (error) throw error;
     const newLead = { id: data.id, consultant_id: data.consultant_id, stage_id: data.stage_id, user_id: data.user_id, name: data.name, data: data.data, created_at: data.created_at, updated_at: data.updated_at, created_by: data.created_by, updated_by: data.updated_by, proposal_value: parseDbCurrency(data.proposal_value), proposal_closing_date: data.proposal_closing_date, sold_credit_value: parseDbCurrency(data.sold_credit_value), sold_group: data.sold_group, sold_quota: data.sold_quota, sale_date: data.sale_date };
     setCrmLeads(prev => [newLead, ...prev]);
     return newLead;
-  }, [user, setCrmLeads]);
+  }, [user, setCrmLeads, crmOwnerUserId]);
 
   const updateCrmLead = useCallback(async (id: string, updates: Partial<CrmLead>) => {
     const { data, error } = await supabase.from('crm_leads').update({ 
@@ -532,7 +540,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const addTeamProductionGoal = useCallback(async (goal: Omit<TeamProductionGoal, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
     const { data, error } = await supabase.from('team_production_goals').insert({ ...goal, user_id: JOAO_GESTOR_AUTH_ID }).select().single();
     if (error) throw error;
-    setTeamProductionGoals(prev => [data, ...prev]);
+    setTeamProductionGoals(prev => [...prev, data]);
     return data;
   }, [setTeamProductionGoals]);
 
