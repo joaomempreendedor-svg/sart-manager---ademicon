@@ -267,18 +267,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           setInterviewStructure(data.interviewStructure || INITIAL_INTERVIEW_STRUCTURE);
           setTemplates(data.templates || {});
           setSalesOrigins(data.salesOrigins || DEFAULT_APP_CONFIG_DATA.salesOrigins);
-          // AQUI: Garante que hiringOrigins use as salesOrigins se estiver vazia
-          setHiringOrigins(data.hiringOrigins && data.hiringOrigins.length > 0 ? data.hiringOrigins : (data.salesOrigins || DEFAULT_APP_CONFIG_DATA.salesOrigins));
+          // CORREÇÃO: Se data.hiringOrigins for undefined, usa o default. Se for um array (mesmo que vazio), usa o array.
+          setHiringOrigins(data.hiringOrigins !== undefined ? data.hiringOrigins : DEFAULT_APP_CONFIG_DATA.hiringOrigins);
           setInterviewers(data.interviewers || []);
           setPvs(data.pvs || []);
         } else {
-          // Se não houver config, usa os padrões e define hiringOrigins como salesOrigins
+          // Se não houver config, usa os padrões
           setChecklistStructure(DEFAULT_STAGES);
           setConsultantGoalsStructure(DEFAULT_GOALS);
           setInterviewStructure(INITIAL_INTERVIEW_STRUCTURE);
           setTemplates({});
           setSalesOrigins(DEFAULT_APP_CONFIG_DATA.salesOrigins);
-          setHiringOrigins(DEFAULT_APP_CONFIG_DATA.salesOrigins); // Define como salesOrigins se não houver config
+          setHiringOrigins(DEFAULT_APP_CONFIG_DATA.hiringOrigins); // Usa o default de hiringOrigins
           setInterviewers([]);
           setPvs([]);
         }
@@ -455,7 +455,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (error) throw error;
   }, [candidates, setCandidates]);
 
-  const deleteCandidate = useCallback(async (dbId: string) => { // Agora espera o dbId
+  const deleteCandidate = useCallback(async (dbId: string) => { // Agora espera o db_id
     const { error } = await supabase.from('candidates').delete().eq('id', dbId);
     if (error) throw error;
     setCandidates(prev => prev.filter(c => c.db_id !== dbId)); // Filtra pelo db_id
