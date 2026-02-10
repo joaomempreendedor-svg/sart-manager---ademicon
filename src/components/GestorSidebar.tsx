@@ -33,6 +33,7 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
   const sectionTitleClass = `flex items-center justify-between w-full px-4 py-3 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg transition-colors`;
 
   const isSecretaria = user?.role === 'SECRETARIA';
+  const isGestorOrAdmin = user?.role === 'GESTOR' || user?.role === 'ADMIN';
 
   // Links para a seção "Visão Geral e Operação"
   const overviewLinks = isSecretaria ? [
@@ -57,9 +58,7 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
   ];
 
   // Links para a seção "Configurações do Sistema"
-  const configLinks = isSecretaria ? [
-    { to: "/secretaria/config-origins", icon: MapPin, label: "Configurar Origens" },
-  ] : [
+  const configLinks = isSecretaria ? [] : [ // Se for Secretaria, a lista de links de configuração é vazia
     { to: "/gestor/config-team", icon: Users, label: "Gestão de Equipe" },
     { to: "/gestor/daily-checklist-config", icon: ListChecks, label: "Config. Metas Diárias" },
     { to: "/gestor/config-goals", icon: Target, label: "Configurar Metas" },
@@ -130,29 +129,33 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
           )}
 
           {/* Configurações do Sistema */}
-          {!isSidebarCollapsed && (
-            <button onClick={() => setIsConfigCollapsed(!isConfigCollapsed)} className={`${sectionTitleClass} mt-4`}>
-              <span>Configurações do Sistema</span>
-              <ChevronDown className={`w-4 h-4 transition-transform ${isConfigCollapsed ? 'rotate-0' : '-rotate-90'}`} />
-            </button>
-          )}
-          {(!isSidebarCollapsed && !isConfigCollapsed) && (
+          {isGestorOrAdmin && ( // Renderiza a seção de configurações apenas para Gestor/Admin
             <>
-              {configLinks.map(link => (
-                <NavLink key={link.to} to={link.to} className={linkClass} onClick={toggleSidebar}>
-                  <link.icon className="w-5 h-5" />
-                  <span>{link.label}</span>
-                </NavLink>
-              ))}
-            </>
-          )}
-          {isSidebarCollapsed && (
-            <>
-              {configLinks.map(link => (
-                <NavLink key={link.to} to={link.to} className={linkClass} onClick={toggleSidebar} title={link.label}>
-                  <link.icon className="w-5 h-5" />
-                </NavLink>
-              ))}
+              {!isSidebarCollapsed && (
+                <button onClick={() => setIsConfigCollapsed(!isConfigCollapsed)} className={`${sectionTitleClass} mt-4`}>
+                  <span>Configurações do Sistema</span>
+                  <ChevronDown className={`w-4 h-4 transition-transform ${isConfigCollapsed ? 'rotate-0' : '-rotate-90'}`} />
+                </button>
+              )}
+              {(!isSidebarCollapsed && !isConfigCollapsed) && (
+                <>
+                  {configLinks.map(link => (
+                    <NavLink key={link.to} to={link.to} className={linkClass} onClick={toggleSidebar}>
+                      <link.icon className="w-5 h-5" />
+                      <span>{link.label}</span>
+                    </NavLink>
+                  ))}
+                </>
+              )}
+              {isSidebarCollapsed && (
+                <>
+                  {configLinks.map(link => (
+                    <NavLink key={link.to} to={link.to} className={linkClass} onClick={toggleSidebar} title={link.label}>
+                      <link.icon className="w-5 h-5" />
+                    </NavLink>
+                  ))}
+                </>
+              )}
             </>
           )}
 

@@ -123,7 +123,7 @@ const AppRoutes = () => {
       <Route element={<RequireAuth allowedRoles={['GESTOR', 'ADMIN', 'CONSULTOR', 'SECRETARIA']} />}>
         <Route path="/" element={<Home />} />
 
-        <Route element={<RequireAuth allowedRoles={['GESTOR', 'ADMIN', 'SECRETARIA']} />}>
+        <Route element={<RequireAuth allowedRoles={['GESTOR', 'ADMIN']} />}>
           <Route path="/gestor" element={<MainLayout />}>
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="candidate/:id" element={<CandidateDetail />} />
@@ -159,10 +159,11 @@ const AppRoutes = () => {
             <Route path="hiring-dashboard" element={<HiringDashboard />} />
             <Route path="hiring-pipeline" element={<HiringPipeline />} />
             <Route path="hiring-origins-report" element={<HiringOriginsReport />} />
-            <Route path="daily-checklist" element={<SecretariaDailyChecklist />} /> {/* NOVO: Rota para o checklist da secretaria */}
+            <Route path="daily-checklist" element={<SecretariaDailyChecklist />} />
             <Route path="onboarding-admin" element={<OnlineOnboarding />} />
             <Route path="form-cadastros" element={<FormCadastros />} />
-            <Route path="config-origins" element={<OriginConfig />} />
+            {/* Removido: Rota para OriginConfig para Secretaria */}
+            {/* <Route path="config-origins" element={<OriginConfig />} /> */}
           </Route>
         </Route>
 
