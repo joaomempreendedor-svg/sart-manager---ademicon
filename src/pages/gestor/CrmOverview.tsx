@@ -94,7 +94,7 @@ const CrmOverviewPage = () => {
     let currentLeads = crmLeads;
 
     if (selectedConsultantId) {
-      currentLeads = currentLeads.filter(lead => lead.consultant_id === selectedConsultantId);
+      currentLeads = currentLeads.filter(lead => lead.consultant_id === selectedConsultantId || (!lead.consultant_id && lead.created_by === selectedConsultantId));
     }
 
     if (searchTerm) {
@@ -112,7 +112,7 @@ const CrmOverviewPage = () => {
       const end = filterEndDate ? new Date(filterEndDate + 'T23:59:59') : null;
 
       currentLeads = currentLeads.filter(lead => {
-        const referenceDate = lead.saleDate ? new Date(lead.saleDate + 'T00:00:00') : new Date(lead.created_at);
+        const referenceDate = lead.sale_date ? new Date(lead.sale_date + 'T00:00:00') : new Date(lead.created_at); // Usando snake_case
         const matchesStart = !start || referenceDate >= start;
         const matchesEnd = !end || referenceDate <= end;
         return matchesStart && matchesEnd;
@@ -373,10 +373,10 @@ const CrmOverviewPage = () => {
                 <div className="mt-1 text-xs font-bold text-purple-700 dark:text-purple-300">
                   Total Propostas (Mês): {formatCurrency(
                     groupedLeads[stage.id].reduce((sum, lead) => {
-                      if (lead.proposalValue && lead.proposalClosingDate) {
-                        const proposalDate = new Date(lead.proposalClosingDate + 'T00:00:00');
+                      if (lead.proposal_value && lead.proposal_closing_date) { // Usando snake_case
+                        const proposalDate = new Date(lead.proposal_closing_date + 'T00:00:00'); // Usando snake_case
                         if (proposalDate >= currentMonthStart && proposalDate <= currentMonthEnd) {
-                          return sum + (lead.proposalValue || 0);
+                          return sum + (lead.proposal_value || 0); // Usando snake_case
                         }
                       }
                       return sum;
@@ -388,7 +388,7 @@ const CrmOverviewPage = () => {
                 <div className="mt-1 text-xs font-bold text-green-700 dark:text-green-300">
                   Total Vendido: {formatCurrency(
                     groupedLeads[stage.id].reduce((sum, lead) => {
-                      return sum + (lead.soldCreditValue || 0);
+                      return sum + (lead.sold_credit_value || 0); // Usando snake_case
                     }, 0)
                   )}
                 </div>
@@ -456,11 +456,11 @@ const CrmOverviewPage = () => {
 
                         {isWonStage ? (
                           <div className="flex items-center text-green-600 dark:text-green-400 font-semibold">
-                            <CheckCircle2 className="w-3 h-3 mr-1" /> Vendido: {formatCurrency(lead.soldCreditValue || 0)}
+                            <CheckCircle2 className="w-3 h-3 mr-1" /> Vendido: {formatCurrency(lead.sold_credit_value || 0)} {/* Usando snake_case */}
                           </div>
-                        ) : lead.proposalValue ? (
+                        ) : lead.proposal_value ? ( {/* Usando snake_case */}
                           <div className="flex items-center text-purple-600 dark:text-purple-400 font-semibold">
-                            <DollarSign className="w-3 h-3 mr-1" /> Proposta: {formatCurrency(lead.proposalValue)}
+                            <DollarSign className="w-3 h-3 mr-1" /> Proposta: {formatCurrency(lead.proposal_value)} {/* Usando snake_case */}
                           </div>
                         ) : null}
                       </div>

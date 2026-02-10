@@ -103,7 +103,7 @@ const ConsultorCrmPage = () => {
 
       currentLeads = currentLeads.filter(lead => {
         // LÓGICA DE DATA DE REFERÊNCIA: Prioriza Data da Venda, senão usa Data de Criação
-        const referenceDate = lead.saleDate ? new Date(lead.saleDate + 'T00:00:00') : new Date(lead.created_at);
+        const referenceDate = lead.sale_date ? new Date(lead.sale_date + 'T00:00:00') : new Date(lead.created_at); // Usando snake_case
         
         const matchesStart = !start || referenceDate >= start;
         const matchesEnd = !end || referenceDate <= end;
@@ -367,10 +367,10 @@ const ConsultorCrmPage = () => {
                 <div className="mt-1 text-sm font-bold text-purple-700 dark:text-purple-300">
                   Total Propostas (Mês): {formatCurrency(
                     groupedLeads[stage.id].reduce((sum, lead) => {
-                      if (lead.proposalValue !== undefined && lead.proposalValue !== null && lead.proposalClosingDate) {
-                        const proposalDate = new Date(lead.proposalClosingDate + 'T00:00:00');
+                      if (lead.proposal_value !== undefined && lead.proposal_value !== null && lead.proposal_closing_date) { // Usando snake_case
+                        const proposalDate = new Date(lead.proposal_closing_date + 'T00:00:00'); // Usando snake_case
                         if (proposalDate >= currentMonthStart && proposalDate <= currentMonthEnd) {
-                          return sum + (lead.proposalValue || 0);
+                          return sum + (lead.proposal_value || 0); // Usando snake_case
                         }
                       }
                       return sum;
@@ -382,7 +382,7 @@ const ConsultorCrmPage = () => {
                 <div className="mt-1 text-sm font-bold text-green-700 dark:text-green-300">
                   Total Vendido: {formatCurrency(
                     groupedLeads[stage.id].reduce((sum, lead) => {
-                      return sum + (lead.soldCreditValue || 0);
+                      return sum + (lead.sold_credit_value || 0); // Usando snake_case
                     }, 0)
                   )}
                 </div>
@@ -448,12 +448,12 @@ const ConsultorCrmPage = () => {
                         )}
 
                         {isWonStage ? (
-                          lead.soldCreditValue !== undefined && lead.soldCreditValue !== null ? (
+                          lead.sold_credit_value !== undefined && lead.sold_credit_value !== null ? ( // Usando snake_case
                             <div className="flex items-center text-green-600 dark:text-green-400 font-semibold">
-                              <CheckCircle2 className="w-3 h-3 mr-1" /> Vendido: {formatCurrency(lead.soldCreditValue)}
-                              {lead.saleDate && (
+                              <CheckCircle2 className="w-3 h-3 mr-1" /> Vendido: {formatCurrency(lead.sold_credit_value)} {/* Usando snake_case */}
+                              {lead.sale_date && ( // Usando snake_case
                                 <span className="ml-1 text-xs text-gray-500 dark:text-gray-400 font-normal">
-                                  (em {new Date(lead.saleDate + 'T00:00:00').toLocaleDateString('pt-BR')})
+                                  (em {new Date(lead.sale_date + 'T00:00:00').toLocaleDateString('pt-BR')}) {/* Usando snake_case */}
                                 </span>
                               )}
                             </div>
@@ -463,12 +463,12 @@ const ConsultorCrmPage = () => {
                             </div>
                           )
                         ) : (
-                          lead.proposalValue !== undefined && lead.proposalValue !== null ? (
+                          lead.proposal_value !== undefined && lead.proposal_value !== null ? ( // Usando snake_case
                             <div className="flex items-center text-purple-600 dark:text-purple-400 font-semibold">
-                              <DollarSign className="w-3 h-3 mr-1" /> Proposta: {formatCurrency(lead.proposalValue)}
-                              {lead.proposalClosingDate && (
+                              <DollarSign className="w-3 h-3 mr-1" /> Proposta: {formatCurrency(lead.proposal_value)} {/* Usando snake_case */}
+                              {lead.proposal_closing_date && ( // Usando snake_case
                                 <span className="ml-1 text-xs text-gray-500 dark:text-gray-400 font-normal">
-                                  (até {new Date(lead.proposalClosingDate + 'T00:00:00').toLocaleDateString('pt-BR')})
+                                  (até {new Date(lead.proposal_closing_date + 'T00:00:00').toLocaleDateString('pt-BR')}) {/* Usando snake_case */}
                                 </span>
                               )}
                             </div>

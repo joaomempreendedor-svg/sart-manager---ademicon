@@ -39,10 +39,10 @@ const TeamProductionGoals = () => {
     const end = new Date(currentActiveGoal.end_date + 'T23:59:59');
 
     return crmLeads.reduce((sum, lead) => {
-      if (lead.saleDate) {
-        const saleDate = new Date(lead.saleDate + 'T00:00:00');
-        if (saleDate >= start && saleDate <= end && lead.soldCreditValue) {
-          return sum + lead.soldCreditValue;
+      if (lead.sale_date) { // Usando snake_case
+        const saleDate = new Date(lead.sale_date + 'T00:00:00'); // Usando snake_case
+        if (saleDate >= start && saleDate <= end && lead.sold_credit_value) { // Usando snake_case
+          return sum + lead.sold_credit_value; // Usando snake_case
         }
       }
       return sum;
@@ -84,10 +84,10 @@ const TeamProductionGoals = () => {
       const goalPeriodEnd = new Date(goal.end_date + 'T23:59:59');
 
       const actualProductionForThisGoal = crmLeads.reduce((sum, lead) => {
-        if (lead.saleDate) {
-          const saleDate = new Date(lead.saleDate + 'T00:00:00');
-          if (saleDate >= goalPeriodStart && saleDate <= goalPeriodEnd && lead.soldCreditValue) {
-            return sum + lead.soldCreditValue;
+        if (lead.sale_date) { // Usando snake_case
+          const saleDate = new Date(lead.sale_date + 'T00:00:00'); // Usando snake_case
+          if (saleDate >= goalPeriodStart && saleDate <= goalPeriodEnd && lead.sold_credit_value) { // Usando snake_case
+            return sum + lead.sold_credit_value; // Usando snake_case
           }
         }
         return sum;
@@ -100,10 +100,10 @@ const TeamProductionGoals = () => {
 
     // Calcular a produção real total para o ano selecionado
     totalActualProductionValueForYear = crmLeads.reduce((sum, lead) => {
-      if (lead.saleDate) {
-        const saleDate = new Date(lead.saleDate + 'T00:00:00');
-        if (saleDate >= startOfYear && saleDate <= endOfYear && lead.soldCreditValue) {
-          return sum + lead.soldCreditValue;
+      if (lead.sale_date) { // Usando snake_case
+        const saleDate = new Date(lead.sale_date + 'T00:00:00'); // Usando snake_case
+        if (saleDate >= startOfYear && saleDate <= endOfYear && lead.sold_credit_value) { // Usando snake_case
+          return sum + lead.sold_credit_value; // Usando snake_case
         }
       }
       return sum;

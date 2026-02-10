@@ -63,10 +63,10 @@ const ConsultorDashboard = () => {
 
     // Valor de Propostas Enviadas no Mês
     const proposalValueThisMonth = consultantLeads.reduce((sum, lead) => {
-      if (lead.proposalValue && lead.proposalValue > 0 && lead.proposalClosingDate) {
-        const proposalDate = new Date(lead.proposalClosingDate + 'T00:00:00');
+      if (lead.proposal_value && lead.proposal_value > 0 && lead.proposal_closing_date) { // Usando snake_case
+        const proposalDate = new Date(lead.proposal_closing_date + 'T00:00:00'); // Usando snake_case
         if (proposalDate >= currentMonthStart && proposalDate <= currentMonthEnd) {
-          return sum + (lead.proposalValue || 0);
+          return sum + (lead.proposal_value || 0); // Usando snake_case
         }
       }
       return sum;
@@ -74,10 +74,10 @@ const ConsultorDashboard = () => {
 
     // Valor Vendido no Mês
     const soldValueThisMonth = consultantLeads.reduce((sum, lead) => {
-      if (lead.soldCreditValue && lead.soldCreditValue > 0 && lead.saleDate) {
-        const saleDate = new Date(lead.saleDate + 'T00:00:00');
+      if (lead.sold_credit_value && lead.sold_credit_value > 0 && lead.sale_date) { // Usando snake_case
+        const saleDate = new Date(lead.sale_date + 'T00:00:00'); // Usando snake_case
         if (saleDate >= currentMonthStart && saleDate <= currentMonthEnd) {
-          return sum + (lead.soldCreditValue || 0);
+          return sum + (lead.sold_credit_value || 0); // Usando snake_case
         }
       }
       return sum;

@@ -44,7 +44,7 @@ export const MarkAsSoldModal: React.FC<MarkAsSoldModalProps> = ({ isOpen, onClos
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
 
-  const quotaTextareaRef = useRef<HTMLTextAreaAreaElement>(null); // Ref para a área de texto da cota
+  const quotaTextareaRef = useRef<HTMLTextAreaElement>(null); // Ref para a área de texto da cota
 
   const activePipeline = useMemo(() => {
     return crmPipelines.find(p => p.is_active) || crmPipelines[0];
@@ -58,10 +58,10 @@ export const MarkAsSoldModal: React.FC<MarkAsSoldModalProps> = ({ isOpen, onClos
   useEffect(() => {
     if (isOpen) {
       console.log("[MarkAsSoldModal] Modal is open. Checking for Add Cota button."); // Log de depuração
-      setSoldCreditValue(lead.soldCreditValue !== undefined && lead.soldCreditValue !== null ? formatCurrencyInput(lead.soldCreditValue.toFixed(2).replace('.', ',')) : '0,00');
-      setSoldGroup(lead.soldGroup || '');
-      setSoldQuota(lead.soldQuota || '');
-      setSaleDate(lead.saleDate || new Date().toISOString().split('T')[0]);
+      setSoldCreditValue(lead.sold_credit_value !== undefined && lead.sold_credit_value !== null ? formatCurrencyInput(lead.sold_credit_value.toFixed(2).replace('.', ',')) : '0,00'); // Usando snake_case
+      setSoldGroup(lead.sold_group || ''); // Usando snake_case
+      setSoldQuota(lead.sold_quota || ''); // Usando snake_case
+      setSaleDate(lead.sale_date || new Date().toISOString().split('T')[0]); // Usando snake_case
       setError('');
     }
   }, [isOpen, lead]);
@@ -97,10 +97,10 @@ export const MarkAsSoldModal: React.FC<MarkAsSoldModalProps> = ({ isOpen, onClos
     setIsSaving(true);
     try {
       await updateCrmLead(lead.id, {
-        soldCreditValue: parsedSoldCreditValue,
-        soldGroup: soldGroup.trim(),
-        soldQuota: soldQuota.trim(),
-        saleDate: saleDate,
+        sold_credit_value: parsedSoldCreditValue, // Usando snake_case
+        sold_group: soldGroup.trim(), // Usando snake_case
+        sold_quota: soldQuota.trim(), // Usando snake_case
+        sale_date: saleDate, // Usando snake_case
         stage_id: wonStage.id,
       });
 

@@ -295,12 +295,12 @@ export interface CrmLead {
   user_id: string;
   name?: string;
   data: Record<string, any>;
-  proposalValue?: number;
-  proposalClosingDate?: string;
-  soldCreditValue?: number;
-  soldGroup?: string;
-  soldQuota?: string;
-  saleDate?: string;
+  proposal_value?: number; // Alterado para snake_case
+  proposal_closing_date?: string; // Alterado para snake_case
+  sold_credit_value?: number; // Alterado para snake_case
+  sold_group?: string; // Alterado para snake_case
+  sold_quota?: string; // Alterado para snake_case
+  sale_date?: string; // Alterado para snake_case
   created_at: string;
   updated_at: string;
 }

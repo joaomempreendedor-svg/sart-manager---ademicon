@@ -20,23 +20,23 @@ const ConsultorSalesReports = () => {
 
     let sales = crmLeads.filter(lead => {
       const isWonStage = crmStages.some(stage => stage.id === lead.stage_id && stage.is_won);
-      return lead.consultant_id === user.id && isWonStage && lead.saleDate && (lead.soldCreditValue !== undefined && lead.soldCreditValue !== null);
+      return lead.consultant_id === user.id && isWonStage && lead.sale_date && (lead.sold_credit_value !== undefined && lead.sold_credit_value !== null); // Usando snake_case
     });
 
     if (filterSaleDateStart) {
       const start = new Date(filterSaleDateStart + 'T00:00:00');
-      sales = sales.filter(lead => lead.saleDate && new Date(lead.saleDate + 'T00:00:00') >= start);
+      sales = sales.filter(lead => lead.sale_date && new Date(lead.sale_date + 'T00:00:00') >= start); // Usando snake_case
     }
     if (filterSaleDateEnd) {
       const end = new Date(filterSaleDateEnd + 'T23:59:59');
-      sales = sales.filter(lead => lead.saleDate && new Date(lead.saleDate + 'T00:00:00') <= end);
+      sales = sales.filter(lead => lead.sale_date && new Date(lead.sale_date + 'T00:00:00') <= end); // Usando snake_case
     }
 
-    return sales.sort((a, b) => new Date(b.saleDate!).getTime() - new Date(a.saleDate!).getTime());
+    return sales.sort((a, b) => new Date(b.sale_date!).getTime() - new Date(a.sale_date!).getTime()); // Usando snake_case
   }, [crmLeads, crmStages, user, filterSaleDateStart, filterSaleDateEnd]);
 
   const totalSoldValue = useMemo(() => {
-    return consultantSales.reduce((sum, lead) => sum + (lead.soldCreditValue || 0), 0);
+    return consultantSales.reduce((sum, lead) => sum + (lead.sold_credit_value || 0), 0); // Usando snake_case
   }, [consultantSales]);
 
   const clearFilters = () => {
@@ -54,10 +54,10 @@ const ConsultorSalesReports = () => {
 
     const dataToExport = consultantSales.map(lead => ({
       'Cliente': lead.name,
-      'Data da Venda': lead.saleDate ? new Date(lead.saleDate + 'T00:00:00').toLocaleDateString('pt-BR') : 'N/A',
-      'Grupo': lead.soldGroup || 'N/A',
-      'Cota': lead.soldQuota || 'N/A',
-      'Valor Vendido': lead.soldCreditValue || 0,
+      'Data da Venda': lead.sale_date ? new Date(lead.sale_date + 'T00:00:00').toLocaleDateString('pt-BR') : 'N/A', // Usando snake_case
+      'Grupo': lead.sold_group || 'N/A', // Usando snake_case
+      'Cota': lead.sold_quota || 'N/A', // Usando snake_case
+      'Valor Vendido': lead.sold_credit_value || 0, // Usando snake_case
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(dataToExport);
@@ -155,10 +155,10 @@ const ConsultorSalesReports = () => {
                 consultantSales.map(lead => (
                   <tr key={lead.id} className="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition">
                     <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">{lead.name}</td>
-                    <td className="px-4 py-3">{lead.saleDate ? new Date(lead.saleDate + 'T00:00:00').toLocaleDateString('pt-BR') : 'N/A'}</td>
-                    <td className="px-4 py-3">{lead.soldGroup || 'N/A'}</td>
-                    <td className="px-4 py-3">{lead.soldQuota || 'N/A'}</td>
-                    <td className="px-4 py-3 text-right font-medium text-gray-900 dark:text-white">{formatCurrency(lead.soldCreditValue || 0)}</td>
+                    <td className="px-4 py-3">{lead.sale_date ? new Date(lead.sale_date + 'T00:00:00').toLocaleDateString('pt-BR') : 'N/A'}</td> {/* Usando snake_case */}
+                    <td className="px-4 py-3">{lead.sold_group || 'N/A'}</td> {/* Usando snake_case */}
+                    <td className="px-4 py-3">{lead.sold_quota || 'N/A'}</td> {/* Usando snake_case */}
+                    <td className="px-4 py-3 text-right font-medium text-gray-900 dark:text-white">{formatCurrency(lead.sold_credit_value || 0)}</td> {/* Usando snake_case */}
                   </tr>
                 ))
               )}

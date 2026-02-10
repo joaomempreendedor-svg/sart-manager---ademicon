@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import toast from 'react-hot-toast';
+import { useAuth } from '@/context/AuthContext'; // Importar useAuth
 
 interface LeadModalProps {
   isOpen: boolean;
@@ -33,6 +34,7 @@ interface LeadModalProps {
 }
 
 const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields, assignedConsultantId }) => {
+  const { user } = useAuth(); // Obter o usuário logado
   const { addCrmLead, updateCrmLead, deleteCrmLead, crmOwnerUserId, crmStages, salesOrigins, crmPipelines, teamMembers } = useApp();
   const [formData, setFormData] = useState<Partial<CrmLead>>({
     name: '',
@@ -70,14 +72,14 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
       setFormData({
         name: lead?.name || '',
         stage_id: lead?.stage_id,
-        // Se for um novo lead, tenta usar o assignedConsultantId (consultor logado)
-        consultant_id: lead?.consultant_id || assignedConsultantId || '',
-        proposalValue: lead?.proposalValue,
-        proposalClosingDate: lead?.proposalClosingDate,
-        soldCreditValue: lead?.soldCreditValue,
-        soldGroup: lead?.soldGroup,
-        soldQuota: lead?.soldQuota,
-        saleDate: lead?.saleDate,
+        // Se for um novo lead, atribui o ID do usuário logado (consultor) automaticamente
+        consultant_id: lead?.consultant_id || (user?.role === 'CONSULTOR' ? user.id : assignedConsultantId) || '',
+        proposal_value: lead?.proposal_value, // Usando snake_case
+        proposal_closing_date: lead?.proposal_closing_date, // Usando snake_case
+        sold_credit_value: lead?.sold_credit_value, // Usando snake_case
+        sold_group: lead?.sold_group, // Usando snake_case
+        sold_quota: lead?.sold_quota, // Usando snake_case
+        sale_date: lead?.sale_date, // Usando snake_case
         data: { 
           ...lead?.data,
           origin: validatedOrigin,
@@ -85,13 +87,15 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
       });
       setError('');
     }
-  }, [lead, isOpen, assignedConsultantId, allAvailableOrigins]);
+  }, [lead, isOpen, assignedConsultantId, allAvailableOrigins, user]);
 
   const handleChange = (key: string, value: any) => {
     setFormData(prev => {
-      if (['name', 'stage_id', 'consultant_id', 'proposalValue', 'proposalClosingDate', 'soldCreditValue', 'soldGroup', 'soldQuota', 'saleDate'].includes(key)) {
+      // Campos que são diretamente propriedades de CrmLead (agora snake_case)
+      if (['name', 'stage_id', 'consultant_id', 'proposal_value', 'proposal_closing_date', 'sold_credit_value', 'sold_group', 'sold_quota', 'sale_date'].includes(key)) {
         return { ...prev, [key]: value };
       } else {
+        // Campos dentro do objeto 'data'
         return {
           ...prev,
           data: {
@@ -150,12 +154,12 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
           ...formData.data,
           origin: formData.data?.origin || null,
         },
-        proposalValue: formData.proposalValue || null,
-        proposalClosingDate: formData.proposalClosingDate || null,
-        soldCreditValue: formData.soldCreditValue || null,
-        soldGroup: formData.soldGroup || null,
-        soldQuota: formData.soldQuota || null,
-        saleDate: formData.saleDate || null,
+        proposal_value: formData.proposal_value || null, // Usando snake_case
+        proposal_closing_date: formData.proposal_closing_date || null, // Usando snake_case
+        sold_credit_value: formData.sold_credit_value || null, // Usando snake_case
+        sold_group: formData.sold_group || null, // Usando snake_case
+        sold_quota: formData.sold_quota || null, // Usando snake_case
+        sale_date: formData.sale_date || null, // Usando snake_case
       } as CrmLead;
 
       if (lead) {
@@ -246,6 +250,9 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
     return stage?.name || 'N/A';
   }, [lead?.stage_id, crmStages]);
 
+  const isConsultorRole = user?.role === 'CONSULTOR';
+  const isNewLead = !lead;
+
   if (!isOpen) return null;
 
   return (
@@ -298,6 +305,7 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
                   value={formData.consultant_id || ''}
                   onValueChange={(val) => handleChange('consultant_id', val)}
                   required
+                  disabled={isNewLead && isConsultorRole} // Desabilita para novos leads se o usuário for CONSULTOR
                 >
                   <SelectTrigger className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
                     <SelectValue placeholder="Selecione o Consultor" />

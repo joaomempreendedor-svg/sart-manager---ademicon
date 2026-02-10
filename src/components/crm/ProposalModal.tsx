@@ -51,8 +51,8 @@ export const ProposalModal: React.FC<ProposalModalProps> = ({ isOpen, onClose, l
 
   useEffect(() => {
     if (isOpen) {
-      setProposalValue(lead.proposalValue !== undefined && lead.proposalValue !== null ? formatCurrencyInput(lead.proposalValue.toFixed(2).replace('.', ',')) : '');
-      setClosingDate(lead.proposalClosingDate || '');
+      setProposalValue(lead.proposal_value !== undefined && lead.proposal_value !== null ? formatCurrencyInput(lead.proposal_value.toFixed(2).replace('.', ',')) : ''); // Usando snake_case
+      setClosingDate(lead.proposal_closing_date || ''); // Usando snake_case
       setError('');
     }
   }, [isOpen, lead]);
@@ -80,8 +80,8 @@ export const ProposalModal: React.FC<ProposalModalProps> = ({ isOpen, onClose, l
     setIsSaving(true);
     try {
       await updateCrmLead(lead.id, {
-        proposalValue: parsedValue,
-        proposalClosingDate: closingDate,
+        proposal_value: parsedValue, // Usando snake_case
+        proposal_closing_date: closingDate, // Usando snake_case
         stage_id: proposalSentStage.id, // Mover para a etapa de proposta
       });
 

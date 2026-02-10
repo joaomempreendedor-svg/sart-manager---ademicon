@@ -305,7 +305,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setCrmPipelines(pipelinesData?.data || []);
         setCrmStages(stagesData?.data || []);
         setCrmFields(fieldsData?.data || []);
-        setCrmLeads(crmLeadsData?.data?.map((lead: any) => ({ id: lead.id, consultant_id: lead.consultant_id, stage_id: lead.stage_id, user_id: lead.user_id, name: lead.name, data: lead.data, created_at: lead.created_at, updated_at: lead.updated_at, created_by: lead.created_by, updated_by: lead.updated_by, proposalValue: parseDbCurrency(lead.proposal_value), proposalClosingDate: lead.proposal_closing_date, soldCreditValue: parseDbCurrency(lead.sold_credit_value), soldGroup: lead.sold_group, soldQuota: lead.sold_quota, saleDate: lead.sale_date })) || []);
+        setCrmLeads(crmLeadsData?.data?.map((lead: any) => ({ 
+          id: lead.id, 
+          consultant_id: lead.consultant_id, 
+          stage_id: lead.stage_id, 
+          user_id: lead.user_id, 
+          name: lead.name, 
+          data: lead.data, 
+          created_at: lead.created_at, 
+          updated_at: lead.updated_at, 
+          created_by: lead.created_by, 
+          updated_by: lead.updated_by, 
+          proposal_value: parseDbCurrency(lead.proposal_value), // Mapeado para snake_case
+          proposal_closing_date: lead.proposal_closing_date, // Mapeado para snake_case
+          sold_credit_value: parseDbCurrency(lead.sold_credit_value), // Mapeado para snake_case
+          sold_group: lead.sold_group, // Mapeado para snake_case
+          sold_quota: lead.sold_quota, // Mapeado para snake_case
+          sale_date: lead.sale_date // Mapeado para snake_case
+        })) || []);
         setDailyChecklists(dailyChecklistsData?.data || []);
         setDailyChecklistItems(dailyChecklistItemsData?.data || []);
         setDailyChecklistAssignments(dailyChecklistAssignmentsData?.data || []);
@@ -382,17 +399,36 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const addCrmLead = async (lead: Omit<CrmLead, 'id' | 'created_at' | 'updated_at' | 'user_id' | 'created_by' | 'updated_by'>) => {
-    const { data, error } = await supabase.from('crm_leads').insert({ ...lead, user_id: JOAO_GESTOR_AUTH_ID, created_by: user!.id }).select().single();
+    const { data, error } = await supabase.from('crm_leads').insert({ 
+      ...lead, 
+      user_id: JOAO_GESTOR_AUTH_ID, 
+      created_by: user!.id,
+      proposal_value: lead.proposal_value, // Mapeado para snake_case
+      proposal_closing_date: lead.proposal_closing_date, // Mapeado para snake_case
+      sold_credit_value: lead.sold_credit_value, // Mapeado para snake_case
+      sold_group: lead.sold_group, // Mapeado para snake_case
+      sold_quota: lead.sold_quota, // Mapeado para snake_case
+      sale_date: lead.sale_date // Mapeado para snake_case
+    }).select().single();
     if (error) throw error;
-    const newLead = { id: data.id, consultant_id: data.consultant_id, stage_id: data.stage_id, user_id: data.user_id, name: data.name, data: data.data, created_at: data.created_at, updated_at: data.updated_at, created_by: data.created_by, updated_by: data.updated_by, proposalValue: parseDbCurrency(data.proposal_value), proposalClosingDate: data.proposal_closing_date, soldCreditValue: parseDbCurrency(data.sold_credit_value), soldGroup: data.sold_group, soldQuota: data.sold_quota, saleDate: data.sale_date };
+    const newLead = { id: data.id, consultant_id: data.consultant_id, stage_id: data.stage_id, user_id: data.user_id, name: data.name, data: data.data, created_at: data.created_at, updated_at: data.updated_at, created_by: data.created_by, updated_by: data.updated_by, proposal_value: parseDbCurrency(data.proposal_value), proposal_closing_date: data.proposal_closing_date, sold_credit_value: parseDbCurrency(data.sold_credit_value), sold_group: data.sold_group, sold_quota: data.sold_quota, sale_date: data.sale_date };
     setCrmLeads(prev => [newLead, ...prev]);
     return newLead;
   };
 
   const updateCrmLead = async (id: string, updates: Partial<CrmLead>) => {
-    const { data, error } = await supabase.from('crm_leads').update({ ...updates, updated_by: user!.id }).eq('id', id).select().single();
+    const { data, error } = await supabase.from('crm_leads').update({ 
+      ...updates, 
+      updated_by: user!.id,
+      proposal_value: updates.proposal_value, // Mapeado para snake_case
+      proposal_closing_date: updates.proposal_closing_date, // Mapeado para snake_case
+      sold_credit_value: updates.sold_credit_value, // Mapeado para snake_case
+      sold_group: updates.sold_group, // Mapeado para snake_case
+      sold_quota: updates.sold_quota, // Mapeado para snake_case
+      sale_date: updates.sale_date // Mapeado para snake_case
+    }).eq('id', id).select().single();
     if (error) throw error;
-    const updatedLead = { id: data.id, consultant_id: data.consultant_id, stage_id: data.stage_id, user_id: data.user_id, name: data.name, data: data.data, created_at: data.created_at, updated_at: data.updated_at, created_by: data.created_by, updated_by: data.updated_by, proposalValue: parseDbCurrency(data.proposal_value), proposalClosingDate: data.proposal_closing_date, soldCreditValue: parseDbCurrency(data.sold_credit_value), soldGroup: data.sold_group, soldQuota: data.sold_quota, saleDate: data.sale_date };
+    const updatedLead = { id: data.id, consultant_id: data.consultant_id, stage_id: data.stage_id, user_id: data.user_id, name: data.name, data: data.data, created_at: data.created_at, updated_at: data.updated_at, created_by: data.created_by, updated_by: data.updated_by, proposal_value: parseDbCurrency(data.proposal_value), proposal_closing_date: data.proposal_closing_date, sold_credit_value: parseDbCurrency(data.sold_credit_value), sold_group: data.sold_group, sold_quota: data.sold_quota, sale_date: data.sale_date };
     setCrmLeads(prev => prev.map(l => l.id === id ? updatedLead : l));
     return updatedLead;
   };
@@ -881,7 +917,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const member = teamMembers.find(m => m.id === teamMemberId);
       if (!member) return;
       const updatedFeedbacks = (member.feedbacks || []).filter(f => f.id !== feedbackId);
-      await updateTeamMember(teamMemberId, { feedbacks: updatedUpdatedFeedbacks });
+      await updateTeamMember(teamMemberId, { feedbacks: updatedFeedbacks });
     },
     addTeamMember: async (member) => {
       const tempPassword = generateRandomPassword();

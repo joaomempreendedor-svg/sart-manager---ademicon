@@ -93,8 +93,8 @@ export const LeadsDetailModal: React.FC<LeadsDetailModalProps> = ({
                 const consultantName = getConsultantName(lead);
                 const stage = crmStages.find(s => s.id === lead.stage_id);
                 const displayValue = metricType === 'proposal' 
-                  ? (lead.proposalValue || 0) 
-                  : (lead.soldCreditValue || lead.proposalValue || 0); // Fallback para valor vendido
+                  ? (lead.proposal_value || 0) // Usando snake_case
+                  : (lead.sold_credit_value || lead.proposal_value || 0); // Usando snake_case // Fallback para valor vendido
 
                 return (
                   <div
@@ -112,14 +112,14 @@ export const LeadsDetailModal: React.FC<LeadsDetailModalProps> = ({
                             <Tag className="w-3 h-3 mr-1" /> Etapa: <span className="font-semibold">{stage.name}</span>
                           </span>
                         )}
-                        {metricType === 'proposal' && lead.proposalClosingDate && (
+                        {metricType === 'proposal' && lead.proposal_closing_date && ( // Usando snake_case
                           <span className="flex items-center">
-                            <Calendar className="w-3 h-3 mr-1" /> Fechamento Esperado: <span className="font-semibold">{new Date(lead.proposalClosingDate + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
+                            <Calendar className="w-3 h-3 mr-1" /> Fechamento Esperado: <span className="font-semibold">{new Date(lead.proposal_closing_date + 'T00:00:00').toLocaleDateString('pt-BR')}</span> {/* Usando snake_case */}
                           </span>
                         )}
-                        {metricType === 'sold' && lead.saleDate && (
+                        {metricType === 'sold' && lead.sale_date && ( // Usando snake_case
                           <span className="flex items-center">
-                            <Calendar className="w-3 h-3 mr-1" /> Data da Venda: <span className="font-semibold">{new Date(lead.saleDate + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
+                            <Calendar className="w-3 h-3 mr-1" /> Data da Venda: <span className="font-semibold">{new Date(lead.sale_date + 'T00:00:00').toLocaleDateString('pt-BR')}</span> {/* Usando snake_case */}
                           </span>
                         )}
                         <span className={`flex items-center font-medium ${metricType === 'proposal' ? 'text-purple-600 dark:text-purple-400' : 'text-green-600 dark:text-green-400'}`}>

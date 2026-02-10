@@ -66,22 +66,22 @@ export const Dashboard = () => {
     }).length;
 
     const leadsWithProposal = leadsForGestor.filter(lead => {
-      if (lead.proposalValue && lead.proposalValue > 0 && lead.proposalClosingDate) {
-        const proposalDate = new Date(lead.proposalClosingDate + 'T00:00:00');
+      if (lead.proposal_value && lead.proposal_value > 0 && lead.proposal_closing_date) { // Usando snake_case
+        const proposalDate = new Date(lead.proposal_closing_date + 'T00:00:00'); // Usando snake_case
         return proposalDate >= currentMonthStart && proposalDate <= currentMonthEnd;
       }
       return false;
     });
-    const proposalValue = leadsWithProposal.reduce((sum, lead) => sum + (lead.proposalValue || 0), 0);
+    const proposalValue = leadsWithProposal.reduce((sum, lead) => sum + (lead.proposal_value || 0), 0); // Usando snake_case
 
     const leadsSold = leadsForGestor.filter(lead => {
-      if (lead.soldCreditValue && lead.soldCreditValue > 0 && lead.saleDate) {
-        const saleDate = new Date(lead.saleDate + 'T00:00:00');
+      if (lead.sold_credit_value && lead.sold_credit_value > 0 && lead.sale_date) { // Usando snake_case
+        const saleDate = new Date(lead.sale_date + 'T00:00:00'); // Usando snake_case
         return saleDate >= currentMonthStart && saleDate <= currentMonthEnd;
       }
       return false;
     });
-    const soldValue = leadsSold.reduce((sum, lead) => sum + (lead.soldCreditValue || 0), 0);
+    const soldValue = leadsSold.reduce((sum, lead) => sum + (lead.sold_credit_value || 0), 0); // Usando snake_case
 
     const pendingTasks = leadTasks.filter(task => {
       const lead = crmLeads.find(l => l.id === task.lead_id && l.user_id === user.id);

@@ -80,20 +80,20 @@ const CrmSalesReports = () => {
 
     if (filterSaleDateStart) {
       const start = new Date(filterSaleDateStart + 'T00:00:00');
-      currentLeads = currentLeads.filter(lead => lead.saleDate && new Date(lead.saleDate + 'T00:00:00') >= start);
+      currentLeads = currentLeads.filter(lead => lead.sale_date && new Date(lead.sale_date + 'T00:00:00') >= start); // Usando snake_case
     }
     if (filterSaleDateEnd) {
       const end = new Date(filterSaleDateEnd + 'T23:59:59');
-      currentLeads = currentLeads.filter(lead => lead.saleDate && new Date(lead.saleDate + 'T00:00:00') <= end);
+      currentLeads = currentLeads.filter(lead => lead.sale_date && new Date(lead.sale_date + 'T00:00:00') <= end); // Usando snake_case
     }
 
     if (filterProposalDateStart) {
       const start = new Date(filterProposalDateStart + 'T00:00:00');
-      currentLeads = currentLeads.filter(lead => lead.proposalClosingDate && new Date(lead.proposalClosingDate + 'T00:00:00') >= start);
+      currentLeads = currentLeads.filter(lead => lead.proposal_closing_date && new Date(lead.proposal_closing_date + 'T00:00:00') >= start); // Usando snake_case
     }
     if (filterProposalDateEnd) {
       const end = new Date(filterProposalDateEnd + 'T23:59:59');
-      currentLeads = currentLeads.filter(lead => lead.proposalClosingDate && new Date(lead.proposalClosingDate + 'T00:00:00') <= end);
+      currentLeads = currentLeads.filter(lead => lead.proposal_closing_date && new Date(lead.proposal_closing_date + 'T00:00:00') <= end); // Usando snake_case
     }
 
     if (filterStageId) {
@@ -164,24 +164,24 @@ const CrmSalesReports = () => {
 
       if (lead.stage_id && pipelineStageSummary[lead.stage_id]) {
         pipelineStageSummary[lead.stage_id].count++;
-        const currentVal = lead.proposalValue || 0;
+        const currentVal = lead.proposal_value || 0; // Usando snake_case
         pipelineStageSummary[lead.stage_id].totalValue += currentVal;
       }
 
-      if (lead.proposalValue && lead.proposalValue > 0) {
-        totalProposalValue += lead.proposalValue;
+      if (lead.proposal_value && lead.proposal_value > 0) { // Usando snake_case
+        totalProposalValue += lead.proposal_value; // Usando snake_case
         totalProposalsCount++;
         if (consultantId && dataByConsultant[consultantId]) {
           dataByConsultant[consultantId].proposalsSent++;
-          dataByConsultant[consultantId].proposalValue += lead.proposalValue;
+          dataByConsultant[consultantId].proposalValue += lead.proposal_value; // Usando snake_case
         }
       }
 
       const wonStage = crmStages.find(s => s.id === lead.stage_id && s.is_won);
       if (wonStage) {
-        const actualSoldValue = (lead.soldCreditValue && lead.soldCreditValue > 0)
-          ? lead.soldCreditValue
-          : (lead.proposalValue || 0);
+        const actualSoldValue = (lead.sold_credit_value && lead.sold_credit_value > 0) // Usando snake_case
+          ? lead.sold_credit_value // Usando snake_case
+          : (lead.proposal_value || 0); // Usando snake_case
 
         if (actualSoldValue > 0) {
           totalSalesCount++;
@@ -250,7 +250,7 @@ const CrmSalesReports = () => {
       const stage = crmStages.find(s => s.id === lead.stage_id);
       const wonStage = crmStages.find(s => s.id === lead.stage_id && s.is_won);
       const actualSoldValue = wonStage
-        ? ((lead.soldCreditValue && lead.soldCreditValue > 0) ? lead.soldCreditValue : (lead.proposalValue || 0))
+        ? ((lead.sold_credit_value && lead.sold_credit_value > 0) ? lead.sold_credit_value : (lead.proposal_value || 0)) // Usando snake_case
         : 0;
 
       return {
@@ -258,9 +258,9 @@ const CrmSalesReports = () => {
         'Consultor': consultant?.name || 'N/A',
         'Etapa': stage?.name || 'N/A',
         'Origem': lead.data?.origin || 'N/A',
-        'Valor Proposta': lead.proposalValue || 0,
+        'Valor Proposta': lead.proposal_value || 0, // Usando snake_case
         'Valor Vendido': actualSoldValue,
-        'Data Venda': lead.saleDate ? new Date(lead.saleDate + 'T00:00:00').toLocaleDateString('pt-BR') : 'N/A',
+        'Data Venda': lead.sale_date ? new Date(lead.sale_date + 'T00:00:00').toLocaleDateString('pt-BR') : 'N/A', // Usando snake_case
         'Criado Em': new Date(lead.created_at).toLocaleDateString('pt-BR'),
       };
     });
