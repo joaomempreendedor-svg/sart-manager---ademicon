@@ -266,10 +266,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           setConsultantGoalsStructure(data.consultantGoalsStructure || DEFAULT_GOALS);
           setInterviewStructure(data.interviewStructure || INITIAL_INTERVIEW_STRUCTURE);
           setTemplates(data.templates || {});
-          setHiringOrigins(data.hiringOrigins || DEFAULT_APP_CONFIG_DATA.hiringOrigins);
           setSalesOrigins(data.salesOrigins || DEFAULT_APP_CONFIG_DATA.salesOrigins);
+          // AQUI: Garante que hiringOrigins use as salesOrigins se estiver vazia
+          setHiringOrigins(data.hiringOrigins && data.hiringOrigins.length > 0 ? data.hiringOrigins : (data.salesOrigins || DEFAULT_APP_CONFIG_DATA.salesOrigins));
           setInterviewers(data.interviewers || []);
           setPvs(data.pvs || []);
+        } else {
+          // Se não houver config, usa os padrões e define hiringOrigins como salesOrigins
+          setChecklistStructure(DEFAULT_STAGES);
+          setConsultantGoalsStructure(DEFAULT_GOALS);
+          setInterviewStructure(INITIAL_INTERVIEW_STRUCTURE);
+          setTemplates({});
+          setSalesOrigins(DEFAULT_APP_CONFIG_DATA.salesOrigins);
+          setHiringOrigins(DEFAULT_APP_CONFIG_DATA.salesOrigins); // Define como salesOrigins se não houver config
+          setInterviewers([]);
+          setPvs([]);
         }
 
         setCandidates(candidatesData?.data?.map(item => {
