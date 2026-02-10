@@ -147,8 +147,12 @@ export const Dashboard = () => {
 
     const total = candidates.filter(c => isInFilterRange(c.createdAt)).length;
     
-    const contacted = candidates.filter(c => 
-      isInFilterRange(c.contactedDate) // Usa contactedDate
+    const newCandidates = candidates.filter(c => 
+      isInFilterRange(c.createdAt) && (c.screeningStatus === 'Pending Contact' || !c.screeningStatus)
+    ).length;
+
+    const contactedInScreening = candidates.filter(c => 
+      isInFilterRange(c.contactedDate) && c.screeningStatus === 'Contacted'
     ).length;
 
     const scheduled = candidates.filter(c => 
@@ -196,7 +200,8 @@ export const Dashboard = () => {
 
     return {
       total,
-      contacted,
+      newCandidates,
+      contactedInScreening,
       scheduled,
       conducted,
       awaitingPreview,
@@ -326,63 +331,75 @@ export const Dashboard = () => {
       {/* 2. Dashboard de Contratação */}
       <section className="animate-fade-in">
         <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center">
-          <PieChart className="w-5 h-5 mr-2 text-brand-500" /> Dashboard de Contratação (Mês Atual)
+          <PieChart className="w-5 h-5 mr-2 text-brand-500" /> Dashboard de Candidaturas (Mês Atual)
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           <MetricCard 
-            title="Candidatos (Entrada no Funil)" 
+            title="Total de Candidaturas" 
             value={hiringMetrics.total} 
             icon={Users} 
             colorClass="bg-indigo-600 text-white" 
           />
           <MetricCard 
-            title="Contatados (no Período)" 
-            value={hiringMetrics.contacted} 
-            icon={MessageSquare} 
-            colorClass="bg-amber-500 text-white" 
+            title="Novos Candidatos" 
+            value={hiringMetrics.newCandidates} 
+            icon={UserPlus} 
+            colorClass="bg-slate-600 text-white" 
+            subValue="Aguardando contato"
           />
           <MetricCard 
-            title="Entrevistas Agendadas (no Período)" 
+            title="Contatados" 
+            value={hiringMetrics.contactedInScreening} 
+            icon={MessageSquare} 
+            colorClass="bg-amber-500 text-white" 
+            subValue="Em triagem ativa"
+          />
+          <MetricCard 
+            title="Entrevistas Agendadas" 
             value={hiringMetrics.scheduled} 
             icon={Clock} 
             colorClass="bg-orange-600 text-white" 
           />
           <MetricCard 
-            title="Entrevistas Realizadas (no Período)" 
+            title="Entrevistas Realizadas" 
             value={hiringMetrics.conducted} 
             icon={FileText} 
             colorClass="bg-purple-600 text-white" 
           />
           <MetricCard 
-            title="Em Prévia (no Período)" 
-            value={hiringMetrics.awaitingPreview} 
+            title="Contratados (Em Prévia)" 
+            value={hiringMetrics.totalHired} 
             icon={TrendingUp} 
             colorClass="bg-blue-600 text-white" 
+            subValue="Passaram na seleção"
           />
           <MetricCard 
-            title="Autorizados (no Período)" 
+            title="Autorizados" 
             value={hiringMetrics.hired} 
             icon={UserCheck} 
             colorClass="bg-emerald-600 text-white" 
+            subValue="Contratações efetivas"
           />
-          
           <MetricCard 
-            title="Faltas (no Período)" 
+            title="Faltas" 
             value={hiringMetrics.noShow} 
             icon={Ghost} 
             colorClass="bg-rose-500 text-white" 
+            subValue="Não compareceram"
           />
           <MetricCard 
-            title="Desistências (no Período)" 
+            title="Desistências" 
             value={hiringMetrics.withdrawn} 
             icon={UserMinus} 
             colorClass="bg-rose-600 text-white" 
+            subValue="Candidato desistiu"
           />
           <MetricCard 
-            title="Desqualificados (no Período)" 
+            title="Desqualificados" 
             value={hiringMetrics.disqualified} 
             icon={XCircle} 
             colorClass="bg-rose-700 text-white" 
+            subValue="Reprovados pelo gestor"
           />
           
           <MetricCard 
@@ -446,6 +463,7 @@ export const Dashboard = () => {
                         <p className="font-bold text-sm text-red-900 dark:text-red-200">{item.title}</p>
                         <p className="text-xs text-red-700 dark:text-red-400">{item.personName} • Venceu em {new Date(item.dueDate + 'T00:00:00').toLocaleDateString('pt-BR')}</p>
                       </div>
+                      <ChevronRight className="w-4 h-4 text-gray-300" />
                     </li>
                   ))}
                 </ul>

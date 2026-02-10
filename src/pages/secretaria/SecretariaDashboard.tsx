@@ -204,12 +204,16 @@ export const SecretariaDashboard = () => {
 
     const total = candidates.filter(c => isInFilterRange(c.createdAt)).length;
     
-    const contacted = candidates.filter(c => 
-      isInFilterRange(c.contactedDate) // Usa contactedDate
+    const newCandidates = candidates.filter(c => 
+      isInFilterRange(c.createdAt) && (c.screeningStatus === 'Pending Contact' || !c.screeningStatus)
+    ).length;
+
+    const contactedInScreening = candidates.filter(c => 
+      isInFilterRange(c.contactedDate) && c.screeningStatus === 'Contacted'
     ).length;
 
     const scheduled = candidates.filter(c => 
-      isInFilterRange(c.interviewScheduledDate) // Usa interviewScheduledDate, removida a condição !c.interviewConducted
+      isInFilterRange(c.interviewScheduledDate) // Usa interviewScheduledDate
     ).length;
 
     const conducted = candidates.filter(c => 
@@ -253,7 +257,8 @@ export const SecretariaDashboard = () => {
 
     return {
       total,
-      contacted,
+      newCandidates, // Adicionado
+      contactedInScreening, // Adicionado
       scheduled,
       conducted,
       awaitingPreview,
@@ -426,18 +431,87 @@ export const SecretariaDashboard = () => {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          <MetricCard title="Total de Candidaturas" value={metrics.total} icon={Users} colorClass="bg-indigo-600 text-white" />
-          <MetricCard title="Novos Candidatos" value={metrics.newCandidates} icon={UserPlus} colorClass="bg-slate-600 text-white" subValue="Aguardando contato" />
-          <MetricCard title="Contatados" value={metrics.contactedInScreening} icon={MessageSquare} colorClass="bg-amber-500 text-white" subValue="Em triagem ativa" />
-          <MetricCard title="Entrevistas Agendadas" value={metrics.scheduled} icon={Clock} colorClass="bg-orange-600 text-white" />
-          <MetricCard title="Entrevistas Realizadas" value={metrics.conducted} icon={FileText} colorClass="bg-purple-600 text-white" />
-          <MetricCard title="Contratados (Em Prévia)" value={metrics.totalHired} icon={TrendingUp} colorClass="bg-blue-600 text-white" subValue="Passaram na seleção" />
-          <MetricCard title="Autorizados" value={metrics.hired} icon={UserCheck} colorClass="bg-emerald-600 text-white" subValue="Contratações efetivas" />
-          <MetricCard title="Faltas" value={metrics.noShow} icon={Ghost} colorClass="bg-rose-500 text-white" subValue="Não compareceram" />
-          <MetricCard title="Desistências" value={metrics.withdrawn} icon={UserMinus} colorClass="bg-rose-600 text-white" subValue="Candidato desistiu" />
-          <MetricCard title="Desqualificados" value={metrics.disqualified} icon={XCircle} colorClass="bg-rose-700 text-white" subValue="Reprovados pelo gestor" />
-          <MetricCard title="Taxa de Comparecimento" value={`${metrics.attendanceRate.toFixed(1)}%`} icon={Percent} colorClass="bg-slate-800 text-white dark:bg-slate-700" subValue="Efetividade Agenda" />
-          <MetricCard title="Taxa de Contratação" value={`${metrics.hiringRate.toFixed(1)}%`} icon={Percent} colorClass="bg-slate-800 text-white dark:bg-slate-700" subValue="Conversão Final" />
+          <MetricCard 
+            title="Total de Candidaturas" 
+            value={metrics.total} 
+            icon={Users} 
+            colorClass="bg-indigo-600 text-white" 
+          />
+          <MetricCard 
+            title="Novos Candidatos" 
+            value={metrics.newCandidates} 
+            icon={UserPlus} 
+            colorClass="bg-slate-600 text-white" 
+            subValue="Aguardando contato"
+          />
+          <MetricCard 
+            title="Contatados" 
+            value={metrics.contactedInScreening} 
+            icon={MessageSquare} 
+            colorClass="bg-amber-500 text-white" 
+            subValue="Em triagem ativa"
+          />
+          <MetricCard 
+            title="Entrevistas Agendadas" 
+            value={metrics.scheduled} 
+            icon={Clock} 
+            colorClass="bg-orange-600 text-white" 
+          />
+          <MetricCard 
+            title="Entrevistas Realizadas" 
+            value={metrics.conducted} 
+            icon={FileText} 
+            colorClass="bg-purple-600 text-white" 
+          />
+          <MetricCard 
+            title="Contratados (Em Prévia)" 
+            value={metrics.totalHired} 
+            icon={TrendingUp} 
+            colorClass="bg-blue-600 text-white" 
+            subValue="Passaram na seleção"
+          />
+          <MetricCard 
+            title="Autorizados" 
+            value={metrics.hired} 
+            icon={UserCheck} 
+            colorClass="bg-emerald-600 text-white" 
+            subValue="Contratações efetivas"
+          />
+          <MetricCard 
+            title="Faltas" 
+            value={metrics.noShow} 
+            icon={Ghost} 
+            colorClass="bg-rose-500 text-white" 
+            subValue="Não compareceram"
+          />
+          <MetricCard 
+            title="Desistências" 
+            value={metrics.withdrawn} 
+            icon={UserMinus} 
+            colorClass="bg-rose-600 text-white" 
+            subValue="Candidato desistiu"
+          />
+          <MetricCard 
+            title="Desqualificados" 
+            value={metrics.disqualified} 
+            icon={XCircle} 
+            colorClass="bg-rose-700 text-white" 
+            subValue="Reprovados pelo gestor"
+          />
+          <MetricCard 
+            title="Taxa de Comparecimento" 
+            value={`${metrics.attendanceRate.toFixed(1)}%`} 
+            icon={Percent} 
+            colorClass="bg-slate-800 text-white dark:bg-slate-700" 
+            subValue="Efetividade Agenda"
+          />
+          <MetricCard 
+            title="Taxa de Contratação" 
+            value={`${metrics.hiringRate.toFixed(1)}%`} 
+            icon={Percent} 
+            colorClass="bg-slate-800 text-white dark:bg-slate-700" 
+            subValue="Conversão Final"
+          />
         </div>
       </section>
     </div>
