@@ -103,14 +103,68 @@ export const Dashboard = () => {
       return date >= currentMonthStart && date <= currentMonthEnd;
     };
 
-    const filtered = candidates.filter(c => isInFilterRange(c.createdAt));
+    const total = candidates.filter(c => isInFilterRange(c.createdAt)).length;
+    
+    const contacted = candidates.filter(c => 
+      isInFilterRange(c.contactedDate) // Usa contactedDate
+    ).length;
+
+    const scheduled = candidates.filter(c => 
+      isInFilterRange(c.interviewScheduledDate) // Usa interviewScheduledDate, removida a condição !c.interviewConducted
+    ).length;
+
+    const conducted = candidates.filter(c => 
+      isInFilterRange(c.interviewConductedDate) // Usa interviewConductedDate
+    ).length;
+
+    const awaitingPreview = candidates.filter(c => 
+      isInFilterRange(c.awaitingPreviewDate) // Usa awaitingPreviewDate
+    ).length;
+
+    const hired = candidates.filter(c => 
+      isInFilterRange(c.authorizedDate) // Usa authorizedDate
+    ).length;
+
+    const noShow = candidates.filter(c => 
+      isInFilterRange(c.faltouDate) // Usa faltouDate
+    ).length;
+
+    const withdrawn = candidates.filter(c => 
+      isInFilterRange(c.reprovadoDate) // Usa reprovadoDate
+    ).length;
+
+    const disqualified = candidates.filter(c => 
+      isInFilterRange(c.disqualifiedDate) // Usa disqualifiedDate
+    ).length;
+
+    // NOVA LÓGICA: Total de Contratados (que passaram da triagem)
+    const totalHired = candidates.filter(c => 
+      isInFilterRange(c.awaitingPreviewDate) || // Entrou em 'Aguardando Prévia'
+      isInFilterRange(c.onboardingOnlineDate) || // Entrou em 'Onboarding Online'
+      isInFilterRange(c.integrationPresencialDate) || // Entrou em 'Integração Presencial'
+      isInFilterRange(c.acompanhamento90DiasDate) || // Entrou em 'Acompanhamento 90 Dias'
+      isInFilterRange(c.authorizedDate) // Entrou em 'Autorizado'
+    ).length;
+
+    const totalInterviewsScheduled = candidates.filter(c => isInFilterRange(c.interviewScheduledDate)).length;
+    const totalInterviewsConducted = candidates.filter(c => isInFilterRange(c.interviewConductedDate)).length;
+
+    const attendanceRate = totalInterviewsScheduled > 0 ? (totalInterviewsConducted / totalInterviewsScheduled) * 100 : 0;
+    const hiringRate = total > 0 ? (totalHired / total) * 100 : 0;
 
     return {
-      total: filtered.length,
-      scheduled: candidates.filter(c => isInFilterRange(c.interviewScheduledDate) && !c.interviewConducted).length,
-      conducted: candidates.filter(c => isInFilterRange(c.interviewConductedDate)).length,
-      hired: candidates.filter(c => isInFilterRange(c.authorizedDate)).length,
-      awaitingPreview: candidates.filter(c => isInFilterRange(c.awaitingPreviewDate)).length
+      total,
+      contacted,
+      scheduled,
+      conducted,
+      awaitingPreview,
+      hired,
+      noShow,
+      withdrawn,
+      disqualified,
+      attendanceRate,
+      hiringRate,
+      totalHired
     };
   }, [candidates]);
 
@@ -195,7 +249,7 @@ export const Dashboard = () => {
           <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-3">
             <div className="p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg"><Calendar className="w-5 h-5 text-yellow-600" /></div>
             <div><p className="text-[10px] text-gray-500 uppercase font-bold">Reuniões</p><p className="text-lg font-bold">{commercialMetrics?.meetings}</p></div>
-          </div>
+          </button>
           <button onClick={() => handleOpenLeadsDetailModal('Propostas do Mês', commercialMetrics?.leadsWithProposal || [], 'proposal')} className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-3 hover:bg-gray-50 transition text-left">
             <div className="p-2 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg"><Send className="w-5 h-5 text-indigo-600" /></div>
             <div><p className="text-[10px] text-gray-500 uppercase font-bold">Propostas</p><p className="text-lg font-bold">{formatLargeCurrency(commercialMetrics?.proposalValue || 0)}</p></div>
@@ -218,24 +272,24 @@ export const Dashboard = () => {
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm text-center">
-            <p className="text-xs font-bold text-gray-400 uppercase mb-2">Total Candidatos</p>
+            <p className="text-xs font-bold text-gray-400 uppercase mb-2">Candidatos (Entrada no Funil)</p>
             <p className="text-3xl font-black text-indigo-600">{hiringMetrics.total}</p>
           </div>
           <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm text-center">
+            <p className="text-xs font-bold text-gray-400 uppercase mb-2">Contatados</p>
+            <p className="text-3xl font-black text-orange-500">{hiringMetrics.contacted}</p>
+          </div>
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm text-center">
             <p className="text-xs font-bold text-gray-400 uppercase mb-2">Agendadas</p>
-            <p className="text-3xl font-black text-orange-500">{hiringMetrics.scheduled}</p>
+            <p className="text-3xl font-black text-purple-600">{hiringMetrics.scheduled}</p>
           </div>
           <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm text-center">
             <p className="text-xs font-bold text-gray-400 uppercase mb-2">Realizadas</p>
-            <p className="text-3xl font-black text-purple-600">{hiringMetrics.conducted}</p>
+            <p className="text-3xl font-black text-blue-500">{hiringMetrics.conducted}</p>
           </div>
           <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm text-center">
             <p className="text-xs font-bold text-gray-400 uppercase mb-2">Em Prévia</p>
-            <p className="text-3xl font-black text-blue-500">{hiringMetrics.awaitingPreview}</p>
-          </div>
-          <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm text-center">
-            <p className="text-xs font-bold text-gray-400 uppercase mb-2">Autorizados</p>
-            <p className="text-3xl font-black text-emerald-600">{hiringMetrics.hired}</p>
+            <p className="text-3xl font-black text-emerald-600">{hiringMetrics.awaitingPreview}</p>
           </div>
         </div>
       </section>
