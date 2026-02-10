@@ -42,10 +42,8 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
     { to: "/secretaria/onboarding-admin", icon: Video, label: "Onboarding Online" },
     { to: "/secretaria/form-cadastros", icon: FileStack, label: "Gerenciar Formulários" },
   ] : [
-    // Removido o link para /gestor/dashboard
     { to: "/gestor/crm", icon: TrendingUp, label: "CRM" },
     { to: "/gestor/crm-sales-reports", icon: BarChart3, label: "Relatórios de Vendas" },
-    // Removido o link para /gestor/hiring-dashboard
     { to: "/gestor/hiring-pipeline", icon: UserSearch, label: "Pipeline Contratação" },
     { to: "/gestor/hiring-origins-report", icon: MapPin, label: "Candidaturas por Origem" },
     { to: "/gestor/onboarding-admin", icon: Video, label: "Onboarding Online" },
@@ -73,6 +71,8 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
     { to: "/gestor/config-process", icon: Settings, label: "Editar Processo (Antigo)" },
   ];
 
+  const dashboardPath = isSecretaria ? "/secretaria/dashboard" : "/gestor/dashboard";
+
   return (
     <>
       {isSidebarOpen && (
@@ -83,7 +83,11 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
       )}
 
       <div className={`bg-white dark:bg-slate-900 border-r border-gray-200 dark:border-slate-800 h-screen flex flex-col fixed left-0 top-0 transition-all duration-300 z-50 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'} ${isSidebarCollapsed ? 'md:w-20' : 'md:w-64'} w-64`}>
-        <div className={`p-6 border-b border-gray-100 dark:border-slate-800 flex justify-center items-center h-24 ${isSidebarCollapsed ? 'px-2' : ''}`}>
+        <NavLink 
+          to={dashboardPath} 
+          className={`p-6 border-b border-gray-100 dark:border-slate-800 flex justify-center items-center h-24 cursor-pointer ${isSidebarCollapsed ? 'px-2' : ''}`}
+          onClick={toggleSidebar}
+        >
           <div className="flex items-center space-x-2">
               <div className="bg-brand-500 text-white p-2 rounded-lg shadow-lg shadow-brand-500/30">
                   <TrendingUp className="w-6 h-6" strokeWidth={3} />
@@ -95,7 +99,7 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
                 </div>
               )}
           </div>
-        </div>
+        </NavLink>
         
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto custom-scrollbar">
           {/* Visão Geral e Operação */}
