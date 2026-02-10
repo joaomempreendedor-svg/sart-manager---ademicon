@@ -59,6 +59,17 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
     ).sort((a, b) => a.name.localeCompare(b.name));
   }, [teamMembers]);
 
+  const activePipeline = useMemo(() => {
+    return crmPipelines.find(p => p.is_active) || crmPipelines[0];
+  }, [crmPipelines]);
+
+  const firstActiveStage = useMemo(() => {
+    if (!activePipeline) return null;
+    return crmStages
+      .filter(s => s.pipeline_id === activePipeline.id && s.is_active)
+      .sort((a, b) => a.order_index - b.order_index)[0];
+  }, [crmStages, activePipeline]);
+
   useEffect(() => {
     if (isOpen) {
       const initialOrigin = lead?.data?.origin;
@@ -77,10 +88,15 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
         initialConsultantId = assignedConsultantId; // Fallback para assignedConsultantId se não houver lead e não for consultor
       }
 
+      // Definir a etapa padrão para novos leads
+      let initialStageId = lead?.stage_id || '';
+      if (!lead && firstActiveStage) {
+        initialStageId = firstActiveStage.id;
+      }
 
       setFormData({
         name: lead?.name || '',
-        stage_id: lead?.stage_id,
+        stage_id: initialStageId, // Definir a etapa padrão aqui
         consultant_id: initialConsultantId,
         proposal_value: lead?.proposal_value, // Usando snake_case
         proposal_closing_date: lead?.proposal_closing_date, // Usando snake_case
@@ -95,7 +111,7 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
       });
       setError('');
     }
-  }, [lead, isOpen, assignedConsultantId, allAvailableOrigins, user]);
+  }, [lead, isOpen, assignedConsultantId, allAvailableOrigins, user, firstActiveStage]);
 
   const handleChange = (key: string, value: any) => {
     setFormData(prev => {
@@ -129,8 +145,12 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
       errorsList.push('Origem');
     }
 
+    // Para novos leads, a etapa já é preenchida automaticamente.
+    // Para leads existentes, a etapa deve existir.
     if (lead && !formData.stage_id) {
       errorsList.push('Etapa');
+    } else if (!lead && !firstActiveStage) {
+      errorsList.push('Nenhuma etapa ativa configurada no pipeline. Por favor, configure-a nas configurações do CRM.');
     }
 
     const systemHandledKeys = ['name', 'nome', 'origin', 'origem']; 
@@ -162,6 +182,7 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
           ...formData.data,
           origin: formData.data?.origin || null,
         },
+        stage_id: formData.stage_id || firstActiveStage?.id, // Garante que stage_id seja definido
         proposal_value: formData.proposal_value || null, // Usando snake_case
         proposal_closing_date: formData.proposal_closing_date || null, // Usando snake_case
         sold_credit_value: formData.sold_credit_value || null, // Usando snake_case
