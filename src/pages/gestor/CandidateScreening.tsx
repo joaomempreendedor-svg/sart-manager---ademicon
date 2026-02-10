@@ -18,7 +18,7 @@ import { Candidate } from '@/types'; // Importar o tipo Candidate
 
 const CandidateScreening = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
-  const { candidates, isDataLoading, updateCandidate, deleteCandidate, teamMembers, origins, addCandidate } = useApp(); // Adicionado addCandidate
+  const { candidates, isDataLoading, updateCandidate, deleteCandidate, teamMembers, hiringOrigins, addCandidate } = useApp(); // Alterado 'origins' para 'hiringOrigins'
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'Pending Contact' | 'Contacted' | 'No Fit'>('all');
@@ -299,14 +299,14 @@ const CandidateScreening = () => {
       <AddScreeningCandidateModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
-        origins={origins}
+        origins={hiringOrigins}
         responsibleMembers={teamMembers.filter(m => m.isActive && (m.roles.includes('Gestor') || m.roles.includes('Anjo')))}
       />
       {/* NOVO: Modal de Importação */}
       <ImportCandidatesModal
         isOpen={isImportModalOpen}
         onClose={() => setIsImportModalOpen(false)}
-        origins={origins}
+        origins={hiringOrigins}
         responsibleMembers={teamMembers.filter(m => m.isActive && (m.roles.includes('Gestor') || m.roles.includes('Anjo')))}
         onImport={handleImportCandidates}
       />
