@@ -56,12 +56,9 @@ const MetricCard = ({ title, value, icon: Icon, colorClass, subValue, onClick }:
           <h3 className="text-4xl font-black">{value}</h3>
           {subValue && <p className="text-xs font-medium opacity-60">{subValue}</p>}
         </div>
-        <div className="p-3 rounded-xl bg-white/20 dark:bg-black/20">
-          <Icon className="w-6 h-6" />
+        <div className="absolute -right-4 -bottom-4 opacity-10">
+          <Icon size={100} strokeWidth={3} />
         </div>
-      </div>
-      <div className="absolute -right-4 -bottom-4 opacity-10">
-        <Icon size={100} strokeWidth={3} />
       </div>
     </>
   );
@@ -573,6 +570,14 @@ export const SecretariaDashboard = () => {
           />
         </div>
       </section>
+      <CandidatesDetailModal 
+        isOpen={isCandidatesDetailModalOpen} 
+        onClose={() => setIsCandidatesDetailModalOpen(false)} 
+        title={candidatesModalTitle} 
+        candidates={candidatesForModal} 
+        teamMembers={teamMembers} 
+        metricType={candidatesMetricType} 
+      />
     </div>
   );
 };
