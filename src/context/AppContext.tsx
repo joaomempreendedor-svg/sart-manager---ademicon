@@ -439,6 +439,44 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setCrmLeads(prev => prev.filter(l => l.id !== id));
   };
 
+  // Refatorando updateTeamMember para ser um useCallback
+  const updateTeamMember = useCallback(async (id: string, updates: Partial<TeamMember>) => {
+    const member = teamMembers.find(m => m.id === id);
+    if (!member) throw new Error("Member not found");
+    const { error } = await supabase.from('team_members').update({ data: { ...member, ...updates }, cpf: updates.cpf || member.cpf }).eq('id', member.db_id);
+    if (error) throw error;
+    setTeamMembers(prev => prev.map(m => m.id === id ? { ...m, ...updates } : m));
+    return { success: true };
+  }, [teamMembers, setTeamMembers]);
+
+  // Refatorando addTeamMemberFeedback para ser um useCallback
+  const addTeamMemberFeedback = useCallback(async (teamMemberId: string, feedback: Omit<Feedback, 'id'>) => {
+    const member = teamMembers.find(m => m.id === teamMemberId);
+    if (!member) throw new Error("Member not found");
+    const newFeedback = { ...feedback, id: crypto.randomUUID() };
+    const updatedFeedbacks = [...(member.feedbacks || []), newFeedback];
+    await updateTeamMember(teamMemberId, { feedbacks: updatedFeedbacks });
+    return newFeedback;
+  }, [teamMembers, updateTeamMember]);
+
+  // Refatorando updateTeamMemberFeedback para ser um useCallback
+  const updateTeamMemberFeedback = useCallback(async (teamMemberId: string, feedback: Feedback) => {
+    const member = teamMembers.find(m => m.id === teamMemberId);
+    if (!member) throw new Error("Member not found");
+    const updatedFeedbacks = (member.feedbacks || []).map(f => f.id === feedback.id ? feedback : f);
+    await updateTeamMember(teamMemberId, { feedbacks: updatedFeedbacks });
+    return feedback;
+  }, [teamMembers, updateTeamMember]);
+
+  // Refatorando deleteTeamMemberFeedback para ser um useCallback
+  const deleteTeamMemberFeedback = useCallback(async (teamMemberId: string, feedbackId: string) => {
+    const member = teamMembers.find(m => m.id === teamMemberId);
+    if (!member) return;
+    const updatedFeedbacks = (member.feedbacks || []).filter(f => f.id !== feedbackId);
+    await updateTeamMember(teamMemberId, { feedbacks: updatedFeedbacks });
+  }, [teamMembers, updateTeamMember]);
+
+
   const value: AppContextType = {
     isDataLoading, candidates, teamMembers, commissions, supportMaterials, cutoffPeriods, onboardingSessions, onboardingTemplateVideos, checklistStructure, setChecklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs, crmPipelines, crmStages, crmFields, crmLeads, crmOwnerUserId, dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions, weeklyTargets, weeklyTargetItems, weeklyTargetAssignments, metricLogs, supportMaterialsV2, supportMaterialAssignments, leadTasks, gestorTasks, gestorTaskCompletions, financialEntries, formCadastros, formFiles, notifications, teamProductionGoals, theme,
     toggleTheme, updateConfig, resetLocalState, refetchCommissions, calculateCompetenceMonth, isGestorTaskDueOnDate, calculateNotifications,
@@ -477,10 +515,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setChecklistStructure(newStructure);
       updateConfig({ checklistStructure: newStructure });
     },
-    updateChecklistItem: (stageId, itemId, newLabel) => {
+    updateChecklistItem: (stageId, itemId, updates) => {
       const newStructure = checklistStructure.map(stage => {
         if (stage.id === stageId) {
-          return { ...stage, items: stage.items.map(item => item.id === itemId ? { ...item, label: newLabel } : item) };
+          return { ...stage, items: stage.items.map(item => item.id === itemId ? { ...item, ...updates } : item) };
         }
         return stage;
       });
@@ -898,27 +936,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const updatedFeedbacks = (candidate.feedbacks || []).filter(f => f.id !== feedbackId);
       await updateCandidate(personId, { feedbacks: updatedFeedbacks });
     },
-    addTeamMemberFeedback: async (teamMemberId, feedback) => {
-      const member = teamMembers.find(m => m.id === teamMemberId);
-      if (!member) throw new Error("Member not found");
-      const newFeedback = { ...feedback, id: crypto.randomUUID() };
-      const updatedFeedbacks = [...(member.feedbacks || []), newFeedback];
-      await updateTeamMember(teamMemberId, { feedbacks: updatedFeedbacks });
-      return newFeedback;
-    },
-    updateTeamMemberFeedback: async (teamMemberId, feedback) => {
-      const member = teamMembers.find(m => m.id === teamMemberId);
-      if (!member) throw new Error("Member not found");
-      const updatedFeedbacks = (member.feedbacks || []).map(f => f.id === feedback.id ? feedback : f);
-      await updateTeamMember(teamMemberId, { feedbacks: updatedFeedbacks });
-      return feedback;
-    },
-    deleteTeamMemberFeedback: async (teamMemberId, feedbackId) => {
-      const member = teamMembers.find(m => m.id === teamMemberId);
-      if (!member) return;
-      const updatedFeedbacks = (member.feedbacks || []).filter(f => f.id !== feedbackId);
-      await updateTeamMember(teamMemberId, { feedbacks: updatedFeedbacks }); // Corrected call
-    },
+    addTeamMemberFeedback,
+    updateTeamMemberFeedback,
+    deleteTeamMemberFeedback,
     addTeamMember: async (member) => {
       const tempPassword = generateRandomPassword();
       const { data: authData, error: authError } = await supabase.functions.invoke('create-or-link-consultant', {
@@ -931,14 +951,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setTeamMembers(prev => [...prev, newMember]);
       return { success: true, member: newMember, tempPassword, wasExistingUser: authData.userExists };
     },
-    updateTeamMember: async (id, updates) => {
-      const member = teamMembers.find(m => m.id === id);
-      if (!member) throw new Error("Member not found");
-      const { error } = await supabase.from('team_members').update({ data: { ...member, ...updates }, cpf: updates.cpf || member.cpf }).eq('id', member.db_id);
-      if (error) throw error;
-      setTeamMembers(prev => prev.map(m => m.id === id ? { ...m, ...updates } : m));
-      return { success: true };
-    },
+    updateTeamMember, // Referência ao useCallback
     deleteTeamMember: async (id) => { const member = teamMembers.find(m => m.id === id); if (!member) return; const { error } = await supabase.from('team_members').delete().eq('id', member.db_id); if (error) throw error; setTeamMembers(prev => prev.filter(m => m.id !== id)); },
     addTeamProductionGoal: async (goal) => { const { data, error } = await supabase.from('team_production_goals').insert({ ...goal, user_id: JOAO_GESTOR_AUTH_ID }).select().single(); if (error) throw error; setTeamProductionGoals(prev => [data, ...prev]); return data; },
     updateTeamProductionGoal: async (id, updates) => { const { data, error } = await supabase.from('team_production_goals').update(updates).eq('id', id).select().single(); if (error) throw error; setTeamProductionGoals(prev => prev.map(g => g.id === id ? data : g)); return data; },
