@@ -457,7 +457,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (!candidate) return;
       const currentProgress = candidate.checklistProgress || {};
       const currentState = currentProgress[itemId] || { completed: false };
-      const newProgress = { ...currentProgress, [itemId]: { ...currentState, dueDate } };
+      const newProgress = { ...currentCurrentProgress, [itemId]: { ...currentState, dueDate } };
       await updateCandidate(candidateId, { checklistProgress: newProgress });
     },
     toggleConsultantGoal: async (candidateId, goalId) => {
@@ -713,7 +713,74 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     deleteCrmStage: async (id) => { const { error } = await supabase.from('crm_stages').delete().eq('id', id); if (error) throw error; setCrmStages(prev => prev.filter(s => s.id !== id)); },
     addCrmField: async (field) => { const { data, error } = await supabase.from('crm_fields').insert({ ...field, user_id: JOAO_GESTOR_AUTH_ID }).select().single(); if (error) throw error; setCrmFields(prev => [...prev, data]); return data; },
     updateCrmField: async (id, updates) => { const { data, error } = await supabase.from('crm_fields').update(updates).eq('id', id).select().single(); if (error) throw error; setCrmFields(prev => prev.map(f => f.id === id ? data : f)); return data; },
-    addCrmLead, updateCrmLead, deleteCrmLead,
+    addCrmLead: async (lead) => {
+      const { data, error } = await supabase.from('crm_leads').insert({ 
+        ...lead, 
+        user_id: JOAO_GESTOR_AUTH_ID, 
+        created_by: user!.id,
+        proposal_value: lead.proposal_value,
+        proposal_closing_date: lead.proposal_closing_date,
+        sold_credit_value: lead.sold_credit_value,
+        sold_group: lead.sold_group,
+        sold_quota: lead.sold_quota,
+        sale_date: lead.sale_date
+      }).select().single();
+      if (error) throw error;
+      const newLead = { 
+        id: data.id, 
+        consultant_id: data.consultant_id, 
+        stage_id: data.stage_id, 
+        user_id: data.user_id, 
+        name: data.name, 
+        data: data.data, 
+        created_at: data.created_at, 
+        updated_at: data.updated_at, 
+        created_by: data.created_by, 
+        updated_by: data.updated_by, 
+        proposal_value: parseDbCurrency(data.proposal_value), 
+        proposal_closing_date: data.proposal_closing_date, 
+        sold_credit_value: parseDbCurrency(data.sold_credit_value), 
+        sold_group: data.sold_group, 
+        sold_quota: data.sold_quota, 
+        sale_date: data.sale_date 
+      };
+      setCrmLeads(prev => [newLead, ...prev]);
+      return newLead;
+    },
+    updateCrmLead: async (id, updates) => {
+      const { data, error } = await supabase.from('crm_leads').update({ 
+        ...updates, 
+        updated_by: user!.id,
+        proposal_value: updates.proposal_value,
+        proposal_closing_date: updates.proposal_closing_date,
+        sold_credit_value: updates.sold_credit_value,
+        sold_group: updates.sold_group,
+        sold_quota: updates.sold_quota,
+        sale_date: updates.sale_date
+      }).eq('id', id).select().single();
+      if (error) throw error;
+      const updatedLead = { 
+        id: data.id, 
+        consultant_id: data.consultant_id, 
+        stage_id: data.stage_id, 
+        user_id: data.user_id, 
+        name: data.name, 
+        data: data.data, 
+        created_at: data.created_at, 
+        updated_at: data.updated_at, 
+        created_by: data.created_by, 
+        updated_by: data.updated_by, 
+        proposal_value: parseDbCurrency(data.proposal_value), 
+        proposal_closing_date: data.proposal_closing_date, 
+        sold_credit_value: parseDbCurrency(data.sold_credit_value), 
+        sold_group: data.sold_group, 
+        sold_quota: data.sold_quota, 
+        sale_date: data.sale_date 
+      };
+      setCrmLeads(prev => prev.map(l => l.id === id ? updatedLead : l));
+      return updatedLead;
+    },
+    deleteCrmLead: async (id) => { const { error } = await supabase.from('crm_leads').delete().eq('id', id); if (error) throw error; setCrmLeads(prev => prev.filter(l => l.id !== id)); },
     addDailyChecklist: async (title) => { const { data, error } = await supabase.from('daily_checklists').insert({ user_id: JOAO_GESTOR_AUTH_ID, title }).select().single(); if (error) throw error; setDailyChecklists(prev => [...prev, data]); return data; },
     updateDailyChecklist: async (id, updates) => { const { data, error } = await supabase.from('daily_checklists').update(updates).eq('id', id).select().single(); if (error) throw error; setDailyChecklists(prev => prev.map(d => d.id === id ? data : d)); return data; },
     deleteDailyChecklist: async (id) => { const { error } = await supabase.from('daily_checklists').delete().eq('id', id); if (error) throw error; setDailyChecklists(prev => prev.filter(d => d.id !== id)); },
@@ -917,7 +984,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const member = teamMembers.find(m => m.id === teamMemberId);
       if (!member) return;
       const updatedFeedbacks = (member.feedbacks || []).filter(f => f.id !== feedbackId);
-      await updateTeamMember(teamMemberId, { feedbacks: updatedFeedbacks });
+      await value.updateTeamMember(teamMemberId, { feedbacks: updatedFeedbacks }); // Corrected call
     },
     addTeamMember: async (member) => {
       const tempPassword = generateRandomPassword();
