@@ -209,7 +209,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
     const newNotifications: Notification[] = [];
     const today = new Date();
-    const todayFormatted = today.toISOString().split('T')[0];
     const currentMonth = today.getMonth();
 
     teamMembers.forEach(member => {
@@ -273,7 +272,28 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           setPvs(data.pvs || []);
         }
 
-        setCandidates(candidatesData?.data?.map(item => ({ ...(item.data as Candidate), id: (item.data as any).id || crypto.randomUUID(), db_id: item.id, createdAt: item.created_at, lastUpdatedAt: item.last_updated_at })) || []);
+        setCandidates(candidatesData?.data?.map(item => {
+          const candidateData = item.data as Candidate;
+          return { 
+            ...candidateData, 
+            id: (item.data as any).id || crypto.randomUUID(), 
+            db_id: item.id, 
+            createdAt: item.created_at, 
+            lastUpdatedAt: item.last_updated_at,
+            // Mapear novos campos de data
+            contactedDate: candidateData.contactedDate,
+            interviewScheduledDate: candidateData.interviewScheduledDate,
+            interviewConductedDate: candidateData.interviewConductedDate,
+            awaitingPreviewDate: candidateData.awaitingPreviewDate,
+            onboardingOnlineDate: candidateData.onboardingOnlineDate,
+            integrationPresencialDate: candidateData.integrationPresencialDate,
+            acompanhamento90DiasDate: candidateData.acompanhamento90DiasDate,
+            authorizedDate: candidateData.authorizedDate,
+            reprovadoDate: candidateData.reprovadoDate,
+            disqualifiedDate: candidateData.disqualifiedDate,
+            faltouDate: candidateData.faltouDate,
+          };
+        }) || []);
         
         const normalizedTeamMembers = teamMembersResult.data?.map(item => {
           const data = item.data as any;
@@ -371,13 +391,50 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const dbId = candidate.db_id || id;
     const updatedData = { ...candidate, ...updates };
-    
-    setCandidates(prev => prev.map(c => (c.id === id || c.db_id === id) ? { ...c, ...updates, lastUpdatedAt: new Date().toISOString() } : c));
+    const now = new Date().toISOString();
+
+    // Lógica para atualizar os campos de data de transição
+    if (updates.screeningStatus === 'Contacted' && candidate.screeningStatus !== 'Contacted') {
+      updatedData.contactedDate = now;
+    }
+    if (updates.interviewDate && candidate.interviewDate !== updates.interviewDate) {
+      updatedData.interviewScheduledDate = now;
+    }
+    if (updates.interviewConducted && !candidate.interviewConducted) {
+      updatedData.interviewConductedDate = now;
+    }
+    if (updates.status === 'Aguardando Prévia' && candidate.status !== 'Aguardando Prévia') {
+      updatedData.awaitingPreviewDate = now;
+    }
+    if (updates.status === 'Onboarding Online' && candidate.status !== 'Onboarding Online') {
+      updatedData.onboardingOnlineDate = now;
+    }
+    if (updates.status === 'Integração Presencial' && candidate.status !== 'Integração Presencial') {
+      updatedData.integrationPresencialDate = now;
+    }
+    if (updates.status === 'Acompanhamento 90 Dias' && candidate.status !== 'Acompanhamento 90 Dias') {
+      updatedData.acompanhamento90DiasDate = now;
+    }
+    if (updates.status === 'Autorizado' && candidate.status !== 'Autorizado') {
+      updatedData.authorizedDate = now;
+    }
+    if (updates.status === 'Reprovado' && candidate.status !== 'Reprovado') {
+      updatedData.reprovadoDate = now;
+    }
+    if (updates.status === 'Desqualificado' && candidate.status !== 'Desqualificado') {
+      updatedData.disqualifiedDate = now;
+    }
+    if (updates.status === 'Faltou' && candidate.status !== 'Faltou') {
+      updatedData.faltouDate = now;
+    }
+
+    setCandidates(prev => prev.map(c => (c.id === id || c.db_id === id) ? { ...c, ...updatedData, lastUpdatedAt: now } : c));
 
     const dataToSave = { ...updatedData };
     delete (dataToSave as any).db_id;
     delete (dataToSave as any).createdAt;
-    delete (dataToSave as any).lastUpdatedAt;
+    // lastUpdatedAt é atualizado automaticamente pelo trigger do Supabase
+    // delete (dataToSave as any).lastUpdatedAt; 
 
     const { error } = await supabase
       .from('candidates')

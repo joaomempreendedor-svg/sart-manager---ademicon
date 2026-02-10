@@ -43,49 +43,73 @@ const HiringDashboard = () => {
     const start = new Date(startDate + 'T00:00:00');
     const end = new Date(endDate + 'T23:59:59');
 
-    const filtered = candidates.filter(c => {
-      const created = new Date(c.createdAt);
-      return created >= start && created <= end;
-    });
+    // Função auxiliar para verificar se uma data está dentro do período de filtro
+    const isInFilterRange = (dateString?: string) => {
+      if (!dateString) return false;
+      const date = new Date(dateString);
+      return date >= start && date <= end;
+    };
 
-    const total = filtered.length;
+    const total = candidates.filter(c => isInFilterRange(c.createdAt)).length;
     
-    const newCandidates = filtered.filter(c => 
-      c.status === 'Triagem' && (c.screeningStatus === 'Pending Contact' || !c.screeningStatus)
+    const newCandidates = candidates.filter(c => 
+      isInFilterRange(c.createdAt) && 
+      (c.status === 'Triagem' && (c.screeningStatus === 'Pending Contact' || !c.screeningStatus))
     ).length;
 
-    const contacted = filtered.filter(c => 
-      c.status === 'Triagem' && c.screeningStatus === 'Contacted'
+    const contacted = candidates.filter(c => 
+      isInFilterRange(c.contactedDate) // Usa contactedDate
     ).length;
 
-    const scheduled = filtered.filter(c => 
-      c.status === 'Entrevista' && !c.interviewConducted
+    const scheduled = candidates.filter(c => 
+      isInFilterRange(c.interviewScheduledDate) && // Usa interviewScheduledDate
+      !c.interviewConducted // Ainda não foi conduzida
     ).length;
 
-    const conducted = filtered.filter(c => 
-      c.status === 'Entrevista' && c.interviewConducted
+    const conducted = candidates.filter(c => 
+      isInFilterRange(c.interviewConductedDate) // Usa interviewConductedDate
     ).length;
 
-    const awaitingPreview = filtered.filter(c => c.status === 'Aguardando Prévia').length;
-    const hired = filtered.filter(c => c.status === 'Autorizado').length;
-    const noShow = filtered.filter(c => c.status === 'Faltou').length;
-    const withdrawn = filtered.filter(c => c.status === 'Reprovado').length;
-    const disqualified = filtered.filter(c => c.status === 'Desqualificado').length;
-
-    // NOVA LÓGICA: Contratado é quem entra em Prévia ou avança além disso
-    const totalHired = filtered.filter(c => 
-      !['Triagem', 'Entrevista', 'Faltou', 'Reprovado', 'Desqualificado'].includes(c.status)
+    const awaitingPreview = candidates.filter(c => 
+      isInFilterRange(c.awaitingPreviewDate) // Usa awaitingPreviewDate
     ).length;
 
-    const totalInterviews = scheduled + conducted;
-    const attendanceRate = totalInterviews > 0 ? (conducted / totalInterviews) * 100 : 0;
+    const hired = candidates.filter(c => 
+      isInFilterRange(c.authorizedDate) // Usa authorizedDate
+    ).length;
+
+    const noShow = candidates.filter(c => 
+      isInFilterRange(c.faltouDate) // Usa faltouDate
+    ).length;
+
+    const withdrawn = candidates.filter(c => 
+      isInFilterRange(c.reprovadoDate) // Usa reprovadoDate
+    ).length;
+
+    const disqualified = candidates.filter(c => 
+      isInFilterRange(c.disqualifiedDate) // Usa disqualifiedDate
+    ).length;
+
+    // NOVA LÓGICA: Total de Contratados (que passaram da triagem)
+    const totalHired = candidates.filter(c => 
+      isInFilterRange(c.awaitingPreviewDate) || // Entrou em 'Aguardando Prévia'
+      isInFilterRange(c.onboardingOnlineDate) || // Entrou em 'Onboarding Online'
+      isInFilterRange(c.integrationPresencialDate) || // Entrou em 'Integração Presencial'
+      isInFilterRange(c.acompanhamento90DiasDate) || // Entrou em 'Acompanhamento 90 Dias'
+      isInFilterRange(c.authorizedDate) // Entrou em 'Autorizado'
+    ).length;
+
+    const totalInterviewsScheduled = candidates.filter(c => isInFilterRange(c.interviewScheduledDate)).length;
+    const totalInterviewsConducted = candidates.filter(c => isInFilterRange(c.interviewConductedDate)).length;
+
+    const attendanceRate = totalInterviewsScheduled > 0 ? (totalInterviewsConducted / totalInterviewsScheduled) * 100 : 0;
     const hiringRate = total > 0 ? (totalHired / total) * 100 : 0;
 
     const originCounts: Record<string, number> = {};
     hiringOrigins.forEach(origin => { originCounts[origin] = 0; });
     originCounts['Não Informado'] = 0;
 
-    filtered.forEach(c => {
+    candidates.filter(c => isInFilterRange(c.createdAt)).forEach(c => { // Conta a origem apenas para candidatos criados no período
       const origin = c.origin || 'Não Informado';
       originCounts[origin] = (originCounts[origin] || 0) + 1;
     });

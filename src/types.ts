@@ -65,6 +65,19 @@ export interface Candidate {
   lastUpdatedAt?: string;
   responsibleUserId?: string;
   notes?: string; // NOVO: Campo para observações rápidas
+  
+  // NOVOS CAMPOS PARA RASTREAR HISTÓRICO DE STATUS
+  contactedDate?: string; // Data em que o screeningStatus se tornou 'Contacted'
+  interviewScheduledDate?: string; // Data em que a entrevista foi agendada (interviewDate)
+  interviewConductedDate?: string; // Data em que a entrevista foi realizada (interviewConducted = true)
+  awaitingPreviewDate?: string; // Data em que o status se tornou 'Aguardando Prévia'
+  onboardingOnlineDate?: string; // Data em que o status se tornou 'Onboarding Online'
+  integrationPresencialDate?: string; // Data em que o status se tornou 'Integração Presencial'
+  acompanhamento90DiasDate?: string; // Data em que o status se tornou 'Acompanhamento 90 Dias'
+  authorizedDate?: string; // Data em que o status se tornou 'Autorizado'
+  reprovadoDate?: string; // Data em que o status se tornou 'Reprovado' (Desistência)
+  disqualifiedDate?: string; // Data em que o status se tornou 'Desqualificado'
+  faltouDate?: string; // Data em que o status se tornou 'Faltou'
 }
 
 export interface ChecklistResource {

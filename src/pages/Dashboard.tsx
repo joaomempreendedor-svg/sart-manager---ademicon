@@ -77,7 +77,9 @@ export const Dashboard = () => {
     const leadsSold = leadsForGestor.filter(lead => {
       if (lead.sold_credit_value && lead.sold_credit_value > 0 && lead.sale_date) { // Usando snake_case
         const saleDate = new Date(lead.sale_date + 'T00:00:00'); // Usando snake_case
-        return saleDate >= currentMonthStart && saleDate <= currentMonthEnd;
+        if (saleDate >= currentMonthStart && saleDate <= currentMonthEnd) {
+          return sum + (lead.sold_credit_value || 0); // Usando snake_case
+        }
       }
       return false;
     });
@@ -95,15 +97,22 @@ export const Dashboard = () => {
   const hiringMetrics = useMemo(() => {
     const today = new Date();
     const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    const currentMonthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
 
-    const filtered = candidates.filter(c => new Date(c.createdAt) >= currentMonthStart);
+    const isInFilterRange = (dateString?: string) => {
+      if (!dateString) return false;
+      const date = new Date(dateString);
+      return date >= currentMonthStart && date <= currentMonthEnd;
+    };
+
+    const filtered = candidates.filter(c => isInFilterRange(c.createdAt));
 
     return {
       total: filtered.length,
-      scheduled: filtered.filter(c => c.status === 'Entrevista' && !c.interviewConducted).length,
-      conducted: filtered.filter(c => c.status === 'Entrevista' && c.interviewConducted).length,
-      hired: filtered.filter(c => c.status === 'Autorizado').length,
-      awaitingPreview: filtered.filter(c => c.status === 'Aguardando Prévia').length
+      scheduled: candidates.filter(c => isInFilterRange(c.interviewScheduledDate) && !c.interviewConducted).length,
+      conducted: candidates.filter(c => isInFilterRange(c.interviewConductedDate)).length,
+      hired: candidates.filter(c => isInFilterRange(c.authorizedDate)).length,
+      awaitingPreview: candidates.filter(c => isInFilterRange(c.awaitingPreviewDate)).length
     };
   }, [candidates]);
 

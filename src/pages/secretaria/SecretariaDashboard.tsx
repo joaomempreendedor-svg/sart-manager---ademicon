@@ -80,7 +80,7 @@ export const SecretariaDashboard = () => {
         await toggleGestorTaskCompletion(item.id, true, todayStr);
         toast.success("Tarefa pessoal concluída!");
       } else if (item.type === 'interview') {
-        await updateCandidate(item.personId, { interviewConducted: true });
+        await updateCandidate(item.personId, { interviewConducted: true, interviewConductedDate: new Date().toISOString() }); // Atualiza a data
         toast.success("Entrevista marcada como realizada!");
       }
     } catch (error) {
@@ -100,7 +100,7 @@ export const SecretariaDashboard = () => {
         await deleteGestorTask(item.id);
         toast.success("Tarefa excluída.");
       } else if (item.type === 'interview') {
-        await updateCandidate(item.personId, { interviewDate: '' });
+        await updateCandidate(item.personId, { interviewDate: '', interviewScheduledDate: undefined, interviewConducted: false, interviewConductedDate: undefined }); // Limpa todas as datas relacionadas
         toast.success("Data da entrevista removida.");
       }
     } catch (error) {
@@ -196,29 +196,80 @@ export const SecretariaDashboard = () => {
     const start = new Date(startDate + 'T00:00:00');
     const end = new Date(endDate + 'T23:59:59');
 
-    const filtered = candidates.filter(c => {
-      const created = new Date(c.createdAt);
-      return created >= start && created <= end;
-    });
+    const isInFilterRange = (dateString?: string) => {
+      if (!dateString) return false;
+      const date = new Date(dateString);
+      return date >= start && date <= end;
+    };
 
-    const total = filtered.length;
-    const totalHired = filtered.filter(c => !['Triagem', 'Entrevista', 'Faltou', 'Reprovado', 'Desqualificado'].includes(c.status)).length;
-    const totalInterviews = filtered.filter(c => c.status === 'Entrevista').length;
-    const conducted = filtered.filter(c => c.status === 'Entrevista' && c.interviewConducted).length;
+    const total = candidates.filter(c => isInFilterRange(c.createdAt)).length;
+    
+    const newCandidates = candidates.filter(c => 
+      isInFilterRange(c.createdAt) && 
+      (c.status === 'Triagem' && (c.screeningStatus === 'Pending Contact' || !c.screeningStatus))
+    ).length;
+
+    const contacted = candidates.filter(c => 
+      isInFilterRange(c.contactedDate) // Usa contactedDate
+    ).length;
+
+    const scheduled = candidates.filter(c => 
+      isInFilterRange(c.interviewScheduledDate) && // Usa interviewScheduledDate
+      !c.interviewConducted // Ainda não foi conduzida
+    ).length;
+
+    const conducted = candidates.filter(c => 
+      isInFilterRange(c.interviewConductedDate) // Usa interviewConductedDate
+    ).length;
+
+    const awaitingPreview = candidates.filter(c => 
+      isInFilterRange(c.awaitingPreviewDate) // Usa awaitingPreviewDate
+    ).length;
+
+    const hired = candidates.filter(c => 
+      isInFilterRange(c.authorizedDate) // Usa authorizedDate
+    ).length;
+
+    const noShow = candidates.filter(c => 
+      isInFilterRange(c.faltouDate) // Usa faltouDate
+    ).length;
+
+    const withdrawn = candidates.filter(c => 
+      isInFilterRange(c.reprovadoDate) // Usa reprovadoDate
+    ).length;
+
+    const disqualified = candidates.filter(c => 
+      isInFilterRange(c.disqualifiedDate) // Usa disqualifiedDate
+    ).length;
+
+    // NOVA LÓGICA: Total de Contratados (que passaram da triagem)
+    const totalHired = candidates.filter(c => 
+      isInFilterRange(c.awaitingPreviewDate) || // Entrou em 'Aguardando Prévia'
+      isInFilterRange(c.onboardingOnlineDate) || // Entrou em 'Onboarding Online'
+      isInFilterRange(c.integrationPresencialDate) || // Entrou em 'Integração Presencial'
+      isInFilterRange(c.acompanhamento90DiasDate) || // Entrou em 'Acompanhamento 90 Dias'
+      isInFilterRange(c.authorizedDate) // Entrou em 'Autorizado'
+    ).length;
+
+    const totalInterviewsScheduled = candidates.filter(c => isInFilterRange(c.interviewScheduledDate)).length;
+    const totalInterviewsConducted = candidates.filter(c => isInFilterRange(c.interviewConductedDate)).length;
+
+    const attendanceRate = totalInterviewsScheduled > 0 ? (totalInterviewsConducted / totalInterviewsScheduled) * 100 : 0;
+    const hiringRate = total > 0 ? (totalHired / total) * 100 : 0;
 
     return {
       total,
-      newCandidates: filtered.filter(c => c.status === 'Triagem' && (c.screeningStatus === 'Pending Contact' || !c.screeningStatus)).length,
-      contacted: filtered.filter(c => c.status === 'Triagem' && c.screeningStatus === 'Contacted').length,
-      scheduled: filtered.filter(c => c.status === 'Entrevista' && !c.interviewConducted).length,
+      newCandidates,
+      contacted,
+      scheduled,
       conducted,
-      awaitingPreview: filtered.filter(c => c.status === 'Aguardando Prévia').length,
-      hired: filtered.filter(c => c.status === 'Autorizado').length,
-      noShow: filtered.filter(c => c.status === 'Faltou').length,
-      withdrawn: filtered.filter(c => c.status === 'Reprovado').length,
-      disqualified: filtered.filter(c => c.status === 'Desqualificado').length,
-      attendanceRate: totalInterviews > 0 ? (conducted / totalInterviews) * 100 : 0,
-      hiringRate: total > 0 ? (totalHired / total) * 100 : 0,
+      awaitingPreview,
+      hired,
+      noShow,
+      withdrawn,
+      disqualified,
+      attendanceRate,
+      hiringRate,
       totalHired
     };
   }, [candidates, startDate, endDate]);
