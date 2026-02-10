@@ -444,10 +444,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (error) throw error;
   }, [candidates, setCandidates]);
 
-  const deleteCandidate = useCallback(async (id: string) => {
-    const { error } = await supabase.from('candidates').delete().eq('id', id);
+  const deleteCandidate = useCallback(async (dbId: string) => { // Agora espera o dbId
+    const { error } = await supabase.from('candidates').delete().eq('id', dbId);
     if (error) throw error;
-    setCandidates(prev => prev.filter(c => c.id !== id));
+    setCandidates(prev => prev.filter(c => c.db_id !== dbId)); // Filtra pelo db_id
   }, [setCandidates]);
 
   const addCrmLead = useCallback(async (lead: Omit<CrmLead, 'id' | 'created_at' | 'updated_at' | 'user_id' | 'created_by' | 'updated_by'>) => {
@@ -760,7 +760,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const updateWeeklyTargetItemOrder = useCallback(async (orderedItems: WeeklyTargetItem[]) => {
     const updates = orderedItems.map((item, index) => supabase.from('weekly_target_items').update({ order_index: index }).eq('id', item.id));
     await Promise.all(updates);
-    const { data } = await supabase.from('weekly_target_items').select('*'); setWeeklyTargetItems(data || []);
+    const { data } = await supabase.from('weekly_target_items').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID).order('order_index');
+    setWeeklyTargetItems(data || []);
   }, [setWeeklyTargetItems]);
 
   const assignWeeklyTargetToConsultant = useCallback(async (weekly_target_id: string, consultant_id: string) => { 

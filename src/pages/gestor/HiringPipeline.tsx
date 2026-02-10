@@ -222,12 +222,12 @@ const HiringPipeline = () => {
     debouncedUpdateCandidateNotes(candidateId, newNotes);
   };
 
-  const handleDeleteCandidatePermanently = async (e: React.MouseEvent, candidateId: string, candidateName: string) => {
+  const handleDeleteCandidatePermanently = async (e: React.MouseEvent, candidateDbId: string, candidateName: string) => {
     e.preventDefault();
     e.stopPropagation();
     if (window.confirm(`Tem certeza que deseja EXCLUIR PERMANENTEMENTE o candidato "${candidateName}"? Esta ação não pode ser desfeita.`)) {
       try {
-        await deleteCandidate(candidateId);
+        await deleteCandidate(candidateDbId); // Passa o db_id
         toast.success(`Candidato "${candidateName}" excluído permanentemente!`);
       } catch (error: any) {
         toast.error(`Erro ao excluir candidato: ${error.message}`);
@@ -305,7 +305,7 @@ const HiringPipeline = () => {
                         {highlightText(candidate.name, searchTerm)}
                       </p>
                       <button 
-                        onClick={(e) => handleDeleteCandidatePermanently(e, candidate.id, candidate.name)}
+                        onClick={(e) => handleDeleteCandidatePermanently(e, candidate.db_id || candidate.id, candidate.name)}
                         className="p-1 text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
                         title="Excluir Candidato Permanentemente"
                       >
