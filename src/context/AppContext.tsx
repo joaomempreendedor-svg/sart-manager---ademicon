@@ -574,7 +574,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (audioFile || imageFile) {
       const uploadFile = async (file: File, prefix: string) => {
         const sanitized = sanitizeFilename(file.name);
-        const path = `checklist_resources/${prefix}-${Date.now()}-${sanitized}`;
+        const path = `checklist_resources/${Date.now()}-${sanitized}`;
         const { error: uploadError } = await supabase.storage.from('form_uploads').upload(path, file);
         if (uploadError) throw uploadError;
         return supabase.storage.from('form_uploads').getPublicUrl(path).data.publicUrl;
@@ -596,7 +596,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (audioFile || imageFile) {
       const uploadFile = async (file: File, prefix: string) => {
         const sanitized = sanitizeFilename(file.name);
-        const path = `checklist_resources/${prefix}-${Date.now()}-${sanitized}`;
+        const path = `checklist_resources/${Date.now()}-${sanitized}`;
         const { error: uploadError } = await supabase.storage.from('form_uploads').upload(path, file);
         if (uploadError) throw uploadError;
         return supabase.storage.from('form_uploads').getPublicUrl(path).data.publicUrl;
