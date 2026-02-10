@@ -40,7 +40,7 @@ export const Dashboard = () => {
   const [isLeadsDetailModalOpen, setIsLeadsDetailModalOpen] = useState(false);
   const [leadsModalTitle, setLeadsModalTitle] = useState('');
   const [leadsForModal, setLeadsForModal] = useState<CrmLead[]>([]);
-  const [leadsMetricType, setLeadsMetricType] = useState<'proposal' | 'sold'>('proposal');
+  const [leadsMetricType, setLeadsMetricType] = useState<'proposal' | 'sold' | 'meeting'>('proposal'); // Adicionado 'meeting'
 
   const handleOpenNotifications = () => setIsNotificationCenterOpen(true);
   const handleCloseNotifications = () => setIsNotificationCenterOpen(false);
@@ -58,12 +58,17 @@ export const Dashboard = () => {
     const totalLeads = leadsForGestor.length;
     const newLeads = leadsForGestor.filter(lead => new Date(lead.created_at) >= currentMonthStart).length;
 
-    const meetings = leadTasks.filter(task => {
+    const meetingsTasks = leadTasks.filter(task => {
       const lead = crmLeads.find(l => l.id === task.lead_id && l.user_id === user.id);
       if (!lead || task.type !== 'meeting') return false;
       const taskDate = new Date(task.due_date || task.meeting_start_time || '');
       return taskDate >= currentMonthStart && taskDate <= currentMonthEnd;
-    }).length;
+    });
+    const meetingsCount = meetingsTasks.length;
+
+    const leadsWithMeetings = crmLeads.filter(lead => 
+      meetingsTasks.some(task => task.lead_id === lead.id)
+    );
 
     const leadsWithProposal = leadsForGestor.filter(lead => {
       if (lead.proposal_value && lead.proposal_value > 0 && lead.proposal_closing_date) { // Usando snake_case
@@ -88,7 +93,7 @@ export const Dashboard = () => {
       return lead && !task.is_completed && task.due_date && new Date(task.due_date + 'T00:00:00') <= new Date(today.toISOString().split('T')[0] + 'T00:00:00');
     });
 
-    return { totalLeads, newLeads, meetings, proposalValue, soldValue, pendingTasks, leadsWithProposal, leadsSold };
+    return { totalLeads, newLeads, meetingsCount, proposalValue, soldValue, pendingTasks, leadsWithProposal, leadsSold, leadsWithMeetings };
   }, [crmLeads, leadTasks, user]);
 
   // --- Métricas de Contratação (Mês Atual) ---
@@ -210,7 +215,7 @@ export const Dashboard = () => {
     else if (item.personType === 'lead') navigate(`/gestor/crm`, { state: { highlightLeadId: item.personId } });
   };
 
-  const handleOpenLeadsDetailModal = (title: string, leads: CrmLead[], metricType: 'proposal' | 'sold') => {
+  const handleOpenLeadsDetailModal = (title: string, leads: CrmLead[], metricType: 'proposal' | 'sold' | 'meeting') => {
     setLeadsModalTitle(title);
     setLeadsForModal(leads);
     setLeadsMetricType(metricType);
@@ -246,9 +251,9 @@ export const Dashboard = () => {
             <div className="p-2 bg-green-50 dark:bg-green-900/20 rounded-lg"><Plus className="w-5 h-5 text-green-600" /></div>
             <div><p className="text-[10px] text-gray-500 uppercase font-bold">Novos Leads</p><p className="text-lg font-bold">{commercialMetrics?.newLeads}</p></div>
           </div>
-          <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-3">
+          <button onClick={() => handleOpenLeadsDetailModal('Reuniões do Mês', commercialMetrics?.leadsWithMeetings || [], 'meeting')} className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-3 hover:bg-gray-50 transition text-left">
             <div className="p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg"><Calendar className="w-5 h-5 text-yellow-600" /></div>
-            <div><p className="text-[10px] text-gray-500 uppercase font-bold">Reuniões</p><p className="text-lg font-bold">{commercialMetrics?.meetings}</p></div>
+            <div><p className="text-[10px] text-gray-500 uppercase font-bold">Reuniões</p><p className="text-lg font-bold">{commercialMetrics?.meetingsCount}</p></div>
           </button>
           <button onClick={() => handleOpenLeadsDetailModal('Propostas do Mês', commercialMetrics?.leadsWithProposal || [], 'proposal')} className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-3 hover:bg-gray-50 transition text-left">
             <div className="p-2 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg"><Send className="w-5 h-5 text-indigo-600" /></div>

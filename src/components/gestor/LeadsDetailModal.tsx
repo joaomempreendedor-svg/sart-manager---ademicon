@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, DollarSign, Calendar, Users, Tag, ChevronRight, Send } from 'lucide-react';
+import { X, DollarSign, Calendar, Users, Tag, ChevronRight, Send, Clock } from 'lucide-react'; // Adicionado Clock
 import { CrmLead, CrmStage, TeamMember } from '@/types';
 import {
   Dialog,
@@ -23,7 +23,7 @@ interface LeadsDetailModalProps {
   leads: CrmLead[];
   crmStages: CrmStage[];
   teamMembers: TeamMember[];
-  metricType: 'proposal' | 'sold'; // Para diferenciar o ícone e o valor exibido
+  metricType: 'proposal' | 'sold' | 'meeting'; // Adicionado 'meeting'
 }
 
 const formatCurrency = (value: number) => {
@@ -74,8 +74,10 @@ export const LeadsDetailModal: React.FC<LeadsDetailModalProps> = ({
           <DialogTitle className="flex items-center space-x-2">
             {metricType === 'proposal' ? (
               <Send className="w-6 h-6 text-purple-600 dark:text-purple-400" />
-            ) : (
+            ) : metricType === 'sold' ? (
               <DollarSign className="w-6 h-6 text-green-600 dark:text-green-400" />
+            ) : ( // Novo ícone para 'meeting'
+              <Calendar className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
             )}
             <span>{title} ({leads.length})</span>
           </DialogTitle>
@@ -93,13 +95,13 @@ export const LeadsDetailModal: React.FC<LeadsDetailModalProps> = ({
                 const consultantName = getConsultantName(lead);
                 const stage = crmStages.find(s => s.id === lead.stage_id);
                 const displayValue = metricType === 'proposal' 
-                  ? (lead.proposal_value || 0) // Usando snake_case
-                  : (lead.sold_credit_value || lead.proposal_value || 0); // Usando snake_case // Fallback para valor vendido
+                  ? (lead.proposal_value || 0)
+                  : (lead.sold_credit_value || lead.proposal_value || 0);
 
                 return (
                   <div
                     key={lead.id}
-                    className={`flex items-start space-x-3 p-3 rounded-lg border ${metricType === 'proposal' ? 'bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800' : 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'} group flex-col sm:flex-row`}
+                    className={`flex items-start space-x-3 p-3 rounded-lg border ${metricType === 'proposal' ? 'bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800' : metricType === 'sold' ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' : 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800'} group flex-col sm:flex-row`}
                   >
                     <div className="flex-1">
                       <p className="font-medium text-gray-900 dark:text-white">{lead.name}</p>
@@ -112,18 +114,29 @@ export const LeadsDetailModal: React.FC<LeadsDetailModalProps> = ({
                             <Tag className="w-3 h-3 mr-1" /> Etapa: <span className="font-semibold">{stage.name}</span>
                           </span>
                         )}
-                        {metricType === 'proposal' && lead.proposal_closing_date && ( // Usando snake_case
+                        {metricType === 'proposal' && lead.proposal_closing_date && (
                           <span className="flex items-center">
-                            <Calendar className="w-3 h-3 mr-1" /> Fechamento Esperado: <span className="font-semibold">{new Date(lead.proposal_closing_date + 'T00:00:00').toLocaleDateString('pt-BR')}</span> {/* Usando snake_case */}
+                            <Calendar className="w-3 h-3 mr-1" /> Fechamento Esperado: <span className="font-semibold">{new Date(lead.proposal_closing_date + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
                           </span>
                         )}
-                        {metricType === 'sold' && lead.sale_date && ( // Usando snake_case
+                        {metricType === 'sold' && lead.sale_date && (
                           <span className="flex items-center">
-                            <Calendar className="w-3 h-3 mr-1" /> Data da Venda: <span className="font-semibold">{new Date(lead.sale_date + 'T00:00:00').toLocaleDateString('pt-BR')}</span> {/* Usando snake_case */}
+                            <Calendar className="w-3 h-3 mr-1" /> Data da Venda: <span className="font-semibold">{new Date(lead.sale_date + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
                           </span>
                         )}
-                        <span className={`flex items-center font-medium ${metricType === 'proposal' ? 'text-purple-600 dark:text-purple-400' : 'text-green-600 dark:text-green-400'}`}>
-                          <DollarSign className="w-3 h-3 mr-1" /> {metricType === 'proposal' ? 'Valor Proposta' : 'Valor Vendido'}: <span className="font-semibold">{formatCurrency(displayValue)}</span>
+                        {metricType === 'meeting' && (
+                          <span className="flex items-center">
+                            <Clock className="w-3 h-3 mr-1" /> Reunião Agendada
+                          </span>
+                        )}
+                        <span className={`flex items-center font-medium ${metricType === 'proposal' ? 'text-purple-600 dark:text-purple-400' : metricType === 'sold' ? 'text-green-600 dark:text-green-400' : 'text-yellow-600 dark:text-yellow-400'}`}>
+                          {metricType === 'proposal' ? (
+                            <DollarSign className="w-3 h-3 mr-1" /> Valor Proposta: <span className="font-semibold">{formatCurrency(displayValue)}</span>
+                          ) : metricType === 'sold' ? (
+                            <DollarSign className="w-3 h-3 mr-1" /> Valor Vendido: <span className="font-semibold">{formatCurrency(displayValue)}</span>
+                          ) : (
+                            <Users className="w-3 h-3 mr-1" /> Lead com Reunião
+                          )}
                         </span>
                       </div>
                     </div>
