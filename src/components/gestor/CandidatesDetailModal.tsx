@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Users, Calendar, MessageSquare, UserCheck, TrendingUp, Clock, FileText, UserPlus, UserX, UserMinus, Ghost, XCircle, MapPin } from 'lucide-react';
+import { X, Users, Calendar, MessageSquare, UserCheck, TrendingUp, Clock, FileText, UserPlus, UserX, UserMinus, Ghost, XCircle, MapPin, User as UserIcon, ChevronRight, Phone, Mail } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -90,7 +90,7 @@ export const CandidatesDetailModal: React.FC<CandidatesDetailModalProps> = ({
                     <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 space-y-0.5">
                       {candidate.responsibleUserId && (
                         <span className="flex items-center">
-                          <User className="w-3 h-3 mr-1" /> Responsável: <span className="font-semibold">{getResponsibleName(candidate.responsibleUserId)}</span>
+                          <UserIcon className="w-3 h-3 mr-1" /> Responsável: <span className="font-semibold">{getResponsibleName(candidate.responsibleUserId)}</span>
                         </span>
                       )}
                       {candidate.phone && (
