@@ -305,7 +305,7 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
                   value={formData.consultant_id || ''}
                   onValueChange={(val) => handleChange('consultant_id', val)}
                   required
-                  disabled={isNewLead && isConsultorRole} // Desabilita para novos leads se o usuário for CONSULTOR
+                  // Removed the disabled prop to allow selection for all users
                 >
                   <SelectTrigger className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
                     <SelectValue placeholder="Selecione o Consultor" />
