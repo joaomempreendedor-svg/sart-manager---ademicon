@@ -225,7 +225,7 @@ const ConsultorCrmPage = () => {
     }
   };
 
-  const handleSaleSuccess = (leadName: string) => { // NOVO: Handler para o sucesso da venda
+  const handleSaleSuccess = (leadName: string) => { // NOVO: Passar o handler de sucesso
     setCelebratedLeadName(leadName);
     setShowCelebration(true);
   };
@@ -463,7 +463,7 @@ const ConsultorCrmPage = () => {
                             </div>
                           )
                         ) : (
-                          lead.proposal_value !== undefined && lead.proposal_value !== null ? ( // Usando snake_case
+                          lead.proposal_value !== undefined && lead.proposal_value !== null ? (
                             <div className="flex items-center text-purple-600 dark:text-purple-400 font-semibold">
                               <DollarSign className="w-3 h-3 mr-1" /> Proposta: {formatCurrency(lead.proposal_value)} {/* Usando snake_case */}
                               {lead.proposal_closing_date && ( // Usando snake_case

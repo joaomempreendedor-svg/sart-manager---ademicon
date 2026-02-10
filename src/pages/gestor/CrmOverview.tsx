@@ -458,7 +458,7 @@ const CrmOverviewPage = () => {
                           <div className="flex items-center text-green-600 dark:text-green-400 font-semibold">
                             <CheckCircle2 className="w-3 h-3 mr-1" /> Vendido: {formatCurrency(lead.sold_credit_value || 0)} {/* Usando snake_case */}
                           </div>
-                        ) : lead.proposal_value ? ( {/* Usando snake_case */}
+                        ) : lead.proposal_value ? (
                           <div className="flex items-center text-purple-600 dark:text-purple-400 font-semibold">
                             <DollarSign className="w-3 h-3 mr-1" /> Proposta: {formatCurrency(lead.proposal_value)} {/* Usando snake_case */}
                           </div>
