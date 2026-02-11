@@ -8,6 +8,7 @@ import { UserRole } from '@/types';
 import { GestorSidebar } from '@/components/GestorSidebar';
 import { ConsultorLayout } from '@/components/ConsultorLayout';
 import { Header } from '@/components/Header';
+import { GestorLayout } from '@/components/GestorLayout'; // Importar GestorLayout
 
 // Common Pages
 import { Login } from '@/pages/Login';
@@ -82,31 +83,6 @@ const RequireAuth: React.FC<{ allowedRoles: UserRole[] }> = ({ allowedRoles }) =
   return <Outlet />;
 };
 
-const MainLayout = () => {
-  const { user } = useAuth();
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
-  const toggleSidebarCollapse = () => setIsSidebarCollapsed(!isSidebarCollapsed);
-
-  return (
-    <div className="min-h-screen bg-gray-50 dark:bg-slate-900 flex font-sans text-gray-900 dark:text-gray-100 transition-colors duration-200">
-      <GestorSidebar 
-        isSidebarOpen={isSidebarOpen} 
-        toggleSidebar={toggleSidebar} 
-        isSidebarCollapsed={isSidebarCollapsed} 
-        toggleSidebarCollapse={toggleSidebarCollapse} 
-      />
-      <div className={`flex-1 flex flex-col transition-all duration-300 ${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-64'}`}>
-        <Header isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar} user={user} />
-        <main className="flex-1">
-          <Outlet />
-        </main>
-      </div>
-    </div>
-  );
-};
-
 const AppRoutes = () => {
   const { isLoading } = useAuth();
   if (isLoading) return <AppLoader />;
@@ -122,63 +98,65 @@ const AppRoutes = () => {
       
       <Route element={<RequireAuth allowedRoles={['GESTOR', 'ADMIN', 'CONSULTOR', 'SECRETARIA']} />}>
         <Route path="/" element={<Home />} />
+      </Route>
 
-        <Route element={<RequireAuth allowedRoles={['GESTOR', 'ADMIN']} />}>
-          <Route path="/gestor" element={<MainLayout />}>
-            <Route path="dashboard" element={<Dashboard />} />
-            <Route path="candidate/:id" element={<CandidateDetail />} />
-            <Route path="commissions" element={<Commissions />} />
-            <Route path="financial-panel" element={<FinancialPanel />} />
-            <Route path="feedbacks" element={<Feedbacks />} />
-            <Route path="materials" element={<Materials />} />
-            <Route path="onboarding-admin" element={<OnlineOnboarding />} />
-            <Route path="config-team" element={<TeamConfig />} />
-            <Route path="config-templates" element={<TemplateConfig />} />
-            <Route path="config-process" element={<ChecklistConfig />} />
-            <Route path="config-goals" element={<GoalsConfig />} />
-            <Route path="config-interview" element={<InterviewConfig />} />
-            <Route path="config-cutoff" element={<CutoffConfig />} />
-            <Route path="crm-config" element={<CrmConfigPage />} />
-            <Route path="crm" element={<CrmOverviewPage />} />
-            <Route path="daily-checklist-config" element={<DailyChecklistConfig />} />
-            <Route path="daily-checklist-monitoring" element={<DailyChecklistMonitoring />} />
-            <Route path="hiring-dashboard" element={<HiringDashboard />} />
-            <Route path="hiring-pipeline" element={<HiringPipeline />} />
-            <Route path="hiring-origins-report" element={<HiringOriginsReport />} />
-            <Route path="crm-sales-reports" element={<CrmSalesReports />} />
-            <Route path="config-origins" element={<OriginConfig />} />
-            <Route path="form-cadastros" element={<FormCadastros />} />
-            <Route path="team-production-goals" element={<TeamProductionGoals />} />
-            <Route path="my-tasks" element={<GestorTasksPage />} />
-          </Route>
+      {/* Rotas para GESTOR, ADMIN e SECRETARIA que usam o MainLayout */}
+      <Route element={<RequireAuth allowedRoles={['GESTOR', 'ADMIN', 'SECRETARIA']} />}>
+        <Route path="/gestor" element={<GestorLayout />}>
+          <Route path="dashboard" element={<Dashboard />} />
+          <Route path="candidate/:id" element={<CandidateDetail />} /> {/* Agora acessível por Gestor, Admin e Secretaria */}
+          <Route path="commissions" element={<Commissions />} />
+          <Route path="financial-panel" element={<FinancialPanel />} />
+          <Route path="feedbacks" element={<Feedbacks />} />
+          <Route path="materials" element={<Materials />} />
+          <Route path="onboarding-admin" element={<OnlineOnboarding />} />
+          <Route path="config-team" element={<TeamConfig />} />
+          <Route path="config-templates" element={<TemplateConfig />} />
+          <Route path="config-process" element={<ChecklistConfig />} />
+          <Route path="config-goals" element={<GoalsConfig />} />
+          <Route path="config-interview" element={<InterviewConfig />} />
+          <Route path="config-cutoff" element={<CutoffConfig />} />
+          <Route path="crm-config" element={<CrmConfigPage />} />
+          <Route path="crm" element={<CrmOverviewPage />} />
+          <Route path="daily-checklist-config" element={<DailyChecklistConfig />} />
+          <Route path="daily-checklist-monitoring" element={<DailyChecklistMonitoring />} />
+          <Route path="hiring-dashboard" element={<HiringDashboard />} />
+          <Route path="hiring-pipeline" element={<HiringPipeline />} />
+          <Route path="hiring-origins-report" element={<HiringOriginsReport />} />
+          <Route path="crm-sales-reports" element={<CrmSalesReports />} />
+          <Route path="config-origins" element={<OriginConfig />} />
+          <Route path="form-cadastros" element={<FormCadastros />} />
+          <Route path="team-production-goals" element={<TeamProductionGoals />} />
+          <Route path="my-tasks" element={<GestorTasksPage />} />
         </Route>
 
-        <Route element={<RequireAuth allowedRoles={['SECRETARIA']} />}>
-          <Route path="/secretaria" element={<MainLayout />}>
-            <Route path="dashboard" element={<SecretariaDashboard />} />
-            <Route path="hiring-dashboard" element={<HiringDashboard />} />
-            <Route path="hiring-pipeline" element={<HiringPipeline />} />
-            <Route path="hiring-origins-report" element={<HiringOriginsReport />} />
-            <Route path="daily-checklist" element={<SecretariaDailyChecklist />} />
-            <Route path="onboarding-admin" element={<OnlineOnboarding />} />
-            <Route path="form-cadastros" element={<FormCadastros />} />
-            {/* Adicionado para Secretaria */}
-            <Route path="config-origins" element={<OriginConfig />} />
-          </Route>
+        <Route path="/secretaria" element={<GestorLayout />}> {/* Secretaria também usa GestorLayout */}
+          <Route path="dashboard" element={<SecretariaDashboard />} />
+          <Route path="hiring-dashboard" element={<HiringDashboard />} />
+          <Route path="hiring-pipeline" element={<HiringPipeline />} />
+          <Route path="hiring-origins-report" element={<HiringOriginsReport />} />
+          <Route path="daily-checklist" element={<SecretariaDailyChecklist />} />
+          <Route path="onboarding-admin" element={<OnlineOnboarding />} />
+          <Route path="form-cadastros" element={<FormCadastros />} />
+          <Route path="config-origins" element={<OriginConfig />} />
         </Route>
+      </Route>
 
-        <Route element={<RequireAuth allowedRoles={['CONSULTOR']} />}>
-          <Route path="/consultor" element={<ConsultorLayout />}>
-            <Route path="dashboard" element={<ConsultorDashboard />} />
-            <Route path="crm" element={<ConsultorCrmPage />} />
-            <Route path="daily-checklist" element={<DailyChecklist />} />
-            <Route path="materials" element={<Materials />} />
-            <Route path="sales-reports" element={<ConsultorSalesReports />} />
-          </Route>
+      {/* Rotas para CONSULTOR que usam o ConsultorLayout */}
+      <Route element={<RequireAuth allowedRoles={['CONSULTOR']} />}>
+        <Route path="/consultor" element={<ConsultorLayout />}>
+          <Route path="dashboard" element={<ConsultorDashboard />} />
+          <Route path="crm" element={<ConsultorCrmPage />} />
+          <Route path="daily-checklist" element={<DailyChecklist />} />
+          <Route path="materials" element={<Materials />} />
+          <Route path="sales-reports" element={<ConsultorSalesReports />} />
         </Route>
-        
-        <Route element={<ConsultorLayout />}>
-            <Route path="/profile" element={<Profile />} />
+      </Route>
+      
+      {/* Página de Perfil, acessível por todos os usuários autenticados, usando ConsultorLayout */}
+      <Route element={<RequireAuth allowedRoles={['GESTOR', 'ADMIN', 'CONSULTOR', 'SECRETARIA']} />}>
+        <Route path="/profile" element={<ConsultorLayout />}>
+          <Route index element={<Profile />} />
         </Route>
       </Route>
     </Routes>
