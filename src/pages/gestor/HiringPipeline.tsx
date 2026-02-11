@@ -235,6 +235,11 @@ const HiringPipeline = () => {
     }
   };
 
+  // Memoize the responsibleMembers list for the modal
+  const responsibleMembersForModal = useMemo(() => {
+    return teamMembers.filter(m => m.isActive && (m.roles.includes('Gestor') || m.roles.includes('Anjo')));
+  }, [teamMembers]);
+
   if (isAuthLoading || isDataLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="w-12 h-12 text-brand-500 animate-spin" /></div>;
 
   return (
@@ -483,6 +488,7 @@ const HiringPipeline = () => {
         isOpen={isAddModalOpen} 
         onClose={() => setIsAddModalOpen(false)} 
         origins={hiringOrigins} // Passando as origens de contratação
+        responsibleMembers={responsibleMembersForModal} // Passando a lista de responsáveis
       />
       <UpdateInterviewDateModal
         isOpen={isUpdateDateModalOpen}
