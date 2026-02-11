@@ -1291,18 +1291,57 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setPvs(newPvs);
       updateConfig({ pvs: newPvs });
     },
-    addCommission: async (commission) => { const { error } = await supabase.from('commissions').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: commission }); if (error) throw error; refetchCommissions(); return { success: true }; },
-    updateCommission: async (id, updates) => { const { error } = await supabase.from('commissions').update({ data: updates }).eq('id', id); if (error) throw error; refetchCommissions(); },
-    deleteCommission: async (id) => { const { error } = await supabase.from('commissions').delete().eq('id', id); if (error) throw error; refetchCommissions(); },
-    updateInstallmentStatus: async (commissionId, installmentNumber, newStatus, paidDate, saleType) => {
-      const commission = commissions.find(c => c.id === commissionId);
-      if (!commission) return;
-      const updatedDetails = { ...commission.installmentDetails, [installmentNumber]: { status: newStatus, paidDate, competenceMonth: paidDate ? calculateCompetenceMonth(paidDate) : undefined } };
-      // Chame a função updateCommission do próprio contexto
-      await value.updateCommission(commissionId, { installmentDetails: updatedDetails, status: getOverallStatus(updatedDetails) });
+    addCommission: async (commission) => { 
+      console.log("[addCommission] Attempting to insert new commission:", commission);
+      const { error } = await supabase.from('commissions').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: commission }).select().single(); 
+      if (error) {
+        console.error("[addCommission] Error inserting commission:", error);
+        throw error;
+      }
+      console.log("[addCommission] Commission inserted successfully. Refetching all commissions.");
+      refetchCommissions(); 
+      return { success: true }; 
     },
-    addCutoffPeriod: async (period) => { const { error } = await supabase.from('cutoff_periods').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: period }); if (error) throw error; const { data } = await supabase.from('cutoff_periods').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID); setCutoffPeriods(data?.map(item => ({ ...(item.data as CutoffPeriod), db_id: item.id })) || []); },
-    updateCutoffPeriod: async (id, updates) => { const { error } = await supabase.from('cutoff_periods').update({ data: updates }).eq('id', id); if (error) throw error; const { data } = await supabase.from('cutoff_periods').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID); setCutoffPeriods(data?.map(item => ({ ...(item.data as CutoffPeriod), db_id: item.id })) || []); },
+    updateCommission: async (id, updates) => { 
+      console.log(`[updateCommission] Attempting to update commission ID: ${id} with updates:`, updates);
+      const { error } = await supabase.from('commissions').update({ data: updates }).eq('id', id); 
+      if (error) {
+        console.error(`[updateCommission] Error updating commission ID: ${id}:`, error);
+        throw error;
+      }
+      console.log(`[updateCommission] Commission ID: ${id} updated successfully. Refetching all commissions.`);
+      refetchCommissions(); 
+    },
+    deleteCommission: async (id) => { 
+      console.log(`[deleteCommission] Attempting to delete commission ID: ${id}`);
+      const { error } = await supabase.from('commissions').delete().eq('id', id); 
+      if (error) {
+        console.error(`[deleteCommission] Error deleting commission ID: ${id}:`, error);
+        throw error;
+      }
+      console.log(`[deleteCommission] Commission ID: ${id} deleted successfully. Refetching all commissions.`);
+      refetchCommissions(); 
+    },
+    updateInstallmentStatus: async (commissionId, installmentNumber, newStatus, paidDate, saleType) => {
+      console.log(`[updateInstallmentStatus] Called for commissionId: ${commissionId}, installmentNumber: ${installmentNumber}, newStatus: ${newStatus}, paidDate: ${paidDate}`);
+      const commission = commissions.find(c => c.id === commissionId);
+      if (!commission) {
+        console.error(`[updateInstallmentStatus] Commission with ID ${commissionId} not found.`);
+        return;
+      }
+      const updatedDetails = { ...commission.installmentDetails, [installmentNumber]: { status: newStatus, paidDate, competenceMonth: paidDate ? calculateCompetenceMonth(paidDate) : undefined } };
+      
+      // Chame a função updateCommission do próprio contexto
+      try {
+        await value.updateCommission(commissionId, { installmentDetails: updatedDetails, status: getOverallStatus(updatedDetails) });
+        console.log(`[updateInstallmentStatus] Successfully updated installment ${installmentNumber} for commission ${commissionId}.`);
+      } catch (error) {
+        console.error(`[updateInstallmentStatus] Error calling value.updateCommission for ${commissionId}:`, error);
+        throw error; // Re-throw the error so the UI can handle it
+      }
+    },
+    addCutoffPeriod: async (period) => { const { error } = await supabase.from('cutoff_periods').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: period }).select().single(); if (error) throw error; const { data } = await supabase.from('cutoff_periods').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID); setCutoffPeriods(data?.map(item => ({ ...(item.data as CutoffPeriod), db_id: item.id })) || []); },
+    updateCutoffPeriod: async (id, updates) => { const { error } = await supabase.from('cutoff_periods').update({ data: updates }).eq('id', id).select().single(); if (error) throw error; const { data } = await supabase.from('cutoff_periods').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID); setCutoffPeriods(data?.map(item => ({ ...(item.data as CutoffPeriod), db_id: item.id })) || []); },
     deleteCutoffPeriod: async (id) => { const { error } = await supabase.from('cutoff_periods').delete().eq('id', id); if (error) throw error; setCutoffPeriods(prev => prev.filter(p => p.db_id !== id)); },
     addOnlineOnboardingSession: async (consultantName) => {
       const { data: sessionData, error: sessionError } = await supabase.from('onboarding_sessions').insert({ user_id: JOAO_GESTOR_AUTH_ID, consultant_name: consultantName }).select().single();
