@@ -1067,48 +1067,51 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setFinancialEntries(prev => prev.filter(e => e.id !== id)); 
   }, [setFinancialEntries]);
 
+  // Moved toggleChecklistItem outside of useMemo
+  const toggleChecklistItem = useCallback(async (candidateId: string, itemId: string) => {
+    const candidate = candidates.find(c => c.id === candidateId);
+    if (!candidate) {
+      console.error(`[toggleChecklistItem] Candidate with ID ${candidateId} not found.`);
+      return;
+    }
+    
+    const currentProgress = candidate.checklistProgress || {};
+    const currentState = currentProgress[itemId] || { completed: false };
+    const newProgress = { ...currentProgress, [itemId]: { ...currentState, completed: !currentState.completed } };
+    
+    // Atualiza o estado local imediatamente para feedback visual
+    setCandidates(prev => prev.map(c => (c.id === candidateId || c.db_id === candidateId) ? { ...c, checklistProgress: newProgress } : c));
+
+    // Persiste a mudança no banco de dados
+    try {
+      const dbId = candidate.db_id || candidate.id; // Usa db_id se disponível, senão o id
+      const { error } = await supabase
+        .from('candidates')
+        .update({ data: { ...candidate, checklistProgress: newProgress } }) // Envia o objeto 'data' completo com o checklistProgress atualizado
+        .eq('id', dbId); // Usa o dbId para a atualização
+
+      if (error) {
+        console.error(`[toggleChecklistItem] Error updating candidate ${candidateId} checklistProgress in DB:`, error);
+        toast.error(`Erro ao atualizar checklist: ${error.message}`);
+        // Reverte o estado local em caso de erro no DB
+        setCandidates(prev => prev.map(c => (c.id === candidateId || c.db_id === candidateId) ? { ...c, checklistProgress: currentProgress } : c));
+      } else {
+        console.log(`[toggleChecklistItem] Checklist item ${itemId} for candidate ${candidateId} updated successfully in DB.`);
+      }
+    } catch (error: any) {
+      console.error(`[toggleChecklistItem] Unexpected error updating candidate ${candidateId} checklistProgress:`, error);
+      toast.error(`Erro inesperado ao atualizar checklist: ${error.message}`);
+      // Reverte o estado local em caso de erro inesperado
+      setCandidates(prev => prev.map(c => (c.id === candidateId || c.db_id === candidateId) ? { ...c, checklistProgress: currentProgress } : c));
+    }
+  }, [candidates, setCandidates, updateCandidate]);
+
   const value: AppContextType = useMemo(() => ({
     isDataLoading, candidates, teamMembers, commissions, supportMaterials, cutoffPeriods, onboardingSessions, onboardingTemplateVideos, checklistStructure, setChecklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs, crmPipelines, crmStages, crmFields, crmLeads, crmOwnerUserId, dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions, weeklyTargets, weeklyTargetItems, weeklyTargetAssignments, metricLogs, supportMaterialsV2, supportMaterialAssignments, leadTasks, gestorTasks, gestorTaskCompletions, financialEntries, formCadastros, formFiles, notifications, teamProductionGoals, theme,
     toggleTheme, updateConfig, resetLocalState, refetchCommissions, calculateCompetenceMonth, isGestorTaskDueOnDate, calculateNotifications,
     addCandidate, updateCandidate, deleteCandidate, getCandidate: (id: string) => candidates.find(c => c.id === id), 
     setCandidates,
-    toggleChecklistItem: useCallback(async (candidateId, itemId) => {
-      const candidate = candidates.find(c => c.id === candidateId);
-      if (!candidate) {
-        console.error(`[toggleChecklistItem] Candidate with ID ${candidateId} not found.`);
-        return;
-      }
-      
-      const currentProgress = candidate.checklistProgress || {};
-      const currentState = currentProgress[itemId] || { completed: false };
-      const newProgress = { ...currentProgress, [itemId]: { ...currentState, completed: !currentState.completed } };
-      
-      // Atualiza o estado local imediatamente para feedback visual
-      setCandidates(prev => prev.map(c => (c.id === candidateId || c.db_id === candidateId) ? { ...c, checklistProgress: newProgress } : c));
-
-      // Persiste a mudança no banco de dados
-      try {
-        const dbId = candidate.db_id || candidate.id; // Usa db_id se disponível, senão o id
-        const { error } = await supabase
-          .from('candidates')
-          .update({ data: { ...candidate, checklistProgress: newProgress } }) // Envia o objeto 'data' completo com o checklistProgress atualizado
-          .eq('id', dbId); // Usa o dbId para a atualização
-
-        if (error) {
-          console.error(`[toggleChecklistItem] Error updating candidate ${candidateId} checklistProgress in DB:`, error);
-          toast.error(`Erro ao atualizar checklist: ${error.message}`);
-          // Reverte o estado local em caso de erro no DB
-          setCandidates(prev => prev.map(c => (c.id === candidateId || c.db_id === candidateId) ? { ...c, checklistProgress: currentProgress } : c));
-        } else {
-          console.log(`[toggleChecklistItem] Checklist item ${itemId} for candidate ${candidateId} updated successfully in DB.`);
-        }
-      } catch (error: any) {
-        console.error(`[toggleChecklistItem] Unexpected error updating candidate ${candidateId} checklistProgress:`, error);
-        toast.error(`Erro inesperado ao atualizar checklist: ${error.message}`);
-        // Reverte o estado local em caso de erro inesperado
-        setCandidates(prev => prev.map(c => (c.id === candidateId || c.db_id === candidateId) ? { ...c, checklistProgress: currentProgress } : c));
-      }
-    }, [candidates, setCandidates, updateCandidate]), // Adicionado updateCandidate como dependência
+    toggleChecklistItem, // Now directly referenced
     setChecklistDueDate: async (candidateId, itemId, dueDate) => {
       const candidate = candidates.find(c => c.id === candidateId);
       if (!candidate) return;
@@ -1496,6 +1499,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addTeamMember, updateTeamMember, deleteTeamMember,
     addTeamProductionGoal, updateTeamProductionGoal, deleteTeamProductionGoal,
     user,
+    toggleChecklistItem, // Now included in the dependency array
   ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
