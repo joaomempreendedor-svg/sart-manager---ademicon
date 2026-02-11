@@ -1102,7 +1102,7 @@ export const Commissions = () => {
                                                         <Edit2 className="w-4 h-4" />
                                                     </button>
                                                     <button 
-                                                        onClick={() => handleDeleteCommission(c.id)} 
+                                                        onClick={() => handleDeleteCommission(c.db_id!)} // Corrigido aqui: usando c.db_id!
                                                         className="p-2 rounded-md hover:bg-red-100 dark:hover:bg-red-900/20 text-gray-400 hover:text-red-500"
                                                         title="Excluir Venda"
                                                     >
