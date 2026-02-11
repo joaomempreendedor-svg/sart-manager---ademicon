@@ -482,6 +482,7 @@ const HiringPipeline = () => {
       <AddScreeningCandidateModal 
         isOpen={isAddModalOpen} 
         onClose={() => setIsAddModalOpen(false)} 
+        origins={hiringOrigins} // Passando as origens de contratação
       />
       <UpdateInterviewDateModal
         isOpen={isUpdateDateModalOpen}
