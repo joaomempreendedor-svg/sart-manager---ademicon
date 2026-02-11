@@ -1072,7 +1072,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     toggleTheme, updateConfig, resetLocalState, refetchCommissions, calculateCompetenceMonth, isGestorTaskDueOnDate, calculateNotifications,
     addCandidate, updateCandidate, deleteCandidate, getCandidate: (id: string) => candidates.find(c => c.id === id), 
     setCandidates,
-    toggleChecklistItem: async (candidateId, itemId) => {
+    toggleChecklistItem: useCallback(async (candidateId, itemId) => {
       const candidate = candidates.find(c => c.id === candidateId);
       if (!candidate) {
         console.error(`[toggleChecklistItem] Candidate with ID ${candidateId} not found.`);
