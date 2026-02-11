@@ -285,38 +285,39 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, []);
 
-  // Removido o useEffect com a realtime subscription
-  // useEffect(() => {
-  //   let subscription: any = null;
-  //   const effectiveGestorId = JOAO_GESTOR_AUTH_ID;
+  // Re-implementing the Realtime subscription
+  useEffect(() => {
+    let subscription: any = null;
+    const effectiveGestorId = JOAO_GESTOR_AUTH_ID;
 
-  //   const setupRealtimeSubscription = () => {
-  //     subscription = supabase
-  //       .channel('app_config_changes')
-  //       .on('postgres_changes', { 
-  //         event: '*', 
-  //         schema: 'public', 
-  //         table: 'app_config', 
-  //         filter: `user_id=eq.${effectiveGestorId}` 
-  //       }, (payload) => {
-  //         console.log('Realtime change received!', payload);
-  //         // Re-fetch only the app_config data on change
-  //         fetchAppConfig(effectiveGestorId);
-  //       })
-  //       .subscribe();
-  //   };
+    const setupRealtimeSubscription = () => {
+      console.log(`[AppContext] Setting up Realtime subscription for app_config (user_id: ${effectiveGestorId}).`);
+      subscription = supabase
+        .channel('app_config_changes')
+        .on('postgres_changes', { 
+          event: '*', 
+          schema: 'public', 
+          table: 'app_config', 
+          filter: `user_id=eq.${effectiveGestorId}` 
+        }, (payload) => {
+          console.log('[AppContext] Realtime change received for app_config!', payload);
+          // Re-fetch only the app_config data on change
+          fetchAppConfig(effectiveGestorId);
+        })
+        .subscribe();
+    };
 
-  //   if (user && user.id) {
-  //     setupRealtimeSubscription();
-  //   }
+    if (user && user.id) {
+      setupRealtimeSubscription();
+    }
 
-  //   return () => {
-  //     if (subscription) {
-  //       supabase.removeChannel(subscription);
-  //     }
-  //   };
-  // }, [user, fetchAppConfig]);
-
+    return () => {
+      if (subscription) {
+        console.log('[AppContext] Unsubscribing from app_config Realtime channel.');
+        supabase.removeChannel(subscription);
+      }
+    };
+  }, [user, fetchAppConfig]); // Depend on user and fetchAppConfig
 
   useEffect(() => {
     const fetchData = async (userId: string) => {
