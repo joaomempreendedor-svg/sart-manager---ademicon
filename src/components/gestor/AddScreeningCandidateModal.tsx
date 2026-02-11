@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/select';
 import toast from 'react-hot-toast';
 import { Candidate, TeamMember } from '@/types';
+import { useApp } from '@/context/AppContext'; // Importar useApp
 
 interface AddScreeningCandidateModalProps {
   isOpen: boolean;
@@ -29,7 +30,7 @@ interface AddScreeningCandidateModalProps {
 }
 
 export const AddScreeningCandidateModal: React.FC<AddScreeningCandidateModalProps> = ({ isOpen, onClose, origins, responsibleMembers }) => {
-  const { addCandidate, teamMembers, hiringOrigins } = useApp();
+  const { addCandidate } = useApp(); // Removido teamMembers e hiringOrigins, pois já são passados via props ou não são necessários aqui
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -40,10 +41,8 @@ export const AddScreeningCandidateModal: React.FC<AddScreeningCandidateModalProp
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
 
-  const responsibleMembers = useMemo(() => {
-    // Filtra apenas membros ativos que são Gestor ou Anjo
-    return teamMembers.filter(m => m.isActive && (m.roles.includes('Gestor') || m.roles.includes('Anjo')));
-  }, [teamMembers]);
+  // O useMemo para responsibleMembers foi removido, pois a lista já é passada como prop.
+  // Se a lista de responsibleMembers precisar ser filtrada ou processada, isso deve ser feito no componente pai.
 
   const resetForm = () => {
     setFormData({
@@ -58,10 +57,10 @@ export const AddScreeningCandidateModal: React.FC<AddScreeningCandidateModalProp
 
   useEffect(() => {
     if (isOpen) {
-      console.log("[AddScreeningCandidateModal] Received origins:", origins); // Adicionado log aqui
+      console.log("[AddScreeningCandidateModal] Received origins:", origins);
       resetForm();
     }
-  }, [isOpen, origins]); // Adicionado 'origins' como dependência
+  }, [isOpen, origins]);
 
   const handleClose = () => {
     resetForm();
