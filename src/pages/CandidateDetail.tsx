@@ -41,7 +41,7 @@ export const CandidateDetail = () => {
   const [isUpdatingResponsible, setIsUpdatingResponsible] = useState(false);
 
   const responsibleMembers = useMemo(() => {
-    return teamMembers.filter(m => m.isActive && (m.roles.includes('Gestor') || m.roles.includes('Anjo')));
+    return teamMembers.filter(m => m.isActive && (m.roles.includes('GESTOR') || m.roles.includes('ANJO')));
   }, [teamMembers]);
 
   useEffect(() => {
@@ -289,7 +289,8 @@ export const CandidateDetail = () => {
             {checklistStructure.map((stage) => {
               const filteredItems = stage.items.filter(item => {
                   if (checklistFilter === 'ALL') return true;
-                  return item.responsibleRole === user?.role;
+                  // Garante que a comparação de roles seja case-insensitive ou padronizada
+                  return item.responsibleRole?.toUpperCase() === user?.role?.toUpperCase();
               });
 
               if (filteredItems.length === 0) return null;
@@ -316,7 +317,7 @@ export const CandidateDetail = () => {
                         const state = candidate.checklistProgress[item.id] || { completed: false };
                         const hasTemplate = !!templates[item.id];
                         const template = templates[item.id];
-                        const isMyTask = item.responsibleRole === user?.role;
+                        const isMyTask = item.responsibleRole?.toUpperCase() === user?.role?.toUpperCase();
                         
                         return (
                         <li key={item.id} className={`flex flex-col sm:flex-row sm:items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-slate-700/30 transition ${isMyTask ? 'border-l-4 border-brand-500' : ''}`}>

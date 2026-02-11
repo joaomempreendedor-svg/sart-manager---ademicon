@@ -9,7 +9,7 @@ import { RecordTeamMemberInterviewModal } from '@/components/TeamConfig/RecordTe
 import { EditTeamMemberModal } from '@/components/TeamConfig/EditTeamMemberModal'; // NOVO: Importar o modal de edição
 import toast from 'react-hot-toast';
 
-const ALL_ROLES: TeamRole[] = ['Prévia', 'Autorizado', 'Gestor', 'Anjo', 'Secretaria'];
+const ALL_ROLES: TeamRole[] = ['PRÉVIA', 'AUTORIZADO', 'GESTOR', 'ANJO', 'SECRETARIA'];
 
 export const TeamConfig = () => {
   const { user } = useAuth();
@@ -173,20 +173,20 @@ export const TeamConfig = () => {
 
   const getRoleIcon = (role: TeamRole) => {
       switch(role) {
-          case 'Gestor': return <Crown className="w-4 h-4 text-blue-500" />;
-          case 'Anjo': return <Star className="w-4 h-4 text-yellow-500" />;
-          case 'Autorizado': return <Shield className="w-4 h-4 text-green-500" />;
-          case 'Secretaria': return <UserCheck className="w-4 h-4 text-purple-500" />; // Ícone para Secretaria
+          case 'GESTOR': return <Crown className="w-4 h-4 text-blue-500" />;
+          case 'ANJO': return <Star className="w-4 h-4 text-yellow-500" />;
+          case 'AUTORIZADO': return <Shield className="w-4 h-4 text-green-500" />;
+          case 'SECRETARIA': return <UserCheck className="w-4 h-4 text-purple-500" />; // Ícone para SECRETARIA
           default: return <User className="w-4 h-4 text-gray-500" />;
       }
   };
 
   const getRoleBadge = (role: TeamRole) => {
       switch(role) {
-          case 'Gestor': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300';
-          case 'Anjo': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300';
-          case 'Autorizado': return 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300';
-          case 'Secretaria': return 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300'; // Badge para Secretaria
+          case 'GESTOR': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300';
+          case 'ANJO': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300';
+          case 'AUTORIZADO': return 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300';
+          case 'SECRETARIA': return 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300'; // Badge para SECRETARIA
           default: return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
       }
   };
@@ -382,7 +382,7 @@ export const TeamConfig = () => {
       )}
       {/* NOVO: Renderizar o modal de edição */}
       <EditTeamMemberModal
-        isOpen={isEditModalOpen}
+        isOpen={isEditModalModalOpen}
         onClose={() => setIsEditModalOpen(false)}
         member={memberToEdit}
         onSave={handleSaveEditedMember}

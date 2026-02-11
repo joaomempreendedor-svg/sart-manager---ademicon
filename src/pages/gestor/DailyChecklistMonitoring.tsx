@@ -43,7 +43,7 @@ export const DailyChecklistMonitoring = () => {
 
   const assignableMembers = useMemo(() => {
     return teamMembers
-      .filter(m => m.isActive && (m.roles.includes('Prévia') || m.roles.includes('Autorizado') || m.roles.includes('Secretaria') || m.roles.includes('Gestor') || m.roles.includes('Anjo')))
+      .filter(m => m.isActive && (m.roles.includes('PRÉVIA') || m.roles.includes('AUTORIZADO') || m.roles.includes('SECRETARIA') || m.roles.includes('GESTOR') || m.roles.includes('ANJO')))
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [teamMembers]);
 
@@ -57,7 +57,7 @@ export const DailyChecklistMonitoring = () => {
     if (!selectedConsultantId) return [];
 
     const selectedMember = teamMembers.find(m => m.id === selectedConsultantId);
-    const isSecretaria = selectedMember?.roles.includes('Secretaria');
+    const isSecretaria = selectedMember?.roles.includes('SECRETARIA');
 
     const explicitAssignments = dailyChecklistAssignments
       .filter(assignment => assignment.consultant_id === selectedConsultantId)

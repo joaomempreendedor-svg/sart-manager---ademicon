@@ -55,7 +55,6 @@ export interface Candidate {
   origin?: string;
   status: CandidateStatus;
   screeningStatus?: 'Pending Contact' | 'Contacted' | 'No Fit';
-  interviewScores: InterviewScores;
   interviewConducted?: boolean;
   checkedQuestions?: Record<string, boolean>;
   checklistProgress?: Record<string, ChecklistTaskState>;
@@ -190,7 +189,7 @@ export interface SupportMaterialAssignment {
   created_at: string;
 }
 
-export type TeamRole = 'Prévia' | 'Autorizado' | 'Gestor' | 'Anjo' | 'Secretaria';
+export type TeamRole = 'PRÉVIA' | 'AUTORIZADO' | 'GESTOR' | 'ANJO' | 'SECRETARIA';
 
 export interface TeamMember {
   id: string;

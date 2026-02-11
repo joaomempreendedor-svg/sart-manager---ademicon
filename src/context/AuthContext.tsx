@@ -51,7 +51,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         id: session.user.id, 
         name, 
         email: session.user.email || '',
-        role: profile?.role || 'CONSULTOR',
+        role: (profile?.role || 'CONSULTOR').toUpperCase() as UserRole, // Garante que o papel seja sempre em maiúsculas
         isActive: isActive,
         login: profile?.login, // Adicionado
         hasLogin: !!profile?.login, // Adicionado

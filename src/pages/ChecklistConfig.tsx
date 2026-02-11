@@ -128,7 +128,7 @@ export const ChecklistConfig = () => {
                           deleteChecklistItem(stage.id, item.id);
                         }
                       }}
-                      className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:text-red-400 dark:hover:bg-red-900/20 rounded"
+                      className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -152,8 +152,8 @@ export const ChecklistConfig = () => {
                         onChange={(e) => setNewRole(e.target.value as 'GESTOR' | 'SECRETARIA')}
                         className="border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm rounded px-3 py-2"
                       >
-                        <option value="GESTOR">Gestor</option>
-                        <option value="SECRETARIA">Secretaria</option>
+                        <option value="GESTOR">GESTOR</option>
+                        <option value="SECRETARIA">SECRETARIA</option>
                       </select>
                       <div className="flex space-x-2">
                         <button 

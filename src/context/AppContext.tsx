@@ -395,7 +395,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             const authId = data.id || data.authUserId || null;
             return { 
               id: dbId, db_id: dbId, authUserId: authId, name: String(data.name || ''), email: data.email, 
-              roles: Array.isArray(data.roles) ? data.roles : [], isActive: data.isActive !== false, 
+              roles: Array.isArray(data.roles) ? data.roles.map((role: string) => role.toUpperCase()) : [], // Normalize roles to uppercase
+              isActive: data.isActive !== false, 
               hasLogin: !!authId, isLegacy: !authId, cpf: item.cpf, dateOfBirth: data.dateOfBirth, user_id: item.user_id 
             };
           });

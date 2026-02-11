@@ -57,7 +57,7 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
     { to: `${baseRoute}/onboarding-admin`, icon: Video, label: "Onboarding Online", roles: ['GESTOR', 'ADMIN', 'SECRETARIA'], section: 'overview' },
     { to: `${baseRoute}/form-cadastros`, icon: FileStack, label: "Gerenciar Formulários", roles: ['GESTOR', 'ADMIN', 'SECRETARIA'], section: 'overview' },
     { to: `${baseRoute}/daily-checklist-monitoring`, icon: ClipboardCheck, label: "Monitorar Metas Diárias", roles: ['GESTOR', 'ADMIN'], section: 'overview' },
-    { to: `${baseRoute}/daily-checklist`, icon: ListChecks, label: "Minhas Rotinas Diárias", roles: ['SECRETARIA'], section: 'overview' }, // Specific for Secretaria
+    { to: `${baseRoute}/daily-checklist`, icon: ListChecks, label: "Minhas Rotinas Diárias", roles: ['SECRETARIA'], section: 'overview' }, // Specific for SECRETARIA
 
     // Materials (Gestor/Admin only, as per current GestorSidebar)
     { to: `${baseRoute}/materials`, icon: Library, label: "Materiais de Apoio", roles: ['GESTOR', 'ADMIN'], section: 'overview' },
@@ -164,7 +164,7 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
               )}
             </>
           )}
-          {/* Configurações do Sistema para Secretaria (apenas Configurar Origens) */}
+          {/* Configurações do Sistema para SECRETARIA (apenas Configurar Origens) */}
           {userRole === 'SECRETARIA' && (
             <>
               {!isSidebarCollapsed && (

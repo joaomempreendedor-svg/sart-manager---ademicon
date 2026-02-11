@@ -22,7 +22,7 @@ export const CHECKLIST_STAGES: ChecklistStage[] = [
         whatsappTemplate: 'Olá [NOME], agradecemos muito seu tempo e interesse na Ademicon. Neste momento, optamos por seguir com outro perfil para a vaga, mas manteremos seu contato para futuras oportunidades. Desejamos muito sucesso na sua jornada!',
         responsibleRole: 'SECRETARIA'
       },
-      { id: 'st1_docs_send', label: 'Encaminhar documentação para análise prévia da Ademicon (Dia 02)', responsibleRole: 'SECRETARIA' },
+      { id: 'st1_docs_send', label: 'Encaminhar documentação para análise prévia da Ademicon (Dia 02)', responsibleRole: 'GESTOR' },
       { id: 'st1_status_update', label: 'Atualizar status para: "Aguardando prévia"', responsibleRole: 'SECRETARIA' },
     ]
   },

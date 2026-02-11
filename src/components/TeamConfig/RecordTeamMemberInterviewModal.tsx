@@ -25,7 +25,7 @@ export const RecordTeamMemberInterviewModal: React.FC<RecordTeamMemberInterviewM
 
   const interviewers = useMemo(() => { // Renomeado de managers
     // Filtra apenas membros ativos que são Gestor ou Anjo E que possuem um authUserId
-    return teamMembers.filter(m => m.isActive && m.authUserId && (m.roles.includes('Gestor') || m.roles.includes('Anjo')));
+    return teamMembers.filter(m => m.isActive && m.authUserId && (m.roles.includes('GESTOR') || m.roles.includes('ANJO')));
   }, [teamMembers]);
 
   useEffect(() => {

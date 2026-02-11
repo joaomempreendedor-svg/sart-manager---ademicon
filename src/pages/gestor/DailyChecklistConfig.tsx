@@ -26,7 +26,7 @@ interface ChecklistModalProps {
   isOpen: boolean;
   onClose: () => void;
   checklist: DailyChecklist | null;
-  targetRole: 'CONSULTOR' | 'SECRETARIA';
+  targetRole: 'GESTOR' | 'SECRETARIA';
 }
 
 const ChecklistModal: React.FC<ChecklistModalProps> = ({ isOpen, onClose, checklist, targetRole }) => {
@@ -79,7 +79,7 @@ const ChecklistModal: React.FC<ChecklistModalProps> = ({ isOpen, onClose, checkl
           <DialogTitle>{checklist ? 'Editar Checklist' : 'Novo Checklist'}</DialogTitle>
           <DialogDescription>
             {targetRole === 'SECRETARIA' 
-              ? 'Criando checklist exclusivo para a equipe de Secretaria.' 
+              ? 'Criando checklist exclusivo para a equipe de SECRETARIA.' 
               : 'Criando checklist para a equipe de Consultores.'}
           </DialogDescription>
         </DialogHeader>
@@ -147,10 +147,10 @@ const AssignmentModal: React.FC<AssignmentModalProps> = ({ isOpen, onClose, chec
       if (!m.isActive) return false;
       
       if (isSecretariaChecklist) {
-        return m.roles.includes('Secretaria');
+        return m.roles.includes('SECRETARIA');
       } else {
         // Ajustado para incluir todos os cargos de consultoria do sistema
-        return m.roles.includes('Prévia') || m.roles.includes('Autorizado') || m.roles.includes('Gestor') || m.roles.includes('Anjo');
+        return m.roles.includes('PRÉVIA') || m.roles.includes('AUTORIZADO') || m.roles.includes('GESTOR') || m.roles.includes('ANJO');
       }
     });
   }, [teamMembers, isSecretariaChecklist]);
@@ -747,7 +747,7 @@ export const DailyChecklistConfig = () => {
     deleteDailyChecklist,
   } = useApp();
 
-  const [activeTab, setActiveTab] = useState<'CONSULTOR' | 'SECRETARIA'>('CONSULTOR');
+  const [activeTab, setActiveTab] = useState<'GESTOR' | 'SECRETARIA'>('GESTOR');
 
   const [isChecklistModalOpen, setIsChecklistModalOpen] = useState(false);
   const [editingChecklist, setEditingChecklist] = useState<DailyChecklist | null>(null);
@@ -857,9 +857,9 @@ export const DailyChecklistConfig = () => {
       {/* Seletor de Abas */}
       <div className="flex space-x-1 bg-gray-100 dark:bg-slate-800 p-1 rounded-lg w-fit mb-8">
         <button
-          onClick={() => setActiveTab('CONSULTOR')}
+          onClick={() => setActiveTab('GESTOR')}
           className={`flex items-center space-x-2 px-6 py-2.5 rounded-md text-sm font-bold transition-all ${
-            activeTab === 'CONSULTOR' ? 'bg-white dark:bg-slate-700 text-brand-600 dark:text-brand-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+            activeTab === 'GESTOR' ? 'bg-white dark:bg-slate-700 text-brand-600 dark:text-brand-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
           }`}
         >
           <UserRound className="w-4 h-4" />
@@ -872,7 +872,7 @@ export const DailyChecklistConfig = () => {
           }`}
         >
           <ShieldCheck className="w-4 h-4" />
-          <span>Secretaria</span>
+          <span>SECRETARIA</span>
         </button>
       </div>
 
