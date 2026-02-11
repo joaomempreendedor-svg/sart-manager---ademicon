@@ -140,11 +140,23 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [cutoffPeriods]);
 
   const debouncedUpdateConfig = useDebouncedCallback(async (newConfig: any) => {
-    if (!user) return;
+    if (!user) {
+      console.warn("[AppContext] No user authenticated, cannot save config.");
+      return;
+    }
     try {
-      await supabase.from('app_config').upsert({ user_id: JOAO_GESTOR_AUTH_ID, data: newConfig }, { onConflict: 'user_id' });
-    } catch (error) {
-      console.error("Failed to save config:", error);
+      console.log("[AppContext] Sending config to Supabase:", newConfig); // LOG ADICIONADO
+      const { error } = await supabase.from('app_config').upsert({ user_id: JOAO_GESTOR_AUTH_ID, data: newConfig }, { onConflict: 'user_id' });
+      if (error) {
+        console.error("[AppContext] Failed to save config to Supabase:", error);
+        toast.error(`Erro ao salvar configurações: ${error.message}`);
+      } else {
+        console.log("[AppContext] Config saved successfully to Supabase.");
+        toast.success("Configurações salvas com sucesso!");
+      }
+    } catch (error: any) {
+      console.error("[AppContext] Unexpected error saving config:", error);
+      toast.error(`Erro inesperado ao salvar configurações: ${error.message}`);
     }
   }, 1500);
 
@@ -252,6 +264,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     // Check if a row was found AND if its 'data' column is not null
     if (configRow && configRow.data) {
       const appConfigData = configRow.data; // This is the JSONB content
+      console.log("[fetchAppConfig] App config loaded from DB:", appConfigData); // LOG ADICIONADO
       setChecklistStructure(appConfigData.checklistStructure || DEFAULT_STAGES);
       setConsultantGoalsStructure(appConfigData.consultantGoalsStructure || DEFAULT_GOALS);
       setInterviewStructure(appConfigData.interviewStructure || INITIAL_INTERVIEW_STRUCTURE);
@@ -1267,6 +1280,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
     },
     resetOriginsToDefault: () => {
+      console.log("[AppContext] Executing resetOriginsToDefault. Setting local state and calling updateConfig."); // LOG ADICIONADO
       setSalesOrigins(DEFAULT_APP_CONFIG_DATA.salesOrigins);
       setHiringOrigins(DEFAULT_APP_CONFIG_DATA.hiringOrigins);
       updateConfig({ salesOrigins: DEFAULT_APP_CONFIG_DATA.salesOrigins, hiringOrigins: DEFAULT_APP_CONFIG_DATA.hiringOrigins });
