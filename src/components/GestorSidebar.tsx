@@ -70,7 +70,8 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
     { to: `${baseRoute}/config-templates`, icon: MessageSquare, label: "Configurar Mensagens", roles: ['GESTOR', 'ADMIN'], section: 'config' },
     { to: `${baseRoute}/config-cutoff`, icon: Clock, label: "Períodos de Corte", roles: ['GESTOR', 'ADMIN'], section: 'config' },
     { to: `${baseRoute}/crm-config`, icon: PlusCircle, label: "Configurar CRM", roles: ['GESTOR', 'ADMIN'], section: 'config' },
-    { to: `${baseRoute}/config-origins`, icon: MapPin, label: "Configurar Origens", roles: ['GESTOR', 'ADMIN', 'SECRETARIA'], section: 'config' }, {/* Adicionado SECRETARIA */}
+    // Adicionado SECRETARIA
+    { to: `${baseRoute}/config-origins`, icon: MapPin, label: "Configurar Origens", roles: ['GESTOR', 'ADMIN', 'SECRETARIA'], section: 'config' },
     { to: `${baseRoute}/config-process`, icon: Settings, label: "Editar Processo (Antigo)", roles: ['GESTOR', 'ADMIN'], section: 'config' },
   ], [dashboardPath, baseRoute, userRole]);
 
