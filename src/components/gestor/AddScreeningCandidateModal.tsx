@@ -30,7 +30,7 @@ interface AddScreeningCandidateModalProps {
 }
 
 export const AddScreeningCandidateModal: React.FC<AddScreeningCandidateModalProps> = ({ isOpen, onClose, origins, responsibleMembers }) => {
-  const { addCandidate } = useApp(); // Removido teamMembers e hiringOrigins, pois já são passados via props ou não são necessários aqui
+  const { addCandidate, hiringOrigins } = useApp(); // Removido teamMembers e origins, pois já são passados via props ou não são necessários aqui
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -57,10 +57,10 @@ export const AddScreeningCandidateModal: React.FC<AddScreeningCandidateModalProp
 
   useEffect(() => {
     if (isOpen) {
-      console.log("[AddScreeningCandidateModal] Received origins:", origins);
+      console.log("[AddScreeningCandidateModal] Modal is open. Current hiringOrigins from AppContext:", hiringOrigins); // NOVO LOG
       resetForm();
     }
-  }, [isOpen, origins]);
+  }, [isOpen, hiringOrigins]); // Adicionado hiringOrigins como dependência para re-executar quando mudar
 
   const handleClose = () => {
     resetForm();
@@ -179,7 +179,7 @@ export const AddScreeningCandidateModal: React.FC<AddScreeningCandidateModalProp
                     <SelectValue placeholder="Selecione a origem" />
                   </SelectTrigger>
                   <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
-                    {origins.map(origin => (
+                    {hiringOrigins.map(origin => ( // Usando hiringOrigins do AppContext
                       <SelectItem key={origin} value={origin}>
                         {origin}
                       </SelectItem>
