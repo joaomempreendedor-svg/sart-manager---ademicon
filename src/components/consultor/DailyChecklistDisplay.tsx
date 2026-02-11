@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 const formatDate = (date: Date) => date.toISOString().split('T')[0]; // YYYY-MM-DD
 const displayDate = (date: Date) => date.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
 
-// Prefixo interno para identificar checklists da secretaria
+// Prefixo interno para identificar checklists da secretaria sem precisar mudar o banco
 const SECRETARIA_PREFIX = "[SEC] ";
 
 interface DailyChecklistDisplayProps {
@@ -42,7 +42,8 @@ export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ us
 
   const userTeamMember = useMemo(() => {
     if (!user) return null;
-    return teamMembers.find(tm => tm.id === user.id || (tm.email && tm.email === user.email) || (tm.isLegacy && tm.name === user.name));
+    // Corrigido: Usar authUserId para encontrar o membro da equipe
+    return teamMembers.find(tm => tm.authUserId === user.id);
   }, [user, teamMembers]);
 
   const assignedChecklists = useMemo(() => {
@@ -50,7 +51,7 @@ export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ us
       return [];
     }
 
-    const isSecretaria = userTeamMember.roles.includes('Secretaria');
+    const isSecretaria = userTeamMember.roles.includes('SECRETARIA');
 
     // 1. GLOBAIS: checklists SEM atribuição específica
     // REGRA: Se for Secretaria, NÃO mostra globais. Se for Consultor, mostra apenas os que NÃO têm o prefixo [SEC]
@@ -67,7 +68,7 @@ export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ us
       return dailyChecklistAssignments.some(
         assignment => 
           assignment.daily_checklist_id === checklist.id && 
-          assignment.consultant_id === userTeamMember.id
+          assignment.consultant_id === userTeamMember.authUserId // Corrigido: Usar authUserId
       );
     });
 
@@ -93,7 +94,7 @@ export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ us
     return dailyChecklistCompletions.some(
       completion =>
         completion.daily_checklist_item_id === itemId &&
-        completion.consultant_id === userTeamMember.id &&
+        completion.consultant_id === user.id && // Corrigido: Usar user.id (auth.users.id)
         completion.date === formattedSelectedDate &&
         completion.done
     );
@@ -101,7 +102,8 @@ export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ us
 
   const handleToggleCompletion = async (itemId: string, currentStatus: boolean) => {
     if (!user || !userTeamMember) return;
-    await toggleDailyChecklistCompletion(itemId, formattedSelectedDate, !currentStatus, userTeamMember.id);
+    // Corrigido: Passar user.id (auth.users.id) como consultant_id
+    await toggleDailyChecklistCompletion(itemId, formattedSelectedDate, !currentStatus, user.id);
   };
 
   const navigateDay = (offset: number) => {
@@ -124,7 +126,7 @@ export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ us
       dailyChecklistCompletions.some(
         completion =>
           completion.daily_checklist_item_id === item.id &&
-          completion.consultant_id === userTeamMember.id &&
+          completion.consultant_id === user.id && // Corrigido: Usar user.id (auth.users.id)
           completion.date === formattedSelectedDate &&
           completion.done
       )
@@ -217,7 +219,7 @@ export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ us
                     const isCompleted = getCompletionStatus(item.id);
                     const isHighlighted = highlightedItemId === item.id && highlightedDate === formattedSelectedDate;
                     
-                    let itemClasses = 'p-4 flex items-center justify-between flex-col sm:flex-row';
+                    let itemClasses = 'p-4 flex flex-col sm:flex-row sm:items-center justify-between';
                     let labelClasses = 'text-sm font-medium leading-none';
 
                     if (isCompleted) {
