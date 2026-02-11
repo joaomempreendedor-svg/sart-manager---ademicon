@@ -124,19 +124,29 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const calculateCompetenceMonth = useCallback((paidDate: string): string => {
     const date = new Date(paidDate + 'T00:00:00');
+    
     const period = cutoffPeriods.find(p => {
       const start = new Date(p.startDate + 'T00:00:00');
       const end = new Date(p.endDate + 'T00:00:00');
       return date >= start && date <= end;
     });
-    if (period) return period.competenceMonth;
+  
+    if (period) {
+      return period.competenceMonth;
+    }
+  
     const month = date.getMonth() + 1;
     const day = date.getDate();
     const cutoffDay = MONTHLY_CUTOFF_DAYS[month] || 19;
     let competenceDate = new Date(date);
-    if (day <= cutoffDay) competenceDate.setMonth(competenceDate.getMonth() + 1);
-    else competenceDate.setMonth(competenceDate.getMonth() + 2);
-    return `${competenceDate.getFullYear()}-${String(competenceDate.getMonth() + 1).padStart(2, '0')}`;
+    if (day <= cutoffDay) {
+      competenceDate.setMonth(competenceDate.getMonth() + 1);
+    } else {
+      competenceDate.setMonth(competenceDate.getMonth() + 2);
+    }
+    const compYear = competenceDate.getFullYear();
+    const compMonth = String(competenceDate.getMonth() + 1).padStart(2, '0');
+    return `${compYear}-${compMonth}`;
   }, [cutoffPeriods]);
 
   const debouncedUpdateConfig = useDebouncedCallback(async (newConfig: any) => {
@@ -1064,12 +1074,41 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setCandidates,
     toggleChecklistItem: async (candidateId, itemId) => {
       const candidate = candidates.find(c => c.id === candidateId);
-      if (!candidate) return;
+      if (!candidate) {
+        console.error(`[toggleChecklistItem] Candidate with ID ${candidateId} not found.`);
+        return;
+      }
+      
       const currentProgress = candidate.checklistProgress || {};
       const currentState = currentProgress[itemId] || { completed: false };
       const newProgress = { ...currentProgress, [itemId]: { ...currentState, completed: !currentState.completed } };
-      await updateCandidate(candidateId, { checklistProgress: newProgress });
-    },
+      
+      // Atualiza o estado local imediatamente para feedback visual
+      setCandidates(prev => prev.map(c => (c.id === candidateId || c.db_id === candidateId) ? { ...c, checklistProgress: newProgress } : c));
+
+      // Persiste a mudança no banco de dados
+      try {
+        const dbId = candidate.db_id || candidate.id; // Usa db_id se disponível, senão o id
+        const { error } = await supabase
+          .from('candidates')
+          .update({ data: { ...candidate, checklistProgress: newProgress } }) // Envia o objeto 'data' completo com o checklistProgress atualizado
+          .eq('id', dbId); // Usa o dbId para a atualização
+
+        if (error) {
+          console.error(`[toggleChecklistItem] Error updating candidate ${candidateId} checklistProgress in DB:`, error);
+          toast.error(`Erro ao atualizar checklist: ${error.message}`);
+          // Reverte o estado local em caso de erro no DB
+          setCandidates(prev => prev.map(c => (c.id === candidateId || c.db_id === candidateId) ? { ...c, checklistProgress: currentProgress } : c));
+        } else {
+          console.log(`[toggleChecklistItem] Checklist item ${itemId} for candidate ${candidateId} updated successfully in DB.`);
+        }
+      } catch (error: any) {
+        console.error(`[toggleChecklistItem] Unexpected error updating candidate ${candidateId} checklistProgress:`, error);
+        toast.error(`Erro inesperado ao atualizar checklist: ${error.message}`);
+        // Reverte o estado local em caso de erro inesperado
+        setCandidates(prev => prev.map(c => (c.id === candidateId || c.db_id === candidateId) ? { ...c, checklistProgress: currentProgress } : c));
+      }
+    }, [candidates, setCandidates, updateCandidate]), // Adicionado updateCandidate como dependência
     setChecklistDueDate: async (candidateId, itemId, dueDate) => {
       const candidate = candidates.find(c => c.id === candidateId);
       if (!candidate) return;
