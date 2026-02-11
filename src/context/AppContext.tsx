@@ -1224,7 +1224,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     moveInterviewQuestion: (sectionId, questionId, direction) => {
       const newStructure = interviewStructure.map(s => {
         if (s.id === sectionId) {
-          const index = s.questions.findIndex(q => q.id === questionId);
+          const index = s.questions.findIndex(i => i.id === questionId);
           if (index === -1) return s;
           const newQuestions = [...s.questions];
           const targetIndex = direction === 'up' ? index - 1 : index + 1;
@@ -1291,9 +1291,28 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       refetchCommissions(); 
       return { success: true }; 
     },
-    updateCommission: async (dbId: string, updates: Partial<Commission>) => { // Alterado para aceitar dbId
+    updateCommission: async (dbId: string, updates: Partial<Commission>) => {
       console.log(`[updateCommission] Attempting to update commission DB ID: ${dbId} with updates:`, updates);
-      const { error } = await supabase.from('commissions').update({ data: updates }).eq('id', dbId); // Usando dbId aqui
+      
+      // Find the existing commission in the local state to merge updates with its current 'data' JSONB content
+      const existingCommission = commissions.find(c => c.db_id === dbId);
+      if (!existingCommission) {
+        throw new Error(`Commission with DB ID ${dbId} not found for update.`);
+      }
+
+      // Merge the updates with the existing 'data' object
+      // Ensure that top-level fields like 'id', 'db_id', 'criado_em' are not part of the 'data' JSONB
+      const updatedDataContent = {
+        ...existingCommission, // Start with existing commission's data
+        ...updates, // Apply new updates
+      };
+      // Remove properties that are not part of the JSONB 'data' column in the DB table
+      delete (updatedDataContent as any).db_id;
+      delete (updatedDataContent as any).criado_em;
+      // The 'id' property of the Commission type is the internal UUID, which should be part of the JSONB 'data'
+      // So, we don't delete updatedDataContent.id here.
+
+      const { error } = await supabase.from('commissions').update({ data: updatedDataContent }).eq('id', dbId);
       if (error) {
         console.error(`[updateCommission] Error updating commission DB ID: ${dbId}:`, error);
         throw error;
@@ -1313,19 +1332,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     },
     updateInstallmentStatus: async (commissionId, installmentNumber, newStatus, paidDate, saleType) => {
       console.log(`[updateInstallmentStatus] Called for commissionId: ${commissionId}, installmentNumber: ${installmentNumber}, newStatus: ${newStatus}, paidDate: ${paidDate}`);
-      const commission = commissions.find(c => c.id === commissionId); // Encontra a comissão pelo ID do JSONB
+      const commission = commissions.find(c => c.id === commissionId);
       if (!commission) {
         console.error(`[updateInstallmentStatus] Commission with ID ${commissionId} not found.`);
         return;
       }
-      if (!commission.db_id) { // Verifica se db_id existe
+      if (!commission.db_id) {
         console.error(`[updateInstallmentStatus] Commission with ID ${commissionId} has no db_id. Cannot update.`);
         return;
       }
       const updatedDetails = { ...commission.installmentDetails, [installmentNumber]: { status: newStatus, paidDate, competenceMonth: paidDate ? calculateCompetenceMonth(paidDate) : undefined } };
       
       try {
-        // Passa commission.db_id (o ID real da linha do Supabase) para updateCommission
         await value.updateCommission(commission.db_id, { installmentDetails: updatedDetails, status: getOverallStatus(updatedDetails) });
         console.log(`[updateInstallmentStatus] Successfully updated installment ${installmentNumber} for commission ${commissionId}.`);
       } catch (error) {
