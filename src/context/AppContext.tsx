@@ -735,7 +735,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const addTeamProductionGoal = useCallback(async (goal: Omit<TeamProductionGoal, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
     const { data, error } = await supabase.from('team_production_goals').insert({ ...goal, user_id: JOAO_GESTOR_AUTH_ID }).select().single();
     if (error) throw error;
-    setTeamProductionGoals(prev => [...prev, data]);
+    setTeamProductionGoals(prev => [data, ...prev]);
     return data;
   }, [setTeamProductionGoals]);
 
@@ -1298,7 +1298,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const commission = commissions.find(c => c.id === commissionId);
       if (!commission) return;
       const updatedDetails = { ...commission.installmentDetails, [installmentNumber]: { status: newStatus, paidDate, competenceMonth: paidDate ? calculateCompetenceMonth(paidDate) : undefined } };
-      await updateCommission(commissionId, { installmentDetails: updatedDetails, status: getOverallStatus(updatedDetails) });
+      // Chame a função updateCommission do próprio contexto
+      await value.updateCommission(commissionId, { installmentDetails: updatedDetails, status: getOverallStatus(updatedDetails) });
     },
     addCutoffPeriod: async (period) => { const { error } = await supabase.from('cutoff_periods').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: period }); if (error) throw error; const { data } = await supabase.from('cutoff_periods').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID); setCutoffPeriods(data?.map(item => ({ ...(item.data as CutoffPeriod), db_id: item.id })) || []); },
     updateCutoffPeriod: async (id, updates) => { const { error } = await supabase.from('cutoff_periods').update({ data: updates }).eq('id', id); if (error) throw error; const { data } = await supabase.from('cutoff_periods').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID); setCutoffPeriods(data?.map(item => ({ ...(item.data as CutoffPeriod), db_id: item.id })) || []); },
