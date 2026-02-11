@@ -1,6 +1,4 @@
-import React, { useState, useMemo } from 'react';
-import { useApp } from '@/context/AppContext';
-import { Candidate, TeamMember } from '@/types';
+import React, { useState, useMemo, useEffect } from 'react';
 import { X, Save, Loader2, User, Phone, Mail, Users, MapPin } from 'lucide-react';
 import {
   Dialog,
@@ -21,13 +19,16 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import toast from 'react-hot-toast';
+import { Candidate, TeamMember } from '@/types';
 
 interface AddScreeningCandidateModalProps {
   isOpen: boolean;
   onClose: () => void;
+  origins: string[]; // This is the prop for hiring origins
+  responsibleMembers: TeamMember[];
 }
 
-export const AddScreeningCandidateModal: React.FC<AddScreeningCandidateModalProps> = ({ isOpen, onClose }) => {
+export const AddScreeningCandidateModal: React.FC<AddScreeningCandidateModalProps> = ({ isOpen, onClose, origins, responsibleMembers }) => {
   const { addCandidate, teamMembers, hiringOrigins } = useApp();
   const [formData, setFormData] = useState({
     name: '',
@@ -54,6 +55,13 @@ export const AddScreeningCandidateModal: React.FC<AddScreeningCandidateModalProp
     });
     setError('');
   };
+
+  useEffect(() => {
+    if (isOpen) {
+      console.log("[AddScreeningCandidateModal] Received origins:", origins); // Adicionado log aqui
+      resetForm();
+    }
+  }, [isOpen, origins]); // Adicionado 'origins' como dependência
 
   const handleClose = () => {
     resetForm();
@@ -172,7 +180,7 @@ export const AddScreeningCandidateModal: React.FC<AddScreeningCandidateModalProp
                     <SelectValue placeholder="Selecione a origem" />
                   </SelectTrigger>
                   <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
-                    {hiringOrigins.map(origin => (
+                    {origins.map(origin => (
                       <SelectItem key={origin} value={origin}>
                         {origin}
                       </SelectItem>
