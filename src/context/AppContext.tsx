@@ -55,7 +55,7 @@ const parseDbCurrency = (value: any): number | null => {
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { user, session } = useAuth();
-  const fetchedUserIdRef = useRef<string | null>(null); // Corrigido: Inicialização com null
+  const fetchedUserIdRef = useRef<string | null>(null);
   const isFetchingRef = useRef(false);
 
   const [isDataLoading, setIsDataLoading] = useState(true);
@@ -145,7 +145,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       return;
     }
     try {
-      console.log("[AppContext] Sending config to Supabase:", newConfig); // LOG ADICIONADO
+      console.log("[AppContext] Sending config to Supabase:", newConfig);
       const { error } = await supabase.from('app_config').upsert({ user_id: JOAO_GESTOR_AUTH_ID, data: newConfig }, { onConflict: 'user_id' });
       if (error) {
         console.error("[AppContext] Failed to save config to Supabase:", error);
@@ -178,7 +178,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setSupportMaterialsV2([]); setSupportMaterialAssignments([]); setLeadTasks([]); setGestorTasks([]); setGestorTaskCompletions([]); setFinancialEntries([]);
     setFormCadastros([]); setFormFiles([]); setNotifications([]); setTeamProductionGoals([]);
     setIsDataLoading(false);
-  }, []); // Added useCallback
+  }, []);
 
   const refetchCommissions = useCallback(async () => {
     if (!user) {
@@ -217,7 +217,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     } finally {
       setTimeout(() => { isFetchingRef.current = false; }, 100);
     }
-  }, [user]); // Added user to dependencies
+  }, [user]);
 
   const isGestorTaskDueOnDate = useCallback((task: GestorTask, checkDate: string): boolean => {
     if (!task.recurrence_pattern || task.recurrence_pattern.type === 'none') return task.due_date === checkDate;
@@ -261,10 +261,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       throw configError;
     }
 
-    // Check if a row was found AND if its 'data' column is not null
     if (configRow && configRow.data) {
-      const appConfigData = configRow.data; // This is the JSONB content
-      console.log("[fetchAppConfig] App config loaded from DB:", appConfigData); // LOG ADICIONADO
+      const appConfigData = configRow.data;
+      console.log("[fetchAppConfig] App config loaded from DB:", appConfigData);
       setChecklistStructure(appConfigData.checklistStructure || DEFAULT_STAGES);
       setConsultantGoalsStructure(appConfigData.consultantGoalsStructure || DEFAULT_GOALS);
       setInterviewStructure(appConfigData.interviewStructure || INITIAL_INTERVIEW_STRUCTURE);
@@ -285,7 +284,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, []);
 
-  // Re-implementing the Realtime subscription
   useEffect(() => {
     let subscription: any = null;
     const effectiveGestorId = JOAO_GESTOR_AUTH_ID;
@@ -301,7 +299,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           filter: `user_id=eq.${effectiveGestorId}` 
         }, (payload) => {
           console.log('[AppContext] Realtime change received for app_config!', payload);
-          // Re-fetch only the app_config data on change
           fetchAppConfig(effectiveGestorId);
         })
         .subscribe();
@@ -317,7 +314,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         supabase.removeChannel(subscription);
       }
     };
-  }, [user, fetchAppConfig]); // Depend on user and fetchAppConfig
+  }, [user, fetchAppConfig]);
 
   useEffect(() => {
     const fetchData = async (userId: string) => {
@@ -327,7 +324,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const effectiveGestorId = JOAO_GESTOR_AUTH_ID;
         setCrmOwnerUserId(effectiveGestorId);
 
-        // Fetch app config first
         await fetchAppConfig(effectiveGestorId);
         console.log("[AppContext] App config fetched.");
 
@@ -370,7 +366,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           supabase.from('team_members').select('id, data, cpf, user_id').eq('user_id', effectiveGestorId)
         ]);
 
-        // Process Candidates
         if (candidatesRes.error) { console.error("Error fetching candidates:", candidatesRes.error); toast.error(`Erro ao carregar candidatos: ${candidatesRes.error.message}`); setCandidates([]); }
         else {
           const normalizedCandidates = (candidatesRes.data || []).map(item => {
@@ -392,7 +387,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           console.log(`[AppContext] Fetched ${normalizedCandidates.length} candidates.`);
         }
 
-        // Process Team Members
         if (teamMembersRes.error) { console.error("Error fetching team members:", teamMembersRes.error); toast.error(`Erro ao carregar membros da equipe: ${teamMembersRes.error.message}`); setTeamMembers([]); }
         else {
           const normalizedTeamMembers = (teamMembersRes.data || []).map(item => {
@@ -409,7 +403,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           console.log(`[AppContext] Fetched ${normalizedTeamMembers.length} team members.`);
         }
 
-        // Process other data with error handling and logging
         if (materialsRes.error) { console.error("Error fetching support materials:", materialsRes.error); toast.error(`Erro ao carregar materiais de apoio: ${materialsRes.error.message}`); setSupportMaterials([]); }
         else { setSupportMaterials(materialsRes.data?.map(item => ({ ...(item.data as SupportMaterial), db_id: item.id })) || []); console.log(`[AppContext] Fetched ${materialsRes.data?.length || 0} support materials.`); }
 
@@ -492,13 +485,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (teamProductionGoalsRes.error) { console.error("Error fetching team production goals:", teamProductionGoalsRes.error); toast.error(`Erro ao carregar metas de produção da equipe: ${teamProductionGoalsRes.error.message}`); setTeamProductionGoals([]); }
         else { setTeamProductionGoals(teamProductionGoalsRes.data || []); console.log(`[AppContext] Fetched ${teamProductionGoalsRes.data?.length || 0} team production goals.`); }
         
-        refetchCommissions(); // Refetch commissions after all other data is loaded
+        refetchCommissions();
         console.log("[AppContext] All data fetching initiated.");
 
       } catch (error: any) {
         console.error("[AppContext] Critical error during fetchData:", error);
         toast.error(`Erro crítico ao carregar dados: ${error.message}`);
-        resetLocalState(); // Reset state on critical error
+        resetLocalState();
       } finally {
         setIsDataLoading(false);
         console.log("[AppContext] fetchData completed.");
@@ -513,7 +506,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       fetchedUserIdRef.current = null;
       resetLocalState();
     }
-  }, [user?.id, user?.role, refetchCommissions, fetchAppConfig, resetLocalState]); // Added resetLocalState to dependencies
+  }, [user?.id, user?.role, refetchCommissions, fetchAppConfig, resetLocalState]);
 
   const addCandidate = useCallback(async (candidate: Omit<Candidate, 'id' | 'createdAt' | 'db_id'>) => {
     const { data, error } = await supabase.from('candidates').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: candidate }).select().single();
@@ -531,7 +524,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const updatedData = { ...candidate, ...updates };
     const now = new Date().toISOString();
 
-    // Lógica para atualizar os campos de data de transição
     if (updates.screeningStatus === 'Contacted' && candidate.screeningStatus !== 'Contacted') {
       updatedData.contactedDate = now;
     }
@@ -571,8 +563,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const dataToSave = { ...updatedData };
     delete (dataToSave as any).db_id;
     delete (dataToSave as any).createdAt;
-    // lastUpdatedAt é atualizado automaticamente pelo trigger do Supabase
-    // delete (dataToSave as any).lastUpdatedAt; 
 
     const { error } = await supabase
       .from('candidates')
@@ -582,10 +572,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (error) throw error;
   }, [candidates, setCandidates]);
 
-  const deleteCandidate = useCallback(async (dbId: string) => { // Agora espera o db_id
+  const deleteCandidate = useCallback(async (dbId: string) => {
     const { error } = await supabase.from('candidates').delete().eq('id', dbId);
     if (error) throw error;
-    setCandidates(prev => prev.filter(c => c.db_id !== dbId)); // Filtra pelo db_id
+    setCandidates(prev => prev.filter(c => c.db_id !== dbId));
   }, [setCandidates]);
 
   const addCrmLead = useCallback(async (lead: Omit<CrmLead, 'id' | 'created_at' | 'updated_at' | 'user_id' | 'created_by' | 'updated_by'>) => {
@@ -604,9 +594,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     
     const { data, error } = await supabase.from('crm_leads').insert({ 
       ...lead, 
-      user_id: crmOwnerUserId, // Use the state variable
+      user_id: crmOwnerUserId,
       created_by: user.id,
-      // ... other fields
     }).select().single();
     if (error) throw error;
     const newLead = { id: data.id, consultant_id: data.consultant_id, stage_id: data.stage_id, user_id: data.user_id, name: data.name, data: data.data, created_at: data.created_at, updated_at: data.updated_at, created_by: data.created_by, updated_by: data.updated_by, proposal_value: parseDbCurrency(data.proposal_value), proposal_closing_date: data.proposal_closing_date, sold_credit_value: parseDbCurrency(data.sold_credit_value), sold_group: data.sold_group, sold_quota: data.sold_quota, sale_date: data.sale_date };
@@ -1281,7 +1270,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
     },
     resetOriginsToDefault: () => {
-      console.log("[AppContext] Executing resetOriginsToDefault. Setting local state and calling updateConfig."); // LOG ADICIONADO
+      console.log("[AppContext] Executing resetOriginsToDefault. Setting local state and calling updateConfig.");
       setSalesOrigins(DEFAULT_APP_CONFIG_DATA.salesOrigins);
       setHiringOrigins(DEFAULT_APP_CONFIG_DATA.hiringOrigins);
       updateConfig({ salesOrigins: DEFAULT_APP_CONFIG_DATA.salesOrigins, hiringOrigins: DEFAULT_APP_CONFIG_DATA.hiringOrigins });
@@ -1293,7 +1282,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     },
     addCommission: async (commission) => { 
       console.log("[addCommission] Attempting to insert new commission:", commission);
-      const { error } = await supabase.from('commissions').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: commission }).select().single(); 
+      const { data, error } = await supabase.from('commissions').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: commission }).select().single(); 
       if (error) {
         console.error("[addCommission] Error inserting commission:", error);
         throw error;
@@ -1302,14 +1291,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       refetchCommissions(); 
       return { success: true }; 
     },
-    updateCommission: async (id, updates) => { 
-      console.log(`[updateCommission] Attempting to update commission ID: ${id} with updates:`, updates);
-      const { error } = await supabase.from('commissions').update({ data: updates }).eq('id', id); 
+    updateCommission: async (dbId: string, updates: Partial<Commission>) => { // Alterado para aceitar dbId
+      console.log(`[updateCommission] Attempting to update commission DB ID: ${dbId} with updates:`, updates);
+      const { error } = await supabase.from('commissions').update({ data: updates }).eq('id', dbId); // Usando dbId aqui
       if (error) {
-        console.error(`[updateCommission] Error updating commission ID: ${id}:`, error);
+        console.error(`[updateCommission] Error updating commission DB ID: ${dbId}:`, error);
         throw error;
       }
-      console.log(`[updateCommission] Commission ID: ${id} updated successfully. Refetching all commissions.`);
+      console.log(`[updateCommission] Commission DB ID: ${dbId} updated successfully. Refetching all commissions.`);
       refetchCommissions(); 
     },
     deleteCommission: async (id) => { 
@@ -1324,20 +1313,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     },
     updateInstallmentStatus: async (commissionId, installmentNumber, newStatus, paidDate, saleType) => {
       console.log(`[updateInstallmentStatus] Called for commissionId: ${commissionId}, installmentNumber: ${installmentNumber}, newStatus: ${newStatus}, paidDate: ${paidDate}`);
-      const commission = commissions.find(c => c.id === commissionId);
+      const commission = commissions.find(c => c.id === commissionId); // Encontra a comissão pelo ID do JSONB
       if (!commission) {
         console.error(`[updateInstallmentStatus] Commission with ID ${commissionId} not found.`);
         return;
       }
+      if (!commission.db_id) { // Verifica se db_id existe
+        console.error(`[updateInstallmentStatus] Commission with ID ${commissionId} has no db_id. Cannot update.`);
+        return;
+      }
       const updatedDetails = { ...commission.installmentDetails, [installmentNumber]: { status: newStatus, paidDate, competenceMonth: paidDate ? calculateCompetenceMonth(paidDate) : undefined } };
       
-      // Chame a função updateCommission do próprio contexto
       try {
-        await value.updateCommission(commissionId, { installmentDetails: updatedDetails, status: getOverallStatus(updatedDetails) });
+        // Passa commission.db_id (o ID real da linha do Supabase) para updateCommission
+        await value.updateCommission(commission.db_id, { installmentDetails: updatedDetails, status: getOverallStatus(updatedDetails) });
         console.log(`[updateInstallmentStatus] Successfully updated installment ${installmentNumber} for commission ${commissionId}.`);
       } catch (error) {
         console.error(`[updateInstallmentStatus] Error calling value.updateCommission for ${commissionId}:`, error);
-        throw error; // Re-throw the error so the UI can handle it
+        throw error;
       }
     },
     addCutoffPeriod: async (period) => { const { error } = await supabase.from('cutoff_periods').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: period }).select().single(); if (error) throw error; const { data } = await supabase.from('cutoff_periods').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID); setCutoffPeriods(data?.map(item => ({ ...(item.data as CutoffPeriod), db_id: item.id })) || []); },

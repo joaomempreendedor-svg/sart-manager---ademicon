@@ -36,16 +36,6 @@ const getOverallStatus = (details: Record<string, InstallmentInfo>): CommissionS
     return 'Em Andamento';
 };
 
-const getInstallmentStatusColor = (status: InstallmentStatus) => {
-    switch(status) {
-        case 'Pago': return 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800';
-        case 'Atraso': return 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800';
-        case 'Pendente': return 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800';
-        case 'Cancelado': return 'bg-gray-200 text-gray-500 border-gray-300 dark:bg-gray-800 dark:text-gray-500';
-        default: return 'bg-gray-100 text-gray-800';
-    }
-};
-
 type CustomRuleText = {
     id: string;
     startInstallment: string;
@@ -59,8 +49,8 @@ interface DetailedInstallment {
   commission: Commission;
   installmentNumber: string;
   values: { cons: number; man: number; angel: number; };
-  creditValue: number; // NOVO: Valor do Crédito
-  saleDate: string;    // NOVO: Data da Venda
+  creditValue: number;
+  saleDate: string;
 }
 
 export const Commissions = () => {
@@ -75,10 +65,10 @@ export const Commissions = () => {
   // Filtros
   const [filterStartDate, setFilterStartDate] = useState('');
   const [filterEndDate, setFilterEndDate] = useState('');
-  const [filterConsultant, setFilterConsultant] = useState<string[]>([]); // Alterado para array
-  const [filterAngel, setFilterAngel] = useState<string[]>([]); // Alterado para array
-  const [filterPV, setFilterPV] = useState<string[]>([]); // Alterado para array
-  const [filterStatus, setFilterStatus] = useState<string[]>([]); // Alterado para array
+  const [filterConsultant, setFilterConsultant] = useState<string[]>([]);
+  const [filterAngel, setFilterAngel] = useState<string[]>([]);
+  const [filterPV, setFilterPV] = useState<string[]>([]);
+  const [filterStatus, setFilterStatus] = useState<string[]>([]);
 
   // Estado do Simulador
   const [creditValue, setCreditValue] = useState<string>('');
@@ -119,10 +109,10 @@ export const Commissions = () => {
 
   // Relatórios
   const [reportMonth, setReportMonth] = useState(new Date().toISOString().slice(0, 7));
-  const [reportConsultant, setReportConsultant] = useState<string[]>([]); // Alterado para array
-  const [reportManager, setReportManager] = useState<string[]>([]); // Alterado para array
-  const [reportAngel, setReportAngel] = useState<string[]>([]); // Alterado para array
-  const [reportPV, setReportPV] = useState<string[]>([]); // Alterado para array
+  const [reportConsultant, setReportConsultant] = useState<string[]>([]);
+  const [reportManager, setReportManager] = useState<string[]>([]);
+  const [reportAngel, setReportAngel] = useState<string[]>([]);
+  const [reportPV, setReportPV] = useState<string[]>([]);
   const [reportData, setReportData] = useState<{
     month: string;
     totalCommissions: { consultant: number; manager: number; angel: number; total: number; };
@@ -190,9 +180,9 @@ export const Commissions = () => {
     setEditingInstallment(null);
     setPaymentDate('');
     setCalculatedCompetence('');
-    setIsEditCommissionModalOpen(false); // Fechar modal de edição de comissão
+    setIsEditCommissionModalOpen(false);
     setCommissionToEdit(null);
-    setIsRangeModalOpen(false); // Fechar modal de faixa de parcelas
+    setIsRangeModalOpen(false);
     setSelectedCommissionForRange(null);
   }, [activeTab]);
 
@@ -303,8 +293,9 @@ export const Commissions = () => {
       const initialInstallments: Record<string, InstallmentInfo> = {};
       for (let i = 1; i <= 15; i++) { initialInstallments[i] = { status: 'Pendente' }; }
 
-      const payload: Commission = {
-        id: crypto.randomUUID(), date: saleDate, clientName, type: saleType, group, quota, consultant: selectedConsultant, managerName: selectedManager || 'N/A', angelName: hasAngel ? selectedAngel : undefined, pv: selectedPV, value: credit, taxRate: taxValue, 
+      const payload: Omit<Commission, 'id' | 'db_id' | 'criado_em'> = { // Alterado para Omit<Commission, 'id' | 'db_id' | 'criado_em'>
+        id: crypto.randomUUID(), // Gerar o ID interno aqui
+        date: saleDate, clientName, type: saleType, group, quota, consultant: selectedConsultant, managerName: selectedManager || 'N/A', angelName: hasAngel ? selectedAngel : undefined, pv: selectedPV, value: credit, taxRate: taxValue, 
         netValue: simulation.totals.grandTotal * (1 - (taxValue/100)),
         installments: 15, status: 'Em Andamento', installmentDetails: initialInstallments,
         consultantValue: simulation.totals.consultant, managerValue: simulation.totals.manager, angelValue: simulation.totals.angel,
@@ -348,15 +339,14 @@ export const Commissions = () => {
 
     try {
       const updatedInstallmentDetails: Record<string, InstallmentInfo> = {};
-      // Para dados antigos, não preenchemos paidDate nem competenceMonth
       for (let i = 1; i <= 15; i++) {
         updatedInstallmentDetails[i.toString()] = {
           status: 'Pago',
-          // paidDate e competenceMonth são omitidos conforme a solicitação
         };
       }
 
-      await updateCommission(commission.id, {
+      // Passa commission.db_id para updateCommission
+      await updateCommission(commission.db_id!, { // Usar db_id
         installmentDetails: updatedInstallmentDetails,
         status: 'Concluído',
       });
@@ -373,15 +363,20 @@ export const Commissions = () => {
       toast.error("Comissão não encontrada.");
       return;
     }
+    if (!commission.db_id) { // Verifica se db_id existe
+      toast.error("ID do banco de dados da comissão não encontrado. Não é possível atualizar.");
+      return;
+    }
 
     const updatedInstallmentDetails = { ...commission.installmentDetails };
     for (let i = start; i <= end; i++) {
       updatedInstallmentDetails[i.toString()] = { status: 'Pago' };
     }
 
-    await updateCommission(commission.id, {
+    // Passa commission.db_id para updateCommission
+    await updateCommission(commission.db_id, { // Usar db_id
       installmentDetails: updatedInstallmentDetails,
-      status: getOverallStatus(updatedInstallmentDetails), // Recalculate overall status
+      status: getOverallStatus(updatedInstallmentDetails),
     });
     toast.success(`Parcelas ${start} a ${end} da comissão de "${commission.clientName}" marcadas como PAGAS!`);
     setIsRangeModalOpen(false);
@@ -418,10 +413,10 @@ export const Commissions = () => {
   const clearFilters = () => { 
     setFilterStartDate(''); 
     setFilterEndDate(''); 
-    setFilterConsultant([]); // Limpar array
-    setFilterAngel([]); // Limpar array
-    setFilterPV([]); // Limpar array
-    setFilterStatus([]); // Limpar array
+    setFilterConsultant([]);
+    setFilterAngel([]);
+    setFilterPV([]);
+    setFilterStatus([]);
     setSearchTerm(''); 
   };
   const handleAddPV = () => { const newPVName = prompt("Digite o nome do novo Ponto de Venda (PV):"); if (newPVName && newPVName.trim()) { addPV(newPVName.trim()); setSelectedPV(newPVName.trim()); } };
@@ -445,14 +440,13 @@ export const Commissions = () => {
       const matchesStart = !startFilterDate || commissionDate >= startFilterDate;
       const matchesEnd = !endFilterDate || commissionDate <= endFilterDate;
       
-      // Lógica de filtro para seleção múltipla
       const matchesConsultant = filterConsultant.length === 0 || filterConsultant.includes(c.consultant);
       const matchesAngel = filterAngel.length === 0 || (c.angelName && filterAngel.includes(c.angelName));
       const matchesPV = filterPV.length === 0 || filterPV.includes(c.pv);
       const matchesStatus = filterStatus.length === 0 || filterStatus.includes(overallStatus);
       
       return matchesSearch && matchesStart && matchesEnd && matchesConsultant && matchesAngel && matchesPV && matchesStatus;
-    }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()); // Ordena por data, mais recente primeiro
+    }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [commissions, searchTerm, filterStartDate, filterEndDate, filterConsultant, filterAngel, filterPV, filterStatus, isAngelMode]);
 
   const summaryStats = useMemo(() => {
@@ -461,8 +455,8 @@ export const Commissions = () => {
     let delayed = 0;
     let completed = 0;
     let cancelled = 0;
-    let nearCompletion = 0; // Mais de 70% pago, mas não 100%
-    let totalValue = 0; // NOVO: Valor total de todas as comissões filtradas
+    let nearCompletion = 0;
+    let totalValue = 0;
 
     let inProgressCount = 0;
     let delayedCount = 0;
@@ -473,7 +467,8 @@ export const Commissions = () => {
     filteredHistory.forEach(c => {
         const status = getOverallStatus(c.installmentDetails);
         const paidCount = Object.values(c.installmentDetails).filter(s => s.status === 'Pago').length;
-        const progressPercent = (paidCount / 15) * 100;
+        const totalInstallments = 15; // Assuming 15 installments
+        const progressPercent = (paidCount / totalInstallments) * 100;
 
         if (status === 'Em Andamento') { inProgress++; inProgressCount++; }
         else if (status === 'Atraso') { delayed++; delayedCount++; }
@@ -484,7 +479,7 @@ export const Commissions = () => {
             nearCompletion++;
             nearCompletionCount++;
         }
-        totalValue += c.value; // Soma o valor total de cada comissão
+        totalValue += c.value;
     });
 
     return {
@@ -494,7 +489,7 @@ export const Commissions = () => {
         completed,
         cancelled,
         nearCompletion,
-        totalValue, // Inclui o valor total
+        totalValue,
         inProgressPercentage: totalCommissions > 0 ? (inProgress / totalCommissions) * 100 : 0,
         delayedPercentage: totalCommissions > 0 ? (delayed / totalCommissions) * 100 : 0,
         completedPercentage: totalCommissions > 0 ? (completed / totalCommissions) * 100 : 0,
@@ -529,6 +524,7 @@ export const Commissions = () => {
       setPaymentDate(today);
       setCalculatedCompetence(calculateCompetenceMonth(today));
     } else {
+      // Para status diferente de 'Pago', não precisamos do modal de confirmação
       await updateInstallmentStatus(commissionId, parseInt(installmentNumber.toString()), newStatus);
     }
   };
@@ -537,18 +533,16 @@ export const Commissions = () => {
     if (paymentDate && editingInstallment) {
       setCalculatedCompetence(calculateCompetenceMonth(paymentDate));
     }
-  }, [paymentDate, editingInstallment, calculateCompetenceMonth]); // Removido cutoffPeriods, agora calculateCompetenceMonth é uma dependência
+  }, [paymentDate, editingInstallment, calculateCompetenceMonth]);
 
   const confirmPayment = async () => {
     if (!editingInstallment) return;
   
-    // 1. Store data and close modal immediately for better UX
     const installmentToUpdate = { ...editingInstallment };
     const dateOfPayment = paymentDate;
     setEditingInstallment(null);
   
     try {
-      // 2. Process the update in the background
       await updateInstallmentStatus(
         installmentToUpdate.commissionId,
         installmentToUpdate.number,
@@ -557,7 +551,6 @@ export const Commissions = () => {
         installmentToUpdate.saleType
       );
   
-      // 3. Clean up remaining states on success
       setPaymentDate('');
       setCalculatedCompetence('');
   
@@ -575,7 +568,6 @@ export const Commissions = () => {
 
   const generateReport = () => {
     const filteredCommissions = commissions.filter(c => {
-      // Lógica de filtro para seleção múltipla
       if (reportConsultant.length > 0 && !reportConsultant.includes(c.consultant)) return false;
       if (reportManager.length > 0 && !reportManager.includes(c.managerName)) return false;
       if (reportAngel.length > 0 && (!c.angelName || !reportAngel.includes(c.angelName))) return false;
@@ -594,8 +586,8 @@ export const Commissions = () => {
             commission,
             installmentNumber: num,
             values,
-            creditValue: commission.value, // NOVO: Adiciona Valor do Crédito
-            saleDate: commission.date,    // NOVO: Adiciona Data da Venda
+            creditValue: commission.value,
+            saleDate: commission.date,
           });
           totalCommissions.consultant += values.cons;
           totalCommissions.manager += values.man;
@@ -604,16 +596,14 @@ export const Commissions = () => {
       });
     });
 
-    // Ordenar por número de parcelas pagas (maior para menor) para o relatório
     detailedInstallments.sort((a, b) => {
       const paidCountA = Object.values(a.commission.installmentDetails).filter(s => s.status === 'Pago').length;
       const paidCountB = Object.values(b.commission.installmentDetails).filter(s => s.status === 'Pago').length;
       
       if (paidCountA !== paidCountB) {
-        return paidCountB - paidCountA; // Maior número de parcelas pagas primeiro
+        return paidCountB - paidCountA;
       }
       
-      // Se o número de parcelas pagas for igual, ordenar pela data da venda (mais recente primeiro)
       return new Date(b.saleDate).getTime() - new Date(a.saleDate).getTime();
     });
 
@@ -634,8 +624,8 @@ export const Commissions = () => {
     }
 
     const dataToExport = reportData.detailedInstallments.map(item => ({
-      'Data da Venda': item.saleDate ? new Date(item.saleDate + 'T00:00:00').toLocaleDateString('pt-BR') : 'N/A', // Movido para o início
-      'Valor do Crédito': item.creditValue, // Movido para o início
+      'Data da Venda': item.saleDate ? new Date(item.saleDate + 'T00:00:00').toLocaleDateString('pt-BR') : 'N/A',
+      'Valor do Crédito': item.creditValue,
       'Cliente': item.commission.clientName,
       'Consultor': item.commission.consultant,
       'Gestor': item.commission.managerName,
@@ -651,22 +641,21 @@ export const Commissions = () => {
     const worksheet = XLSX.utils.json_to_sheet(dataToExport);
     
     const currencyFormat = 'R$ #,##0.00';
-    // As colunas de moeda agora são: B (Valor do Crédito), I (Valor Consultor), J (Valor Gestor), K (Valor Anjo)
     const currencyCols = ['B', 'I', 'J', 'K']; 
     
     worksheet['!cols'] = [
-        { wch: 15 }, // Data da Venda
-        { wch: 20 }, // Valor do Crédito
-        { wch: 25 }, // Cliente
-        { wch: 25 }, // Consultor
-        { wch: 25 }, // Gestor
-        { wch: 25 }, // Anjo
-        { wch: 10 }, // Parcela
-        { wch: 15 }, // PV
-        { wch: 20 }, // Mês Competência
-        { wch: 20 }, // Valor (Consultor)
-        { wch: 20 }, // Valor (Gestor)
-        { wch: 20 }, // Valor (Anjo)
+        { wch: 15 },
+        { wch: 20 },
+        { wch: 25 },
+        { wch: 25 },
+        { wch: 25 },
+        { wch: 25 },
+        { wch: 10 },
+        { wch: 15 },
+        { wch: 20 },
+        { wch: 20 },
+        { wch: 20 },
+        { wch: 20 },
     ];
 
     Object.keys(worksheet).forEach(cellRef => {
@@ -727,10 +716,11 @@ export const Commissions = () => {
             consultantValue: recalculatedTotals.consultant,
             managerValue: recalculatedTotals.manager,
             angelValue: recalculatedTotals.angel,
-            status: getOverallStatus(updatedCommission.installmentDetails), // Re-evaluate overall status
+            status: getOverallStatus(updatedCommission.installmentDetails),
         };
 
-        await updateCommission(updatedCommission.id, finalUpdates);
+        // Passa updatedCommission.db_id para updateCommission
+        await updateCommission(updatedCommission.db_id!, finalUpdates); // Usar db_id
         toast.success("Comissão atualizada com sucesso!");
         setIsEditCommissionModalOpen(false);
     } catch (error: any) {
@@ -741,7 +731,7 @@ export const Commissions = () => {
   };
 
   return (
-    <div className="p-8 min-h-screen pb-20 w-full"> {/* Removido max-w-7xl mx-auto */}
+    <div className="p-8 min-h-screen pb-20 w-full">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Central de Comissões</h1>
@@ -842,13 +832,12 @@ export const Commissions = () => {
                     {isCustomRulesMode && (
                       <div className="p-4 border-b border-gray-200 dark:border-slate-700 bg-blue-50 dark:bg-blue-900/20">
                         <h3 className="text-sm font-semibold text-blue-800 dark:text-blue-200 mb-2">Editor de Regras Personalizadas</h3>
-                        {/* NOVO: Títulos para os campos de coeficiente */}
                         <div className="grid grid-cols-12 gap-2 items-center mb-2">
                           <div className="col-span-4 text-xs font-medium text-gray-700 dark:text-gray-300 text-center">Parcelas</div>
                           <div className="col-span-2 text-xs font-medium text-gray-700 dark:text-gray-300 text-center">Consultor</div>
                           <div className="col-span-2 text-xs font-medium text-gray-700 dark:text-gray-300 text-center">Gestor</div>
                           <div className="col-span-2 text-xs font-medium text-gray-700 dark:text-gray-300 text-center">Anjo</div>
-                          <div className="col-span-2"></div> {/* Para alinhar com o ícone de lixeira */}
+                          <div className="col-span-2"></div>
                         </div>
                         <div className="space-y-2">
                           {customRulesText.map((rule) => (
@@ -968,7 +957,6 @@ export const Commissions = () => {
                 </div>
             </div>
 
-            {/* NOVO: Cards de Métricas Percentuais */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                 <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-3">
                     <div className="p-2 bg-green-50 dark:bg-green-900/20 rounded-lg"><MarkAllPaidIcon className="w-5 h-5 text-green-600 dark:text-green-400" /></div>
@@ -1007,7 +995,6 @@ export const Commissions = () => {
                 </div>
             </div>
 
-            {/* NOVO: Card para o Valor Total Vendido */}
             <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center justify-center gap-4 mb-8">
                 <div className="p-3 bg-brand-50 dark:bg-brand-900/20 rounded-lg flex-shrink-0">
                     <DollarSign className="w-6 h-6 text-brand-600 dark:text-brand-400" />
@@ -1097,7 +1084,7 @@ export const Commissions = () => {
                                                       <CalendarCheck className="w-4 h-4" />
                                                     </button>
                                                     <button 
-                                                        onClick={() => handleOpenEditCommissionModal(c)} // NOVO: Botão de editar
+                                                        onClick={() => handleOpenEditCommissionModal(c)}
                                                         className="p-2 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/20 text-gray-400 hover:text-blue-500"
                                                         title="Editar Venda"
                                                     >
@@ -1203,7 +1190,6 @@ export const Commissions = () => {
                   placeholder="Todos os Anjos"
                 />
               </div>
-              {/* NOVO: Filtro por PV */}
               <div className="flex-1">
                 <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Filtrar por PV:</label>
                 <MultiSelectFilter
@@ -1231,15 +1217,14 @@ export const Commissions = () => {
                 <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg"><div className="text-sm text-purple-600 dark:text-purple-300">Total do Mês</div><div className="text-2xl font-bold text-purple-900 dark:text-purple-100">{formatCurrency(reportData.totalCommissions.total)}</div></div>
               </div>
               
-              {/* Linha divisória adicionada aqui */}
               <hr className="my-6 border-gray-200 dark:border-slate-700" />
 
               <div className="overflow-x-auto">
-                <table className="w-full text-sm min-w-[1200px]"> {/* Adicionado min-w para espaçamento */}
+                <table className="w-full text-sm min-w-[1200px]">
                   <thead className="text-left text-gray-500 dark:text-gray-400">
                     <tr className="border-b dark:border-slate-700">
-                      <th className="py-2 px-4">Data Venda</th> {/* Movido e ajustado padding */}
-                      <th className="py-2 px-4">Valor Crédito</th> {/* Movido e ajustado padding */}
+                      <th className="py-2 px-4">Data Venda</th>
+                      <th className="py-2 px-4">Valor Crédito</th>
                       <th className="py-2 px-4">Cliente</th>
                       <th className="py-2 px-4">Consultor</th>
                       <th className="py-2 px-4">Gestor</th>
@@ -1255,8 +1240,8 @@ export const Commissions = () => {
                   <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
                     {reportData.detailedInstallments.map((item, index) => (
                       <tr key={index} className="hover:bg-gray-50 dark:hover:bg-slate-700/50">
-                        <td className="py-2 px-4">{new Date(item.saleDate + 'T00:00:00').toLocaleDateString('pt-BR')}</td> {/* Movido e ajustado padding */}
-                        <td className="py-2 px-4">{formatCurrency(item.creditValue)}</td> {/* Movido e ajustado padding */}
+                        <td className="py-2 px-4">{new Date(item.saleDate + 'T00:00:00').toLocaleDateString('pt-BR')}</td>
+                        <td className="py-2 px-4">{formatCurrency(item.creditValue)}</td>
                         <td className="py-2 px-4 font-medium text-gray-800 dark:text-gray-200">{item.commission.clientName}</td>
                         <td className="py-2 px-4">{item.commission.consultant}</td>
                         <td className="py-2 px-4">{item.commission.managerName}</td>
