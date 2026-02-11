@@ -36,6 +36,17 @@ const getOverallStatus = (details: Record<string, InstallmentInfo>): CommissionS
     return 'Em Andamento';
 };
 
+// NOVO: Função para obter as classes de cor do status da parcela
+const getInstallmentStatusColor = (status: InstallmentStatus) => {
+  switch (status) {
+    case 'Pendente': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800';
+    case 'Pago': return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 border-green-200 dark:border-green-800';
+    case 'Atraso': return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300 border-red-200 dark:border-red-800';
+    case 'Cancelado': return 'bg-gray-100 text-gray-800 dark:bg-slate-700 dark:text-gray-300 border-gray-200 dark:border-slate-700';
+    default: return 'bg-gray-100 text-gray-800 dark:bg-slate-700 dark:text-gray-300 border-gray-200 dark:border-slate-700';
+  }
+};
+
 type CustomRuleText = {
     id: string;
     startInstallment: string;
