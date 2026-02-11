@@ -70,7 +70,7 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
     { to: `${baseRoute}/config-templates`, icon: MessageSquare, label: "Configurar Mensagens", roles: ['GESTOR', 'ADMIN'], section: 'config' },
     { to: `${baseRoute}/config-cutoff`, icon: Clock, label: "Períodos de Corte", roles: ['GESTOR', 'ADMIN'], section: 'config' },
     { to: `${baseRoute}/crm-config`, icon: PlusCircle, label: "Configurar CRM", roles: ['GESTOR', 'ADMIN'], section: 'config' },
-    { to: `${baseRoute}/config-origins`, icon: MapPin, label: "Configurar Origens", roles: ['GESTOR', 'ADMIN'], section: 'config' },
+    { to: `${baseRoute}/config-origins`, icon: MapPin, label: "Configurar Origens", roles: ['GESTOR', 'ADMIN', 'SECRETARIA'], section: 'config' }, {/* Adicionado SECRETARIA */}
     { to: `${baseRoute}/config-process`, icon: Settings, label: "Editar Processo (Antigo)", roles: ['GESTOR', 'ADMIN'], section: 'config' },
   ], [dashboardPath, baseRoute, userRole]);
 
@@ -163,6 +163,29 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
               )}
             </>
           )}
+          {/* Configurações do Sistema para Secretaria (apenas Configurar Origens) */}
+          {userRole === 'SECRETARIA' && (
+            <>
+              {!isSidebarCollapsed && (
+                <button onClick={() => setIsConfigCollapsed(!isConfigCollapsed)} className={`${sectionTitleClass} mt-4`}>
+                  <span>Configurações do Sistema</span>
+                  <ChevronDown className={`w-4 h-4 transition-transform ${isConfigCollapsed ? 'rotate-0' : '-rotate-90'}`} />
+                </button>
+              )}
+              {(!isSidebarCollapsed && !isConfigCollapsed) && (
+                <NavLink to={`${baseRoute}/config-origins`} className={linkClass} onClick={toggleSidebar}>
+                  <MapPin className="w-5 h-5" />
+                  <span>Configurar Origens</span>
+                </NavLink>
+              )}
+              {isSidebarCollapsed && (
+                <NavLink to={`${baseRoute}/config-origins`} className={linkClass} onClick={toggleSidebar} title="Configurar Origens">
+                  <MapPin className="w-5 h-5" />
+                </NavLink>
+              )}
+            </>
+          )}
+
 
           {/* Pessoal */}
           {!isSidebarCollapsed && (

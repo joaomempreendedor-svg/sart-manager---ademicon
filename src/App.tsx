@@ -162,6 +162,7 @@ const AppRoutes = () => {
             <Route path="daily-checklist" element={<SecretariaDailyChecklist />} />
             <Route path="onboarding-admin" element={<OnlineOnboarding />} />
             <Route path="form-cadastros" element={<FormCadastros />} />
+            <Route path="config-origins" element={<OriginConfig />} {/* Adicionado para Secretaria */} />
           </Route>
         </Route>
 
