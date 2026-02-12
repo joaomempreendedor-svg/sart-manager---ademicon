@@ -97,10 +97,10 @@ export const Commissions = () => {
   const [saleType, setSaleType] = useState<'Imóvel' | 'Veículo'>('Imóvel');
   const [group, setGroup] = useState('');
   const [quota, setQuota] = useState('');
-  const [selectedPV, setSelectedPV] = useState('');
-  const [selectedConsultant, setSelectedConsultant] = useState('');
-  const [selectedManager, setSelectedManager] = useState('');
-  const [selectedAngel, setSelectedAngel] = useState('');
+  const [selectedPV, setSelectedPV] = useState('default-pv'); // Alterado para valor não vazio
+  const [selectedConsultant, setSelectedConsultant] = useState('default-consultant'); // Alterado para valor não vazio
+  const [selectedManager, setSelectedManager] = useState('default-manager'); // Alterado para valor não vazio
+  const [selectedAngel, setSelectedAngel] = useState('default-angel'); // Alterado para valor não vazio
   const [taxRateInput, setTaxRateInput] = useState('6');
 
   const [editingInstallment, setEditingInstallment] = useState<{
@@ -168,10 +168,10 @@ export const Commissions = () => {
     setSaleType('Imóvel');
     setGroup('');
     setQuota('');
-    setSelectedPV('');
-    setSelectedConsultant('');
-    setSelectedManager('');
-    setSelectedAngel('');
+    setSelectedPV('default-pv'); // Alterado para valor não vazio
+    setSelectedConsultant('default-consultant'); // Alterado para valor não vazio
+    setSelectedManager('default-manager'); // Alterado para valor não vazio
+    setSelectedAngel('default-angel'); // Alterado para valor não vazio
     setTaxRateInput('6');
     setHasAngel(false);
     setIsCustomRulesMode(false);
@@ -290,10 +290,10 @@ export const Commissions = () => {
     if (!credit) errors.push("Valor do Crédito");
     if (!clientName.trim()) errors.push("Nome do Cliente");
     if (!saleDate) errors.push("Data da Venda");
-    if (!selectedPV) errors.push("Ponto de Venda (PV)");
+    if (selectedPV === 'default-pv') errors.push("Ponto de Venda (PV)"); // Alterado para valor não vazio
     if (!group.trim()) errors.push("Grupo");
     if (!quota.trim()) errors.push("Cota");
-    if (!selectedConsultant) errors.push("Prévia/Autorizado");
+    if (selectedConsultant === 'default-consultant') errors.push("Prévia/Autorizado"); // Alterado para valor não vazio
 
     if (errors.length > 0) {
         alert(`Por favor, preencha os seguintes campos obrigatórios:\n\n- ${errors.join('\n- ')}`);
@@ -308,7 +308,7 @@ export const Commissions = () => {
 
       const payload: Omit<Commission, 'id' | 'db_id' | 'criado_em'> = { // Alterado para Omit<Commission, 'id' | 'db_id' | 'criado_em'>
         id: crypto.randomUUID(), // Gerar o ID interno aqui
-        date: saleDate, clientName, type: saleType, group, quota, consultant: selectedConsultant, managerName: selectedManager || 'N/A', angelName: hasAngel ? selectedAngel : undefined, pv: selectedPV, value: credit, taxRate: taxValue, 
+        date: saleDate, clientName, type: saleType, group, quota, consultant: selectedConsultant, managerName: selectedManager === 'default-manager' ? 'N/A' : selectedManager, angelName: hasAngel ? (selectedAngel === 'default-angel' ? undefined : selectedAngel) : undefined, pv: selectedPV, value: credit, taxRate: taxValue, 
         netValue: simulation.totals.grandTotal * (1 - (taxValue/100)),
         installments: 15, status: 'Em Andamento', installmentDetails: initialInstallments,
         consultantValue: simulation.totals.consultant, managerValue: simulation.totals.manager, angelValue: simulation.totals.angel,
@@ -796,7 +796,7 @@ export const Commissions = () => {
                                     <SelectValue placeholder="Selecione..." />
                                   </SelectTrigger>
                                   <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
-                                    <SelectItem value="">Selecione...</SelectItem>
+                                    <SelectItem value="default-pv">Selecione...</SelectItem> {/* Alterado para valor não vazio */}
                                     {pvs.map(pv => <SelectItem key={pv} value={pv}>{pv}</SelectItem>)}
                                   </SelectContent>
                                 </Select>
@@ -819,7 +819,7 @@ export const Commissions = () => {
                                   <SelectValue placeholder="Selecione o Prévia/Autorizado" />
                                 </SelectTrigger>
                                 <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
-                                  <SelectItem value="">Selecione o Prévia/Autorizado</SelectItem>
+                                  <SelectItem value="default-consultant">Selecione o Prévia/Autorizado</SelectItem> {/* Alterado para valor não vazio */}
                                   {consultants.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
                                 </SelectContent>
                               </Select>
@@ -831,7 +831,7 @@ export const Commissions = () => {
                                   <SelectValue placeholder="Selecione o Gestor" />
                                 </SelectTrigger>
                                 <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
-                                  <SelectItem value="">Selecione o Gestor</SelectItem>
+                                  <SelectItem value="default-manager">Selecione o Gestor</SelectItem> {/* Alterado para valor não vazio */}
                                   {managers.map(m => <SelectItem key={m.id} value={m.name}>{m.name}</SelectItem>)}
                                 </SelectContent>
                               </Select>
@@ -844,7 +844,7 @@ export const Commissions = () => {
                                     <SelectValue placeholder="Selecione o Anjo" />
                                   </SelectTrigger>
                                   <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
-                                    <SelectItem value="">Selecione o Anjo</SelectItem>
+                                    <SelectItem value="default-angel">Selecione o Anjo</SelectItem> {/* Alterado para valor não vazio */}
                                     {angels.map(a => <SelectItem key={a.id} value={a.name}>{a.name}</SelectItem>)}
                                   </SelectContent>
                                 </Select>

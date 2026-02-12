@@ -63,10 +63,10 @@ export const EditCommissionModal: React.FC<EditCommissionModalProps> = ({
   const [saleType, setSaleType] = useState<'Imóvel' | 'Veículo'>('Imóvel');
   const [group, setGroup] = useState('');
   const [quota, setQuota] = useState('');
-  const [selectedPV, setSelectedPV] = useState('');
-  const [selectedConsultant, setSelectedConsultant] = useState('');
-  const [selectedManager, setSelectedManager] = useState('');
-  const [selectedAngel, setSelectedAngel] = useState('');
+  const [selectedPV, setSelectedPV] = useState('default-pv'); // Alterado para valor não vazio
+  const [selectedConsultant, setSelectedConsultant] = useState('default-consultant'); // Alterado para valor não vazio
+  const [selectedManager, setSelectedManager] = useState('default-manager'); // Alterado para valor não vazio
+  const [selectedAngel, setSelectedAngel] = useState('default-angel'); // Alterado para valor não vazio
   const [taxRateInput, setTaxRateInput] = useState('6');
   const [creditValue, setCreditValue] = useState('');
   const [hasAngel, setHasAngel] = useState(false);
@@ -77,9 +77,9 @@ export const EditCommissionModal: React.FC<EditCommissionModalProps> = ({
   const [error, setError] = useState('');
 
   const activeMembers = useMemo(() => teamMembers.filter(m => m.isActive), [teamMembers]);
-  const consultants = useMemo(() => activeMembers.filter(m => m.roles.includes('Prévia') || m.roles.includes('Autorizado')), [activeMembers]);
-  const managers = useMemo(() => activeMembers.filter(m => m.roles.includes('Gestor')), [activeMembers]);
-  const angels = useMemo(() => activeMembers.filter(m => m.roles.includes('Anjo')), [activeMembers]);
+  const consultants = useMemo(() => activeMembers.filter(m => m.roles.includes('PRÉVIA') || m.roles.includes('AUTORIZADO')), [activeMembers]);
+  const managers = useMemo(() => activeMembers.filter(m => m.roles.includes('GESTOR')), [activeMembers]);
+  const angels = useMemo(() => activeMembers.filter(m => m.roles.includes('ANJO')), [activeMembers]);
 
   useEffect(() => {
     if (isOpen && commissionToEdit) {
@@ -88,11 +88,10 @@ export const EditCommissionModal: React.FC<EditCommissionModalProps> = ({
       setSaleType(commissionToEdit.type);
       setGroup(commissionToEdit.group);
       setQuota(commissionToEdit.quota);
-      setSelectedPV(commissionToEdit.pv);
-      setSelectedConsultant(commissionToEdit.consultant);
-      // Ajuste para o Select do Gestor: se for 'N/A' ou vazio, use 'none'
-      setSelectedManager(commissionToEdit.managerName === 'N/A' || !commissionToEdit.managerName ? 'none' : commissionToEdit.managerName);
-      setSelectedAngel(commissionToEdit.angelName || '');
+      setSelectedPV(commissionToEdit.pv || 'default-pv'); // Alterado para valor não vazio
+      setSelectedConsultant(commissionToEdit.consultant || 'default-consultant'); // Alterado para valor não vazio
+      setSelectedManager(commissionToEdit.managerName === 'N/A' || !commissionToEdit.managerName ? 'default-manager' : commissionToEdit.managerName); // Alterado para valor não vazio
+      setSelectedAngel(commissionToEdit.angelName || 'default-angel'); // Alterado para valor não vazio
       setTaxRateInput(commissionToEdit.taxRate.toString().replace('.', ','));
       setCreditValue(formatCurrencyInput(commissionToEdit.value.toFixed(2).replace('.', ',')));
       setHasAngel(!!commissionToEdit.angelName);
@@ -155,10 +154,10 @@ export const EditCommissionModal: React.FC<EditCommissionModalProps> = ({
     if (!credit) errors.push("Valor do Crédito");
     if (!clientName.trim()) errors.push("Nome do Cliente");
     if (!saleDate) errors.push("Data da Venda");
-    if (!selectedPV) errors.push("Ponto de Venda (PV)");
+    if (selectedPV === 'default-pv') errors.push("Ponto de Venda (PV)"); // Alterado para valor não vazio
     if (!group.trim()) errors.push("Grupo");
     if (!quota.trim()) errors.push("Cota");
-    if (!selectedConsultant) errors.push("Prévia/Autorizado");
+    if (selectedConsultant === 'default-consultant') errors.push("Prévia/Autorizado"); // Alterado para valor não vazio
 
     if (errors.length > 0) {
       setError(`Por favor, preencha os seguintes campos obrigatórios: ${errors.join(', ')}.`);
@@ -183,9 +182,9 @@ export const EditCommissionModal: React.FC<EditCommissionModalProps> = ({
         quota: quota.trim(),
         pv: selectedPV,
         consultant: selectedConsultant,
-        // Ajuste para o Select do Gestor: se for 'none', salve como 'N/A'
-        managerName: selectedManager === 'none' ? 'N/A' : selectedManager,
-        angelName: hasAngel ? selectedAngel : undefined,
+        // Ajuste para o Select do Gestor: se for 'default-manager', salve como 'N/A'
+        managerName: selectedManager === 'default-manager' ? 'N/A' : selectedManager,
+        angelName: hasAngel ? (selectedAngel === 'default-angel' ? undefined : selectedAngel) : undefined,
         value: credit,
         taxRate: taxValue,
         customRules: isCustomRulesMode ? customRules : undefined,
@@ -254,6 +253,7 @@ export const EditCommissionModal: React.FC<EditCommissionModalProps> = ({
                     <SelectValue placeholder="Selecione o PV" />
                   </SelectTrigger>
                   <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
+                    <SelectItem value="default-pv">Selecione o PV</SelectItem> {/* Alterado para valor não vazio */}
                     {pvs.map(pv => <SelectItem key={pv} value={pv}>{pv}</SelectItem>)}
                   </SelectContent>
                 </Select>
@@ -265,6 +265,7 @@ export const EditCommissionModal: React.FC<EditCommissionModalProps> = ({
                     <SelectValue placeholder="Selecione o Consultor" />
                   </SelectTrigger>
                   <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
+                    <SelectItem value="default-consultant">Selecione o Consultor</SelectItem> {/* Alterado para valor não vazio */}
                     {consultants.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
@@ -276,7 +277,7 @@ export const EditCommissionModal: React.FC<EditCommissionModalProps> = ({
                     <SelectValue placeholder="Selecione o Gestor" />
                   </SelectTrigger>
                   <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
-                    <SelectItem value="none">Nenhum</SelectItem> {/* Corrigido: valor não vazio */}
+                    <SelectItem value="default-manager">Selecione o Gestor</SelectItem> {/* Alterado para valor não vazio */}
                     {managers.map(m => <SelectItem key={m.id} value={m.name}>{m.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
