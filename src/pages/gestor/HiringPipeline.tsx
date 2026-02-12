@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Loader2, Search, User, Phone, Mail, CheckCircle2, XCircle, RotateCcw, ArrowRight, MessageSquare, UserX, Plus, Trash2, Users, Clock, UserRound, UploadCloud, CalendarDays, Filter, Calendar, FileText, UserCheck, Star, TrendingUp, ChevronRight, Check, CalendarClock, UserMinus, ArrowRightCircle } from 'lucide-react';
+import { Loader2, Search, User, Phone, Mail, CheckCircle2, XCircle, RotateCcw, ArrowRight, MessageSquare, UserX, Plus, Trash2, Users, Clock, UserRound, UploadCloud, CalendarDays, Filter, Calendar, FileText, UserCheck, Star, TrendingUp, ChevronRight, Check, CalendarClock, UserMinus, ArrowRightCircle, ShieldCheck } from 'lucide-react'; // Adicionado ShieldCheck
 import { useNavigate } from 'react-router-dom';
 import { TableSkeleton } from '@/components/TableSkeleton';
 import {
@@ -23,8 +23,8 @@ import { useDebouncedCallback } from '@/hooks/useDebouncedCallback'; // Importar
 const JOAO_GESTOR_AUTH_ID = "0c6d71b7-daeb-4dde-8eec-0e7a8ffef658";
 
 const HiringPipeline = () => {
-  const { user, isLoading: isAuthLoading } = useAuth();
-  const { candidates, setCandidates, teamMembers, isDataLoading, updateCandidate, deleteCandidate, interviewStructure, checklistStructure, hiringOrigins } = useApp();
+  const { user } = useAuth();
+  const { candidates, setCandidates, teamMembers, isDataLoading, updateCandidate, deleteCandidate, interviewStructure, checklistStructure, hiringOrigins, hasPendingSecretariaTasks } = useApp(); // Adicionado hasPendingSecretariaTasks
   const navigate = useNavigate();
   const [draggingCandidateId, setDraggingCandidateId] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
@@ -237,7 +237,7 @@ const HiringPipeline = () => {
 
   // Memoize the responsibleMembers list for the modal
   const responsibleMembersForModal = useMemo(() => {
-    return teamMembers.filter(m => m.isActive && (m.roles.includes('Gestor') || m.roles.includes('Anjo')));
+    return teamMembers.filter(m => m.isActive && (m.roles.includes('GESTOR') || m.roles.includes('ANJO')));
   }, [teamMembers]);
 
   if (isAuthLoading || isDataLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="w-12 h-12 text-brand-500 animate-spin" /></div>;
@@ -290,6 +290,7 @@ const HiringPipeline = () => {
               {stage.list.map(candidate => {
                 const totalScore = candidate.interviewScores.basicProfile + candidate.interviewScores.commercialSkills + candidate.interviewScores.behavioralProfile + candidate.interviewScores.jobFit;
                 const isToday = candidate.interviewDate === todayStr;
+                const hasPendingSecretariaTasksForCandidate = hasPendingSecretariaTasks(candidate); // NOVO: Verifica tarefas pendentes da Secretaria
 
                 return (
                   <div 
@@ -302,6 +303,11 @@ const HiringPipeline = () => {
                     {isToday && (
                       <div className="absolute top-0 right-0 bg-brand-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-bl-lg flex items-center">
                         <Clock className="w-3 h-3 mr-1" /> HOJE
+                      </div>
+                    )}
+                    {id === 'awaitingPreview' && hasPendingSecretariaTasksForCandidate && ( // NOVO: Indicador para Secretaria
+                      <div className="absolute top-0 left-0 bg-purple-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-br-lg flex items-center" title="Tarefas da Secretaria Pendentes">
+                        <ShieldCheck className="w-3 h-3 mr-1" /> SECRETARIA
                       </div>
                     )}
 

@@ -1106,6 +1106,25 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, [candidates, setCandidates, updateCandidate]);
 
+  // NOVO: Função para verificar se um candidato tem tarefas pendentes da Secretaria
+  const hasPendingSecretariaTasks = useCallback((candidate: Candidate): boolean => {
+    const secretariaChecklistItems = checklistStructure.flatMap(stage => 
+      stage.items.filter(item => item.responsibleRole === 'SECRETARIA')
+    );
+
+    const today = new Date().toISOString().split('T')[0];
+
+    return secretariaChecklistItems.some(item => {
+      const progress = candidate.checklistProgress?.[item.id];
+      // Considera pendente se não estiver completo E tiver uma data de vencimento (hoje ou atrasada)
+      // OU se não tiver data de vencimento e não estiver completo (tarefa sem prazo, mas ainda não feita)
+      return !progress?.completed && (
+        (progress?.dueDate && progress.dueDate <= today) || // Venceu hoje ou está atrasado
+        (!progress?.dueDate) // Não tem prazo, mas não foi concluído
+      );
+    });
+  }, [checklistStructure]);
+
   const value: AppContextType = useMemo(() => ({
     isDataLoading, candidates, teamMembers, commissions, supportMaterials, cutoffPeriods, onboardingSessions, onboardingTemplateVideos, checklistStructure, setChecklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs, crmPipelines, crmStages, crmFields, crmLeads, crmOwnerUserId, dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions, weeklyTargets, weeklyTargetItems, weeklyTargetAssignments, metricLogs, supportMaterialsV2, supportMaterialAssignments, leadTasks, gestorTasks, gestorTaskCompletions, financialEntries, formCadastros, formFiles, notifications, teamProductionGoals, theme,
     toggleTheme, updateConfig, resetLocalState, refetchCommissions, calculateCompetenceMonth, isGestorTaskDueOnDate, calculateNotifications,
@@ -1475,6 +1494,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addTeamProductionGoal: async (goal) => { const { data, error } = await supabase.from('team_production_goals').insert({ ...goal, user_id: JOAO_GESTOR_AUTH_ID }).select().single(); if (error) throw error; setTeamProductionGoals(prev => [data, ...prev]); return data; },
     updateTeamProductionGoal: async (id, updates) => { const { data, error } = await supabase.from('team_production_goals').update(updates).eq('id', id).select().single(); if (error) throw error; setTeamProductionGoals(prev => prev.map(g => g.id === id ? data : g)); return data; },
     deleteTeamProductionGoal: async (id) => { const { error } = await supabase.from('team_production_goals').delete().eq('id', id); if (error) throw error; setTeamProductionGoals(prev => prev.filter(g => g.id !== id)); },
+    hasPendingSecretariaTasks, // Adicionado a nova função
   }), [
     isDataLoading, candidates, teamMembers, commissions, supportMaterials, cutoffPeriods, onboardingSessions, onboardingTemplateVideos, checklistStructure, setChecklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs, crmPipelines, crmStages, crmFields, crmLeads, crmOwnerUserId, dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions, weeklyTargets, weeklyTargetItems, weeklyTargetAssignments, metricLogs, supportMaterialsV2, supportMaterialAssignments, leadTasks, gestorTasks, gestorTaskCompletions, financialEntries, formCadastros, formFiles, notifications, teamProductionGoals, theme,
     toggleTheme, updateConfig, resetLocalState, refetchCommissions, calculateCompetenceMonth, isGestorTaskDueOnDate, calculateNotifications,
@@ -1498,6 +1518,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addTeamMemberFeedback, updateTeamMemberFeedback, deleteTeamMemberFeedback,
     addTeamMember, updateTeamMember, deleteTeamMember,
     addTeamProductionGoal, updateTeamProductionGoal, deleteTeamProductionGoal,
+    hasPendingSecretariaTasks, // Incluído no array de dependências
     user,
     toggleChecklistItem, // Now included in the dependency array
   ]);
