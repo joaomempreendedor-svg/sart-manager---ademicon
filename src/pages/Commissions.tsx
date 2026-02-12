@@ -7,6 +7,8 @@ import toast from 'react-hot-toast';
 import { EditCommissionModal } from '@/components/EditCommissionModal';
 import { MarkInstallmentRangeModal } from '@/components/MarkInstallmentRangeModal';
 import { MultiSelectFilter } from '@/components/ui/MultiSelectFilter'; // Importar o novo componente
+import { Label } from '@/components/ui/label'; // Importar Label
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'; // Importar Select components
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -433,9 +435,9 @@ export const Commissions = () => {
   const handleAddPV = () => { const newPVName = prompt("Digite o nome do novo Ponto de Venda (PV):"); if (newPVName && newPVName.trim()) { addPV(newPVName.trim()); setSelectedPV(newPVName.trim()); } };
 
   const activeMembers = teamMembers.filter(m => m.isActive);
-  const consultants = activeMembers.filter(m => m.roles.includes('Prévia') || m.roles.includes('Autorizado'));
-  const managers = activeMembers.filter(m => m.roles.includes('Gestor'));
-  const angels = activeMembers.filter(m => m.roles.includes('Anjo'));
+  const consultants = activeMembers.filter(m => m.roles.includes('PRÉVIA') || m.roles.includes('AUTORIZADO'));
+  const managers = activeMembers.filter(m => m.roles.includes('GESTOR'));
+  const angels = activeMembers.filter(m => m.roles.includes('ANJO'));
 
   const filteredHistory = useMemo(() => {
     const startFilterDate = filterStartDate ? new Date(filterStartDate + 'T00:00:00') : null;
@@ -784,11 +786,21 @@ export const Commissions = () => {
                             <span>Limpar Formulário</span>
                         </button>
                     </div>
-                    <form onSubmit={handleSaveCommission} className="space-y-3">
+                    <form onSubmit={handleSaveCommission} className="space-y-4"> {/* Changed to space-y-4 for consistency */}
                         <input required placeholder="Nome do Cliente" className="w-full border-gray-300 dark:border-slate-600 rounded-md text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white p-2" value={clientName} onChange={e => setClientName(e.target.value)} />
                          <div className="flex space-x-2">
                              <div className="flex-1"><label className="text-xs text-gray-500 dark:text-gray-400">Data da Venda</label><input type="date" required className="w-full border-gray-300 dark:border-slate-600 rounded-md text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white p-2" value={saleDate} onChange={e => setSaleDate(e.target.value)} /></div>
-                             <div className="flex-1"><label className="text-xs text-gray-500 dark:text-gray-400">PV (Ponto de Venda)</label><div className="flex gap-2"><select required className="w-full border-gray-300 dark:border-slate-600 rounded-md text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white p-2" value={selectedPV} onChange={e => setSelectedPV(e.target.value)}><option value="">Selecione...</option>{pvs.map(pv => <option key={pv} value={pv}>{pv}</option>)}</select><button type="button" onClick={handleAddPV} className="p-2 bg-brand-100 text-brand-700 rounded dark:bg-brand-900/30 dark:text-brand-400 hover:bg-brand-200" title="Adicionar novo PV"><Plus className="w-5 h-5" /></button></div></div>
+                             <div className="flex-1"><label className="text-xs text-gray-500 dark:text-gray-400">PV (Ponto de Venda)</label><div className="flex gap-2">
+                                <Select value={selectedPV} onValueChange={setSelectedPV} required>
+                                  <SelectTrigger className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
+                                    <SelectValue placeholder="Selecione..." />
+                                  </SelectTrigger>
+                                  <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
+                                    <SelectItem value="">Selecione...</SelectItem>
+                                    {pvs.map(pv => <SelectItem key={pv} value={pv}>{pv}</SelectItem>)}
+                                  </SelectContent>
+                                </Select>
+                                <button type="button" onClick={handleAddPV} className="p-2 bg-brand-100 text-brand-700 rounded dark:bg-brand-900/30 dark:text-brand-400 hover:bg-brand-200" title="Adicionar novo PV"><Plus className="w-5 h-5" /></button></div></div>
                         </div>
                         <div className="flex space-x-2">
                              <button type="button" onClick={() => setSaleType('Imóvel')} className={`flex-1 flex items-center justify-center space-x-2 p-2 rounded-md text-sm border ${saleType === 'Imóvel' ? 'bg-brand-50 border-brand-500 text-brand-700 dark:bg-brand-900/20 dark:text-brand-300' : 'border-gray-300 dark:border-slate-600 text-gray-500'}`}><Home className="w-4 h-4" /><span>Imóvel</span></button>
@@ -799,10 +811,45 @@ export const Commissions = () => {
                             <div className="w-1/3"><label className="text-xs text-gray-500 dark:text-gray-400">Cota</label><input required placeholder="Ex: 150" className="w-full border-gray-300 dark:border-slate-600 rounded-md text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white p-2" value={quota} onChange={e => setQuota(e.target.value)} /></div>
                             <div className="w-1/3 relative"><label className="text-xs text-gray-500 dark:text-gray-400 font-bold text-red-500">Imposto (%)</label><div className="relative"><input type="text" className="w-full border-red-200 dark:border-red-900/50 rounded-md text-sm bg-red-50 dark:bg-red-900/10 text-red-900 dark:text-red-300 p-2 pl-2" value={taxRateInput} onChange={e => setTaxRateInput(e.target.value)} /><Percent className="w-3 h-3 text-red-400 absolute right-2 top-2.5" /></div></div>
                         </div>
-                        <div className="pt-2 border-t border-gray-100 dark:border-slate-700">
-                            <select required className="w-full border-gray-300 dark:border-slate-600 rounded-md text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white p-2 mb-2" value={selectedConsultant} onChange={e => setSelectedConsultant(e.target.value)}><option value="">Selecione o Prévia/Autorizado</option>{consultants.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}</select>
-                            <select className="w-full border-gray-300 dark:border-slate-600 rounded-md text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white p-2 mb-2" value={selectedManager} onChange={e => setSelectedManager(e.target.value)}><option value="">Selecione o Gestor</option>{managers.map(m => <option key={m.id} value={m.name}>{m.name}</option>)}</select>
-                            {hasAngel && (<select required className="w-full border-gray-300 dark:border-slate-600 rounded-md text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white p-2" value={selectedAngel} onChange={e => setSelectedAngel(e.target.value)}><option value="">Selecione o Anjo</option>{angels.map(a => <option key={a.id} value={a.name}>{a.name}</option>)}</select>)}
+                        <div className="pt-2 border-t border-gray-100 dark:border-slate-700 space-y-2"> {/* Added space-y-2 here */}
+                            <div>
+                              <Label htmlFor="selectedConsultant">Prévia/Autorizado *</Label>
+                              <Select value={selectedConsultant} onValueChange={setSelectedConsultant} required>
+                                <SelectTrigger className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
+                                  <SelectValue placeholder="Selecione o Prévia/Autorizado" />
+                                </SelectTrigger>
+                                <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
+                                  <SelectItem value="">Selecione o Prévia/Autorizado</SelectItem>
+                                  {consultants.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div>
+                              <Label htmlFor="selectedManager">Gestor</Label>
+                              <Select value={selectedManager} onValueChange={setSelectedManager}>
+                                <SelectTrigger className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
+                                  <SelectValue placeholder="Selecione o Gestor" />
+                                </SelectTrigger>
+                                <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
+                                  <SelectItem value="">Selecione o Gestor</SelectItem>
+                                  {managers.map(m => <SelectItem key={m.id} value={m.name}>{m.name}</SelectItem>)}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            {hasAngel && (
+                              <div>
+                                <Label htmlFor="selectedAngel">Anjo</Label>
+                                <Select value={selectedAngel} onValueChange={setSelectedAngel} required>
+                                  <SelectTrigger className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
+                                    <SelectValue placeholder="Selecione o Anjo" />
+                                  </SelectTrigger>
+                                  <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
+                                    <SelectItem value="">Selecione o Anjo</SelectItem>
+                                    {angels.map(a => <SelectItem key={a.id} value={a.name}>{a.name}</SelectItem>)}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            )}
                         </div>
                         <button 
                           type="submit" 
