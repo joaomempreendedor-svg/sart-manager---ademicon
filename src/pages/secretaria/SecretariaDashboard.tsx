@@ -17,6 +17,8 @@ import {
   Percent, 
   Calendar, 
   RotateCcw,
+  ArrowUpRight,
+  Briefcase,
   ListChecks,
   Loader2,
   AlertCircle,
@@ -125,8 +127,8 @@ export const SecretariaDashboard = () => {
         await toggleGestorTaskCompletion(item.id, true, todayStr);
         toast.success("Tarefa pessoal concluída!");
       } else if (item.type === 'interview') {
-        await updateCandidate(item.personId, { interviewConducted: true, interviewConductedDate: new Date().toISOString() }); // Atualiza a data
-        toast.success("Entrevista marcada como realizada!");
+        // Secretaria não deve marcar entrevistas como realizadas
+        toast.error("A Secretaria não pode marcar entrevistas como realizadas diretamente aqui.");
       }
     } catch (error) {
       toast.error("Erro ao concluir item.");
@@ -145,8 +147,8 @@ export const SecretariaDashboard = () => {
         await deleteGestorTask(item.id);
         toast.success("Tarefa excluída.");
       } else if (item.type === 'interview') {
-        await updateCandidate(item.personId, { interviewDate: '', interviewScheduledDate: undefined, interviewConducted: false, interviewConductedDate: undefined }); // Limpa todas as datas relacionadas
-        toast.success("Data da entrevista removida.");
+        // Secretaria não deve remover datas de entrevista
+        toast.error("A Secretaria não pode remover datas de entrevista diretamente aqui.");
       }
     } catch (error) {
       toast.error("Erro ao remover item.");
@@ -173,33 +175,37 @@ export const SecretariaDashboard = () => {
               dueDate: state.dueDate,
               taskId: taskId
             };
-            if (state.dueDate === todayStr && !state.completed) todayAgendaItems.push(agendaItem);
-            else if (state.dueDate < todayStr && !state.completed) overdueItems.push(agendaItem);
+            // Apenas adiciona tarefas se o responsável for a Secretaria ou se for uma tarefa global
+            if (item.responsibleRole === 'SECRETARIA' || !item.responsibleRole) {
+              if (state.dueDate === todayStr && !state.completed) todayAgendaItems.push(agendaItem);
+              else if (state.dueDate < todayStr && !state.completed) overdueItems.push(agendaItem);
+            }
           }
         }
       });
 
-      if (candidate.interviewDate === todayStr && !candidate.interviewConducted) {
-        todayAgendaItems.push({ 
-          id: candidate.id, 
-          type: 'interview', 
-          title: 'Entrevista Agendada', 
-          personName: candidate.name, 
-          personId: candidate.id, 
-          personType: 'candidate', 
-          dueDate: candidate.interviewDate 
-        });
-      } else if (candidate.interviewDate && candidate.interviewDate < todayStr && candidate.status === 'Entrevista' && !candidate.interviewConducted) {
-        overdueItems.push({
-          id: candidate.id,
-          type: 'interview',
-          title: 'Entrevista não realizada',
-          personName: candidate.name,
-          personId: candidate.id,
-          personType: 'candidate',
-          dueDate: candidate.interviewDate
-        });
-      }
+      // REMOVIDO: Lógica para adicionar entrevistas à agenda da Secretaria
+      // if (candidate.interviewDate === todayStr && !candidate.interviewConducted) {
+      //   todayAgendaItems.push({ 
+      //     id: candidate.id, 
+      //     type: 'interview', 
+      //     title: 'Entrevista Agendada', 
+      //     personName: candidate.name, 
+      //     personId: candidate.id, 
+      //     personType: 'candidate', 
+      //     dueDate: candidate.interviewDate 
+      //   });
+      // } else if (candidate.interviewDate && candidate.interviewDate < todayStr && candidate.status === 'Entrevista' && !candidate.interviewConducted) {
+      //   overdueItems.push({
+      //     id: candidate.id,
+      //     type: 'interview',
+      //     title: 'Entrevista não realizada',
+      //     personName: candidate.name,
+      //     personId: candidate.id,
+      //     personType: 'candidate',
+      //     dueDate: candidate.interviewDate
+      //   });
+      // }
     });
 
     gestorTasks.filter(task => task.user_id === user?.id).forEach(task => {
