@@ -291,8 +291,19 @@ export const CandidateDetail = () => {
               {checklistStructure.map((stage) => {
                 const filteredItems = stage.items.filter(item => {
                     if (checklistFilter === 'ALL') return true;
-                    // Garante que a comparação de roles seja case-insensitive ou padronizada
-                    return item.responsibleRole?.toUpperCase() === user?.role?.toUpperCase();
+                    
+                    const itemResponsibleRole = item.responsibleRole?.toUpperCase();
+                    const currentUserRole = user?.role?.toUpperCase();
+
+                    if (!itemResponsibleRole || !currentUserRole) return false; // Handle undefined roles
+
+                    // Logic for 'MINE' filter
+                    if (currentUserRole === 'GESTOR' || currentUserRole === 'ADMIN') {
+                        return itemResponsibleRole === 'GESTOR';
+                    } else if (currentUserRole === 'SECRETARIA') {
+                        return itemResponsibleRole === 'SECRETARIA';
+                    }
+                    return false; // Default for roles not explicitly handled
                 });
 
                 if (filteredItems.length === 0) return null;
