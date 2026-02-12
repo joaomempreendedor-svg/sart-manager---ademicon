@@ -23,7 +23,7 @@ import { useDebouncedCallback } from '@/hooks/useDebouncedCallback'; // Importar
 const JOAO_GESTOR_AUTH_ID = "0c6d71b7-daeb-4dde-8eec-0e7a8ffef658";
 
 const HiringPipeline = () => {
-  const { user } = useAuth();
+  const { user, isLoading: isAuthLoading } = useAuth();
   const { candidates, setCandidates, teamMembers, isDataLoading, updateCandidate, deleteCandidate, interviewStructure, checklistStructure, hiringOrigins, hasPendingSecretariaTasks } = useApp(); // Adicionado hasPendingSecretariaTasks
   const navigate = useNavigate();
   const [draggingCandidateId, setDraggingCandidateId] = useState<string | null>(null);
