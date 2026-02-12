@@ -168,7 +168,7 @@ export const PublicOnboarding = () => {
                   </div>
                   <button
                     onClick={() => handleMarkAsCompleted(video.id)}
-                    disabled={isCompleted || !hasEnded || !isActive} // NOVO: Desabilita se não for ativo
+                    disabled={isCompleted || !hasEnded || !isActive}
                     className={`px-4 py-2 rounded-md font-semibold text-sm flex items-center space-x-2 transition ${
                       (isCompleted || !hasEnded || !isActive)
                         ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
@@ -180,7 +180,7 @@ export const PublicOnboarding = () => {
                   </button>
                 </div>
                 <div className="mt-4 aspect-video bg-black rounded-lg overflow-hidden">
-                  {youtubeId && isActive ? ( {/* NOVO: Só renderiza o player se for ativo */}
+                  {youtubeId && isActive ? (
                     <YouTube
                       videoId={youtubeId}
                       className="w-full h-full"
