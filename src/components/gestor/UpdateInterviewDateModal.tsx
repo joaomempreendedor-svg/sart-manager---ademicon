@@ -35,8 +35,8 @@ export const UpdateInterviewDateModal: React.FC<UpdateInterviewDateModalProps> =
   const [isSaving, setIsSaving] = useState(false);
 
   const responsibleMembers = useMemo(() => {
-    // Filtra apenas membros ativos que são Gestor ou Anjo
-    return teamMembers.filter(m => m.isActive && (m.roles.includes('Gestor') || m.roles.includes('Anjo')));
+    // Filtra apenas membros ativos que são GESTOR ou ANJO (em maiúsculas)
+    return teamMembers.filter(m => m.isActive && (m.roles.includes('GESTOR') || m.roles.includes('ANJO')));
   }, [teamMembers]);
 
   useEffect(() => {
