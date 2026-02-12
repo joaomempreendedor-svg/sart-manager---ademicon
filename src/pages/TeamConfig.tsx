@@ -382,7 +382,7 @@ export const TeamConfig = () => {
       )}
       {/* NOVO: Renderizar o modal de edição */}
       <EditTeamMemberModal
-        isOpen={isEditModalModalOpen}
+        isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
         member={memberToEdit}
         onSave={handleSaveEditedMember}
