@@ -391,6 +391,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               onboardingOnlineDate: candidateData.onboardingOnlineDate, integrationPresencialDate: candidateData.integrationPresencialDate,
               acompanhamento90DiasDate: candidateData.acompanhamento90DiasDate, authorizedDate: candidateData.authorizedDate,
               reprovadoDate: candidateData.reprovadoDate, disqualifiedDate: candidateData.disqualifiedDate, faltouDate: candidateData.faltouDate,
+              interviewStartTime: candidateData.interviewStartTime, // NOVO: Mapeia a hora de início
+              interviewEndTime: candidateData.interviewEndTime,     // NOVO: Mapeia a hora de término
             };
           });
           setCandidates(normalizedCandidates);
@@ -567,6 +569,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
     if (updates.status === 'Faltou' && candidate.status !== 'Faltou') {
       updatedData.faltouDate = now;
+    }
+
+    // NOVO: Adiciona as horas de início e fim da entrevista
+    if (updates.interviewStartTime !== undefined) {
+      updatedData.interviewStartTime = updates.interviewStartTime;
+    }
+    if (updates.interviewEndTime !== undefined) {
+      updatedData.interviewEndTime = updates.interviewEndTime;
     }
 
     setCandidates(prev => prev.map(c => (c.id === id || c.db_id === id) ? { ...c, ...updatedData, lastUpdatedAt: now } : c));

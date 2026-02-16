@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { Candidate } from '@/types';
-import { X, Calendar as CalendarIcon, Save, Loader2, Users, CalendarPlus } from 'lucide-react';
+import { X, Calendar as CalendarIcon, Save, Loader2, Users, CalendarPlus, Clock } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -31,6 +31,8 @@ interface UpdateInterviewDateModalProps {
 export const UpdateInterviewDateModal: React.FC<UpdateInterviewDateModalProps> = ({ isOpen, onClose, candidate }) => {
   const { updateCandidate, teamMembers } = useApp();
   const [date, setDate] = useState('');
+  const [startTime, setStartTime] = useState(''); // NOVO: Estado para a hora de início
+  const [endTime, setEndTime] = useState('');     // NOVO: Estado para a hora de término
   const [responsibleUserId, setResponsibleUserId] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
@@ -42,20 +44,30 @@ export const UpdateInterviewDateModal: React.FC<UpdateInterviewDateModalProps> =
   useEffect(() => {
     if (isOpen && candidate) {
       setDate(candidate.interviewDate || new Date().toISOString().split('T')[0]);
+      setStartTime(candidate.interviewStartTime || '09:00'); // NOVO: Inicializa com valor existente ou padrão
+      setEndTime(candidate.interviewEndTime || '10:00');     // NOVO: Inicializa com valor existente ou padrão
       setResponsibleUserId(candidate.responsibleUserId || '');
     }
   }, [isOpen, candidate]);
 
   const handleAddToGoogleCalendar = () => {
-    if (!candidate || !date) return;
+    if (!candidate || !date || !startTime || !endTime) {
+      toast.error("Data e horários são obrigatórios para agendar no Google Agenda.");
+      return;
+    }
     
     const title = encodeURIComponent(`Entrevista: ${candidate.name}`);
-    const startDate = new Date(date + 'T00:00:00');
-    const endDate = new Date(startDate);
-    endDate.setDate(startDate.getDate() + 1);
     
-    const formatDateForGoogle = (date: Date) => date.toISOString().split('T')[0].replace(/-/g, '');
-    const dates = `${formatDateForGoogle(startDate)}/${formatDateForGoogle(endDate)}`;
+    // Combina data e hora para criar objetos Date para o Google Calendar
+    const startDateTime = new Date(`${date}T${startTime}:00`);
+    const endDateTime = new Date(`${date}T${endTime}:00`);
+
+    // Formato para Google Calendar (YYYYMMDDTHHMMSSZ)
+    const formatGoogleDateTime = (dt: Date) => {
+      return dt.toISOString().replace(/[-:]|\.\d{3}/g, '');
+    };
+
+    const dates = `${formatGoogleDateTime(startDateTime)}/${formatGoogleDateTime(endDateTime)}`;
     
     const details = encodeURIComponent(`Entrevista com o candidato ${candidate.name}.\nTelefone: ${candidate.phone || 'Não informado'}`);
     const url = `https://www.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${dates}&details=${details}`;
@@ -65,8 +77,16 @@ export const UpdateInterviewDateModal: React.FC<UpdateInterviewDateModalProps> =
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!candidate || !date || !responsibleUserId) {
-      toast.error("Data e responsável são obrigatórios.");
+    if (!candidate || !date || !startTime || !endTime || !responsibleUserId) {
+      toast.error("Data, horários e responsável são obrigatórios.");
+      return;
+    }
+
+    // Validação de horário
+    const startDateTime = new Date(`${date}T${startTime}:00`);
+    const endDateTime = new Date(`${date}T${endTime}:00`);
+    if (startDateTime >= endDateTime) {
+      toast.error("A hora de início deve ser anterior à hora de término.");
       return;
     }
 
@@ -74,6 +94,8 @@ export const UpdateInterviewDateModal: React.FC<UpdateInterviewDateModalProps> =
     try {
       await updateCandidate(candidate.id, {
         interviewDate: date,
+        interviewStartTime: startTime, // NOVO: Salva a hora de início
+        interviewEndTime: endTime,     // NOVO: Salva a hora de término
         responsibleUserId: responsibleUserId,
         status: 'Entrevista'
       });
@@ -94,7 +116,7 @@ export const UpdateInterviewDateModal: React.FC<UpdateInterviewDateModalProps> =
         <DialogHeader>
           <DialogTitle>Agendar Entrevista</DialogTitle>
           <DialogDescription>
-            Defina a data e o responsável pela entrevista de {candidate.name}.
+            Defina a data, horários e o responsável pela entrevista de {candidate.name}.
           </DialogDescription>
         </DialogHeader>
         
@@ -112,6 +134,36 @@ export const UpdateInterviewDateModal: React.FC<UpdateInterviewDateModalProps> =
                   required
                   className="pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600"
                 />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="startTime">Hora Início *</Label>
+                <div className="relative">
+                  <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Input
+                    id="startTime"
+                    type="time"
+                    value={startTime}
+                    onChange={(e) => setStartTime(e.target.value)}
+                    required
+                    className="pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                  />
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="endTime">Hora Fim *</Label>
+                <div className="relative">
+                  <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Input
+                    id="endTime"
+                    type="time"
+                    value={endTime}
+                    onChange={(e) => setEndTime(e.target.value)}
+                    required
+                    className="pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                  />
+                </div>
               </div>
             </div>
             <div>

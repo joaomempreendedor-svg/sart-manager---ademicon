@@ -51,6 +51,8 @@ export interface Candidate {
   phone: string;
   email?: string;
   interviewDate: string;
+  interviewStartTime?: string; // NOVO: Hora de início da entrevista
+  interviewEndTime?: string; // NOVO: Hora de término da entrevista
   interviewer: string;
   origin?: string;
   status: CandidateStatus;
@@ -640,4 +642,5 @@ export interface AppContextType {
   addTeamProductionGoal: (goal: Omit<TeamProductionGoal, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => Promise<TeamProductionGoal>;
   updateTeamProductionGoal: (id: string, updates: Partial<TeamProductionGoal>) => Promise<TeamProductionGoal>;
   deleteTeamProductionGoal: (id: string) => Promise<void>;
+  hasPendingSecretariaTasks: (candidate: Candidate) => boolean;
 }
