@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { ChevronRight, User, Calendar, CheckCircle2, TrendingUp, AlertCircle, Clock, Users, Star, CheckSquare, XCircle, BellRing, UserRound, Plus, ListTodo, Send, DollarSign, Repeat, Filter, RotateCcw, CalendarPlus, Mail, Phone, ClipboardCheck, UserPlus, UserCheck, PieChart, MessageSquare, UserX, UserMinus, Ghost, MapPin, BarChart3, FileText, Percent } from 'lucide-react';
+import { ChevronRight, User, Calendar, CheckCircle2, TrendingUp, AlertCircle, Clock, Users, Star, CheckSquare, XCircle, BellRing, UserRound, Plus, ListTodo, Send, DollarSign, Repeat, Filter, RotateCcw, CalendarPlus, Mail, Phone, ClipboardCheck, UserPlus, UserCheck, PieChart, MessageSquare, UserX, UserMinus, Ghost, MapPin, BarChart3, FileText, Percent, HelpCircle } from 'lucide-react'; // Adicionado HelpCircle
 import { CandidateStatus, ChecklistTaskState, GestorTask, LeadTask, CrmLead, Candidate } from '@/types';
 import { TableSkeleton } from '@/components/TableSkeleton';
 import { ScheduleInterviewModal } from '@/components/ScheduleInterviewModal';
@@ -40,13 +40,10 @@ const MetricCard = ({ title, value, icon: Icon, colorClass, subValue, onClick }:
           <h3 className="text-4xl font-black">{value}</h3>
           {subValue && <p className="text-xs font-medium opacity-60">{subValue}</p>}
         </div>
-        <div className="p-3 rounded-xl bg-white/20 dark:bg-black/20">
-          <Icon className="w-6 h-6" />
+        <div className="absolute -right-4 -bottom-4 opacity-10">
+          <Icon size={100} strokeWidth={3} />
         </div>
-      </div>
-      <div className="absolute -right-4 -bottom-4 opacity-10">
-        <Icon size={100} strokeWidth={3} />
-      </div>
+      </div >
     </>
   );
 
@@ -83,7 +80,7 @@ export const Dashboard = () => {
   const [isCandidatesDetailModalOpen, setIsCandidatesDetailModalOpen] = useState(false); // NOVO: Estado para o modal de candidatos
   const [candidatesModalTitle, setCandidatesModalTitle] = useState(''); // NOVO: Título do modal de candidatos
   const [candidatesForModal, setCandidatesForModal] = useState<Candidate[]>([]); // NOVO: Lista de candidatos para o modal
-  const [candidatesMetricType, setCandidatesMetricType] = useState<'total' | 'newCandidates' | 'contacted' | 'scheduled' | 'conducted' | 'awaitingPreview' | 'hired' | 'noShow' | 'withdrawn' | 'disqualified'>('total'); // NOVO: Tipo de métrica para o modal de candidatos
+  const [candidatesMetricType, setCandidatesMetricType] = useState<'total' | 'newCandidates' | 'contacted' | 'scheduled' | 'conducted' | 'awaitingPreview' | 'hired' | 'noShow' | 'withdrawn' | 'disqualified' | 'noResponse'>('total'); // NOVO: Tipo de métrica para o modal de candidatos, adicionado 'noResponse'
 
 
   const handleOpenNotifications = () => setIsNotificationCenterOpen(true);
@@ -162,6 +159,10 @@ export const Dashboard = () => {
       isInFilterRange(c.contactedDate) && c.screeningStatus === 'Contacted'
     );
 
+    const noResponseList = totalCandidates.filter(c => // NOVO: Lista de Não Respondidos
+      isInFilterRange(c.noResponseDate) && c.screeningStatus === 'No Response'
+    );
+
     const scheduledList = totalCandidates.filter(c => 
       isInFilterRange(c.interviewScheduledDate)
     );
@@ -206,8 +207,9 @@ export const Dashboard = () => {
 
     return {
       total: totalCandidates.length,
-      newCandidates: newCandidatesList.length,
+      newCandidates: newCandidatesList.length, // Este será o "Não Respondido"
       contacted: contactedList.length,
+      noResponse: noResponseList.length, // NOVO: Contagem de Não Respondidos
       scheduled: scheduledList.length,
       conducted: conductedList.length,
       awaitingPreview: awaitingPreviewList.length,
@@ -221,6 +223,7 @@ export const Dashboard = () => {
       // Listas para o modal
       newCandidatesList,
       contactedList,
+      noResponseList, // NOVO: Lista de Não Respondidos para o modal
       scheduledList,
       conductedList,
       awaitingPreviewList,
@@ -282,7 +285,7 @@ export const Dashboard = () => {
     setIsLeadsDetailModalOpen(true);
   };
 
-  const handleOpenCandidatesDetailModal = (title: string, candidates: Candidate[], metricType: 'total' | 'newCandidates' | 'contacted' | 'scheduled' | 'conducted' | 'awaitingPreview' | 'hired' | 'noShow' | 'withdrawn' | 'disqualified') => {
+  const handleOpenCandidatesDetailModal = (title: string, candidates: Candidate[], metricType: 'total' | 'newCandidates' | 'contacted' | 'scheduled' | 'conducted' | 'awaitingPreview' | 'hired' | 'noShow' | 'withdrawn' | 'disqualified' | 'noResponse') => { // NOVO: Adicionado 'noResponse'
     setCandidatesModalTitle(title);
     setCandidatesForModal(candidates);
     setCandidatesMetricType(metricType);
@@ -367,12 +370,12 @@ export const Dashboard = () => {
             onClick={() => handleOpenCandidatesDetailModal('Total de Candidaturas', hiringMetrics.totalCandidatesList, 'total')}
           />
           <MetricCard 
-            title="Novos Candidatos" 
-            value={hiringMetrics.newCandidates} 
-            icon={UserPlus} 
-            colorClass="bg-slate-600 text-white" 
-            subValue="Aguardando contato"
-            onClick={() => handleOpenCandidatesDetailModal('Novos Candidatos', hiringMetrics.newCandidatesList, 'newCandidates')}
+            title="Não Respondido" // NOVO: Título alterado
+            value={hiringMetrics.noResponse} // NOVO: Usando a métrica de Não Respondido
+            icon={HelpCircle} // NOVO: Ícone alterado
+            colorClass="bg-orange-500 text-white" // NOVO: Cor alterada
+            subValue="Aguardando retorno" // NOVO: Subtítulo alterado
+            onClick={() => handleOpenCandidatesDetailModal('Não Respondido', hiringMetrics.noResponseList, 'noResponse')} // NOVO: Ação para o modal
           />
           <MetricCard 
             title="Contatados" 

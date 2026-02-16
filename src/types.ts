@@ -56,7 +56,7 @@ export interface Candidate {
   interviewer: string;
   origin?: string;
   status: CandidateStatus;
-  screeningStatus?: 'Pending Contact' | 'Contacted' | 'No Fit';
+  screeningStatus?: 'Pending Contact' | 'Contacted' | 'No Fit' | 'No Response'; // NOVO: Adicionado 'No Response'
   interviewConducted?: boolean;
   checkedQuestions?: Record<string, boolean>;
   checklistProgress?: Record<string, ChecklistTaskState>;
@@ -69,6 +69,7 @@ export interface Candidate {
   
   // NOVOS CAMPOS PARA RASTREAR HISTÓRICO DE STATUS
   contactedDate?: string; // Data em que o screeningStatus se tornou 'Contacted'
+  noResponseDate?: string; // NOVO: Data em que o screeningStatus se tornou 'No Response'
   interviewScheduledDate?: string; // Data em que a entrevista foi agendada (interviewDate)
   interviewConductedDate?: string; // Data em que a entrevista foi realizada (interviewConducted = true)
   awaitingPreviewDate?: string; // Data em que o status se tornou 'Aguardando Prévia'

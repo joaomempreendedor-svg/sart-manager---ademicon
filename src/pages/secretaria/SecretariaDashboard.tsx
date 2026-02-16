@@ -30,7 +30,8 @@ import {
   Trash2,
   Mail,
   Phone,
-  MapPin
+  MapPin,
+  HelpCircle // NOVO: Importar HelpCircle
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import toast from 'react-hot-toast';
@@ -114,7 +115,7 @@ export const SecretariaDashboard = () => {
   const [isCandidatesDetailModalOpen, setIsCandidatesDetailModalOpen] = useState(false); // NOVO: Estado para o modal de candidatos
   const [candidatesModalTitle, setCandidatesModalTitle] = useState(''); // NOVO: Título do modal de candidatos
   const [candidatesForModal, setCandidatesForModal] = useState<Candidate[]>([]); // NOVO: Lista de candidatos para o modal
-  const [candidatesMetricType, setCandidatesMetricType] = useState<'total' | 'newCandidates' | 'contacted' | 'scheduled' | 'conducted' | 'awaitingPreview' | 'hired' | 'noShow' | 'withdrawn' | 'disqualified'>('total'); // NOVO: Tipo de métrica para o modal de candidatos
+  const [candidatesMetricType, setCandidatesMetricType] = useState<'total' | 'newCandidates' | 'contacted' | 'scheduled' | 'conducted' | 'awaitingPreview' | 'hired' | 'noShow' | 'withdrawn' | 'disqualified' | 'noResponse'>('total'); // NOVO: Tipo de métrica para o modal de candidatos, adicionado 'noResponse'
 
   // --- Handlers de Ação ---
   const handleCompleteItem = async (e: React.MouseEvent, item: AgendaItem) => {
@@ -263,6 +264,10 @@ export const SecretariaDashboard = () => {
       isInFilterRange(c.contactedDate) && c.screeningStatus === 'Contacted'
     );
 
+    const noResponseList = totalCandidates.filter(c => // NOVO: Lista de Não Respondidos
+      isInFilterRange(c.noResponseDate) && c.screeningStatus === 'No Response'
+    );
+
     const scheduledList = totalCandidates.filter(c => 
       isInFilterRange(c.interviewScheduledDate)
     );
@@ -307,8 +312,9 @@ export const SecretariaDashboard = () => {
 
     return {
       total: totalCandidates.length,
-      newCandidates: newCandidatesList.length,
+      newCandidates: newCandidatesList.length, // Este será o "Não Respondido"
       contacted: contactedList.length,
+      noResponse: noResponseList.length, // NOVO: Contagem de Não Respondidos
       scheduled: scheduledList.length,
       conducted: conductedList.length,
       awaitingPreview: awaitingPreviewList.length,
@@ -322,6 +328,7 @@ export const SecretariaDashboard = () => {
       // Listas para o modal
       newCandidatesList,
       contactedList,
+      noResponseList, // NOVO: Lista de Não Respondidos para o modal
       scheduledList,
       conductedList,
       awaitingPreviewList,
@@ -334,7 +341,7 @@ export const SecretariaDashboard = () => {
     };
   }, [candidates, startDate, endDate]);
 
-  const handleOpenCandidatesDetailModal = (title: string, candidates: Candidate[], metricType: 'total' | 'newCandidates' | 'contacted' | 'scheduled' | 'conducted' | 'awaitingPreview' | 'hired' | 'noShow' | 'withdrawn' | 'disqualified') => {
+  const handleOpenCandidatesDetailModal = (title: string, candidates: Candidate[], metricType: 'total' | 'newCandidates' | 'contacted' | 'scheduled' | 'conducted' | 'awaitingPreview' | 'hired' | 'noShow' | 'withdrawn' | 'disqualified' | 'noResponse') => { // NOVO: Adicionado 'noResponse'
     setCandidatesModalTitle(title);
     setCandidatesForModal(candidates);
     setCandidatesMetricType(metricType);
@@ -490,12 +497,12 @@ export const SecretariaDashboard = () => {
             onClick={() => handleOpenCandidatesDetailModal('Total de Candidaturas', metrics.totalCandidatesList, 'total')}
           />
           <MetricCard 
-            title="Novos Candidatos" 
-            value={metrics.newCandidates} 
-            icon={UserPlus} 
-            colorClass="bg-slate-600 text-white" 
-            subValue="Aguardando contato"
-            onClick={() => handleOpenCandidatesDetailModal('Novos Candidatos', metrics.newCandidatesList, 'newCandidates')}
+            title="Não Respondido" // NOVO: Título alterado
+            value={metrics.noResponse} // NOVO: Usando a métrica de Não Respondido
+            icon={HelpCircle} // NOVO: Ícone alterado
+            colorClass="bg-orange-500 text-white" 
+            subValue="Aguardando retorno" // NOVO: Subtítulo alterado
+            onClick={() => handleOpenCandidatesDetailModal('Não Respondido', metrics.noResponseList, 'noResponse')} // NOVO: Ação para o modal
           />
           <MetricCard 
             title="Contatados" 

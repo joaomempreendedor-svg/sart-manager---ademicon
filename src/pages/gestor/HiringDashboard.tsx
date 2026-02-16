@@ -23,7 +23,8 @@ import {
   Ghost,
   MapPin,
   BarChart3,
-  PieChart
+  PieChart,
+  HelpCircle // NOVO: Importar HelpCircle
 } from 'lucide-react';
 
 const HiringDashboard = () => {
@@ -55,6 +56,10 @@ const HiringDashboard = () => {
     // Entradas históricas em cada etapa (dentro do período de filtro)
     const contacted = candidates.filter(c => 
       isInFilterRange(c.contactedDate) // Usa contactedDate
+    ).length;
+
+    const noResponse = candidates.filter(c => // NOVO: Contagem de Não Respondidos
+      isInFilterRange(c.noResponseDate)
     ).length;
 
     const scheduled = candidates.filter(c => 
@@ -121,6 +126,7 @@ const HiringDashboard = () => {
     return {
       total,
       contacted,
+      noResponse, // NOVO: Adicionado noResponse
       scheduled,
       conducted,
       awaitingPreview,
@@ -151,12 +157,9 @@ const HiringDashboard = () => {
           <h3 className="text-4xl font-black">{value}</h3>
           {subValue && <p className="text-xs font-medium opacity-60">{subValue}</p>}
         </div>
-        <div className="p-3 rounded-xl bg-white/20 dark:bg-black/20">
-          <Icon className="w-6 h-6" />
+        <div className="absolute -right-4 -bottom-4 opacity-10">
+          <Icon size={100} strokeWidth={3} />
         </div>
-      </div>
-      <div className="absolute -right-4 -bottom-4 opacity-10">
-        <Icon size={100} strokeWidth={3} />
       </div>
     </div>
   );
@@ -205,6 +208,12 @@ const HiringDashboard = () => {
           value={metrics.total} 
           icon={Users} 
           colorClass="bg-indigo-600 text-white" 
+        />
+        <MetricCard 
+          title="Não Respondido (no Período)" // NOVO: Título alterado
+          value={metrics.noResponse} // NOVO: Usando a métrica de Não Respondido
+          icon={HelpCircle} // NOVO: Ícone alterado
+          colorClass="bg-orange-500 text-white" 
         />
         <MetricCard 
           title="Contatados (no Período)" 

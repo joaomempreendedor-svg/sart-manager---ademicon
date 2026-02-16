@@ -391,6 +391,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               onboardingOnlineDate: candidateData.onboardingOnlineDate, integrationPresencialDate: candidateData.integrationPresencialDate,
               acompanhamento90DiasDate: candidateData.acompanhamento90DiasDate, authorizedDate: candidateData.authorizedDate,
               reprovadoDate: candidateData.reprovadoDate, disqualifiedDate: candidateData.disqualifiedDate, faltouDate: candidateData.faltouDate,
+              noResponseDate: candidateData.noResponseDate, // NOVO: Mapeia a data de 'No Response'
               interviewStartTime: candidateData.interviewStartTime, // NOVO: Mapeia a hora de início
               interviewEndTime: candidateData.interviewEndTime,     // NOVO: Mapeia a hora de término
             };
@@ -484,7 +485,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         else { setGestorTaskCompletions(gestorTaskCompletionsRes.data || []); console.log(`[AppContext] Fetched ${gestorTaskCompletionsRes.data?.length || 0} gestor task completions.`); }
 
         if (financialEntriesRes.error) { console.error("Error fetching financial entries:", financialEntriesRes.error); toast.error(`Erro ao carregar entradas financeiras: ${financialEntriesRes.error.message}`); setFinancialEntries([]); }
-        else { setFinancialEntries(financialEntriesRes.data?.map((entry: any) => ({ id: entry.id, db_id: entry.id, user_id: entry.user_id, entry_date: entry.entry_date, type: entry.type, description: entry.description, amount: parseFloat(entry.amount), created_at: entry.created_at })) || []); console.log(`[AppContext] Fetched ${financialEntriesRes.data?.length || 0} financial entries.`); }
+        else { setFinancialEntries(financialEntriesRes.data?.map((entry: any) => ({ id: entry.id, db_id: entry.id, user_id: entry.user_id, entry_date: entry.entry_date, type: entry.type, description: entry.description, amount: parseFloat(entry.amount) / 100, created_at: entry.created_at })) || []); console.log(`[AppContext] Fetched ${financialEntriesRes.data?.length || 0} financial entries.`); }
 
         if (formCadastrosRes.error) { console.error("Error fetching form submissions:", formCadastrosRes.error); toast.error(`Erro ao carregar cadastros de formulário: ${formCadastrosRes.error.message}`); setFormCadastros([]); }
         else { setFormCadastros(formCadastrosRes.data || []); console.log(`[AppContext] Fetched ${formCadastrosRes.data?.length || 0} form submissions.`); }
@@ -539,6 +540,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     if (updates.screeningStatus === 'Contacted' && candidate.screeningStatus !== 'Contacted') {
       updatedData.contactedDate = now;
+    }
+    // NOVO: Registra a data quando o status de triagem muda para 'No Response'
+    if (updates.screeningStatus === 'No Response' && candidate.screeningStatus !== 'No Response') {
+      updatedData.noResponseDate = now;
     }
     if (updates.interviewDate && candidate.interviewDate !== updates.interviewDate) {
       updatedData.interviewScheduledDate = now;
@@ -1058,16 +1063,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [setGestorTaskCompletions]);
 
   const addFinancialEntry = useCallback(async (entry: Omit<FinancialEntry, 'id' | 'user_id' | 'created_at'>) => { 
-    const { data, error } = await supabase.from('financial_entries').insert({ ...entry, user_id: JOAO_GESTOR_AUTH_ID }).select().single(); 
+    const { data, error } = await supabase.from('financial_entries').insert({ ...entry, user_id: JOAO_GESTOR_AUTH_ID, amount: entry.amount * 100 }).select().single(); // Salva o valor em centavos
     if (error) throw error; 
-    setFinancialEntries(prev => [...prev, { ...data, amount: parseFloat(data.amount) }]); 
+    setFinancialEntries(prev => [...prev, { ...data, amount: parseFloat(data.amount) / 100 }]); 
     return data; 
   }, [setFinancialEntries]);
 
   const updateFinancialEntry = useCallback(async (id: string, updates: Partial<FinancialEntry>) => { 
-    const { data, error } = await supabase.from('financial_entries').update(updates).eq('id', id).select().single(); 
+    const updatesWithCentavos = updates.amount !== undefined ? { ...updates, amount: updates.amount * 100 } : updates; // Converte para centavos se o valor for atualizado
+    const { data, error } = await supabase.from('financial_entries').update(updatesWithCentavos).eq('id', id).select().single(); 
     if (error) throw error; 
-    setFinancialEntries(prev => prev.map(e => e.id === id ? { ...data, amount: parseFloat(data.amount) } : e)); 
+    setFinancialEntries(prev => prev.map(e => e.id === id ? { ...data, amount: parseFloat(data.amount) / 100 } : e)); 
     return data; 
   }, [setFinancialEntries]);
 

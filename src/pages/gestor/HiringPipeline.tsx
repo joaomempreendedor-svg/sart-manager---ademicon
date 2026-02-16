@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Loader2, Search, User, Phone, Mail, CheckCircle2, XCircle, RotateCcw, ArrowRight, MessageSquare, UserX, Plus, Trash2, Users, Clock, UserRound, UploadCloud, CalendarDays, Filter, Calendar, FileText, UserCheck, Star, TrendingUp, ChevronRight, Check, CalendarClock, UserMinus, ArrowRightCircle, ShieldCheck } from 'lucide-react'; // Adicionado ShieldCheck
+import { Loader2, Search, User, Phone, Mail, CheckCircle2, XCircle, RotateCcw, ArrowRight, MessageSquare, UserX, Plus, Trash2, Users, Clock, UserRound, UploadCloud, CalendarDays, Filter, Calendar, FileText, UserCheck, Star, TrendingUp, ChevronRight, Check, CalendarClock, UserMinus, ArrowRightCircle, ShieldCheck, HelpCircle } from 'lucide-react'; // Adicionado HelpCircle para 'Não Respondido'
 import { useNavigate } from 'react-router-dom';
 import { TableSkeleton } from '@/components/TableSkeleton';
 import {
@@ -56,7 +56,7 @@ const HiringPipeline = () => {
   const {
     pipelineStages,
   } = useMemo(() => {
-    if (!user) return { pipelineStages: { candidates: [], contacted: [], scheduled: [], conducted: [], awaitingPreview: [], authorized: [], droppedOut: [], disqualified: [], noShow: [] } };
+    if (!user) return { pipelineStages: { candidates: [], contacted: [], noResponse: [], scheduled: [], conducted: [], awaitingPreview: [], authorized: [], droppedOut: [], disqualified: [], noShow: [] } }; // NOVO: Adicionado noResponse
 
     let candidatesForGestor = candidates.filter(Boolean);
 
@@ -79,9 +79,10 @@ const HiringPipeline = () => {
       candidatesForGestor = candidatesForGestor.filter(c => new Date(c.createdAt) <= end);
     }
 
-    // Split Triagem into Candidates (Pending) and Contacted
+    // Split Triagem into Candidates (Pending), Contacted, and No Response
     const entryPool = candidatesForGestor.filter(c => c.status === 'Triagem' && (c.screeningStatus === 'Pending Contact' || !c.screeningStatus)).sort(sortByRecentUpdate);
     const contactedPool = candidatesForGestor.filter(c => c.status === 'Triagem' && c.screeningStatus === 'Contacted').sort(sortByRecentUpdate);
+    const noResponsePool = candidatesForGestor.filter(c => c.status === 'Triagem' && c.screeningStatus === 'No Response').sort(sortByRecentUpdate); // NOVO: Pool de Não Respondido
     
     const scheduled = candidatesForGestor.filter(c => 
       c.status === 'Entrevista' && 
@@ -108,6 +109,7 @@ const HiringPipeline = () => {
       pipelineStages: { 
         candidates: { title: 'Candidatos', list: entryPool, color: 'gray', icon: Users },
         contacted: { title: 'Contatados', list: contactedPool, color: 'blue', icon: MessageSquare },
+        noResponse: { title: 'Não Respondido', list: noResponsePool, color: 'orange', icon: HelpCircle }, // NOVO: Coluna Não Respondido
         scheduled: { title: 'Agendadas', list: scheduled, color: 'blue', icon: Calendar },
         conducted: { title: 'Realizadas', list: conducted, color: 'purple', icon: FileText },
         noShow: { title: 'Faltou', list: noShow, color: 'red', icon: UserX },
@@ -146,6 +148,10 @@ const HiringPipeline = () => {
       case 'contacted': 
         newStatus = 'Triagem'; 
         updates.screeningStatus = 'Contacted';
+        break;
+      case 'noResponse': // NOVO: Lógica para 'No Response'
+        newStatus = 'Triagem';
+        updates.screeningStatus = 'No Response';
         break;
       case 'scheduled': 
         newStatus = 'Entrevista'; 
@@ -200,6 +206,7 @@ const HiringPipeline = () => {
       case 'yellow': return 'bg-yellow-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-800 text-yellow-700 dark:text-yellow-300';
       case 'green': return 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800 text-green-700 dark:text-green-300';
       case 'red': return 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800 text-red-700 dark:text-red-300';
+      case 'orange': return 'bg-orange-50 border-orange-200 dark:bg-orange-900/20 dark:border-orange-800 text-orange-700 dark:text-orange-300'; // NOVO: Cor para 'Não Respondido'
       case 'gray': return 'bg-gray-50 border-gray-200 dark:bg-slate-800 dark:border-slate-700 text-gray-700 dark:text-gray-300';
       default: return 'bg-gray-50 border-gray-200 dark:bg-slate-800 dark:border-slate-700 text-gray-700 dark:text-gray-300';
     }
@@ -393,12 +400,12 @@ const HiringPipeline = () => {
                               <CalendarClock className="w-3 h-3" />
                               <span>Agendar</span>
                             </button>
-                            <button 
-                              onClick={(e) => handleUpdateStatus(e, candidate.id, 'Desqualificado')}
-                              className="flex items-center justify-center space-x-1 py-1.5 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 rounded-lg text-[10px] font-bold hover:bg-red-100 transition"
+                            <button // NOVO: Botão para mover para 'Não Respondido'
+                              onClick={(e) => handleUpdateStatus(e, candidate.id, 'Triagem', { screeningStatus: 'No Response' })}
+                              className="flex items-center justify-center space-x-1 py-1.5 bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 rounded-lg text-[10px] font-bold hover:bg-orange-100 transition"
                             >
-                              <UserX className="w-3 h-3" />
-                              <span>Desqualificado</span>
+                              <HelpCircle className="w-3 h-3" />
+                              <span>Não Respondido</span>
                             </button>
                           </>
                         )}
