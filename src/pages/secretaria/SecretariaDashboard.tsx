@@ -62,7 +62,7 @@ const MetricCard = ({ title, value, icon: Icon, colorClass, subValue, onClick }:
         <div className="absolute -right-4 -bottom-4 opacity-10">
           <Icon size={100} strokeWidth={3} />
         </div>
-      </div>
+      </div >
     </>
   );
 
@@ -497,20 +497,20 @@ export const SecretariaDashboard = () => {
             onClick={() => handleOpenCandidatesDetailModal('Total de Candidaturas', metrics.totalCandidatesList, 'total')}
           />
           <MetricCard 
-            title="Não Respondido" // NOVO: Título alterado
-            value={metrics.noResponse} // NOVO: Usando a métrica de Não Respondido
-            icon={HelpCircle} // NOVO: Ícone alterado
-            colorClass="bg-orange-500 text-white" 
-            subValue="Aguardando retorno" // NOVO: Subtítulo alterado
-            onClick={() => handleOpenCandidatesDetailModal('Não Respondido', metrics.noResponseList, 'noResponse')} // NOVO: Ação para o modal
-          />
-          <MetricCard 
             title="Contatados" 
             value={metrics.contacted} 
             icon={MessageSquare} 
             colorClass="bg-amber-500 text-white" 
             subValue="Em triagem ativa"
             onClick={() => handleOpenCandidatesDetailModal('Contatados', metrics.contactedList, 'contacted')}
+          />
+          <MetricCard 
+            title="Não Respondido" // NOVO: Título alterado
+            value={metrics.noResponse} // NOVO: Usando a métrica de Não Respondido
+            icon={HelpCircle} // NOVO: Ícone alterado
+            colorClass="bg-orange-500 text-white" // NOVO: Cor alterada
+            subValue="Aguardando retorno" // NOVO: Subtítulo alterado
+            onClick={() => handleOpenCandidatesDetailModal('Não Respondido', metrics.noResponseList, 'noResponse')} // NOVO: Ação para o modal
           />
           <MetricCard 
             title="Entrevistas Agendadas" 
