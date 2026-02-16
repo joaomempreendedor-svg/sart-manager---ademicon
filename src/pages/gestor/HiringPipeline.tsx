@@ -254,7 +254,7 @@ const HiringPipeline = () => {
 
       <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm space-y-4 mb-6">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 flex items-center uppercase tracking-wide"><Filter className="w-4 h-4 mr-2" />Filtrar Candidatos</h3>
+          <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 flex items-center uppercase tracking-wide"><Filter className="w-4 h-4 mr-2" />Filtros</h3>
           {(searchTerm || filterStartDate || filterEndDate) && <button onClick={() => { setSearchTerm(''); setFilterStartDate(''); setFilterEndDate(''); }} className="text-xs flex items-center text-red-500 hover:text-red-700 transition"><RotateCcw className="w-3 h-3 mr-1" />Limpar Filtros</button>}
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -340,7 +340,15 @@ const HiringPipeline = () => {
                       </div>
 
                       <div className="pt-2 border-t border-gray-50 dark:border-slate-600 flex items-center justify-between text-[10px] text-gray-400">
-                        <span className="flex items-center"><Calendar className="w-3 h-3 mr-1" /> {candidate.interviewDate ? new Date(candidate.interviewDate + 'T00:00:00').toLocaleDateString('pt-BR') : 'Sem data'}</span>
+                        <span className="flex items-center">
+                          <Calendar className="w-3 h-3 mr-1" /> 
+                          {candidate.interviewDate ? new Date(candidate.interviewDate + 'T00:00:00').toLocaleDateString('pt-BR') : 'Sem data'}
+                          {candidate.interviewStartTime && candidate.interviewEndTime && (
+                            <span className="ml-1">
+                              ({candidate.interviewStartTime} - {candidate.interviewEndTime})
+                            </span>
+                          )}
+                        </span>
                       </div>
 
                       {/* NOVO: Campo de Observações */}
