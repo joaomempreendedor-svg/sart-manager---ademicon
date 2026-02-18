@@ -338,7 +338,7 @@ const CrmOverviewPage = () => {
               <SelectContent className="bg-white text-gray-900 dark:bg-slate-800 dark:text-white dark:border-slate-700">
                 <SelectItem value="all">Todos os Consultores</SelectItem>
                 {consultants.map(c => (
-                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  <SelectItem key={c.id} value={c.authUserId || c.id}>{c.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -358,7 +358,7 @@ const CrmOverviewPage = () => {
         {pipelineStages.map(stage => (
           <div 
             key={stage.id} 
-            className="flex-shrink-0 w-72 bg-gray-100 dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700"
+            className="flex-shrink-0 w-72 bg-gray-100/50 dark:bg-slate-800/50 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700"
             onDragOver={handleDragOver}
             onDrop={(e) => handleDrop(e, stage.id)}
           >
@@ -456,7 +456,7 @@ const CrmOverviewPage = () => {
 
                         {isWonStage ? (
                           <div className="flex items-center text-green-600 dark:text-green-400 font-semibold">
-                            <CheckCircle2 className="w-3 h-3 mr-1" /> Vendido: {formatCurrency(lead.sold_credit_value || 0)} {/* Usando snake_case */}
+                            <DollarSign className="w-3 h-3 mr-1" /> Vendido: {formatCurrency(lead.sold_credit_value || 0)} {/* Usando snake_case */}
                           </div>
                         ) : lead.proposal_value ? (
                           <div className="flex items-center text-purple-600 dark:text-purple-400 font-semibold">
@@ -537,7 +537,10 @@ const CrmOverviewPage = () => {
       {isProposalModalOpen && selectedLeadForProposal && (
         <ProposalModal
           isOpen={isProposalModalOpen}
-          onClose={() => setIsProposalModalOpen(false)}
+        onClose={() => {
+          console.log("ProposalModal onClose called");
+          setIsProposalModalOpen(false);
+        }}
           lead={selectedLeadForProposal}
         />
       )}
