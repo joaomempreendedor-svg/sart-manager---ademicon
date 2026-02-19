@@ -33,6 +33,7 @@ const MONTHLY_CUTOFF_DAYS: Record<number, number> = {
   1: 19, 2: 18, 3: 19, 4: 19, 5: 19, 6: 17, 7: 19, 8: 19, 9: 19, 10: 19, 11: 19, 12: 19,
 };
 
+// Movido para fora do AppProvider
 const getOverallStatus = (details: Record<string, InstallmentInfo>): CommissionStatus => {
     const statuses = Object.values(details).map(info => info.status);
     if (statuses.some(s => s === 'Cancelado')) return 'Cancelado';
@@ -1223,7 +1224,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       cold_call_lead_id: log.cold_call_lead_id,
       start_time: log.start_time,
       end_time: log.end_time,
-      duration_seconds: log.duration_seconds, // Simplificado
+      duration_seconds: log.duration_seconds,
       result: log.result,
       meeting_date: log.meeting_date,
       meeting_time: log.meeting_time,
@@ -1736,12 +1737,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     updateFormCadastro, deleteFormCadastro,
     addFeedback, updateFeedback, deleteFeedback,
     addTeamMemberFeedback, updateTeamMemberFeedback, deleteTeamMemberFeedback,
-    addTeamMember, updateTeamMember, deleteTeamMember,
-    addTeamProductionGoal, updateTeamProductionGoal, deleteTeamProductionGoal,
+    addTeamMember, updateTeamMember, deleteTeamProductionGoal,
+    addTeamProductionGoal, updateTeamProductionGoal,
     hasPendingSecretariaTasks, // Incluído no array de dependências
     user,
     toggleChecklistItem, // Now included in the dependency array
-    addColdCallLead, updateColdCallLead, deleteColdCallLead, addColdCallLog, getColdCallMetrics, createCrmLeadFromColdCall, parseDbCurrency
+    addColdCallLead, updateColdCallLead, deleteColdCallLead, addColdCallLog, getColdCallMetrics, createCrmLeadFromColdCall
   ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
