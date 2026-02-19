@@ -603,7 +603,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     delete (dataToSave as any).db_id;
     delete (dataToSave as any).createdAt;
 
-    const { error } => await supabase
+    const { error } = await supabase
       .from('candidates')
       .update({ data: dataToSave })
       .eq('id', dbId);
@@ -1133,7 +1133,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       // Reverte o estado local em caso de erro inesperado
       setCandidates(prev => prev.map(c => (c.id === candidateId || c.db_id === candidateId) ? { ...c, checklistProgress: currentProgress } : c));
     }
-  }, [candidates, setCandidates, updateCandidate]);
+  }, [candidates, setCandidates]);
 
   // NOVO: Função para verificar se um candidato tem tarefas pendentes da Secretaria
   const hasPendingSecretariaTasks = useCallback((candidate: Candidate): boolean => {
