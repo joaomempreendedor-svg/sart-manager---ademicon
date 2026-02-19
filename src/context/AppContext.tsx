@@ -1291,13 +1291,47 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const createCrmLeadFromColdCall = useCallback(async (coldCallLeadId: string) => {
     if (!user) throw new Error("User not authenticated.");
+    
+    // 1. Invocar a Edge Function para criar o CRM Lead e a Lead Task
     const { data, error } = await supabase.functions.invoke('create-crm-lead-from-cold-call', {
       body: { coldCallLeadId },
     });
     if (error) throw error;
     if (data.error) throw new Error(data.error);
+
+    // 2. Atualizar o estado local do coldCallLeads para refletir o crm_lead_id
+    // A Edge Function já atualiza o cold_call_leads no banco de dados,
+    // mas precisamos refletir isso no estado local para que o botão "Criar Lead no CRM" desapareça.
+    const { data: updatedColdCallLead, error: fetchError } = await supabase
+      .from('cold_call_leads')
+      .select('*')
+      .eq('id', coldCallLeadId)
+      .maybeSingle();
+
+    if (fetchError) {
+      console.error("Error fetching updated cold call lead after CRM creation:", fetchError);
+      // Não lançar erro aqui, apenas logar, pois o CRM lead já foi criado.
+    } else if (updatedColdCallLead) {
+      setColdCallLeads(prev => prev.map(lead => 
+        lead.id === coldCallLeadId ? updatedColdCallLead : lead
+      ));
+    }
+
+    // 3. Refetch crmLeads e leadTasks para que o novo lead e tarefa apareçam no CRM
+    const { data: newCrmLeads, error: crmLeadsError } = await supabase.from('crm_leads').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID);
+    if (crmLeadsError) console.error("Error refetching crm leads:", crmLeadsError);
+    else setCrmLeads(newCrmLeads?.map((lead: any) => ({ 
+      id: lead.id, consultant_id: lead.consultant_id, stage_id: lead.stage_id, user_id: lead.user_id, name: lead.name, data: lead.data, created_at: lead.created_at, updated_at: lead.updated_at, created_by: lead.created_by, updated_by: lead.updated_by, 
+      proposal_value: parseDbCurrency(lead.proposal_value), proposal_closing_date: lead.proposal_closing_date, 
+      sold_credit_value: parseDbCurrency(lead.sold_credit_value), sold_group: lead.sold_group, sold_quota: lead.sold_quota, sale_date: lead.sale_date 
+    })) || []);
+
+    const { data: newLeadTasks, error: leadTasksError } = await supabase.from('lead_tasks').select('*');
+    if (leadTasksError) console.error("Error refetching lead tasks:", leadTasksError);
+    else setLeadTasks(newLeadTasks || []);
+
     return { crmLeadId: data.crmLeadId };
-  }, [user]);
+  }, [user, setColdCallLeads, setCrmLeads, setLeadTasks]);
 
   const value: AppContextType = useMemo(() => ({
     isDataLoading, candidates, teamMembers, commissions, supportMaterials, cutoffPeriods, onboardingSessions, onboardingTemplateVideos, checklistStructure, setChecklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs, crmPipelines, crmStages, crmFields, crmLeads, crmOwnerUserId, dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions, weeklyTargets, weeklyTargetItems, weeklyTargetAssignments, metricLogs, supportMaterialsV2, supportMaterialAssignments, leadTasks, gestorTasks, gestorTaskCompletions, financialEntries, formCadastros, formFiles, notifications, teamProductionGoals, coldCallLeads, coldCallLogs, theme,
@@ -1675,7 +1709,49 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     deleteColdCallLead, // NOVO
     addColdCallLog, // NOVO
     getColdCallMetrics, // NOVO
-    createCrmLeadFromColdCall, // NOVO
+    createCrmLeadFromColdCall: async (coldCallLeadId: string) => {
+      if (!user) throw new Error("User not authenticated.");
+      
+      // 1. Invocar a Edge Function para criar o CRM Lead e a Lead Task
+      const { data, error } = await supabase.functions.invoke('create-crm-lead-from-cold-call', {
+        body: { coldCallLeadId },
+      });
+      if (error) throw error;
+      if (data.error) throw new Error(data.error);
+  
+      // 2. Atualizar o estado local do coldCallLeads para refletir o crm_lead_id
+      // A Edge Function já atualiza o cold_call_leads no banco de dados,
+      // mas precisamos refletir isso no estado local para que o botão "Criar Lead no CRM" desapareça.
+      const { data: updatedColdCallLead, error: fetchError } = await supabase
+        .from('cold_call_leads')
+        .select('*')
+        .eq('id', coldCallLeadId)
+        .maybeSingle();
+  
+      if (fetchError) {
+        console.error("Error fetching updated cold call lead after CRM creation:", fetchError);
+        // Não lançar erro aqui, apenas logar, pois o CRM lead já foi criado.
+      } else if (updatedColdCallLead) {
+        setColdCallLeads(prev => prev.map(lead => 
+          lead.id === coldCallLeadId ? updatedColdCallLead : lead
+        ));
+      }
+  
+      // 3. Refetch crmLeads e leadTasks para que o novo lead e tarefa apareçam no CRM
+      const { data: newCrmLeads, error: crmLeadsError } = await supabase.from('crm_leads').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID);
+      if (crmLeadsError) console.error("Error refetching crm leads:", crmLeadsError);
+      else setCrmLeads(newCrmLeads?.map((lead: any) => ({ 
+        id: lead.id, consultant_id: lead.consultant_id, stage_id: lead.stage_id, user_id: lead.user_id, name: lead.name, data: lead.data, created_at: lead.created_at, updated_at: lead.updated_at, created_by: lead.created_by, updated_by: lead.updated_by, 
+        proposal_value: parseDbCurrency(lead.proposal_value), proposal_closing_date: lead.proposal_closing_date, 
+        sold_credit_value: parseDbCurrency(lead.sold_credit_value), sold_group: lead.sold_group, sold_quota: lead.sold_quota, sale_date: lead.sale_date 
+      })) || []);
+  
+      const { data: newLeadTasks, error: leadTasksError } = await supabase.from('lead_tasks').select('*');
+      if (leadTasksError) console.error("Error refetching lead tasks:", leadTasksError);
+      else setLeadTasks(newLeadTasks || []);
+  
+      return { crmLeadId: data.crmLeadId };
+    }, [user, setColdCallLeads, setCrmLeads, setLeadTasks]),
   }), [
     isDataLoading, candidates, teamMembers, commissions, supportMaterials, cutoffPeriods, onboardingSessions, onboardingTemplateVideos, checklistStructure, setChecklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs, crmPipelines, crmStages, crmFields, crmLeads, crmOwnerUserId, dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions, weeklyTargets, weeklyTargetItems, weeklyTargetAssignments, metricLogs, supportMaterialsV2, supportMaterialAssignments, leadTasks, gestorTasks, gestorTaskCompletions, financialEntries, formCadastros, formFiles, notifications, teamProductionGoals, coldCallLeads, coldCallLogs, theme,
     toggleTheme, updateConfig, resetLocalState, refetchCommissions, calculateCompetenceMonth, isGestorTaskDueOnDate, calculateNotifications,

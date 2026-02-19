@@ -27,7 +27,7 @@ import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { ColdCallLogModal } from '@/components/consultor/ColdCallLogModal';
 import { ColdCallLeadHistoryModal } from '@/components/consultor/ColdCallLeadHistoryModal'; // NOVO: Importar o modal de histórico
-import LeadModal from '@/components/crm/LeadModal'; // Importar LeadModal
+// Removido: import LeadModal from '@/components/crm/LeadModal'; // Importar LeadModal
 
 const COLD_CALL_STAGES: ColdCallStage[] = ['Base Fria', 'Tentativa de Contato', 'Conversou', 'Reunião Agendada'];
 const COLD_CALL_RESULTS: ColdCallResult[] = ['Não atendeu', 'Número inválido', 'Sem interesse', 'Pedir retorno', 'Conversou', 'Agendar Reunião'];
@@ -46,6 +46,7 @@ const ColdCallPage = () => {
     crmFields, // Adicionar crmFields
     crmStages, // Adicionar crmStages
     crmPipelines, // Adicionar crmPipelines
+    createCrmLeadFromColdCall, // NOVO: Importar a função do AppContext
     isDataLoading 
   } = useApp();
   const navigate = useNavigate();
@@ -68,9 +69,7 @@ const ColdCallPage = () => {
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [viewingLeadHistory, setViewingLeadHistory] = useState<ColdCallLead | null>(null);
 
-  // NOVO: Estados para o LeadModal do CRM
-  const [isCrmLeadModalOpen, setIsCrmLeadModalOpen] = useState(false);
-  // Removido initialCrmLeadData, pois o LeadModal será aberto vazio
+  // Removido: isCrmLeadModalOpen e onCrmLeadSaved
 
   const filteredLeads = useMemo(() => {
     let currentLeads = coldCallLeads.filter(lead => lead.user_id === user?.id);
@@ -176,23 +175,30 @@ const ColdCallPage = () => {
   };
 
   // NOVO: Handler para criar Lead no CRM (chamado do ColdCallLogModal)
-  const handleCreateCrmLeadFromColdCall = async (coldCallLead: ColdCallLead) => {
-    // Primeiro, salva o log da chamada (se ainda não foi salvo)
-    // A lógica de salvar o log já está no ColdCallLogModal, então aqui apenas abrimos o LeadModal
-    
-    // Abre o LeadModal do CRM, sem pré-preencher dados
-    setIsCrmLeadModalOpen(true);
-    // Não há necessidade de setInitialCrmLeadData, pois o LeadModal será vazio
-  };
+  const handleCreateCrmLeadFromColdCall = useCallback(async (coldCallLead: ColdCallLead) => {
+    try {
+      const { crmLeadId } = await createCrmLeadFromColdCall(coldCallLead.id);
+      toast.success((t) => (
+        <div className="flex flex-col items-center">
+          <p className="font-bold text-lg">Lead criado no CRM!</p>
+          <p className="text-sm">Você pode editá-lo na página do CRM.</p>
+          <Button
+            onClick={() => {
+              toast.dismiss(t.id);
+              navigate('/consultor/crm', { state: { highlightLeadId: crmLeadId } });
+            }}
+            className="mt-3 bg-brand-600 hover:bg-brand-700 text-white text-sm py-1.5 px-3"
+          >
+            Ir para CRM <ChevronRight className="w-4 h-4 ml-2" />
+          </Button>
+        </div>
+      ), { duration: 5000 });
+    } catch (error: any) {
+      toast.error(`Erro ao criar Lead no CRM: ${error.message}`);
+      console.error("Erro ao criar Lead no CRM:", error);
+    }
+  }, [createCrmLeadFromColdCall, navigate]);
 
-  // NOVO: Callback para quando o Lead do CRM é salvo
-  const onCrmLeadSaved = (crmLead: CrmLead) => {
-    // Não fazemos mais a atualização automática do coldCallLead.crm_lead_id aqui.
-    // Apenas fechamos o modal e navegamos.
-    setIsCrmLeadModalOpen(false);
-    toast.success(`Lead "${crmLead.name}" criado no CRM!`);
-    navigate('/consultor/crm', { state: { highlightLeadId: crmLead.id } });
-  };
 
   if (isAuthLoading || isDataLoading) {
     return (
@@ -406,20 +412,6 @@ const ColdCallPage = () => {
           onClose={() => setIsHistoryModalOpen(false)}
           lead={viewingLeadHistory}
           logs={coldCallLogs.filter(log => log.cold_call_lead_id === viewingLeadHistory.id)}
-        />
-      )}
-
-      {/* NOVO: LeadModal do CRM */}
-      {isCrmLeadModalOpen && (
-        <LeadModal
-          isOpen={isCrmLeadModalOpen}
-          onClose={() => {
-            setIsCrmLeadModalOpen(false);
-            // Não há necessidade de setInitialCrmLeadData, pois o LeadModal será vazio
-          }}
-          lead={null} // Abre o LeadModal completamente vazio
-          crmFields={crmFields.filter(f => f.is_active)}
-          // onSave={onCrmLeadSaved} // O LeadModal já tem sua própria lógica de salvar que atualiza o AppContext
         />
       )}
     </div>

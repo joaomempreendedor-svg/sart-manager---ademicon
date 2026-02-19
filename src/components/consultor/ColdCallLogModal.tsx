@@ -160,7 +160,7 @@ export const ColdCallLogModal: React.FC<ColdCallLogModalProps> = ({
 
     const savedSuccessfully = await handleSaveLogAndStage(); // Primeiro, salva o log
     if (savedSuccessfully) {
-      onCreateCrmLeadFromColdCall(lead); // Em seguida, abre o modal do CRM
+      onCreateCrmLeadFromColdCall(lead); // Em seguida, chama o handler do ColdCallPage
       onClose(); // Fecha este modal
     }
   };
