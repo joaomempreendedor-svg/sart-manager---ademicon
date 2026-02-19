@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { CrmLead, LeadTask } from '@/types';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom'; // Importar useNavigate
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -55,6 +55,7 @@ const ConsultorCrmPage = () => {
   const [celebratedLeadName, setCelebratedLeadName] = useState(''); // NOVO: Nome do lead para a celebração
 
   const location = useLocation();
+  const navigate = useNavigate(); // Usar useNavigate
 
   useEffect(() => {
     if (location.state?.highlightLeadId) {
@@ -63,9 +64,10 @@ const ConsultorCrmPage = () => {
         setSelectedLeadForTasks(leadToHighlight);
         setIsTasksModalOpen(true);
       }
-      window.history.replaceState({}, document.title);
+      // Limpar o estado de navegação imediatamente após consumi-lo
+      navigate(location.pathname, { replace: true, state: {} });
     }
-  }, [location.state, crmLeads, user]);
+  }, [location.state, crmLeads, user, navigate, location.pathname]);
 
 
   const activePipeline = useMemo(() => {
@@ -207,10 +209,7 @@ const ConsultorCrmPage = () => {
   const handleDrop = async (e: React.DragEvent, targetStageId: string) => {
     e.preventDefault();
     const leadId = e.dataTransfer.getData('leadId');
-    if (!leadId || !user) return;
-
-    const leadToUpdate = crmLeads.find(l => l.id === leadId);
-    if (!leadToUpdate) return;
+    if (!leadId) return;
 
     try {
       await updateCrmLead(leadId, { stage_id: targetStageId });

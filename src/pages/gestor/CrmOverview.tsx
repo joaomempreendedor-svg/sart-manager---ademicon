@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { CrmLead, LeadTask } from '@/types';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom'; // Importar useNavigate
 import { TableSkeleton } from '@/components/TableSkeleton';
 
 const JOAO_GESTOR_AUTH_ID = "0c6d71b7-daeb-4dde-8eec-0e7a8ffef658";
@@ -59,6 +59,7 @@ const CrmOverviewPage = () => {
   const [celebratedLeadName, setCelebratedLeadName] = useState('');
 
   const location = useLocation();
+  const navigate = useNavigate(); // Usar useNavigate
 
   useEffect(() => {
     if (location.state?.highlightLeadId) {
@@ -67,9 +68,10 @@ const CrmOverviewPage = () => {
         setSelectedLeadForTasks(leadToHighlight);
         setIsTasksModalOpen(true);
       }
-      window.history.replaceState({}, document.title);
+      // Limpar o estado de navegação imediatamente após consumi-lo
+      navigate(location.pathname, { replace: true, state: {} });
     }
-  }, [location.state, crmLeads]);
+  }, [location.state, crmLeads, navigate, location.pathname]);
 
   const activePipeline = useMemo(() => {
     return crmPipelines.find(p => p.is_active) || crmPipelines[0];
