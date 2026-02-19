@@ -28,7 +28,7 @@ const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 };
 
-// Componente MetricCard movido para cá
+// Componente MetricCard movido para fora do Dashboard
 const MetricCard = ({ title, value, icon: Icon, colorClass, subValue, onClick }: any) => {
   const CardContent = (
     <>

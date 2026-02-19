@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
+// Componente MetricCard movido para fora do ColdCallMetricsPage
 const MetricCard = ({ title, value, icon: Icon, colorClass, subValue, onClick }: any) => {
   const CardContent = (
     <>
@@ -25,7 +26,7 @@ const MetricCard = ({ title, value, icon: Icon, colorClass, subValue, onClick }:
         <div className="absolute -right-4 -bottom-4 opacity-10">
           <Icon size={100} strokeWidth={3} />
         </div>
-      </div> {/* Missing closing div tag added here */}
+      </div>
     </>
   );
   const baseClasses = `relative overflow-hidden p-6 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm transition-all hover:shadow-md ${colorClass}`;
