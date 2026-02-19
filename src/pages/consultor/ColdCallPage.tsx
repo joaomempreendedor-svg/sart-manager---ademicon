@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { ColdCallLead, ColdCallLog, ColdCallStage, ColdCallResult, CrmLead } from '@/types';
-import { Plus, Search, PhoneCall, MessageSquare, CalendarCheck, Loader2, Edit2, Trash2, Play, StopCircle, Clock, UserRound, TrendingUp, BarChart3, Percent, ChevronRight, Save, History } from 'lucide-react'; // Adicionado History icon
+import { Plus, Search, PhoneCall, MessageSquare, CalendarCheck, Loader2, Edit2, Trash2, Play, StopCircle, Clock, UserRound, TrendingUp, BarChart3, Percent, ChevronRight, Save, History, Filter, RotateCcw, CalendarDays } from 'lucide-react'; // Adicionado Filter, RotateCcw, CalendarDays
 import {
   Select,
   SelectContent,
@@ -53,6 +53,8 @@ const ColdCallPage = () => {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStage, setFilterStage] = useState<ColdCallStage | 'all'>('all');
+  const [filterStartDate, setFilterStartDate] = useState('');
+  const [filterEndDate, setFilterEndDate] = useState('');
 
   const [isLeadModalOpen, setIsLeadModalOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<ColdCallLead | null>(null);
@@ -88,6 +90,15 @@ const ColdCallPage = () => {
       );
     }
 
+    if (filterStartDate) {
+      const start = new Date(filterStartDate + 'T00:00:00');
+      currentLeads = currentLeads.filter(lead => new Date(lead.created_at) >= start);
+    }
+    if (filterEndDate) {
+      const end = new Date(filterEndDate + 'T23:59:59');
+      currentLeads = currentLeads.filter(lead => new Date(lead.created_at) <= end);
+    }
+
     // Adicionar o último resultado da ligação e a data ao objeto do lead
     const leadsWithLastCallInfo = currentLeads.map(lead => {
       const lastLog = coldCallLogs
@@ -102,12 +113,35 @@ const ColdCallPage = () => {
     });
 
     return leadsWithLastCallInfo.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
-  }, [coldCallLeads, coldCallLogs, user, filterStage, searchTerm]);
+  }, [coldCallLeads, coldCallLogs, user, filterStage, searchTerm, filterStartDate, filterEndDate]);
 
   const metrics = useMemo(() => {
     if (!user) return { totalCalls: 0, totalConversations: 0, totalMeetingsScheduled: 0, conversationToMeetingRate: 0 };
-    return getColdCallMetrics(user.id);
-  }, [user, getColdCallMetrics]);
+    
+    // Filtrar logs com base nos filtros de data
+    let logsForMetrics = coldCallLogs.filter(log => log.user_id === user.id);
+    if (filterStartDate) {
+      const start = new Date(filterStartDate + 'T00:00:00');
+      logsForMetrics = logsForMetrics.filter(log => new Date(log.created_at) >= start);
+    }
+    if (filterEndDate) {
+      const end = new Date(filterEndDate + 'T23:59:59');
+      logsForMetrics = logsForMetrics.filter(log => new Date(log.created_at) <= end);
+    }
+
+    const totalCalls = logsForMetrics.length;
+    const totalConversations = logsForMetrics.filter(log => log.result === 'Conversou' || log.result === 'Agendar Reunião').length;
+    const totalMeetingsScheduled = logsForMetrics.filter(log => log.result === 'Agendar Reunião').length;
+    
+    const conversationToMeetingRate = totalConversations > 0 ? (totalMeetingsScheduled / totalConversations) * 100 : 0;
+
+    return {
+      totalCalls,
+      totalConversations,
+      totalMeetingsScheduled,
+      conversationToMeetingRate,
+    };
+  }, [user, coldCallLogs, filterStartDate, filterEndDate]);
 
   const handleOpenLeadModal = (lead: ColdCallLead | null) => {
     setEditingLead(lead);
@@ -200,6 +234,15 @@ const ColdCallPage = () => {
     }
   }, [createCrmLeadFromColdCall, navigate]);
 
+  const clearFilters = () => {
+    setSearchTerm('');
+    setFilterStage('all');
+    setFilterStartDate('');
+    setFilterEndDate('');
+  };
+
+  const hasActiveFilters = searchTerm || filterStage !== 'all' || filterStartDate || filterEndDate;
+
 
   if (isAuthLoading || isDataLoading) {
     return (
@@ -247,37 +290,72 @@ const ColdCallPage = () => {
         </div>
       </div>
 
-      {/* Lista de Leads de Cold Call */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700 flex flex-col sm:flex-row justify-between items-start sm:items-center">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Meus Prospects ({filteredLeads.length})</h2>
-          <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-4 w-full md:w-auto">
-            <div className="relative flex-1 w-full">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search className="h-4 w-4 text-gray-400" />
-              </div>
+      {/* Filtros da Tabela */}
+      <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm space-y-4">
+        <div className="flex items-center justify-between flex-col sm:flex-row">
+          <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 flex items-center uppercase tracking-wide"><Filter className="w-4 h-4 mr-2" />Filtros da Tabela</h3>
+          {hasActiveFilters && (
+            <button onClick={clearFilters} className="text-xs flex items-center text-red-500 hover:text-red-700 transition mt-2 sm:mt-0">
+              <RotateCcw className="w-3 h-3 mr-1" />Limpar Filtros
+            </button>
+          )}
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="flex flex-col">
+            <label htmlFor="searchTerm" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Busca</label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="text"
-                placeholder="Buscar prospect..."
+                id="searchTerm"
+                placeholder="Nome, telefone ou email..."
                 className="pl-10 pr-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg text-sm w-full focus:ring-brand-500 focus:border-brand-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <div className="w-full sm:w-48 flex-shrink-0">
-              <Select value={filterStage} onValueChange={(value: ColdCallStage | 'all') => setFilterStage(value)}>
-                <SelectTrigger className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
-                  <SelectValue placeholder="Filtrar por Etapa" />
-                </SelectTrigger>
-                <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
-                  <SelectItem value="all">Todas as Etapas</SelectItem>
-                  {COLD_CALL_STAGES.map(stage => (
-                    <SelectItem key={stage} value={stage}>{stage}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
           </div>
+          <div className="flex flex-col">
+            <label htmlFor="filterStage" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Etapa</label>
+            <Select value={filterStage} onValueChange={(value: ColdCallStage | 'all') => setFilterStage(value)}>
+              <SelectTrigger className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
+                <SelectValue placeholder="Todas as Etapas" />
+              </SelectTrigger>
+              <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
+                <SelectItem value="all">Todas as Etapas</SelectItem>
+                {COLD_CALL_STAGES.map(stage => (
+                  <SelectItem key={stage} value={stage}>{stage}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex flex-col">
+            <label htmlFor="filterStartDate" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Data de Criação/Atualização de</label>
+            <input
+              type="date"
+              id="filterStartDate"
+              value={filterStartDate}
+              onChange={(e) => setFilterStartDate(e.target.value)}
+              className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2.5 text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500"
+            />
+          </div>
+          <div className="flex flex-col">
+            <label htmlFor="filterEndDate" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Data de Criação/Atualização até</label>
+            <input
+              type="date"
+              id="filterEndDate"
+              value={filterEndDate}
+              onChange={(e) => setFilterEndDate(e.target.value)}
+              className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2.5 text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Lista de Leads de Cold Call */}
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700 flex flex-col sm:flex-row justify-between items-start sm:items-center">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Meus Prospects ({filteredLeads.length})</h2>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300">

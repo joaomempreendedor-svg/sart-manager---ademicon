@@ -22,6 +22,8 @@ interface ColdCallDetailModalProps {
   logs: ColdCallLog[];
   type: ColdCallDetailType;
   teamMembers: TeamMember[];
+  filterStartDate?: string; // NOVO: Filtro de data de início
+  filterEndDate?: string;   // NOVO: Filtro de data de fim
 }
 
 export const ColdCallDetailModal: React.FC<ColdCallDetailModalProps> = ({
@@ -33,26 +35,36 @@ export const ColdCallDetailModal: React.FC<ColdCallDetailModalProps> = ({
   logs,
   type,
   teamMembers,
+  filterStartDate, // NOVO
+  filterEndDate,   // NOVO
 }) => {
   const navigate = useNavigate();
 
   if (!isOpen) return null;
 
   const filteredItems = useMemo(() => {
+    const start = filterStartDate ? new Date(filterStartDate + 'T00:00:00') : null;
+    const end = filterEndDate ? new Date(filterEndDate + 'T23:59:59') : null;
+
+    const filterByDate = (itemDate: string) => {
+      const date = new Date(itemDate);
+      return (!start || date >= start) && (!end || date <= end);
+    };
+
     if (type === 'calls') {
-      return logs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      return logs.filter(log => filterByDate(log.created_at)).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     }
     if (type === 'conversations') {
-      return logs.filter(log => log.result === 'Conversou' || log.result === 'Agendar Reunião')
+      return logs.filter(log => (log.result === 'Conversou' || log.result === 'Agendar Reunião') && filterByDate(log.created_at))
                  .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     }
     if (type === 'meetings') {
-      return logs.filter(log => log.result === 'Agendar Reunião')
+      return logs.filter(log => log.result === 'Agendar Reunião' && filterByDate(log.created_at))
                  .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     }
     // 'all' ou default: mostra leads
-    return leads.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
-  }, [leads, logs, type]);
+    return leads.filter(lead => filterByDate(lead.created_at)).sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+  }, [leads, logs, type, filterStartDate, filterEndDate]);
 
   const getLeadNameFromLog = (log: ColdCallLog) => {
     const lead = leads.find(l => l.id === log.cold_call_lead_id);
@@ -90,7 +102,7 @@ export const ColdCallDetailModal: React.FC<ColdCallDetailModalProps> = ({
 
         <ScrollArea className="max-h-[70vh] py-4 pr-4 custom-scrollbar">
           {filteredItems.length === 0 ? (
-            <p className="text-center text-gray-500 dark:text-gray-400 py-4">Nenhum item encontrado para esta métrica.</p>
+            <p className="text-center text-gray-500 dark:text-gray-400 py-4">Nenhum item encontrado para esta métrica no período selecionado.</p>
           ) : (
             <div className="space-y-3">
               {type === 'calls' || type === 'conversations' || type === 'meetings' ? (

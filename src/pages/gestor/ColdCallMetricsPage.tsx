@@ -1,11 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { PhoneCall, MessageSquare, CalendarCheck, BarChart3, Percent, Loader2, Users } from 'lucide-react'; // Removido Select daqui
+import { PhoneCall, MessageSquare, CalendarCheck, BarChart3, Percent, Loader2, Users, Filter, RotateCcw, CalendarDays } from 'lucide-react';
 import { ColdCallDetailModal } from '@/components/gestor/ColdCallDetailModal';
 import { ColdCallLead, ColdCallLog, ColdCallDetailType } from '@/types';
 import toast from 'react-hot-toast';
-import { // Adicionado importação correta para Select
+import { 
   Select,
   SelectContent,
   SelectItem,
@@ -51,6 +51,8 @@ const ColdCallMetricsPage = () => {
   const { coldCallLeads, coldCallLogs, getColdCallMetrics, teamMembers, isDataLoading } = useApp();
 
   const [selectedColdCallConsultantId, setSelectedColdCallConsultantId] = useState<string | null>(null);
+  const [filterStartDate, setFilterStartDate] = useState('');
+  const [filterEndDate, setFilterEndDate] = useState('');
 
   const [isColdCallDetailModalOpen, setIsColdCallDetailModalOpen] = useState(false);
   const [coldCallModalTitle, setColdCallModalTitle] = useState('');
@@ -63,6 +65,22 @@ const ColdCallMetricsPage = () => {
     return teamMembers.filter(m => m.isActive && (m.roles.includes('CONSULTOR') || m.roles.includes('PRÉVIA') || m.roles.includes('AUTORIZADO')));
   }, [teamMembers]);
 
+  const filteredColdCallLogs = useMemo(() => {
+    let logs = coldCallLogs;
+    if (selectedColdCallConsultantId) {
+      logs = logs.filter(log => log.user_id === selectedColdCallConsultantId);
+    }
+    if (filterStartDate) {
+      const start = new Date(filterStartDate + 'T00:00:00');
+      logs = logs.filter(log => new Date(log.created_at) >= start);
+    }
+    if (filterEndDate) {
+      const end = new Date(filterEndDate + 'T23:59:59');
+      logs = logs.filter(log => new Date(log.created_at) <= end);
+    }
+    return logs;
+  }, [coldCallLogs, selectedColdCallConsultantId, filterStartDate, filterEndDate]);
+
   const coldCallMetrics = useMemo(() => {
     if (!user) return { totalCalls: 0, totalConversations: 0, totalMeetingsScheduled: 0, conversationToMeetingRate: 0 };
 
@@ -73,8 +91,20 @@ const ColdCallMetricsPage = () => {
       return { totalCalls: 0, totalConversations: 0, totalMeetingsScheduled: 0, conversationToMeetingRate: 0 };
     }
 
-    return getColdCallMetrics(targetConsultantId);
-  }, [user, selectedColdCallConsultantId, getColdCallMetrics, teamMembers]);
+    // Recalcular métricas com base nos logs filtrados
+    const totalCalls = filteredColdCallLogs.length;
+    const totalConversations = filteredColdCallLogs.filter(log => log.result === 'Conversou' || log.result === 'Agendar Reunião').length;
+    const totalMeetingsScheduled = filteredColdCallLogs.filter(log => log.result === 'Agendar Reunião').length;
+    
+    const conversationToMeetingRate = totalConversations > 0 ? (totalMeetingsScheduled / totalConversations) * 100 : 0;
+
+    return {
+      totalCalls,
+      totalConversations,
+      totalMeetingsScheduled,
+      conversationToMeetingRate,
+    };
+  }, [user, selectedColdCallConsultantId, filteredColdCallLogs, teamMembers]);
 
   const handleOpenColdCallDetailModal = (title: string, type: ColdCallDetailType) => {
     if (!selectedColdCallConsultantId) {
@@ -82,15 +112,22 @@ const ColdCallMetricsPage = () => {
       return;
     }
     const consultantLeadsFiltered = coldCallLeads.filter(l => l.user_id === selectedColdCallConsultantId);
-    const consultantLogsFiltered = coldCallLogs.filter(l => l.user_id === selectedColdCallConsultantId);
-
+    
     setColdCallModalTitle(title);
     setColdCallLeadsForModal(consultantLeadsFiltered);
-    setColdCallLogsForModal(consultantLogsFiltered);
+    setColdCallLogsForModal(filteredColdCallLogs); // Passar logs já filtrados
     setColdCallDetailType(type);
     setSelectedColdCallConsultantName(teamMembers.find(m => m.authUserId === selectedColdCallConsultantId)?.name || 'Consultor Desconhecido');
     setIsColdCallDetailModalOpen(true);
   };
+
+  const clearFilters = () => {
+    setFilterStartDate('');
+    setFilterEndDate('');
+    setSelectedColdCallConsultantId(null);
+  };
+
+  const hasActiveFilters = filterStartDate || filterEndDate || selectedColdCallConsultantId;
 
   if (isDataLoading) {
     return (
@@ -126,6 +163,41 @@ const ColdCallMetricsPage = () => {
           </Select>
         </div>
       </div>
+
+      {/* Filtros de Data */}
+      <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm space-y-4">
+        <div className="flex items-center justify-between flex-col sm:flex-row">
+          <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 flex items-center uppercase tracking-wide"><Filter className="w-4 h-4 mr-2" />Filtrar por Período</h3>
+          {hasActiveFilters && (
+            <button onClick={clearFilters} className="text-xs flex items-center text-red-500 hover:text-red-700 transition mt-2 sm:mt-0">
+              <RotateCcw className="w-3 h-3 mr-1" />Limpar Filtros
+            </button>
+          )}
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label htmlFor="filterStartDate" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Data de Início</label>
+            <input
+              type="date"
+              id="filterStartDate"
+              value={filterStartDate}
+              onChange={(e) => setFilterStartDate(e.target.value)}
+              className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2.5 text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500"
+            />
+          </div>
+          <div>
+            <label htmlFor="filterEndDate" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Data de Fim</label>
+            <input
+              type="date"
+              id="filterEndDate"
+              value={filterEndDate}
+              onChange={(e) => setFilterEndDate(e.target.value)}
+              className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2.5 text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500"
+            />
+          </div>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard 
           title="Total de Ligações" 
@@ -166,6 +238,8 @@ const ColdCallMetricsPage = () => {
         logs={coldCallLogsForModal}
         type={coldCallDetailType}
         teamMembers={teamMembers}
+        filterStartDate={filterStartDate}
+        filterEndDate={filterEndDate}
       />
     </div>
   );
