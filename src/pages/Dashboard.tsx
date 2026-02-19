@@ -224,7 +224,7 @@ export const Dashboard = () => {
 
     if (!user) {
       console.log("No user, returning zeros.");
-      return { totalCalls: 0, totalConversations: 0, totalMeetingsScheduled: 0, conversationToMeetingRate: 0 };
+      return { totalCalls: 0, totalConversations: 0, totalMeetingsScheduled: 0, conversationToMeetingRate: 0, filteredLeads: [], filteredLogs: [] };
     }
 
     // Se nenhum consultor específico for selecionado, o gestor deve ver as métricas de TODOS os consultores.
@@ -260,6 +260,10 @@ export const Dashboard = () => {
     
     const conversationToMeetingRate = totalConversations > 0 ? (totalMeetingsScheduled / totalConversations) * 100 : 0;
 
+    // Filtrar leads correspondentes aos logs filtrados
+    const filteredLeadIds = new Set(filteredLogs.map(log => log.cold_call_lead_id));
+    const filteredLeads = coldCallLeads.filter(lead => filteredLeadIds.has(lead.id));
+
     console.log("[ColdCallMetrics] Calculated metrics:", { totalCalls, totalConversations, totalMeetingsScheduled, conversationToMeetingRate });
 
     return {
@@ -267,8 +271,10 @@ export const Dashboard = () => {
       totalConversations,
       totalMeetingsScheduled,
       conversationToMeetingRate,
+      filteredLeads, // Retorna os leads filtrados
+      filteredLogs,  // Retorna os logs filtrados
     };
-  }, [user, selectedColdCallConsultantId, coldCallLogs, coldCallFilterStartDate, coldCallFilterEndDate]);
+  }, [user, selectedColdCallConsultantId, coldCallLeads, coldCallLogs, coldCallFilterStartDate, coldCallFilterEndDate]);
 
   // NOVO: Lista de consultores para o filtro de Cold Call
   const coldCallConsultants = useMemo(() => {
@@ -646,8 +652,8 @@ export const Dashboard = () => {
         onClose={() => setIsColdCallDetailModal(false)}
         title={coldCallModalTitle}
         consultantName={selectedColdCallConsultantName}
-        leads={coldCallLeadsForModal}
-        logs={coldCallLogsForModal}
+        leads={coldCallMetrics.filteredLeads} // Passa os leads filtrados
+        logs={coldCallMetrics.filteredLogs}   // Passa os logs filtrados
         type={coldCallDetailType}
         teamMembers={teamMembers}
         filterStartDate={coldCallFilterStartDate}
