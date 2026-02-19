@@ -34,7 +34,7 @@ export const ColdCallLeadModal: React.FC<ColdCallLeadModalProps> = ({ isOpen, on
   useEffect(() => {
     if (isOpen) {
       if (lead) {
-        setName(lead.name);
+        setName(lead.name || ''); // Nome pode ser nulo agora
         setPhone(lead.phone);
         setEmail(lead.email || '');
         setNotes(lead.notes || '');
@@ -52,15 +52,17 @@ export const ColdCallLeadModal: React.FC<ColdCallLeadModalProps> = ({ isOpen, on
     e.preventDefault();
     setError('');
 
-    if (!name.trim() || !phone.trim()) {
-      setError("Nome e Telefone são obrigatórios.");
+    if (!phone.trim()) { // Apenas telefone é obrigatório
+      setError("Telefone é obrigatório.");
       return;
     }
 
     setIsSaving(true);
     try {
+      const finalName = name.trim() || phone.trim(); // Usa o telefone como nome se o nome estiver vazio
+
       const leadData = {
-        name: name.trim(),
+        name: finalName,
         phone: phone.trim(),
         email: email.trim() || undefined,
         notes: notes.trim() || undefined,
@@ -97,16 +99,15 @@ export const ColdCallLeadModal: React.FC<ColdCallLeadModalProps> = ({ isOpen, on
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto custom-scrollbar">
             <div>
-              <Label htmlFor="name">Nome *</Label>
+              <Label htmlFor="name">Nome (Opcional)</Label> {/* Nome agora é opcional */}
               <div className="relative">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <Input
                   id="name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  required
                   className="pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600"
-                  placeholder="Nome do prospect"
+                  placeholder="Nome do prospect (será o telefone se vazio)"
                 />
               </div>
             </div>

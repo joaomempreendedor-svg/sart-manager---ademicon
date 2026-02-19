@@ -491,7 +491,7 @@ export interface ColdCallLead {
   id: string;
   db_id?: string;
   user_id: string; // Consultant who owns this cold call lead
-  name: string;
+  name?: string; // Alterado para opcional
   phone: string;
   email?: string;
   current_stage: ColdCallStage;

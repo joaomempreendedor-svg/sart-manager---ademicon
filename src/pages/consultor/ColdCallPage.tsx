@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { ColdCallLead, ColdCallLog, ColdCallStage, ColdCallResult, CrmLead } from '@/types';
-import { Plus, Search, PhoneCall, MessageSquare, CalendarCheck, Loader2, Edit2, Trash2, Play, StopCircle, Clock, UserRound, TrendingUp, BarChart3, Percent, ChevronRight, Save, History, Filter, RotateCcw, CalendarDays } from 'lucide-react'; // Adicionado Filter, RotateCcw, CalendarDays
+import { Plus, Search, PhoneCall, MessageSquare, CalendarCheck, Loader2, Edit2, Trash2, Play, StopCircle, Clock, UserRound, TrendingUp, BarChart3, Percent, ChevronRight, Save, History, Filter, RotateCcw, CalendarDays, UploadCloud } from 'lucide-react'; // Adicionado UploadCloud
 import {
   Select,
   SelectContent,
@@ -27,7 +27,7 @@ import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { ColdCallLogModal } from '@/components/consultor/ColdCallLogModal';
 import { ColdCallLeadHistoryModal } from '@/components/consultor/ColdCallLeadHistoryModal'; // NOVO: Importar o modal de histórico
-// Removido: import LeadModal from '@/components/crm/LeadModal'; // Importar LeadModal
+import { ImportColdCallLeadsModal } from '@/components/consultor/ImportColdCallLeadsModal'; // NOVO: Importar o modal de importação
 
 const COLD_CALL_STAGES: ColdCallStage[] = ['Base Fria', 'Tentativa de Contato', 'Conversou', 'Reunião Agendada'];
 const COLD_CALL_RESULTS: ColdCallResult[] = ['Não atendeu', 'Número inválido', 'Sem interesse', 'Pedir retorno', 'Conversou', 'Agendar Reunião'];
@@ -71,6 +71,9 @@ const ColdCallPage = () => {
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [viewingLeadHistory, setViewingLeadHistory] = useState<ColdCallLead | null>(null);
 
+  // NOVO: Estado para o modal de importação
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+
   // Removido: isCrmLeadModalOpen e onCrmLeadSaved
 
   const filteredLeads = useMemo(() => {
@@ -83,7 +86,7 @@ const ColdCallPage = () => {
     if (searchTerm) {
       const lowerCaseSearchTerm = searchTerm.toLowerCase();
       currentLeads = currentLeads.filter(lead =>
-        lead.name.toLowerCase().includes(lowerCaseSearchTerm) ||
+        (lead.name && lead.name.toLowerCase().includes(lowerCaseSearchTerm)) || // Nome pode ser nulo
         lead.phone.toLowerCase().includes(lowerCaseSearchTerm) ||
         (lead.email && lead.email.toLowerCase().includes(lowerCaseSearchTerm)) ||
         (lead.notes && lead.notes.toLowerCase().includes(lowerCaseSearchTerm))
@@ -146,7 +149,7 @@ const ColdCallPage = () => {
   const handleOpenLeadModal = (lead: ColdCallLead | null) => {
     setEditingLead(lead);
     if (lead) {
-      setNewLeadName(lead.name);
+      setNewLeadName(lead.name || ''); // Nome pode ser nulo
       setNewLeadPhone(lead.phone);
       setNewLeadEmail(lead.email || '');
       setNewLeadNotes(lead.notes || '');
@@ -160,14 +163,14 @@ const ColdCallPage = () => {
   };
 
   const handleSaveLead = async () => {
-    if (!newLeadName.trim() || !newLeadPhone.trim()) {
-      toast.error("Nome e Telefone são obrigatórios.");
+    if (!newLeadPhone.trim()) { // Apenas telefone é obrigatório
+      toast.error("Telefone é obrigatório.");
       return;
     }
     setIsSavingLead(true);
     try {
       const leadData = {
-        name: newLeadName.trim(),
+        name: newLeadName.trim() || newLeadPhone.trim(), // Usa o telefone como nome se o nome estiver vazio
         phone: newLeadPhone.trim(),
         email: newLeadEmail.trim() || undefined,
         notes: newLeadNotes.trim() || undefined,
@@ -187,8 +190,8 @@ const ColdCallPage = () => {
     }
   };
 
-  const handleDeleteLead = async (leadId: string, leadName: string) => {
-    if (!window.confirm(`Tem certeza que deseja excluir o lead "${leadName}"?`)) return;
+  const handleDeleteLead = async (leadId: string, leadName: string | undefined) => { // Nome pode ser undefined
+    if (!window.confirm(`Tem certeza que deseja excluir o lead "${leadName || leadId}"?`)) return; // Fallback para ID
     try {
       await deleteColdCallLead(leadId);
       toast.success("Lead de Cold Call excluído!");
@@ -259,10 +262,19 @@ const ColdCallPage = () => {
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Módulo Cold Call</h1>
           <p className="text-gray-500 dark:text-gray-400">Gerencie suas ligações frias e agende reuniões.</p>
         </div>
-        <button onClick={() => handleOpenLeadModal(null)} className="flex items-center justify-center space-x-2 bg-brand-600 hover:bg-brand-700 text-white py-2 px-4 rounded-lg transition font-medium w-full sm:w-auto">
-          <Plus className="w-5 h-5" />
-          <span>Novo Prospect</span>
-        </button>
+        <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-4 w-full md:w-auto">
+          <button
+            onClick={() => setIsImportModalOpen(true)} // NOVO: Botão para abrir o modal de importação
+            className="flex items-center justify-center space-x-2 bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded-lg transition font-medium flex-shrink-0"
+          >
+            <UploadCloud className="w-5 h-5" />
+            <span>Importar Prospects</span>
+          </button>
+          <button onClick={() => handleOpenLeadModal(null)} className="flex items-center justify-center space-x-2 bg-brand-600 hover:bg-brand-700 text-white py-2 px-4 rounded-lg transition font-medium w-full sm:w-auto">
+            <Plus className="w-5 h-5" />
+            <span>Novo Prospect</span>
+          </button>
+        </div>
       </div>
 
       {/* Dashboard de Performance */}
@@ -445,8 +457,8 @@ const ColdCallPage = () => {
           <form onSubmit={(e) => { e.preventDefault(); handleSaveLead(); }}>
             <div className="grid gap-4 py-4">
               <div>
-                <Label htmlFor="name">Nome *</Label>
-                <Input id="name" value={newLeadName} onChange={(e) => setNewLeadName(e.target.value)} required className="dark:bg-slate-700 dark:text-white dark:border-slate-600" />
+                <Label htmlFor="name">Nome (Opcional)</Label> {/* Nome agora é opcional */}
+                <Input id="name" value={newLeadName} onChange={(e) => setNewLeadName(e.target.value)} className="dark:bg-slate-700 dark:text-white dark:border-slate-600" />
               </div>
               <div>
                 <Label htmlFor="phone">Telefone *</Label>
@@ -493,6 +505,17 @@ const ColdCallPage = () => {
           logs={coldCallLogs.filter(log => log.cold_call_lead_id === viewingLeadHistory.id)}
         />
       )}
+
+      {/* NOVO: Import Cold Call Leads Modal */}
+      <ImportColdCallLeadsModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onImport={async (leadsToImport) => {
+          for (const leadData of leadsToImport) {
+            await addColdCallLead(leadData);
+          }
+        }}
+      />
     </div>
   );
 };

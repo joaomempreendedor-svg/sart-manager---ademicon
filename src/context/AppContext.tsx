@@ -55,7 +55,7 @@ const parseDbCurrency = (value: any): number | null => {
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { user, session } = useAuth();
-  const fetchedUserIdRef = useRef<string | null>(null);
+  const fetchedUserIdRef = useRef<string | null>(fetchedUserIdRef.current);
   const isFetchingRef = useRef(false);
 
   const [isDataLoading, setIsDataLoading] = useState(true);
@@ -1157,7 +1157,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // NOVO: Cold Call Functions
   const addColdCallLead = useCallback(async (lead: Omit<ColdCallLead, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'current_stage'>) => {
     if (!user) throw new Error("User not authenticated.");
-    const { data, error } = await supabase.from('cold_call_leads').insert({ ...lead, user_id: user.id, current_stage: 'Base Fria' }).select().single();
+    
+    // Garante que o nome seja o telefone se não for fornecido
+    const finalName = lead.name?.trim() || lead.phone.trim();
+
+    const { data, error } = await supabase.from('cold_call_leads').insert({ ...lead, name: finalName, user_id: user.id, current_stage: 'Base Fria' }).select().single();
     if (error) throw error;
     setColdCallLeads(prev => [...prev, data]);
     return data;
