@@ -1178,19 +1178,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const addColdCallLog = useCallback(async (log: Omit<ColdCallLog, 'id' | 'user_id' | 'created_at'> & { start_time: string; end_time: string; duration_seconds: number; }) => {
     if (!user) throw new Error("User not authenticated.");
-    // duration_seconds is now passed directly from the modal
-    const { data, error } = await supabase.from('cold_call_logs').insert({
+    
+    // Explicitly define the object to insert, ensuring all NOT NULL fields are present
+    const insertData = {
       cold_call_lead_id: log.cold_call_lead_id,
       start_time: log.start_time,
       end_time: log.end_time,
-      duration_seconds: log.duration_seconds, // Explicitly assign
+      duration_seconds: log.duration_seconds, // Ensure this is explicitly taken from log
       result: log.result,
       meeting_date: log.meeting_date,
       meeting_time: log.meeting_time,
       meeting_modality: log.meeting_modality,
       meeting_notes: log.meeting_notes,
-      user_id: user.id // Add user_id here
-    }).select().single();
+      user_id: user.id
+    };
+
+    console.log("[addColdCallLog] Data being inserted into cold_call_logs:", insertData); // Debug log
+
+    const { data, error } = await supabase.from('cold_call_logs').insert(insertData).select().single();
     if (error) throw error;
     setColdCallLogs(prev => [...prev, data]);
     return data;
@@ -1600,18 +1605,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     deleteColdCallLead, // NOVO
     addColdCallLog: async (log) => {
       if (!user) throw new Error("User not authenticated.");
-      const { data, error } = await supabase.from('cold_call_logs').insert({
+      
+      // Explicitly define the object to insert, ensuring all NOT NULL fields are present
+      const insertData = {
         cold_call_lead_id: log.cold_call_lead_id,
         start_time: log.start_time,
         end_time: log.end_time,
-        duration_seconds: log.duration_seconds, // Explicitamente atribuído
+        duration_seconds: log.duration_seconds, // Ensure this is explicitly taken from log
         result: log.result,
         meeting_date: log.meeting_date,
         meeting_time: log.meeting_time,
         meeting_modality: log.meeting_modality,
         meeting_notes: log.meeting_notes,
-        user_id: user.id // Adiciona user_id aqui
-      }).select().single();
+        user_id: user.id
+      };
+
+      console.log("[addColdCallLog] Data being inserted into cold_call_logs:", insertData); // Debug log
+
+      const { data, error } = await supabase.from('cold_call_logs').insert(insertData).select().single();
       if (error) throw error;
       setColdCallLogs(prev => [...prev, data]);
       return data;
