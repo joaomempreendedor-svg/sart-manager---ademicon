@@ -43,16 +43,6 @@ const getOverallStatus = (details: Record<string, InstallmentInfo>): CommissionS
 
 const JOAO_GESTOR_AUTH_ID = "0c6d71b7-daeb-4dde-8eec-0e7a8ffef658";
 
-const parseDbCurrency = (value: any): number | null => {
-  if (typeof value === 'number') return value;
-  if (typeof value === 'string') {
-    const cleaned = value.replace(/[^0-9,-]+/g, '').replace(/\./g, '').replace(',', '.');
-    const parsed = parseFloat(cleaned);
-    return isNaN(parsed) ? null : parsed;
-  }
-  return null;
-};
-
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { user, session } = useAuth();
   const fetchedUserIdRef = useRef<string | null>(fetchedUserIdRef.current);
@@ -124,6 +114,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       document.documentElement.classList.remove('dark');
     }
   }, [theme]);
+
+  // Mover parseDbCurrency para dentro do AppProvider
+  const parseDbCurrency = useCallback((value: any): number | null => {
+    if (typeof value === 'number') return value;
+    if (typeof value === 'string') {
+      const cleaned = value.replace(/[^0-9,-]+/g, '').replace(/\./g, '').replace(',', '.');
+      const parsed = parseFloat(cleaned);
+      return isNaN(parsed) ? null : parsed;
+    }
+    return null;
+  }, []);
 
   const calculateCompetenceMonth = useCallback((paidDate: string): string => {
     const date = new Date(paidDate + 'T00:00:00');
@@ -533,7 +534,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       fetchedUserIdRef.current = null;
       resetLocalState();
     }
-  }, [user?.id, user?.role, refetchCommissions, fetchAppConfig, resetLocalState]);
+  }, [user?.id, user?.role, refetchCommissions, fetchAppConfig, resetLocalState, parseDbCurrency]);
 
   const addCandidate = useCallback(async (candidate: Omit<Candidate, 'id' | 'createdAt' | 'db_id'>) => {
     const { data, error } = await supabase.from('candidates').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: candidate }).select().single();
@@ -640,7 +641,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const newLead = { id: data.id, consultant_id: data.consultant_id, stage_id: data.stage_id, user_id: data.user_id, name: data.name, data: data.data, created_at: data.created_at, updated_at: data.updated_at, created_by: data.created_by, updated_by: data.updated_by, proposal_value: parseDbCurrency(data.proposal_value), proposal_closing_date: data.proposal_closing_date, sold_credit_value: parseDbCurrency(data.sold_credit_value), sold_group: data.sold_group, sold_quota: data.sold_quota, sale_date: data.sale_date };
     setCrmLeads(prev => [newLead, ...prev]);
     return newLead;
-  }, [user, setCrmLeads, crmOwnerUserId]);
+  }, [user, setCrmLeads, crmOwnerUserId, parseDbCurrency]);
 
   const updateCrmLead = useCallback(async (id: string, updates: Partial<CrmLead>) => {
     const { data, error } = await supabase.from('crm_leads').update({ 
@@ -657,7 +658,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const updatedLead = { id: data.id, consultant_id: data.consultant_id, stage_id: data.stage_id, user_id: data.user_id, name: data.name, data: data.data, created_at: data.created_at, updated_at: data.updated_at, created_by: data.created_by, updated_by: data.updated_by, proposal_value: parseDbCurrency(data.proposal_value), proposal_closing_date: data.proposal_closing_date, sold_credit_value: parseDbCurrency(data.sold_credit_value), sold_group: data.sold_group, sold_quota: data.sold_quota, sale_date: data.sale_date };
     setCrmLeads(prev => prev.map(l => l.id === id ? updatedLead : l));
     return updatedLead;
-  }, [user, setCrmLeads]);
+  }, [user, setCrmLeads, parseDbCurrency]);
 
   const deleteCrmLead = useCallback(async (id: string) => {
     const { error } = await supabase.from('crm_leads').delete().eq('id', id);
@@ -1222,7 +1223,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       cold_call_lead_id: log.cold_call_lead_id,
       start_time: log.start_time,
       end_time: log.end_time,
-      duration_seconds: Number(log.duration_seconds),
+      duration_seconds: log.duration_seconds, // Simplificado
       result: log.result,
       meeting_date: log.meeting_date,
       meeting_time: log.meeting_time,
@@ -1335,7 +1336,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     else setLeadTasks(newLeadTasks || []);
 
     return { crmLeadId: data.crmLeadId };
-  }, [user, setColdCallLeads, setCrmLeads, setLeadTasks]);
+  }, [user, setColdCallLeads, setCrmLeads, setLeadTasks, parseDbCurrency]);
 
   const value: AppContextType = useMemo(() => ({
     isDataLoading, candidates, teamMembers, commissions, supportMaterials, cutoffPeriods, onboardingSessions, onboardingTemplateVideos, checklistStructure, setChecklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs, crmPipelines, crmStages, crmFields, crmLeads, crmOwnerUserId, dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions, weeklyTargets, weeklyTargetItems, weeklyTargetAssignments, metricLogs, supportMaterialsV2, supportMaterialAssignments, leadTasks, gestorTasks, gestorTaskCompletions, financialEntries, formCadastros, formFiles, notifications, teamProductionGoals, coldCallLeads, coldCallLogs, theme,
@@ -1740,7 +1741,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     hasPendingSecretariaTasks, // Incluído no array de dependências
     user,
     toggleChecklistItem, // Now included in the dependency array
-    addColdCallLead, updateColdCallLead, deleteColdCallLead, addColdCallLog, getColdCallMetrics, createCrmLeadFromColdCall
+    addColdCallLead, updateColdCallLead, deleteColdCallLead, addColdCallLog, getColdCallMetrics, createCrmLeadFromColdCall, parseDbCurrency
   ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
