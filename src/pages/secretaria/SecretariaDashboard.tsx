@@ -62,10 +62,8 @@ const MetricCard = ({ title, value, icon: Icon, colorClass, subValue, onClick }:
         <div className="absolute -right-4 -bottom-4 opacity-10">
           <Icon size={100} strokeWidth={3} />
         </div>
-      </div >
-    </>
-  );
-
+      </>
+    );
   const baseClasses = `relative overflow-hidden p-6 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm transition-all hover:shadow-md ${colorClass}`;
 
   if (onClick) {
@@ -311,17 +309,16 @@ export const SecretariaDashboard = () => {
     const hiringRate = totalCandidates.length > 0 ? (totalHiredList.length / totalCandidates.length) * 100 : 0;
 
     return {
-      total: totalCandidates.length,
-      newCandidates: newCandidatesList.length, // Este será o "Não Respondido"
-      contacted: contactedList.length,
-      noResponse: noResponseList.length, // NOVO: Contagem de Não Respondidos
-      scheduled: scheduledList.length,
-      conducted: conductedList.length,
-      awaitingPreview: awaitingPreviewList.length,
-      hired: hiredList.length,
-      noShow: noShowList.length,
-      withdrawn: withdrawnList.length,
-      disqualified: disqualifiedList.length,
+      total,
+      contacted,
+      noResponse, // NOVO: Contagem de Não Respondidos
+      scheduled,
+      conducted,
+      awaitingPreview,
+      hired,
+      noShow,
+      withdrawn,
+      disqualified,
       attendanceRate,
       hiringRate,
       totalHired: totalHiredList.length,

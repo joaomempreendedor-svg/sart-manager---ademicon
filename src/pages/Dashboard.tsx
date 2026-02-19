@@ -51,10 +51,8 @@ const MetricCard = ({ title, value, icon: Icon, colorClass, subValue, onClick }:
         <div className="absolute -right-4 -bottom-4 opacity-10">
           <Icon size={100} strokeWidth={3} />
         </div>
-      </div >
-    </>
-  );
-
+      </>
+    );
   const baseClasses = `relative overflow-hidden p-6 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm transition-all hover:shadow-md ${colorClass}`;
 
   if (onClick) {
@@ -266,7 +264,7 @@ export const Dashboard = () => {
     }
 
     if (!user) {
-      console.log("[ColdCallMetrics] No user, returning zeros.");
+      console.log("No user, returning zeros.");
       return { totalCalls: 0, totalConversations: 0, totalMeetingsScheduled: 0, conversationToMeetingRate: 0 };
     }
 
@@ -662,7 +660,6 @@ export const Dashboard = () => {
                         <p className="font-bold text-sm text-red-900 dark:text-red-200">{item.title}</p>
                         <p className="text-xs text-red-700 dark:text-red-400">{item.personName} • Venceu em {new Date(item.dueDate + 'T00:00:00').toLocaleDateString('pt-BR')}</p>
                       </div>
-                      <ChevronRight className="w-4 h-4 text-gray-300" />
                     </li>
                   ))}
                 </ul>
