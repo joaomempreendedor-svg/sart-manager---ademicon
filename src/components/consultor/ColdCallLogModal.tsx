@@ -106,7 +106,8 @@ export const ColdCallLogModal: React.FC<ColdCallLogModalProps> = ({
 
     setIsSaving(true);
     try {
-      const durationSeconds = Math.round((new Date(callEndTime).getTime() - new Date(callStartTime).getTime()) / 1000);
+      const durationSeconds = callStartTime && callEndTime ? Math.round((new Date(callEndTime).getTime() - new Date(callStartTime).getTime()) / 1000) : 0;
+      console.log("[ColdCallLogModal] Calculated durationSeconds before passing to onSaveLog:", durationSeconds); // LOG DE DEBUG
 
       const logData: Omit<ColdCallLog, 'id' | 'user_id' | 'created_at'> & { start_time: string; end_time: string; duration_seconds: number; } = {
         cold_call_lead_id: lead.id,
@@ -119,6 +120,9 @@ export const ColdCallLogModal: React.FC<ColdCallLogModalProps> = ({
         meeting_modality: meetingModality || undefined,
         meeting_notes: meetingNotes.trim() || undefined,
       };
+      
+      console.log("[ColdCallLogModal] logData object before onSaveLog:", JSON.stringify(logData, null, 2)); // LOG DE DEBUG
+
       await onSaveLog(logData, lead.id);
 
       // Determine new stage for the cold call lead
@@ -141,6 +145,7 @@ export const ColdCallLogModal: React.FC<ColdCallLogModalProps> = ({
     } catch (err: any) {
       console.error("Erro ao registrar ligação:", err);
       setError(err.message || 'Falha ao registrar a ligação.');
+      toast.error(`Erro ao registrar ligação: ${err.message}`);
     } finally {
       setIsSaving(false);
     }

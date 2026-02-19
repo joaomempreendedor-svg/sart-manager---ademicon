@@ -1184,7 +1184,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       cold_call_lead_id: log.cold_call_lead_id,
       start_time: log.start_time,
       end_time: log.end_time,
-      duration_seconds: log.duration_seconds, // Ensure this is explicitly taken from log
+      duration_seconds: Number(log.duration_seconds), // Explicitamente atribuído e convertido para Number
       result: log.result,
       meeting_date: log.meeting_date,
       meeting_time: log.meeting_time,
@@ -1193,7 +1193,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       user_id: user.id
     };
 
-    console.log("[addColdCallLog] Data being inserted into cold_call_logs:", insertData); // Debug log
+    console.log("[addColdCallLog] Data being inserted into cold_call_logs:", JSON.stringify(insertData, null, 2)); // LOG DE DEBUG
 
     const { data, error } = await supabase.from('cold_call_logs').insert(insertData).select().single();
     if (error) throw error;
@@ -1611,7 +1611,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         cold_call_lead_id: log.cold_call_lead_id,
         start_time: log.start_time,
         end_time: log.end_time,
-        duration_seconds: log.duration_seconds, // Ensure this is explicitly taken from log
+        duration_seconds: Number(log.duration_seconds), // Explicitamente atribuído e convertido para Number
         result: log.result,
         meeting_date: log.meeting_date,
         meeting_time: log.meeting_time,
@@ -1620,7 +1620,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         user_id: user.id
       };
 
-      console.log("[addColdCallLog] Data being inserted into cold_call_logs:", insertData); // Debug log
+      console.log("[addColdCallLog] Data being inserted into cold_call_logs:", JSON.stringify(insertData, null, 2)); // LOG DE DEBUG
 
       const { data, error } = await supabase.from('cold_call_logs').insert(insertData).select().single();
       if (error) throw error;
