@@ -159,6 +159,7 @@ export const ColdCallLogModal: React.FC<ColdCallLogModalProps> = ({
 
       await onUpdateLeadStage(lead.id, { current_stage: newStageValue });
       toast.success("Ligação registrada e etapa atualizada!");
+      onClose(); // Fechar o modal após o sucesso
       
       return true; // Indica sucesso
     } catch (err: any) {
