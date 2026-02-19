@@ -185,7 +185,8 @@ const ColdCallPage = () => {
           <Button
             onClick={() => {
               toast.dismiss(t.id);
-              navigate('/consultor/crm', { state: { highlightLeadId: crmLeadId } });
+              // NAVEGAÇÃO SIMPLIFICADA: Apenas vai para a página do CRM, sem highlightLeadId
+              navigate('/consultor/crm'); 
             }}
             className="mt-3 bg-brand-600 hover:bg-brand-700 text-white text-sm py-1.5 px-3"
           >

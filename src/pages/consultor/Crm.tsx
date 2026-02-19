@@ -58,16 +58,14 @@ const ConsultorCrmPage = () => {
   const navigate = useNavigate(); // Usar useNavigate
 
   useEffect(() => {
+    // Apenas limpa o estado de navegação se highlightLeadId estiver presente,
+    // mas não abre o modal de tarefas automaticamente.
     if (location.state?.highlightLeadId) {
-      const leadToHighlight = crmLeads.filter(lead => lead.consultant_id === user?.id).find(l => l.id === location.state.highlightLeadId);
-      if (leadToHighlight) {
-        setSelectedLeadForTasks(leadToHighlight);
-        setIsTasksModalOpen(true);
-      }
-      // Limpar o estado de navegação imediatamente após consumi-lo
+      // Opcional: Se você quiser rolar para o lead ou destacá-lo de alguma forma, a lógica iria aqui.
+      // Por enquanto, apenas limpamos o estado para evitar a abertura do modal.
       navigate(location.pathname, { replace: true, state: {} });
     }
-  }, [location.state, crmLeads, user, navigate, location.pathname]);
+  }, [location.state, navigate, location.pathname]);
 
 
   const activePipeline = useMemo(() => {
@@ -564,7 +562,7 @@ const ConsultorCrmPage = () => {
           isOpen={isMarkAsSoldModalOpen}
           onClose={() => setIsMarkAsSoldModalOpen(false)}
           lead={selectedLeadForSold}
-          onSaleSuccess={handleSaleSuccess} // NOVO: Passar o handler de sucesso
+          onSaleSuccess={handleSaleSuccess}
         />
       )}
 
@@ -587,7 +585,6 @@ const ConsultorCrmPage = () => {
         />
       )}
 
-      {/* NOVO: Renderizar o modal de celebração */}
       <SaleCelebrationModal
         isOpen={showCelebration}
         onClose={handleCloseCelebration}
