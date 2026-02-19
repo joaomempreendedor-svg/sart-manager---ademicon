@@ -138,7 +138,8 @@ export const ColdCallLogModal: React.FC<ColdCallLogModalProps> = ({
       await onUpdateLeadStage(lead.id, { current_stage: newStageValue });
       toast.success("Ligação registrada e etapa atualizada!");
       
-      // If it's "Agendar Reunião" and not yet in CRM, the CRM button will handle the next step
+      // Se for "Agendar Reunião", o botão "Criar Lead no CRM" será exibido para o próximo passo.
+      // Não fechamos o modal aqui para permitir que o usuário clique no botão do CRM.
       if (callResult !== 'Agendar Reunião' || lead.crm_lead_id) {
         onClose();
       }
@@ -152,17 +153,16 @@ export const ColdCallLogModal: React.FC<ColdCallLogModalProps> = ({
   };
 
   const handleCreateCrmLeadClick = () => { // NOVO: Função para o clique do botão
-    if (!validateForm()) return;
-    if (!lead) return;
-
+    if (!lead) return; // Deve sempre ter um lead aqui
     onCreateCrmLeadFromColdCall(lead); // Chama o handler do ColdCallPage
-    onClose(); // Fecha o modal atual
+    // Não fechamos o modal aqui, o ColdCallPage pode decidir fechar ou não.
   };
 
   if (!isOpen || !lead) return null;
 
   const durationSeconds = callStartTime && callEndTime ? Math.round((new Date(callEndTime).getTime() - new Date(callStartTime).getTime()) / 1000) : 0;
-  const showCreateCrmLeadButton = callResult === 'Agendar Reunião' && !lead.crm_lead_id;
+  // O botão "Criar Lead no CRM" aparece se o lead não tem um crm_lead_id
+  const showCreateCrmLeadButton = !lead.crm_lead_id;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
