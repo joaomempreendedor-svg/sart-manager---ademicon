@@ -34,9 +34,10 @@ serve(async (req) => {
       .from('cold_call_leads')
       .select('*')
       .eq('id', coldCallLeadId)
-      .maybeSingle(); // Usar maybeSingle()
+      .maybeSingle();
 
     if (coldCallLeadError) {
+      console.error("[Edge Function] Error fetching cold call lead:", coldCallLeadError);
       throw coldCallLeadError;
     }
     if (!coldCallLead) {
@@ -51,9 +52,10 @@ serve(async (req) => {
       .eq('result', 'Agendar Reunião')
       .order('created_at', { ascending: false })
       .limit(1)
-      .maybeSingle(); // Usar maybeSingle()
+      .maybeSingle();
 
     if (meetingLogError) {
+      console.error("[Edge Function] Error fetching meeting log:", meetingLogError);
       throw meetingLogError;
     }
     if (!meetingLog) {
@@ -66,9 +68,10 @@ serve(async (req) => {
       .select('id')
       .eq('name', 'Reunião Agendada') // Assumindo que esta etapa existe
       .eq('user_id', JOAO_GESTOR_AUTH_ID) // Garante que é a etapa do gestor principal
-      .maybeSingle(); // Usar maybeSingle()
+      .maybeSingle();
 
     if (stageError) {
+      console.error("[Edge Function] Error fetching meeting stage:", stageError);
       throw stageError;
     }
     if (!meetingStage) {
@@ -96,10 +99,14 @@ serve(async (req) => {
       .from('crm_leads')
       .insert(newCrmLeadData)
       .select('id')
-      .single();
+      .maybeSingle(); // Alterado para maybeSingle()
 
-    if (crmLeadError || !newCrmLead) {
-      throw new Error(`Falha ao criar Lead no CRM principal: ${crmLeadError?.message}`);
+    if (crmLeadError) {
+      console.error("[Edge Function] Error inserting new CRM lead:", crmLeadError);
+      throw crmLeadError;
+    }
+    if (!newCrmLead) {
+      throw new Error(`Falha ao criar Lead no CRM principal: Nenhum lead retornado após a inserção.`);
     }
 
     // 5. Criar uma Lead Task (reunião) no Pipeline Principal
@@ -117,12 +124,18 @@ serve(async (req) => {
       manager_invitation_status: 'accepted', // Considera aceito por padrão
     };
 
-    const { error: leadTaskError } = await supabaseAdmin
+    const { data: newLeadTask, error: leadTaskError } = await supabaseAdmin
       .from('lead_tasks')
-      .insert(newLeadTaskData);
+      .insert(newLeadTaskData)
+      .select('id')
+      .maybeSingle(); // Alterado para maybeSingle()
 
     if (leadTaskError) {
-      throw new Error(`Falha ao criar tarefa de reunião no CRM principal: ${leadTaskError?.message}`);
+      console.error("[Edge Function] Error inserting new lead task:", leadTaskError);
+      throw leadTaskError;
+    }
+    if (!newLeadTask) {
+      throw new Error(`Falha ao criar tarefa de reunião no CRM principal: Nenhuma tarefa retornada após a inserção.`);
     }
 
     // 6. Atualizar o Cold Call Lead com o ID do CRM Lead criado
@@ -132,7 +145,8 @@ serve(async (req) => {
       .eq('id', coldCallLeadId);
 
     if (updateColdCallLeadError) {
-      throw new Error(`Falha ao vincular Cold Call Lead ao CRM Lead: ${updateColdCallLeadError?.message}`);
+      console.error("[Edge Function] Error updating cold call lead with crm_lead_id:", updateColdCallLeadError);
+      throw updateColdCallLeadError;
     }
 
     return new Response(JSON.stringify({ message: 'Lead criado no CRM principal e vinculado com sucesso!', crmLeadId: newCrmLead.id }), {

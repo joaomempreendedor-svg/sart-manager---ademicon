@@ -107,7 +107,9 @@ export const ColdCallLogModal: React.FC<ColdCallLogModalProps> = ({
     setIsSaving(true);
     try {
       const durationSeconds = callStartTime && callEndTime ? Math.round((new Date(callEndTime).getTime() - new Date(callStartTime).getTime()) / 1000) : 0;
-      console.log("[ColdCallLogModal] Calculated durationSeconds before passing to onSaveLog:", durationSeconds); // LOG DE DEBUG
+      console.log("[ColdCallLogModal DEBUG] callStartTime:", callStartTime);
+      console.log("[ColdCallLogModal DEBUG] callEndTime:", callEndTime);
+      console.log("[ColdCallLogModal DEBUG] Calculated durationSeconds:", durationSeconds); // Este é o log chave
 
       const logData: Omit<ColdCallLog, 'id' | 'user_id' | 'created_at'> & { start_time: string; end_time: string; duration_seconds: number; } = {
         cold_call_lead_id: lead.id,
@@ -121,7 +123,7 @@ export const ColdCallLogModal: React.FC<ColdCallLogModalProps> = ({
         meeting_notes: meetingNotes.trim() || undefined,
       };
       
-      console.log("[ColdCallLogModal] logData object before onSaveLog:", JSON.stringify(logData, null, 2)); // LOG DE DEBUG
+      console.log("[ColdCallLogModal DEBUG] logData object before onSaveLog:", JSON.stringify(logData, null, 2)); // LOG DE DEBUG
 
       await onSaveLog(logData, lead.id);
 
@@ -232,7 +234,7 @@ export const ColdCallLogModal: React.FC<ColdCallLogModalProps> = ({
                   </div>
                   <div>
                     <Label htmlFor="meetingNotes">Observações (Opcional)</Label>
-                    <Textarea id="meetingNotes" value={meetingNotes} onChange={(e) => setMeetingNotes(e.target.value)} rows={3} className="dark:bg-slate-700 dark:text-white dark:border-slate-600" placeholder="Anotações sobre a reunião..." />
+                    <Textarea id="meetingNotes" value={meetingNotes} onChange={(e) => setMeetingNotes(e.target.value)} rows={3} className="pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600" placeholder="Anotações sobre a reunião..." />
                   </div>
                 </div>
               )}

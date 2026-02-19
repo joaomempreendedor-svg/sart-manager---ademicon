@@ -1193,6 +1193,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       user_id: user.id
     };
 
+    console.log("[addColdCallLog DEBUG] Type of log.duration_seconds:", typeof log.duration_seconds); // NOVO LOG
+    console.log("[addColdCallLog DEBUG] Value of log.duration_seconds:", log.duration_seconds); // NOVO LOG
     console.log("[addColdCallLog] Data being inserted into cold_call_logs:", JSON.stringify(insertData, null, 2)); // LOG DE DEBUG
 
     const { data, error } = await supabase.from('cold_call_logs').insert(insertData).select().single();
@@ -1620,6 +1622,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         user_id: user.id
       };
 
+      console.log("[addColdCallLog DEBUG] Type of log.duration_seconds:", typeof log.duration_seconds); // NOVO LOG
+      console.log("[addColdCallLog DEBUG] Value of log.duration_seconds:", log.duration_seconds); // NOVO LOG
       console.log("[addColdCallLog] Data being inserted into cold_call_logs:", JSON.stringify(insertData, null, 2)); // LOG DE DEBUG
 
       const { data, error } = await supabase.from('cold_call_logs').insert(insertData).select().single();
