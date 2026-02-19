@@ -259,27 +259,26 @@ export const Dashboard = () => {
   const coldCallMetrics = useMemo(() => {
     if (!user) return { totalCalls: 0, totalConversations: 0, totalMeetingsScheduled: 0, conversationToMeetingRate: 0 };
 
-    const targetConsultantId = selectedColdCallConsultantId || user.id;
+    // Se nenhum consultor específico for selecionado, o gestor deve ver as métricas de TODOS os consultores.
+    // Caso contrário, filtra pelo consultor selecionado.
+    const logsToConsider = selectedColdCallConsultantId 
+      ? coldCallLogs.filter(log => log.user_id === selectedColdCallConsultantId)
+      : coldCallLogs; // Se 'all' ou null, considera todos os logs que o gestor pode ver (via RLS)
     
-    const isUserConsultant = teamMembers.some(m => m.authUserId === user.id && (m.roles.includes('CONSULTOR') || m.roles.includes('PRÉVIA') || m.roles.includes('AUTORIZADO')));
-    if (!selectedColdCallConsultantId && !isUserConsultant) {
-      return { totalCalls: 0, totalConversations: 0, totalMeetingsScheduled: 0, conversationToMeetingRate: 0 };
-    }
-
-    // Filtrar logs com base nos filtros de data
-    let logsForMetrics = coldCallLogs.filter(log => log.user_id === targetConsultantId);
+    // Aplicar filtros de data
+    let filteredLogs = logsToConsider;
     if (coldCallFilterStartDate) {
       const start = new Date(coldCallFilterStartDate + 'T00:00:00');
-      logsForMetrics = logsForMetrics.filter(log => new Date(log.created_at) >= start);
+      filteredLogs = filteredLogs.filter(log => new Date(log.created_at) >= start);
     }
     if (coldCallFilterEndDate) {
       const end = new Date(coldCallFilterEndDate + 'T23:59:59');
-      logsForMetrics = logsForMetrics.filter(log => new Date(log.created_at) <= end);
+      filteredLogs = filteredLogs.filter(log => new Date(log.created_at) <= end);
     }
 
-    const totalCalls = logsForMetrics.length;
-    const totalConversations = logsForMetrics.filter(log => log.result === 'Conversou' || log.result === 'Agendar Reunião').length;
-    const totalMeetingsScheduled = logsForMetrics.filter(log => log.result === 'Agendar Reunião').length;
+    const totalCalls = filteredLogs.length;
+    const totalConversations = filteredLogs.filter(log => log.result === 'Conversou' || log.result === 'Agendar Reunião').length;
+    const totalMeetingsScheduled = filteredLogs.filter(log => log.result === 'Agendar Reunião').length;
     
     const conversationToMeetingRate = totalConversations > 0 ? (totalMeetingsScheduled / totalConversations) * 100 : 0;
 
@@ -354,17 +353,19 @@ export const Dashboard = () => {
 
   // NOVO: Handler para abrir o modal de detalhes de Cold Call
   const handleOpenColdCallDetailModal = (title: string, type: ColdCallDetailType) => {
-    if (!selectedColdCallConsultantId) {
-      toast.error("Selecione um consultor para ver os detalhes de Cold Call.");
-      return;
-    }
-    const consultantLeadsFiltered = coldCallLeads.filter(l => l.user_id === selectedColdCallConsultantId);
-    
+    // Filtra os leads e logs de cold call com base no consultor selecionado no filtro do dashboard
+    const leadsToPass = selectedColdCallConsultantId 
+      ? coldCallLeads.filter(l => l.user_id === selectedColdCallConsultantId)
+      : coldCallLeads;
+    const logsToPass = selectedColdCallConsultantId
+      ? coldCallLogs.filter(log => log.user_id === selectedColdCallConsultantId)
+      : coldCallLogs;
+
     setColdCallModalTitle(title);
-    setColdCallLeadsForModal(consultantLeadsFiltered);
-    setColdCallLogsForModal(coldCallLogs.filter(log => log.user_id === selectedColdCallConsultantId)); // Passar logs já filtrados
+    setColdCallLeadsForModal(leadsToPass);
+    setColdCallLogsForModal(logsToPass);
     setColdCallDetailType(type);
-    setSelectedColdCallConsultantName(teamMembers.find(m => m.authUserId === selectedColdCallConsultantId)?.name || 'Consultor Desconhecido');
+    setSelectedColdCallConsultantName(teamMembers.find(m => m.authUserId === selectedColdCallConsultantId)?.name || 'Todos os Consultores');
     setIsColdCallDetailModal(true);
   };
 

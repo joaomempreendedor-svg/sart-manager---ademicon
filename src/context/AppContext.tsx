@@ -373,8 +373,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           supabase.from('notifications').select('*').eq('user_id', userId).eq('is_read', false).order('created_at', { ascending: false }),
           supabase.from('team_production_goals').select('*').eq('user_id', effectiveGestorId).order('start_date', { ascending: false }),
           supabase.from('team_members').select('id, data, cpf, user_id').eq('user_id', effectiveGestorId),
-          supabase.from('cold_call_leads').select('*').eq('user_id', userId), // NOVO: Fetch cold call leads for current user
-          supabase.from('cold_call_logs').select('*').eq('user_id', userId)   // NOVO: Fetch cold call logs for current user
+          // Para Gestores/Admins, buscar TODOS os cold call leads/logs que eles têm permissão para ver (via RLS)
+          // Para Consultores, a RLS já limita aos seus próprios.
+          supabase.from('cold_call_leads').select('*'), 
+          supabase.from('cold_call_logs').select('*')   
         ]);
 
         if (candidatesRes.error) { console.error("Error fetching candidates:", candidatesRes.error); toast.error(`Erro ao carregar candidatos: ${candidatesRes.error.message}`); setCandidates([]); }
@@ -500,6 +502,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (teamProductionGoalsRes.error) { console.error("Error fetching team production goals:", teamProductionGoalsRes.error); toast.error(`Erro ao carregar metas de produção da equipe: ${teamProductionGoalsRes.error.message}`); setTeamProductionGoals([]); }
         else { setTeamProductionGoals(teamProductionGoalsRes.data || []); console.log(`[AppContext] Fetched ${teamProductionGoalsRes.data?.length || 0} team production goals.`); }
         
+        // NOVO: Para Gestores/Admins, buscar TODOS os cold call leads/logs que eles têm permissão para ver (via RLS)
+        // Para Consultores, a RLS já limita aos seus próprios.
         if (coldCallLeadsRes.error) { console.error("Error fetching cold call leads:", coldCallLeadsRes.error); toast.error(`Erro ao carregar leads de cold call: ${coldCallLeadsRes.error.message}`); setColdCallLeads([]); }
         else { setColdCallLeads(coldCallLeadsRes.data || []); console.log(`[AppContext] Fetched ${coldCallLeadsRes.data?.length || 0} cold call leads.`); }
 
