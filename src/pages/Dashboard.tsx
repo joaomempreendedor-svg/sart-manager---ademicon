@@ -616,7 +616,7 @@ export const Dashboard = () => {
           <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-md">
             <h3 className="text-sm font-bold text-gray-400 uppercase mb-4">Compromissos de Hoje</h3>
             {todayAgenda.length === 0 ? (
-              <p className="text-center text-gray-400 py-8">Nenhum item na agenda para hoje.</p>
+              <p className="text-center text-gray-400 py-8">Nenhum compromisso com data para hoje.</p>
             ) : (
               <ScrollArea className="h-[250px] pr-4">
                 <ul className="space-y-3">
@@ -651,6 +651,7 @@ export const Dashboard = () => {
                         <p className="font-bold text-sm text-red-900 dark:text-red-200">{item.title}</p>
                         <p className="text-xs text-red-700 dark:text-red-400">{item.personName} • Venceu em {new Date(item.dueDate + 'T00:00:00').toLocaleDateString('pt-BR')}</p>
                       </div>
+                      <ChevronRight className="w-4 h-4 text-gray-300" />
                     </li>
                   ))}
                 </ul>
