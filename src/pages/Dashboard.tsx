@@ -257,7 +257,15 @@ export const Dashboard = () => {
 
   // NOVO: Métricas de Cold Call (Mês Atual)
   const coldCallMetrics = useMemo(() => {
-    if (!user) return { totalCalls: 0, totalConversations: 0, totalMeetingsScheduled: 0, conversationToMeetingRate: 0 };
+    console.log("[ColdCallMetrics] Calculating metrics...");
+    console.log("[ColdCallMetrics] User:", user);
+    console.log("[ColdCallMetrics] selectedColdCallConsultantId:", selectedColdCallConsultantId);
+    console.log("[ColdCallMetrics] Raw coldCallLogs length:", coldCallLogs.length);
+
+    if (!user) {
+      console.log("[ColdCallMetrics] No user, returning zeros.");
+      return { totalCalls: 0, totalConversations: 0, totalMeetingsScheduled: 0, conversationToMeetingRate: 0 };
+    }
 
     // Se nenhum consultor específico for selecionado, o gestor deve ver as métricas de TODOS os consultores.
     // Caso contrário, filtra pelo consultor selecionado.
@@ -265,6 +273,8 @@ export const Dashboard = () => {
       ? coldCallLogs.filter(log => log.user_id === selectedColdCallConsultantId)
       : coldCallLogs; // Se 'all' ou null, considera todos os logs que o gestor pode ver (via RLS)
     
+    console.log("[ColdCallMetrics] logsToConsider length (after consultant filter):", logsToConsider.length);
+
     // Aplicar filtros de data
     let filteredLogs = logsToConsider;
     if (coldCallFilterStartDate) {
@@ -276,11 +286,15 @@ export const Dashboard = () => {
       filteredLogs = filteredLogs.filter(log => new Date(log.created_at) <= end);
     }
 
+    console.log("[ColdCallMetrics] filteredLogs length (after date filter):", filteredLogs.length);
+
     const totalCalls = filteredLogs.length;
     const totalConversations = filteredLogs.filter(log => log.result === 'Conversou' || log.result === 'Agendar Reunião').length;
     const totalMeetingsScheduled = filteredLogs.filter(log => log.result === 'Agendar Reunião').length;
     
     const conversationToMeetingRate = totalConversations > 0 ? (totalMeetingsScheduled / totalConversations) * 100 : 0;
+
+    console.log("[ColdCallMetrics] Calculated metrics:", { totalCalls, totalConversations, totalMeetingsScheduled, conversationToMeetingRate });
 
     return {
       totalCalls,
