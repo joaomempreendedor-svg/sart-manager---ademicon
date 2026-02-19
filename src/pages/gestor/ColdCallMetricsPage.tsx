@@ -82,16 +82,9 @@ const ColdCallMetricsPage = () => {
   }, [coldCallLogs, selectedColdCallConsultantId, filterStartDate, filterEndDate]);
 
   const coldCallMetrics = useMemo(() => {
-    if (!user) return { totalCalls: 0, totalConversations: 0, totalMeetingsScheduled: 0, conversationToMeetingRate: 0 };
+    // Removida a condição de saída antecipada.
+    // Agora, se selectedColdCallConsultantId for null, filteredColdCallLogs já conterá todos os logs.
 
-    const targetConsultantId = selectedColdCallConsultantId || user.id;
-    
-    const isUserConsultant = teamMembers.some(m => m.authUserId === user.id && (m.roles.includes('CONSULTOR') || m.roles.includes('PRÉVIA') || m.roles.includes('AUTORIZADO')));
-    if (!selectedColdCallConsultantId && !isUserConsultant) {
-      return { totalCalls: 0, totalConversations: 0, totalMeetingsScheduled: 0, conversationToMeetingRate: 0 };
-    }
-
-    // Recalcular métricas com base nos logs filtrados
     const totalCalls = filteredColdCallLogs.length;
     const totalConversations = filteredColdCallLogs.filter(log => log.result === 'Conversou' || log.result === 'Agendar Reunião').length;
     const totalMeetingsScheduled = filteredColdCallLogs.filter(log => log.result === 'Agendar Reunião').length;
@@ -104,20 +97,23 @@ const ColdCallMetricsPage = () => {
       totalMeetingsScheduled,
       conversationToMeetingRate,
     };
-  }, [user, selectedColdCallConsultantId, filteredColdCallLogs, teamMembers]);
+  }, [selectedColdCallConsultantId, filteredColdCallLogs, teamMembers]); // Removido 'user' pois não é mais usado diretamente aqui
 
   const handleOpenColdCallDetailModal = (title: string, type: ColdCallDetailType) => {
-    if (!selectedColdCallConsultantId) {
+    if (!selectedColdCallConsultantId && type !== 'all') { // Permite abrir 'all' sem consultor selecionado
       toast.error("Selecione um consultor para ver os detalhes de Cold Call.");
       return;
     }
-    const consultantLeadsFiltered = coldCallLeads.filter(l => l.user_id === selectedColdCallConsultantId);
     
+    const leadsToPass = selectedColdCallConsultantId 
+      ? coldCallLeads.filter(l => l.user_id === selectedColdCallConsultantId)
+      : coldCallLeads; // Se 'all' ou null, passa todos os leads
+
     setColdCallModalTitle(title);
-    setColdCallLeadsForModal(consultantLeadsFiltered);
+    setColdCallLeadsForModal(leadsToPass);
     setColdCallLogsForModal(filteredColdCallLogs); // Passar logs já filtrados
     setColdCallDetailType(type);
-    setSelectedColdCallConsultantName(teamMembers.find(m => m.authUserId === selectedColdCallConsultantId)?.name || 'Consultor Desconhecido');
+    setSelectedColdCallConsultantName(teamMembers.find(m => m.authUserId === selectedColdCallConsultantId)?.name || 'Todos os Consultores');
     setIsColdCallDetailModalOpen(true);
   };
 
