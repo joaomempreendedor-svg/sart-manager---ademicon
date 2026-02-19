@@ -54,6 +54,7 @@ export const ColdCallLogModal: React.FC<ColdCallLogModalProps> = ({
   const [meetingNotes, setMeetingNotes] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
+  const [callDuration, setCallDuration] = useState(0); // NOVO: Estado para a duração da chamada
 
   useEffect(() => {
     if (isOpen) {
@@ -65,12 +66,29 @@ export const ColdCallLogModal: React.FC<ColdCallLogModalProps> = ({
       setMeetingModality('');
       setMeetingNotes('');
       setError('');
+      setCallDuration(0); // Resetar duração ao abrir o modal
     }
   }, [isOpen]);
+
+  // NOVO: Efeito para atualizar a duração da chamada em tempo real
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    if (callStartTime && !callEndTime) {
+      interval = setInterval(() => {
+        setCallDuration(Math.round((new Date().getTime() - new Date(callStartTime).getTime()) / 1000));
+      }, 1000);
+    } else if (interval) {
+      clearInterval(interval);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [callStartTime, callEndTime]);
 
   const handleStartCall = () => {
     setCallStartTime(new Date().toISOString());
     setCallEndTime(null);
+    setCallDuration(0); // Resetar duração ao iniciar
     setError('');
   };
 
@@ -79,7 +97,9 @@ export const ColdCallLogModal: React.FC<ColdCallLogModalProps> = ({
       setError("Inicie a ligação antes de finalizá-la.");
       return;
     }
-    setCallEndTime(new Date().toISOString());
+    const endTime = new Date().toISOString();
+    setCallEndTime(endTime);
+    setCallDuration(Math.round((new Date(endTime).getTime() - new Date(callStartTime!).getTime()) / 1000)); // Calcular duração final
   };
 
   const validateForm = () => {
@@ -172,7 +192,12 @@ export const ColdCallLogModal: React.FC<ColdCallLogModalProps> = ({
 
   if (!isOpen || !lead) return null;
 
-  const durationSeconds = callStartTime && callEndTime ? Math.round((new Date(callEndTime).getTime() - new Date(callStartTime).getTime()) / 1000) : 0;
+  const formatDurationDisplay = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}m ${remainingSeconds}s`;
+  };
+
   // O botão "Criar Lead no CRM" aparece se o resultado for "Agendar Reunião" E o lead ainda não tiver um crm_lead_id
   const showCreateCrmLeadButton = callResult === 'Agendar Reunião' && !lead.crm_lead_id;
 
@@ -208,9 +233,9 @@ export const ColdCallLogModal: React.FC<ColdCallLogModalProps> = ({
                 <StopCircle className="w-4 h-4 mr-2" /> Finalizar Ligação
               </Button>
             </div>
-            {callStartTime && callEndTime && (
+            {callStartTime && ( // Exibir duração apenas se a chamada foi iniciada
               <div className="text-sm text-gray-500 dark:text-gray-400 text-center">
-                Duração: {durationSeconds} segundos
+                Duração: <span className="font-semibold text-gray-800 dark:text-gray-200">{formatDurationDisplay(callDuration)}</span>
               </div>
             )}
             <div>
