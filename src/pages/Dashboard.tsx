@@ -45,7 +45,7 @@ const MetricCard = ({ title, value, icon: Icon, colorClass, subValue, onClick }:
       <div className="flex justify-between items-start">
         <div className="space-y-1">
           <p className="text-[10px] font-bold uppercase tracking-wider opacity-70">{title}</p>
-          <h3 className="4xl font-black">{value}</h3>
+          <h3 className="text-5xl font-black">{value}</h3>
           {subValue && <p className="text-xs font-medium opacity-60">{subValue}</p>}
         </div>
         <div className="absolute -right-4 -bottom-4 opacity-10">
@@ -257,17 +257,16 @@ export const Dashboard = () => {
 
   // NOVO: Métricas de Cold Call (Mês Atual)
   const coldCallMetrics = useMemo(() => {
-    console.log("--- ColdCallMetrics Calculation Start ---");
-    console.log("User:", user);
-    console.log("selectedColdCallConsultantId:", selectedColdCallConsultantId);
-    console.log("Raw coldCallLogs length:", coldCallLogs.length);
+    console.log("[ColdCallMetrics] Calculating metrics...");
+    console.log("[ColdCallMetrics] User:", user);
+    console.log("[ColdCallMetrics] selectedColdCallConsultantId:", selectedColdCallConsultantId);
+    console.log("[ColdCallMetrics] Raw coldCallLogs length:", coldCallLogs.length);
     if (coldCallLogs.length > 0) {
-      console.log("Sample coldCallLog item:", coldCallLogs[0]);
+      console.log("[ColdCallMetrics] Sample coldCallLog item:", coldCallLogs[0]);
     }
 
     if (!user) {
-      console.log("No user, returning zeros.");
-      console.log("--- ColdCallMetrics Calculation End ---");
+      console.log("[ColdCallMetrics] No user, returning zeros.");
       return { totalCalls: 0, totalConversations: 0, totalMeetingsScheduled: 0, conversationToMeetingRate: 0 };
     }
 
@@ -277,9 +276,9 @@ export const Dashboard = () => {
       ? coldCallLogs.filter(log => log.user_id === selectedColdCallConsultantId)
       : coldCallLogs; // Se 'all' ou null, considera todos os logs que o gestor pode ver (via RLS)
     
-    console.log("logsToConsider length (after consultant filter):", logsToConsider.length);
+    console.log("[ColdCallMetrics] logsToConsider length (after consultant filter):", logsToConsider.length);
     if (logsToConsider.length > 0) {
-      console.log("Sample logsToConsider item:", logsToConsider[0]);
+      console.log("[ColdCallMetrics] Sample logsToConsider item:", logsToConsider[0]);
     }
 
     // Aplicar filtros de data
@@ -293,9 +292,9 @@ export const Dashboard = () => {
       filteredLogs = filteredLogs.filter(log => new Date(log.created_at) <= end);
     }
 
-    console.log("filteredLogs length (after date filter):", filteredLogs.length);
+    console.log("[ColdCallMetrics] filteredLogs length (after date filter):", filteredLogs.length);
     if (filteredLogs.length > 0) {
-      console.log("Sample filteredLogs item:", filteredLogs[0]);
+      console.log("[ColdCallMetrics] Sample filteredLogs item:", filteredLogs[0]);
     }
 
     const totalCalls = filteredLogs.length;
@@ -304,8 +303,7 @@ export const Dashboard = () => {
     
     const conversationToMeetingRate = totalConversations > 0 ? (totalMeetingsScheduled / totalConversations) * 100 : 0;
 
-    console.log("Calculated metrics:", { totalCalls, totalConversations, totalMeetingsScheduled, conversationToMeetingRate });
-    console.log("--- ColdCallMetrics Calculation End ---");
+    console.log("[ColdCallMetrics] Calculated metrics:", { totalCalls, totalConversations, totalMeetingsScheduled, conversationToMeetingRate });
 
     return {
       totalCalls,
@@ -664,6 +662,7 @@ export const Dashboard = () => {
                         <p className="font-bold text-sm text-red-900 dark:text-red-200">{item.title}</p>
                         <p className="text-xs text-red-700 dark:text-red-400">{item.personName} • Venceu em {new Date(item.dueDate + 'T00:00:00').toLocaleDateString('pt-BR')}</p>
                       </div>
+                      <ChevronRight className="w-4 h-4 text-gray-300" />
                     </li>
                   ))}
                 </ul>
