@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { ColdCallLead, ColdCallLog, ColdCallStage, ColdCallResult } from '@/types';
-import { Plus, Search, PhoneCall, MessageSquare, CalendarCheck, Loader2, Edit2, Trash2, Play, StopCircle, Clock, UserRound, TrendingUp, BarChart3, Percent, ChevronRight, Save } from 'lucide-react';
+import { Plus, Search, PhoneCall, MessageSquare, CalendarCheck, Loader2, Edit2, Trash2, Play, StopCircle, Clock, UserRound, TrendingUp, BarChart3, Percent, ChevronRight, Save, History } from 'lucide-react'; // Adicionado History icon
 import {
   Select,
   SelectContent,
@@ -25,7 +25,8 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-import { ColdCallLogModal } from '@/components/consultor/ColdCallLogModal'; // Importar o modal correto
+import { ColdCallLogModal } from '@/components/consultor/ColdCallLogModal';
+import { ColdCallLeadHistoryModal } from '@/components/consultor/ColdCallLeadHistoryModal'; // NOVO: Importar o modal de histórico
 
 const COLD_CALL_STAGES: ColdCallStage[] = ['Base Fria', 'Tentativa de Contato', 'Conversou', 'Reunião Agendada'];
 const COLD_CALL_RESULTS: ColdCallResult[] = ['Não atendeu', 'Número inválido', 'Sem interesse', 'Pedir retorno', 'Conversou', 'Agendar Reunião'];
@@ -59,8 +60,10 @@ const ColdCallPage = () => {
 
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
   const [loggingLead, setLoggingLead] = useState<ColdCallLead | null>(null);
-  // REMOVIDOS: Estados de callStartTime, callEndTime, callResult, meetingDate, meetingTime, meetingModality, meetingNotes, isSavingLog, logError
-  // Estes estados agora serão gerenciados internamente pelo ColdCallLogModal
+  
+  // NOVO: Estados para o modal de histórico
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+  const [viewingLeadHistory, setViewingLeadHistory] = useState<ColdCallLead | null>(null);
 
   const filteredLeads = useMemo(() => {
     let currentLeads = coldCallLeads.filter(lead => lead.user_id === user?.id);
@@ -157,11 +160,13 @@ const ColdCallPage = () => {
   const handleStartCall = (lead: ColdCallLead) => {
     setLoggingLead(lead);
     setIsLogModalOpen(true);
-    // O ColdCallLogModal agora gerencia seu próprio estado de início/fim de chamada e resultado
   };
 
-  // REMOVIDOS: handleEndCall e handleSaveLog
-  // Estes agora são métodos internos do ColdCallLogModal
+  // NOVO: Handler para abrir o modal de histórico
+  const handleOpenHistoryModal = (lead: ColdCallLead) => {
+    setViewingLeadHistory(lead);
+    setIsHistoryModalOpen(true);
+  };
 
   if (isAuthLoading || isDataLoading) {
     return (
@@ -248,7 +253,7 @@ const ColdCallPage = () => {
                 <th className="px-6 py-3">Nome</th>
                 <th className="px-6 py-3">Contato</th>
                 <th className="px-6 py-3">Etapa Atual</th>
-                <th className="px-6 py-3">Último Resultado</th> {/* NOVO: Coluna para o último resultado */}
+                <th className="px-6 py-3">Último Resultado</th>
                 <th className="px-6 py-3">Última Atualização</th>
                 <th className="px-6 py-3 text-right">Ações</th>
               </tr>
@@ -286,7 +291,7 @@ const ColdCallPage = () => {
                         {lead.current_stage}
                       </span>
                     </td>
-                    <td className="px-6 py-4"> {/* NOVO: Célula para o último resultado */}
+                    <td className="px-6 py-4">
                       <div className="flex flex-col">
                         <span className="font-medium text-gray-900 dark:text-white">{lead.lastCallResult}</span>
                         <span className="text-xs text-gray-500 dark:text-gray-400">{lead.lastCallDate}</span>
@@ -300,6 +305,9 @@ const ColdCallPage = () => {
                         </button>
                         <button onClick={() => handleOpenLeadModal(lead)} className="p-2 text-gray-400 hover:text-blue-500 rounded-full" title="Editar Lead">
                           <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => handleOpenHistoryModal(lead)} className="p-2 text-gray-400 hover:text-purple-500 rounded-full" title="Ver Histórico">
+                          <History className="w-4 h-4" />
                         </button>
                         <button onClick={() => handleDeleteLead(lead.id, lead.name)} className="p-2 text-gray-400 hover:text-red-500 rounded-full" title="Excluir Lead">
                           <Trash2 className="w-4 h-4" />
@@ -353,7 +361,7 @@ const ColdCallPage = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Log Call Modal - Agora usando o componente ColdCallLogModal */}
+      {/* Log Call Modal */}
       {isLogModalOpen && loggingLead && (
         <ColdCallLogModal
           isOpen={isLogModalOpen}
@@ -362,6 +370,16 @@ const ColdCallPage = () => {
           onSaveLog={addColdCallLog}
           onUpdateLeadStage={updateColdCallLead}
           onCreateCrmLeadFromColdCall={createCrmLeadFromColdCall}
+        />
+      )}
+
+      {/* NOVO: Cold Call Lead History Modal */}
+      {isHistoryModalOpen && viewingLeadHistory && (
+        <ColdCallLeadHistoryModal
+          isOpen={isHistoryModalOpen}
+          onClose={() => setIsHistoryModalOpen(false)}
+          lead={viewingLeadHistory}
+          logs={coldCallLogs.filter(log => log.cold_call_lead_id === viewingLeadHistory.id)}
         />
       )}
     </div>
