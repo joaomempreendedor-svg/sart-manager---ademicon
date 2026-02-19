@@ -31,7 +31,7 @@ interface ColdCallLogModalProps {
   onClose: () => void;
   lead: ColdCallLead | null;
   onSaveLog: (logData: Omit<ColdCallLog, 'id' | 'user_id' | 'created_at'> & { start_time: string; end_time: string; duration_seconds: number; }, leadId: string) => Promise<void>;
-  onUpdateLeadStage: (leadId: string, newStage: ColdCallLead['current_stage']) => Promise<void>;
+  onUpdateLeadStage: (leadId: string, newStage: Partial<ColdCallLead>) => Promise<void>; // Alterado o tipo de newStage
   onCreateCrmLeadFromColdCall: (coldCallLeadId: string) => Promise<{ crmLeadId: string }>;
 }
 
@@ -128,13 +128,14 @@ export const ColdCallLogModal: React.FC<ColdCallLogModalProps> = ({
       await onSaveLog(logData, lead.id);
 
       // Determine new stage for the cold call lead
-      let newStage: ColdCallLead['current_stage'] = lead.current_stage;
-      if (callResult === 'Conversou') newStage = 'Conversou';
-      else if (callResult === 'Agendar Reunião') newStage = 'Reunião Agendada';
-      else if (callResult === 'Pedir retorno' || callResult === 'Não atendeu') newStage = 'Tentativa de Contato';
-      else if (callResult === 'Sem interesse' || callResult === 'Número inválido') newStage = 'Base Fria';
+      let newStageValue: ColdCallLead['current_stage'] = lead.current_stage;
+      if (callResult === 'Conversou') newStageValue = 'Conversou';
+      else if (callResult === 'Agendar Reunião') newStageValue = 'Reunião Agendada';
+      else if (callResult === 'Pedir retorno' || callResult === 'Não atendeu') newStageValue = 'Tentativa de Contato';
+      else if (callResult === 'Sem interesse' || callResult === 'Número inválido') newStageValue = 'Base Fria';
 
-      await onUpdateLeadStage(lead.id, newStage);
+      // CORREÇÃO AQUI: Passar um objeto com a propriedade current_stage
+      await onUpdateLeadStage(lead.id, { current_stage: newStageValue });
 
       if (callResult === 'Agendar Reunião') {
         const { crmLeadId } = await onCreateCrmLeadFromColdCall(lead.id);
