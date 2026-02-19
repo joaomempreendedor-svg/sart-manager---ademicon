@@ -288,7 +288,7 @@ export const Dashboard = () => {
       totalMeetingsScheduled,
       conversationToMeetingRate,
     };
-  }, [user, selectedColdCallConsultantId, coldCallLogs, teamMembers, coldCallFilterStartDate, coldCallFilterEndDate]);
+  }, [user, selectedColdCallConsultantId, coldCallLogs, coldCallFilterStartDate, coldCallFilterEndDate]);
 
   // NOVO: Lista de consultores para o filtro de Cold Call
   const coldCallConsultants = useMemo(() => {
