@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, MessageSquare, Settings, FileText, Sun, Moon, Banknote, PlusCircle, Library, TrendingUp, Target, Users, LogOut, User as UserIcon, Star, Video, ListChecks, ClipboardCheck, UserPlus, ChevronLeft, ChevronRight, ChevronDown, UserSearch, BarChart3, MapPin, DollarSign, FileStack, UserCheck, Clock, Calendar, UsersRound, ListTodo, PieChart } from 'lucide-react';
+import { LayoutDashboard, MessageSquare, Settings, FileText, Sun, Moon, Banknote, PlusCircle, Library, TrendingUp, Target, Users, LogOut, User as UserIcon, Star, Video, ListChecks, ClipboardCheck, UserPlus, ChevronLeft, ChevronRight, ChevronDown, UserSearch, BarChart3, MapPin, DollarSign, FileStack, UserCheck, Clock, Calendar, UsersRound, ListTodo, PieChart, PhoneCall } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { UserRole } from '@/types'; // Importar UserRole
@@ -50,6 +50,7 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
     { to: `${baseRoute}/feedbacks`, icon: Star, label: "Feedbacks", roles: ['GESTOR', 'ADMIN'], section: 'overview' },
     { to: `${baseRoute}/team-production-goals`, icon: Target, label: "Metas de Produção", roles: ['GESTOR', 'ADMIN'], section: 'overview' },
     { to: `${baseRoute}/my-tasks`, icon: ListTodo, label: "Minhas Tarefas", roles: ['GESTOR', 'ADMIN'], section: 'overview' },
+    { to: `${baseRoute}/cold-call-metrics`, icon: PhoneCall, label: "Métricas Cold Call", roles: ['GESTOR', 'ADMIN'], section: 'overview' }, // NOVO: Link para Métricas de Cold Call
 
     // Hiring & Onboarding (Shared, but some pages might be Gestor/Admin specific)
     { to: `${baseRoute}/hiring-pipeline`, icon: UserSearch, label: "Pipeline Contratação", roles: ['GESTOR', 'ADMIN', 'SECRETARIA'], section: 'overview' },
