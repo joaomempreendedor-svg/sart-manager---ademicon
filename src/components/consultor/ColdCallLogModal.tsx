@@ -96,12 +96,7 @@ export const ColdCallLogModal: React.FC<ColdCallLogModalProps> = ({
       return false;
     }
 
-    if (callResult === 'Agendar Reunião') {
-      if (!meetingDate || !meetingTime || !meetingModality) {
-        setError("Data, hora e modalidade da reunião são obrigatórios.");
-        return false;
-      }
-    }
+    // REMOVIDO: Validação de campos de reunião para 'Agendar Reunião'
     setError('');
     return true;
   };
@@ -127,10 +122,12 @@ export const ColdCallLogModal: React.FC<ColdCallLogModalProps> = ({
         end_time: callEndTime!,
         duration_seconds: durationSeconds,
         result: callResult as ColdCallResult,
-        meeting_date: meetingDate || undefined,
-        meeting_time: meetingTime || undefined,
-        meeting_modality: meetingModality || undefined,
-        meeting_notes: meetingNotes.trim() || undefined,
+        // REMOVIDO: Campos de reunião não são mais incluídos aqui se o resultado for 'Agendar Reunião'
+        // Eles só seriam incluídos se o usuário os preenchesse, o que não acontecerá mais.
+        meeting_date: callResult === 'Agendar Reunião' ? undefined : meetingDate || undefined,
+        meeting_time: callResult === 'Agendar Reunião' ? undefined : meetingTime || undefined,
+        meeting_modality: callResult === 'Agendar Reunião' ? undefined : meetingModality || undefined,
+        meeting_notes: callResult === 'Agendar Reunião' ? undefined : meetingNotes.trim() || undefined,
       };
       
       await onSaveLog(logData, lead.id);
@@ -231,7 +228,8 @@ export const ColdCallLogModal: React.FC<ColdCallLogModalProps> = ({
               </Select>
             </div>
 
-            {callResult === 'Agendar Reunião' && (
+            {/* REMOVIDO: Detalhes da Reunião não são mais exibidos aqui */}
+            {/* {callResult === 'Agendar Reunião' && (
               <div className="grid gap-4 border-t border-gray-200 dark:border-slate-700 pt-4">
                 <h3 className="font-semibold text-gray-900 dark:text-white">Detalhes da Reunião</h3>
                 <div>
@@ -260,7 +258,7 @@ export const ColdCallLogModal: React.FC<ColdCallLogModalProps> = ({
                     <Textarea id="meetingNotes" value={meetingNotes} onChange={(e) => setMeetingNotes(e.target.value)} rows={3} className="pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600" placeholder="Anotações sobre a reunião..." />
                   </div>
                 </div>
-              )}
+              )} */}
               {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
             </div>
             <DialogFooter className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-700 flex-col sm:flex-row">
