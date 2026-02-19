@@ -353,7 +353,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           supabase.from('crm_pipelines').select('*').eq('user_id', effectiveGestorId),
           supabase.from('crm_stages').select('*').eq('user_id', effectiveGestorId).order('order_index'),
           supabase.from('crm_fields').select('*').eq('user_id', effectiveGestorId),
-          supabase.from('crm_leads').select('*').eq('user_id', effectiveGestorId),
+          supabase.from('crm_leads').select('*').eq('user_id', effectiveGestorId).order('created_at', { ascending: false }), // ADICIONADO: Ordenar por created_at descendente
           supabase.from('daily_checklists').select('*').eq('user_id', effectiveGestorId),
           supabase.from('daily_checklist_items').select('*'),
           supabase.from('daily_checklist_assignments').select('*'),
@@ -1316,7 +1316,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
 
     // 3. Refetch crmLeads e leadTasks para que o novo lead e tarefa apareçam no CRM
-    const { data: newCrmLeads, error: crmLeadsError } = await supabase.from('crm_leads').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID);
+    const { data: newCrmLeads, error: crmLeadsError } = await supabase.from('crm_leads').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID).order('created_at', { ascending: false }); // ADICIONADO: Ordenar por created_at descendente
     if (crmLeadsError) console.error("Error refetching crm leads:", crmLeadsError);
     else setCrmLeads(newCrmLeads?.map((lead: any) => ({ 
       id: lead.id, consultant_id: lead.consultant_id, stage_id: lead.stage_id, user_id: lead.user_id, name: lead.name, data: lead.data, created_at: lead.created_at, updated_at: lead.updated_at, created_by: lead.created_by, updated_by: lead.updated_by, 
