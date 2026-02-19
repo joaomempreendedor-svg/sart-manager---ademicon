@@ -25,6 +25,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
+import { ColdCallLogModal } from '@/components/consultor/ColdCallLogModal'; // Importar o modal correto
 
 const COLD_CALL_STAGES: ColdCallStage[] = ['Base Fria', 'Tentativa de Contato', 'Conversou', 'Reunião Agendada'];
 const COLD_CALL_RESULTS: ColdCallResult[] = ['Não atendeu', 'Número inválido', 'Sem interesse', 'Pedir retorno', 'Conversou', 'Agendar Reunião'];
@@ -58,15 +59,8 @@ const ColdCallPage = () => {
 
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
   const [loggingLead, setLoggingLead] = useState<ColdCallLead | null>(null);
-  const [callStartTime, setCallStartTime] = useState<string | null>(null);
-  const [callEndTime, setCallEndTime] = useState<string | null>(null);
-  const [callResult, setCallResult] = useState<ColdCallResult | ''>('');
-  const [meetingDate, setMeetingDate] = useState('');
-  const [meetingTime, setMeetingTime] = useState('');
-  const [meetingModality, setMeetingModality] = useState('');
-  const [meetingNotes, setMeetingNotes] = useState('');
-  const [isSavingLog, setIsSavingLog] = useState(false);
-  const [logError, setLogError] = useState('');
+  // REMOVIDOS: Estados de callStartTime, callEndTime, callResult, meetingDate, meetingTime, meetingModality, meetingNotes, isSavingLog, logError
+  // Estes estados agora serão gerenciados internamente pelo ColdCallLogModal
 
   const filteredLeads = useMemo(() => {
     let currentLeads = coldCallLeads.filter(lead => lead.user_id === user?.id);
@@ -148,73 +142,12 @@ const ColdCallPage = () => {
 
   const handleStartCall = (lead: ColdCallLead) => {
     setLoggingLead(lead);
-    setCallStartTime(new Date().toISOString());
-    setCallEndTime(null);
-    setCallResult('');
-    setMeetingDate('');
-    setMeetingTime('');
-    setMeetingModality('');
-    setMeetingNotes('');
-    setLogError('');
     setIsLogModalOpen(true);
+    // O ColdCallLogModal agora gerencia seu próprio estado de início/fim de chamada e resultado
   };
 
-  const handleEndCall = () => {
-    setCallEndTime(new Date().toISOString());
-  };
-
-  const handleSaveLog = async () => {
-    if (!loggingLead || !callStartTime || !callEndTime || !callResult) {
-      setLogError("Resultado da ligação é obrigatório.");
-      return;
-    }
-
-    if (callResult === 'Agendar Reunião') {
-      if (!meetingDate || !meetingTime || !meetingModality) {
-        setLogError("Data, hora e modalidade da reunião são obrigatórios.");
-        return;
-      }
-    }
-
-    setIsSavingLog(true);
-    try {
-      const logData: Omit<ColdCallLog, 'id' | 'user_id' | 'created_at' | 'duration_seconds'> & { start_time: string; end_time: string; } = {
-        cold_call_lead_id: loggingLead.id,
-        start_time: callStartTime,
-        end_time: callEndTime,
-        result: callResult,
-        meeting_date: meetingDate || undefined,
-        meeting_time: meetingTime || undefined,
-        meeting_modality: meetingModality || undefined,
-        meeting_notes: meetingNotes || undefined,
-      };
-      await addColdCallLog(logData);
-
-      // Update lead stage
-      let newStage: ColdCallStage = loggingLead.current_stage;
-      if (callResult === 'Conversou') newStage = 'Conversou';
-      else if (callResult === 'Agendar Reunião') newStage = 'Reunião Agendada';
-      else if (callResult === 'Pedir retorno' || callResult === 'Não atendeu') newStage = 'Tentativa de Contato';
-      else if (callResult === 'Sem interesse' || callResult === 'Número inválido') newStage = 'Base Fria'; // Pode voltar para base fria ou ser desqualificado
-
-      await updateColdCallLead(loggingLead.id, { current_stage: newStage });
-
-      // If meeting scheduled, create CRM lead
-      if (callResult === 'Agendar Reunião') {
-        const { crmLeadId } = await createCrmLeadFromColdCall(loggingLead.id);
-        toast.success(`Reunião agendada! Novo Lead criado no CRM principal (ID: ${crmLeadId}).`);
-      } else {
-        toast.success("Ligação registrada com sucesso!");
-      }
-      
-      setIsLogModalOpen(false);
-    } catch (error: any) {
-      setLogError(`Erro ao registrar ligação: ${error.message}`);
-      toast.error(`Erro ao registrar ligação: ${error.message}`);
-    } finally {
-      setIsSavingLog(false);
-    }
-  };
+  // REMOVIDOS: handleEndCall e handleSaveLog
+  // Estes agora são métodos internos do ColdCallLogModal
 
   if (isAuthLoading || isDataLoading) {
     return (
@@ -399,98 +332,17 @@ const ColdCallPage = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Log Call Modal */}
-      <Dialog open={isLogModalOpen} onOpenChange={setIsLogModalOpen}>
-        <DialogContent className="sm:max-w-md bg-white dark:bg-slate-800 dark:text-white p-6">
-          <DialogHeader>
-            <DialogTitle>Registrar Ligação: {loggingLead?.name}</DialogTitle>
-            <DialogDescription>
-              Registre o resultado da ligação e agende uma reunião, se aplicável.
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={(e) => { e.preventDefault(); handleSaveLog(); }}>
-            <div className="grid gap-4 py-4">
-              <div className="flex items-center justify-between">
-                <Label>Status da Ligação:</Label>
-                {callStartTime && !callEndTime ? (
-                  <span className="flex items-center text-green-600 dark:text-green-400 font-medium">
-                    <Play className="w-4 h-4 mr-1" /> Em Andamento
-                  </span>
-                ) : (
-                  <span className="flex items-center text-gray-500 dark:text-gray-400 font-medium">
-                    <StopCircle className="w-4 h-4 mr-1" /> Finalizada
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center justify-between">
-                <Button type="button" onClick={() => setCallStartTime(new Date().toISOString())} disabled={!!callStartTime} className="bg-blue-600 hover:bg-blue-700 text-white">
-                  <Play className="w-4 h-4 mr-2" /> Iniciar Ligação
-                </Button>
-                <Button type="button" onClick={handleEndCall} disabled={!callStartTime || !!callEndTime} variant="destructive">
-                  <StopCircle className="w-4 h-4 mr-2" /> Finalizar Ligação
-                </Button>
-              </div>
-              {callStartTime && callEndTime && (
-                <div className="text-sm text-gray-500 dark:text-gray-400 text-center">
-                  Duração: {Math.round((new Date(callEndTime).getTime() - new Date(callStartTime).getTime()) / 1000)} segundos
-                </div>
-              )}
-              <div>
-                <Label htmlFor="callResult">Resultado da Ligação *</Label>
-                <Select value={callResult} onValueChange={(value: ColdCallResult) => setCallResult(value)} required disabled={!callEndTime}>
-                  <SelectTrigger className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
-                    <SelectValue placeholder="Selecione o resultado" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
-                    {COLD_CALL_RESULTS.map(result => (
-                      <SelectItem key={result} value={result}>{result}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {callResult === 'Agendar Reunião' && (
-                <div className="grid gap-4 border-t border-gray-200 dark:border-slate-700 pt-4">
-                  <h3 className="font-semibold text-gray-900 dark:text-white">Detalhes da Reunião</h3>
-                  <div>
-                    <Label htmlFor="meetingDate">Data da Reunião *</Label>
-                    <Input id="meetingDate" type="date" value={meetingDate} onChange={(e) => setMeetingDate(e.target.value)} required className="dark:bg-slate-700 dark:text-white dark:border-slate-600" />
-                  </div>
-                  <div>
-                    <Label htmlFor="meetingTime">Hora da Reunião *</Label>
-                    <Input id="meetingTime" type="time" value={meetingTime} onChange={(e) => setMeetingTime(e.target.value)} required className="dark:bg-slate-700 dark:text-white dark:border-slate-600" />
-                  </div>
-                  <div>
-                    <Label htmlFor="meetingModality">Modalidade *</Label>
-                    <Select value={meetingModality} onValueChange={setMeetingModality} required>
-                      <SelectTrigger className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
-                        <SelectValue placeholder="Selecione a modalidade" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
-                        {MEETING_MODALITIES.map(modality => (
-                          <SelectItem key={modality} value={modality}>{modality}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label htmlFor="meetingNotes">Observações (Opcional)</Label>
-                    <Textarea id="meetingNotes" value={meetingNotes} onChange={(e) => setMeetingNotes(e.target.value)} rows={3} className="dark:bg-slate-700 dark:text-white dark:border-slate-600" />
-                  </div>
-                </div>
-              )}
-              {logError && <p className="text-red-500 text-sm mt-2">{logError}</p>}
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setIsLogModalOpen(false)} className="dark:bg-slate-700 dark:text-white dark:border-slate-600">Cancelar</Button>
-              <Button type="submit" disabled={isSavingLog || !callEndTime} className="bg-brand-600 hover:bg-brand-700 text-white">
-                {isSavingLog ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-                Salvar Ligação
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      {/* Log Call Modal - Agora usando o componente ColdCallLogModal */}
+      {isLogModalOpen && loggingLead && (
+        <ColdCallLogModal
+          isOpen={isLogModalOpen}
+          onClose={() => setIsLogModalOpen(false)}
+          lead={loggingLead}
+          onSaveLog={addColdCallLog}
+          onUpdateLeadStage={updateColdCallLead}
+          onCreateCrmLeadFromColdCall={createCrmLeadFromColdCall}
+        />
+      )}
     </div>
   );
 };
