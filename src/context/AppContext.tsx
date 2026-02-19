@@ -8,6 +8,7 @@ import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
 import { generateRandomPassword } from '@/utils/authUtils';
 import { sanitizeFilename } from '@/utils/fileUtils';
 import toast from 'react-hot-toast';
+import { getOverallStatus } from '@/utils/commissionUtils'; // Importar do novo arquivo
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
@@ -31,15 +32,6 @@ const DEFAULT_APP_CONFIG_DATA = {
 
 const MONTHLY_CUTOFF_DAYS: Record<number, number> = {
   1: 19, 2: 18, 3: 19, 4: 19, 5: 19, 6: 17, 7: 19, 8: 19, 9: 19, 10: 19, 11: 19, 12: 19,
-};
-
-// Movido para fora do AppProvider
-const getOverallStatus = (details: Record<string, InstallmentInfo>): CommissionStatus => {
-    const statuses = Object.values(details).map(info => info.status);
-    if (statuses.some(s => s === 'Cancelado')) return 'Cancelado';
-    if (statuses.some(s => s === 'Atraso')) return 'Atraso';
-    if (statuses.every(s => s === 'Pago')) return 'Concluído';
-    return 'Em Andamento';
 };
 
 const JOAO_GESTOR_AUTH_ID = "0c6d71b7-daeb-4dde-8eec-0e7a8ffef658";
@@ -1737,12 +1729,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     updateFormCadastro, deleteFormCadastro,
     addFeedback, updateFeedback, deleteFeedback,
     addTeamMemberFeedback, updateTeamMemberFeedback, deleteTeamMemberFeedback,
-    addTeamMember, updateTeamMember, deleteTeamProductionGoal,
-    addTeamProductionGoal, updateTeamProductionGoal,
+    addTeamMember, updateTeamMember, deleteTeamMember,
+    addTeamProductionGoal, updateTeamProductionGoal, deleteTeamProductionGoal,
     hasPendingSecretariaTasks, // Incluído no array de dependências
     user,
     toggleChecklistItem, // Now included in the dependency array
-    addColdCallLead, updateColdCallLead, deleteColdCallLead, addColdCallLog, getColdCallMetrics, createCrmLeadFromColdCall
+    addColdCallLead, updateColdCallLead, deleteColdCallLead, addColdCallLog, getColdCallMetrics, createCrmLeadFromColdCall, parseDbCurrency
   ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

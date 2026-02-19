@@ -9,6 +9,7 @@ import { MarkInstallmentRangeModal } from '@/components/MarkInstallmentRangeModa
 import { MultiSelectFilter } from '@/components/ui/MultiSelectFilter'; // Importar o novo componente
 import { Label } from '@/components/ui/label'; // Importar Label
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'; // Importar Select components
+import { getOverallStatus } from '@/utils/commissionUtils'; // Importar do novo arquivo
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -30,13 +31,7 @@ const MONTHLY_CUTOFF_DAYS: Record<number, number> = {
   1: 19, 2: 18, 3: 19, 4: 19, 5: 19, 6: 17, 7: 19, 8: 19, 9: 19, 10: 19, 11: 19, 12: 19,
 };
 
-const getOverallStatus = (details: Record<string, InstallmentInfo>): CommissionStatus => {
-    const statuses = Object.values(details).map(info => info.status);
-    if (statuses.some(s => s === 'Cancelado')) return 'Cancelado';
-    if (statuses.some(s => s === 'Atraso')) return 'Atraso';
-    if (statuses.every(s => s === 'Pago')) return 'Concluído';
-    return 'Em Andamento';
-};
+// REMOVIDO: getOverallStatus foi movido para src/utils/commissionUtils.ts
 
 // NOVO: Função para obter as classes de cor do status da parcela
 const getInstallmentStatusColor = (status: InstallmentStatus) => {
@@ -150,6 +145,10 @@ export const Commissions = () => {
     const day = date.getDate();
     const cutoffDay = MONTHLY_CUTOFF_DAYS[month] || 19;
     let competenceDate = new Date(date);
+    competenceDate.setFullYear(date.getFullYear()); // Garante que o ano seja o mesmo inicialmente
+    competenceDate.setMonth(date.getMonth()); // Garante que o mês seja o mesmo inicialmente
+    competenceDate.setDate(date.getDate()); // Garante que o dia seja o mesmo inicialmente
+
     if (day <= cutoffDay) {
       competenceDate.setMonth(competenceDate.getMonth() + 1);
     } else {
@@ -503,11 +502,6 @@ export const Commissions = () => {
         cancelled,
         nearCompletion,
         totalValue,
-        inProgressPercentage: totalCommissions > 0 ? (inProgress / totalCommissions) * 100 : 0,
-        delayedPercentage: totalCommissions > 0 ? (delayed / totalCommissions) * 100 : 0,
-        completedPercentage: totalCommissions > 0 ? (completed / totalCommissions) * 100 : 0,
-        cancelledPercentage: totalCommissions > 0 ? (cancelled / totalCommissions) * 100 : 0,
-        nearCompletionPercentage: totalCommissions > 0 ? (nearCompletion / totalCommissions) * 100 : 0,
         inProgressCount,
         delayedCount,
         completedCount,
