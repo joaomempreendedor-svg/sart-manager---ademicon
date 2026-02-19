@@ -17,7 +17,10 @@ serve(async (req) => {
   try {
     const { coldCallLeadId } = await req.json();
 
+    console.log("[Edge Function] Received request for coldCallLeadId:", coldCallLeadId);
+
     if (!coldCallLeadId) {
+      console.error("[Edge Function] Missing coldCallLeadId.");
       return new Response(JSON.stringify({ error: 'Cold Call Lead ID é obrigatório.' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
@@ -41,8 +44,10 @@ serve(async (req) => {
       throw coldCallLeadError;
     }
     if (!coldCallLead) {
+      console.error(`[Edge Function] Cold Call Lead not found for ID: ${coldCallLeadId}`);
       throw new Error(`Cold Call Lead não encontrado para o ID: ${coldCallLeadId}`);
     }
+    console.log("[Edge Function] Cold Call Lead fetched:", coldCallLead);
 
     // 2. Buscar o último log de 'Agendar Reunião' para obter os detalhes da reunião
     const { data: meetingLog, error: meetingLogError } = await supabaseAdmin
@@ -59,8 +64,10 @@ serve(async (req) => {
       throw meetingLogError;
     }
     if (!meetingLog) {
+      console.error(`[Edge Function] No 'Agendar Reunião' log found for Cold Call Lead: ${coldCallLeadId}`);
       throw new Error(`Nenhum log de reunião agendada encontrado para o Cold Call Lead: ${coldCallLeadId}. Certifique-se de que uma ligação com o resultado 'Agendar Reunião' foi registrada.`);
     }
+    console.log("[Edge Function] Meeting log fetched:", meetingLog);
 
     // 3. Encontrar a etapa "Reunião Agendada" no pipeline principal
     const { data: meetingStage, error: stageError } = await supabaseAdmin
@@ -75,8 +82,10 @@ serve(async (req) => {
       throw stageError;
     }
     if (!meetingStage) {
+      console.error(`[Edge Function] 'Reunião Agendada' stage not found for user_id: ${JOAO_GESTOR_AUTH_ID}`);
       throw new Error(`Etapa 'Reunião Agendada' não encontrada no pipeline principal. Por favor, configure-a nas configurações do CRM.`);
     }
+    console.log("[Edge Function] Meeting stage fetched:", meetingStage);
 
     // 4. Criar um novo Lead no Pipeline Principal
     const newCrmLeadData = {
@@ -94,20 +103,23 @@ serve(async (req) => {
       },
       created_by: coldCallLead.user_id, // Quem criou o cold call lead
     };
+    console.log("[Edge Function] Attempting to insert new CRM lead with data:", newCrmLeadData);
 
     const { data: newCrmLead, error: crmLeadError } = await supabaseAdmin
       .from('crm_leads')
       .insert(newCrmLeadData)
       .select('id')
-      .maybeSingle(); // Alterado para maybeSingle()
+      .maybeSingle();
 
     if (crmLeadError) {
       console.error("[Edge Function] Error inserting new CRM lead:", crmLeadError);
       throw crmLeadError;
     }
     if (!newCrmLead) {
+      console.error("[Edge Function] Failed to create CRM lead: No lead returned after insertion.");
       throw new Error(`Falha ao criar Lead no CRM principal: Nenhum lead retornado após a inserção.`);
     }
+    console.log("[Edge Function] New CRM lead created:", newCrmLead);
 
     // 5. Criar uma Lead Task (reunião) no Pipeline Principal
     const newLeadTaskData = {
@@ -123,22 +135,26 @@ serve(async (req) => {
       manager_id: null, // Não há gestor convidado por padrão
       manager_invitation_status: 'accepted', // Considera aceito por padrão
     };
+    console.log("[Edge Function] Attempting to insert new Lead Task with data:", newLeadTaskData);
 
     const { data: newLeadTask, error: leadTaskError } = await supabaseAdmin
       .from('lead_tasks')
       .insert(newLeadTaskData)
       .select('id')
-      .maybeSingle(); // Alterado para maybeSingle()
+      .maybeSingle();
 
     if (leadTaskError) {
       console.error("[Edge Function] Error inserting new lead task:", leadTaskError);
       throw leadTaskError;
     }
     if (!newLeadTask) {
+      console.error("[Edge Function] Failed to create Lead Task: No task returned after insertion.");
       throw new Error(`Falha ao criar tarefa de reunião no CRM principal: Nenhuma tarefa retornada após a inserção.`);
     }
+    console.log("[Edge Function] New Lead Task created:", newLeadTask);
 
     // 6. Atualizar o Cold Call Lead com o ID do CRM Lead criado
+    console.log(`[Edge Function] Updating Cold Call Lead ${coldCallLeadId} with crm_lead_id: ${newCrmLead.id}`);
     const { error: updateColdCallLeadError } = await supabaseAdmin
       .from('cold_call_leads')
       .update({ crm_lead_id: newCrmLead.id })
@@ -148,14 +164,17 @@ serve(async (req) => {
       console.error("[Edge Function] Error updating cold call lead with crm_lead_id:", updateColdCallLeadError);
       throw updateColdCallLeadError;
     }
+    console.log("[Edge Function] Cold Call Lead updated with CRM Lead ID.");
 
     return new Response(JSON.stringify({ message: 'Lead criado no CRM principal e vinculado com sucesso!', crmLeadId: newCrmLead.id }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('[create-crm-lead-from-cold-call] Erro na Edge Function:', error.message || error);
+    // Log the full error object for more details
+    console.error('[create-crm-lead-from-cold-call] Full error object:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
     return new Response(JSON.stringify({ error: error.message || 'Falha ao processar a criação do Lead no CRM.' }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
