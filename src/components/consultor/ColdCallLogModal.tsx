@@ -33,7 +33,7 @@ interface ColdCallLogModalProps {
   lead: ColdCallLead | null;
   onSaveLog: (logData: Omit<ColdCallLog, 'id' | 'user_id' | 'created_at'> & { start_time: string; end_time: string; duration_seconds: number; }, leadId: string) => Promise<void>;
   onUpdateLeadStage: (leadId: string, newStage: Partial<ColdCallLead>) => Promise<void>;
-  onCreateCrmLeadFromColdCall: (coldCallLeadId: string) => Promise<{ crmLeadId: string }>;
+  onCreateCrmLeadFromColdCall: (coldCallLead: ColdCallLead) => void; // NOVO: Tipo de retorno alterado
 }
 
 export const ColdCallLogModal: React.FC<ColdCallLogModalProps> = ({
@@ -151,22 +151,12 @@ export const ColdCallLogModal: React.FC<ColdCallLogModalProps> = ({
     }
   };
 
-  const handleCreateCrmLead = async () => {
+  const handleCreateCrmLeadClick = () => { // NOVO: Função para o clique do botão
     if (!validateForm()) return;
-    if (!lead || !lead.id) return; // Should be caught by validateForm
+    if (!lead) return;
 
-    setIsSaving(true);
-    try {
-      const { crmLeadId } = await onCreateCrmLeadFromColdCall(lead.id);
-      toast.success(`Reunião agendada! Novo Lead criado no CRM principal (ID: ${crmLeadId}).`);
-      onClose();
-      navigate('/consultor/crm', { state: { highlightLeadId: crmLeadId } });
-    } catch (err: any) {
-      toast.error(`Erro ao criar Lead no CRM: ${err.message}`);
-      console.error("Erro ao criar Lead no CRM:", err);
-    } finally {
-      setIsSaving(false);
-    }
+    onCreateCrmLeadFromColdCall(lead); // Chama o handler do ColdCallPage
+    onClose(); // Fecha o modal atual
   };
 
   if (!isOpen || !lead) return null;
@@ -262,7 +252,7 @@ export const ColdCallLogModal: React.FC<ColdCallLogModalProps> = ({
                 Cancelar
               </Button>
               {showCreateCrmLeadButton ? (
-                <Button type="button" onClick={handleCreateCrmLead} disabled={isSaving || !callEndTime} className="bg-brand-600 hover:bg-brand-700 text-white w-full sm:w-auto">
+                <Button type="button" onClick={handleCreateCrmLeadClick} disabled={isSaving || !callEndTime} className="bg-brand-600 hover:bg-brand-700 text-white w-full sm:w-auto">
                   {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ChevronRight className="w-4 h-4 mr-2" />}
                   <span>{isSaving ? 'Criando Lead...' : 'Criar Lead no CRM'}</span>
                 </Button>
