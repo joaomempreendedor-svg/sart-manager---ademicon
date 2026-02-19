@@ -154,8 +154,8 @@ export const ColdCallLogModal: React.FC<ColdCallLogModalProps> = ({
       let newStageValue: ColdCallLead['current_stage'] = lead.current_stage;
       if (callResult === 'Conversou') newStageValue = 'Conversou';
       else if (callResult === 'Agendar Reunião') newStageValue = 'Reunião Agendada';
-      else if (callResult === 'Pedir retorno' || callResult === 'Não atendeu') newStageValue = 'Tentativa de Contato';
-      else if (callResult === 'Sem interesse' || callResult === 'Número inválido') newStageValue = 'Base Fria';
+      else if (callResult === 'Pedir retorno' || callResult === 'Não atendeu' || callResult === 'Número inválido') newStageValue = 'Tentativa de Contato'; // ALTERADO AQUI
+      else if (callResult === 'Sem interesse') newStageValue = 'Base Fria';
 
       await onUpdateLeadStage(lead.id, { current_stage: newStageValue });
       toast.success("Ligação registrada e etapa atualizada!");
