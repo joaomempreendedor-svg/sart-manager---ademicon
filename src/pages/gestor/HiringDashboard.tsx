@@ -26,6 +26,7 @@ import {
   PieChart,
   HelpCircle // NOVO: Importar HelpCircle
 } from 'lucide-react';
+import { MetricCard } from '@/components/MetricCard'; // Importar MetricCard
 
 const HiringDashboard = () => {
   const { candidates, isDataLoading, hiringOrigins } = useApp();
@@ -148,21 +149,6 @@ const HiringDashboard = () => {
       </div>
     );
   }
-
-  const MetricCard = ({ title, value, icon: Icon, colorClass, subValue, onClick }: any) => (
-    <div className={`relative overflow-hidden p-6 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm transition-all hover:shadow-md ${colorClass}`}>
-      <div className="flex justify-between items-start">
-        <div className="space-y-1">
-          <p className="text-[10px] font-bold uppercase tracking-wider opacity-70">{title}</p>
-          <h3 className="text-5xl font-black">{value}</h3>
-          {subValue && <p className="text-xs font-medium opacity-60">{subValue}</p>}
-        </div>
-        <div className="absolute -right-4 -bottom-4 opacity-10">
-          <Icon size={100} strokeWidth={3} />
-        </div>
-      </div>
-    </div>
-  );
 
   return (
     <div className="p-4 sm:p-8 max-w-7xl mx-auto min-h-screen bg-gray-50 dark:bg-slate-900">
@@ -302,7 +288,7 @@ const HiringDashboard = () => {
               {metrics.candidatesByOrigin.length === 0 ? (
                 <tr>
                   <td colSpan={4} className="px-6 py-12 text-center text-gray-400">
-                    Nenhum dado de origem encontrado para o período.
+                    Nenhum dado encontrado para o período selecionado.
                   </td>
                 </tr>
               ) : (
