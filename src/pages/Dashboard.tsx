@@ -256,7 +256,7 @@ export const Dashboard = () => {
     const logsToConsider = selectedColdCallConsultantId 
       ? (coldCallLogs || []).filter(log => log.user_id === selectedColdCallConsultantId)
       : (coldCallLogs || []); // Garante que coldCallLogs é um array
-
+    
     console.log("[ColdCallMetrics] logsToConsider length (after consultant filter):", logsToConsider.length);
     if (logsToConsider.length > 0) {
       console.log("[ColdCallMetrics] Sample logsToConsider item:", logsToConsider[0]);
@@ -360,11 +360,11 @@ export const Dashboard = () => {
   const handleOpenColdCallDetailModal = (title: string, type: ColdCallDetailType) => {
     // Filtra os leads e logs de cold call com base no consultor selecionado no filtro do dashboard
     const leadsToPass = selectedColdCallConsultantId 
-      ? (coldCallLeads || []).filter(l => l.user_id === selectedColdCallConsultantId)
-      : (coldCallLeads || []);
+      ? coldCallLeads.filter(l => l.user_id === selectedColdCallConsultantId)
+      : coldCallLeads;
     const logsToPass = selectedColdCallConsultantId
-      ? (coldCallLogs || []).filter(log => log.user_id === selectedColdCallConsultantId)
-      : (coldCallLogs || []);
+      ? coldCallLogs.filter(log => log.user_id === selectedColdCallConsultantId)
+      : coldCallLogs;
 
     setColdCallModalTitle(title);
     setColdCallLeadsForModal(leadsToPass);
@@ -473,21 +473,21 @@ export const Dashboard = () => {
             value={coldCallMetrics.totalCalls} 
             icon={PhoneCall} 
             colorClass="bg-blue-600 text-white" 
-            onClick={() => handleOpenColdCallDetailModal('Total de Ligações', 'calls')}
+            // onClick={() => handleOpenColdCallDetailModal('Total de Ligações', 'calls')} // Removido onClick
           />
           <MetricCard 
             title="Total de Conversas" 
             value={coldCallMetrics.totalConversations} 
             icon={MessageSquare} 
             colorClass="bg-purple-600 text-white" 
-            onClick={() => handleOpenColdCallDetailModal('Total de Conversas', 'conversations')}
+            // onClick={() => handleOpenColdCallDetailModal('Total de Conversas', 'conversations')} // Removido onClick
           />
           <MetricCard 
             title="Reuniões Agendadas" 
             value={coldCallMetrics.totalMeetingsScheduled} 
             icon={CalendarCheck} 
             colorClass="bg-green-600 text-white" 
-            onClick={() => handleOpenColdCallDetailModal('Reuniões Agendadas', 'meetings')}
+            // onClick={() => handleOpenColdCallDetailModal('Reuniões Agendadas', 'meetings')} // Removido onClick
           />
           <MetricCard 
             title="Taxa Conversa → Reunião" 
