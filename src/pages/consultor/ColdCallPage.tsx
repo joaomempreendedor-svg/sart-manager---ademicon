@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { ColdCallLead, ColdCallLog, ColdCallStage, ColdCallResult } from '@/types';
-import { Plus, Search, PhoneCall, MessageSquare, CalendarCheck, Loader2, Edit2, Trash2, Play, StopCircle, Clock, UserRound, TrendingUp, BarChart3, Percent, ChevronRight } from 'lucide-react';
+import { Plus, Search, PhoneCall, MessageSquare, CalendarCheck, Loader2, Edit2, Trash2, Play, StopCircle, Clock, UserRound, TrendingUp, BarChart3, Percent, ChevronRight, Save } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -284,7 +284,7 @@ const ColdCallPage = () => {
                 <SelectTrigger className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
                   <SelectValue placeholder="Filtrar por Etapa" />
                 </SelectTrigger>
-                <SelectContent className="bg-white text-gray-900 dark:bg-slate-800 dark:text-white dark:border-slate-700">
+                <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
                   <SelectItem value="all">Todas as Etapas</SelectItem>
                   {COLD_CALL_STAGES.map(stage => (
                     <SelectItem key={stage} value={stage}>{stage}</SelectItem>
