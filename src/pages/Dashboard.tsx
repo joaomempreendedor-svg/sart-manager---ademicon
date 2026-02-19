@@ -28,16 +28,6 @@ const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 };
 
-interface AgendaItem {
-  id: string;
-  type: 'task' | 'interview' | 'feedback' | 'gestor_task';
-  title: string;
-  personName: string;
-  personId: string;
-  personType: 'candidate' | 'teamMember' | 'lead';
-  dueDate: string;
-}
-
 // Componente MetricCard movido para cá
 const MetricCard = ({ title, value, icon: Icon, colorClass, subValue, onClick }: any) => {
   const CardContent = (
@@ -51,8 +41,9 @@ const MetricCard = ({ title, value, icon: Icon, colorClass, subValue, onClick }:
         <div className="absolute -right-4 -bottom-4 opacity-10">
           <Icon size={100} strokeWidth={3} />
         </div>
-      </>
-    );
+      </div>
+    </>
+  );
   const baseClasses = `relative overflow-hidden p-6 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm transition-all hover:shadow-md ${colorClass}`;
 
   if (onClick) {
