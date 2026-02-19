@@ -417,14 +417,14 @@ export const Dashboard = () => {
           <div className="flex items-center space-x-2">
             <label htmlFor="coldCallConsultant" className="text-sm font-medium text-gray-700 dark:text-gray-300">Consultor:</label>
             <Select
-              value={selectedColdCallConsultantId || ''}
-              onValueChange={(value) => setSelectedColdCallConsultantId(value === '' ? null : value)}
+              value={selectedColdCallConsultantId || 'all'}
+              onValueChange={(value) => setSelectedColdCallConsultantId(value === 'all' ? null : value)}
             >
               <SelectTrigger className="w-[180px] dark:bg-slate-700 dark:text-white dark:border-slate-600">
                 <SelectValue placeholder="Selecione o Consultor" />
               </SelectTrigger>
               <SelectContent className="bg-white text-gray-900 dark:bg-slate-800 dark:text-white dark:border-slate-700">
-                <SelectItem value="">Selecione...</SelectItem>
+                <SelectItem value="all">Todos os Consultores</SelectItem>
                 {coldCallConsultants.map(consultant => (
                   <SelectItem key={consultant.id} value={consultant.authUserId || consultant.id}>
                     {consultant.name}
