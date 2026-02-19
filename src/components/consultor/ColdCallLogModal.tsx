@@ -122,12 +122,11 @@ export const ColdCallLogModal: React.FC<ColdCallLogModalProps> = ({
         end_time: callEndTime!,
         duration_seconds: durationSeconds,
         result: callResult as ColdCallResult,
-        // REMOVIDO: Campos de reunião não são mais incluídos aqui se o resultado for 'Agendar Reunião'
-        // Eles só seriam incluídos se o usuário os preenchesse, o que não acontecerá mais.
-        meeting_date: callResult === 'Agendar Reunião' ? undefined : meetingDate || undefined,
-        meeting_time: callResult === 'Agendar Reunião' ? undefined : meetingTime || undefined,
-        meeting_modality: callResult === 'Agendar Reunião' ? undefined : meetingModality || undefined,
-        meeting_notes: callResult === 'Agendar Reunião' ? undefined : meetingNotes.trim() || undefined,
+        // Campos de reunião são undefined se o resultado não for 'Agendar Reunião'
+        meeting_date: undefined,
+        meeting_time: undefined,
+        meeting_modality: undefined,
+        meeting_notes: undefined,
       };
       
       await onSaveLog(logData, lead.id);
@@ -229,61 +228,31 @@ export const ColdCallLogModal: React.FC<ColdCallLogModalProps> = ({
             </div>
 
             {/* REMOVIDO: Detalhes da Reunião não são mais exibidos aqui */}
-            {/* {callResult === 'Agendar Reunião' && (
-              <div className="grid gap-4 border-t border-gray-200 dark:border-slate-700 pt-4">
-                <h3 className="font-semibold text-gray-900 dark:text-white">Detalhes da Reunião</h3>
-                <div>
-                  <Label htmlFor="meetingDate">Data da Reunião *</Label>
-                  <Input id="meetingDate" type="date" value={meetingDate} onChange={(e) => setMeetingDate(e.target.value)} required className="dark:bg-slate-700 dark:text-white dark:border-slate-600" />
-                </div>
-                <div>
-                  <Label htmlFor="meetingTime">Hora da Reunião *</Label>
-                  <Input id="meetingTime" type="time" value={meetingTime} onChange={(e) => setMeetingTime(e.target.value)} required className="dark:bg-slate-700 dark:text-white dark:border-slate-600" />
-                </div>
-                <div>
-                  <Label htmlFor="meetingModality">Modalidade *</Label>
-                  <Select value={meetingModality} onValueChange={setMeetingModality} required>
-                    <SelectTrigger className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
-                      <SelectValue placeholder="Selecione a modalidade" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
-                        {MEETING_MODALITIES.map(modality => (
-                          <SelectItem key={modality} value={modality}>{modality}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label htmlFor="meetingNotes">Observações (Opcional)</Label>
-                    <Textarea id="meetingNotes" value={meetingNotes} onChange={(e) => setMeetingNotes(e.target.value)} rows={3} className="pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600" placeholder="Anotações sobre a reunião..." />
-                  </div>
-                </div>
-              )} */}
-              {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
-            </div>
-            <DialogFooter className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-700 flex-col sm:flex-row">
-              <Button type="button" variant="outline" onClick={onClose} className="dark:bg-slate-700 dark:text-white dark:border-slate-600 w-full sm:w-auto mb-2 sm:mb-0">
-                Cancelar
+            {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
+          </div>
+          <DialogFooter className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-700 flex-col sm:flex-row">
+            <Button type="button" variant="outline" onClick={onClose} className="dark:bg-slate-700 dark:text-white dark:border-slate-600 w-full sm:w-auto mb-2 sm:mb-0">
+              Cancelar
+            </Button>
+            {callResult === 'Agendar Reunião' && lead?.crm_lead_id ? (
+              <Button type="button" onClick={handleGoToCrmLead} className="bg-brand-600 hover:bg-brand-700 text-white w-full sm:w-auto">
+                <ChevronRight className="w-4 h-4 mr-2" />
+                <span>Ir para CRM</span>
               </Button>
-              {callResult === 'Agendar Reunião' && lead?.crm_lead_id ? (
-                <Button type="button" onClick={handleGoToCrmLead} className="bg-brand-600 hover:bg-brand-700 text-white w-full sm:w-auto">
-                  <ChevronRight className="w-4 h-4 mr-2" />
-                  <span>Ir para CRM</span>
-                </Button>
-              ) : callResult === 'Agendar Reunião' && !lead?.crm_lead_id ? (
-                <Button type="button" onClick={handleCreateCrmLeadClick} disabled={isSaving || !callEndTime} className="bg-brand-600 hover:bg-brand-700 text-white w-full sm:w-auto">
-                  {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ChevronRight className="w-4 h-4 mr-2" />}
-                  <span>{isSaving ? 'Criando Lead...' : 'Criar Lead no CRM'}</span>
-                </Button>
-              ) : (
-                <Button type="submit" disabled={isSaving || !callEndTime} className="bg-brand-600 hover:bg-brand-700 text-white w-full sm:w-auto">
-                  {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-                  <span>{isSaving ? 'Salvando...' : 'Salvar Ligação'}</span>
-                </Button>
-              )}
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-    );
-  };
+            ) : callResult === 'Agendar Reunião' && !lead?.crm_lead_id ? (
+              <Button type="button" onClick={handleCreateCrmLeadClick} disabled={isSaving || !callEndTime} className="bg-brand-600 hover:bg-brand-700 text-white w-full sm:w-auto">
+                {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ChevronRight className="w-4 h-4 mr-2" />}
+                <span>{isSaving ? 'Criando Lead...' : 'Criar Lead no CRM'}</span>
+              </Button>
+            ) : (
+              <Button type="submit" disabled={isSaving || !callEndTime} className="bg-brand-600 hover:bg-brand-700 text-white w-full sm:w-auto">
+                {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                <span>{isSaving ? 'Salvando...' : 'Salvar Ligação'}</span>
+              </Button>
+            )}
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+};
