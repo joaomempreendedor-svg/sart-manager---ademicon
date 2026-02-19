@@ -74,7 +74,7 @@ const MetricCard = ({ title, value, icon: Icon, colorClass, subValue, onClick }:
 
 export const Dashboard = () => {
   const { user } = useAuth();
-  const { candidates, checklistStructure, teamMembers, isDataLoading, leadTasks, crmLeads, crmStages, gestorTasks, gestorTaskCompletions, isGestorTaskDueOnDate, notifications, hiringOrigins } = useApp(); // Removido coldCallLeads, coldCallLogs, getColdCallMetrics
+  const { candidates, checklistStructure, teamMembers, isDataLoading, leadTasks, crmLeads, crmStages, gestorTasks, gestorTaskCompletions, isGestorTaskDueOnDate, notifications, hiringOrigins, getColdCallMetrics, coldCallLeads, coldCallLogs } = useApp(); // Adicionado coldCallLeads, coldCallLogs, getColdCallMetrics
   const navigate = useNavigate();
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [isPendingTasksModalOpen, setIsPendingTasksModalOpen] = useState(false);
@@ -90,14 +90,17 @@ export const Dashboard = () => {
   const [candidatesForModal, setCandidatesForModal] = useState<Candidate[]>([]); // NOVO: Lista de candidatos para o modal
   const [candidatesMetricType, setCandidatesMetricType] = useState<'total' | 'newCandidates' | 'contacted' | 'scheduled' | 'conducted' | 'awaitingPreview' | 'hired' | 'noShow' | 'withdrawn' | 'disqualified' | 'noResponse'>('total'); // NOVO: Tipo de métrica para o modal de candidatos, adicionado 'noResponse'
 
-  // REMOVIDO: Estados para o modal de detalhes de Cold Call
-  // const [isColdCallDetailModalOpen, setIsColdCallDetailModalOpen] = useState(false);
-  // const [coldCallModalTitle, setColdCallModalTitle] = useState('');
-  // const [coldCallLeadsForModal, setColdCallLeadsForModal] = useState<ColdCallLead[]>([]);
-  // const [coldCallLogsForModal, setColdCallLogsForModal] = useState<ColdCallLog[]>([]);
-  // const [coldCallDetailType, setColdCallDetailType] = useState<ColdCallDetailType>('all');
-  // const [selectedColdCallConsultantName, setSelectedColdCallConsultantName] = useState<string>('');
-  // const [selectedColdCallConsultantId, setSelectedColdCallConsultantId] = useState<string | null>(null); // NOVO: Filtro de consultor para Cold Call
+  // NOVO: Estados para o modal de detalhes de Cold Call
+  const [isColdCallDetailModalOpen, setIsColdCallDetailModal] = useState(false);
+  const [coldCallModalTitle, setColdCallModalTitle] = useState('');
+  const [coldCallLeadsForModal, setColdCallLeadsForModal] = useState<ColdCallLead[]>([]);
+  const [coldCallLogsForModal, setColdCallLogsForModal] = useState<ColdCallLog[]>([]);
+  const [coldCallDetailType, setColdCallDetailType] = useState<ColdCallDetailType>('all');
+  const [selectedColdCallConsultantName, setSelectedColdCallConsultantName] = useState<string>('');
+  const [selectedColdCallConsultantId, setSelectedColdCallConsultantId] = useState<string | null>(null); // NOVO: Filtro de consultor para Cold Call
+  const [coldCallFilterStartDate, setColdCallFilterStartDate] = useState(''); // NOVO: Filtro de data de início para Cold Call
+  const [coldCallFilterEndDate, setColdCallFilterEndDate] = useState('');     // NOVO: Filtro de data de fim para Cold Call
+
 
   const handleOpenNotifications = () => setIsNotificationCenterOpen(true);
   const handleCloseNotifications = () => setIsNotificationCenterOpen(false);
@@ -252,24 +255,46 @@ export const Dashboard = () => {
     };
   }, [candidates, hiringOrigins]);
 
-  // REMOVIDO: Métricas de Cold Call (Mês Atual)
-  // const coldCallMetrics = useMemo(() => {
-  //   if (!user) return { totalCalls: 0, totalConversations: 0, totalMeetingsScheduled: 0, conversationToMeetingRate: 0 };
+  // NOVO: Métricas de Cold Call (Mês Atual)
+  const coldCallMetrics = useMemo(() => {
+    if (!user) return { totalCalls: 0, totalConversations: 0, totalMeetingsScheduled: 0, conversationToMeetingRate: 0 };
 
-  //   const targetConsultantId = selectedColdCallConsultantId || user.id;
+    const targetConsultantId = selectedColdCallConsultantId || user.id;
     
-  //   const isUserConsultant = teamMembers.some(m => m.authUserId === user.id && (m.roles.includes('CONSULTOR') || m.roles.includes('PRÉVIA') || m.roles.includes('AUTORIZADO')));
-  //   if (!selectedColdCallConsultantId && !isUserConsultant) {
-  //     return { totalCalls: 0, totalConversations: 0, totalMeetingsScheduled: 0, conversationToMeetingRate: 0 };
-  //   }
+    const isUserConsultant = teamMembers.some(m => m.authUserId === user.id && (m.roles.includes('CONSULTOR') || m.roles.includes('PRÉVIA') || m.roles.includes('AUTORIZADO')));
+    if (!selectedColdCallConsultantId && !isUserConsultant) {
+      return { totalCalls: 0, totalConversations: 0, totalMeetingsScheduled: 0, conversationToMeetingRate: 0 };
+    }
 
-  //   return getColdCallMetrics(targetConsultantId);
-  // }, [user, selectedColdCallConsultantId, getColdCallMetrics, teamMembers]);
+    // Filtrar logs com base nos filtros de data
+    let logsForMetrics = coldCallLogs.filter(log => log.user_id === targetConsultantId);
+    if (coldCallFilterStartDate) {
+      const start = new Date(coldCallFilterStartDate + 'T00:00:00');
+      logsForMetrics = logsForMetrics.filter(log => new Date(log.created_at) >= start);
+    }
+    if (coldCallFilterEndDate) {
+      const end = new Date(coldCallFilterEndDate + 'T23:59:59');
+      logsForMetrics = logsForMetrics.filter(log => new Date(log.created_at) <= end);
+    }
 
-  // REMOVIDO: coldCallConsultants
-  // const coldCallConsultants = useMemo(() => {
-  //   return teamMembers.filter(m => m.isActive && (m.roles.includes('CONSULTOR') || m.roles.includes('PRÉVIA') || m.roles.includes('AUTORIZADO')));
-  // }, [teamMembers]);
+    const totalCalls = logsForMetrics.length;
+    const totalConversations = logsForMetrics.filter(log => log.result === 'Conversou' || log.result === 'Agendar Reunião').length;
+    const totalMeetingsScheduled = logsForMetrics.filter(log => log.result === 'Agendar Reunião').length;
+    
+    const conversationToMeetingRate = totalConversations > 0 ? (totalMeetingsScheduled / totalConversations) * 100 : 0;
+
+    return {
+      totalCalls,
+      totalConversations,
+      totalMeetingsScheduled,
+      conversationToMeetingRate,
+    };
+  }, [user, selectedColdCallConsultantId, coldCallLogs, teamMembers, coldCallFilterStartDate, coldCallFilterEndDate]);
+
+  // NOVO: Lista de consultores para o filtro de Cold Call
+  const coldCallConsultants = useMemo(() => {
+    return teamMembers.filter(m => m.isActive && (m.roles.includes('CONSULTOR') || m.roles.includes('PRÉVIA') || m.roles.includes('AUTORIZADO')));
+  }, [teamMembers]);
 
   // --- Agenda do Dia ---
   const { todayAgenda, overdueTasks } = useMemo(() => {
@@ -327,22 +352,21 @@ export const Dashboard = () => {
     setIsCandidatesDetailModalOpen(true);
   };
 
-  // REMOVIDO: Handler para abrir o modal de detalhes de Cold Call
-  // const handleOpenColdCallDetailModal = (title: string, type: ColdCallDetailType) => {
-  //   if (!selectedColdCallConsultantId) {
-  //     toast.error("Selecione um consultor para ver os detalhes de Cold Call.");
-  //     return;
-  //   }
-  //   const consultantLeadsFiltered = coldCallLeads.filter(l => l.user_id === selectedColdCallConsultantId);
-  //   const consultantLogsFiltered = coldCallLogs.filter(l => l.user_id === selectedColdCallConsultantId);
-
-  //   setColdCallModalTitle(title);
-  //   setColdCallLeadsForModal(consultantLeadsFiltered);
-  //   setColdCallLogsForModal(consultantLogsFiltered);
-  //   setColdCallDetailType(type);
-  //   setSelectedColdCallConsultantName(teamMembers.find(m => m.authUserId === selectedColdCallConsultantId)?.name || 'Consultor Desconhecido');
-  //   setIsColdCallDetailModalOpen(true);
-  // };
+  // NOVO: Handler para abrir o modal de detalhes de Cold Call
+  const handleOpenColdCallDetailModal = (title: string, type: ColdCallDetailType) => {
+    if (!selectedColdCallConsultantId) {
+      toast.error("Selecione um consultor para ver os detalhes de Cold Call.");
+      return;
+    }
+    const consultantLeadsFiltered = coldCallLeads.filter(l => l.user_id === selectedColdCallConsultantId);
+    
+    setColdCallModalTitle(title);
+    setColdCallLeadsForModal(consultantLeadsFiltered);
+    setColdCallLogsForModal(coldCallLogs.filter(log => log.user_id === selectedColdCallConsultantId)); // Passar logs já filtrados
+    setColdCallDetailType(type);
+    setSelectedColdCallConsultantName(teamMembers.find(m => m.authUserId === selectedColdCallConsultantId)?.name || 'Consultor Desconhecido');
+    setIsColdCallDetailModal(true);
+  };
 
   if (isDataLoading) return <div className="flex items-center justify-center h-screen"><Loader2 className="w-12 h-12 text-brand-500 animate-spin" /></div>;
 
@@ -408,8 +432,8 @@ export const Dashboard = () => {
         </div>
       </section>
 
-      {/* REMOVIDO: 2. Métricas de Cold Call */}
-      {/* <section className="animate-fade-in">
+      {/* 2. Métricas de Cold Call */}
+      <section className="animate-fade-in">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center">
             <PhoneCall className="w-5 h-5 mr-2 text-brand-500" /> Métricas de Cold Call
@@ -464,7 +488,7 @@ export const Dashboard = () => {
             subValue="Efetividade da Conversão"
           />
         </div>
-      </section> */}
+      </section>
 
       {/* 3. Dashboard de Contratação */}
       <section className="animate-fade-in">
@@ -631,17 +655,19 @@ export const Dashboard = () => {
         teamMembers={teamMembers} 
         metricType={candidatesMetricType} 
       />
-      {/* REMOVIDO: Modal de Detalhes de Cold Call */}
-      {/* <ColdCallDetailModal
+      {/* NOVO: Modal de Detalhes de Cold Call */}
+      <ColdCallDetailModal
         isOpen={isColdCallDetailModalOpen}
-        onClose={() => setIsColdCallDetailModalOpen(false)}
+        onClose={() => setIsColdCallDetailModal(false)}
         title={coldCallModalTitle}
         consultantName={selectedColdCallConsultantName}
         leads={coldCallLeadsForModal}
         logs={coldCallLogsForModal}
         type={coldCallDetailType}
         teamMembers={teamMembers}
-      /> */}
+        filterStartDate={coldCallFilterStartDate}
+        filterEndDate={coldCallFilterEndDate}
+      />
     </div>
   );
 };
