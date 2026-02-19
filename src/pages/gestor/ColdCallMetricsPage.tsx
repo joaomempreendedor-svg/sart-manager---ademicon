@@ -1,10 +1,17 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { PhoneCall, MessageSquare, CalendarCheck, BarChart3, Percent, Loader2, Users, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from 'lucide-react';
+import { PhoneCall, MessageSquare, CalendarCheck, BarChart3, Percent, Loader2, Users } from 'lucide-react'; // Removido Select daqui
 import { ColdCallDetailModal } from '@/components/gestor/ColdCallDetailModal';
 import { ColdCallLead, ColdCallLog, ColdCallDetailType } from '@/types';
 import toast from 'react-hot-toast';
+import { // Adicionado importação correta para Select
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 const MetricCard = ({ title, value, icon: Icon, colorClass, subValue, onClick }: any) => {
   const CardContent = (
