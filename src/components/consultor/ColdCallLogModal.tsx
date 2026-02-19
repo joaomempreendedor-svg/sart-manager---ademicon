@@ -30,7 +30,7 @@ interface ColdCallLogModalProps {
   isOpen: boolean;
   onClose: () => void;
   lead: ColdCallLead | null;
-  onSaveLog: (logData: Omit<ColdCallLog, 'id' | 'user_id' | 'created_at' | 'duration_seconds'> & { start_time: string; end_time: string; }, leadId: string) => Promise<void>;
+  onSaveLog: (logData: Omit<ColdCallLog, 'id' | 'user_id' | 'created_at'> & { start_time: string; end_time: string; duration_seconds: number; }, leadId: string) => Promise<void>;
   onUpdateLeadStage: (leadId: string, newStage: ColdCallLead['current_stage']) => Promise<void>;
   onCreateCrmLeadFromColdCall: (coldCallLeadId: string) => Promise<{ crmLeadId: string }>;
 }
@@ -106,10 +106,13 @@ export const ColdCallLogModal: React.FC<ColdCallLogModalProps> = ({
 
     setIsSaving(true);
     try {
-      const logData: Omit<ColdCallLog, 'id' | 'user_id' | 'created_at' | 'duration_seconds'> & { start_time: string; end_time: string; } = {
+      const durationSeconds = Math.round((new Date(callEndTime).getTime() - new Date(callStartTime).getTime()) / 1000);
+
+      const logData: Omit<ColdCallLog, 'id' | 'user_id' | 'created_at'> & { start_time: string; end_time: string; duration_seconds: number; } = {
         cold_call_lead_id: lead.id,
         start_time: callStartTime,
         end_time: callEndTime,
+        duration_seconds: durationSeconds,
         result: callResult,
         meeting_date: meetingDate || undefined,
         meeting_time: meetingTime || undefined,
@@ -216,31 +219,31 @@ export const ColdCallLogModal: React.FC<ColdCallLogModalProps> = ({
                       <SelectValue placeholder="Selecione a modalidade" />
                     </SelectTrigger>
                     <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
-                      {MEETING_MODALITIES.map(modality => (
-                        <SelectItem key={modality} value={modality}>{modality}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                        {MEETING_MODALITIES.map(modality => (
+                          <SelectItem key={modality} value={modality}>{modality}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="meetingNotes">Observações (Opcional)</Label>
+                    <Textarea id="meetingNotes" value={meetingNotes} onChange={(e) => setMeetingNotes(e.target.value)} rows={3} className="dark:bg-slate-700 dark:text-white dark:border-slate-600" placeholder="Anotações sobre a reunião..." />
+                  </div>
                 </div>
-                <div>
-                  <Label htmlFor="meetingNotes">Observações (Opcional)</Label>
-                  <Textarea id="meetingNotes" value={meetingNotes} onChange={(e) => setMeetingNotes(e.target.value)} rows={3} className="pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600" placeholder="Anotações sobre a reunião..." />
-                </div>
-              </div>
-            )}
-            {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
-          </div>
-          <DialogFooter className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-700 flex-col sm:flex-row">
-            <Button type="button" variant="outline" onClick={onClose} className="dark:bg-slate-700 dark:text-white dark:border-slate-600 w-full sm:w-auto mb-2 sm:mb-0">
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={isSaving || !callEndTime} className="bg-brand-600 hover:bg-brand-700 text-white w-full sm:w-auto">
-              {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-              <span>{isSaving ? 'Salvando...' : 'Salvar Ligação'}</span>
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-};
+              )}
+              {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
+            </div>
+            <DialogFooter className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-700 flex-col sm:flex-row">
+              <Button type="button" variant="outline" onClick={onClose} className="dark:bg-slate-700 dark:text-white dark:border-slate-600 w-full sm:w-auto mb-2 sm:mb-0">
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={isSaving || !callEndTime} className="bg-brand-600 hover:bg-brand-700 text-white w-full sm:w-auto">
+                {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                <span>{isSaving ? 'Salvando...' : 'Salvar Ligação'}</span>
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    );
+  };

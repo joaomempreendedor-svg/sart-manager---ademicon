@@ -603,7 +603,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     delete (dataToSave as any).db_id;
     delete (dataToSave as any).createdAt;
 
-    const { error } = await supabase
+    const { error } => await supabase
       .from('candidates')
       .update({ data: dataToSave })
       .eq('id', dbId);
@@ -1176,13 +1176,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setColdCallLeads(prev => prev.filter(l => l.id !== id));
   }, [setColdCallLeads]);
 
-  const addColdCallLog = useCallback(async (log: Omit<ColdCallLog, 'id' | 'user_id' | 'created_at' | 'duration_seconds'> & { start_time: string; end_time: string; }) => {
+  const addColdCallLog = useCallback(async (log: Omit<ColdCallLog, 'id' | 'user_id' | 'created_at'> & { start_time: string; end_time: string; duration_seconds: number; }) => {
     if (!user) throw new Error("User not authenticated.");
-    const startTime = new Date(log.start_time);
-    const endTime = new Date(log.end_time);
-    const durationSeconds = Math.round((endTime.getTime() - startTime.getTime()) / 1000);
-
-    const { data, error } = await supabase.from('cold_call_logs').insert({ ...log, user_id: user.id, duration_seconds }).select().single();
+    // duration_seconds is now passed directly from the modal
+    const { data, error } = await supabase.from('cold_call_logs').insert({ ...log, user_id: user.id }).select().single();
     if (error) throw error;
     setColdCallLogs(prev => [...prev, data]);
     return data;
@@ -1590,7 +1587,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addColdCallLead, // NOVO
     updateColdCallLead, // NOVO
     deleteColdCallLead, // NOVO
-    addColdCallLog, // NOVO
+    addColdCallLog: async (log) => {
+      if (!user) throw new Error("User not authenticated.");
+      const { data, error } = await supabase.from('cold_call_logs').insert({ ...log, user_id: user.id }).select().single();
+      if (error) throw error;
+      setColdCallLogs(prev => [...prev, data]);
+      return data;
+    }, // NOVO
     getColdCallMetrics, // NOVO
     createCrmLeadFromColdCall, // NOVO
   }), [
