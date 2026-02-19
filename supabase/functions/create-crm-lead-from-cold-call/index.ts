@@ -34,10 +34,13 @@ serve(async (req) => {
       .from('cold_call_leads')
       .select('*')
       .eq('id', coldCallLeadId)
-      .single();
+      .maybeSingle(); // Usar maybeSingle()
 
-    if (coldCallLeadError || !coldCallLead) {
-      throw new Error(`Cold Call Lead não encontrado: ${coldCallLeadError?.message || 'ID inválido'}`);
+    if (coldCallLeadError) {
+      throw coldCallLeadError;
+    }
+    if (!coldCallLead) {
+      throw new Error(`Cold Call Lead não encontrado para o ID: ${coldCallLeadId}`);
     }
 
     // 2. Buscar o último log de 'Agendar Reunião' para obter os detalhes da reunião
@@ -48,10 +51,13 @@ serve(async (req) => {
       .eq('result', 'Agendar Reunião')
       .order('created_at', { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle(); // Usar maybeSingle()
 
-    if (meetingLogError || !meetingLog) {
-      throw new Error(`Nenhum log de reunião agendada encontrado para o Cold Call Lead: ${meetingLogError?.message || 'Log ausente'}`);
+    if (meetingLogError) {
+      throw meetingLogError;
+    }
+    if (!meetingLog) {
+      throw new Error(`Nenhum log de reunião agendada encontrado para o Cold Call Lead: ${coldCallLeadId}. Certifique-se de que uma ligação com o resultado 'Agendar Reunião' foi registrada.`);
     }
 
     // 3. Encontrar a etapa "Reunião Agendada" no pipeline principal
@@ -60,10 +66,13 @@ serve(async (req) => {
       .select('id')
       .eq('name', 'Reunião Agendada') // Assumindo que esta etapa existe
       .eq('user_id', JOAO_GESTOR_AUTH_ID) // Garante que é a etapa do gestor principal
-      .single();
+      .maybeSingle(); // Usar maybeSingle()
 
-    if (stageError || !meetingStage) {
-      throw new Error(`Etapa 'Reunião Agendada' não encontrada no pipeline principal. Por favor, configure-a. Erro: ${stageError?.message}`);
+    if (stageError) {
+      throw stageError;
+    }
+    if (!meetingStage) {
+      throw new Error(`Etapa 'Reunião Agendada' não encontrada no pipeline principal. Por favor, configure-a nas configurações do CRM.`);
     }
 
     // 4. Criar um novo Lead no Pipeline Principal
