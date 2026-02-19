@@ -62,14 +62,14 @@ export const ImportColdCallLeadsModal: React.FC<ImportColdCallLeadsModalProps> =
     let hasHeader = false;
 
     const lowerCaseFirstLine = firstLine.toLowerCase();
-    // Detecta cabeçalhos comuns para 'nome', 'telefone', 'email'
-    if (lowerCaseFirstLine.includes('nome') || lowerCaseFirstLine.includes('telefone') || lowerCaseFirstLine.includes('email')) {
+    // Detecta se a primeira linha é um cabeçalho que inclui 'telefone'
+    if (lowerCaseFirstLine.includes('telefone')) {
       hasHeader = true;
       headers = firstLine.split(delimiter).map(h => h.trim().toLowerCase());
       dataLines = allLines.slice(1);
     } else {
-      // Se não houver cabeçalho, assume que a primeira coluna é o telefone e a segunda (se existir) é o nome
-      headers = ['telefone', 'nome', 'email']; 
+      // Se não houver cabeçalho, assume que a primeira coluna é o telefone
+      headers = ['telefone']; 
       dataLines = allLines;
     }
 
@@ -80,10 +80,8 @@ export const ImportColdCallLeadsModal: React.FC<ImportColdCallLeadsModalProps> =
     }
 
     const headerToFieldKeyMap: { [key: string]: string } = {
-      'nome': 'name',
       'telefone': 'phone',
       'celular': 'phone',
-      'email': 'email',
     };
 
     for (const line of dataLines) {
@@ -98,12 +96,8 @@ export const ImportColdCallLeadsModal: React.FC<ImportColdCallLeadsModalProps> =
         const value = values[index];
 
         if (fieldKey && value) {
-          if (fieldKey === 'name') {
-            leadData.name = value;
-          } else if (fieldKey === 'phone') {
+          if (fieldKey === 'phone') {
             leadData.phone = value;
-          } else if (fieldKey === 'email') {
-            leadData.email = value;
           }
         }
       });
@@ -115,10 +109,7 @@ export const ImportColdCallLeadsModal: React.FC<ImportColdCallLeadsModalProps> =
       }
       
       if (recordIsValid) {
-        // Se o nome não foi fornecido, usa o telefone como nome
-        if (!leadData.name?.trim()) {
-          leadData.name = leadData.phone;
-        }
+        // O nome será o telefone se não for fornecido (já tratado no addColdCallLead)
         newLeads.push(leadData as Omit<ColdCallLead, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'current_stage'>);
         successCount++;
       } else {
@@ -162,7 +153,7 @@ export const ImportColdCallLeadsModal: React.FC<ImportColdCallLeadsModalProps> =
             <span>Importar Prospects de Cold Call</span>
           </DialogTitle>
           <DialogDescription>
-            Cole os dados da sua planilha (CSV ou tab-separated). A coluna 'Telefone' é obrigatória. A coluna 'Nome' é opcional e será preenchida com o telefone se não for fornecida.
+            Cole os dados da sua planilha (CSV ou tab-separated). A coluna 'Telefone' é obrigatória.
           </DialogDescription>
         </DialogHeader>
         
@@ -175,7 +166,7 @@ export const ImportColdCallLeadsModal: React.FC<ImportColdCallLeadsModalProps> =
               onChange={(e) => setPastedData(e.target.value)}
               rows={8}
               className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600 font-mono text-sm"
-              placeholder={`Cole aqui os dados da sua planilha. Use vírgula (,) ou tab (	) como separador.\n\nExemplo:\nTelefone,Nome,Email\n(11) 98765-4321,João Silva,joao@email.com\n(21) 91234-5678,,maria@email.com\n(31) 99887-7665,Carlos Souza`}
+              placeholder={`Cole aqui os dados da sua planilha. Use vírgula (,) ou tab (	) como separador.\n\nExemplo:\nTelefone\n(11) 98765-4321\n(21) 91234-5678\n(31) 99887-7665`}
             />
             {parseError && (
               <p className="text-red-500 text-sm mt-2 flex items-center"><AlertTriangle className="w-4 h-4 mr-2" />{parseError}</p>

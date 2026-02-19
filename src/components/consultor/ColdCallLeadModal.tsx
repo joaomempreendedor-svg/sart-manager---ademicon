@@ -24,25 +24,16 @@ interface ColdCallLeadModalProps {
 
 export const ColdCallLeadModal: React.FC<ColdCallLeadModalProps> = ({ isOpen, onClose, lead }) => {
   const { addColdCallLead, updateColdCallLead } = useApp();
-  const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
-  const [email, setEmail] = useState('');
-  const [notes, setNotes] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
     if (isOpen) {
       if (lead) {
-        setName(lead.name || ''); // Nome pode ser nulo agora
         setPhone(lead.phone);
-        setEmail(lead.email || '');
-        setNotes(lead.notes || '');
       } else {
-        setName('');
         setPhone('');
-        setEmail('');
-        setNotes('');
       }
       setError('');
     }
@@ -52,20 +43,16 @@ export const ColdCallLeadModal: React.FC<ColdCallLeadModalProps> = ({ isOpen, on
     e.preventDefault();
     setError('');
 
-    if (!phone.trim()) { // Apenas telefone é obrigatório
+    if (!phone.trim()) {
       setError("Telefone é obrigatório.");
       return;
     }
 
     setIsSaving(true);
     try {
-      const finalName = name.trim() || phone.trim(); // Usa o telefone como nome se o nome estiver vazio
-
       const leadData = {
-        name: finalName,
+        name: phone.trim(), // Nome será o telefone
         phone: phone.trim(),
-        email: email.trim() || undefined,
-        notes: notes.trim() || undefined,
       };
       
       if (lead) {
@@ -92,25 +79,12 @@ export const ColdCallLeadModal: React.FC<ColdCallLeadModalProps> = ({ isOpen, on
         <DialogHeader>
           <DialogTitle>{lead ? 'Editar Prospect' : 'Novo Prospect'}</DialogTitle>
           <DialogDescription>
-            {lead ? `Edite as informações de ${lead.name}.` : 'Adicione um novo prospect para suas ligações frias.'}
+            {lead ? `Edite o telefone de ${lead.name}.` : 'Adicione um novo prospect para suas ligações frias (apenas telefone).'}
           </DialogDescription>
         </DialogHeader>
         
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto custom-scrollbar">
-            <div>
-              <Label htmlFor="name">Nome (Opcional)</Label> {/* Nome agora é opcional */}
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input
-                  id="name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600"
-                  placeholder="Nome do prospect (será o telefone se vazio)"
-                />
-              </div>
-            </div>
             <div>
               <Label htmlFor="phone">Telefone *</Label>
               <div className="relative">
@@ -122,34 +96,6 @@ export const ColdCallLeadModal: React.FC<ColdCallLeadModalProps> = ({ isOpen, on
                   required
                   className="pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600"
                   placeholder="(00) 00000-0000"
-                />
-              </div>
-            </div>
-            <div>
-              <Label htmlFor="email">E-mail (Opcional)</Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600"
-                  placeholder="email@exemplo.com"
-                />
-              </div>
-            </div>
-            <div>
-              <Label htmlFor="notes">Observações (Opcional)</Label>
-              <div className="relative">
-                <MessageSquare className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-                <Textarea
-                  id="notes"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  rows={3}
-                  className="pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600"
-                  placeholder="Anotações sobre o prospect..."
                 />
               </div>
             </div>
