@@ -370,48 +370,6 @@ export interface DailyChecklistItemResource {
   name?: string;
 }
 
-export interface FinancialEntry {
-  id: string;
-  db_id?: string;
-  user_id: string;
-  entry_date: string;
-  type: 'income' | 'expense';
-  description?: string;
-  amount: number;
-  created_at: string;
-}
-
-export interface FormCadastro {
-  id: string;
-  user_id: string;
-  submission_date: string;
-  data: Record<string, any>;
-  internal_notes?: string;
-  is_complete: boolean;
-}
-
-export interface FormFile {
-  id: string;
-  submission_id: string;
-  field_name: string;
-  file_name: string;
-  file_url: string;
-  uploaded_at: string;
-}
-
-export type NotificationType = 'birthday' | 'form_submission' | 'new_sale' | 'onboarding_complete';
-
-export interface Notification {
-  id: string;
-  user_id: string;
-  type: NotificationType;
-  title: string;
-  description: string;
-  date: string;
-  link?: string;
-  isRead: boolean;
-}
-
 export interface DailyChecklist {
   id: string;
   user_id: string;
@@ -428,6 +386,7 @@ export interface DailyChecklistItem {
   is_active: boolean;
   created_at: string;
   resource?: DailyChecklistItemResource;
+  responsibleRole?: 'GESTOR' | 'SECRETARIA'; // NOVO: Define quem é o responsável pela tarefa
 }
 
 export interface DailyChecklistAssignment {
@@ -483,15 +442,79 @@ export interface MetricLog {
   created_at: string;
 }
 
-export interface TeamProductionGoal {
+export interface FinancialEntry {
+  id: string;
+  db_id?: string;
+  user_id: string;
+  entry_date: string;
+  type: 'income' | 'expense';
+  description?: string;
+  amount: number;
+  created_at: string;
+}
+
+export interface FormCadastro {
   id: string;
   user_id: string;
-  target_team_size: number;
-  target_production_value: number;
-  start_date: string;
-  end_date: string;
+  submission_date: string;
+  data: Record<string, any>;
+  internal_notes?: string;
+  is_complete: boolean;
+}
+
+export interface FormFile {
+  id: string;
+  submission_id: string;
+  field_name: string;
+  file_name: string;
+  file_url: string;
+  uploaded_at: string;
+}
+
+export type NotificationType = 'birthday' | 'form_submission' | 'new_sale' | 'onboarding_complete';
+
+export interface Notification {
+  id: string;
+  user_id: string;
+  type: NotificationType;
+  title: string;
+  description: string;
+  date: string;
+  link?: string;
+  isRead: boolean;
+}
+
+export type ColdCallStage = 'Base Fria' | 'Tentativa de Contato' | 'Conversou' | 'Reunião Agendada';
+export type ColdCallResult = 'Não atendeu' | 'Número inválido' | 'Sem interesse' | 'Pedir retorno' | 'Conversou' | 'Agendar Reunião';
+
+export interface ColdCallLead {
+  id: string;
+  db_id?: string;
+  user_id: string; // Consultant who owns this cold call lead
+  name: string;
+  phone: string;
+  email?: string;
+  current_stage: ColdCallStage;
+  notes?: string;
+  crm_lead_id?: string; // Link to main CRM lead if meeting scheduled
   created_at: string;
   updated_at: string;
+}
+
+export interface ColdCallLog {
+  id: string;
+  db_id?: string;
+  cold_call_lead_id: string;
+  user_id: string; // Consultant who made the call
+  start_time: string;
+  end_time: string;
+  duration_seconds: number;
+  result: ColdCallResult;
+  meeting_date?: string;
+  meeting_time?: string;
+  meeting_modality?: string;
+  meeting_notes?: string;
+  created_at: string;
 }
 
 export interface AppContextType {
@@ -535,6 +558,8 @@ export interface AppContextType {
   formFiles: FormFile[];
   notifications: Notification[];
   teamProductionGoals: TeamProductionGoal[];
+  coldCallLeads: ColdCallLead[]; // NOVO
+  coldCallLogs: ColdCallLog[];   // NOVO
   theme: 'light' | 'dark';
   toggleTheme: () => void;
   addCandidate: (candidate: Omit<Candidate, 'id' | 'createdAt' | 'db_id'>) => Promise<Candidate>;
@@ -545,7 +570,7 @@ export interface AppContextType {
   setChecklistDueDate: (candidateId: string, itemId: string, dueDate: string) => Promise<void>;
   toggleConsultantGoal: (candidateId: string, goalId: string) => Promise<void>;
   addChecklistItem: (stageId: string, label: string, responsibleRole?: 'GESTOR' | 'SECRETARIA') => void;
-  updateChecklistItem: (stageId: string, itemId: string, updates: Partial<ChecklistItem>) => void;
+  updateChecklistItem: (stageId: string, itemId: string, updates: Partial<ChecklistItem>, audioFile?: File, imageFile?: File) => Promise<DailyChecklistItem>;
   deleteChecklistItem: (stageId: string, itemId: string) => void;
   moveChecklistItem: (stageId: string, itemId: string, direction: 'up' | 'down') => void;
   resetChecklistToDefault: () => void;
@@ -644,4 +669,10 @@ export interface AppContextType {
   updateTeamProductionGoal: (id: string, updates: Partial<TeamProductionGoal>) => Promise<TeamProductionGoal>;
   deleteTeamProductionGoal: (id: string) => Promise<void>;
   hasPendingSecretariaTasks: (candidate: Candidate) => boolean;
+  addColdCallLead: (lead: Omit<ColdCallLead, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'current_stage'>) => Promise<ColdCallLead>; // NOVO
+  updateColdCallLead: (id: string, updates: Partial<ColdCallLead>) => Promise<ColdCallLead>; // NOVO
+  deleteColdCallLead: (id: string) => Promise<void>; // NOVO
+  addColdCallLog: (log: Omit<ColdCallLog, 'id' | 'user_id' | 'created_at' | 'duration_seconds'> & { start_time: string; end_time: string; }) => Promise<ColdCallLog>; // NOVO
+  getColdCallMetrics: (consultantId: string) => { totalCalls: number; totalConversations: number; totalMeetingsScheduled: number; conversationToMeetingRate: number; }; // NOVO
+  createCrmLeadFromColdCall: (coldCallLeadId: string) => Promise<{ crmLeadId: string }>; // NOVO
 }

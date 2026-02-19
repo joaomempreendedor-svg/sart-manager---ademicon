@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
-import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, InterviewQuestion, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, InstallmentInfo, CutoffPeriod, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask, SupportMaterialContentType, DailyChecklistItemResource, DailyChecklistItemResourceType, GestorTask, GestorTaskCompletion, FinancialEntry, FormCadastro, FormFile, Notification, NotificationType, Feedback, TeamProductionGoal, UserRole, CommissionStatus, InterviewScores, CandidateStatus } from '@/types';
+import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, InterviewQuestion, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, InstallmentInfo, CutoffPeriod, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask, SupportMaterialContentType, DailyChecklistItemResource, DailyChecklistItemResourceType, GestorTask, GestorTaskCompletion, FinancialEntry, FormCadastro, FormFile, Notification, NotificationType, Feedback, TeamProductionGoal, UserRole, CommissionStatus, InterviewScores, CandidateStatus, ColdCallLead, ColdCallLog, ColdCallStage, ColdCallResult } from '@/types';
 import { CHECKLIST_STAGES as DEFAULT_STAGES } from '@/data/checklistData';
 import { CONSULTANT_GOALS as DEFAULT_GOALS } from '@/data/consultantGoals';
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
@@ -104,6 +104,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [teamProductionGoals, setTeamProductionGoals] = useState<TeamProductionGoal[]>([]);
 
+  const [coldCallLeads, setColdCallLeads] = useState<ColdCallLead[]>([]); // NOVO
+  const [coldCallLogs, setColdCallLogs] = useState<ColdCallLog[]>([]);     // NOVO
+
   const [theme, setTheme] = useState<'light' | 'dark'>(() => (localStorage.getItem('sart_theme') as 'light' | 'dark') || 'light');
 
   const toggleTheme = useCallback(() => {
@@ -187,6 +190,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setWeeklyTargets([]); setWeeklyTargetItems([]); setWeeklyTargetItems([]); setWeeklyTargetAssignments([]); setMetricLogs([]);
     setSupportMaterialsV2([]); setSupportMaterialAssignments([]); setLeadTasks([]); setGestorTasks([]); setGestorTaskCompletions([]); setFinancialEntries([]);
     setFormCadastros([]); setFormFiles([]); setNotifications([]); setTeamProductionGoals([]);
+    setColdCallLeads([]); setColdCallLogs([]); // NOVO: Reset cold call states
     setIsDataLoading(false);
   }, []);
 
@@ -344,7 +348,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           weeklyTargetsRes, weeklyTargetItemsRes, weeklyTargetAssignmentsRes, metricLogsRes,
           supportMaterialsV2Res, supportMaterialAssignmentsV2Res,
           leadTasksRes, gestorTasksRes, gestorTaskCompletionsRes, financialEntriesRes,
-          formCadastrosRes, formFilesRes, notificationsRes, teamProductionGoalsRes, teamMembersRes
+          formCadastrosRes, formFilesRes, notificationsRes, teamProductionGoalsRes, teamMembersRes,
+          coldCallLeadsRes, coldCallLogsRes // NOVO: Fetch cold call data
         ] = await Promise.all([
           supabase.from('candidates').select('id, data, created_at, last_updated_at').eq('user_id', effectiveGestorId),
           supabase.from('support_materials').select('id, data').eq('user_id', effectiveGestorId),
@@ -373,7 +378,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           supabase.from('form_files').select('*'),
           supabase.from('notifications').select('*').eq('user_id', userId).eq('is_read', false).order('created_at', { ascending: false }),
           supabase.from('team_production_goals').select('*').eq('user_id', effectiveGestorId).order('start_date', { ascending: false }),
-          supabase.from('team_members').select('id, data, cpf, user_id').eq('user_id', effectiveGestorId)
+          supabase.from('team_members').select('id, data, cpf, user_id').eq('user_id', effectiveGestorId),
+          supabase.from('cold_call_leads').select('*').eq('user_id', userId), // NOVO: Fetch cold call leads for current user
+          supabase.from('cold_call_logs').select('*').eq('user_id', userId)   // NOVO: Fetch cold call logs for current user
         ]);
 
         if (candidatesRes.error) { console.error("Error fetching candidates:", candidatesRes.error); toast.error(`Erro ao carregar candidatos: ${candidatesRes.error.message}`); setCandidates([]); }
@@ -499,6 +506,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (teamProductionGoalsRes.error) { console.error("Error fetching team production goals:", teamProductionGoalsRes.error); toast.error(`Erro ao carregar metas de produção da equipe: ${teamProductionGoalsRes.error.message}`); setTeamProductionGoals([]); }
         else { setTeamProductionGoals(teamProductionGoalsRes.data || []); console.log(`[AppContext] Fetched ${teamProductionGoalsRes.data?.length || 0} team production goals.`); }
         
+        if (coldCallLeadsRes.error) { console.error("Error fetching cold call leads:", coldCallLeadsRes.error); toast.error(`Erro ao carregar leads de cold call: ${coldCallLeadsRes.error.message}`); setColdCallLeads([]); }
+        else { setColdCallLeads(coldCallLeadsRes.data || []); console.log(`[AppContext] Fetched ${coldCallLeadsRes.data?.length || 0} cold call leads.`); }
+
+        if (coldCallLogsRes.error) { console.error("Error fetching cold call logs:", coldCallLogsRes.error); toast.error(`Erro ao carregar logs de cold call: ${coldCallLogsRes.error.message}`); setColdCallLogs([]); }
+        else { setColdCallLogs(coldCallLogsRes.data || []); console.log(`[AppContext] Fetched ${coldCallLogsRes.data?.length || 0} cold call logs.`); }
+
         refetchCommissions();
         console.log("[AppContext] All data fetching initiated.");
 
@@ -1141,8 +1154,70 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     });
   }, [checklistStructure]);
 
+  // NOVO: Cold Call Functions
+  const addColdCallLead = useCallback(async (lead: Omit<ColdCallLead, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'current_stage'>) => {
+    if (!user) throw new Error("User not authenticated.");
+    const { data, error } = await supabase.from('cold_call_leads').insert({ ...lead, user_id: user.id, current_stage: 'Base Fria' }).select().single();
+    if (error) throw error;
+    setColdCallLeads(prev => [...prev, data]);
+    return data;
+  }, [user, setColdCallLeads]);
+
+  const updateColdCallLead = useCallback(async (id: string, updates: Partial<ColdCallLead>) => {
+    const { data, error } = await supabase.from('cold_call_leads').update(updates).eq('id', id).select().single();
+    if (error) throw error;
+    setColdCallLeads(prev => prev.map(l => l.id === id ? data : l));
+    return data;
+  }, [setColdCallLeads]);
+
+  const deleteColdCallLead = useCallback(async (id: string) => {
+    const { error } = await supabase.from('cold_call_leads').delete().eq('id', id);
+    if (error) throw error;
+    setColdCallLeads(prev => prev.filter(l => l.id !== id));
+  }, [setColdCallLeads]);
+
+  const addColdCallLog = useCallback(async (log: Omit<ColdCallLog, 'id' | 'user_id' | 'created_at' | 'duration_seconds'> & { start_time: string; end_time: string; }) => {
+    if (!user) throw new Error("User not authenticated.");
+    const startTime = new Date(log.start_time);
+    const endTime = new Date(log.end_time);
+    const durationSeconds = Math.round((endTime.getTime() - startTime.getTime()) / 1000);
+
+    const { data, error } = await supabase.from('cold_call_logs').insert({ ...log, user_id: user.id, duration_seconds }).select().single();
+    if (error) throw error;
+    setColdCallLogs(prev => [...prev, data]);
+    return data;
+  }, [user, setColdCallLogs]);
+
+  const getColdCallMetrics = useCallback((consultantId: string) => {
+    const consultantLeads = coldCallLeads.filter(lead => lead.user_id === consultantId);
+    const consultantLogs = coldCallLogs.filter(log => log.user_id === consultantId);
+
+    const totalCalls = consultantLogs.length;
+    const totalConversations = consultantLogs.filter(log => log.result === 'Conversou' || log.result === 'Agendar Reunião').length;
+    const totalMeetingsScheduled = consultantLogs.filter(log => log.result === 'Agendar Reunião').length;
+    
+    const conversationToMeetingRate = totalConversations > 0 ? (totalMeetingsScheduled / totalConversations) * 100 : 0;
+
+    return {
+      totalCalls,
+      totalConversations,
+      totalMeetingsScheduled,
+      conversationToMeetingRate,
+    };
+  }, [coldCallLeads, coldCallLogs]);
+
+  const createCrmLeadFromColdCall = useCallback(async (coldCallLeadId: string) => {
+    if (!user) throw new Error("User not authenticated.");
+    const { data, error } = await supabase.functions.invoke('create-crm-lead-from-cold-call', {
+      body: { coldCallLeadId },
+    });
+    if (error) throw error;
+    if (data.error) throw new Error(data.error);
+    return { crmLeadId: data.crmLeadId };
+  }, [user]);
+
   const value: AppContextType = useMemo(() => ({
-    isDataLoading, candidates, teamMembers, commissions, supportMaterials, cutoffPeriods, onboardingSessions, onboardingTemplateVideos, checklistStructure, setChecklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs, crmPipelines, crmStages, crmFields, crmLeads, crmOwnerUserId, dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions, weeklyTargets, weeklyTargetItems, weeklyTargetAssignments, metricLogs, supportMaterialsV2, supportMaterialAssignments, leadTasks, gestorTasks, gestorTaskCompletions, financialEntries, formCadastros, formFiles, notifications, teamProductionGoals, theme,
+    isDataLoading, candidates, teamMembers, commissions, supportMaterials, cutoffPeriods, onboardingSessions, onboardingTemplateVideos, checklistStructure, setChecklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs, crmPipelines, crmStages, crmFields, crmLeads, crmOwnerUserId, dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions, weeklyTargets, weeklyTargetItems, weeklyTargetAssignments, metricLogs, supportMaterialsV2, supportMaterialAssignments, leadTasks, gestorTasks, gestorTaskCompletions, financialEntries, formCadastros, formFiles, notifications, teamProductionGoals, coldCallLeads, coldCallLogs, theme,
     toggleTheme, updateConfig, resetLocalState, refetchCommissions, calculateCompetenceMonth, isGestorTaskDueOnDate, calculateNotifications,
     addCandidate, updateCandidate, deleteCandidate, getCandidate: (id: string) => candidates.find(c => c.id === id), 
     setCandidates,
@@ -1172,7 +1247,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setChecklistStructure(newStructure);
       updateConfig({ checklistStructure: newStructure });
     },
-    updateChecklistItem: (stageId, itemId, updates) => {
+    updateChecklistItem: (stageId, itemId, updates, audioFile, imageFile) => {
       const newStructure = checklistStructure.map(stage => {
         if (stage.id === stageId) {
           return { ...stage, items: stage.items.map(item => item.id === itemId ? { ...item, ...updates } : item) };
@@ -1181,6 +1256,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       });
       setChecklistStructure(newStructure);
       updateConfig({ checklistStructure: newStructure });
+      return Promise.resolve(updates as DailyChecklistItem); // Placeholder for actual DB update
     },
     deleteChecklistItem: (stageId, itemId) => {
       const newStructure = checklistStructure.map(stage => {
@@ -1511,8 +1587,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     updateTeamProductionGoal: async (id, updates) => { const { data, error } = await supabase.from('team_production_goals').update(updates).eq('id', id).select().single(); if (error) throw error; setTeamProductionGoals(prev => prev.map(g => g.id === id ? data : g)); return data; },
     deleteTeamProductionGoal: async (id) => { const { error } = await supabase.from('team_production_goals').delete().eq('id', id); if (error) throw error; setTeamProductionGoals(prev => prev.filter(g => g.id !== id)); },
     hasPendingSecretariaTasks, // Adicionado a nova função
+    addColdCallLead, // NOVO
+    updateColdCallLead, // NOVO
+    deleteColdCallLead, // NOVO
+    addColdCallLog, // NOVO
+    getColdCallMetrics, // NOVO
+    createCrmLeadFromColdCall, // NOVO
   }), [
-    isDataLoading, candidates, teamMembers, commissions, supportMaterials, cutoffPeriods, onboardingSessions, onboardingTemplateVideos, checklistStructure, setChecklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs, crmPipelines, crmStages, crmFields, crmLeads, crmOwnerUserId, dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions, weeklyTargets, weeklyTargetItems, weeklyTargetAssignments, metricLogs, supportMaterialsV2, supportMaterialAssignments, leadTasks, gestorTasks, gestorTaskCompletions, financialEntries, formCadastros, formFiles, notifications, teamProductionGoals, theme,
+    isDataLoading, candidates, teamMembers, commissions, supportMaterials, cutoffPeriods, onboardingSessions, onboardingTemplateVideos, checklistStructure, setChecklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs, crmPipelines, crmStages, crmFields, crmLeads, crmOwnerUserId, dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions, weeklyTargets, weeklyTargetItems, weeklyTargetAssignments, metricLogs, supportMaterialsV2, supportMaterialAssignments, leadTasks, gestorTasks, gestorTaskCompletions, financialEntries, formCadastros, formFiles, notifications, teamProductionGoals, coldCallLeads, coldCallLogs, theme,
     toggleTheme, updateConfig, resetLocalState, refetchCommissions, calculateCompetenceMonth, isGestorTaskDueOnDate, calculateNotifications,
     addCandidate, updateCandidate, deleteCandidate, setCandidates,
     addCrmLead, updateCrmLead, deleteCrmLead,
@@ -1537,6 +1619,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     hasPendingSecretariaTasks, // Incluído no array de dependências
     user,
     toggleChecklistItem, // Now included in the dependency array
+    addColdCallLead, updateColdCallLead, deleteColdCallLead, addColdCallLog, getColdCallMetrics, createCrmLeadFromColdCall
   ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

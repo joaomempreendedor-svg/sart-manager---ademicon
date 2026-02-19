@@ -53,6 +53,7 @@ import ConsultorDashboard from '@/pages/consultor/Dashboard';
 import ConsultorCrmPage from '@/pages/consultor/Crm';
 import { DailyChecklist } from '@/pages/consultor/DailyChecklist';
 import ConsultorSalesReports from '@/pages/consultor/ConsultorSalesReports';
+import ColdCallPage from '@/pages/consultor/ColdCallPage'; // NOVO: Importar ColdCallPage
 
 // Secretaria Pages
 import { SecretariaDashboard } from '@/pages/secretaria/SecretariaDashboard';
@@ -147,6 +148,7 @@ const AppRoutes = () => {
         <Route path="/consultor" element={<ConsultorLayout />}>
           <Route path="dashboard" element={<ConsultorDashboard />} />
           <Route path="crm" element={<ConsultorCrmPage />} />
+          <Route path="cold-call" element={<ColdCallPage />} /> {/* NOVO: Rota para Cold Call */}
           <Route path="daily-checklist" element={<DailyChecklist />} />
           <Route path="materials" element={<Materials />} />
           <Route path="sales-reports" element={<ConsultorSalesReports />} />

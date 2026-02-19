@@ -1,6 +1,6 @@
 import React, { Fragment, useState, useMemo } from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, TrendingUp, LogOut, User as UserIcon, Sun, Moon, ListChecks, ChevronLeft, ChevronRight, Library, DollarSign } from 'lucide-react'; // NOVO: Importar DollarSign
+import { LayoutDashboard, TrendingUp, LogOut, User as UserIcon, Sun, Moon, ListChecks, ChevronLeft, ChevronRight, Library, DollarSign, PhoneCall } from 'lucide-react'; // NOVO: Importar PhoneCall
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 
@@ -59,6 +59,10 @@ export const ConsultorSidebar: React.FC<ConsultorSidebarProps> = ({ isSidebarOpe
           <NavLink to="/consultor/crm" className={linkClass} onClick={toggleSidebar}>
             <TrendingUp className="w-5 h-5" />
             {!isSidebarCollapsed && <span>CRM</span>}
+          </NavLink>
+          <NavLink to="/consultor/cold-call" className={linkClass} onClick={toggleSidebar}> {/* NOVO: Link para Cold Call */}
+            <PhoneCall className="w-5 h-5" />
+            {!isSidebarCollapsed && <span>Cold Call</span>}
           </NavLink>
           <NavLink to="/consultor/daily-checklist" className={linkClass} onClick={toggleSidebar}> 
             <ListChecks className="w-5 h-5" />
