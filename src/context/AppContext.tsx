@@ -1070,7 +1070,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const { data, error } = await supabase.from('gestor_task_completions').upsert({ gestor_task_id, user_id: JOAO_GESTOR_AUTH_ID, date, done }, { onConflict: 'gestor_task_id,user_id,date' }).select().single();
     if (error) throw error;
     setGestorTaskCompletions(prev => {
-      const filtered = prev.filter(c => !(c.gestor_task_id === gestor_task_id && c.date === date));
+      const filtered = prev.filter(c => !(c.gestor_task_id === gestor_task_id && c.consultant_id === JOAO_GESTOR_AUTH_ID && c.date === date));
       return [...filtered, data];
     });
   }, [setGestorTaskCompletions]);
@@ -1164,12 +1164,46 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [user, setColdCallLeads]);
 
   const updateColdCallLead = useCallback(async (id: string, updates: Partial<ColdCallLead>) => {
-    const { data, error } = await supabase.from('cold_call_leads').update(updates).eq('id', id).select(); // Removido .single()
-    if (error) throw error;
-    if (!data || data.length === 0) throw new Error("No data returned after updating cold call lead.");
-    setColdCallLeads(prev => prev.map(l => l.id === id ? data[0] : l));
-    return data[0];
-  }, [setColdCallLeads]);
+    if (!user) throw new Error("User not authenticated.");
+    const leadToUpdate = coldCallLeads.find(l => l.id === id);
+    if (!leadToUpdate) throw new Error(`Cold Call Lead with ID ${id} not found.`);
+
+    console.log(`[updateColdCallLead] Attempting to update lead ID: ${id}`);
+    console.log(`[updateColdCallLead] Current user.id (auth.uid()): ${user.id}`);
+    console.log(`[updateColdCallLead] Lead's user_id: ${leadToUpdate.user_id}`);
+
+    // Perform the update operation
+    const { error: updateError } = await supabase
+        .from('cold_call_leads')
+        .update(updates)
+        .eq('id', id);
+
+    if (updateError) {
+        console.error("[updateColdCallLead] Error during update operation:", updateError);
+        throw updateError;
+    }
+
+    // Now, fetch the updated row separately
+    const { data, error: selectError } = await supabase
+        .from('cold_call_leads')
+        .select('*') // Select all columns to get the full updated object
+        .eq('id', id)
+        .maybeSingle(); // Use maybeSingle to handle cases where it might not be found (e.g., deleted by another policy)
+
+    if (selectError) {
+        console.error("[updateColdCallLead] Error during select operation after update:", selectError);
+        throw selectError;
+    }
+
+    if (!data) {
+        // This means the update succeeded, but the user cannot read the row (e.g., RLS on SELECT)
+        // Or the row was deleted immediately after update (unlikely)
+        throw new Error("No data returned after updating cold call lead (SELECT policy might be blocking).");
+    }
+
+    setColdCallLeads(prev => prev.map(l => l.id === id ? data : l));
+    return data;
+  }, [user, coldCallLeads, setColdCallLeads]);
 
   const deleteColdCallLead = useCallback(async (id: string) => {
     const { error } = await supabase.from('cold_call_leads').delete().eq('id', id);
@@ -1180,12 +1214,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const addColdCallLog = useCallback(async (log: Omit<ColdCallLog, 'id' | 'user_id' | 'created_at'> & { start_time: string; end_time: string; duration_seconds: number; }) => {
     if (!user) throw new Error("User not authenticated.");
     
-    // Explicitly define the object to insert, ensuring all NOT NULL fields are present
     const insertData = {
       cold_call_lead_id: log.cold_call_lead_id,
       start_time: log.start_time,
       end_time: log.end_time,
-      duration_seconds: Number(log.duration_seconds), // Explicitamente atribuído e convertido para Number
+      duration_seconds: Number(log.duration_seconds),
       result: log.result,
       meeting_date: log.meeting_date,
       meeting_time: log.meeting_time,
@@ -1194,15 +1227,48 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       user_id: user.id
     };
 
-    console.log("[addColdCallLog DEBUG] Type of log.duration_seconds:", typeof log.duration_seconds); // NOVO LOG
-    console.log("[addColdCallLog DEBUG] Value of log.duration_seconds:", log.duration_seconds); // NOVO LOG
-    console.log("[addColdCallLog] Data being inserted into cold_call_logs:", JSON.stringify(insertData, null, 2)); // LOG DE DEBUG
+    console.log("[addColdCallLog DEBUG] Type of log.duration_seconds:", typeof log.duration_seconds);
+    console.log("[addColdCallLog DEBUG] Value of log.duration_seconds:", log.duration_seconds);
+    console.log("[addColdCallLog] Data being inserted into cold_call_logs:", JSON.stringify(insertData, null, 2));
 
-    const { data, error } = await supabase.from('cold_call_logs').insert(insertData).select(); // Removido .single()
-    if (error) throw error;
-    if (!data || data.length === 0) throw new Error("No data returned after inserting cold call log."); // Adicionado verificação
-    setColdCallLogs(prev => [...prev, data[0]]); // Pega o primeiro item do array
-    return data[0];
+    // Perform the insert operation
+    const { data: insertedData, error: insertError } = await supabase
+        .from('cold_call_logs')
+        .insert(insertData)
+        .select('*') // Request the data back
+        .maybeSingle(); // Use maybeSingle to be safe
+
+    if (insertError) {
+        console.error("[addColdCallLog] Error during insert operation:", insertError);
+        throw insertError;
+    }
+
+    if (!insertedData) {
+        // This could happen if RLS on SELECT prevents the user from seeing the newly inserted row
+        // Or if the insert somehow didn't return data despite success (less common with .select())
+        console.warn("[addColdCallLog] Insert operation succeeded, but no data was returned. Attempting separate select.");
+        const { data: fetchedData, error: selectError } = await supabase
+            .from('cold_call_logs')
+            .select('*')
+            .eq('cold_call_lead_id', log.cold_call_lead_id) // Assuming cold_call_lead_id + user.id + created_at is unique enough for a recent log
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+        if (selectError) {
+            console.error("[addColdCallLog] Error during separate select operation:", selectError);
+            throw selectError;
+        }
+        if (!fetchedData) {
+            throw new Error("No data returned after inserting cold call log (SELECT policy might be blocking).");
+        }
+        setColdCallLogs(prev => [...prev, fetchedData]);
+        return fetchedData;
+    }
+
+    setColdCallLogs(prev => [...prev, insertedData]);
+    return insertedData;
   }, [user, setColdCallLogs]);
 
   const getColdCallMetrics = useCallback((consultantId: string) => {
@@ -1607,33 +1673,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addColdCallLead, // NOVO
     updateColdCallLead, // NOVO
     deleteColdCallLead, // NOVO
-    addColdCallLog: async (log) => {
-      if (!user) throw new Error("User not authenticated.");
-      
-      // Explicitly define the object to insert, ensuring all NOT NULL fields are present
-      const insertData = {
-        cold_call_lead_id: log.cold_call_lead_id,
-        start_time: log.start_time,
-        end_time: log.end_time,
-        duration_seconds: Number(log.duration_seconds), // Explicitamente atribuído e convertido para Number
-        result: log.result,
-        meeting_date: log.meeting_date,
-        meeting_time: log.meeting_time,
-        meeting_modality: log.meeting_modality,
-        meeting_notes: log.meeting_notes,
-        user_id: user.id
-      };
-
-      console.log("[addColdCallLog DEBUG] Type of log.duration_seconds:", typeof log.duration_seconds); // NOVO LOG
-      console.log("[addColdCallLog DEBUG] Value of log.duration_seconds:", log.duration_seconds); // NOVO LOG
-      console.log("[addColdCallLog] Data being inserted into cold_call_logs:", JSON.stringify(insertData, null, 2)); // LOG DE DEBUG
-
-      const { data, error } = await supabase.from('cold_call_logs').insert(insertData).select(); // Removido .single()
-      if (error) throw error;
-      if (!data || data.length === 0) throw new Error("No data returned after inserting cold call log."); // Adicionado verificação
-      setColdCallLogs(prev => [...prev, data[0]]); // Pega o primeiro item do array
-      return data[0];
-    }, // NOVO
+    addColdCallLog, // NOVO
     getColdCallMetrics, // NOVO
     createCrmLeadFromColdCall, // NOVO
   }), [
