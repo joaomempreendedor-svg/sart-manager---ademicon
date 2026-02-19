@@ -176,8 +176,11 @@ const ColdCallPage = () => {
   };
 
   // NOVO: Handler para criar Lead no CRM (chamado do ColdCallLogModal)
-  const handleCreateCrmLeadFromColdCall = () => {
-    // Apenas abre o LeadModal do CRM, sem pré-preencher dados
+  const handleCreateCrmLeadFromColdCall = async (coldCallLead: ColdCallLead) => {
+    // Primeiro, salva o log da chamada (se ainda não foi salvo)
+    // A lógica de salvar o log já está no ColdCallLogModal, então aqui apenas abrimos o LeadModal
+    
+    // Abre o LeadModal do CRM, sem pré-preencher dados
     setIsCrmLeadModalOpen(true);
     // Não há necessidade de setInitialCrmLeadData, pois o LeadModal será vazio
   };
