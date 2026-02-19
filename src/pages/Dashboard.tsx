@@ -96,8 +96,8 @@ export const Dashboard = () => {
   const [coldCallLeadsForModal, setColdCallLeadsForModal] = useState<ColdCallLead[]>([]);
   const [coldCallLogsForModal, setColdCallLogsForModal] = useState<ColdCallLog[]>([]);
   const [coldCallDetailType, setColdCallDetailType] = useState<ColdCallDetailType>('all');
-  const [selectedColdCallConsultantName, setSelectedColdCallConsultantName] = useState<string>('');
-  const [selectedColdCallConsultantId, setSelectedColdCallConsultantId] = useState<string | null>(null); // NOVO: Filtro de consultor para Cold Call
+  const [selectedColdCallConsultantName, setSelectedColdCallConsultantName] = useState<string>('Todos os Consultores'); // Default para "Todos os Consultores"
+  const [selectedColdCallConsultantId, setSelectedColdCallConsultantId] = useState<string | null>(null); // Default para null (todos)
   const [coldCallFilterStartDate, setColdCallFilterStartDate] = useState(''); // NOVO: Filtro de data de início para Cold Call
   const [coldCallFilterEndDate, setColdCallFilterEndDate] = useState('');     // NOVO: Filtro de data de fim para Cold Call
 
@@ -443,7 +443,10 @@ export const Dashboard = () => {
             <label htmlFor="coldCallConsultant" className="text-sm font-medium text-gray-700 dark:text-gray-300">Consultor:</label>
             <Select
               value={selectedColdCallConsultantId || 'all'}
-              onValueChange={(value) => setSelectedColdCallConsultantId(value === 'all' ? null : value)}
+              onValueChange={(value) => {
+                setSelectedColdCallConsultantId(value === 'all' ? null : value);
+                setSelectedColdCallConsultantName(value === 'all' ? 'Todos os Consultores' : teamMembers.find(m => m.authUserId === value)?.name || 'Consultor Desconhecido');
+              }}
             >
               <SelectTrigger className="w-[180px] dark:bg-slate-700 dark:text-white dark:border-slate-600">
                 <SelectValue placeholder="Selecione o Consultor" />
