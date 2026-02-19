@@ -13,6 +13,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { ColdCallLead, ColdCallLog } from '@/types';
 import { useApp } from '@/context/AppContext';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast'; // Importar toast
 
 interface ColdCallLeadHistoryModalProps {
   isOpen: boolean;

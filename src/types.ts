@@ -496,7 +496,7 @@ export interface ColdCallLead {
   email?: string;
   current_stage: ColdCallStage;
   notes?: string;
-  crm_lead_id?: string; // Link to main CRM lead if meeting scheduled
+  crm_lead_id?: string; // NOVO: Link to main CRM lead if meeting scheduled
   created_at: string;
   updated_at: string;
 }
