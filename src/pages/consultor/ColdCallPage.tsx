@@ -78,8 +78,22 @@ const ColdCallPage = () => {
         (lead.notes && lead.notes.toLowerCase().includes(lowerCaseSearchTerm))
       );
     }
-    return currentLeads.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
-  }, [coldCallLeads, user, filterStage, searchTerm]);
+
+    // Adicionar o último resultado da ligação e a data ao objeto do lead
+    const leadsWithLastCallInfo = currentLeads.map(lead => {
+      const lastLog = coldCallLogs
+        .filter(log => log.cold_call_lead_id === lead.id)
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+      
+      return {
+        ...lead,
+        lastCallResult: lastLog ? lastLog.result : 'N/A',
+        lastCallDate: lastLog ? new Date(lastLog.created_at).toLocaleDateString('pt-BR') : 'N/A',
+      };
+    });
+
+    return leadsWithLastCallInfo.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+  }, [coldCallLeads, coldCallLogs, user, filterStage, searchTerm]);
 
   const metrics = useMemo(() => {
     if (!user) return { totalCalls: 0, totalConversations: 0, totalMeetingsScheduled: 0, conversationToMeetingRate: 0 };
@@ -117,7 +131,7 @@ const ColdCallPage = () => {
       };
       if (editingLead) {
         await updateColdCallLead(editingLead.id, leadData);
-        toast.success("Lead de Cold Call atualizado!");
+        toast.success("Prospect de Cold Call atualizado!");
       } else {
         await addColdCallLead(leadData);
         toast.success("Novo Lead de Cold Call adicionado!");
@@ -234,6 +248,7 @@ const ColdCallPage = () => {
                 <th className="px-6 py-3">Nome</th>
                 <th className="px-6 py-3">Contato</th>
                 <th className="px-6 py-3">Etapa Atual</th>
+                <th className="px-6 py-3">Último Resultado</th> {/* NOVO: Coluna para o último resultado */}
                 <th className="px-6 py-3">Última Atualização</th>
                 <th className="px-6 py-3 text-right">Ações</th>
               </tr>
@@ -241,7 +256,7 @@ const ColdCallPage = () => {
             <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
               {filteredLeads.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-gray-400">
+                  <td colSpan={6} className="px-6 py-12 text-center text-gray-400">
                     Nenhum prospect de Cold Call encontrado.
                   </td>
                 </tr>
@@ -270,6 +285,12 @@ const ColdCallPage = () => {
                       }`}>
                         {lead.current_stage}
                       </span>
+                    </td>
+                    <td className="px-6 py-4"> {/* NOVO: Célula para o último resultado */}
+                      <div className="flex flex-col">
+                        <span className="font-medium text-gray-900 dark:text-white">{lead.lastCallResult}</span>
+                        <span className="text-xs text-gray-500 dark:text-gray-400">{lead.lastCallDate}</span>
+                      </div>
                     </td>
                     <td className="px-6 py-4">{new Date(lead.updated_at).toLocaleDateString('pt-BR')}</td>
                     <td className="px-6 py-4 text-right">
