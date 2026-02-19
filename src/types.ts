@@ -676,3 +676,12 @@ export interface AppContextType {
   getColdCallMetrics: (consultantId: string) => { totalCalls: number; totalConversations: number; totalMeetingsScheduled: number; conversationToMeetingRate: number; }; // NOVO
   createCrmLeadFromColdCall: (coldCallLeadId: string) => Promise<{ crmLeadId: string }>; // NOVO
 }
+
+export interface ColdCallMetrics { // NOVO: Interface para as métricas de Cold Call
+  totalCalls: number;
+  totalConversations: number;
+  totalMeetingsScheduled: number;
+  conversationToMeetingRate: number;
+}
+
+export type ColdCallDetailType = 'all' | 'calls' | 'conversations' | 'meetings'; // NOVO: Tipo para o modal de detalhes

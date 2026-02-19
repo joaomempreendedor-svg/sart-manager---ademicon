@@ -2,8 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { ChevronRight, User, Calendar, CheckCircle2, TrendingUp, AlertCircle, Clock, Users, Star, CheckSquare, XCircle, BellRing, UserRound, Plus, ListTodo, Send, DollarSign, Repeat, Filter, RotateCcw, CalendarPlus, Mail, Phone, ClipboardCheck, UserPlus, UserCheck, PieChart, MessageSquare, UserX, UserMinus, Ghost, MapPin, BarChart3, FileText, Percent, HelpCircle } from 'lucide-react'; // Adicionado HelpCircle
-import { CandidateStatus, ChecklistTaskState, GestorTask, LeadTask, CrmLead, Candidate } from '@/types';
+import { ChevronRight, User, Calendar, CheckCircle2, TrendingUp, AlertCircle, Clock, Users, Star, CheckSquare, XCircle, BellRing, UserRound, Plus, ListTodo, Send, DollarSign, Repeat, Filter, RotateCcw, CalendarPlus, Mail, Phone, ClipboardCheck, UserPlus, UserCheck, PieChart, MessageSquare, UserX, UserMinus, Ghost, MapPin, BarChart3, FileText, Percent, HelpCircle, PhoneCall } from 'lucide-react'; // Adicionado PhoneCall
+import { CandidateStatus, ChecklistTaskState, GestorTask, LeadTask, CrmLead, Candidate, ColdCallLead, ColdCallLog, ColdCallDetailType } from '@/types'; // Adicionado ColdCallLead, ColdCallLog, ColdCallDetailType
 import { TableSkeleton } from '@/components/TableSkeleton';
 import { ScheduleInterviewModal } from '@/components/ScheduleInterviewModal';
 import { PendingLeadTasksModal } from '@/components/gestor/PendingLeadTasksModal';
@@ -12,9 +12,17 @@ import { NotificationBell } from '@/components/NotificationBell';
 import { NotificationCenter } from '@/components/NotificationCenter';
 import { LeadsDetailModal } from '@/components/gestor/LeadsDetailModal';
 import { CandidatesDetailModal } from '@/components/gestor/CandidatesDetailModal'; // Importar o novo modal
+import { ColdCallDetailModal } from '@/components/gestor/ColdCallDetailModal'; // NOVO: Importar o modal de detalhes de Cold Call
 import { formatLargeCurrency } from '@/utils/currencyUtils';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -66,7 +74,7 @@ const MetricCard = ({ title, value, icon: Icon, colorClass, subValue, onClick }:
 
 export const Dashboard = () => {
   const { user } = useAuth();
-  const { candidates, checklistStructure, teamMembers, isDataLoading, leadTasks, crmLeads, crmStages, gestorTasks, gestorTaskCompletions, isGestorTaskDueOnDate, notifications, hiringOrigins } = useApp();
+  const { candidates, checklistStructure, teamMembers, isDataLoading, leadTasks, crmLeads, crmStages, gestorTasks, gestorTaskCompletions, isGestorTaskDueOnDate, notifications, hiringOrigins, coldCallLeads, coldCallLogs, getColdCallMetrics } = useApp(); // Adicionado coldCallLeads, coldCallLogs, getColdCallMetrics
   const navigate = useNavigate();
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [isPendingTasksModalOpen, setIsPendingTasksModalOpen] = useState(false);
@@ -82,6 +90,14 @@ export const Dashboard = () => {
   const [candidatesForModal, setCandidatesForModal] = useState<Candidate[]>([]); // NOVO: Lista de candidatos para o modal
   const [candidatesMetricType, setCandidatesMetricType] = useState<'total' | 'newCandidates' | 'contacted' | 'scheduled' | 'conducted' | 'awaitingPreview' | 'hired' | 'noShow' | 'withdrawn' | 'disqualified' | 'noResponse'>('total'); // NOVO: Tipo de métrica para o modal de candidatos, adicionado 'noResponse'
 
+  // NOVO: Estados para o modal de detalhes de Cold Call
+  const [isColdCallDetailModalOpen, setIsColdCallDetailModalOpen] = useState(false);
+  const [coldCallModalTitle, setColdCallModalTitle] = useState('');
+  const [coldCallLeadsForModal, setColdCallLeadsForModal] = useState<ColdCallLead[]>([]);
+  const [coldCallLogsForModal, setColdCallLogsForModal] = useState<ColdCallLog[]>([]);
+  const [coldCallDetailType, setColdCallDetailType] = useState<ColdCallDetailType>('all');
+  const [selectedColdCallConsultantName, setSelectedColdCallConsultantName] = useState<string>('');
+  const [selectedColdCallConsultantId, setSelectedColdCallConsultantId] = useState<string | null>(null); // NOVO: Filtro de consultor para Cold Call
 
   const handleOpenNotifications = () => setIsNotificationCenterOpen(true);
   const handleCloseNotifications = () => setIsNotificationCenterOpen(false);
@@ -236,6 +252,25 @@ export const Dashboard = () => {
     };
   }, [candidates, hiringOrigins]);
 
+  // --- Métricas de Cold Call (Mês Atual) ---
+  const coldCallMetrics = useMemo(() => {
+    if (!user) return { totalCalls: 0, totalConversations: 0, totalMeetingsScheduled: 0, conversationToMeetingRate: 0 };
+
+    const targetConsultantId = selectedColdCallConsultantId || user.id; // Se nenhum consultor for selecionado, usa o ID do gestor logado (para ver as próprias métricas se ele também for consultor)
+    
+    // Se o gestor não for consultor e não houver consultor selecionado, não mostra métricas
+    const isUserConsultant = teamMembers.some(m => m.authUserId === user.id && (m.roles.includes('CONSULTOR') || m.roles.includes('PRÉVIA') || m.roles.includes('AUTORIZADO')));
+    if (!selectedColdCallConsultantId && !isUserConsultant) {
+      return { totalCalls: 0, totalConversations: 0, totalMeetingsScheduled: 0, conversationToMeetingRate: 0 };
+    }
+
+    return getColdCallMetrics(targetConsultantId);
+  }, [user, selectedColdCallConsultantId, getColdCallMetrics, teamMembers]);
+
+  const coldCallConsultants = useMemo(() => {
+    return teamMembers.filter(m => m.isActive && (m.roles.includes('CONSULTOR') || m.roles.includes('PRÉVIA') || m.roles.includes('AUTORIZADO')));
+  }, [teamMembers]);
+
   // --- Agenda do Dia ---
   const { todayAgenda, overdueTasks } = useMemo(() => {
     const todayStr = new Date().toISOString().split('T')[0];
@@ -290,6 +325,23 @@ export const Dashboard = () => {
     setCandidatesForModal(candidates);
     setCandidatesMetricType(metricType);
     setIsCandidatesDetailModalOpen(true);
+  };
+
+  // NOVO: Handler para abrir o modal de detalhes de Cold Call
+  const handleOpenColdCallDetailModal = (title: string, type: ColdCallDetailType) => {
+    if (!selectedColdCallConsultantId) {
+      toast.error("Selecione um consultor para ver os detalhes de Cold Call.");
+      return;
+    }
+    const consultantLeadsFiltered = coldCallLeads.filter(l => l.user_id === selectedColdCallConsultantId);
+    const consultantLogsFiltered = coldCallLogs.filter(l => l.user_id === selectedColdCallConsultantId);
+
+    setColdCallModalTitle(title);
+    setColdCallLeadsForModal(consultantLeadsFiltered);
+    setColdCallLogsForModal(consultantLogsFiltered);
+    setColdCallDetailType(type);
+    setSelectedColdCallConsultantName(teamMembers.find(m => m.authUserId === selectedColdCallConsultantId)?.name || 'Consultor Desconhecido');
+    setIsColdCallDetailModalOpen(true);
   };
 
   if (isDataLoading) return <div className="flex items-center justify-center h-screen"><Loader2 className="w-12 h-12 text-brand-500 animate-spin" /></div>;
@@ -356,7 +408,65 @@ export const Dashboard = () => {
         </div>
       </section>
 
-      {/* 2. Dashboard de Contratação */}
+      {/* NOVO: 2. Métricas de Cold Call */}
+      <section className="animate-fade-in">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center">
+            <PhoneCall className="w-5 h-5 mr-2 text-brand-500" /> Métricas de Cold Call
+          </h2>
+          <div className="flex items-center space-x-2">
+            <label htmlFor="coldCallConsultant" className="text-sm font-medium text-gray-700 dark:text-gray-300">Consultor:</label>
+            <Select
+              value={selectedColdCallConsultantId || ''}
+              onValueChange={(value) => setSelectedColdCallConsultantId(value === '' ? null : value)}
+            >
+              <SelectTrigger className="w-[180px] dark:bg-slate-700 dark:text-white dark:border-slate-600">
+                <SelectValue placeholder="Selecione o Consultor" />
+              </SelectTrigger>
+              <SelectContent className="bg-white text-gray-900 dark:bg-slate-800 dark:text-white dark:border-slate-700">
+                <SelectItem value="">Selecione...</SelectItem>
+                {coldCallConsultants.map(consultant => (
+                  <SelectItem key={consultant.id} value={consultant.authUserId || consultant.id}>
+                    {consultant.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <MetricCard 
+            title="Total de Ligações" 
+            value={coldCallMetrics.totalCalls} 
+            icon={PhoneCall} 
+            colorClass="bg-blue-600 text-white" 
+            onClick={() => handleOpenColdCallDetailModal('Total de Ligações', 'calls')}
+          />
+          <MetricCard 
+            title="Total de Conversas" 
+            value={coldCallMetrics.totalConversations} 
+            icon={MessageSquare} 
+            colorClass="bg-purple-600 text-white" 
+            onClick={() => handleOpenColdCallDetailModal('Total de Conversas', 'conversations')}
+          />
+          <MetricCard 
+            title="Reuniões Agendadas" 
+            value={coldCallMetrics.totalMeetingsScheduled} 
+            icon={CalendarCheck} 
+            colorClass="bg-green-600 text-white" 
+            onClick={() => handleOpenColdCallDetailModal('Reuniões Agendadas', 'meetings')}
+          />
+          <MetricCard 
+            title="Taxa Conversa → Reunião" 
+            value={`${coldCallMetrics.conversationToMeetingRate.toFixed(1)}%`} 
+            icon={Percent} 
+            colorClass="bg-yellow-600 text-white" 
+            subValue="Efetividade da Conversão"
+          />
+        </div>
+      </section>
+
+      {/* 3. Dashboard de Contratação */}
       <section className="animate-fade-in">
         <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center">
           <PieChart className="w-5 h-5 mr-2 text-brand-500" /> Dashboard de Candidaturas (Mês Atual)
@@ -457,7 +567,7 @@ export const Dashboard = () => {
         </div>
       </section>
 
-      {/* 3. Agenda do Dia */}
+      {/* 4. Agenda do Dia */}
       <section className="animate-fade-in">
         <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center">
           <Calendar className="w-5 h-5 mr-2 text-brand-500" /> Agenda do Dia
@@ -520,6 +630,17 @@ export const Dashboard = () => {
         candidates={candidatesForModal} 
         teamMembers={teamMembers} 
         metricType={candidatesMetricType} 
+      />
+      {/* NOVO: Modal de Detalhes de Cold Call */}
+      <ColdCallDetailModal
+        isOpen={isColdCallDetailModalOpen}
+        onClose={() => setIsColdCallDetailModalOpen(false)}
+        title={coldCallModalTitle}
+        consultantName={selectedColdCallConsultantName}
+        leads={coldCallLeadsForModal}
+        logs={coldCallLogsForModal}
+        type={coldCallDetailType}
+        teamMembers={teamMembers}
       />
     </div>
   );
