@@ -444,7 +444,7 @@ export const Dashboard = () => {
             </Select>
           </div>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-4">
           <MetricCard
             title="Total de Ligações"
             value={coldCallMetrics.totalCalls}
