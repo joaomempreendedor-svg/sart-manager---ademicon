@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { PhoneCall, MessageSquare, CalendarCheck, BarChart3, Percent, Loader2, Users, Filter, RotateCcw, CalendarDays } from 'lucide-react';
+import { PhoneCall, MessageSquare, CalendarCheck, BarChart3, Percent, Loader2, Users, Filter, RotateCcw, CalendarDays, UserPlus, ArrowUpRight, Clock } from 'lucide-react'; // Adicionado UserPlus, ArrowUpRight, Clock
 import { ColdCallDetailModal } from '@/components/gestor/ColdCallDetailModal';
 import { ColdCallLead, ColdCallLog, ColdCallDetailType } from '@/types';
 import toast from 'react-hot-toast';
@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { MetricCard } from '@/components/MetricCard'; // Importar MetricCard
+import { MetricCard } from '@/components/MetricCard';
 
 const ColdCallMetricsPage = () => {
   const { user } = useAuth();
@@ -28,7 +28,6 @@ const ColdCallMetricsPage = () => {
   const [coldCallLogsForModal, setColdCallLogsForModal] = useState<ColdCallLog[]>([]);
   const [coldCallDetailType, setColdCallDetailType] = useState<ColdCallDetailType>('all');
   
-  // Derive selectedColdCallConsultantName using useMemo
   const selectedColdCallConsultantName = useMemo(() => {
     if (!selectedColdCallConsultantId) {
       return 'Todos os Consultores';
@@ -57,30 +56,55 @@ const ColdCallMetricsPage = () => {
     return logs;
   }, [coldCallLogs, selectedColdCallConsultantId, filterStartDate, filterEndDate]);
 
+  const filteredColdCallLeadsForMetrics = useMemo(() => {
+    let leads = coldCallLeads;
+    if (selectedColdCallConsultantId) {
+      leads = leads.filter(lead => lead.user_id === selectedColdCallConsultantId);
+    }
+    if (filterStartDate) {
+      const start = new Date(filterStartDate + 'T00:00:00');
+      leads = leads.filter(lead => new Date(lead.created_at) >= start);
+    }
+    if (filterEndDate) {
+      const end = new Date(filterEndDate + 'T23:59:59');
+      leads = leads.filter(lead => new Date(lead.created_at) <= end);
+    }
+    return leads;
+  }, [coldCallLeads, selectedColdCallConsultantId, filterStartDate, filterEndDate]);
+
   const coldCallMetrics = useMemo(() => {
     const totalCalls = filteredColdCallLogs.length;
     const totalConversations = filteredColdCallLogs.filter(log => log.result === 'Conversou' || log.result === 'Agendar Reunião').length;
     const totalMeetingsScheduled = filteredColdCallLogs.filter(log => log.result === 'Agendar Reunião').length;
-    
+    const totalDurationSeconds = filteredColdCallLogs.reduce((sum, log) => sum + log.duration_seconds, 0);
+
     const conversationToMeetingRate = totalConversations > 0 ? (totalMeetingsScheduled / totalConversations) * 100 : 0;
+    const averageCallDuration = totalCalls > 0 ? totalDurationSeconds / totalCalls : 0;
+
+    const totalLeadsAdded = filteredColdCallLeadsForMetrics.length;
+    const leadsConvertedToCrm = filteredColdCallLeadsForMetrics.filter(lead => lead.crm_lead_id).length;
+    const conversionRateToCrm = totalLeadsAdded > 0 ? (leadsConvertedToCrm / totalLeadsAdded) * 100 : 0;
 
     return {
       totalCalls,
       totalConversations,
       totalMeetingsScheduled,
       conversationToMeetingRate,
+      totalLeadsAdded,
+      leadsConvertedToCrm,
+      conversionRateToCrm,
+      averageCallDuration,
     };
-  }, [filteredColdCallLogs]);
+  }, [filteredColdCallLogs, filteredColdCallLeadsForMetrics]);
 
   const handleOpenColdCallDetailModal = (title: string, type: ColdCallDetailType) => {
-    // Leads para o modal: todos os leads de cold call do consultor selecionado (ou todos se nenhum selecionado)
     const leadsToPass = selectedColdCallConsultantId 
       ? coldCallLeads.filter(l => l.user_id === selectedColdCallConsultantId)
       : coldCallLeads; 
 
     setColdCallModalTitle(title);
     setColdCallLeadsForModal(leadsToPass);
-    setColdCallLogsForModal(filteredColdCallLogs); // Passar logs já filtrados
+    setColdCallLogsForModal(filteredColdCallLogs);
     setColdCallDetailType(type);
     setIsColdCallDetailModalOpen(true);
   };
@@ -162,7 +186,7 @@ const ColdCallMetricsPage = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         <MetricCard 
           title="Total de Ligações" 
           value={coldCallMetrics.totalCalls} 
@@ -190,6 +214,33 @@ const ColdCallMetricsPage = () => {
           icon={Percent} 
           colorClass="bg-yellow-600 text-white" 
           subValue="Efetividade da Conversão"
+        />
+        <MetricCard 
+          title="Prospects Adicionados" 
+          value={coldCallMetrics.totalLeadsAdded} 
+          icon={UserPlus} 
+          colorClass="bg-indigo-600 text-white" 
+          onClick={() => handleOpenColdCallDetailModal('Prospects Adicionados', 'all')}
+        />
+        <MetricCard 
+          title="Convertidos para CRM" 
+          value={coldCallMetrics.leadsConvertedToCrm} 
+          icon={TrendingUp} 
+          colorClass="bg-teal-600 text-white" 
+          onClick={() => handleOpenColdCallDetailModal('Convertidos para CRM', 'all')}
+        />
+        <MetricCard 
+          title="Taxa Conversão para CRM" 
+          value={`${coldCallMetrics.conversionRateToCrm.toFixed(1)}%`} 
+          icon={ArrowUpRight} 
+          colorClass="bg-orange-600 text-white" 
+          subValue="Cold Call para CRM"
+        />
+        <MetricCard 
+          title="Duração Média da Ligação" 
+          value={`${Math.round(coldCallMetrics.averageCallDuration / 60)}m ${Math.round(coldCallMetrics.averageCallDuration % 60)}s`} 
+          icon={Clock} 
+          colorClass="bg-slate-800 text-white dark:bg-slate-700" 
         />
       </div>
 
