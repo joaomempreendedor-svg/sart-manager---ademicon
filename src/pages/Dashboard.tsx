@@ -396,13 +396,6 @@ export const Dashboard = () => {
             colorClass="bg-teal-600 text-white"
             onClick={() => handleOpenLeadsDetailModal('Vendas do Mês', commercialMetrics?.leadsSold || [], 'sold')}
           />
-          <MetricCard
-            title="Pendências"
-            value={commercialMetrics?.pendingTasks.length}
-            icon={ListTodo}
-            colorClass="bg-red-600 text-white"
-            onClick={() => setIsPendingTasksModalOpen(true)}
-          />
         </div>
       </section>
 
