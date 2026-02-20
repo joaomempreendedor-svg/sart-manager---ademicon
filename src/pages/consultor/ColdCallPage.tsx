@@ -87,7 +87,7 @@ const ColdCallPage = () => {
   }, [user, coldCallLogs, filterStartDate, filterEndDate]);
 
   const filteredColdCallLeadsForMetrics = useMemo(() => {
-    let leads = coldCallLeads.filter(lead => lead.user.id === user?.id);
+    let leads = coldCallLeads.filter(lead => lead.user_id === user?.id); // CORRIGIDO: lead.user_id
     if (filterStartDate) {
       const start = new Date(filterStartDate + 'T00:00:00');
       leads = leads.filter(lead => new Date(lead.created_at) >= start);

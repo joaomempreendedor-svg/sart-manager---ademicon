@@ -1341,22 +1341,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addCandidate, updateCandidate, deleteCandidate, getCandidate: (id: string) => candidates.find(c => c.id === id), 
     setCandidates,
     toggleChecklistItem, // Now directly referenced
-    setChecklistDueDate: async (candidateId, itemId, dueDate) => {
+    setChecklistDueDate: useCallback(async (candidateId, itemId, dueDate) => {
       const candidate = candidates.find(c => c.id === candidateId);
       if (!candidate) return;
       const currentProgress = candidate.checklistProgress || {};
       const currentState = currentProgress[itemId] || { completed: false };
       const newProgress = { ...currentProgress, [itemId]: { ...currentState, dueDate } };
       await updateCandidate(candidateId, { checklistProgress: newProgress });
-    },
-    toggleConsultantGoal: async (candidateId, goalId) => {
+    }, [candidates, updateCandidate]),
+    toggleConsultantGoal: useCallback(async (candidateId, goalId) => {
       const candidate = candidates.find(c => c.id === candidateId);
       if (!candidate) return;
       const currentProgress = candidate.consultantGoalsProgress || {};
       const newProgress = { ...currentProgress, [goalId]: !currentProgress[goalId] };
       await updateCandidate(candidateId, { consultantGoalsProgress: newProgress });
-    },
-    addChecklistItem: (stageId, label, responsibleRole) => {
+    }, [candidates, updateCandidate]),
+    addChecklistItem: useCallback((stageId, label, responsibleRole) => {
       const newStructure = checklistStructure.map(stage => {
         if (stage.id === stageId) {
           return { ...stage, items: [...stage.items, { id: crypto.randomUUID(), label, responsibleRole }] };
@@ -1365,19 +1365,33 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       });
       setChecklistStructure(newStructure);
       updateConfig({ checklistStructure: newStructure });
-    },
-    updateChecklistItem: (stageId, itemId, updates, audioFile, imageFile) => {
-      const newStructure = checklistStructure.map(stage => {
-        if (stage.id === stageId) {
-          return { ...stage, items: stage.items.map(item => item.id === itemId ? { ...item, ...updates } : item) };
-        }
-        return stage;
-      });
-      setChecklistStructure(newStructure);
-      updateConfig({ checklistStructure: newStructure });
-      return Promise.resolve(updates as DailyChecklistItem); // Placeholder for actual DB update
-    },
-    deleteChecklistItem: (stageId, itemId) => {
+    }, [checklistStructure, updateConfig]),
+    updateChecklistItem: useCallback(async (id, updates, audioFile, imageFile) => {
+      const item = dailyChecklistItems.find(i => i.id === id);
+      if (!item) throw new Error("Checklist item not found");
+
+      let finalResource = updates.resource;
+      if (audioFile || imageFile) {
+        const uploadFile = async (file: File, prefix: string) => {
+          const sanitized = sanitizeFilename(file.name);
+          const path = `checklist_resources/${Date.now()}-${sanitized}`;
+          const { error: uploadError } = await supabase.storage.from('form_uploads').upload(path, file);
+          if (uploadError) throw uploadError;
+          return supabase.storage.from('form_uploads').getPublicUrl(path).data.publicUrl;
+        };
+        const audioUrl = audioFile ? await uploadFile(audioFile, 'audio') : (updates.resource?.type === 'text_audio' || updates.resource?.type === 'text_audio_image' ? (updates.resource.content as any).audioUrl : undefined);
+        const imageUrl = imageFile ? await uploadFile(imageFile, 'image') : (updates.resource?.type === 'text_audio_image' ? (updates.resource.content as any).imageUrl : undefined);
+        if (updates.resource?.type === 'text_audio') finalResource = { ...updates.resource, content: { ...(updates.resource.content as any), audioUrl } };
+        else if (updates.resource?.type === 'text_audio_image') finalResource = { ...updates.resource, content: { ...(updates.resource.content as any), audioUrl, imageUrl } };
+        else if (updates.resource?.type === 'image' || updates.resource?.type === 'pdf' || updates.resource?.type === 'audio' || updates.resource?.type === 'video' || updates.resource?.type === 'link' || updates.resource?.type === 'text') finalResource = { ...updates.resource, content: audioUrl || imageUrl || updates.resource.content };
+      }
+      
+      const { data, error } = await supabase.from('daily_checklist_items').update({ ...updates, resource: finalResource }).eq('id', id).select().single();
+      if (error) throw error;
+      setDailyChecklistItems(prev => prev.map(i => i.id === id ? data : i));
+      return data;
+    }, [dailyChecklistItems, updateConfig]),
+    deleteChecklistItem: useCallback((stageId, itemId) => {
       const newStructure = checklistStructure.map(stage => {
         if (stage.id === stageId) {
           return { ...stage, items: stage.items.filter(item => item.id !== itemId) };
@@ -1386,8 +1400,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       });
       setChecklistStructure(newStructure);
       updateConfig({ checklistStructure: newStructure });
-    },
-    moveChecklistItem: (stageId, itemId, direction) => {
+    }, [checklistStructure, updateConfig]),
+    moveChecklistItem: useCallback((stageId, itemId, direction) => {
       const newStructure = checklistStructure.map(stage => {
         if (stage.id === stageId) {
           const index = stage.items.findIndex(i => i.id === itemId);
@@ -1403,12 +1417,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       });
       setChecklistStructure(newStructure);
       updateConfig({ checklistStructure: newStructure });
-    },
-    resetChecklistToDefault: () => {
+    }, [checklistStructure, updateConfig]),
+    resetChecklistToDefault: useCallback(() => {
       setChecklistStructure(DEFAULT_STAGES);
       updateConfig({ checklistStructure: DEFAULT_STAGES });
-    },
-    addGoalItem: (stageId, label) => {
+    }, [updateConfig]),
+    addGoalItem: useCallback((stageId, label) => {
       const newStructure = consultantGoalsStructure.map(stage => {
         if (stage.id === stageId) {
           return { ...stage, items: [...stage.items, { id: crypto.randomUUID(), label }] };
@@ -1417,8 +1431,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       });
       setConsultantGoalsStructure(newStructure);
       updateConfig({ consultantGoalsStructure: newStructure });
-    },
-    updateGoalItem: (stageId, itemId, newLabel) => {
+    }, [consultantGoalsStructure, updateConfig]),
+    updateGoalItem: useCallback((stageId, itemId, newLabel) => {
       const newStructure = consultantGoalsStructure.map(stage => {
         if (stage.id === stageId) {
           return { ...stage, items: stage.items.map(item => item.id === itemId ? { ...item, label: newLabel } : item) };
@@ -1427,8 +1441,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       });
       setConsultantGoalsStructure(newStructure);
       updateConfig({ consultantGoalsStructure: newStructure });
-    },
-    deleteGoalItem: (stageId, itemId) => {
+    }, [consultantGoalsStructure, updateConfig]),
+    deleteGoalItem: useCallback((stageId, itemId) => {
       const newStructure = consultantGoalsStructure.map(stage => {
         if (stage.id === stageId) {
           return { ...stage, items: stage.items.filter(item => item.id !== itemId) };
@@ -1437,8 +1451,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       });
       setConsultantGoalsStructure(newStructure);
       updateConfig({ consultantGoalsStructure: newStructure });
-    },
-    moveGoalItem: (stageId, itemId, direction) => {
+    }, [consultantGoalsStructure, updateConfig]),
+    moveGoalItem: useCallback((stageId, itemId, direction) => {
       const newStructure = consultantGoalsStructure.map(stage => {
         if (stage.id === stageId) {
           const index = stage.items.findIndex(i => i.id === itemId);
@@ -1454,17 +1468,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       });
       setConsultantGoalsStructure(newStructure);
       updateConfig({ consultantGoalsStructure: newStructure });
-    },
-    resetGoalsToDefault: () => {
+    }, [consultantGoalsStructure, updateConfig]),
+    resetGoalsToDefault: useCallback(() => {
       setConsultantGoalsStructure(DEFAULT_GOALS);
       updateConfig({ consultantGoalsStructure: DEFAULT_GOALS });
-    },
-    updateInterviewSection: (sectionId, updates) => {
+    }, [updateConfig]),
+    updateInterviewSection: useCallback((sectionId, updates) => {
       const newStructure = interviewStructure.map(s => s.id === sectionId ? { ...s, ...updates } : s);
       setInterviewStructure(newStructure);
       updateConfig({ interviewStructure: newStructure });
-    },
-    addInterviewQuestion: (sectionId, text, points) => {
+    }, [interviewStructure, updateConfig]),
+    addInterviewQuestion: useCallback((sectionId, text, points) => {
       const newStructure = interviewStructure.map(s => {
         if (s.id === sectionId) {
           return { ...s, questions: [...s.questions, { id: crypto.randomUUID(), text, points }] };
@@ -1473,8 +1487,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       });
       setInterviewStructure(newStructure);
       updateConfig({ interviewStructure: newStructure });
-    },
-    updateInterviewQuestion: (sectionId, questionId, updates) => {
+    }, [interviewStructure, updateConfig]),
+    updateInterviewQuestion: useCallback((sectionId, questionId, updates) => {
       const newStructure = interviewStructure.map(s => {
         if (s.id === sectionId) {
           return { ...s, questions: s.questions.map(q => q.id === questionId ? { ...q, ...updates } : q) };
@@ -1483,8 +1497,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       });
       setInterviewStructure(newStructure);
       updateConfig({ interviewStructure: newStructure });
-    },
-    deleteInterviewQuestion: (sectionId, questionId) => {
+    }, [interviewStructure, updateConfig]),
+    deleteInterviewQuestion: useCallback((sectionId, questionId) => {
       const newStructure = interviewStructure.map(s => {
         if (s.id === sectionId) {
           return { ...s, questions: s.questions.filter(q => q.id !== questionId) };
@@ -1493,8 +1507,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       });
       setInterviewStructure(newStructure);
       updateConfig({ interviewStructure: newStructure });
-    },
-    moveInterviewQuestion: (sectionId, questionId, direction) => {
+    }, [interviewStructure, updateConfig]),
+    moveInterviewQuestion: useCallback((sectionId, questionId, direction) => {
       const newStructure = interviewStructure.map(s => {
         if (s.id === sectionId) {
           const index = s.questions.findIndex(i => i.id === questionId);
@@ -1510,17 +1524,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       });
       setInterviewStructure(newStructure);
       updateConfig({ interviewStructure: newStructure });
-    },
-    resetInterviewToDefault: () => {
+    }, [interviewStructure, updateConfig]),
+    resetInterviewToDefault: useCallback(() => {
       setInterviewStructure(INITIAL_INTERVIEW_STRUCTURE);
       updateConfig({ interviewStructure: INITIAL_INTERVIEW_STRUCTURE });
-    },
-    saveTemplate: (itemId, updates) => {
+    }, [updateConfig]),
+    saveTemplate: useCallback((itemId, updates) => {
       const newTemplates = { ...templates, [itemId]: { ...templates[itemId], ...updates } };
       setTemplates(newTemplates);
       updateConfig({ templates: newTemplates });
-    },
-    addOrigin: (newOrigin, type) => {
+    }, [templates, updateConfig]),
+    addOrigin: useCallback((newOrigin, type) => {
       if (type === 'sales') {
         const newOrigins = [...salesOrigins, newOrigin];
         setSalesOrigins(newOrigins);
@@ -1530,8 +1544,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setHiringOrigins(newOrigins);
         updateConfig({ hiringOrigins: newOrigins });
       }
-    },
-    deleteOrigin: (originToDelete, type) => {
+    }, [salesOrigins, hiringOrigins, updateConfig]),
+    deleteOrigin: useCallback((originToDelete, type) => {
       if (type === 'sales') {
         const newOrigins = salesOrigins.filter(o => o !== originToDelete);
         setSalesOrigins(newOrigins);
@@ -1541,19 +1555,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setHiringOrigins(newOrigins);
         updateConfig({ hiringOrigins: newOrigins });
       }
-    },
-    resetOriginsToDefault: () => {
+    }, [salesOrigins, hiringOrigins, updateConfig]),
+    resetOriginsToDefault: useCallback(() => {
       console.log("[AppContext] Executing resetOriginsToDefault. Setting local state and calling updateConfig.");
       setSalesOrigins(DEFAULT_APP_CONFIG_DATA.salesOrigins);
       setHiringOrigins(DEFAULT_APP_CONFIG_DATA.hiringOrigins);
       updateConfig({ salesOrigins: DEFAULT_APP_CONFIG_DATA.salesOrigins, hiringOrigins: DEFAULT_APP_CONFIG_DATA.hiringOrigins });
-    },
-    addPV: (newPV) => {
+    }, [updateConfig]),
+    addPV: useCallback((newPV) => {
       const newPvs = [...pvs, newPV];
       setPvs(newPvs);
       updateConfig({ pvs: newPvs });
-    },
-    addCommission: async (commission) => { 
+    }, [pvs, updateConfig]),
+    addCommission: useCallback(async (commission) => { 
       console.log("[addCommission] Attempting to insert new commission:", commission);
       const { data, error } = await supabase.from('commissions').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: commission }).select().single(); 
       if (error) {
@@ -1563,8 +1577,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       console.log("[addCommission] Commission inserted successfully. Refetching all commissions.");
       refetchCommissions(); 
       return { success: true }; 
-    },
-    updateCommission: async (dbId: string, updates: Partial<Commission>) => {
+    }, [refetchCommissions]),
+    updateCommission: useCallback(async (dbId: string, updates: Partial<Commission>) => {
       console.log(`[updateCommission] Attempting to update commission DB ID: ${dbId} with updates:`, updates);
       
       // Find the existing commission in the local state to merge updates with its current 'data' JSONB content
@@ -1592,8 +1606,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
       console.log(`[updateCommission] Commission DB ID: ${dbId} updated successfully. Refetching all commissions.`);
       refetchCommissions(); 
-    },
-    deleteCommission: async (id) => { 
+    }, [commissions, refetchCommissions]),
+    deleteCommission: useCallback(async (id) => { 
       console.log(`[deleteCommission] Attempting to delete commission ID: ${id}`);
       const { error } = await supabase.from('commissions').delete().eq('id', id); 
       if (error) {
@@ -1602,8 +1616,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
       console.log(`[deleteCommission] Commission ID: ${id} deleted successfully. Refetching all commissions.`);
       refetchCommissions(); 
-    },
-    updateInstallmentStatus: async (commissionId, installmentNumber, newStatus, paidDate, saleType) => {
+    }, [refetchCommissions]),
+    updateInstallmentStatus: useCallback(async (commissionId, installmentNumber, newStatus, paidDate, saleType) => {
       console.log(`[updateInstallmentStatus] Called for commissionId: ${commissionId}, installmentNumber: ${installmentNumber}, newStatus: ${newStatus}, paidDate: ${paidDate}`);
       const commission = commissions.find(c => c.id === commissionId);
       if (!commission) {
@@ -1623,11 +1637,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         console.error(`[updateInstallmentStatus] Error calling value.updateCommission for ${commissionId}:`, error);
         throw error;
       }
-    },
-    addCutoffPeriod: async (period) => { const { error } = await supabase.from('cutoff_periods').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: period }).select().single(); if (error) throw error; const { data } = await supabase.from('cutoff_periods').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID); setCutoffPeriods(data?.map(item => ({ ...(item.data as CutoffPeriod), db_id: item.id })) || []); },
-    updateCutoffPeriod: async (id, updates) => { const { error } = await supabase.from('cutoff_periods').update({ data: updates }).eq('id', id).select().single(); if (error) throw error; const { data } = await supabase.from('cutoff_periods').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID); setCutoffPeriods(data?.map(item => ({ ...(item.data as CutoffPeriod), db_id: item.id })) || []); },
-    deleteCutoffPeriod: async (id) => { const { error } = await supabase.from('cutoff_periods').delete().eq('id', id); if (error) throw error; setCutoffPeriods(prev => prev.filter(p => p.db_id !== id)); },
-    addOnlineOnboardingSession: async (consultantName) => {
+    }, [commissions, calculateCompetenceMonth, value]),
+    addCutoffPeriod: useCallback(async (period) => { const { error } = await supabase.from('cutoff_periods').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: period }).select().single(); if (error) throw error; const { data } = await supabase.from('cutoff_periods').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID); setCutoffPeriods(data?.map(item => ({ ...(item.data as CutoffPeriod), db_id: item.id })) || []); }, []),
+    updateCutoffPeriod: useCallback(async (id, updates) => { const { error } = await supabase.from('cutoff_periods').update({ data: updates }).eq('id', id).select().single(); if (error) throw error; const { data } = await supabase.from('cutoff_periods').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID); setCutoffPeriods(data?.map(item => ({ ...(item.data as CutoffPeriod), db_id: item.id })) || []); }, []),
+    deleteCutoffPeriod: useCallback(async (id) => { const { error } = await supabase.from('cutoff_periods').delete().eq('id', id); if (error) throw error; setCutoffPeriods(prev => prev.filter(p => p.db_id !== id)); }, []),
+    addOnlineOnboardingSession: useCallback(async (consultantName) => {
       const { data: sessionData, error: sessionError } = await supabase.from('onboarding_sessions').insert({ user_id: JOAO_GESTOR_AUTH_ID, consultant_name: consultantName }).select().single();
       if (sessionError) throw sessionError;
       const videosToInsert = onboardingTemplateVideos.map(v => ({ session_id: sessionData.id, title: v.title, video_url: v.video_url, order: v.order }));
@@ -1635,37 +1649,37 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (videosError) throw videosError;
       const { data: fullSession } = await supabase.from('onboarding_sessions').select('*, videos:onboarding_videos(*)').eq('id', sessionData.id).single();
       setOnboardingSessions(prev => [...prev, fullSession]);
-    },
-    deleteOnlineOnboardingSession: async (sessionId) => {
+    }, [onboardingTemplateVideos]),
+    deleteOnlineOnboardingSession: useCallback(async (sessionId) => {
       const { error } = await supabase.from('onboarding_sessions').delete().eq('id', sessionId);
       if (error) throw error;
       setOnboardingSessions(prev => prev.filter(s => s.id !== sessionId));
-    },
-    addVideoToTemplate: async (title, video_url) => {
+    }, []),
+    addVideoToTemplate: useCallback(async (title, video_url) => {
       const order = onboardingTemplateVideos.length > 0 ? Math.max(...onboardingTemplateVideos.map(v => v.order)) + 1 : 0;
       const { data, error } = await supabase.from('onboarding_video_templates').insert({ user_id: JOAO_GESTOR_AUTH_ID, title, video_url, order }).select().single();
       if (error) throw error;
       setOnboardingTemplateVideos(prev => [...prev, data]);
-    },
-    deleteVideoFromTemplate: async (videoId) => {
+    }, [onboardingTemplateVideos]),
+    deleteVideoFromTemplate: useCallback(async (videoId) => {
       const { error } = await supabase.from('onboarding_video_templates').delete().eq('id', videoId);
       if (error) throw error;
       setOnboardingTemplateVideos(prev => prev.filter(v => v.id !== videoId));
-    },
-    addCrmPipeline: async (name) => { const { data, error } = await supabase.from('crm_pipelines').insert({ user_id: JOAO_GESTOR_AUTH_ID, name }).select().single(); if (error) throw error; setCrmPipelines(prev => [...prev, data]); return data; },
-    updateCrmPipeline: async (id, updates) => { const { data, error } = await supabase.from('crm_pipelines').update(updates).eq('id', id).select().single(); if (error) throw error; setCrmPipelines(prev => prev.map(p => p.id === id ? data : p)); return data; },
-    deleteCrmPipeline: async (id) => { const { error } = await supabase.from('crm_pipelines').delete().eq('id', id); if (error) throw error; setCrmPipelines(prev => prev.filter(p => p.id !== id)); },
-    addCrmStage: async (stage) => { const { data, error } = await supabase.from('crm_stages').insert({ ...stage, user_id: JOAO_GESTOR_AUTH_ID }).select().single(); if (error) throw error; setCrmStages(prev => [...prev, data]); return data; },
-    updateCrmStage: async (id, updates) => { const { data, error } = await supabase.from('crm_stages').update(updates).eq('id', id).select().single(); if (error) throw error; setCrmStages(prev => prev.map(s => s.id === id ? data : s)); return data; },
-    updateCrmStageOrder: async (orderedStages) => {
+    }, []),
+    addCrmPipeline: useCallback(async (name) => { const { data, error } = await supabase.from('crm_pipelines').insert({ user_id: JOAO_GESTOR_AUTH_ID, name }).select().single(); if (error) throw error; setCrmPipelines(prev => [...prev, data]); return data; }, []),
+    updateCrmPipeline: useCallback(async (id, updates) => { const { data, error } = await supabase.from('crm_pipelines').update(updates).eq('id', id).select().single(); if (error) throw error; setCrmPipelines(prev => prev.map(p => p.id === id ? data : p)); return data; }, []),
+    deleteCrmPipeline: useCallback(async (id) => { const { error } = await supabase.from('crm_pipelines').delete().eq('id', id); if (error) throw error; setCrmPipelines(prev => prev.filter(p => p.id !== id)); }, []),
+    addCrmStage: useCallback(async (stage) => { const { data, error } = await supabase.from('crm_stages').insert({ ...stage, user_id: JOAO_GESTOR_AUTH_ID }).select().single(); if (error) throw error; setCrmStages(prev => [...prev, data]); return data; }, []),
+    updateCrmStage: useCallback(async (id, updates) => { const { data, error } = await supabase.from('crm_stages').update(updates).eq('id', id).select().single(); if (error) throw error; setCrmStages(prev => prev.map(s => s.id === id ? data : s)); return data; }, []),
+    updateCrmStageOrder: useCallback(async (orderedStages) => {
       const updates = orderedStages.map((stage, index) => supabase.from('crm_stages').update({ order_index: index }).eq('id', stage.id));
       await Promise.all(updates);
       const { data } = await supabase.from('crm_stages').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID).order('order_index');
       setCrmStages(data || []);
-    },
-    deleteCrmStage: async (id) => { const { error } = await supabase.from('crm_stages').delete().eq('id', id); if (error) throw error; setCrmStages(prev => prev.filter(s => s.id !== id)); },
-    addCrmField: async (field) => { const { data, error } = await supabase.from('crm_fields').insert({ ...field, user_id: JOAO_GESTOR_AUTH_ID }).select().single(); if (error) throw error; setCrmFields(prev => [...prev, data]); return data; },
-    updateCrmField: async (id, updates) => { const { data, error } = await supabase.from('crm_fields').update(updates).eq('id', id).select().single(); if (error) throw error; setCrmFields(prev => prev.map(f => f.id === id ? data : f)); return data; },
+    }, []),
+    deleteCrmStage: useCallback(async (id) => { const { error } = await supabase.from('crm_stages').delete().eq('id', id); if (error) throw error; setCrmStages(prev => prev.filter(s => s.id !== id)); }, []),
+    addCrmField: useCallback(async (field) => { const { data, error } = await supabase.from('crm_fields').insert({ ...field, user_id: JOAO_GESTOR_AUTH_ID }).select().single(); if (error) throw error; setCrmFields(prev => [...prev, data]); return data; }, []),
+    updateCrmField: useCallback(async (id, updates) => { const { data, error } = await supabase.from('crm_fields').update(updates).eq('id', id).select().single(); if (error) throw error; setCrmFields(prev => prev.map(f => f.id === id ? data : f)); return data; }, []),
     addCrmLead, updateCrmLead, deleteCrmLead,
     addDailyChecklist, updateDailyChecklist, deleteDailyChecklist,
     addDailyChecklistItem, updateDailyChecklistItem, deleteDailyChecklistItem, moveDailyChecklistItem,
@@ -1688,7 +1702,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addTeamMemberFeedback,
     updateTeamMemberFeedback,
     deleteTeamMemberFeedback,
-    addTeamMember: async (member) => {
+    addTeamMember: useCallback(async (member) => {
       const tempPassword = generateRandomPassword();
       const { data: authData, error: authError } = await supabase.functions.invoke('create-or-link-consultant', {
         body: { email: member.email, name: member.name, tempPassword, login: member.cpf, role: 'CONSULTOR' }
@@ -1699,12 +1713,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const newMember = { id: data.id, db_id: data.id, authUserId: authData.authUserId, name: member.name, email: member.email, roles: member.roles, isActive: member.isActive, cpf: member.cpf, dateOfBirth: member.dateOfBirth, user_id: data.user_id };
       setTeamMembers(prev => [...prev, newMember]);
       return { success: true, member: newMember, tempPassword, wasExistingUser: authData.userExists };
-    },
+    }, [setTeamMembers]),
     updateTeamMember,
-    deleteTeamMember: async (id) => { const member = teamMembers.find(m => m.id === id); if (!member) return; const { error } = await supabase.from('team_members').delete().eq('id', member.db_id); if (error) throw error; setTeamMembers(prev => prev.filter(m => m.id !== id)); },
-    addTeamProductionGoal: async (goal) => { const { data, error } = await supabase.from('team_production_goals').insert({ ...goal, user_id: JOAO_GESTOR_AUTH_ID }).select().single(); if (error) throw error; setTeamProductionGoals(prev => [data, ...prev]); return data; },
-    updateTeamProductionGoal: async (id, updates) => { const { data, error } = await supabase.from('team_production_goals').update(updates).eq('id', id).select().single(); if (error) throw error; setTeamProductionGoals(prev => prev.map(g => g.id === id ? data : g)); return data; },
-    deleteTeamProductionGoal: async (id) => { const { error } = await supabase.from('team_production_goals').delete().eq('id', id); if (error) throw error; setTeamProductionGoals(prev => prev.filter(g => g.id !== id)); },
+    deleteTeamMember: useCallback(async (id) => { const member = teamMembers.find(m => m.id === id); if (!member) return; const { error } = await supabase.from('team_members').delete().eq('id', member.db_id); if (error) throw error; setTeamMembers(prev => prev.filter(m => m.id !== id)); }, [teamMembers]),
+    addTeamProductionGoal: useCallback(async (goal) => { const { data, error } = await supabase.from('team_production_goals').insert({ ...goal, user_id: JOAO_GESTOR_AUTH_ID }).select().single(); if (error) throw error; setTeamProductionGoals(prev => [data, ...prev]); return data; }, []),
+    updateTeamProductionGoal: useCallback(async (id, updates) => { const { data, error } = await supabase.from('team_production_goals').update(updates).eq('id', id).select().single(); if (error) throw error; setTeamProductionGoals(prev => prev.map(g => g.id === id ? data : g)); return data; }, []),
+    deleteTeamProductionGoal: useCallback(async (id) => { const { error } = await supabase.from('team_production_goals').delete().eq('id', id); if (error) throw error; setTeamProductionGoals(prev => prev.filter(g => g.id !== id)); }, []),
     hasPendingSecretariaTasks, // Adicionado a nova função
     addColdCallLead, // NOVO
     updateColdCallLead, // NOVO
