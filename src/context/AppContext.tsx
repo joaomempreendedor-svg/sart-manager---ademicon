@@ -1664,37 +1664,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addTeamMemberFeedback,
     updateTeamMemberFeedback,
     deleteTeamMemberFeedback,
-    addTeamMember: useCallback(async (member: Omit<TeamMember, 'id'> & { email: string }) => {
-      const tempPassword = generateRandomPassword();
-      const { data: authData, error: authError } = await supabase.functions.invoke('create-or-link-consultant', {
-        body: { email: member.email, name: member.name, tempPassword, login: member.cpf, role: 'CONSULTOR' }
-      });
-      if (authError) throw authError;
-      const { data, error } = await supabase.from('team_members').insert({ user_id: JOAO_GESTOR_AUTH_ID, cpf: member.cpf, data: { ...member, id: authData.authUserId } }).select().single();
-      if (error) throw error;
-      const newMember = { id: data.id, db_id: data.id, authUserId: authData.authUserId, name: member.name, email: member.email, roles: member.roles, isActive: member.isActive, cpf: member.cpf, dateOfBirth: member.dateOfBirth, user_id: data.user_id };
-      setTeamMembers(prev => [...prev, newMember]);
-      return { success: true, member: newMember, tempPassword, wasExistingUser: authData.userExists };
-    }, [user, setTeamMembers]),
+    addTeamMember,
     updateTeamMember,
-    deleteTeamMember: useCallback(async (id: string) => { const member = teamMembers.find(m => m.id === id); if (!member) return; const { error } = await supabase.from('team_members').delete().eq('id', member.db_id); if (error) throw error; setTeamMembers(prev => prev.filter(m => m.id !== id)); }, [teamMembers]),
-    addTeamProductionGoal: useCallback(async (goal: Omit<TeamProductionGoal, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
-      const { data, error } = await supabase.from('team_production_goals').insert({ ...goal, user_id: JOAO_GESTOR_AUTH_ID }).select().single();
-      if (error) throw error;
-      setTeamProductionGoals(prev => [data, ...prev]);
-      return data;
-    }, []),
-    updateTeamProductionGoal: useCallback(async (id: string, updates: Partial<TeamProductionGoal>) => {
-      const { data, error } = await supabase.from('team_production_goals').update(updates).eq('id', id).select().single();
-      if (error) throw error;
-      setTeamProductionGoals(prev => prev.map(g => g.id === id ? data : g));
-      return data;
-    }, []),
-    deleteTeamProductionGoal: useCallback(async (id: string) => {
-      const { error } = await supabase.from('team_production_goals').delete().eq('id', id);
-      if (error) throw error;
-      setTeamProductionGoals(prev => prev.filter(g => g.id !== id));
-    }, []),
+    deleteTeamMember,
+    addTeamProductionGoal,
+    updateTeamProductionGoal,
+    deleteTeamProductionGoal,
     hasPendingSecretariaTasks,
     addColdCallLead,
     updateColdCallLead,
