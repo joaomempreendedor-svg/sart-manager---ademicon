@@ -1595,16 +1595,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       refetchCommissions(); 
       return { success: true }; 
     }, [refetchCommissions]),
-    updateCommission: useCallback(async (id: string, updates: Partial<Commission>) => {
-      console.log(`[updateCommission] Attempting to update commission ID: ${id} with updates:`, updates);
-      const { error } = await supabase.from('commissions').update({ data: updates }).eq('id', id);
-      if (error) {
-        console.error(`[updateCommission] Error updating commission ID: ${id}:`, error);
-        throw error;
-      }
-      console.log(`[updateCommission] Commission ID: ${id} updated successfully. Refetching all commissions.`);
-      refetchCommissions();
-    }, [refetchCommissions]),
     deleteCommission: useCallback(async (id) => { 
       console.log(`[deleteCommission] Attempting to delete commission ID: ${id}`);
       const { error } = await supabase.from('commissions').delete().eq('id', id); 
@@ -1615,7 +1605,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       console.log(`[deleteCommission] Commission ID: ${id} deleted successfully. Refetching all commissions.`);
       refetchCommissions(); 
     }, [refetchCommissions]),
-    updateInstallmentStatus,
     addCutoffPeriod: useCallback(async (period) => { const { error } = await supabase.from('cutoff_periods').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: period }).select().single(); if (error) throw error; const { data } = await supabase.from('cutoff_periods').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID); setCutoffPeriods(data?.map(item => ({ ...(item.data as CutoffPeriod), db_id: item.id })) || []); }, []),
     updateCutoffPeriod: useCallback(async (id, updates) => { const { error } = await supabase.from('cutoff_periods').update({ data: updates }).eq('id', id).select().single(); if (error) throw error; const { data } = await supabase.from('cutoff_periods').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID); setCutoffPeriods(data?.map(item => ({ ...(item.data as CutoffPeriod), db_id: item.id })) || []); }, []),
     deleteCutoffPeriod: useCallback(async (id) => { const { error } = await supabase.from('cutoff_periods').delete().eq('id', id); if (error) throw error; setCutoffPeriods(prev => prev.filter(p => p.db_id !== id)); }, []),
@@ -1704,8 +1693,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addColdCallLog,
     getColdCallMetrics,
     createCrmLeadFromColdCall,
+    updateCommission,
+    updateInstallmentStatus,
   }), [
-    isDataLoading, candidates, teamMembers, commissions, supportMaterials, cutoffPeriods, onboardingSessions, onboardingTemplateVideos, checklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs, crmPipelines, crmStages, crmFields, crmLeads, crmOwnerUserId, dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions, weeklyTargets, weeklyTargetItems, weeklyTargetAssignments, metricLogs, supportMaterialsV2, supportMaterialAssignments, leadTasks, gestorTasks, gestorTaskCompletions, financialEntries, formCadastros, formFiles, notifications, teamProductionGoals, coldCallLeads, coldCallLogs, theme,
+    isDataLoading, candidates, teamMembers, commissions, supportMaterials, cutoffPeriods, onboardingSessions, onboardingTemplateVideos, checklistStructure, setChecklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs, crmPipelines, crmStages, crmFields, crmLeads, crmOwnerUserId, dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions, weeklyTargets, weeklyTargetItems, weeklyTargetAssignments, metricLogs, supportMaterialsV2, supportMaterialAssignments, leadTasks, gestorTasks, gestorTaskCompletions, financialEntries, formCadastros, formFiles, notifications, teamProductionGoals, coldCallLeads, coldCallLogs, theme,
     toggleTheme, updateConfig, resetLocalState, refetchCommissions, calculateCompetenceMonth, isGestorTaskDueOnDate, calculateNotifications,
     addCandidate, updateCandidate, deleteCandidate,
     addCrmLead, updateCrmLead, deleteCrmLead,
