@@ -201,12 +201,14 @@ const ColdCallMetricsPage = () => {
           value={coldCallMetrics.totalCalls}
           icon={PhoneCall}
           colorClass="bg-blue-600 text-white"
+          subValue="Chamadas registradas no período"
         />
         <MetricCard
           title="Total de Conversas"
           value={coldCallMetrics.totalConversations}
           icon={MessageSquare}
           colorClass="bg-purple-600 text-white"
+          subValue="Conversou + Interesse + Reuniões"
         />
         <MetricCard
           title="Interesse (WhatsApp) sem Reunião"
@@ -220,6 +222,7 @@ const ColdCallMetricsPage = () => {
           value={coldCallMetrics.totalMeetingsScheduled}
           icon={CalendarCheck}
           colorClass="bg-green-600 text-white"
+          subValue="Agendadas durante a ligação"
         />
         <MetricCard 
           title="Taxa Conversa → Reunião" 
@@ -233,12 +236,14 @@ const ColdCallMetricsPage = () => {
           value={coldCallMetrics.totalLeadsAdded}
           icon={UserPlus}
           colorClass="bg-indigo-600 text-white"
+          subValue="Novos prospects criados no módulo"
         />
         <MetricCard
           title="Convertidos para CRM"
           value={coldCallMetrics.leadsConvertedToCrm}
           icon={TrendingUp}
           colorClass="bg-teal-600 text-white"
+          subValue="Prospects enviados ao CRM"
         />
         <MetricCard 
           title="Taxa Conversão para CRM" 
@@ -247,11 +252,12 @@ const ColdCallMetricsPage = () => {
           colorClass="bg-orange-600 text-white" 
           subValue="Cold Call para CRM"
         />
-        <MetricCard 
-          title="Duração Média da Ligação" 
-          value={`${Math.round(coldCallMetrics.averageCallDuration / 60)}m ${Math.round(coldCallMetrics.averageCallDuration % 60)}s`} 
-          icon={Clock} 
-          colorClass="bg-slate-800 text-white dark:bg-slate-700" 
+        <MetricCard
+          title="Duração Média da Ligação"
+          value={`${Math.round(coldCallMetrics.averageCallDuration / 60)}m ${Math.round(coldCallMetrics.averageCallDuration % 60)}s`}
+          icon={Clock}
+          colorClass="bg-slate-800 text-white dark:bg-slate-700"
+          subValue="Tempo médio por ligação"
         />
       </div>
 

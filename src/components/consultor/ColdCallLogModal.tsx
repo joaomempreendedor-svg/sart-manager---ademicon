@@ -200,7 +200,7 @@ export const ColdCallLogModal: React.FC<ColdCallLogModalProps> = ({
   };
 
   // O botão "Criar Lead no CRM" aparece se o resultado for "Agendar Reunião" E o lead ainda não tiver um crm_lead_id
-  const showCreateCrmLeadButton = callResult === 'Agendar Reunião' && !lead.crm_lead_id;
+  const showCreateCrmLeadButton = (callResult === 'Agendar Reunião' || callResult === 'Demonstrou Interesse') && !lead.crm_lead_id;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -260,15 +260,15 @@ export const ColdCallLogModal: React.FC<ColdCallLogModalProps> = ({
             <Button type="button" variant="outline" onClick={onClose} className="dark:bg-slate-700 dark:text-white dark:border-slate-600 w-full sm:w-auto mb-2 sm:mb-0">
               Cancelar
             </Button>
-            {callResult === 'Agendar Reunião' && lead?.crm_lead_id ? (
+            {(callResult === 'Agendar Reunião' || callResult === 'Demonstrou Interesse') && lead?.crm_lead_id ? (
               <Button type="button" onClick={handleGoToCrmLead} className="bg-brand-600 hover:bg-brand-700 text-white w-full sm:w-auto">
                 <ChevronRight className="w-4 h-4 mr-2" />
                 <span>Ir para CRM</span>
               </Button>
-            ) : callResult === 'Agendar Reunião' && !lead?.crm_lead_id ? (
+            ) : (callResult === 'Agendar Reunião' || callResult === 'Demonstrou Interesse') && !lead?.crm_lead_id ? (
               <Button type="button" onClick={handleCreateCrmLeadClick} disabled={isSaving || !callEndTime} className="bg-brand-600 hover:bg-brand-700 text-white w-full sm:w-auto">
                 {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ChevronRight className="w-4 h-4 mr-2" />}
-                <span>{isSaving ? 'Criando Lead...' : 'Criar Lead no CRM'}</span>
+                <span>{isSaving ? 'Enviando...' : 'Enviar para CRM'}</span>
               </Button>
             ) : (
               <Button type="submit" disabled={isSaving || !callEndTime} className="bg-brand-600 hover:bg-brand-700 text-white w-full sm:w-auto">
