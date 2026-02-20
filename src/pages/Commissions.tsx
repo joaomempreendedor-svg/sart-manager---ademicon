@@ -507,6 +507,11 @@ export const Commissions = () => {
         completedCount,
         cancelledCount,
         nearCompletionCount,
+        inProgressPercentage: totalCommissions > 0 ? (inProgress / totalCommissions) * 100 : 0,
+        delayedPercentage: totalCommissions > 0 ? (delayed / totalCommissions) * 100 : 0,
+        completedPercentage: totalCommissions > 0 ? (completed / totalCommissions) * 100 : 0,
+        cancelledPercentage: totalCommissions > 0 ? (cancelled / totalCommissions) * 100 : 0,
+        nearCompletionPercentage: totalCommissions > 0 ? (nearCompletion / totalCommissions) * 100 : 0,
     };
   }, [filteredHistory]);
 
