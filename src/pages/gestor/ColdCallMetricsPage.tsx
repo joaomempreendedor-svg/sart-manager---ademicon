@@ -68,20 +68,16 @@ const ColdCallMetricsPage = () => {
   }, [selectedColdCallConsultantId, filteredColdCallLogs, teamMembers]); // Removido 'user' pois não é mais usado diretamente aqui
 
   const handleOpenColdCallDetailModal = (title: string, type: ColdCallDetailType) => {
-    if (!selectedColdCallConsultantId && type !== 'all') { // Permite abrir 'all' sem consultor selecionado
-      toast.error("Selecione um consultor para ver os detalhes de Cold Call.");
-      return;
-    }
-    
+    // Leads para o modal: todos os leads de cold call do consultor selecionado (ou todos se nenhum selecionado)
     const leadsToPass = selectedColdCallConsultantId 
       ? coldCallLeads.filter(l => l.user_id === selectedColdCallConsultantId)
-      : coldCallLeads; // Se 'all' ou null, passa todos os leads
+      : coldCallLeads; 
 
     setColdCallModalTitle(title);
     setColdCallLeadsForModal(leadsToPass);
     setColdCallLogsForModal(filteredColdCallLogs); // Passar logs já filtrados
     setColdCallDetailType(type);
-    setSelectedColdCallConsultantName(teamMembers.find(m => m.authUserId === selectedColdCallConsultantId)?.name || 'Todos os Consultores');
+    setSelectedColdCallConsultantName(teamMembers.find(m => (m.authUserId || m.id) === selectedColdCallConsultantId)?.name || 'Todos os Consultores');
     setIsColdCallDetailModalOpen(true);
   };
 
