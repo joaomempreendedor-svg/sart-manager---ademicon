@@ -8,7 +8,7 @@ import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
 import { generateRandomPassword } from '@/utils/authUtils';
 import { sanitizeFilename } from '@/utils/fileUtils';
 import toast from 'react-hot-toast';
-import { getOverallStatus } from '@/utils/commissionUtils'; // Importar do novo arquivo
+import { getOverallStatus } from '@/utils/commissionUtils';
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
@@ -534,7 +534,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const newCandidate = { ...candidate, id: data.id, db_id: data.id, createdAt: data.created_at } as Candidate;
     setCandidates(prev => [newCandidate, ...prev]);
     return newCandidate;
-  }, [user]);
+  }, [user, setCandidates]);
 
   const updateCandidate = useCallback(async (id: string, updates: Partial<Candidate>) => {
     const candidate = candidates.find(c => c.id === id || c.db_id === id);
@@ -600,13 +600,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       .eq('id', dbId);
 
     if (error) throw error;
-  }, [candidates]);
+  }, [candidates, setCandidates]);
 
   const deleteCandidate = useCallback(async (dbId: string) => {
     const { error } = await supabase.from('candidates').delete().eq('id', dbId);
     if (error) throw error;
     setCandidates(prev => prev.filter(c => c.db_id !== dbId));
-  }, []);
+  }, [setCandidates]);
 
   const addCrmLead = useCallback(async (lead: Omit<CrmLead, 'id' | 'created_at' | 'updated_at' | 'user_id' | 'created_by' | 'updated_by'>) => {
     if (!user) {
@@ -631,7 +631,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const newLead = { id: data.id, consultant_id: data.consultant_id, stage_id: data.id, user_id: data.user_id, name: data.name, data: data.data, created_at: data.created_at, updated_at: data.updated_at, created_by: data.created_by, updated_by: data.updated_by, proposal_value: parseDbCurrency(data.proposal_value), proposal_closing_date: data.proposal_closing_date, sold_credit_value: parseDbCurrency(data.sold_credit_value), sold_group: data.sold_group, sold_quota: data.sold_quota, sale_date: data.sale_date };
     setCrmLeads(prev => [newLead, ...prev]);
     return newLead;
-  }, [user, crmOwnerUserId, parseDbCurrency]);
+  }, [user, crmOwnerUserId, parseDbCurrency, setCrmLeads]);
 
   const updateCrmLead = useCallback(async (id: string, updates: Partial<CrmLead>) => {
     const { data, error } = await supabase.from('crm_leads').update({ 
@@ -648,13 +648,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const updatedLead = { id: data.id, consultant_id: data.consultant_id, stage_id: data.stage_id, user_id: data.user_id, name: data.name, data: data.data, created_at: data.created_at, updated_at: data.updated_at, created_by: data.created_by, updated_by: data.updated_by, proposal_value: parseDbCurrency(data.proposal_value), proposal_closing_date: data.proposal_closing_date, sold_credit_value: parseDbCurrency(data.sold_credit_value), sold_group: data.sold_group, sold_quota: data.sold_quota, sale_date: data.sale_date };
     setCrmLeads(prev => prev.map(l => l.id === id ? updatedLead : l));
     return updatedLead;
-  }, [user, parseDbCurrency]);
+  }, [user, parseDbCurrency, setCrmLeads]);
 
   const deleteCrmLead = useCallback(async (id: string) => {
     const { error } = await supabase.from('crm_leads').delete().eq('id', id);
     if (error) throw error;
     setCrmLeads(prev => prev.filter(l => l.id !== id));
-  }, []);
+  }, [setCrmLeads]);
 
   const updateTeamMember = useCallback(async (id: string, updates: Partial<TeamMember>) => {
     const member = teamMembers.find(m => m.id === id);
@@ -663,7 +663,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (error) throw error;
     setTeamMembers(prev => prev.map(m => m.id === id ? { ...m, ...updates } : m));
     return { success: true };
-  }, [teamMembers]);
+  }, [teamMembers, setTeamMembers]);
 
   const addTeamMemberFeedback = useCallback(async (teamMemberId: string, feedback: Omit<Feedback, 'id'>) => {
     const member = teamMembers.find(m => m.id === teamMemberId);
@@ -698,13 +698,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (error) throw error;
     setFormCadastros(prev => prev.map(f => f.id === id ? data : f));
     return data;
-  }, []);
+  }, [setFormCadastros]);
 
   const deleteFormCadastro = useCallback(async (id: string) => {
     const { error } = await supabase.from('form_submissions').delete().eq('id', id);
     if (error) throw error;
     setFormCadastros(prev => prev.filter(f => f.id !== id));
-  }, []);
+  }, [setFormCadastros]);
 
   const addFeedback = useCallback(async (personId: string, feedback: Omit<Feedback, 'id'>) => {
     const candidate = candidates.find(c => c.id === personId);
@@ -741,7 +741,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const newMember = { id: data.id, db_id: data.id, authUserId: authData.authUserId, name: member.name, email: member.email, roles: member.roles, isActive: member.isActive, cpf: member.cpf, dateOfBirth: member.dateOfBirth, user_id: data.user_id };
     setTeamMembers(prev => [...prev, newMember]);
     return { success: true, member: newMember, tempPassword, wasExistingUser: authData.userExists };
-  }, [user]);
+  }, [user, setTeamMembers]);
 
   const deleteTeamMember = useCallback(async (id: string) => {
     const member = teamMembers.find(m => m.id === id);
@@ -749,47 +749,47 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const { error } = await supabase.from('team_members').delete().eq('id', member.db_id);
     if (error) throw error;
     setTeamMembers(prev => prev.filter(m => m.id !== id));
-  }, [teamMembers]);
+  }, [teamMembers, setTeamMembers]);
 
   const addTeamProductionGoal = useCallback(async (goal: Omit<TeamProductionGoal, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
     const { data, error } = await supabase.from('team_production_goals').insert({ ...goal, user_id: JOAO_GESTOR_AUTH_ID }).select().single();
     if (error) throw error;
     setTeamProductionGoals(prev => [data, ...prev]);
     return data;
-  }, []);
+  }, [setTeamProductionGoals]);
 
   const updateTeamProductionGoal = useCallback(async (id: string, updates: Partial<TeamProductionGoal>) => {
     const { data, error } = await supabase.from('team_production_goals').update(updates).eq('id', id).select().single();
     if (error) throw error;
     setTeamProductionGoals(prev => prev.map(g => g.id === id ? data : g));
     return data;
-  }, []);
+  }, [setTeamProductionGoals]);
 
   const deleteTeamProductionGoal = useCallback(async (id: string) => {
     const { error } = await supabase.from('team_production_goals').delete().eq('id', id);
     if (error) throw error;
     setTeamProductionGoals(prev => prev.filter(g => g.id !== id));
-  }, []);
+  }, [setTeamProductionGoals]);
 
   const addDailyChecklist = useCallback(async (title: string) => {
     const { data, error } = await supabase.from('daily_checklists').insert({ user_id: JOAO_GESTOR_AUTH_ID, title }).select().single();
     if (error) throw error;
     setDailyChecklists(prev => [...prev, data]);
     return data;
-  }, []);
+  }, [setDailyChecklists]);
 
   const updateDailyChecklist = useCallback(async (id: string, updates: Partial<DailyChecklist>) => {
     const { data, error } = await supabase.from('daily_checklists').update(updates).eq('id', id).select().single();
     if (error) throw error;
     setDailyChecklists(prev => prev.map(d => d.id === id ? data : d));
     return data;
-  }, []);
+  }, [setDailyChecklists]);
 
   const deleteDailyChecklist = useCallback(async (id: string) => {
     const { error } = await supabase.from('daily_checklists').delete().eq('id', id);
     if (error) throw error;
     setDailyChecklists(prev => prev.filter(d => d.id !== id));
-  }, []);
+  }, [setDailyChecklists]);
 
   const addDailyChecklistItem = useCallback(async (daily_checklist_id: string, text: string, order_index: number, resource?: DailyChecklistItemResource, audioFile?: File, imageFile?: File) => {
     let finalResource = resource;
@@ -811,7 +811,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (error) throw error;
     setDailyChecklistItems(prev => [...prev, data]);
     return data;
-  }, []);
+  }, [setDailyChecklistItems]);
 
   const updateDailyChecklistItem = useCallback(async (id: string, updates: Partial<DailyChecklistItem>, audioFile?: File, imageFile?: File) => {
     let finalResource = updates.resource;
@@ -1119,7 +1119,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       toast.error(`Erro inesperado ao atualizar checklist: ${error.message}`);
       setCandidates(prev => prev.map(c => (c.id === candidateId || c.db_id === candidateId) ? { ...c, checklistProgress: currentProgress } : c));
     }
-  }, [candidates]);
+  }, [candidates, setCandidates]);
 
   const hasPendingSecretariaTasks = useCallback((candidate: Candidate): boolean => {
     const secretariaChecklistItems = checklistStructure.flatMap(stage => 
@@ -1146,7 +1146,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (error) throw error;
     setColdCallLeads(prev => [...prev, data]);
     return data;
-  }, [user]);
+  }, [user, setColdCallLeads]);
 
   const updateColdCallLead = useCallback(async (id: string, updates: Partial<ColdCallLead>) => {
     if (!user) throw new Error("User not authenticated.");
@@ -1184,13 +1184,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     setColdCallLeads(prev => prev.map(l => l.id === id ? data : l));
     return data;
-  }, [user, coldCallLeads]);
+  }, [user, coldCallLeads, setColdCallLeads]);
 
   const deleteColdCallLead = useCallback(async (id: string) => {
     const { error } = await supabase.from('cold_call_leads').delete().eq('id', id);
     if (error) throw error;
     setColdCallLeads(prev => prev.filter(l => l.id !== id));
-  }, []);
+  }, [setColdCallLeads]);
 
   const addColdCallLog = useCallback(async (log: Omit<ColdCallLog, 'id' | 'user_id' | 'created_at'> & { start_time: string; end_time: string; duration_seconds: number; }) => {
     if (!user) throw new Error("User not authenticated.");
@@ -1247,7 +1247,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     setColdCallLogs(prev => [...prev, insertedData]);
     return insertedData;
-  }, [user]);
+  }, [user, setColdCallLogs]);
 
   const getColdCallMetrics = useCallback((consultantId: string) => {
     const consultantLeads = coldCallLeads.filter(lead => lead.user_id === consultantId);
@@ -1548,29 +1548,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       refetchCommissions(); 
       return { success: true }; 
     }, [refetchCommissions]),
-    updateCommission: useCallback(async (dbId: string, updates: Partial<Commission>) => {
-      console.log(`[updateCommission] Attempting to update commission DB ID: ${dbId} with updates:`, updates);
-      
-      const existingCommission = commissions.find(c => c.db_id === dbId);
-      if (!existingCommission) {
-        throw new Error(`Commission with DB ID ${dbId} not found for update.`);
-      }
-
-      const updatedDataContent = {
-        ...existingCommission,
-        ...updates,
-      };
-      delete (updatedDataContent as any).db_id;
-      delete (updatedDataContent as any).criado_em;
-
-      const { error } = await supabase.from('commissions').update({ data: updatedDataContent }).eq('id', dbId);
-      if (error) {
-        console.error(`[updateCommission] Error updating commission DB ID: ${dbId}:`, error);
-        throw error;
-      }
-      console.log(`[updateCommission] Commission DB ID: ${dbId} updated successfully. Refetching all commissions.`);
-      refetchCommissions(); 
-    }, [commissions, refetchCommissions]),
+    updateCommission,
     deleteCommission: useCallback(async (id) => { 
       console.log(`[deleteCommission] Attempting to delete commission ID: ${id}`);
       const { error } = await supabase.from('commissions').delete().eq('id', id); 
@@ -1581,27 +1559,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       console.log(`[deleteCommission] Commission ID: ${id} deleted successfully. Refetching all commissions.`);
       refetchCommissions(); 
     }, [refetchCommissions]),
-    updateInstallmentStatus: useCallback(async (commissionId, installmentNumber, newStatus, paidDate, saleType) => {
-      console.log(`[updateInstallmentStatus] Called for commissionId: ${commissionId}, installmentNumber: ${installmentNumber}, newStatus: ${newStatus}, paidDate: ${paidDate}`);
-      const commission = commissions.find(c => c.id === commissionId);
-      if (!commission) {
-        console.error(`[updateInstallmentStatus] Commission with ID ${commissionId} not found.`);
-        return;
-      }
-      if (!commission.db_id) {
-        console.error(`[updateInstallmentStatus] Commission with ID ${commissionId} has no db_id. Cannot update.`);
-        return;
-      }
-      const updatedDetails = { ...commission.installmentDetails, [installmentNumber]: { status: newStatus, paidDate, competenceMonth: paidDate ? calculateCompetenceMonth(paidDate) : undefined } };
-      
-      try {
-        await updateCommission(commission.db_id, { installmentDetails: updatedDetails, status: getOverallStatus(updatedDetails) });
-        console.log(`[updateInstallmentStatus] Successfully updated installment ${installmentNumber} for commission ${commissionId}.`);
-      } catch (error) {
-        console.error(`[updateInstallmentStatus] Error calling updateCommission for ${commissionId}:`, error);
-        throw error;
-      }
-    }, [commissions, calculateCompetenceMonth, updateCommission]),
+    updateInstallmentStatus,
     addCutoffPeriod: useCallback(async (period) => { const { error } = await supabase.from('cutoff_periods').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: period }).select().single(); if (error) throw error; const { data } = await supabase.from('cutoff_periods').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID); setCutoffPeriods(data?.map(item => ({ ...(item.data as CutoffPeriod), db_id: item.id })) || []); }, []),
     updateCutoffPeriod: useCallback(async (id, updates) => { const { error } = await supabase.from('cutoff_periods').update({ data: updates }).eq('id', id).select().single(); if (error) throw error; const { data } = await supabase.from('cutoff_periods').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID); setCutoffPeriods(data?.map(item => ({ ...(item.data as CutoffPeriod), db_id: item.id })) || []); }, []),
     deleteCutoffPeriod: useCallback(async (id) => { const { error } = await supabase.from('cutoff_periods').delete().eq('id', id); if (error) throw error; setCutoffPeriods(prev => prev.filter(p => p.db_id !== id)); }, []),
