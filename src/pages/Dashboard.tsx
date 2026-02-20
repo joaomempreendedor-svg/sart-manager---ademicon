@@ -239,7 +239,20 @@ export const Dashboard = () => {
   // NOVO: Métricas de Cold Call (Mês Atual)
   const coldCallMetrics = useMemo(() => {
     if (!user) {
-      return { totalCalls: 0, totalConversations: 0, totalMeetingsScheduled: 0, conversationToMeetingRate: 0, filteredLeads: [], filteredLogs: [], interestWithoutMeetingCount: 0 };
+      return {
+        totalCalls: 0,
+        totalConversations: 0,
+        totalMeetingsScheduled: 0,
+        conversationToMeetingRate: 0,
+        filteredLeads: [],
+        filteredLogs: [],
+        interestWithoutMeetingCount: 0,
+        convertedInterestCount: 0,
+        convertedMeetingCount: 0,
+        averageCallDuration: 0,
+        totalLeadsAdded: 0,
+        conversionRateToCrm: 0,
+      };
     }
 
     const logsToConsider = effectiveColdCallConsultantId
@@ -266,6 +279,23 @@ export const Dashboard = () => {
     const totalDurationSeconds = filteredLogs.reduce((sum, log) => sum + log.duration_seconds, 0);
     const averageCallDuration = totalCalls > 0 ? totalDurationSeconds / totalCalls : 0;
 
+    // Leads considerados (por consultor e período)
+    let leadsToConsider = effectiveColdCallConsultantId
+      ? (coldCallLeads || []).filter(lead => lead.user_id === effectiveColdCallConsultantId)
+      : (coldCallLeads || []);
+
+    if (coldCallFilterStartDate) {
+      const start = new Date(coldCallFilterStartDate + 'T00:00:00');
+      leadsToConsider = leadsToConsider.filter(lead => new Date(lead.created_at) >= start);
+    }
+    if (coldCallFilterEndDate) {
+      const end = new Date(coldCallFilterEndDate + 'T23:59:59');
+      leadsToConsider = leadsToConsider.filter(lead => new Date(lead.created_at) <= end);
+    }
+
+    const totalLeadsAdded = leadsToConsider.length;
+
+    // Leads presentes nos logs filtrados (para modal)
     const filteredLeadIds = new Set(filteredLogs.map(log => log.cold_call_lead_id));
     const filteredLeads = (coldCallLeads || []).filter(lead => filteredLeadIds.has(lead.id));
 
@@ -275,6 +305,19 @@ export const Dashboard = () => {
     let interestWithoutMeetingCount = 0;
     interestLeadIds.forEach(id => { if (!meetingLeadIds.has(id)) interestWithoutMeetingCount++; });
 
+    const convertedInterestCount = leadsToConsider.filter(lead =>
+      (lead as any).crm_lead_id &&
+      filteredLogs.some(log => log.cold_call_lead_id === lead.id && log.result === 'Demonstrou Interesse') &&
+      !filteredLogs.some(log => log.cold_call_lead_id === lead.id && log.result === 'Agendar Reunião')
+    ).length;
+
+    const convertedMeetingCount = leadsToConsider.filter(lead =>
+      (lead as any).crm_lead_id &&
+      filteredLogs.some(log => log.cold_call_lead_id === lead.id && log.result === 'Agendar Reunião')
+    ).length;
+
+    const conversionRateToCrm = totalLeadsAdded > 0 ? ((convertedInterestCount + convertedMeetingCount) / totalLeadsAdded) * 100 : 0;
+
     return {
       totalCalls,
       totalConversations,
@@ -283,14 +326,11 @@ export const Dashboard = () => {
       filteredLeads,
       filteredLogs,
       interestWithoutMeetingCount,
-      convertedInterestCount: filteredLeads.filter(lead =>
-        (lead as any).crm_lead_id && filteredLogs.some(log => log.cold_call_lead_id === lead.id && log.result === 'Demonstrou Interesse') &&
-        !filteredLogs.some(log => log.cold_call_lead_id === lead.id && log.result === 'Agendar Reunião')
-      ).length,
-      convertedMeetingCount: filteredLeads.filter(lead =>
-        (lead as any).crm_lead_id && filteredLogs.some(log => log.cold_call_lead_id === lead.id && log.result === 'Agendar Reunião')
-      ).length,
+      convertedInterestCount,
+      convertedMeetingCount,
       averageCallDuration,
+      totalLeadsAdded,
+      conversionRateToCrm,
     };
   }, [user, effectiveColdCallConsultantId, coldCallLeads, coldCallLogs, coldCallFilterStartDate, coldCallFilterEndDate]);
 
@@ -472,6 +512,13 @@ export const Dashboard = () => {
             colorClass="bg-green-600 text-white"
           />
           <MetricCard
+            title="Prospects Adicionados"
+            value={coldCallMetrics.totalLeadsAdded}
+            icon={UserPlus}
+            colorClass="bg-indigo-600 text-white"
+            subValue="Novos prospects criados no módulo"
+          />
+          <MetricCard
             title="Enviados ao CRM - Interesse (WhatsApp)"
             value={coldCallMetrics.convertedInterestCount}
             icon={Star}
@@ -491,6 +538,13 @@ export const Dashboard = () => {
             icon={Percent}
             colorClass="bg-yellow-600 text-white"
             subValue="Efetividade da Conversão"
+          />
+          <MetricCard
+            title="Taxa Conversão para CRM"
+            value={`${coldCallMetrics.conversionRateToCrm.toFixed(1)}%`}
+            icon={ArrowUpRight}
+            colorClass="bg-orange-600 text-white"
+            subValue="Cold Call para CRM"
           />
           <MetricCard
             title="Duração Média da Ligação"
