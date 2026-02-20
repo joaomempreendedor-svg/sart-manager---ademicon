@@ -71,12 +71,30 @@ const RequireAuth: React.FC<{ allowedRoles: UserRole[] }> = ({ allowedRoles }) =
   const { isDataLoading } = useApp();
   const location = useLocation();
 
-  if (isAuthLoading || isDataLoading) return <AppLoader />;
-  if (!user) return <Navigate to="/login" state={{ from: location }} replace />;
-  if (user.role === 'CONSULTOR' && user.isActive === false) return <Navigate to="/pending-approval" replace />;
-  if (user.needs_password_change && location.pathname !== '/profile') return <Navigate to="/profile" replace />;
+  // Todos os hooks devem ser chamados incondicionalmente no nível superior do componente.
+  // A lógica condicional para renderização/navegação vem depois.
 
+  if (isAuthLoading || isDataLoading) {
+    return <AppLoader />;
+  }
+
+  if (!user) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  // Verifica a necessidade de troca de senha
+  if (user.needs_password_change && location.pathname !== '/profile') {
+    return <Navigate to="/profile" replace />;
+  }
+
+  // Verifica se o usuário consultor está ativo
+  if (user.role === 'CONSULTOR' && user.isActive === false) {
+    return <Navigate to="/pending-approval" replace />;
+  }
+
+  // Verifica se o usuário tem a role permitida para a rota atual
   if (!allowedRoles.includes(user.role)) {
+    // Redireciona para o dashboard padrão do usuário se não for permitido para esta rota
     if (user.role === 'SECRETARIA') return <Navigate to="/secretaria/dashboard" replace />;
     if (user.role === 'CONSULTOR') return <Navigate to="/consultor/dashboard" replace />;
     return <Navigate to="/gestor/dashboard" replace />;
