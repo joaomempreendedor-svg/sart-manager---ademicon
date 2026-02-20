@@ -439,26 +439,23 @@ export const Dashboard = () => {
           </div>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <MetricCard 
-            title="Total de Ligações" 
-            value={coldCallMetrics.totalCalls} 
-            icon={PhoneCall} 
-            colorClass="bg-blue-600 text-white" 
-            onClick={() => handleOpenColdCallDetailModal('Total de Ligações', 'calls')}
+          <MetricCard
+            title="Total de Ligações"
+            value={coldCallMetrics.totalCalls}
+            icon={PhoneCall}
+            colorClass="bg-blue-600 text-white"
           />
-          <MetricCard 
-            title="Total de Conversas" 
-            value={coldCallMetrics.totalConversations} 
-            icon={MessageSquare} 
-            colorClass="bg-purple-600 text-white" 
-            onClick={() => handleOpenColdCallDetailModal('Total de Conversas', 'conversations')}
+          <MetricCard
+            title="Total de Conversas"
+            value={coldCallMetrics.totalConversations}
+            icon={MessageSquare}
+            colorClass="bg-purple-600 text-white"
           />
-          <MetricCard 
-            title="Reuniões Agendadas" 
-            value={coldCallMetrics.totalMeetingsScheduled} 
-            icon={CalendarCheck} 
-            colorClass="bg-green-600 text-white" 
-            onClick={() => handleOpenColdCallDetailModal('Reuniões Agendadas', 'meetings')}
+          <MetricCard
+            title="Reuniões Agendadas"
+            value={coldCallMetrics.totalMeetingsScheduled}
+            icon={CalendarCheck}
+            colorClass="bg-green-600 text-white"
           />
           <MetricCard 
             title="Taxa Conversa → Reunião" 
