@@ -498,13 +498,7 @@ export const Dashboard = () => {
             colorClass="bg-amber-600 text-white"
             subValue="Interessados na ligação (WhatsApp)"
           />
-          <MetricCard
-            title="Interesse (WhatsApp) sem Reunião"
-            value={coldCallMetrics.interestWithoutMeetingCount}
-            icon={Star}
-            colorClass="bg-amber-600 text-white"
-            subValue="Conversa que segue para WhatsApp"
-          />
+          {/* removido: Interesse (WhatsApp) sem Reunião */}
           <MetricCard
             title="Reuniões Agendadas"
             value={coldCallMetrics.totalMeetingsScheduled}
@@ -518,13 +512,7 @@ export const Dashboard = () => {
             colorClass="bg-indigo-600 text-white"
             subValue="Novos prospects criados no módulo"
           />
-          <MetricCard
-            title="Enviados ao CRM - Interesse (WhatsApp)"
-            value={coldCallMetrics.convertedInterestCount}
-            icon={Star}
-            colorClass="bg-amber-600 text-white"
-            subValue="Interesse via WhatsApp, sem reunião na ligação"
-          />
+          {/* removido: Enviados ao CRM - Interesse (WhatsApp) */}
           <MetricCard
             title="Enviados ao CRM - Reunião na Ligação"
             value={coldCallMetrics.convertedMeetingCount}
