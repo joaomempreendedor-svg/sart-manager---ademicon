@@ -492,7 +492,13 @@ export const Dashboard = () => {
             colorClass="bg-yellow-600 text-white"
             subValue="Efetividade da Conversão"
           />
-          {/* Card removido: Duração Média da Ligação */}
+          <MetricCard
+            title="Duração Média da Ligação"
+            value={`${Math.floor(coldCallMetrics.averageCallDuration / 60)}m ${Math.round(coldCallMetrics.averageCallDuration % 60)}s`}
+            icon={Clock}
+            colorClass="bg-slate-800 text-white dark:bg-slate-700"
+            subValue="Tempo médio por ligação"
+          />
         </div>
       </section>
 

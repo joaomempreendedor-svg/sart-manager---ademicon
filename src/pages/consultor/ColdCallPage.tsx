@@ -399,7 +399,13 @@ const ColdCallPage = () => {
             colorClass="bg-orange-600 text-white" 
             subValue="Cold Call para CRM"
           />
-          {/* Card removido: Duração Média da Ligação */}
+          <MetricCard
+            title="Duração Média da Ligação"
+            value={`${Math.floor(metrics.averageCallDuration / 60)}m ${Math.round(metrics.averageCallDuration % 60)}s`}
+            icon={Clock}
+            colorClass="bg-slate-800 text-white dark:bg-slate-700"
+            subValue="Tempo médio por ligação"
+          />
         </div>
       </div>
 
