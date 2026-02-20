@@ -368,7 +368,7 @@ export const Dashboard = () => {
         <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center">
           <TrendingUp className="w-5 h-5 mr-2 text-brand-500" /> Métricas Comerciais (Mês Atual)
         </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           <MetricCard
             title="Novos Leads"
             value={commercialMetrics?.newLeads}
