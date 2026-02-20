@@ -75,7 +75,7 @@ const ColdCallMetricsPage = () => {
   const coldCallMetrics = useMemo(() => {
     const totalCalls = filteredColdCallLogs.length;
     const totalConversations = filteredColdCallLogs.filter(log =>
-      log.result === 'Conversou' || log.result === 'Demonstrou Interesse' || log.result === 'Agendar Reunião'
+      log.result === 'Demonstrou Interesse' || log.result === 'Agendar Reunião'
     ).length;
     const totalMeetingsScheduled = filteredColdCallLogs.filter(log => log.result === 'Agendar Reunião').length;
     const totalDurationSeconds = filteredColdCallLogs.reduce((sum, log) => sum + log.duration_seconds, 0);
@@ -204,11 +204,11 @@ const ColdCallMetricsPage = () => {
           subValue="Chamadas registradas no período"
         />
         <MetricCard
-          title="Total de Conversas"
-          value={coldCallMetrics.totalConversations}
-          icon={MessageSquare}
-          colorClass="bg-purple-600 text-white"
-          subValue="Conversou + Interesse + Reuniões"
+          title="Demonstrou Interesse"
+          value={filteredColdCallLogs.filter(log => log.result === 'Demonstrou Interesse').length}
+          icon={Star}
+          colorClass="bg-amber-600 text-white"
+          subValue="Interessados na ligação (WhatsApp)"
         />
         <MetricCard
           title="Interesse (WhatsApp) sem Reunião"

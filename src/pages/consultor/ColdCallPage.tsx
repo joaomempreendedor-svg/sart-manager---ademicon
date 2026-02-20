@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { ColdCallLead, ColdCallLog, ColdCallStage, ColdCallResult, CrmLead } from '@/types';
-import { Plus, Search, PhoneCall, MessageSquare, CalendarCheck, Loader2, Edit2, Trash2, Play, StopCircle, Clock, UserRound, TrendingUp, BarChart3, Percent, ChevronRight, Save, History, Filter, RotateCcw, CalendarDays, UploadCloud, UserPlus, ArrowUpRight } from 'lucide-react'; // Adicionado UserPlus e ArrowUpRight
+import { Plus, Search, PhoneCall, MessageSquare, CalendarCheck, Loader2, Edit2, Trash2, Play, StopCircle, Clock, UserRound, TrendingUp, BarChart3, Percent, ChevronRight, Save, History, Filter, RotateCcw, CalendarDays, UploadCloud, UserPlus, ArrowUpRight, Star } from 'lucide-react'; // Adicionado Star
 import {
   Select,
   SelectContent,
@@ -104,7 +104,7 @@ const ColdCallPage = () => {
     
     const totalCalls = filteredColdCallLogsForMetrics.length;
     const totalConversations = filteredColdCallLogsForMetrics.filter(log =>
-      log.result === 'Conversou' || log.result === 'Demonstrou Interesse' || log.result === 'Agendar Reunião'
+      log.result === 'Demonstrou Interesse' || log.result === 'Agendar Reunião'
     ).length;
     const totalMeetingsScheduled = filteredColdCallLogsForMetrics.filter(log => log.result === 'Agendar Reunião').length;
     const totalDurationSeconds = filteredColdCallLogsForMetrics.reduce((sum, log) => sum + log.duration_seconds, 0);
@@ -328,11 +328,11 @@ const ColdCallPage = () => {
             subValue="Chamadas registradas no período"
           />
           <MetricCard
-            title="Total de Conversas"
-            value={metrics.totalConversations}
-            icon={MessageSquare}
-            colorClass="bg-purple-600 text-white"
-            subValue="Conversou + Interesse + Reuniões"
+            title="Demonstrou Interesse"
+            value={filteredColdCallLogsForMetrics.filter(log => log.result === 'Demonstrou Interesse').length}
+            icon={Star}
+            colorClass="bg-amber-600 text-white"
+            subValue="Interessados na ligação (WhatsApp)"
           />
           <MetricCard
             title="Reuniões Agendadas"

@@ -258,7 +258,7 @@ export const Dashboard = () => {
 
     const totalCalls = filteredLogs.length;
     const totalConversations = filteredLogs.filter(log =>
-      log.result === 'Conversou' || log.result === 'Demonstrou Interesse' || log.result === 'Agendar Reunião'
+      log.result === 'Demonstrou Interesse' || log.result === 'Agendar Reunião'
     ).length;
     const totalMeetingsScheduled = filteredLogs.filter(log => log.result === 'Agendar Reunião').length;
     
@@ -442,10 +442,11 @@ export const Dashboard = () => {
             colorClass="bg-blue-600 text-white"
           />
           <MetricCard
-            title="Total de Conversas"
-            value={coldCallMetrics.totalConversations}
-            icon={MessageSquare}
-            colorClass="bg-purple-600 text-white"
+            title="Demonstrou Interesse"
+            value={coldCallMetrics.filteredLogs.filter(log => log.result === 'Demonstrou Interesse').length}
+            icon={Star}
+            colorClass="bg-amber-600 text-white"
+            subValue="Interessados na ligação (WhatsApp)"
           />
           <MetricCard
             title="Interesse (WhatsApp) sem Reunião"
