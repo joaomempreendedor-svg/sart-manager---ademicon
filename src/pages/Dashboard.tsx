@@ -53,7 +53,6 @@ export const Dashboard = () => {
   const [coldCallLeadsForModal, setColdCallLeadsForModal] = useState<ColdCallLead[]>([]);
   const [coldCallLogsForModal, setColdCallLogsForModal] = useState<ColdCallLog[]>([]);
   const [coldCallDetailType, setColdCallDetailType] = useState<ColdCallDetailType>('all');
-  const [selectedColdCallConsultantName, setSelectedColdCallConsultantName] = useState<string>('Todos os Consultores'); // Default para "Todos os Consultores"
   const [selectedColdCallConsultantId, setSelectedColdCallConsultantId] = useState<string | null>(null); // Default para null (todos)
   const [coldCallFilterStartDate, setColdCallFilterStartDate] = useState(''); // NOVO: Filtro de data de início para Cold Call
   const [coldCallFilterEndDate, setColdCallFilterEndDate] = useState('');     // NOVO: Filtro de data de fim para Cold Call
@@ -67,24 +66,45 @@ export const Dashboard = () => {
     return teamMembers.filter(m => m.isActive && (m.roles.includes('CONSULTOR') || m.roles.includes('PRÉVIA') || m.roles.includes('AUTORIZADO')));
   }, [teamMembers]);
 
+  // NOVO: Nome do consultor selecionado para Cold Call (derivado)
+  const selectedColdCallConsultantName = useMemo(() => {
+    if (!selectedColdCallConsultantId) {
+      return 'Todos os Consultores';
+    }
+    return teamMembers.find(m => (m.authUserId || m.id) === selectedColdCallConsultantId)?.name || 'Consultor Desconhecido';
+  }, [selectedColdCallConsultantId, teamMembers]);
+
   // NOVO: Efeito para definir o consultor de Cold Call padrão
   useEffect(() => {
+    // Only run this effect if the user or the list of consultants changes,
+    // or if selectedColdCallConsultantId is not yet initialized.
+    // We explicitly check if the current selection is valid or needs to be set.
+
+    const currentSelectedId = selectedColdCallConsultantId;
+    let newDefaultId: string | null = null;
+
     if (user && (user.role === 'GESTOR' || user.role === 'ADMIN')) {
-      // Se nenhum consultor estiver selecionado, ou o selecionado não for mais válido, defina como 'Todos'
-      if (!selectedColdCallConsultantId || !coldCallConsultants.some(c => (c.authUserId || c.id) === selectedColdCallConsultantId)) {
-        setSelectedColdCallConsultantId(null);
-        setSelectedColdCallConsultantName('Todos os Consultores');
+      // If manager/admin, default to 'all' (null) if no valid consultant is selected
+      if (currentSelectedId && !coldCallConsultants.some(c => (c.authUserId || c.id) === currentSelectedId)) {
+        newDefaultId = null; // Current selection is invalid, reset to 'all'
+      } else if (!currentSelectedId && coldCallConsultants.length > 0) {
+        // If no selection and there are consultants, keep it 'all' (null)
+        newDefaultId = null;
       }
     } else if (user?.role === 'CONSULTOR') {
-      // Para consultores, selecione-se automaticamente
-      setSelectedColdCallConsultantId(user.id);
-      setSelectedColdCallConsultantName(user.name);
+      // If consultant, default to themselves
+      newDefaultId = user.id;
     } else {
-      // Para outros casos (não logado, etc.), defina como 'Todos'
-      setSelectedColdCallConsultantId(null);
-      setSelectedColdCallConsultantName('Todos os Consultores');
+      // If not logged in or other roles, default to 'all' (null)
+      newDefaultId = null;
     }
-  }, [user, coldCallConsultants, selectedColdCallConsultantId]); // Dependências: user, coldCallConsultants, selectedColdCallConsultantId
+
+    // Only update state if the new default is different from the current selection
+    if (newDefaultId !== currentSelectedId) {
+      setSelectedColdCallConsultantId(newDefaultId);
+    }
+  }, [user, coldCallConsultants]); // Dependencies: user and coldCallConsultants. Do NOT include selectedColdCallConsultantId here.
+
 
   // --- Métricas Comerciais (Mês Atual) ---
   const commercialMetrics = useMemo(() => {
@@ -370,7 +390,6 @@ export const Dashboard = () => {
     setColdCallLeadsForModal(leadsToPass);
     setColdCallLogsForModal(logsToPass);
     setColdCallDetailType(type);
-    setSelectedColdCallConsultantName(teamMembers.find(m => m.authUserId === selectedColdCallConsultantId)?.name || 'Todos os Consultores');
     setIsColdCallDetailModal(true);
   };
 
@@ -450,7 +469,6 @@ export const Dashboard = () => {
               value={selectedColdCallConsultantId || 'all'}
               onValueChange={(value) => {
                 setSelectedColdCallConsultantId(value === 'all' ? null : value);
-                setSelectedColdCallConsultantName(value === 'all' ? 'Todos os Consultores' : teamMembers.find(m => m.authUserId === value)?.name || 'Consultor Desconhecido');
               }}
             >
               <SelectTrigger className="w-[180px] dark:bg-slate-700 dark:text-white dark:border-slate-600">
@@ -473,21 +491,21 @@ export const Dashboard = () => {
             value={coldCallMetrics.totalCalls} 
             icon={PhoneCall} 
             colorClass="bg-blue-600 text-white" 
-            // onClick={() => handleOpenColdCallDetailModal('Total de Ligações', 'calls')} // Removido onClick
+            onClick={() => handleOpenColdCallDetailModal('Total de Ligações', 'calls')}
           />
           <MetricCard 
             title="Total de Conversas" 
             value={coldCallMetrics.totalConversations} 
             icon={MessageSquare} 
             colorClass="bg-purple-600 text-white" 
-            // onClick={() => handleOpenColdCallDetailModal('Total de Conversas', 'conversations')} // Removido onClick
+            onClick={() => handleOpenColdCallDetailModal('Total de Conversas', 'conversations')}
           />
           <MetricCard 
             title="Reuniões Agendadas" 
             value={coldCallMetrics.totalMeetingsScheduled} 
             icon={CalendarCheck} 
             colorClass="bg-green-600 text-white" 
-            // onClick={() => handleOpenColdCallDetailModal('Reuniões Agendadas', 'meetings')} // Removido onClick
+            onClick={() => handleOpenColdCallDetailModal('Reuniões Agendadas', 'meetings')}
           />
           <MetricCard 
             title="Taxa Conversa → Reunião" 
