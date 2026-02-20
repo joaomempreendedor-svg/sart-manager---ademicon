@@ -502,7 +502,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (teamProductionGoalsRes.error) { console.error("Error fetching team production goals:", teamProductionGoalsRes.error); toast.error(`Erro ao carregar metas de produção da equipe: ${teamProductionGoalsRes.error.message}`); setTeamProductionGoals([]); }
         else { setTeamProductionGoals(teamProductionGoalsRes.data || []); console.log(`[AppContext] Fetched ${teamProductionGoalsRes.data?.length || 0} team production goals.`); }
         
-        // NOVO: Para Gestores/Admins, buscar TODOS os cold call leads/logs que eles têm permissão para ver (via RLS)
+        // Para Gestores/Admins, buscar TODOS os cold call leads/logs que eles têm permissão para ver (via RLS)
         // Para Consultores, a RLS já limita aos seus próprios.
         if (coldCallLeadsRes.error) { console.error("Error fetching cold call leads:", coldCallLeadsRes.error); toast.error(`Erro ao carregar leads de cold call: ${coldCallLeadsRes.error.message}`); setColdCallLeads([]); }
         else { setColdCallLeads(coldCallLeadsRes.data || []); console.log(`[AppContext] Fetched ${coldCallLeadsRes.data?.length || 0} cold call leads.`); }
@@ -1323,7 +1323,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const { data: newCrmLeads, error: crmLeadsError } = await supabase.from('crm_leads').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID).order('created_at', { ascending: false }); // ADICIONADO: Ordenar por created_at descendente
     if (crmLeadsError) console.error("Error refetching crm leads:", crmLeadsError);
     else setCrmLeads(newCrmLeads?.map((lead: any) => ({ 
-      id: lead.id, consultant_id: lead.consultant_id, stage_id: lead.stage_id, user_id: lead.user_id, name: lead.name, data: lead.data, created_at: lead.created_at, updated_at: data.updated_at, created_by: lead.created_by, updated_by: lead.updated_by, 
+      id: lead.id, consultant_id: lead.consultant_id, stage_id: lead.stage_id, user_id: lead.user_id, name: lead.name, data: lead.data, created_at: lead.created_at, updated_at: lead.updated_at, created_by: lead.created_by, updated_by: lead.updated_by, 
       proposal_value: parseDbCurrency(lead.proposal_value), proposal_closing_date: lead.proposal_closing_date, 
       sold_credit_value: parseDbCurrency(lead.sold_credit_value), sold_group: lead.sold_group, sold_quota: lead.sold_quota, sale_date: lead.sale_date 
     })) || []);
@@ -1334,6 +1334,55 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     return { crmLeadId: data.crmLeadId };
   }, [user, setColdCallLeads, setCrmLeads, setLeadTasks, parseDbCurrency]);
+
+  // Definir updateCommission como um useCallback separado
+  const updateCommission = useCallback(async (dbId: string, updates: Partial<Commission>) => {
+    console.log(`[updateCommission] Attempting to update commission DB ID: ${dbId} with updates:`, updates);
+    
+    const existingCommission = commissions.find(c => c.db_id === dbId);
+    if (!existingCommission) {
+      throw new Error(`Commission with DB ID ${dbId} not found for update.`);
+    }
+
+    const updatedDataContent = {
+      ...existingCommission,
+      ...updates,
+    };
+    delete (updatedDataContent as any).db_id;
+    delete (updatedDataContent as any).criado_em;
+
+    const { error } = await supabase.from('commissions').update({ data: updatedDataContent }).eq('id', dbId);
+    if (error) {
+      console.error(`[updateCommission] Error updating commission DB ID: ${dbId}:`, error);
+      throw error;
+    }
+    console.log(`[updateCommission] Commission DB ID: ${dbId} updated successfully. Refetching all commissions.`);
+    refetchCommissions(); 
+  }, [commissions, refetchCommissions]); // Dependências para updateCommission
+
+  // Definir updateInstallmentStatus como um useCallback separado, usando updateCommission
+  const updateInstallmentStatus = useCallback(async (commissionId, installmentNumber, newStatus, paidDate, saleType) => {
+    console.log(`[updateInstallmentStatus] Called for commissionId: ${commissionId}, installmentNumber: ${installmentNumber}, newStatus: ${newStatus}, paidDate: ${paidDate}`);
+    const commission = commissions.find(c => c.id === commissionId);
+    if (!commission) {
+      console.error(`[updateInstallmentStatus] Commission with ID ${commissionId} not found.`);
+      return;
+    }
+    if (!commission.db_id) {
+      console.error(`[updateInstallmentStatus] Commission with ID ${commissionId} has no db_id. Cannot update.`);
+      return;
+    }
+    const updatedDetails = { ...commission.installmentDetails, [installmentNumber]: { status: newStatus, paidDate, competenceMonth: paidDate ? calculateCompetenceMonth(paidDate) : undefined } };
+    
+    try {
+      await updateCommission(commission.db_id, { installmentDetails: updatedDetails, status: getOverallStatus(updatedDetails) });
+      console.log(`[updateInstallmentStatus] Successfully updated installment ${installmentNumber} for commission ${commissionId}.`);
+    } catch (error) {
+      console.error(`[updateInstallmentStatus] Error calling updateCommission for ${commissionId}:`, error);
+      throw error;
+    }
+  }, [commissions, calculateCompetenceMonth, updateCommission]); // Dependências para updateInstallmentStatus
+
 
   const value: AppContextType = useMemo(() => ({
     isDataLoading, candidates, teamMembers, commissions, supportMaterials, cutoffPeriods, onboardingSessions, onboardingTemplateVideos, checklistStructure, setChecklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs, crmPipelines, crmStages, crmFields, crmLeads, crmOwnerUserId, dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions, weeklyTargets, weeklyTargetItems, weeklyTargetAssignments, metricLogs, supportMaterialsV2, supportMaterialAssignments, leadTasks, gestorTasks, gestorTaskCompletions, financialEntries, formCadastros, formFiles, notifications, teamProductionGoals, coldCallLeads, coldCallLogs, theme,
@@ -1578,35 +1627,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       refetchCommissions(); 
       return { success: true }; 
     }, [refetchCommissions]),
-    updateCommission: useCallback(async (dbId: string, updates: Partial<Commission>) => {
-      console.log(`[updateCommission] Attempting to update commission DB ID: ${dbId} with updates:`, updates);
-      
-      // Find the existing commission in the local state to merge updates with its current 'data' JSONB content
-      const existingCommission = commissions.find(c => c.db_id === dbId);
-      if (!existingCommission) {
-        throw new Error(`Commission with DB ID ${dbId} not found for update.`);
-      }
-
-      // Merge the updates with the existing 'data' object
-      // Ensure that top-level fields like 'id', 'db_id', 'criado_em' are not part of the 'data' JSONB
-      const updatedDataContent = {
-        ...existingCommission, // Start with existing commission's data
-        ...updates, // Apply new updates
-      };
-      // Remove properties that are not part of the JSONB 'data' column in the DB table
-      delete (updatedDataContent as any).db_id;
-      delete (updatedDataContent as any).criado_em;
-      // The 'id' property of the Commission type is the internal UUID, which should be part of the JSONB 'data'
-      // So, we don't delete updatedDataContent.id here.
-
-      const { error } = await supabase.from('commissions').update({ data: updatedDataContent }).eq('id', dbId);
-      if (error) {
-        console.error(`[updateCommission] Error updating commission DB ID: ${dbId}:`, error);
-        throw error;
-      }
-      console.log(`[updateCommission] Commission DB ID: ${dbId} updated successfully. Refetching all commissions.`);
-      refetchCommissions(); 
-    }, [commissions, refetchCommissions]),
+    updateCommission, // Referencia a função useCallback definida acima
     deleteCommission: useCallback(async (id) => { 
       console.log(`[deleteCommission] Attempting to delete commission ID: ${id}`);
       const { error } = await supabase.from('commissions').delete().eq('id', id); 
@@ -1617,28 +1638,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       console.log(`[deleteCommission] Commission ID: ${id} deleted successfully. Refetching all commissions.`);
       refetchCommissions(); 
     }, [refetchCommissions]),
-    updateInstallmentStatus: useCallback(async (commissionId, installmentNumber, newStatus, paidDate, saleType) => {
-      console.log(`[updateInstallmentStatus] Called for commissionId: ${commissionId}, installmentNumber: ${installmentNumber}, newStatus: ${newStatus}, paidDate: ${paidDate}`);
-      const commission = commissions.find(c => c.id === commissionId);
-      if (!commission) {
-        console.error(`[updateInstallmentStatus] Commission with ID ${commissionId} not found.`);
-        return;
-      }
-      if (!commission.db_id) {
-        console.error(`[updateInstallmentStatus] Commission with ID ${commissionId} has no db_id. Cannot update.`);
-        return;
-      }
-      const updatedDetails = { ...commission.installmentDetails, [installmentNumber]: { status: newStatus, paidDate, competenceMonth: paidDate ? calculateCompetenceMonth(paidDate) : undefined } };
-      
-      try {
-        // Chamar updateCommission diretamente, sem usar 'value'
-        await updateCommission(commission.db_id, { installmentDetails: updatedDetails, status: getOverallStatus(updatedDetails) });
-        console.log(`[updateInstallmentStatus] Successfully updated installment ${installmentNumber} for commission ${commissionId}.`);
-      } catch (error) {
-        console.error(`[updateInstallmentStatus] Error calling updateCommission for ${commissionId}:`, error);
-        throw error;
-      }
-    }, [commissions, calculateCompetenceMonth, updateCommission]), // Removido 'value' da dependência
+    updateInstallmentStatus, // Referencia a função useCallback definida acima
     addCutoffPeriod: useCallback(async (period) => { const { error } = await supabase.from('cutoff_periods').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: period }).select().single(); if (error) throw error; const { data } = await supabase.from('cutoff_periods').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID); setCutoffPeriods(data?.map(item => ({ ...(item.data as CutoffPeriod), db_id: item.id })) || []); }, []),
     updateCutoffPeriod: useCallback(async (id, updates) => { const { error } = await supabase.from('cutoff_periods').update({ data: updates }).eq('id', id).select().single(); if (error) throw error; const { data } = await supabase.from('cutoff_periods').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID); setCutoffPeriods(data?.map(item => ({ ...(item.data as CutoffPeriod), db_id: item.id })) || []); }, []),
     deleteCutoffPeriod: useCallback(async (id) => { const { error } = await supabase.from('cutoff_periods').delete().eq('id', id); if (error) throw error; setCutoffPeriods(prev => prev.filter(p => p.db_id !== id)); }, []),
