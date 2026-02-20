@@ -1418,23 +1418,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setChecklistStructure(newStructure);
       updateConfig({ checklistStructure: newStructure });
     }, [checklistStructure, updateConfig]),
-    moveChecklistItem: useCallback((stageId, itemId, direction) => {
-      const newStructure = checklistStructure.map(stage => {
-        if (stage.id === stageId) {
-          const index = stage.items.findIndex(i => i.id === itemId);
-          if (index === -1) return stage;
-          const newItems = [...stage.items];
-          const targetIndex = direction === 'up' ? index - 1 : index + 1;
-          if (targetIndex >= 0 && targetIndex < newItems.length) {
-            [newItems[index], newItems[targetIndex]] = [newItems[targetIndex], newItems[index]];
-          }
-          return { ...stage, items: newItems };
-        }
-        return stage;
-      });
-      setChecklistStructure(newStructure);
-      updateConfig({ checklistStructure: newStructure });
-    }, [checklistStructure, updateConfig]),
+    moveChecklistItem: useCallback((checklistId, itemId, direction) => {
+      const items = dailyChecklistItems.filter(i => i.daily_checklist_id === checklistId).sort((a, b) => a.order_index - b.order_index);
+      const index = items.findIndex(i => i.id === itemId);
+      if (index === -1) return;
+      const targetIndex = direction === 'up' ? index - 1 : index + 1;
+      if (targetIndex < 0 || targetIndex >= items.length) return;
+      const itemA = items[index]; const itemB = items[targetIndex];
+      await Promise.all([supabase.from('daily_checklist_items').update({ order_index: itemB.order_index }).eq('id', itemA.id), supabase.from('daily_checklist_items').update({ order_index: itemA.order_index }).eq('id', itemB.id)]);
+      const { data } = await supabase.from('daily_checklist_items').select('*'); setDailyChecklistItems(data || []);
+    }, [dailyChecklistItems]),
     resetChecklistToDefault: useCallback(() => {
       setChecklistStructure(DEFAULT_STAGES);
       updateConfig({ checklistStructure: DEFAULT_STAGES });
@@ -1683,9 +1676,23 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }, [user]),
     updateTeamMember,
     deleteTeamMember: useCallback(async (id) => { const member = teamMembers.find(m => m.id === id); if (!member) return; const { error } = await supabase.from('team_members').delete().eq('id', member.db_id); if (error) throw error; setTeamMembers(prev => prev.filter(m => m.id !== id)); }, [teamMembers]),
-    addTeamProductionGoal: useCallback(async (goal) => { const { data, error } = await supabase.from('team_production_goals').insert({ ...goal, user_id: JOAO_GESTOR_AUTH_ID }).select().single(); if (error) throw error; setTeamProductionGoals(prev => [data, ...prev]); return data; }, []),
-    updateTeamProductionGoal: useCallback(async (id, updates) => { const { data, error } = await supabase.from('team_production_goals').update(updates).eq('id', id).select().single(); if (error) throw error; setTeamProductionGoals(prev => prev.map(g => g.id === id ? data : g)); return data; }, []),
-    deleteTeamProductionGoal: useCallback(async (id) => { const { error } = await supabase.from('team_production_goals').delete().eq('id', id); if (error) throw error; setTeamProductionGoals(prev => prev.filter(g => g.id !== id)); }, []),
+    addTeamProductionGoal: useCallback(async (goal: Omit<TeamProductionGoal, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
+      const { data, error } = await supabase.from('team_production_goals').insert({ ...goal, user_id: JOAO_GESTOR_AUTH_ID }).select().single();
+      if (error) throw error;
+      setTeamProductionGoals(prev => [data, ...prev]);
+      return data;
+    }, []),
+    updateTeamProductionGoal: useCallback(async (id: string, updates: Partial<TeamProductionGoal>) => {
+      const { data, error } = await supabase.from('team_production_goals').update(updates).eq('id', id).select().single();
+      if (error) throw error;
+      setTeamProductionGoals(prev => prev.map(g => g.id === id ? data : g));
+      return data;
+    }, []),
+    deleteTeamProductionGoal: useCallback(async (id: string) => {
+      const { error } = await supabase.from('team_production_goals').delete().eq('id', id);
+      if (error) throw error;
+      setTeamProductionGoals(prev => prev.filter(g => g.id !== id));
+    }, []),
     hasPendingSecretariaTasks,
     addColdCallLead,
     updateColdCallLead,
@@ -1693,8 +1700,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addColdCallLog,
     getColdCallMetrics,
     createCrmLeadFromColdCall,
-    updateCommission,
-    updateInstallmentStatus,
   }), [
     isDataLoading, candidates, teamMembers, commissions, supportMaterials, cutoffPeriods, onboardingSessions, onboardingTemplateVideos, checklistStructure, setChecklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs, crmPipelines, crmStages, crmFields, crmLeads, crmOwnerUserId, dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions, weeklyTargets, weeklyTargetItems, weeklyTargetAssignments, metricLogs, supportMaterialsV2, supportMaterialAssignments, leadTasks, gestorTasks, gestorTaskCompletions, financialEntries, formCadastros, formFiles, notifications, teamProductionGoals, coldCallLeads, coldCallLogs, theme,
     toggleTheme, updateConfig, resetLocalState, refetchCommissions, calculateCompetenceMonth, isGestorTaskDueOnDate, calculateNotifications,
@@ -1721,7 +1726,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     hasPendingSecretariaTasks,
     user,
     toggleChecklistItem,
-    addColdCallLead, updateColdCallLead, deleteColdCallLead, addColdCallLog, getColdCallMetrics, createCrmLeadFromColdCall, parseDbCurrency, updateCommission, updateInstallmentStatus
+    addColdCallLead, updateColdCallLead, deleteColdCallLead, addColdCallLog, getColdCallMetrics, createCrmLeadFromColdCall, parseDbCurrency
   ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
