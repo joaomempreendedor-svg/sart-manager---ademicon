@@ -1065,6 +1065,36 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setCutoffPeriods(prev => prev.filter(p => p.db_id !== id));
   }, []);
 
+  // Online onboarding (template + sessões)
+  const addOnlineOnboardingSession = useCallback(async (consultantName: string) => {
+    const { data: sessionData, error: sessionError } = await supabase.from('onboarding_sessions').insert({ user_id: JOAO_GESTOR_AUTH_ID, consultant_name: consultantName }).select().single();
+    if (sessionError) throw sessionError;
+    const videosToInsert = onboardingTemplateVideos.map(v => ({ session_id: sessionData.id, title: v.title, video_url: v.video_url, order: v.order }));
+    const { error: videosError } = await supabase.from('onboarding_videos').insert(videosToInsert);
+    if (videosError) throw videosError;
+    const { data: fullSession } = await supabase.from('onboarding_sessions').select('*, videos:onboarding_videos(*)').eq('id', sessionData.id).single();
+    setOnboardingSessions(prev => [...prev, fullSession]);
+  }, [onboardingTemplateVideos]);
+
+  const deleteOnlineOnboardingSession = useCallback(async (sessionId: string) => {
+    const { error } = await supabase.from('onboarding_sessions').delete().eq('id', sessionId);
+    if (error) throw error;
+    setOnboardingSessions(prev => prev.filter(s => s.id !== sessionId));
+  }, []);
+
+  const addVideoToTemplate = useCallback(async (title: string, video_url: string) => {
+    const order = onboardingTemplateVideos.length > 0 ? Math.max(...onboardingTemplateVideos.map(v => v.order)) + 1 : 0;
+    const { data, error } = await supabase.from('onboarding_video_templates').insert({ user_id: JOAO_GESTOR_AUTH_ID, title, video_url, order }).select().single();
+    if (error) throw error;
+    setOnboardingTemplateVideos(prev => [...prev, data]);
+  }, [onboardingTemplateVideos]);
+
+  const deleteVideoFromTemplate = useCallback(async (videoId: string) => {
+    const { error } = await supabase.from('onboarding_video_templates').delete().eq('id', videoId);
+    if (error) throw error;
+    setOnboardingTemplateVideos(prev => prev.filter(v => v.id !== videoId));
+  }, []);
+
   // Formulários
   const updateFormCadastro = useCallback(async (id: string, updates: Partial<FormCadastro>) => {
     const { data, error } = await supabase.from('form_submissions').update(updates).eq('id', id).select().single();
@@ -1325,31 +1355,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     updateCutoffPeriod,
     deleteCutoffPeriod,
 
-    addOnlineOnboardingSession: async (consultantName: string) => {
-      const { data: sessionData, error: sessionError } = await supabase.from('onboarding_sessions').insert({ user_id: JOAO_GESTOR_AUTH_ID, consultant_name: consultantName }).select().single();
-      if (sessionError) throw sessionError;
-      const videosToInsert = onboardingTemplateVideos.map(v => ({ session_id: sessionData.id, title: v.title, video_url: v.video_url, order: v.order }));
-      const { error: videosError } = await supabase.from('onboarding_videos').insert(videosToInsert);
-      if (videosError) throw videosError;
-      const { data: fullSession } = await supabase.from('onboarding_sessions').select('*, videos:onboarding_videos(*)').eq('id', sessionData.id).single();
-      setOnboardingSessions(prev => [...prev, fullSession]);
-    },
-    deleteOnlineOnboardingSession: async (sessionId: string) => {
-      const { error } = await supabase.from('onboarding_sessions').delete().eq('id', sessionId);
-      if (error) throw error;
-      setOnboardingSessions(prev => prev.filter(s => s.id !== sessionId));
-    },
-    addVideoToTemplate: async (title: string, video_url: string) => {
-      const order = onboardingTemplateVideos.length > 0 ? Math.max(...onboardingTemplateVideos.map(v => v.order)) + 1 : 0;
-      const { data, error } = await supabase.from('onboarding_video_templates').insert({ user_id: JOAO_GESTOR_AUTH_ID, title, video_url, order }).select().single();
-      if (error) throw error;
-      setOnboardingTemplateVideos(prev => [...prev, data]);
-    },
-    deleteVideoFromTemplate: async (videoId: string) => {
-      const { error } = await supabase.from('onboarding_video_templates').delete().eq('id', videoId);
-      if (error) throw error;
-      setOnboardingTemplateVideos(prev => prev.filter(v => v.id !== videoId));
-    },
+    addOnlineOnboardingSession,
+    deleteOnlineOnboardingSession,
+    addVideoToTemplate,
+    deleteVideoFromTemplate,
 
     addCrmPipeline: async (name: string) => {
       const { data, error } = await supabase.from('crm_pipelines').insert({ user_id: JOAO_GESTOR_AUTH_ID, name }).select().single();
