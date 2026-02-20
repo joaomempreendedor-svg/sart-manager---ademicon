@@ -38,7 +38,7 @@ const JOAO_GESTOR_AUTH_ID = "0c6d71b7-daeb-4dde-8eec-0e7a8ffef658";
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { user, session } = useAuth();
-  const fetchedUserIdRef = useRef<string | null>(null); // Corrigido: Inicializado com null
+  const fetchedUserIdRef = useRef<string | null>(null);
   const isFetchingRef = useRef(false);
 
   const [isDataLoading, setIsDataLoading] = useState(true);
@@ -87,8 +87,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [teamProductionGoals, setTeamProductionGoals] = useState<TeamProductionGoal[]>([]);
 
-  const [coldCallLeads, setColdCallLeads] = useState<ColdCallLead[]>([]); // NOVO
-  const [coldCallLogs, setColdCallLogs] = useState<ColdCallLog[]>([]);     // NOVO
+  const [coldCallLeads, setColdCallLeads] = useState<ColdCallLead[]>([]);
+  const [coldCallLogs, setColdCallLogs] = useState<ColdCallLog[]>([]);
 
   const [theme, setTheme] = useState<'light' | 'dark'>(() => (localStorage.getItem('sart_theme') as 'light' | 'dark') || 'light');
 
@@ -108,7 +108,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, [theme]);
 
-  // Mover parseDbCurrency para dentro do AppProvider
   const parseDbCurrency = useCallback((value: any): number | null => {
     if (typeof value === 'number') return value;
     if (typeof value === 'string') {
@@ -184,7 +183,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setWeeklyTargets([]); setWeeklyTargetItems([]); setWeeklyTargetItems([]); setWeeklyTargetAssignments([]); setMetricLogs([]);
     setSupportMaterialsV2([]); setSupportMaterialAssignments([]); setLeadTasks([]); setGestorTasks([]); setGestorTaskCompletions([]); setFinancialEntries([]);
     setFormCadastros([]); setFormFiles([]); setNotifications([]); setTeamProductionGoals([]);
-    setColdCallLeads([]); setColdCallLogs([]); // NOVO: Reset cold call states
+    setColdCallLeads([]); setColdCallLogs([]);
     setIsDataLoading(false);
   }, []);
 
@@ -343,7 +342,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           supportMaterialsV2Res, supportMaterialAssignmentsV2Res,
           leadTasksRes, gestorTasksRes, gestorTaskCompletionsRes, financialEntriesRes,
           formCadastrosRes, formFilesRes, notificationsRes, teamProductionGoalsRes, teamMembersRes,
-          coldCallLeadsRes, coldCallLogsRes // NOVO: Fetch cold call data
+          coldCallLeadsRes, coldCallLogsRes
         ] = await Promise.all([
           supabase.from('candidates').select('id, data, created_at, last_updated_at').eq('user_id', effectiveGestorId),
           supabase.from('support_materials').select('id, data').eq('user_id', effectiveGestorId),
@@ -353,7 +352,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           supabase.from('crm_pipelines').select('*').eq('user_id', effectiveGestorId),
           supabase.from('crm_stages').select('*').eq('user_id', effectiveGestorId).order('order_index'),
           supabase.from('crm_fields').select('*').eq('user_id', effectiveGestorId),
-          supabase.from('crm_leads').select('*').eq('user_id', effectiveGestorId).order('created_at', { ascending: false }), // ADICIONADO: Ordenar por created_at descendente
+          supabase.from('crm_leads').select('*').eq('user_id', effectiveGestorId).order('created_at', { ascending: false }),
           supabase.from('daily_checklists').select('*').eq('user_id', effectiveGestorId),
           supabase.from('daily_checklist_items').select('*'),
           supabase.from('daily_checklist_assignments').select('*'),
@@ -373,8 +372,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           supabase.from('notifications').select('*').eq('user_id', userId).eq('is_read', false).order('created_at', { ascending: false }),
           supabase.from('team_production_goals').select('*').eq('user_id', effectiveGestorId).order('start_date', { ascending: false }),
           supabase.from('team_members').select('id, data, cpf, user_id').eq('user_id', effectiveGestorId),
-          // Para Gestores/Admins, buscar TODOS os cold call leads/logs que eles têm permissão para ver (via RLS)
-          // Para Consultores, a RLS já limita aos seus próprios.
           supabase.from('cold_call_leads').select('*'), 
           supabase.from('cold_call_logs').select('*')   
         ]);
@@ -394,9 +391,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               onboardingOnlineDate: candidateData.onboardingOnlineDate, integrationPresencialDate: candidateData.integrationPresencialDate,
               acompanhamento90DiasDate: candidateData.acompanhamento90DiasDate, authorizedDate: candidateData.authorizedDate,
               reprovadoDate: candidateData.reprovadoDate, disqualifiedDate: candidateData.disqualifiedDate, faltouDate: candidateData.faltouDate,
-              noResponseDate: candidateData.noResponseDate, // NOVO: Mapeia a data de 'No Response'
-              interviewStartTime: candidateData.interviewStartTime, // NOVO: Mapeia a hora de início
-              interviewEndTime: candidateData.interviewEndTime,     // NOVO: Mapeia a hora de término
+              noResponseDate: candidateData.noResponseDate,
+              interviewStartTime: candidateData.interviewStartTime,
+              interviewEndTime: candidateData.interviewEndTime,
             };
           });
           setCandidates(normalizedCandidates);
@@ -411,7 +408,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             const authId = data.id || data.authUserId || null;
             return { 
               id: dbId, db_id: dbId, authUserId: authId, name: String(data.name || ''), email: data.email, 
-              roles: Array.isArray(data.roles) ? data.roles.map((role: string) => role.toUpperCase()) : [], // Normalize roles to uppercase
+              roles: Array.isArray(data.roles) ? data.roles.map((role: string) => role.toUpperCase()) : [],
               isActive: data.isActive !== false, 
               hasLogin: !!authId, isLegacy: !authId, cpf: item.cpf, dateOfBirth: data.dateOfBirth, user_id: item.user_id 
             };
@@ -502,8 +499,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (teamProductionGoalsRes.error) { console.error("Error fetching team production goals:", teamProductionGoalsRes.error); toast.error(`Erro ao carregar metas de produção da equipe: ${teamProductionGoalsRes.error.message}`); setTeamProductionGoals([]); }
         else { setTeamProductionGoals(teamProductionGoalsRes.data || []); console.log(`[AppContext] Fetched ${teamProductionGoalsRes.data?.length || 0} team production goals.`); }
         
-        // Para Gestores/Admins, buscar TODOS os cold call leads/logs que eles têm permissão para ver (via RLS)
-        // Para Consultores, a RLS já limita aos seus próprios.
         if (coldCallLeadsRes.error) { console.error("Error fetching cold call leads:", coldCallLeadsRes.error); toast.error(`Erro ao carregar leads de cold call: ${coldCallLeadsRes.error.message}`); setColdCallLeads([]); }
         else { setColdCallLeads(coldCallLeadsRes.data || []); console.log(`[AppContext] Fetched ${coldCallLeadsRes.data?.length || 0} cold call leads.`); }
 
@@ -539,7 +534,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const newCandidate = { ...candidate, id: data.id, db_id: data.id, createdAt: data.created_at } as Candidate;
     setCandidates(prev => [newCandidate, ...prev]);
     return newCandidate;
-  }, [user, setCandidates]);
+  }, [user]);
 
   const updateCandidate = useCallback(async (id: string, updates: Partial<Candidate>) => {
     const candidate = candidates.find(c => c.id === id || c.db_id === id);
@@ -552,7 +547,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (updates.screeningStatus === 'Contacted' && candidate.screeningStatus !== 'Contacted') {
       updatedData.contactedDate = now;
     }
-    // NOVO: Registra a data quando o status de triagem muda para 'No Response'
     if (updates.screeningStatus === 'No Response' && candidate.screeningStatus !== 'No Response') {
       updatedData.noResponseDate = now;
     }
@@ -587,7 +581,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       updatedData.faltouDate = now;
     }
 
-    // NOVO: Adiciona as horas de início e fim da entrevista
     if (updates.interviewStartTime !== undefined) {
       updatedData.interviewStartTime = updates.interviewStartTime;
     }
@@ -607,13 +600,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       .eq('id', dbId);
 
     if (error) throw error;
-  }, [candidates, setCandidates]);
+  }, [candidates]);
 
   const deleteCandidate = useCallback(async (dbId: string) => {
     const { error } = await supabase.from('candidates').delete().eq('id', dbId);
     if (error) throw error;
     setCandidates(prev => prev.filter(c => c.db_id !== dbId));
-  }, [setCandidates]);
+  }, []);
 
   const addCrmLead = useCallback(async (lead: Omit<CrmLead, 'id' | 'created_at' | 'updated_at' | 'user_id' | 'created_by' | 'updated_by'>) => {
     if (!user) {
@@ -638,7 +631,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const newLead = { id: data.id, consultant_id: data.consultant_id, stage_id: data.id, user_id: data.user_id, name: data.name, data: data.data, created_at: data.created_at, updated_at: data.updated_at, created_by: data.created_by, updated_by: data.updated_by, proposal_value: parseDbCurrency(data.proposal_value), proposal_closing_date: data.proposal_closing_date, sold_credit_value: parseDbCurrency(data.sold_credit_value), sold_group: data.sold_group, sold_quota: data.sold_quota, sale_date: data.sale_date };
     setCrmLeads(prev => [newLead, ...prev]);
     return newLead;
-  }, [user, setCrmLeads, crmOwnerUserId, parseDbCurrency]);
+  }, [user, crmOwnerUserId, parseDbCurrency]);
 
   const updateCrmLead = useCallback(async (id: string, updates: Partial<CrmLead>) => {
     const { data, error } = await supabase.from('crm_leads').update({ 
@@ -655,13 +648,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const updatedLead = { id: data.id, consultant_id: data.consultant_id, stage_id: data.stage_id, user_id: data.user_id, name: data.name, data: data.data, created_at: data.created_at, updated_at: data.updated_at, created_by: data.created_by, updated_by: data.updated_by, proposal_value: parseDbCurrency(data.proposal_value), proposal_closing_date: data.proposal_closing_date, sold_credit_value: parseDbCurrency(data.sold_credit_value), sold_group: data.sold_group, sold_quota: data.sold_quota, sale_date: data.sale_date };
     setCrmLeads(prev => prev.map(l => l.id === id ? updatedLead : l));
     return updatedLead;
-  }, [user, setCrmLeads, parseDbCurrency]);
+  }, [user, parseDbCurrency]);
 
   const deleteCrmLead = useCallback(async (id: string) => {
     const { error } = await supabase.from('crm_leads').delete().eq('id', id);
     if (error) throw error;
     setCrmLeads(prev => prev.filter(l => l.id !== id));
-  }, [setCrmLeads]);
+  }, []);
 
   const updateTeamMember = useCallback(async (id: string, updates: Partial<TeamMember>) => {
     const member = teamMembers.find(m => m.id === id);
@@ -670,7 +663,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (error) throw error;
     setTeamMembers(prev => prev.map(m => m.id === id ? { ...m, ...updates } : m));
     return { success: true };
-  }, [teamMembers, setTeamMembers]);
+  }, [teamMembers]);
 
   const addTeamMemberFeedback = useCallback(async (teamMemberId: string, feedback: Omit<Feedback, 'id'>) => {
     const member = teamMembers.find(m => m.id === teamMemberId);
@@ -705,13 +698,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (error) throw error;
     setFormCadastros(prev => prev.map(f => f.id === id ? data : f));
     return data;
-  }, [setFormCadastros]);
+  }, []);
 
   const deleteFormCadastro = useCallback(async (id: string) => {
     const { error } = await supabase.from('form_submissions').delete().eq('id', id);
     if (error) throw error;
     setFormCadastros(prev => prev.filter(f => f.id !== id));
-  }, [setFormCadastros]);
+  }, []);
 
   const addFeedback = useCallback(async (personId: string, feedback: Omit<Feedback, 'id'>) => {
     const candidate = candidates.find(c => c.id === personId);
@@ -748,7 +741,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const newMember = { id: data.id, db_id: data.id, authUserId: authData.authUserId, name: member.name, email: member.email, roles: member.roles, isActive: member.isActive, cpf: member.cpf, dateOfBirth: member.dateOfBirth, user_id: data.user_id };
     setTeamMembers(prev => [...prev, newMember]);
     return { success: true, member: newMember, tempPassword, wasExistingUser: authData.userExists };
-  }, [setTeamMembers, user]);
+  }, [user]);
 
   const deleteTeamMember = useCallback(async (id: string) => {
     const member = teamMembers.find(m => m.id === id);
@@ -756,47 +749,47 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const { error } = await supabase.from('team_members').delete().eq('id', member.db_id);
     if (error) throw error;
     setTeamMembers(prev => prev.filter(m => m.id !== id));
-  }, [teamMembers, setTeamMembers]);
+  }, [teamMembers]);
 
   const addTeamProductionGoal = useCallback(async (goal: Omit<TeamProductionGoal, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
     const { data, error } = await supabase.from('team_production_goals').insert({ ...goal, user_id: JOAO_GESTOR_AUTH_ID }).select().single();
     if (error) throw error;
     setTeamProductionGoals(prev => [data, ...prev]);
     return data;
-  }, [setTeamProductionGoals]);
+  }, []);
 
   const updateTeamProductionGoal = useCallback(async (id: string, updates: Partial<TeamProductionGoal>) => {
     const { data, error } = await supabase.from('team_production_goals').update(updates).eq('id', id).select().single();
     if (error) throw error;
     setTeamProductionGoals(prev => prev.map(g => g.id === id ? data : g));
     return data;
-  }, [setTeamProductionGoals]);
+  }, []);
 
   const deleteTeamProductionGoal = useCallback(async (id: string) => {
     const { error } = await supabase.from('team_production_goals').delete().eq('id', id);
     if (error) throw error;
     setTeamProductionGoals(prev => prev.filter(g => g.id !== id));
-  }, [setTeamProductionGoals]);
+  }, []);
 
   const addDailyChecklist = useCallback(async (title: string) => {
     const { data, error } = await supabase.from('daily_checklists').insert({ user_id: JOAO_GESTOR_AUTH_ID, title }).select().single();
     if (error) throw error;
     setDailyChecklists(prev => [...prev, data]);
     return data;
-  }, [setDailyChecklists]);
+  }, []);
 
   const updateDailyChecklist = useCallback(async (id: string, updates: Partial<DailyChecklist>) => {
     const { data, error } = await supabase.from('daily_checklists').update(updates).eq('id', id).select().single();
     if (error) throw error;
     setDailyChecklists(prev => prev.map(d => d.id === id ? data : d));
     return data;
-  }, [setDailyChecklists]);
+  }, []);
 
   const deleteDailyChecklist = useCallback(async (id: string) => {
     const { error } = await supabase.from('daily_checklists').delete().eq('id', id);
     if (error) throw error;
     setDailyChecklists(prev => prev.filter(d => d.id !== id));
-  }, [setDailyChecklists]);
+  }, []);
 
   const addDailyChecklistItem = useCallback(async (daily_checklist_id: string, text: string, order_index: number, resource?: DailyChecklistItemResource, audioFile?: File, imageFile?: File) => {
     let finalResource = resource;
@@ -818,7 +811,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (error) throw error;
     setDailyChecklistItems(prev => [...prev, data]);
     return data;
-  }, [setDailyChecklistItems]);
+  }, []);
 
   const updateDailyChecklistItem = useCallback(async (id: string, updates: Partial<DailyChecklistItem>, audioFile?: File, imageFile?: File) => {
     let finalResource = updates.resource;
@@ -840,13 +833,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (error) throw error;
     setDailyChecklistItems(prev => prev.map(i => i.id === id ? data : i));
     return data;
-  }, [setDailyChecklistItems]);
+  }, [dailyChecklistItems, updateConfig]);
 
   const deleteDailyChecklistItem = useCallback(async (id: string) => {
     const { error } = await supabase.from('daily_checklist_items').delete().eq('id', id);
     if (error) throw error;
     setDailyChecklistItems(prev => prev.filter(i => i.id !== id));
-  }, [setDailyChecklistItems]);
+  }, []);
 
   const moveDailyChecklistItem = useCallback(async (checklistId: string, itemId: string, direction: 'up' | 'down') => {
     const items = dailyChecklistItems.filter(i => i.daily_checklist_id === checklistId).sort((a, b) => a.order_index - b.order_index);
@@ -857,20 +850,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const itemA = items[index]; const itemB = items[targetIndex];
     await Promise.all([supabase.from('daily_checklist_items').update({ order_index: itemB.order_index }).eq('id', itemA.id), supabase.from('daily_checklist_items').update({ order_index: itemA.order_index }).eq('id', itemB.id)]);
     const { data } = await supabase.from('daily_checklist_items').select('*'); setDailyChecklistItems(data || []);
-  }, [dailyChecklistItems, setDailyChecklistItems]);
+  }, [dailyChecklistItems]);
 
   const assignDailyChecklistToConsultant = useCallback(async (daily_checklist_id: string, consultant_id: string) => { 
     const { data, error } = await supabase.from('daily_checklist_assignments').insert({ daily_checklist_id, consultant_id }).select().single(); 
     if (error) throw error; 
     setDailyChecklistAssignments(prev => [...prev, data]); 
     return data; 
-  }, [setDailyChecklistAssignments]);
+  }, []);
 
   const unassignDailyChecklistFromConsultant = useCallback(async (daily_checklist_id: string, consultant_id: string) => { 
     const { error } = await supabase.from('daily_checklist_assignments').delete().eq('daily_checklist_id', daily_checklist_id).eq('consultant_id', consultant_id); 
     if (error) throw error; 
     setDailyChecklistAssignments(prev => prev.filter(a => !(a.daily_checklist_id === daily_checklist_id && a.consultant_id === consultant_id))); 
-  }, [setDailyChecklistAssignments]);
+  }, []);
 
   const toggleDailyChecklistCompletion = useCallback(async (daily_checklist_item_id: string, date: string, done: boolean, consultant_id: string) => {
     const { data, error } = await supabase.from('daily_checklist_completions').upsert({ daily_checklist_item_id, consultant_id, date, done }, { onConflict: 'daily_checklist_item_id,consultant_id,date' }).select().single();
@@ -879,87 +872,87 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const filtered = prev.filter(c => !(c.daily_checklist_item_id === daily_checklist_item_id && c.consultant_id === consultant_id && c.date === date));
       return [...filtered, data];
     });
-  }, [setDailyChecklistCompletions]);
+  }, []);
 
   const addWeeklyTarget = useCallback(async (target: Omit<WeeklyTarget, 'id' | 'user_id' | 'created_at'>) => { 
     const { data, error } = await supabase.from('weekly_targets').insert({ ...target, user_id: JOAO_GESTOR_AUTH_ID }).select().single(); 
     if (error) throw error; 
     setWeeklyTargets(prev => [...prev, data]); 
     return data; 
-  }, [setWeeklyTargets]);
+  }, []);
 
   const updateWeeklyTarget = useCallback(async (id: string, updates: Partial<WeeklyTarget>) => { 
     const { data, error } = await supabase.from('weekly_targets').update(updates).eq('id', id).select().single(); 
     if (error) throw error; 
     setWeeklyTargets(prev => prev.map(w => w.id === id ? data : w)); 
     return data; 
-  }, [setWeeklyTargets]);
+  }, []);
 
   const deleteWeeklyTarget = useCallback(async (id: string) => { 
     const { error } = await supabase.from('weekly_targets').delete().eq('id', id); 
     if (error) throw error; 
     setWeeklyTargets(prev => prev.filter(w => w.id !== id)); 
-  }, [setWeeklyTargets]);
+  }, []);
 
   const addWeeklyTargetItem = useCallback(async (item: Omit<WeeklyTargetItem, 'id' | 'created_at'>) => { 
     const { data, error } = await supabase.from('weekly_target_items').insert(item).select().single(); 
     if (error) throw error; 
     setWeeklyTargetItems(prev => [...prev, data]); 
     return data; 
-  }, [setWeeklyTargetItems]);
+  }, []);
 
   const updateWeeklyTargetItem = useCallback(async (id: string, updates: Partial<WeeklyTargetItem>) => { 
     const { data, error } = await supabase.from('weekly_target_items').update(updates).eq('id', id).select().single(); 
     if (error) throw error; 
     setWeeklyTargetItems(prev => prev.map(i => i.id === id ? data : i)); 
     return data; 
-  }, [setWeeklyTargetItems]);
+  }, []);
 
   const deleteWeeklyTargetItem = useCallback(async (id: string) => { 
     const { error } = await supabase.from('weekly_target_items').delete().eq('id', id); 
     if (error) throw error; 
     setWeeklyTargetItems(prev => prev.filter(i => i.id !== id)); 
-  }, [setWeeklyTargetItems]);
+  }, []);
 
   const updateWeeklyTargetItemOrder = useCallback(async (orderedItems: WeeklyTargetItem[]) => {
     const updates = orderedItems.map((item, index) => supabase.from('weekly_target_items').update({ order_index: index }).eq('id', item.id));
     await Promise.all(updates);
     const { data } = await supabase.from('weekly_target_items').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID).order('order_index');
     setWeeklyTargetItems(data || []);
-  }, [setWeeklyTargetItems]);
+  }, []);
 
   const assignWeeklyTargetToConsultant = useCallback(async (weekly_target_id: string, consultant_id: string) => { 
     const { data, error } = await supabase.from('weekly_target_assignments').insert({ weekly_target_id, consultant_id }).select().single(); 
     if (error) throw error; 
     setWeeklyTargetAssignments(prev => [...prev, data]); 
     return data; 
-  }, [setWeeklyTargetAssignments]);
+  }, []);
 
   const unassignWeeklyTargetFromConsultant = useCallback(async (weekly_target_id: string, consultant_id: string) => { 
     const { error } = await supabase.from('weekly_target_assignments').delete().eq('weekly_target_id', weekly_target_id).eq('consultant_id', consultant_id); 
     if (error) throw error; 
     setWeeklyTargetAssignments(prev => prev.filter(a => !(a.weekly_target_id === weekly_target_id && a.consultant_id === consultant_id))); 
-  }, [setWeeklyTargetAssignments]);
+  }, []);
 
   const addMetricLog = useCallback(async (log: Omit<MetricLog, 'id' | 'created_at'>) => { 
     const { data, error } = await supabase.from('metric_logs').insert(log).select().single(); 
     if (error) throw error; 
     setMetricLogs(prev => [...prev, data]); 
     return data; 
-  }, [setMetricLogs]);
+  }, []);
 
   const updateMetricLog = useCallback(async (id: string, updates: Partial<MetricLog>) => { 
     const { data, error } = await supabase.from('metric_logs').update(updates).eq('id', id).select().single(); 
     if (error) throw error; 
     setMetricLogs(prev => prev.map(m => m.id === id ? data : m)); 
     return data; 
-  }, [setMetricLogs]);
+  }, []);
 
   const deleteMetricLog = useCallback(async (id: string) => { 
     const { error } = await supabase.from('metric_logs').delete().eq('id', id); 
     if (error) throw error; 
     setMetricLogs(prev => prev.filter(m => m.id !== id)); 
-  }, [setMetricLogs]);
+  }, []);
 
   const addSupportMaterialV2 = useCallback(async (material: Omit<SupportMaterialV2, 'id' | 'user_id' | 'created_at'>, file?: File) => {
     let content = material.content;
@@ -974,7 +967,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (error) throw error;
     setSupportMaterialsV2(prev => [...prev, data]);
     return data;
-  }, [setSupportMaterialsV2]);
+  }, []);
 
   const updateSupportMaterialV2 = useCallback(async (id: string, updates: Partial<SupportMaterialV2>, file?: File) => {
     let content = updates.content;
@@ -989,80 +982,80 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (error) throw error;
     setSupportMaterialsV2(prev => prev.map(m => m.id === id ? data : m));
     return data;
-  }, [setSupportMaterialsV2]);
+  }, []);
 
   const deleteSupportMaterialV2 = useCallback(async (id: string) => { 
     const { error } = await supabase.from('support_materials_v2').delete().eq('id', id); 
     if (error) throw error; 
     setSupportMaterialsV2(prev => prev.filter(m => m.id !== id)); 
-  }, [setSupportMaterialsV2]);
+  }, []);
 
   const assignSupportMaterialToConsultant = useCallback(async (material_id: string, consultant_id: string) => { 
     const { data, error } = await supabase.from('support_material_assignments').insert({ material_id, consultant_id }).select().single(); 
     if (error) throw error; 
     setSupportMaterialAssignments(prev => [...prev, data]); 
     return data; 
-  }, [setSupportMaterialAssignments]);
+  }, []);
 
   const unassignSupportMaterialFromConsultant = useCallback(async (material_id: string, consultant_id: string) => { 
     const { error } = await supabase.from('support_material_assignments').delete().eq('material_id', material_id).eq('consultant_id', consultant_id); 
     if (error) throw error; 
     setSupportMaterialAssignments(prev => prev.filter(a => !(a.material_id === material_id && a.consultant_id === consultant_id))); 
-  }, [setSupportMaterialAssignments]);
+  }, []);
 
   const addLeadTask = useCallback(async (task: Omit<LeadTask, 'id' | 'created_at' | 'completed_at' | 'updated_at'> & { user_id: string; manager_id?: string | null; }) => { 
     const { data, error } = await supabase.from('lead_tasks').insert(task).select().single(); 
     if (error) throw error; 
     setLeadTasks(prev => [...prev, data]); 
     return data; 
-  }, [setLeadTasks]);
+  }, []);
 
   const updateLeadTask = useCallback(async (id: string, updates: Partial<LeadTask>) => { 
     const { data, error } = await supabase.from('lead_tasks').update(updates).eq('id', id).select().single(); 
     if (error) throw error; 
     setLeadTasks(prev => prev.map(t => t.id === id ? data : t)); 
     return data; 
-  }, [setLeadTasks]);
+  }, []);
 
   const deleteLeadTask = useCallback(async (id: string) => { 
     const { error } = await supabase.from('lead_tasks').delete().eq('id', id); 
     if (error) throw error; 
     setLeadTasks(prev => prev.filter(t => t.id !== id)); 
-  }, [setLeadTasks]);
+  }, []);
 
   const toggleLeadTaskCompletion = useCallback(async (id: string, is_completed: boolean) => { 
     const { data, error } = await supabase.from('lead_tasks').update({ is_completed, completed_at: is_completed ? new Date().toISOString() : null }).eq('id', id).select().single(); 
     if (error) throw error; 
     setLeadTasks(prev => prev.map(t => t.id === id ? data : t)); 
     return data; 
-  }, [setLeadTasks]);
+  }, []);
 
   const updateLeadMeetingInvitationStatus = useCallback(async (taskId: string, status: 'accepted' | 'declined') => { 
     const { data, error } = await supabase.from('lead_tasks').update({ manager_invitation_status: status }).eq('id', taskId).select().single(); 
     if (error) throw error; 
     setLeadTasks(prev => prev.map(t => t.id === taskId ? data : t)); 
     return data; 
-  }, [setLeadTasks]);
+  }, []);
 
   const addGestorTask = useCallback(async (task: Omit<GestorTask, 'id' | 'user_id' | 'created_at' | 'is_completed'>) => { 
     const { data, error } = await supabase.from('gestor_tasks').insert({ ...task, user_id: JOAO_GESTOR_AUTH_ID }).select().single(); 
     if (error) throw error; 
     setGestorTasks(prev => [...prev, data]); 
     return data; 
-  }, [setGestorTasks]);
+  }, []);
 
   const updateGestorTask = useCallback(async (id: string, updates: Partial<GestorTask>) => { 
     const { data, error } = await supabase.from('gestor_tasks').update(updates).eq('id', id).select().single(); 
     if (error) throw error; 
     setGestorTasks(prev => prev.map(t => t.id === id ? data : t)); 
     return data; 
-  }, [setGestorTasks]);
+  }, []);
 
   const deleteGestorTask = useCallback(async (id: string) => { 
     const { error } = await supabase.from('gestor_tasks').delete().eq('id', id); 
     if (error) throw error; 
     setGestorTasks(prev => prev.filter(t => t.id !== id)); 
-  }, [setGestorTasks]);
+  }, []);
 
   const toggleGestorTaskCompletion = useCallback(async (gestor_task_id: string, done: boolean, date: string) => {
     const { data, error } = await supabase.from('gestor_task_completions').upsert({ gestor_task_id, user_id: JOAO_GESTOR_AUTH_ID, date, done }, { onConflict: 'gestor_task_id,user_id,date' }).select().single();
@@ -1071,30 +1064,29 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const filtered = prev.filter(c => !(c.gestor_task_id === gestor_task_id && c.consultant_id === JOAO_GESTOR_AUTH_ID && c.date === date));
       return [...filtered, data];
     });
-  }, [setGestorTaskCompletions]);
+  }, []);
 
   const addFinancialEntry = useCallback(async (entry: Omit<FinancialEntry, 'id' | 'user_id' | 'created_at'>) => { 
-    const { data, error } = await supabase.from('financial_entries').insert({ ...entry, user_id: JOAO_GESTOR_AUTH_ID, amount: entry.amount * 100 }).select().single(); // Salva o valor em centavos
+    const { data, error } = await supabase.from('financial_entries').insert({ ...entry, user_id: JOAO_GESTOR_AUTH_ID, amount: entry.amount * 100 }).select().single();
     if (error) throw error; 
     setFinancialEntries(prev => [...prev, { ...data, amount: parseFloat(data.amount) / 100 }]); 
     return data; 
-  }, [setFinancialEntries]);
+  }, []);
 
   const updateFinancialEntry = useCallback(async (id: string, updates: Partial<FinancialEntry>) => { 
-    const updatesWithCentavos = updates.amount !== undefined ? { ...updates, amount: updates.amount * 100 } : updates; // Converte para centavos se o valor for atualizado
+    const updatesWithCentavos = updates.amount !== undefined ? { ...updates, amount: updates.amount * 100 } : updates;
     const { data, error } = await supabase.from('financial_entries').update(updatesWithCentavos).eq('id', id).select().single(); 
     if (error) throw error; 
     setFinancialEntries(prev => prev.map(e => e.id === id ? { ...data, amount: parseFloat(data.amount) / 100 } : e)); 
     return data; 
-  }, [setFinancialEntries]);
+  }, []);
 
   const deleteFinancialEntry = useCallback(async (id: string) => { 
     const { error } = await supabase.from('financial_entries').delete().eq('id', id); 
     if (error) throw error; 
     setFinancialEntries(prev => prev.filter(e => e.id !== id)); 
-  }, [setFinancialEntries]);
+  }, []);
 
-  // Moved toggleChecklistItem outside of useMemo
   const toggleChecklistItem = useCallback(async (candidateId: string, itemId: string) => {
     const candidate = candidates.find(c => c.id === candidateId);
     if (!candidate) {
@@ -1106,21 +1098,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const currentState = currentProgress[itemId] || { completed: false };
     const newProgress = { ...currentProgress, [itemId]: { ...currentState, completed: !currentState.completed } };
     
-    // Atualiza o estado local imediatamente para feedback visual
     setCandidates(prev => prev.map(c => (c.id === candidateId || c.db_id === candidateId) ? { ...c, checklistProgress: newProgress } : c));
 
-    // Persiste a mudança no banco de dados
     try {
-      const dbId = candidate.db_id || candidate.id; // Usa db_id se disponível, senão o id
+      const dbId = candidate.db_id || candidate.id;
       const { error } = await supabase
         .from('candidates')
-        .update({ data: { ...candidate, checklistProgress: newProgress } }) // Envia o objeto 'data' completo com o checklistProgress atualizado
-        .eq('id', dbId); // Usa o dbId para a atualização
+        .update({ data: { ...candidate, checklistProgress: newProgress } })
+        .eq('id', dbId);
 
       if (error) {
         console.error(`[toggleChecklistItem] Error updating candidate ${candidateId} checklistProgress in DB:`, error);
         toast.error(`Erro ao atualizar checklist: ${error.message}`);
-        // Reverte o estado local em caso de erro no DB
         setCandidates(prev => prev.map(c => (c.id === candidateId || c.db_id === candidateId) ? { ...c, checklistProgress: currentProgress } : c));
       } else {
         console.log(`[toggleChecklistItem] Checklist item ${itemId} for candidate ${candidateId} updated successfully in DB.`);
@@ -1128,12 +1117,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     } catch (error: any) {
       console.error(`[toggleChecklistItem] Unexpected error updating candidate ${candidateId} checklistProgress:`, error);
       toast.error(`Erro inesperado ao atualizar checklist: ${error.message}`);
-      // Reverte o estado local em caso de erro inesperado
       setCandidates(prev => prev.map(c => (c.id === candidateId || c.db_id === candidateId) ? { ...c, checklistProgress: currentProgress } : c));
     }
-  }, [candidates, setCandidates]);
+  }, [candidates]);
 
-  // NOVO: Função para verificar se um candidato tem tarefas pendentes da Secretaria
   const hasPendingSecretariaTasks = useCallback((candidate: Candidate): boolean => {
     const secretariaChecklistItems = checklistStructure.flatMap(stage => 
       stage.items.filter(item => item.responsibleRole === 'SECRETARIA')
@@ -1143,27 +1130,23 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     return secretariaChecklistItems.some(item => {
       const progress = candidate.checklistProgress?.[item.id];
-      // Considera pendente se não estiver completo E tiver uma data de vencimento (hoje ou atrasada)
-      // OU se não tiver data de vencimento e não estiver completo (tarefa sem prazo, mas ainda não feita)
       return !progress?.completed && (
-        (progress?.dueDate && progress.dueDate <= today) || // Venceu hoje ou está atrasado
-        (!progress?.dueDate) // Não tem prazo, mas não foi concluído
+        (progress?.dueDate && progress.dueDate <= today) ||
+        (!progress?.dueDate)
       );
     });
   }, [checklistStructure]);
 
-  // NOVO: Cold Call Functions
   const addColdCallLead = useCallback(async (lead: Omit<ColdCallLead, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'current_stage'>) => {
     if (!user) throw new Error("User not authenticated.");
     
-    // Garante que o nome seja o telefone se não for fornecido
     const finalName = lead.name?.trim() || lead.phone.trim();
 
     const { data, error } = await supabase.from('cold_call_leads').insert({ ...lead, name: finalName, user_id: user.id, current_stage: 'Base Fria' }).select().single();
     if (error) throw error;
     setColdCallLeads(prev => [...prev, data]);
     return data;
-  }, [user, setColdCallLeads]);
+  }, [user]);
 
   const updateColdCallLead = useCallback(async (id: string, updates: Partial<ColdCallLead>) => {
     if (!user) throw new Error("User not authenticated.");
@@ -1174,7 +1157,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     console.log(`[updateColdCallLead] Current user.id (auth.uid()): ${user.id}`);
     console.log(`[updateColdCallLead] Lead's user_id: ${leadToUpdate.user_id}`);
 
-    // Perform the update operation
     const { error: updateError } = await supabase
         .from('cold_call_leads')
         .update(updates)
@@ -1185,12 +1167,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         throw updateError;
     }
 
-    // Now, fetch the updated row separately
     const { data, error: selectError } = await supabase
         .from('cold_call_leads')
-        .select('*') // Select all columns to get the full updated object
+        .select('*')
         .eq('id', id)
-        .maybeSingle(); // Use maybeSingle to handle cases where it might not be found (e.g., deleted by another policy)
+        .maybeSingle();
 
     if (selectError) {
         console.error("[updateColdCallLead] Error during select operation after update:", selectError);
@@ -1198,20 +1179,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
 
     if (!data) {
-        // This means the update succeeded, but the user cannot read the row (e.g., RLS on SELECT)
-        // Or the row was deleted immediately after update (unlikely)
         throw new Error("No data returned after updating cold call lead (SELECT policy might be blocking).");
     }
 
     setColdCallLeads(prev => prev.map(l => l.id === id ? data : l));
     return data;
-  }, [user, coldCallLeads, setColdCallLeads]);
+  }, [user, coldCallLeads]);
 
   const deleteColdCallLead = useCallback(async (id: string) => {
     const { error } = await supabase.from('cold_call_leads').delete().eq('id', id);
     if (error) throw error;
     setColdCallLeads(prev => prev.filter(l => l.id !== id));
-  }, [setColdCallLeads]);
+  }, []);
 
   const addColdCallLog = useCallback(async (log: Omit<ColdCallLog, 'id' | 'user_id' | 'created_at'> & { start_time: string; end_time: string; duration_seconds: number; }) => {
     if (!user) throw new Error("User not authenticated.");
@@ -1233,12 +1212,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     console.log("[addColdCallLog DEBUG] Value of log.duration_seconds:", log.duration_seconds);
     console.log("[addColdCallLog] Data being inserted into cold_call_logs:", JSON.stringify(insertData, null, 2));
 
-    // Perform the insert operation
     const { data: insertedData, error: insertError } = await supabase
         .from('cold_call_logs')
         .insert(insertData)
-        .select('*') // Request the data back
-        .maybeSingle(); // Use maybeSingle to be safe
+        .select('*')
+        .maybeSingle();
 
     if (insertError) {
         console.error("[addColdCallLog] Error during insert operation:", insertError);
@@ -1246,13 +1224,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
 
     if (!insertedData) {
-        // This could happen if RLS on SELECT prevents the user from seeing the newly inserted row
-        // Or if the insert somehow didn't return data despite success (less common with .select())
         console.warn("[addColdCallLog] Insert operation succeeded, but no data was returned. Attempting separate select.");
         const { data: fetchedData, error: selectError } = await supabase
             .from('cold_call_logs')
             .select('*')
-            .eq('cold_call_lead_id', log.cold_call_lead_id) // Assuming cold_call_lead_id + user.id + created_at is unique enough for a recent log
+            .eq('cold_call_lead_id', log.cold_call_lead_id)
             .eq('user_id', user.id)
             .order('created_at', { ascending: false })
             .limit(1)
@@ -1271,7 +1247,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     setColdCallLogs(prev => [...prev, insertedData]);
     return insertedData;
-  }, [user, setColdCallLogs]);
+  }, [user]);
 
   const getColdCallMetrics = useCallback((consultantId: string) => {
     const consultantLeads = coldCallLeads.filter(lead => lead.user_id === consultantId);
@@ -1294,16 +1270,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const createCrmLeadFromColdCall = useCallback(async (coldCallLeadId: string) => {
     if (!user) throw new Error("User not authenticated.");
     
-    // 1. Invocar a Edge Function para criar o CRM Lead e a Lead Task
     const { data, error } = await supabase.functions.invoke('create-crm-lead-from-cold-call', {
       body: { coldCallLeadId },
     });
     if (error) throw error;
     if (data.error) throw new Error(data.error);
 
-    // 2. Atualizar o estado local do coldCallLeads para refletir o crm_lead_id
-    // A Edge Function já atualiza o cold_call_leads no banco de dados,
-    // mas precisamos refletir isso no estado local para que o botão "Criar Lead no CRM" desapareça.
     const { data: updatedColdCallLead, error: fetchError } = await supabase
       .from('cold_call_leads')
       .select('*')
@@ -1312,18 +1284,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     if (fetchError) {
       console.error("Error fetching updated cold call lead after CRM creation:", fetchError);
-      // Não lançar erro aqui, apenas logar, pois o CRM lead já foi criado.
     } else if (updatedColdCallLead) {
       setColdCallLeads(prev => prev.map(lead => 
         lead.id === coldCallLeadId ? updatedColdCallLead : lead
       ));
     }
 
-    // 3. Refetch crmLeads e leadTasks para que o novo lead e tarefa apareçam no CRM
-    const { data: newCrmLeads, error: crmLeadsError } = await supabase.from('crm_leads').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID).order('created_at', { ascending: false }); // ADICIONADO: Ordenar por created_at descendente
+    const { data: newCrmLeads, error: crmLeadsError } = await supabase.from('crm_leads').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID).order('created_at', { ascending: false });
     if (crmLeadsError) console.error("Error refetching crm leads:", crmLeadsError);
     else setCrmLeads(newCrmLeads?.map((lead: any) => ({ 
-      id: lead.id, consultant_id: lead.consultant_id, stage_id: lead.stage_id, user_id: lead.user_id, name: lead.name, data: lead.data, created_at: lead.created_at, updated_at: lead.updated_at, created_by: lead.created_by, updated_by: lead.updated_by, 
+      id: lead.id, consultant_id: lead.consultant_id, stage_id: lead.stage_id, user_id: lead.user_id, name: lead.name, data: lead.data, created_at: lead.created_at, updated_at: data.updated_at, created_by: lead.created_by, updated_by: lead.updated_by, 
       proposal_value: parseDbCurrency(lead.proposal_value), proposal_closing_date: lead.proposal_closing_date, 
       sold_credit_value: parseDbCurrency(lead.sold_credit_value), sold_group: lead.sold_group, sold_quota: lead.sold_quota, sale_date: lead.sale_date 
     })) || []);
@@ -1335,61 +1305,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return { crmLeadId: data.crmLeadId };
   }, [user, setColdCallLeads, setCrmLeads, setLeadTasks, parseDbCurrency]);
 
-  // Definir updateCommission como um useCallback separado
-  const updateCommission = useCallback(async (dbId: string, updates: Partial<Commission>) => {
-    console.log(`[updateCommission] Attempting to update commission DB ID: ${dbId} with updates:`, updates);
-    
-    const existingCommission = commissions.find(c => c.db_id === dbId);
-    if (!existingCommission) {
-      throw new Error(`Commission with DB ID ${dbId} not found for update.`);
-    }
-
-    const updatedDataContent = {
-      ...existingCommission,
-      ...updates,
-    };
-    delete (updatedDataContent as any).db_id;
-    delete (updatedDataContent as any).criado_em;
-
-    const { error } = await supabase.from('commissions').update({ data: updatedDataContent }).eq('id', dbId);
-    if (error) {
-      console.error(`[updateCommission] Error updating commission DB ID: ${dbId}:`, error);
-      throw error;
-    }
-    console.log(`[updateCommission] Commission DB ID: ${dbId} updated successfully. Refetching all commissions.`);
-    refetchCommissions(); 
-  }, [commissions, refetchCommissions]); // Dependências para updateCommission
-
-  // Definir updateInstallmentStatus como um useCallback separado, usando updateCommission
-  const updateInstallmentStatus = useCallback(async (commissionId, installmentNumber, newStatus, paidDate, saleType) => {
-    console.log(`[updateInstallmentStatus] Called for commissionId: ${commissionId}, installmentNumber: ${installmentNumber}, newStatus: ${newStatus}, paidDate: ${paidDate}`);
-    const commission = commissions.find(c => c.id === commissionId);
-    if (!commission) {
-      console.error(`[updateInstallmentStatus] Commission with ID ${commissionId} not found.`);
-      return;
-    }
-    if (!commission.db_id) {
-      console.error(`[updateInstallmentStatus] Commission with ID ${commissionId} has no db_id. Cannot update.`);
-      return;
-    }
-    const updatedDetails = { ...commission.installmentDetails, [installmentNumber]: { status: newStatus, paidDate, competenceMonth: paidDate ? calculateCompetenceMonth(paidDate) : undefined } };
-    
-    try {
-      await updateCommission(commission.db_id, { installmentDetails: updatedDetails, status: getOverallStatus(updatedDetails) });
-      console.log(`[updateInstallmentStatus] Successfully updated installment ${installmentNumber} for commission ${commissionId}.`);
-    } catch (error) {
-      console.error(`[updateInstallmentStatus] Error calling updateCommission for ${commissionId}:`, error);
-      throw error;
-    }
-  }, [commissions, calculateCompetenceMonth, updateCommission]); // Dependências para updateInstallmentStatus
-
-
   const value: AppContextType = useMemo(() => ({
     isDataLoading, candidates, teamMembers, commissions, supportMaterials, cutoffPeriods, onboardingSessions, onboardingTemplateVideos, checklistStructure, setChecklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs, crmPipelines, crmStages, crmFields, crmLeads, crmOwnerUserId, dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions, weeklyTargets, weeklyTargetItems, weeklyTargetAssignments, metricLogs, supportMaterialsV2, supportMaterialAssignments, leadTasks, gestorTasks, gestorTaskCompletions, financialEntries, formCadastros, formFiles, notifications, teamProductionGoals, coldCallLeads, coldCallLogs, theme,
     toggleTheme, updateConfig, resetLocalState, refetchCommissions, calculateCompetenceMonth, isGestorTaskDueOnDate, calculateNotifications,
     addCandidate, updateCandidate, deleteCandidate, getCandidate: (id: string) => candidates.find(c => c.id === id), 
     setCandidates,
-    toggleChecklistItem, // Now directly referenced
+    toggleChecklistItem,
     setChecklistDueDate: useCallback(async (candidateId, itemId, dueDate) => {
       const candidate = candidates.find(c => c.id === candidateId);
       if (!candidate) return;
@@ -1627,7 +1548,29 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       refetchCommissions(); 
       return { success: true }; 
     }, [refetchCommissions]),
-    updateCommission, // Referencia a função useCallback definida acima
+    updateCommission: useCallback(async (dbId: string, updates: Partial<Commission>) => {
+      console.log(`[updateCommission] Attempting to update commission DB ID: ${dbId} with updates:`, updates);
+      
+      const existingCommission = commissions.find(c => c.db_id === dbId);
+      if (!existingCommission) {
+        throw new Error(`Commission with DB ID ${dbId} not found for update.`);
+      }
+
+      const updatedDataContent = {
+        ...existingCommission,
+        ...updates,
+      };
+      delete (updatedDataContent as any).db_id;
+      delete (updatedDataContent as any).criado_em;
+
+      const { error } = await supabase.from('commissions').update({ data: updatedDataContent }).eq('id', dbId);
+      if (error) {
+        console.error(`[updateCommission] Error updating commission DB ID: ${dbId}:`, error);
+        throw error;
+      }
+      console.log(`[updateCommission] Commission DB ID: ${dbId} updated successfully. Refetching all commissions.`);
+      refetchCommissions(); 
+    }, [commissions, refetchCommissions]),
     deleteCommission: useCallback(async (id) => { 
       console.log(`[deleteCommission] Attempting to delete commission ID: ${id}`);
       const { error } = await supabase.from('commissions').delete().eq('id', id); 
@@ -1638,7 +1581,27 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       console.log(`[deleteCommission] Commission ID: ${id} deleted successfully. Refetching all commissions.`);
       refetchCommissions(); 
     }, [refetchCommissions]),
-    updateInstallmentStatus, // Referencia a função useCallback definida acima
+    updateInstallmentStatus: useCallback(async (commissionId, installmentNumber, newStatus, paidDate, saleType) => {
+      console.log(`[updateInstallmentStatus] Called for commissionId: ${commissionId}, installmentNumber: ${installmentNumber}, newStatus: ${newStatus}, paidDate: ${paidDate}`);
+      const commission = commissions.find(c => c.id === commissionId);
+      if (!commission) {
+        console.error(`[updateInstallmentStatus] Commission with ID ${commissionId} not found.`);
+        return;
+      }
+      if (!commission.db_id) {
+        console.error(`[updateInstallmentStatus] Commission with ID ${commissionId} has no db_id. Cannot update.`);
+        return;
+      }
+      const updatedDetails = { ...commission.installmentDetails, [installmentNumber]: { status: newStatus, paidDate, competenceMonth: paidDate ? calculateCompetenceMonth(paidDate) : undefined } };
+      
+      try {
+        await updateCommission(commission.db_id, { installmentDetails: updatedDetails, status: getOverallStatus(updatedDetails) });
+        console.log(`[updateInstallmentStatus] Successfully updated installment ${installmentNumber} for commission ${commissionId}.`);
+      } catch (error) {
+        console.error(`[updateInstallmentStatus] Error calling updateCommission for ${commissionId}:`, error);
+        throw error;
+      }
+    }, [commissions, calculateCompetenceMonth, updateCommission]),
     addCutoffPeriod: useCallback(async (period) => { const { error } = await supabase.from('cutoff_periods').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: period }).select().single(); if (error) throw error; const { data } = await supabase.from('cutoff_periods').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID); setCutoffPeriods(data?.map(item => ({ ...(item.data as CutoffPeriod), db_id: item.id })) || []); }, []),
     updateCutoffPeriod: useCallback(async (id, updates) => { const { error } = await supabase.from('cutoff_periods').update({ data: updates }).eq('id', id).select().single(); if (error) throw error; const { data } = await supabase.from('cutoff_periods').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID); setCutoffPeriods(data?.map(item => ({ ...(item.data as CutoffPeriod), db_id: item.id })) || []); }, []),
     deleteCutoffPeriod: useCallback(async (id) => { const { error } = await supabase.from('cutoff_periods').delete().eq('id', id); if (error) throw error; setCutoffPeriods(prev => prev.filter(p => p.db_id !== id)); }, []),
@@ -1714,23 +1677,23 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const newMember = { id: data.id, db_id: data.id, authUserId: authData.authUserId, name: member.name, email: member.email, roles: member.roles, isActive: member.isActive, cpf: member.cpf, dateOfBirth: member.dateOfBirth, user_id: data.user_id };
       setTeamMembers(prev => [...prev, newMember]);
       return { success: true, member: newMember, tempPassword, wasExistingUser: authData.userExists };
-    }, [setTeamMembers]),
+    }, [user]),
     updateTeamMember,
     deleteTeamMember: useCallback(async (id) => { const member = teamMembers.find(m => m.id === id); if (!member) return; const { error } = await supabase.from('team_members').delete().eq('id', member.db_id); if (error) throw error; setTeamMembers(prev => prev.filter(m => m.id !== id)); }, [teamMembers]),
     addTeamProductionGoal: useCallback(async (goal) => { const { data, error } = await supabase.from('team_production_goals').insert({ ...goal, user_id: JOAO_GESTOR_AUTH_ID }).select().single(); if (error) throw error; setTeamProductionGoals(prev => [data, ...prev]); return data; }, []),
     updateTeamProductionGoal: useCallback(async (id, updates) => { const { data, error } = await supabase.from('team_production_goals').update(updates).eq('id', id).select().single(); if (error) throw error; setTeamProductionGoals(prev => prev.map(g => g.id === id ? data : g)); return data; }, []),
     deleteTeamProductionGoal: useCallback(async (id) => { const { error } = await supabase.from('team_production_goals').delete().eq('id', id); if (error) throw error; setTeamProductionGoals(prev => prev.filter(g => g.id !== id)); }, []),
-    hasPendingSecretariaTasks, // Adicionado a nova função
-    addColdCallLead, // NOVO
-    updateColdCallLead, // NOVO
-    deleteColdCallLead, // NOVO
-    addColdCallLog, // NOVO
-    getColdCallMetrics, // NOVO
-    createCrmLeadFromColdCall, // NOVO: Referencia a função useCallback
+    hasPendingSecretariaTasks,
+    addColdCallLead,
+    updateColdCallLead,
+    deleteColdCallLead,
+    addColdCallLog,
+    getColdCallMetrics,
+    createCrmLeadFromColdCall,
   }), [
-    isDataLoading, candidates, teamMembers, commissions, supportMaterials, cutoffPeriods, onboardingSessions, onboardingTemplateVideos, checklistStructure, setChecklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs, crmPipelines, crmStages, crmFields, crmLeads, crmOwnerUserId, dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions, weeklyTargets, weeklyTargetItems, weeklyTargetAssignments, metricLogs, supportMaterialsV2, supportMaterialAssignments, leadTasks, gestorTasks, gestorTaskCompletions, financialEntries, formCadastros, formFiles, notifications, teamProductionGoals, coldCallLeads, coldCallLogs, theme,
+    isDataLoading, candidates, teamMembers, commissions, supportMaterials, cutoffPeriods, onboardingSessions, onboardingTemplateVideos, checklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs, crmPipelines, crmStages, crmFields, crmLeads, crmOwnerUserId, dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions, weeklyTargets, weeklyTargetItems, weeklyTargetAssignments, metricLogs, supportMaterialsV2, supportMaterialAssignments, leadTasks, gestorTasks, gestorTaskCompletions, financialEntries, formCadastros, formFiles, notifications, teamProductionGoals, coldCallLeads, coldCallLogs, theme,
     toggleTheme, updateConfig, resetLocalState, refetchCommissions, calculateCompetenceMonth, isGestorTaskDueOnDate, calculateNotifications,
-    addCandidate, updateCandidate, deleteCandidate, setCandidates,
+    addCandidate, updateCandidate, deleteCandidate,
     addCrmLead, updateCrmLead, deleteCrmLead,
     addDailyChecklist, updateDailyChecklist, deleteDailyChecklist,
     addDailyChecklistItem, updateDailyChecklistItem, deleteDailyChecklistItem, moveDailyChecklistItem,
@@ -1750,9 +1713,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addTeamMemberFeedback, updateTeamMemberFeedback, deleteTeamMemberFeedback,
     addTeamMember, updateTeamMember, deleteTeamMember,
     addTeamProductionGoal, updateTeamProductionGoal, deleteTeamProductionGoal,
-    hasPendingSecretariaTasks, // Incluído no array de dependências
+    hasPendingSecretariaTasks,
     user,
-    toggleChecklistItem, // Now included in the dependency array
+    toggleChecklistItem,
     addColdCallLead, updateColdCallLead, deleteColdCallLead, addColdCallLog, getColdCallMetrics, createCrmLeadFromColdCall, parseDbCurrency
   ]);
 
