@@ -441,16 +441,22 @@ export const Dashboard = () => {
             colorClass="bg-purple-600 text-white"
           />
           <MetricCard
+            title="Demonstrou Interesse"
+            value={coldCallMetrics.filteredLogs.filter(log => log.result === 'Demonstrou Interesse').length}
+            icon={Star}
+            colorClass="bg-amber-600 text-white"
+          />
+          <MetricCard
             title="Reuniões Agendadas"
             value={coldCallMetrics.totalMeetingsScheduled}
             icon={CalendarCheck}
             colorClass="bg-green-600 text-white"
           />
-          <MetricCard 
-            title="Taxa Conversa → Reunião" 
-            value={`${coldCallMetrics.conversationToMeetingRate.toFixed(1)}%`} 
-            icon={Percent} 
-            colorClass="bg-yellow-600 text-white" 
+          <MetricCard
+            title="Taxa Conversa → Reunião"
+            value={`${coldCallMetrics.conversationToMeetingRate.toFixed(1)}%`}
+            icon={Percent}
+            colorClass="bg-yellow-600 text-white"
             subValue="Efetividade da Conversão"
           />
         </div>

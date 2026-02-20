@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { PhoneCall, MessageSquare, CalendarCheck, BarChart3, Percent, Loader2, Users, Filter, RotateCcw, CalendarDays, UserPlus, ArrowUpRight, Clock, TrendingUp } from 'lucide-react';
+import { PhoneCall, MessageSquare, CalendarCheck, BarChart3, Percent, Loader2, Users, Filter, RotateCcw, CalendarDays, UserPlus, ArrowUpRight, Clock, TrendingUp, Star } from 'lucide-react';
 import { ColdCallDetailModal } from '@/components/gestor/ColdCallDetailModal';
 import { ColdCallLead, ColdCallLog, ColdCallDetailType } from '@/types';
 import toast from 'react-hot-toast';
@@ -200,6 +200,12 @@ const ColdCallMetricsPage = () => {
           value={coldCallMetrics.totalConversations}
           icon={MessageSquare}
           colorClass="bg-purple-600 text-white"
+        />
+        <MetricCard
+          title="Demonstrou Interesse"
+          value={filteredColdCallLogs.filter(log => log.result === 'Demonstrou Interesse').length}
+          icon={Star}
+          colorClass="bg-amber-600 text-white"
         />
         <MetricCard
           title="Reuniões Agendadas"
