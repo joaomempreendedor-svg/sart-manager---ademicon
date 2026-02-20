@@ -263,6 +263,8 @@ export const Dashboard = () => {
     const totalMeetingsScheduled = filteredLogs.filter(log => log.result === 'Agendar Reunião').length;
     
     const conversationToMeetingRate = totalConversations > 0 ? (totalMeetingsScheduled / totalConversations) * 100 : 0;
+    const totalDurationSeconds = filteredLogs.reduce((sum, log) => sum + log.duration_seconds, 0);
+    const averageCallDuration = totalCalls > 0 ? totalDurationSeconds / totalCalls : 0;
 
     const filteredLeadIds = new Set(filteredLogs.map(log => log.cold_call_lead_id));
     const filteredLeads = (coldCallLeads || []).filter(lead => filteredLeadIds.has(lead.id));
@@ -288,6 +290,7 @@ export const Dashboard = () => {
       convertedMeetingCount: filteredLeads.filter(lead =>
         (lead as any).crm_lead_id && filteredLogs.some(log => log.cold_call_lead_id === lead.id && log.result === 'Agendar Reunião')
       ).length,
+      averageCallDuration,
     };
   }, [user, effectiveColdCallConsultantId, coldCallLeads, coldCallLogs, coldCallFilterStartDate, coldCallFilterEndDate]);
 
@@ -488,6 +491,13 @@ export const Dashboard = () => {
             icon={Percent}
             colorClass="bg-yellow-600 text-white"
             subValue="Efetividade da Conversão"
+          />
+          <MetricCard
+            title="Duração Média da Ligação"
+            value={`${Math.round(coldCallMetrics.averageCallDuration / 60)}m ${Math.round(coldCallMetrics.averageCallDuration % 60)}s`}
+            icon={Clock}
+            colorClass="bg-slate-800 text-white dark:bg-slate-700"
+            subValue="Tempo médio por ligação"
           />
         </div>
       </section>
