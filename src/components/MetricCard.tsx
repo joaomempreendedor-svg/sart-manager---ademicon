@@ -25,7 +25,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({ title, value, icon: Icon
       </div>
     </>
   );
-  const baseClasses = `relative overflow-hidden p-6 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm transition-all hover:shadow-md ${colorClass}`;
+  const baseClasses = `relative overflow-hidden p-6 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm transition-all hover:shadow-md min-h-40 h-full flex flex-col ${colorClass}`;
 
   if (onClick) {
     return (
