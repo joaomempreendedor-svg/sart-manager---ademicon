@@ -1418,7 +1418,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setChecklistStructure(newStructure);
       updateConfig({ checklistStructure: newStructure });
     }, [checklistStructure, updateConfig]),
-    moveChecklistItem,
+    moveChecklistItem: (stageId, itemId, direction) => {
+      const newStructure = checklistStructure.map(stage => {
+        if (stage.id === stageId) {
+          const index = stage.items.findIndex(i => i.id === itemId);
+          if (index === -1) return stage;
+          const targetIndex = direction === 'up' ? index - 1 : index + 1;
+          if (targetIndex < 0 || targetIndex >= stage.items.length) return stage;
+          const newItems = [...stage.items];
+          [newItems[index], newItems[targetIndex]] = [newItems[targetIndex], newItems[index]];
+          return { ...stage, items: newItems };
+        }
+        return stage;
+      });
+      setChecklistStructure(newStructure);
+      updateConfig({ checklistStructure: newStructure });
+    },
     resetChecklistToDefault: useCallback(() => {
       setChecklistStructure(DEFAULT_STAGES);
       updateConfig({ checklistStructure: DEFAULT_STAGES });
