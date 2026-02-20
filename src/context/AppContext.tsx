@@ -1349,37 +1349,41 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       refetchCommissions();
     },
     deleteCommission: async (id: string) => { const { error } = await supabase.from('commissions').delete().eq('id', id); if (error) throw error; refetchCommissions(); },
-    updateInstallmentStatus: async (commissionDbId: string, installmentKey: string, status: InstallmentStatus, extra?: Partial<InstallmentInfo>) => {
-      // Encontra a comissão atual
+    updateInstallmentStatus: async (commissionDbId: string, installmentNumber: number, status: InstallmentStatus, paidDate?: string) => {
       const current = commissions.find(c => c.db_id === commissionDbId);
       if (!current) throw new Error('Comissão não encontrada');
 
-      // Garante estrutura de detalhes
-      const details = { ...(current.installmentDetails || {}) };
-      const prev = details[installmentKey] || { status: 'Pendente' as InstallmentStatus };
-      const updatedInfo: InstallmentInfo = { ...prev, status, ...extra };
+      const key = installmentNumber.toString();
 
-      // Monta objeto atualizado
+      const details = { ...(current.installmentDetails || {}) };
+      const prev = details[key] || { status: 'Pendente' as InstallmentStatus };
+
+      const updatedInfo: InstallmentInfo = { ...prev, status };
+
+      if (status === 'Pago') {
+        const effectiveDate = paidDate || new Date().toISOString().split('T')[0];
+        updatedInfo.paidDate = effectiveDate;
+        updatedInfo.competenceMonth = calculateCompetenceMonth(effectiveDate);
+      } else {
+        delete updatedInfo.paidDate;
+        delete updatedInfo.competenceMonth;
+      }
+
+      const newDetails = { ...details, [key]: updatedInfo };
       const updatedCommission: Commission = {
         ...current,
-        installmentDetails: { ...details, [installmentKey]: updatedInfo },
+        installmentDetails: newDetails,
+        status: getOverallStatus(newDetails),
       };
 
-      // Remove campos somente locais antes de salvar
       const { db_id, criado_em, ...dataToSave } = updatedCommission as any;
 
-      // Persiste no Supabase
       const { error } = await supabase.from('commissions').update({ data: dataToSave }).eq('id', commissionDbId);
       if (error) throw error;
 
-      // Atualiza estado local imediatamente
-      setCommissions(prev =>
-        prev.map(c => (c.db_id === commissionDbId ? { ...updatedCommission } : c))
-      );
+      setCommissions(prev => prev.map(c => (c.db_id === commissionDbId ? { ...updatedCommission } : c)));
 
-      // Opcional: recalcular status geral e notificar
-      const overall = getOverallStatus(updatedCommission.installmentDetails);
-      toast.success(`Parcela ${installmentKey} atualizada para ${status}. Status geral: ${overall}`);
+      toast.success(`Parcela ${installmentNumber} marcada como ${status}.`);
     },
 
     addCutoffPeriod,

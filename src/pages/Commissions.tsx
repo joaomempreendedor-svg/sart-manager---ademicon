@@ -537,7 +537,7 @@ export const Commissions = () => {
       setCalculatedCompetence(calculateCompetenceMonth(today));
     } else {
       // Para status diferente de 'Pago', não precisamos do modal de confirmação
-      await updateInstallmentStatus(commissionId, parseInt(installmentNumber.toString()), newStatus);
+      await updateInstallmentStatus(commissionId, installmentNumber, newStatus);
     }
   };
 
@@ -1181,7 +1181,7 @@ export const Commissions = () => {
                                                                     </div>
                                                                     )}
                                                                 </div>
-                                                                <select value={status} onChange={async (e) => await handleStatusChange(c.id, parseInt(num), e.target.value as InstallmentStatus, c.clientName, c.type)} className={`mt-1 w-full text-xs font-bold py-1 px-2 rounded border cursor-pointer focus:outline-none ${getInstallmentStatusColor(status)}`}>
+                                                                <select value={status} onChange={async (e) => await handleStatusChange(c.db_id!, parseInt(num), e.target.value as InstallmentStatus, c.clientName, c.type)} className={`mt-1 w-full text-xs font-bold py-1 px-2 rounded border cursor-pointer focus:outline-none ${getInstallmentStatusColor(status)}`}>
                                                                     <option value="Pendente">Pendente</option>
                                                                     <option value="Pago">Pago</option>
                                                                     <option value="Atraso">Atraso</option>
