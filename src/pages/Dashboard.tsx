@@ -239,12 +239,12 @@ export const Dashboard = () => {
   // NOVO: Métricas de Cold Call (Mês Atual)
   const coldCallMetrics = useMemo(() => {
     if (!user) {
-      return { totalCalls: 0, totalConversations: 0, totalMeetingsScheduled: 0, conversationToMeetingRate: 0, filteredLeads: [], filteredLogs: [] };
+      return { totalCalls: 0, totalConversations: 0, totalMeetingsScheduled: 0, conversationToMeetingRate: 0, filteredLeads: [], filteredLogs: [], interestWithoutMeetingCount: 0 };
     }
 
-    const logsToConsider = effectiveColdCallConsultantId 
+    const logsToConsider = effectiveColdCallConsultantId
       ? (coldCallLogs || []).filter(log => log.user_id === effectiveColdCallConsultantId)
-      : (coldCallLogs || []); 
+      : (coldCallLogs || []);
     
     let filteredLogs = logsToConsider;
     if (coldCallFilterStartDate) {
@@ -265,15 +265,22 @@ export const Dashboard = () => {
     const conversationToMeetingRate = totalConversations > 0 ? (totalMeetingsScheduled / totalConversations) * 100 : 0;
 
     const filteredLeadIds = new Set(filteredLogs.map(log => log.cold_call_lead_id));
-    const filteredLeads = (coldCallLeads || []).filter(lead => filteredLeadIds.has(lead.id)); 
+    const filteredLeads = (coldCallLeads || []).filter(lead => filteredLeadIds.has(lead.id));
+
+    // Leads que demonstraram interesse mas não têm reunião agendada
+    const interestLeadIds = new Set(filteredLogs.filter(log => log.result === 'Demonstrou Interesse').map(log => log.cold_call_lead_id));
+    const meetingLeadIds = new Set(filteredLogs.filter(log => log.result === 'Agendar Reunião').map(log => log.cold_call_lead_id));
+    let interestWithoutMeetingCount = 0;
+    interestLeadIds.forEach(id => { if (!meetingLeadIds.has(id)) interestWithoutMeetingCount++; });
 
     return {
       totalCalls,
       totalConversations,
       totalMeetingsScheduled,
       conversationToMeetingRate,
-      filteredLeads, 
-      filteredLogs,  
+      filteredLeads,
+      filteredLogs,
+      interestWithoutMeetingCount,
     };
   }, [user, effectiveColdCallConsultantId, coldCallLeads, coldCallLogs, coldCallFilterStartDate, coldCallFilterEndDate]);
 
@@ -441,10 +448,11 @@ export const Dashboard = () => {
             colorClass="bg-purple-600 text-white"
           />
           <MetricCard
-            title="Demonstrou Interesse"
-            value={coldCallMetrics.filteredLogs.filter(log => log.result === 'Demonstrou Interesse').length}
+            title="Interesse (WhatsApp) sem Reunião"
+            value={coldCallMetrics.interestWithoutMeetingCount}
             icon={Star}
             colorClass="bg-amber-600 text-white"
+            subValue="Conversa que segue para WhatsApp"
           />
           <MetricCard
             title="Reuniões Agendadas"

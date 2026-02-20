@@ -87,6 +87,12 @@ const ColdCallMetricsPage = () => {
     const leadsConvertedToCrm = filteredColdCallLeadsForMetrics.filter(lead => lead.crm_lead_id).length;
     const conversionRateToCrm = totalLeadsAdded > 0 ? (leadsConvertedToCrm / totalLeadsAdded) * 100 : 0;
 
+    // Leads com interesse sem reunião agendada
+    const interestLeadIds = new Set(filteredColdCallLogs.filter(log => log.result === 'Demonstrou Interesse').map(log => log.cold_call_lead_id));
+    const meetingLeadIds = new Set(filteredColdCallLogs.filter(log => log.result === 'Agendar Reunião').map(log => log.cold_call_lead_id));
+    let interestWithoutMeetingCount = 0;
+    interestLeadIds.forEach(id => { if (!meetingLeadIds.has(id)) interestWithoutMeetingCount++; });
+
     return {
       totalCalls,
       totalConversations,
@@ -96,6 +102,7 @@ const ColdCallMetricsPage = () => {
       leadsConvertedToCrm,
       conversionRateToCrm,
       averageCallDuration,
+      interestWithoutMeetingCount,
     };
   }, [filteredColdCallLogs, filteredColdCallLeadsForMetrics]);
 
@@ -202,10 +209,11 @@ const ColdCallMetricsPage = () => {
           colorClass="bg-purple-600 text-white"
         />
         <MetricCard
-          title="Demonstrou Interesse"
-          value={filteredColdCallLogs.filter(log => log.result === 'Demonstrou Interesse').length}
+          title="Interesse (WhatsApp) sem Reunião"
+          value={coldCallMetrics.interestWithoutMeetingCount}
           icon={Star}
           colorClass="bg-amber-600 text-white"
+          subValue="Conversa que segue para WhatsApp"
         />
         <MetricCard
           title="Reuniões Agendadas"
