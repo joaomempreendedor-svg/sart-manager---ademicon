@@ -16,7 +16,7 @@ import { MetricCard } from '@/components/MetricCard'; // Importar MetricCard
 
 const ColdCallMetricsPage = () => {
   const { user } = useAuth();
-  const { coldCallLeads, coldCallLogs, getColdCallMetrics, teamMembers, isDataLoading } = useApp();
+  const { coldCallLeads, coldCallLogs, teamMembers, isDataLoading } = useApp();
 
   const [selectedColdCallConsultantId, setSelectedColdCallConsultantId] = useState<string | null>(null);
   const [filterStartDate, setFilterStartDate] = useState('');
@@ -27,7 +27,15 @@ const ColdCallMetricsPage = () => {
   const [coldCallLeadsForModal, setColdCallLeadsForModal] = useState<ColdCallLead[]>([]);
   const [coldCallLogsForModal, setColdCallLogsForModal] = useState<ColdCallLog[]>([]);
   const [coldCallDetailType, setColdCallDetailType] = useState<ColdCallDetailType>('all');
-  const [selectedColdCallConsultantName, setSelectedColdCallConsultantName] = useState<string>('');
+  
+  // Derive selectedColdCallConsultantName using useMemo
+  const selectedColdCallConsultantName = useMemo(() => {
+    if (!selectedColdCallConsultantId) {
+      return 'Todos os Consultores';
+    }
+    return teamMembers.find(m => (m.authUserId || m.id) === selectedColdCallConsultantId)?.name || 'Consultor Desconhecido';
+  }, [selectedColdCallConsultantId, teamMembers]);
+
 
   const coldCallConsultants = useMemo(() => {
     return teamMembers.filter(m => m.isActive && (m.roles.includes('CONSULTOR') || m.roles.includes('PRÉVIA') || m.roles.includes('AUTORIZADO')));
@@ -50,9 +58,6 @@ const ColdCallMetricsPage = () => {
   }, [coldCallLogs, selectedColdCallConsultantId, filterStartDate, filterEndDate]);
 
   const coldCallMetrics = useMemo(() => {
-    // Removida a condição de saída antecipada.
-    // Agora, se selectedColdCallConsultantId for null, filteredColdCallLogs já conterá todos os logs.
-
     const totalCalls = filteredColdCallLogs.length;
     const totalConversations = filteredColdCallLogs.filter(log => log.result === 'Conversou' || log.result === 'Agendar Reunião').length;
     const totalMeetingsScheduled = filteredColdCallLogs.filter(log => log.result === 'Agendar Reunião').length;
@@ -65,7 +70,7 @@ const ColdCallMetricsPage = () => {
       totalMeetingsScheduled,
       conversationToMeetingRate,
     };
-  }, [selectedColdCallConsultantId, filteredColdCallLogs, teamMembers]); // Removido 'user' pois não é mais usado diretamente aqui
+  }, [filteredColdCallLogs]);
 
   const handleOpenColdCallDetailModal = (title: string, type: ColdCallDetailType) => {
     // Leads para o modal: todos os leads de cold call do consultor selecionado (ou todos se nenhum selecionado)
@@ -77,7 +82,6 @@ const ColdCallMetricsPage = () => {
     setColdCallLeadsForModal(leadsToPass);
     setColdCallLogsForModal(filteredColdCallLogs); // Passar logs já filtrados
     setColdCallDetailType(type);
-    setSelectedColdCallConsultantName(teamMembers.find(m => (m.authUserId || m.id) === selectedColdCallConsultantId)?.name || 'Todos os Consultores');
     setIsColdCallDetailModalOpen(true);
   };
 
