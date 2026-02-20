@@ -513,13 +513,7 @@ export const Dashboard = () => {
             subValue="Novos prospects criados no módulo"
           />
           {/* removido: Enviados ao CRM - Interesse (WhatsApp) */}
-          <MetricCard
-            title="Enviados ao CRM - Reunião na Ligação"
-            value={coldCallMetrics.convertedMeetingCount}
-            icon={CalendarCheck}
-            colorClass="bg-green-700 text-white"
-            subValue="Marcou reunião durante a ligação"
-          />
+          {/* removido: Enviados ao CRM - Reunião na Ligação */}
           <MetricCard
             title="Taxa Conversa → Reunião"
             value={`${coldCallMetrics.conversationToMeetingRate.toFixed(1)}%`}

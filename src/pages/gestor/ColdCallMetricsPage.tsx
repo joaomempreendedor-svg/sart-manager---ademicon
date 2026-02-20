@@ -244,13 +244,7 @@ const ColdCallMetricsPage = () => {
           subValue="Novos prospects criados no módulo"
         />
         {/* removido: Enviados ao CRM - Interesse (WhatsApp) */}
-        <MetricCard
-          title="Enviados ao CRM - Reunião na Ligação"
-          value={coldCallMetrics.leadsConvertedToCrmMeeting}
-          icon={CalendarCheck}
-          colorClass="bg-green-600 text-white"
-          subValue="Marcou reunião durante a ligação"
-        />
+        {/* removido: Enviados ao CRM - Reunião na Ligação */}
         <MetricCard 
           title="Taxa Conversão para CRM" 
           value={`${coldCallMetrics.conversionRateToCrm.toFixed(1)}%`} 
