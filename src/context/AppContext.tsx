@@ -1418,16 +1418,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setChecklistStructure(newStructure);
       updateConfig({ checklistStructure: newStructure });
     }, [checklistStructure, updateConfig]),
-    moveChecklistItem: useCallback((checklistId, itemId, direction) => {
-      const items = dailyChecklistItems.filter(i => i.daily_checklist_id === checklistId).sort((a, b) => a.order_index - b.order_index);
-      const index = items.findIndex(i => i.id === itemId);
-      if (index === -1) return;
-      const targetIndex = direction === 'up' ? index - 1 : index + 1;
-      if (targetIndex < 0 || targetIndex >= items.length) return;
-      const itemA = items[index]; const itemB = items[targetIndex];
-      await Promise.all([supabase.from('daily_checklist_items').update({ order_index: itemB.order_index }).eq('id', itemA.id), supabase.from('daily_checklist_items').update({ order_index: itemA.order_index }).eq('id', itemB.id)]);
-      const { data } = await supabase.from('daily_checklist_items').select('*'); setDailyChecklistItems(data || []);
-    }, [dailyChecklistItems]),
+    moveChecklistItem,
     resetChecklistToDefault: useCallback(() => {
       setChecklistStructure(DEFAULT_STAGES);
       updateConfig({ checklistStructure: DEFAULT_STAGES });
@@ -1588,6 +1579,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       refetchCommissions(); 
       return { success: true }; 
     }, [refetchCommissions]),
+    updateCommission: useCallback(async (id: string, updates: Partial<Commission>) => {
+      console.log(`[updateCommission] Attempting to update commission ID: ${id} with updates:`, updates);
+      const { error } = await supabase.from('commissions').update({ data: updates }).eq('id', id);
+      if (error) {
+        console.error(`[updateCommission] Error updating commission ID: ${id}:`, error);
+        throw error;
+      }
+      console.log(`[updateCommission] Commission ID: ${id} updated successfully. Refetching all commissions.`);
+      refetchCommissions();
+    }, [refetchCommissions]),
     deleteCommission: useCallback(async (id) => { 
       console.log(`[deleteCommission] Attempting to delete commission ID: ${id}`);
       const { error } = await supabase.from('commissions').delete().eq('id', id); 
@@ -1598,6 +1599,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       console.log(`[deleteCommission] Commission ID: ${id} deleted successfully. Refetching all commissions.`);
       refetchCommissions(); 
     }, [refetchCommissions]),
+    updateInstallmentStatus,
     addCutoffPeriod: useCallback(async (period) => { const { error } = await supabase.from('cutoff_periods').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: period }).select().single(); if (error) throw error; const { data } = await supabase.from('cutoff_periods').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID); setCutoffPeriods(data?.map(item => ({ ...(item.data as CutoffPeriod), db_id: item.id })) || []); }, []),
     updateCutoffPeriod: useCallback(async (id, updates) => { const { error } = await supabase.from('cutoff_periods').update({ data: updates }).eq('id', id).select().single(); if (error) throw error; const { data } = await supabase.from('cutoff_periods').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID); setCutoffPeriods(data?.map(item => ({ ...(item.data as CutoffPeriod), db_id: item.id })) || []); }, []),
     deleteCutoffPeriod: useCallback(async (id) => { const { error } = await supabase.from('cutoff_periods').delete().eq('id', id); if (error) throw error; setCutoffPeriods(prev => prev.filter(p => p.db_id !== id)); }, []),
@@ -1662,7 +1664,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addTeamMemberFeedback,
     updateTeamMemberFeedback,
     deleteTeamMemberFeedback,
-    addTeamMember: useCallback(async (member) => {
+    addTeamMember: useCallback(async (member: Omit<TeamMember, 'id'> & { email: string }) => {
       const tempPassword = generateRandomPassword();
       const { data: authData, error: authError } = await supabase.functions.invoke('create-or-link-consultant', {
         body: { email: member.email, name: member.name, tempPassword, login: member.cpf, role: 'CONSULTOR' }
@@ -1673,9 +1675,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const newMember = { id: data.id, db_id: data.id, authUserId: authData.authUserId, name: member.name, email: member.email, roles: member.roles, isActive: member.isActive, cpf: member.cpf, dateOfBirth: member.dateOfBirth, user_id: data.user_id };
       setTeamMembers(prev => [...prev, newMember]);
       return { success: true, member: newMember, tempPassword, wasExistingUser: authData.userExists };
-    }, [user]),
+    }, [user, setTeamMembers]),
     updateTeamMember,
-    deleteTeamMember: useCallback(async (id) => { const member = teamMembers.find(m => m.id === id); if (!member) return; const { error } = await supabase.from('team_members').delete().eq('id', member.db_id); if (error) throw error; setTeamMembers(prev => prev.filter(m => m.id !== id)); }, [teamMembers]),
+    deleteTeamMember: useCallback(async (id: string) => { const member = teamMembers.find(m => m.id === id); if (!member) return; const { error } = await supabase.from('team_members').delete().eq('id', member.db_id); if (error) throw error; setTeamMembers(prev => prev.filter(m => m.id !== id)); }, [teamMembers]),
     addTeamProductionGoal: useCallback(async (goal: Omit<TeamProductionGoal, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
       const { data, error } = await supabase.from('team_production_goals').insert({ ...goal, user_id: JOAO_GESTOR_AUTH_ID }).select().single();
       if (error) throw error;
