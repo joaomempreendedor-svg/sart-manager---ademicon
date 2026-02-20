@@ -1295,6 +1295,64 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setOnboardingTemplateVideos(prev => prev.filter(v => v.id !== videoId));
   }, []);
 
+  // CRM: Pipelines
+  const addCrmPipeline = useCallback(async (name: string) => {
+    const { data, error } = await supabase.from('crm_pipelines').insert({ user_id: JOAO_GESTOR_AUTH_ID, name }).select().single();
+    if (error) throw error;
+    setCrmPipelines(prev => [...prev, data]);
+    return data;
+  }, []);
+  const updateCrmPipeline = useCallback(async (id: string, updates: Partial<CrmPipeline>) => {
+    const { data, error } = await supabase.from('crm_pipelines').update(updates).eq('id', id).select().single();
+    if (error) throw error;
+    setCrmPipelines(prev => prev.map(p => p.id === id ? data : p));
+    return data;
+  }, []);
+  const deleteCrmPipeline = useCallback(async (id: string) => {
+    const { error } = await supabase.from('crm_pipelines').delete().eq('id', id);
+    if (error) throw error;
+    setCrmPipelines(prev => prev.filter(p => p.id !== id));
+  }, []);
+
+  // CRM: Stages
+  const addCrmStage = useCallback(async (stage: Omit<CrmStage, 'id' | 'user_id' | 'created_at'>) => {
+    const { data, error } = await supabase.from('crm_stages').insert({ ...stage, user_id: JOAO_GESTOR_AUTH_ID }).select().single();
+    if (error) throw error;
+    setCrmStages(prev => [...prev, data]);
+    return data;
+  }, []);
+  const updateCrmStage = useCallback(async (id: string, updates: Partial<CrmStage>) => {
+    const { data, error } = await supabase.from('crm_stages').update(updates).eq('id', id).select().single();
+    if (error) throw error;
+    setCrmStages(prev => prev.map(s => s.id === id ? data : s));
+    return data;
+  }, []);
+  const updateCrmStageOrder = useCallback(async (orderedStages: CrmStage[]) => {
+    const updates = orderedStages.map((stage, index) => supabase.from('crm_stages').update({ order_index: index }).eq('id', stage.id));
+    await Promise.all(updates);
+    const { data } = await supabase.from('crm_stages').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID).order('order_index');
+    setCrmStages(data || []);
+  }, []);
+  const deleteCrmStage = useCallback(async (id: string) => {
+    const { error } = await supabase.from('crm_stages').delete().eq('id', id);
+    if (error) throw error;
+    setCrmStages(prev => prev.filter(s => s.id !== id));
+  }, []);
+
+  // CRM: Fields
+  const addCrmField = useCallback(async (field: Omit<CrmField, 'id' | 'user_id' | 'created_at'>) => {
+    const { data, error } = await supabase.from('crm_fields').insert({ ...field, user_id: JOAO_GESTOR_AUTH_ID }).select().single();
+    if (error) throw error;
+    setCrmFields(prev => [...prev, data]);
+    return data;
+  }, []);
+  const updateCrmField = useCallback(async (id: string, updates: Partial<CrmField>) => {
+    const { data, error } = await supabase.from('crm_fields').update(updates).eq('id', id).select().single();
+    if (error) throw error;
+    setCrmFields(prev => prev.map(f => f.id === id ? data : f));
+    return data;
+  }, []);
+
   // Métricas
   const addMetricLog = useCallback(async (log: Omit<MetricLog, 'id'>) => {
     const { data, error } = await supabase.from('metric_logs').insert(log).select().single();
