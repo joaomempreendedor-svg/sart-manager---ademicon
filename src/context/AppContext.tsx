@@ -827,7 +827,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const imageUrl = imageFile ? await uploadFile(imageFile, 'image') : (updates.resource?.type === 'text_audio_image' ? (updates.resource.content as any).imageUrl : undefined);
       if (updates.resource?.type === 'text_audio') finalResource = { ...updates.resource, content: { ...(updates.resource.content as any), audioUrl } };
       else if (updates.resource?.type === 'text_audio_image') finalResource = { ...updates.resource, content: { ...(updates.resource.content as any), audioUrl, imageUrl } };
-      else if (updates.resource?.type === 'image' || updates.resource?.type === 'pdf' || updates.resource?.type === 'audio') finalResource = { ...updates.resource, content: audioUrl || imageUrl };
+      else if (updates.resource?.type === 'image' || updates.resource?.type === 'pdf' || updates.resource?.type === 'audio' || updates.resource?.type === 'video' || updates.resource?.type === 'link' || updates.resource?.type === 'text') finalResource = { ...updates.resource, content: audioUrl || imageUrl || updates.resource.content };
     }
     const { data, error } = await supabase.from('daily_checklist_items').update({ ...updates, resource: finalResource }).eq('id', id).select().single();
     if (error) throw error;
@@ -1305,6 +1305,53 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return { crmLeadId: data.crmLeadId };
   }, [user, setColdCallLeads, setCrmLeads, setLeadTasks, parseDbCurrency]);
 
+  const updateCommission = useCallback(async (id: string, updates: Partial<Commission>) => {
+    console.log(`[updateCommission] Attempting to update commission ID: ${id} with updates:`, updates);
+    const { error } = await supabase.from('commissions').update({ data: updates }).eq('id', id);
+    if (error) {
+      console.error(`[updateCommission] Error updating commission ID: ${id}:`, error);
+      throw error;
+    }
+    console.log(`[updateCommission] Commission ID: ${id} updated successfully. Refetching all commissions.`);
+    refetchCommissions();
+  }, [refetchCommissions]);
+
+  const updateInstallmentStatus = useCallback(async (commissionId: string, installmentNumber: number, newStatus: InstallmentStatus, paidDate?: string, saleType?: 'Imóvel' | 'Veículo') => {
+    const commission = commissions.find(c => c.id === commissionId);
+    if (!commission) throw new Error("Commission not found");
+    if (!commission.db_id) throw new Error("Commission DB ID not found");
+
+    const updatedInstallmentDetails = { ...commission.installmentDetails };
+    const competenceMonth = paidDate ? calculateCompetenceMonth(paidDate) : undefined;
+
+    updatedInstallmentDetails[installmentNumber.toString()] = {
+      status: newStatus,
+      paidDate: paidDate,
+      competenceMonth: competenceMonth,
+    };
+
+    const updatedCommissionData: Partial<Commission> = {
+      installmentDetails: updatedInstallmentDetails,
+      status: getOverallStatus(updatedInstallmentDetails),
+    };
+
+    // Se for uma venda de imóvel e a parcela 15 for paga, cria uma notificação para o gestor
+    if (saleType === 'Imóvel' && installmentNumber === 15 && newStatus === 'Pago' && user) {
+      const notification: Omit<Notification, 'id'> = {
+        user_id: JOAO_GESTOR_AUTH_ID, // Notifica o gestor principal
+        type: 'new_sale',
+        title: `Comissão Concluída: ${commission.clientName}`,
+        description: `A comissão de ${commission.clientName} (Imóvel) foi totalmente paga.`,
+        date: new Date().toISOString().split('T')[0],
+        link: `/gestor/commissions`,
+        isRead: false,
+      };
+      await supabase.from('notifications').insert(notification);
+    }
+
+    await updateCommission(commission.db_id, updatedCommissionData);
+  }, [commissions, calculateCompetenceMonth, updateCommission, user]);
+
   const value: AppContextType = useMemo(() => ({
     isDataLoading, candidates, teamMembers, commissions, supportMaterials, cutoffPeriods, onboardingSessions, onboardingTemplateVideos, checklistStructure, setChecklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs, crmPipelines, crmStages, crmFields, crmLeads, crmOwnerUserId, dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions, weeklyTargets, weeklyTargetItems, weeklyTargetAssignments, metricLogs, supportMaterialsV2, supportMaterialAssignments, leadTasks, gestorTasks, gestorTaskCompletions, financialEntries, formCadastros, formFiles, notifications, teamProductionGoals, coldCallLeads, coldCallLogs, theme,
     toggleTheme, updateConfig, resetLocalState, refetchCommissions, calculateCompetenceMonth, isGestorTaskDueOnDate, calculateNotifications,
@@ -1548,7 +1595,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       refetchCommissions(); 
       return { success: true }; 
     }, [refetchCommissions]),
-    updateCommission,
+    updateCommission: useCallback(async (id: string, updates: Partial<Commission>) => {
+      console.log(`[updateCommission] Attempting to update commission ID: ${id} with updates:`, updates);
+      const { error } = await supabase.from('commissions').update({ data: updates }).eq('id', id);
+      if (error) {
+        console.error(`[updateCommission] Error updating commission ID: ${id}:`, error);
+        throw error;
+      }
+      console.log(`[updateCommission] Commission ID: ${id} updated successfully. Refetching all commissions.`);
+      refetchCommissions();
+    }, [refetchCommissions]),
     deleteCommission: useCallback(async (id) => { 
       console.log(`[deleteCommission] Attempting to delete commission ID: ${id}`);
       const { error } = await supabase.from('commissions').delete().eq('id', id); 
@@ -1674,7 +1730,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     hasPendingSecretariaTasks,
     user,
     toggleChecklistItem,
-    addColdCallLead, updateColdCallLead, deleteColdCallLead, addColdCallLog, getColdCallMetrics, createCrmLeadFromColdCall, parseDbCurrency
+    addColdCallLead, updateColdCallLead, deleteColdCallLead, addColdCallLog, getColdCallMetrics, createCrmLeadFromColdCall, parseDbCurrency, updateCommission, updateInstallmentStatus
   ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
