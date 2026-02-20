@@ -281,6 +281,13 @@ export const Dashboard = () => {
       filteredLeads,
       filteredLogs,
       interestWithoutMeetingCount,
+      convertedInterestCount: filteredLeads.filter(lead =>
+        (lead as any).crm_lead_id && filteredLogs.some(log => log.cold_call_lead_id === lead.id && log.result === 'Demonstrou Interesse') &&
+        !filteredLogs.some(log => log.cold_call_lead_id === lead.id && log.result === 'Agendar Reunião')
+      ).length,
+      convertedMeetingCount: filteredLeads.filter(lead =>
+        (lead as any).crm_lead_id && filteredLogs.some(log => log.cold_call_lead_id === lead.id && log.result === 'Agendar Reunião')
+      ).length,
     };
   }, [user, effectiveColdCallConsultantId, coldCallLeads, coldCallLogs, coldCallFilterStartDate, coldCallFilterEndDate]);
 
@@ -460,6 +467,20 @@ export const Dashboard = () => {
             value={coldCallMetrics.totalMeetingsScheduled}
             icon={CalendarCheck}
             colorClass="bg-green-600 text-white"
+          />
+          <MetricCard
+            title="Enviados ao CRM - Interesse (WhatsApp)"
+            value={coldCallMetrics.convertedInterestCount}
+            icon={Star}
+            colorClass="bg-amber-600 text-white"
+            subValue="Interesse via WhatsApp, sem reunião na ligação"
+          />
+          <MetricCard
+            title="Enviados ao CRM - Reunião na Ligação"
+            value={coldCallMetrics.convertedMeetingCount}
+            icon={CalendarCheck}
+            colorClass="bg-green-700 text-white"
+            subValue="Marcou reunião durante a ligação"
           />
           <MetricCard
             title="Taxa Conversa → Reunião"

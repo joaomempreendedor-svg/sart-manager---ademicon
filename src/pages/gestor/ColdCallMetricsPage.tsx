@@ -84,7 +84,16 @@ const ColdCallMetricsPage = () => {
     const averageCallDuration = totalCalls > 0 ? totalDurationSeconds / totalCalls : 0;
 
     const totalLeadsAdded = filteredColdCallLeadsForMetrics.length;
-    const leadsConvertedToCrm = filteredColdCallLeadsForMetrics.filter(lead => lead.crm_lead_id).length;
+    const leadsConvertedToCrmMeeting = filteredColdCallLeadsForMetrics.filter(lead =>
+      lead.crm_lead_id &&
+      filteredColdCallLogs.some(log => log.cold_call_lead_id === lead.id && log.result === 'Agendar Reunião')
+    ).length;
+    const leadsConvertedToCrmInterest = filteredColdCallLeadsForMetrics.filter(lead =>
+      lead.crm_lead_id &&
+      filteredColdCallLogs.some(log => log.cold_call_lead_id === lead.id && log.result === 'Demonstrou Interesse') &&
+      !filteredColdCallLogs.some(log => log.cold_call_lead_id === lead.id && log.result === 'Agendar Reunião')
+    ).length;
+    const leadsConvertedToCrm = leadsConvertedToCrmMeeting + leadsConvertedToCrmInterest;
     const conversionRateToCrm = totalLeadsAdded > 0 ? (leadsConvertedToCrm / totalLeadsAdded) * 100 : 0;
 
     // Leads com interesse sem reunião agendada
@@ -100,6 +109,8 @@ const ColdCallMetricsPage = () => {
       conversationToMeetingRate,
       totalLeadsAdded,
       leadsConvertedToCrm,
+      leadsConvertedToCrmInterest,
+      leadsConvertedToCrmMeeting,
       conversionRateToCrm,
       averageCallDuration,
       interestWithoutMeetingCount,
@@ -239,11 +250,18 @@ const ColdCallMetricsPage = () => {
           subValue="Novos prospects criados no módulo"
         />
         <MetricCard
-          title="Convertidos para CRM"
-          value={coldCallMetrics.leadsConvertedToCrm}
-          icon={TrendingUp}
-          colorClass="bg-teal-600 text-white"
-          subValue="Prospects enviados ao CRM"
+          title="Enviados ao CRM - Interesse (WhatsApp)"
+          value={coldCallMetrics.leadsConvertedToCrmInterest}
+          icon={Star}
+          colorClass="bg-amber-600 text-white"
+          subValue="Interesse via WhatsApp, sem reunião na ligação"
+        />
+        <MetricCard
+          title="Enviados ao CRM - Reunião na Ligação"
+          value={coldCallMetrics.leadsConvertedToCrmMeeting}
+          icon={CalendarCheck}
+          colorClass="bg-green-600 text-white"
+          subValue="Marcou reunião durante a ligação"
         />
         <MetricCard 
           title="Taxa Conversão para CRM" 
