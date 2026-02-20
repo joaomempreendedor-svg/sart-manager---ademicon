@@ -855,6 +855,29 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setWeeklyTargetAssignments(prev => prev.filter(a => !(a.weekly_target_id === weekly_target_id && a.consultant_id === consultant_id)));
   }, []);
 
+  // Metric logs
+  const addMetricLog = useCallback(async (log: Omit<MetricLog, 'id' | 'created_at'>) => {
+    if (!user) throw new Error("User not authenticated.");
+    const insertData = { ...log, consultant_id: log.consultant_id ?? user.id };
+    const { data, error } = await supabase.from('metric_logs').insert(insertData).select().single();
+    if (error) throw error;
+    setMetricLogs(prev => [...prev, data]);
+    return data;
+  }, [user]);
+
+  const updateMetricLog = useCallback(async (id: string, updates: Partial<MetricLog>) => {
+    const { data, error } = await supabase.from('metric_logs').update(updates).eq('id', id).select().single();
+    if (error) throw error;
+    setMetricLogs(prev => prev.map(m => m.id === id ? data : m));
+    return data;
+  }, []);
+
+  const deleteMetricLog = useCallback(async (id: string) => {
+    const { error } = await supabase.from('metric_logs').delete().eq('id', id);
+    if (error) throw error;
+    setMetricLogs(prev => prev.filter(m => m.id !== id));
+  }, []);
+
   // Materiais de apoio v2
   const addSupportMaterialV2 = useCallback(async (material: Omit<SupportMaterialV2, 'id' | 'user_id' | 'created_at'>, file?: File) => {
     let content = material.content;
