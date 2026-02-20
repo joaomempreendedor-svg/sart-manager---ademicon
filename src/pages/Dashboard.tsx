@@ -370,12 +370,6 @@ export const Dashboard = () => {
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
           <MetricCard
-            title="Total Leads"
-            value={commercialMetrics?.totalLeads}
-            icon={Users}
-            colorClass="bg-indigo-600 text-white"
-          />
-          <MetricCard
             title="Novos Leads"
             value={commercialMetrics?.newLeads}
             icon={Plus}
