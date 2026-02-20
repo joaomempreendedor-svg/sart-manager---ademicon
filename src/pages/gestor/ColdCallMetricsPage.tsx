@@ -74,7 +74,9 @@ const ColdCallMetricsPage = () => {
 
   const coldCallMetrics = useMemo(() => {
     const totalCalls = filteredColdCallLogs.length;
-    const totalConversations = filteredColdCallLogs.filter(log => log.result === 'Conversou' || log.result === 'Agendar Reunião').length;
+    const totalConversations = filteredColdCallLogs.filter(log =>
+      log.result === 'Conversou' || log.result === 'Demonstrou Interesse' || log.result === 'Agendar Reunião'
+    ).length;
     const totalMeetingsScheduled = filteredColdCallLogs.filter(log => log.result === 'Agendar Reunião').length;
     const totalDurationSeconds = filteredColdCallLogs.reduce((sum, log) => sum + log.duration_seconds, 0);
 

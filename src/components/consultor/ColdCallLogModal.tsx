@@ -24,7 +24,7 @@ import toast from 'react-hot-toast';
 import { useApp } from '@/context/AppContext';
 import { useNavigate } from 'react-router-dom'; // Importar useNavigate
 
-const COLD_CALL_RESULTS: ColdCallResult[] = ['Não atendeu', 'Número inválido', 'Sem interesse', 'Pedir retorno', 'Conversou', 'Agendar Reunião'];
+const COLD_CALL_RESULTS: ColdCallResult[] = ['Não atendeu', 'Número inválido', 'Sem interesse', 'Pedir retorno', 'Conversou', 'Demonstrou Interesse', 'Agendar Reunião'];
 const MEETING_MODALITIES = ['Online', 'Presencial', 'Telefone'];
 
 interface ColdCallLogModalProps {
@@ -152,7 +152,7 @@ export const ColdCallLogModal: React.FC<ColdCallLogModalProps> = ({
       await onSaveLog(logData, lead.id);
 
       let newStageValue: ColdCallLead['current_stage'] = lead.current_stage;
-      if (callResult === 'Conversou') newStageValue = 'Conversou';
+      if (callResult === 'Conversou' || callResult === 'Demonstrou Interesse') newStageValue = 'Conversou';
       else if (callResult === 'Agendar Reunião') newStageValue = 'Reunião Agendada';
       else if (callResult === 'Pedir retorno' || callResult === 'Não atendeu' || callResult === 'Número inválido') newStageValue = 'Tentativa de Contato'; // ALTERADO AQUI
       else if (callResult === 'Sem interesse') newStageValue = 'Tentativa de Contato';

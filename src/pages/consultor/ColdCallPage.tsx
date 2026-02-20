@@ -31,7 +31,7 @@ import { ImportColdCallLeadsModal } from '@/components/consultor/ImportColdCallL
 import { MetricCard } from '@/components/MetricCard'; // Importar MetricCard
 
 const COLD_CALL_STAGES: ColdCallStage[] = ['Base Fria', 'Tentativa de Contato', 'Conversou', 'Reunião Agendada'];
-const COLD_CALL_RESULTS: ColdCallResult[] = ['Não atendeu', 'Número inválido', 'Sem interesse', 'Pedir retorno', 'Conversou', 'Agendar Reunião'];
+const COLD_CALL_RESULTS: ColdCallResult[] = ['Não atendeu', 'Número inválido', 'Sem interesse', 'Pedir retorno', 'Conversou', 'Demonstrou Interesse', 'Agendar Reunião'];
 const MEETING_MODALITIES = ['Online', 'Presencial', 'Telefone'];
 
 const ColdCallPage = () => {
@@ -103,7 +103,9 @@ const ColdCallPage = () => {
     if (!user) return { totalCalls: 0, totalConversations: 0, totalMeetingsScheduled: 0, conversationToMeetingRate: 0, totalLeadsAdded: 0, leadsConvertedToCrm: 0, conversionRateToCrm: 0, averageCallDuration: 0 };
     
     const totalCalls = filteredColdCallLogsForMetrics.length;
-    const totalConversations = filteredColdCallLogsForMetrics.filter(log => log.result === 'Conversou' || log.result === 'Agendar Reunião').length;
+    const totalConversations = filteredColdCallLogsForMetrics.filter(log =>
+      log.result === 'Conversou' || log.result === 'Demonstrou Interesse' || log.result === 'Agendar Reunião'
+    ).length;
     const totalMeetingsScheduled = filteredColdCallLogsForMetrics.filter(log => log.result === 'Agendar Reunião').length;
     const totalDurationSeconds = filteredColdCallLogsForMetrics.reduce((sum, log) => sum + log.duration_seconds, 0);
 
@@ -271,6 +273,7 @@ const ColdCallPage = () => {
         return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300';
       case 'Pedir retorno':
       case 'Conversou':
+      case 'Demonstrou Interesse':
         return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300';
       case 'Sem interesse':
       case 'Número inválido':

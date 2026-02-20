@@ -257,7 +257,9 @@ export const Dashboard = () => {
     }
 
     const totalCalls = filteredLogs.length;
-    const totalConversations = filteredLogs.filter(log => log.result === 'Conversou' || log.result === 'Agendar Reunião').length;
+    const totalConversations = filteredLogs.filter(log =>
+      log.result === 'Conversou' || log.result === 'Demonstrou Interesse' || log.result === 'Agendar Reunião'
+    ).length;
     const totalMeetingsScheduled = filteredLogs.filter(log => log.result === 'Agendar Reunião').length;
     
     const conversationToMeetingRate = totalConversations > 0 ? (totalMeetingsScheduled / totalConversations) * 100 : 0;
