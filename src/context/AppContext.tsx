@@ -494,7 +494,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const updatedData = { ...candidate, ...updates };
     const now = new Date().toISOString();
 
-    // datas de mudanças de status
     if (updates.screeningStatus === 'Contacted' && candidate.screeningStatus !== 'Contacted') updatedData.contactedDate = now;
     if (updates.screeningStatus === 'No Response' && candidate.screeningStatus !== 'No Response') updatedData.noResponseDate = now;
     if (updates.interviewDate && candidate.interviewDate !== updates.interviewDate) updatedData.interviewScheduledDate = now;
@@ -1026,7 +1025,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setTeamProductionGoals(prev => prev.filter(g => g.id !== id));
   }, []);
 
-  // Funções de configuração (sem hooks dentro de useMemo)
+  // Configurações
   const setChecklistDueDate = useCallback(async (candidateId: string, itemId: string, dueDate: string) => {
     const candidate = candidates.find(c => c.id === candidateId);
     if (!candidate) return;
@@ -1056,7 +1055,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [checklistStructure, updateConfig]);
 
   const updateChecklistItem = useCallback(async (id: string, updates: Partial<DailyChecklistItem>, audioFile?: File, imageFile?: File) => {
-    // reuso da função de itens diários
     return updateDailyChecklistItem(id, updates, audioFile, imageFile);
   }, [updateDailyChecklistItem]);
 
@@ -1267,7 +1265,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     await updateCommission(commission.db_id, updatedCommissionData);
   }, [commissions, calculateCompetenceMonth, updateCommission, user]);
 
-  // Onboarding online (usa callbacks já definidos)
+  // Onboarding online
   const addOnlineOnboardingSession = useCallback(async (consultantName: string) => {
     const { data: sessionData, error: sessionError } = await supabase.from('onboarding_sessions').insert({ user_id: JOAO_GESTOR_AUTH_ID, consultant_name: consultantName }).select().single();
     if (sessionError) throw sessionError;
@@ -1297,58 +1295,79 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setOnboardingTemplateVideos(prev => prev.filter(v => v.id !== videoId));
   }, []);
 
-  const addCrmPipeline = useCallback(async (name: string) => {
-    const { data, error } = await supabase.from('crm_pipelines').insert({ user_id: JOAO_GESTOR_AUTH_ID, name }).select().single();
+  // Métricas
+  const addMetricLog = useCallback(async (log: Omit<MetricLog, 'id'>) => {
+    const { data, error } = await supabase.from('metric_logs').insert(log).select().single();
     if (error) throw error;
-    setCrmPipelines(prev => [...prev, data]);
+    setMetricLogs(prev => [...prev, data]);
     return data;
   }, []);
-  const updateCrmPipeline = useCallback(async (id: string, updates: Partial<CrmPipeline>) => {
-    const { data, error } = await supabase.from('crm_pipelines').update(updates).eq('id', id).select().single();
+  const updateMetricLog = useCallback(async (id: string, updates: Partial<MetricLog>) => {
+    const { data, error } = await supabase.from('metric_logs').update(updates).eq('id', id).select().single();
     if (error) throw error;
-    setCrmPipelines(prev => prev.map(p => p.id === id ? data : p));
+    setMetricLogs(prev => prev.map(m => m.id === id ? data : m));
     return data;
   }, []);
-  const deleteCrmPipeline = useCallback(async (id: string) => {
-    const { error } = await supabase.from('crm_pipelines').delete().eq('id', id);
+  const deleteMetricLog = useCallback(async (id: string) => {
+    const { error } = await supabase.from('metric_logs').delete().eq('id', id);
     if (error) throw error;
-    setCrmPipelines(prev => prev.filter(p => p.id !== id));
+    setMetricLogs(prev => prev.filter(m => m.id !== id));
   }, []);
-  const addCrmStage = useCallback(async (stage: Omit<CrmStage, 'id' | 'user_id' | 'created_at'>) => {
-    const { data, error } = await supabase.from('crm_stages').insert({ ...stage, user_id: JOAO_GESTOR_AUTH_ID }).select().single();
+
+  // Cutoff periods
+  const addCutoffPeriod = useCallback(async (period: CutoffPeriod) => {
+    const { error } = await supabase.from('cutoff_periods').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: period }).select().single();
     if (error) throw error;
-    setCrmStages(prev => [...prev, data]);
+    const { data } = await supabase.from('cutoff_periods').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID);
+    setCutoffPeriods(data?.map(item => ({ ...(item.data as CutoffPeriod), db_id: item.id })) || []);
+  }, []);
+  const updateCutoffPeriod = useCallback(async (id: string, updates: Partial<CutoffPeriod>) => {
+    const { error } = await supabase.from('cutoff_periods').update({ data: updates }).eq('id', id).select().single();
+    if (error) throw error;
+    const { data } = await supabase.from('cutoff_periods').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID);
+    setCutoffPeriods(data?.map(item => ({ ...(item.data as CutoffPeriod), db_id: item.id })) || []);
+  }, []);
+  const deleteCutoffPeriod = useCallback(async (id: string) => {
+    const { error } = await supabase.from('cutoff_periods').delete().eq('id', id);
+    if (error) throw error;
+    setCutoffPeriods(prev => prev.filter(p => p.db_id !== id));
+  }, []);
+
+  // Formulários
+  const updateFormCadastro = useCallback(async (id: string, updates: Partial<FormCadastro>) => {
+    const { data, error } = await supabase.from('form_submissions').update(updates).eq('id', id).select().single();
+    if (error) throw error;
+    setFormCadastros(prev => prev.map(f => f.id === id ? data : f));
     return data;
   }, []);
-  const updateCrmStage = useCallback(async (id: string, updates: Partial<CrmStage>) => {
-    const { data, error } = await supabase.from('crm_stages').update(updates).eq('id', id).select().single();
+  const deleteFormCadastro = useCallback(async (id: string) => {
+    const { error } = await supabase.from('form_submissions').delete().eq('id', id);
     if (error) throw error;
-    setCrmStages(prev => prev.map(s => s.id === id ? data : s));
-    return data;
+    setFormCadastros(prev => prev.filter(f => f.id !== id));
   }, []);
-  const updateCrmStageOrder = useCallback(async (orderedStages: CrmStage[]) => {
-    const updates = orderedStages.map((stage, index) => supabase.from('crm_stages').update({ order_index: index }).eq('id', stage.id));
-    await Promise.all(updates);
-    const { data } = await supabase.from('crm_stages').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID).order('order_index');
-    setCrmStages(data || []);
-  }, []);
-  const deleteCrmStage = useCallback(async (id: string) => {
-    const { error } = await supabase.from('crm_stages').delete().eq('id', id);
-    if (error) throw error;
-    setCrmStages(prev => prev.filter(s => s.id !== id));
-  }, []);
-  const addCrmField = useCallback(async (field: Omit<CrmField, 'id' | 'user_id' | 'created_at'>) => {
-    const { data, error } = await supabase.from('crm_fields').insert({ ...field, user_id: JOAO_GESTOR_AUTH_ID }).select().single();
-    if (error) throw error;
-    setCrmFields(prev => [...prev, data]);
-    return data;
-  }, []);
-  const updateCrmField = useCallback(async (id: string, updates: Partial<CrmField>) => {
-    const { data, error } = await supabase.from('crm_fields').update(updates).eq('id', id).select().single();
-    if (error) throw error;
-    setCrmFields(prev => prev.map(f => f.id === id ? data : f));
-    return data;
-  }, []);
+
+  // Feedbacks (candidato)
+  const addFeedback = useCallback(async (personId: string, feedback: Omit<Feedback, 'id'>) => {
+    const candidate = candidates.find(c => c.id === personId);
+    if (!candidate) throw new Error("Candidate not found");
+    const newFeedback = { ...feedback, id: crypto.randomUUID() };
+    const updatedFeedbacks = [...(candidate.feedbacks || []), newFeedback];
+    await updateCandidate(personId, { feedbacks: updatedFeedbacks });
+    return newFeedback;
+  }, [candidates, updateCandidate]);
+  const updateFeedback = useCallback(async (personId: string, feedback: Feedback) => {
+    const candidate = candidates.find(c => c.id === personId);
+    if (!candidate) throw new Error("Candidate not found");
+    const updatedFeedbacks = (candidate.feedbacks || []).map(f => f.id === feedback.id ? feedback : f);
+    await updateCandidate(personId, { feedbacks: updatedFeedbacks });
+    return feedback;
+  }, [candidates, updateCandidate]);
+  const deleteFeedback = useCallback(async (personId: string, feedbackId: string) => {
+    const candidate = candidates.find(c => c.id === personId);
+    if (!candidate) return;
+    const updatedFeedbacks = (candidate.feedbacks || []).filter(f => f.id !== feedbackId);
+    await updateCandidate(personId, { feedbacks: updatedFeedbacks });
+  }, [candidates, updateCandidate]);
 
   const value: AppContextType = useMemo(() => ({
     isDataLoading,
@@ -1405,9 +1424,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     deleteCommission: async (id: string) => { const { error } = await supabase.from('commissions').delete().eq('id', id); if (error) throw error; refetchCommissions(); },
     updateInstallmentStatus,
 
-    addCutoffPeriod: useCallback(async (period) => { const { error } = await supabase.from('cutoff_periods').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: period }).select().single(); if (error) throw error; const { data } = await supabase.from('cutoff_periods').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID); setCutoffPeriods(data?.map(item => ({ ...(item.data as CutoffPeriod), db_id: item.id })) || []); }, []),
-    updateCutoffPeriod: useCallback(async (id, updates) => { const { error } = await supabase.from('cutoff_periods').update({ data: updates }).eq('id', id).select().single(); if (error) throw error; const { data } = await supabase.from('cutoff_periods').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID); setCutoffPeriods(data?.map(item => ({ ...(item.data as CutoffPeriod), db_id: item.id })) || []); }, []),
-    deleteCutoffPeriod: useCallback(async (id) => { const { error } = await supabase.from('cutoff_periods').delete().eq('id', id); if (error) throw error; setCutoffPeriods(prev => prev.filter(p => p.db_id !== id)); }, []),
+    addCutoffPeriod,
+    updateCutoffPeriod,
+    deleteCutoffPeriod,
 
     addOnlineOnboardingSession,
     deleteOnlineOnboardingSession,
@@ -1445,9 +1464,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addWeeklyTargetItem, updateWeeklyTargetItem, deleteWeeklyTargetItem, updateWeeklyTargetItemOrder,
     assignWeeklyTargetToConsultant, unassignWeeklyTargetFromConsultant,
 
-    addMetricLog: useCallback(async (log) => { const { data, error } = await supabase.from('metric_logs').insert(log).select().single(); if (error) throw error; setMetricLogs(prev => [...prev, data]); return data; }, []),
-    updateMetricLog: useCallback(async (id, updates) => { const { data, error } = await supabase.from('metric_logs').update(updates).eq('id', id).select().single(); if (error) throw error; setMetricLogs(prev => prev.map(m => m.id === id ? data : m)); return data; }, []),
-    deleteMetricLog: useCallback(async (id) => { const { error } = await supabase.from('metric_logs').delete().eq('id', id); if (error) throw error; setMetricLogs(prev => prev.filter(m => m.id !== id)); }, []),
+    addMetricLog,
+    updateMetricLog,
+    deleteMetricLog,
 
     addSupportMaterialV2,
     updateSupportMaterialV2,
@@ -1462,12 +1481,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addFinancialEntry, updateFinancialEntry, deleteFinancialEntry,
 
     getFormFilesForSubmission: (submissionId: string) => formFiles.filter(f => f.submission_id === submissionId),
-    updateFormCadastro: useCallback(async (id, updates) => { const { data, error } = await supabase.from('form_submissions').update(updates).eq('id', id).select().single(); if (error) throw error; setFormCadastros(prev => prev.map(f => f.id === id ? data : f)); return data; }, []),
-    deleteFormCadastro: useCallback(async (id) => { const { error } = await supabase.from('form_submissions').delete().eq('id', id); if (error) throw error; setFormCadastros(prev => prev.filter(f => f.id !== id)); }, []),
-
-    addFeedback: useCallback(async (personId, feedback) => { const candidate = candidates.find(c => c.id === personId); if (!candidate) throw new Error("Candidate not found"); const newFeedback = { ...feedback, id: crypto.randomUUID() }; const updatedFeedbacks = [...(candidate.feedbacks || []), newFeedback]; await updateCandidate(personId, { feedbacks: updatedFeedbacks }); return newFeedback; }, [candidates, updateCandidate]),
-    updateFeedback: useCallback(async (personId, feedback) => { const candidate = candidates.find(c => c.id === personId); if (!candidate) throw new Error("Candidate not found"); const updatedFeedbacks = (candidate.feedbacks || []).map(f => f.id === feedback.id ? feedback : f); await updateCandidate(personId, { feedbacks: updatedFeedbacks }); return feedback; }, [candidates, updateCandidate]),
-    deleteFeedback: useCallback(async (personId, feedbackId) => { const candidate = candidates.find(c => c.id === personId); if (!candidate) return; const updatedFeedbacks = (candidate.feedbacks || []).filter(f => f.id !== feedbackId); await updateCandidate(personId, { feedbacks: updatedFeedbacks }); }, [candidates, updateCandidate]),
+    updateFormCadastro,
+    deleteFormCadastro,
 
     addTeamMemberFeedback,
     updateTeamMemberFeedback,
