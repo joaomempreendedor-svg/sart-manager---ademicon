@@ -635,7 +635,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       created_by: user.id,
     }).select().single();
     if (error) throw error;
-    const newLead = { id: data.id, consultant_id: data.consultant_id, stage_id: data.stage_id, user_id: data.user_id, name: data.name, data: data.data, created_at: data.created_at, updated_at: data.updated_at, created_by: data.created_by, updated_by: data.updated_by, proposal_value: parseDbCurrency(data.proposal_value), proposal_closing_date: data.proposal_closing_date, sold_credit_value: parseDbCurrency(data.sold_credit_value), sold_group: data.sold_group, sold_quota: data.sold_quota, sale_date: data.sale_date };
+    const newLead = { id: data.id, consultant_id: data.consultant_id, stage_id: data.id, user_id: data.user_id, name: data.name, data: data.data, created_at: data.created_at, updated_at: data.updated_at, created_by: data.created_by, updated_by: data.updated_by, proposal_value: parseDbCurrency(data.proposal_value), proposal_closing_date: data.proposal_closing_date, sold_credit_value: parseDbCurrency(data.sold_credit_value), sold_group: data.sold_group, sold_quota: data.sold_quota, sale_date: data.sale_date };
     setCrmLeads(prev => [newLead, ...prev]);
     return newLead;
   }, [user, setCrmLeads, crmOwnerUserId, parseDbCurrency]);
@@ -1323,7 +1323,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const { data: newCrmLeads, error: crmLeadsError } = await supabase.from('crm_leads').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID).order('created_at', { ascending: false }); // ADICIONADO: Ordenar por created_at descendente
     if (crmLeadsError) console.error("Error refetching crm leads:", crmLeadsError);
     else setCrmLeads(newCrmLeads?.map((lead: any) => ({ 
-      id: lead.id, consultant_id: lead.consultant_id, stage_id: lead.stage_id, user_id: lead.user_id, name: lead.name, data: lead.data, created_at: lead.created_at, updated_at: lead.updated_at, created_by: lead.created_by, updated_by: lead.updated_by, 
+      id: lead.id, consultant_id: lead.consultant_id, stage_id: lead.stage_id, user_id: lead.user_id, name: lead.name, data: lead.data, created_at: lead.created_at, updated_at: data.updated_at, created_by: lead.created_by, updated_by: lead.updated_by, 
       proposal_value: parseDbCurrency(lead.proposal_value), proposal_closing_date: lead.proposal_closing_date, 
       sold_credit_value: parseDbCurrency(lead.sold_credit_value), sold_group: lead.sold_group, sold_quota: lead.sold_quota, sale_date: lead.sale_date 
     })) || []);
@@ -1631,13 +1631,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const updatedDetails = { ...commission.installmentDetails, [installmentNumber]: { status: newStatus, paidDate, competenceMonth: paidDate ? calculateCompetenceMonth(paidDate) : undefined } };
       
       try {
-        await value.updateCommission(commission.db_id, { installmentDetails: updatedDetails, status: getOverallStatus(updatedDetails) });
+        // Chamar updateCommission diretamente, sem usar 'value'
+        await updateCommission(commission.db_id, { installmentDetails: updatedDetails, status: getOverallStatus(updatedDetails) });
         console.log(`[updateInstallmentStatus] Successfully updated installment ${installmentNumber} for commission ${commissionId}.`);
       } catch (error) {
-        console.error(`[updateInstallmentStatus] Error calling value.updateCommission for ${commissionId}:`, error);
+        console.error(`[updateInstallmentStatus] Error calling updateCommission for ${commissionId}:`, error);
         throw error;
       }
-    }, [commissions, calculateCompetenceMonth, value]),
+    }, [commissions, calculateCompetenceMonth, updateCommission]), // Removido 'value' da dependência
     addCutoffPeriod: useCallback(async (period) => { const { error } = await supabase.from('cutoff_periods').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: period }).select().single(); if (error) throw error; const { data } = await supabase.from('cutoff_periods').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID); setCutoffPeriods(data?.map(item => ({ ...(item.data as CutoffPeriod), db_id: item.id })) || []); }, []),
     updateCutoffPeriod: useCallback(async (id, updates) => { const { error } = await supabase.from('cutoff_periods').update({ data: updates }).eq('id', id).select().single(); if (error) throw error; const { data } = await supabase.from('cutoff_periods').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID); setCutoffPeriods(data?.map(item => ({ ...(item.data as CutoffPeriod), db_id: item.id })) || []); }, []),
     deleteCutoffPeriod: useCallback(async (id) => { const { error } = await supabase.from('cutoff_periods').delete().eq('id', id); if (error) throw error; setCutoffPeriods(prev => prev.filter(p => p.db_id !== id)); }, []),
