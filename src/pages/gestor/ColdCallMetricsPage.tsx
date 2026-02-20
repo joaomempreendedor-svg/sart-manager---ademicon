@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { PhoneCall, MessageSquare, CalendarCheck, BarChart3, Percent, Loader2, Users, Filter, RotateCcw, CalendarDays, UserPlus, ArrowUpRight, Clock } from 'lucide-react'; // Adicionado UserPlus, ArrowUpRight, Clock
+import { PhoneCall, MessageSquare, CalendarCheck, BarChart3, Percent, Loader2, Users, Filter, RotateCcw, CalendarDays, UserPlus, ArrowUpRight, Clock, TrendingUp } from 'lucide-react'; // Adicionado TrendingUp
 import { ColdCallDetailModal } from '@/components/gestor/ColdCallDetailModal';
 import { ColdCallLead, ColdCallLog, ColdCallDetailType } from '@/types';
 import toast from 'react-hot-toast';
