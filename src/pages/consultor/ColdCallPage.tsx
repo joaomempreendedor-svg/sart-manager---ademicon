@@ -264,6 +264,23 @@ const ColdCallPage = () => {
 
   const hasActiveFilters = searchTerm || filterStage !== 'all' || filterStartDate || filterEndDate;
 
+  // Mapeia cores para resultados da última ligação
+  const getResultBadgeClasses = (result: string) => {
+    switch (result) {
+      case 'Agendar Reunião':
+        return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300';
+      case 'Conversou':
+        return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300';
+      case 'Pedir retorno':
+      case 'Não atendeu':
+        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300';
+      case 'Sem interesse':
+      case 'Número inválido':
+        return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300';
+      default:
+        return 'bg-gray-100 text-gray-700 dark:bg-slate-700 dark:text-gray-300';
+    }
+  };
 
   if (isAuthLoading || isDataLoading) {
     return (
@@ -468,8 +485,10 @@ const ColdCallPage = () => {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex flex-col">
-                        <span className="font-medium text-gray-900 dark:text-white">{lead.lastCallResult}</span>
-                        <span className="text-xs text-gray-500 dark:text-gray-400">{lead.lastCallDate}</span>
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getResultBadgeClasses(lead.lastCallResult)}`}>
+                          {lead.lastCallResult}
+                        </span>
+                        <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">{lead.lastCallDate}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4">{new Date(lead.updated_at).toLocaleDateString('pt-BR')}</td>
