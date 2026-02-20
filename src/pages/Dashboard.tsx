@@ -53,7 +53,10 @@ export const Dashboard = () => {
   const [coldCallLeadsForModal, setColdCallLeadsForModal] = useState<ColdCallLead[]>([]);
   const [coldCallLogsForModal, setColdCallLogsForModal] = useState<ColdCallLog[]>([]);
   const [coldCallDetailType, setColdCallDetailType] = useState<ColdCallDetailType>('all');
-  const [selectedColdCallConsultantId, setSelectedColdCallConsultantId] = useState<string | null>(null); // Default para null (todos)
+  
+  // NOVO: Estado para a seleção do usuário no filtro de consultor de Cold Call
+  const [userSelectedColdCallConsultantId, setUserSelectedColdCallConsultantId] = useState<string | null>(null); 
+
   const [coldCallFilterStartDate, setColdCallFilterStartDate] = useState(''); // NOVO: Filtro de data de início para Cold Call
   const [coldCallFilterEndDate, setColdCallFilterEndDate] = useState('');     // NOVO: Filtro de data de fim para Cold Call
 
@@ -66,45 +69,22 @@ export const Dashboard = () => {
     return teamMembers.filter(m => m.isActive && (m.roles.includes('CONSULTOR') || m.roles.includes('PRÉVIA') || m.roles.includes('AUTORIZADO')));
   }, [teamMembers]);
 
+  // NOVO: Lógica para determinar o ID do consultor de Cold Call efetivo para filtragem
+  const effectiveColdCallConsultantId = useMemo(() => {
+    if (user?.role === 'CONSULTOR') {
+      return user.id;
+    }
+    // Para Gestor/Admin, usa a seleção do usuário ou null para 'Todos'
+    return userSelectedColdCallConsultantId;
+  }, [user, userSelectedColdCallConsultantId]);
+
   // NOVO: Nome do consultor selecionado para Cold Call (derivado)
   const selectedColdCallConsultantName = useMemo(() => {
-    if (!selectedColdCallConsultantId) {
+    if (!effectiveColdCallConsultantId) {
       return 'Todos os Consultores';
     }
-    return teamMembers.find(m => (m.authUserId || m.id) === selectedColdCallConsultantId)?.name || 'Consultor Desconhecido';
-  }, [selectedColdCallConsultantId, teamMembers]);
-
-  // NOVO: Efeito para definir o consultor de Cold Call padrão
-  useEffect(() => {
-    // Only run this effect if the user or the list of consultants changes,
-    // or if selectedColdCallConsultantId is not yet initialized.
-    // We explicitly check if the current selection is valid or needs to be set.
-
-    const currentSelectedId = selectedColdCallConsultantId;
-    let newDefaultId: string | null = null;
-
-    if (user && (user.role === 'GESTOR' || user.role === 'ADMIN')) {
-      // If manager/admin, default to 'all' (null) if no valid consultant is selected
-      if (currentSelectedId && !coldCallConsultants.some(c => (c.authUserId || c.id) === currentSelectedId)) {
-        newDefaultId = null; // Current selection is invalid, reset to 'all'
-      } else if (!currentSelectedId && coldCallConsultants.length > 0) {
-        // If no selection and there are consultants, keep it 'all' (null)
-        newDefaultId = null;
-      }
-    } else if (user?.role === 'CONSULTOR') {
-      // If consultant, default to themselves
-      newDefaultId = user.id;
-    } else {
-      // If not logged in or other roles, default to 'all' (null)
-      newDefaultId = null;
-    }
-
-    // Only update state if the new default is different from the current selection
-    if (newDefaultId !== currentSelectedId) {
-      setSelectedColdCallConsultantId(newDefaultId);
-    }
-  }, [user, coldCallConsultants]); // Dependencies: user and coldCallConsultants. Do NOT include selectedColdCallConsultantId here.
-
+    return teamMembers.find(m => (m.authUserId || m.id) === effectiveColdCallConsultantId)?.name || 'Consultor Desconhecido';
+  }, [effectiveColdCallConsultantId, teamMembers]);
 
   // --- Métricas Comerciais (Mês Atual) ---
   const commercialMetrics = useMemo(() => {
@@ -258,31 +238,14 @@ export const Dashboard = () => {
 
   // NOVO: Métricas de Cold Call (Mês Atual)
   const coldCallMetrics = useMemo(() => {
-    console.log("[ColdCallMetrics] Calculating metrics...");
-    console.log("[ColdCallMetrics] User:", user);
-    console.log("[ColdCallMetrics] selectedColdCallConsultantId:", selectedColdCallConsultantId);
-    console.log("[ColdCallMetrics] Raw coldCallLogs length:", coldCallLogs.length);
-    if (coldCallLogs.length > 0) {
-      console.log("[ColdCallMetrics] Sample coldCallLog item:", coldCallLogs[0]);
-    }
-
     if (!user) {
-      console.log("No user, returning zeros.");
       return { totalCalls: 0, totalConversations: 0, totalMeetingsScheduled: 0, conversationToMeetingRate: 0, filteredLeads: [], filteredLogs: [] };
     }
 
-    // Se nenhum consultor específico for selecionado, o gestor deve ver as métricas de TODOS os consultores.
-    // Caso contrário, filtra pelo consultor selecionado.
-    const logsToConsider = selectedColdCallConsultantId 
-      ? (coldCallLogs || []).filter(log => log.user_id === selectedColdCallConsultantId)
-      : (coldCallLogs || []); // Garante que coldCallLogs é um array
+    const logsToConsider = effectiveColdCallConsultantId 
+      ? (coldCallLogs || []).filter(log => log.user_id === effectiveColdCallConsultantId)
+      : (coldCallLogs || []); 
     
-    console.log("[ColdCallMetrics] logsToConsider length (after consultant filter):", logsToConsider.length);
-    if (logsToConsider.length > 0) {
-      console.log("[ColdCallMetrics] Sample logsToConsider item:", logsToConsider[0]);
-    }
-
-    // Aplicar filtros de data
     let filteredLogs = logsToConsider;
     if (coldCallFilterStartDate) {
       const start = new Date(coldCallFilterStartDate + 'T00:00:00');
@@ -293,32 +256,24 @@ export const Dashboard = () => {
       filteredLogs = filteredLogs.filter(log => new Date(log.created_at) <= end);
     }
 
-    console.log("[ColdCallMetrics] filteredLogs length (after date filter):", filteredLogs.length);
-    if (filteredLogs.length > 0) {
-      console.log("[ColdCallMetrics] Sample filteredLogs item:", filteredLogs[0]);
-    }
-
     const totalCalls = filteredLogs.length;
     const totalConversations = filteredLogs.filter(log => log.result === 'Conversou' || log.result === 'Agendar Reunião').length;
     const totalMeetingsScheduled = filteredLogs.filter(log => log.result === 'Agendar Reunião').length;
     
     const conversationToMeetingRate = totalConversations > 0 ? (totalMeetingsScheduled / totalConversations) * 100 : 0;
 
-    // Filtrar leads correspondentes aos logs filtrados
     const filteredLeadIds = new Set(filteredLogs.map(log => log.cold_call_lead_id));
-    const filteredLeads = (coldCallLeads || []).filter(lead => filteredLeadIds.has(lead.id)); // Garante que coldCallLeads é um array
-
-    console.log("[ColdCallMetrics] Calculated metrics:", { totalCalls, totalConversations, totalMeetingsScheduled, conversationToMeetingRate });
+    const filteredLeads = (coldCallLeads || []).filter(lead => filteredLeadIds.has(lead.id)); 
 
     return {
       totalCalls,
       totalConversations,
       totalMeetingsScheduled,
       conversationToMeetingRate,
-      filteredLeads, // Retorna os leads filtrados
-      filteredLogs,  // Retorna os logs filtrados
+      filteredLeads, 
+      filteredLogs,  
     };
-  }, [user, selectedColdCallConsultantId, coldCallLeads, coldCallLogs, coldCallFilterStartDate, coldCallFilterEndDate]);
+  }, [user, effectiveColdCallConsultantId, coldCallLeads, coldCallLogs, coldCallFilterStartDate, coldCallFilterEndDate]);
 
   // --- Agenda do Dia ---
   const { todayAgenda, overdueTasks } = useMemo(() => {
@@ -379,11 +334,11 @@ export const Dashboard = () => {
   // NOVO: Handler para abrir o modal de detalhes de Cold Call
   const handleOpenColdCallDetailModal = (title: string, type: ColdCallDetailType) => {
     // Filtra os leads e logs de cold call com base no consultor selecionado no filtro do dashboard
-    const leadsToPass = selectedColdCallConsultantId 
-      ? coldCallLeads.filter(l => l.user_id === selectedColdCallConsultantId)
+    const leadsToPass = effectiveColdCallConsultantId 
+      ? coldCallLeads.filter(l => l.user_id === effectiveColdCallConsultantId)
       : coldCallLeads;
-    const logsToPass = selectedColdCallConsultantId
-      ? coldCallLogs.filter(log => log.user_id === selectedColdCallConsultantId)
+    const logsToPass = effectiveColdCallConsultantId
+      ? coldCallLogs.filter(log => log.user_id === effectiveColdCallConsultantId)
       : coldCallLogs;
 
     setColdCallModalTitle(title);
@@ -466,10 +421,8 @@ export const Dashboard = () => {
           <div className="flex items-center space-x-2">
             <label htmlFor="coldCallConsultant" className="text-sm font-medium text-gray-700 dark:text-gray-300">Consultor:</label>
             <Select
-              value={selectedColdCallConsultantId || 'all'}
-              onValueChange={(value) => {
-                setSelectedColdCallConsultantId(value === 'all' ? null : value);
-              }}
+              value={userSelectedColdCallConsultantId || 'all'}
+              onValueChange={(value) => setUserSelectedColdCallConsultantId(value === 'all' ? null : value)}
             >
               <SelectTrigger className="w-[180px] dark:bg-slate-700 dark:text-white dark:border-slate-600">
                 <SelectValue placeholder="Selecione o Consultor" />
