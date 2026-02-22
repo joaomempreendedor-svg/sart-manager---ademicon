@@ -497,7 +497,16 @@ const ColdCallPage = () => {
               ) : (
                 filteredLeads.map(lead => (
                   <tr key={lead.id} className="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition">
-                    <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">{lead.name}</td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-gray-900 dark:text-white">{lead.name}</span>
+                        {lead.crm_lead_id && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                            Enviado para o CRM
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center space-x-2">
                         <PhoneCall className="w-3 h-3 text-gray-400" />
