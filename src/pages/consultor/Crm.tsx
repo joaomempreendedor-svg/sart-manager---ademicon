@@ -38,6 +38,7 @@ const ConsultorCrmPage = () => {
   const [selectedLeadForSold, setSelectedLeadForSold] = useState<CrmLead | null>(null);
   const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false);
   const [selectedLeadForMeeting, setSelectedLeadForMeeting] = useState<CrmLead | null>(null);
+  const [highlightLeadId, setHighlightLeadId] = useState<string | null>(null);
 
   // Filtros de Data Padrão: Mês Atual
   const [filterStartDate, setFilterStartDate] = useState(() => {
@@ -58,14 +59,22 @@ const ConsultorCrmPage = () => {
   const navigate = useNavigate(); // Usar useNavigate
 
   useEffect(() => {
-    // Apenas limpa o estado de navegação se highlightLeadId estiver presente,
-    // mas não abre o modal de tarefas automaticamente.
     if (location.state?.highlightLeadId) {
-      // Opcional: Se você quiser rolar para o lead ou destacá-lo de alguma forma, a lógica iria aqui.
-      // Por enquanto, apenas limpamos o estado para evitar a abertura do modal.
+      setHighlightLeadId(location.state.highlightLeadId);
       navigate(location.pathname, { replace: true, state: {} });
     }
   }, [location.state, navigate, location.pathname]);
+
+  useEffect(() => {
+    if (highlightLeadId) {
+      const el = document.getElementById(`lead-card-${highlightLeadId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      const timer = setTimeout(() => setHighlightLeadId(null), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [highlightLeadId]);
 
 
   const activePipeline = useMemo(() => {
@@ -405,10 +414,11 @@ const ConsultorCrmPage = () => {
                     .sort((a, b) => new Date(a.meeting_start_time!).getTime() - new Date(b.meeting_start_time!).getTime())[0];
 
                   return (
-                    <div 
-                      key={lead.id} 
-                      onClick={() => handleEditLead(lead)} 
-                      className="bg-white dark:bg-slate-700 p-3 rounded-lg shadow-sm border border-gray-200 dark:border-slate-600 hover:border-brand-500 cursor-pointer transition-all group"
+                    <div
+                      key={lead.id}
+                      id={`lead-card-${lead.id}`}
+                      onClick={() => handleEditLead(lead)}
+                      className={`bg-white dark:bg-slate-700 p-3 rounded-lg shadow-sm border border-gray-200 dark:border-slate-600 hover:border-brand-500 cursor-pointer transition-all group ${highlightLeadId === lead.id ? 'ring-2 ring-amber-500 animate-pulse' : ''}`}
                       draggable="true"
                       onDragStart={(e) => handleDragStart(e, lead.id)}
                     >
