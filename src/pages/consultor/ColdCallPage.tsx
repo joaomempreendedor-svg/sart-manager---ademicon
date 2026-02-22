@@ -501,8 +501,8 @@ const ColdCallPage = () => {
                       <div className="flex items-center gap-2">
                         <span className="font-medium text-gray-900 dark:text-white">{lead.name}</span>
                         {lead.crm_lead_id && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
-                            Enviado para o CRM
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-orange-500 text-white dark:bg-orange-500">
+                            Enviado ao CRM
                           </span>
                         )}
                       </div>
