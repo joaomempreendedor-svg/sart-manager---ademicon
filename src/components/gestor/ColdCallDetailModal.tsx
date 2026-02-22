@@ -107,7 +107,7 @@ export const ColdCallDetailModal: React.FC<ColdCallDetailModalProps> = ({
             <p className="text-center text-gray-500 dark:text-gray-400 py-4">Nenhum item encontrado para esta métrica no período selecionado.</p>
           ) : (
             <div className="space-y-3">
-              {type === 'calls' || type === 'conversations' || type === 'meetings' ? (
+              {type === 'calls' || type === 'conversations' || type === 'meetings' || type === 'interest' ? (
                 (filteredItems as ColdCallLog[]).map(log => (
                   <div
                     key={log.id}
