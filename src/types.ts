@@ -674,7 +674,7 @@ export interface AppContextType {
   deleteColdCallLead: (id: string) => Promise<void>; // NOVO
   addColdCallLog: (log: Omit<ColdCallLog, 'id' | 'user_id' | 'created_at' | 'duration_seconds'> & { start_time: string; end_time: string; }) => Promise<ColdCallLog>; // NOVO
   getColdCallMetrics: (consultantId: string) => { totalCalls: number; totalConversations: number; totalMeetingsScheduled: number; conversationToMeetingRate: number; }; // NOVO
-  createCrmLeadFromColdCall: (coldCallLeadId: string) => Promise<{ crmLeadId: string }>; // NOVO
+  createCrmLeadFromColdCall: (coldCallLeadId: string, meeting?: { date?: string; time?: string; modality?: string; notes?: string }) => Promise<{ crmLeadId: string }>; // NOVO
 }
 
 export interface ColdCallMetrics { // NOVO: Interface para as métricas de Cold Call

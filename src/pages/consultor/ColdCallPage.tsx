@@ -249,9 +249,9 @@ const ColdCallPage = () => {
     setIsHistoryModalOpen(true);
   };
 
-  const handleCreateCrmLeadFromColdCall = useCallback(async (coldCallLead: ColdCallLead) => {
+  const handleCreateCrmLeadFromColdCall = useCallback(async (coldCallLead: ColdCallLead, meeting?: { date?: string; time?: string; modality?: string; notes?: string }) => {
     try {
-      const { crmLeadId } = await createCrmLeadFromColdCall(coldCallLead.id);
+      const { crmLeadId } = await createCrmLeadFromColdCall(coldCallLead.id, meeting);
       toast.success((t) => (
         <div className="flex flex-col items-center">
           <p className="font-bold text-lg">Lead criado no CRM!</p>
@@ -259,7 +259,7 @@ const ColdCallPage = () => {
           <Button
             onClick={() => {
               toast.dismiss(t.id);
-              navigate('/consultor/crm'); 
+              navigate('/consultor/crm');
             }}
             className="mt-3 bg-brand-600 hover:bg-brand-700 text-white text-sm py-1.5 px-3"
           >

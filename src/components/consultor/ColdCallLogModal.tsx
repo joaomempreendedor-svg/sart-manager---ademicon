@@ -33,7 +33,7 @@ interface ColdCallLogModalProps {
   lead: ColdCallLead | null;
   onSaveLog: (logData: Omit<ColdCallLog, 'id' | 'user_id' | 'created_at'> & { start_time: string; end_time: string; duration_seconds: number; }, leadId: string) => Promise<void>;
   onUpdateLeadStage: (leadId: string, newStage: Partial<ColdCallLead>) => Promise<void>;
-  onCreateCrmLeadFromColdCall: (coldCallLead: ColdCallLead) => void;
+  onCreateCrmLeadFromColdCall: (coldCallLead: ColdCallLead, meeting?: { date?: string; time?: string; modality?: string; notes?: string }) => void;
 }
 
 export const ColdCallLogModal: React.FC<ColdCallLogModalProps> = ({
@@ -116,6 +116,12 @@ export const ColdCallLogModal: React.FC<ColdCallLogModalProps> = ({
       setError("O resultado da ligação é obrigatório.");
       return false;
     }
+    if (callResult === 'Agendar Reunião') {
+      if (!meetingDate || !meetingTime) {
+        setError("Informe data e horário da reunião.");
+        return false;
+      }
+    }
     setError('');
     return true;
   };
@@ -141,10 +147,10 @@ export const ColdCallLogModal: React.FC<ColdCallLogModalProps> = ({
         end_time: callEndTime!,
         duration_seconds: durationSeconds,
         result: callResult as ColdCallResult,
-        meeting_date: undefined,
-        meeting_time: undefined,
-        meeting_modality: undefined,
-        meeting_notes: undefined,
+        meeting_date: callResult === 'Agendar Reunião' ? (meetingDate || undefined) : undefined,
+        meeting_time: callResult === 'Agendar Reunião' ? (meetingTime || undefined) : undefined,
+        meeting_modality: callResult === 'Agendar Reunião' ? (meetingModality || undefined) : undefined,
+        meeting_notes: callResult === 'Agendar Reunião' ? (meetingNotes || undefined) : undefined,
       };
 
       await onSaveLog(logData, lead.id);
@@ -182,8 +188,11 @@ export const ColdCallLogModal: React.FC<ColdCallLogModalProps> = ({
       try {
         // Atualiza o nome do lead antes de enviar ao CRM
         await onUpdateLeadStage(lead.id, { name: contactName.trim() });
-        // Envia ao CRM
-        onCreateCrmLeadFromColdCall({ ...lead, name: contactName.trim() });
+        // Envia ao CRM com data/horário
+        onCreateCrmLeadFromColdCall(
+          { ...lead, name: contactName.trim() },
+          { date: meetingDate || undefined, time: meetingTime || undefined, modality: meetingModality || undefined, notes: meetingNotes || undefined }
+        );
         onClose();
       } catch (e: any) {
         toast.error(`Erro ao atualizar nome do contato: ${e.message}`);
@@ -263,18 +272,68 @@ export const ColdCallLogModal: React.FC<ColdCallLogModalProps> = ({
             </div>
 
             {shouldShowCrmActions && (
-              <div className="space-y-2">
-                <Label htmlFor="contactName">Nome do contato para CRM *</Label>
-                <Input
-                  id="contactName"
-                  value={contactName}
-                  onChange={(e) => setContactName(e.target.value)}
-                  placeholder="Ex: Maria Souza"
-                  className="dark:bg-slate-700 dark:text-white dark:border-slate-600"
-                />
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Confirme ou edite o nome do contato antes de enviar ao CRM.
-                </p>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="contactName">Nome do contato para CRM *</Label>
+                  <Input
+                    id="contactName"
+                    value={contactName}
+                    onChange={(e) => setContactName(e.target.value)}
+                    placeholder="Ex: Maria Souza"
+                    className="dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Confirme ou edite o nome do contato antes de enviar ao CRM.
+                  </p>
+                </div>
+
+                {callResult === 'Agendar Reunião' && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="meetingDate">Data da reunião *</Label>
+                      <Input
+                        id="meetingDate"
+                        type="date"
+                        value={meetingDate}
+                        onChange={(e) => setMeetingDate(e.target.value)}
+                        className="dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="meetingTime">Horário da reunião *</Label>
+                      <Input
+                        id="meetingTime"
+                        type="time"
+                        value={meetingTime}
+                        onChange={(e) => setMeetingTime(e.target.value)}
+                        className="dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                      />
+                    </div>
+                    <div className="space-y-2 sm:col-span-2">
+                      <Label htmlFor="meetingModality">Modalidade</Label>
+                      <Select value={meetingModality} onValueChange={setMeetingModality}>
+                        <SelectTrigger className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
+                          <SelectValue placeholder="Selecione a modalidade" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
+                          {MEETING_MODALITIES.map(m => (
+                            <SelectItem key={m} value={m}>{m}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2 sm:col-span-2">
+                      <Label htmlFor="meetingNotes">Observações</Label>
+                      <Textarea
+                        id="meetingNotes"
+                        rows={3}
+                        value={meetingNotes}
+                        onChange={(e) => setMeetingNotes(e.target.value)}
+                        className="dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

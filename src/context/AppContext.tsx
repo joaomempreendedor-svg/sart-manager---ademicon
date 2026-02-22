@@ -604,16 +604,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return { totalCalls, totalConversations, totalMeetingsScheduled, conversationToMeetingRate };
   }, [coldCallLogs]);
 
-  const createCrmLeadFromColdCall = useCallback(async (coldCallLeadId: string) => {
+  const createCrmLeadFromColdCall = useCallback(async (coldCallLeadId: string, meeting?: { date?: string; time?: string; modality?: string; notes?: string }) => {
     if (!user) throw new Error("User not authenticated.");
-    const { data, error } = await supabase.functions.invoke('create-crm-lead-from-cold-call', { body: { coldCallLeadId } });
+    const { data, error } = await supabase.functions.invoke('create-crm-lead-from-cold-call', { body: {
+      coldCallLeadId,
+      meetingDate: meeting?.date,
+      meetingTime: meeting?.time,
+      meetingModality: meeting?.modality,
+      meetingNotes: meeting?.notes
+    } });
     if (error) throw error;
     if (data.error) throw new Error(data.error);
     const { data: updatedColdCallLead } = await supabase.from('cold_call_leads').select('*').eq('id', coldCallLeadId).maybeSingle();
     if (updatedColdCallLead) setColdCallLeads(prev => prev.map(lead => lead.id === coldCallLeadId ? updatedColdCallLead : lead));
     const { data: newCrmLeads } = await supabase.from('crm_leads').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID).order('created_at', { ascending: false });
     setCrmLeads(newCrmLeads?.map((lead: any) => ({
-      id: lead.id, consultant_id: lead.consultant_id, stage_id: lead.stage_id, user_id: lead.user_id, name: lead.name, data: lead.data, created_at: lead.created_at, updated_at: data.updated_at, created_by: lead.created_by, updated_by: lead.updated_by,
+      id: lead.id, consultant_id: lead.consultant_id, stage_id: lead.stage_id, user_id: lead.user_id, name: lead.name, data: lead.data, created_at: lead.created_at, updated_at: lead.updated_at, created_by: lead.created_by, updated_by: lead.updated_by,
       proposal_value: parseDbCurrency(lead.proposal_value), proposal_closing_date: lead.proposal_closing_date,
       sold_credit_value: parseDbCurrency(lead.sold_credit_value), sold_group: lead.sold_group, sold_quota: lead.sold_quota, sale_date: lead.sale_date
     })) || []);
