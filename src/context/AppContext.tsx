@@ -987,11 +987,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       .eq('id', id)
       .eq('user_id', JOAO_GESTOR_AUTH_ID)
       .select()
-      .single();
+      .maybeSingle();
     if (error) throw error;
     // Se nenhuma linha foi retornada, nada foi excluído (id incorreto/sem permissão)
     if (!data) {
-      throw new Error('Lead não encontrado para exclusão.');
+      throw new Error('Lead não encontrado ou sem permissão para excluir.');
     }
     setCrmLeads(prev => prev.filter(l => l.id !== id));
   }, []);
