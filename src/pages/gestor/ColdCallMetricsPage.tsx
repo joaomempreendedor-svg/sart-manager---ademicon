@@ -208,6 +208,13 @@ const ColdCallMetricsPage = () => {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
         <MetricCard
+          title="Prospects Adicionados"
+          value={coldCallMetrics.totalLeadsAdded}
+          icon={UserPlus}
+          colorClass="bg-indigo-600 text-white"
+          subValue="Novos prospects criados no módulo"
+        />
+        <MetricCard
           title="Total de Ligações"
           value={coldCallMetrics.totalCalls}
           icon={PhoneCall}
@@ -219,7 +226,7 @@ const ColdCallMetricsPage = () => {
           value={filteredColdCallLogs.filter(log => log.result === 'Demonstrou Interesse').length}
           icon={Star}
           colorClass="bg-amber-600 text-white"
-          subValue="Interessados na ligação (WhatsApp)"
+          subValue="Chamar no WhatsApp para marcar reunião"
         />
         {/* removido: Interesse (WhatsApp) sem Reunião */}
         <MetricCard
@@ -229,27 +236,20 @@ const ColdCallMetricsPage = () => {
           colorClass="bg-green-600 text-white"
           subValue="Agendadas durante a ligação"
         />
-        <MetricCard 
-          title="Taxa Conversa → Reunião" 
-          value={`${coldCallMetrics.conversationToMeetingRate.toFixed(1)}%`} 
-          icon={Percent} 
-          colorClass="bg-yellow-600 text-white" 
-          subValue="Efetividade da Conversão"
-        />
         <MetricCard
-          title="Prospects Adicionados"
-          value={coldCallMetrics.totalLeadsAdded}
-          icon={UserPlus}
-          colorClass="bg-indigo-600 text-white"
-          subValue="Novos prospects criados no módulo"
+          title="Taxa Conversa → Reunião"
+          value={`${coldCallMetrics.conversationToMeetingRate.toFixed(1)}%`}
+          icon={Percent}
+          colorClass="bg-yellow-600 text-white"
+          subValue="Efetividade da Conversão"
         />
         {/* removido: Enviados ao CRM - Interesse (WhatsApp) */}
         {/* removido: Enviados ao CRM - Reunião na Ligação */}
-        <MetricCard 
-          title="Taxa Conversão para CRM" 
-          value={`${coldCallMetrics.conversionRateToCrm.toFixed(1)}%`} 
-          icon={ArrowUpRight} 
-          colorClass="bg-orange-600 text-white" 
+        <MetricCard
+          title="Taxa Conversão para CRM"
+          value={`${coldCallMetrics.conversionRateToCrm.toFixed(1)}%`}
+          icon={ArrowUpRight}
+          colorClass="bg-orange-600 text-white"
           subValue="Cold Call para CRM"
         />
         <MetricCard

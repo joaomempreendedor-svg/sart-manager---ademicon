@@ -486,6 +486,13 @@ export const Dashboard = () => {
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
           <MetricCard
+            title="Prospects Adicionados"
+            value={coldCallMetrics.totalLeadsAdded}
+            icon={UserPlus}
+            colorClass="bg-indigo-600 text-white"
+            subValue="Novos prospects criados no módulo"
+          />
+          <MetricCard
             title="Total de Ligações"
             value={coldCallMetrics.totalCalls}
             icon={PhoneCall}
@@ -496,7 +503,7 @@ export const Dashboard = () => {
             value={coldCallMetrics.filteredLogs.filter(log => log.result === 'Demonstrou Interesse').length}
             icon={Star}
             colorClass="bg-amber-600 text-white"
-            subValue="Interessados na ligação (WhatsApp)"
+            subValue="Chamar no WhatsApp para marcar reunião"
           />
           {/* removido: Interesse (WhatsApp) sem Reunião */}
           <MetricCard
@@ -504,13 +511,6 @@ export const Dashboard = () => {
             value={coldCallMetrics.totalMeetingsScheduled}
             icon={CalendarCheck}
             colorClass="bg-green-600 text-white"
-          />
-          <MetricCard
-            title="Prospects Adicionados"
-            value={coldCallMetrics.totalLeadsAdded}
-            icon={UserPlus}
-            colorClass="bg-indigo-600 text-white"
-            subValue="Novos prospects criados no módulo"
           />
           {/* removido: Enviados ao CRM - Interesse (WhatsApp) */}
           {/* removido: Enviados ao CRM - Reunião na Ligação */}
