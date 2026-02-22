@@ -40,8 +40,6 @@ export const ColdCallDetailModal: React.FC<ColdCallDetailModalProps> = ({
 }) => {
   const navigate = useNavigate();
 
-  if (!isOpen) return null;
-
   const filteredItems = useMemo(() => {
     const start = filterStartDate ? new Date(filterStartDate + 'T00:00:00') : null;
     const end = filterEndDate ? new Date(filterEndDate + 'T23:59:59') : null;
