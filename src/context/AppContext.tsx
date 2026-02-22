@@ -170,6 +170,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const refetchCommissions = useCallback(async () => {
     if (!user || isFetchingRef.current) return;
+    // Apenas perfis com permissão devem buscar comissões globais
+    const allowedRoles = ['GESTOR', 'ADMIN', 'SECRETARIA'];
+    if (!allowedRoles.includes(user.role)) {
+      setCommissions([]);
+      return;
+    }
+
     isFetchingRef.current = true;
     try {
       const { data, error } = await supabase
