@@ -981,8 +981,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [user, parseDbCurrency]);
 
   const deleteCrmLead = useCallback(async (id: string) => {
-    const { error } = await supabase.from('crm_leads').delete().eq('id', id);
+    const { data, error } = await supabase
+      .from('crm_leads')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', JOAO_GESTOR_AUTH_ID)
+      .select()
+      .single();
     if (error) throw error;
+    // Se nenhuma linha foi retornada, nada foi excluído (id incorreto/sem permissão)
+    if (!data) {
+      throw new Error('Lead não encontrado para exclusão.');
+    }
     setCrmLeads(prev => prev.filter(l => l.id !== id));
   }, []);
 
