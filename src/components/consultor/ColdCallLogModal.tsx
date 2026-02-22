@@ -22,7 +22,7 @@ import {
 import { ColdCallLead, ColdCallResult } from '@/types';
 import toast from 'react-hot-toast';
 import { useApp } from '@/context/AppContext';
-import { useNavigate } from 'react-router-dom'; // Importar useNavigate
+import { useNavigate } from 'react-router-dom';
 
 const COLD_CALL_RESULTS: ColdCallResult[] = ['Não atendeu', 'Número inválido', 'Sem interesse', 'Pedir retorno', 'Conversou', 'Demonstrou Interesse', 'Agendar Reunião'];
 const MEETING_MODALITIES = ['Online', 'Presencial', 'Telefone'];
@@ -33,7 +33,7 @@ interface ColdCallLogModalProps {
   lead: ColdCallLead | null;
   onSaveLog: (logData: Omit<ColdCallLog, 'id' | 'user_id' | 'created_at'> & { start_time: string; end_time: string; duration_seconds: number; }, leadId: string) => Promise<void>;
   onUpdateLeadStage: (leadId: string, newStage: Partial<ColdCallLead>) => Promise<void>;
-  onCreateCrmLeadFromColdCall: (coldCallLead: ColdCallLead) => void; // NOVO: Tipo de retorno alterado
+  onCreateCrmLeadFromColdCall: (coldCallLead: ColdCallLead) => void;
 }
 
 export const ColdCallLogModal: React.FC<ColdCallLogModalProps> = ({
@@ -44,7 +44,7 @@ export const ColdCallLogModal: React.FC<ColdCallLogModalProps> = ({
   onUpdateLeadStage,
   onCreateCrmLeadFromColdCall,
 }) => {
-  const navigate = useNavigate(); // Inicializar useNavigate
+  const navigate = useNavigate();
   const [callStartTime, setCallStartTime] = useState<string | null>(null);
   const [callEndTime, setCallEndTime] = useState<string | null>(null);
   const [callResult, setCallResult] = useState<ColdCallResult | ''>('');
@@ -54,7 +54,8 @@ export const ColdCallLogModal: React.FC<ColdCallLogModalProps> = ({
   const [meetingNotes, setMeetingNotes] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
-  const [callDuration, setCallDuration] = useState(0); // NOVO: Estado para a duração da chamada
+  const [callDuration, setCallDuration] = useState(0);
+  const [contactName, setContactName] = useState('');
 
   useEffect(() => {
     if (isOpen) {
@@ -66,11 +67,11 @@ export const ColdCallLogModal: React.FC<ColdCallLogModalProps> = ({
       setMeetingModality('');
       setMeetingNotes('');
       setError('');
-      setCallDuration(0); // Resetar duração ao abrir o modal
+      setCallDuration(0);
+      setContactName(lead?.name || lead?.phone || '');
     }
-  }, [isOpen]);
+  }, [isOpen, lead]);
 
-  // NOVO: Efeito para atualizar a duração da chamada em tempo real
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
     if (callStartTime && !callEndTime) {
@@ -88,7 +89,7 @@ export const ColdCallLogModal: React.FC<ColdCallLogModalProps> = ({
   const handleStartCall = () => {
     setCallStartTime(new Date().toISOString());
     setCallEndTime(null);
-    setCallDuration(0); // Resetar duração ao iniciar
+    setCallDuration(0);
     setError('');
   };
 
@@ -99,7 +100,7 @@ export const ColdCallLogModal: React.FC<ColdCallLogModalProps> = ({
     }
     const endTime = new Date().toISOString();
     setCallEndTime(endTime);
-    setCallDuration(Math.round((new Date(endTime).getTime() - new Date(callStartTime!).getTime()) / 1000)); // Calcular duração final
+    setCallDuration(Math.round((new Date(endTime).getTime() - new Date(callStartTime!).getTime()) / 1000));
   };
 
   const validateForm = () => {
@@ -115,13 +116,11 @@ export const ColdCallLogModal: React.FC<ColdCallLogModalProps> = ({
       setError("O resultado da ligação é obrigatório.");
       return false;
     }
-
-    // REMOVIDO: Validação de campos de reunião para 'Agendar Reunião'
     setError('');
     return true;
   };
 
-  const handleSaveLogAndStage = async (): Promise<boolean> => { // Retorna Promise<boolean>
+  const handleSaveLogAndStage = async (): Promise<boolean> => {
     if (!validateForm()) {
       setIsSaving(false);
       return false;
@@ -142,43 +141,53 @@ export const ColdCallLogModal: React.FC<ColdCallLogModalProps> = ({
         end_time: callEndTime!,
         duration_seconds: durationSeconds,
         result: callResult as ColdCallResult,
-        // Campos de reunião são undefined se o resultado não for 'Agendar Reunião'
         meeting_date: undefined,
         meeting_time: undefined,
         meeting_modality: undefined,
         meeting_notes: undefined,
       };
-      
+
       await onSaveLog(logData, lead.id);
 
       let newStageValue: ColdCallLead['current_stage'] = lead.current_stage;
       if (callResult === 'Conversou' || callResult === 'Demonstrou Interesse') newStageValue = 'Conversou';
       else if (callResult === 'Agendar Reunião') newStageValue = 'Reunião Agendada';
-      else if (callResult === 'Pedir retorno' || callResult === 'Não atendeu' || callResult === 'Número inválido') newStageValue = 'Tentativa de Contato'; // ALTERADO AQUI
+      else if (callResult === 'Pedir retorno' || callResult === 'Não atendeu' || callResult === 'Número inválido') newStageValue = 'Tentativa de Contato';
       else if (callResult === 'Sem interesse') newStageValue = 'Tentativa de Contato';
 
       await onUpdateLeadStage(lead.id, { current_stage: newStageValue });
       toast.success("Ligação registrada e etapa atualizada!");
-      onClose(); // Fechar o modal após o sucesso
-      
-      return true; // Indica sucesso
+      return true;
     } catch (err: any) {
       console.error("Erro ao registrar ligação:", err);
       setError(err.message || 'Falha ao registrar a ligação.');
       toast.error(`Erro ao registrar ligação: ${err.message}`);
-      return false; // Indica falha
+      return false;
     } finally {
       setIsSaving(false);
     }
   };
 
-  const handleCreateCrmLeadClick = async () => { // Made async
+  const handleCreateCrmLeadClick = async () => {
     if (!lead) return;
 
-    const savedSuccessfully = await handleSaveLogAndStage(); // Primeiro, salva o log
+    // Exigir nome antes de enviar ao CRM
+    if (!contactName.trim()) {
+      setError('Informe um nome para o contato antes de enviar ao CRM.');
+      return;
+    }
+
+    const savedSuccessfully = await handleSaveLogAndStage();
     if (savedSuccessfully) {
-      onCreateCrmLeadFromColdCall(lead); // Em seguida, chama o handler do ColdCallPage
-      onClose(); // Fecha este modal
+      try {
+        // Atualiza o nome do lead antes de enviar ao CRM
+        await onUpdateLeadStage(lead.id, { name: contactName.trim() });
+        // Envia ao CRM
+        onCreateCrmLeadFromColdCall({ ...lead, name: contactName.trim() });
+        onClose();
+      } catch (e: any) {
+        toast.error(`Erro ao atualizar nome do contato: ${e.message}`);
+      }
     }
   };
 
@@ -199,8 +208,8 @@ export const ColdCallLogModal: React.FC<ColdCallLogModalProps> = ({
     return `${minutes}m ${remainingSeconds}s`;
   };
 
-  // O botão "Criar Lead no CRM" aparece se o resultado for "Agendar Reunião" E o lead ainda não tiver um crm_lead_id
-  const showCreateCrmLeadButton = (callResult === 'Agendar Reunião' || callResult === 'Demonstrou Interesse') && !lead.crm_lead_id;
+  const shouldShowCrmActions = (callResult === 'Agendar Reunião' || callResult === 'Demonstrou Interesse');
+  const showCreateCrmLeadButton = shouldShowCrmActions && !lead.crm_lead_id;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -208,10 +217,10 @@ export const ColdCallLogModal: React.FC<ColdCallLogModalProps> = ({
         <DialogHeader>
           <DialogTitle>Registrar Ligação: {lead.name}</DialogTitle>
           <DialogDescription>
-            Registre o resultado da ligação e agende uma reunião, se aplicável.
+            Registre o resultado da ligação e envie ao CRM quando aplicável.
           </DialogDescription>
         </DialogHeader>
-        
+
         <form onSubmit={(e) => { e.preventDefault(); handleSaveLogAndStage(); }}>
           <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto custom-scrollbar">
             <div className="flex items-center justify-between">
@@ -234,7 +243,7 @@ export const ColdCallLogModal: React.FC<ColdCallLogModalProps> = ({
                 <StopCircle className="w-4 h-4 mr-2" /> Finalizar Ligação
               </Button>
             </div>
-            {callStartTime && ( // Exibir duração apenas se a chamada foi iniciada
+            {callStartTime && (
               <div className="text-sm text-gray-500 dark:text-gray-400 text-center">
                 Duração: <span className="font-semibold text-gray-800 dark:text-gray-200">{formatDurationDisplay(callDuration)}</span>
               </div>
@@ -253,7 +262,22 @@ export const ColdCallLogModal: React.FC<ColdCallLogModalProps> = ({
               </Select>
             </div>
 
-            {/* REMOVIDO: Detalhes da Reunião não são mais exibidos aqui */}
+            {shouldShowCrmActions && (
+              <div className="space-y-2">
+                <Label htmlFor="contactName">Nome do contato para CRM *</Label>
+                <Input
+                  id="contactName"
+                  value={contactName}
+                  onChange={(e) => setContactName(e.target.value)}
+                  placeholder="Ex: Maria Souza"
+                  className="dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                />
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Confirme ou edite o nome do contato antes de enviar ao CRM.
+                </p>
+              </div>
+            )}
+
             {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
           </div>
           <DialogFooter className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-700 flex-col sm:flex-row">
@@ -266,7 +290,12 @@ export const ColdCallLogModal: React.FC<ColdCallLogModalProps> = ({
                 <span>Ir para CRM</span>
               </Button>
             ) : (callResult === 'Agendar Reunião' || callResult === 'Demonstrou Interesse') && !lead?.crm_lead_id ? (
-              <Button type="button" onClick={handleCreateCrmLeadClick} disabled={isSaving || !callEndTime} className="bg-brand-600 hover:bg-brand-700 text-white w-full sm:w-auto">
+              <Button
+                type="button"
+                onClick={handleCreateCrmLeadClick}
+                disabled={isSaving || !callEndTime || !contactName.trim()}
+                className="bg-brand-600 hover:bg-brand-700 text-white w-full sm:w-auto"
+              >
                 {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ChevronRight className="w-4 h-4 mr-2" />}
                 <span>{isSaving ? 'Enviando...' : 'Enviar para CRM'}</span>
               </Button>
