@@ -62,6 +62,10 @@ export const ColdCallDetailModal: React.FC<ColdCallDetailModalProps> = ({
       return logs.filter(log => log.result === 'Agendar Reunião' && filterByDate(log.created_at))
                  .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     }
+    if (type === 'interest') {
+      return logs.filter(log => log.result === 'Demonstrou Interesse' && filterByDate(log.created_at))
+                 .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    }
     // 'all' ou default: mostra leads
     return leads.filter(lead => filterByDate(lead.created_at)).sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
   }, [leads, logs, type, filterStartDate, filterEndDate]);

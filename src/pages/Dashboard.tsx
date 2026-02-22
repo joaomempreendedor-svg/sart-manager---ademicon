@@ -491,12 +491,14 @@ export const Dashboard = () => {
             icon={UserPlus}
             colorClass="bg-indigo-600 text-white"
             subValue="Novos prospects criados no módulo"
+            onClick={() => handleOpenColdCallDetailModal('Prospects Adicionados', 'all')}
           />
           <MetricCard
             title="Total de Ligações"
             value={coldCallMetrics.totalCalls}
             icon={PhoneCall}
             colorClass="bg-blue-600 text-white"
+            onClick={() => handleOpenColdCallDetailModal('Total de Ligações', 'calls')}
           />
           <MetricCard
             title="Demonstrou Interesse"
@@ -504,6 +506,7 @@ export const Dashboard = () => {
             icon={Star}
             colorClass="bg-amber-600 text-white"
             subValue="Chamar no WhatsApp para marcar reunião"
+            onClick={() => handleOpenColdCallDetailModal('Demonstrou Interesse', 'interest')}
           />
           {/* removido: Interesse (WhatsApp) sem Reunião */}
           <MetricCard
@@ -511,6 +514,7 @@ export const Dashboard = () => {
             value={coldCallMetrics.totalMeetingsScheduled}
             icon={CalendarCheck}
             colorClass="bg-green-600 text-white"
+            onClick={() => handleOpenColdCallDetailModal('Reuniões Agendadas', 'meetings')}
           />
           {/* removido: Enviados ao CRM - Interesse (WhatsApp) */}
           {/* removido: Enviados ao CRM - Reunião na Ligação */}

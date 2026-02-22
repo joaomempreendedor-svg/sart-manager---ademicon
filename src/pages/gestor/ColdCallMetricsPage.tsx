@@ -213,6 +213,7 @@ const ColdCallMetricsPage = () => {
           icon={UserPlus}
           colorClass="bg-indigo-600 text-white"
           subValue="Novos prospects criados no módulo"
+          onClick={() => handleOpenColdCallDetailModal('Prospects Adicionados', 'all')}
         />
         <MetricCard
           title="Total de Ligações"
@@ -220,6 +221,7 @@ const ColdCallMetricsPage = () => {
           icon={PhoneCall}
           colorClass="bg-blue-600 text-white"
           subValue="Chamadas registradas no período"
+          onClick={() => handleOpenColdCallDetailModal('Total de Ligações', 'calls')}
         />
         <MetricCard
           title="Demonstrou Interesse"
@@ -227,6 +229,7 @@ const ColdCallMetricsPage = () => {
           icon={Star}
           colorClass="bg-amber-600 text-white"
           subValue="Chamar no WhatsApp para marcar reunião"
+          onClick={() => handleOpenColdCallDetailModal('Demonstrou Interesse', 'interest')}
         />
         {/* removido: Interesse (WhatsApp) sem Reunião */}
         <MetricCard
@@ -235,6 +238,7 @@ const ColdCallMetricsPage = () => {
           icon={CalendarCheck}
           colorClass="bg-green-600 text-white"
           subValue="Agendadas durante a ligação"
+          onClick={() => handleOpenColdCallDetailModal('Reuniões Agendadas', 'meetings')}
         />
         <MetricCard
           title="Taxa Conversa → Reunião"

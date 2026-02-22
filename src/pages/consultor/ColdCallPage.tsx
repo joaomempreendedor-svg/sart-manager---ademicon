@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { ColdCallLead, ColdCallLog, ColdCallStage, ColdCallResult, CrmLead } from '@/types';
+import { ColdCallLead, ColdCallLog, ColdCallStage, ColdCallResult, CrmLead, ColdCallDetailType } from '@/types';
 import { Plus, Search, PhoneCall, MessageSquare, CalendarCheck, Loader2, Edit2, Trash2, Play, StopCircle, Clock, UserRound, TrendingUp, BarChart3, Percent, ChevronRight, Save, History, Filter, RotateCcw, CalendarDays, UploadCloud, UserPlus, ArrowUpRight, Star } from 'lucide-react'; // Adicionado Star
 import {
   Select,
@@ -28,6 +28,7 @@ import { useNavigate } from 'react-router-dom';
 import { ColdCallLogModal } from '@/components/consultor/ColdCallLogModal';
 import { ColdCallLeadHistoryModal } from '@/components/consultor/ColdCallLeadHistoryModal';
 import { ImportColdCallLeadsModal } from '@/components/consultor/ImportColdCallLeadsModal';
+import { ColdCallDetailModal } from '@/components/gestor/ColdCallDetailModal';
 import { MetricCard } from '@/components/MetricCard'; // Importar MetricCard
 
 const COLD_CALL_STAGES: ColdCallStage[] = ['Base Fria', 'Tentativa de Contato', 'Conversou', 'Reunião Agendada'];
@@ -36,19 +37,20 @@ const MEETING_MODALITIES = ['Online', 'Presencial', 'Telefone'];
 
 const ColdCallPage = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
-  const { 
-    coldCallLeads, 
-    coldCallLogs, 
-    addColdCallLead, 
-    updateColdCallLead, 
-    deleteColdCallLead, 
-    addColdCallLog, 
+  const {
+    coldCallLeads,
+    coldCallLogs,
+    addColdCallLead,
+    updateColdCallLead,
+    deleteColdCallLead,
+    addColdCallLog,
     getColdCallMetrics,
     crmFields,
     crmStages,
     crmPipelines,
     createCrmLeadFromColdCall,
-    isDataLoading 
+    isDataLoading,
+    teamMembers
   } = useApp();
   const navigate = useNavigate();
 
@@ -72,6 +74,11 @@ const ColdCallPage = () => {
   const [viewingLeadHistory, setViewingLeadHistory] = useState<ColdCallLead | null>(null);
 
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+
+  // Modal de detalhes (listas) para os cards
+  const [isColdCallDetailModalOpen, setIsColdCallDetailModalOpen] = useState(false);
+  const [coldCallModalTitle, setColdCallModalTitle] = useState('');
+  const [coldCallDetailType, setColdCallDetailType] = useState<ColdCallDetailType>('all');
 
   const filteredColdCallLogsForMetrics = useMemo(() => {
     let logs = coldCallLogs.filter(log => log.user_id === user?.id);
@@ -249,6 +256,12 @@ const ColdCallPage = () => {
     setIsHistoryModalOpen(true);
   };
 
+  const handleOpenColdCallDetailModal = (title: string, type: ColdCallDetailType) => {
+    setColdCallModalTitle(title);
+    setColdCallDetailType(type);
+    setIsColdCallDetailModalOpen(true);
+  };
+
   const handleCreateCrmLeadFromColdCall = useCallback(async (coldCallLead: ColdCallLead, meeting?: { date?: string; time?: string; modality?: string; notes?: string }) => {
     try {
       const { crmLeadId } = await createCrmLeadFromColdCall(coldCallLead.id, meeting);
@@ -342,6 +355,7 @@ const ColdCallPage = () => {
             icon={UserPlus}
             colorClass="bg-indigo-600 text-white"
             subValue="Novos prospects criados no módulo"
+            onClick={() => handleOpenColdCallDetailModal('Prospects Adicionados', 'all')}
           />
           <MetricCard
             title="Total de Ligações"
@@ -349,6 +363,7 @@ const ColdCallPage = () => {
             icon={PhoneCall}
             colorClass="bg-blue-600 text-white"
             subValue="Chamadas registradas no período"
+            onClick={() => handleOpenColdCallDetailModal('Total de Ligações', 'calls')}
           />
           <MetricCard
             title="Demonstrou Interesse"
@@ -356,6 +371,7 @@ const ColdCallPage = () => {
             icon={Star}
             colorClass="bg-amber-600 text-white"
             subValue="Chamar no WhatsApp para marcar reunião"
+            onClick={() => handleOpenColdCallDetailModal('Demonstrou Interesse', 'interest')}
           />
           {/* removido: Interesse (WhatsApp) sem Reunião */}
           <MetricCard
@@ -364,6 +380,7 @@ const ColdCallPage = () => {
             icon={CalendarCheck}
             colorClass="bg-green-600 text-white"
             subValue="Agendadas durante a ligação"
+            onClick={() => handleOpenColdCallDetailModal('Reuniões Agendadas', 'meetings')}
           />
           <MetricCard
             title="Taxa Conversa → Reunião"
@@ -606,6 +623,19 @@ const ColdCallPage = () => {
             await addColdCallLead(leadData);
           }
         }}
+      />
+
+      <ColdCallDetailModal
+        isOpen={isColdCallDetailModalOpen}
+        onClose={() => setIsColdCallDetailModalOpen(false)}
+        title={coldCallModalTitle}
+        consultantName={user?.name || 'Eu'}
+        leads={filteredColdCallLeadsForMetrics}
+        logs={filteredColdCallLogsForMetrics}
+        type={coldCallDetailType}
+        teamMembers={teamMembers}
+        filterStartDate={filterStartDate}
+        filterEndDate={filterEndDate}
       />
     </div>
   );
