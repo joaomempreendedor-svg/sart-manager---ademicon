@@ -159,15 +159,15 @@ const AssignmentModal: React.FC<AssignmentModalProps> = ({ isOpen, onClose, chec
     new Set(dailyChecklistAssignments.filter(a => a.daily_checklist_id === checklist?.id).map(a => a.consultant_id))
   , [dailyChecklistAssignments, checklist]);
 
-  const handleToggleAssignment = async (memberId: string, isAssigned: boolean) => {
-    if (!checklist) return;
+  const handleToggleAssignment = async (memberAuthId: string | null | undefined, isAssigned: boolean) => {
+    if (!checklist || !memberAuthId) return;
     setIsSaving(true);
     try {
       if (isAssigned) {
-        await unassignDailyChecklistFromConsultant(checklist.id, memberId);
+        await unassignDailyChecklistFromConsultant(checklist.id, memberAuthId);
         toast.success("Atribuição removida!");
       } else {
-        await assignDailyChecklistToConsultant(checklist.id, memberId);
+        await assignDailyChecklistToConsultant(checklist.id, memberAuthId);
         toast.success("Atribuição adicionada!");
       }
     } catch (error: any) {
@@ -197,18 +197,19 @@ const AssignmentModal: React.FC<AssignmentModalProps> = ({ isOpen, onClose, chec
               </div>
             ) : (
               assignableMembers.map(member => {
-                const isAssigned = assignedMemberIds.has(member.id);
+                const authId = member.authUserId || null;
+                const isAssigned = authId ? assignedMemberIds.has(authId) : false;
                 return (
                   <div key={member.id} className="flex items-center space-x-2">
                     <Checkbox
                       id={`member-${member.id}`}
                       checked={isAssigned}
-                      onCheckedChange={() => handleToggleAssignment(member.id, isAssigned)}
-                      disabled={isSaving}
+                      onCheckedChange={() => handleToggleAssignment(authId, isAssigned)}
+                      disabled={isSaving || !authId}
                       className="dark:border-slate-600 data-[state=checked]:bg-brand-600 data-[state=checked]:text-white"
                     />
                     <Label htmlFor={`member-${member.id}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                      {member.name}
+                      {member.name}{!authId ? ' (sem login)' : ''}
                     </Label>
                   </div>
                 );
