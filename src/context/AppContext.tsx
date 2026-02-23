@@ -1209,7 +1209,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setChecklistStructure(newStructure);
       updateConfig({ checklistStructure: newStructure });
     },
-    updateChecklistItem: (id: string, updates: Partial<DailyChecklistItem>, audioFile?: File, imageFile?: File) => updateDailyChecklistItem(id, updates, audioFile, imageFile),
+    updateChecklistItem: (stageId: string, itemId: string, updates: Partial<ChecklistItem>) => {
+      const newStructure = checklistStructure.map(stage => {
+        if (stage.id !== stageId) return stage;
+        return {
+          ...stage,
+          items: stage.items.map(item => (item.id === itemId ? { ...item, ...updates } : item)),
+        };
+      });
+      setChecklistStructure(newStructure);
+      updateConfig({ checklistStructure: newStructure });
+      // Mantém a assinatura do contexto (Promise) por compatibilidade
+      return Promise.resolve({} as any);
+    },
     deleteChecklistItem: (stageId: string, itemId: string) => {
       const newStructure = checklistStructure.map(stage => {
         if (stage.id === stageId) {

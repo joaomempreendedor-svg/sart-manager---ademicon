@@ -93,8 +93,18 @@ export const ChecklistConfig = () => {
                     <div className="flex-1 mr-4 w-full flex items-center space-x-2">
                       <span className="text-sm text-gray-700 dark:text-gray-200">{item.label}</span>
                       {item.responsibleRole && (
-                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-tighter ${item.responsibleRole === 'SECRETARIA' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'}`}>
-                            {item.responsibleRole}
+                        <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-tighter ${item.responsibleRole === 'SECRETARIA' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'}`}>
+                          {item.responsibleRole === 'SECRETARIA' ? (
+                            <>
+                              <ShieldCheck className="w-3 h-3" />
+                              <span>Secretaria</span>
+                            </>
+                          ) : (
+                            <>
+                              <UserRound className="w-3 h-3" />
+                              <span>Gestor</span>
+                            </>
+                          )}
                         </span>
                       )}
                     </div>

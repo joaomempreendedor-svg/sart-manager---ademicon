@@ -570,7 +570,7 @@ export interface AppContextType {
   setChecklistDueDate: (candidateId: string, itemId: string, dueDate: string) => Promise<void>;
   toggleConsultantGoal: (candidateId: string, goalId: string) => Promise<void>;
   addChecklistItem: (stageId: string, label: string, responsibleRole?: 'GESTOR' | 'SECRETARIA') => void;
-  updateChecklistItem: (stageId: string, itemId: string, updates: Partial<ChecklistItem>, audioFile?: File, imageFile?: File) => Promise<DailyChecklistItem>;
+  updateChecklistItem: (stageId: string, itemId: string, updates: Partial<ChecklistItem>) => Promise<void>;
   deleteChecklistItem: (stageId: string, itemId: string) => void;
   moveChecklistItem: (stageId: string, itemId: string, direction: 'up' | 'down') => void;
   resetChecklistToDefault: () => void;
