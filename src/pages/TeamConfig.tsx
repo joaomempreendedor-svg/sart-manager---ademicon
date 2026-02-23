@@ -154,12 +154,12 @@ export const TeamConfig = () => {
     try {
       const newTempPassword = generateRandomPassword();
       
-      await resetConsultantPasswordViaEdge(member.authUserId, newTempPassword); // Usar authUserId
+      const { userEmail } = await resetConsultantPasswordViaEdge(member.authUserId, newTempPassword); // Usar authUserId
       
-      setCreatedConsultantCredentials({ 
-        name: member.name, 
-        login: member.email || '',
-        password: newTempPassword, 
+      setCreatedConsultantCredentials({
+        name: member.name,
+        login: userEmail || member.email || '',
+        password: newTempPassword,
         wasExistingUser: true
       });
       setShowCredentialsModal(true);

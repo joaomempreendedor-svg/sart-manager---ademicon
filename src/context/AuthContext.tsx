@@ -12,7 +12,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   sendPasswordResetEmail: (email: string) => Promise<void>;
   updateUserPassword: (password: string) => Promise<void>; // Nova função para atualizar senha
-  resetConsultantPasswordViaEdge: (userId: string, newPassword: string) => Promise<void>; // NOVO: Reset de senha via Edge Function
+  resetConsultantPasswordViaEdge: (userId: string, newPassword: string) => Promise<{ userEmail: string | null }>; // NOVO: Reset de senha via Edge Function
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -200,7 +200,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       body: { userId, newPassword },
     });
     if (error) throw error;
-    if (data.error) throw new Error(data.error);
+    if (data?.error) throw new Error(data.error as string);
+    return { userEmail: (data as any)?.userEmail ?? null };
   }, []);
 
   const value = useMemo(() => ({

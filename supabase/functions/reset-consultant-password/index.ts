@@ -47,7 +47,14 @@ serve(async (req) => {
       throw profileUpdateError;
     }
 
-    return new Response(JSON.stringify({ message: 'Password reset successfully. User will be prompted to change it on next login.', newPassword }), {
+    // Fetch the latest user email from Auth to ensure the client shows the correct login
+    const { data: userData, error: userFetchError } = await supabaseAdmin.auth.admin.getUserById(userId);
+    if (userFetchError) {
+      throw userFetchError;
+    }
+    const userEmail = userData?.user?.email || null;
+
+    return new Response(JSON.stringify({ message: 'Password reset successfully. User will be prompted to change it on next login.', newPassword, userEmail }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     });
