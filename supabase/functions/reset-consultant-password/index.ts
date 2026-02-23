@@ -47,7 +47,32 @@ serve(async (req) => {
       throw profileUpdateError;
     }
 
-    // Fetch the latest user email from Auth to ensure the client shows the correct login
+    // Sincroniza o role no perfil com base no registro de team_members
+    const { data: tm, error: tmError } = await supabaseAdmin
+      .from('team_members')
+      .select('data')
+      .eq('data->>id', userId)
+      .maybeSingle();
+
+    if (tmError) {
+      console.warn('[reset-consultant-password] Não foi possível buscar team_member para sincronizar role', tmError);
+    } else if (tm?.data) {
+      const roles = (tm.data as any).roles || [];
+      let desiredRole = 'CONSULTOR';
+      if (Array.isArray(roles)) {
+        if (roles.includes('SECRETARIA')) desiredRole = 'SECRETARIA';
+        else if (roles.includes('GESTOR')) desiredRole = 'GESTOR';
+      }
+      const { error: roleUpdateError } = await supabaseAdmin
+        .from('profiles')
+        .update({ role: desiredRole })
+        .eq('id', userId);
+      if (roleUpdateError) {
+        console.warn('[reset-consultant-password] Falha ao atualizar role no perfil', roleUpdateError);
+      }
+    }
+
+    // Buscar o email atual no Auth para exibir na modal de credenciais
     const { data: userData, error: userFetchError } = await supabaseAdmin.auth.admin.getUserById(userId);
     if (userFetchError) {
       throw userFetchError;

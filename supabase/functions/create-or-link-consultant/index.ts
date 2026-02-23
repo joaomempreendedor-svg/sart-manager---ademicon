@@ -121,8 +121,24 @@ serve(async (req) => {
 
     console.log(`[create-or-link-consultant] Success! AuthUserId: ${authUserId}, UserExists: ${userExists}`);
 
-    return new Response(JSON.stringify({ 
-      authUserId, 
+    // Sincroniza o perfil no public.profiles com role/login/nomes/flag de troca de senha
+    const { error: profileUpsertError } = await supabaseAdmin
+      .from('profiles')
+      .upsert({
+        id: authUserId,
+        first_name: firstName,
+        last_name: lastName,
+        role: userRole,
+        is_active: true,
+        login: consultantLogin,
+        needs_password_change: true,
+      });
+    if (profileUpsertError) {
+      console.error(`[create-or-link-consultant] Erro ao atualizar perfil em public.profiles: ${profileUpsertError.message}`, { profileUpsertError });
+    }
+
+    return new Response(JSON.stringify({
+      authUserId,
       userExists,
       message: userExists ? 'Usuário existente atualizado' : 'Novo usuário criado'
     }), {
