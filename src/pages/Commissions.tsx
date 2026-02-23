@@ -442,13 +442,22 @@ export const Commissions = () => {
     const startFilterDate = filterStartDate ? new Date(filterStartDate + 'T00:00:00') : null;
     const endFilterDate = filterEndDate ? new Date(filterEndDate + 'T00:00:00') : null;
 
+    const term = searchTerm.trim().toLowerCase();
+
     return commissions.filter(c => {
       if (isAngelMode && !c.angelName) return false;
       
       const commissionDate = new Date(c.date + 'T00:00:00');
       const overallStatus = getOverallStatus(c.installmentDetails);
 
-      const matchesSearch = searchTerm === '' || c.clientName.toLowerCase().includes(searchTerm.toLowerCase()) || c.consultant.toLowerCase().includes(searchTerm.toLowerCase()) || c.pv.toLowerCase().includes(searchTerm.toLowerCase()) || c.group.includes(searchTerm);
+      const matchesSearch =
+        term === '' ||
+        c.clientName.toLowerCase().includes(term) ||
+        c.consultant.toLowerCase().includes(term) ||
+        c.pv.toLowerCase().includes(term) ||
+        (c.group || '').toLowerCase().includes(term) ||
+        (c.quota || '').toLowerCase().includes(term);
+
       const matchesStart = !startFilterDate || commissionDate >= startFilterDate;
       const matchesEnd = !endFilterDate || commissionDate <= endFilterDate;
       
