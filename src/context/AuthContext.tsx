@@ -107,32 +107,35 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, [fetchUserProfile]);
 
   const login = useCallback(async (identifier: string, password: string) => {
+    const id = (identifier || '').trim();
+    const pwd = (password || '').trim();
     let authError: Error | null = null;
 
-    if (/^\d{4}$/.test(identifier)) {
-      console.log(`[AuthContext] Tentando login com CPF: ${identifier}`);
+    if (/^\d{4}$/.test(id)) {
+      console.log(`[AuthContext] Tentando login com CPF: ${id}`);
       // Attempt to get email via RPC for CPF
       const { data: rpcResult, error: rpcError } = await supabase.rpc('sign_in_with_login', {
-        login_val: identifier,
+        login_val: id,
       });
 
       if (rpcError) {
         console.error(`[AuthContext] Erro RPC ao buscar email por CPF:`, rpcError);
         authError = rpcError;
-      } else if (rpcResult && typeof rpcResult === 'object' && 'email' in rpcResult) { // NOVO: Verifica se é um objeto com a propriedade 'email'
-        const userEmail = (rpcResult as { email: string }).email; // NOVO: Extrai o email do objeto
+      } else if (rpcResult && typeof rpcResult === 'object' && 'email' in rpcResult) {
+        const userEmail = (rpcResult as { email: string }).email;
         console.log(`[AuthContext] RPC retornou email: ${userEmail}. Tentando signInWithPassword.`);
         // If RPC returned an email, proceed with client-side signInWithPassword
-        const { error: emailSignInError } = await supabase.auth.signInWithPassword({ email: userEmail, password });
+        const { error: emailSignInError } = await supabase.auth.signInWithPassword({ email: userEmail.toLowerCase(), password: pwd });
         authError = emailSignInError;
       } else {
-        console.log(`[AuthContext] RPC não retornou email para CPF: ${identifier}`);
-        authError = new Error("Usuário não encontrado com o login fornecido.");
+        console.log(`[AuthContext] RPC não retornou email para CPF: ${id}`);
+        authError = new Error("Usuário não encontrado com o login fornecido. Se você é SECRETARIA/GESTOR, use seu e-mail.");
       }
     } else {
-      console.log(`[AuthContext] Tentando login com email: ${identifier}`);
+      const email = id.toLowerCase();
+      console.log(`[AuthContext] Tentando login com email: ${email}`);
       // Attempt login via email
-      const { error: emailSignInError } = await supabase.auth.signInWithPassword({ email: identifier, password });
+      const { error: emailSignInError } = await supabase.auth.signInWithPassword({ email, password: pwd });
       authError = emailSignInError;
     }
 
@@ -140,13 +143,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, []);
 
   const register = useCallback(async (name, email, password) => {
+    const cleanName = (name || '').trim();
+    const cleanEmail = (email || '').trim().toLowerCase();
+    const cleanPassword = (password || '').trim();
     const { error } = await supabase.auth.signUp({
-      email,
-      password,
+      email: cleanEmail,
+      password: cleanPassword,
       options: {
         data: {
-          first_name: name.split(' ')[0],
-          last_name: name.split(' ').slice(1).join(' '),
+          first_name: cleanName.split(' ')[0],
+          last_name: cleanName.split(' ').slice(1).join(' '),
         }
       }
     });
@@ -161,7 +167,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, []);
 
   const sendPasswordResetEmail = useCallback(async (email: string) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    const cleanEmail = (email || '').trim().toLowerCase();
+    const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
       redirectTo: `${window.location.origin}${window.location.pathname}#/update-password`,
     });
     if (error) throw error;
