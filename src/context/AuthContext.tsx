@@ -112,29 +112,40 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     let authError: Error | null = null;
 
     if (/^\d{4}$/.test(id)) {
-      console.log(`[AuthContext] Tentando login com CPF: ${id}`);
-      // Attempt to get email via RPC for CPF
+      console.log(`[AuthContext] Tentando login com CPF (últimos 4): ${id}`);
       const { data: rpcResult, error: rpcError } = await supabase.rpc('sign_in_with_login', {
         login_val: id,
       });
 
       if (rpcError) {
-        console.error(`[AuthContext] Erro RPC ao buscar email por CPF:`, rpcError);
+        console.error(`[AuthContext] Erro RPC ao buscar email por CPF (4 dígitos):`, rpcError);
         authError = rpcError;
       } else if (rpcResult && typeof rpcResult === 'object' && 'email' in rpcResult) {
         const userEmail = (rpcResult as { email: string }).email;
-        console.log(`[AuthContext] RPC retornou email: ${userEmail}. Tentando signInWithPassword.`);
-        // If RPC returned an email, proceed with client-side signInWithPassword
         const { error: emailSignInError } = await supabase.auth.signInWithPassword({ email: userEmail.toLowerCase(), password: pwd });
         authError = emailSignInError;
       } else {
-        console.log(`[AuthContext] RPC não retornou email para CPF: ${id}`);
+        console.log(`[AuthContext] RPC não retornou email para CPF (4): ${id}`);
         authError = new Error("Usuário não encontrado com o login fornecido. Se você é SECRETARIA/GESTOR, use seu e-mail.");
+      }
+    } else if (/^\d{11}$/.test(id)) {
+      console.log(`[AuthContext] Tentando login com CPF completo: ${id}`);
+      const { data: rpcResult, error: rpcError } = await supabase.rpc('sign_in_with_login', {
+        login_val: id,
+      });
+      if (rpcError) {
+        console.error(`[AuthContext] Erro RPC ao buscar email por CPF completo:`, rpcError);
+        authError = rpcError;
+      } else if (rpcResult && typeof rpcResult === 'object' && 'email' in rpcResult) {
+        const userEmail = (rpcResult as { email: string }).email;
+        const { error: emailSignInError } = await supabase.auth.signInWithPassword({ email: userEmail.toLowerCase(), password: pwd });
+        authError = emailSignInError;
+      } else {
+        authError = new Error("Usuário não encontrado com o CPF informado.");
       }
     } else {
       const email = id.toLowerCase();
       console.log(`[AuthContext] Tentando login com email: ${email}`);
-      // Attempt login via email
       const { error: emailSignInError } = await supabase.auth.signInWithPassword({ email, password: pwd });
       authError = emailSignInError;
     }

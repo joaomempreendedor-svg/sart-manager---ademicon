@@ -1032,12 +1032,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const addTeamMember = useCallback(async (member: Omit<TeamMember, 'id'> & { email: string }) => {
     const tempPassword = generateRandomPassword();
+    const loginFromCpf = (member.cpf || '').toString().slice(-4);
+    const primaryRole = member.roles?.includes('SECRETARIA')
+      ? 'SECRETARIA'
+      : (member.roles?.includes('GESTOR') ? 'GESTOR' : 'CONSULTOR');
+
     const { data: authData, error: authError } = await supabase.functions.invoke('create-or-link-consultant', {
-      body: { email: member.email, name: member.name, tempPassword, login: member.cpf, role: 'CONSULTOR' }
+      body: { email: member.email, name: member.name, tempPassword, login: loginFromCpf, role: primaryRole }
     });
     if (authError) throw authError;
+
     const { data, error } = await supabase.from('team_members').insert({ user_id: JOAO_GESTOR_AUTH_ID, cpf: member.cpf, data: { ...member, id: authData.authUserId } }).select().single();
     if (error) throw error;
+
     const newMember = { id: data.id, db_id: data.id, authUserId: authData.authUserId, name: member.name, email: member.email, roles: member.roles, isActive: member.isActive, cpf: member.cpf, dateOfBirth: member.dateOfBirth, user_id: data.user_id };
     setTeamMembers(prev => [...prev, newMember]);
     return { success: true, member: newMember, tempPassword, wasExistingUser: authData.userExists };
