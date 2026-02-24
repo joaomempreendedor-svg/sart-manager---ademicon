@@ -976,12 +976,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       created_by: user.id,
     }).select().single();
     if (error) throw error;
+    
     const newLead = {
-      id: data.id, consultant_id: data.consultant_id, stage_id: data.id, user_id: data.user_id, name: data.name, data: data.data,
-      created_at: data.created_at, updated_at: data.updated_at, created_by: data.created_by, updated_by: data.updated_by,
-      proposal_value: parseDbCurrency(data.proposal_value), proposal_closing_date: data.proposal_closing_date,
-      sold_credit_value: parseDbCurrency(data.sold_credit_value), sold_group: data.sold_group, sold_quota: data.sold_quota, sale_date: data.sale_date
+      id: data.id, 
+      consultant_id: data.consultant_id, 
+      stage_id: data.stage_id,
+      user_id: data.user_id, 
+      name: data.name, 
+      data: data.data,
+      created_at: data.created_at, 
+      updated_at: data.updated_at, 
+      created_by: data.created_by, 
+      updated_by: data.updated_by,
+      proposal_value: parseDbCurrency(data.proposal_value), 
+      proposal_closing_date: data.proposal_closing_date,
+      sold_credit_value: parseDbCurrency(data.sold_credit_value), 
+      sold_group: data.sold_group, 
+      sold_quota: data.sold_quota, 
+      sale_date: data.sale_date
     };
+    
     setCrmLeads(prev => [newLead, ...prev]);
     return newLead;
   }, [user, crmOwnerUserId, parseDbCurrency]);
