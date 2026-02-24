@@ -115,7 +115,8 @@ serve(async (req) => {
 
     // Se houver data/horário de reunião, criar tarefa de reunião
     if (meetingDate && meetingTime) {
-      const start = new Date(`${meetingDate}T${meetingTime}:00`);
+      // FIX: Assume Brazil timezone (UTC-3) when creating the date object
+      const start = new Date(`${meetingDate}T${meetingTime}:00-03:00`);
       const end = new Date(start.getTime() + 60 * 60 * 1000); // +1h
 
       const meetingTask = {
