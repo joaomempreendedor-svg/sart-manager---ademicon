@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ColdCallLead, ColdCallLog, TeamMember, ColdCallDetailType } from '@/types';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 
 interface ColdCallDetailModalProps {
   isOpen: boolean;
@@ -22,8 +23,8 @@ interface ColdCallDetailModalProps {
   logs: ColdCallLog[];
   type: ColdCallDetailType;
   teamMembers: TeamMember[];
-  filterStartDate?: string; // NOVO: Filtro de data de início
-  filterEndDate?: string;   // NOVO: Filtro de data de fim
+  filterStartDate?: string;
+  filterEndDate?: string;
 }
 
 export const ColdCallDetailModal: React.FC<ColdCallDetailModalProps> = ({
@@ -35,8 +36,8 @@ export const ColdCallDetailModal: React.FC<ColdCallDetailModalProps> = ({
   logs,
   type,
   teamMembers,
-  filterStartDate, // NOVO
-  filterEndDate,   // NOVO
+  filterStartDate,
+  filterEndDate,
 }) => {
   const navigate = useNavigate();
 
@@ -53,7 +54,7 @@ export const ColdCallDetailModal: React.FC<ColdCallDetailModalProps> = ({
       return logs.filter(log => filterByDate(log.created_at)).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     }
     if (type === 'conversations') {
-      return logs.filter(log => (log.result === 'Conversou' || log.result === 'Agendar Reunião') && filterByDate(log.created_at))
+      return logs.filter(log => (log.result === 'Demonstrou Interesse' || log.result === 'Agendar Reunião') && filterByDate(log.created_at))
                  .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     }
     if (type === 'meetings') {
@@ -81,7 +82,7 @@ export const ColdCallDetailModal: React.FC<ColdCallDetailModalProps> = ({
 
   const handleGoToColdCallLead = (leadId: string) => {
     onClose();
-    navigate('/consultor/cold-call', { state: { highlightLeadId: leadId } }); // Pode adicionar um estado para destacar o lead
+    navigate('/consultor/cold-call', { state: { highlightLeadId: leadId } });
   };
 
   const handleGoToCrmLead = (crmLeadId: string) => {

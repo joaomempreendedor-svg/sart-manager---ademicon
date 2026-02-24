@@ -78,44 +78,18 @@ const ColdCallMetricsPage = () => {
       log.result === 'Demonstrou Interesse' || log.result === 'Agendar Reunião'
     ).length;
     const totalMeetingsScheduled = filteredColdCallLogs.filter(log => log.result === 'Agendar Reunião').length;
-    const totalDurationSeconds = filteredColdCallLogs.reduce((sum, log) => sum + log.duration_seconds, 0);
 
-    const conversationToMeetingRate = totalConversations > 0 ? (totalMeetingsScheduled / totalConversations) * 100 : 0;
-    const averageCallDuration = totalCalls > 0 ? totalDurationSeconds / totalCalls : 0;
-
-    const totalLeadsAdded = filteredColdCallLeadsForMetrics.length;
-    const leadsConvertedToCrmMeeting = filteredColdCallLeadsForMetrics.filter(lead =>
-      lead.crm_lead_id &&
-      filteredColdCallLogs.some(log => log.cold_call_lead_id === lead.id && log.result === 'Agendar Reunião')
-    ).length;
-    const leadsConvertedToCrmInterest = filteredColdCallLeadsForMetrics.filter(lead =>
-      lead.crm_lead_id &&
-      filteredColdCallLogs.some(log => log.cold_call_lead_id === lead.id && log.result === 'Demonstrou Interesse') &&
-      !filteredColdCallLogs.some(log => log.cold_call_lead_id === lead.id && log.result === 'Agendar Reunião')
-    ).length;
-    const leadsConvertedToCrm = leadsConvertedToCrmMeeting + leadsConvertedToCrmInterest;
-    const conversionRateToCrm = totalLeadsAdded > 0 ? (leadsConvertedToCrm / totalLeadsAdded) * 100 : 0;
-
-    // Leads com interesse sem reunião agendada
-    const interestLeadIds = new Set(filteredColdCallLogs.filter(log => log.result === 'Demonstrou Interesse').map(log => log.cold_call_lead_id));
-    const meetingLeadIds = new Set(filteredColdCallLogs.filter(log => log.result === 'Agendar Reunião').map(log => log.cold_call_lead_id));
-    let interestWithoutMeetingCount = 0;
-    interestLeadIds.forEach(id => { if (!meetingLeadIds.has(id)) interestWithoutMeetingCount++; });
+    const interestConversionRate = totalCalls > 0 ? (totalConversations / totalCalls) * 100 : 0;
+    const meetingConversionRate = totalCalls > 0 ? (totalMeetingsScheduled / totalCalls) * 100 : 0;
 
     return {
       totalCalls,
       totalConversations,
       totalMeetingsScheduled,
-      conversationToMeetingRate,
-      totalLeadsAdded,
-      leadsConvertedToCrm,
-      leadsConvertedToCrmInterest,
-      leadsConvertedToCrmMeeting,
-      conversionRateToCrm,
-      averageCallDuration,
-      interestWithoutMeetingCount,
+      interestConversionRate,
+      meetingConversionRate,
     };
-  }, [filteredColdCallLogs, filteredColdCallLeadsForMetrics]);
+  }, [filteredColdCallLogs]);
 
   const handleOpenColdCallDetailModal = (title: string, type: ColdCallDetailType) => {
     const leadsToPass = selectedColdCallConsultantId 
@@ -206,15 +180,7 @@ const ColdCallMetricsPage = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-        <MetricCard
-          title="Prospects Adicionados"
-          value={coldCallMetrics.totalLeadsAdded}
-          icon={UserPlus}
-          colorClass="bg-indigo-600 text-white"
-          subValue="Novos prospects criados no módulo"
-          onClick={() => handleOpenColdCallDetailModal('Prospects Adicionados', 'all')}
-        />
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
         <MetricCard
           title="Total de Ligações"
           value={coldCallMetrics.totalCalls}
@@ -224,14 +190,20 @@ const ColdCallMetricsPage = () => {
           onClick={() => handleOpenColdCallDetailModal('Total de Ligações', 'calls')}
         />
         <MetricCard
-          title="Demonstrou Interesse"
-          value={filteredColdCallLogs.filter(log => log.result === 'Demonstrou Interesse').length}
+          title="Demonstraram Interesse"
+          value={coldCallMetrics.totalConversations}
           icon={Star}
           colorClass="bg-amber-600 text-white"
-          subValue="Chamar no WhatsApp para marcar reunião"
-          onClick={() => handleOpenColdCallDetailModal('Demonstrou Interesse', 'interest')}
+          subValue="Conversou ou Agendou Reunião"
+          onClick={() => handleOpenColdCallDetailModal('Demonstraram Interesse', 'conversations')}
         />
-        {/* removido: Interesse (WhatsApp) sem Reunião */}
+        <MetricCard
+          title="Taxa de Interesse"
+          value={`${coldCallMetrics.interestConversionRate.toFixed(1)}%`}
+          icon={Percent}
+          colorClass="bg-yellow-600 text-white"
+          subValue="Ligações → Interesse"
+        />
         <MetricCard
           title="Reuniões Agendadas"
           value={coldCallMetrics.totalMeetingsScheduled}
@@ -241,27 +213,11 @@ const ColdCallMetricsPage = () => {
           onClick={() => handleOpenColdCallDetailModal('Reuniões Agendadas', 'meetings')}
         />
         <MetricCard
-          title="Taxa Conversa → Reunião"
-          value={`${coldCallMetrics.conversationToMeetingRate.toFixed(1)}%`}
-          icon={Percent}
-          colorClass="bg-yellow-600 text-white"
-          subValue="Efetividade da Conversão"
-        />
-        {/* removido: Enviados ao CRM - Interesse (WhatsApp) */}
-        {/* removido: Enviados ao CRM - Reunião na Ligação */}
-        <MetricCard
-          title="Taxa Conversão para CRM"
-          value={`${coldCallMetrics.conversionRateToCrm.toFixed(1)}%`}
-          icon={ArrowUpRight}
-          colorClass="bg-orange-600 text-white"
-          subValue="Cold Call para CRM"
-        />
-        <MetricCard
-          title="Duração Média da Ligação"
-          value={`${Math.floor(coldCallMetrics.averageCallDuration / 60)}m ${Math.round(coldCallMetrics.averageCallDuration % 60)}s`}
-          icon={Clock}
-          colorClass="bg-slate-800 text-white dark:bg-slate-700"
-          subValue="Tempo médio por ligação"
+          title="Taxa de Agendamento"
+          value={`${coldCallMetrics.meetingConversionRate.toFixed(1)}%`}
+          icon={TrendingUp}
+          colorClass="bg-teal-600 text-white"
+          subValue="Ligações → Reunião"
         />
       </div>
 
