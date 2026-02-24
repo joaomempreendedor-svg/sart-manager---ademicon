@@ -363,7 +363,7 @@ const CrmOverviewPage = () => {
       <div className="flex overflow-x-auto pb-4 space-x-4 custom-scrollbar">
         {pipelineStages.map(stage => {
           const stageLeads = groupedLeads[stage.id] || [];
-          const stageValue = useMemo(() => {
+          const stageValue = (() => {
             const start = filterStartDate ? new Date(filterStartDate + 'T00:00:00') : null;
             const end = filterEndDate ? new Date(filterEndDate + 'T23:59:59') : null;
 
@@ -383,7 +383,7 @@ const CrmOverviewPage = () => {
               }
               return sum + (lead.proposal_value || 0);
             }, 0);
-          }, [stageLeads, stage.is_won, filterStartDate, filterEndDate]);
+          })();
 
           return (
             <div 
@@ -425,15 +425,16 @@ const CrmOverviewPage = () => {
                       .sort((a, b) => new Date(a.meeting_start_time!).getTime() - new Date(b.meeting_start_time!).getTime())[0];
 
                     return (
-                      <div 
-                        key={lead.id} 
-                        onClick={() => handleEditLead(lead)} 
-                        className="block bg-white dark:bg-slate-700 p-3 rounded-lg shadow-sm border border-gray-200 dark:border-slate-600 hover:border-brand-500 cursor-pointer transition-all group"
+                      <div
+                        key={lead.id}
+                        id={`lead-card-${lead.id}`}
+                        onClick={() => handleEditLead(lead)}
+                        className={`block bg-white dark:bg-slate-700 p-3 rounded-lg shadow-sm border border-gray-200 dark:border-slate-600 hover:border-brand-500 cursor-pointer transition-all group ${highlightLeadId === lead.id ? 'ring-2 ring-amber-500 animate-pulse' : ''}`}
                         draggable="true"
                         onDragStart={(e) => handleDragStart(e, lead.id)}
                       >
                         <div className="flex justify-between items-start mb-2">
-                          <p className="font-medium text-gray-900 dark:text-white leading-tight">{lead.name}</p>
+                          <p className="font-medium text-gray-900 dark:text-white">{lead.name}</p>
                           <div className="flex items-center space-x-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex-wrap justify-end">
                             <button 
                               onClick={(e) => { e.stopPropagation(); handleEditLead(lead); }} 
@@ -525,8 +526,7 @@ const CrmOverviewPage = () => {
                 )}
               </div>
             </div>
-          </div>
-        ))}
+          ))}
       </div>
 
       {isLeadModalOpen && (
