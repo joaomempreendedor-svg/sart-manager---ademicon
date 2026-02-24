@@ -14,6 +14,13 @@ import {
 } from '@/components/ui/select';
 import { MetricCard } from '@/components/MetricCard';
 
+const formatDuration = (seconds: number) => {
+  if (isNaN(seconds) || seconds < 0) return '0s';
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = Math.round(seconds % 60);
+  return `${minutes}m ${remainingSeconds}s`;
+};
+
 const ColdCallMetricsPage = () => {
   const { user } = useAuth();
   const { coldCallLeads, coldCallLogs, teamMembers, isDataLoading } = useApp();
@@ -82,12 +89,16 @@ const ColdCallMetricsPage = () => {
     const interestConversionRate = totalCalls > 0 ? (totalConversations / totalCalls) * 100 : 0;
     const meetingConversionRate = totalCalls > 0 ? (totalMeetingsScheduled / totalCalls) * 100 : 0;
 
+    const totalDuration = filteredColdCallLogs.reduce((sum, log) => sum + log.duration_seconds, 0);
+    const averageDuration = totalCalls > 0 ? totalDuration / totalCalls : 0;
+
     return {
       totalCalls,
       totalConversations,
       totalMeetingsScheduled,
       interestConversionRate,
       meetingConversionRate,
+      averageDuration,
     };
   }, [filteredColdCallLogs]);
 
@@ -180,7 +191,7 @@ const ColdCallMetricsPage = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         <MetricCard
           title="Total de Ligações"
           value={coldCallMetrics.totalCalls}
@@ -218,6 +229,13 @@ const ColdCallMetricsPage = () => {
           icon={TrendingUp}
           colorClass="bg-teal-600 text-white"
           subValue="Ligações → Reunião"
+        />
+        <MetricCard
+          title="Duração Média"
+          value={formatDuration(coldCallMetrics.averageDuration)}
+          icon={Clock}
+          colorClass="bg-gray-500 text-white"
+          subValue="Tempo médio por ligação"
         />
       </div>
 

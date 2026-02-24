@@ -35,6 +35,13 @@ const COLD_CALL_STAGES: ColdCallStage[] = ['Base Fria', 'Tentativa de Contato', 
 const COLD_CALL_RESULTS: ColdCallResult[] = ['Não atendeu', 'Número inválido', 'Sem interesse', 'Pedir retorno', 'Conversou', 'Demonstrou Interesse', 'Agendar Reunião'];
 const MEETING_MODALITIES = ['Online', 'Presencial', 'Telefone'];
 
+const formatDuration = (seconds: number) => {
+  if (isNaN(seconds) || seconds < 0) return '0s';
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = Math.round(seconds % 60);
+  return `${minutes}m ${remainingSeconds}s`;
+};
+
 const ColdCallPage = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
   const {
@@ -102,7 +109,7 @@ const ColdCallPage = () => {
   }, [user, coldCallLeads, filterStartDate, filterEndDate]);
 
   const metrics = useMemo(() => {
-    if (!user) return { totalCalls: 0, totalConversations: 0, totalMeetingsScheduled: 0, interestConversionRate: 0, meetingConversionRate: 0 };
+    if (!user) return { totalCalls: 0, totalConversations: 0, totalMeetingsScheduled: 0, interestConversionRate: 0, meetingConversionRate: 0, averageDuration: 0 };
     
     const totalCalls = filteredColdCallLogsForMetrics.length;
     const totalConversations = filteredColdCallLogsForMetrics.filter(log =>
@@ -113,12 +120,16 @@ const ColdCallPage = () => {
     const interestConversionRate = totalCalls > 0 ? (totalConversations / totalCalls) * 100 : 0;
     const meetingConversionRate = totalCalls > 0 ? (totalMeetingsScheduled / totalCalls) * 100 : 0;
 
+    const totalDuration = filteredColdCallLogsForMetrics.reduce((sum, log) => sum + log.duration_seconds, 0);
+    const averageDuration = totalCalls > 0 ? totalDuration / totalCalls : 0;
+
     return {
       totalCalls,
       totalConversations,
       totalMeetingsScheduled,
       interestConversionRate,
       meetingConversionRate,
+      averageDuration,
     };
   }, [user, filteredColdCallLogsForMetrics]);
 
@@ -317,7 +328,7 @@ const ColdCallPage = () => {
         <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center">
           <BarChart3 className="w-5 h-5 mr-2 text-brand-500" /> Minha Performance
         </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           <MetricCard
             title="Total de Ligações"
             value={metrics.totalCalls}
@@ -355,6 +366,13 @@ const ColdCallPage = () => {
             icon={TrendingUp}
             colorClass="bg-teal-600 text-white"
             subValue="Ligações → Reunião"
+          />
+          <MetricCard
+            title="Duração Média"
+            value={formatDuration(metrics.averageDuration)}
+            icon={Clock}
+            colorClass="bg-gray-500 text-white"
+            subValue="Tempo médio por ligação"
           />
         </div>
       </div>
