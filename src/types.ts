@@ -364,10 +364,19 @@ export interface GestorTaskCompletion {
 
 export type DailyChecklistItemResourceType = 'link' | 'text' | 'image' | 'pdf' | 'video' | 'audio' | 'text_audio' | 'text_audio_image' | 'none';
 
+export interface DailyChecklistItemRecurrence {
+  type: 'daily' | 'weekly' | 'monthly' | 'every_x_days';
+  dayOfWeek?: number;   // 0-6 (Domingo=0)
+  dayOfMonth?: number;  // 1-31
+  intervalDays?: number; // para every_x_days
+  startDate?: string;   // âncora para every_x_days (YYYY-MM-DD)
+}
+
 export interface DailyChecklistItemResource {
   type: DailyChecklistItemResourceType;
   content: string | { text: string; audioUrl: string; imageUrl?: string; };
   name?: string;
+  recurrence?: DailyChecklistItemRecurrence; // NOVO: recorrência opcional
 }
 
 export interface DailyChecklist {

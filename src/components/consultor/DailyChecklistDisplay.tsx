@@ -156,6 +156,7 @@ export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ us
   };
 
   const itemRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
   useEffect(() => {
     if (highlightedItemId && highlightedDate) {
       if (highlightedDate !== formattedSelectedDate) {
@@ -168,6 +169,34 @@ export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ us
     }
   }, [highlightedItemId, highlightedDate, formattedSelectedDate]);
 
+  const isItemDueOnDate = useCallback((item: DailyChecklistItem, dateStr: string) => {
+    const rec = item.resource?.recurrence;
+    if (!rec || rec.type === 'daily') return true;
+
+    const toDate = (s: string) => new Date(s + 'T00:00:00');
+
+    if (rec.type === 'weekly') {
+      const d = new Date(dateStr + 'T00:00:00').getDay(); // 0-6
+      return d === (rec.dayOfWeek ?? d);
+    }
+
+    if (rec.type === 'monthly') {
+      const d = new Date(dateStr + 'T00:00:00').getDate();
+      return d === (rec.dayOfMonth ?? d);
+    }
+
+    if (rec.type === 'every_x_days') {
+      const start = rec.startDate ? toDate(rec.startDate) : new Date(item.created_at);
+      const target = toDate(dateStr);
+      if (target < start) return false;
+      const diffMs = target.getTime() - start.getTime();
+      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      const interval = Math.max(2, rec.intervalDays ?? 2);
+      return diffDays % interval === 0;
+    }
+
+    return true;
+  }, []);
 
   if (isDataLoading) {
     return (
@@ -201,7 +230,8 @@ export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ us
         </div>
       ) : (
         assignedChecklists.map(checklist => {
-          const items = getItemsForChecklist(checklist.id);
+          const rawItems = getItemsForChecklist(checklist.id);
+          const items = rawItems.filter(item => isItemDueOnDate(item, formattedSelectedDate));
           return (
             <div key={checklist.id} className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
               <div className="bg-gray-50 dark:bg-slate-700/50 px-6 py-4 border-b border-gray-200 dark:border-slate-700">
@@ -212,7 +242,7 @@ export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ us
               <div className="divide-y divide-gray-100 dark:divide-slate-700">
                 {items.length === 0 ? (
                   <div className="p-4 text-center text-gray-400 dark:text-gray-500">
-                    Nenhum item ativo neste checklist.
+                    Nenhum item para hoje neste checklist.
                   </div>
                 ) : (
                   items.map(item => {

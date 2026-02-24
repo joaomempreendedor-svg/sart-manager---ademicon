@@ -243,6 +243,12 @@ const ChecklistItemModal: React.FC<ChecklistItemModalProps> = ({ isOpen, onClose
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
 
+  // NOVO: estados de recorrência
+  const [recurrenceType, setRecurrenceType] = useState<'daily' | 'weekly' | 'monthly' | 'every_x_days'>(item?.resource?.recurrence?.type || 'daily');
+  const [weeklyDayOfWeek, setWeeklyDayOfWeek] = useState<number>(item?.resource?.recurrence?.type === 'weekly' ? (item.resource!.recurrence as any).dayOfWeek ?? new Date().getDay() : new Date().getDay());
+  const [monthlyDay, setMonthlyDay] = useState<number>(item?.resource?.recurrence?.type === 'monthly' ? (item.resource!.recurrence as any).dayOfMonth ?? 1 : 1);
+  const [intervalDays, setIntervalDays] = useState<number>(item?.resource?.recurrence?.type === 'every_x_days' ? (item.resource!.recurrence as any).intervalDays ?? 2 : 2);
+
   const [textAudioContentText, setTextAudioContentText] = useState(
     item?.resource?.type === 'text_audio' 
       ? (item.resource.content as { text: string; audioUrl: string; }).text 
@@ -312,6 +318,20 @@ const ChecklistItemModal: React.FC<ChecklistItemModalProps> = ({ isOpen, onClose
           setSingleFileContent(item.resource.content as string);
         }
       }
+
+      // NOVO: inicializar recorrência
+      const rec = item?.resource?.recurrence;
+      if (rec) {
+        setRecurrenceType(rec.type as any);
+        if (rec.type === 'weekly') setWeeklyDayOfWeek(rec.dayOfWeek ?? new Date().getDay());
+        if (rec.type === 'monthly') setMonthlyDay(rec.dayOfMonth ?? 1);
+        if (rec.type === 'every_x_days') setIntervalDays(rec.intervalDays ?? 2);
+      } else {
+        setRecurrenceType('daily');
+        setWeeklyDayOfWeek(new Date().getDay());
+        setMonthlyDay(1);
+        setIntervalDays(2);
+      }
     }
   }, [isOpen, item]);
 
@@ -348,30 +368,47 @@ const ChecklistItemModal: React.FC<ChecklistItemModalProps> = ({ isOpen, onClose
       return;
     }
 
+    // NOVO: validações de recorrência
+    if (recurrenceType === 'monthly' && (isNaN(monthlyDay) || monthlyDay < 1 || monthlyDay > 31)) {
+      setError("Informe um dia do mês válido (1 a 31).");
+      return;
+    }
+    if (recurrenceType === 'every_x_days' && (isNaN(intervalDays) || intervalDays < 2)) {
+      setError("Para 'A cada X dias', informe um intervalo de pelo menos 2 dias.");
+      return;
+    }
+
     let finalResource: DailyChecklistItemResource | undefined;
     let audioFileToUpload: File | undefined = undefined;
     let imageFileToUpload: File | undefined = undefined;
 
+    const nowDate = new Date().toISOString().split('T')[0];
+    const recurrence: DailyChecklistItemResource['recurrence'] = 
+      recurrenceType === 'daily' ? { type: 'daily' } :
+      recurrenceType === 'weekly' ? { type: 'weekly', dayOfWeek: weeklyDayOfWeek } :
+      recurrenceType === 'monthly' ? { type: 'monthly', dayOfMonth: monthlyDay } :
+      { type: 'every_x_days', intervalDays, startDate: item?.created_at?.split('T')[0] || nowDate };
+
     if (resourceType === 'none') {
-      finalResource = undefined;
+      finalResource = { type: 'none', content: '', name: resourceName.trim() || undefined, recurrence };
     } else if (resourceType === 'text') {
       if (!singleFileContent.trim()) {
         setError("O conteúdo do texto é obrigatório.");
         return;
       }
-      finalResource = { type: 'text', content: singleFileContent.trim(), name: resourceName.trim() || undefined };
+      finalResource = { type: 'text', content: singleFileContent.trim(), name: resourceName.trim() || undefined, recurrence };
     } else if (resourceType === 'link' || resourceType === 'video' || resourceType === 'audio') {
       if (!singleFileContent.trim()) {
         setError(`A URL para ${resourceType === 'link' ? 'o link' : resourceType === 'video' ? 'o vídeo' : 'o áudio'} é obrigatória.`);
         return;
       }
-      finalResource = { type: resourceType, content: singleFileContent.trim(), name: resourceName.trim() || undefined };
+      finalResource = { type: resourceType, content: singleFileContent.trim(), name: resourceName.trim() || undefined, recurrence };
     } else if (resourceType === 'image' || resourceType === 'pdf') {
       if (singleSelectedFile) {
         imageFileToUpload = singleSelectedFile;
-        finalResource = { type: resourceType, content: '', name: singleSelectedFile.name };
+        finalResource = { type: resourceType, content: '', name: singleSelectedFile.name, recurrence };
       } else if (item?.resource?.type === resourceType && item.resource.content) {
-        finalResource = { type: resourceType, content: item.resource.content, name: item.resource.name || undefined };
+        finalResource = { type: resourceType, content: item.resource.content, name: item.resource.name || undefined, recurrence };
       } else {
         setError(`Um arquivo (${resourceType}) é obrigatório.`);
         return;
@@ -389,7 +426,8 @@ const ChecklistItemModal: React.FC<ChecklistItemModalProps> = ({ isOpen, onClose
       finalResource = { 
         type: 'text_audio', 
         content: { text: textAudioContentText.trim(), audioUrl: textAudioContentUrl.trim() }, 
-        name: resourceName.trim() || undefined 
+        name: resourceName.trim() || undefined,
+        recurrence
       };
     } else if (resourceType === 'text_audio_image') {
       if (!textAudioImageContentText.trim()) {
@@ -414,6 +452,7 @@ const ChecklistItemModal: React.FC<ChecklistItemModalProps> = ({ isOpen, onClose
           imageUrl: textAudioImageContentImageUrl.trim(),
         },
         name: resourceName.trim() || undefined,
+        recurrence
       };
     }
     
@@ -478,6 +517,75 @@ const ChecklistItemModal: React.FC<ChecklistItemModalProps> = ({ isOpen, onClose
                   placeholder="Ex: Fazer 40 contatos diários"
                   required
                 />
+              </div>
+
+              {/* NOVO: Seção de Recorrência */}
+              <div className="col-span-4 border-t border-gray-200 dark:border-slate-700 pt-4 mt-4">
+                <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-3">
+                  Recorrência da Tarefa
+                </h4>
+                <div className="grid gap-2">
+                  <Label className="text-left">Tipo de Recorrência</Label>
+                  <select
+                    value={recurrenceType}
+                    onChange={(e) => setRecurrenceType(e.target.value as any)}
+                    className="w-full p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 dark:text-white"
+                  >
+                    <option value="daily">Diária</option>
+                    <option value="weekly">Semanal</option>
+                    <option value="monthly">Mensal</option>
+                    <option value="every_x_days">A cada X dias</option>
+                  </select>
+
+                  {recurrenceType === 'weekly' && (
+                    <div className="grid gap-2 mt-2">
+                      <Label className="text-left">Dia da Semana</Label>
+                      <select
+                        value={weeklyDayOfWeek}
+                        onChange={(e) => setWeeklyDayOfWeek(parseInt(e.target.value, 10))}
+                        className="w-full p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 dark:text-white"
+                      >
+                        <option value={0}>Domingo</option>
+                        <option value={1}>Segunda-feira</option>
+                        <option value={2}>Terça-feira</option>
+                        <option value={3}>Quarta-feira</option>
+                        <option value={4}>Quinta-feira</option>
+                        <option value={5}>Sexta-feira</option>
+                        <option value={6}>Sábado</option>
+                      </select>
+                    </div>
+                  )}
+
+                  {recurrenceType === 'monthly' && (
+                    <div className="grid gap-2 mt-2">
+                      <Label className="text-left">Dia do Mês</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={31}
+                        value={monthlyDay}
+                        onChange={(e) => setMonthlyDay(parseInt(e.target.value, 10) || 1)}
+                        className="w-full p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600"
+                        placeholder="Ex: 15"
+                      />
+                    </div>
+                  )}
+
+                  {recurrenceType === 'every_x_days' && (
+                    <div className="grid gap-2 mt-2">
+                      <Label className="text-left">Intervalo (dias)</Label>
+                      <Input
+                        type="number"
+                        min={2}
+                        value={intervalDays}
+                        onChange={(e) => setIntervalDays(parseInt(e.target.value, 10) || 2)}
+                        className="w-full p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600"
+                        placeholder="Ex: 3"
+                      />
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Âncora: data de criação do item.</p>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="col-span-4 border-t border-gray-200 dark:border-slate-700 pt-4 mt-4">

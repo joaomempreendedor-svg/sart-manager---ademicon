@@ -149,6 +149,35 @@ export const DailyChecklistMonitoring = () => {
     }
   };
 
+  const isItemDueOnDate = React.useCallback((item: DailyChecklistItem, dateStr: string) => {
+    const rec = item.resource?.recurrence;
+    if (!rec || rec.type === 'daily') return true;
+
+    const toDate = (s: string) => new Date(s + 'T00:00:00');
+
+    if (rec.type === 'weekly') {
+      const d = new Date(dateStr + 'T00:00:00').getDay();
+      return d === (rec.dayOfWeek ?? d);
+    }
+
+    if (rec.type === 'monthly') {
+      const d = new Date(dateStr + 'T00:00:00').getDate();
+      return d === (rec.dayOfMonth ?? d);
+    }
+
+    if (rec.type === 'every_x_days') {
+      const start = rec.startDate ? toDate(rec.startDate) : new Date(item.created_at);
+      const target = toDate(dateStr);
+      if (target < start) return false;
+      const diffMs = target.getTime() - start.getTime();
+      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      const interval = Math.max(2, rec.intervalDays ?? 2);
+      return diffDays % interval === 0;
+    }
+
+    return true;
+  }, []);
+
   if (isDataLoading) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-theme(spacing.16))]">
@@ -221,7 +250,8 @@ export const DailyChecklistMonitoring = () => {
 
           <div className="overflow-y-auto max-h-[60vh] custom-scrollbar">
             {assignedChecklists.map(checklist => {
-              const items = getItemsForChecklist(checklist.id);
+              const itemsAll = getItemsForChecklist(checklist.id);
+              const items = itemsAll.filter(item => isItemDueOnDate(item, formattedSelectedDate));
               const completedItemsCount = items.filter(item => getCompletionStatus(item.id)).length;
               const checklistProgress = items.length > 0 ? Math.round((completedItemsCount / items.length) * 100) : 0;
 
