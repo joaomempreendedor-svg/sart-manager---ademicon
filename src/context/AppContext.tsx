@@ -747,10 +747,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     else if (resource?.type === 'text_audio_image') finalResource = { ...resource, content: { ...(resource.content as any), audioUrl, imageUrl } };
     else if (resource?.type === 'image' || resource?.type === 'pdf' || resource?.type === 'audio') finalResource = { ...resource, content: audioUrl || imageUrl };
 
-    const { data, error } = await supabase.from('daily_checklist_items').insert({ daily_checklist_id, text, order_index, resource: finalResource }).select().single();
-    if (error) throw error;
-    setDailyChecklistItems(prev => [...prev, data]);
-    return data;
+    // USO DE EDGE FUNCTION PARA INSERIR (BYPASS SEGURO DE RLS)
+    const { data: fxRes, error: fxErr } = await supabase.functions.invoke('manage-daily-checklist-item', {
+      body: {
+        action: 'insert',
+        daily_checklist_id,
+        text,
+        order_index,
+        resource: finalResource
+      }
+    });
+    if (fxErr) throw fxErr;
+    if (!fxRes || !fxRes.data) throw new Error('Falha ao inserir item via edge function.');
+    const inserted = fxRes.data;
+    setDailyChecklistItems(prev => [...prev, inserted]);
+    return inserted;
   }, []);
 
   const updateDailyChecklistItem = useCallback(async (id: string, updates: Partial<DailyChecklistItem>, audioFile?: File, imageFile?: File) => {
@@ -768,10 +779,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     else if (updates.resource?.type === 'text_audio_image') finalResource = { ...updates.resource, content: { ...(updates.resource.content as any), audioUrl, imageUrl } };
     else if (updates.resource?.type === 'image' || updates.resource?.type === 'pdf' || updates.resource?.type === 'audio' || updates.resource?.type === 'video' || updates.resource?.type === 'link' || updates.resource?.type === 'text') finalResource = { ...updates.resource, content: audioUrl || imageUrl || updates.resource.content };
 
-    const { data, error } = await supabase.from('daily_checklist_items').update({ ...updates, resource: finalResource }).eq('id', id).select().single();
-    if (error) throw error;
-    setDailyChecklistItems(prev => prev.map(i => i.id === id ? data : i));
-    return data;
+    // USO DE EDGE FUNCTION PARA ATUALIZAR (BYPASS SEGURO DE RLS)
+    const { data: fxRes, error: fxErr } = await supabase.functions.invoke('manage-daily-checklist-item', {
+      body: {
+        action: 'update',
+        id,
+        text: updates.text,
+        resource: finalResource
+      }
+    });
+    if (fxErr) throw fxErr;
+    if (!fxRes || !fxRes.data) throw new Error('Falha ao atualizar item via edge function.');
+    const updated = fxRes.data;
+    setDailyChecklistItems(prev => prev.map(i => i.id === id ? updated : i));
+    return updated;
   }, [dailyChecklistItems]);
 
   const deleteDailyChecklistItem = useCallback(async (id: string) => {
