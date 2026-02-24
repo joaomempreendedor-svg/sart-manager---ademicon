@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Loader2, Search, User, Phone, Mail, CheckCircle2, XCircle, RotateCcw, ArrowRight, MessageSquare, UserX, Plus, Trash2, Users, Clock, UserRound, UploadCloud, CalendarDays, Filter, Calendar, FileText, UserCheck, Star, TrendingUp, ChevronRight, Check, CalendarClock, UserMinus, ArrowRightCircle, ShieldCheck, HelpCircle } from 'lucide-react'; // Adicionado HelpCircle para 'Não Respondido'
+import { Loader2, Search, User, Phone, Mail, CheckCircle2, XCircle, RotateCcw, ArrowRight, MessageSquare, UserX, Plus, Trash2, Users, Clock, UserRound, UploadCloud, CalendarDays, Filter, Calendar, FileText, UserCheck, Star, TrendingUp, ChevronRight, Check, CalendarClock, UserMinus, ArrowRightCircle, ShieldCheck, HelpCircle, UserPlus } from 'lucide-react'; // Adicionado HelpCircle para 'Não Respondido' e UserPlus
 import { useNavigate, useLocation } from 'react-router-dom';
 import { TableSkeleton } from '@/components/TableSkeleton';
 import {
