@@ -286,35 +286,13 @@ const CrmOverviewPage = () => {
 
   return (
     <div className="p-4 sm:p-8 min-h-screen bg-gray-50 dark:bg-slate-900">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">CRM de Vendas - {activePipeline.name}</h1>
-          <p className="text-gray-500 dark:text-gray-400">Visão geral de todos os leads da equipe.</p>
-        </div>
+      <div className="text-center mb-8">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">CRM de Vendas - {activePipeline.name}</h1>
+        <p className="text-gray-500 dark:text-gray-400">Visão geral de todos os leads da equipe.</p>
+      </div>
+
+      <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
         <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-4 w-full md:w-auto">
-          <div className="relative flex-1 w-full">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search className="h-4 w-4 text-gray-400" />
-            </div>
-            <input
-              type="text"
-              placeholder="Buscar lead..."
-              className="pl-10 pr-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg text-sm w-full focus:ring-brand-500 focus:border-brand-500 bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          <ExportCrmLeadsButton
-            leads={filteredLeads}
-            fileName="leads_crm_gestor"
-          />
-          <button
-            onClick={() => setIsImportModalOpen(true)}
-            className="flex items-center justify-center space-x-2 bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded-lg transition font-medium flex-shrink-0"
-          >
-            <UploadCloud className="w-5 h-5" />
-            <span>Importar</span>
-          </button>
           <button
             onClick={handleAddNewLead}
             className="flex items-center justify-center space-x-2 bg-brand-600 hover:bg-brand-700 text-white py-2 px-4 rounded-lg transition font-medium w-full sm:w-auto flex-shrink-0"
@@ -322,6 +300,29 @@ const CrmOverviewPage = () => {
             <Plus className="w-5 h-5" />
             <span>Novo Lead</span>
           </button>
+          <button
+            onClick={() => setIsImportModalOpen(true)}
+            className="flex items-center justify-center space-x-2 bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded-lg transition font-medium flex-shrink-0"
+          >
+            <UploadCloud className="w-5 h-5" />
+            <span>Importar</span>
+          </button>
+          <ExportCrmLeadsButton
+            leads={filteredLeads}
+            fileName="leads_crm_gestor"
+          />
+        </div>
+        <div className="relative w-full md:w-auto md:min-w-64">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <Search className="h-4 w-4 text-gray-400" />
+          </div>
+          <input
+            type="text"
+            placeholder="Buscar lead..."
+            className="pl-10 pr-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg text-sm w-full focus:ring-brand-500 focus:border-brand-500 bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
         </div>
       </div>
 
@@ -443,7 +444,7 @@ const CrmOverviewPage = () => {
                             </button>
                             <button 
                               onClick={(e) => handleDeleteLead(e, lead)} 
-                              className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-900/20 rounded-md"
+                              className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md"
                               title="Excluir Lead"
                             >
                               <Trash2 className="w-4 h-4" />
