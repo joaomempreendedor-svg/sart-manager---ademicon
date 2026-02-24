@@ -1,8 +1,8 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { Loader2, Search, User, Phone, Mail, CheckCircle2, XCircle, RotateCcw, ArrowRight, MessageSquare, UserX, Plus, Trash2, Users, Clock, UserRound, UploadCloud, CalendarDays, Filter, Calendar, FileText, UserCheck, Star, TrendingUp, ChevronRight, Check, CalendarClock, UserMinus, ArrowRightCircle, ShieldCheck, HelpCircle } from 'lucide-react'; // Adicionado HelpCircle para 'Não Respondido'
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { TableSkeleton } from '@/components/TableSkeleton';
 import {
   Select,
@@ -12,20 +12,23 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import toast from 'react-hot-toast';
-import { Candidate, InterviewScores, CandidateStatus, TeamMember } from '@/types';
 import { AddScreeningCandidateModal } from '@/components/gestor/AddScreeningCandidateModal';
 import { UpdateInterviewDateModal } from '@/components/gestor/UpdateInterviewDateModal';
 import { highlightText } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea'; // Importar Textarea
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback'; // Importar useDebouncedCallback
+import { Candidate, CandidateStatus } from '@/types'; // Importar Candidate
+import { ImportCandidatesModal } from '@/components/gestor/ImportCandidatesModal'; // NOVO: Importar o modal de importação
 
 // ID do gestor principal para fallback de exibição
 const JOAO_GESTOR_AUTH_ID = "0c6d71b7-daeb-4dde-8eec-0e7a8ffef658";
 
 const HiringPipeline = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
-  const { candidates, setCandidates, teamMembers, isDataLoading, updateCandidate, deleteCandidate, interviewStructure, checklistStructure, hiringOrigins, hasPendingSecretariaTasks } = useApp(); // Adicionado hasPendingSecretariaTasks
+  const { candidates, setCandidates, teamMembers, isDataLoading, updateCandidate, deleteCandidate, interviewStructure, checklistStructure, hiringOrigins, hasPendingSecretariaTasks, addCandidate } = useApp(); // Adicionado hasPendingSecretariaTasks e addCandidate
   const navigate = useNavigate();
+  const location = useLocation();
+  
   const [draggingCandidateId, setDraggingCandidateId] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
   
@@ -44,6 +47,8 @@ const HiringPipeline = () => {
     const d = new Date();
     return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
   });
+
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false); // NOVO: Estado para o modal de importação
 
   const todayStr = new Date().toISOString().split('T')[0];
 
@@ -247,20 +252,50 @@ const HiringPipeline = () => {
     return teamMembers.filter(m => m.isActive && (m.roles.includes('GESTOR') || m.roles.includes('ANJO')));
   }, [teamMembers]);
 
-  if (isAuthLoading || isDataLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="w-12 h-12 text-brand-500 animate-spin" /></div>;
+  // NOVO: Função para lidar com a importação de candidatos
+  const handleImportCandidates = async (newCandidates: Omit<Candidate, 'id' | 'createdAt' | 'db_id'>[]) => {
+    for (const candidateData of newCandidates) {
+      try {
+        await addCandidate(candidateData);
+      } catch (error) {
+        console.error("Erro ao adicionar candidato importado:", candidateData.name, error);
+        throw error; // Re-throw para que o modal possa registrar a falha
+      }
+    }
+  };
+
+  if (isAuthLoading || isDataLoading) return <div className="flex items-center justify-center h-screen"><Loader2 className="w-12 h-12 text-brand-500 animate-spin" /></div>;
 
   return (
     <div className="p-4 sm:p-8 max-w-full mx-auto min-h-screen bg-gray-50 dark:bg-slate-900">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Pipeline de Contratação</h1>
           <p className="text-gray-500 dark:text-gray-400">Acompanhe o fluxo de candidatos desde a entrada até a contratação.</p>
         </div>
-        <button onClick={() => setIsAddModalOpen(true)} className="flex items-center justify-center space-x-2 bg-brand-600 hover:bg-brand-700 text-white py-2.5 px-6 rounded-lg transition shadow-lg shadow-brand-600/20 font-bold"><Plus className="w-5 h-5" /><span>Novo Candidato</span></button>
+        <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-4 w-full md:w-auto">
+          <button
+            onClick={() => setIsImportModalOpen(true)}
+            className="flex items-center justify-center space-x-2 bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded-lg transition font-medium flex-shrink-0"
+          >
+            <UploadCloud className="w-5 h-5" />
+            <span>Importar Planilha</span>
+          </button>
+        </div>
+      </div>
+
+      <div className="mb-6">
+        <button
+          onClick={() => setIsAddModalOpen(true)}
+          className="flex items-center justify-center space-x-2 bg-brand-600 hover:bg-brand-700 text-white py-2.5 px-6 rounded-lg transition shadow-lg shadow-brand-600/20 font-bold"
+        >
+          <Plus className="w-5 h-5" />
+          <span>Novo Candidato</span>
+        </button>
       </div>
 
       <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm space-y-4 mb-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-col sm:flex-row">
           <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 flex items-center uppercase tracking-wide"><Filter className="w-4 h-4 mr-2" />Filtros</h3>
           {(searchTerm || filterStartDate || filterEndDate) && <button onClick={() => { setSearchTerm(''); setFilterStartDate(''); setFilterEndDate(''); }} className="text-xs flex items-center text-red-500 hover:text-red-700 transition"><RotateCcw className="w-3 h-3 mr-1" />Limpar Filtros</button>}
         </div>
@@ -518,6 +553,14 @@ const HiringPipeline = () => {
           setSelectedCandidateForDate(null);
         }}
         candidate={selectedCandidateForDate}
+      />
+      {/* NOVO: Modal de Importação */}
+      <ImportCandidatesModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        origins={hiringOrigins}
+        responsibleMembers={responsibleMembersForModal}
+        onImport={handleImportCandidates}
       />
     </div>
   );
