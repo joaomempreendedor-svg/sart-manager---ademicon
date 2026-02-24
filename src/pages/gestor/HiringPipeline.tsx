@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Loader2, Search, User, Phone, Mail, CheckCircle2, XCircle, RotateCcw, ArrowRight, MessageSquare, UserX, Plus, Trash2, Users, Clock, UserRound, UploadCloud, CalendarDays, Filter, Calendar, FileText, UserCheck, Star, TrendingUp, ChevronRight, Check, CalendarClock, UserMinus, ArrowRightCircle, ShieldCheck, HelpCircle, UserPlus } from 'lucide-react'; // Adicionado HelpCircle para 'Não Respondido' e UserPlus
+import { Loader2, Search, User, Phone, Mail, CheckCircle2, XCircle, RotateCcw, ArrowRight, MessageSquare, UserX, Plus, Trash2, Users, Clock, UserRound, UploadCloud, CalendarDays, Filter, Calendar, FileText, UserCheck, Star, TrendingUp, ChevronRight, Check, CalendarClock, UserMinus, ArrowRightCircle, ShieldCheck, HelpCircle, UserPlus } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { TableSkeleton } from '@/components/TableSkeleton';
 import {
@@ -15,17 +15,16 @@ import toast from 'react-hot-toast';
 import { AddScreeningCandidateModal } from '@/components/gestor/AddScreeningCandidateModal';
 import { UpdateInterviewDateModal } from '@/components/gestor/UpdateInterviewDateModal';
 import { highlightText } from '@/lib/utils';
-import { Textarea } from '@/components/ui/textarea'; // Importar Textarea
-import { useDebouncedCallback } from '@/hooks/useDebouncedCallback'; // Importar useDebouncedCallback
-import { Candidate, CandidateStatus } from '@/types'; // Importar Candidate
-import { ImportCandidatesModal } from '@/components/gestor/ImportCandidatesModal'; // NOVO: Importar o modal de importação
+import { Textarea } from '@/components/ui/textarea';
+import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
+import { Candidate, CandidateStatus } from '@/types';
+import { ImportCandidatesModal } from '@/components/gestor/ImportCandidatesModal';
 
-// ID do gestor principal para fallback de exibição
 const JOAO_GESTOR_AUTH_ID = "0c6d71b7-daeb-4dde-8eec-0e7a8ffef658";
 
 const HiringPipeline = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
-  const { candidates, setCandidates, teamMembers, isDataLoading, updateCandidate, deleteCandidate, interviewStructure, checklistStructure, hiringOrigins, hasPendingSecretariaTasks, addCandidate } = useApp(); // Adicionado hasPendingSecretariaTasks e addCandidate
+  const { candidates, setCandidates, teamMembers, isDataLoading, updateCandidate, deleteCandidate, interviewStructure, checklistStructure, hiringOrigins, hasPendingSecretariaTasks, addCandidate } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
   
@@ -38,7 +37,6 @@ const HiringPipeline = () => {
 
   const [searchTerm, setSearchTerm] = useState('');
   
-  // Filtros de Data Padrão: Mês Atual
   const [filterStartDate, setFilterStartDate] = useState(() => {
     const d = new Date();
     return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
@@ -48,7 +46,7 @@ const HiringPipeline = () => {
     return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
   });
 
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false); // NOVO: Estado para o modal de importação
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   const todayStr = new Date().toISOString().split('T')[0];
 
@@ -58,10 +56,27 @@ const HiringPipeline = () => {
     return dateB - dateA;
   };
 
+  const getResponsibleName = (responsibleUserId: string | undefined) => {
+    if (!responsibleUserId) return 'Não atribuído';
+    const member = teamMembers.find(m => m.id === responsibleUserId || m.authUserId === responsibleUserId);
+    if (member) return member.name;
+    if (responsibleUserId === JOAO_GESTOR_AUTH_ID) return 'João Müller';
+    return 'Desconhecido';
+  };
+
+  const getCreatorName = (creatorId: string | undefined) => {
+    if (!creatorId) return 'Desconhecido';
+    const member = teamMembers.find(m => m.authUserId === creatorId);
+    if (member) return member.name;
+    if (creatorId === JOAO_GESTOR_AUTH_ID) return 'João Müller';
+    if (user && creatorId === user.id) return user.name;
+    return 'Desconhecido';
+  };
+
   const {
     pipelineStages,
   } = useMemo(() => {
-    if (!user) return { pipelineStages: { candidates: [], contacted: [], noResponse: [], scheduled: [], conducted: [], awaitingPreview: [], authorized: [], droppedOut: [], disqualified: [], noShow: [] } }; // NOVO: Adicionado noResponse
+    if (!user) return { pipelineStages: { candidates: [], contacted: [], noResponse: [], scheduled: [], conducted: [], awaitingPreview: [], authorized: [], droppedOut: [], disqualified: [], noShow: [] } };
 
     let candidatesForGestor = candidates.filter(Boolean);
 
@@ -71,7 +86,7 @@ const HiringPipeline = () => {
         (String(c.name || '').toLowerCase()).includes(lowerCaseSearchTerm) ||
         (String(c.phone || '').toLowerCase()).includes(lowerCaseSearchTerm) ||
         (String(c.email || '').toLowerCase()).includes(lowerCaseSearchTerm) ||
-        (String(c.notes || '').toLowerCase()).includes(lowerCaseSearchTerm) // NOVO: Incluir busca nas notas
+        (String(c.notes || '').toLowerCase()).includes(lowerCaseSearchTerm)
       );
     }
 
@@ -84,10 +99,9 @@ const HiringPipeline = () => {
       candidatesForGestor = candidatesForGestor.filter(c => new Date(c.createdAt) <= end);
     }
 
-    // Split Triagem into Candidates (Pending), Contacted, and No Response
     const entryPool = candidatesForGestor.filter(c => c.status === 'Triagem' && (c.screeningStatus === 'Pending Contact' || !c.screeningStatus)).sort(sortByRecentUpdate);
     const contactedPool = candidatesForGestor.filter(c => c.status === 'Triagem' && c.screeningStatus === 'Contacted').sort(sortByRecentUpdate);
-    const noResponsePool = candidatesForGestor.filter(c => c.status === 'Triagem' && c.screeningStatus === 'No Response').sort(sortByRecentUpdate); // NOVO: Pool de Não Respondido
+    const noResponsePool = candidatesForGestor.filter(c => c.status === 'Triagem' && c.screeningStatus === 'No Response').sort(sortByRecentUpdate);
     
     const scheduled = candidatesForGestor.filter(c => 
       c.status === 'Entrevista' && 
@@ -114,7 +128,7 @@ const HiringPipeline = () => {
       pipelineStages: { 
         candidates: { title: 'Candidatos', list: entryPool, color: 'gray', icon: Users },
         contacted: { title: 'Contatados', list: contactedPool, color: 'blue', icon: MessageSquare },
-        noResponse: { title: 'Não Respondido', list: noResponsePool, color: 'orange', icon: HelpCircle }, // NOVO: Coluna Não Respondido
+        noResponse: { title: 'Não Respondido', list: noResponsePool, color: 'orange', icon: HelpCircle },
         scheduled: { title: 'Agendadas', list: scheduled, color: 'blue', icon: Calendar },
         conducted: { title: 'Realizadas', list: conducted, color: 'purple', icon: FileText },
         noShow: { title: 'Faltou', list: noShow, color: 'red', icon: UserX },
@@ -154,7 +168,7 @@ const HiringPipeline = () => {
         newStatus = 'Triagem'; 
         updates.screeningStatus = 'Contacted';
         break;
-      case 'noResponse': // NOVO: Lógica para 'No Response'
+      case 'noResponse':
         newStatus = 'Triagem';
         updates.screeningStatus = 'No Response';
         break;
@@ -196,23 +210,6 @@ const HiringPipeline = () => {
     setIsUpdateDateModalOpen(true);
   };
 
-  const getResponsibleName = (responsibleUserId: string | undefined) => {
-    if (!responsibleUserId) return 'Não atribuído';
-    const member = teamMembers.find(m => m.id === responsibleUserId || m.authUserId === responsibleUserId);
-    if (member) return member.name;
-    if (responsibleUserId === JOAO_GESTOR_AUTH_ID) return 'João Müller';
-    return 'Desconhecido';
-  };
-
-  const getCreatorName = (creatorId: string | undefined) => {
-    if (!creatorId) return 'Desconhecido';
-    const member = teamMembers.find(m => m.authUserId === creatorId);
-    if (member) return member.name;
-    if (creatorId === JOAO_GESTOR_AUTH_ID) return 'João Müller';
-    if (user && creatorId === user.id) return user.name;
-    return 'Desconhecido';
-  };
-
   const getColumnColorClasses = (color: string) => {
     switch(color) {
       case 'blue': return 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800 text-blue-700 dark:text-blue-300';
@@ -220,7 +217,7 @@ const HiringPipeline = () => {
       case 'yellow': return 'bg-yellow-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-800 text-yellow-700 dark:text-yellow-300';
       case 'green': return 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800 text-green-700 dark:text-green-300';
       case 'red': return 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800 text-red-700 dark:text-red-300';
-      case 'orange': return 'bg-orange-50 border-orange-200 dark:bg-orange-900/20 dark:border-orange-800 text-orange-700 dark:text-orange-300'; // NOVO: Cor para 'Não Respondido'
+      case 'orange': return 'bg-orange-50 border-orange-200 dark:bg-orange-900/20 dark:border-orange-800 text-orange-700 dark:text-orange-300';
       case 'gray': return 'bg-gray-50 border-gray-200 dark:bg-slate-800 dark:border-slate-700 text-gray-700 dark:text-gray-300';
       default: return 'bg-gray-50 border-gray-200 dark:bg-slate-800 dark:border-slate-700 text-gray-700 dark:text-gray-300';
     }
@@ -234,12 +231,10 @@ const HiringPipeline = () => {
       toast.error("Erro ao salvar observações.");
       console.error("Failed to save candidate notes:", error);
     }
-  }, 1000); // Salva 1 segundo após a última digitação
+  }, 1000);
 
   const handleNotesChange = (candidateId: string, newNotes: string) => {
-    // Atualiza o estado local imediatamente para feedback visual
     setCandidates(prev => prev.map(c => c.id === candidateId ? { ...c, notes: newNotes } : c));
-    // Chama a função debounced para salvar no banco de dados
     debouncedUpdateCandidateNotes(candidateId, newNotes);
   };
 
@@ -248,7 +243,7 @@ const HiringPipeline = () => {
     e.stopPropagation();
     if (window.confirm(`Tem certeza que deseja EXCLUIR PERMANENTEMENTE o candidato "${candidateName}"? Esta ação não pode ser desfeita.`)) {
       try {
-        await deleteCandidate(candidateDbId); // Passa o db_id
+        await deleteCandidate(candidateDbId);
         toast.success(`Candidato "${candidateName}" excluído permanentemente!`);
       } catch (error: any) {
         toast.error(`Erro ao excluir candidato: ${error.message}`);
@@ -256,19 +251,17 @@ const HiringPipeline = () => {
     }
   };
 
-  // Memoize the responsibleMembers list for the modal
   const responsibleMembersForModal = useMemo(() => {
     return teamMembers.filter(m => m.isActive && (m.roles.includes('GESTOR') || m.roles.includes('ANJO')));
   }, [teamMembers]);
 
-  // NOVO: Função para lidar com a importação de candidatos
   const handleImportCandidates = async (newCandidates: Omit<Candidate, 'id' | 'createdAt' | 'db_id'>[]) => {
     for (const candidateData of newCandidates) {
       try {
         await addCandidate(candidateData);
       } catch (error) {
         console.error("Erro ao adicionar candidato importado:", candidateData.name, error);
-        throw error; // Re-throw para que o modal possa registrar a falha
+        throw error;
       }
     }
   };
@@ -341,7 +334,7 @@ const HiringPipeline = () => {
               {stage.list.map(candidate => {
                 const totalScore = candidate.interviewScores.basicProfile + candidate.interviewScores.commercialSkills + candidate.interviewScores.behavioralProfile + candidate.interviewScores.jobFit;
                 const isToday = candidate.interviewDate === todayStr;
-                const hasPendingSecretariaTasksForCandidate = hasPendingSecretariaTasks(candidate); // NOVO: Verifica tarefas pendentes da Secretaria
+                const hasPendingSecretariaTasksForCandidate = hasPendingSecretariaTasks(candidate);
 
                 return (
                   <div 
@@ -356,7 +349,7 @@ const HiringPipeline = () => {
                         <Clock className="w-3 h-3 mr-1" /> HOJE
                       </div>
                     )}
-                    {id === 'awaitingPreview' && hasPendingSecretariaTasksForCandidate && ( // NOVO: Indicador para Secretaria
+                    {id === 'awaitingPreview' && hasPendingSecretariaTasksForCandidate && (
                       <div className="absolute top-0 left-0 bg-purple-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-br-lg flex items-center" title="Tarefas da Secretaria Pendentes">
                         <ShieldCheck className="w-3 h-3 mr-1" /> SECRETARIA
                       </div>
@@ -408,19 +401,17 @@ const HiringPipeline = () => {
                         </span>
                       </div>
 
-                      {/* NOVO: Campo de Observações */}
                       <div className="mt-3">
                         <Textarea
                           value={candidate.notes || ''}
                           onChange={(e) => handleNotesChange(candidate.id, e.target.value)}
-                          onClick={(e) => e.stopPropagation()} // Impede que o clique na textarea abra o modal do candidato
+                          onClick={(e) => e.stopPropagation()}
                           placeholder="Adicionar observações rápidas..."
                           rows={2}
                           className="w-full text-xs p-2 border border-gray-200 dark:border-slate-600 rounded-md bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 focus:ring-brand-500 focus:border-brand-500 resize-y"
                         />
                       </div>
 
-                      {/* BOTÕES DE AÇÃO RÁPIDA NO CARD */}
                       <div className="pt-3 mt-1 border-t border-gray-50 dark:border-slate-600 grid grid-cols-2 gap-2">
                         {id === 'candidates' && (
                           <>
@@ -450,7 +441,7 @@ const HiringPipeline = () => {
                               <CalendarClock className="w-3 h-3" />
                               <span>Agendar</span>
                             </button>
-                            <button // NOVO: Botão para mover para 'Não Respondido'
+                            <button
                               onClick={(e) => handleUpdateStatus(e, candidate.id, 'Triagem', { screeningStatus: 'No Response' })}
                               className="flex items-center justify-center space-x-1 py-1.5 bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 rounded-lg text-[10px] font-bold hover:bg-orange-100 transition"
                             >
@@ -535,7 +526,6 @@ const HiringPipeline = () => {
                         )}
                       </div>
 
-                      {/* BOTÃO VER PROCESSO */}
                       <div className="pt-2 mt-1 flex justify-center">
                         <div className="flex items-center text-[10px] font-bold text-brand-600 dark:text-brand-400 group-hover:translate-x-1 transition-transform">
                           VER PROCESSO <ArrowRightCircle className="w-3 h-3 ml-1" />
@@ -558,8 +548,8 @@ const HiringPipeline = () => {
       <AddScreeningCandidateModal 
         isOpen={isAddModalOpen} 
         onClose={() => setIsAddModalOpen(false)} 
-        origins={hiringOrigins} // Passando as origens de contratação
-        responsibleMembers={responsibleMembersForModal} // Passando a lista de responsáveis
+        origins={hiringOrigins}
+        responsibleMembers={responsibleMembersForModal}
       />
       <UpdateInterviewDateModal
         isOpen={isUpdateDateModalOpen}
@@ -569,7 +559,6 @@ const HiringPipeline = () => {
         }}
         candidate={selectedCandidateForDate}
       />
-      {/* NOVO: Modal de Importação */}
       <ImportCandidatesModal
         isOpen={isImportModalOpen}
         onClose={() => setIsImportModalOpen(false)}
