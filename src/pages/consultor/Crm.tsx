@@ -388,7 +388,10 @@ const ConsultorCrmPage = () => {
                 <div className="mt-1 text-sm font-bold text-green-700 dark:text-green-300">
                   Total Vendido: {formatCurrency(
                     groupedLeads[stage.id].reduce((sum, lead) => {
-                      return sum + (lead.sold_credit_value || 0); // Usando snake_case
+                      const actualSoldValue = (lead.sold_credit_value && lead.sold_credit_value > 0)
+                        ? lead.sold_credit_value
+                        : (lead.proposal_value || 0);
+                      return sum + actualSoldValue;
                     }, 0)
                   )}
                 </div>
