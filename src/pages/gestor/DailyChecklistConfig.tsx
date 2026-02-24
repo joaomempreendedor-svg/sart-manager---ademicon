@@ -244,10 +244,11 @@ const ChecklistItemModal: React.FC<ChecklistItemModalProps> = ({ isOpen, onClose
   const [error, setError] = useState('');
 
   // NOVO: estados de recorrência
-  const [recurrenceType, setRecurrenceType] = useState<'daily' | 'weekly' | 'monthly' | 'every_x_days'>(item?.resource?.recurrence?.type || 'daily');
+  const [recurrenceType, setRecurrenceType] = useState<'daily' | 'weekly' | 'monthly' | 'every_x_days' | 'specific_date'>(item?.resource?.recurrence?.type as any || 'daily');
   const [weeklyDayOfWeek, setWeeklyDayOfWeek] = useState<number>(item?.resource?.recurrence?.type === 'weekly' ? (item.resource!.recurrence as any).dayOfWeek ?? new Date().getDay() : new Date().getDay());
   const [monthlyDay, setMonthlyDay] = useState<number>(item?.resource?.recurrence?.type === 'monthly' ? (item.resource!.recurrence as any).dayOfMonth ?? 1 : 1);
   const [intervalDays, setIntervalDays] = useState<number>(item?.resource?.recurrence?.type === 'every_x_days' ? (item.resource!.recurrence as any).intervalDays ?? 2 : 2);
+  const [specificDate, setSpecificDate] = useState<string>(item?.resource?.recurrence?.type === 'specific_date' ? (item.resource!.recurrence as any).specificDate ?? new Date().toISOString().split('T')[0] : new Date().toISOString().split('T')[0]);
 
   const [textAudioContentText, setTextAudioContentText] = useState(
     item?.resource?.type === 'text_audio' 
@@ -326,11 +327,13 @@ const ChecklistItemModal: React.FC<ChecklistItemModalProps> = ({ isOpen, onClose
         if (rec.type === 'weekly') setWeeklyDayOfWeek(rec.dayOfWeek ?? new Date().getDay());
         if (rec.type === 'monthly') setMonthlyDay(rec.dayOfMonth ?? 1);
         if (rec.type === 'every_x_days') setIntervalDays(rec.intervalDays ?? 2);
+        if (rec.type === 'specific_date') setSpecificDate(rec.specificDate ?? new Date().toISOString().split('T')[0]);
       } else {
         setRecurrenceType('daily');
         setWeeklyDayOfWeek(new Date().getDay());
         setMonthlyDay(1);
         setIntervalDays(2);
+        setSpecificDate(new Date().toISOString().split('T')[0]);
       }
     }
   }, [isOpen, item]);
@@ -377,17 +380,22 @@ const ChecklistItemModal: React.FC<ChecklistItemModalProps> = ({ isOpen, onClose
       setError("Para 'A cada X dias', informe um intervalo de pelo menos 2 dias.");
       return;
     }
+    if (recurrenceType === 'specific_date' && !specificDate) {
+      setError("Selecione a data específica para esta tarefa.");
+      return;
+    }
 
     let finalResource: DailyChecklistItemResource | undefined;
     let audioFileToUpload: File | undefined = undefined;
     let imageFileToUpload: File | undefined = undefined;
 
     const nowDate = new Date().toISOString().split('T')[0];
-    const recurrence: DailyChecklistItemResource['recurrence'] = 
+    const recurrence: DailyChecklistItemResource['recurrence'] =
       recurrenceType === 'daily' ? { type: 'daily' } :
       recurrenceType === 'weekly' ? { type: 'weekly', dayOfWeek: weeklyDayOfWeek } :
       recurrenceType === 'monthly' ? { type: 'monthly', dayOfMonth: monthlyDay } :
-      { type: 'every_x_days', intervalDays, startDate: item?.created_at?.split('T')[0] || nowDate };
+      recurrenceType === 'every_x_days' ? { type: 'every_x_days', intervalDays, startDate: item?.created_at?.split('T')[0] || nowDate } :
+      { type: 'specific_date', specificDate }; // NOVO
 
     if (resourceType === 'none') {
       finalResource = { type: 'none', content: '', name: resourceName.trim() || undefined, recurrence };
@@ -423,9 +431,9 @@ const ChecklistItemModal: React.FC<ChecklistItemModalProps> = ({ isOpen, onClose
         return;
       }
       audioFileToUpload = textAudioSelectedFile || undefined;
-      finalResource = { 
-        type: 'text_audio', 
-        content: { text: textAudioContentText.trim(), audioUrl: textAudioContentUrl.trim() }, 
+      finalResource = {
+        type: 'text_audio',
+        content: { text: textAudioContentText.trim(), audioUrl: textAudioContentUrl.trim() },
         name: resourceName.trim() || undefined,
         recurrence
       };
@@ -535,6 +543,7 @@ const ChecklistItemModal: React.FC<ChecklistItemModalProps> = ({ isOpen, onClose
                     <option value="weekly">Semanal</option>
                     <option value="monthly">Mensal</option>
                     <option value="every_x_days">A cada X dias</option>
+                    <option value="specific_date">Data específica</option>
                   </select>
 
                   {recurrenceType === 'weekly' && (
@@ -583,6 +592,18 @@ const ChecklistItemModal: React.FC<ChecklistItemModalProps> = ({ isOpen, onClose
                         placeholder="Ex: 3"
                       />
                       <p className="text-xs text-gray-500 dark:text-gray-400">Âncora: data de criação do item.</p>
+                    </div>
+                  )}
+
+                  {recurrenceType === 'specific_date' && (
+                    <div className="grid gap-2 mt-2">
+                      <Label className="text-left">Data específica</Label>
+                      <Input
+                        type="date"
+                        value={specificDate}
+                        onChange={(e) => setSpecificDate(e.target.value)}
+                        className="w-full p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600"
+                      />
                     </div>
                   )}
                 </div>

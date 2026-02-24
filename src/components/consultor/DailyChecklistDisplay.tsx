@@ -195,6 +195,10 @@ export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ us
       return diffDays % interval === 0;
     }
 
+    if (rec.type === 'specific_date') {
+      return dateStr === rec.specificDate;
+    }
+
     return true;
   }, []);
 

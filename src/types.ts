@@ -365,11 +365,12 @@ export interface GestorTaskCompletion {
 export type DailyChecklistItemResourceType = 'link' | 'text' | 'image' | 'pdf' | 'video' | 'audio' | 'text_audio' | 'text_audio_image' | 'none';
 
 export interface DailyChecklistItemRecurrence {
-  type: 'daily' | 'weekly' | 'monthly' | 'every_x_days';
+  type: 'daily' | 'weekly' | 'monthly' | 'every_x_days' | 'specific_date';
   dayOfWeek?: number;   // 0-6 (Domingo=0)
   dayOfMonth?: number;  // 1-31
   intervalDays?: number; // para every_x_days
   startDate?: string;   // âncora para every_x_days (YYYY-MM-DD)
+  specificDate?: string; // NOVO: data única (YYYY-MM-DD)
 }
 
 export interface DailyChecklistItemResource {
