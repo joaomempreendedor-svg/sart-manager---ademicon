@@ -42,7 +42,9 @@ const CrmOverviewPage = () => {
   const [selectedLeadForSold, setSelectedLeadForSold] = useState<CrmLead | null>(null);
   const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false);
   const [selectedLeadForMeeting, setSelectedLeadForMeeting] = useState<CrmLead | null>(null);
+  const [highlightLeadId, setHighlightLeadId] = useState<string | null>(null);
 
+  // Filtros de Data Padrão: Mês Atual
   const [filterStartDate, setFilterStartDate] = useState(() => {
     const d = new Date();
     return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
@@ -63,9 +65,22 @@ const CrmOverviewPage = () => {
 
   useEffect(() => {
     if (location.state?.highlightLeadId) {
+      setHighlightLeadId(location.state.highlightLeadId);
       navigate(location.pathname, { replace: true, state: {} });
     }
   }, [location.state, navigate, location.pathname]);
+
+  useEffect(() => {
+    if (highlightLeadId) {
+      const el = document.getElementById(`lead-card-${highlightLeadId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      const timer = setTimeout(() => setHighlightLeadId(null), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [highlightLeadId]);
+
 
   const activePipeline = useMemo(() => {
     return crmPipelines.find(p => p.is_active) || crmPipelines[0];
