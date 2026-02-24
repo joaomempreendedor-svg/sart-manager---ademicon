@@ -486,12 +486,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // CRUD candidatos
   const addCandidate = useCallback(async (candidate: Omit<Candidate, 'id' | 'createdAt' | 'db_id'>) => {
-    const { data, error } = await supabase.from('candidates').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: candidate }).select().single();
+    if (!user) throw new Error("Usuário não autenticado. Não é possível adicionar candidato.");
+    
+    const candidateDataWithCreator = { ...candidate, createdBy: user.id };
+
+    const { data, error } = await supabase.from('candidates').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: candidateDataWithCreator }).select().single();
     if (error) throw error;
-    const newCandidate = { ...candidate, id: data.id, db_id: data.id, createdAt: data.created_at } as Candidate;
+    
+    const newCandidate = { ...candidateDataWithCreator, id: (data.data as any).id || crypto.randomUUID(), db_id: data.id, createdAt: data.created_at } as Candidate;
+    
     setCandidates(prev => [newCandidate, ...prev]);
     return newCandidate;
-  }, []);
+  }, [user]);
 
   const updateCandidate = useCallback(async (id: string, updates: Partial<Candidate>) => {
     const candidate = candidates.find(c => c.id === id || c.db_id === id);
@@ -626,7 +632,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (updatedColdCallLead) setColdCallLeads(prev => prev.map(lead => lead.id === coldCallLeadId ? updatedColdCallLead : lead));
     const { data: newCrmLeads } = await supabase.from('crm_leads').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID).order('created_at', { ascending: false });
     setCrmLeads(newCrmLeads?.map((lead: any) => ({
-      id: lead.id, consultant_id: lead.consultant_id, stage_id: lead.stage_id, user_id: lead.user_id, name: lead.name, data: lead.data, created_at: lead.created_at, updated_at: lead.updated_at, created_by: lead.created_by, updated_by: lead.updated_by,
+      id: lead.id, consultant_id: lead.consultant_id, stage_id: lead.id, user_id: lead.user_id, name: lead.name, data: lead.data,
+      created_at: lead.created_at, updated_at: lead.updated_at, created_by: lead.created_by, updated_by: lead.updated_by,
       proposal_value: parseDbCurrency(lead.proposal_value), proposal_closing_date: lead.proposal_closing_date,
       sold_credit_value: parseDbCurrency(lead.sold_credit_value), sold_group: lead.sold_group, sold_quota: lead.sold_quota, sale_date: lead.sale_date
     })) || []);
@@ -1184,8 +1191,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const value: AppContextType = useMemo(() => ({
     isDataLoading,
-    candidates, teamMembers, commissions, supportMaterials, cutoffPeriods,
-    onboardingSessions, onboardingTemplateVideos,
+    candidates, teamMembers, commissions, supportMaterials, cutoffPeriods, onboardingSessions, onboardingTemplateVideos,
     checklistStructure, setChecklistStructure,
     consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs,
     crmPipelines, crmStages, crmFields, crmLeads, crmOwnerUserId,

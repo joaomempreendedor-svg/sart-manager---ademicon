@@ -204,6 +204,15 @@ const HiringPipeline = () => {
     return 'Desconhecido';
   };
 
+  const getCreatorName = (creatorId: string | undefined) => {
+    if (!creatorId) return 'Desconhecido';
+    const member = teamMembers.find(m => m.authUserId === creatorId);
+    if (member) return member.name;
+    if (creatorId === JOAO_GESTOR_AUTH_ID) return 'João Müller';
+    if (user && creatorId === user.id) return user.name;
+    return 'Desconhecido';
+  };
+
   const getColumnColorClasses = (color: string) => {
     switch(color) {
       case 'blue': return 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800 text-blue-700 dark:text-blue-300';
@@ -375,6 +384,12 @@ const HiringPipeline = () => {
                           </span>
                         )}
                       </div>
+
+                      {candidate.createdBy && (
+                        <div className="text-[10px] text-gray-400 uppercase flex items-center">
+                          <UserPlus className="w-3 h-3 mr-1" /> Adicionado por: {getCreatorName(candidate.createdBy)}
+                        </div>
+                      )}
 
                       <div className="flex flex-wrap gap-1">
                         {candidate.phone && <span className="text-[10px] bg-gray-100 dark:bg-slate-600 px-1.5 py-0.5 rounded text-gray-600 dark:text-gray-300 flex items-center"><Phone className="w-2.5 h-2.5 mr-1" /> {highlightText(candidate.phone, searchTerm)}</span>}

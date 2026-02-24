@@ -65,6 +65,7 @@ export interface Candidate {
   createdAt: string;
   lastUpdatedAt?: string;
   responsibleUserId?: string;
+  createdBy?: string;
   notes?: string; // NOVO: Campo para observações rápidas
   
   // NOVOS CAMPOS PARA RASTREAR HISTÓRICO DE STATUS
@@ -492,6 +493,17 @@ export interface Notification {
   date: string;
   link?: string;
   isRead: boolean;
+}
+
+export interface TeamProductionGoal {
+  id: string;
+  user_id: string;
+  target_team_size: number;
+  target_production_value: number;
+  start_date: string;
+  end_date: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export type ColdCallStage = 'Base Fria' | 'Tentativa de Contato' | 'Conversou' | 'Reunião Agendada';
