@@ -27,8 +27,9 @@ serve(async (req) => {
     const payloadJson = atob(payloadBase64);
     const payload = JSON.parse(payloadJson);
     userId = payload.sub || payload.user_id || null;
-  } catch {
-    return new Response(JSON.stringify({ error: "Unauthorized: invalid token" }), {
+    if (!userId) throw new Error("User ID not found in token");
+  } catch (e) {
+    return new Response(JSON.stringify({ error: `Unauthorized: invalid token (${e.message})` }), {
       status: 401,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
@@ -88,7 +89,6 @@ serve(async (req) => {
     });
   }
 
-  // Validação básica de campos
   if (action === "insert") {
     if (!daily_checklist_id || typeof text !== "string" || typeof order_index !== "number") {
       return new Response(JSON.stringify({ error: "Missing required fields for insert." }), {
@@ -97,7 +97,7 @@ serve(async (req) => {
       });
     }
 
-    // Verifica existência do checklist
+    // Verifica existência e propriedade do checklist
     const { data: checklist, error: checklistError } = await supabase
       .from("daily_checklists")
       .select("id, user_id, is_active")
@@ -113,6 +113,13 @@ serve(async (req) => {
     if (!checklist) {
       return new Response(JSON.stringify({ error: "Checklist not found." }), {
         status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    // **SECURITY FIX**: Check if the user owns the checklist
+    if (checklist.user_id !== userId) {
+      return new Response(JSON.stringify({ error: "Forbidden: you do not own this checklist." }), {
+        status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -146,6 +153,45 @@ serve(async (req) => {
   if (!id) {
     return new Response(JSON.stringify({ error: "Missing id for update." }), {
       status: 400,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  // **SECURITY FIX**: Verify ownership before update
+  const { data: existingItem, error: itemError } = await supabase
+    .from("daily_checklist_items")
+    .select("daily_checklist_id")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (itemError) {
+    return new Response(JSON.stringify({ error: `Item lookup error: ${itemError.message}` }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  if (!existingItem) {
+    return new Response(JSON.stringify({ error: "Item not found." }), {
+      status: 404,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const { data: checklist, error: checklistError } = await supabase
+    .from("daily_checklists")
+    .select("user_id")
+    .eq("id", existingItem.daily_checklist_id)
+    .maybeSingle();
+
+  if (checklistError) {
+    return new Response(JSON.stringify({ error: `Checklist lookup error: ${checklistError.message}` }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  if (!checklist || checklist.user_id !== userId) {
+    return new Response(JSON.stringify({ error: "Forbidden: you do not own the parent checklist." }), {
+      status: 403,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
