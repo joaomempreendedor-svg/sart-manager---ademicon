@@ -24,8 +24,14 @@ const CrmSalesReports = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
   const { crmLeads, leadTasks, crmStages, teamMembers, crmPipelines, isDataLoading, salesOrigins } = useApp();
 
-  const [filterStartDate, setFilterStartDate] = useState('');
-  const [filterEndDate, setFilterEndDate] = useState('');
+  const [filterStartDate, setFilterStartDate] = useState(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
+  });
+  const [filterEndDate, setFilterEndDate] = useState(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
+  });
   const [filterSaleDateStart, setFilterSaleDateStart] = useState('');
   const [filterSaleDateEnd, setFilterSaleDateEnd] = useState('');
   const [filterProposalDateStart, setFilterProposalDateStart] = useState('');

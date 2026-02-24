@@ -43,8 +43,14 @@ const CrmOverviewPage = () => {
   const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false);
   const [selectedLeadForMeeting, setSelectedLeadForMeeting] = useState<CrmLead | null>(null);
 
-  const [filterStartDate, setFilterStartDate] = useState('');
-  const [filterEndDate, setFilterEndDate] = useState('');
+  const [filterStartDate, setFilterStartDate] = useState(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
+  });
+  const [filterEndDate, setFilterEndDate] = useState(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
+  });
 
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [selectedConsultantId, setSelectedConsultantId] = useState<string | null>(null);
