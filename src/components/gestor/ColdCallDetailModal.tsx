@@ -53,6 +53,11 @@ export const ColdCallDetailModal: React.FC<ColdCallDetailModalProps> = ({
     if (type === 'calls') {
       return logs.filter(log => filterByDate(log.created_at)).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     }
+    if (type === 'answered') {
+      return logs.filter(log => 
+        (log.result !== 'Não atendeu' && log.result !== 'Número inválido') && filterByDate(log.created_at)
+      ).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    }
     if (type === 'conversations') {
       return logs.filter(log => (log.result === 'Demonstrou Interesse' || log.result === 'Agendar Reunião') && filterByDate(log.created_at))
                  .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
@@ -108,7 +113,7 @@ export const ColdCallDetailModal: React.FC<ColdCallDetailModalProps> = ({
             <p className="text-center text-gray-500 dark:text-gray-400 py-4">Nenhum item encontrado para esta métrica no período selecionado.</p>
           ) : (
             <div className="space-y-3">
-              {type === 'calls' || type === 'conversations' || type === 'meetings' || type === 'interest' ? (
+              {type === 'calls' || type === 'conversations' || type === 'meetings' || type === 'interest' || type === 'answered' ? (
                 (filteredItems as ColdCallLog[]).map(log => (
                   <div
                     key={log.id}

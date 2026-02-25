@@ -81,19 +81,26 @@ const ColdCallMetricsPage = () => {
 
   const coldCallMetrics = useMemo(() => {
     const totalCalls = filteredColdCallLogs.length;
-    const totalConversations = filteredColdCallLogs.filter(log =>
+    
+    const answeredLogs = filteredColdCallLogs.filter(log => 
+      log.result !== 'Não atendeu' && log.result !== 'Número inválido'
+    );
+    const totalAnswered = answeredLogs.length;
+
+    const totalConversations = answeredLogs.filter(log =>
       log.result === 'Demonstrou Interesse' || log.result === 'Agendar Reunião'
     ).length;
-    const totalMeetingsScheduled = filteredColdCallLogs.filter(log => log.result === 'Agendar Reunião').length;
+    const totalMeetingsScheduled = answeredLogs.filter(log => log.result === 'Agendar Reunião').length;
 
-    const interestConversionRate = totalCalls > 0 ? (totalConversations / totalCalls) * 100 : 0;
-    const meetingConversionRate = totalCalls > 0 ? (totalMeetingsScheduled / totalCalls) * 100 : 0;
+    const interestConversionRate = totalAnswered > 0 ? (totalConversations / totalAnswered) * 100 : 0;
+    const meetingConversionRate = totalAnswered > 0 ? (totalMeetingsScheduled / totalAnswered) * 100 : 0;
 
     const totalDuration = filteredColdCallLogs.reduce((sum, log) => sum + log.duration_seconds, 0);
     const averageDuration = totalCalls > 0 ? totalDuration / totalCalls : 0;
 
     return {
       totalCalls,
+      totalAnswered,
       totalConversations,
       totalMeetingsScheduled,
       interestConversionRate,
@@ -201,6 +208,14 @@ const ColdCallMetricsPage = () => {
           onClick={() => handleOpenColdCallDetailModal('Total de Ligações', 'calls')}
         />
         <MetricCard
+          title="Ligações Atendidas"
+          value={coldCallMetrics.totalAnswered}
+          icon={MessageSquare}
+          colorClass="bg-sky-600 text-white"
+          subValue="Chamadas que foram atendidas"
+          onClick={() => handleOpenColdCallDetailModal('Ligações Atendidas', 'answered')}
+        />
+        <MetricCard
           title="Demonstraram Interesse"
           value={coldCallMetrics.totalConversations}
           icon={Star}
@@ -213,7 +228,7 @@ const ColdCallMetricsPage = () => {
           value={`${coldCallMetrics.interestConversionRate.toFixed(1)}%`}
           icon={Percent}
           colorClass="bg-yellow-600 text-white"
-          subValue="Ligações → Interesse"
+          subValue="Atendidas → Interesse"
         />
         <MetricCard
           title="Reuniões Agendadas"
@@ -228,14 +243,7 @@ const ColdCallMetricsPage = () => {
           value={`${coldCallMetrics.meetingConversionRate.toFixed(1)}%`}
           icon={TrendingUp}
           colorClass="bg-teal-600 text-white"
-          subValue="Ligações → Reunião"
-        />
-        <MetricCard
-          title="Duração Média"
-          value={formatDuration(coldCallMetrics.averageDuration)}
-          icon={Clock}
-          colorClass="bg-gray-500 text-white"
-          subValue="Tempo médio por ligação"
+          subValue="Atendidas → Reunião"
         />
       </div>
 

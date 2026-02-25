@@ -706,4 +706,4 @@ export interface ColdCallMetrics { // NOVO: Interface para as métricas de Cold 
   conversationToMeetingRate: number;
 }
 
-export type ColdCallDetailType = 'all' | 'calls' | 'conversations' | 'meetings' | 'interest'; // NOVO: Tipo para o modal de detalhes
+export type ColdCallDetailType = 'all' | 'calls' | 'conversations' | 'meetings' | 'interest' | 'answered';

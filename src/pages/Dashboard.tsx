@@ -47,7 +47,7 @@ export const Dashboard = () => {
   const [candidatesForModal, setCandidatesForModal] = useState<Candidate[]>([]);
   const [candidatesMetricType, setCandidatesMetricType] = useState<'total' | 'newCandidates' | 'contacted' | 'scheduled' | 'conducted' | 'awaitingPreview' | 'hired' | 'noShow' | 'withdrawn' | 'disqualified' | 'noResponse'>('total');
 
-  const [isColdCallDetailModalOpen, setIsColdCallDetailModal] = useState(false);
+  const [isColdCallDetailModalOpen, setIsColdCallDetailModalOpen] = useState(false);
   const [coldCallModalTitle, setColdCallModalTitle] = useState('');
   const [coldCallLeadsForModal, setColdCallLeadsForModal] = useState<ColdCallLead[]>([]);
   const [coldCallLogsForModal, setColdCallLogsForModal] = useState<ColdCallLog[]>([]);
@@ -227,7 +227,7 @@ export const Dashboard = () => {
   }, [candidates, hiringOrigins]);
 
   const coldCallMetrics = useMemo(() => {
-    if (!user) return { totalCalls: 0, totalConversations: 0, totalMeetingsScheduled: 0, interestConversionRate: 0, meetingConversionRate: 0, filteredLeads: [], filteredLogs: [] };
+    if (!user) return { totalCalls: 0, totalAnswered: 0, totalConversations: 0, totalMeetingsScheduled: 0, interestConversionRate: 0, meetingConversionRate: 0, filteredLeads: [], filteredLogs: [] };
 
     const logsToConsider = effectiveColdCallConsultantId
       ? (coldCallLogs || []).filter(log => log.user_id === effectiveColdCallConsultantId)
@@ -244,19 +244,26 @@ export const Dashboard = () => {
     }
 
     const totalCalls = filteredLogs.length;
-    const totalConversations = filteredLogs.filter(log =>
+    
+    const answeredLogs = filteredLogs.filter(log => 
+      log.result !== 'Não atendeu' && log.result !== 'Número inválido'
+    );
+    const totalAnswered = answeredLogs.length;
+
+    const totalConversations = answeredLogs.filter(log =>
       log.result === 'Demonstrou Interesse' || log.result === 'Agendar Reunião'
     ).length;
-    const totalMeetingsScheduled = filteredLogs.filter(log => log.result === 'Agendar Reunião').length;
+    const totalMeetingsScheduled = answeredLogs.filter(log => log.result === 'Agendar Reunião').length;
 
-    const interestConversionRate = totalCalls > 0 ? (totalConversations / totalCalls) * 100 : 0;
-    const meetingConversionRate = totalCalls > 0 ? (totalMeetingsScheduled / totalCalls) * 100 : 0;
+    const interestConversionRate = totalAnswered > 0 ? (totalConversations / totalAnswered) * 100 : 0;
+    const meetingConversionRate = totalAnswered > 0 ? (totalMeetingsScheduled / totalAnswered) * 100 : 0;
 
     const filteredLeadIds = new Set(filteredLogs.map(log => log.cold_call_lead_id));
     const filteredLeads = (coldCallLeads || []).filter(lead => filteredLeadIds.has(lead.id));
 
     return {
       totalCalls,
+      totalAnswered,
       totalConversations,
       totalMeetingsScheduled,
       interestConversionRate,
@@ -333,7 +340,7 @@ export const Dashboard = () => {
     setColdCallLeadsForModal(leadsToPass);
     setColdCallLogsForModal(logsToPass);
     setColdCallDetailType(type);
-    setIsColdCallDetailModal(true);
+    setIsColdCallDetailModalOpen(true);
   };
 
   if (isDataLoading) return <div className="flex items-center justify-center h-screen"><Loader2 className="w-12 h-12 text-brand-500 animate-spin" /></div>;
@@ -421,19 +428,20 @@ export const Dashboard = () => {
             onClick={() => handleOpenColdCallDetailModal('Total de Ligações', 'calls')}
           />
           <MetricCard
+            title="Ligações Atendidas"
+            value={coldCallMetrics.totalAnswered}
+            icon={MessageSquare}
+            colorClass="bg-sky-600 text-white"
+            subValue="Chamadas que foram atendidas"
+            onClick={() => handleOpenColdCallDetailModal('Ligações Atendidas', 'answered')}
+          />
+          <MetricCard
             title="Demonstraram Interesse"
             value={coldCallMetrics.totalConversations}
             icon={Star}
             colorClass="bg-amber-600 text-white"
             subValue="Conversou ou Agendou Reunião"
             onClick={() => handleOpenColdCallDetailModal('Demonstraram Interesse', 'conversations')}
-          />
-          <MetricCard
-            title="Taxa de Interesse"
-            value={`${coldCallMetrics.interestConversionRate.toFixed(1)}%`}
-            icon={Percent}
-            colorClass="bg-yellow-600 text-white"
-            subValue="Ligações → Interesse"
           />
           <MetricCard
             title="Reuniões Agendadas"
@@ -448,7 +456,7 @@ export const Dashboard = () => {
             value={`${coldCallMetrics.meetingConversionRate.toFixed(1)}%`}
             icon={TrendingUp}
             colorClass="bg-teal-600 text-white"
-            subValue="Ligações → Reunião"
+            subValue="Atendidas → Reunião"
           />
         </div>
       </section>
