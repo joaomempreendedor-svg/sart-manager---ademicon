@@ -418,7 +418,7 @@ export const Dashboard = () => {
             </Select>
           </div>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           <MetricCard
             title="Total de Ligações"
             value={coldCallMetrics.totalCalls}
@@ -442,6 +442,13 @@ export const Dashboard = () => {
             colorClass="bg-amber-600 text-white"
             subValue="Conversou ou Agendou Reunião"
             onClick={() => handleOpenColdCallDetailModal('Demonstraram Interesse', 'conversations')}
+          />
+          <MetricCard
+            title="Taxa de Interesse"
+            value={`${coldCallMetrics.interestConversionRate.toFixed(1)}%`}
+            icon={Percent}
+            colorClass="bg-yellow-600 text-white"
+            subValue="Atendidas → Interesse"
           />
           <MetricCard
             title="Reuniões Agendadas"
