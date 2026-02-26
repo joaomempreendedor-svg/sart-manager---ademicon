@@ -51,6 +51,8 @@ const CrmSalesReports = () => {
       .sort((a, b) => a.order_index - b.order_index);
   }, [crmStages, activePipeline]);
 
+  const activeStageIds = useMemo(() => new Set(pipelineStages.map(s => s.id)), [pipelineStages]);
+
   const allTeamMembers = useMemo(() => {
     const members = [...teamMembers.filter(m => m.isActive)];
     if (!members.some(m => m.authUserId === JOAO_GESTOR_AUTH_ID)) {
@@ -65,9 +67,9 @@ const CrmSalesReports = () => {
     return members;
   }, [teamMembers]);
 
-  // CORREÇÃO: O filtro principal agora considera a data de venda para leads ganhos e criação para os demais.
   const filteredLeads = useMemo(() => {
-    let currentLeads = crmLeads;
+    // CORREÇÃO: Filtra apenas leads que pertencem ao pipeline ativo
+    let currentLeads = crmLeads.filter(lead => activeStageIds.has(lead.stage_id));
 
     if (selectedConsultantId) {
       currentLeads = currentLeads.filter(lead => lead.consultant_id === selectedConsultantId || (!lead.consultant_id && lead.created_by === selectedConsultantId));
@@ -78,7 +80,6 @@ const CrmSalesReports = () => {
       const end = filterEndDate ? new Date(filterEndDate + 'T23:59:59') : null;
 
       currentLeads = currentLeads.filter(lead => {
-        // Se o lead está ganho, a data de referência para o relatório é a data da venda.
         const isWon = crmStages.find(s => s.id === lead.stage_id)?.is_won;
         const referenceDate = (isWon && lead.sale_date) ? new Date(lead.sale_date + 'T00:00:00') : new Date(lead.created_at);
         
@@ -88,7 +89,6 @@ const CrmSalesReports = () => {
       });
     }
 
-    // Filtros manuais específicos (se preenchidos, sobrepõem a lógica acima)
     if (filterSaleDateStart) {
       const start = new Date(filterSaleDateStart + 'T00:00:00');
       currentLeads = currentLeads.filter(lead => lead.sale_date && new Date(lead.sale_date + 'T00:00:00') >= start);
@@ -116,7 +116,7 @@ const CrmSalesReports = () => {
     }
 
     return currentLeads;
-  }, [crmLeads, selectedConsultantId, filterStartDate, filterEndDate, filterSaleDateStart, filterSaleDateEnd, filterProposalDateStart, filterProposalDateEnd, filterStageId, filterOrigin, crmStages]);
+  }, [crmLeads, selectedConsultantId, filterStartDate, filterEndDate, filterSaleDateStart, filterSaleDateEnd, filterProposalDateStart, filterProposalDateEnd, filterStageId, filterOrigin, crmStages, activeStageIds]);
 
   const reportData = useMemo(() => {
     const dataByConsultant: {

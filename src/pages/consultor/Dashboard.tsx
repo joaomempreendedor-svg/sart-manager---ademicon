@@ -30,6 +30,15 @@ const ConsultorDashboard = () => {
 
   const [isPendingTasksModalOpen, setIsPendingTasksModalOpen] = useState(false); // NOVO: Estado para o modal
 
+  const activePipeline = useMemo(() => {
+    return crmPipelines.find(p => p.is_active) || crmPipelines[0];
+  }, [crmPipelines]);
+
+  const activeStageIds = useMemo(() => {
+    if (!activePipeline) return new Set<string>();
+    return new Set(crmStages.filter(s => s.pipeline_id === activePipeline.id && s.is_active).map(s => s.id));
+  }, [crmStages, activePipeline]);
+
   // --- CRM Statistics ---
   const { 
     totalLeads, 
@@ -45,7 +54,8 @@ const ConsultorDashboard = () => {
 
     if (!user) return { totalLeads: 0, newLeadsThisMonth: 0, meetingsThisMonth: 0, proposalValueThisMonth: 0, soldValueThisMonth: 0, pendingLeadTasks: [], pendingLeadTasksCount: 0 };
 
-    const consultantLeads = crmLeads.filter(lead => lead.consultant_id === user.id);
+    // CORREÇÃO: Filtra apenas leads que pertencem ao pipeline ativo
+    const consultantLeads = crmLeads.filter(lead => lead.consultant_id === user.id && activeStageIds.has(lead.stage_id));
     const totalLeads = consultantLeads.length;
 
     const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -108,7 +118,7 @@ const ConsultorDashboard = () => {
       pendingLeadTasks: pendingLeadTasksList, // Retorna a lista
       pendingLeadTasksCount: pendingLeadTasksList.length // Retorna a contagem
     };
-  }, [user, crmLeads, crmPipelines, crmStages, leadTasks]);
+  }, [user, crmLeads, crmPipelines, crmStages, leadTasks, activeStageIds]);
 
   // --- Daily Checklist Progress ---
   const { completedDailyTasks, totalDailyTasks, dailyProgress } = useMemo(() => {

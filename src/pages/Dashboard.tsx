@@ -41,7 +41,7 @@ interface AgendaItem {
 
 export const Dashboard = () => {
   const { user } = useAuth();
-  const { candidates, checklistStructure, teamMembers, isDataLoading, leadTasks, crmLeads, crmStages, gestorTasks, gestorTaskCompletions, isGestorTaskDueOnDate, notifications, hiringOrigins, getColdCallMetrics, coldCallLeads, coldCallLogs } = useApp();
+  const { candidates, checklistStructure, teamMembers, isDataLoading, leadTasks, crmLeads, crmStages, crmPipelines, gestorTasks, gestorTaskCompletions, isGestorTaskDueOnDate, notifications, hiringOrigins, getColdCallMetrics, coldCallLeads, coldCallLogs } = useApp();
   const navigate = useNavigate();
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [isPendingTasksModalOpen, setIsPendingTasksModalOpen] = useState(false);
@@ -71,6 +71,15 @@ export const Dashboard = () => {
   const handleOpenNotifications = () => setIsNotificationCenterOpen(true);
   const handleCloseNotifications = () => setIsNotificationCenterOpen(false);
 
+  const activePipeline = useMemo(() => {
+    return crmPipelines.find(p => p.is_active) || crmPipelines[0];
+  }, [crmPipelines]);
+
+  const activeStageIds = useMemo(() => {
+    if (!activePipeline) return new Set<string>();
+    return new Set(crmStages.filter(s => s.pipeline_id === activePipeline.id && s.is_active).map(s => s.id));
+  }, [crmStages, activePipeline]);
+
   const coldCallConsultants = useMemo(() => {
     return teamMembers.filter(m => m.isActive && (m.roles.includes('CONSULTOR') || m.roles.includes('PRÉVIA') || m.roles.includes('AUTORIZADO')));
   }, [teamMembers]);
@@ -96,20 +105,21 @@ export const Dashboard = () => {
     const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
     const currentMonthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
 
-    const leadsForGestor = crmLeads.filter(lead => lead.user_id === user.id);
+    // CORREÇÃO: Filtra apenas leads que pertencem ao pipeline ativo
+    const leadsForGestor = crmLeads.filter(lead => lead.user_id === user.id && activeStageIds.has(lead.stage_id));
 
     const totalLeads = leadsForGestor.length;
     const newLeads = leadsForGestor.filter(lead => new Date(lead.created_at) >= currentMonthStart).length;
 
     const meetingsTasks = leadTasks.filter(task => {
-      const lead = crmLeads.find(l => l.id === task.lead_id && l.user_id === user.id);
+      const lead = leadsForGestor.find(l => l.id === task.lead_id);
       if (!lead || task.type !== 'meeting') return false;
       const taskDate = new Date(task.due_date || task.meeting_start_time || '');
       return taskDate >= currentMonthStart && taskDate <= currentMonthEnd;
     });
     const meetingsCount = meetingsTasks.length;
 
-    const leadsWithMeetings = crmLeads.filter(lead => 
+    const leadsWithMeetings = leadsForGestor.filter(lead => 
       meetingsTasks.some(task => task.lead_id === lead.id)
     );
 
@@ -132,12 +142,12 @@ export const Dashboard = () => {
     const soldValue = leadsSold.reduce((sum, lead) => sum + (lead.sold_credit_value || 0), 0);
 
     const pendingTasks = leadTasks.filter(task => {
-      const lead = crmLeads.find(l => l.id === task.lead_id && l.user_id === user.id);
+      const lead = leadsForGestor.find(l => l.id === task.lead_id);
       return lead && !task.is_completed && task.due_date && new Date(task.due_date + 'T00:00:00') <= new Date(today.toISOString().split('T')[0] + 'T00:00:00');
     });
 
     return { totalLeads, newLeads, meetingsCount, proposalValue, soldValue, pendingTasks, leadsWithProposal, leadsSold, leadsWithMeetings };
-  }, [crmLeads, leadTasks, user]);
+  }, [crmLeads, leadTasks, user, activeStageIds]);
 
   const hiringMetrics = useMemo(() => {
     const today = new Date();
