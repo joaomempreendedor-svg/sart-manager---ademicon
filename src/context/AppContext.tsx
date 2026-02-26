@@ -632,7 +632,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (updatedColdCallLead) setColdCallLeads(prev => prev.map(lead => lead.id === coldCallLeadId ? updatedColdCallLead : lead));
     const { data: newCrmLeads } = await supabase.from('crm_leads').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID).order('created_at', { ascending: false });
     setCrmLeads(newCrmLeads?.map((lead: any) => ({
-      id: lead.id, consultant_id: lead.consultant_id, stage_id: lead.id, user_id: lead.user_id, name: lead.name, data: lead.data,
+      id: lead.id, consultant_id: lead.consultant_id, stage_id: lead.stage_id, user_id: lead.user_id, name: lead.name, data: lead.data,
       created_at: lead.created_at, updated_at: lead.updated_at, created_by: lead.created_by, updated_by: lead.updated_by,
       proposal_value: parseDbCurrency(lead.proposal_value), proposal_closing_date: lead.proposal_closing_date,
       sold_credit_value: parseDbCurrency(lead.sold_credit_value), sold_group: lead.sold_group, sold_quota: lead.sold_quota, sale_date: lead.sale_date
