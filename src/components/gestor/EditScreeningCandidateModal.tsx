@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { X, Save, Loader2, User, Phone, Mail, Users, MapPin } from 'lucide-react';
+import { X, Save, Loader2, User, Phone, Mail, Users, MapPin, MessageSquare } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
