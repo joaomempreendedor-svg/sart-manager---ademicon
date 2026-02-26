@@ -122,7 +122,8 @@ const CrmOverviewPage = () => {
       const end = filterEndDate ? new Date(filterEndDate + 'T23:59:59') : null;
 
       currentLeads = currentLeads.filter(lead => {
-        const referenceDate = new Date(lead.created_at);
+        // CORREÇÃO: Se o lead tem data de venda, usa ela como referência. Caso contrário, usa a data de criação.
+        const referenceDate = lead.sale_date ? new Date(lead.sale_date + 'T00:00:00') : new Date(lead.created_at);
         const matchesStart = !start || referenceDate >= start;
         const matchesEnd = !end || referenceDate <= end;
         return matchesStart && matchesEnd;

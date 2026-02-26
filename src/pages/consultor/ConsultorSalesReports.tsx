@@ -12,31 +12,38 @@ const ConsultorSalesReports = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
   const { crmLeads, crmStages, isDataLoading } = useApp();
 
-  const [filterSaleDateStart, setFilterSaleDateStart] = useState('');
-  const [filterSaleDateEnd, setFilterSaleDateEnd] = useState('');
+  // CORREÇÃO: Filtro padrão para o mês atual
+  const [filterSaleDateStart, setFilterSaleDateStart] = useState(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
+  });
+  const [filterSaleDateEnd, setFilterSaleDateEnd] = useState(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
+  });
 
   const consultantSales = useMemo(() => {
     if (!user) return [];
 
     let sales = crmLeads.filter(lead => {
       const isWonStage = crmStages.some(stage => stage.id === lead.stage_id && stage.is_won);
-      return lead.consultant_id === user.id && isWonStage && lead.sale_date && (lead.sold_credit_value !== undefined && lead.sold_credit_value !== null); // Usando snake_case
+      return lead.consultant_id === user.id && isWonStage && lead.sale_date && (lead.sold_credit_value !== undefined && lead.sold_credit_value !== null);
     });
 
     if (filterSaleDateStart) {
       const start = new Date(filterSaleDateStart + 'T00:00:00');
-      sales = sales.filter(lead => lead.sale_date && new Date(lead.sale_date + 'T00:00:00') >= start); // Usando snake_case
+      sales = sales.filter(lead => lead.sale_date && new Date(lead.sale_date + 'T00:00:00') >= start);
     }
     if (filterSaleDateEnd) {
       const end = new Date(filterSaleDateEnd + 'T23:59:59');
-      sales = sales.filter(lead => lead.sale_date && new Date(lead.sale_date + 'T00:00:00') <= end); // Usando snake_case
+      sales = sales.filter(lead => lead.sale_date && new Date(lead.sale_date + 'T00:00:00') <= end);
     }
 
-    return sales.sort((a, b) => new Date(b.sale_date!).getTime() - new Date(a.sale_date!).getTime()); // Usando snake_case
+    return sales.sort((a, b) => new Date(b.sale_date!).getTime() - new Date(a.sale_date!).getTime());
   }, [crmLeads, crmStages, user, filterSaleDateStart, filterSaleDateEnd]);
 
   const totalSoldValue = useMemo(() => {
-    return consultantSales.reduce((sum, lead) => sum + (lead.sold_credit_value || 0), 0); // Usando snake_case
+    return consultantSales.reduce((sum, lead) => sum + (lead.sold_credit_value || 0), 0);
   }, [consultantSales]);
 
   const clearFilters = () => {
@@ -54,10 +61,10 @@ const ConsultorSalesReports = () => {
 
     const dataToExport = consultantSales.map(lead => ({
       'Cliente': lead.name,
-      'Data da Venda': lead.sale_date ? new Date(lead.sale_date + 'T00:00:00').toLocaleDateString('pt-BR') : 'N/A', // Usando snake_case
-      'Grupo': lead.sold_group || 'N/A', // Usando snake_case
-      'Cota': lead.sold_quota || 'N/A', // Usando snake_case
-      'Valor Vendido': lead.sold_credit_value || 0, // Usando snake_case
+      'Data da Venda': lead.sale_date ? new Date(lead.sale_date + 'T00:00:00').toLocaleDateString('pt-BR') : 'N/A',
+      'Grupo': lead.sold_group || 'N/A',
+      'Cota': lead.sold_quota || 'N/A',
+      'Valor Vendido': lead.sold_credit_value || 0,
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(dataToExport);
@@ -155,10 +162,10 @@ const ConsultorSalesReports = () => {
                 consultantSales.map(lead => (
                   <tr key={lead.id} className="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition">
                     <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">{lead.name}</td>
-                    <td className="px-4 py-3">{lead.sale_date ? new Date(lead.sale_date + 'T00:00:00').toLocaleDateString('pt-BR') : 'N/A'}</td> {/* Usando snake_case */}
-                    <td className="px-4 py-3">{lead.sold_group || 'N/A'}</td> {/* Usando snake_case */}
-                    <td className="px-4 py-3">{lead.sold_quota || 'N/A'}</td> {/* Usando snake_case */}
-                    <td className="px-4 py-3 text-right font-medium text-gray-900 dark:text-white">{formatCurrency(lead.sold_credit_value || 0)}</td> {/* Usando snake_case */}
+                    <td className="px-4 py-3">{lead.sale_date ? new Date(lead.sale_date + 'T00:00:00').toLocaleDateString('pt-BR') : 'N/A'}</td>
+                    <td className="px-4 py-3">{lead.sold_group || 'N/A'}</td>
+                    <td className="px-4 py-3">{lead.sold_quota || 'N/A'}</td>
+                    <td className="px-4 py-3 text-right font-medium text-gray-900 dark:text-white">{formatCurrency(lead.sold_credit_value || 0)}</td>
                   </tr>
                 ))
               )}

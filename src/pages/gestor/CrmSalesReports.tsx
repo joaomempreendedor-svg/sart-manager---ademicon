@@ -51,11 +51,8 @@ const CrmSalesReports = () => {
       .sort((a, b) => a.order_index - b.order_index);
   }, [crmStages, activePipeline]);
 
-  // CORREÇÃO: Lista de membros normalizada para usar authUserId como chave de busca
   const allTeamMembers = useMemo(() => {
     const members = [...teamMembers.filter(m => m.isActive)];
-    
-    // Garante que o João Müller esteja na lista se o ID bater
     if (!members.some(m => m.authUserId === JOAO_GESTOR_AUTH_ID)) {
         members.push({
             id: 'gestor-joao',
@@ -68,6 +65,7 @@ const CrmSalesReports = () => {
     return members;
   }, [teamMembers]);
 
+  // CORREÇÃO: O filtro principal agora considera a data de venda para leads ganhos e criação para os demais.
   const filteredLeads = useMemo(() => {
     let currentLeads = crmLeads;
 
@@ -75,31 +73,38 @@ const CrmSalesReports = () => {
       currentLeads = currentLeads.filter(lead => lead.consultant_id === selectedConsultantId || (!lead.consultant_id && lead.created_by === selectedConsultantId));
     }
 
-    if (filterStartDate) {
-      const start = new Date(filterStartDate + 'T00:00:00');
-      currentLeads = currentLeads.filter(lead => new Date(lead.created_at) >= start);
-    }
-    if (filterEndDate) {
-      const end = new Date(filterEndDate + 'T23:59:59');
-      currentLeads = currentLeads.filter(lead => new Date(lead.created_at) <= end);
+    if (filterStartDate || filterEndDate) {
+      const start = filterStartDate ? new Date(filterStartDate + 'T00:00:00') : null;
+      const end = filterEndDate ? new Date(filterEndDate + 'T23:59:59') : null;
+
+      currentLeads = currentLeads.filter(lead => {
+        // Se o lead está ganho, a data de referência para o relatório é a data da venda.
+        const isWon = crmStages.find(s => s.id === lead.stage_id)?.is_won;
+        const referenceDate = (isWon && lead.sale_date) ? new Date(lead.sale_date + 'T00:00:00') : new Date(lead.created_at);
+        
+        const matchesStart = !start || referenceDate >= start;
+        const matchesEnd = !end || referenceDate <= end;
+        return matchesStart && matchesEnd;
+      });
     }
 
+    // Filtros manuais específicos (se preenchidos, sobrepõem a lógica acima)
     if (filterSaleDateStart) {
       const start = new Date(filterSaleDateStart + 'T00:00:00');
-      currentLeads = currentLeads.filter(lead => lead.sale_date && new Date(lead.sale_date + 'T00:00:00') >= start); // Usando snake_case
+      currentLeads = currentLeads.filter(lead => lead.sale_date && new Date(lead.sale_date + 'T00:00:00') >= start);
     }
     if (filterSaleDateEnd) {
       const end = new Date(filterSaleDateEnd + 'T23:59:59');
-      currentLeads = currentLeads.filter(lead => lead.sale_date && new Date(lead.sale_date + 'T00:00:00') <= end); // Usando snake_case
+      currentLeads = currentLeads.filter(lead => lead.sale_date && new Date(lead.sale_date + 'T00:00:00') <= end);
     }
 
     if (filterProposalDateStart) {
       const start = new Date(filterProposalDateStart + 'T00:00:00');
-      currentLeads = currentLeads.filter(lead => lead.proposal_closing_date && new Date(lead.proposal_closing_date + 'T00:00:00') >= start); // Usando snake_case
+      currentLeads = currentLeads.filter(lead => lead.proposal_closing_date && new Date(lead.proposal_closing_date + 'T00:00:00') >= start);
     }
     if (filterProposalDateEnd) {
       const end = new Date(filterProposalDateEnd + 'T23:59:59');
-      currentLeads = currentLeads.filter(lead => lead.proposal_closing_date && new Date(lead.proposal_closing_date + 'T00:00:00') <= end); // Usando snake_case
+      currentLeads = currentLeads.filter(lead => lead.proposal_closing_date && new Date(lead.proposal_closing_date + 'T00:00:00') <= end);
     }
 
     if (filterStageId) {
@@ -111,7 +116,7 @@ const CrmSalesReports = () => {
     }
 
     return currentLeads;
-  }, [crmLeads, selectedConsultantId, filterStartDate, filterEndDate, filterSaleDateStart, filterSaleDateEnd, filterProposalDateStart, filterProposalDateEnd, filterStageId, filterOrigin]);
+  }, [crmLeads, selectedConsultantId, filterStartDate, filterEndDate, filterSaleDateStart, filterSaleDateEnd, filterProposalDateStart, filterProposalDateEnd, filterStageId, filterOrigin, crmStages]);
 
   const reportData = useMemo(() => {
     const dataByConsultant: {
@@ -127,7 +132,6 @@ const CrmSalesReports = () => {
       };
     } = {};
 
-    // Inicializa o mapa usando o authUserId como chave
     allTeamMembers.forEach(m => {
       const key = m.authUserId || m.id;
       dataByConsultant[key] = {
@@ -160,8 +164,6 @@ const CrmSalesReports = () => {
 
     filteredLeads.forEach(lead => {
       totalLeads++;
-      
-      // RESOLUÇÃO DE ID DO CONSULTOR (Prioriza consultant_id, depois quem criou)
       const consultantId = lead.consultant_id || lead.created_by;
       
       if (consultantId && dataByConsultant[consultantId]) {
@@ -170,24 +172,24 @@ const CrmSalesReports = () => {
 
       if (lead.stage_id && pipelineStageSummary[lead.stage_id]) {
         pipelineStageSummary[lead.stage_id].count++;
-        const currentVal = lead.proposal_value || 0; // Usando snake_case
+        const currentVal = lead.proposal_value || 0;
         pipelineStageSummary[lead.stage_id].totalValue += currentVal;
       }
 
-      if (lead.proposal_value && lead.proposal_value > 0) { // Usando snake_case
-        totalProposalValue += lead.proposal_value; // Usando snake_case
+      if (lead.proposal_value && lead.proposal_value > 0) {
+        totalProposalValue += lead.proposal_value;
         totalProposalsCount++;
         if (consultantId && dataByConsultant[consultantId]) {
           dataByConsultant[consultantId].proposalsSent++;
-          dataByConsultant[consultantId].proposalValue += lead.proposal_value; // Usando snake_case
+          dataByConsultant[consultantId].proposalValue += lead.proposal_value;
         }
       }
 
       const wonStage = crmStages.find(s => s.id === lead.stage_id && s.is_won);
       if (wonStage) {
-        const actualSoldValue = (lead.sold_credit_value && lead.sold_credit_value > 0) // Usando snake_case
-          ? lead.sold_credit_value // Usando snake_case
-          : (lead.proposal_value || 0); // Usando snake_case
+        const actualSoldValue = (lead.sold_credit_value && lead.sold_credit_value > 0)
+          ? lead.sold_credit_value
+          : (lead.proposal_value || 0);
 
         if (actualSoldValue > 0) {
           totalSalesCount++;
@@ -205,7 +207,6 @@ const CrmSalesReports = () => {
       }
     });
 
-    // Contabiliza reuniões
     leadTasks.forEach(task => {
       if (task.type === 'meeting' && task.user_id && dataByConsultant[task.user_id]) {
         dataByConsultant[task.user_id].meetingsScheduled++;
@@ -256,7 +257,7 @@ const CrmSalesReports = () => {
       const stage = crmStages.find(s => s.id === lead.stage_id);
       const wonStage = crmStages.find(s => s.id === lead.stage_id && s.is_won);
       const actualSoldValue = wonStage
-        ? ((lead.sold_credit_value && lead.sold_credit_value > 0) ? lead.sold_credit_value : (lead.proposal_value || 0)) // Usando snake_case
+        ? ((lead.sold_credit_value && lead.sold_credit_value > 0) ? lead.sold_credit_value : (lead.proposal_value || 0))
         : 0;
 
       return {
@@ -264,9 +265,9 @@ const CrmSalesReports = () => {
         'Consultor': consultant?.name || 'N/A',
         'Etapa': stage?.name || 'N/A',
         'Origem': lead.data?.origin || 'N/A',
-        'Valor Proposta': lead.proposal_value || 0, // Usando snake_case
+        'Valor Proposta': lead.proposal_value || 0,
         'Valor Vendido': actualSoldValue,
-        'Data Venda': lead.sale_date ? new Date(lead.sale_date + 'T00:00:00').toLocaleDateString('pt-BR') : 'N/A', // Usando snake_case
+        'Data Venda': lead.sale_date ? new Date(lead.sale_date + 'T00:00:00').toLocaleDateString('pt-BR') : 'N/A',
         'Criado Em': new Date(lead.created_at).toLocaleDateString('pt-BR'),
       };
     });
