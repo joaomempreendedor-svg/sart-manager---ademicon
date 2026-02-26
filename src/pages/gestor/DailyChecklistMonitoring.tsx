@@ -34,42 +34,55 @@ export const DailyChecklistMonitoring = () => {
   const { user } = useAuth();
 
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [selectedConsultantId, setSelectedConsultantId] = useState<string | null>(null);
+  const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null); // ID da tabela team_members
 
   const [isResourceModalOpen, setIsResourceModalOpen] = useState(false);
   const [selectedResourceItem, setSelectedResourceItem] = useState<DailyChecklistItem | null>(null);
 
   const formattedSelectedDate = useMemo(() => formatDate(selectedDate), [selectedDate]);
 
+  // Membros que podem ter checklists (incluindo Secretaria)
   const assignableMembers = useMemo(() => {
     return teamMembers
       .filter(m => m.isActive && (m.roles.includes('PRÉVIA') || m.roles.includes('AUTORIZADO') || m.roles.includes('SECRETARIA') || m.roles.includes('GESTOR') || m.roles.includes('ANJO')))
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [teamMembers]);
 
+  // Membro selecionado atualmente
+  const selectedMember = useMemo(() => {
+    return teamMembers.find(m => m.id === selectedMemberId);
+  }, [teamMembers, selectedMemberId]);
+
+  // ID de autenticação do membro selecionado (usado para filtrar atribuições/conclusões)
+  const selectedAuthId = useMemo(() => selectedMember?.authUserId, [selectedMember]);
+
   React.useEffect(() => {
-    if (assignableMembers.length > 0 && !selectedConsultantId) {
-      setSelectedConsultantId(assignableMembers[0].id);
+    if (assignableMembers.length > 0 && !selectedMemberId) {
+      setSelectedMemberId(assignableMembers[0].id);
     }
-  }, [assignableMembers, selectedConsultantId]);
+  }, [assignableMembers, selectedMemberId]);
 
   const assignedChecklists = useMemo(() => {
-    if (!selectedConsultantId) return [];
+    if (!selectedMemberId || !selectedMember) return [];
 
-    const selectedMember = teamMembers.find(m => m.id === selectedConsultantId);
-    const isSecretaria = selectedMember?.roles.includes('SECRETARIA');
+    const isSecretaria = selectedMember.roles.includes('SECRETARIA');
+    const authId = selectedMember.authUserId;
 
-    const explicitAssignments = dailyChecklistAssignments
-      .filter(assignment => assignment.consultant_id === selectedConsultantId)
-      .map(assignment => assignment.daily_checklist_id);
+    // 1. Checklists explicitamente atribuídos ao authUserId
+    const explicitAssignments = authId 
+      ? dailyChecklistAssignments
+          .filter(assignment => assignment.consultant_id === authId)
+          .map(assignment => assignment.daily_checklist_id)
+      : [];
 
-    // REGRA: Se for Secretaria, mostra os Globais que começam com [SEC] + os atribuídos a ela
-    // Se for Consultor, mostra os Globais (sem prefixo) + os atribuídos a ele
+    // 2. Checklists GLOBAIS (sem atribuição)
     const globalChecklists = dailyChecklists.filter(checklist => {
       const hasAssignments = dailyChecklistAssignments.some(assignment => assignment.daily_checklist_id === checklist.id);
       if (hasAssignments) return false;
 
       const isSecChecklist = checklist.title.startsWith(SECRETARIA_PREFIX);
+      // Se o membro selecionado for Secretaria, vê globais [SEC]
+      // Se for Consultor, vê globais normais
       return isSecretaria ? isSecChecklist : !isSecChecklist;
     }).map(checklist => checklist.id);
 
@@ -78,7 +91,7 @@ export const DailyChecklistMonitoring = () => {
     return dailyChecklists
       .filter(checklist => checklist.is_active && relevantChecklistIds.has(checklist.id))
       .sort((a, b) => a.title.localeCompare(b.title));
-  }, [dailyChecklists, dailyChecklistAssignments, selectedConsultantId, teamMembers]);
+  }, [dailyChecklists, dailyChecklistAssignments, selectedMemberId, selectedMember]);
 
   const getItemsForChecklist = useCallback((checklistId: string) => {
     return dailyChecklistItems
@@ -87,19 +100,22 @@ export const DailyChecklistMonitoring = () => {
   }, [dailyChecklistItems]);
 
   const getCompletionStatus = useCallback((itemId: string) => {
-    if (!selectedConsultantId) return false;
+    if (!selectedAuthId) return false;
     return dailyChecklistCompletions.some(
       completion =>
         completion.daily_checklist_item_id === itemId &&
-        completion.consultant_id === selectedConsultantId &&
+        completion.consultant_id === selectedAuthId &&
         completion.date === formattedSelectedDate &&
         completion.done
     );
-  }, [dailyChecklistCompletions, selectedConsultantId, formattedSelectedDate]);
+  }, [dailyChecklistCompletions, selectedAuthId, formattedSelectedDate]);
 
   const handleToggleCompletion = async (itemId: string, currentStatus: boolean) => {
-    if (!selectedConsultantId) return;
-    await toggleDailyChecklistCompletion(itemId, formattedSelectedDate, !currentStatus, selectedConsultantId);
+    if (!selectedAuthId) {
+      toast.error("Este membro não possui um usuário de login vinculado.");
+      return;
+    }
+    await toggleDailyChecklistCompletion(itemId, formattedSelectedDate, !currentStatus, selectedAuthId);
   };
 
   const navigateDay = (offset: number) => {
@@ -111,29 +127,21 @@ export const DailyChecklistMonitoring = () => {
   };
 
   const { completedDailyTasks, totalDailyTasks, dailyProgress } = useMemo(() => {
-    if (!selectedConsultantId) return { completedDailyTasks: 0, totalDailyTasks: 0, dailyProgress: 0 };
+    if (!selectedMemberId) return { completedDailyTasks: 0, totalDailyTasks: 0, dailyProgress: 0 };
 
     const relevantItems: DailyChecklistItem[] = assignedChecklists.flatMap(checklist => 
       dailyChecklistItems.filter(item => item.daily_checklist_id === checklist.id && item.is_active)
     );
 
     const total = relevantItems.length;
-    const completed = relevantItems.filter(item => 
-      dailyChecklistCompletions.some(
-        completion =>
-          completion.daily_checklist_item_id === item.id &&
-          completion.consultant_id === selectedConsultantId &&
-          completion.date === formattedSelectedDate &&
-          completion.done
-      )
-    ).length;
+    const completed = relevantItems.filter(item => getCompletionStatus(item.id)).length;
 
     return {
       completedDailyTasks: completed,
       totalDailyTasks: total,
       dailyProgress: total > 0 ? Math.round((completed / total) * 100) : 0,
     };
-  }, [selectedConsultantId, assignedChecklists, dailyChecklistItems, dailyChecklistCompletions, formattedSelectedDate]);
+  }, [selectedMemberId, assignedChecklists, dailyChecklistItems, getCompletionStatus]);
 
   const handleOpenResourceModal = (item: DailyChecklistItem) => {
     setSelectedResourceItem(item);
@@ -202,7 +210,7 @@ export const DailyChecklistMonitoring = () => {
       <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm mb-6 flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="flex items-center space-x-2 w-full md:w-auto">
           <User className="w-5 h-5 text-brand-500" />
-          <Select value={selectedConsultantId || ''} onValueChange={setSelectedConsultantId}>
+          <Select value={selectedMemberId || ''} onValueChange={setSelectedMemberId}>
             <SelectTrigger className="w-[220px] dark:bg-slate-700 dark:text-white dark:border-slate-600">
               <SelectValue placeholder="Selecione o Membro" />
             </SelectTrigger>
@@ -230,7 +238,7 @@ export const DailyChecklistMonitoring = () => {
         </div>
       </div>
 
-      {!selectedConsultantId ? (
+      {!selectedMemberId ? (
         <div className="text-center py-16 bg-white dark:bg-slate-800 rounded-xl border border-dashed border-gray-200 dark:border-slate-700">
           <User className="mx-auto w-12 h-12 text-gray-300 dark:text-slate-600" />
           <p className="mt-4 text-gray-500 dark:text-gray-400">Selecione um membro da equipe para visualizar seus checklists.</p>
@@ -281,12 +289,12 @@ export const DailyChecklistMonitoring = () => {
                         <div key={item.id} className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between hover:bg-gray-50 dark:hover:bg-slate-700/30">
                           <div className="flex items-center space-x-3 mb-2 sm:mb-0">
                             <Checkbox
-                              id={`item-${item.id}-${selectedConsultantId}`}
+                              id={`item-${item.id}-${selectedMemberId}`}
                               checked={isCompleted}
                               onCheckedChange={() => handleToggleCompletion(item.id, isCompleted)}
                               className="dark:border-slate-600 data-[state=checked]:bg-brand-600 data-[state=checked]:text-white"
                             />
-                            <Label htmlFor={`item-${item.id}-${selectedConsultantId}`} className={`text-sm font-medium leading-none ${isCompleted ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-700 dark:text-gray-200'}`}>
+                            <Label htmlFor={`item-${item.id}-${selectedMemberId}`} className={`text-sm font-medium leading-none ${isCompleted ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-700 dark:text-gray-200'}`}>
                               {item.text}
                             </Label>
                           </div>
