@@ -1,10 +1,20 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Upload, Search, FileText, Image as ImageIcon, Trash2, Download, Plus, Loader2, Link as LinkIcon, MessageSquare, Users, ToggleLeft, ToggleRight, CheckCircle2, XCircle, BookOpen } from 'lucide-react';
+import { Upload, Search, FileText, Image as ImageIcon, Trash2, Download, Plus, Loader2, Link as LinkIcon, MessageSquare, Users, ToggleLeft, ToggleRight, CheckCircle2, XCircle, BookOpen, Eye } from 'lucide-react';
 import { SupportMaterialV2, SupportMaterialContentType } from '@/types';
 import { SupportMaterialAssignmentModal } from '@/components/SupportMaterialAssignmentModal';
-import toast from 'react-hot-toast'; // Importar toast
+import toast from 'react-hot-toast';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 export const Materials = () => {
   const { user } = useAuth();
@@ -24,12 +34,15 @@ export const Materials = () => {
   const [contentTypeInput, setContentTypeInput] = useState<SupportMaterialContentType>('pdf');
   const [contentInput, setContentInput] = useState('');
   
-  const [isFormOpen, setIsFormOpen] = useState(false); // Novo estado para controlar a visibilidade do formulário
-  const [isSubmitting, setIsSubmitting] = useState(false); // Estado para o carregamento do botão de envio
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const [isAssignmentModalOpen, setIsAssignmentModalOpen] = useState(false);
   const [selectedMaterialForAssignment, setSelectedMaterialForAssignment] = useState<SupportMaterialV2 | null>(null);
+
+  // NOVO: Estado para visualizar material de texto
+  const [viewingTextMaterial, setViewingTextMaterial] = useState<SupportMaterialV2 | null>(null);
 
   const resetForm = () => {
     setTitleInput('');
@@ -38,12 +51,12 @@ export const Materials = () => {
     setContentTypeInput('pdf');
     setContentInput('');
     setSelectedFile(null);
-    setIsSubmitting(false); // Garante que o estado de envio seja falso
+    setIsSubmitting(false);
   };
 
   const handleToggleForm = () => {
     setIsFormOpen(prev => !prev);
-    if (!isFormOpen) { // Se o formulário está sendo aberto
+    if (!isFormOpen) {
       resetForm();
     }
   };
@@ -79,7 +92,7 @@ export const Materials = () => {
       return;
     }
 
-    setIsSubmitting(true); // Ativa o estado de carregamento do botão
+    setIsSubmitting(true);
     try {
       const newMaterialData: Omit<SupportMaterialV2, 'id' | 'user_id' | 'created_at' | 'is_active'> = {
         title: titleInput.trim(),
@@ -92,13 +105,13 @@ export const Materials = () => {
       await addSupportMaterialV2(newMaterialData, selectedFile || undefined);
       toast.success("Material adicionado com sucesso!");
 
-      resetForm(); // Reseta o formulário e o estado de envio
-      setIsFormOpen(false); // Fecha o formulário após o sucesso
+      resetForm();
+      setIsFormOpen(false);
     } catch (error: any) {
       toast.error(`Erro ao adicionar material: ${error.message}`);
       console.error("Erro ao adicionar material:", error);
     } finally {
-      setIsSubmitting(false); // Desativa o estado de carregamento do botão, mesmo em caso de erro
+      setIsSubmitting(false);
     }
   };
 
@@ -127,7 +140,6 @@ export const Materials = () => {
     setIsAssignmentModalOpen(true);
   };
 
-  // NOVO: Função para download direto de arquivos
   const handleDownloadClick = async (material: SupportMaterialV2) => {
     if (!material.content || (material.content_type !== 'image' && material.content_type !== 'pdf')) {
         toast.error("Este material não é um arquivo para download direto.");
@@ -142,11 +154,11 @@ export const Materials = () => {
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.setAttribute('download', material.title); // Define o nome do arquivo para download
+        link.setAttribute('download', material.title);
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        window.URL.revokeObjectURL(url); // Limpa a URL do objeto
+        window.URL.revokeObjectURL(url);
 
         toast.success(`Download de "${material.title}" iniciado.`);
     } catch (error) {
@@ -385,7 +397,7 @@ export const Materials = () => {
                                       <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity gap-2">
                                           {(material.content_type === 'image' || material.content_type === 'pdf') && (
                                               <button 
-                                                  onClick={() => handleDownloadClick(material)} // Chama a nova função
+                                                  onClick={() => handleDownloadClick(material)}
                                                   className="p-2 bg-white text-gray-900 rounded-full hover:bg-gray-100 transition"
                                                   title="Baixar"
                                               >
@@ -402,6 +414,16 @@ export const Materials = () => {
                                               >
                                                   <LinkIcon className="w-5 h-5" />
                                               </a>
+                                          )}
+                                          {/* NOVO: Botão para visualizar material de texto */}
+                                          {material.content_type === 'text' && (
+                                              <button 
+                                                  onClick={() => setViewingTextMaterial(material)}
+                                                  className="p-2 bg-white text-gray-900 rounded-full hover:bg-gray-100 transition"
+                                                  title="Visualizar Texto"
+                                              >
+                                                  <Eye className="w-5 h-5" />
+                                              </button>
                                           )}
                                           {user?.role === 'GESTOR' || user?.role === 'ADMIN' ? (
                                             <>
@@ -456,6 +478,30 @@ export const Materials = () => {
           material={selectedMaterialForAssignment}
         />
       )}
+
+      {/* NOVO: Modal para visualizar material de texto */}
+      <Dialog open={!!viewingTextMaterial} onOpenChange={() => setViewingTextMaterial(null)}>
+        <DialogContent className="sm:max-w-2xl bg-white dark:bg-slate-800 dark:text-white p-6">
+          <DialogHeader>
+            <DialogTitle>{viewingTextMaterial?.title}</DialogTitle>
+            <DialogDescription>
+              {viewingTextMaterial?.category} • {viewingTextMaterial?.description || 'Sem descrição'}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <ScrollArea className="max-h-[60vh] mt-4 p-4 bg-gray-50 dark:bg-slate-900 rounded-lg border border-gray-200 dark:border-slate-700">
+            <div className="whitespace-pre-wrap text-gray-800 dark:text-gray-200 text-sm leading-relaxed">
+              {viewingTextMaterial?.content}
+            </div>
+          </ScrollArea>
+
+          <DialogFooter className="mt-6">
+            <Button onClick={() => setViewingTextMaterial(null)} className="bg-brand-600 hover:bg-brand-700 text-white">
+              Fechar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
