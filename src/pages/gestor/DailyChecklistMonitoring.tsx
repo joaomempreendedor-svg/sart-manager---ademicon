@@ -63,12 +63,14 @@ export const DailyChecklistMonitoring = () => {
       .filter(assignment => assignment.consultant_id === selectedConsultantId)
       .map(assignment => assignment.daily_checklist_id);
 
-    // REGRA: Se for Secretaria, mostra apenas os que têm o prefixo [SEC]
+    // REGRA: Se for Secretaria, mostra os Globais que começam com [SEC] + os atribuídos a ela
     // Se for Consultor, mostra os Globais (sem prefixo) + os atribuídos a ele
-    const globalChecklists = isSecretaria ? [] : dailyChecklists.filter(checklist => {
+    const globalChecklists = dailyChecklists.filter(checklist => {
       const hasAssignments = dailyChecklistAssignments.some(assignment => assignment.daily_checklist_id === checklist.id);
+      if (hasAssignments) return false;
+
       const isSecChecklist = checklist.title.startsWith(SECRETARIA_PREFIX);
-      return !hasAssignments && !isSecChecklist;
+      return isSecretaria ? isSecChecklist : !isSecChecklist;
     }).map(checklist => checklist.id);
 
     const relevantChecklistIds = new Set([...explicitAssignments, ...globalChecklists]);

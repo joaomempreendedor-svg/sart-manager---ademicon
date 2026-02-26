@@ -42,7 +42,6 @@ export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ us
 
   const userTeamMember = useMemo(() => {
     if (!user) return null;
-    // Corrigido: Usar authUserId para encontrar o membro da equipe
     return teamMembers.find(tm => tm.authUserId === user.id);
   }, [user, teamMembers]);
 
@@ -54,13 +53,16 @@ export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ us
     const isSecretaria = userTeamMember.roles.includes('SECRETARIA');
 
     // 1. GLOBAIS: checklists SEM atribuição específica
-    // REGRA: Se for Secretaria, NÃO mostra globais. Se for Consultor, mostra apenas os que NÃO têm o prefixo [SEC]
-    const globalChecklists = isSecretaria ? [] : dailyChecklists.filter(checklist => {
+    const globalChecklists = dailyChecklists.filter(checklist => {
       const hasAnyAssignment = dailyChecklistAssignments.some(
         assignment => assignment.daily_checklist_id === checklist.id
       );
+      if (hasAnyAssignment) return false;
+
       const isSecChecklist = checklist.title.startsWith(SECRETARIA_PREFIX);
-      return !hasAnyAssignment && !isSecChecklist;
+      // Se for Secretaria, vê apenas os unassigned que começam com [SEC]
+      // Se for Consultor, vê apenas os unassigned que NÃO começam com [SEC]
+      return isSecretaria ? isSecChecklist : !isSecChecklist;
     });
 
     // 2. ESPECÍFICOS: checklists atribuídos a ESTE usuário
@@ -68,7 +70,7 @@ export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ us
       return dailyChecklistAssignments.some(
         assignment => 
           assignment.daily_checklist_id === checklist.id && 
-          assignment.consultant_id === userTeamMember.authUserId // Corrigido: Usar authUserId
+          assignment.consultant_id === user.id
       );
     });
 
@@ -90,19 +92,18 @@ export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ us
   }, [dailyChecklistItems]);
 
   const getCompletionStatus = useCallback((itemId: string) => {
-    if (!user || !userTeamMember) return false;
+    if (!user) return false;
     return dailyChecklistCompletions.some(
       completion =>
         completion.daily_checklist_item_id === itemId &&
-        completion.consultant_id === user.id && // Corrigido: Usar user.id (auth.users.id)
+        completion.consultant_id === user.id &&
         completion.date === formattedSelectedDate &&
         completion.done
     );
-  }, [dailyChecklistCompletions, user, userTeamMember, formattedSelectedDate]);
+  }, [dailyChecklistCompletions, user, formattedSelectedDate]);
 
   const handleToggleCompletion = async (itemId: string, currentStatus: boolean) => {
-    if (!user || !userTeamMember) return;
-    // Corrigido: Passar user.id (auth.users.id) como consultant_id
+    if (!user) return;
     await toggleDailyChecklistCompletion(itemId, formattedSelectedDate, !currentStatus, user.id);
   };
 
@@ -113,61 +114,6 @@ export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ us
       return newDate;
     });
   };
-
-  const { completedDailyTasks, totalDailyTasks, dailyProgress } = useMemo(() => {
-    if (!user || !userTeamMember) return { completedDailyTasks: 0, totalDailyTasks: 0, dailyProgress: 0 };
-
-    const relevantItems: DailyChecklistItem[] = assignedChecklists.flatMap(checklist => 
-      dailyChecklistItems.filter(item => item.daily_checklist_id === checklist.id && item.is_active)
-    );
-
-    const total = relevantItems.length;
-    const completed = relevantItems.filter(item => 
-      dailyChecklistCompletions.some(
-        completion =>
-          completion.daily_checklist_item_id === item.id &&
-          completion.consultant_id === user.id && // Corrigido: Usar user.id (auth.users.id)
-          completion.date === formattedSelectedDate &&
-          completion.done
-      )
-    ).length;
-
-    return {
-      completedDailyTasks: completed,
-      totalDailyTasks: total,
-      dailyProgress: total > 0 ? Math.round((completed / total) * 100) : 0,
-    };
-  }, [user, userTeamMember, assignedChecklists, dailyChecklistItems, dailyChecklistCompletions, formattedSelectedDate]);
-
-  useEffect(() => {
-    if (dailyProgress === 100 && prevDailyProgressRef.current !== 100 && totalDailyTasks > 0) {
-      setShowConfetti(true);
-    }
-    prevDailyProgressRef.current = dailyProgress;
-  }, [dailyProgress, totalDailyTasks]);
-
-  const handleConfettiComplete = useCallback(() => {
-    setShowConfetti(false);
-  }, []);
-
-  const handleOpenResourceModal = (item: DailyChecklistItem) => {
-    setSelectedResourceItem(item);
-    setIsResourceModalOpen(true);
-  };
-
-  const itemRefs = useRef<Record<string, HTMLDivElement | null>>({});
-
-  useEffect(() => {
-    if (highlightedItemId && highlightedDate) {
-      if (highlightedDate !== formattedSelectedDate) {
-        setSelectedDate(new Date(highlightedDate + 'T00:00:00'));
-      }
-      const timer = setTimeout(() => {
-        itemRefs.current[highlightedItemId]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }, 100);
-      return () => clearTimeout(timer);
-    }
-  }, [highlightedItemId, highlightedDate, formattedSelectedDate]);
 
   const isItemDueOnDate = useCallback((item: DailyChecklistItem, dateStr: string) => {
     const rec = item.resource?.recurrence;
@@ -201,6 +147,53 @@ export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ us
 
     return true;
   }, []);
+
+  const { completedDailyTasks, totalDailyTasks, dailyProgress } = useMemo(() => {
+    if (!user) return { completedDailyTasks: 0, totalDailyTasks: 0, dailyProgress: 0 };
+
+    const relevantItems: DailyChecklistItem[] = assignedChecklists.flatMap(checklist => 
+      getItemsForChecklist(checklist.id).filter(item => isItemDueOnDate(item, formattedSelectedDate))
+    );
+
+    const total = relevantItems.length;
+    const completed = relevantItems.filter(item => getCompletionStatus(item.id)).length;
+
+    return {
+      completedDailyTasks: completed,
+      totalDailyTasks: total,
+      dailyProgress: total > 0 ? Math.round((completed / total) * 100) : 0,
+    };
+  }, [user, assignedChecklists, getItemsForChecklist, isItemDueOnDate, getCompletionStatus, formattedSelectedDate]);
+
+  useEffect(() => {
+    if (dailyProgress === 100 && prevDailyProgressRef.current !== 100 && totalDailyTasks > 0) {
+      setShowConfetti(true);
+    }
+    prevDailyProgressRef.current = dailyProgress;
+  }, [dailyProgress, totalDailyTasks]);
+
+  const handleConfettiComplete = useCallback(() => {
+    setShowConfetti(false);
+  }, []);
+
+  const handleOpenResourceModal = (item: DailyChecklistItem) => {
+    setSelectedResourceItem(item);
+    setIsResourceModalOpen(true);
+  };
+
+  const itemRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  useEffect(() => {
+    if (highlightedItemId && highlightedDate) {
+      if (highlightedDate !== formattedSelectedDate) {
+        setSelectedDate(new Date(highlightedDate + 'T00:00:00'));
+      }
+      const timer = setTimeout(() => {
+        itemRefs.current[highlightedItemId]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [highlightedItemId, highlightedDate, formattedSelectedDate]);
 
   if (isDataLoading) {
     return (
@@ -236,12 +229,21 @@ export const DailyChecklistDisplay: React.FC<DailyChecklistDisplayProps> = ({ us
         assignedChecklists.map(checklist => {
           const rawItems = getItemsForChecklist(checklist.id);
           const items = rawItems.filter(item => isItemDueOnDate(item, formattedSelectedDate));
+          const completedItemsCount = items.filter(item => getCompletionStatus(item.id)).length;
+          const checklistProgress = items.length > 0 ? Math.round((completedItemsCount / items.length) * 100) : 0;
+
           return (
             <div key={checklist.id} className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
               <div className="bg-gray-50 dark:bg-slate-700/50 px-6 py-4 border-b border-gray-200 dark:border-slate-700">
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white">
-                  {checklist.title.replace(SECRETARIA_PREFIX, '')}
-                </h3>
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                    {checklist.title.replace(SECRETARIA_PREFIX, '')}
+                  </h3>
+                  <span className="text-xs font-semibold text-gray-500 dark:text-gray-300 bg-gray-200 dark:bg-slate-600 px-2 py-1 rounded">{checklistProgress}% Concluído</span>
+                </div>
+                <div className="w-full bg-gray-200 dark:bg-slate-600 rounded-full h-1.5">
+                  <div className="bg-brand-500 h-1.5 rounded-full transition-all duration-500" style={{ width: `${checklistProgress}%` }}></div>
+                </div>
               </div>
               <div className="divide-y divide-gray-100 dark:divide-slate-700">
                 {items.length === 0 ? (

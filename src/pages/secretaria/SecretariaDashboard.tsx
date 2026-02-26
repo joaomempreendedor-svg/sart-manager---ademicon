@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -31,13 +31,16 @@ import {
   Mail,
   Phone,
   MapPin,
-  HelpCircle // NOVO: Importar HelpCircle
+  HelpCircle,
+  CheckCircle2
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import toast from 'react-hot-toast';
-import { Candidate } from '@/types';
-import { CandidatesDetailModal } from '@/components/gestor/CandidatesDetailModal'; // Importar o novo modal
-import { MetricCard } from '@/components/MetricCard'; // Importar MetricCard
+import { Candidate, DailyChecklistItem } from '@/types';
+import { CandidatesDetailModal } from '@/components/gestor/CandidatesDetailModal';
+import { MetricCard } from '@/components/MetricCard';
+
+const SECRETARIA_PREFIX = "[SEC] ";
 
 interface AgendaItem {
   id: string;
@@ -47,7 +50,7 @@ interface AgendaItem {
   personId: string;
   personType: 'candidate' | 'teamMember';
   dueDate: string;
-  taskId?: string; // ID específico da tarefa no checklist
+  taskId?: string;
 }
 
 export const SecretariaDashboard = () => {
@@ -63,7 +66,10 @@ export const SecretariaDashboard = () => {
     setChecklistDueDate,
     toggleGestorTaskCompletion,
     deleteGestorTask,
-    updateCandidate,
+    dailyChecklists,
+    dailyChecklistItems,
+    dailyChecklistAssignments,
+    dailyChecklistCompletions,
     teamMembers
   } = useApp();
   const navigate = useNavigate();
@@ -79,10 +85,67 @@ export const SecretariaDashboard = () => {
 
   const todayStr = new Date().toISOString().split('T')[0];
 
-  const [isCandidatesDetailModalOpen, setIsCandidatesDetailModalOpen] = useState(false); // NOVO: Estado para o modal de candidatos
-  const [candidatesModalTitle, setCandidatesModalTitle] = useState(''); // NOVO: Título do modal de candidatos
-  const [candidatesForModal, setCandidatesForModal] = useState<Candidate[]>([]); // NOVO: Lista de candidatos para o modal
-  const [candidatesMetricType, setCandidatesMetricType] = useState<'total' | 'newCandidates' | 'contacted' | 'scheduled' | 'conducted' | 'awaitingPreview' | 'hired' | 'noShow' | 'withdrawn' | 'disqualified' | 'noResponse'>('total'); // NOVO: Tipo de métrica para o modal de candidatos, adicionado 'noResponse'
+  const [isCandidatesDetailModalOpen, setIsCandidatesDetailModalOpen] = useState(false);
+  const [candidatesModalTitle, setCandidatesModalTitle] = useState('');
+  const [candidatesForModal, setCandidatesForModal] = useState<Candidate[]>([]);
+  const [candidatesMetricType, setCandidatesMetricType] = useState<'total' | 'newCandidates' | 'contacted' | 'scheduled' | 'conducted' | 'awaitingPreview' | 'hired' | 'noShow' | 'withdrawn' | 'disqualified' | 'noResponse'>('total');
+
+  // --- Lógica de Progresso do Checklist Diário ---
+  const { completedDailyTasks, totalDailyTasks, dailyProgress } = useMemo(() => {
+    if (!user) return { completedDailyTasks: 0, totalDailyTasks: 0, dailyProgress: 0 };
+
+    // 1. Identificar checklists da Secretaria
+    const secretariaChecklists = dailyChecklists.filter(checklist => {
+      const isSecChecklist = checklist.title.startsWith(SECRETARIA_PREFIX);
+      const hasAssignment = dailyChecklistAssignments.some(
+        a => a.daily_checklist_id === checklist.id && a.consultant_id === user.id
+      );
+      const hasNoAssignment = !dailyChecklistAssignments.some(
+        a => a.daily_checklist_id === checklist.id
+      );
+      
+      return checklist.is_active && (hasAssignment || (isSecChecklist && hasNoAssignment));
+    });
+
+    // 2. Filtrar itens que vencem hoje
+    const isItemDueOnDate = (item: DailyChecklistItem, dateStr: string) => {
+      const rec = item.resource?.recurrence;
+      if (!rec || rec.type === 'daily') return true;
+      const toDate = (s: string) => new Date(s + 'T00:00:00');
+      if (rec.type === 'weekly') return new Date(dateStr + 'T00:00:00').getDay() === (rec.dayOfWeek ?? 0);
+      if (rec.type === 'monthly') return new Date(dateStr + 'T00:00:00').getDate() === (rec.dayOfMonth ?? 1);
+      if (rec.type === 'every_x_days') {
+        const start = rec.startDate ? toDate(rec.startDate) : new Date(item.created_at);
+        const target = toDate(dateStr);
+        if (target < start) return false;
+        const diffDays = Math.floor((target.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+        return diffDays % (rec.intervalDays ?? 2) === 0;
+      }
+      if (rec.type === 'specific_date') return dateStr === rec.specificDate;
+      return true;
+    };
+
+    const relevantItems = secretariaChecklists.flatMap(checklist => 
+      dailyChecklistItems.filter(item => 
+        item.daily_checklist_id === checklist.id && 
+        item.is_active && 
+        isItemDueOnDate(item, todayStr)
+      )
+    );
+
+    const total = relevantItems.length;
+    const completed = relevantItems.filter(item => 
+      dailyChecklistCompletions.some(
+        c => c.daily_checklist_item_id === item.id && c.consultant_id === user.id && c.date === todayStr && c.done
+      )
+    ).length;
+
+    return {
+      completedDailyTasks: completed,
+      totalDailyTasks: total,
+      dailyProgress: total > 0 ? Math.round((completed / total) * 100) : 0,
+    };
+  }, [user, dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions, todayStr]);
 
   // --- Handlers de Ação ---
   const handleCompleteItem = async (e: React.MouseEvent, item: AgendaItem) => {
@@ -94,9 +157,6 @@ export const SecretariaDashboard = () => {
       } else if (item.type === 'gestor_task') {
         await toggleGestorTaskCompletion(item.id, true, todayStr);
         toast.success("Tarefa pessoal concluída!");
-      } else if (item.type === 'interview') {
-        // Secretaria não deve marcar entrevistas como realizadas
-        toast.error("A Secretaria não pode marcar entrevistas como realizadas diretamente aqui.");
       }
     } catch (error) {
       toast.error("Erro ao concluir item.");
@@ -114,9 +174,6 @@ export const SecretariaDashboard = () => {
       } else if (item.type === 'gestor_task') {
         await deleteGestorTask(item.id);
         toast.success("Tarefa excluída.");
-      } else if (item.type === 'interview') {
-        // Secretaria não deve remover datas de entrevista
-        toast.error("A Secretaria não pode remover datas de entrevista diretamente aqui.");
       }
     } catch (error) {
       toast.error("Erro ao remover item.");
@@ -143,7 +200,6 @@ export const SecretariaDashboard = () => {
               dueDate: state.dueDate,
               taskId: taskId
             };
-            // Apenas adiciona tarefas se o responsável for a Secretaria ou se for uma tarefa global
             if (item.responsibleRole === 'SECRETARIA' || !item.responsibleRole) {
               if (state.dueDate === todayStr && !state.completed) todayAgendaItems.push(agendaItem);
               else if (state.dueDate < todayStr && !state.completed) overdueItems.push(agendaItem);
@@ -151,29 +207,6 @@ export const SecretariaDashboard = () => {
           }
         }
       });
-
-      // REMOVIDO: Lógica para adicionar entrevistas à agenda da Secretaria
-      // if (candidate.interviewDate === todayStr && !candidate.interviewConducted) {
-      //   todayAgendaItems.push({ 
-      //     id: candidate.id, 
-      //     type: 'interview', 
-      //     title: 'Entrevista Agendada', 
-      //     personName: candidate.name, 
-      //     personId: candidate.id, 
-      //     personType: 'candidate', 
-      //     dueDate: candidate.interviewDate 
-      //   });
-      // } else if (candidate.interviewDate && candidate.interviewDate < todayStr && candidate.status === 'Entrevista' && !candidate.interviewConducted) {
-      //   overdueItems.push({
-      //     id: candidate.id,
-      //     type: 'interview',
-      //     title: 'Entrevista não realizada',
-      //     personName: candidate.name,
-      //     personId: candidate.id,
-      //     personType: 'candidate',
-      //     dueDate: candidate.interviewDate
-      //   });
-      // }
     });
 
     gestorTasks.filter(task => task.user_id === user?.id).forEach(task => {
@@ -231,7 +264,7 @@ export const SecretariaDashboard = () => {
       isInFilterRange(c.contactedDate) && c.screeningStatus === 'Contacted'
     );
 
-    const noResponseList = totalCandidates.filter(c => // NOVO: Lista de Não Respondidos
+    const noResponseList = totalCandidates.filter(c => 
       isInFilterRange(c.noResponseDate) && c.screeningStatus === 'No Response'
     );
 
@@ -279,9 +312,9 @@ export const SecretariaDashboard = () => {
 
     return {
       total: totalCandidates.length,
-      newCandidates: newCandidatesList.length, // Este será o "Não Respondido"
+      newCandidates: newCandidatesList.length,
       contacted: contactedList.length,
-      noResponse: noResponseList.length, // NOVO: Contagem de Não Respondidos
+      noResponse: noResponseList.length,
       scheduled: scheduledList.length,
       conducted: conductedList.length,
       awaitingPreview: awaitingPreviewList.length,
@@ -292,10 +325,9 @@ export const SecretariaDashboard = () => {
       attendanceRate,
       hiringRate,
       totalHired: totalHiredList.length,
-      // Listas para o modal
       newCandidatesList,
       contactedList,
-      noResponseList, // NOVO: Lista de Não Respondidos para o modal
+      noResponseList,
       scheduledList,
       conductedList,
       awaitingPreviewList,
@@ -308,7 +340,7 @@ export const SecretariaDashboard = () => {
     };
   }, [candidates, startDate, endDate]);
 
-  const handleOpenCandidatesDetailModal = (title: string, candidates: Candidate[], metricType: 'total' | 'newCandidates' | 'contacted' | 'scheduled' | 'conducted' | 'awaitingPreview' | 'hired' | 'noShow' | 'withdrawn' | 'disqualified' | 'noResponse') => { // NOVO: Adicionado 'noResponse'
+  const handleOpenCandidatesDetailModal = (title: string, candidates: Candidate[], metricType: 'total' | 'newCandidates' | 'contacted' | 'scheduled' | 'conducted' | 'awaitingPreview' | 'hired' | 'noShow' | 'withdrawn' | 'disqualified' | 'noResponse') => {
     setCandidatesModalTitle(title);
     setCandidatesForModal(candidates);
     setCandidatesMetricType(metricType);
@@ -412,6 +444,19 @@ export const SecretariaDashboard = () => {
           </h2>
           <p className="text-gray-500 dark:text-gray-400">Checklist de tarefas operacionais recorrentes.</p>
         </div>
+
+        {/* Barra de Progresso das Metas Diárias */}
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm mb-8">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center"><ListChecks className="w-5 h-5 mr-2 text-brand-500" />Progresso das Metas Diárias</h2>
+            <span className="text-sm font-semibold text-gray-500 dark:text-gray-400">{completedDailyTasks}/{totalDailyTasks} Concluídas</span>
+          </div>
+          <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2.5">
+            <div className="bg-brand-500 h-2.5 rounded-full transition-all duration-500" style={{ width: `${dailyProgress}%` }}></div>
+          </div>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">{dailyProgress}% do seu checklist de hoje está completo.</p>
+        </div>
+
         <DailyChecklistDisplay user={user} isDataLoading={isDataLoading} />
       </section>
 
@@ -472,12 +517,12 @@ export const SecretariaDashboard = () => {
             onClick={() => handleOpenCandidatesDetailModal('Contatados', metrics.contactedList, 'contacted')}
           />
           <MetricCard 
-            title="Não Respondido" // NOVO: Título alterado
-            value={metrics.noResponse} // NOVO: Usando a métrica de Não Respondido
-            icon={HelpCircle} // NOVO: Ícone alterado
-            colorClass="bg-orange-500 text-white" // NOVO: Cor alterada
-            subValue="Aguardando retorno" // NOVO: Subtítulo alterado
-            onClick={() => handleOpenCandidatesDetailModal('Não Respondido', metrics.noResponseList, 'noResponse')} // NOVO: Ação para o modal
+            title="Não Respondido"
+            value={metrics.noResponse}
+            icon={HelpCircle}
+            colorClass="bg-orange-500 text-white"
+            subValue="Aguardando retorno"
+            onClick={() => handleOpenCandidatesDetailModal('Não Respondido', metrics.noResponseList, 'noResponse')}
           />
           <MetricCard 
             title="Entrevistas Agendadas" 
@@ -515,7 +560,7 @@ export const SecretariaDashboard = () => {
             icon={Ghost} 
             colorClass="bg-rose-500 text-white" 
             subValue="Não compareceram"
-            onClick={() => handleOpenCandidatesDetailModal('Faltas', metrics.noShowList, 'noShow')}
+            onClick={() => handleOpenCandidatesDetailModal('Faltas', hiringMetrics.noShowList, 'noShow')}
           />
           <MetricCard 
             title="Desistências" 
