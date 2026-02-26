@@ -29,6 +29,16 @@ const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 };
 
+interface AgendaItem {
+  id: string;
+  type: 'task' | 'interview' | 'gestor_task' | 'lead';
+  title: string;
+  personName: string;
+  personId: string;
+  personType: 'candidate' | 'teamMember' | 'lead';
+  dueDate: string;
+}
+
 export const Dashboard = () => {
   const { user } = useAuth();
   const { candidates, checklistStructure, teamMembers, isDataLoading, leadTasks, crmLeads, crmStages, gestorTasks, gestorTaskCompletions, isGestorTaskDueOnDate, notifications, hiringOrigins, getColdCallMetrics, coldCallLeads, coldCallLogs } = useApp();
@@ -634,7 +644,7 @@ export const Dashboard = () => {
       />
       <ColdCallDetailModal
         isOpen={isColdCallDetailModalOpen}
-        onClose={() => setIsColdCallDetailModal(false)}
+        onClose={() => setIsColdCallDetailModalOpen(false)}
         title={coldCallModalTitle}
         consultantName={selectedColdCallConsultantName}
         leads={coldCallMetrics.filteredLeads}
