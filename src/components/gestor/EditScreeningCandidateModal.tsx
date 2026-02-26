@@ -20,29 +20,30 @@ import {
 } from '@/components/ui/select';
 import toast from 'react-hot-toast';
 import { Candidate, TeamMember } from '@/types';
-import { useApp } from '@/context/AppContext'; // Importar useApp
+import { useApp } from '@/context/AppContext';
 
-interface AddScreeningCandidateModalProps {
+interface EditScreeningCandidateModalProps {
   isOpen: boolean;
   onClose: () => void;
-  origins: string[]; // This is the prop for hiring origins
+  origins: string[];
   responsibleMembers: TeamMember[];
+  candidateToEdit?: Candidate | null; // Agora pode receber um candidato para edição
 }
 
-export const AddScreeningCandidateModal: React.FC<AddScreeningCandidateModalProps> = ({ isOpen, onClose, origins, responsibleMembers }) => {
-  const { addCandidate, hiringOrigins } = useApp(); // Removido teamMembers e origins, pois já são passados via props ou não são necessários aqui
+export const EditScreeningCandidateModal: React.FC<EditScreeningCandidateModalProps> = ({ isOpen, onClose, origins, responsibleMembers, candidateToEdit }) => {
+  const { addCandidate, updateCandidate, hiringOrigins } = useApp();
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
     email: '',
     origin: '',
     responsibleUserId: '',
+    notes: '', // Adicionado campo de notas
   });
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
 
-  // O useMemo para responsibleMembers foi removido, pois a lista já é passada como prop.
-  // Se a lista de responsibleMembers precisar ser filtrada ou processada, isso deve ser feito no componente pai.
+  const isEditing = !!candidateToEdit;
 
   const resetForm = () => {
     setFormData({
@@ -51,16 +52,27 @@ export const AddScreeningCandidateModal: React.FC<AddScreeningCandidateModalProp
       email: '',
       origin: '',
       responsibleUserId: '',
+      notes: '',
     });
     setError('');
   };
 
   useEffect(() => {
     if (isOpen) {
-      console.log("[AddScreeningCandidateModal] Modal is open. Current hiringOrigins from AppContext:", hiringOrigins); // NOVO LOG
-      resetForm();
+      if (isEditing && candidateToEdit) {
+        setFormData({
+          name: candidateToEdit.name,
+          phone: candidateToEdit.phone || '',
+          email: candidateToEdit.email || '',
+          origin: candidateToEdit.origin || '',
+          responsibleUserId: candidateToEdit.responsibleUserId || '',
+          notes: candidateToEdit.notes || '',
+        });
+      } else {
+        resetForm();
+      }
     }
-  }, [isOpen, hiringOrigins]); // Adicionado hiringOrigins como dependência para re-executar quando mudar
+  }, [isOpen, isEditing, candidateToEdit]);
 
   const handleClose = () => {
     resetForm();
@@ -82,30 +94,42 @@ export const AddScreeningCandidateModal: React.FC<AddScreeningCandidateModalProp
 
     setIsSaving(true);
     try {
-      const newCandidate: Candidate = {
-        id: crypto.randomUUID(),
-        name: formData.name.trim(),
-        phone: formData.phone.trim(),
-        email: formData.email.trim(),
-        origin: formData.origin,
-        status: 'Triagem',
-        screeningStatus: 'Pending Contact',
-        interviewDate: '',
-        interviewer: '',
-        interviewScores: { basicProfile: 0, commercialSkills: 0, behavioralProfile: 0, jobFit: 0, notes: '' },
-        checklistProgress: {},
-        consultantGoalsProgress: {},
-        feedbacks: [],
-        createdAt: new Date().toISOString(),
-        responsibleUserId: formData.responsibleUserId || undefined,
-      };
-
-      await addCandidate(newCandidate);
-      toast.success(`Candidato "${newCandidate.name}" adicionado para triagem!`);
+      if (isEditing && candidateToEdit) {
+        await updateCandidate(candidateToEdit.id, {
+          name: formData.name.trim(),
+          phone: formData.phone.trim(),
+          email: formData.email.trim() || undefined,
+          origin: formData.origin,
+          responsibleUserId: formData.responsibleUserId || undefined,
+          notes: formData.notes.trim() || undefined,
+        });
+        toast.success(`Candidato "${formData.name}" atualizado!`);
+      } else {
+        const newCandidate: Candidate = {
+          id: crypto.randomUUID(),
+          name: formData.name.trim(),
+          phone: formData.phone.trim(),
+          email: formData.email.trim() || undefined,
+          origin: formData.origin,
+          status: 'Triagem',
+          screeningStatus: 'Pending Contact',
+          interviewDate: '',
+          interviewer: '',
+          interviewScores: { basicProfile: 0, commercialSkills: 0, behavioralProfile: 0, jobFit: 0, notes: '' },
+          checklistProgress: {},
+          consultantGoalsProgress: {},
+          feedbacks: [],
+          createdAt: new Date().toISOString(),
+          responsibleUserId: formData.responsibleUserId || undefined,
+          notes: formData.notes.trim() || undefined,
+        };
+        await addCandidate(newCandidate);
+        toast.success(`Candidato "${newCandidate.name}" adicionado para triagem!`);
+      }
       handleClose();
     } catch (err: any) {
-      console.error("Erro ao adicionar candidato para triagem:", err);
-      setError(err.message || 'Falha ao adicionar candidato.');
+      console.error("Erro ao salvar candidato:", err);
+      setError(err.message || 'Falha ao salvar candidato.');
     } finally {
       setIsSaving(false);
     }
@@ -117,9 +141,9 @@ export const AddScreeningCandidateModal: React.FC<AddScreeningCandidateModalProp
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md bg-white dark:bg-slate-800 dark:text-white p-6">
         <DialogHeader>
-          <DialogTitle>Adicionar Nova Pessoa para Triagem</DialogTitle>
+          <DialogTitle>{isEditing ? `Editar Candidato: ${candidateToEdit?.name}` : 'Adicionar Nova Pessoa para Triagem'}</DialogTitle>
           <DialogDescription>
-            Preencha os dados básicos para iniciar o processo de triagem.
+            {isEditing ? 'Edite os dados básicos do candidato.' : 'Preencha os dados básicos para iniciar o processo de triagem.'}
           </DialogDescription>
         </DialogHeader>
         
@@ -179,7 +203,7 @@ export const AddScreeningCandidateModal: React.FC<AddScreeningCandidateModalProp
                     <SelectValue placeholder="Selecione a origem" />
                   </SelectTrigger>
                   <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
-                    {hiringOrigins.map(origin => ( // Usando hiringOrigins do AppContext
+                    {hiringOrigins.map(origin => (
                       <SelectItem key={origin} value={origin}>
                         {origin}
                       </SelectItem>
@@ -209,6 +233,20 @@ export const AddScreeningCandidateModal: React.FC<AddScreeningCandidateModalProp
                 </Select>
               </div>
             </div>
+            <div>
+              <Label htmlFor="notes">Observações (Opcional)</Label>
+              <div className="relative">
+                <MessageSquare className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+                <textarea
+                  id="notes"
+                  value={formData.notes}
+                  onChange={(e) => setFormData({...formData, notes: e.target.value})}
+                  rows={3}
+                  className="pl-10 w-full p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600"
+                  placeholder="Adicione observações sobre o candidato..."
+                ></textarea>
+              </div>
+            </div>
             {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
           </div>
           <DialogFooter className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-700 flex-col sm:flex-row">
@@ -217,7 +255,7 @@ export const AddScreeningCandidateModal: React.FC<AddScreeningCandidateModalProp
             </Button>
             <Button type="submit" disabled={isSaving} className="bg-brand-600 hover:bg-brand-700 text-white w-full sm:w-auto">
               {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-              <span>Adicionar Candidato</span>
+              <span>{isSaving ? 'Salvando...' : (isEditing ? 'Salvar Alterações' : 'Adicionar Candidato')}</span>
             </Button>
           </DialogFooter>
         </form>

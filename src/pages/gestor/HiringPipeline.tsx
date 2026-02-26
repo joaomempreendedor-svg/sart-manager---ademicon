@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Loader2, Search, User, Phone, Mail, CheckCircle2, XCircle, RotateCcw, ArrowRight, MessageSquare, UserX, Plus, Trash2, Users, Clock, UserRound, UploadCloud, CalendarDays, Filter, Calendar, FileText, UserCheck, Star, TrendingUp, ChevronRight, Check, CalendarClock, UserMinus, ArrowRightCircle, ShieldCheck, HelpCircle, UserPlus } from 'lucide-react';
+import { Loader2, Search, User, Phone, Mail, CheckCircle2, XCircle, RotateCcw, ArrowRight, MessageSquare, UserX, Plus, Trash2, Users, Clock, UserRound, UploadCloud, CalendarDays, Filter, Calendar, FileText, UserCheck, Star, TrendingUp, ChevronRight, Check, CalendarClock, UserMinus, ArrowRightCircle, ShieldCheck, HelpCircle, UserPlus, Edit2 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { TableSkeleton } from '@/components/TableSkeleton';
 import {
@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import toast from 'react-hot-toast';
-import { AddScreeningCandidateModal } from '@/components/gestor/AddScreeningCandidateModal';
+import { EditScreeningCandidateModal } from '@/components/gestor/EditScreeningCandidateModal'; // Renomeado o import
 import { UpdateInterviewDateModal } from '@/components/gestor/UpdateInterviewDateModal';
 import { highlightText } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
@@ -32,6 +32,8 @@ const HiringPipeline = () => {
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
   
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditCandidateModalOpen, setIsEditCandidateModalOpen] = useState(false); // NOVO: Estado para o modal de edição
+  const [selectedCandidateToEdit, setSelectedCandidateToEdit] = useState<Candidate | null>(null); // NOVO: Candidato a ser editado
   const [isUpdateDateModalOpen, setIsUpdateDateModalOpen] = useState(false);
   const [selectedCandidateForDate, setSelectedCandidateForDate] = useState<Candidate | null>(null);
 
@@ -266,6 +268,13 @@ const HiringPipeline = () => {
     }
   };
 
+  // NOVO: Função para abrir o modal de edição de candidato
+  const handleOpenEditCandidateModal = (e: React.MouseEvent, candidate: Candidate) => {
+    e.stopPropagation();
+    setSelectedCandidateToEdit(candidate);
+    setIsEditCandidateModalOpen(true);
+  };
+
   if (isAuthLoading || isDataLoading) return <div className="flex items-center justify-center h-screen"><Loader2 className="w-12 h-12 text-brand-500 animate-spin" /></div>;
 
   return (
@@ -359,13 +368,22 @@ const HiringPipeline = () => {
                       <p className="font-bold text-gray-900 dark:text-white leading-tight group-hover:text-brand-600 transition-colors">
                         {highlightText(candidate.name, searchTerm)}
                       </p>
-                      <button 
-                        onClick={(e) => handleDeleteCandidatePermanently(e, candidate.db_id || candidate.id, candidate.name)}
-                        className="p-1 text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
-                        title="Excluir Candidato Permanentemente"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity"> {/* Botões de ação */}
+                        <button 
+                          onClick={(e) => handleOpenEditCandidateModal(e, candidate)} // NOVO: Botão de edição
+                          className="p-1 text-gray-300 hover:text-blue-500 transition-colors"
+                          title="Editar Candidato"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button 
+                          onClick={(e) => handleDeleteCandidatePermanently(e, candidate.db_id || candidate.id, candidate.name)}
+                          className="p-1 text-gray-300 hover:text-red-500 transition-colors"
+                          title="Excluir Candidato Permanentemente"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
 
                     <div className="space-y-2">
@@ -545,11 +563,18 @@ const HiringPipeline = () => {
           </div>
         ))}
       </div>
-      <AddScreeningCandidateModal 
+      <EditScreeningCandidateModal // Renomeado o componente
         isOpen={isAddModalOpen} 
         onClose={() => setIsAddModalOpen(false)} 
         origins={hiringOrigins}
         responsibleMembers={responsibleMembersForModal}
+      />
+      <EditScreeningCandidateModal // NOVO: Modal para edição
+        isOpen={isEditCandidateModalOpen}
+        onClose={() => setIsEditCandidateModalOpen(false)}
+        origins={hiringOrigins}
+        responsibleMembers={responsibleMembersForModal}
+        candidateToEdit={selectedCandidateToEdit}
       />
       <UpdateInterviewDateModal
         isOpen={isUpdateDateModalOpen}
