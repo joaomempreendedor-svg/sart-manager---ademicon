@@ -108,14 +108,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, [theme]);
 
-  const parseDbCurrency = useCallback((value: any): number | null => {
+  const parseDbCurrency = useCallback((value: any): number => {
     if (typeof value === 'number') return value;
     if (typeof value === 'string') {
       const cleaned = value.replace(/[^0-9,-]+/g, '').replace(/\./g, '').replace(',', '.');
       const parsed = parseFloat(cleaned);
-      return isNaN(parsed) ? null : parsed;
+      return isNaN(parsed) ? 0 : parsed; // Default to 0 instead of null
     }
-    return null;
+    return 0; // Default to 0 for non-string/non-number values
   }, []);
 
   const calculateCompetenceMonth = useCallback((paidDate: string): string => {
@@ -447,7 +447,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         else {
           // CORREÇÃO: Remover a divisão por 100 aqui
           setFinancialEntries(financialEntriesRes.data?.map((entry: any) => ({
-            id: entry.id, db_id: entry.id, user_id: entry.user_id, entry_date: entry.entry_date, type: entry.type, description: entry.description, amount: parseFloat(entry.amount), created_at: entry.created_at
+            id: entry.id, db_id: entry.id, user_id: entry.user_id, entry_date: entry.entry_date, type: entry.type, description: entry.description, amount: parseFloat(entry.amount || '0'), created_at: entry.created_at // Garante que amount seja sempre um número
           })) || []);
         }
 
