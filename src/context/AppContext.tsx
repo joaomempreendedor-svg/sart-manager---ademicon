@@ -284,6 +284,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [user, fetchAppConfig]);
 
   useEffect(() => {
+    let isMounted = true; // Flag to prevent state updates on unmounted component
     const fetchData = async (userId: string) => {
       setIsDataLoading(true);
       try {
@@ -333,6 +334,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           supabase.from('cold_call_leads').select('*'),
           supabase.from('cold_call_logs').select('*')
         ]);
+
+        if (!isMounted) return; // Check mount status before updating state
 
         if (candidatesRes.error) { toast.error(`Erro ao carregar candidatos: ${candidatesRes.error.message}`); setCandidates([]); }
         else {
@@ -442,8 +445,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
         if (financialEntriesRes.error) { toast.error(`Erro ao carregar entradas financeiras: ${financialEntriesRes.error.message}`); setFinancialEntries([]); }
         else {
+          // CORREÇÃO: Remover a divisão por 100 aqui
           setFinancialEntries(financialEntriesRes.data?.map((entry: any) => ({
-            id: entry.id, db_id: entry.id, user_id: entry.user_id, entry_date: entry.entry_date, type: entry.type, description: entry.description, amount: parseFloat(entry.amount) / 100, created_at: entry.created_at
+            id: entry.id, db_id: entry.id, user_id: entry.user_id, entry_date: entry.entry_date, type: entry.type, description: entry.description, amount: parseFloat(entry.amount), created_at: entry.created_at
           })) || []);
         }
 
@@ -470,7 +474,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         toast.error(`Erro crítico ao carregar dados: ${error.message}`);
         resetLocalState();
       } finally {
-        setIsDataLoading(false);
+        if (isMounted) { // Check mount status before updating state
+          setIsDataLoading(false);
+        }
       }
     };
 
@@ -482,6 +488,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       fetchedUserIdRef.current = null;
       resetLocalState();
     }
+
+    return () => {
+      isMounted = false; // Set flag to false when component unmounts
+    };
   }, [user?.id, refetchCommissions, fetchAppConfig, resetLocalState, parseDbCurrency]);
 
   // CRUD candidatos
@@ -702,16 +712,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // Financeiro
   const addFinancialEntry = useCallback(async (entry: Omit<FinancialEntry, 'id' | 'user_id' | 'created_at'>) => {
-    const { data, error } = await supabase.from('financial_entries').insert({ ...entry, user_id: JOAO_GESTOR_AUTH_ID, amount: entry.amount * 100 }).select().single();
+    // CORREÇÃO: Remover a multiplicação por 100 aqui
+    const { data, error } = await supabase.from('financial_entries').insert({ ...entry, user_id: JOAO_GESTOR_AUTH_ID, amount: entry.amount }).select().single();
     if (error) throw error;
-    setFinancialEntries(prev => [...prev, { ...data, amount: parseFloat(data.amount) / 100 }]);
+    setFinancialEntries(prev => [...prev, data]);
     return data;
   }, []);
   const updateFinancialEntry = useCallback(async (id: string, updates: Partial<FinancialEntry>) => {
-    const updatesWithCentavos = updates.amount !== undefined ? { ...updates, amount: updates.amount * 100 } : updates;
-    const { data, error } = await supabase.from('financial_entries').update(updatesWithCentavos).eq('id', id).select().single();
+    // CORREÇÃO: Remover a multiplicação por 100 aqui
+    const { data, error } = await supabase.from('financial_entries').update(updates).eq('id', id).select().single();
     if (error) throw error;
-    setFinancialEntries(prev => prev.map(e => e.id === id ? { ...data, amount: parseFloat(data.amount) / 100 } : e));
+    setFinancialEntries(prev => prev.map(e => e.id === id ? data : e));
     return data;
   }, []);
   const deleteFinancialEntry = useCallback(async (id: string) => {
@@ -989,7 +1000,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       created_by: data.created_by, 
       updated_by: data.updated_by,
       proposal_value: parseDbCurrency(data.proposal_value), 
-      proposal_closing_date: data.proposal_closing_date,
+      proposal_closing_date: data.proposal_closing_date, 
       sold_credit_value: parseDbCurrency(data.sold_credit_value), 
       sold_group: data.sold_group, 
       sold_quota: data.sold_quota, 
@@ -1278,10 +1289,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (stage.id === stageId) {
           const index = stage.items.findIndex(i => i.id === itemId);
           if (index === -1) return stage;
-          const targetIndex = direction === 'up' ? index - 1 : index + 1;
-          if (targetIndex < 0 || targetIndex >= stage.items.length) return stage;
           const newItems = [...stage.items];
-          [newItems[index], newItems[targetIndex]] = [newItems[targetIndex], newItems[index]];
+          const targetIndex = direction === 'up' ? index - 1 : index + 1;
+          if (targetIndex >= 0 && targetIndex < newItems.length) {
+            [newItems[index], newItems[targetIndex]] = [newItems[targetIndex], newItems[index]];
+          }
           return { ...stage, items: newItems };
         }
         return stage;
