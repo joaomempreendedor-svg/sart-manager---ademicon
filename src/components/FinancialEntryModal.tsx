@@ -29,14 +29,38 @@ interface FinancialEntryModalProps {
   defaultDate?: string; // NOVO: Prop para a data padrão
 }
 
-const formatCurrencyInput = (value: string): string => {
-  let v = value.replace(/\D/g, ''); // Remove tudo que não é dígito
-  v = (parseInt(v, 10) / 100).toFixed(2).replace('.', ','); // Converte para float, 2 casas decimais, usa vírgula
-  v = v.replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.'); // Adiciona pontos para milhares
-  if (v === 'NaN,NaN') return '';
-  return v;
+// Helper to convert a number (e.g., 12000.00) to a raw cents string (e.g., "1200000")
+const numberToCentsString = (num: number): string => {
+  return String(Math.round(num * 100));
 };
 
+// Helper to format a raw cents string (e.g., "1200000") into a Brazilian currency display string (e.g., "12.000,00")
+const formatInputCurrencyDisplay = (digits: string): string => {
+  // 1. Remove all non-digit characters
+  digits = digits.replace(/\D/g, '');
+
+  // 2. If empty, return empty string
+  if (!digits) return '';
+
+  // 3. Pad with leading zeros if less than 3 digits (to ensure cents part)
+  // e.g., "1" -> "001", "12" -> "012", "123" -> "123"
+  digits = digits.padStart(3, '0');
+
+  // 4. Separate cents from reals
+  const cents = digits.slice(-2);
+  let reals = digits.slice(0, -2);
+
+  // 5. Remove leading zeros from reals part, unless it's just "0"
+  reals = reals.replace(/^0+/, '') || '0';
+
+  // 6. Add thousands separators (dots) to the reals part
+  reals = reals.replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.');
+
+  // 7. Combine reals and cents with a comma
+  return `${reals},${cents}`;
+};
+
+// Helper to parse a Brazilian currency display string (e.g., "12.000,00") into a float (e.g., 12000.00)
 const parseCurrencyInput = (value: string): number => {
   return parseFloat(value.replace(/\./g, '').replace(',', '.')) || 0;
 };
@@ -55,13 +79,14 @@ export const FinancialEntryModal: React.FC<FinancialEntryModalProps> = ({ isOpen
         setEntryDate(entry.entry_date);
         setType(entry.type);
         setDescription(entry.description || '');
-        setAmount(formatCurrencyInput(entry.amount.toFixed(2).replace('.', ',')));
+        // Formata o valor numérico do entry para a string de exibição
+        setAmount(formatInputCurrencyDisplay(numberToCentsString(entry.amount)));
       } else {
         // Se for um novo lançamento, usa defaultDate se fornecido, senão a data atual
         setEntryDate(defaultDate || new Date().toISOString().split('T')[0]);
         setType('expense');
         setDescription('');
-        setAmount('');
+        setAmount('0,00'); // Valor padrão para nova entrada
       }
       setError('');
     }
@@ -145,7 +170,7 @@ export const FinancialEntryModal: React.FC<FinancialEntryModalProps> = ({ isOpen
                   id="amount"
                   type="text"
                   value={amount}
-                  onChange={(e) => setAmount(formatCurrencyInput(e.target.value))}
+                  onChange={(e) => setAmount(formatInputCurrencyDisplay(e.target.value))}
                   required
                   className="pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600"
                   placeholder="0,00"
@@ -174,7 +199,7 @@ export const FinancialEntryModal: React.FC<FinancialEntryModalProps> = ({ isOpen
             </Button>
             <Button type="submit" disabled={isSaving} className="bg-brand-600 hover:bg-brand-700 text-white">
               {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-              {isSaving ? 'Salvando...' : 'Salvar Lançamento'}
+              <span>{isSaving ? 'Salvando...' : 'Salvar Lançamento'}</span>
             </Button>
           </DialogFooter>
         </form>
