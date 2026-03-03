@@ -270,75 +270,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, []);
 
   useEffect(() => {
-    let configSubscription: any = null;
-    let coldCallLeadsSubscription: any = null;
-    let coldCallLogsSubscription: any = null;
-    let consultantEventsSubscription: any = null;
-
-    const effectiveGestorId = JOAO_GESTOR_AUTH_ID;
-
-    const setupRealtimeSubscriptions = () => {
-      console.log("[AppContext] Setting up realtime subscriptions.");
-      configSubscription = supabase
-        .channel('app_config_changes')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'app_config', filter: `user_id=eq.${effectiveGestorId}` }, () => {
-          console.log("[AppContext] Realtime: app_config changed, refetching config.");
-          fetchAppConfig(effectiveGestorId);
-        })
-        .subscribe();
-
-      coldCallLeadsSubscription = supabase
-        .channel('cold_call_leads_changes')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'cold_call_leads' }, async (payload) => {
-          console.log("[AppContext] Realtime: cold_call_leads changed, refetching.");
-          const { data, error, count } = await supabase.from('cold_call_leads').select('id, user_id, name, phone, email, current_stage, notes, crm_lead_id, created_at, updated_at', { count: 'exact' }).range(0, 99999).limit(100000);
-          if (error) console.error("Error refetching cold_call_leads in realtime:", error);
-          else {
-            setColdCallLeads(data || []);
-            console.log("Realtime refetch coldCallLeads length:", (data || []).length, "Count:", count);
-          }
-        })
-        .subscribe();
-
-      coldCallLogsSubscription = supabase
-        .channel('cold_call_logs_changes')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'cold_call_logs' }, async (payload) => {
-          console.log("[AppContext] Realtime: cold_call_logs changed, refetching.");
-          const { data, error, count } = await supabase.from('cold_call_logs').select('id, cold_call_lead_id, user_id, start_time, end_time, duration_seconds, result, meeting_date, meeting_time, meeting_modality, meeting_notes, created_at', { count: 'exact' }).range(0, 99999).limit(100000);
-          if (error) console.error("Error refetching cold_call_logs in realtime:", error);
-          else {
-            setColdCallLogs(data || []);
-            console.log("Realtime refetch coldCallLogs length:", (data || []).length, "Count:", count);
-          }
-        })
-        .subscribe();
-
-      consultantEventsSubscription = supabase
-        .channel('consultant_events_changes')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'consultant_events' }, async (payload) => {
-          console.log("[AppContext] Realtime: consultant_events changed, refetching.");
-          const { data, error } = await supabase.from('consultant_events').select('*');
-          if (error) console.error("Error refetching consultant_events in realtime:", error);
-          else {
-            setConsultantEvents(data || []);
-            console.log("Realtime refetch consultantEvents length:", (data || []).length);
-          }
-        })
-        .subscribe();
-    };
-
-    if (user && user.id) setupRealtimeSubscriptions();
-
-    return () => {
-      console.log("[AppContext] Cleaning up realtime subscriptions.");
-      if (configSubscription) supabase.removeChannel(configSubscription);
-      if (coldCallLeadsSubscription) supabase.removeChannel(coldCallLeadsSubscription);
-      if (coldCallLogsSubscription) supabase.removeChannel(coldCallLogsSubscription);
-      if (consultantEventsSubscription) supabase.removeChannel(consultantEventsSubscription);
-    };
-  }, [user, fetchAppConfig]);
-
-  useEffect(() => {
     let isMounted = true;
     const fetchData = async (userId: string) => {
       console.log(`[AppContext.fetchData] Starting fetch for user: ${userId}`);
@@ -350,6 +281,25 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         console.log("[AppContext] crmOwnerUserId set to:", currentCrmOwnerId);
 
         await fetchAppConfig(effectiveGestorId);
+
+        // NOVO: Para GESTOR/ADMIN/SECRETARIA, buscar datasets críticos via edge function (bypass seguro de RLS)
+        const shouldUseFx = !!user && ['GESTOR', 'ADMIN', 'SECRETARIA'].includes(user.role);
+        let fxCrmLeads: any[] | null = null;
+        let fxLeadTasks: any[] | null = null;
+        let fxCandidates: any[] | null = null;
+
+        if (shouldUseFx) {
+          console.log("[AppContext] Invoking get-manager-dashboard edge function...");
+          const { data: fxData, error: fxError } = await supabase.functions.invoke('get-manager-dashboard');
+          if (fxError) {
+            console.error("[AppContext] get-manager-dashboard error:", fxError);
+          } else if (fxData?.ok) {
+            fxCrmLeads = fxData.crm_leads || [];
+            fxLeadTasks = fxData.lead_tasks || [];
+            fxCandidates = fxData.candidates || [];
+            console.log(`[AppContext] get-manager-dashboard returned leads=${fxCrmLeads.length}, tasks=${fxLeadTasks.length}, candidates=${fxCandidates.length}`);
+          }
+        }
 
         // Fetch data that is globally configured by JOAO_GESTOR_AUTH_ID or has RLS handled
         const [
@@ -364,94 +314,134 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           candidatesRes,
           formSubmissionsRes
         ] = await Promise.all([
-          supabase.from('support_materials').select('id, data'), // RLS handles this
-          supabase.from('cutoff_periods').select('id, data').eq('user_id', effectiveGestorId), // Filtered by effectiveGestorId
-          supabase.from('onboarding_sessions').select('*, videos:onboarding_videos(*)').eq('user_id', effectiveGestorId), // Filtered by effectiveGestorId
-          supabase.from('onboarding_video_templates').select('*').eq('user_id', effectiveGestorId).order('order', { ascending: true }), // Filtered by effectiveGestorId
-          supabase.from('crm_pipelines').select('*').eq('user_id', effectiveGestorId), // Filtered by effectiveGestorId
-          supabase.from('crm_stages').select('*').eq('user_id', effectiveGestorId).order('order_index'), // Filtered by effectiveGestorId
-          supabase.from('crm_fields').select('*').eq('user_id', effectiveGestorId), // Filtered by effectiveGestorId
-          supabase.from('crm_leads').select('*').order('created_at', { ascending: false }), // RLS handles this
-          supabase.from('daily_checklists').select('*').eq('user_id', effectiveGestorId), // Filtered by effectiveGestorId
-          supabase.from('daily_checklist_items').select('*'), // RLS handles this
-          supabase.from('daily_checklist_assignments').select('*'), // RLS handles this
-          supabase.from('daily_checklist_completions').select('*'), // RLS handles this
-          supabase.from('weekly_targets').select('*').eq('user_id', effectiveGestorId), // Filtered by effectiveGestorId
-          supabase.from('weekly_target_items').select('*'), // RLS handles this
-          supabase.from('weekly_target_assignments').select('*'), // RLS handles this
-          supabase.from('metric_logs').select('*'), // RLS handles this
-          supabase.from('support_materials_v2').select('*').eq('user_id', effectiveGestorId), // Filtered by effectiveGestorId
-          supabase.from('support_material_assignments').select('*'), // RLS handles this
-          supabase.from('lead_tasks').select('*'), // RLS handles this
-          supabase.from('gestor_tasks').select('*').eq('user_id', userId), // Filtered by userId
-          supabase.from('gestor_task_completions').select('*').eq('user_id', userId), // Filtered by userId
-          supabase.from('financial_entries').select('*').eq('user_id', userId), // Filtered by userId
-          supabase.from('notifications').select('*').eq('user_id', userId).eq('is_read', false).order('created_at', { ascending: false }), // Filtered by userId
-          supabase.from('team_production_goals').select('*').eq('user_id', effectiveGestorId).order('start_date', { ascending: false }), // Filtered by effectiveGestorId
-          supabase.from('team_members').select('id, data, cpf, user_id'), // RLS handles this
-          supabase.from('cold_call_leads').select('id, user_id, name, phone, email, current_stage, notes, crm_lead_id, created_at, updated_at', { count: 'exact' }).range(0, 99999).limit(100000), // RLS handles this
-          supabase.from('cold_call_logs').select('id, cold_call_lead_id, user_id, start_time, end_time, duration_seconds, result, meeting_date, meeting_time, meeting_modality, meeting_notes, created_at', { count: 'exact' }).range(0, 99999).limit(100000), // RLS handles this
-          supabase.from('consultant_events').select('*'), // RLS handles this
-          supabase.from('candidates').select('id, data, created_at, last_updated_at').eq('user_id', effectiveGestorId), // Filtered by effectiveGestorId
-          supabase.from('form_submissions').select('id, submission_date, data, internal_notes, is_complete').eq('user_id', effectiveGestorId).order('submission_date', { ascending: false }), // Filtered by effectiveGestorId
+          supabase.from('support_materials').select('id, data'),
+          supabase.from('cutoff_periods').select('id, data').eq('user_id', effectiveGestorId),
+          supabase.from('onboarding_sessions').select('*, videos:onboarding_videos(*)').eq('user_id', effectiveGestorId),
+          supabase.from('onboarding_video_templates').select('*').eq('user_id', effectiveGestorId).order('order', { ascending: true }),
+          supabase.from('crm_pipelines').select('*').eq('user_id', effectiveGestorId),
+          supabase.from('crm_stages').select('*').eq('user_id', effectiveGestorId).order('order_index'),
+          supabase.from('crm_fields').select('*').eq('user_id', effectiveGestorId),
+          supabase.from('crm_leads').select('*').order('created_at', { ascending: false }),
+          supabase.from('daily_checklists').select('*').eq('user_id', effectiveGestorId),
+          supabase.from('daily_checklist_items').select('*'),
+          supabase.from('daily_checklist_assignments').select('*'),
+          supabase.from('daily_checklist_completions').select('*'),
+          supabase.from('weekly_targets').select('*').eq('user_id', effectiveGestorId),
+          supabase.from('weekly_target_items').select('*'),
+          supabase.from('weekly_target_assignments').select('*'),
+          supabase.from('metric_logs').select('*'),
+          supabase.from('support_materials_v2').select('*').eq('user_id', effectiveGestorId),
+          supabase.from('support_material_assignments').select('*'),
+          supabase.from('lead_tasks').select('*'),
+          supabase.from('gestor_tasks').select('*').eq('user_id', userId),
+          supabase.from('gestor_task_completions').select('*').eq('user_id', userId),
+          supabase.from('financial_entries').select('*').eq('user_id', userId),
+          supabase.from('notifications').select('*').eq('user_id', userId).eq('is_read', false).order('created_at', { ascending: false }),
+          supabase.from('team_production_goals').select('*').eq('user_id', effectiveGestorId).order('start_date', { ascending: false }),
+          supabase.from('team_members').select('id, data, cpf, user_id'),
+          supabase.from('cold_call_leads').select('id, user_id, name, phone, email, current_stage, notes, crm_lead_id, created_at, updated_at', { count: 'exact' }).range(0, 99999).limit(100000),
+          supabase.from('cold_call_logs').select('id, cold_call_lead_id, user_id, start_time, end_time, duration_seconds, result, meeting_date, meeting_time, meeting_modality, meeting_notes, created_at', { count: 'exact' }).range(0, 99999).limit(100000),
+          supabase.from('consultant_events').select('*'),
+          supabase.from('candidates').select('id, data, created_at, last_updated_at').eq('user_id', effectiveGestorId),
+          supabase.from('form_submissions').select('id, submission_date, data, internal_notes, is_complete').eq('user_id', effectiveGestorId).order('submission_date', { ascending: false }),
         ]);
 
-        // Set formCadastros first as formFiles depends on it
-        if (formSubmissionsRes.error) { console.error(`[AppContext] Error loading form submissions: ${formSubmissionsRes.error.message}`); toast.error(`Erro ao carregar cadastros de formulário: ${formSubmissionsRes.error.message}`); setFormCadastros([]); }
-        else { setFormCadastros(formSubmissionsRes.data || []); console.log("[AppContext] Form Cadastros fetched:", (formSubmissionsRes.data || []).length); }
-
-        // Now fetch formFiles based on fetched formCadastros
-        const currentSubmissionIds = formSubmissionsRes.data?.map(f => f.id) || [];
-        const { data: fetchedFormFilesData, error: formFilesError } = await supabase.from('form_files').select('*').in('submission_id', currentSubmissionIds);
-        if (formFilesError) { console.error(`[AppContext] Error loading form files: ${formFilesError.message}`); toast.error(`Erro ao carregar arquivos de formulário: ${formFilesError.error}`); setFormFiles([]); }
-        else { setFormFiles(fetchedFormFilesData || []); console.log("[AppContext] Form Files fetched:", (fetchedFormFilesData || []).length); }
-
-        if (!isMounted) {
-          console.log("[AppContext.fetchData] Component unmounted during fetch, skipping state updates.");
-          return;
-        }
-
-        // --- Handle Candidates ---
-        if (candidatesRes.error) { console.error(`[AppContext] Error loading candidates: ${candidatesRes.error.message}`); toast.error(`Erro ao carregar candidatos: ${candidatesRes.error.message}`); setCandidates([]); }
-        else {
-          const normalizedCandidates = (candidatesRes.data || []).map(item => {
-            const candidateData = item.data as Candidate;
-            return { 
-              ...candidateData, 
-              id: (item.data as any).id || crypto.randomUUID(), 
-              db_id: item.id, 
-              createdAt: item.created_at, 
+        // --- Handle Candidates (preferir Edge Function, se disponível) ---
+        if (fxCandidates) {
+          const normalizedCandidates = (fxCandidates || []).map((item: any) => {
+            const candidateData = item.data;
+            return {
+              ...candidateData,
+              id: (candidateData as any).id || crypto.randomUUID(),
+              db_id: item.id,
+              createdAt: item.created_at,
               lastUpdatedAt: item.last_updated_at,
-              contactedDate: candidateData.contactedDate, interviewScheduledDate: candidateData.interviewScheduledDate,
-              interviewConductedDate: candidateData.interviewConductedDate, awaitingPreviewDate: candidateData.awaitingPreviewDate,
-              onboardingOnlineDate: candidateData.onboardingOnlineDate, integrationPresencialDate: candidateData.integrationPresencialDate,
-              acompanhamento90DiasDate: candidateData.acompanhamento90DiasDate, authorizedDate: candidateData.authorizedDate,
-              reprovadoDate: candidateData.reprovadoDate, disqualifiedDate: candidateData.disqualifiedDate, faltouDate: candidateData.faltouDate,
+              contactedDate: candidateData.contactedDate,
+              interviewScheduledDate: candidateData.interviewScheduledDate,
+              interviewConductedDate: candidateData.interviewConductedDate,
+              awaitingPreviewDate: candidateData.awaitingPreviewDate,
+              onboardingOnlineDate: candidateData.onboardingOnlineDate,
+              integrationPresencialDate: candidateData.integrationPresencialDate,
+              acompanhamento90DiasDate: candidateData.acompanhamento90DiasDate,
+              authorizedDate: candidateData.authorizedDate,
+              reprovadoDate: candidateData.reprovadoDate,
+              disqualifiedDate: candidateData.disqualifiedDate,
+              faltouDate: candidateData.faltouDate,
               noResponseDate: candidateData.noResponseDate,
               interviewStartTime: candidateData.interviewStartTime,
               interviewEndTime: candidateData.interviewEndTime,
             };
           });
           setCandidates(normalizedCandidates);
-          console.log("[AppContext] Candidates fetched:", normalizedCandidates.length);
+        } else {
+          if (candidatesRes.error) { console.error(`[AppContext] Error loading candidates: ${candidatesRes.error.message}`); setCandidates([]); }
+          else {
+            const normalizedCandidates = (candidatesRes.data || []).map(item => {
+              const candidateData = item.data as any;
+              return {
+                ...candidateData,
+                id: candidateData.id || crypto.randomUUID(),
+                db_id: item.id,
+                createdAt: item.created_at,
+                lastUpdatedAt: item.last_updated_at,
+              };
+            });
+            setCandidates(normalizedCandidates);
+          }
         }
 
-        // --- Handle Team Members ---
-        if (teamMembersRes.error) { console.error(`[AppContext] Error loading team members: ${teamMembersRes.error.message}`); toast.error(`Erro ao carregar membros da equipe: ${teamMembersRes.error.message}`); setTeamMembers([]); }
-        else {
-          const normalizedTeamMembers = (teamMembersRes.data || []).map(item => {
-            const data = item.data as any;
-            const dbId = item.id;
-            const authId = data.id || data.authUserId || null;
-            return { 
-              id: dbId, db_id: dbId, authUserId: authId, name: String(data.name || ''), email: data.email, 
-              roles: Array.isArray(data.roles) ? data.roles.map((role: string) => role.toUpperCase()) : [],
-              isActive: data.isActive !== false, 
-              hasLogin: !!authId, isLegacy: !authId, cpf: item.cpf, dateOfBirth: data.dateOfBirth, user_id: item.user_id 
-            };
-          });
-          setTeamMembers(normalizedTeamMembers);
-          console.log("[AppContext] Team Members fetched:", normalizedTeamMembers.length);
+        // --- Handle CRM Leads (preferir Edge Function, se disponível) ---
+        if (fxCrmLeads) {
+          setCrmLeads(
+            fxCrmLeads.map((lead: any) => ({
+              id: lead.id,
+              consultant_id: lead.consultant_id,
+              stage_id: lead.stage_id,
+              user_id: lead.user_id,
+              name: lead.name,
+              data: lead.data,
+              created_at: lead.created_at,
+              updated_at: lead.updated_at,
+              created_by: lead.created_by,
+              updated_by: lead.updated_by,
+              proposal_value: parseDbCurrency(lead.proposal_value),
+              proposal_closing_date: lead.proposal_closing_date,
+              sold_credit_value: parseDbCurrency(lead.sold_credit_value),
+              sold_group: lead.sold_group,
+              sold_quota: lead.sold_quota,
+              sale_date: lead.sale_date,
+            }))
+          );
+        } else {
+          if (crmLeadsRes.error) { console.error(`[AppContext] Error loading CRM leads: ${crmLeadsRes.error.message}`); setCrmLeads([]); }
+          else {
+            setCrmLeads(crmLeadsRes.data?.map((lead: any) => ({
+              id: lead.id,
+              consultant_id: lead.consultant_id,
+              stage_id: lead.stage_id,
+              user_id: lead.user_id,
+              name: lead.name,
+              data: lead.data,
+              created_at: lead.created_at,
+              updated_at: lead.updated_at,
+              created_by: lead.created_by,
+              updated_by: lead.updated_by,
+              proposal_value: parseDbCurrency(lead.proposal_value),
+              proposal_closing_date: lead.proposal_closing_date,
+              sold_credit_value: parseDbCurrency(lead.sold_credit_value),
+              sold_group: lead.sold_group,
+              sold_quota: lead.sold_quota,
+              sale_date: lead.sale_date,
+            })) || []);
+          }
+        }
+
+        // --- Handle Lead Tasks (preferir Edge Function, se disponível) ---
+        if (fxLeadTasks) {
+          setLeadTasks(fxLeadTasks);
+        } else {
+          if (leadTasksRes.error) { console.error(`[AppContext] Error loading lead tasks: ${leadTasksRes.error.message}`); setLeadTasks([]); }
+          else { setLeadTasks(leadTasksRes.data || []); }
         }
 
         // --- Handle Other Data (RLS-dependent) ---
@@ -477,11 +467,27 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         else { setCrmFields(fieldsRes.data || []); console.log("[AppContext] CRM Fields fetched:", (fieldsRes.data || []).length); }
 
         if (crmLeadsRes.error) { console.error(`[AppContext] Error loading CRM leads: ${crmLeadsRes.error.message}`); toast.error(`Erro ao carregar leads do CRM: ${crmLeadsRes.error.message}`); setCrmLeads([]); }
-        else { setCrmLeads(crmLeadsRes.data?.map((lead: any) => ({ 
-          id: lead.id, consultant_id: lead.consultant_id, stage_id: lead.stage_id, user_id: lead.user_id, name: lead.name, data: lead.data, created_at: lead.created_at, updated_at: lead.updated_at, created_by: lead.created_by, updated_by: lead.updated_by, 
-          proposal_value: parseDbCurrency(lead.proposal_value), proposal_closing_date: lead.proposal_closing_date, 
-          sold_credit_value: parseDbCurrency(lead.sold_credit_value), sold_group: lead.sold_group, sold_quota: lead.sold_quota, sale_date: lead.sale_date 
-        })) || []); console.log("[AppContext] CRM Leads fetched:", (crmLeadsRes.data || []).length); }
+        else {
+          setCrmLeads(crmLeadsRes.data?.map((lead: any) => ({
+            id: lead.id,
+            consultant_id: lead.consultant_id,
+            stage_id: lead.stage_id,
+            user_id: lead.user_id,
+            name: lead.name,
+            data: lead.data,
+            created_at: lead.created_at,
+            updated_at: lead.updated_at,
+            created_by: lead.created_by,
+            updated_by: lead.updated_by,
+            proposal_value: parseDbCurrency(lead.proposal_value),
+            proposal_closing_date: lead.proposal_closing_date,
+            sold_credit_value: parseDbCurrency(lead.sold_credit_value),
+            sold_group: lead.sold_group,
+            sold_quota: lead.sold_quota,
+            sale_date: lead.sale_date,
+          })) || []);
+          console.log("[AppContext] CRM Leads fetched:", (crmLeadsRes.data || []).length);
+        }
 
         if (dailyChecklistsRes.error) { console.error(`[AppContext] Error loading daily checklists: ${dailyChecklistsRes.error.message}`); toast.error(`Erro ao carregar checklists diários: ${dailyChecklistsRes.error.message}`); setDailyChecklists([]); }
         else { setDailyChecklists(dailyChecklistsRes.data || []); console.log("[AppContext] Daily Checklists fetched:", (dailyChecklistsRes.data || []).length); }
@@ -535,10 +541,33 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         else { setFormCadastros(formSubmissionsRes.data || []); console.log("[AppContext] Form Cadastros fetched:", (formSubmissionsRes.data || []).length); }
 
         // Now fetch formFiles based on fetched formCadastros
-        const currentSubmissionIds2 = formSubmissionsRes.data?.map(f => f.id) || [];
-        const { data: fetchedFormFilesData2, error: formFilesError2 } = await supabase.from('form_files').select('*').in('submission_id', currentSubmissionIds2);
-        if (formFilesError2) { console.error(`[AppContext] Error loading form files: ${formFilesError2.message}`); toast.error(`Erro ao carregar arquivos de formulário: ${formFilesError2.error}`); setFormFiles([]); }
-        else { setFormFiles(fetchedFormFilesData2 || []); console.log("[AppContext] Form Files fetched:", (fetchedFormFilesData2 || []).length); }
+        const currentSubmissionIds = formSubmissionsRes.data?.map(f => f.id) || [];
+        const { data: fetchedFormFilesData, error: formFilesError } = await supabase.from('form_files').select('*').in('submission_id', currentSubmissionIds);
+        if (formFilesError) { console.error(`[AppContext] Error loading form files: ${formFilesError.message}`); toast.error(`Erro ao carregar arquivos de formulário: ${formFilesError.error}`); setFormFiles([]); }
+        else { setFormFiles(fetchedFormFilesData || []); console.log("[AppContext] Form Files fetched:", (fetchedFormFilesData || []).length); }
+
+        if (!isMounted) {
+          console.log("[AppContext.fetchData] Component unmounted during fetch, skipping state updates.");
+          return;
+        }
+
+        // --- Handle Team Members ---
+        if (teamMembersRes.error) { console.error(`[AppContext] Error loading team members: ${teamMembersRes.error.message}`); toast.error(`Erro ao carregar membros da equipe: ${teamMembersRes.error.message}`); setTeamMembers([]); }
+        else {
+          const normalizedTeamMembers = (teamMembersRes.data || []).map(item => {
+            const data = item.data as any;
+            const dbId = item.id;
+            const authId = data.id || data.authUserId || null;
+            return { 
+              id: dbId, db_id: dbId, authUserId: authId, name: String(data.name || ''), email: data.email, 
+              roles: Array.isArray(data.roles) ? data.roles.map((role: string) => role.toUpperCase()) : [],
+              isActive: data.isActive !== false, 
+              hasLogin: !!authId, isLegacy: !authId, cpf: item.cpf, dateOfBirth: data.dateOfBirth, user_id: item.user_id 
+            };
+          });
+          setTeamMembers(normalizedTeamMembers);
+          console.log("[AppContext] Team Members fetched:", normalizedTeamMembers.length);
+        }
 
         if (notificationsRes.error) { console.error(`[AppContext] Error loading notifications: ${notificationsRes.error.message}`); toast.error(`Erro ao carregar notificações: ${notificationsRes.error.message}`); setNotifications([]); }
         else { setNotifications(notificationsRes.data || []); console.log("[AppContext] Notifications fetched:", (notificationsRes.data || []).length); }
