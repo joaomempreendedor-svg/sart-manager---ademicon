@@ -365,24 +365,16 @@ const CrmOverviewPage = () => {
       <div className="flex overflow-x-auto pb-4 space-x-4 custom-scrollbar">
         {pipelineStages.map(stage => {
           const stageLeads = groupedLeads[stage.id] || [];
-          const start = filterStartDate ? new Date(filterStartDate + 'T00:00:00') : null;
-          const end = filterEndDate ? new Date(filterEndDate + 'T23:59:59') : null;
-
+          
           const stageValue = stageLeads.reduce((sum, lead) => {
-            const actualSoldValue = (lead.sold_credit_value && lead.sold_credit_value > 0)
-              ? lead.sold_credit_value
-              : (lead.proposal_value || 0);
+            const actualSoldValue =
+              lead.sold_credit_value && lead.sold_credit_value > 0
+                ? lead.sold_credit_value
+                : (lead.proposal_value || 0);
 
-            if (stage.is_won) {
-              if (lead.sale_date) {
-                const saleDate = new Date(lead.sale_date + 'T00:00:00');
-                if ((!start || saleDate >= start) && (!end || saleDate <= end)) {
-                  return sum + actualSoldValue;
-                }
-              }
-              return sum;
-            }
-            return sum + (lead.proposal_value || 0);
+            return stage.is_won
+              ? sum + actualSoldValue
+              : sum + (lead.proposal_value || 0);
           }, 0);
 
           return (
