@@ -161,15 +161,15 @@ const CrmOverviewPage = () => {
     if (!displayStages.length) return groups;
     const displayWonStage = displayStages.find(s => s.is_won);
     const wonId = displayWonStage?.id;
-    // Preenche colunas normais por stage_id (sem mexer nos vendidos)
+    // Colunas normais: respeitam filtros (consultor, busca, datas)
     displayStages.forEach(stage => {
       if (!stage.is_won) {
         groups[stage.id] = filteredLeads.filter(lead => lead.stage_id === stage.id);
       }
     });
-    // Coluna "Vendido": todos em etapa ganha OU com dados de venda
+    // Coluna "Vendido": IGNORA filtros de consultor/busca -> pega todos vendidos do CRM
     if (wonId) {
-      const soldLeads = filteredLeads.filter(lead => {
+      const soldLeads = crmLeads.filter(lead => {
         const leadStage = crmStages.find(s => s.id === lead.stage_id);
         const isWonStage = !!leadStage?.is_won;
         const isSold = !!lead.sale_date || (typeof lead.sold_credit_value === 'number' && lead.sold_credit_value > 0);
@@ -178,7 +178,7 @@ const CrmOverviewPage = () => {
       groups[wonId] = soldLeads;
     }
     return groups;
-  }, [displayStages, filteredLeads, crmStages]);
+  }, [displayStages, filteredLeads, crmLeads, crmStages]);
 
   const getConsultantName = (lead: CrmLead) => {
     const targetId = lead.consultant_id || lead.created_by;
