@@ -293,7 +293,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       // Watchdog para detectar demora anormal no bootstrap
       const watchdogId = window.setTimeout(() => {
-        console.warn('[app] watchdog: fetchData running > 10000ms');
+        console.warn('[app] watchdog: fetchData running > 10000ms — forcing isDataLoading=false (failsafe)');
+        if (isMounted) setIsDataLoading(false);
       }, 10000);
 
       try {
@@ -509,6 +510,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       isMounted = false; // Set flag to false when component unmounts
     };
   }, [user?.id, refetchCommissions, fetchAppConfig, resetLocalState, parseDbCurrency]);
+
+  // Failsafe adicional: se por alguma razão o loading permanecer ativo por muito tempo, encerra após 15s
+  useEffect(() => {
+    if (!isDataLoading) return;
+    let cancelled = false;
+    const bailoutId = window.setTimeout(() => {
+      if (!cancelled) {
+        console.warn('[app] bailout: forcing isDataLoading=false after 15000ms');
+        setIsDataLoading(false);
+      }
+    }, 15000);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(bailoutId);
+    };
+  }, [isDataLoading]);
 
   // CRUD candidatos
   const addCandidate = useCallback(async (candidate: Omit<Candidate, 'id' | 'createdAt' | 'db_id'>) => {
