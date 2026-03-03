@@ -74,7 +74,10 @@ const RequireAuth: React.FC<{ allowedRoles: UserRole[] }> = ({ allowedRoles }) =
   // Todos os hooks devem ser chamados incondicionalmente no nível superior do componente.
   // A lógica condicional para renderização/navegação vem depois.
 
-  if (isAuthLoading || isDataLoading) {
+  // Evita bloquear a rota raiz ("/") pelo isDataLoading; apenas isAuthLoading bloqueia.
+  // Isso elimina o "loading infinito" ao redirecionar imediatamente a partir de Home.
+  const isRoot = location.pathname === '/';
+  if (isAuthLoading || (!isRoot && isDataLoading)) {
     return <AppLoader />;
   }
 
