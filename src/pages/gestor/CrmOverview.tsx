@@ -159,27 +159,39 @@ const CrmOverviewPage = () => {
   const groupedLeads = useMemo(() => {
     const groups: Record<string, CrmLead[]> = {};
     if (!displayStages.length) return groups;
+
     const displayWonStage = displayStages.find(s => s.is_won);
     const wonId = displayWonStage?.id;
+
     // Colunas normais: respeitam filtros (consultor, busca, datas)
     displayStages.forEach(stage => {
       if (!stage.is_won) {
         groups[stage.id] = filteredLeads.filter(lead => lead.stage_id === stage.id);
       }
     });
+
     // Coluna "Vendido": IGNORA filtros de consultor/busca -> pega todos vendidos do CRM
     if (wonId) {
+      const normalize = (str: string) =>
+        (str || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const soldNameKeywords = ['vendid', 'ganh', 'fechad', 'assinad', 'conclu'];
+
       const soldLeads = crmLeads.filter(lead => {
         const leadStage = crmStages.find(s => s.id === lead.stage_id);
-        const stageName = (leadStage?.name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-        // Considera vendido por: flag is_won, nome do estágio (vendid/ganh) ou campos de venda
-        const isWonByName = stageName.includes('vendid') || stageName.includes('ganh');
+        const stageName = normalize(leadStage?.name || '');
+        const isWonByName = soldNameKeywords.some(k => stageName.includes(k));
         const isWonStage = !!leadStage?.is_won || isWonByName;
-        const isSold = !!lead.sale_date || (typeof lead.sold_credit_value === 'number' && lead.sold_credit_value > 0);
-        return isWonStage || isSold;
+        const isSoldByFields =
+          !!lead.sale_date ||
+          (typeof lead.sold_credit_value === 'number' && lead.sold_credit_value > 0);
+        return isWonStage || isSoldByFields;
       });
-      groups[wonId] = soldLeads;
+
+      // Evitar duplicatas por segurança
+      const uniqueSold = Array.from(new Map(soldLeads.map(l => [l.id, l])).values());
+      groups[wonId] = uniqueSold;
     }
+
     return groups;
   }, [displayStages, filteredLeads, crmLeads, crmStages]);
 
