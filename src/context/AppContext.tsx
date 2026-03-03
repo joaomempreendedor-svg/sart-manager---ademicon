@@ -207,6 +207,77 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, [user]);
 
+  const refetchTeamMembers = useCallback(async () => {
+    // Se não houver sessão, não faz nada
+    if (!user) {
+      setTeamMembers([]);
+      return;
+    }
+    try {
+      // Tentar via Edge Function primeiro (se papel permitir)
+      const role = user.role?.toUpperCase?.() || 'CONSULTOR';
+      let loaded = false;
+      if (['GESTOR', 'ADMIN', 'SECRETARIA'].includes(role)) {
+        const { data: tmFx, error: tmFxErr } = await supabase.functions.invoke('get-team-members');
+        if (!tmFxErr && tmFx?.ok) {
+          const fxTeamMembers = tmFx.team_members || [];
+          const normalized = (fxTeamMembers || []).map((item: any) => {
+            const data = item.data as any;
+            const dbId = item.id;
+            const authId = data.id || data.authUserId || null;
+            return {
+              id: dbId,
+              db_id: dbId,
+              authUserId: authId,
+              name: String(data.name || ''),
+              email: data.email,
+              roles: Array.isArray(data.roles) ? data.roles.map((r: string) => r.toUpperCase()) : [],
+              isActive: data.isActive !== false,
+              hasLogin: !!authId,
+              isLegacy: !authId,
+              cpf: item.cpf,
+              dateOfBirth: data.dateOfBirth,
+              user_id: item.user_id
+            } as TeamMember;
+          });
+          setTeamMembers(normalized);
+          loaded = true;
+        }
+      }
+      // Fallback: consulta direta (RLS limita; consultor verá a própria linha)
+      if (!loaded) {
+        const { data, error } = await supabase
+          .from('team_members')
+          .select('id, data, cpf, user_id');
+        if (error) throw error;
+        const normalized = (data || []).map((item: any) => {
+          const d = item.data as any;
+          const dbId = item.id;
+          const authId = d.id || d.authUserId || null;
+          return {
+            id: dbId,
+            db_id: dbId,
+            authUserId: authId,
+            name: String(d.name || ''),
+            email: d.email,
+            roles: Array.isArray(d.roles) ? d.roles.map((r: string) => r.toUpperCase()) : [],
+            isActive: d.isActive !== false,
+            hasLogin: !!authId,
+            isLegacy: !authId,
+            cpf: item.cpf,
+            dateOfBirth: d.dateOfBirth,
+            user_id: item.user_id
+          } as TeamMember;
+        });
+        setTeamMembers(normalized);
+      }
+    } catch (e: any) {
+      console.error('[AppContext] refetchTeamMembers error:', e?.message || e);
+      toast.error(`Erro ao recarregar membros da equipe: ${e?.message || 'desconhecido'}`);
+      setTeamMembers([]);
+    }
+  }, [user]);
+
   const isGestorTaskDueOnDate = useCallback((task: GestorTask, checkDate: string): boolean => {
     if (!task.recurrence_pattern || task.recurrence_pattern.type === 'none') return task.due_date === checkDate;
     const taskCreationDate = new Date(task.created_at);
@@ -1436,7 +1507,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setConsultantEvents(prev => prev.filter(e => e.id !== id));
   }, [user]);
 
-
   const value: AppContextType = useMemo(() => {
     console.log("[AppContext] useMemo re-calculating value. updateFormCadastro is defined:", typeof updateFormCadastro !== 'undefined');
     return {
@@ -1835,6 +1905,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       addConsultantEvent, // NOVO: Adicionar CRUD para eventos do consultor
       updateConsultantEvent,
       deleteConsultantEvent, // NOVO: Adicionar CRUD para eventos do consultor
+      refetchTeamMembers,
     };
   }, [
     isDataLoading,
@@ -1871,6 +1942,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addColdCallLead, updateColdCallLead, deleteColdCallLead, addColdCallLog, getColdCallMetrics, createCrmLeadFromColdCall,
     addOnlineOnboardingSession, deleteOnlineOnboardingSession, addVideoToTemplate, deleteVideoFromTemplate,
     addConsultantEvent, updateConsultantEvent, deleteConsultantEvent, // NOVO: Adicionar CRUD para eventos do consultor
+    refetchTeamMembers,
   ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

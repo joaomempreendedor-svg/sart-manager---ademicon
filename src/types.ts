@@ -712,6 +712,7 @@ export interface AppContextType {
   addConsultantEvent: (event: Omit<ConsultantEvent, 'id' | 'user_id' | 'created_at'>) => Promise<ConsultantEvent>; // NOVO
   updateConsultantEvent: (id: string, updates: Partial<ConsultantEvent>) => Promise<ConsultantEvent>; // NOVO
   deleteConsultantEvent: (id: string) => Promise<void>; // NOVO
+  refetchTeamMembers: () => Promise<void>;
 }
 
 export interface ColdCallMetrics { // NOVO: Interface para as métricas de Cold Call
