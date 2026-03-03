@@ -141,13 +141,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // Define se a tarefa do gestor está "devida" na data fornecida (YYYY-MM-DD)
   const isGestorTaskDueOnDate = useCallback((task: GestorTask, checkDate: string): boolean => {
     const type = task.recurrence_pattern?.type ?? 'none';
-    // Helper para comparar no nível de dia
     const toDay = (s: string) => new Date(s + 'T00:00:00');
     if (type === 'none') {
       return !!task.due_date && task.due_date === checkDate;
     }
     if (type === 'daily') {
-      return true; // todo dia
+      return true;
     }
     if (type === 'every_x_days') {
       const interval = Math.max(2, task.recurrence_pattern?.interval ?? 2);
@@ -161,6 +160,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
     return false;
   }, []);
+
+  // Calcula notificações (quantidade não lida e lista ordenada por data)
+  const calculateNotifications = useCallback(() => {
+    const unread = (notifications || []).filter((n) => !n.is_read);
+    const ordered = [...(notifications || [])].sort((a, b) => {
+      const da = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const db = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return db - da;
+    });
+    return {
+      totalUnread: unread.length,
+      list: ordered,
+    };
+  }, [notifications]);
 
   const debouncedUpdateConfig = useDebouncedCallback(async (newConfig: any) => {
     if (!user) {
@@ -805,7 +818,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       isMounted = false;
       console.log("[AppContext.useEffect] AppContext cleanup.");
     };
-  }, [user, isAuthLoading, refetchCommissions, fetchAppConfig, resetLocalState, parseDbCurrency, user?.role, isDataLoading, isGestorTaskDueOnDate]);
+  }, [user, isAuthLoading, refetchCommissions, fetchAppConfig, resetLocalState, parseDbCurrency, user?.role, isDataLoading, isGestorTaskDueOnDate, calculateNotifications]);
 
   // CRUD candidatos
   const addCandidate = useCallback(async (candidate: Omit<Candidate, 'id' | 'createdAt' | 'db_id'>) => {
