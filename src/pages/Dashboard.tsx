@@ -296,7 +296,7 @@ export const Dashboard = () => {
     const totalAnswered = answeredLogs.length;
 
     const totalConversations = answeredLogs.filter(log =>
-      log.result === 'Demonstrou Interesse' || log.result === 'Agendar Reunião'
+      log.result === 'Conversou' || log.result === 'Demonstrou Interesse' || log.result === 'Agendar Reunião'
     ).length;
     const totalMeetingsScheduled = answeredLogs.filter(log => log.result === 'Agendar Reunião').length;
 

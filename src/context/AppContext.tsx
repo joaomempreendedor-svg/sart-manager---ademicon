@@ -368,6 +368,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         let fxCrmLeads: any[] | null = null;
         let fxLeadTasks: any[] | null = null;
         let fxCandidates: any[] | null = null;
+        let fxColdCallLeads: any[] | null = null;
+        let fxColdCallLogs: any[] | null = null;
 
         if (shouldUseFx) {
           console.log("[AppContext] Invoking get-manager-dashboard edge function...");
@@ -387,9 +389,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           if (tmFxErr) {
             console.error("[AppContext] get-team-members error:", tmFxErr);
           } else if (tmFx?.ok) {
-            // Armazenar temporariamente no window para uso logo abaixo (mantém escopo do edit curto)
             (window as any).__fxTeamMembers = tmFx.team_members || [];
             console.log(`[AppContext] get-team-members returned team_members=${(window as any).__fxTeamMembers.length}`);
+          }
+
+          // NOVO: Carregar dados de Cold Call via edge function (bypass seguro de RLS)
+          console.log("[AppContext] Invoking get-cold-call-data edge function...");
+          const { data: coldFx, error: coldFxErr } = await supabase.functions.invoke('get-cold-call-data');
+          if (coldFxErr) {
+            console.error("[AppContext] get-cold-call-data error:", coldFxErr);
+          } else if (coldFx?.ok) {
+            fxColdCallLeads = coldFx.cold_call_leads || [];
+            fxColdCallLogs = coldFx.cold_call_logs || [];
+            console.log(`[AppContext] get-cold-call-data returned leads=${fxColdCallLeads.length}, logs=${fxColdCallLogs.length}`);
           }
         }
 
@@ -686,14 +698,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (teamProductionGoalsRes.error) { console.error(`[AppContext] Error loading team production goals: ${teamProductionGoalsRes.error.message}`); toast.error(`Erro ao carregar metas da equipe: ${teamProductionGoalsRes.error.message}`); setTeamProductionGoals([]); }
         else { setTeamProductionGoals(teamProductionGoalsRes.data || []); console.log("[AppContext] Team Production Goals fetched:", (teamProductionGoalsRes.data || []).length); }
         
-        if (coldCallLeadsRes.error) { console.error(`[AppContext] Error loading cold call leads: ${coldCallLeadsRes.error.message}`); toast.error(`Erro ao carregar leads de cold call: ${coldCallLeadsRes.error.message}`); setColdCallLeads([]); }
-        else { 
+        if (fxColdCallLeads) {
+          setColdCallLeads(fxColdCallLeads);
+          console.log("[AppContext] Cold Call Leads loaded from edge function:", fxColdCallLeads.length);
+        } else if (coldCallLeadsRes.error) { 
+          console.error(`[AppContext] Error loading cold call leads: ${coldCallLeadsRes.error.message}`); 
+          toast.error(`Erro ao carregar leads de cold call: ${coldCallLeadsRes.error.message}`); 
+          setColdCallLeads([]); 
+        } else { 
           setColdCallLeads(coldCallLeadsRes.data || []); 
           console.log("[AppContext] Cold Call Leads fetched:", (coldCallLeadsRes.data || []).length, "Count:", coldCallLeadsRes.count);
         }
 
-        if (coldCallLogsRes.error) { console.error(`[AppContext] Error loading cold call logs: ${coldCallLogsRes.error.message}`); toast.error(`Erro ao carregar logs de cold call: ${coldCallLogsRes.error.message}`); setColdCallLogs([]); }
-        else { 
+        if (fxColdCallLogs) {
+          setColdCallLogs(fxColdCallLogs);
+          console.log("[AppContext] Cold Call Logs loaded from edge function:", fxColdCallLogs.length);
+        } else if (coldCallLogsRes.error) { 
+          console.error(`[AppContext] Error loading cold call logs: ${coldCallLogsRes.error.message}`); 
+          toast.error(`Erro ao carregar logs de cold call: ${coldCallLogsRes.error.message}`); 
+          setColdCallLogs([]); 
+        } else { 
           setColdCallLogs(coldCallLogsRes.data || []); 
           console.log("[AppContext] Cold Call Logs fetched:", (coldCallLogsRes.data || []).length, "Count:", coldCallLogsRes.count);
         }
