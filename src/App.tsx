@@ -47,18 +47,18 @@ import { FinancialPanel } from '@/pages/FinancialPanel';
 import { FormCadastros } from '@/pages/gestor/FormSubmissions';
 import TeamProductionGoals from '@/pages/gestor/TeamProductionGoals';
 import GestorTasksPage from '@/pages/gestor/GestorTasksPage';
-import ColdCallMetricsPage from '@/pages/gestor/ColdCallMetricsPage'; // NOVO: Importar ColdCallMetricsPage
+import ColdCallMetricsPage from '@/pages/gestor/ColdCallMetricsPage';
 
 // Consultor Pages
 import ConsultorDashboard from '@/pages/consultor/Dashboard';
 import ConsultorCrmPage from '@/pages/consultor/Crm';
 import { DailyChecklist } from '@/pages/consultor/DailyChecklist';
 import ConsultorSalesReports from '@/pages/consultor/ConsultorSalesReports';
-import ColdCallPage from '@/pages/consultor/ColdCallPage'; // NOVO: Importar ColdCallPage
+import ColdCallPage from '@/pages/consultor/ColdCallPage';
 
 // Secretaria Pages
 import { SecretariaDashboard } from '@/pages/secretaria/SecretariaDashboard';
-import { SecretariaDailyChecklist } from '@/pages/secretaria/SecretariaDailyChecklist'; // NOVO: Importar a página de checklist da secretaria
+import { SecretariaDailyChecklist } from '@/pages/secretaria/SecretariaDailyChecklist';
 
 const AppLoader = () => (
   <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-slate-900">
@@ -104,8 +104,18 @@ const RequireAuth: React.FC<{ allowedRoles: UserRole[] }> = ({ allowedRoles }) =
 };
 
 const AppRoutes = () => {
-  const { isLoading } = useAuth();
-  if (isLoading) return <AppLoader />;
+  const { user, isLoading: isAuthLoading } = useAuth();
+  const { isDataLoading } = useApp();
+
+  console.log("AppRoutes - isAuthLoading:", isAuthLoading, "isDataLoading:", isDataLoading, "user:", user ? user.id : "null");
+
+  if (isAuthLoading || isDataLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-slate-900">
+        <Loader2 className="w-12 h-12 text-brand-500 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <Routes>
@@ -124,7 +134,7 @@ const AppRoutes = () => {
       <Route element={<RequireAuth allowedRoles={['GESTOR', 'ADMIN', 'SECRETARIA']} />}>
         <Route path="/gestor" element={<GestorLayout />}>
           <Route path="dashboard" element={<Dashboard />} />
-          <Route path="candidate/:id" element={<CandidateDetail />} /> {/* Agora acessível por Gestor, Admin e Secretaria */}
+          <Route path="candidate/:id" element={<CandidateDetail />} />
           <Route path="commissions" element={<Commissions />} />
           <Route path="financial-panel" element={<FinancialPanel />} />
           <Route path="feedbacks" element={<Feedbacks />} />
@@ -148,10 +158,10 @@ const AppRoutes = () => {
           <Route path="form-cadastros" element={<FormCadastros />} />
           <Route path="team-production-goals" element={<TeamProductionGoals />} />
           <Route path="my-tasks" element={<GestorTasksPage />} />
-          <Route path="cold-call-metrics" element={<ColdCallMetricsPage />} /> {/* NOVO: Rota para ColdCallMetricsPage */}
+          <Route path="cold-call-metrics" element={<ColdCallMetricsPage />} />
         </Route>
 
-        <Route path="/secretaria" element={<GestorLayout />}> {/* Secretaria também usa GestorLayout */}
+        <Route path="/secretaria" element={<GestorLayout />}>
           <Route path="dashboard" element={<SecretariaDashboard />} />
           <Route path="hiring-dashboard" element={<HiringDashboard />} />
           <Route path="hiring-pipeline" element={<HiringPipeline />} />
@@ -168,7 +178,7 @@ const AppRoutes = () => {
         <Route path="/consultor" element={<ConsultorLayout />}>
           <Route path="dashboard" element={<ConsultorDashboard />} />
           <Route path="crm" element={<ConsultorCrmPage />} />
-          <Route path="cold-call" element={<ColdCallPage />} /> {/* NOVO: Rota para Cold Call */}
+          <Route path="cold-call" element={<ColdCallPage />} />
           <Route path="daily-checklist" element={<DailyChecklist />} />
           <Route path="materials" element={<Materials />} />
           <Route path="sales-reports" element={<ConsultorSalesReports />} />
