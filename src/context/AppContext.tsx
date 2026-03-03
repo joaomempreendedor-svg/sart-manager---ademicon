@@ -372,11 +372,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           supabase.from('crm_stages').select('*').eq('user_id', effectiveGestorId).order('order_index'), // Filtered by effectiveGestorId
           supabase.from('crm_fields').select('*').eq('user_id', effectiveGestorId), // Filtered by effectiveGestorId
           supabase.from('crm_leads').select('*').order('created_at', { ascending: false }), // RLS handles this
-          supabase.from('daily_checklists').select('*'), // RLS handles this
+          supabase.from('daily_checklists').select('*').eq('user_id', effectiveGestorId), // Filtered by effectiveGestorId
           supabase.from('daily_checklist_items').select('*'), // RLS handles this
           supabase.from('daily_checklist_assignments').select('*'), // RLS handles this
           supabase.from('daily_checklist_completions').select('*'), // RLS handles this
-          supabase.from('weekly_targets').select('*'), // RLS handles this
+          supabase.from('weekly_targets').select('*').eq('user_id', effectiveGestorId), // Filtered by effectiveGestorId
           supabase.from('weekly_target_items').select('*'), // RLS handles this
           supabase.from('weekly_target_assignments').select('*'), // RLS handles this
           supabase.from('metric_logs').select('*'), // RLS handles this
@@ -401,8 +401,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         else { setFormCadastros(formSubmissionsRes.data || []); console.log("[AppContext] Form Cadastros fetched:", (formSubmissionsRes.data || []).length); }
 
         // Now fetch formFiles based on fetched formCadastros
-        const formSubmissionIds = formSubmissionsRes.data?.map(f => f.id) || [];
-        const { data: formFilesData, error: formFilesError } = await supabase.from('form_files').select('*').in('submission_id', formSubmissionIds);
+        const currentFormSubmissionIds = formSubmissionsRes.data?.map(f => f.id) || [];
+        const { data: formFilesData, error: formFilesError } = await supabase.from('form_files').select('*').in('submission_id', currentFormSubmissionIds);
         if (formFilesError) { console.error(`[AppContext] Error loading form files: ${formFilesError.message}`); toast.error(`Erro ao carregar arquivos de formulário: ${formFilesError.error}`); setFormFiles([]); }
         else { setFormFiles(formFilesData || []); console.log("[AppContext] Form Files fetched:", (formFilesData || []).length); }
 
@@ -534,8 +534,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         else { setFormCadastros(formSubmissionsRes.data || []); console.log("[AppContext] Form Cadastros fetched:", (formSubmissionsRes.data || []).length); }
 
         // Now fetch formFiles based on fetched formCadastros
-        const formSubmissionIds = formSubmissionsRes.data?.map(f => f.id) || [];
-        const { data: formFilesData, error: formFilesError } = await supabase.from('form_files').select('*').in('submission_id', formSubmissionIds);
+        const currentFormSubmissionIds = formSubmissionsRes.data?.map(f => f.id) || [];
+        const { data: formFilesData, error: formFilesError } = await supabase.from('form_files').select('*').in('submission_id', currentFormSubmissionIds);
         if (formFilesError) { console.error(`[AppContext] Error loading form files: ${formFilesError.message}`); toast.error(`Erro ao carregar arquivos de formulário: ${formFilesError.error}`); setFormFiles([]); }
         else { setFormFiles(formFilesData || []); console.log("[AppContext] Form Files fetched:", (formFilesData || []).length); }
 
