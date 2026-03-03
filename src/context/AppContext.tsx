@@ -299,6 +299,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             fxCandidates = fxData.candidates || [];
             console.log(`[AppContext] get-manager-dashboard returned leads=${fxCrmLeads.length}, tasks=${fxLeadTasks.length}, candidates=${fxCandidates.length}`);
           }
+
+          // NOVO: Buscar membros da equipe via edge function para contornar RLS
+          console.log("[AppContext] Invoking get-team-members edge function...");
+          const { data: tmFx, error: tmFxErr } = await supabase.functions.invoke('get-team-members');
+          if (tmFxErr) {
+            console.error("[AppContext] get-team-members error:", tmFxErr);
+          } else if (tmFx?.ok) {
+            // Armazenar temporariamente no window para uso logo abaixo (mantém escopo do edit curto)
+            (window as any).__fxTeamMembers = tmFx.team_members || [];
+            console.log(`[AppContext] get-team-members returned team_members=${(window as any).__fxTeamMembers.length}`);
+          }
         }
 
         // Fetch data that is globally configured by JOAO_GESTOR_AUTH_ID or has RLS handled
@@ -552,8 +563,27 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
 
         // --- Handle Team Members ---
-        if (teamMembersRes.error) { console.error(`[AppContext] Error loading team members: ${teamMembersRes.error.message}`); toast.error(`Erro ao carregar membros da equipe: ${teamMembersRes.error.message}`); setTeamMembers([]); }
-        else {
+        const fxTeamMembers: any[] | null = (window as any).__fxTeamMembers || null;
+        if (fxTeamMembers) {
+          const normalizedTeamMembers = (fxTeamMembers || []).map((item: any) => {
+            const data = item.data as any;
+            const dbId = item.id;
+            const authId = data.id || data.authUserId || null;
+            return { 
+              id: dbId, db_id: dbId, authUserId: authId, name: String(data.name || ''), email: data.email, 
+              roles: Array.isArray(data.roles) ? data.roles.map((role: string) => role.toUpperCase()) : [],
+              isActive: data.isActive !== false, 
+              hasLogin: !!authId, isLegacy: !authId, cpf: item.cpf, dateOfBirth: data.dateOfBirth, user_id: item.user_id 
+            };
+          });
+          setTeamMembers(normalizedTeamMembers);
+          // Limpar armazenamento temporário
+          delete (window as any).__fxTeamMembers;
+        } else if (teamMembersRes.error) {
+          console.error(`[AppContext] Error loading team members: ${teamMembersRes.error.message}`);
+          toast.error(`Erro ao carregar membros da equipe: ${teamMembersRes.error.message}`);
+          setTeamMembers([]);
+        } else {
           const normalizedTeamMembers = (teamMembersRes.data || []).map(item => {
             const data = item.data as any;
             const dbId = item.id;
