@@ -138,6 +138,30 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return `${compYear}-${compMonth}`;
   }, [cutoffPeriods]);
 
+  // Define se a tarefa do gestor está "devida" na data fornecida (YYYY-MM-DD)
+  const isGestorTaskDueOnDate = useCallback((task: GestorTask, checkDate: string): boolean => {
+    const type = task.recurrence_pattern?.type ?? 'none';
+    // Helper para comparar no nível de dia
+    const toDay = (s: string) => new Date(s + 'T00:00:00');
+    if (type === 'none') {
+      return !!task.due_date && task.due_date === checkDate;
+    }
+    if (type === 'daily') {
+      return true; // todo dia
+    }
+    if (type === 'every_x_days') {
+      const interval = Math.max(2, task.recurrence_pattern?.interval ?? 2);
+      const anchorStr = task.due_date || (task.created_at ? task.created_at.split('T')[0] : null);
+      if (!anchorStr) return false;
+      const anchor = toDay(anchorStr);
+      const probe = toDay(checkDate);
+      if (probe < anchor) return false;
+      const diffDays = Math.floor((probe.getTime() - anchor.getTime()) / (1000 * 60 * 60 * 24));
+      return diffDays % interval === 0;
+    }
+    return false;
+  }, []);
+
   const debouncedUpdateConfig = useDebouncedCallback(async (newConfig: any) => {
     if (!user) {
       console.warn("[AppContext] No user authenticated, cannot save config.");
@@ -781,7 +805,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       isMounted = false;
       console.log("[AppContext.useEffect] AppContext cleanup.");
     };
-  }, [user, isAuthLoading, refetchCommissions, fetchAppConfig, resetLocalState, parseDbCurrency, user?.role, isDataLoading]);
+  }, [user, isAuthLoading, refetchCommissions, fetchAppConfig, resetLocalState, parseDbCurrency, user?.role, isDataLoading, isGestorTaskDueOnDate]);
 
   // CRUD candidatos
   const addCandidate = useCallback(async (candidate: Omit<Candidate, 'id' | 'createdAt' | 'db_id'>) => {
