@@ -162,8 +162,11 @@ const CrmOverviewPage = () => {
     const displayWonStage = displayStages.find(s => s.is_won);
     const targetWonStageId = displayWonStage?.id;
     const displayLeads = filteredLeads.map((lead) => {
+      const leadStage = crmStages.find(s => s.id === lead.stage_id);
+      const isWonStage = !!leadStage?.is_won;
       const isSold = !!lead.sale_date || (typeof lead.sold_credit_value === 'number' && lead.sold_credit_value > 0);
-      if (isSold && targetWonStageId) {
+      // Se já está na etapa ganha (mesmo que inativa) OU possui dados de venda, remapeia para a coluna 'Vendido'
+      if ((isWonStage || isSold) && targetWonStageId) {
         return { ...lead, stage_id: targetWonStageId };
       }
       return lead;
@@ -172,7 +175,7 @@ const CrmOverviewPage = () => {
       groups[stage.id] = displayLeads.filter(lead => lead.stage_id === stage.id);
     });
     return groups;
-  }, [displayStages, filteredLeads]);
+  }, [displayStages, filteredLeads, crmStages]);
 
   const getConsultantName = (lead: CrmLead) => {
     const targetId = lead.consultant_id || lead.created_by;
