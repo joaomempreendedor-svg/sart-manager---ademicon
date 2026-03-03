@@ -180,11 +180,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     isFetchingRef.current = true;
     try {
+      console.log("[AppContext] Fetching commissions...");
       const { data, error } = await supabase
         .from("commissions")
         .select("id, data, created_at")
-        .eq("user_id", JOAO_GESTOR_AUTH_ID)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false }); // RLS will filter by user_id or global access
       if (error) {
         toast.error(`Erro ao carregar comissões: ${error.message}`);
         setCommissions([]);
@@ -200,6 +200,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         return { ...commission, db_id: item.id, criado_em: item.created_at };
       });
       setCommissions(normalized);
+      console.log("[AppContext] Commissions fetched:", normalized.length);
     } finally {
       setTimeout(() => { isFetchingRef.current = false; }, 100);
     }
@@ -328,8 +329,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       try {
         const effectiveGestorId = JOAO_GESTOR_AUTH_ID;
         // Determine crmOwnerUserId based on user role
+        // Gestores/Admins gerenciam seu próprio CRM. Consultores/Secretarias interagem com o CRM principal.
         const currentCrmOwnerId = (user?.role === 'GESTOR' || user?.role === 'ADMIN') ? userId : effectiveGestorId;
         setCrmOwnerUserId(currentCrmOwnerId);
+        console.log("[AppContext] crmOwnerUserId set to:", currentCrmOwnerId);
 
         await fetchAppConfig(effectiveGestorId); // Config is always fetched for the main gestor
 
@@ -343,36 +346,65 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           formCadastrosRes, formFilesRes, notificationsRes, teamProductionGoalsRes, teamMembersRes,
           coldCallLeadsRes, coldCallLogsRes
         ] = await Promise.all([
-          // Rely on RLS for most tables, so no explicit user_id filter here
+          // Candidates: RLS handles visibility (user_id = owner_id OR gestor/admin/secretaria role)
           supabase.from('candidates').select('id, data, created_at, last_updated_at'),
+          // Support Materials (legacy): RLS handles visibility
           supabase.from('support_materials').select('id, data'),
+          // Cutoff Periods: RLS handles visibility
           supabase.from('cutoff_periods').select('id, data'),
+          // Onboarding Sessions: RLS handles visibility
           supabase.from('onboarding_sessions').select('*, videos:onboarding_videos(*)'),
+          // Onboarding Video Templates: RLS handles visibility
           supabase.from('onboarding_video_templates').select('*').order('order', { ascending: true }),
+          // CRM Pipelines: RLS handles visibility
           supabase.from('crm_pipelines').select('*'),
+          // CRM Stages: RLS handles visibility
           supabase.from('crm_stages').select('*').order('order_index'),
+          // CRM Fields: RLS handles visibility
           supabase.from('crm_fields').select('*'),
+          // CRM Leads: RLS handles visibility
           supabase.from('crm_leads').select('*').order('created_at', { ascending: false }),
+          // Daily Checklists: RLS handles visibility
           supabase.from('daily_checklists').select('*'),
+          // Daily Checklist Items: RLS handles visibility
           supabase.from('daily_checklist_items').select('*'),
+          // Daily Checklist Assignments: RLS handles visibility
           supabase.from('daily_checklist_assignments').select('*'),
+          // Daily Checklist Completions: RLS handles visibility
           supabase.from('daily_checklist_completions').select('*'),
+          // Weekly Targets: RLS handles visibility
           supabase.from('weekly_targets').select('*'),
+          // Weekly Target Items: RLS handles visibility
           supabase.from('weekly_target_items').select('*'),
+          // Weekly Target Assignments: RLS handles visibility
           supabase.from('weekly_target_assignments').select('*'),
+          // Metric Logs: RLS handles visibility
           supabase.from('metric_logs').select('*'),
+          // Support Materials V2: RLS handles visibility
           supabase.from('support_materials_v2').select('*'),
+          // Support Material Assignments: RLS handles visibility
           supabase.from('support_material_assignments').select('*'),
+          // Lead Tasks: RLS handles visibility
           supabase.from('lead_tasks').select('*'),
-          supabase.from('gestor_tasks').select('*').eq('user_id', userId), // Personal tasks
-          supabase.from('gestor_task_completions').select('*').eq('user_id', userId), // Personal completions
-          supabase.from('financial_entries').select('*'),
+          // Gestor Tasks: User-specific
+          supabase.from('gestor_tasks').select('*').eq('user_id', userId),
+          // Gestor Task Completions: User-specific
+          supabase.from('gestor_task_completions').select('*').eq('user_id', userId),
+          // Financial Entries: User-specific
+          supabase.from('financial_entries').select('*').eq('user_id', userId),
+          // Form Submissions: RLS handles visibility
           supabase.from('form_submissions').select('id, submission_date, data, internal_notes, is_complete').order('submission_date', { ascending: false }),
+          // Form Files: RLS handles visibility
           supabase.from('form_files').select('*'),
-          supabase.from('notifications').select('*').eq('user_id', userId).eq('is_read', false).order('created_at', { ascending: false }), // User-specific notifications
+          // Notifications: User-specific
+          supabase.from('notifications').select('*').eq('user_id', userId).eq('is_read', false).order('created_at', { ascending: false }),
+          // Team Production Goals: RLS handles visibility
           supabase.from('team_production_goals').select('*').order('start_date', { ascending: false }),
+          // Team Members: RLS handles visibility
           supabase.from('team_members').select('id, data, cpf, user_id'),
+          // Cold Call Leads: RLS handles visibility
           supabase.from('cold_call_leads').select('id, user_id, name, phone, email, current_stage, notes, crm_lead_id, created_at, updated_at', { count: 'exact' }).range(0, 99999).limit(100000),
+          // Cold Call Logs: RLS handles visibility
           supabase.from('cold_call_logs').select('id, cold_call_lead_id, user_id, start_time, end_time, duration_seconds, result, meeting_date, meeting_time, meeting_modality, meeting_notes, created_at', { count: 'exact' }).range(0, 99999).limit(100000)
         ]);
 
@@ -381,7 +413,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           return;
         }
 
-        if (candidatesRes.error) { toast.error(`Erro ao carregar candidatos: ${candidatesRes.error.message}`); setCandidates([]); }
+        // --- Handle Candidates ---
+        if (candidatesRes.error) { console.error(`Erro ao carregar candidatos: ${candidatesRes.error.message}`); toast.error(`Erro ao carregar candidatos: ${candidatesRes.error.message}`); setCandidates([]); }
         else {
           const normalizedCandidates = (candidatesRes.data || []).map(item => {
             const candidateData = item.data as Candidate;
@@ -402,9 +435,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             };
           });
           setCandidates(normalizedCandidates);
+          console.log("[AppContext] Candidates fetched:", normalizedCandidates.length);
         }
 
-        if (teamMembersRes.error) { toast.error(`Erro ao carregar membros da equipe: ${teamMembersRes.error.message}`); setTeamMembers([]); }
+        // --- Handle Team Members ---
+        if (teamMembersRes.error) { console.error(`Erro ao carregar membros da equipe: ${teamMembersRes.error.message}`); toast.error(`Erro ao carregar membros da equipe: ${teamMembersRes.error.message}`); setTeamMembers([]); }
         else {
           const normalizedTeamMembers = (teamMembersRes.data || []).map(item => {
             const data = item.data as any;
@@ -418,104 +453,107 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             };
           });
           setTeamMembers(normalizedTeamMembers);
+          console.log("[AppContext] Team Members fetched:", normalizedTeamMembers.length);
         }
 
-        if (materialsRes.error) { toast.error(`Erro ao carregar materiais de apoio: ${materialsRes.error.message}`); setSupportMaterials([]); }
-        else { setSupportMaterials(materialsRes.data?.map(item => ({ ...(item.data as SupportMaterial), db_id: item.id })) || []); }
+        // --- Handle Other Data (RLS-dependent) ---
+        if (materialsRes.error) { console.error(`Erro ao carregar materiais de apoio: ${materialsRes.error.message}`); toast.error(`Erro ao carregar materiais de apoio: ${materialsRes.error.message}`); setSupportMaterials([]); }
+        else { setSupportMaterials(materialsRes.data?.map(item => ({ ...(item.data as SupportMaterial), db_id: item.id })) || []); console.log("[AppContext] Support Materials fetched:", (materialsRes.data || []).length); }
 
-        if (cutoffRes.error) { toast.error(`Erro ao carregar períodos de corte: ${cutoffRes.error.message}`); setCutoffPeriods([]); }
-        else { setCutoffPeriods(cutoffRes.data?.map(item => ({ ...(item.data as CutoffPeriod), db_id: item.id })) || []); }
+        if (cutoffRes.error) { console.error(`Erro ao carregar períodos de corte: ${cutoffRes.error.message}`); toast.error(`Erro ao carregar períodos de corte: ${cutoffRes.error.message}`); setCutoffPeriods([]); }
+        else { setCutoffPeriods(cutoffRes.data?.map(item => ({ ...(item.data as CutoffPeriod), db_id: item.id })) || []); console.log("[AppContext] Cutoff Periods fetched:", (cutoffRes.data || []).length); }
 
-        if (onboardingRes.error) { toast.error(`Erro ao carregar sessões de onboarding: ${onboardingRes.error.message}`); setOnboardingSessions([]); }
-        else { setOnboardingSessions((onboardingRes.data as any[])?.map(s => ({...s, videos: s.videos.sort((a:any,b:any) => a.order - b.order)})) || []); }
+        if (onboardingRes.error) { console.error(`Erro ao carregar sessões de onboarding: ${onboardingRes.error.message}`); toast.error(`Erro ao carregar sessões de onboarding: ${onboardingRes.error.message}`); setOnboardingSessions([]); }
+        else { setOnboardingSessions((onboardingRes.data as any[])?.map(s => ({...s, videos: s.videos.sort((a:any,b:any) => a.order - b.order)})) || []); console.log("[AppContext] Onboarding Sessions fetched:", (onboardingRes.data || []).length); }
 
-        if (templateVideosRes.error) { toast.error(`Erro ao carregar templates de vídeo: ${templateVideosRes.error.message}`); setOnboardingTemplateVideos([]); }
-        else { setOnboardingTemplateVideos(templateVideosRes.data || []); }
+        if (templateVideosRes.error) { console.error(`Erro ao carregar templates de vídeo: ${templateVideosRes.error.message}`); toast.error(`Erro ao carregar templates de vídeo: ${templateVideosRes.error.message}`); setOnboardingTemplateVideos([]); }
+        else { setOnboardingTemplateVideos(templateVideosRes.data || []); console.log("[AppContext] Onboarding Video Templates fetched:", (templateVideosRes.data || []).length); }
 
-        if (pipelinesRes.error) { toast.error(`Erro ao carregar pipelines do CRM: ${pipelinesRes.error.message}`); setCrmPipelines([]); }
-        else { setCrmPipelines(pipelinesRes.data || []); }
+        if (pipelinesRes.error) { console.error(`Erro ao carregar pipelines do CRM: ${pipelinesRes.error.message}`); toast.error(`Erro ao carregar pipelines do CRM: ${pipelinesRes.error.message}`); setCrmPipelines([]); }
+        else { setCrmPipelines(pipelinesRes.data || []); console.log("[AppContext] CRM Pipelines fetched:", (pipelinesRes.data || []).length); }
 
-        if (stagesRes.error) { toast.error(`Erro ao carregar etapas do CRM: ${stagesRes.error.message}`); setCrmStages([]); }
-        else { setCrmStages(stagesRes.data || []); }
+        if (stagesRes.error) { console.error(`Erro ao carregar etapas do CRM: ${stagesRes.error.message}`); toast.error(`Erro ao carregar etapas do CRM: ${stagesRes.error.message}`); setCrmStages([]); }
+        else { setCrmStages(stagesRes.data || []); console.log("[AppContext] CRM Stages fetched:", (stagesRes.data || []).length); }
 
-        if (fieldsRes.error) { toast.error(`Erro ao carregar campos do CRM: ${fieldsRes.error.message}`); setCrmFields([]); }
-        else { setCrmFields(fieldsRes.data || []); }
+        if (fieldsRes.error) { console.error(`Erro ao carregar campos do CRM: ${fieldsRes.error.message}`); toast.error(`Erro ao carregar campos do CRM: ${fieldsRes.error.message}`); setCrmFields([]); }
+        else { setCrmFields(fieldsRes.data || []); console.log("[AppContext] CRM Fields fetched:", (fieldsRes.data || []).length); }
 
-        if (crmLeadsRes.error) { toast.error(`Erro ao carregar leads do CRM: ${crmLeadsRes.error.message}`); setCrmLeads([]); }
+        if (crmLeadsRes.error) { console.error(`Erro ao carregar leads do CRM: ${crmLeadsRes.error.message}`); toast.error(`Erro ao carregar leads do CRM: ${crmLeadsRes.error.message}`); setCrmLeads([]); }
         else { setCrmLeads(crmLeadsRes.data?.map((lead: any) => ({ 
           id: lead.id, consultant_id: lead.consultant_id, stage_id: lead.stage_id, user_id: lead.user_id, name: lead.name, data: lead.data, created_at: lead.created_at, updated_at: lead.updated_at, created_by: lead.created_by, updated_by: lead.updated_by, 
           proposal_value: parseDbCurrency(lead.proposal_value), proposal_closing_date: lead.proposal_closing_date, 
           sold_credit_value: parseDbCurrency(lead.sold_credit_value), sold_group: lead.sold_group, sold_quota: lead.sold_quota, sale_date: lead.sale_date 
-        })) || []); }
+        })) || []); console.log("[AppContext] CRM Leads fetched:", (crmLeadsRes.data || []).length); }
 
-        if (dailyChecklistsRes.error) { toast.error(`Erro ao carregar checklists diários: ${dailyChecklistsRes.error.message}`); setDailyChecklists([]); }
-        else { setDailyChecklists(dailyChecklistsRes.data || []); }
+        if (dailyChecklistsRes.error) { console.error(`Erro ao carregar checklists diários: ${dailyChecklistsRes.error.message}`); toast.error(`Erro ao carregar checklists diários: ${dailyChecklistsRes.error.message}`); setDailyChecklists([]); }
+        else { setDailyChecklists(dailyChecklistsRes.data || []); console.log("[AppContext] Daily Checklists fetched:", (dailyChecklistsRes.data || []).length); }
 
-        if (dailyChecklistItemsRes.error) { toast.error(`Erro ao carregar itens do checklist diário: ${dailyChecklistItemsRes.error.message}`); setDailyChecklistItems([]); }
-        else { setDailyChecklistItems(dailyChecklistItemsRes.data || []); }
+        if (dailyChecklistItemsRes.error) { console.error(`Erro ao carregar itens do checklist diário: ${dailyChecklistItemsRes.error.message}`); toast.error(`Erro ao carregar itens do checklist diário: ${dailyChecklistItemsRes.error.message}`); setDailyChecklistItems([]); }
+        else { setDailyChecklistItems(dailyChecklistItemsRes.data || []); console.log("[AppContext] Daily Checklist Items fetched:", (dailyChecklistItemsRes.data || []).length); }
 
-        if (dailyChecklistAssignmentsRes.error) { toast.error(`Erro ao carregar atribuições do checklist diário: ${dailyChecklistAssignmentsRes.error.message}`); setDailyChecklistAssignments([]); }
-        else { setDailyChecklistAssignments(dailyChecklistAssignmentsRes.data || []); }
+        if (dailyChecklistAssignmentsRes.error) { console.error(`Erro ao carregar atribuições do checklist diário: ${dailyChecklistAssignmentsRes.error.message}`); toast.error(`Erro ao carregar atribuições do checklist diário: ${dailyChecklistAssignmentsRes.error.message}`); setDailyChecklistAssignments([]); }
+        else { setDailyChecklistAssignments(dailyChecklistAssignmentsRes.data || []); console.log("[AppContext] Daily Checklist Assignments fetched:", (dailyChecklistAssignmentsRes.data || []).length); }
 
-        if (dailyChecklistCompletionsRes.error) { toast.error(`Erro ao carregar conclusões do checklist diário: ${dailyChecklistCompletionsRes.error.message}`); setDailyChecklistCompletions([]); }
-        else { setDailyChecklistCompletions(dailyChecklistCompletionsRes.data || []); }
+        if (dailyChecklistCompletionsRes.error) { console.error(`Erro ao carregar conclusões do checklist diário: ${dailyChecklistCompletionsRes.error.message}`); toast.error(`Erro ao carregar conclusões do checklist diário: ${dailyChecklistCompletionsRes.error.message}`); setDailyChecklistCompletions([]); }
+        else { setDailyChecklistCompletions(dailyChecklistCompletionsRes.data || []); console.log("[AppContext] Daily Checklist Completions fetched:", (dailyChecklistCompletionsRes.data || []).length); }
 
-        if (weeklyTargetsRes.error) { toast.error(`Erro ao carregar metas semanais: ${weeklyTargetsRes.error.message}`); setWeeklyTargets([]); }
-        else { setWeeklyTargets(weeklyTargetsRes.data || []); }
+        if (weeklyTargetsRes.error) { console.error(`Erro ao carregar metas semanais: ${weeklyTargetsRes.error.message}`); toast.error(`Erro ao carregar metas semanais: ${weeklyTargetsRes.error.message}`); setWeeklyTargets([]); }
+        else { setWeeklyTargets(weeklyTargetsRes.data || []); console.log("[AppContext] Weekly Targets fetched:", (weeklyTargetsRes.data || []).length); }
 
-        if (weeklyTargetItemsRes.error) { toast.error(`Erro ao carregar itens de metas semanais: ${weeklyTargetItemsRes.error.message}`); setWeeklyTargetItems([]); }
-        else { setWeeklyTargetItems(weeklyTargetItemsRes.data || []); }
+        if (weeklyTargetItemsRes.error) { console.error(`Erro ao carregar itens de metas semanais: ${weeklyTargetItemsRes.error.message}`); toast.error(`Erro ao carregar itens de metas semanais: ${weeklyTargetItemsRes.error.message}`); setWeeklyTargetItems([]); }
+        else { setWeeklyTargetItems(weeklyTargetItemsRes.data || []); console.log("[AppContext] Weekly Target Items fetched:", (weeklyTargetItemsRes.data || []).length); }
 
-        if (weeklyTargetAssignmentsRes.error) { toast.error(`Erro ao carregar atribuições de metas semanais: ${weeklyTargetAssignmentsRes.error.message}`); setWeeklyTargetAssignments([]); }
-        else { setWeeklyTargetAssignments(weeklyTargetAssignmentsRes.data || []); }
+        if (weeklyTargetAssignmentsRes.error) { console.error(`Erro ao carregar atribuições de metas semanais: ${weeklyTargetAssignmentsRes.error.message}`); toast.error(`Erro ao carregar atribuições de metas semanais: ${weeklyTargetAssignmentsRes.error.message}`); setWeeklyTargetAssignments([]); }
+        else { setWeeklyTargetAssignments(weeklyTargetAssignmentsRes.data || []); console.log("[AppContext] Weekly Target Assignments fetched:", (weeklyTargetAssignmentsRes.data || []).length); }
 
-        if (metricLogsRes.error) { toast.error(`Erro ao carregar logs de métricas: ${metricLogsRes.error.message}`); setMetricLogs([]); }
-        else { setMetricLogs(metricLogsRes.data || []); }
+        if (metricLogsRes.error) { console.error(`Erro ao carregar logs de métricas: ${metricLogsRes.error.message}`); toast.error(`Erro ao carregar logs de métricas: ${metricLogsRes.error.message}`); setMetricLogs([]); }
+        else { setMetricLogs(metricLogsRes.data || []); console.log("[AppContext] Metric Logs fetched:", (metricLogsRes.data || []).length); }
 
-        if (supportMaterialsV2Res.error) { toast.error(`Erro ao carregar materiais de apoio v2: ${supportMaterialsV2Res.error.message}`); setSupportMaterialsV2([]); }
-        else { setSupportMaterialsV2(supportMaterialsV2Res.data || []); }
+        if (supportMaterialsV2Res.error) { console.error(`Erro ao carregar materiais de apoio v2: ${supportMaterialsV2Res.error.message}`); toast.error(`Erro ao carregar materiais de apoio v2: ${supportMaterialsV2Res.error.message}`); setSupportMaterialsV2([]); }
+        else { setSupportMaterialsV2(supportMaterialsV2Res.data || []); console.log("[AppContext] Support Materials V2 fetched:", (supportMaterialsV2Res.data || []).length); }
 
-        if (supportMaterialAssignmentsV2Res.error) { toast.error(`Erro ao carregar atribuições de materiais de apoio: ${supportMaterialAssignmentsV2Res.error.message}`); setSupportMaterialAssignments([]); }
-        else { setSupportMaterialAssignments(supportMaterialAssignmentsV2Res.data || []); }
+        if (supportMaterialAssignmentsV2Res.error) { console.error(`Erro ao carregar atribuições de materiais de apoio: ${supportMaterialAssignmentsV2Res.error.message}`); toast.error(`Erro ao carregar atribuições de materiais de apoio: ${supportMaterialAssignmentsV2Res.error.message}`); setSupportMaterialAssignments([]); }
+        else { setSupportMaterialAssignments(supportMaterialAssignmentsV2Res.data || []); console.log("[AppContext] Support Material Assignments fetched:", (supportMaterialAssignmentsV2Res.data || []).length); }
 
-        if (leadTasksRes.error) { toast.error(`Erro ao carregar tarefas de lead: ${leadTasksRes.error.message}`); setLeadTasks([]); }
-        else { setLeadTasks(leadTasksRes.data || []); }
+        if (leadTasksRes.error) { console.error(`Erro ao carregar tarefas de lead: ${leadTasksRes.error.message}`); toast.error(`Erro ao carregar tarefas de lead: ${leadTasksRes.error.message}`); setLeadTasks([]); }
+        else { setLeadTasks(leadTasksRes.data || []); console.log("[AppContext] Lead Tasks fetched:", (leadTasksRes.data || []).length); }
 
-        if (gestorTasksRes.error) { toast.error(`Erro ao carregar tarefas do gestor: ${gestorTasksRes.error.message}`); setGestorTasks([]); }
-        else { setGestorTasks(gestorTasksRes.data || []); }
+        if (gestorTasksRes.error) { console.error(`Erro ao carregar tarefas do gestor: ${gestorTasksRes.error.message}`); toast.error(`Erro ao carregar tarefas do gestor: ${gestorTasksRes.error.message}`); setGestorTasks([]); }
+        else { setGestorTasks(gestorTasksRes.data || []); console.log("[AppContext] Gestor Tasks fetched:", (gestorTasksRes.data || []).length); }
 
-        if (gestorTaskCompletionsRes.error) { toast.error(`Erro ao carregar conclusões de tarefas do gestor: ${gestorTaskCompletionsRes.error.message}`); setGestorTaskCompletions([]); }
-        else { setGestorTaskCompletions(gestorTaskCompletionsRes.data || []); }
+        if (gestorTaskCompletionsRes.error) { console.error(`Erro ao carregar conclusões de tarefas do gestor: ${gestorTaskCompletionsRes.error.message}`); toast.error(`Erro ao carregar conclusões de tarefas do gestor: ${gestorTaskCompletionsRes.error.message}`); setGestorTaskCompletions([]); }
+        else { setGestorTaskCompletions(gestorTaskCompletionsRes.data || []); console.log("[AppContext] Gestor Task Completions fetched:", (gestorTaskCompletionsRes.data || []).length); }
 
-        if (financialEntriesRes.error) { toast.error(`Erro ao carregar entradas financeiras: ${financialEntriesRes.error.message}`); setFinancialEntries([]); }
+        if (financialEntriesRes.error) { console.error(`Erro ao carregar entradas financeiras: ${financialEntriesRes.error.message}`); toast.error(`Erro ao carregar entradas financeiras: ${financialEntriesRes.error.message}`); setFinancialEntries([]); }
         else {
           setFinancialEntries(financialEntriesRes.data?.map((entry: any) => ({
             id: entry.id, db_id: entry.id, user_id: entry.user_id, entry_date: entry.entry_date, type: entry.type, description: entry.description, amount: parseFloat(entry.amount || '0'), created_at: entry.created_at
           })) || []);
+          console.log("[AppContext] Financial Entries fetched:", (financialEntriesRes.data || []).length);
         }
 
-        if (formCadastrosRes.error) { toast.error(`Erro ao carregar cadastros de formulário: ${formCadastrosRes.error.message}`); setFormCadastros([]); }
-        else { setFormCadastros(formCadastrosRes.data || []); }
+        if (formCadastrosRes.error) { console.error(`Erro ao carregar cadastros de formulário: ${formCadastrosRes.error.message}`); toast.error(`Erro ao carregar cadastros de formulário: ${formCadastrosRes.error.message}`); setFormCadastros([]); }
+        else { setFormCadastros(formCadastrosRes.data || []); console.log("[AppContext] Form Cadastros fetched:", (formCadastrosRes.data || []).length); }
 
-        if (formFilesRes.error) { toast.error(`Erro ao carregar arquivos de formulário: ${formFilesRes.error.message}`); setFormFiles([]); }
-        else { setFormFiles(formFilesRes.data || []); }
+        if (formFilesRes.error) { console.error(`Erro ao carregar arquivos de formulário: ${formFilesRes.error.message}`); toast.error(`Erro ao carregar arquivos de formulário: ${formFilesRes.error.message}`); setFormFiles([]); }
+        else { setFormFiles(formFilesRes.data || []); console.log("[AppContext] Form Files fetched:", (formFilesRes.data || []).length); }
 
-        if (notificationsRes.error) { toast.error(`Erro ao carregar notificações: ${notificationsRes.error.message}`); setNotifications([]); }
-        else { setNotifications(notificationsRes.data || []); }
+        if (notificationsRes.error) { console.error(`Erro ao carregar notificações: ${notificationsRes.error.message}`); toast.error(`Erro ao carregar notificações: ${notificationsRes.error.message}`); setNotifications([]); }
+        else { setNotifications(notificationsRes.data || []); console.log("[AppContext] Notifications fetched:", (notificationsRes.data || []).length); }
 
-        if (teamProductionGoalsRes.error) { toast.error(`Erro ao carregar metas da equipe: ${teamProductionGoalsRes.error.message}`); setTeamProductionGoals([]); }
-        else { setTeamProductionGoals(teamProductionGoalsRes.data || []); }
+        if (teamProductionGoalsRes.error) { console.error(`Erro ao carregar metas da equipe: ${teamProductionGoalsRes.error.message}`); toast.error(`Erro ao carregar metas da equipe: ${teamProductionGoalsRes.error.message}`); setTeamProductionGoals([]); }
+        else { setTeamProductionGoals(teamProductionGoalsRes.data || []); console.log("[AppContext] Team Production Goals fetched:", (teamProductionGoalsRes.data || []).length); }
         
-        if (coldCallLeadsRes.error) { toast.error(`Erro ao carregar leads de cold call: ${coldCallLeadsRes.error.message}`); setColdCallLeads([]); }
+        if (coldCallLeadsRes.error) { console.error(`Erro ao carregar leads de cold call: ${coldCallLeadsRes.error.message}`); toast.error(`Erro ao carregar leads de cold call: ${coldCallLeadsRes.error.message}`); setColdCallLeads([]); }
         else { 
           setColdCallLeads(coldCallLeadsRes.data || []); 
-          console.log("Initial fetch coldCallLeads length:", (coldCallLeadsRes.data || []).length, "Count:", coldCallLeadsRes.count);
+          console.log("[AppContext] Cold Call Leads fetched:", (coldCallLeadsRes.data || []).length, "Count:", coldCallLeadsRes.count);
         }
 
-        if (coldCallLogsRes.error) { toast.error(`Erro ao carregar logs de cold call: ${coldCallLogsRes.error.message}`); setColdCallLogs([]); }
+        if (coldCallLogsRes.error) { console.error(`Erro ao carregar logs de cold call: ${coldCallLogsRes.error.message}`); toast.error(`Erro ao carregar logs de cold call: ${coldCallLogsRes.error.message}`); setColdCallLogs([]); }
         else { 
           setColdCallLogs(coldCallLogsRes.data || []); 
-          console.log("Initial fetch coldCallLogs length:", (coldCallLogsRes.data || []).length, "Count:", coldCallLogsRes.count);
+          console.log("[AppContext] Cold Call Logs fetched:", (coldCallLogsRes.data || []).length, "Count:", coldCallLogsRes.count);
         }
 
         refetchCommissions();
@@ -524,10 +562,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       } catch (error: any) {
         console.error("[AppContext] Critical error during fetchData:", error.message, error);
         toast.error(`Erro crítico ao carregar dados: ${error.message}`);
-        if (isMounted) {
-          // REMOVIDO: resetLocalState();
-          // Apenas garante que o loading termine, os erros individuais já setam []
-        }
       } finally {
         if (isMounted) {
           console.log("[AppContext] Setting isDataLoading to false in finally block.");
@@ -555,7 +589,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       isMounted = false;
       console.log("[AppContext] AppContext useEffect cleanup.");
     };
-  }, [user?.id, refetchCommissions, fetchAppConfig, resetLocalState, parseDbCurrency, isDataLoading]);
+  }, [user?.id, refetchCommissions, fetchAppConfig, resetLocalState, parseDbCurrency, isDataLoading, user?.role]);
 
   // CRUD candidatos
   const addCandidate = useCallback(async (candidate: Omit<Candidate, 'id' | 'createdAt' | 'db_id'>) => {
