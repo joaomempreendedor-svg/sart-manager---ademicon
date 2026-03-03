@@ -530,14 +530,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           console.log("[AppContext] Financial Entries fetched:", (financialEntriesRes.data || []).length);
         }
 
+        // Duplicate handling for form submissions (keep behavior)
         if (formSubmissionsRes.error) { console.error(`[AppContext] Error loading form submissions: ${formSubmissionsRes.error.message}`); toast.error(`Erro ao carregar cadastros de formulário: ${formSubmissionsRes.error.message}`); setFormCadastros([]); }
         else { setFormCadastros(formSubmissionsRes.data || []); console.log("[AppContext] Form Cadastros fetched:", (formSubmissionsRes.data || []).length); }
 
         // Now fetch formFiles based on fetched formCadastros
-        const currentSubmissionIds = formSubmissionsRes.data?.map(f => f.id) || [];
-        const { data: fetchedFormFilesData, error: formFilesError } = await supabase.from('form_files').select('*').in('submission_id', currentSubmissionIds);
-        if (formFilesError) { console.error(`[AppContext] Error loading form files: ${formFilesError.message}`); toast.error(`Erro ao carregar arquivos de formulário: ${formFilesError.error}`); setFormFiles([]); }
-        else { setFormFiles(fetchedFormFilesData || []); console.log("[AppContext] Form Files fetched:", (fetchedFormFilesData || []).length); }
+        const currentSubmissionIds2 = formSubmissionsRes.data?.map(f => f.id) || [];
+        const { data: fetchedFormFilesData2, error: formFilesError2 } = await supabase.from('form_files').select('*').in('submission_id', currentSubmissionIds2);
+        if (formFilesError2) { console.error(`[AppContext] Error loading form files: ${formFilesError2.message}`); toast.error(`Erro ao carregar arquivos de formulário: ${formFilesError2.error}`); setFormFiles([]); }
+        else { setFormFiles(fetchedFormFilesData2 || []); console.log("[AppContext] Form Files fetched:", (fetchedFormFilesData2 || []).length); }
 
         if (notificationsRes.error) { console.error(`[AppContext] Error loading notifications: ${notificationsRes.error.message}`); toast.error(`Erro ao carregar notificações: ${notificationsRes.error.message}`); setNotifications([]); }
         else { setNotifications(notificationsRes.data || []); console.log("[AppContext] Notifications fetched:", (notificationsRes.data || []).length); }
