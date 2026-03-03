@@ -282,7 +282,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         .channel('cold_call_leads_changes')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'cold_call_leads' }, async (payload) => {
           // Refetch all cold call leads to ensure RLS is applied correctly
-          const { data, error } = await supabase.from('cold_call_leads').select('*').limit(100000); // Adicionado limite
+          const { data, error } = await supabase.from('cold_call_leads').select('id, user_id, name, phone, email, current_stage, notes, crm_lead_id, created_at, updated_at').limit(100000); // Adicionado limite e colunas explícitas
           if (error) console.error("Error refetching cold_call_leads in realtime:", error);
           else {
             setColdCallLeads(data || []);
@@ -295,7 +295,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         .channel('cold_call_logs_changes')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'cold_call_logs' }, async (payload) => {
           // Refetch all cold call logs to ensure RLS is applied correctly
-          const { data, error } = await supabase.from('cold_call_logs').select('*').limit(100000); // Adicionado limite
+          const { data, error } = await supabase.from('cold_call_logs').select('id, cold_call_lead_id, user_id, start_time, end_time, duration_seconds, result, meeting_date, meeting_time, meeting_modality, meeting_notes, created_at').limit(100000); // Adicionado limite e colunas explícitas
           if (error) console.error("Error refetching cold_call_logs in realtime:", error);
           else {
             setColdCallLogs(data || []);
@@ -362,8 +362,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           supabase.from('notifications').select('*').eq('user_id', userId).eq('is_read', false).order('created_at', { ascending: false }),
           supabase.from('team_production_goals').select('*').eq('user_id', effectiveGestorId).order('start_date', { ascending: false }),
           supabase.from('team_members').select('id, data, cpf, user_id').eq('user_id', effectiveGestorId),
-          supabase.from('cold_call_leads').select('*').limit(100000), // Adicionado limite
-          supabase.from('cold_call_logs').select('*').limit(100000) // Adicionado limite
+          supabase.from('cold_call_leads').select('id, user_id, name, phone, email, current_stage, notes, crm_lead_id, created_at, updated_at').limit(100000), // Adicionado limite e colunas explícitas
+          supabase.from('cold_call_logs').select('id, cold_call_lead_id, user_id, start_time, end_time, duration_seconds, result, meeting_date, meeting_time, meeting_modality, meeting_notes, created_at').limit(100000) // Adicionado limite e colunas explícitas
         ]);
 
         if (!isMounted) return; // Check mount status before updating state
@@ -628,7 +628,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!leadToUpdate) throw new Error(`Cold Call Lead com ID ${id} não encontrado.`);
     const { error: updateError } = await supabase.from('cold_call_leads').update(updates).eq('id', id);
     if (updateError) throw updateError;
-    const { data: selectData, error: selectError } = await supabase.from('cold_call_leads').select('*').eq('id', id).maybeSingle();
+    const { data: selectData, error: selectError } = await supabase.from('cold_call_leads').select('id, user_id, name, phone, email, current_stage, notes, crm_lead_id, created_at, updated_at').eq('id', id).maybeSingle(); // Colunas explícitas
     if (selectError) throw selectError;
     if (!selectData) throw new Error("Nenhum dado retornado após atualizar o lead.");
     setColdCallLeads(prev => prev.map(l => l.id === id ? selectData : l));
@@ -644,10 +644,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const addColdCallLog = useCallback(async (log: Omit<ColdCallLog, 'id' | 'user_id' | 'created_at'> & { start_time: string; end_time: string; duration_seconds: number; }) => {
     if (!user) throw new Error("User not authenticated.");
     const insertData = { cold_call_lead_id: log.cold_call_lead_id, start_time: log.start_time, end_time: log.end_time, duration_seconds: log.duration_seconds, result: log.result, meeting_date: log.meeting_date, meeting_time: log.meeting_time, meeting_modality: log.meeting_modality, meeting_notes: log.meeting_notes, user_id: user.id };
-    const { data: insertedData, error: insertError } = await supabase.from('cold_call_logs').insert(insertData).select('*').maybeSingle();
+    const { data: insertedData, error: insertError } = await supabase.from('cold_call_logs').insert(insertData).select('id, cold_call_lead_id, user_id, start_time, end_time, duration_seconds, result, meeting_date, meeting_time, meeting_modality, meeting_notes, created_at').maybeSingle(); // Colunas explícitas
     if (insertError) throw insertError;
     if (!insertedData) {
-      const { data: fetchedData, error: selectError } = await supabase.from('cold_call_logs').select('*').eq('cold_call_lead_id', log.cold_call_lead_id).eq('user_id', user.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
+      const { data: fetchedData, error: selectError } = await supabase.from('cold_call_logs').select('id, cold_call_lead_id, user_id, start_time, end_time, duration_seconds, result, meeting_date, meeting_time, meeting_modality, meeting_notes, created_at').eq('cold_call_lead_id', log.cold_call_lead_id).eq('user_id', user.id).order('created_at', { ascending: false }).limit(1).maybeSingle(); // Colunas explícitas
       if (selectError) throw selectError;
       if (!fetchedData) throw new Error("Nenhum dado retornado após inserir o log.");
       setColdCallLogs(prev => [...prev, fetchedData]);
@@ -677,12 +677,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     } });
     if (error) throw error;
     if (data.error) throw new Error(data.error);
-    const { data: updatedColdCallLead } = await supabase.from('cold_call_leads').select('*').eq('id', coldCallLeadId).maybeSingle();
+    const { data: updatedColdCallLead } = await supabase.from('cold_call_leads').select('id, user_id, name, phone, email, current_stage, notes, crm_lead_id, created_at, updated_at').eq('id', coldCallLeadId).maybeSingle(); // Colunas explícitas
     if (updatedColdCallLead) setColdCallLeads(prev => prev.map(lead => lead.id === coldCallLeadId ? updatedColdCallLead : lead));
     const { data: newCrmLeads } = await supabase.from('crm_leads').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID).order('created_at', { ascending: false });
     setCrmLeads(newCrmLeads?.map((lead: any) => ({
       id: lead.id, consultant_id: lead.consultant_id, stage_id: lead.stage_id, user_id: lead.user_id, name: lead.name, data: lead.data,
-      created_at: lead.created_at, updated_at: lead.updated_at, created_by: data.created_by, updated_by: data.updated_by,
+      created_at: lead.created_at, updated_at: lead.updated_at, created_by: lead.created_by, updated_by: lead.updated_by,
       proposal_value: parseDbCurrency(lead.proposal_value), proposal_closing_date: lead.proposal_closing_date,
       sold_credit_value: parseDbCurrency(lead.sold_credit_value), sold_group: lead.sold_group, sold_quota: lead.sold_quota, sale_date: lead.sale_date
     })) || []);
