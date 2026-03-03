@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { CrmLead, LeadTask } from '@/types';
+import { CrmLead, CrmStage } from '@/types';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { TableSkeleton } from '@/components/TableSkeleton';
 
@@ -87,6 +87,29 @@ const CrmOverviewPage = () => {
       .sort((a, b) => a.order_index - b.order_index);
   }, [crmStages, activePipeline]);
 
+  // Estágios para exibição (inclui coluna 'Vendido' virtual se a etapa ganha estiver ausente/inativa)
+  const displayStages = useMemo(() => {
+    if (!activePipeline) return pipelineStages;
+    const hasWonDisplayed = pipelineStages.some(s => s.is_won);
+    if (hasWonDisplayed) return pipelineStages;
+    // Tentar reaproveitar a etapa ganha do pipeline (mesmo que inativa) para montar coluna virtual
+    const anyWon = crmStages.find(s => s.pipeline_id === activePipeline.id && s.is_won);
+    const virtualWon = anyWon
+      ? { ...anyWon, id: 'virtual_won', is_active: true }
+      : ({
+          id: 'virtual_won',
+          pipeline_id: activePipeline.id,
+          user_id: activePipeline.user_id,
+          name: 'Vendido',
+          order_index: 9999,
+          is_active: true,
+          is_won: true,
+          is_lost: false,
+          created_at: new Date().toISOString()
+        } as CrmStage);
+    return [...pipelineStages, virtualWon];
+  }, [pipelineStages, crmStages, activePipeline]);
+
   const consultants = useMemo(() => {
     return teamMembers.filter(m => 
       m.isActive && 
@@ -116,12 +139,13 @@ const CrmOverviewPage = () => {
       const end = filterEndDate ? new Date(filterEndDate + 'T23:59:59') : null;
 
       currentLeads = currentLeads.filter(lead => {
-        // Se o estágio do lead é "Ganha", sempre mostrar na listagem (não filtra por data).
+        // Se já estiver em etapa ganha ou for vendido (sale_date/sold_credit_value), mostra sempre
         const stage = crmStages.find(s => s.id === lead.stage_id);
-        if (stage?.is_won) {
+        const isSold = !!lead.sale_date || (typeof lead.sold_credit_value === 'number' && lead.sold_credit_value > 0);
+        if (stage?.is_won || isSold) {
           return true;
         }
-        // Para os demais estágios, aplica filtro por data de criação.
+        // Demais estágios (ainda não vendidos): aplicar filtro por data de criação.
         const createdAt = new Date(lead.created_at);
         const matchesStart = !start || createdAt >= start;
         const matchesEnd = !end || createdAt <= end;
@@ -134,21 +158,21 @@ const CrmOverviewPage = () => {
 
   const groupedLeads = useMemo(() => {
     const groups: Record<string, CrmLead[]> = {};
-    if (!pipelineStages.length) return groups;
-    const wonStage = pipelineStages.find(s => s.is_won);
-    // Se tiver dados de venda (sale_date ou sold_credit_value), exibir no quadro "Vendido"
+    if (!displayStages.length) return groups;
+    const displayWonStage = displayStages.find(s => s.is_won);
+    const targetWonStageId = displayWonStage?.id;
     const displayLeads = filteredLeads.map((lead) => {
       const isSold = !!lead.sale_date || (typeof lead.sold_credit_value === 'number' && lead.sold_credit_value > 0);
-      if (isSold && wonStage) {
-        return { ...lead, stage_id: wonStage.id };
+      if (isSold && targetWonStageId) {
+        return { ...lead, stage_id: targetWonStageId };
       }
       return lead;
     });
-    pipelineStages.forEach(stage => {
+    displayStages.forEach(stage => {
       groups[stage.id] = displayLeads.filter(lead => lead.stage_id === stage.id);
     });
     return groups;
-  }, [pipelineStages, filteredLeads]);
+  }, [displayStages, filteredLeads]);
 
   const getConsultantName = (lead: CrmLead) => {
     const targetId = lead.consultant_id || lead.created_by;
@@ -372,7 +396,7 @@ const CrmOverviewPage = () => {
       </div>
 
       <div className="flex overflow-x-auto pb-4 space-x-4 custom-scrollbar">
-        {pipelineStages.map(stage => {
+        {displayStages.map(stage => {
           const stageLeads = groupedLeads[stage.id] || [];
           const start = filterStartDate ? new Date(filterStartDate + 'T00:00:00') : null;
           const end = filterEndDate ? new Date(filterEndDate + 'T23:59:59') : null;
@@ -423,7 +447,7 @@ const CrmOverviewPage = () => {
                   stageLeads.map(lead => {
                     const consultantName = getConsultantName(lead);
                     const currentLeadStage = crmStages.find(s => s.id === lead.stage_id);
-                    const isWonStage = currentLeadStage?.is_won;
+                    const isWonStage = currentLeadStage?.is_won || stage.is_won;
                     const isLostStage = currentLeadStage?.is_lost;
                     const canOpenProposalModal = !isWonStage && !isLostStage;
                     const canMarkAsWon = !isWonStage && !isLostStage;
@@ -477,7 +501,7 @@ const CrmOverviewPage = () => {
 
                           {isWonStage ? (
                             <div className="flex items-center text-green-600 dark:text-green-400 font-semibold">
-                              <DollarSign className="w-3 h-3 mr-1" /> Vendido: {formatCurrency(lead.sold_credit_value || 0)}
+                              <DollarSign className="w-3 h-3 mr-1" /> Vendido: {formatCurrency((lead.sold_credit_value && lead.sold_credit_value > 0) ? lead.sold_credit_value : (lead.proposal_value || 0))}
                             </div>
                           ) : lead.proposal_value ? (
                             <div className="flex items-center text-purple-600 dark:text-purple-400 font-semibold">
@@ -498,7 +522,7 @@ const CrmOverviewPage = () => {
                               <SelectValue placeholder="Mover para..." />
                             </SelectTrigger>
                             <SelectContent className="bg-white text-gray-900 dark:bg-slate-800 dark:text-white dark:border-slate-700">
-                              {pipelineStages.map(stageOption => (
+                              {displayStages.map(stageOption => (
                                 <SelectItem key={stageOption.id} value={stageOption.id}>
                                   {stageOption.name}
                                 </SelectItem>
