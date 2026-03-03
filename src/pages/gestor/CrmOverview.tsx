@@ -45,14 +45,8 @@ const CrmOverviewPage = () => {
   const [highlightLeadId, setHighlightLeadId] = useState<string | null>(null);
 
   // Filtros de Data Padrão: Mês Atual
-  const [filterStartDate, setFilterStartDate] = useState(() => {
-    const d = new Date();
-    return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
-  });
-  const [filterEndDate, setFilterEndDate] = useState(() => {
-    const d = new Date();
-    return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
-  });
+  const [filterStartDate, setFilterStartDate] = useState('');
+  const [filterEndDate, setFilterEndDate] = useState('');
 
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [selectedConsultantId, setSelectedConsultantId] = useState<string | null>(null);
