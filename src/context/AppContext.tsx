@@ -38,7 +38,7 @@ const JOAO_GESTOR_AUTH_ID = "0c6d71b7-daeb-4dde-8eec-0e7a8ffef658";
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { user } = useAuth();
-  const fetchedUserIdRef = useRef<string | null>(fetchedUserIdRef.current); // Initialize with current ref value
+  const fetchedUserIdRef = useRef<string | null>(null); // Corrigido: Inicialização direta com null
   const isFetchingRef = useRef(false);
 
   const [isDataLoading, setIsDataLoading] = useState(true);
@@ -371,7 +371,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               id: (item.data as any).id || crypto.randomUUID(), 
               db_id: item.id, 
               createdAt: item.created_at, 
-              lastUpdatedAt: item.last_updated_at,
+              lastUpdatedAt: item.last_updated_updated_at,
               contactedDate: candidateData.contactedDate, interviewScheduledDate: candidateData.interviewScheduledDate,
               interviewConductedDate: candidateData.interviewConductedDate, awaitingPreviewDate: candidateData.awaitingPreviewDate,
               onboardingOnlineDate: candidateData.onboardingOnlineDate, integrationPresencialDate: candidateData.integrationPresencialDate,
@@ -1025,7 +1025,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       created_at: data.created_at, 
       updated_at: data.updated_at, 
       created_by: data.created_by, 
-      updated_by: data.updated_by,
+      updated_by: data.updated_by, 
       proposal_value: parseDbCurrency(data.proposal_value), 
       proposal_closing_date: data.proposal_closing_date, 
       sold_credit_value: parseDbCurrency(data.sold_credit_value), 
@@ -1287,6 +1287,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       });
       setChecklistStructure(newStructure);
       updateConfig({ checklistStructure: newStructure });
+      // Mantém a assinatura do contexto (Promise) por compatibilidade
+      return Promise.resolve({} as any);
     },
     updateChecklistItem: (stageId: string, itemId: string, updates: Partial<ChecklistItem>) => {
       const newStructure = checklistStructure.map(stage => {
