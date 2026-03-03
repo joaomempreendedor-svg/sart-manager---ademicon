@@ -40,6 +40,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const { user, isLoading: isAuthLoading } = useAuth(); // Use isAuthLoading from AuthContext
   const fetchedUserIdRef = useRef<string | null>(null);
   const isFetchingRef = useRef(false);
+  const quickLoadedRef = useRef(false);
 
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
@@ -170,6 +171,48 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setIsDataLoading(false);
   }, []);
 
+  // Pré-carrega Equipe e Cold Call logo após login, para liberar a UI rapidamente
+  useEffect(() => {
+    if (!user?.id || quickLoadedRef.current) return;
+    (async () => {
+      try {
+        // Tenta via edge functions (bypass seguro de RLS)
+        const [teamFx, coldFx] = await Promise.all([
+          supabase.functions.invoke('get-team-members'),
+          supabase.functions.invoke('get-cold-call-data'),
+        ]);
+
+        // Team members
+        if (teamFx.data?.ok) {
+          const normalized = (teamFx.data.team_members || []).map((item: any) => {
+            const d = item.data || {};
+            const dbId = item.id;
+            const authId = d.id || d.authUserId || null;
+            return {
+              id: dbId, db_id: dbId, authUserId: authId,
+              name: String(d.name || ''), email: d.email,
+              roles: Array.isArray(d.roles) ? d.roles.map((r: string) => r.toUpperCase()) : [],
+              isActive: d.isActive !== false, hasLogin: !!authId, isLegacy: !authId,
+              cpf: item.cpf, dateOfBirth: d.dateOfBirth, user_id: item.user_id
+            } as TeamMember;
+          });
+          setTeamMembers(normalized);
+        }
+
+        // Cold call
+        if (coldFx.data?.ok) {
+          setColdCallLeads(coldFx.data.cold_call_leads || []);
+          setColdCallLogs(coldFx.data.cold_call_logs || []);
+        }
+      } catch (e) {
+        console.warn('[AppContext] quick preload failed:', (e as any)?.message || e);
+      } finally {
+        quickLoadedRef.current = true;
+        setIsDataLoading(false);
+      }
+    })();
+  }, [user?.id, supabase]);
+
   const refetchCommissions = useCallback(async () => {
     if (!user || isFetchingRef.current) return;
     const allowedRoles = ['GESTOR', 'ADMIN', 'SECRETARIA'];
@@ -278,83 +321,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, [user]);
 
-  // Pré-carregar membros da equipe assim que o usuário for identificado
-  useEffect(() => {
-    if (!user?.id) {
-      return;
-    }
-    refetchTeamMembers().catch(err => {
-      console.warn('[AppContext] quick team_members prefetch failed:', err?.message || err);
-    });
-  }, [user?.id, refetchTeamMembers]);
-
-  const isGestorTaskDueOnDate = useCallback((task: GestorTask, checkDate: string): boolean => {
-    if (!task.recurrence_pattern || task.recurrence_pattern.type === 'none') return task.due_date === checkDate;
-    const taskCreationDate = new Date(task.created_at);
-    const targetDate = new Date(checkDate);
-    if (task.recurrence_pattern.type === 'daily') return targetDate >= taskCreationDate;
-    if (task.recurrence_pattern.type === 'every_x_days' && task.recurrence_pattern.interval) {
-      const interval = task.recurrence_pattern.interval;
-      const diffDays = Math.ceil(Math.abs(targetDate.getTime() - taskCreationDate.getTime()) / (1000 * 60 * 60 * 24));
-      return targetDate >= taskCreationDate && diffDays % interval === 0;
-    }
-    return false;
-  }, []);
-
-  const calculateNotifications = useCallback(() => {
-    if (!user || (user.role !== 'GESTOR' && user.role !== 'ADMIN' && user.role !== 'SECRETARIA')) {
-      setNotifications([]);
-      return;
-    }
-    const newNotifications: Notification[] = [];
-    const today = new Date();
-    const currentMonth = today.getMonth();
-
-    teamMembers.forEach(member => {
-      if (member.dateOfBirth) {
-        const dob = new Date(member.dateOfBirth + 'T00:00:00');
-        if (dob.getMonth() === currentMonth) {
-          newNotifications.push({ id: `birthday-${member.id}`, type: 'birthday', title: `Aniversário de ${member.name}!`, description: `Celebre o aniversário de ${member.name} neste mês.`, date: member.dateOfBirth, link: `/gestor/config-team`, isRead: false });
-        }
-      }
-    });
-    setNotifications(newNotifications);
-  }, [user, teamMembers]);
-
-  const fetchAppConfig = useCallback(async (effectiveGestorId: string) => {
-    console.log("[AppContext] fetchAppConfig started for user:", effectiveGestorId);
-    const { data: configRow, error: configError } = await supabase.from('app_config').select('data').eq('user_id', effectiveGestorId).maybeSingle();
-    if (configError) {
-      console.error(`[AppContext] Error fetching app config: ${configError.message}`);
-      toast.error(`Erro ao carregar configurações do aplicativo: ${configError.message}`);
-      throw configError;
-    }
-    if (configRow && configRow.data) {
-      const appConfigData = configRow.data;
-      setChecklistStructure(appConfigData.checklistStructure || DEFAULT_STAGES);
-      setConsultantGoalsStructure(appConfigData.consultantGoalsStructure || DEFAULT_GOALS);
-      setInterviewStructure(appConfigData.interviewStructure || INITIAL_INTERVIEW_STRUCTURE);
-      setTemplates(appConfigData.templates || {});
-      setSalesOrigins(appConfigData.salesOrigins || DEFAULT_APP_CONFIG_DATA.salesOrigins);
-      setHiringOrigins(appConfigData.hiringOrigins !== undefined ? appConfigData.hiringOrigins : DEFAULT_APP_CONFIG_DATA.hiringOrigins);
-      setPvs(appConfigData.pvs || []);
-    } else {
-      setChecklistStructure(DEFAULT_STAGES);
-      setConsultantGoalsStructure(DEFAULT_GOALS);
-      setInterviewStructure(INITIAL_INTERVIEW_STRUCTURE);
-      setTemplates({});
-      setSalesOrigins(DEFAULT_APP_CONFIG_DATA.salesOrigins);
-      setHiringOrigins(DEFAULT_APP_CONFIG_DATA.hiringOrigins);
-      setPvs([]);
-    }
-    console.log("[AppContext] fetchAppConfig completed for user:", effectiveGestorId);
-  }, []);
-
   useEffect(() => {
     let isMounted = true;
     const fetchData = async (userId: string) => {
       console.log(`[AppContext.fetchData] Starting fetch for user: ${userId}`);
-      setIsDataLoading(true); // Ensure loading state is true at the start of fetch
+      // Se o preload rápido já ocorreu, não bloqueie a UI de novo
+      setIsDataLoading(!quickLoadedRef.current);
       try {
         const effectiveGestorId = JOAO_GESTOR_AUTH_ID;
         const currentCrmOwnerId = (user?.role === 'GESTOR' || user?.role === 'ADMIN') ? userId : effectiveGestorId;

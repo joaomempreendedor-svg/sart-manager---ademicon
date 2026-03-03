@@ -4,6 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { ChevronRight, User, Calendar, CheckCircle2, TrendingUp, AlertCircle, Clock, Users, Star, CheckSquare, XCircle, BellRing, UserRound, Plus, ListTodo, Send, DollarSign, Repeat, Filter, RotateCcw, CalendarPlus, Mail, Phone, ClipboardCheck, UserPlus, ArrowUpRight, UserCheck, PieChart, MessageSquare, UserX, UserMinus, Ghost, MapPin, BarChart3, FileText, Percent, HelpCircle, PhoneCall, CalendarCheck } from 'lucide-react';
 import { CandidateStatus, ChecklistTaskState, GestorTask, LeadTask, CrmLead, Candidate, ColdCallLead, ColdCallLog, ColdCallDetailType } from '@/types';
+import { isAnswered, isConversation, isMeeting } from '@/utils/coldCall';
 import { TableSkeleton } from '@/components/TableSkeleton';
 import { ScheduleInterviewModal } from '@/components/ScheduleInterviewModal';
 import { PendingLeadTasksModal } from '@/components/gestor/PendingLeadTasksModal';
@@ -65,15 +66,9 @@ export const Dashboard = () => {
   
   const [userSelectedColdCallConsultantId, setUserSelectedColdCallConsultantId] = useState<string | null>(null); 
 
-  // Filtrar Cold Call somente para o mês atual
-  const [coldCallFilterStartDate, setColdCallFilterStartDate] = useState(() => {
-    const d = new Date();
-    return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
-  });
-  const [coldCallFilterEndDate, setColdCallFilterEndDate] = useState(() => {
-    const d = new Date();
-    return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
-  });
+  // Sem filtro inicial: mostra números mesmo que o mês atual não tenha dados
+  const [coldCallFilterStartDate, setColdCallFilterStartDate] = useState<string>('');
+  const [coldCallFilterEndDate, setColdCallFilterEndDate] = useState<string>('');
 
   // Intervalo fixo: mês atual
   const range = React.useMemo(() => {
@@ -290,15 +285,11 @@ export const Dashboard = () => {
 
     const totalCalls = filteredLogs.length;
     
-    const answeredLogs = filteredLogs.filter(log => 
-      log.result !== 'Não atendeu' && log.result !== 'Número inválido'
-    );
+    const answeredLogs = filteredLogs.filter(log => isAnswered(log.result));
     const totalAnswered = answeredLogs.length;
 
-    const totalConversations = answeredLogs.filter(log =>
-      log.result === 'Conversou' || log.result === 'Demonstrou Interesse' || log.result === 'Agendar Reunião'
-    ).length;
-    const totalMeetingsScheduled = answeredLogs.filter(log => log.result === 'Agendar Reunião').length;
+    const totalConversations = answeredLogs.filter(log => isConversation(log.result)).length;
+    const totalMeetingsScheduled = answeredLogs.filter(log => isMeeting(log.result)).length;
 
     const interestConversionRate = totalAnswered > 0 ? (totalConversations / totalAnswered) * 100 : 0;
     const meetingConversionRate = totalAnswered > 0 ? (totalMeetingsScheduled / totalAnswered) * 100 : 0;

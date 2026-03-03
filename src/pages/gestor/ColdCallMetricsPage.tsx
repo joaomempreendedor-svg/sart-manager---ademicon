@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { MetricCard } from '@/components/MetricCard';
+import { isAnswered, isConversation, isMeeting } from '@/utils/coldCall';
 
 const formatDuration = (seconds: number) => {
   if (isNaN(seconds) || seconds < 0) return '0s';
@@ -82,15 +83,11 @@ const ColdCallMetricsPage = () => {
   const coldCallMetrics = useMemo(() => {
     const totalCalls = filteredColdCallLogs.length;
     
-    const answeredLogs = filteredColdCallLogs.filter(log => 
-      log.result !== 'Não atendeu' && log.result !== 'Número inválido'
-    );
+    const answeredLogs = filteredColdCallLogs.filter(log => isAnswered(log.result));
     const totalAnswered = answeredLogs.length;
 
-    const totalConversations = answeredLogs.filter(log =>
-      log.result === 'Conversou' || log.result === 'Demonstrou Interesse' || log.result === 'Agendar Reunião'
-    ).length;
-    const totalMeetingsScheduled = answeredLogs.filter(log => log.result === 'Agendar Reunião').length;
+    const totalConversations = answeredLogs.filter(log => isConversation(log.result)).length;
+    const totalMeetingsScheduled = answeredLogs.filter(log => isMeeting(log.result)).length;
 
     const interestConversionRate = totalAnswered > 0 ? (totalConversations / totalAnswered) * 100 : 0;
     const meetingConversionRate = totalAnswered > 0 ? (totalMeetingsScheduled / totalAnswered) * 100 : 0;
