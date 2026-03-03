@@ -560,7 +560,7 @@ export const SecretariaDashboard = () => {
             icon={Ghost} 
             colorClass="bg-rose-500 text-white" 
             subValue="Não compareceram"
-            onClick={() => handleOpenCandidatesDetailModal('Faltas', hiringMetrics.noShowList, 'noShow')}
+            onClick={() => handleOpenCandidatesDetailModal('Faltas', metrics.noShowList, 'noShow')}
           />
           <MetricCard 
             title="Desistências" 

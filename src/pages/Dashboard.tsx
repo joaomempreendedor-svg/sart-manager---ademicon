@@ -105,9 +105,10 @@ export const Dashboard = () => {
     const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
     const currentMonthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
 
-    // ANTES: const leadsForGestor = crmLeads.filter(lead => lead.user_id === user.id && activeStageIds.has(lead.stage_id));
-    // AGORA: considerar todos os leads do pipeline ativo visíveis pelo usuário (RLS cuida do acesso).
-    const leadsInActivePipeline = crmLeads.filter(lead => activeStageIds.has(lead.stage_id));
+    // Se não houver stages ativos, usar todos os leads disponíveis (RLS cuida do acesso)
+    const leadsInActivePipeline = activeStageIds.size > 0
+      ? crmLeads.filter(lead => activeStageIds.has(lead.stage_id))
+      : crmLeads;
 
     const totalLeads = leadsInActivePipeline.length;
     const newLeads = leadsInActivePipeline.filter(lead => new Date(lead.created_at) >= currentMonthStart).length;

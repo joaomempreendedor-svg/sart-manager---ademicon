@@ -46,16 +46,18 @@ const ConsultorDashboard = () => {
     meetingsThisMonth, 
     proposalValueThisMonth, 
     soldValueThisMonth, 
-    pendingLeadTasks, // Agora é a lista de tarefas
-    pendingLeadTasksCount // NOVO: Contagem para o card
+    pendingLeadTasks, 
+    pendingLeadTasksCount 
   } = useMemo(() => {
     const today = new Date();
     const todayFormatted = today.toISOString().split('T')[0];
 
     if (!user) return { totalLeads: 0, newLeadsThisMonth: 0, meetingsThisMonth: 0, proposalValueThisMonth: 0, soldValueThisMonth: 0, pendingLeadTasks: [], pendingLeadTasksCount: 0 };
 
-    // CORREÇÃO: Filtra apenas leads que pertencem ao pipeline ativo
-    const consultantLeads = crmLeads.filter(lead => lead.consultant_id === user.id && activeStageIds.has(lead.stage_id));
+    // Fallback: se não houver etapas ativas, considerar todos os leads do consultor
+    const consultantLeads = crmLeads.filter(lead => 
+      lead.consultant_id === user.id && (activeStageIds.size === 0 || activeStageIds.has(lead.stage_id))
+    );
     const totalLeads = consultantLeads.length;
 
     const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
