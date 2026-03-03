@@ -122,16 +122,21 @@ const CrmOverviewPage = () => {
       const end = filterEndDate ? new Date(filterEndDate + 'T23:59:59') : null;
 
       currentLeads = currentLeads.filter(lead => {
-        // CORREÇÃO: Se o lead tem data de venda, usa ela como referência. Caso contrário, usa a data de criação.
-        const referenceDate = lead.sale_date ? new Date(lead.sale_date + 'T00:00:00') : new Date(lead.created_at);
-        const matchesStart = !start || referenceDate >= start;
-        const matchesEnd = !end || referenceDate <= end;
+        // Se o estágio do lead é "Ganha", sempre mostrar na listagem (não filtra por data).
+        const stage = crmStages.find(s => s.id === lead.stage_id);
+        if (stage?.is_won) {
+          return true;
+        }
+        // Para os demais estágios, aplica filtro por data de criação.
+        const createdAt = new Date(lead.created_at);
+        const matchesStart = !start || createdAt >= start;
+        const matchesEnd = !end || createdAt <= end;
         return matchesStart && matchesEnd;
       });
     }
 
     return currentLeads;
-  }, [crmLeads, searchTerm, filterStartDate, filterEndDate, selectedConsultantId]);
+  }, [crmLeads, searchTerm, filterStartDate, filterEndDate, selectedConsultantId, crmStages]);
 
   const groupedLeads = useMemo(() => {
     const groups: Record<string, CrmLead[]> = {};
