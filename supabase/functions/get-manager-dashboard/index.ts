@@ -11,23 +11,6 @@ const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 const MAIN_GESTOR_ID = "0c6d71b7-daeb-4dde-8eec-0e7a8ffef658"; // JOAO_GESTOR_AUTH_ID
 
-// NOVO: helper de paginação para trazer todos os registros
-async function fetchAll<T>(baseQuery: any, pageSize = 1000): Promise<T[]> {
-  const results: T[] = [];
-  let from = 0;
-  // Garantir ordenação estável antes de paginar (se não houver order definido)
-  // O caller deve passar o .order() já aplicado quando necessário
-  while (true) {
-    const { data, error } = await baseQuery.range(from, from + pageSize - 1);
-    if (error) throw error;
-    if (!data || data.length === 0) break;
-    results.push(...data);
-    if (data.length < pageSize) break; // última página
-    from += pageSize;
-  }
-  return results;
-}
-
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -81,30 +64,40 @@ serve(async (req) => {
       });
     }
 
-    // Paginar datasets do gestor principal
-    const leadsQuery = serviceClient
-      .from("crm_leads")
-      .select("*")
-      .eq("user_id", MAIN_GESTOR_ID)
-      .order("created_at", { ascending: false });
-    const leads = await fetchAll<any>(leadsQuery, 1000);
+    // Fetch datasets for the main gestor
+    const [{ data: leads, error: leadsErr }, { data: candidatesRows, error: candErr }] = await Promise.all([
+      serviceClient.from("crm_leads").select("*").eq("user_id", MAIN_GESTOR_ID).order("created_at", { ascending: false }),
+      serviceClient.from("candidates").select("id, data, created_at, last_updated_at").eq("user_id", MAIN_GESTOR_ID),
+    ]);
 
-    const candidatesQuery = serviceClient
-      .from("candidates")
-      .select("id, data, created_at, last_updated_at")
-      .eq("user_id", MAIN_GESTOR_ID)
-      .order("created_at", { ascending: false });
-    const candidatesRows = await fetchAll<any>(candidatesQuery, 1000);
+    if (leadsErr) {
+      return new Response(JSON.stringify({ error: `Leads error: ${leadsErr.message}` }), {
+        status: 500,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+    if (candErr) {
+      return new Response(JSON.stringify({ error: `Candidates error: ${candErr.message}` }), {
+        status: 500,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
 
     const leadIds = (leads || []).map((l: any) => l.id);
     let leadTasks: any[] = [];
     if (leadIds.length > 0) {
-      const tasksQuery = serviceClient
+      const { data: tasks, error: tasksErr } = await serviceClient
         .from("lead_tasks")
         .select("*")
-        .in("lead_id", leadIds)
-        .order("created_at", { ascending: false });
-      leadTasks = await fetchAll<any>(tasksQuery, 1000);
+        .in("lead_id", leadIds);
+
+      if (tasksErr) {
+        return new Response(JSON.stringify({ error: `Lead tasks error: ${tasksErr.message}` }), {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
+      }
+      leadTasks = tasks || [];
     }
 
     return new Response(
