@@ -327,9 +327,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setIsDataLoading(true);
       try {
         const effectiveGestorId = JOAO_GESTOR_AUTH_ID;
-        setCrmOwnerUserId(effectiveGestorId);
+        // Determine crmOwnerUserId based on user role
+        const currentCrmOwnerId = (user?.role === 'GESTOR' || user?.role === 'ADMIN') ? userId : effectiveGestorId;
+        setCrmOwnerUserId(currentCrmOwnerId);
 
-        await fetchAppConfig(effectiveGestorId);
+        await fetchAppConfig(effectiveGestorId); // Config is always fetched for the main gestor
 
         const [
           candidatesRes, materialsRes, cutoffRes, onboardingRes, templateVideosRes,
@@ -341,34 +343,35 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           formCadastrosRes, formFilesRes, notificationsRes, teamProductionGoalsRes, teamMembersRes,
           coldCallLeadsRes, coldCallLogsRes
         ] = await Promise.all([
-          supabase.from('candidates').select('id, data, created_at, last_updated_at').eq('user_id', effectiveGestorId),
-          supabase.from('support_materials').select('id, data').eq('user_id', effectiveGestorId),
-          supabase.from('cutoff_periods').select('id, data').eq('user_id', effectiveGestorId),
+          // Rely on RLS for most tables, so no explicit user_id filter here
+          supabase.from('candidates').select('id, data, created_at, last_updated_at'),
+          supabase.from('support_materials').select('id, data'),
+          supabase.from('cutoff_periods').select('id, data'),
           supabase.from('onboarding_sessions').select('*, videos:onboarding_videos(*)'),
           supabase.from('onboarding_video_templates').select('*').order('order', { ascending: true }),
-          supabase.from('crm_pipelines').select('*').eq('user_id', effectiveGestorId),
-          supabase.from('crm_stages').select('*').eq('user_id', effectiveGestorId).order('order_index'),
-          supabase.from('crm_fields').select('*').eq('user_id', effectiveGestorId),
-          supabase.from('crm_leads').select('*').eq('user_id', effectiveGestorId).order('created_at', { ascending: false }),
-          supabase.from('daily_checklists').select('*').eq('user_id', effectiveGestorId),
+          supabase.from('crm_pipelines').select('*'),
+          supabase.from('crm_stages').select('*').order('order_index'),
+          supabase.from('crm_fields').select('*'),
+          supabase.from('crm_leads').select('*').order('created_at', { ascending: false }),
+          supabase.from('daily_checklists').select('*'),
           supabase.from('daily_checklist_items').select('*'),
           supabase.from('daily_checklist_assignments').select('*'),
           supabase.from('daily_checklist_completions').select('*'),
-          supabase.from('weekly_targets').select('*').eq('user_id', effectiveGestorId),
+          supabase.from('weekly_targets').select('*'),
           supabase.from('weekly_target_items').select('*'),
           supabase.from('weekly_target_assignments').select('*'),
           supabase.from('metric_logs').select('*'),
-          supabase.from('support_materials_v2').select('*').eq('user_id', effectiveGestorId),
+          supabase.from('support_materials_v2').select('*'),
           supabase.from('support_material_assignments').select('*'),
           supabase.from('lead_tasks').select('*'),
-          supabase.from('gestor_tasks').select('*').eq('user_id', effectiveGestorId),
-          supabase.from('gestor_task_completions').select('*').eq('user_id', effectiveGestorId),
-          supabase.from('financial_entries').select('*').eq('user_id', effectiveGestorId),
-          supabase.from('form_submissions').select('id, submission_date, data, internal_notes, is_complete').eq('user_id', effectiveGestorId).order('submission_date', { ascending: false }),
+          supabase.from('gestor_tasks').select('*').eq('user_id', userId), // Personal tasks
+          supabase.from('gestor_task_completions').select('*').eq('user_id', userId), // Personal completions
+          supabase.from('financial_entries').select('*'),
+          supabase.from('form_submissions').select('id, submission_date, data, internal_notes, is_complete').order('submission_date', { ascending: false }),
           supabase.from('form_files').select('*'),
-          supabase.from('notifications').select('*').eq('user_id', userId).eq('is_read', false).order('created_at', { ascending: false }),
-          supabase.from('team_production_goals').select('*').eq('user_id', effectiveGestorId).order('start_date', { ascending: false }),
-          supabase.from('team_members').select('id, data, cpf, user_id').eq('user_id', effectiveGestorId),
+          supabase.from('notifications').select('*').eq('user_id', userId).eq('is_read', false).order('created_at', { ascending: false }), // User-specific notifications
+          supabase.from('team_production_goals').select('*').order('start_date', { ascending: false }),
+          supabase.from('team_members').select('id, data, cpf, user_id'),
           supabase.from('cold_call_leads').select('id, user_id, name, phone, email, current_stage, notes, crm_lead_id, created_at, updated_at', { count: 'exact' }).range(0, 99999).limit(100000),
           supabase.from('cold_call_logs').select('id, cold_call_lead_id, user_id, start_time, end_time, duration_seconds, result, meeting_date, meeting_time, meeting_modality, meeting_notes, created_at', { count: 'exact' }).range(0, 99999).limit(100000)
         ]);
@@ -859,7 +862,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         finalResource = { ...updates.resource, content: { ...(updates.resource.content as any), audioUrl: audioUrl || (updates.resource.content as any).audioUrl } };
       } else if (updates.resource.type === 'text_audio_image') {
         finalResource = { ...updates.resource, content: { ...(updates.resource.content as any), audioUrl: audioUrl || (updates.resource.content as any).audioUrl, imageUrl: imageUrl || (updates.resource.content as any).imageUrl } };
-      } else if (updates.resource.type === 'image' || updates.resource.type === 'pdf' || updates.resource.type === 'audio' || updates.resource.type === 'video' || updates.resource.type === 'link' || updates.resource.type === 'text') {
+      } else if (updates.resource.type === 'image' || updates.resource.type === 'pdf' || updates.resource.type === 'audio') {
         finalResource = { ...updates.resource, content: audioUrl || imageUrl || updates.resource.content };
       }
     } else {
