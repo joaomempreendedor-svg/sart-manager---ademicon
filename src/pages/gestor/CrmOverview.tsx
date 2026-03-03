@@ -92,24 +92,6 @@ const CrmOverviewPage = () => {
       .sort((a, b) => a.order_index - b.order_index);
   }, [crmStages, activePipeline]);
 
-  // NOVO: garantir que estágios usados pelos leads (incluindo 'Vendido' fora do pipeline ativo) apareçam como colunas
-  const visibleStages = useMemo(() => {
-    const base = [...pipelineStages];
-    const baseIds = new Set(base.map(s => s.id));
-    const stageById = new Map(crmStages.map(s => [s.id, s]));
-    const extras: typeof pipelineStages = [];
-    filteredLeads.forEach(lead => {
-      if (!baseIds.has(lead.stage_id)) {
-        const st = stageById.get(lead.stage_id);
-        if (st && st.is_active) {
-          extras.push(st);
-          baseIds.add(st.id);
-        }
-      }
-    });
-    return [...base, ...extras];
-  }, [pipelineStages, crmStages, filteredLeads]);
-
   const consultants = useMemo(() => {
     return teamMembers.filter(m => 
       m.isActive && 
@@ -152,6 +134,23 @@ const CrmOverviewPage = () => {
 
     return currentLeads;
   }, [crmLeads, searchTerm, filterStartDate, filterEndDate, selectedConsultantId, crmStages]);
+
+  const visibleStages = useMemo(() => {
+    const base = [...pipelineStages];
+    const baseIds = new Set(base.map(s => s.id));
+    const stageById = new Map(crmStages.map(s => [s.id, s]));
+    const extras: typeof pipelineStages = [];
+    filteredLeads.forEach(lead => {
+      if (!baseIds.has(lead.stage_id)) {
+        const st = stageById.get(lead.stage_id);
+        if (st && st.is_active) {
+          extras.push(st);
+          baseIds.add(st.id);
+        }
+      }
+    });
+    return [...base, ...extras];
+  }, [pipelineStages, crmStages, filteredLeads]);
 
   const groupedLeads = useMemo(() => {
     const groups: Record<string, CrmLead[]> = {};
