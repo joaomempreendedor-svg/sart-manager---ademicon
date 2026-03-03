@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
-import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, InstallmentInfo, CutoffPeriod, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask, DailyChecklistItemResource, GestorTask, GestorTaskCompletion, FinancialEntry, FormCadastro, FormFile, Notification, Feedback, TeamProductionGoal, ColdCallLead, ColdCallLog, ChecklistItem } from '@/types';
+import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, InstallmentInfo, CutoffPeriod, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask, DailyChecklistItemResource, GestorTask, GestorTaskCompletion, FinancialEntry, FormCadastro, FormFile, Notification, Feedback, TeamProductionGoal, ColdCallLead, ColdCallLog } from '@/types';
 import { CHECKLIST_STAGES as DEFAULT_STAGES } from '@/data/checklistData';
 import { CONSULTANT_GOALS as DEFAULT_GOALS } from '@/data/consultantGoals';
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
@@ -9,7 +9,6 @@ import { generateRandomPassword } from '@/utils/authUtils';
 import { sanitizeFilename } from '@/utils/fileUtils';
 import toast from 'react-hot-toast';
 import { getOverallStatus } from '@/utils/commissionUtils';
-import { withTimeout } from '@/utils/withTimeout';
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
@@ -38,7 +37,7 @@ const MONTHLY_CUTOFF_DAYS: Record<number, number> = {
 const JOAO_GESTOR_AUTH_ID = "0c6d71b7-daeb-4dde-8eec-0e7a8ffef658";
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const { user, isLoading: isAuthLoading } = useAuth();
+  const { user } = useAuth();
   const fetchedUserIdRef = useRef<string | null>(null);
   const isFetchingRef = useRef(false);
 
@@ -109,14 +108,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, [theme]);
 
-  const parseDbCurrency = useCallback((value: any): number => {
+  const parseDbCurrency = useCallback((value: any): number | null => {
     if (typeof value === 'number') return value;
     if (typeof value === 'string') {
       const cleaned = value.replace(/[^0-9,-]+/g, '').replace(/\./g, '').replace(',', '.');
       const parsed = parseFloat(cleaned);
-      return isNaN(parsed) ? 0 : parsed; // Default to 0 instead of null
+      return isNaN(parsed) ? null : parsed;
     }
-    return 0; // Default to 0 for non-string/non-number values
+    return null;
   }, []);
 
   const calculateCompetenceMonth = useCallback((paidDate: string): string => {
@@ -285,25 +284,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [user, fetchAppConfig]);
 
   useEffect(() => {
-    let isMounted = true; // Flag to prevent state updates on unmounted component
     const fetchData = async (userId: string) => {
       setIsDataLoading(true);
-      console.time('[app] bootstrap');
-      console.log('[app] fetchData:start', { userId });
-
-      // Watchdog para detectar demora anormal no bootstrap
-      const watchdogId = window.setTimeout(() => {
-        console.warn('[app] watchdog: fetchData running > 10000ms');
-        // Não força setIsDataLoading(false) para evitar exibir UI vazia
-      }, 10000);
-
       try {
         const effectiveGestorId = JOAO_GESTOR_AUTH_ID;
         setCrmOwnerUserId(effectiveGestorId);
 
         await fetchAppConfig(effectiveGestorId);
 
-        const allPromises = [
+        const [
+          candidatesRes, materialsRes, cutoffRes, onboardingRes, templateVideosRes,
+          pipelinesRes, stagesRes, fieldsRes, crmLeadsRes,
+          dailyChecklistsRes, dailyChecklistItemsRes, dailyChecklistAssignmentsRes, dailyChecklistCompletionsRes,
+          weeklyTargetsRes, weeklyTargetItemsRes, weeklyTargetAssignmentsRes, metricLogsRes,
+          supportMaterialsV2Res, supportMaterialAssignmentsV2Res,
+          leadTasksRes, gestorTasksRes, gestorTaskCompletionsRes, financialEntriesRes,
+          formCadastrosRes, formFilesRes, notificationsRes, teamProductionGoalsRes, teamMembersRes,
+          coldCallLeadsRes, coldCallLogsRes
+        ] = await Promise.all([
           supabase.from('candidates').select('id, data, created_at, last_updated_at').eq('user_id', effectiveGestorId),
           supabase.from('support_materials').select('id, data').eq('user_id', effectiveGestorId),
           supabase.from('cutoff_periods').select('id, data').eq('user_id', effectiveGestorId),
@@ -334,21 +332,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           supabase.from('team_members').select('id, data, cpf, user_id').eq('user_id', effectiveGestorId),
           supabase.from('cold_call_leads').select('*'),
           supabase.from('cold_call_logs').select('*')
-        ];
-
-        // Timeout global do bootstrap: 20s
-        const [
-          candidatesRes, materialsRes, cutoffRes, onboardingRes, templateVideosRes,
-          pipelinesRes, stagesRes, fieldsRes, crmLeadsRes,
-          dailyChecklistsRes, dailyChecklistItemsRes, dailyChecklistAssignmentsRes, dailyChecklistCompletionsRes,
-          weeklyTargetsRes, weeklyTargetItemsRes, weeklyTargetAssignmentsRes, metricLogsRes,
-          supportMaterialsV2Res, supportMaterialAssignmentsV2Res,
-          leadTasksRes, gestorTasksRes, gestorTaskCompletionsRes, financialEntriesRes,
-          formCadastrosRes, formFilesRes, notificationsRes, teamProductionGoalsRes, teamMembersRes,
-          coldCallLeadsRes, coldCallLogsRes
-        ] = await withTimeout(Promise.all(allPromises), 20000, '[app] fetchData:Promise.all');
-
-        if (!isMounted) return; // Check mount status before updating state
+        ]);
 
         if (candidatesRes.error) { toast.error(`Erro ao carregar candidatos: ${candidatesRes.error.message}`); setCandidates([]); }
         else {
@@ -458,9 +442,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
         if (financialEntriesRes.error) { toast.error(`Erro ao carregar entradas financeiras: ${financialEntriesRes.error.message}`); setFinancialEntries([]); }
         else {
-          // CORREÇÃO: Remover a divisão por 100 aqui
           setFinancialEntries(financialEntriesRes.data?.map((entry: any) => ({
-            id: entry.id, db_id: entry.id, user_id: entry.user_id, entry_date: entry.entry_date, type: entry.type, description: entry.description, amount: parseFloat(entry.amount || '0'), created_at: entry.created_at // Garante que amount seja sempre um número
+            id: entry.id, db_id: entry.id, user_id: entry.user_id, entry_date: entry.entry_date, type: entry.type, description: entry.description, amount: parseFloat(entry.amount) / 100, created_at: entry.created_at
           })) || []);
         }
 
@@ -484,16 +467,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
         refetchCommissions();
       } catch (error: any) {
-        console.error('[app] fetchData:error', error?.message || error);
         toast.error(`Erro crítico ao carregar dados: ${error.message}`);
         resetLocalState();
       } finally {
-        if (isMounted) {
-          window.clearTimeout(watchdogId);
-          setIsDataLoading(false);
-          console.log('[app] setIsDataLoading:false');
-          console.timeEnd('[app] bootstrap');
-        }
+        setIsDataLoading(false);
       }
     };
 
@@ -501,17 +478,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       fetchedUserIdRef.current = user.id;
       setIsDataLoading(true);
       fetchData(user.id);
-    } else if (!user && !isAuthLoading) {
+    } else if (!user) {
       fetchedUserIdRef.current = null;
       resetLocalState();
     }
-
-    return () => {
-      isMounted = false; // Set flag to false when component unmounts
-    };
-  }, [user?.id, isAuthLoading, refetchCommissions, fetchAppConfig, resetLocalState, parseDbCurrency]);
-
-  // REMOVIDO: bailout que forçava isDataLoading=false para evitar mostrar UI vazia prematuramente
+  }, [user?.id, refetchCommissions, fetchAppConfig, resetLocalState, parseDbCurrency]);
 
   // CRUD candidatos
   const addCandidate = useCallback(async (candidate: Omit<Candidate, 'id' | 'createdAt' | 'db_id'>) => {
@@ -731,17 +702,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // Financeiro
   const addFinancialEntry = useCallback(async (entry: Omit<FinancialEntry, 'id' | 'user_id' | 'created_at'>) => {
-    // CORREÇÃO: Remover a multiplicação por 100 aqui
-    const { data, error } = await supabase.from('financial_entries').insert({ ...entry, user_id: JOAO_GESTOR_AUTH_ID, amount: entry.amount }).select().single();
+    const { data, error } = await supabase.from('financial_entries').insert({ ...entry, user_id: JOAO_GESTOR_AUTH_ID, amount: entry.amount * 100 }).select().single();
     if (error) throw error;
-    setFinancialEntries(prev => [...prev, data]);
+    setFinancialEntries(prev => [...prev, { ...data, amount: parseFloat(data.amount) / 100 }]);
     return data;
   }, []);
   const updateFinancialEntry = useCallback(async (id: string, updates: Partial<FinancialEntry>) => {
-    // CORREÇÃO: Remover a multiplicação por 100 aqui
-    const { data, error } = await supabase.from('financial_entries').update(updates).eq('id', id).select().single();
+    const updatesWithCentavos = updates.amount !== undefined ? { ...updates, amount: updates.amount * 100 } : updates;
+    const { data, error } = await supabase.from('financial_entries').update(updatesWithCentavos).eq('id', id).select().single();
     if (error) throw error;
-    setFinancialEntries(prev => prev.map(e => e.id === id ? data : e));
+    setFinancialEntries(prev => prev.map(e => e.id === id ? { ...data, amount: parseFloat(data.amount) / 100 } : e));
     return data;
   }, []);
   const deleteFinancialEntry = useCallback(async (id: string) => {
@@ -1019,7 +989,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       created_by: data.created_by, 
       updated_by: data.updated_by,
       proposal_value: parseDbCurrency(data.proposal_value), 
-      proposal_closing_date: data.proposal_closing_date, 
+      proposal_closing_date: data.proposal_closing_date,
       sold_credit_value: parseDbCurrency(data.sold_credit_value), 
       sold_group: data.sold_group, 
       sold_quota: data.sold_quota, 
@@ -1308,11 +1278,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (stage.id === stageId) {
           const index = stage.items.findIndex(i => i.id === itemId);
           if (index === -1) return stage;
-          const newItems = [...stage.items];
           const targetIndex = direction === 'up' ? index - 1 : index + 1;
-          if (targetIndex >= 0 && targetIndex < newItems.length) {
-            [newItems[index], newItems[targetIndex]] = [newItems[targetIndex], newItems[index]];
-          }
+          if (targetIndex < 0 || targetIndex >= stage.items.length) return stage;
+          const newItems = [...stage.items];
+          [newItems[index], newItems[targetIndex]] = [newItems[targetIndex], newItems[index]];
           return { ...stage, items: newItems };
         }
         return stage;

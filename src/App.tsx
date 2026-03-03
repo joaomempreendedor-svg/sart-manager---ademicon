@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, Outlet, Navigate, useLocation } from 'react-router-dom';
-import { AppProvider } from '@/context/AppContext';
+import { AppProvider, useApp } from '@/context/AppContext';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { UserRole } from '@/types';
 
@@ -68,13 +68,13 @@ const AppLoader = () => (
 
 const RequireAuth: React.FC<{ allowedRoles: UserRole[] }> = ({ allowedRoles }) => {
   const { user, isLoading: isAuthLoading } = useAuth();
+  const { isDataLoading } = useApp();
   const location = useLocation();
 
   // Todos os hooks devem ser chamados incondicionalmente no nível superior do componente.
   // A lógica condicional para renderização/navegação vem depois.
 
-  // A partir de agora, NUNCA bloqueamos por isDataLoading (somente por isAuthLoading).
-  if (isAuthLoading) {
+  if (isAuthLoading || isDataLoading) {
     return <AppLoader />;
   }
 

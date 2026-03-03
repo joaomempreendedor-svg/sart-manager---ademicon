@@ -2,7 +2,6 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useMe
 import { supabase } from '@/integrations/supabase/client';
 import { Session } from '@supabase/supabase-js';
 import { User } from '@/types';
-import { UserRole } from '@/types';
 
 interface AuthContextType {
   user: User | null;
@@ -25,54 +24,47 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const fetchUserProfile = useCallback(async (session: Session): Promise<User | null> => {
     try {
-      // LOG: início do fetch de perfil
-      console.time('[auth] fetchUserProfile');
-      console.log('[auth] fetchUserProfile:start', { userId: session.user.id });
-
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('first_name, last_name, role, login, needs_password_change')
+        .select('first_name, last_name, role, login, needs_password_change') // Adicionado login e needs_password_change
         .eq('id', session.user.id)
         .maybeSingle();
 
       if (profileError) throw profileError;
 
+      // CORREÇÃO: Buscar team_member usando 'data->>id' para o ID do auth.users
       const { data: teamMemberData, error: teamMemberError } = await supabase
         .from('team_members')
         .select('data')
-        .eq('data->>id', session.user.id)
+        .eq('data->>id', session.user.id) // Corrigido para buscar no JSONB 'data'
         .maybeSingle();
 
-      if (teamMemberError) console.error("[auth] fetchUserProfile: teamMember error:", teamMemberError);
+      if (teamMemberError) console.error("Error fetching team member status:", teamMemberError);
 
       const name = profile && (profile.first_name || profile.last_name)
         ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim()
         : session.user.email?.split('@')[0] || 'Usuário';
         
-      const isActive = teamMemberData ? (teamMemberData.data as any).isActive : true;
+      const isActive = teamMemberData ? (teamMemberData.data as any).isActive : true; // Default to true if not found or not a team member
 
-      const result: User = { 
+      return { 
         id: session.user.id, 
         name, 
         email: session.user.email || '',
-        role: (profile?.role || 'CONSULTOR').toUpperCase() as UserRole,
-        isActive,
-        login: profile?.login,
-        hasLogin: !!profile?.login,
-        needs_password_change: profile?.needs_password_change || false,
+        role: (profile?.role || 'CONSULTOR').toUpperCase() as UserRole, // Garante que o papel seja sempre em maiúsculas
+        isActive: isActive,
+        login: profile?.login, // Adicionado
+        hasLogin: !!profile?.login, // Adicionado
+        needs_password_change: profile?.needs_password_change || false, // Adicionado
       };
-
-      console.timeEnd('[auth] fetchUserProfile');
-      console.log('[auth] fetchUserProfile:done', { role: result.role, isActive: result.isActive });
-      return result;
     } catch (error: any) {
-      console.error('[auth] fetchUserProfile:error', error?.message || error);
+      console.error('Error fetching profile:', error.message);
       return {
         id: session.user.id,
         name: session.user.email?.split('@')[0] || 'Usuário',
         email: session.user.email || '',
-        role: 'CONSULTOR',
-        isActive: false,
+        role: 'CONSULTOR', // Fallback role
+        isActive: false, // Default to inactive on error for safety
         hasLogin: false,
         needs_password_change: false,
       };
@@ -82,18 +74,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => {
     let isMounted = true;
 
-    console.time('[auth] init');
-    console.log('[auth] mount');
-
-    // Watchdog: garante que isLoading não fique travado
-    const watchdogId = window.setTimeout(() => {
-      if (!isMounted) return;
-      console.warn('[auth] watchdog: forcing isLoading=false after 8000ms');
-      setIsLoading(false);
-    }, 8000);
-
     const updateUserState = async (currentSession: Session | null) => {
-      console.log('[auth] updateUserState', { hasSession: !!currentSession });
       if (!isMounted) return;
 
       if (currentSession) {
@@ -105,21 +86,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setSession(null);
       }
       setIsLoading(false);
-      console.log('[auth] setIsLoading:false');
-      console.timeEnd('[auth] init');
     };
 
     // Check initial session on mount
-    console.log('[auth] getSession:start');
     supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('[auth] getSession:done', { hasSession: !!session });
       updateUserState(session);
     });
 
     // Set up the listener for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, newSession) => {
-        console.log('[auth] onAuthStateChange', event, { hasSession: !!newSession });
+      (_event, newSession) => {
         updateUserState(newSession);
       }
     );
@@ -127,8 +103,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return () => {
       isMounted = false;
       subscription.unsubscribe();
-      window.clearTimeout(watchdogId);
-      console.log('[auth] unmount');
     };
   }, [fetchUserProfile]);
 

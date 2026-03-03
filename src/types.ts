@@ -580,21 +580,12 @@ export interface AppContextType {
   formFiles: FormFile[];
   notifications: Notification[];
   teamProductionGoals: TeamProductionGoal[];
-  coldCallLeads: ColdCallLead[];
-  coldCallLogs: ColdCallLog[];
+  coldCallLeads: ColdCallLead[]; // NOVO
+  coldCallLogs: ColdCallLog[];   // NOVO
   theme: 'light' | 'dark';
   toggleTheme: () => void;
-
-  // ADICIONADOS: funções já expostas pelo AppContext que faltavam aqui
-  updateConfig: (updates: any) => void;
-  resetLocalState: () => void;
-  refetchCommissions: () => Promise<void>;
-  calculateCompetenceMonth: (paidDate: string) => string;
-  calculateNotifications: () => void;
-
   addCandidate: (candidate: Omit<Candidate, 'id' | 'createdAt' | 'db_id'>) => Promise<Candidate>;
   getCandidate: (id: string) => Candidate | undefined;
-  setCandidates: React.Dispatch<React.SetStateAction<Candidate[]>>;
   updateCandidate: (id: string, updates: Partial<Candidate>) => Promise<void>;
   deleteCandidate: (id: string) => Promise<void>;
   toggleChecklistItem: (candidateId: string, itemId: string) => Promise<void>;
@@ -700,12 +691,12 @@ export interface AppContextType {
   updateTeamProductionGoal: (id: string, updates: Partial<TeamProductionGoal>) => Promise<TeamProductionGoal>;
   deleteTeamProductionGoal: (id: string) => Promise<void>;
   hasPendingSecretariaTasks: (candidate: Candidate) => boolean;
-  addColdCallLead: (lead: Omit<ColdCallLead, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'current_stage'>) => Promise<ColdCallLead>;
-  updateColdCallLead: (id: string, updates: Partial<ColdCallLead>) => Promise<ColdCallLead>;
-  deleteColdCallLead: (id: string) => Promise<void>;
-  addColdCallLog: (log: Omit<ColdCallLog, 'id' | 'user_id' | 'created_at' | 'duration_seconds'> & { start_time: string; end_time: string; }) => Promise<ColdCallLog>;
-  getColdCallMetrics: (consultantId: string) => { totalCalls: number; totalConversations: number; totalMeetingsScheduled: number; conversationToMeetingRate: number; };
-  createCrmLeadFromColdCall: (coldCallLeadId: string, meeting?: { date?: string; time?: string; modality?: string; notes?: string }) => Promise<{ crmLeadId: string }>;
+  addColdCallLead: (lead: Omit<ColdCallLead, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'current_stage'>) => Promise<ColdCallLead>; // NOVO
+  updateColdCallLead: (id: string, updates: Partial<ColdCallLead>) => Promise<ColdCallLead>; // NOVO
+  deleteColdCallLead: (id: string) => Promise<void>; // NOVO
+  addColdCallLog: (log: Omit<ColdCallLog, 'id' | 'user_id' | 'created_at' | 'duration_seconds'> & { start_time: string; end_time: string; }) => Promise<ColdCallLog>; // NOVO
+  getColdCallMetrics: (consultantId: string) => { totalCalls: number; totalConversations: number; totalMeetingsScheduled: number; conversationToMeetingRate: number; }; // NOVO
+  createCrmLeadFromColdCall: (coldCallLeadId: string, meeting?: { date?: string; time?: string; modality?: string; notes?: string }) => Promise<{ crmLeadId: string }>; // NOVO
 }
 
 export interface ColdCallMetrics { // NOVO: Interface para as métricas de Cold Call
