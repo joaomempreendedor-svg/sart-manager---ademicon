@@ -54,11 +54,11 @@ const ColdCallMetricsPage = () => {
     }
     if (filterStartDate) {
       const start = new Date(filterStartDate + 'T00:00:00');
-      logs = logs.filter(log => new Date(log.created_at) >= start);
+      logs = logs.filter(log => new Date(log.start_time) >= start);
     }
     if (filterEndDate) {
       const end = new Date(filterEndDate + 'T23:59:59');
-      logs = logs.filter(log => new Date(log.created_at) <= end);
+      logs = logs.filter(log => new Date(log.start_time) <= end);
     }
     return logs;
   }, [coldCallLogs, selectedColdCallConsultantId, filterStartDate, filterEndDate]);
@@ -88,7 +88,7 @@ const ColdCallMetricsPage = () => {
     const totalAnswered = answeredLogs.length;
 
     const totalConversations = answeredLogs.filter(log =>
-      log.result === 'Demonstrou Interesse' || log.result === 'Agendar Reunião'
+      log.result === 'Conversou' || log.result === 'Demonstrou Interesse' || log.result === 'Agendar Reunião'
     ).length;
     const totalMeetingsScheduled = answeredLogs.filter(log => log.result === 'Agendar Reunião').length;
 

@@ -86,11 +86,11 @@ const ColdCallPage = () => {
     let logs = coldCallLogs.filter(log => log.user_id === user?.id);
     if (filterStartDate) {
       const start = new Date(filterStartDate + 'T00:00:00');
-      logs = logs.filter(log => new Date(log.created_at) >= start);
+      logs = logs.filter(log => new Date(log.start_time) >= start);
     }
     if (filterEndDate) {
       const end = new Date(filterEndDate + 'T23:59:59');
-      logs = logs.filter(log => new Date(log.created_at) <= end);
+      logs = logs.filter(log => new Date(log.start_time) <= end);
     }
     return logs;
   }, [user, coldCallLogs, filterStartDate, filterEndDate]);
@@ -119,7 +119,7 @@ const ColdCallPage = () => {
     const totalAnswered = answeredLogs.length;
 
     const totalConversations = answeredLogs.filter(log =>
-      log.result === 'Demonstrou Interesse' || log.result === 'Agendar Reunião'
+      log.result === 'Conversou' || log.result === 'Demonstrou Interesse' || log.result === 'Agendar Reunião'
     ).length;
     const totalMeetingsScheduled = answeredLogs.filter(log => log.result === 'Agendar Reunião').length;
 
@@ -169,12 +169,12 @@ const ColdCallPage = () => {
     const leadsWithLastCallInfo = currentLeads.map(lead => {
       const lastLog = coldCallLogs
         .filter(log => log.cold_call_lead_id === lead.id)
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+        .sort((a, b) => new Date(b.start_time).getTime() - new Date(a.start_time).getTime())[0];
       
       return {
         ...lead,
         lastCallResult: lastLog ? lastLog.result : 'N/A',
-        lastCallDate: lastLog ? new Date(lastLog.created_at).toLocaleDateString('pt-BR') : 'N/A',
+        lastCallDate: lastLog ? new Date(lastLog.start_time).toLocaleDateString('pt-BR') : 'N/A',
       };
     });
 
