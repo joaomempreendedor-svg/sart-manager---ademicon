@@ -68,6 +68,23 @@ export const Dashboard = () => {
   const [coldCallFilterStartDate, setColdCallFilterStartDate] = useState('');
   const [coldCallFilterEndDate, setColdCallFilterEndDate] = useState('');
 
+  // NOVO: estado para controlar quando exibir o conteúdo após esperar 5s
+  const [isReadyToShow, setIsReadyToShow] = useState(false);
+
+  // NOVO: inicia o timer de 5s assim que o backend terminar de carregar (isDataLoading = false)
+  useEffect(() => {
+    let timeoutId: number | undefined;
+    if (!isDataLoading) {
+      timeoutId = window.setTimeout(() => setIsReadyToShow(true), 5000);
+    } else {
+      // Se voltar a carregar, resetar o estado de prontidão
+      setIsReadyToShow(false);
+    }
+    return () => {
+      if (timeoutId) window.clearTimeout(timeoutId);
+    };
+  }, [isDataLoading]);
+
   const handleOpenNotifications = () => setIsNotificationCenterOpen(true);
   const handleCloseNotifications = () => setIsNotificationCenterOpen(false);
 
@@ -364,6 +381,18 @@ export const Dashboard = () => {
   };
 
   if (isDataLoading) return <div className="flex items-center justify-center h-screen"><Loader2 className="w-12 h-12 text-brand-500 animate-spin" /></div>;
+
+  // NOVO: aguarda 5s após o carregamento do backend antes de exibir o Dashboard
+  if (!isReadyToShow) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-slate-900">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-12 h-12 text-brand-500 animate-spin" />
+          <p className="text-gray-600 dark:text-gray-300 text-sm">Preparando o Dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 sm:p-8 max-w-7xl mx-auto space-y-10">
