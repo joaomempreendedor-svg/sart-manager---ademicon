@@ -1512,48 +1512,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setConsultantGoalsStructure(newStructure);
         updateConfig({ consultantGoalsStructure: newStructure });
       },
-      resetGoalsToDefault: () => {
-        setConsultantGoalsStructure(DEFAULT_GOALS);
-        updateConfig({ consultantGoalsStructure: DEFAULT_GOALS });
-      },
-
-      updateInterviewSection: (sectionId: string, updates: Partial<InterviewSection>) => {
-        const newStructure = interviewStructure.map(s => s.id === sectionId ? { ...s, ...updates } : s);
-        setInterviewStructure(newStructure);
-        updateConfig({ interviewStructure: newStructure });
-      },
-      addInterviewQuestion: (sectionId: string, text: string, points: number) => {
-        const newStructure = interviewStructure.map(s => s.id === sectionId ? { ...s, questions: [...s.questions, { id: crypto.randomUUID(), text, points }] } : s);
-        setInterviewStructure(newStructure);
-        updateConfig({ interviewStructure: newStructure });
-      },
-      updateInterviewQuestion: (sectionId: string, questionId: string, updates: Partial<{ text: string; points: number }>) => {
-        const newStructure = interviewStructure.map(s => s.id === sectionId ? { ...s, questions: s.questions.map(q => q.id === questionId ? { ...q, ...updates } : q) } : s);
-        setInterviewStructure(newStructure);
-        updateConfig({ interviewStructure: newStructure });
-      },
-      deleteInterviewQuestion: (sectionId: string, questionId: string) => {
-        const newStructure = interviewStructure.map(s => s.id === sectionId ? { ...s, questions: s.questions.filter(q => q.id !== questionId) } : s);
-        setInterviewStructure(newStructure);
-        updateConfig({ interviewStructure: newStructure });
-      },
-      moveInterviewQuestion: (sectionId: string, questionId: string, direction: 'up' | 'down') => {
-        const newStructure = interviewStructure.map(s => {
-          if (s.id === sectionId) {
-            const index = s.questions.findIndex(i => i.id === questionId);
-            if (index === -1) return s;
-            const newQuestions = [...s.questions];
-            const targetIndex = direction === 'up' ? index - 1 : index + 1;
-            if (targetIndex >= 0 && targetIndex < newQuestions.length) {
-              [newQuestions[index], newQuestions[targetIndex]] = [newQuestions[targetIndex], newQuestions[index]];
-            }
-            return { ...s, questions: newQuestions };
-          }
-          return s;
-        });
-        setInterviewStructure(newStructure);
-        updateConfig({ interviewStructure: newStructure });
-      },
       resetInterviewToDefault: () => {
         setInterviewStructure(INITIAL_INTERVIEW_STRUCTURE);
         updateConfig({ interviewStructure: INITIAL_INTERVIEW_STRUCTURE });
