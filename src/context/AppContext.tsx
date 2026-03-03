@@ -156,7 +156,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [user, checklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs, debouncedUpdateConfig]);
 
   const resetLocalState = useCallback(() => {
-    console.log("[AppContext] resetLocalState called.");
+    console.log("[AppContext] resetLocalState called, clearing all data."); // Adicionado log
     setCandidates([]); setTeamMembers([]); setCommissions([]); setSupportMaterials([]); setCutoffPeriods([]); setOnboardingSessions([]); setOnboardingTemplateVideos([]);
     setChecklistStructure(DEFAULT_STAGES); setConsultantGoalsStructure(DEFAULT_GOALS); setInterviewStructure(INITIAL_INTERVIEW_STRUCTURE); setTemplates({});
     setHiringOrigins(DEFAULT_APP_CONFIG_DATA.hiringOrigins); setSalesOrigins(DEFAULT_APP_CONFIG_DATA.salesOrigins); setInterviewers(DEFAULT_APP_CONFIG_DATA.interviewers); setPvs(DEFAULT_APP_CONFIG_DATA.pvs);
@@ -522,7 +522,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         console.error("[AppContext] Critical error during fetchData:", error.message, error);
         toast.error(`Erro crítico ao carregar dados: ${error.message}`);
         if (isMounted) {
-          resetLocalState();
+          // REMOVIDO: resetLocalState();
+          // Apenas garante que o loading termine, os erros individuais já setam []
         }
       } finally {
         if (isMounted) {
@@ -534,6 +535,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     if (user && user.id !== fetchedUserIdRef.current) {
       fetchedUserIdRef.current = user.id;
+      setIsDataLoading(true);
       fetchData(user.id);
     } else if (!user) {
       fetchedUserIdRef.current = null;
@@ -701,7 +703,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const { data: newCrmLeads } = await supabase.from('crm_leads').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID).order('created_at', { ascending: false });
     setCrmLeads(newCrmLeads?.map((lead: any) => ({
       id: lead.id, consultant_id: lead.consultant_id, stage_id: lead.stage_id, user_id: lead.user_id, name: lead.name, data: lead.data,
-      created_at: lead.created_at, updated_at: lead.updated_at, created_by: lead.created_by, updated_by: data.updated_by,
+      created_at: lead.created_at, updated_at: lead.updated_at, created_by: data.created_by, updated_by: data.updated_by,
       proposal_value: parseDbCurrency(lead.proposal_value), proposal_closing_date: lead.proposal_closing_date,
       sold_credit_value: parseDbCurrency(lead.sold_credit_value), sold_group: lead.sold_group, sold_quota: lead.sold_quota, sale_date: lead.sale_date
     })) || []);
@@ -857,7 +859,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         finalResource = { ...updates.resource, content: { ...(updates.resource.content as any), audioUrl: audioUrl || (updates.resource.content as any).audioUrl } };
       } else if (updates.resource.type === 'text_audio_image') {
         finalResource = { ...updates.resource, content: { ...(updates.resource.content as any), audioUrl: audioUrl || (updates.resource.content as any).audioUrl, imageUrl: imageUrl || (updates.resource.content as any).imageUrl } };
-      } else if (updates.resource.type === 'image' || updates.resource.type === 'pdf' || updates.resource.type === 'audio') {
+      } else if (updates.resource.type === 'image' || updates.resource.type === 'pdf' || updates.resource.type === 'audio' || updates.resource.type === 'video' || updates.resource.type === 'link' || updates.resource.type === 'text') {
         finalResource = { ...updates.resource, content: audioUrl || imageUrl || updates.resource.content };
       }
     } else {
