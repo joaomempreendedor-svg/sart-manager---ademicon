@@ -68,8 +68,8 @@ const CrmSalesReports = () => {
   }, [teamMembers]);
 
   const filteredLeads = useMemo(() => {
-    // REMOÇÃO: não limitar aos estágios do pipeline ativo
-    let currentLeads = crmLeads;
+    // CORREÇÃO: Filtra apenas leads que pertencem ao pipeline ativo
+    let currentLeads = crmLeads.filter(lead => activeStageIds.has(lead.stage_id));
 
     if (selectedConsultantId) {
       currentLeads = currentLeads.filter(lead => lead.consultant_id === selectedConsultantId || (!lead.consultant_id && lead.created_by === selectedConsultantId));

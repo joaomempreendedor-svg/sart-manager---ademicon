@@ -21,6 +21,8 @@ import { CrmLead, LeadTask } from '@/types';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { TableSkeleton } from '@/components/TableSkeleton';
 
+const JOAO_GESTOR_AUTH_ID = "0c6d71b7-daeb-4dde-8eec-0e7a8ffef658";
+
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 };
@@ -44,11 +46,12 @@ const CrmOverviewPage = () => {
 
   // Filtros de Data Padrão: Mês Atual
   const [filterStartDate, setFilterStartDate] = useState(() => {
-    // INÍCIO ALTERAÇÃO: Sem período por padrão (igual consultor)
-    return '';
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
   });
   const [filterEndDate, setFilterEndDate] = useState(() => {
-    return '';
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
   });
 
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -97,19 +100,20 @@ const CrmOverviewPage = () => {
     ).sort((a, b) => a.name.localeCompare(b.name));
   }, [teamMembers]);
 
-  // Alinhar com consultor: começar de todos os leads, aplicar busca, período e filtro por consultor
   const filteredLeads = useMemo(() => {
     let currentLeads = crmLeads;
 
     if (selectedConsultantId) {
-      currentLeads = currentLeads.filter(lead => lead.consultant_id === selectedConsultantId);
+      currentLeads = currentLeads.filter(lead => lead.consultant_id === selectedConsultantId || (!lead.consultant_id && lead.created_by === selectedConsultantId));
     }
 
     if (searchTerm) {
-      const lower = searchTerm.toLowerCase();
+      const lowerCaseSearchTerm = searchTerm.toLowerCase();
       currentLeads = currentLeads.filter(lead =>
-        (String(lead.name || '').toLowerCase()).includes(lower) ||
-        Object.values(lead.data || {}).some(value => String(value).toLowerCase().includes(lower))
+        (String(lead.name || '').toLowerCase()).includes(lowerCaseSearchTerm) ||
+        Object.values(lead.data || {}).some(value =>
+          String(value).toLowerCase().includes(lowerCaseSearchTerm)
+        )
       );
     }
 
@@ -118,6 +122,7 @@ const CrmOverviewPage = () => {
       const end = filterEndDate ? new Date(filterEndDate + 'T23:59:59') : null;
 
       currentLeads = currentLeads.filter(lead => {
+        // CORREÇÃO: Se o lead tem data de venda, usa ela como referência. Caso contrário, usa a data de criação.
         const referenceDate = lead.sale_date ? new Date(lead.sale_date + 'T00:00:00') : new Date(lead.created_at);
         const matchesStart = !start || referenceDate >= start;
         const matchesEnd = !end || referenceDate <= end;
@@ -128,7 +133,6 @@ const CrmOverviewPage = () => {
     return currentLeads;
   }, [crmLeads, searchTerm, filterStartDate, filterEndDate, selectedConsultantId]);
 
-  // Agrupar exatamente como no consultor: somente pelas etapas ativas do pipeline
   const groupedLeads = useMemo(() => {
     const groups: Record<string, CrmLead[]> = {};
     pipelineStages.forEach(stage => {
@@ -361,14 +365,30 @@ const CrmOverviewPage = () => {
       <div className="flex overflow-x-auto pb-4 space-x-4 custom-scrollbar">
         {pipelineStages.map(stage => {
           const stageLeads = groupedLeads[stage.id] || [];
-          const today = new Date();
-          const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-          const currentMonthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-          
+          const start = filterStartDate ? new Date(filterStartDate + 'T00:00:00') : null;
+          const end = filterEndDate ? new Date(filterEndDate + 'T23:59:59') : null;
+
+          const stageValue = stageLeads.reduce((sum, lead) => {
+            const actualSoldValue = (lead.sold_credit_value && lead.sold_credit_value > 0)
+              ? lead.sold_credit_value
+              : (lead.proposal_value || 0);
+
+            if (stage.is_won) {
+              if (lead.sale_date) {
+                const saleDate = new Date(lead.sale_date + 'T00:00:00');
+                if ((!start || saleDate >= start) && (!end || saleDate <= end)) {
+                  return sum + actualSoldValue;
+                }
+              }
+              return sum;
+            }
+            return sum + (lead.proposal_value || 0);
+          }, 0);
+
           return (
             <div 
               key={stage.id} 
-              className="flex-shrink-0 w-56 bg-gray-100 dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700"
+              className="flex-shrink-0 w-72 bg-gray-100/50 dark:bg-slate-800/50 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700"
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, stage.id)}
             >
@@ -378,49 +398,26 @@ const CrmOverviewPage = () => {
                   {stage.name}
                 </h3>
                 <span className="text-xs text-gray-500 dark:text-gray-400">{stageLeads.length} leads</span>
-
-                {stage.name.toLowerCase().includes('proposta') && (
-                  <div className="mt-1 text-sm font-bold text-purple-700 dark:text-purple-300">
-                    Total Propostas (Mês): {formatCurrency(
-                      stageLeads.reduce((sum, lead) => {
-                        if (lead.proposal_value !== undefined && lead.proposal_value !== null && lead.proposal_closing_date) {
-                          const proposalDate = new Date(lead.proposal_closing_date + 'T00:00:00');
-                          if (proposalDate >= currentMonthStart && proposalDate <= currentMonthEnd) {
-                            return sum + (lead.proposal_value || 0);
-                          }
-                        }
-                        return sum;
-                      }, 0)
-                    )}
-                  </div>
-                )}
-
-                {stage.is_won && (
-                  <div className="mt-1 text-sm font-bold text-green-700 dark:text-green-300">
-                    Total Vendido: {formatCurrency(
-                      stageLeads.reduce((sum, lead) => {
-                        const actualSoldValue = (lead.sold_credit_value && lead.sold_credit_value > 0)
-                          ? lead.sold_credit_value
-                          : (lead.proposal_value || 0);
-                        return sum + actualSoldValue;
-                      }, 0)
-                    )}
+                
+                {(stage.is_won || stage.name.toLowerCase().includes('proposta')) && (
+                  <div className={`mt-1 text-sm font-bold ${stage.is_won ? 'text-green-700 dark:text-green-300' : 'text-purple-700 dark:text-purple-300'}`}>
+                    Total: {formatCurrency(stageValue)}
                   </div>
                 )}
               </div>
-              <div className="p-4 space-y-3 min-h-[200px]">
+              <div className="p-3 space-y-3 min-h-[400px]">
                 {isDataLoading ? (
                   <TableSkeleton rows={3} />
                 ) : stageLeads.length === 0 ? (
-                  <p className="text-center text-sm text-gray-400 py-4">Nenhum lead nesta etapa.</p>
+                  <p className="text-center text-sm text-gray-400 py-4">Vazio</p>
                 ) : (
                   stageLeads.map(lead => {
+                    const consultantName = getConsultantName(lead);
                     const currentLeadStage = crmStages.find(s => s.id === lead.stage_id);
                     const isWonStage = currentLeadStage?.is_won;
                     const isLostStage = currentLeadStage?.is_lost;
                     const canOpenProposalModal = !isWonStage && !isLostStage;
                     const canMarkAsWon = !isWonStage && !isLostStage;
-                    const consultant = teamMembers.find(member => member.id === lead.consultant_id);
 
                     const now = new Date();
                     const nextMeeting = leadTasks
@@ -432,7 +429,7 @@ const CrmOverviewPage = () => {
                         key={lead.id}
                         id={`lead-card-${lead.id}`}
                         onClick={() => handleEditLead(lead)}
-                        className={`bg-white dark:bg-slate-700 p-3 rounded-lg shadow-sm border border-gray-200 dark:border-slate-600 hover:border-brand-500 cursor-pointer transition-all group ${highlightLeadId === lead.id ? 'ring-2 ring-amber-500 animate-pulse' : ''}`}
+                        className={`block bg-white dark:bg-slate-700 p-3 rounded-lg shadow-sm border border-gray-200 dark:border-slate-600 hover:border-brand-500 cursor-pointer transition-all group ${highlightLeadId === lead.id ? 'ring-2 ring-amber-500 animate-pulse' : ''}`}
                         draggable="true"
                         onDragStart={(e) => handleDragStart(e, lead.id)}
                       >
@@ -455,10 +452,11 @@ const CrmOverviewPage = () => {
                             </button>
                           </div>
                         </div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 space-y-0.5">
-                          {consultant && <div className="flex items-center"><UserRound className="w-3 h-3 mr-1" /> Consultor: {consultant.name}</div>}
+                        <div className="text-[10px] text-gray-500 dark:text-gray-400 space-y-1">
+                          <div className="flex items-center font-bold text-brand-600 dark:text-brand-400">
+                            <UserRound className="w-3 h-3 mr-1" /> {consultantName}
+                          </div>
                           {lead.data.phone && <div className="flex items-center"><Phone className="w-3 h-3 mr-1" /> {lead.data.phone}</div>}
-                          {lead.data.email && <div className="flex items-center"><Mail className="w-3 h-3 mr-1" /> {lead.data.email}</div>}
                           {lead.data.origin && <div className="flex items-center"><Tag className="w-3 h-3 mr-1" /> {lead.data.origin}</div>}
                           
                           {nextMeeting && (
@@ -469,44 +467,23 @@ const CrmOverviewPage = () => {
                           )}
 
                           {isWonStage ? (
-                            lead.sold_credit_value !== undefined && lead.sold_credit_value !== null ? (
-                              <div className="flex items-center text-green-600 dark:text-green-400 font-semibold">
-                                <CheckCircle2 className="w-3 h-3 mr-1" /> Vendido: {formatCurrency(lead.sold_credit_value)}
-                                {lead.sale_date && (
-                                  <span className="ml-1 text-xs text-gray-500 dark:text-gray-400 font-normal">
-                                    (em {new Date(lead.sale_date + 'T00:00:00').toLocaleDateString('pt-BR')})
-                                  </span>
-                                )}
-                              </div>
-                            ) : (
-                              <div className="flex items-center text-green-600 dark:text-green-400">
-                                <CheckCircle2 className="w-3 h-3 mr-1" /> Vendido (valor não informado)
-                              </div>
-                            )
-                          ) : (
-                            lead.proposal_value !== undefined && lead.proposal_value !== null ? (
-                              <div className="flex items-center text-purple-600 dark:text-purple-400 font-semibold">
-                                <DollarSign className="w-3 h-3 mr-1" /> Proposta: {formatCurrency(lead.proposal_value)}
-                                {lead.proposal_closing_date && (
-                                  <span className="ml-1 text-xs text-gray-500 dark:text-gray-400 font-normal">
-                                    (até {new Date(lead.proposal_closing_date + 'T00:00:00').toLocaleDateString('pt-BR')})
-                                  </span>
-                                )}
-                              </div>
-                            ) : (
-                              <div className="flex items-center text-gray-400 dark:text-gray-500">
-                                <DollarSign className="w-3 h-3 mr-1" /> Sem proposta
-                              </div>
-                            )
-                          )}
+                            <div className="flex items-center text-green-600 dark:text-green-400 font-semibold">
+                              <DollarSign className="w-3 h-3 mr-1" /> Vendido: {formatCurrency(lead.sold_credit_value || 0)}
+                            </div>
+                          ) : lead.proposal_value ? (
+                            <div className="flex items-center text-purple-600 dark:text-purple-400 font-semibold">
+                              <DollarSign className="w-3 h-3 mr-1" /> Proposta: {formatCurrency(lead.proposal_value)}
+                            </div>
+                          ) : null}
                         </div>
+
                         <div className="mt-3 pt-3 border-t border-gray-100 dark:border-slate-600">
                           <Select
                             value={lead.stage_id}
                             onValueChange={(newStageId) => handleStageChange(lead.id, newStageId)}
                           >
                             <SelectTrigger 
-                              className="w-full h-auto py-1.5 text-xs dark:bg-slate-800 dark:text-white dark:border-slate-600"
+                              className="w-full h-auto py-1.5 text-[10px] dark:bg-slate-800 dark:text-white dark:border-slate-600"
                               onClick={(e) => e.stopPropagation()}
                             >
                               <SelectValue placeholder="Mover para..." />
@@ -520,23 +497,24 @@ const CrmOverviewPage = () => {
                             </SelectContent>
                           </Select>
                         </div>
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          <button onClick={(e) => handleOpenTasksModal(e, lead)} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition">
+
+                        <div className="mt-3 flex flex-wrap gap-1">
+                          <button onClick={(e) => handleOpenTasksModal(e, lead)} className="flex-1 flex items-center justify-center px-1.5 py-1 rounded-md text-[10px] bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 hover:bg-blue-100 transition">
                             <ListTodo className="w-3 h-3 mr-1" /> Tarefas
                           </button>
-                          <button onClick={(e) => handleOpenMeetingModal(e, lead)} className="flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 hover:bg-green-100 dark:hover:bg-blue-900/30 transition">
+                          <button onClick={(e) => handleOpenMeetingModal(e, lead)} className="flex-1 flex items-center justify-center px-1.5 py-1 rounded-md text-[10px] bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 hover:bg-green-100 transition">
                             <CalendarPlus className="w-3 h-3 mr-1" /> Reunião
                           </button>
                           <button 
                             onClick={(e) => handleOpenProposalModal(e, lead)} 
-                            className={`flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs transition ${canOpenProposalModal ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/30' : 'bg-gray-100 dark:bg-slate-600 text-gray-500 cursor-not-allowed opacity-70'}`}
+                            className={`flex-1 flex items-center justify-center px-1.5 py-1 rounded-md text-[10px] transition ${canOpenProposalModal ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 hover:bg-purple-100' : 'bg-gray-100 dark:bg-slate-600 text-gray-500 cursor-not-allowed opacity-70'}`}
                             disabled={!canOpenProposalModal}
                           >
                             <Send className="w-3 h-3 mr-1" /> Proposta
                           </button>
                           <button 
                             onClick={(e) => handleMarkAsWon(e, lead)} 
-                            className={`flex-1 flex items-center justify-center px-2 py-1 rounded-md text-xs transition ${canMarkAsWon ? 'bg-brand-500 text-white hover:bg-brand-600' : 'bg-gray-100 dark:bg-slate-600 text-gray-500 cursor-not-allowed opacity-70'}`}
+                            className={`flex-1 flex items-center justify-center px-1.5 py-1 rounded-md text-[10px] transition ${canMarkAsWon ? 'bg-brand-500 text-white hover:bg-brand-600' : 'bg-gray-100 dark:bg-slate-600 text-gray-500 cursor-not-allowed opacity-70'}`}
                             disabled={!canMarkAsWon}
                           >
                             <DollarSign className="w-3 h-3 mr-1" /> Vendido
