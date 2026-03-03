@@ -9,6 +9,7 @@ import { generateRandomPassword } from '@/utils/authUtils';
 import { sanitizeFilename } from '@/utils/fileUtils';
 import toast from 'react-hot-toast';
 import { getOverallStatus } from '@/utils/commissionUtils';
+import { withTimeout } from '@/utils/withTimeout';
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
@@ -287,22 +288,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     let isMounted = true; // Flag to prevent state updates on unmounted component
     const fetchData = async (userId: string) => {
       setIsDataLoading(true);
+      console.time('[app] bootstrap');
+      console.log('[app] fetchData:start', { userId });
+
+      // Watchdog para detectar demora anormal no bootstrap
+      const watchdogId = window.setTimeout(() => {
+        console.warn('[app] watchdog: fetchData running > 10000ms');
+      }, 10000);
+
       try {
         const effectiveGestorId = JOAO_GESTOR_AUTH_ID;
         setCrmOwnerUserId(effectiveGestorId);
 
         await fetchAppConfig(effectiveGestorId);
 
-        const [
-          candidatesRes, materialsRes, cutoffRes, onboardingRes, templateVideosRes,
-          pipelinesRes, stagesRes, fieldsRes, crmLeadsRes,
-          dailyChecklistsRes, dailyChecklistItemsRes, dailyChecklistAssignmentsRes, dailyChecklistCompletionsRes,
-          weeklyTargetsRes, weeklyTargetItemsRes, weeklyTargetAssignmentsRes, metricLogsRes,
-          supportMaterialsV2Res, supportMaterialAssignmentsV2Res,
-          leadTasksRes, gestorTasksRes, gestorTaskCompletionsRes, financialEntriesRes,
-          formCadastrosRes, formFilesRes, notificationsRes, teamProductionGoalsRes, teamMembersRes,
-          coldCallLeadsRes, coldCallLogsRes
-        ] = await Promise.all([
+        const allPromises = [
           supabase.from('candidates').select('id, data, created_at, last_updated_at').eq('user_id', effectiveGestorId),
           supabase.from('support_materials').select('id, data').eq('user_id', effectiveGestorId),
           supabase.from('cutoff_periods').select('id, data').eq('user_id', effectiveGestorId),
@@ -333,7 +333,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           supabase.from('team_members').select('id, data, cpf, user_id').eq('user_id', effectiveGestorId),
           supabase.from('cold_call_leads').select('*'),
           supabase.from('cold_call_logs').select('*')
-        ]);
+        ];
+
+        // Timeout global do bootstrap: 20s
+        const [
+          candidatesRes, materialsRes, cutoffRes, onboardingRes, templateVideosRes,
+          pipelinesRes, stagesRes, fieldsRes, crmLeadsRes,
+          dailyChecklistsRes, dailyChecklistItemsRes, dailyChecklistAssignmentsRes, dailyChecklistCompletionsRes,
+          weeklyTargetsRes, weeklyTargetItemsRes, weeklyTargetAssignmentsRes, metricLogsRes,
+          supportMaterialsV2Res, supportMaterialAssignmentsV2Res,
+          leadTasksRes, gestorTasksRes, gestorTaskCompletionsRes, financialEntriesRes,
+          formCadastrosRes, formFilesRes, notificationsRes, teamProductionGoalsRes, teamMembersRes,
+          coldCallLeadsRes, coldCallLogsRes
+        ] = await withTimeout(Promise.all(allPromises), 20000, '[app] fetchData:Promise.all');
 
         if (!isMounted) return; // Check mount status before updating state
 
@@ -471,11 +483,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
         refetchCommissions();
       } catch (error: any) {
+        console.error('[app] fetchData:error', error?.message || error);
         toast.error(`Erro crítico ao carregar dados: ${error.message}`);
         resetLocalState();
       } finally {
-        if (isMounted) { // Check mount status before updating state
+        if (isMounted) {
+          window.clearTimeout(watchdogId);
           setIsDataLoading(false);
+          console.log('[app] setIsDataLoading:false');
+          console.timeEnd('[app] bootstrap');
         }
       }
     };

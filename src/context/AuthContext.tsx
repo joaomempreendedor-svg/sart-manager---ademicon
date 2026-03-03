@@ -25,47 +25,54 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const fetchUserProfile = useCallback(async (session: Session): Promise<User | null> => {
     try {
+      // LOG: início do fetch de perfil
+      console.time('[auth] fetchUserProfile');
+      console.log('[auth] fetchUserProfile:start', { userId: session.user.id });
+
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('first_name, last_name, role, login, needs_password_change') // Adicionado login e needs_password_change
+        .select('first_name, last_name, role, login, needs_password_change')
         .eq('id', session.user.id)
         .maybeSingle();
 
       if (profileError) throw profileError;
 
-      // CORREÇÃO: Buscar team_member usando 'data->>id' para o ID do auth.users
       const { data: teamMemberData, error: teamMemberError } = await supabase
         .from('team_members')
         .select('data')
-        .eq('data->>id', session.user.id) // Corrigido para buscar no JSONB 'data'
+        .eq('data->>id', session.user.id)
         .maybeSingle();
 
-      if (teamMemberError) console.error("Error fetching team member status:", teamMemberError);
+      if (teamMemberError) console.error("[auth] fetchUserProfile: teamMember error:", teamMemberError);
 
       const name = profile && (profile.first_name || profile.last_name)
         ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim()
         : session.user.email?.split('@')[0] || 'Usuário';
         
-      const isActive = teamMemberData ? (teamMemberData.data as any).isActive : true; // Default to true if not found or not a team member
+      const isActive = teamMemberData ? (teamMemberData.data as any).isActive : true;
 
-      return { 
+      const result: User = { 
         id: session.user.id, 
         name, 
         email: session.user.email || '',
-        role: (profile?.role || 'CONSULTOR').toUpperCase() as UserRole, // Garante que o papel seja sempre em maiúsculas
-        isActive: isActive,
-        login: profile?.login, // Adicionado
-        hasLogin: !!profile?.login, // Adicionado
-        needs_password_change: profile?.needs_password_change || false, // Adicionado
+        role: (profile?.role || 'CONSULTOR').toUpperCase() as UserRole,
+        isActive,
+        login: profile?.login,
+        hasLogin: !!profile?.login,
+        needs_password_change: profile?.needs_password_change || false,
       };
+
+      console.timeEnd('[auth] fetchUserProfile');
+      console.log('[auth] fetchUserProfile:done', { role: result.role, isActive: result.isActive });
+      return result;
     } catch (error: any) {
-      console.error('Error fetching profile:', error.message);
+      console.error('[auth] fetchUserProfile:error', error?.message || error);
       return {
         id: session.user.id,
         name: session.user.email?.split('@')[0] || 'Usuário',
         email: session.user.email || '',
-        role: 'CONSULTOR', // Fallback role
-        isActive: false, // Default to inactive on error for safety
+        role: 'CONSULTOR',
+        isActive: false,
         hasLogin: false,
         needs_password_change: false,
       };
@@ -75,7 +82,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => {
     let isMounted = true;
 
+    console.time('[auth] init');
+    console.log('[auth] mount');
+
+    // Watchdog: garante que isLoading não fique travado
+    const watchdogId = window.setTimeout(() => {
+      if (!isMounted) return;
+      console.warn('[auth] watchdog: forcing isLoading=false after 8000ms');
+      setIsLoading(false);
+    }, 8000);
+
     const updateUserState = async (currentSession: Session | null) => {
+      console.log('[auth] updateUserState', { hasSession: !!currentSession });
       if (!isMounted) return;
 
       if (currentSession) {
@@ -87,16 +105,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setSession(null);
       }
       setIsLoading(false);
+      console.log('[auth] setIsLoading:false');
+      console.timeEnd('[auth] init');
     };
 
     // Check initial session on mount
+    console.log('[auth] getSession:start');
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('[auth] getSession:done', { hasSession: !!session });
       updateUserState(session);
     });
 
     // Set up the listener for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, newSession) => {
+      (event, newSession) => {
+        console.log('[auth] onAuthStateChange', event, { hasSession: !!newSession });
         updateUserState(newSession);
       }
     );
@@ -104,6 +127,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return () => {
       isMounted = false;
       subscription.unsubscribe();
+      window.clearTimeout(watchdogId);
+      console.log('[auth] unmount');
     };
   }, [fetchUserProfile]);
 
