@@ -160,20 +160,23 @@ const CrmOverviewPage = () => {
     const groups: Record<string, CrmLead[]> = {};
     if (!displayStages.length) return groups;
     const displayWonStage = displayStages.find(s => s.is_won);
-    const targetWonStageId = displayWonStage?.id;
-    const displayLeads = filteredLeads.map((lead) => {
-      const leadStage = crmStages.find(s => s.id === lead.stage_id);
-      const isWonStage = !!leadStage?.is_won;
-      const isSold = !!lead.sale_date || (typeof lead.sold_credit_value === 'number' && lead.sold_credit_value > 0);
-      // Se já está na etapa ganha (mesmo que inativa) OU possui dados de venda, remapeia para a coluna 'Vendido'
-      if ((isWonStage || isSold) && targetWonStageId) {
-        return { ...lead, stage_id: targetWonStageId };
-      }
-      return lead;
-    });
+    const wonId = displayWonStage?.id;
+    // Preenche colunas normais por stage_id (sem mexer nos vendidos)
     displayStages.forEach(stage => {
-      groups[stage.id] = displayLeads.filter(lead => lead.stage_id === stage.id);
+      if (!stage.is_won) {
+        groups[stage.id] = filteredLeads.filter(lead => lead.stage_id === stage.id);
+      }
     });
+    // Coluna "Vendido": todos em etapa ganha OU com dados de venda
+    if (wonId) {
+      const soldLeads = filteredLeads.filter(lead => {
+        const leadStage = crmStages.find(s => s.id === lead.stage_id);
+        const isWonStage = !!leadStage?.is_won;
+        const isSold = !!lead.sale_date || (typeof lead.sold_credit_value === 'number' && lead.sold_credit_value > 0);
+        return isWonStage || isSold;
+      });
+      groups[wonId] = soldLeads;
+    }
     return groups;
   }, [displayStages, filteredLeads, crmStages]);
 
