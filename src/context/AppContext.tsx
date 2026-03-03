@@ -284,26 +284,38 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const refetchCommissions = useCallback(async () => {
     if (!user || isFetchingRef.current) return;
-    const allowedRoles = ['GESTOR', 'ADMIN', 'SECRETARIA'];
-    if (!allowedRoles.includes(user.role)) {
-      setCommissions([]);
-      return;
-    }
-
     isFetchingRef.current = true;
     try {
-      console.log("[AppContext] Fetching commissions...");
+      console.log("[AppContext] Fetching commissions (edge function)...");
+      const { data: fxData, error: fxError } = await supabase.functions.invoke('get-commissions');
+      if (!fxError && fxData?.ok) {
+        const rows = fxData.commissions || [];
+        const normalized: Commission[] = rows.map((item: any) => {
+          const commission = item.data as Commission;
+          if (!commission.installmentDetails) {
+            const details: Record<string, InstallmentInfo> = {};
+            for (let i = 1; i <= 15; i++) details[i.toString()] = { status: "Pendente" };
+            commission.installmentDetails = details;
+          }
+          return { ...commission, db_id: item.id, criado_em: item.created_at };
+        });
+        setCommissions(normalized);
+        console.log("[AppContext] Commissions fetched via edge:", normalized.length);
+        return;
+      }
+
+      console.log("[AppContext] Edge function failed or not available, falling back to direct select...");
       const { data, error } = await supabase
         .from("commissions")
         .select("id, data, created_at")
-        .order("created_at", { ascending: false }); 
+        .order("created_at", { ascending: false });
       if (error) {
         console.error(`[AppContext] Error loading commissions: ${error.message}`);
         toast.error(`Erro ao carregar comissões: ${error.message}`);
         setCommissions([]);
         return;
       }
-      const normalized: Commission[] = (data || []).map(item => {
+      const normalized: Commission[] = (data || []).map((item: any) => {
         const commission = item.data as Commission;
         if (!commission.installmentDetails) {
           const details: Record<string, InstallmentInfo> = {};
@@ -313,11 +325,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         return { ...commission, db_id: item.id, criado_em: item.created_at };
       });
       setCommissions(normalized);
-      console.log("[AppContext] Commissions fetched:", normalized.length);
+      console.log("[AppContext] Commissions fetched (fallback):", normalized.length);
     } finally {
       setTimeout(() => { isFetchingRef.current = false; }, 100);
     }
-  }, [user]);
+  }, [user, supabase]);
 
   const refetchTeamMembers = useCallback(async () => {
     // Se não houver sessão, não faz nada
@@ -809,7 +821,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
     } else {
       // User is definitively not authenticated (isAuthLoading is false and user is null)
-      console.log("[AppContext.useEffect] User is definitively unauthenticated. Resetting local state.");
+      console.log("[AppContext.useEffect] User is definitivamente unauthenticated. Resetting local state.");
       fetchedUserIdRef.current = null;
       resetLocalState();
     }
