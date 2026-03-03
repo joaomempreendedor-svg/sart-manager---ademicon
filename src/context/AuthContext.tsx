@@ -74,8 +74,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => {
     let isMounted = true;
 
-    const updateUserState = async (currentSession: Session | null) => {
+    const updateUserState = async (currentSession: Session | null, event?: string) => {
       if (!isMounted) return;
+      console.log(`[AuthContext] updateUserState called. Event: ${event || 'INITIAL_LOAD'}, Session: ${currentSession ? currentSession.user.id : 'null'}`);
 
       if (currentSession) {
         const userProfile = await fetchUserProfile(currentSession);
@@ -86,36 +87,29 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setSession(null);
       }
       setIsLoading(false);
+      console.log(`[AuthContext] isLoading set to false. User: ${user ? user.id : 'null'}`);
     };
 
     // Check initial session on mount
     supabase.auth.getSession().then(({ data: { session } }) => {
-      updateUserState(session);
-    }).catch((error) => { // Adicionado bloco catch para lidar com erros na recuperação da sessão
-      console.error("Error getting initial session:", error);
-      if (error instanceof AuthApiError) {
-        // Especificamente lida com AuthApiError para garantir que o estado de carregamento seja resolvido
-        setUser(null);
-        setSession(null);
-        setIsLoading(false);
-      } else {
-        // Lida com outros erros potenciais durante a recuperação da sessão
-        setUser(null);
-        setSession(null);
-        setIsLoading(false);
-      }
+      updateUserState(session, 'INITIAL_SESSION_FETCH');
+    }).catch((error) => {
+      console.error("[AuthContext] Error getting initial session:", error);
+      setIsLoading(false); // Ensure loading is false even on error
     });
 
     // Set up the listener for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, newSession) => {
-        updateUserState(newSession);
+      (event, newSession) => {
+        console.log(`[AuthContext] onAuthStateChange event: ${event}`);
+        updateUserState(newSession, event);
       }
     );
 
     return () => {
       isMounted = false;
       subscription.unsubscribe();
+      console.log("[AuthContext] AuthContext cleanup.");
     };
   }, [fetchUserProfile]);
 

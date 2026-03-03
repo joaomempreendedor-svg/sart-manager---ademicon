@@ -37,7 +37,7 @@ const MONTHLY_CUTOFF_DAYS: Record<number, number> = {
 const JOAO_GESTOR_AUTH_ID = "0c6d71b7-daeb-4dde-8eec-0e7a8ffef658";
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const { user } = useAuth();
+  const { user, isLoading: isAuthLoading } = useAuth(); // Use isAuthLoading from AuthContext
   const fetchedUserIdRef = useRef<string | null>(null);
   const isFetchingRef = useRef(false);
 
@@ -157,7 +157,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [user, checklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs, debouncedUpdateConfig]);
 
   const resetLocalState = useCallback(() => {
-    console.log("[AppContext] resetLocalState called, clearing all data."); // Adicionado log
+    console.log("[AppContext] resetLocalState called, clearing all data.");
     setCandidates([]); setTeamMembers([]); setCommissions([]); setSupportMaterials([]); setCutoffPeriods([]); setOnboardingSessions([]); setOnboardingTemplateVideos([]);
     setChecklistStructure(DEFAULT_STAGES); setConsultantGoalsStructure(DEFAULT_GOALS); setInterviewStructure(INITIAL_INTERVIEW_STRUCTURE); setTemplates({});
     setHiringOrigins(DEFAULT_APP_CONFIG_DATA.hiringOrigins); setSalesOrigins(DEFAULT_APP_CONFIG_DATA.salesOrigins); setInterviewers(DEFAULT_APP_CONFIG_DATA.interviewers); setPvs(DEFAULT_APP_CONFIG_DATA.pvs);
@@ -166,13 +166,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setWeeklyTargets([]); setWeeklyTargetItems([]); setWeeklyTargetAssignments([]); setMetricLogs([]);
     setSupportMaterialsV2([]); setSupportMaterialAssignments([]); setLeadTasks([]); setGestorTasks([]); setGestorTaskCompletions([]); setFinancialEntries([]);
     setFormCadastros([]); setFormFiles([]); setNotifications([]); setTeamProductionGoals([]);
-    setColdCallLeads([]); setColdCallLogs([]); setConsultantEvents([]); // NOVO: Limpar eventos do consultor
+    setColdCallLeads([]); setColdCallLogs([]); setConsultantEvents([]);
     setIsDataLoading(false);
   }, []);
 
   const refetchCommissions = useCallback(async () => {
     if (!user || isFetchingRef.current) return;
-    // Apenas perfis com permissão devem buscar comissões globais
     const allowedRoles = ['GESTOR', 'ADMIN', 'SECRETARIA'];
     if (!allowedRoles.includes(user.role)) {
       setCommissions([]);
@@ -182,12 +181,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     isFetchingRef.current = true;
     try {
       console.log("[AppContext] Fetching commissions...");
-      // RLS will filter by user_id or global access
       const { data, error } = await supabase
         .from("commissions")
         .select("id, data, created_at")
         .order("created_at", { ascending: false }); 
       if (error) {
+        console.error(`[AppContext] Error loading commissions: ${error.message}`);
         toast.error(`Erro ao carregar comissões: ${error.message}`);
         setCommissions([]);
         return;
@@ -274,7 +273,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     let configSubscription: any = null;
     let coldCallLeadsSubscription: any = null;
     let coldCallLogsSubscription: any = null;
-    let consultantEventsSubscription: any = null; // NOVO: Inscrição para eventos do consultor
+    let consultantEventsSubscription: any = null;
 
     const effectiveGestorId = JOAO_GESTOR_AUTH_ID;
 
@@ -314,7 +313,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         })
         .subscribe();
 
-      // NOVO: Inscrição para eventos do consultor
       consultantEventsSubscription = supabase
         .channel('consultant_events_changes')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'consultant_events' }, async (payload) => {
@@ -336,7 +334,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (configSubscription) supabase.removeChannel(configSubscription);
       if (coldCallLeadsSubscription) supabase.removeChannel(coldCallLeadsSubscription);
       if (coldCallLogsSubscription) supabase.removeChannel(coldCallLogsSubscription);
-      if (consultantEventsSubscription) supabase.removeChannel(consultantEventsSubscription); // NOVO: Limpar inscrição
+      if (consultantEventsSubscription) supabase.removeChannel(consultantEventsSubscription);
     };
   }, [user, fetchAppConfig]);
 
@@ -347,13 +345,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setIsDataLoading(true);
       try {
         const effectiveGestorId = JOAO_GESTOR_AUTH_ID;
-        // Determine crmOwnerUserId based on user role
-        // Gestores/Admins gerenciam seu próprio CRM. Consultores/Secretarias interagem com o CRM principal.
         const currentCrmOwnerId = (user?.role === 'GESTOR' || user?.role === 'ADMIN') ? userId : effectiveGestorId;
         setCrmOwnerUserId(currentCrmOwnerId);
         console.log("[AppContext] crmOwnerUserId set to:", currentCrmOwnerId);
 
-        await fetchAppConfig(effectiveGestorId); // Config is always fetched for the main gestor
+        await fetchAppConfig(effectiveGestorId);
 
         const [
           candidatesRes, materialsRes, cutoffRes, onboardingRes, templateVideosRes,
@@ -363,69 +359,38 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           supportMaterialsV2Res, supportMaterialAssignmentsV2Res,
           leadTasksRes, gestorTasksRes, gestorTaskCompletionsRes, financialEntriesRes,
           formCadastrosRes, formFilesRes, notificationsRes, teamProductionGoalsRes, teamMembersRes,
-          coldCallLeadsRes, coldCallLogsRes, consultantEventsRes // NOVO: Adicionar eventos do consultor
+          coldCallLeadsRes, coldCallLogsRes, consultantEventsRes
         ] = await Promise.all([
-          // Candidates: RLS handles visibility (user_id = owner_id OR gestor/admin/secretaria role)
           supabase.from('candidates').select('id, data, created_at, last_updated_at'),
-          // Support Materials (legacy): RLS handles visibility
           supabase.from('support_materials').select('id, data'),
-          // Cutoff Periods: RLS handles visibility
           supabase.from('cutoff_periods').select('id, data'),
-          // Onboarding Sessions: RLS handles visibility
           supabase.from('onboarding_sessions').select('*, videos:onboarding_videos(*)'),
-          // Onboarding Video Templates: RLS handles visibility
           supabase.from('onboarding_video_templates').select('*').order('order', { ascending: true }),
-          // CRM Pipelines: RLS handles visibility
           supabase.from('crm_pipelines').select('*'),
-          // CRM Stages: RLS handles visibility
           supabase.from('crm_stages').select('*').order('order_index'),
-          // CRM Fields: RLS handles visibility
           supabase.from('crm_fields').select('*'),
-          // CRM Leads: RLS handles visibility
           supabase.from('crm_leads').select('*').order('created_at', { ascending: false }),
-          // Daily Checklists: RLS handles visibility
           supabase.from('daily_checklists').select('*'),
-          // Daily Checklist Items: RLS handles visibility
           supabase.from('daily_checklist_items').select('*'),
-          // Daily Checklist Assignments: RLS handles visibility
           supabase.from('daily_checklist_assignments').select('*'),
-          // Daily Checklist Completions: RLS handles visibility
           supabase.from('daily_checklist_completions').select('*'),
-          // Weekly Targets: RLS handles visibility
           supabase.from('weekly_targets').select('*'),
-          // Weekly Target Items: RLS handles visibility
           supabase.from('weekly_target_items').select('*'),
-          // Weekly Target Assignments: RLS handles visibility
           supabase.from('weekly_target_assignments').select('*'),
-          // Metric Logs: RLS handles visibility
           supabase.from('metric_logs').select('*'),
-          // Support Materials V2: RLS handles visibility
           supabase.from('support_materials_v2').select('*'),
-          // Support Material Assignments: RLS handles visibility
           supabase.from('support_material_assignments').select('*'),
-          // Lead Tasks: RLS handles visibility
           supabase.from('lead_tasks').select('*'),
-          // Gestor Tasks: User-specific
           supabase.from('gestor_tasks').select('*').eq('user_id', userId),
-          // Gestor Task Completions: User-specific
           supabase.from('gestor_task_completions').select('*').eq('user_id', userId),
-          // Financial Entries: User-specific
           supabase.from('financial_entries').select('*').eq('user_id', userId),
-          // Form Submissions: RLS handles visibility
           supabase.from('form_submissions').select('id, submission_date, data, internal_notes, is_complete').order('submission_date', { ascending: false }),
-          // Form Files: RLS handles visibility
           supabase.from('form_files').select('*'),
-          // Notifications: User-specific
           supabase.from('notifications').select('*').eq('user_id', userId).eq('is_read', false).order('created_at', { ascending: false }),
-          // Team Production Goals: RLS handles visibility
           supabase.from('team_production_goals').select('*').order('start_date', { ascending: false }),
-          // Team Members: RLS handles visibility
           supabase.from('team_members').select('id, data, cpf, user_id'),
-          // Cold Call Leads: RLS handles visibility
           supabase.from('cold_call_leads').select('id, user_id, name, phone, email, current_stage, notes, crm_lead_id, created_at, updated_at', { count: 'exact' }).range(0, 99999).limit(100000),
-          // Cold Call Logs: RLS handles visibility
           supabase.from('cold_call_logs').select('id, cold_call_lead_id, user_id, start_time, end_time, duration_seconds, result, meeting_date, meeting_time, meeting_modality, meeting_notes, created_at', { count: 'exact' }).range(0, 99999).limit(100000),
-          // NOVO: Eventos do Consultor (RLS handles visibility)
           supabase.from('consultant_events').select('*'),
         ]);
 
@@ -588,26 +553,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         console.error("[AppContext] Critical error during fetchData:", error.message, error);
         toast.error(`Erro crítico ao carregar dados: ${error.message}`);
       } finally {
-        // Removido if (isMounted) para garantir que o estado de carregamento seja sempre limpo
         console.log("[AppContext] Setting isDataLoading to false in finally block.");
         setIsDataLoading(false);
       }
     };
 
-    if (user && user.id !== fetchedUserIdRef.current) {
-      fetchedUserIdRef.current = user.id;
-      setIsDataLoading(true);
-      fetchData(user.id);
-    } else if (!user) {
-      fetchedUserIdRef.current = null;
-      console.log("[AppContext] User is null, resetting local state.");
-      resetLocalState();
-    } else {
-      console.log("[AppContext] User is the same, or already fetched. Ensuring isDataLoading is false.");
-      // Se o usuário é o mesmo e os dados ainda estão carregando, significa que um fetch anterior pode ter falhado
-      // ou foi interrompido. Devemos garantir que seja limpo.
-      if (isDataLoading) {
-        setIsDataLoading(false);
+    // Only fetch data if user is authenticated and it's a new user or a refresh
+    if (!isAuthLoading) { // Wait for AuthContext to finish loading
+      if (user && user.id && user.id !== fetchedUserIdRef.current) {
+        fetchedUserIdRef.current = user.id;
+        setIsDataLoading(true);
+        fetchData(user.id);
+      } else if (!user) {
+        fetchedUserIdRef.current = null;
+        console.log("[AppContext] User is null, resetting local state.");
+        resetLocalState();
+      } else {
+        console.log("[AppContext] User is the same, or already fetched. Ensuring isDataLoading is false.");
+        if (isDataLoading) { // If still loading, ensure it's set to false
+          setIsDataLoading(false);
+        }
       }
     }
 
@@ -615,7 +580,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       isMounted = false;
       console.log("[AppContext] AppContext useEffect cleanup.");
     };
-  }, [user?.id, refetchCommissions, fetchAppConfig, resetLocalState, parseDbCurrency, user?.role]); // isDataLoading removido das dependências
+  }, [user?.id, isAuthLoading, refetchCommissions, fetchAppConfig, resetLocalState, parseDbCurrency, user?.role]);
 
   // CRUD candidatos
   const addCandidate = useCallback(async (candidate: Omit<Candidate, 'id' | 'createdAt' | 'db_id'>) => {
