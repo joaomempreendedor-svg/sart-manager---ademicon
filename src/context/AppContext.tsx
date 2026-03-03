@@ -38,7 +38,7 @@ const MONTHLY_CUTOFF_DAYS: Record<number, number> = {
 const JOAO_GESTOR_AUTH_ID = "0c6d71b7-daeb-4dde-8eec-0e7a8ffef658";
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const { user } = useAuth();
+  const { user, isLoading: isAuthLoading } = useAuth();
   const fetchedUserIdRef = useRef<string | null>(null);
   const isFetchingRef = useRef(false);
 
@@ -293,8 +293,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       // Watchdog para detectar demora anormal no bootstrap
       const watchdogId = window.setTimeout(() => {
-        console.warn('[app] watchdog: fetchData running > 10000ms — forcing isDataLoading=false (failsafe)');
-        if (isMounted) setIsDataLoading(false);
+        console.warn('[app] watchdog: fetchData running > 10000ms');
+        // Não força setIsDataLoading(false) para evitar exibir UI vazia
       }, 10000);
 
       try {
@@ -501,7 +501,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       fetchedUserIdRef.current = user.id;
       setIsDataLoading(true);
       fetchData(user.id);
-    } else if (!user) {
+    } else if (!user && !isAuthLoading) {
       fetchedUserIdRef.current = null;
       resetLocalState();
     }
@@ -509,23 +509,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return () => {
       isMounted = false; // Set flag to false when component unmounts
     };
-  }, [user?.id, refetchCommissions, fetchAppConfig, resetLocalState, parseDbCurrency]);
+  }, [user?.id, isAuthLoading, refetchCommissions, fetchAppConfig, resetLocalState, parseDbCurrency]);
 
-  // Failsafe adicional: se por alguma razão o loading permanecer ativo por muito tempo, encerra após 15s
-  useEffect(() => {
-    if (!isDataLoading) return;
-    let cancelled = false;
-    const bailoutId = window.setTimeout(() => {
-      if (!cancelled) {
-        console.warn('[app] bailout: forcing isDataLoading=false after 15000ms');
-        setIsDataLoading(false);
-      }
-    }, 15000);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(bailoutId);
-    };
-  }, [isDataLoading]);
+  // REMOVIDO: bailout que forçava isDataLoading=false para evitar mostrar UI vazia prematuramente
 
   // CRUD candidatos
   const addCandidate = useCallback(async (candidate: Omit<Candidate, 'id' | 'createdAt' | 'db_id'>) => {
