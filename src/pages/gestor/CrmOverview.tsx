@@ -92,6 +92,24 @@ const CrmOverviewPage = () => {
       .sort((a, b) => a.order_index - b.order_index);
   }, [crmStages, activePipeline]);
 
+  // NOVO: garantir que estágios usados pelos leads (incluindo 'Vendido' fora do pipeline ativo) apareçam como colunas
+  const visibleStages = useMemo(() => {
+    const base = [...pipelineStages];
+    const baseIds = new Set(base.map(s => s.id));
+    const stageById = new Map(crmStages.map(s => [s.id, s]));
+    const extras: typeof pipelineStages = [];
+    filteredLeads.forEach(lead => {
+      if (!baseIds.has(lead.stage_id)) {
+        const st = stageById.get(lead.stage_id);
+        if (st && st.is_active) {
+          extras.push(st);
+          baseIds.add(st.id);
+        }
+      }
+    });
+    return [...base, ...extras];
+  }, [pipelineStages, crmStages, filteredLeads]);
+
   const consultants = useMemo(() => {
     return teamMembers.filter(m => 
       m.isActive && 
@@ -137,11 +155,11 @@ const CrmOverviewPage = () => {
 
   const groupedLeads = useMemo(() => {
     const groups: Record<string, CrmLead[]> = {};
-    pipelineStages.forEach(stage => {
+    visibleStages.forEach(stage => {
       groups[stage.id] = filteredLeads.filter(lead => lead.stage_id === stage.id);
     });
     return groups;
-  }, [pipelineStages, filteredLeads]);
+  }, [visibleStages, filteredLeads]);
 
   const getConsultantName = (lead: CrmLead) => {
     const targetId = lead.consultant_id || lead.created_by;
@@ -365,7 +383,7 @@ const CrmOverviewPage = () => {
       </div>
 
       <div className="flex overflow-x-auto pb-4 space-x-4 custom-scrollbar">
-        {pipelineStages.map(stage => {
+        {visibleStages.map(stage => {
           const stageLeads = groupedLeads[stage.id] || [];
           
           return (
