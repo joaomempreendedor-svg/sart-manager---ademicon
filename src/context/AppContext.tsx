@@ -38,7 +38,7 @@ const JOAO_GESTOR_AUTH_ID = "0c6d71b7-daeb-4dde-8eec-0e7a8ffef658";
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { user } = useAuth();
-  const fetchedUserIdRef = useRef<string | null>(null);
+  const fetchedUserIdRef = useRef<string | null>(fetchedUserIdRef.current); // Initialize with current ref value
   const isFetchingRef = useRef(false);
 
   const [isDataLoading, setIsDataLoading] = useState(true);
@@ -264,22 +264,47 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, []);
 
   useEffect(() => {
-    let subscription: any = null;
+    let configSubscription: any = null;
+    let coldCallLeadsSubscription: any = null;
+    let coldCallLogsSubscription: any = null;
+
     const effectiveGestorId = JOAO_GESTOR_AUTH_ID;
 
-    const setupRealtimeSubscription = () => {
-      subscription = supabase
+    const setupRealtimeSubscriptions = () => {
+      configSubscription = supabase
         .channel('app_config_changes')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'app_config', filter: `user_id=eq.${effectiveGestorId}` }, () => {
           fetchAppConfig(effectiveGestorId);
         })
         .subscribe();
+
+      coldCallLeadsSubscription = supabase
+        .channel('cold_call_leads_changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'cold_call_leads' }, async (payload) => {
+          // Refetch all cold call leads to ensure RLS is applied correctly
+          const { data, error } = await supabase.from('cold_call_leads').select('*');
+          if (error) console.error("Error refetching cold_call_leads in realtime:", error);
+          else setColdCallLeads(data || []);
+        })
+        .subscribe();
+
+      coldCallLogsSubscription = supabase
+        .channel('cold_call_logs_changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'cold_call_logs' }, async (payload) => {
+          // Refetch all cold call logs to ensure RLS is applied correctly
+          const { data, error } = await supabase.from('cold_call_logs').select('*');
+          if (error) console.error("Error refetching cold_call_logs in realtime:", error);
+          else setColdCallLogs(data || []);
+        })
+        .subscribe();
     };
 
-    if (user && user.id) setupRealtimeSubscription();
+    if (user && user.id) setupRealtimeSubscriptions();
 
     return () => {
-      if (subscription) supabase.removeChannel(subscription);
+      if (configSubscription) supabase.removeChannel(configSubscription);
+      if (coldCallLeadsSubscription) supabase.removeChannel(coldCallLeadsSubscription);
+      if (coldCallLogsSubscription) supabase.removeChannel(coldCallLogsSubscription);
     };
   }, [user, fetchAppConfig]);
 
@@ -463,6 +488,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (teamProductionGoalsRes.error) { toast.error(`Erro ao carregar metas da equipe: ${teamProductionGoalsRes.error.message}`); setTeamProductionGoals([]); }
         else { setTeamProductionGoals(teamProductionGoalsRes.data || []); }
         
+        // Cold Call Leads e Logs são atualizados via Realtime Subscriptions agora
+        // Apenas fazemos o fetch inicial aqui
         if (coldCallLeadsRes.error) { toast.error(`Erro ao carregar leads de cold call: ${coldCallLeadsRes.error.message}`); setColdCallLeads([]); }
         else { setColdCallLeads(coldCallLeadsRes.data || []); }
 
@@ -589,11 +616,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!leadToUpdate) throw new Error(`Cold Call Lead com ID ${id} não encontrado.`);
     const { error: updateError } = await supabase.from('cold_call_leads').update(updates).eq('id', id);
     if (updateError) throw updateError;
-    const { data, error: selectError } = await supabase.from('cold_call_leads').select('*').eq('id', id).maybeSingle();
+    const { data: selectData, error: selectError } = await supabase.from('cold_call_leads').select('*').eq('id', id).maybeSingle();
     if (selectError) throw selectError;
-    if (!data) throw new Error("Nenhum dado retornado após atualizar o lead.");
-    setColdCallLeads(prev => prev.map(l => l.id === id ? data : l));
-    return data;
+    if (!selectData) throw new Error("Nenhum dado retornado após atualizar o lead.");
+    setColdCallLeads(prev => prev.map(l => l.id === id ? selectData : l));
+    return selectData;
   }, [user, coldCallLeads]);
 
   const deleteColdCallLead = useCallback(async (id: string) => {
