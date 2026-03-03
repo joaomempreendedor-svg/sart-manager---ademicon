@@ -281,11 +281,11 @@ export const Dashboard = () => {
     let filteredLogs = logsToConsider;
     if (coldCallFilterStartDate) {
       const start = new Date(coldCallFilterStartDate + 'T00:00:00');
-      filteredLogs = filteredLogs.filter(log => new Date(log.created_at) >= start);
+      filteredLogs = filteredLogs.filter(log => new Date(log.start_time) >= start);
     }
     if (coldCallFilterEndDate) {
       const end = new Date(coldCallFilterEndDate + 'T23:59:59');
-      filteredLogs = filteredLogs.filter(log => new Date(log.created_at) <= end);
+      filteredLogs = filteredLogs.filter(log => new Date(log.start_time) <= end);
     }
 
     const totalCalls = filteredLogs.length;
