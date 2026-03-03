@@ -321,7 +321,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           supabase.from('crm_pipelines').select('*').eq('user_id', effectiveGestorId),
           supabase.from('crm_stages').select('*').eq('user_id', effectiveGestorId).order('order_index'),
           supabase.from('crm_fields').select('*').eq('user_id', effectiveGestorId),
-          supabase.from('crm_leads').select('*').order('created_at', { ascending: false }),
+          // NOVO: paginação ampla para evitar limite de 1000 quando não usar edge function
+          supabase.from('crm_leads').select('*').order('created_at', { ascending: false }).range(0, 99999),
           supabase.from('daily_checklists').select('*').eq('user_id', effectiveGestorId),
           supabase.from('daily_checklist_items').select('*'),
           supabase.from('daily_checklist_assignments').select('*'),
@@ -332,7 +333,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           supabase.from('metric_logs').select('*'),
           supabase.from('support_materials_v2').select('*').eq('user_id', effectiveGestorId),
           supabase.from('support_material_assignments').select('*'),
-          supabase.from('lead_tasks').select('*'),
+          // NOVO: paginação ampla para tarefas
+          supabase.from('lead_tasks').select('*').range(0, 99999),
           supabase.from('gestor_tasks').select('*').eq('user_id', userId),
           supabase.from('gestor_task_completions').select('*').eq('user_id', userId),
           supabase.from('financial_entries').select('*').eq('user_id', userId),
@@ -342,7 +344,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           supabase.from('cold_call_leads').select('id, user_id, name, phone, email, current_stage, notes, crm_lead_id, created_at, updated_at', { count: 'exact' }).range(0, 99999).limit(100000),
           supabase.from('cold_call_logs').select('id, cold_call_lead_id, user_id, start_time, end_time, duration_seconds, result, meeting_date, meeting_time, meeting_modality, meeting_notes, created_at', { count: 'exact' }).range(0, 99999).limit(100000),
           supabase.from('consultant_events').select('*'),
-          supabase.from('candidates').select('id, data, created_at, last_updated_at').eq('user_id', effectiveGestorId),
+          // Opcional: paginação ampla para candidates via cliente (edge function já cobre gestores)
+          supabase.from('candidates').select('id, data, created_at, last_updated_at').eq('user_id', effectiveGestorId).range(0, 99999),
           supabase.from('form_submissions').select('id, submission_date, data, internal_notes, is_complete').eq('user_id', effectiveGestorId).order('submission_date', { ascending: false }),
         ]);
 
