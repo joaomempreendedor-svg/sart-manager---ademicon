@@ -105,25 +105,26 @@ export const Dashboard = () => {
     const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
     const currentMonthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
 
-    // CORREÇÃO: Filtra apenas leads que pertencem ao pipeline ativo
-    const leadsForGestor = crmLeads.filter(lead => lead.user_id === user.id && activeStageIds.has(lead.stage_id));
+    // ANTES: const leadsForGestor = crmLeads.filter(lead => lead.user_id === user.id && activeStageIds.has(lead.stage_id));
+    // AGORA: considerar todos os leads do pipeline ativo visíveis pelo usuário (RLS cuida do acesso).
+    const leadsInActivePipeline = crmLeads.filter(lead => activeStageIds.has(lead.stage_id));
 
-    const totalLeads = leadsForGestor.length;
-    const newLeads = leadsForGestor.filter(lead => new Date(lead.created_at) >= currentMonthStart).length;
+    const totalLeads = leadsInActivePipeline.length;
+    const newLeads = leadsInActivePipeline.filter(lead => new Date(lead.created_at) >= currentMonthStart).length;
 
     const meetingsTasks = leadTasks.filter(task => {
-      const lead = leadsForGestor.find(l => l.id === task.lead_id);
+      const lead = leadsInActivePipeline.find(l => l.id === task.lead_id);
       if (!lead || task.type !== 'meeting') return false;
       const taskDate = new Date(task.due_date || task.meeting_start_time || '');
       return taskDate >= currentMonthStart && taskDate <= currentMonthEnd;
     });
     const meetingsCount = meetingsTasks.length;
 
-    const leadsWithMeetings = leadsForGestor.filter(lead => 
+    const leadsWithMeetings = leadsInActivePipeline.filter(lead => 
       meetingsTasks.some(task => task.lead_id === lead.id)
     );
 
-    const leadsWithProposal = leadsForGestor.filter(lead => {
+    const leadsWithProposal = leadsInActivePipeline.filter(lead => {
       if (lead.proposal_value && lead.proposal_value > 0 && lead.proposal_closing_date) {
         const proposalDate = new Date(lead.proposal_closing_date + 'T00:00:00');
         return proposalDate >= currentMonthStart && proposalDate <= currentMonthEnd;
@@ -132,7 +133,7 @@ export const Dashboard = () => {
     });
     const proposalValue = leadsWithProposal.reduce((sum, lead) => sum + (lead.proposal_value || 0), 0);
 
-    const leadsSold = leadsForGestor.filter(lead => {
+    const leadsSold = leadsInActivePipeline.filter(lead => {
       if (lead.sold_credit_value && lead.sold_credit_value > 0 && lead.sale_date) {
         const saleDate = new Date(lead.sale_date + 'T00:00:00');
         return saleDate >= currentMonthStart && saleDate <= currentMonthEnd;
@@ -142,7 +143,7 @@ export const Dashboard = () => {
     const soldValue = leadsSold.reduce((sum, lead) => sum + (lead.sold_credit_value || 0), 0);
 
     const pendingTasks = leadTasks.filter(task => {
-      const lead = leadsForGestor.find(l => l.id === task.lead_id);
+      const lead = leadsInActivePipeline.find(l => l.id === task.lead_id);
       return lead && !task.is_completed && task.due_date && new Date(task.due_date + 'T00:00:00') <= new Date(today.toISOString().split('T')[0] + 'T00:00:00');
     });
 
