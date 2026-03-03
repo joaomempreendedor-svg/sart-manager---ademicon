@@ -820,7 +820,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
       }
     } else {
-      // User is definitively not authenticated (isAuthLoading is false and user is null)
+      // User is definitivamente not authenticated (isAuthLoading is false and user is null)
       console.log("[AppContext.useEffect] User is definitivamente unauthenticated. Resetting local state.");
       fetchedUserIdRef.current = null;
       resetLocalState();
@@ -831,6 +831,41 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       console.log("[AppContext.useEffect] AppContext cleanup.");
     };
   }, [user, isAuthLoading, refetchCommissions, fetchAppConfig, resetLocalState, parseDbCurrency, user?.role, isDataLoading, isGestorTaskDueOnDate, calculateNotifications]);
+
+  // Adiciona cobertura de etapas: carrega etapas ausentes referenciadas por crmLeads (de qualquer owner/pipeline)
+  useEffect(() => {
+    // Identifica stage_ids usados pelos leads que ainda não existem em crmStages
+    const knownStageIds = new Set(crmStages.map(s => s.id));
+    const neededStageIds = Array.from(new Set(crmLeads.map(l => l.stage_id))).filter(id => !knownStageIds.has(id));
+
+    if (neededStageIds.length === 0) return;
+
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('crm_stages')
+          .select('*')
+          .in('id', neededStageIds);
+
+        if (error) {
+          console.warn('[AppContext] Falha ao buscar etapas ausentes por id:', error.message);
+          return;
+        }
+
+        if (data && data.length) {
+          setCrmStages(prev => {
+            const map = new Map(prev.map(s => [s.id, s]));
+            data.forEach((s: any) => {
+              map.set(s.id, s);
+            });
+            return Array.from(map.values());
+          });
+        }
+      } catch (e: any) {
+        console.warn('[AppContext] Erro inesperado ao complementar crm_stages:', e?.message || e);
+      }
+    })();
+  }, [crmLeads, crmStages, supabase, setCrmStages]);
 
   // CRUD candidatos
   const addCandidate = useCallback(async (candidate: Omit<Candidate, 'id' | 'createdAt' | 'db_id'>) => {
