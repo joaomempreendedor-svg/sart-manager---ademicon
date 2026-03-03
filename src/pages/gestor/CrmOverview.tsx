@@ -171,7 +171,10 @@ const CrmOverviewPage = () => {
     if (wonId) {
       const soldLeads = crmLeads.filter(lead => {
         const leadStage = crmStages.find(s => s.id === lead.stage_id);
-        const isWonStage = !!leadStage?.is_won;
+        const stageName = (leadStage?.name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        // Considera vendido por: flag is_won, nome do estágio (vendid/ganh) ou campos de venda
+        const isWonByName = stageName.includes('vendid') || stageName.includes('ganh');
+        const isWonStage = !!leadStage?.is_won || isWonByName;
         const isSold = !!lead.sale_date || (typeof lead.sold_credit_value === 'number' && lead.sold_credit_value > 0);
         return isWonStage || isSold;
       });
