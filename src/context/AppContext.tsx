@@ -401,9 +401,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         else { setFormCadastros(formSubmissionsRes.data || []); console.log("[AppContext] Form Cadastros fetched:", (formSubmissionsRes.data || []).length); }
 
         // Now fetch formFiles based on fetched formCadastros
-        const { data: formFilesData, error: formFilesError } = await supabase.from('form_files').select('*').in('submission_id', formSubmissionsRes.data?.map(f => f.id) || []);
+        const currentFormSubmissionIds = formSubmissionsRes.data?.map(f => f.id) || [];
+        const { data: fetchedFormFilesData, error: formFilesError } = await supabase.from('form_files').select('*').in('submission_id', currentFormSubmissionIds);
         if (formFilesError) { console.error(`[AppContext] Error loading form files: ${formFilesError.message}`); toast.error(`Erro ao carregar arquivos de formulário: ${formFilesError.error}`); setFormFiles([]); }
-        else { setFormFiles(formFilesData || []); console.log("[AppContext] Form Files fetched:", (formFilesData || []).length); }
+        else { setFormFiles(fetchedFormFilesData || []); console.log("[AppContext] Form Files fetched:", (fetchedFormFilesData || []).length); }
 
         if (!isMounted) {
           console.log("[AppContext.fetchData] Component unmounted during fetch, skipping state updates.");
@@ -534,9 +535,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
         // Now fetch formFiles based on fetched formCadastros
         const currentFormSubmissionIds = formSubmissionsRes.data?.map(f => f.id) || [];
-        const { data: formFilesData, error: formFilesError } = await supabase.from('form_files').select('*').in('submission_id', currentFormSubmissionIds);
+        const { data: fetchedFormFilesData, error: formFilesError } = await supabase.from('form_files').select('*').in('submission_id', currentFormSubmissionIds);
         if (formFilesError) { console.error(`[AppContext] Error loading form files: ${formFilesError.message}`); toast.error(`Erro ao carregar arquivos de formulário: ${formFilesError.error}`); setFormFiles([]); }
-        else { setFormFiles(formFilesData || []); console.log("[AppContext] Form Files fetched:", (formFilesData || []).length); }
+        else { setFormFiles(fetchedFormFilesData || []); console.log("[AppContext] Form Files fetched:", (fetchedFormFilesData || []).length); }
 
         if (notificationsRes.error) { console.error(`[AppContext] Error loading notifications: ${notificationsRes.error.message}`); toast.error(`Erro ao carregar notificações: ${notificationsRes.error.message}`); setNotifications([]); }
         else { setNotifications(notificationsRes.data || []); console.log("[AppContext] Notifications fetched:", (notificationsRes.data || []).length); }
@@ -1773,7 +1774,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       addConsultantEvent, // NOVO: Adicionar CRUD para eventos do consultor
       updateConsultantEvent,
-      deleteConsultantEvent,
+      deleteConsultantEvent, // NOVO: Adicionar CRUD para eventos do consultor
     };
   }, [
     isDataLoading,
