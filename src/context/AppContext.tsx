@@ -38,7 +38,7 @@ const JOAO_GESTOR_AUTH_ID = "0c6d71b7-daeb-4dde-8eec-0e7a8ffef658";
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { user } = useAuth();
-  const fetchedUserIdRef = useRef<string | null>(null); // Corrigido: Inicialização direta com null
+  const fetchedUserIdRef = useRef<string | null>(null);
   const isFetchingRef = useRef(false);
 
   const [isDataLoading, setIsDataLoading] = useState(true);
@@ -282,7 +282,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         .channel('cold_call_leads_changes')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'cold_call_leads' }, async (payload) => {
           // Refetch all cold call leads to ensure RLS is applied correctly
-          const { data, error } = await supabase.from('cold_call_leads').select('*');
+          const { data, error } = await supabase.from('cold_call_leads').select('*').limit(100000); // Adicionado limite
           if (error) console.error("Error refetching cold_call_leads in realtime:", error);
           else setColdCallLeads(data || []);
         })
@@ -292,7 +292,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         .channel('cold_call_logs_changes')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'cold_call_logs' }, async (payload) => {
           // Refetch all cold call logs to ensure RLS is applied correctly
-          const { data, error } = await supabase.from('cold_call_logs').select('*');
+          const { data, error } = await supabase.from('cold_call_logs').select('*').limit(100000); // Adicionado limite
           if (error) console.error("Error refetching cold_call_logs in realtime:", error);
           else setColdCallLogs(data || []);
         })
@@ -356,8 +356,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           supabase.from('notifications').select('*').eq('user_id', userId).eq('is_read', false).order('created_at', { ascending: false }),
           supabase.from('team_production_goals').select('*').eq('user_id', effectiveGestorId).order('start_date', { ascending: false }),
           supabase.from('team_members').select('id, data, cpf, user_id').eq('user_id', effectiveGestorId),
-          supabase.from('cold_call_leads').select('*'),
-          supabase.from('cold_call_logs').select('*')
+          supabase.from('cold_call_leads').select('*').limit(100000), // Adicionado limite
+          supabase.from('cold_call_logs').select('*').limit(100000) // Adicionado limite
         ]);
 
         if (!isMounted) return; // Check mount status before updating state
@@ -371,7 +371,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               id: (item.data as any).id || crypto.randomUUID(), 
               db_id: item.id, 
               createdAt: item.created_at, 
-              lastUpdatedAt: item.last_updated_updated_at,
+              lastUpdatedAt: item.last_updated_at,
               contactedDate: candidateData.contactedDate, interviewScheduledDate: candidateData.interviewScheduledDate,
               interviewConductedDate: candidateData.interviewConductedDate, awaitingPreviewDate: candidateData.awaitingPreviewDate,
               onboardingOnlineDate: candidateData.onboardingOnlineDate, integrationPresencialDate: candidateData.integrationPresencialDate,
