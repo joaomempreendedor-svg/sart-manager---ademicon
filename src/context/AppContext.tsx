@@ -278,6 +278,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, [user]);
 
+  // Pré-carregar membros da equipe assim que o usuário for identificado
+  useEffect(() => {
+    if (!user?.id) {
+      return;
+    }
+    refetchTeamMembers().catch(err => {
+      console.warn('[AppContext] quick team_members prefetch failed:', err?.message || err);
+    });
+  }, [user?.id, refetchTeamMembers]);
+
   const isGestorTaskDueOnDate = useCallback((task: GestorTask, checkDate: string): boolean => {
     if (!task.recurrence_pattern || task.recurrence_pattern.type === 'none') return task.due_date === checkDate;
     const taskCreationDate = new Date(task.created_at);
