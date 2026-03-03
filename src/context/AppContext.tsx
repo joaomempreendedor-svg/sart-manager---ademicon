@@ -401,8 +401,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         else { setFormCadastros(formSubmissionsRes.data || []); console.log("[AppContext] Form Cadastros fetched:", (formSubmissionsRes.data || []).length); }
 
         // Now fetch formFiles based on fetched formCadastros
-        const submissionIdsForFiles = formSubmissionsRes.data?.map(f => f.id) || [];
-        const { data: fetchedFormFilesData, error: formFilesError } = await supabase.from('form_files').select('*').in('submission_id', submissionIdsForFiles);
+        const currentSubmissionIds = formSubmissionsRes.data?.map(f => f.id) || [];
+        const { data: fetchedFormFilesData, error: formFilesError } = await supabase.from('form_files').select('*').in('submission_id', currentSubmissionIds);
         if (formFilesError) { console.error(`[AppContext] Error loading form files: ${formFilesError.message}`); toast.error(`Erro ao carregar arquivos de formulário: ${formFilesError.error}`); setFormFiles([]); }
         else { setFormFiles(fetchedFormFilesData || []); console.log("[AppContext] Form Files fetched:", (fetchedFormFilesData || []).length); }
 
@@ -534,8 +534,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         else { setFormCadastros(formSubmissionsRes.data || []); console.log("[AppContext] Form Cadastros fetched:", (formSubmissionsRes.data || []).length); }
 
         // Now fetch formFiles based on fetched formCadastros
-        const submissionIdsForFiles = formSubmissionsRes.data?.map(f => f.id) || [];
-        const { data: fetchedFormFilesData, error: formFilesError } = await supabase.from('form_files').select('*').in('submission_id', submissionIdsForFiles);
+        const currentSubmissionIds = formSubmissionsRes.data?.map(f => f.id) || [];
+        const { data: fetchedFormFilesData, error: formFilesError } = await supabase.from('form_files').select('*').in('submission_id', currentSubmissionIds);
         if (formFilesError) { console.error(`[AppContext] Error loading form files: ${formFilesError.message}`); toast.error(`Erro ao carregar arquivos de formulário: ${formFilesError.error}`); setFormFiles([]); }
         else { setFormFiles(fetchedFormFilesData || []); console.log("[AppContext] Form Files fetched:", (fetchedFormFilesData || []).length); }
 
