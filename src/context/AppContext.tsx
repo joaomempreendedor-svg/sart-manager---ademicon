@@ -284,7 +284,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           // Refetch all cold call leads to ensure RLS is applied correctly
           const { data, error } = await supabase.from('cold_call_leads').select('*').limit(100000); // Adicionado limite
           if (error) console.error("Error refetching cold_call_leads in realtime:", error);
-          else setColdCallLeads(data || []);
+          else {
+            setColdCallLeads(data || []);
+            console.log("Realtime refetch coldCallLeads length:", (data || []).length); // Log para depuração
+          }
         })
         .subscribe();
 
@@ -294,7 +297,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           // Refetch all cold call logs to ensure RLS is applied correctly
           const { data, error } = await supabase.from('cold_call_logs').select('*').limit(100000); // Adicionado limite
           if (error) console.error("Error refetching cold_call_logs in realtime:", error);
-          else setColdCallLogs(data || []);
+          else {
+            setColdCallLogs(data || []);
+            console.log("Realtime refetch coldCallLogs length:", (data || []).length); // Log para depuração
+          }
         })
         .subscribe();
     };
@@ -491,10 +497,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         // Cold Call Leads e Logs são atualizados via Realtime Subscriptions agora
         // Apenas fazemos o fetch inicial aqui
         if (coldCallLeadsRes.error) { toast.error(`Erro ao carregar leads de cold call: ${coldCallLeadsRes.error.message}`); setColdCallLeads([]); }
-        else { setColdCallLeads(coldCallLeadsRes.data || []); }
+        else { 
+          setColdCallLeads(coldCallLeadsRes.data || []); 
+          console.log("Initial fetch coldCallLeads length:", (coldCallLeadsRes.data || []).length); // Log para depuração
+        }
 
         if (coldCallLogsRes.error) { toast.error(`Erro ao carregar logs de cold call: ${coldCallLogsRes.error.message}`); setColdCallLogs([]); }
-        else { setColdCallLogs(coldCallLogsRes.data || []); }
+        else { 
+          setColdCallLogs(coldCallLogsRes.data || []); 
+          console.log("Initial fetch coldCallLogs length:", (coldCallLogsRes.data || []).length); // Log para depuração
+        }
 
         refetchCommissions();
       } catch (error: any) {
@@ -670,7 +682,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const { data: newCrmLeads } = await supabase.from('crm_leads').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID).order('created_at', { ascending: false });
     setCrmLeads(newCrmLeads?.map((lead: any) => ({
       id: lead.id, consultant_id: lead.consultant_id, stage_id: lead.stage_id, user_id: lead.user_id, name: lead.name, data: lead.data,
-      created_at: lead.created_at, updated_at: lead.updated_at, created_by: lead.created_by, updated_by: lead.updated_by,
+      created_at: lead.created_at, updated_at: lead.updated_at, created_by: data.created_by, updated_by: data.updated_by,
       proposal_value: parseDbCurrency(lead.proposal_value), proposal_closing_date: lead.proposal_closing_date,
       sold_credit_value: parseDbCurrency(lead.sold_credit_value), sold_group: lead.sold_group, sold_quota: lead.sold_quota, sale_date: lead.sale_date
     })) || []);
