@@ -181,10 +181,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     isFetchingRef.current = true;
     try {
       console.log("[AppContext] Fetching commissions...");
+      // RLS will filter by user_id or global access
       const { data, error } = await supabase
         .from("commissions")
         .select("id, data, created_at")
-        .order("created_at", { ascending: false }); // RLS will filter by user_id or global access
+        .order("created_at", { ascending: false }); 
       if (error) {
         toast.error(`Erro ao carregar comissões: ${error.message}`);
         setCommissions([]);
