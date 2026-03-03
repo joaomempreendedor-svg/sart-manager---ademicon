@@ -157,6 +157,38 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     debouncedUpdateConfig({ ...currentConfig, ...updates });
   }, [user, checklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs, debouncedUpdateConfig]);
 
+  // Carrega configuração do app (checklist, goals, entrevistas, templates, etc.)
+  const fetchAppConfig = useCallback(async (ownerUserId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('app_config')
+        .select('data')
+        .eq('user_id', ownerUserId)
+        .maybeSingle();
+      if (error) throw error;
+      const cfg = (data?.data ?? {}) as any;
+      setChecklistStructure(cfg.checklistStructure ?? DEFAULT_STAGES);
+      setConsultantGoalsStructure(cfg.consultantGoalsStructure ?? DEFAULT_GOALS);
+      setInterviewStructure(cfg.interviewStructure ?? INITIAL_INTERVIEW_STRUCTURE);
+      setTemplates(cfg.templates ?? {});
+      setHiringOrigins(cfg.hiringOrigins ?? DEFAULT_APP_CONFIG_DATA.hiringOrigins);
+      setSalesOrigins(cfg.salesOrigins ?? DEFAULT_APP_CONFIG_DATA.salesOrigins);
+      setInterviewers(cfg.interviewers ?? DEFAULT_APP_CONFIG_DATA.interviewers);
+      setPvs(cfg.pvs ?? DEFAULT_APP_CONFIG_DATA.pvs);
+    } catch (e: any) {
+      console.error('[AppContext] Error loading app_config:', e?.message || e);
+      // Fallback seguro aos padrões
+      setChecklistStructure(DEFAULT_STAGES);
+      setConsultantGoalsStructure(DEFAULT_GOALS);
+      setInterviewStructure(INITIAL_INTERVIEW_STRUCTURE);
+      setTemplates({});
+      setHiringOrigins(DEFAULT_APP_CONFIG_DATA.hiringOrigins);
+      setSalesOrigins(DEFAULT_APP_CONFIG_DATA.salesOrigins);
+      setInterviewers(DEFAULT_APP_CONFIG_DATA.interviewers);
+      setPvs(DEFAULT_APP_CONFIG_DATA.pvs);
+    }
+  }, []);
+  
   const resetLocalState = useCallback(() => {
     console.log("[AppContext] resetLocalState called, clearing all data.");
     setCandidates([]); setTeamMembers([]); setCommissions([]); setSupportMaterials([]); setCutoffPeriods([]); setOnboardingSessions([]); setOnboardingTemplateVideos([]);
