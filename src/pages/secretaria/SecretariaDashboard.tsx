@@ -74,13 +74,16 @@ export const SecretariaDashboard = () => {
   } = useApp();
   const navigate = useNavigate();
   
+  // NOVO: default últimos 90 dias
   const [startDate, setStartDate] = useState(() => {
     const d = new Date();
-    return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
+    const start = new Date(d);
+    start.setDate(start.getDate() - 90);
+    return start.toISOString().split('T')[0];
   });
   const [endDate, setEndDate] = useState(() => {
     const d = new Date();
-    return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate()).toISOString().split('T')[0];
   });
 
   const todayStr = new Date().toISOString().split('T')[0];
