@@ -185,6 +185,15 @@ export interface SupportMaterialV2 {
   created_at: string;
 }
 
+export interface SupportMaterial {
+  id?: string;
+  title?: string;
+  description?: string;
+  url?: string;
+  type?: 'link' | 'file' | 'text' | 'image' | 'pdf';
+  [key: string]: any;
+}
+
 export interface SupportMaterialAssignment {
   id: string;
   db_id?: string;
