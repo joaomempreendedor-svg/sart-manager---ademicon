@@ -351,48 +351,60 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
         await fetchAppConfig(effectiveGestorId);
 
+        // Fetch data that is globally configured by JOAO_GESTOR_AUTH_ID or has RLS handled
         const [
-          candidatesRes, materialsRes, cutoffRes, onboardingRes, templateVideosRes,
+          materialsRes, cutoffRes, onboardingRes, templateVideosRes,
           pipelinesRes, stagesRes, fieldsRes, crmLeadsRes,
           dailyChecklistsRes, dailyChecklistItemsRes, dailyChecklistAssignmentsRes, dailyChecklistCompletionsRes,
           weeklyTargetsRes, weeklyTargetItemsRes, weeklyTargetAssignmentsRes, metricLogsRes,
           supportMaterialsV2Res, supportMaterialAssignmentsV2Res,
           leadTasksRes, gestorTasksRes, gestorTaskCompletionsRes, financialEntriesRes,
-          formCadastrosRes, formFilesRes, notificationsRes, teamProductionGoalsRes, teamMembersRes,
-          coldCallLeadsRes, coldCallLogsRes, consultantEventsRes
+          notificationsRes, teamProductionGoalsRes, teamMembersRes,
+          coldCallLeadsRes, coldCallLogsRes, consultantEventsRes,
+          candidatesRes,
+          formSubmissionsRes
         ] = await Promise.all([
-          supabase.from('candidates').select('id, data, created_at, last_updated_at'),
-          supabase.from('support_materials').select('id, data'),
-          supabase.from('cutoff_periods').select('id, data'),
-          supabase.from('onboarding_sessions').select('*, videos:onboarding_videos(*)'),
-          supabase.from('onboarding_video_templates').select('*').order('order', { ascending: true }),
-          supabase.from('crm_pipelines').select('*'),
-          supabase.from('crm_stages').select('*').order('order_index'),
-          supabase.from('crm_fields').select('*'),
-          supabase.from('crm_leads').select('*').order('created_at', { ascending: false }),
-          supabase.from('daily_checklists').select('*'),
-          supabase.from('daily_checklist_items').select('*'),
-          supabase.from('daily_checklist_assignments').select('*'),
-          supabase.from('daily_checklist_completions').select('*'),
-          supabase.from('weekly_targets').select('*'),
-          supabase.from('weekly_target_items').select('*'),
-          supabase.from('weekly_target_assignments').select('*'),
-          supabase.from('metric_logs').select('*'),
-          supabase.from('support_materials_v2').select('*'),
-          supabase.from('support_material_assignments').select('*'),
-          supabase.from('lead_tasks').select('*'),
-          supabase.from('gestor_tasks').select('*').eq('user_id', userId),
-          supabase.from('gestor_task_completions').select('*').eq('user_id', userId),
-          supabase.from('financial_entries').select('*').eq('user_id', userId),
-          supabase.from('form_submissions').select('id, submission_date, data, internal_notes, is_complete').order('submission_date', { ascending: false }),
-          supabase.from('form_files').select('*'),
-          supabase.from('notifications').select('*').eq('user_id', userId).eq('is_read', false).order('created_at', { ascending: false }),
-          supabase.from('team_production_goals').select('*').order('start_date', { ascending: false }),
-          supabase.from('team_members').select('id, data, cpf, user_id'),
-          supabase.from('cold_call_leads').select('id, user_id, name, phone, email, current_stage, notes, crm_lead_id, created_at, updated_at', { count: 'exact' }).range(0, 99999).limit(100000),
-          supabase.from('cold_call_logs').select('id, cold_call_lead_id, user_id, start_time, end_time, duration_seconds, result, meeting_date, meeting_time, meeting_modality, meeting_notes, created_at', { count: 'exact' }).range(0, 99999).limit(100000),
-          supabase.from('consultant_events').select('*'),
+          supabase.from('support_materials').select('id, data'), // RLS handles this
+          supabase.from('cutoff_periods').select('id, data').eq('user_id', effectiveGestorId), // Filtered by effectiveGestorId
+          supabase.from('onboarding_sessions').select('*, videos:onboarding_videos(*)').eq('user_id', effectiveGestorId), // Filtered by effectiveGestorId
+          supabase.from('onboarding_video_templates').select('*').eq('user_id', effectiveGestorId).order('order', { ascending: true }), // Filtered by effectiveGestorId
+          supabase.from('crm_pipelines').select('*').eq('user_id', effectiveGestorId), // Filtered by effectiveGestorId
+          supabase.from('crm_stages').select('*').eq('user_id', effectiveGestorId).order('order_index'), // Filtered by effectiveGestorId
+          supabase.from('crm_fields').select('*').eq('user_id', effectiveGestorId), // Filtered by effectiveGestorId
+          supabase.from('crm_leads').select('*').order('created_at', { ascending: false }), // RLS handles this
+          supabase.from('daily_checklists').select('*'), // RLS handles this
+          supabase.from('daily_checklist_items').select('*'), // RLS handles this
+          supabase.from('daily_checklist_assignments').select('*'), // RLS handles this
+          supabase.from('daily_checklist_completions').select('*'), // RLS handles this
+          supabase.from('weekly_targets').select('*'), // RLS handles this
+          supabase.from('weekly_target_items').select('*'), // RLS handles this
+          supabase.from('weekly_target_assignments').select('*'), // RLS handles this
+          supabase.from('metric_logs').select('*'), // RLS handles this
+          supabase.from('support_materials_v2').select('*').eq('user_id', effectiveGestorId), // Filtered by effectiveGestorId
+          supabase.from('support_material_assignments').select('*'), // RLS handles this
+          supabase.from('lead_tasks').select('*'), // RLS handles this
+          supabase.from('gestor_tasks').select('*').eq('user_id', userId), // Filtered by userId
+          supabase.from('gestor_task_completions').select('*').eq('user_id', userId), // Filtered by userId
+          supabase.from('financial_entries').select('*').eq('user_id', userId), // Filtered by userId
+          supabase.from('notifications').select('*').eq('user_id', userId).eq('is_read', false).order('created_at', { ascending: false }), // Filtered by userId
+          supabase.from('team_production_goals').select('*').eq('user_id', effectiveGestorId).order('start_date', { ascending: false }), // Filtered by effectiveGestorId
+          supabase.from('team_members').select('id, data, cpf, user_id'), // RLS handles this
+          supabase.from('cold_call_leads').select('id, user_id, name, phone, email, current_stage, notes, crm_lead_id, created_at, updated_at', { count: 'exact' }).range(0, 99999).limit(100000), // RLS handles this
+          supabase.from('cold_call_logs').select('id, cold_call_lead_id, user_id, start_time, end_time, duration_seconds, result, meeting_date, meeting_time, meeting_modality, meeting_notes, created_at', { count: 'exact' }).range(0, 99999).limit(100000), // RLS handles this
+          supabase.from('consultant_events').select('*'), // RLS handles this
+          supabase.from('candidates').select('id, data, created_at, last_updated_at').eq('user_id', effectiveGestorId), // Filtered by effectiveGestorId
+          supabase.from('form_submissions').select('id, submission_date, data, internal_notes, is_complete').eq('user_id', effectiveGestorId).order('submission_date', { ascending: false }), // Filtered by effectiveGestorId
         ]);
+
+        // Set formCadastros first as formFiles depends on it
+        if (formSubmissionsRes.error) { console.error(`[AppContext] Error loading form submissions: ${formSubmissionsRes.error.message}`); toast.error(`Erro ao carregar cadastros de formulário: ${formSubmissionsRes.error.message}`); setFormCadastros([]); }
+        else { setFormCadastros(formSubmissionsRes.data || []); console.log("[AppContext] Form Cadastros fetched:", (formSubmissionsRes.data || []).length); }
+
+        // Now fetch formFiles based on fetched formCadastros
+        const formSubmissionIds = formSubmissionsRes.data?.map(f => f.id) || [];
+        const { data: formFilesData, error: formFilesError } = await supabase.from('form_files').select('*').in('submission_id', formSubmissionIds);
+        if (formFilesError) { console.error(`[AppContext] Error loading form files: ${formFilesError.message}`); toast.error(`Erro ao carregar arquivos de formulário: ${formFilesError.error}`); setFormFiles([]); }
+        else { setFormFiles(formFilesData || []); console.log("[AppContext] Form Files fetched:", (formFilesData || []).length); }
 
         if (!isMounted) {
           console.log("[AppContext.fetchData] Component unmounted during fetch, skipping state updates.");
@@ -518,11 +530,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           console.log("[AppContext] Financial Entries fetched:", (financialEntriesRes.data || []).length);
         }
 
-        if (formCadastrosRes.error) { console.error(`[AppContext] Error loading form submissions: ${formCadastrosRes.error.message}`); toast.error(`Erro ao carregar cadastros de formulário: ${formCadastrosRes.error.message}`); setFormCadastros([]); }
-        else { setFormCadastros(formCadastrosRes.data || []); console.log("[AppContext] Form Cadastros fetched:", (formCadastrosRes.data || []).length); }
+        if (formSubmissionsRes.error) { console.error(`[AppContext] Error loading form submissions: ${formSubmissionsRes.error.message}`); toast.error(`Erro ao carregar cadastros de formulário: ${formSubmissionsRes.error.message}`); setFormCadastros([]); }
+        else { setFormCadastros(formSubmissionsRes.data || []); console.log("[AppContext] Form Cadastros fetched:", (formSubmissionsRes.data || []).length); }
 
-        if (formFilesRes.error) { console.error(`[AppContext] Error loading form files: ${formFilesRes.error.message}`); toast.error(`Erro ao carregar arquivos de formulário: ${formFilesRes.error.message}`); setFormFiles([]); }
-        else { setFormFiles(formFilesRes.data || []); console.log("[AppContext] Form Files fetched:", (formFilesRes.data || []).length); }
+        // Now fetch formFiles based on fetched formCadastros
+        const formSubmissionIds = formSubmissionsRes.data?.map(f => f.id) || [];
+        const { data: formFilesData, error: formFilesError } = await supabase.from('form_files').select('*').in('submission_id', formSubmissionIds);
+        if (formFilesError) { console.error(`[AppContext] Error loading form files: ${formFilesError.message}`); toast.error(`Erro ao carregar arquivos de formulário: ${formFilesError.error}`); setFormFiles([]); }
+        else { setFormFiles(formFilesData || []); console.log("[AppContext] Form Files fetched:", (formFilesData || []).length); }
 
         if (notificationsRes.error) { console.error(`[AppContext] Error loading notifications: ${notificationsRes.error.message}`); toast.error(`Erro ao carregar notificações: ${notificationsRes.error.message}`); setNotifications([]); }
         else { setNotifications(notificationsRes.data || []); console.log("[AppContext] Notifications fetched:", (notificationsRes.data || []).length); }
@@ -1119,7 +1134,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       sold_credit_value: parseDbCurrency(data.sold_credit_value), 
       sold_group: data.sold_group, 
       sold_quota: data.sold_quota, 
-      sale_date: data.sale_date
+      sale_date: data.sale_date 
     };
     
     setCrmLeads(prev => [newLead, ...prev]);
