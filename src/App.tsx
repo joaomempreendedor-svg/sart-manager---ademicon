@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, Outlet, Navigate, useLocation } from 'react-router-dom';
-import { AppProvider, useApp } from '@/context/AppContext';
+const AppProviderLazy = React.lazy(() => import('@/context/AppContext').then(m => ({ default: m.AppProvider })));
+const LazyAppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <React.Suspense fallback={<div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-slate-900"><Loader2 className="w-12 h-12 text-brand-500 animate-spin" /></div>}>
+    <AppProviderLazy>{children}</AppProviderLazy>
+  </React.Suspense>
+);
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { UserRole } from '@/types';
 
@@ -104,9 +109,8 @@ const RequireAuth: React.FC<{ allowedRoles: UserRole[] }> = ({ allowedRoles }) =
 
 const AppRoutes = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
-  const { isDataLoading } = useApp();
 
-  console.log("AppRoutes - isAuthLoading:", isAuthLoading, "isDataLoading:", isDataLoading, "user:", user ? user.id : "null");
+  console.log("AppRoutes - isAuthLoading:", isAuthLoading, "user:", user ? user.id : "null");
 
   if (isAuthLoading) {
     return (
@@ -126,12 +130,12 @@ const AppRoutes = () => {
       <Route path="/public-form" element={<PublicForm />} />
       
       <Route element={<RequireAuth allowedRoles={['GESTOR', 'ADMIN', 'CONSULTOR', 'SECRETARIA']} />}>
-        <Route path="/" element={<Home />} />
+        <Route path="/" element={<LazyAppProvider><Home /></LazyAppProvider>} />
       </Route>
 
       {/* Rotas para GESTOR, ADMIN e SECRETARIA que usam o MainLayout */}
       <Route element={<RequireAuth allowedRoles={['GESTOR', 'ADMIN', 'SECRETARIA']} />}>
-        <Route path="/gestor" element={<GestorLayout />}>
+        <Route path="/gestor" element={<LazyAppProvider><GestorLayout /></LazyAppProvider>}>
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="candidate/:id" element={<CandidateDetail />} />
           <Route path="commissions" element={<Commissions />} />
@@ -160,7 +164,7 @@ const AppRoutes = () => {
           <Route path="cold-call-metrics" element={<ColdCallMetricsPage />} />
         </Route>
 
-        <Route path="/secretaria" element={<GestorLayout />}>
+        <Route path="/secretaria" element={<LazyAppProvider><GestorLayout /></LazyAppProvider>}>
           <Route path="dashboard" element={<SecretariaDashboard />} />
           <Route path="hiring-dashboard" element={<HiringDashboard />} />
           <Route path="hiring-pipeline" element={<HiringPipeline />} />
@@ -174,7 +178,7 @@ const AppRoutes = () => {
 
       {/* Rotas para CONSULTOR que usam o ConsultorLayout */}
       <Route element={<RequireAuth allowedRoles={['CONSULTOR']} />}>
-        <Route path="/consultor" element={<ConsultorLayout />}>
+        <Route path="/consultor" element={<LazyAppProvider><ConsultorLayout /></LazyAppProvider>}>
           <Route path="dashboard" element={<ConsultorDashboard />} />
           <Route path="crm" element={<ConsultorCrmPage />} />
           <Route path="cold-call" element={<ColdCallPage />} />
@@ -186,7 +190,7 @@ const AppRoutes = () => {
       
       {/* Página de Perfil, acessível por todos os usuários autenticados, usando ConsultorLayout */}
       <Route element={<RequireAuth allowedRoles={['GESTOR', 'ADMIN', 'CONSULTOR', 'SECRETARIA']} />}>
-        <Route path="/profile" element={<ConsultorLayout />}>
+        <Route path="/profile" element={<LazyAppProvider><ConsultorLayout /></LazyAppProvider>}>
           <Route index element={<Profile />} />
         </Route>
       </Route>
@@ -198,9 +202,7 @@ const App = () => {
   return (
     <HashRouter>
       <AuthProvider>
-        <AppProvider>
-          <AppRoutes />
-        </AppProvider>
+        <AppRoutes />
       </AuthProvider>
     </HashRouter>
   );
