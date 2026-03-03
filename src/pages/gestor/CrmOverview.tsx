@@ -134,8 +134,18 @@ const CrmOverviewPage = () => {
 
   const groupedLeads = useMemo(() => {
     const groups: Record<string, CrmLead[]> = {};
+    if (!pipelineStages.length) return groups;
+    const wonStage = pipelineStages.find(s => s.is_won);
+    // Se tiver dados de venda (sale_date ou sold_credit_value), exibir no quadro "Vendido"
+    const displayLeads = filteredLeads.map((lead) => {
+      const isSold = !!lead.sale_date || (typeof lead.sold_credit_value === 'number' && lead.sold_credit_value > 0);
+      if (isSold && wonStage) {
+        return { ...lead, stage_id: wonStage.id };
+      }
+      return lead;
+    });
     pipelineStages.forEach(stage => {
-      groups[stage.id] = filteredLeads.filter(lead => lead.stage_id === stage.id);
+      groups[stage.id] = displayLeads.filter(lead => lead.stage_id === stage.id);
     });
     return groups;
   }, [pipelineStages, filteredLeads]);
