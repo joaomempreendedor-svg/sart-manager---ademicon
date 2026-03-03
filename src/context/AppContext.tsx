@@ -588,7 +588,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         console.error("[AppContext] Critical error during fetchData:", error.message, error);
         toast.error(`Erro crítico ao carregar dados: ${error.message}`);
       } finally {
-        // Removed if (isMounted) to ensure loading state is always cleared
+        // Removido if (isMounted) para garantir que o estado de carregamento seja sempre limpo
         console.log("[AppContext] Setting isDataLoading to false in finally block.");
         setIsDataLoading(false);
       }
@@ -604,8 +604,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       resetLocalState();
     } else {
       console.log("[AppContext] User is the same, or already fetched. Ensuring isDataLoading is false.");
-      // If user is the same and data is still loading, it means a previous fetch might have failed
-      // or was interrupted. We should ensure it's cleared.
+      // Se o usuário é o mesmo e os dados ainda estão carregando, significa que um fetch anterior pode ter falhado
+      // ou foi interrompido. Devemos garantir que seja limpo.
       if (isDataLoading) {
         setIsDataLoading(false);
       }
