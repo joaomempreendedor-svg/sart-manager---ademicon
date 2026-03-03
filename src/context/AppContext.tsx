@@ -682,7 +682,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const { data: newCrmLeads } = await supabase.from('crm_leads').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID).order('created_at', { ascending: false });
     setCrmLeads(newCrmLeads?.map((lead: any) => ({
       id: lead.id, consultant_id: lead.consultant_id, stage_id: lead.stage_id, user_id: lead.user_id, name: lead.name, data: lead.data,
-      created_at: lead.created_at, updated_at: lead.updated_at, created_by: lead.created_by, updated_by: lead.updated_by,
+      created_at: lead.created_at, updated_at: lead.updated_at, created_by: data.created_by, updated_by: data.updated_by,
       proposal_value: parseDbCurrency(lead.proposal_value), proposal_closing_date: lead.proposal_closing_date,
       sold_credit_value: parseDbCurrency(lead.sold_credit_value), sold_group: lead.sold_group, sold_quota: lead.sold_quota, sale_date: lead.sale_date
     })) || []);
@@ -1121,6 +1121,147 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const updatedFeedbacks = (member.feedbacks || []).filter(f => f.id !== feedbackId);
     await updateTeamMember(teamMemberId, { feedbacks: updatedFeedbacks });
   }, [teamMembers, updateTeamMember]);
+
+  const addTeamMember = useCallback(async (member: Omit<TeamMember, 'id'> & { email: string }) => {
+    const tempPassword = generateRandomPassword();
+    const loginFromCpf = (member.cpf || '').toString().slice(-4);
+    const primaryRole = member.roles?.includes('SECRETARIA')
+      ? 'SECRETARIA'
+      : (member.roles?.includes('GESTOR') ? 'GESTOR' : 'CONSULTOR');
+
+    const { data: authData, error: authError } = await supabase.functions.invoke('create-or-link-consultant', {
+      body: { email: member.email, name: member.name, tempPassword, login: loginFromCpf, role: primaryRole }
+    });
+    if (authError) throw authError;
+
+    const { data, error } = await supabase.from('team_members').insert({ user_id: JOAO_GESTOR_AUTH_ID, cpf: member.cpf, data: { ...member, id: authData.authUserId } }).select().single();
+    if (error) throw error;
+
+    const newMember = { id: data.id, db_id: data.id, authUserId: authData.authUserId, name: member.name, email: member.email, roles: member.roles, isActive: member.isActive, cpf: member.cpf, dateOfBirth: member.dateOfBirth, user_id: data.user_id };
+    setTeamMembers(prev => [...prev, newMember]);
+    return { success: true, member: newMember, tempPassword, wasExistingUser: authData.userExists };
+  }, []);
+  const deleteTeamMember = useCallback(async (id: string) => {
+    const member = teamMembers.find(m => m.id === id);
+    if (!member) return;
+    const { error } = await supabase.from('team_members').delete().eq('id', member.db_id);
+    if (error) throw error;
+    setTeamMembers(prev => prev.filter(m => m.id !== id));
+  }, [teamMembers]);
+
+  // Metas da equipe
+  const addTeamProductionGoal = useCallback(async (goal: Omit<TeamProductionGoal, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
+    const { data, error } = await supabase.from('team_production_goals').insert({ ...goal, user_id: JOAO_GESTOR_AUTH_ID }).select().single();
+    if (error) throw error;
+    setTeamProductionGoals(prev => [data, ...prev]);
+    return data;
+  }, []);
+  const updateTeamProductionGoal = useCallback(async (id: string, updates: Partial<TeamProductionGoal>) => {
+    const { data, error } = await supabase.from('team_production_goals').update(updates).eq('id', id).select().single();
+    if (error) throw error;
+    setTeamProductionGoals(prev => prev.map(g => g.id === id ? data : g));
+    return data;
+  }, []);
+  const deleteTeamProductionGoal = useCallback(async (id: string) => {
+    const { error } = await supabase.from('team_production_goals').delete().eq('id', id);
+    if (error) throw error;
+    setTeamProductionGoals(prev => prev.filter(g => g.id !== id));
+  }, []);
+
+  // Cutoff periods
+  const addCutoffPeriod = useCallback(async (period: CutoffPeriod) => {
+    const { error } = await supabase.from('cutoff_periods').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: period }).select().single();
+    if (error) throw error;
+    const { data } = await supabase.from('cutoff_periods').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID);
+    setCutoffPeriods(data?.map(item => ({ ...(item.data as CutoffPeriod), db_id: item.id })) || []);
+  }, []);
+  const updateCutoffPeriod = useCallback(async (id: string, updates: Partial<CutoffPeriod>) => {
+    const { error } = await supabase.from('cutoff_periods').update({ data: updates }).eq('id', id).select().single();
+    if (error) throw error;
+    const { data } = await supabase.from('cutoff_periods').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID);
+    setCutoffPeriods(data?.map(item => ({ ...(item.data as CutoffPeriod), db_id: item.id })) || []);
+  }, []);
+  const deleteCutoffPeriod = useCallback(async (id: string) => {
+    const { error } = await supabase.from('cutoff_periods').delete().eq('id', id);
+    if (error) throw error;
+    setCutoffPeriods(prev => prev.filter(p => p.db_id !== id));
+  }, []);
+
+  // Online onboarding (template + sessões)
+  const addOnlineOnboardingSession = useCallback(async (consultantName: string) => {
+    const { data: sessionData, error: sessionError } = await supabase.from('onboarding_sessions').insert({ user_id: JOAO_GESTOR_AUTH_ID, consultant_name: consultantName }).select().single();
+    if (sessionError) throw sessionError;
+    const videosToInsert = onboardingTemplateVideos.map(v => ({ session_id: sessionData.id, title: v.title, video_url: v.video_url, order: v.order }));
+    const { error: videosError } = await supabase.from('onboarding_videos').insert(videosToInsert);
+    if (videosError) throw videosError;
+    const { data: fullSession } = await supabase.from('onboarding_sessions').select('*, videos:onboarding_videos(*)').eq('id', sessionData.id).single();
+    setOnboardingSessions(prev => [...prev, fullSession]);
+  }, [onboardingTemplateVideos]);
+
+  const deleteOnlineOnboardingSession = useCallback(async (sessionId: string) => {
+    const { error } = await supabase.from('onboarding_sessions').delete().eq('id', sessionId);
+    if (error) throw error;
+    setOnboardingSessions(prev => prev.filter(s => s.id !== sessionId));
+  }, []);
+
+  const addVideoToTemplate = useCallback(async (title: string, video_url: string) => {
+    const order = onboardingTemplateVideos.length > 0 ? Math.max(...onboardingTemplateVideos.map(v => v.order)) + 1 : 0;
+    const { data, error } = await supabase.from('onboarding_video_templates').insert({ user_id: JOAO_GESTOR_AUTH_ID, title, video_url, order }).select().single();
+    if (error) throw error;
+    setOnboardingTemplateVideos(prev => [...prev, data]);
+  }, [onboardingTemplateVideos]);
+
+  const deleteVideoFromTemplate = useCallback(async (videoId: string) => {
+    const { error } = await supabase.from('onboarding_video_templates').delete().eq('id', videoId);
+    if (error) throw error;
+    setOnboardingTemplateVideos(prev => prev.filter(v => v.id !== videoId));
+  }, []);
+
+  // Formulários
+  const updateFormCadastro = useCallback(async (id: string, updates: Partial<FormCadastro>) => {
+    console.log("[AppContext] updateFormCadastro called for ID:", id, "updates:", updates); // Log para depuração
+    const { data, error } = await supabase.from('form_submissions').update(updates).eq('id', id).select().single();
+    if (error) {
+      console.error("[AppContext] Error updating form cadastro:", error);
+      throw error;
+    }
+    setFormCadastros(prev => prev.map(f => f.id === id ? data : f));
+    return data;
+  }, []);
+  const deleteFormCadastro = useCallback(async (id: string) => {
+    console.log("[AppContext] deleteFormCadastro called for ID:", id); // Log para depuração
+    const { error } = await supabase.from('form_submissions').delete().eq('id', id);
+    if (error) {
+      console.error("[AppContext] Error deleting form cadastro:", error);
+      throw error;
+    }
+    setFormCadastros(prev => prev.filter(f => f.id !== id));
+  }, []);
+
+  // Feedbacks (candidato)
+  const addFeedback = useCallback(async (personId: string, feedback: Omit<Feedback, 'id'>) => {
+    const candidate = candidates.find(c => c.id === personId);
+    if (!candidate) throw new Error("Candidate not found");
+    const newFeedback = { ...feedback, id: crypto.randomUUID() };
+    const updatedFeedbacks = [...(candidate.feedbacks || []), newFeedback];
+    await updateCandidate(personId, { feedbacks: updatedFeedbacks });
+    return newFeedback;
+  }, [candidates, updateCandidate]);
+  const updateFeedback = useCallback(async (personId: string, feedback: Feedback) => {
+    const candidate = candidates.find(c => c.id === personId);
+    if (!candidate) throw new Error("Candidate not found");
+    const updatedFeedbacks = (candidate.feedbacks || []).map(f => f.id === feedback.id ? feedback : f);
+    await updateCandidate(personId, { feedbacks: updatedFeedbacks });
+    return feedback;
+  }, [candidates, updateCandidate]);
+  const deleteFeedback = useCallback(async (personId: string, feedbackId: string) => {
+    const candidate = candidates.find(c => c.id === personId);
+    if (!candidate) return;
+    const updatedFeedbacks = (candidate.feedbacks || []).filter(f => f.id !== feedbackId);
+    await updateCandidate(personId, { feedbacks: updatedFeedbacks });
+  }, [candidates, updateCandidate]);
+
+  console.log("[AppContext] updateFormCadastro is defined:", typeof updateFormCadastro !== 'undefined'); // Log para depuração
 
   const value: AppContextType = useMemo(() => ({
     isDataLoading,
