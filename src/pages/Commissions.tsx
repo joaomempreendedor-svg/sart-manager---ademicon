@@ -525,11 +525,7 @@ export const Commissions = () => {
   }, [filteredHistory]);
 
   const formatAndSetCurrency = (setter: React.Dispatch<React.SetStateAction<string>>) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    let v = e.target.value.replace(/\D/g, '');
-    v = (parseInt(v, 10) / 100).toFixed(2).replace('.', ',');
-    v = v.replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.');
-    if (v === 'NaN,NaN') v = '';
-    setter(v);
+    setter(formatCurrencyInput(e.target.value));
   };
 
   const handleStatusChange = async (

@@ -43,11 +43,23 @@ type CustomRuleText = {
 const parseCurrency = (value: string) => parseFloat(value.replace(/\./g, '').replace(',', '.')) || 0;
 
 const formatCurrencyInput = (value: string): string => {
-  let v = value.replace(/\D/g, '');
-  v = (parseInt(v, 10) / 100).toFixed(2).replace('.', ',');
-  v = v.replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.');
-  if (v === 'NaN,NaN') v = '';
-  return v;
+  if (!value) return '';
+  let v = value.replace(/\D/g, ''); // Remove tudo que não é dígito
+  if (!v) return '';
+
+  // Remove leading zeros
+  v = v.replace(/^0+/, '');
+
+  if (v.length === 0) return '0,00';
+  if (v.length === 1) return `0,0${v}`;
+  if (v.length === 2) return `0,${v}`;
+
+  const integerPart = v.slice(0, -2);
+  const centsPart = v.slice(-2);
+  
+  const formattedIntegerPart = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  
+  return `${formattedIntegerPart},${centsPart}`;
 };
 
 export const EditCommissionModal: React.FC<EditCommissionModalProps> = ({

@@ -30,11 +30,23 @@ interface FinancialEntryModalProps {
 }
 
 const formatCurrencyInput = (value: string): string => {
+  if (!value) return '';
   let v = value.replace(/\D/g, ''); // Remove tudo que não é dígito
-  v = (parseInt(v, 10) / 100).toFixed(2).replace('.', ','); // Converte para float, 2 casas decimais, usa vírgula
-  v = v.replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.'); // Adiciona pontos para milhares
-  if (v === 'NaN,NaN') return '';
-  return v;
+  if (!v) return '';
+
+  // Remove leading zeros
+  v = v.replace(/^0+/, '');
+
+  if (v.length === 0) return '0,00';
+  if (v.length === 1) return `0,0${v}`;
+  if (v.length === 2) return `0,${v}`;
+
+  const integerPart = v.slice(0, -2);
+  const centsPart = v.slice(-2);
+  
+  const formattedIntegerPart = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  
+  return `${formattedIntegerPart},${centsPart}`;
 };
 
 const parseCurrencyInput = (value: string): number => {

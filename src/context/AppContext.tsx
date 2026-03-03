@@ -443,7 +443,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (financialEntriesRes.error) { toast.error(`Erro ao carregar entradas financeiras: ${financialEntriesRes.error.message}`); setFinancialEntries([]); }
         else {
           setFinancialEntries(financialEntriesRes.data?.map((entry: any) => ({
-            id: entry.id, db_id: entry.id, user_id: entry.user_id, entry_date: entry.entry_date, type: entry.type, description: entry.description, amount: parseFloat(entry.amount) / 100, created_at: entry.created_at
+            id: entry.id, db_id: entry.id, user_id: entry.user_id, entry_date: entry.entry_date, type: entry.type, description: entry.description, amount: parseFloat(entry.amount), created_at: entry.created_at
           })) || []);
         }
 
@@ -702,16 +702,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // Financeiro
   const addFinancialEntry = useCallback(async (entry: Omit<FinancialEntry, 'id' | 'user_id' | 'created_at'>) => {
-    const { data, error } = await supabase.from('financial_entries').insert({ ...entry, user_id: JOAO_GESTOR_AUTH_ID, amount: entry.amount * 100 }).select().single();
+    const { data, error } = await supabase.from('financial_entries').insert({ ...entry, user_id: JOAO_GESTOR_AUTH_ID, amount: entry.amount }).select().single();
     if (error) throw error;
-    setFinancialEntries(prev => [...prev, { ...data, amount: parseFloat(data.amount) / 100 }]);
+    setFinancialEntries(prev => [...prev, { ...data, amount: parseFloat(data.amount) }]);
     return data;
   }, []);
   const updateFinancialEntry = useCallback(async (id: string, updates: Partial<FinancialEntry>) => {
-    const updatesWithCentavos = updates.amount !== undefined ? { ...updates, amount: updates.amount * 100 } : updates;
-    const { data, error } = await supabase.from('financial_entries').update(updatesWithCentavos).eq('id', id).select().single();
+    const { data, error } = await supabase.from('financial_entries').update(updates).eq('id', id).select().single();
     if (error) throw error;
-    setFinancialEntries(prev => prev.map(e => e.id === id ? { ...data, amount: parseFloat(data.amount) / 100 } : e));
+    setFinancialEntries(prev => prev.map(e => e.id === id ? { ...data, amount: parseFloat(data.amount) } : e));
     return data;
   }, []);
   const deleteFinancialEntry = useCallback(async (id: string) => {
@@ -1278,10 +1277,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (stage.id === stageId) {
           const index = stage.items.findIndex(i => i.id === itemId);
           if (index === -1) return stage;
-          const targetIndex = direction === 'up' ? index - 1 : index + 1;
-          if (targetIndex < 0 || targetIndex >= stage.items.length) return stage;
           const newItems = [...stage.items];
-          [newItems[index], newItems[targetIndex]] = [newItems[targetIndex], newItems[index]];
+          const targetIndex = direction === 'up' ? index - 1 : index + 1;
+          if (targetIndex >= 0 && targetIndex < newItems.length) {
+            [newItems[index], newItems[targetIndex]] = [newItems[targetIndex], newItems[index]];
+          }
           return { ...stage, items: newItems };
         }
         return stage;
@@ -1350,7 +1350,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setInterviewStructure(newStructure);
       updateConfig({ interviewStructure: newStructure });
     },
-    updateInterviewQuestion: (sectionId: string, questionId: string, updates: Partial<{ text: string; points: number }>) => {
+    updateInterviewQuestion: (sectionId: string, questionId: string, updates: Partial<InterviewQuestion>) => {
       const newStructure = interviewStructure.map(s => s.id === sectionId ? { ...s, questions: s.questions.map(q => q.id === questionId ? { ...q, ...updates } : q) } : s);
       setInterviewStructure(newStructure);
       updateConfig({ interviewStructure: newStructure });
