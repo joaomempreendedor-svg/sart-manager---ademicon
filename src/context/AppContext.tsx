@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
-import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, InstallmentInfo, CutoffPeriod, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask, DailyChecklistItemResource, GestorTask, GestorTaskCompletion, FinancialEntry, FormCadastro, FormFile, Notification, Feedback, TeamProductionGoal, ColdCallLead, ColdCallLog } from '@/types';
+import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, InstallmentInfo, CutoffPeriod, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask, DailyChecklistItemResource, GestorTask, GestorTaskCompletion, FinancialEntry, FormCadastro, FormFile, Notification, Feedback, TeamProductionGoal, ColdCallLead, ColdCallLog, ConsultantEvent } from '@/types';
 import { CHECKLIST_STAGES as DEFAULT_STAGES } from '@/data/checklistData';
 import { CONSULTANT_GOALS as DEFAULT_GOALS } from '@/data/consultantGoals';
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
@@ -89,6 +89,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const [coldCallLeads, setColdCallLeads] = useState<ColdCallLead[]>([]);
   const [coldCallLogs, setColdCallLogs] = useState<ColdCallLog[]>([]);
+  const [consultantEvents, setConsultantEvents] = useState<ConsultantEvent[]>([]); // NOVO: Estado para eventos do consultor
 
   const [theme, setTheme] = useState<'light' | 'dark'>(() => (localStorage.getItem('sart_theme') as 'light' | 'dark') || 'light');
 
@@ -165,7 +166,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setWeeklyTargets([]); setWeeklyTargetItems([]); setWeeklyTargetAssignments([]); setMetricLogs([]);
     setSupportMaterialsV2([]); setSupportMaterialAssignments([]); setLeadTasks([]); setGestorTasks([]); setGestorTaskCompletions([]); setFinancialEntries([]);
     setFormCadastros([]); setFormFiles([]); setNotifications([]); setTeamProductionGoals([]);
-    setColdCallLeads([]); setColdCallLogs([]);
+    setColdCallLeads([]); setColdCallLogs([]); setConsultantEvents([]); // NOVO: Limpar eventos do consultor
     setIsDataLoading(false);
   }, []);
 
@@ -272,6 +273,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     let configSubscription: any = null;
     let coldCallLeadsSubscription: any = null;
     let coldCallLogsSubscription: any = null;
+    let consultantEventsSubscription: any = null; // NOVO: Inscrição para eventos do consultor
 
     const effectiveGestorId = JOAO_GESTOR_AUTH_ID;
 
@@ -310,6 +312,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           }
         })
         .subscribe();
+
+      // NOVO: Inscrição para eventos do consultor
+      consultantEventsSubscription = supabase
+        .channel('consultant_events_changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'consultant_events' }, async (payload) => {
+          console.log("[AppContext] Realtime: consultant_events changed, refetching.");
+          const { data, error } = await supabase.from('consultant_events').select('*');
+          if (error) console.error("Error refetching consultant_events in realtime:", error);
+          else {
+            setConsultantEvents(data || []);
+            console.log("Realtime refetch consultantEvents length:", (data || []).length);
+          }
+        })
+        .subscribe();
     };
 
     if (user && user.id) setupRealtimeSubscriptions();
@@ -319,6 +335,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (configSubscription) supabase.removeChannel(configSubscription);
       if (coldCallLeadsSubscription) supabase.removeChannel(coldCallLeadsSubscription);
       if (coldCallLogsSubscription) supabase.removeChannel(coldCallLogsSubscription);
+      if (consultantEventsSubscription) supabase.removeChannel(consultantEventsSubscription); // NOVO: Limpar inscrição
     };
   }, [user, fetchAppConfig]);
 
@@ -345,7 +362,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           supportMaterialsV2Res, supportMaterialAssignmentsV2Res,
           leadTasksRes, gestorTasksRes, gestorTaskCompletionsRes, financialEntriesRes,
           formCadastrosRes, formFilesRes, notificationsRes, teamProductionGoalsRes, teamMembersRes,
-          coldCallLeadsRes, coldCallLogsRes
+          coldCallLeadsRes, coldCallLogsRes, consultantEventsRes // NOVO: Adicionar eventos do consultor
         ] = await Promise.all([
           // Candidates: RLS handles visibility (user_id = owner_id OR gestor/admin/secretaria role)
           supabase.from('candidates').select('id, data, created_at, last_updated_at'),
@@ -406,7 +423,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           // Cold Call Leads: RLS handles visibility
           supabase.from('cold_call_leads').select('id, user_id, name, phone, email, current_stage, notes, crm_lead_id, created_at, updated_at', { count: 'exact' }).range(0, 99999).limit(100000),
           // Cold Call Logs: RLS handles visibility
-          supabase.from('cold_call_logs').select('id, cold_call_lead_id, user_id, start_time, end_time, duration_seconds, result, meeting_date, meeting_time, meeting_modality, meeting_notes, created_at', { count: 'exact' }).range(0, 99999).limit(100000)
+          supabase.from('cold_call_logs').select('id, cold_call_lead_id, user_id, start_time, end_time, duration_seconds, result, meeting_date, meeting_time, meeting_modality, meeting_notes, created_at', { count: 'exact' }).range(0, 99999).limit(100000),
+          // NOVO: Eventos do Consultor (RLS handles visibility)
+          supabase.from('consultant_events').select('*'),
         ]);
 
         if (!isMounted) {
@@ -557,6 +576,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           console.log("[AppContext] Cold Call Logs fetched:", (coldCallLogsRes.data || []).length, "Count:", coldCallLogsRes.count);
         }
 
+        if (consultantEventsRes.error) { console.error(`Erro ao carregar eventos do consultor: ${consultantEventsRes.error.message}`); toast.error(`Erro ao carregar eventos do consultor: ${consultantEventsRes.error.message}`); setConsultantEvents([]); }
+        else { setConsultantEvents(consultantEventsRes.data || []); console.log("[AppContext] Consultant Events fetched:", (consultantEventsRes.data || []).length); }
+
+
         refetchCommissions();
         console.log("[AppContext] fetchData completed successfully for user:", userId);
 
@@ -581,16 +604,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       resetLocalState();
     } else {
       console.log("[AppContext] User is the same, or already fetched. Ensuring isDataLoading is false.");
-      if (isDataLoading) {
-        setIsDataLoading(false);
-      }
+      // Removido: if (isDataLoading) { setIsDataLoading(false); }
+      // A flag isDataLoading será definida como false no bloco finally de fetchData
     }
 
     return () => {
       isMounted = false;
       console.log("[AppContext] AppContext useEffect cleanup.");
     };
-  }, [user?.id, refetchCommissions, fetchAppConfig, resetLocalState, parseDbCurrency, isDataLoading, user?.role]);
+  }, [user?.id, refetchCommissions, fetchAppConfig, resetLocalState, parseDbCurrency, user?.role]); // Removido isDataLoading das dependências
 
   // CRUD candidatos
   const addCandidate = useCallback(async (candidate: Omit<Candidate, 'id' | 'createdAt' | 'db_id'>) => {
@@ -808,7 +830,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     });
   }, []);
 
-  // Financeiro
+  // Financial Entries
   const addFinancialEntry = useCallback(async (entry: Omit<FinancialEntry, 'id' | 'user_id' | 'created_at'>) => {
     const { data, error } = await supabase.from('financial_entries').insert({ ...entry, user_id: JOAO_GESTOR_AUTH_ID, amount: entry.amount }).select().single();
     if (error) throw error;
@@ -1038,7 +1060,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setMetricLogs(prev => prev.filter(m => m.id !== id));
   }, []);
 
-  // Materiais de apoio v2
+  // Support Materials v2
   const addSupportMaterialV2 = useCallback(async (material: Omit<SupportMaterialV2, 'id' | 'user_id' | 'created_at'>, file?: File) => {
     let content = material.content;
     if (file) {
@@ -1218,7 +1240,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setTeamMembers(prev => prev.filter(m => m.id !== id));
   }, [teamMembers]);
 
-  // Metas da equipe
+  // Team Production Goals
   const addTeamProductionGoal = useCallback(async (goal: Omit<TeamProductionGoal, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
     const { data, error } = await supabase.from('team_production_goals').insert({ ...goal, user_id: JOAO_GESTOR_AUTH_ID }).select().single();
     if (error) throw error;
@@ -1237,7 +1259,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setTeamProductionGoals(prev => prev.filter(g => g.id !== id));
   }, []);
 
-  // Cutoff periods
+  // Cutoff Periods
   const addCutoffPeriod = useCallback(async (period: CutoffPeriod) => {
     const { error } = await supabase.from('cutoff_periods').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: period }).select().single();
     if (error) throw error;
@@ -1256,7 +1278,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setCutoffPeriods(prev => prev.filter(p => p.db_id !== id));
   }, []);
 
-  // Online onboarding (template + sessões)
+  // Online Onboarding (template + sessions)
   const addOnlineOnboardingSession = useCallback(async (consultantName: string) => {
     const { data: sessionData, error: sessionError } = await supabase.from('onboarding_sessions').insert({ user_id: JOAO_GESTOR_AUTH_ID, consultant_name: consultantName }).select().single();
     if (sessionError) throw sessionError;
@@ -1286,7 +1308,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setOnboardingTemplateVideos(prev => prev.filter(v => v.id !== videoId));
   }, []);
 
-  // Formulários
+  // Form Submissions
   const updateFormCadastro = useCallback(async (id: string, updates: Partial<FormCadastro>) => {
     console.log("[AppContext] updateFormCadastro called for ID:", id, "updates:", updates);
     const { data, error } = await supabase.from('form_submissions').update(updates).eq('id', id).select().single();
@@ -1307,7 +1329,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setFormCadastros(prev => prev.filter(f => f.id !== id));
   }, []);
 
-  // Feedbacks (candidato)
+  // Feedbacks (candidate)
   const addFeedback = useCallback(async (personId: string, feedback: Omit<Feedback, 'id'>) => {
     const candidate = candidates.find(c => c.id === personId);
     if (!candidate) throw new Error("Candidate not found");
@@ -1330,6 +1352,31 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     await updateCandidate(personId, { feedbacks: updatedFeedbacks });
   }, [candidates, updateCandidate]);
 
+  // Consultant Events (NOVO: CRUD para eventos do consultor)
+  const addConsultantEvent = useCallback(async (event: Omit<ConsultantEvent, 'id' | 'user_id' | 'created_at'>) => {
+    if (!user) throw new Error("Usuário não autenticado. Não é possível adicionar evento.");
+    const { data, error } = await supabase.from('consultant_events').insert({ ...event, user_id: user.id }).select().single();
+    if (error) throw error;
+    setConsultantEvents(prev => [...prev, data]);
+    return data;
+  }, [user]);
+
+  const updateConsultantEvent = useCallback(async (id: string, updates: Partial<ConsultantEvent>) => {
+    if (!user) throw new Error("Usuário não autenticado. Não é possível atualizar evento.");
+    const { data, error } = await supabase.from('consultant_events').update(updates).eq('id', id).select().single();
+    if (error) throw error;
+    setConsultantEvents(prev => prev.map(e => e.id === id ? data : e));
+    return data;
+  }, [user]);
+
+  const deleteConsultantEvent = useCallback(async (id: string) => {
+    if (!user) throw new Error("Usuário não autenticado. Não é possível excluir evento.");
+    const { error } = await supabase.from('consultant_events').delete().eq('id', id);
+    if (error) throw error;
+    setConsultantEvents(prev => prev.filter(e => e.id !== id));
+  }, [user]);
+
+
   const value: AppContextType = useMemo(() => {
     console.log("[AppContext] useMemo re-calculating value. updateFormCadastro is defined:", typeof updateFormCadastro !== 'undefined');
     return {
@@ -1343,7 +1390,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       metricLogs, supportMaterialsV2, supportMaterialAssignments,
       leadTasks, gestorTasks, gestorTaskCompletions, financialEntries,
       formCadastros, formFiles, notifications, teamProductionGoals,
-      coldCallLeads, coldCallLogs,
+      coldCallLeads, coldCallLogs, consultantEvents, // NOVO: Adicionar eventos do consultor
       theme,
 
       toggleTheme, updateConfig, resetLocalState, refetchCommissions, calculateCompetenceMonth, isGestorTaskDueOnDate, calculateNotifications,
@@ -1724,6 +1771,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       addColdCallLog,
       getColdCallMetrics,
       createCrmLeadFromColdCall,
+
+      addConsultantEvent, // NOVO: Adicionar CRUD para eventos do consultor
+      updateConsultantEvent,
+      deleteConsultantEvent,
     };
   }, [
     isDataLoading,
@@ -1736,7 +1787,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     metricLogs, supportMaterialsV2, supportMaterialAssignments,
     leadTasks, gestorTasks, gestorTaskCompletions, financialEntries,
     formCadastros, formFiles, notifications, teamProductionGoals,
-    coldCallLeads, coldCallLogs,
+    coldCallLeads, coldCallLogs, consultantEvents, // NOVO: Adicionar eventos do consultor
     theme,
     toggleTheme, updateConfig, resetLocalState, refetchCommissions, calculateCompetenceMonth, isGestorTaskDueOnDate, calculateNotifications,
     addCandidate, updateCandidate, deleteCandidate,
@@ -1759,6 +1810,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     hasPendingSecretariaTasks,
     addColdCallLead, updateColdCallLead, deleteColdCallLead, addColdCallLog, getColdCallMetrics, createCrmLeadFromColdCall,
     addOnlineOnboardingSession, deleteOnlineOnboardingSession, addVideoToTemplate, deleteVideoFromTemplate,
+    addConsultantEvent, updateConsultantEvent, deleteConsultantEvent, // NOVO: Adicionar CRUD para eventos do consultor
   ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
