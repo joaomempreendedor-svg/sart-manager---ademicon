@@ -341,8 +341,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   useEffect(() => {
     let isMounted = true;
     const fetchData = async (userId: string) => {
-      console.log("[AppContext] fetchData started for user:", userId);
-      setIsDataLoading(true);
+      console.log(`[AppContext.fetchData] Starting fetch for user: ${userId}`);
+      setIsDataLoading(true); // Ensure loading state is true at the start of fetch
       try {
         const effectiveGestorId = JOAO_GESTOR_AUTH_ID;
         const currentCrmOwnerId = (user?.role === 'GESTOR' || user?.role === 'ADMIN') ? userId : effectiveGestorId;
@@ -395,7 +395,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         ]);
 
         if (!isMounted) {
-          console.log("[AppContext] fetchData unmounted during fetch, skipping state updates.");
+          console.log("[AppContext.fetchData] Component unmounted during fetch, skipping state updates.");
           return;
         }
 
@@ -553,34 +553,51 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         console.error("[AppContext] Critical error during fetchData:", error.message, error);
         toast.error(`Erro crítico ao carregar dados: ${error.message}`);
       } finally {
-        console.log("[AppContext] Setting isDataLoading to false in finally block.");
-        setIsDataLoading(false);
+        if (isMounted) { // Only update state if component is still mounted
+          setIsDataLoading(false);
+          console.log(`[AppContext.fetchData] Finished fetch for user: ${userId}. isDataLoading set to false.`);
+        } else {
+          console.log(`[AppContext.fetchData] Component unmounted during fetch for user: ${userId}. Skipping setIsDataLoading(false).`);
+        }
       }
     };
 
-    // Only fetch data if user is authenticated and it's a new user or a refresh
-    if (!isAuthLoading) { // Wait for AuthContext to finish loading
-      if (user && user.id && user.id !== fetchedUserIdRef.current) {
+    console.log(`[AppContext.useEffect] Auth Loading: ${isAuthLoading}, User: ${user?.id}, Fetched User Ref: ${fetchedUserIdRef.current}`);
+
+    if (isAuthLoading) {
+      // AuthContext is still determining session status, keep AppContext loading
+      console.log("[AppContext.useEffect] Auth is still loading, keeping AppContext loading.");
+      setIsDataLoading(true);
+      return;
+    }
+
+    // AuthContext has finished loading (isAuthLoading is false)
+    if (user && user.id) {
+      // User is authenticated
+      if (user.id !== fetchedUserIdRef.current) {
+        // New user or user changed, or first time authenticated
+        console.log(`[AppContext.useEffect] User authenticated (${user.id}) and different from last fetched (${fetchedUserIdRef.current}). Initiating fetchData.`);
         fetchedUserIdRef.current = user.id;
-        setIsDataLoading(true);
         fetchData(user.id);
-      } else if (!user) {
-        fetchedUserIdRef.current = null;
-        console.log("[AppContext] User is null, resetting local state.");
-        resetLocalState();
       } else {
-        console.log("[AppContext] User is the same, or already fetched. Ensuring isDataLoading is false.");
-        if (isDataLoading) { // If still loading, ensure it's set to false
+        // Same user, data already fetched or in progress. Ensure loading is false if not fetching.
+        console.log(`[AppContext.useEffect] User authenticated (${user.id}) and same as last fetched. Ensuring isDataLoading is false if not actively fetching.`);
+        if (isDataLoading && !isFetchingRef.current) { // Only set to false if it's currently true and no fetch is active
           setIsDataLoading(false);
         }
       }
+    } else {
+      // User is definitively not authenticated (isAuthLoading is false and user is null)
+      console.log("[AppContext.useEffect] User is definitively unauthenticated. Resetting local state.");
+      fetchedUserIdRef.current = null;
+      resetLocalState();
     }
 
     return () => {
       isMounted = false;
-      console.log("[AppContext] AppContext useEffect cleanup.");
+      console.log("[AppContext.useEffect] AppContext cleanup.");
     };
-  }, [user?.id, isAuthLoading, refetchCommissions, fetchAppConfig, resetLocalState, parseDbCurrency, user?.role]);
+  }, [user, isAuthLoading, refetchCommissions, fetchAppConfig, resetLocalState, parseDbCurrency, user?.role, isDataLoading]);
 
   // CRUD candidatos
   const addCandidate = useCallback(async (candidate: Omit<Candidate, 'id' | 'createdAt' | 'db_id'>) => {
@@ -731,7 +748,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const { data: newCrmLeads } = await supabase.from('crm_leads').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID).order('created_at', { ascending: false });
     setCrmLeads(newCrmLeads?.map((lead: any) => ({
       id: lead.id, consultant_id: lead.consultant_id, stage_id: lead.stage_id, user_id: lead.user_id, name: lead.name, data: lead.data,
-      created_at: lead.created_at, updated_at: lead.updated_at, created_by: data.created_by, updated_by: data.updated_by,
+      created_at: lead.created_at, updated_at: data.updated_at, created_by: data.created_by, updated_by: data.updated_by,
       proposal_value: parseDbCurrency(lead.proposal_value), proposal_closing_date: lead.proposal_closing_date,
       sold_credit_value: parseDbCurrency(lead.sold_credit_value), sold_group: lead.sold_group, sold_quota: lead.sold_quota, sale_date: lead.sale_date
     })) || []);

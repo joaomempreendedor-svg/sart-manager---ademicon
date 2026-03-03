@@ -86,7 +86,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setUser(null);
         setSession(null);
       }
-      setIsLoading(false);
+      setIsLoading(false); // Always set isLoading to false after session determination
       console.log(`[AuthContext] isLoading set to false. User: ${user ? user.id : 'null'}`);
     };
 
