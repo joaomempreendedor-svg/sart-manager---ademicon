@@ -46,12 +46,11 @@ const CrmOverviewPage = () => {
 
   // Filtros de Data Padrão: Mês Atual
   const [filterStartDate, setFilterStartDate] = useState(() => {
-    const d = new Date();
-    return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
+    // INÍCIO ALTERAÇÃO: Sem período por padrão (igual consultor)
+    return '';
   });
   const [filterEndDate, setFilterEndDate] = useState(() => {
-    const d = new Date();
-    return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
+    return '';
   });
 
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -369,17 +368,6 @@ const CrmOverviewPage = () => {
         {pipelineStages.map(stage => {
           const stageLeads = groupedLeads[stage.id] || [];
           
-          const stageValue = stageLeads.reduce((sum, lead) => {
-            const actualSoldValue =
-              lead.sold_credit_value && lead.sold_credit_value > 0
-                ? lead.sold_credit_value
-                : (lead.proposal_value || 0);
-
-            return stage.is_won
-              ? sum + actualSoldValue
-              : sum + (lead.proposal_value || 0);
-          }, 0);
-
           return (
             <div 
               key={stage.id} 
@@ -393,10 +381,33 @@ const CrmOverviewPage = () => {
                   {stage.name}
                 </h3>
                 <span className="text-xs text-gray-500 dark:text-gray-400">{stageLeads.length} leads</span>
-                
-                {(stage.is_won || stage.name.toLowerCase().includes('proposta')) && (
-                  <div className={`mt-1 text-sm font-bold ${stage.is_won ? 'text-green-700 dark:text-green-300' : 'text-purple-700 dark:text-purple-300'}`}>
-                    Total: {formatCurrency(stageValue)}
+
+                {stage.name.toLowerCase().includes('proposta') && (
+                  <div className="mt-1 text-sm font-bold text-purple-700 dark:text-purple-300">
+                    Total Propostas (Mês): {formatCurrency(
+                      stageLeads.reduce((sum, lead) => {
+                        if (lead.proposal_value !== undefined && lead.proposal_value !== null && lead.proposal_closing_date) {
+                          const proposalDate = new Date(lead.proposal_closing_date + 'T00:00:00');
+                          if (proposalDate >= currentMonthStart && proposalDate <= currentMonthEnd) {
+                            return sum + (lead.proposal_value || 0);
+                          }
+                        }
+                        return sum;
+                      }, 0)
+                    )}
+                  </div>
+                )}
+
+                {stage.is_won && (
+                  <div className="mt-1 text-sm font-bold text-green-700 dark:text-green-300">
+                    Total Vendido: {formatCurrency(
+                      stageLeads.reduce((sum, lead) => {
+                        const actualSoldValue = (lead.sold_credit_value && lead.sold_credit_value > 0)
+                          ? lead.sold_credit_value
+                          : (lead.proposal_value || 0);
+                        return sum + actualSoldValue;
+                      }, 0)
+                    )}
                   </div>
                 )}
               </div>
