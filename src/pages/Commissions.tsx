@@ -62,7 +62,7 @@ interface DetailedInstallment {
 }
 
 export const Commissions = () => {
-  const { commissions, addCommission, updateCommission, deleteCommission, teamMembers, pvs, addPV, updateInstallmentStatus, cutoffPeriods } = useApp();
+  const { commissions, addCommission, updateCommission, deleteCommission, teamMembers, pvs, addPV, updateInstallmentStatus, cutoffPeriods, refetchCommissions } = useApp();
   
   const [activeTab, setActiveTab] = useState<'calculator' | 'history' | 'reports'>('calculator');
   const [searchTerm, setSearchTerm] = useState('');
@@ -185,6 +185,13 @@ export const Commissions = () => {
   useEffect(() => {
     resetCalculatorForm();
   }, []);
+
+  // Recarrega comissões ao entrar na aba "history" (garante que apareçam)
+  useEffect(() => {
+    if (activeTab === 'history' && (!commissions || commissions.length === 0)) {
+      refetchCommissions();
+    }
+  }, [activeTab, commissions?.length, refetchCommissions]);
 
   // NOVO: Efeito para fechar o modal de edição/confirmação quando a aba muda
   useEffect(() => {
