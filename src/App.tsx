@@ -68,13 +68,12 @@ const AppLoader = () => (
 
 const RequireAuth: React.FC<{ allowedRoles: UserRole[] }> = ({ allowedRoles }) => {
   const { user, isLoading: isAuthLoading } = useAuth();
-  const { isDataLoading } = useApp();
   const location = useLocation();
 
   // Todos os hooks devem ser chamados incondicionalmente no nível superior do componente.
   // A lógica condicional para renderização/navegação vem depois.
 
-  if (isAuthLoading || isDataLoading) {
+  if (isAuthLoading) {
     return <AppLoader />;
   }
 
@@ -109,7 +108,7 @@ const AppRoutes = () => {
 
   console.log("AppRoutes - isAuthLoading:", isAuthLoading, "isDataLoading:", isDataLoading, "user:", user ? user.id : "null");
 
-  if (isAuthLoading || isDataLoading) {
+  if (isAuthLoading) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-slate-900">
         <Loader2 className="w-12 h-12 text-brand-500 animate-spin" />
