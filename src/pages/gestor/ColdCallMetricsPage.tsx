@@ -13,7 +13,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { MetricCard } from '@/components/MetricCard';
-import { isAnswered, isConversation, isMeeting } from '@/utils/coldCall';
 
 const formatDuration = (seconds: number) => {
   if (isNaN(seconds) || seconds < 0) return '0s';
@@ -55,11 +54,11 @@ const ColdCallMetricsPage = () => {
     }
     if (filterStartDate) {
       const start = new Date(filterStartDate + 'T00:00:00');
-      logs = logs.filter(log => new Date(log.start_time) >= start);
+      logs = logs.filter(log => new Date(log.created_at) >= start);
     }
     if (filterEndDate) {
       const end = new Date(filterEndDate + 'T23:59:59');
-      logs = logs.filter(log => new Date(log.start_time) <= end);
+      logs = logs.filter(log => new Date(log.created_at) <= end);
     }
     return logs;
   }, [coldCallLogs, selectedColdCallConsultantId, filterStartDate, filterEndDate]);
@@ -83,11 +82,15 @@ const ColdCallMetricsPage = () => {
   const coldCallMetrics = useMemo(() => {
     const totalCalls = filteredColdCallLogs.length;
     
-    const answeredLogs = filteredColdCallLogs.filter(log => isAnswered(log.result));
+    const answeredLogs = filteredColdCallLogs.filter(log => 
+      log.result !== 'Não atendeu' && log.result !== 'Número inválido'
+    );
     const totalAnswered = answeredLogs.length;
 
-    const totalConversations = answeredLogs.filter(log => isConversation(log.result)).length;
-    const totalMeetingsScheduled = answeredLogs.filter(log => isMeeting(log.result)).length;
+    const totalConversations = answeredLogs.filter(log =>
+      log.result === 'Demonstrou Interesse' || log.result === 'Agendar Reunião'
+    ).length;
+    const totalMeetingsScheduled = answeredLogs.filter(log => log.result === 'Agendar Reunião').length;
 
     const interestConversionRate = totalAnswered > 0 ? (totalConversations / totalAnswered) * 100 : 0;
     const meetingConversionRate = totalAnswered > 0 ? (totalMeetingsScheduled / totalAnswered) * 100 : 0;

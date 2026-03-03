@@ -8,14 +8,6 @@ import { TableSkeleton } from '@/components/TableSkeleton';
 import { ScheduleInterviewModal } from '@/components/ScheduleInterviewModal';
 import { DailyChecklistDisplay } from '@/components/consultor/DailyChecklistDisplay';
 import { PendingLeadTasksModal } from '@/components/gestor/PendingLeadTasksModal'; // NOVO: Importar o modal
-// NOVO: importar Select
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 
 const ConsultorDashboard = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -37,22 +29,6 @@ const ConsultorDashboard = () => {
   } = useApp();
 
   const [isPendingTasksModalOpen, setIsPendingTasksModalOpen] = useState(false); // NOVO: Estado para o modal
-  // NOVO: controle de período
-  const [metricsRange, setMetricsRange] = useState<'month' | '90days' | 'all'>('90days');
-  const getRange = (range: 'month' | '90days' | 'all') => {
-    const today = new Date();
-    if (range === 'all') return { start: null as Date | null, end: null as Date | null };
-    if (range === '90days') {
-      const start = new Date(today);
-      start.setDate(start.getDate() - 90);
-      return { start, end: today };
-    }
-    return {
-      start: new Date(today.getFullYear(), today.getMonth(), 1),
-      end: new Date(today.getFullYear(), today.getMonth() + 1, 0),
-    };
-  };
-  const range = getRange(metricsRange);
 
   const activePipeline = useMemo(() => {
     return crmPipelines.find(p => p.is_active) || crmPipelines[0];
@@ -70,48 +46,48 @@ const ConsultorDashboard = () => {
     meetingsThisMonth, 
     proposalValueThisMonth, 
     soldValueThisMonth, 
-    pendingLeadTasks, 
-    pendingLeadTasksCount 
+    pendingLeadTasks, // Agora é a lista de tarefas
+    pendingLeadTasksCount // NOVO: Contagem para o card
   } = useMemo(() => {
     const today = new Date();
     const todayFormatted = today.toISOString().split('T')[0];
 
     if (!user) return { totalLeads: 0, newLeadsThisMonth: 0, meetingsThisMonth: 0, proposalValueThisMonth: 0, soldValueThisMonth: 0, pendingLeadTasks: [], pendingLeadTasksCount: 0 };
 
-    const isInRange = (dateStr?: string) => {
-      if (!dateStr) return false;
-      const d = new Date(dateStr);
-      return (!range.start || d >= range.start) && (!range.end || d <= range.end);
-    };
-
-    // Fallback: se não houver etapas ativas, considerar todos os leads do consultor
-    const consultantLeads = crmLeads.filter(lead => 
-      lead.consultant_id === user.id && (activeStageIds.size === 0 || activeStageIds.has(lead.stage_id))
-    );
+    // CORREÇÃO: Filtra apenas leads que pertencem ao pipeline ativo
+    const consultantLeads = crmLeads.filter(lead => lead.consultant_id === user.id && activeStageIds.has(lead.stage_id));
     const totalLeads = consultantLeads.length;
 
-    // Período dinâmico
-    const newLeadsThisMonth = consultantLeads.filter(lead => isInRange(lead.created_at)).length;
+    const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    const currentMonthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
 
+    // Novos Leads do Mês
+    const newLeadsThisMonth = consultantLeads.filter(lead => new Date(lead.created_at) >= currentMonthStart).length;
+
+    // Reuniões Agendadas no Mês (RE-ADDED: meetingsThisMonth calculation)
     const meetingsThisMonth = leadTasks.filter(task => {
       if (task.user_id !== user.id || task.type !== 'meeting') return false;
-      const when = task.meeting_start_time || task.due_date || '';
-      return isInRange(when);
+      const taskDate = new Date(task.meeting_start_time || '');
+      return taskDate >= currentMonthStart && taskDate <= currentMonthEnd;
     }).length;
 
+    // Valor de Propostas Enviadas no Mês
     const proposalValueThisMonth = consultantLeads.reduce((sum, lead) => {
-      if (lead.proposal_value && lead.proposal_value > 0 && lead.proposal_closing_date) {
-        if (isInRange(lead.proposal_closing_date + 'T00:00:00')) {
-          return sum + (lead.proposal_value || 0);
+      if (lead.proposal_value && lead.proposal_value > 0 && lead.proposal_closing_date) { // Usando snake_case
+        const proposalDate = new Date(lead.proposal_closing_date + 'T00:00:00'); // Usando snake_case
+        if (proposalDate >= currentMonthStart && proposalDate <= currentMonthEnd) {
+          return sum + (lead.proposal_value || 0); // Usando snake_case
         }
       }
       return sum;
     }, 0);
 
+    // Valor Vendido no Mês
     const soldValueThisMonth = consultantLeads.reduce((sum, lead) => {
-      if (lead.sold_credit_value && lead.sold_credit_value > 0 && lead.sale_date) {
-        if (isInRange(lead.sale_date + 'T00:00:00')) {
-          return sum + (lead.sold_credit_value || 0);
+      if (lead.sold_credit_value && lead.sold_credit_value > 0 && lead.sale_date) { // Usando snake_case
+        const saleDate = new Date(lead.sale_date + 'T00:00:00'); // Usando snake_case
+        if (saleDate >= currentMonthStart && saleDate <= currentMonthEnd) {
+          return sum + (lead.sold_credit_value || 0); // Usando snake_case
         }
       }
       return sum;
@@ -121,14 +97,16 @@ const ConsultorDashboard = () => {
     const pendingLeadTasksList: LeadTask[] = leadTasks.filter(task => {
       if (task.user_id !== user.id || task.is_completed) return false;
       if (!task.due_date) return false;
+      
       const taskDueDate = new Date(task.due_date + 'T00:00:00');
       const todayDate = new Date(todayFormatted + 'T00:00:00');
+
       return taskDueDate <= todayDate;
     }).sort((a, b) => {
       if (!a.due_date && !b.due_date) return 0;
       if (!a.due_date) return 1;
       if (!b.due_date) return -1;
-      return new Date(a.due_date!).getTime() - new Date(b.due_date!).getTime();
+      return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
     });
 
     return { 
@@ -137,10 +115,10 @@ const ConsultorDashboard = () => {
       meetingsThisMonth, 
       proposalValueThisMonth, 
       soldValueThisMonth,
-      pendingLeadTasks: pendingLeadTasksList,
-      pendingLeadTasksCount: pendingLeadTasksList.length
+      pendingLeadTasks: pendingLeadTasksList, // Retorna a lista
+      pendingLeadTasksCount: pendingLeadTasksList.length // Retorna a contagem
     };
-  }, [user, crmLeads, crmPipelines, crmStages, leadTasks, activeStageIds, range.start, range.end]);
+  }, [user, crmLeads, crmPipelines, crmStages, leadTasks, activeStageIds]);
 
   // --- Daily Checklist Progress ---
   const { completedDailyTasks, totalDailyTasks, dailyProgress } = useMemo(() => {
@@ -262,20 +240,6 @@ const ConsultorDashboard = () => {
     <div className="p-4 sm:p-8 max-w-7xl mx-auto">
       <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Olá, {user?.name.split(' ')[0]}!</h1>
       <p className="text-gray-500 dark:text-gray-400 mb-8">Bem-vindo ao seu Dashboard. Aqui estão suas principais informações e atalhos.</p>
-
-      {/* NOVO: seletor de período */}
-      <div className="mb-4 flex justify-end">
-        <Select value={metricsRange} onValueChange={(v) => setMetricsRange(v as any)}>
-          <SelectTrigger className="w-[200px] dark:bg-slate-700 dark:text-white dark:border-slate-600">
-            <SelectValue placeholder="Período" />
-          </SelectTrigger>
-          <SelectContent className="bg-white text-gray-900 dark:bg-slate-800 dark:text-white dark:border-slate-700">
-            <SelectItem value="month">Mês Atual</SelectItem>
-            <SelectItem value="90days">Últimos 90 dias</SelectItem>
-            <SelectItem value="all">Todos os tempos</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
       
         <div className="animate-fade-in">
           {/* CRM Statistics */}

@@ -74,16 +74,13 @@ export const SecretariaDashboard = () => {
   } = useApp();
   const navigate = useNavigate();
   
-  // NOVO: default últimos 90 dias
   const [startDate, setStartDate] = useState(() => {
     const d = new Date();
-    const start = new Date(d);
-    start.setDate(start.getDate() - 90);
-    return start.toISOString().split('T')[0];
+    return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
   });
   const [endDate, setEndDate] = useState(() => {
     const d = new Date();
-    return new Date(d.getFullYear(), d.getMonth(), d.getDate()).toISOString().split('T')[0];
+    return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
   });
 
   const todayStr = new Date().toISOString().split('T')[0];
@@ -563,7 +560,7 @@ export const SecretariaDashboard = () => {
             icon={Ghost} 
             colorClass="bg-rose-500 text-white" 
             subValue="Não compareceram"
-            onClick={() => handleOpenCandidatesDetailModal('Faltas', metrics.noShowList, 'noShow')}
+            onClick={() => handleOpenCandidatesDetailModal('Faltas', hiringMetrics.noShowList, 'noShow')}
           />
           <MetricCard 
             title="Desistências" 

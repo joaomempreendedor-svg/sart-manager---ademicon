@@ -8,13 +8,12 @@ import { ConsultantCredentialsModal } from '@/components/ConsultantCredentialsMo
 import { RecordTeamMemberInterviewModal } from '@/components/TeamConfig/RecordTeamMemberInterviewModal';
 import { EditTeamMemberModal } from '@/components/TeamConfig/EditTeamMemberModal'; // NOVO: Importar o modal de edição
 import toast from 'react-hot-toast';
-import { useEffect } from 'react';
 
 const ALL_ROLES: TeamRole[] = ['PRÉVIA', 'AUTORIZADO', 'GESTOR', 'ANJO', 'SECRETARIA'];
 
 export const TeamConfig = () => {
   const { user } = useAuth();
-  const { teamMembers, addTeamMember, updateTeamMember, deleteTeamMember, candidates, addCandidate, refetchTeamMembers, isDataLoading } = useApp();
+  const { teamMembers, addTeamMember, updateTeamMember, deleteTeamMember, candidates, addCandidate } = useApp();
   const { resetConsultantPasswordViaEdge } = useAuth();
   
   const [newName, setNewName] = useState('');
@@ -37,14 +36,6 @@ export const TeamConfig = () => {
   const [teamMemberToRecordInterview, setTeamMemberToRecordInterview] = useState<TeamMember | null>(null);
 
   const [isAddFormCollapsed, setIsAddFormCollapsed] = useState(true);
-
-  // Tenta recarregar membros quando a lista vier vazia e não estivermos carregando
-  useEffect(() => {
-    const allowed = user && ['GESTOR', 'ADMIN', 'SECRETARIA', 'CONSULTOR'].includes(user.role);
-    if (allowed && !isDataLoading && teamMembers.length === 0) {
-      refetchTeamMembers().catch(() => {});
-    }
-  }, [user, isDataLoading, teamMembers.length, refetchTeamMembers]);
 
   const handleRoleChange = (role: TeamRole, currentRoles: TeamRole[], setRoles: React.Dispatch<React.SetStateAction<TeamRole[]>>) => {
     const updatedRoles = currentRoles.includes(role)
@@ -304,23 +295,13 @@ export const TeamConfig = () => {
 
           {/* Seção de Membros da Equipe */}
           <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
-              <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50 flex items-center justify-between">
+              <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
                   <h3 className="font-semibold text-gray-900 dark:text-white">Membros da Equipe ({sortedTeamMembers.length})</h3>
-                  <button
-                    onClick={() => refetchTeamMembers()}
-                    className="inline-flex items-center gap-2 text-sm px-3 py-1.5 rounded-md bg-gray-100 hover:bg-gray-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-gray-700 dark:text-gray-200 transition"
-                    title="Recarregar membros"
-                  >
-                    <RefreshCw className="w-4 h-4" />
-                    Recarregar
-                  </button>
               </div>
               <div className="overflow-x-auto">
                 <ul className="divide-y divide-gray-100 dark:divide-slate-700">
                     {sortedTeamMembers.length === 0 ? (
-                        <li className="p-8 text-center text-gray-500 dark:text-gray-400">
-                          {isDataLoading ? 'Carregando membros...' : 'Nenhum membro cadastrado.'}
-                        </li>
+                        <li className="p-8 text-center text-gray-500 dark:text-gray-400">Nenhum membro cadastrado.</li>
                     ) : (
                         sortedTeamMembers.map(member => (
                             <li key={member.id} className={`p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between hover:bg-gray-50 dark:hover:bg-slate-700/30 transition group ${!member.isActive ? 'opacity-60' : ''}`}>

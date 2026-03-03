@@ -2,9 +2,8 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, ChevronRight, User, Calendar, CheckCircle2, TrendingUp, AlertCircle, Clock, Users, Star, CheckSquare, XCircle, BellRing, UserRound, Plus, ListTodo, Send, DollarSign, Repeat, Filter, RotateCcw, CalendarPlus, Mail, Phone, ClipboardCheck, UserPlus, ArrowUpRight, UserCheck, PieChart, MessageSquare, UserX, UserMinus, Ghost, MapPin, BarChart3, FileText, Percent, HelpCircle, PhoneCall, CalendarCheck } from 'lucide-react';
+import { ChevronRight, User, Calendar, CheckCircle2, TrendingUp, AlertCircle, Clock, Users, Star, CheckSquare, XCircle, BellRing, UserRound, Plus, ListTodo, Send, DollarSign, Repeat, Filter, RotateCcw, CalendarPlus, Mail, Phone, ClipboardCheck, UserPlus, ArrowUpRight, UserCheck, PieChart, MessageSquare, UserX, UserMinus, Ghost, MapPin, BarChart3, FileText, Percent, HelpCircle, PhoneCall, CalendarCheck } from 'lucide-react';
 import { CandidateStatus, ChecklistTaskState, GestorTask, LeadTask, CrmLead, Candidate, ColdCallLead, ColdCallLog, ColdCallDetailType } from '@/types';
-import { isAnswered, isConversation, isMeeting } from '@/utils/coldCall';
 import { TableSkeleton } from '@/components/TableSkeleton';
 import { ScheduleInterviewModal } from '@/components/ScheduleInterviewModal';
 import { PendingLeadTasksModal } from '@/components/gestor/PendingLeadTasksModal';
@@ -66,18 +65,8 @@ export const Dashboard = () => {
   
   const [userSelectedColdCallConsultantId, setUserSelectedColdCallConsultantId] = useState<string | null>(null); 
 
-  // Sem filtro inicial: mostra números mesmo que o mês atual não tenha dados
-  const [coldCallFilterStartDate, setColdCallFilterStartDate] = useState<string>('');
-  const [coldCallFilterEndDate, setColdCallFilterEndDate] = useState<string>('');
-
-  // Intervalo fixo: mês atual
-  const range = React.useMemo(() => {
-    const today = new Date();
-    return {
-      start: new Date(today.getFullYear(), today.getMonth(), 1),
-      end: new Date(today.getFullYear(), today.getMonth() + 1, 0),
-    };
-  }, []);
+  const [coldCallFilterStartDate, setColdCallFilterStartDate] = useState('');
+  const [coldCallFilterEndDate, setColdCallFilterEndDate] = useState('');
 
   const handleOpenNotifications = () => setIsNotificationCenterOpen(true);
   const handleCloseNotifications = () => setIsNotificationCenterOpen(false);
@@ -110,74 +99,65 @@ export const Dashboard = () => {
   }, [effectiveColdCallConsultantId, teamMembers]);
 
   const commercialMetrics = useMemo(() => {
+    const today = new Date();
     if (!user) return null;
 
-    const rangeStart = range.start;
-    const rangeEnd = range.end;
+    const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    const currentMonthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
 
-    const isInRange = (dateStr?: string) => {
-      if (!dateStr) return false;
-      const d = new Date(dateStr);
-      return (!rangeStart || d >= rangeStart) && (!rangeEnd || d <= rangeEnd);
-    };
+    // CORREÇÃO: Filtra apenas leads que pertencem ao pipeline ativo
+    const leadsForGestor = crmLeads.filter(lead => lead.user_id === user.id && activeStageIds.has(lead.stage_id));
 
-    // Se não houver stages ativos, usar todos os leads disponíveis (RLS cuida do acesso)
-    const leadsInActivePipeline = activeStageIds.size > 0
-      ? crmLeads.filter(lead => activeStageIds.has(lead.stage_id))
-      : crmLeads;
-
-    const totalLeads = leadsInActivePipeline.length;
-    const newLeads = leadsInActivePipeline.filter(lead => isInRange(lead.created_at)).length;
+    const totalLeads = leadsForGestor.length;
+    const newLeads = leadsForGestor.filter(lead => new Date(lead.created_at) >= currentMonthStart).length;
 
     const meetingsTasks = leadTasks.filter(task => {
-      const lead = leadsInActivePipeline.find(l => l.id === task.lead_id);
+      const lead = leadsForGestor.find(l => l.id === task.lead_id);
       if (!lead || task.type !== 'meeting') return false;
-      const taskDate = task.due_date || task.meeting_start_time || '';
-      return isInRange(taskDate);
+      const taskDate = new Date(task.due_date || task.meeting_start_time || '');
+      return taskDate >= currentMonthStart && taskDate <= currentMonthEnd;
     });
     const meetingsCount = meetingsTasks.length;
 
-    const leadsWithMeetings = leadsInActivePipeline.filter(lead =>
+    const leadsWithMeetings = leadsForGestor.filter(lead => 
       meetingsTasks.some(task => task.lead_id === lead.id)
     );
 
-    const leadsWithProposal = leadsInActivePipeline.filter(lead => {
+    const leadsWithProposal = leadsForGestor.filter(lead => {
       if (lead.proposal_value && lead.proposal_value > 0 && lead.proposal_closing_date) {
-        return isInRange(lead.proposal_closing_date + 'T00:00:00');
+        const proposalDate = new Date(lead.proposal_closing_date + 'T00:00:00');
+        return proposalDate >= currentMonthStart && proposalDate <= currentMonthEnd;
       }
       return false;
     });
     const proposalValue = leadsWithProposal.reduce((sum, lead) => sum + (lead.proposal_value || 0), 0);
 
-    const leadsSold = leadsInActivePipeline.filter(lead => {
+    const leadsSold = leadsForGestor.filter(lead => {
       if (lead.sold_credit_value && lead.sold_credit_value > 0 && lead.sale_date) {
-        return isInRange(lead.sale_date + 'T00:00:00');
+        const saleDate = new Date(lead.sale_date + 'T00:00:00');
+        return saleDate >= currentMonthStart && saleDate <= currentMonthEnd;
       }
       return false;
     });
     const soldValue = leadsSold.reduce((sum, lead) => sum + (lead.sold_credit_value || 0), 0);
 
-    const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
     const pendingTasks = leadTasks.filter(task => {
-      const lead = leadsInActivePipeline.find(l => l.id === task.lead_id);
-      if (!lead || task.is_completed || !task.due_date) return false;
-      const due = new Date(task.due_date + 'T00:00:00');
-      const todayDate = new Date(todayStr + 'T00:00:00');
-      return due <= todayDate;
+      const lead = leadsForGestor.find(l => l.id === task.lead_id);
+      return lead && !task.is_completed && task.due_date && new Date(task.due_date + 'T00:00:00') <= new Date(today.toISOString().split('T')[0] + 'T00:00:00');
     });
 
     return { totalLeads, newLeads, meetingsCount, proposalValue, soldValue, pendingTasks, leadsWithProposal, leadsSold, leadsWithMeetings };
   }, [crmLeads, leadTasks, user, activeStageIds]);
 
   const hiringMetrics = useMemo(() => {
-    const rangeStart = range.start;
-    const rangeEnd = range.end;
+    const today = new Date();
+    const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    const currentMonthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
 
     const isInFilterRange = (dateString?: string) => {
       if (!dateString) return false;
       const date = new Date(dateString);
-      return (!rangeStart || date >= rangeStart) && (!rangeEnd || date <= rangeEnd);
+      return date >= currentMonthStart && date <= currentMonthEnd;
     };
 
     const totalCandidates = candidates.filter(c => isInFilterRange(c.createdAt));
@@ -276,20 +256,24 @@ export const Dashboard = () => {
     let filteredLogs = logsToConsider;
     if (coldCallFilterStartDate) {
       const start = new Date(coldCallFilterStartDate + 'T00:00:00');
-      filteredLogs = filteredLogs.filter(log => new Date(log.start_time) >= start);
+      filteredLogs = filteredLogs.filter(log => new Date(log.created_at) >= start);
     }
     if (coldCallFilterEndDate) {
       const end = new Date(coldCallFilterEndDate + 'T23:59:59');
-      filteredLogs = filteredLogs.filter(log => new Date(log.start_time) <= end);
+      filteredLogs = filteredLogs.filter(log => new Date(log.created_at) <= end);
     }
 
     const totalCalls = filteredLogs.length;
     
-    const answeredLogs = filteredLogs.filter(log => isAnswered(log.result));
+    const answeredLogs = filteredLogs.filter(log => 
+      log.result !== 'Não atendeu' && log.result !== 'Número inválido'
+    );
     const totalAnswered = answeredLogs.length;
 
-    const totalConversations = answeredLogs.filter(log => isConversation(log.result)).length;
-    const totalMeetingsScheduled = answeredLogs.filter(log => isMeeting(log.result)).length;
+    const totalConversations = answeredLogs.filter(log =>
+      log.result === 'Demonstrou Interesse' || log.result === 'Agendar Reunião'
+    ).length;
+    const totalMeetingsScheduled = answeredLogs.filter(log => log.result === 'Agendar Reunião').length;
 
     const interestConversionRate = totalAnswered > 0 ? (totalConversations / totalAnswered) * 100 : 0;
     const meetingConversionRate = totalAnswered > 0 ? (totalMeetingsScheduled / totalAnswered) * 100 : 0;
@@ -396,7 +380,7 @@ export const Dashboard = () => {
 
       <section className="animate-fade-in">
         <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center">
-          <TrendingUp className="w-5 h-5 mr-2 text-brand-500" /> Métricas Comerciais
+          <TrendingUp className="w-5 h-5 mr-2 text-brand-500" /> Métricas Comerciais (Mês Atual)
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           <MetricCard
@@ -506,7 +490,7 @@ export const Dashboard = () => {
 
       <section className="animate-fade-in">
         <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center">
-          <PieChart className="w-5 h-5 mr-2 text-brand-500" /> Dashboard de Candidaturas
+          <PieChart className="w-5 h-5 mr-2 text-brand-500" /> Dashboard de Candidaturas (Mês Atual)
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           <MetricCard 

@@ -185,15 +185,6 @@ export interface SupportMaterialV2 {
   created_at: string;
 }
 
-export interface SupportMaterial {
-  id?: string;
-  title?: string;
-  description?: string;
-  url?: string;
-  type?: 'link' | 'file' | 'text' | 'image' | 'pdf';
-  [key: string]: any;
-}
-
 export interface SupportMaterialAssignment {
   id: string;
   db_id?: string;
@@ -548,17 +539,6 @@ export interface ColdCallLog {
   created_at: string;
 }
 
-export interface ConsultantEvent { // NOVO: Interface para eventos pessoais do consultor
-  id: string;
-  user_id: string;
-  title: string;
-  description?: string;
-  start_time: string;
-  end_time: string;
-  event_type: 'personal_task' | 'training' | 'other';
-  created_at: string;
-}
-
 export interface AppContextType {
   isDataLoading: boolean;
   candidates: Candidate[];
@@ -602,7 +582,6 @@ export interface AppContextType {
   teamProductionGoals: TeamProductionGoal[];
   coldCallLeads: ColdCallLead[]; // NOVO
   coldCallLogs: ColdCallLog[];   // NOVO
-  consultantEvents: ConsultantEvent[]; // NOVO: Adicionar eventos do consultor
   theme: 'light' | 'dark';
   toggleTheme: () => void;
   addCandidate: (candidate: Omit<Candidate, 'id' | 'createdAt' | 'db_id'>) => Promise<Candidate>;
@@ -718,10 +697,6 @@ export interface AppContextType {
   addColdCallLog: (log: Omit<ColdCallLog, 'id' | 'user_id' | 'created_at' | 'duration_seconds'> & { start_time: string; end_time: string; }) => Promise<ColdCallLog>; // NOVO
   getColdCallMetrics: (consultantId: string) => { totalCalls: number; totalConversations: number; totalMeetingsScheduled: number; conversationToMeetingRate: number; }; // NOVO
   createCrmLeadFromColdCall: (coldCallLeadId: string, meeting?: { date?: string; time?: string; modality?: string; notes?: string }) => Promise<{ crmLeadId: string }>; // NOVO
-  addConsultantEvent: (event: Omit<ConsultantEvent, 'id' | 'user_id' | 'created_at'>) => Promise<ConsultantEvent>; // NOVO
-  updateConsultantEvent: (id: string, updates: Partial<ConsultantEvent>) => Promise<ConsultantEvent>; // NOVO
-  deleteConsultantEvent: (id: string) => Promise<void>; // NOVO
-  refetchTeamMembers: () => Promise<void>;
 }
 
 export interface ColdCallMetrics { // NOVO: Interface para as métricas de Cold Call

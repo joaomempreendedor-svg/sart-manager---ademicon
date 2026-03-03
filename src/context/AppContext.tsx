@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
-import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, InstallmentInfo, CutoffPeriod, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask, DailyChecklistItemResource, GestorTask, GestorTaskCompletion, FinancialEntry, FormCadastro, FormFile, Notification, Feedback, TeamProductionGoal, ColdCallLead, ColdCallLog, ConsultantEvent, ChecklistItem } from '@/types';
+import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, InstallmentInfo, CutoffPeriod, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask, DailyChecklistItemResource, GestorTask, GestorTaskCompletion, FinancialEntry, FormCadastro, FormFile, Notification, Feedback, TeamProductionGoal, ColdCallLead, ColdCallLog } from '@/types';
 import { CHECKLIST_STAGES as DEFAULT_STAGES } from '@/data/checklistData';
 import { CONSULTANT_GOALS as DEFAULT_GOALS } from '@/data/consultantGoals';
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
@@ -37,10 +37,9 @@ const MONTHLY_CUTOFF_DAYS: Record<number, number> = {
 const JOAO_GESTOR_AUTH_ID = "0c6d71b7-daeb-4dde-8eec-0e7a8ffef658";
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const { user, isLoading: isAuthLoading } = useAuth(); // Use isAuthLoading from AuthContext
+  const { user } = useAuth();
   const fetchedUserIdRef = useRef<string | null>(null);
   const isFetchingRef = useRef(false);
-  const quickLoadedRef = useRef(false);
 
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
@@ -90,7 +89,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const [coldCallLeads, setColdCallLeads] = useState<ColdCallLead[]>([]);
   const [coldCallLogs, setColdCallLogs] = useState<ColdCallLog[]>([]);
-  const [consultantEvents, setConsultantEvents] = useState<ConsultantEvent[]>([]); // NOVO: Estado para eventos do consultor
 
   const [theme, setTheme] = useState<'light' | 'dark'>(() => (localStorage.getItem('sart_theme') as 'light' | 'dark') || 'light');
 
@@ -138,43 +136,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return `${compYear}-${compMonth}`;
   }, [cutoffPeriods]);
 
-  // Define se a tarefa do gestor está "devida" na data fornecida (YYYY-MM-DD)
-  const isGestorTaskDueOnDate = useCallback((task: GestorTask, checkDate: string): boolean => {
-    const type = task.recurrence_pattern?.type ?? 'none';
-    const toDay = (s: string) => new Date(s + 'T00:00:00');
-    if (type === 'none') {
-      return !!task.due_date && task.due_date === checkDate;
-    }
-    if (type === 'daily') {
-      return true;
-    }
-    if (type === 'every_x_days') {
-      const interval = Math.max(2, task.recurrence_pattern?.interval ?? 2);
-      const anchorStr = task.due_date || (task.created_at ? task.created_at.split('T')[0] : null);
-      if (!anchorStr) return false;
-      const anchor = toDay(anchorStr);
-      const probe = toDay(checkDate);
-      if (probe < anchor) return false;
-      const diffDays = Math.floor((probe.getTime() - anchor.getTime()) / (1000 * 60 * 60 * 24));
-      return diffDays % interval === 0;
-    }
-    return false;
-  }, []);
-
-  // Calcula notificações (quantidade não lida e lista ordenada por data)
-  const calculateNotifications = useCallback(() => {
-    const unread = (notifications || []).filter((n) => !n.is_read);
-    const ordered = [...(notifications || [])].sort((a, b) => {
-      const da = a.created_at ? new Date(a.created_at).getTime() : 0;
-      const db = b.created_at ? new Date(b.created_at).getTime() : 0;
-      return db - da;
-    });
-    return {
-      totalUnread: unread.length,
-      list: ordered,
-    };
-  }, [notifications]);
-
   const debouncedUpdateConfig = useDebouncedCallback(async (newConfig: any) => {
     if (!user) {
       console.warn("[AppContext] No user authenticated, cannot save config.");
@@ -194,40 +155,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     debouncedUpdateConfig({ ...currentConfig, ...updates });
   }, [user, checklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs, debouncedUpdateConfig]);
 
-  // Carrega configuração do app (checklist, goals, entrevistas, templates, etc.)
-  const fetchAppConfig = useCallback(async (ownerUserId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('app_config')
-        .select('data')
-        .eq('user_id', ownerUserId)
-        .maybeSingle();
-      if (error) throw error;
-      const cfg = (data?.data ?? {}) as any;
-      setChecklistStructure(cfg.checklistStructure ?? DEFAULT_STAGES);
-      setConsultantGoalsStructure(cfg.consultantGoalsStructure ?? DEFAULT_GOALS);
-      setInterviewStructure(cfg.interviewStructure ?? INITIAL_INTERVIEW_STRUCTURE);
-      setTemplates(cfg.templates ?? {});
-      setHiringOrigins(cfg.hiringOrigins ?? DEFAULT_APP_CONFIG_DATA.hiringOrigins);
-      setSalesOrigins(cfg.salesOrigins ?? DEFAULT_APP_CONFIG_DATA.salesOrigins);
-      setInterviewers(cfg.interviewers ?? DEFAULT_APP_CONFIG_DATA.interviewers);
-      setPvs(cfg.pvs ?? DEFAULT_APP_CONFIG_DATA.pvs);
-    } catch (e: any) {
-      console.error('[AppContext] Error loading app_config:', e?.message || e);
-      // Fallback seguro aos padrões
-      setChecklistStructure(DEFAULT_STAGES);
-      setConsultantGoalsStructure(DEFAULT_GOALS);
-      setInterviewStructure(INITIAL_INTERVIEW_STRUCTURE);
-      setTemplates({});
-      setHiringOrigins(DEFAULT_APP_CONFIG_DATA.hiringOrigins);
-      setSalesOrigins(DEFAULT_APP_CONFIG_DATA.salesOrigins);
-      setInterviewers(DEFAULT_APP_CONFIG_DATA.interviewers);
-      setPvs(DEFAULT_APP_CONFIG_DATA.pvs);
-    }
-  }, []);
-  
   const resetLocalState = useCallback(() => {
-    console.log("[AppContext] resetLocalState called, clearing all data.");
     setCandidates([]); setTeamMembers([]); setCommissions([]); setSupportMaterials([]); setCutoffPeriods([]); setOnboardingSessions([]); setOnboardingTemplateVideos([]);
     setChecklistStructure(DEFAULT_STAGES); setConsultantGoalsStructure(DEFAULT_GOALS); setInterviewStructure(INITIAL_INTERVIEW_STRUCTURE); setTemplates({});
     setHiringOrigins(DEFAULT_APP_CONFIG_DATA.hiringOrigins); setSalesOrigins(DEFAULT_APP_CONFIG_DATA.salesOrigins); setInterviewers(DEFAULT_APP_CONFIG_DATA.interviewers); setPvs(DEFAULT_APP_CONFIG_DATA.pvs);
@@ -236,86 +164,32 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setWeeklyTargets([]); setWeeklyTargetItems([]); setWeeklyTargetAssignments([]); setMetricLogs([]);
     setSupportMaterialsV2([]); setSupportMaterialAssignments([]); setLeadTasks([]); setGestorTasks([]); setGestorTaskCompletions([]); setFinancialEntries([]);
     setFormCadastros([]); setFormFiles([]); setNotifications([]); setTeamProductionGoals([]);
-    setColdCallLeads([]); setColdCallLogs([]); setConsultantEvents([]);
+    setColdCallLeads([]); setColdCallLogs([]);
     setIsDataLoading(false);
   }, []);
 
-  // Pré-carrega Equipe e Cold Call logo após login, para liberar a UI rapidamente
-  useEffect(() => {
-    if (!user?.id || quickLoadedRef.current) return;
-    (async () => {
-      try {
-        // Tenta via edge functions (bypass seguro de RLS)
-        const [teamFx, coldFx] = await Promise.all([
-          supabase.functions.invoke('get-team-members'),
-          supabase.functions.invoke('get-cold-call-data'),
-        ]);
-
-        // Team members
-        if (teamFx.data?.ok) {
-          const normalized = (teamFx.data.team_members || []).map((item: any) => {
-            const d = item.data || {};
-            const dbId = item.id;
-            const authId = d.id || d.authUserId || null;
-            return {
-              id: dbId, db_id: dbId, authUserId: authId,
-              name: String(d.name || ''), email: d.email,
-              roles: Array.isArray(d.roles) ? d.roles.map((r: string) => r.toUpperCase()) : [],
-              isActive: d.isActive !== false, hasLogin: !!authId, isLegacy: !authId,
-              cpf: item.cpf, dateOfBirth: d.dateOfBirth, user_id: item.user_id
-            } as TeamMember;
-          });
-          setTeamMembers(normalized);
-        }
-
-        // Cold call
-        if (coldFx.data?.ok) {
-          setColdCallLeads(coldFx.data.cold_call_leads || []);
-          setColdCallLogs(coldFx.data.cold_call_logs || []);
-        }
-      } catch (e) {
-        console.warn('[AppContext] quick preload failed:', (e as any)?.message || e);
-      } finally {
-        quickLoadedRef.current = true;
-        setIsDataLoading(false);
-      }
-    })();
-  }, [user?.id, supabase]);
-
   const refetchCommissions = useCallback(async () => {
     if (!user || isFetchingRef.current) return;
+    // Apenas perfis com permissão devem buscar comissões globais
+    const allowedRoles = ['GESTOR', 'ADMIN', 'SECRETARIA'];
+    if (!allowedRoles.includes(user.role)) {
+      setCommissions([]);
+      return;
+    }
+
     isFetchingRef.current = true;
     try {
-      console.log("[AppContext] Fetching commissions (edge function)...");
-      const { data: fxData, error: fxError } = await supabase.functions.invoke('get-commissions');
-      if (!fxError && fxData?.ok) {
-        const rows = fxData.commissions || [];
-        const normalized: Commission[] = rows.map((item: any) => {
-          const commission = item.data as Commission;
-          if (!commission.installmentDetails) {
-            const details: Record<string, InstallmentInfo> = {};
-            for (let i = 1; i <= 15; i++) details[i.toString()] = { status: "Pendente" };
-            commission.installmentDetails = details;
-          }
-          return { ...commission, db_id: item.id, criado_em: item.created_at };
-        });
-        setCommissions(normalized);
-        console.log("[AppContext] Commissions fetched via edge:", normalized.length);
-        return;
-      }
-
-      console.log("[AppContext] Edge function failed or not available, falling back to direct select...");
       const { data, error } = await supabase
         .from("commissions")
         .select("id, data, created_at")
+        .eq("user_id", JOAO_GESTOR_AUTH_ID)
         .order("created_at", { ascending: false });
       if (error) {
-        console.error(`[AppContext] Error loading commissions: ${error.message}`);
         toast.error(`Erro ao carregar comissões: ${error.message}`);
         setCommissions([]);
         return;
       }
-      const normalized: Commission[] = (data || []).map((item: any) => {
+      const normalized: Commission[] = (data || []).map(item => {
         const commission = item.data as Commission;
         if (!commission.installmentDetails) {
           const details: Record<string, InstallmentInfo> = {};
@@ -325,160 +199,119 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         return { ...commission, db_id: item.id, criado_em: item.created_at };
       });
       setCommissions(normalized);
-      console.log("[AppContext] Commissions fetched (fallback):", normalized.length);
     } finally {
       setTimeout(() => { isFetchingRef.current = false; }, 100);
     }
-  }, [user, supabase]);
-
-  const refetchTeamMembers = useCallback(async () => {
-    // Se não houver sessão, não faz nada
-    if (!user) {
-      setTeamMembers([]);
-      return;
-    }
-    try {
-      // Tentar via Edge Function primeiro (se papel permitir)
-      const role = user.role?.toUpperCase?.() || 'CONSULTOR';
-      let loaded = false;
-      if (['GESTOR', 'ADMIN', 'SECRETARIA'].includes(role)) {
-        const { data: tmFx, error: tmFxErr } = await supabase.functions.invoke('get-team-members');
-        if (!tmFxErr && tmFx?.ok) {
-          const fxTeamMembers = tmFx.team_members || [];
-          const normalized = (fxTeamMembers || []).map((item: any) => {
-            const data = item.data as any;
-            const dbId = item.id;
-            const authId = data.id || data.authUserId || null;
-            return {
-              id: dbId,
-              db_id: dbId,
-              authUserId: authId,
-              name: String(data.name || ''),
-              email: data.email,
-              roles: Array.isArray(data.roles) ? data.roles.map((r: string) => r.toUpperCase()) : [],
-              isActive: data.isActive !== false,
-              hasLogin: !!authId,
-              isLegacy: !authId,
-              cpf: item.cpf,
-              dateOfBirth: data.dateOfBirth,
-              user_id: item.user_id
-            } as TeamMember;
-          });
-          setTeamMembers(normalized);
-          loaded = true;
-        }
-      }
-      // Fallback: consulta direta (RLS limita; consultor verá a própria linha)
-      if (!loaded) {
-        const { data, error } = await supabase
-          .from('team_members')
-          .select('id, data, cpf, user_id');
-        if (error) throw error;
-        const normalized = (data || []).map((item: any) => {
-          const d = item.data as any;
-          const dbId = item.id;
-          const authId = d.id || d.authUserId || null;
-          return {
-            id: dbId,
-            db_id: dbId,
-            authUserId: authId,
-            name: String(d.name || ''),
-            email: d.email,
-            roles: Array.isArray(d.roles) ? d.roles.map((r: string) => r.toUpperCase()) : [],
-            isActive: d.isActive !== false,
-            hasLogin: !!authId,
-            isLegacy: !authId,
-            cpf: item.cpf,
-            dateOfBirth: d.dateOfBirth,
-            user_id: item.user_id
-          } as TeamMember;
-        });
-        setTeamMembers(normalized);
-      }
-    } catch (e: any) {
-      console.error('[AppContext] refetchTeamMembers error:', e?.message || e);
-      toast.error(`Erro ao recarregar membros da equipe: ${e?.message || 'desconhecido'}`);
-      setTeamMembers([]);
-    }
   }, [user]);
 
+  const isGestorTaskDueOnDate = useCallback((task: GestorTask, checkDate: string): boolean => {
+    if (!task.recurrence_pattern || task.recurrence_pattern.type === 'none') return task.due_date === checkDate;
+    const taskCreationDate = new Date(task.created_at);
+    const targetDate = new Date(checkDate);
+    if (task.recurrence_pattern.type === 'daily') return targetDate >= taskCreationDate;
+    if (task.recurrence_pattern.type === 'every_x_days' && task.recurrence_pattern.interval) {
+      const interval = task.recurrence_pattern.interval;
+      const diffDays = Math.ceil(Math.abs(targetDate.getTime() - taskCreationDate.getTime()) / (1000 * 60 * 60 * 24));
+      return targetDate >= taskCreationDate && diffDays % interval === 0;
+    }
+    return false;
+  }, []);
+
+  const calculateNotifications = useCallback(() => {
+    if (!user || (user.role !== 'GESTOR' && user.role !== 'ADMIN' && user.role !== 'SECRETARIA')) {
+      setNotifications([]);
+      return;
+    }
+    const newNotifications: Notification[] = [];
+    const today = new Date();
+    const currentMonth = today.getMonth();
+
+    teamMembers.forEach(member => {
+      if (member.dateOfBirth) {
+        const dob = new Date(member.dateOfBirth + 'T00:00:00');
+        if (dob.getMonth() === currentMonth) {
+          newNotifications.push({ id: `birthday-${member.id}`, type: 'birthday', title: `Aniversário de ${member.name}!`, description: `Celebre o aniversário de ${member.name} neste mês.`, date: member.dateOfBirth, link: `/gestor/config-team`, isRead: false });
+        }
+      }
+    });
+    setNotifications(newNotifications);
+  }, [user, teamMembers]);
+
+  const fetchAppConfig = useCallback(async (effectiveGestorId: string) => {
+    const { data: configRow, error: configError } = await supabase.from('app_config').select('data').eq('user_id', effectiveGestorId).maybeSingle();
+    if (configError) {
+      toast.error(`Erro ao carregar configurações do aplicativo: ${configError.message}`);
+      throw configError;
+    }
+    if (configRow && configRow.data) {
+      const appConfigData = configRow.data;
+      setChecklistStructure(appConfigData.checklistStructure || DEFAULT_STAGES);
+      setConsultantGoalsStructure(appConfigData.consultantGoalsStructure || DEFAULT_GOALS);
+      setInterviewStructure(appConfigData.interviewStructure || INITIAL_INTERVIEW_STRUCTURE);
+      setTemplates(appConfigData.templates || {});
+      setSalesOrigins(appConfigData.salesOrigins || DEFAULT_APP_CONFIG_DATA.salesOrigins);
+      setHiringOrigins(appConfigData.hiringOrigins !== undefined ? appConfigData.hiringOrigins : DEFAULT_APP_CONFIG_DATA.hiringOrigins);
+      setPvs(appConfigData.pvs || []);
+    } else {
+      setChecklistStructure(DEFAULT_STAGES);
+      setConsultantGoalsStructure(DEFAULT_GOALS);
+      setInterviewStructure(INITIAL_INTERVIEW_STRUCTURE);
+      setTemplates({});
+      setSalesOrigins(DEFAULT_APP_CONFIG_DATA.salesOrigins);
+      setHiringOrigins(DEFAULT_APP_CONFIG_DATA.hiringOrigins);
+      setPvs([]);
+    }
+  }, []);
+
   useEffect(() => {
-    let isMounted = true;
+    let subscription: any = null;
+    const effectiveGestorId = JOAO_GESTOR_AUTH_ID;
+
+    const setupRealtimeSubscription = () => {
+      subscription = supabase
+        .channel('app_config_changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'app_config', filter: `user_id=eq.${effectiveGestorId}` }, () => {
+          fetchAppConfig(effectiveGestorId);
+        })
+        .subscribe();
+    };
+
+    if (user && user.id) setupRealtimeSubscription();
+
+    return () => {
+      if (subscription) supabase.removeChannel(subscription);
+    };
+  }, [user, fetchAppConfig]);
+
+  useEffect(() => {
+    let isMounted = true; // Flag to prevent state updates on unmounted component
     const fetchData = async (userId: string) => {
-      console.log(`[AppContext.fetchData] Starting fetch for user: ${userId}`);
-      // Se o preload rápido já ocorreu, não bloqueie a UI de novo
-      setIsDataLoading(!quickLoadedRef.current);
+      setIsDataLoading(true);
       try {
         const effectiveGestorId = JOAO_GESTOR_AUTH_ID;
-        const currentCrmOwnerId = (user?.role === 'GESTOR' || user?.role === 'ADMIN') ? userId : effectiveGestorId;
-        setCrmOwnerUserId(currentCrmOwnerId);
-        console.log("[AppContext] crmOwnerUserId set to:", currentCrmOwnerId);
+        setCrmOwnerUserId(effectiveGestorId);
 
         await fetchAppConfig(effectiveGestorId);
 
-        // NOVO: Para GESTOR/ADMIN/SECRETARIA, buscar datasets críticos via edge function (bypass seguro de RLS)
-        const shouldUseFx = !!user && ['GESTOR', 'ADMIN', 'SECRETARIA'].includes(user.role);
-        let fxCrmLeads: any[] | null = null;
-        let fxLeadTasks: any[] | null = null;
-        let fxCandidates: any[] | null = null;
-        let fxColdCallLeads: any[] | null = null;
-        let fxColdCallLogs: any[] | null = null;
-
-        if (shouldUseFx) {
-          console.log("[AppContext] Invoking get-manager-dashboard edge function...");
-          const { data: fxData, error: fxError } = await supabase.functions.invoke('get-manager-dashboard');
-          if (fxError) {
-            console.error("[AppContext] get-manager-dashboard error:", fxError);
-          } else if (fxData?.ok) {
-            fxCrmLeads = fxData.crm_leads || [];
-            fxLeadTasks = fxData.lead_tasks || [];
-            fxCandidates = fxData.candidates || [];
-            console.log(`[AppContext] get-manager-dashboard returned leads=${fxCrmLeads.length}, tasks=${fxLeadTasks.length}, candidates=${fxCandidates.length}`);
-          }
-
-          // NOVO: Buscar membros da equipe via edge function para contornar RLS
-          console.log("[AppContext] Invoking get-team-members edge function...");
-          const { data: tmFx, error: tmFxErr } = await supabase.functions.invoke('get-team-members');
-          if (tmFxErr) {
-            console.error("[AppContext] get-team-members error:", tmFxErr);
-          } else if (tmFx?.ok) {
-            (window as any).__fxTeamMembers = tmFx.team_members || [];
-            console.log(`[AppContext] get-team-members returned team_members=${(window as any).__fxTeamMembers.length}`);
-          }
-
-          // NOVO: Carregar dados de Cold Call via edge function (bypass seguro de RLS)
-          console.log("[AppContext] Invoking get-cold-call-data edge function...");
-          const { data: coldFx, error: coldFxErr } = await supabase.functions.invoke('get-cold-call-data');
-          if (coldFxErr) {
-            console.error("[AppContext] get-cold-call-data error:", coldFxErr);
-          } else if (coldFx?.ok) {
-            fxColdCallLeads = coldFx.cold_call_leads || [];
-            fxColdCallLogs = coldFx.cold_call_logs || [];
-            console.log(`[AppContext] get-cold-call-data returned leads=${fxColdCallLeads.length}, logs=${fxColdCallLogs.length}`);
-          }
-        }
-
-        // Fetch data that is globally configured by JOAO_GESTOR_AUTH_ID or has RLS handled
         const [
-          materialsRes, cutoffRes, onboardingRes, templateVideosRes,
+          candidatesRes, materialsRes, cutoffRes, onboardingRes, templateVideosRes,
           pipelinesRes, stagesRes, fieldsRes, crmLeadsRes,
           dailyChecklistsRes, dailyChecklistItemsRes, dailyChecklistAssignmentsRes, dailyChecklistCompletionsRes,
           weeklyTargetsRes, weeklyTargetItemsRes, weeklyTargetAssignmentsRes, metricLogsRes,
           supportMaterialsV2Res, supportMaterialAssignmentsV2Res,
           leadTasksRes, gestorTasksRes, gestorTaskCompletionsRes, financialEntriesRes,
-          notificationsRes, teamProductionGoalsRes, teamMembersRes,
-          coldCallLeadsRes, coldCallLogsRes, consultantEventsRes,
-          candidatesRes,
-          formSubmissionsRes
+          formCadastrosRes, formFilesRes, notificationsRes, teamProductionGoalsRes, teamMembersRes,
+          coldCallLeadsRes, coldCallLogsRes
         ] = await Promise.all([
-          supabase.from('support_materials').select('id, data'),
+          supabase.from('candidates').select('id, data, created_at, last_updated_at').eq('user_id', effectiveGestorId),
+          supabase.from('support_materials').select('id, data').eq('user_id', effectiveGestorId),
           supabase.from('cutoff_periods').select('id, data').eq('user_id', effectiveGestorId),
-          supabase.from('onboarding_sessions').select('*, videos:onboarding_videos(*)').eq('user_id', effectiveGestorId),
-          supabase.from('onboarding_video_templates').select('*').eq('user_id', effectiveGestorId).order('order', { ascending: true }),
+          supabase.from('onboarding_sessions').select('*, videos:onboarding_videos(*)'),
+          supabase.from('onboarding_video_templates').select('*').order('order', { ascending: true }),
           supabase.from('crm_pipelines').select('*').eq('user_id', effectiveGestorId),
           supabase.from('crm_stages').select('*').eq('user_id', effectiveGestorId).order('order_index'),
           supabase.from('crm_fields').select('*').eq('user_id', effectiveGestorId),
-          supabase.from('crm_leads').select('*').order('created_at', { ascending: false }),
+          supabase.from('crm_leads').select('*').eq('user_id', effectiveGestorId).order('created_at', { ascending: false }),
           supabase.from('daily_checklists').select('*').eq('user_id', effectiveGestorId),
           supabase.from('daily_checklist_items').select('*'),
           supabase.from('daily_checklist_assignments').select('*'),
@@ -490,246 +323,45 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           supabase.from('support_materials_v2').select('*').eq('user_id', effectiveGestorId),
           supabase.from('support_material_assignments').select('*'),
           supabase.from('lead_tasks').select('*'),
-          supabase.from('gestor_tasks').select('*').eq('user_id', userId),
-          supabase.from('gestor_task_completions').select('*').eq('user_id', userId),
-          supabase.from('financial_entries').select('*').eq('user_id', userId),
+          supabase.from('gestor_tasks').select('*').eq('user_id', effectiveGestorId),
+          supabase.from('gestor_task_completions').select('*').eq('user_id', effectiveGestorId),
+          supabase.from('financial_entries').select('*').eq('user_id', effectiveGestorId),
+          supabase.from('form_submissions').select('id, submission_date, data, internal_notes, is_complete').eq('user_id', effectiveGestorId).order('submission_date', { ascending: false }),
+          supabase.from('form_files').select('*'),
           supabase.from('notifications').select('*').eq('user_id', userId).eq('is_read', false).order('created_at', { ascending: false }),
           supabase.from('team_production_goals').select('*').eq('user_id', effectiveGestorId).order('start_date', { ascending: false }),
-          supabase.from('team_members').select('id, data, cpf, user_id'),
-          supabase.from('cold_call_leads').select('id, user_id, name, phone, email, current_stage, notes, crm_lead_id, created_at, updated_at', { count: 'exact' }).range(0, 99999).limit(100000),
-          supabase.from('cold_call_logs').select('id, cold_call_lead_id, user_id, start_time, end_time, duration_seconds, result, meeting_date, meeting_time, meeting_modality, meeting_notes, created_at', { count: 'exact' }).range(0, 99999).limit(100000),
-          supabase.from('consultant_events').select('*'),
-          supabase.from('candidates').select('id, data, created_at, last_updated_at').eq('user_id', effectiveGestorId),
-          supabase.from('form_submissions').select('id, submission_date, data, internal_notes, is_complete').eq('user_id', effectiveGestorId).order('submission_date', { ascending: false }),
+          supabase.from('team_members').select('id, data, cpf, user_id').eq('user_id', effectiveGestorId),
+          supabase.from('cold_call_leads').select('*'),
+          supabase.from('cold_call_logs').select('*')
         ]);
 
-        // --- Handle Candidates (preferir Edge Function, se disponível) ---
-        if (fxCandidates) {
-          const normalizedCandidates = (fxCandidates || []).map((item: any) => {
-            const candidateData = item.data;
-            return {
-              ...candidateData,
-              id: (candidateData as any).id || crypto.randomUUID(),
-              db_id: item.id,
-              createdAt: item.created_at,
+        if (!isMounted) return; // Check mount status before updating state
+
+        if (candidatesRes.error) { toast.error(`Erro ao carregar candidatos: ${candidatesRes.error.message}`); setCandidates([]); }
+        else {
+          const normalizedCandidates = (candidatesRes.data || []).map(item => {
+            const candidateData = item.data as Candidate;
+            return { 
+              ...candidateData, 
+              id: (item.data as any).id || crypto.randomUUID(), 
+              db_id: item.id, 
+              createdAt: item.created_at, 
               lastUpdatedAt: item.last_updated_at,
-              contactedDate: candidateData.contactedDate,
-              interviewScheduledDate: candidateData.interviewScheduledDate,
-              interviewConductedDate: candidateData.interviewConductedDate,
-              awaitingPreviewDate: candidateData.awaitingPreviewDate,
-              onboardingOnlineDate: candidateData.onboardingOnlineDate,
-              integrationPresencialDate: candidateData.integrationPresencialDate,
-              acompanhamento90DiasDate: candidateData.acompanhamento90DiasDate,
-              authorizedDate: candidateData.authorizedDate,
-              reprovadoDate: candidateData.reprovadoDate,
-              disqualifiedDate: candidateData.disqualifiedDate,
-              faltouDate: candidateData.faltouDate,
+              contactedDate: candidateData.contactedDate, interviewScheduledDate: candidateData.interviewScheduledDate,
+              interviewConductedDate: candidateData.interviewConductedDate, awaitingPreviewDate: candidateData.awaitingPreviewDate,
+              onboardingOnlineDate: candidateData.onboardingOnlineDate, integrationPresencialDate: candidateData.integrationPresencialDate,
+              acompanhamento90DiasDate: candidateData.acompanhamento90DiasDate, authorizedDate: candidateData.authorizedDate,
+              reprovadoDate: candidateData.reprovadoDate, disqualifiedDate: candidateData.disqualifiedDate, faltouDate: candidateData.faltouDate,
               noResponseDate: candidateData.noResponseDate,
               interviewStartTime: candidateData.interviewStartTime,
               interviewEndTime: candidateData.interviewEndTime,
             };
           });
           setCandidates(normalizedCandidates);
-        } else {
-          if (candidatesRes.error) { console.error(`[AppContext] Error loading candidates: ${candidatesRes.error.message}`); setCandidates([]); }
-          else {
-            const normalizedCandidates = (candidatesRes.data || []).map(item => {
-              const candidateData = item.data as any;
-              return {
-                ...candidateData,
-                id: candidateData.id || crypto.randomUUID(),
-                db_id: item.id,
-                createdAt: item.created_at,
-                lastUpdatedAt: item.last_updated_at,
-              };
-            });
-            setCandidates(normalizedCandidates);
-          }
         }
 
-        // --- Handle CRM Leads (preferir Edge Function, se disponível) ---
-        if (fxCrmLeads) {
-          setCrmLeads(
-            fxCrmLeads.map((lead: any) => ({
-              id: lead.id,
-              consultant_id: lead.consultant_id,
-              stage_id: lead.stage_id,
-              user_id: lead.user_id,
-              name: lead.name,
-              data: lead.data,
-              created_at: lead.created_at,
-              updated_at: lead.updated_at,
-              created_by: lead.created_by,
-              updated_by: lead.updated_by,
-              proposal_value: parseDbCurrency(lead.proposal_value),
-              proposal_closing_date: lead.proposal_closing_date,
-              sold_credit_value: parseDbCurrency(lead.sold_credit_value),
-              sold_group: lead.sold_group,
-              sold_quota: lead.sold_quota,
-              sale_date: lead.sale_date,
-            }))
-          );
-        } else {
-          if (crmLeadsRes.error) { console.error(`[AppContext] Error loading CRM leads: ${crmLeadsRes.error.message}`); setCrmLeads([]); }
-          else {
-            setCrmLeads(crmLeadsRes.data?.map((lead: any) => ({
-              id: lead.id,
-              consultant_id: lead.consultant_id,
-              stage_id: lead.stage_id,
-              user_id: lead.user_id,
-              name: lead.name,
-              data: lead.data,
-              created_at: lead.created_at,
-              updated_at: lead.updated_at,
-              created_by: lead.created_by,
-              updated_by: lead.updated_by,
-              proposal_value: parseDbCurrency(lead.proposal_value),
-              proposal_closing_date: lead.proposal_closing_date,
-              sold_credit_value: parseDbCurrency(lead.sold_credit_value),
-              sold_group: lead.sold_group,
-              sold_quota: lead.sold_quota,
-              sale_date: lead.sale_date,
-            })) || []);
-          }
-        }
-
-        // --- Handle Lead Tasks (preferir Edge Function, se disponível) ---
-        if (fxLeadTasks) {
-          setLeadTasks(fxLeadTasks);
-        } else {
-          if (leadTasksRes.error) { console.error(`[AppContext] Error loading lead tasks: ${leadTasksRes.error.message}`); setLeadTasks([]); }
-          else { setLeadTasks(leadTasksRes.data || []); }
-        }
-
-        // --- Handle Other Data (RLS-dependent) ---
-        if (materialsRes.error) { console.error(`[AppContext] Error loading support materials: ${materialsRes.error.message}`); toast.error(`Erro ao carregar materiais de apoio: ${materialsRes.error.message}`); setSupportMaterials([]); }
-        else { setSupportMaterials(materialsRes.data?.map(item => ({ ...(item.data as SupportMaterial), db_id: item.id })) || []); console.log("[AppContext] Support Materials fetched:", (materialsRes.data || []).length); }
-
-        if (cutoffRes.error) { console.error(`[AppContext] Error loading cutoff periods: ${cutoffRes.error.message}`); toast.error(`Erro ao carregar períodos de corte: ${cutoffRes.error.message}`); setCutoffPeriods([]); }
-        else { setCutoffPeriods(cutoffRes.data?.map(item => ({ ...(item.data as CutoffPeriod), db_id: item.id })) || []); console.log("[AppContext] Cutoff Periods fetched:", (cutoffRes.data || []).length); }
-
-        if (onboardingRes.error) { console.error(`[AppContext] Error loading onboarding sessions: ${onboardingRes.error.message}`); toast.error(`Erro ao carregar sessões de onboarding: ${onboardingRes.error.message}`); setOnboardingSessions([]); }
-        else { setOnboardingSessions((onboardingRes.data as any[])?.map(s => ({...s, videos: s.videos.sort((a:any,b:any) => a.order - b.order)})) || []); console.log("[AppContext] Onboarding Sessions fetched:", (onboardingRes.data || []).length); }
-
-        if (templateVideosRes.error) { console.error(`[AppContext] Error loading video templates: ${templateVideosRes.error.message}`); toast.error(`Erro ao carregar templates de vídeo: ${templateVideosRes.error.message}`); setOnboardingTemplateVideos([]); }
-        else { setOnboardingTemplateVideos(templateVideosRes.data || []); console.log("[AppContext] Onboarding Video Templates fetched:", (templateVideosRes.data || []).length); }
-
-        if (pipelinesRes.error) { console.error(`[AppContext] Error loading CRM pipelines: ${pipelinesRes.error.message}`); toast.error(`Erro ao carregar pipelines do CRM: ${pipelinesRes.error.message}`); setCrmPipelines([]); }
-        else { setCrmPipelines(pipelinesRes.data || []); console.log("[AppContext] CRM Pipelines fetched:", (pipelinesRes.data || []).length); }
-
-        if (stagesRes.error) { console.error(`[AppContext] Error loading CRM stages: ${stagesRes.error.message}`); toast.error(`Erro ao carregar etapas do CRM: ${stagesRes.error.message}`); setCrmStages([]); }
-        else { setCrmStages(stagesRes.data || []); console.log("[AppContext] CRM Stages fetched:", (stagesRes.data || []).length); }
-
-        if (fieldsRes.error) { console.error(`[AppContext] Error loading CRM fields: ${fieldsRes.error.message}`); toast.error(`Erro ao carregar campos do CRM: ${fieldsRes.error.message}`); setCrmFields([]); }
-        else { setCrmFields(fieldsRes.data || []); console.log("[AppContext] CRM Fields fetched:", (fieldsRes.data || []).length); }
-
-        if (crmLeadsRes.error) { console.error(`[AppContext] Error loading CRM leads: ${crmLeadsRes.error.message}`); toast.error(`Erro ao carregar leads do CRM: ${crmLeadsRes.error.message}`); setCrmLeads([]); }
+        if (teamMembersRes.error) { toast.error(`Erro ao carregar membros da equipe: ${teamMembersRes.error.message}`); setTeamMembers([]); }
         else {
-          setCrmLeads(crmLeadsRes.data?.map((lead: any) => ({
-            id: lead.id,
-            consultant_id: lead.consultant_id,
-            stage_id: lead.stage_id,
-            user_id: lead.user_id,
-            name: lead.name,
-            data: lead.data,
-            created_at: lead.created_at,
-            updated_at: lead.updated_at,
-            created_by: lead.created_by,
-            updated_by: lead.updated_by,
-            proposal_value: parseDbCurrency(lead.proposal_value),
-            proposal_closing_date: lead.proposal_closing_date,
-            sold_credit_value: parseDbCurrency(lead.sold_credit_value),
-            sold_group: lead.sold_group,
-            sold_quota: lead.sold_quota,
-            sale_date: lead.sale_date,
-          })) || []);
-          console.log("[AppContext] CRM Leads fetched:", (crmLeadsRes.data || []).length);
-        }
-
-        if (dailyChecklistsRes.error) { console.error(`[AppContext] Error loading daily checklists: ${dailyChecklistsRes.error.message}`); toast.error(`Erro ao carregar checklists diários: ${dailyChecklistsRes.error.message}`); setDailyChecklists([]); }
-        else { setDailyChecklists(dailyChecklistsRes.data || []); console.log("[AppContext] Daily Checklists fetched:", (dailyChecklistsRes.data || []).length); }
-
-        if (dailyChecklistItemsRes.error) { console.error(`[AppContext] Error loading daily checklist items: ${dailyChecklistItemsRes.error.message}`); toast.error(`Erro ao carregar itens do checklist diário: ${dailyChecklistItemsRes.error.message}`); setDailyChecklistItems([]); }
-        else { setDailyChecklistItems(dailyChecklistItemsRes.data || []); console.log("[AppContext] Daily Checklist Items fetched:", (dailyChecklistItemsRes.data || []).length); }
-
-        if (dailyChecklistAssignmentsRes.error) { console.error(`[AppContext] Error loading daily checklist assignments: ${dailyChecklistAssignmentsRes.error.message}`); toast.error(`Erro ao carregar atribuições do checklist diário: ${dailyChecklistAssignmentsRes.error.message}`); setDailyChecklistAssignments([]); }
-        else { setDailyChecklistAssignments(dailyChecklistAssignmentsRes.data || []); console.log("[AppContext] Daily Checklist Assignments fetched:", (dailyChecklistAssignmentsRes.data || []).length); }
-
-        if (dailyChecklistCompletionsRes.error) { console.error(`[AppContext] Error loading daily checklist completions: ${dailyChecklistCompletionsRes.error.message}`); toast.error(`Erro ao carregar conclusões do checklist diário: ${dailyChecklistCompletionsRes.error.message}`); setDailyChecklistCompletions([]); }
-        else { setDailyChecklistCompletions(dailyChecklistCompletionsRes.data || []); console.log("[AppContext] Daily Checklist Completions fetched:", (dailyChecklistCompletionsRes.data || []).length); }
-
-        if (weeklyTargetsRes.error) { console.error(`[AppContext] Error loading weekly targets: ${weeklyTargetsRes.error.message}`); toast.error(`Erro ao carregar metas semanais: ${weeklyTargetsRes.error.message}`); setWeeklyTargets([]); }
-        else { setWeeklyTargets(weeklyTargetsRes.data || []); console.log("[AppContext] Weekly Targets fetched:", (weeklyTargetsRes.data || []).length); }
-
-        if (weeklyTargetItemsRes.error) { console.error(`[AppContext] Error loading weekly target items: ${weeklyTargetItemsRes.error.message}`); toast.error(`Erro ao carregar itens de metas semanais: ${weeklyTargetItemsRes.error.message}`); setWeeklyTargetItems([]); }
-        else { setWeeklyTargetItems(weeklyTargetItemsRes.data || []); console.log("[AppContext] Weekly Target Items fetched:", (weeklyTargetItemsRes.data || []).length); }
-
-        if (weeklyTargetAssignmentsRes.error) { console.error(`[AppContext] Error loading weekly target assignments: ${weeklyTargetAssignmentsRes.error.message}`); toast.error(`Erro ao carregar atribuições de metas semanais: ${weeklyTargetAssignmentsRes.error.message}`); setWeeklyTargetAssignments([]); }
-        else { setWeeklyTargetAssignments(weeklyTargetAssignmentsRes.data || []); console.log("[AppContext] Weekly Target Assignments fetched:", (weeklyTargetAssignmentsRes.data || []).length); }
-
-        if (metricLogsRes.error) { console.error(`[AppContext] Error loading metric logs: ${metricLogsRes.error.message}`); toast.error(`Erro ao carregar logs de métricas: ${metricLogsRes.error.message}`); setMetricLogs([]); }
-        else { setMetricLogs(metricLogsRes.data || []); console.log("[AppContext] Metric Logs fetched:", (metricLogsRes.data || []).length); }
-
-        if (supportMaterialsV2Res.error) { console.error(`[AppContext] Error loading support materials v2: ${supportMaterialsV2Res.error.message}`); toast.error(`Erro ao carregar materiais de apoio v2: ${supportMaterialsV2Res.error.message}`); setSupportMaterialsV2([]); }
-        else { setSupportMaterialsV2(supportMaterialsV2Res.data || []); console.log("[AppContext] Support Materials V2 fetched:", (supportMaterialsV2Res.data || []).length); }
-
-        if (supportMaterialAssignmentsV2Res.error) { console.error(`[AppContext] Error loading support material assignments: ${supportMaterialAssignmentsV2Res.error.message}`); toast.error(`Erro ao carregar atribuições de materiais de apoio: ${supportMaterialAssignmentsV2Res.error.message}`); setSupportMaterialAssignments([]); }
-        else { setSupportMaterialAssignments(supportMaterialAssignmentsV2Res.data || []); console.log("[AppContext] Support Material Assignments fetched:", (supportMaterialAssignmentsV2Res.data || []).length); }
-
-        if (leadTasksRes.error) { console.error(`[AppContext] Error loading lead tasks: ${leadTasksRes.error.message}`); toast.error(`Erro ao carregar tarefas de lead: ${leadTasksRes.error.message}`); setLeadTasks([]); }
-        else { setLeadTasks(leadTasksRes.data || []); console.log("[AppContext] Lead Tasks fetched:", (leadTasksRes.data || []).length); }
-
-        if (gestorTasksRes.error) { console.error(`[AppContext] Error loading gestor tasks: ${gestorTasksRes.error.message}`); toast.error(`Erro ao carregar tarefas do gestor: ${gestorTasksRes.error.message}`); setGestorTasks([]); }
-        else { setGestorTasks(gestorTasksRes.data || []); console.log("[AppContext] Gestor Tasks fetched:", (gestorTasksRes.data || []).length); }
-
-        if (gestorTaskCompletionsRes.error) { console.error(`[AppContext] Error loading gestor task completions: ${gestorTaskCompletionsRes.error.message}`); toast.error(`Erro ao carregar conclusões de tarefas do gestor: ${gestorTaskCompletionsRes.error.message}`); setGestorTaskCompletions([]); }
-        else { setGestorTaskCompletions(gestorTaskCompletionsRes.data || []); console.log("[AppContext] Gestor Task Completions fetched:", (gestorTaskCompletionsRes.data || []).length); }
-
-        if (financialEntriesRes.error) { console.error(`[AppContext] Error loading financial entries: ${financialEntriesRes.error.message}`); toast.error(`Erro ao carregar entradas financeiras: ${financialEntriesRes.error.message}`); setFinancialEntries([]); }
-        else {
-          setFinancialEntries(financialEntriesRes.data?.map((entry: any) => ({
-            id: entry.id, db_id: entry.id, user_id: entry.user_id, entry_date: entry.entry_date, type: entry.type, description: entry.description, amount: parseFloat(entry.amount || '0'), created_at: entry.created_at
-          })) || []);
-          console.log("[AppContext] Financial Entries fetched:", (financialEntriesRes.data || []).length);
-        }
-
-        // Duplicate handling for form submissions (keep behavior)
-        if (formSubmissionsRes.error) { console.error(`[AppContext] Error loading form submissions: ${formSubmissionsRes.error.message}`); toast.error(`Erro ao carregar cadastros de formulário: ${formSubmissionsRes.error.message}`); setFormCadastros([]); }
-        else { setFormCadastros(formSubmissionsRes.data || []); console.log("[AppContext] Form Cadastros fetched:", (formSubmissionsRes.data || []).length); }
-
-        // Now fetch formFiles based on fetched formCadastros
-        const currentSubmissionIds = formSubmissionsRes.data?.map(f => f.id) || [];
-        const { data: fetchedFormFilesData, error: formFilesError } = await supabase.from('form_files').select('*').in('submission_id', currentSubmissionIds);
-        if (formFilesError) { console.error(`[AppContext] Error loading form files: ${formFilesError.message}`); toast.error(`Erro ao carregar arquivos de formulário: ${formFilesError.error}`); setFormFiles([]); }
-        else { setFormFiles(fetchedFormFilesData || []); console.log("[AppContext] Form Files fetched:", (fetchedFormFilesData || []).length); }
-
-        if (!isMounted) {
-          console.log("[AppContext.fetchData] Component unmounted during fetch, skipping state updates.");
-          return;
-        }
-
-        // --- Handle Team Members ---
-        const fxTeamMembers: any[] | null = (window as any).__fxTeamMembers || null;
-        if (fxTeamMembers) {
-          const normalizedTeamMembers = (fxTeamMembers || []).map((item: any) => {
-            const data = item.data as any;
-            const dbId = item.id;
-            const authId = data.id || data.authUserId || null;
-            return { 
-              id: dbId, db_id: dbId, authUserId: authId, name: String(data.name || ''), email: data.email, 
-              roles: Array.isArray(data.roles) ? data.roles.map((role: string) => role.toUpperCase()) : [],
-              isActive: data.isActive !== false, 
-              hasLogin: !!authId, isLegacy: !authId, cpf: item.cpf, dateOfBirth: data.dateOfBirth, user_id: item.user_id 
-            };
-          });
-          setTeamMembers(normalizedTeamMembers);
-          // Limpar armazenamento temporário
-          delete (window as any).__fxTeamMembers;
-        } else if (teamMembersRes.error) {
-          console.error(`[AppContext] Error loading team members: ${teamMembersRes.error.message}`);
-          toast.error(`Erro ao carregar membros da equipe: ${teamMembersRes.error.message}`);
-          setTeamMembers([]);
-        } else {
           const normalizedTeamMembers = (teamMembersRes.data || []).map(item => {
             const data = item.data as any;
             const dbId = item.id;
@@ -742,130 +374,125 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             };
           });
           setTeamMembers(normalizedTeamMembers);
-          console.log("[AppContext] Team Members fetched:", normalizedTeamMembers.length);
         }
 
-        if (notificationsRes.error) { console.error(`[AppContext] Error loading notifications: ${notificationsRes.error.message}`); toast.error(`Erro ao carregar notificações: ${notificationsRes.error.message}`); setNotifications([]); }
-        else { setNotifications(notificationsRes.data || []); console.log("[AppContext] Notifications fetched:", (notificationsRes.data || []).length); }
+        if (materialsRes.error) { toast.error(`Erro ao carregar materiais de apoio: ${materialsRes.error.message}`); setSupportMaterials([]); }
+        else { setSupportMaterials(materialsRes.data?.map(item => ({ ...(item.data as SupportMaterial), db_id: item.id })) || []); }
 
-        if (teamProductionGoalsRes.error) { console.error(`[AppContext] Error loading team production goals: ${teamProductionGoalsRes.error.message}`); toast.error(`Erro ao carregar metas da equipe: ${teamProductionGoalsRes.error.message}`); setTeamProductionGoals([]); }
-        else { setTeamProductionGoals(teamProductionGoalsRes.data || []); console.log("[AppContext] Team Production Goals fetched:", (teamProductionGoalsRes.data || []).length); }
+        if (cutoffRes.error) { toast.error(`Erro ao carregar períodos de corte: ${cutoffRes.error.message}`); setCutoffPeriods([]); }
+        else { setCutoffPeriods(cutoffRes.data?.map(item => ({ ...(item.data as CutoffPeriod), db_id: item.id })) || []); }
+
+        if (onboardingRes.error) { toast.error(`Erro ao carregar sessões de onboarding: ${onboardingRes.error.message}`); setOnboardingSessions([]); }
+        else { setOnboardingSessions((onboardingRes.data as any[])?.map(s => ({...s, videos: s.videos.sort((a:any,b:any) => a.order - b.order)})) || []); }
+
+        if (templateVideosRes.error) { toast.error(`Erro ao carregar templates de vídeo: ${templateVideosRes.error.message}`); setOnboardingTemplateVideos([]); }
+        else { setOnboardingTemplateVideos(templateVideosRes.data || []); }
+
+        if (pipelinesRes.error) { toast.error(`Erro ao carregar pipelines do CRM: ${pipelinesRes.error.message}`); setCrmPipelines([]); }
+        else { setCrmPipelines(pipelinesRes.data || []); }
+
+        if (stagesRes.error) { toast.error(`Erro ao carregar etapas do CRM: ${stagesRes.error.message}`); setCrmStages([]); }
+        else { setCrmStages(stagesRes.data || []); }
+
+        if (fieldsRes.error) { toast.error(`Erro ao carregar campos do CRM: ${fieldsRes.error.message}`); setCrmFields([]); }
+        else { setCrmFields(fieldsRes.data || []); }
+
+        if (crmLeadsRes.error) { toast.error(`Erro ao carregar leads do CRM: ${crmLeadsRes.error.message}`); setCrmLeads([]); }
+        else { setCrmLeads(crmLeadsRes.data?.map((lead: any) => ({ 
+          id: lead.id, consultant_id: lead.consultant_id, stage_id: lead.stage_id, user_id: lead.user_id, name: lead.name, data: lead.data, created_at: lead.created_at, updated_at: lead.updated_at, created_by: lead.created_by, updated_by: lead.updated_by, 
+          proposal_value: parseDbCurrency(lead.proposal_value), proposal_closing_date: lead.proposal_closing_date, 
+          sold_credit_value: parseDbCurrency(lead.sold_credit_value), sold_group: lead.sold_group, sold_quota: lead.sold_quota, sale_date: lead.sale_date 
+        })) || []); }
+
+        if (dailyChecklistsRes.error) { toast.error(`Erro ao carregar checklists diários: ${dailyChecklistsRes.error.message}`); setDailyChecklists([]); }
+        else { setDailyChecklists(dailyChecklistsRes.data || []); }
+
+        if (dailyChecklistItemsRes.error) { toast.error(`Erro ao carregar itens do checklist diário: ${dailyChecklistItemsRes.error.message}`); setDailyChecklistItems([]); }
+        else { setDailyChecklistItems(dailyChecklistItemsRes.data || []); }
+
+        if (dailyChecklistAssignmentsRes.error) { toast.error(`Erro ao carregar atribuições do checklist diário: ${dailyChecklistAssignmentsRes.error.message}`); setDailyChecklistAssignments([]); }
+        else { setDailyChecklistAssignments(dailyChecklistAssignmentsRes.data || []); }
+
+        if (dailyChecklistCompletionsRes.error) { toast.error(`Erro ao carregar conclusões do checklist diário: ${dailyChecklistCompletionsRes.error.message}`); setDailyChecklistCompletions([]); }
+        else { setDailyChecklistCompletions(dailyChecklistCompletionsRes.data || []); }
+
+        if (weeklyTargetsRes.error) { toast.error(`Erro ao carregar metas semanais: ${weeklyTargetsRes.error.message}`); setWeeklyTargets([]); }
+        else { setWeeklyTargets(weeklyTargetsRes.data || []); }
+
+        if (weeklyTargetItemsRes.error) { toast.error(`Erro ao carregar itens de metas semanais: ${weeklyTargetItemsRes.error.message}`); setWeeklyTargetItems([]); }
+        else { setWeeklyTargetItems(weeklyTargetItemsRes.data || []); }
+
+        if (weeklyTargetAssignmentsRes.error) { toast.error(`Erro ao carregar atribuições de metas semanais: ${weeklyTargetAssignmentsRes.error.message}`); setWeeklyTargetAssignments([]); }
+        else { setWeeklyTargetAssignments(weeklyTargetAssignmentsRes.data || []); }
+
+        if (metricLogsRes.error) { toast.error(`Erro ao carregar logs de métricas: ${metricLogsRes.error.message}`); setMetricLogs([]); }
+        else { setMetricLogs(metricLogsRes.data || []); }
+
+        if (supportMaterialsV2Res.error) { toast.error(`Erro ao carregar materiais de apoio v2: ${supportMaterialsV2Res.error.message}`); setSupportMaterialsV2([]); }
+        else { setSupportMaterialsV2(supportMaterialsV2Res.data || []); }
+
+        if (supportMaterialAssignmentsV2Res.error) { toast.error(`Erro ao carregar atribuições de materiais de apoio: ${supportMaterialAssignmentsV2Res.error.message}`); setSupportMaterialAssignments([]); }
+        else { setSupportMaterialAssignments(supportMaterialAssignmentsV2Res.data || []); }
+
+        if (leadTasksRes.error) { toast.error(`Erro ao carregar tarefas de lead: ${leadTasksRes.error.message}`); setLeadTasks([]); }
+        else { setLeadTasks(leadTasksRes.data || []); }
+
+        if (gestorTasksRes.error) { toast.error(`Erro ao carregar tarefas do gestor: ${gestorTasksRes.error.message}`); setGestorTasks([]); }
+        else { setGestorTasks(gestorTasksRes.data || []); }
+
+        if (gestorTaskCompletionsRes.error) { toast.error(`Erro ao carregar conclusões de tarefas do gestor: ${gestorTaskCompletionsRes.error.message}`); setGestorTaskCompletions([]); }
+        else { setGestorTaskCompletions(gestorTaskCompletionsRes.data || []); }
+
+        if (financialEntriesRes.error) { toast.error(`Erro ao carregar entradas financeiras: ${financialEntriesRes.error.message}`); setFinancialEntries([]); }
+        else {
+          // CORREÇÃO: Remover a divisão por 100 aqui
+          setFinancialEntries(financialEntriesRes.data?.map((entry: any) => ({
+            id: entry.id, db_id: entry.id, user_id: entry.user_id, entry_date: entry.entry_date, type: entry.type, description: entry.description, amount: parseFloat(entry.amount || '0'), created_at: entry.created_at // Garante que amount seja sempre um número
+          })) || []);
+        }
+
+        if (formCadastrosRes.error) { toast.error(`Erro ao carregar cadastros de formulário: ${formCadastrosRes.error.message}`); setFormCadastros([]); }
+        else { setFormCadastros(formCadastrosRes.data || []); }
+
+        if (formFilesRes.error) { toast.error(`Erro ao carregar arquivos de formulário: ${formFilesRes.error.message}`); setFormFiles([]); }
+        else { setFormFiles(formFilesRes.data || []); }
+
+        if (notificationsRes.error) { toast.error(`Erro ao carregar notificações: ${notificationsRes.error.message}`); setNotifications([]); }
+        else { setNotifications(notificationsRes.data || []); }
+
+        if (teamProductionGoalsRes.error) { toast.error(`Erro ao carregar metas da equipe: ${teamProductionGoalsRes.error.message}`); setTeamProductionGoals([]); }
+        else { setTeamProductionGoals(teamProductionGoalsRes.data || []); }
         
-        if (fxColdCallLeads) {
-          setColdCallLeads(fxColdCallLeads);
-          console.log("[AppContext] Cold Call Leads loaded from edge function:", fxColdCallLeads.length);
-        } else if (coldCallLeadsRes.error) { 
-          console.error(`[AppContext] Error loading cold call leads: ${coldCallLeadsRes.error.message}`); 
-          toast.error(`Erro ao carregar leads de cold call: ${coldCallLeadsRes.error.message}`); 
-          setColdCallLeads([]); 
-        } else { 
-          setColdCallLeads(coldCallLeadsRes.data || []); 
-          console.log("[AppContext] Cold Call Leads fetched:", (coldCallLeadsRes.data || []).length, "Count:", coldCallLeadsRes.count);
-        }
+        if (coldCallLeadsRes.error) { toast.error(`Erro ao carregar leads de cold call: ${coldCallLeadsRes.error.message}`); setColdCallLeads([]); }
+        else { setColdCallLeads(coldCallLeadsRes.data || []); }
 
-        if (fxColdCallLogs) {
-          setColdCallLogs(fxColdCallLogs);
-          console.log("[AppContext] Cold Call Logs loaded from edge function:", fxColdCallLogs.length);
-        } else if (coldCallLogsRes.error) { 
-          console.error(`[AppContext] Error loading cold call logs: ${coldCallLogsRes.error.message}`); 
-          toast.error(`Erro ao carregar logs de cold call: ${coldCallLogsRes.error.message}`); 
-          setColdCallLogs([]); 
-        } else { 
-          setColdCallLogs(coldCallLogsRes.data || []); 
-          console.log("[AppContext] Cold Call Logs fetched:", (coldCallLogsRes.data || []).length, "Count:", coldCallLogsRes.count);
-        }
-
-        if (consultantEventsRes.error) { console.error(`[AppContext] Error loading consultant events: ${consultantEventsRes.error.message}`); toast.error(`Erro ao carregar eventos do consultor: ${consultantEventsRes.error.message}`); setConsultantEvents([]); }
-        else { setConsultantEvents(consultantEventsRes.data || []); console.log("[AppContext] Consultant Events fetched:", (consultantEventsRes.data || []).length); }
-
+        if (coldCallLogsRes.error) { toast.error(`Erro ao carregar logs de cold call: ${coldCallLogsRes.error.message}`); setColdCallLogs([]); }
+        else { setColdCallLogs(coldCallLogsRes.data || []); }
 
         refetchCommissions();
-        console.log("[AppContext] fetchData completed successfully for user:", userId);
-
       } catch (error: any) {
-        console.error("[AppContext] Critical error during fetchData:", error.message, error);
         toast.error(`Erro crítico ao carregar dados: ${error.message}`);
+        resetLocalState();
       } finally {
-        if (isMounted) { // Only update state if component is still mounted
+        if (isMounted) { // Check mount status before updating state
           setIsDataLoading(false);
-          console.log(`[AppContext.fetchData] Finished fetch for user: ${userId}. isDataLoading set to false.`);
-        } else {
-          console.log(`[AppContext.fetchData] Component unmounted during fetch for user: ${userId}. Skipping setIsDataLoading(false).`);
         }
       }
     };
 
-    console.log(`[AppContext.useEffect] Auth Loading: ${isAuthLoading}, User: ${user?.id}, Fetched User Ref: ${fetchedUserIdRef.current}`);
-
-    if (isAuthLoading) {
-      // AuthContext is still determining session status, keep AppContext loading
-      console.log("[AppContext.useEffect] Auth is still loading, keeping AppContext loading.");
+    if (user && user.id !== fetchedUserIdRef.current) {
+      fetchedUserIdRef.current = user.id;
       setIsDataLoading(true);
-      return;
-    }
-
-    // AuthContext has finished loading (isAuthLoading is false)
-    if (user && user.id) {
-      // User is authenticated
-      if (user.id !== fetchedUserIdRef.current) {
-        // New user or user changed, or first time authenticated
-        console.log(`[AppContext.useEffect] User authenticated (${user.id}) and different from last fetched (${fetchedUserIdRef.current}). Initiating fetchData.`);
-        fetchedUserIdRef.current = user.id;
-        fetchData(user.id);
-      } else {
-        // Same user, data already fetched or in progress. Ensure loading is false if not fetching.
-        console.log(`[AppContext.useEffect] User authenticated (${user.id}) and same as last fetched. Ensuring isDataLoading is false if not actively fetching.`);
-        if (isDataLoading && !isFetchingRef.current) { // Only set to false if it's currently true and no fetch is active
-          setIsDataLoading(false);
-        }
-      }
-    } else {
-      // User is definitivamente not authenticated (isAuthLoading is false and user is null)
-      console.log("[AppContext.useEffect] User is definitivamente unauthenticated. Resetting local state.");
+      fetchData(user.id);
+    } else if (!user) {
       fetchedUserIdRef.current = null;
       resetLocalState();
     }
 
     return () => {
-      isMounted = false;
-      console.log("[AppContext.useEffect] AppContext cleanup.");
+      isMounted = false; // Set flag to false when component unmounts
     };
-  }, [user, isAuthLoading, refetchCommissions, fetchAppConfig, resetLocalState, parseDbCurrency, user?.role, isDataLoading, isGestorTaskDueOnDate, calculateNotifications]);
-
-  // Adiciona cobertura de etapas: carrega etapas ausentes referenciadas por crmLeads (de qualquer owner/pipeline)
-  useEffect(() => {
-    // Identifica stage_ids usados pelos leads que ainda não existem em crmStages
-    const knownStageIds = new Set(crmStages.map(s => s.id));
-    const neededStageIds = Array.from(new Set(crmLeads.map(l => l.stage_id))).filter(id => !knownStageIds.has(id));
-
-    if (neededStageIds.length === 0) return;
-
-    (async () => {
-      try {
-        const { data, error } = await supabase
-          .from('crm_stages')
-          .select('*')
-          .in('id', neededStageIds);
-
-        if (error) {
-          console.warn('[AppContext] Falha ao buscar etapas ausentes por id:', error.message);
-          return;
-        }
-
-        if (data && data.length) {
-          setCrmStages(prev => {
-            const map = new Map(prev.map(s => [s.id, s]));
-            data.forEach((s: any) => {
-              map.set(s.id, s);
-            });
-            return Array.from(map.values());
-          });
-        }
-      } catch (e: any) {
-        console.warn('[AppContext] Erro inesperado ao complementar crm_stages:', e?.message || e);
-      }
-    })();
-  }, [crmLeads, crmStages, supabase, setCrmStages]);
+  }, [user?.id, refetchCommissions, fetchAppConfig, resetLocalState, parseDbCurrency]);
 
   // CRUD candidatos
   const addCandidate = useCallback(async (candidate: Omit<Candidate, 'id' | 'createdAt' | 'db_id'>) => {
@@ -962,11 +589,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!leadToUpdate) throw new Error(`Cold Call Lead com ID ${id} não encontrado.`);
     const { error: updateError } = await supabase.from('cold_call_leads').update(updates).eq('id', id);
     if (updateError) throw updateError;
-    const { data: selectData, error: selectError } = await supabase.from('cold_call_leads').select('id, user_id, name, phone, email, current_stage, notes, crm_lead_id, created_at, updated_at').eq('id', id).maybeSingle();
+    const { data, error: selectError } = await supabase.from('cold_call_leads').select('*').eq('id', id).maybeSingle();
     if (selectError) throw selectError;
-    if (!selectData) throw new Error("Nenhum dado retornado após atualizar o lead.");
-    setColdCallLeads(prev => prev.map(l => l.id === id ? selectData : l));
-    return selectData;
+    if (!data) throw new Error("Nenhum dado retornado após atualizar o lead.");
+    setColdCallLeads(prev => prev.map(l => l.id === id ? data : l));
+    return data;
   }, [user, coldCallLeads]);
 
   const deleteColdCallLead = useCallback(async (id: string) => {
@@ -978,10 +605,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const addColdCallLog = useCallback(async (log: Omit<ColdCallLog, 'id' | 'user_id' | 'created_at'> & { start_time: string; end_time: string; duration_seconds: number; }) => {
     if (!user) throw new Error("User not authenticated.");
     const insertData = { cold_call_lead_id: log.cold_call_lead_id, start_time: log.start_time, end_time: log.end_time, duration_seconds: log.duration_seconds, result: log.result, meeting_date: log.meeting_date, meeting_time: log.meeting_time, meeting_modality: log.meeting_modality, meeting_notes: log.meeting_notes, user_id: user.id };
-    const { data: insertedData, error: insertError } = await supabase.from('cold_call_logs').insert(insertData).select('id, cold_call_lead_id, user_id, start_time, end_time, duration_seconds, result, meeting_date, meeting_time, meeting_modality, meeting_notes, created_at').maybeSingle();
+    const { data: insertedData, error: insertError } = await supabase.from('cold_call_logs').insert(insertData).select('*').maybeSingle();
     if (insertError) throw insertError;
     if (!insertedData) {
-      const { data: fetchedData, error: selectError } = await supabase.from('cold_call_logs').select('id, cold_call_lead_id, user_id, start_time, end_time, duration_seconds, result, meeting_date, meeting_time, meeting_modality, meeting_notes, created_at').eq('cold_call_lead_id', log.cold_call_lead_id).eq('user_id', user.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
+      const { data: fetchedData, error: selectError } = await supabase.from('cold_call_logs').select('*').eq('cold_call_lead_id', log.cold_call_lead_id).eq('user_id', user.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
       if (selectError) throw selectError;
       if (!fetchedData) throw new Error("Nenhum dado retornado após inserir o log.");
       setColdCallLogs(prev => [...prev, fetchedData]);
@@ -1011,12 +638,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     } });
     if (error) throw error;
     if (data.error) throw new Error(data.error);
-    const { data: updatedColdCallLead } = await supabase.from('cold_call_leads').select('id, user_id, name, phone, email, current_stage, notes, crm_lead_id, created_at, updated_at').eq('id', coldCallLeadId).maybeSingle();
+    const { data: updatedColdCallLead } = await supabase.from('cold_call_leads').select('*').eq('id', coldCallLeadId).maybeSingle();
     if (updatedColdCallLead) setColdCallLeads(prev => prev.map(lead => lead.id === coldCallLeadId ? updatedColdCallLead : lead));
     const { data: newCrmLeads } = await supabase.from('crm_leads').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID).order('created_at', { ascending: false });
     setCrmLeads(newCrmLeads?.map((lead: any) => ({
       id: lead.id, consultant_id: lead.consultant_id, stage_id: lead.stage_id, user_id: lead.user_id, name: lead.name, data: lead.data,
-      created_at: lead.created_at, updated_at: data.updated_at, created_by: data.created_by, updated_by: data.updated_by,
+      created_at: lead.created_at, updated_at: lead.updated_at, created_by: lead.created_by, updated_by: lead.updated_by,
       proposal_value: parseDbCurrency(lead.proposal_value), proposal_closing_date: lead.proposal_closing_date,
       sold_credit_value: parseDbCurrency(lead.sold_credit_value), sold_group: lead.sold_group, sold_quota: lead.sold_quota, sale_date: lead.sale_date
     })) || []);
@@ -1078,19 +705,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const { data, error } = await supabase.from('gestor_task_completions').upsert({ gestor_task_id, user_id: JOAO_GESTOR_AUTH_ID, date, done }, { onConflict: 'gestor_task_id,user_id,date' }).select().single();
     if (error) throw error;
     setGestorTaskCompletions(prev => {
-      const filtered = prev.filter(c => !(c.gestor_task_id === gestor_task_id && c.user_id === JOAO_GESTOR_AUTH_ID && c.date === date));
+      const filtered = prev.filter(c => !(c.gestor_task_id === gestor_task_id && c.consultant_id === JOAO_GESTOR_AUTH_ID && c.date === date));
       return [...filtered, data];
     });
   }, []);
 
-  // Financial Entries
+  // Financeiro
   const addFinancialEntry = useCallback(async (entry: Omit<FinancialEntry, 'id' | 'user_id' | 'created_at'>) => {
+    // CORREÇÃO: Remover a multiplicação por 100 aqui
     const { data, error } = await supabase.from('financial_entries').insert({ ...entry, user_id: JOAO_GESTOR_AUTH_ID, amount: entry.amount }).select().single();
     if (error) throw error;
     setFinancialEntries(prev => [...prev, data]);
     return data;
   }, []);
   const updateFinancialEntry = useCallback(async (id: string, updates: Partial<FinancialEntry>) => {
+    // CORREÇÃO: Remover a multiplicação por 100 aqui
     const { data, error } = await supabase.from('financial_entries').update(updates).eq('id', id).select().single();
     if (error) throw error;
     setFinancialEntries(prev => prev.map(e => e.id === id ? data : e));
@@ -1155,7 +784,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const updateDailyChecklistItem = useCallback(async (id: string, updates: Partial<DailyChecklistItem>, audioFile?: File, imageFile?: File) => {
     let finalResource = updates.resource;
-    const currentItem = dailyChecklistItems.find(item => item.id === id);
     const uploadFile = async (file: File) => {
       const sanitized = sanitizeFilename(file.name);
       const path = `checklist_resources/${Date.now()}-${sanitized}`;
@@ -1163,22 +791,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (uploadError) throw uploadError;
       return supabase.storage.from('form_uploads').getPublicUrl(path).data.publicUrl;
     };
-
-    let audioUrl = audioFile ? await uploadFile(audioFile) : (currentItem?.resource?.type === 'text_audio' || currentItem?.resource?.type === 'text_audio_image' ? (currentItem.resource.content as any).audioUrl : undefined);
-    let imageUrl = imageFile ? await uploadFile(imageFile) : (currentItem?.resource?.type === 'text_audio_image' ? (currentItem.resource.content as any).imageUrl : undefined);
-
-    if (updates.resource) {
-      if (updates.resource.type === 'text_audio') {
-        finalResource = { ...updates.resource, content: { ...(updates.resource.content as any), audioUrl: audioUrl || (updates.resource.content as any).audioUrl } };
-      } else if (updates.resource.type === 'text_audio_image') {
-        finalResource = { ...updates.resource, content: { ...(updates.resource.content as any), audioUrl: audioUrl || (updates.resource.content as any).audioUrl, imageUrl: imageUrl || (updates.resource.content as any).imageUrl } };
-      } else if (updates.resource.type === 'image' || updates.resource.type === 'pdf' || updates.resource.type === 'audio') {
-        finalResource = { ...updates.resource, content: audioUrl || imageUrl || updates.resource.content };
-      }
-    } else {
-      // If resource is being removed or set to 'none', clear content
-      finalResource = { type: 'none', content: '' };
-    }
+    const audioUrl = audioFile ? await uploadFile(audioFile) : (updates.resource?.type === 'text_audio' || updates.resource?.type === 'text_audio_image' ? (updates.resource.content as any).audioUrl : undefined);
+    const imageUrl = imageFile ? await uploadFile(imageFile) : (updates.resource?.type === 'text_audio_image' ? (updates.resource.content as any).imageUrl : undefined);
+    if (updates.resource?.type === 'text_audio') finalResource = { ...updates.resource, content: { ...(updates.resource.content as any), audioUrl } };
+    else if (updates.resource?.type === 'text_audio_image') finalResource = { ...updates.resource, content: { ...(updates.resource.content as any), audioUrl, imageUrl } };
+    else if (updates.resource?.type === 'image' || updates.resource?.type === 'pdf' || updates.resource?.type === 'audio' || updates.resource?.type === 'video' || updates.resource?.type === 'link' || updates.resource?.type === 'text') finalResource = { ...updates.resource, content: audioUrl || imageUrl || updates.resource.content };
 
     // USO DE EDGE FUNCTION PARA ATUALIZAR (BYPASS SEGURO DE RLS)
     const { data: fxRes, error: fxErr } = await supabase.functions.invoke('manage-daily-checklist-item', {
@@ -1313,7 +930,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setMetricLogs(prev => prev.filter(m => m.id !== id));
   }, []);
 
-  // Support Materials v2
+  // Materiais de apoio v2
   const addSupportMaterialV2 = useCallback(async (material: Omit<SupportMaterialV2, 'id' | 'user_id' | 'created_at'>, file?: File) => {
     let content = material.content;
     if (file) {
@@ -1381,13 +998,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       created_at: data.created_at, 
       updated_at: data.updated_at, 
       created_by: data.created_by, 
-      updated_by: data.updated_by, 
+      updated_by: data.updated_by,
       proposal_value: parseDbCurrency(data.proposal_value), 
       proposal_closing_date: data.proposal_closing_date, 
       sold_credit_value: parseDbCurrency(data.sold_credit_value), 
       sold_group: data.sold_group, 
       sold_quota: data.sold_quota, 
-      sale_date: data.sale_date 
+      sale_date: data.sale_date
     };
     
     setCrmLeads(prev => [newLead, ...prev]);
@@ -1493,7 +1110,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setTeamMembers(prev => prev.filter(m => m.id !== id));
   }, [teamMembers]);
 
-  // Team Production Goals
+  // Metas da equipe
   const addTeamProductionGoal = useCallback(async (goal: Omit<TeamProductionGoal, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
     const { data, error } = await supabase.from('team_production_goals').insert({ ...goal, user_id: JOAO_GESTOR_AUTH_ID }).select().single();
     if (error) throw error;
@@ -1512,7 +1129,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setTeamProductionGoals(prev => prev.filter(g => g.id !== id));
   }, []);
 
-  // Cutoff Periods
+  // Cutoff periods
   const addCutoffPeriod = useCallback(async (period: CutoffPeriod) => {
     const { error } = await supabase.from('cutoff_periods').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: period }).select().single();
     if (error) throw error;
@@ -1531,7 +1148,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setCutoffPeriods(prev => prev.filter(p => p.db_id !== id));
   }, []);
 
-  // Online Onboarding (template + sessions)
+  // Online onboarding (template + sessões)
   const addOnlineOnboardingSession = useCallback(async (consultantName: string) => {
     const { data: sessionData, error: sessionError } = await supabase.from('onboarding_sessions').insert({ user_id: JOAO_GESTOR_AUTH_ID, consultant_name: consultantName }).select().single();
     if (sessionError) throw sessionError;
@@ -1561,28 +1178,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setOnboardingTemplateVideos(prev => prev.filter(v => v.id !== videoId));
   }, []);
 
-  // Form Submissions
+  // Formulários
   const updateFormCadastro = useCallback(async (id: string, updates: Partial<FormCadastro>) => {
-    console.log("[AppContext] updateFormCadastro called for ID:", id, "updates:", updates);
     const { data, error } = await supabase.from('form_submissions').update(updates).eq('id', id).select().single();
-    if (error) {
-      console.error("[AppContext] Error updating form cadastro:", error);
-      throw error;
-    }
+    if (error) throw error;
     setFormCadastros(prev => prev.map(f => f.id === id ? data : f));
     return data;
   }, []);
   const deleteFormCadastro = useCallback(async (id: string) => {
-    console.log("[AppContext] deleteFormCadastro called for ID:", id);
     const { error } = await supabase.from('form_submissions').delete().eq('id', id);
-    if (error) {
-      console.error("[AppContext] Error deleting form cadastro:", error);
-      throw error;
-    }
+    if (error) throw error;
     setFormCadastros(prev => prev.filter(f => f.id !== id));
   }, []);
 
-  // Feedbacks (candidate)
+  // Feedbacks (candidato)
   const addFeedback = useCallback(async (personId: string, feedback: Omit<Feedback, 'id'>) => {
     const candidate = candidates.find(c => c.id === personId);
     if (!candidate) throw new Error("Candidate not found");
@@ -1605,431 +1214,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     await updateCandidate(personId, { feedbacks: updatedFeedbacks });
   }, [candidates, updateCandidate]);
 
-  // Consultant Events (NOVO: CRUD para eventos do consultor)
-  const addConsultantEvent = useCallback(async (event: Omit<ConsultantEvent, 'id' | 'user_id' | 'created_at'>) => {
-    if (!user) throw new Error("Usuário não autenticado. Não é possível adicionar evento.");
-    const { data, error } = await supabase.from('consultant_events').insert({ ...event, user_id: user.id }).select().single();
-    if (error) throw error;
-    setConsultantEvents(prev => [...prev, data]);
-    return data;
-  }, [user]);
-
-  const updateConsultantEvent = useCallback(async (id: string, updates: Partial<ConsultantEvent>) => {
-    if (!user) throw new Error("Usuário não autenticado. Não é possível atualizar evento.");
-    const { data, error } = await supabase.from('consultant_events').update(updates).eq('id', id).select().single();
-    if (error) throw error;
-    setConsultantEvents(prev => prev.map(e => e.id === id ? data : e));
-    return data;
-  }, [user]);
-
-  const deleteConsultantEvent = useCallback(async (id: string) => {
-    if (!user) throw new Error("Usuário não autenticado. Não é possível excluir evento.");
-    const { error } = await supabase.from('consultant_events').delete().eq('id', id);
-    if (error) throw error;
-    setConsultantEvents(prev => prev.filter(e => e.id !== id));
-  }, [user]);
-
-  const value: AppContextType = useMemo(() => {
-    console.log("[AppContext] useMemo re-calculating value. updateFormCadastro is defined:", typeof updateFormCadastro !== 'undefined');
-    return {
-      isDataLoading,
-      candidates, teamMembers, commissions, supportMaterials, cutoffPeriods, onboardingSessions, onboardingTemplateVideos,
-      checklistStructure, setChecklistStructure,
-      consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs,
-      crmPipelines, crmStages, crmFields, crmLeads, crmOwnerUserId,
-      dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions,
-      weeklyTargets, weeklyTargetItems, weeklyTargetAssignments,
-      metricLogs, supportMaterialsV2, supportMaterialAssignments,
-      leadTasks, gestorTasks, gestorTaskCompletions, financialEntries,
-      formCadastros, formFiles, notifications, teamProductionGoals,
-      coldCallLeads, coldCallLogs, consultantEvents, // NOVO: Adicionar eventos do consultor
-      theme,
-
-      toggleTheme, updateConfig, resetLocalState, refetchCommissions, calculateCompetenceMonth, isGestorTaskDueOnDate, calculateNotifications,
-
-      addCandidate, updateCandidate, deleteCandidate,
-      getCandidate: (id: string) => candidates.find(c => c.id === id),
-      setCandidates,
-
-      toggleChecklistItem,
-      setChecklistDueDate: async (candidateId: string, itemId: string, dueDate: string) => {
-        const candidate = candidates.find(c => c.id === candidateId);
-        if (!candidate) return;
-        const currentProgress = candidate.checklistProgress || {};
-        const currentState = currentProgress[itemId] || { completed: false };
-        const newProgress = { ...currentProgress, [itemId]: { ...currentState, dueDate } };
-        await updateCandidate(candidateId, { checklistProgress: newProgress });
-      },
-      toggleConsultantGoal: async (candidateId: string, goalId: string) => {
-        const candidate = candidates.find(c => c.id === candidateId);
-        if (!candidate) return;
-        const currentProgress = candidate.consultantGoalsProgress || {};
-        const newProgress = { ...currentProgress, [goalId]: !currentProgress[goalId] };
-        await updateCandidate(candidateId, { consultantGoalsProgress: newProgress });
-      },
-
-      addChecklistItem: (stageId: string, label: string, responsibleRole: string) => {
-        const newStructure = checklistStructure.map(stage => {
-          if (stage.id === stageId) {
-            return { ...stage, items: [...stage.items, { id: crypto.randomUUID(), label, responsibleRole }] };
-          }
-          return stage;
-        });
-        setChecklistStructure(newStructure);
-        updateConfig({ checklistStructure: newStructure });
-        return Promise.resolve({} as any);
-      },
-      updateChecklistItem: (stageId: string, itemId: string, updates: Partial<ChecklistItem>) => {
-        const newStructure = checklistStructure.map(stage => {
-          if (stage.id !== stageId) return stage;
-          return {
-            ...stage,
-            items: stage.items.map(item => (item.id === itemId ? { ...item, ...updates } : item)),
-          };
-        });
-        setChecklistStructure(newStructure);
-        updateConfig({ checklistStructure: newStructure });
-        return Promise.resolve({} as any);
-      },
-      deleteChecklistItem: (stageId: string, itemId: string) => {
-        const newStructure = checklistStructure.map(stage => {
-          if (stage.id === stageId) {
-            return { ...stage, items: stage.items.filter(item => item.id !== itemId) };
-          }
-          return stage;
-        });
-        setChecklistStructure(newStructure);
-        updateConfig({ checklistStructure: newStructure });
-      },
-      moveChecklistItem: (stageId: string, itemId: string, direction: 'up' | 'down') => {
-        const newStructure = checklistStructure.map(stage => {
-          if (stage.id === stageId) {
-            const index = stage.items.findIndex(i => i.id === itemId);
-            if (index === -1) return stage;
-            const newItems = [...stage.items];
-            const targetIndex = direction === 'up' ? index - 1 : index + 1;
-            if (targetIndex >= 0 && targetIndex < newItems.length) {
-              [newItems[index], newItems[targetIndex]] = [newItems[targetIndex], newItems[index]];
-            }
-            return { ...stage, items: newItems };
-          }
-          return stage;
-        });
-        setChecklistStructure(newStructure);
-        updateConfig({ checklistStructure: newStructure });
-      },
-      resetChecklistToDefault: () => {
-        setChecklistStructure(DEFAULT_STAGES);
-        updateConfig({ checklistStructure: DEFAULT_STAGES });
-      },
-
-      addGoalItem: (stageId: string, label: string) => {
-        const newStructure = consultantGoalsStructure.map(stage => {
-          if (stage.id === stageId) return { ...stage, items: [...stage.items, { id: crypto.randomUUID(), label }] };
-          return stage;
-        });
-        setConsultantGoalsStructure(newStructure);
-        updateConfig({ consultantGoalsStructure: newStructure });
-      },
-      updateGoalItem: (stageId: string, itemId: string, newLabel: string) => {
-        const newStructure = consultantGoalsStructure.map(stage => {
-          if (stage.id === stageId) return { ...stage, items: stage.items.map(item => item.id === itemId ? { ...item, label: newLabel } : item) };
-          return stage;
-        });
-        setConsultantGoalsStructure(newStructure);
-        updateConfig({ consultantGoalsStructure: newStructure });
-      },
-      deleteGoalItem: (stageId: string, itemId: string) => {
-        const newStructure = consultantGoalsStructure.map(stage => {
-          if (stage.id === stageId) return { ...stage, items: stage.items.filter(item => item.id !== itemId) };
-          return stage;
-        });
-        setConsultantGoalsStructure(newStructure);
-        updateConfig({ consultantGoalsStructure: newStructure });
-      },
-      moveGoalItem: (stageId: string, itemId: string, direction: 'up' | 'down') => {
-        const newStructure = consultantGoalsStructure.map(stage => {
-          if (stage.id === stageId) {
-            const index = stage.items.findIndex(i => i.id === itemId);
-            if (index === -1) return stage;
-            const newItems = [...stage.items];
-            const targetIndex = direction === 'up' ? index - 1 : index + 1;
-            if (targetIndex >= 0 && targetIndex < newItems.length) {
-              [newItems[index], newItems[targetIndex]] = [newItems[targetIndex], newItems[index]];
-            }
-            return { ...stage, items: newItems };
-          }
-          return stage;
-        });
-        setConsultantGoalsStructure(newStructure);
-        updateConfig({ consultantGoalsStructure: newStructure });
-      },
-      resetGoalsToDefault: () => {
-        setConsultantGoalsStructure(DEFAULT_GOALS);
-        updateConfig({ consultantGoalsStructure: DEFAULT_GOALS });
-      },
-
-      updateInterviewSection: (sectionId: string, updates: Partial<InterviewSection>) => {
-        const newStructure = interviewStructure.map(s => s.id === sectionId ? { ...s, ...updates } : s);
-        setInterviewStructure(newStructure);
-        updateConfig({ interviewStructure: newStructure });
-      },
-      addInterviewQuestion: (sectionId: string, text: string, points: number) => {
-        const newStructure = interviewStructure.map(s => s.id === sectionId ? { ...s, questions: [...s.questions, { id: crypto.randomUUID(), text, points }] } : s);
-        setInterviewStructure(newStructure);
-        updateConfig({ interviewStructure: newStructure });
-      },
-      updateInterviewQuestion: (sectionId: string, questionId: string, updates: Partial<{ text: string; points: number }>) => {
-        const newStructure = interviewStructure.map(s => s.id === sectionId ? { ...s, questions: s.questions.map(q => q.id === questionId ? { ...q, ...updates } : q) } : s);
-        setInterviewStructure(newStructure);
-        updateConfig({ interviewStructure: newStructure });
-      },
-      deleteInterviewQuestion: (sectionId: string, questionId: string) => {
-        const newStructure = interviewStructure.map(s => s.id === sectionId ? { ...s, questions: s.questions.filter(q => q.id !== questionId) } : s);
-        setInterviewStructure(newStructure);
-        updateConfig({ interviewStructure: newStructure });
-      },
-      moveInterviewQuestion: (sectionId: string, questionId: string, direction: 'up' | 'down') => {
-        const newStructure = interviewStructure.map(s => {
-          if (s.id === sectionId) {
-            const index = s.questions.findIndex(i => i.id === questionId);
-            if (index === -1) return s;
-            const newQuestions = [...s.questions];
-            const targetIndex = direction === 'up' ? index - 1 : index + 1;
-            if (targetIndex >= 0 && targetIndex < newQuestions.length) {
-              [newQuestions[index], newQuestions[targetIndex]] = [newQuestions[targetIndex], newQuestions[index]];
-            }
-            return { ...s, questions: newQuestions };
-          }
-          return s;
-        });
-        setInterviewStructure(newStructure);
-        updateConfig({ interviewStructure: newStructure });
-      },
-      resetInterviewToDefault: () => {
-        setInterviewStructure(INITIAL_INTERVIEW_STRUCTURE);
-        updateConfig({ interviewStructure: INITIAL_INTERVIEW_STRUCTURE });
-      },
-
-      saveTemplate: (itemId: string, updates: Partial<CommunicationTemplate>) => {
-        const newTemplates = { ...templates, [itemId]: { ...templates[itemId], ...updates } };
-        setTemplates(newTemplates);
-        updateConfig({ templates: newTemplates });
-      },
-      addOrigin: (newOrigin: string, type: 'sales' | 'hiring') => {
-        if (type === 'sales') {
-          const newOrigins = [...salesOrigins, newOrigin];
-          setSalesOrigins(newOrigins);
-          updateConfig({ salesOrigins: newOrigins });
-        } else {
-          const newOrigins = [...hiringOrigins, newOrigin];
-          setHiringOrigins(newOrigins);
-          updateConfig({ hiringOrigins: newOrigins });
-        }
-      },
-      deleteOrigin: (originToDelete: string, type: 'sales' | 'hiring') => {
-        if (type === 'sales') {
-          const newOrigins = salesOrigins.filter(o => o !== originToDelete);
-          setSalesOrigins(newOrigins);
-          updateConfig({ salesOrigins: newOrigins });
-        } else {
-          const newOrigins = hiringOrigins.filter(o => o !== originToDelete);
-          setHiringOrigins(newOrigins);
-          updateConfig({ hiringOrigins: newOrigins });
-        }
-      },
-      resetOriginsToDefault: () => {
-        setSalesOrigins(DEFAULT_APP_CONFIG_DATA.salesOrigins);
-        setHiringOrigins(DEFAULT_APP_CONFIG_DATA.hiringOrigins);
-        updateConfig({ salesOrigins: DEFAULT_APP_CONFIG_DATA.salesOrigins, hiringOrigins: DEFAULT_APP_CONFIG_DATA.hiringOrigins });
-      },
-      addPV: (newPV: string) => {
-        const newPvsList = [...pvs, newPV];
-        setPvs(newPvsList);
-        updateConfig({ pvs: newPvsList });
-      },
-
-      addCommission: async (commission: any) => {
-        const { error } = await supabase.from('commissions').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: commission }).select().single();
-        if (error) throw error;
-        refetchCommissions();
-        return { success: true };
-      },
-      updateCommission: async (id: string, updates: Partial<Commission>) => {
-        const { error } = await supabase.from('commissions').update({ data: updates }).eq('id', id);
-        if (error) throw error;
-        refetchCommissions();
-      },
-      deleteCommission: async (id: string) => { const { error } = await supabase.from('commissions').delete().eq('id', id); if (error) throw error; refetchCommissions(); },
-      updateInstallmentStatus: async (commissionDbId: string, installmentNumber: number, status: InstallmentStatus, paidDate?: string) => {
-        const current = commissions.find(c => c.db_id === commissionDbId);
-        if (!current) throw new Error('Comissão não encontrada');
-
-        const key = installmentNumber.toString();
-
-        const details = { ...(current.installmentDetails || {}) };
-        const prev = details[key] || { status: 'Pendente' as InstallmentStatus };
-
-        const updatedInfo: InstallmentInfo = { ...prev, status };
-
-        if (status === 'Pago') {
-          const effectiveDate = paidDate || new Date().toISOString().split('T')[0];
-          updatedInfo.paidDate = effectiveDate;
-          updatedInfo.competenceMonth = calculateCompetenceMonth(effectiveDate);
-        } else {
-          delete updatedInfo.paidDate;
-          delete updatedInfo.competenceMonth;
-        }
-
-        const newDetails = { ...details, [key]: updatedInfo };
-        const updatedCommission: Commission = {
-          ...current,
-          installmentDetails: newDetails,
-          status: getOverallStatus(newDetails),
-        };
-
-        const { db_id, criado_em, ...dataToSave } = updatedCommission as any;
-
-        const { error } = await supabase.from('commissions').update({ data: dataToSave }).eq('id', commissionDbId);
-        if (error) throw error;
-
-        setCommissions(prev => prev.map(c => (c.db_id === commissionDbId ? { ...updatedCommission } : c)));
-
-        toast.success(`Parcela ${installmentNumber} marcada como ${status}.`);
-      },
-
-      addCutoffPeriod,
-      updateCutoffPeriod,
-      deleteCutoffPeriod,
-
-      addOnlineOnboardingSession,
-      deleteOnlineOnboardingSession,
-      addVideoToTemplate,
-      deleteVideoFromTemplate,
-
-      addCrmPipeline: async (name: string) => {
-        const { data, error } = await supabase.from('crm_pipelines').insert({ user_id: JOAO_GESTOR_AUTH_ID, name }).select().single();
-        if (error) throw error;
-        setCrmPipelines(prev => [...prev, data]);
-        return data;
-      },
-      updateCrmPipeline: async (id: string, updates: Partial<CrmPipeline>) => {
-        const { data, error } = await supabase.from('crm_pipelines').update(updates).eq('id', id).select().single();
-        if (error) throw error;
-        setCrmPipelines(prev => prev.map(p => p.id === id ? data : p));
-        return data;
-      },
-      deleteCrmPipeline: async (id: string) => {
-        const { error } = await supabase.from('crm_pipelines').delete().eq('id', id);
-        if (error) throw error;
-        setCrmPipelines(prev => prev.filter(p => p.id !== id));
-      },
-
-      addCrmStage: async (stage: Omit<CrmStage, 'id' | 'user_id' | 'created_at'>) => {
-        const { data, error } = await supabase.from('crm_stages').insert({ ...stage, user_id: JOAO_GESTOR_AUTH_ID }).select().single();
-        if (error) throw error;
-        setCrmStages(prev => [...prev, data]);
-        return data;
-      },
-      updateCrmStage: async (id: string, updates: Partial<CrmStage>) => {
-        const { data, error } = await supabase.from('crm_stages').update(updates).eq('id', id).select().single();
-        if (error) throw error;
-        setCrmStages(prev => prev.map(s => s.id === id ? data : s));
-        return data;
-      },
-      updateCrmStageOrder: async (orderedStages: CrmStage[]) => {
-        const updates = orderedStages.map((stage, index) => supabase.from('crm_stages').update({ order_index: index }).eq('id', stage.id));
-        await Promise.all(updates);
-        const { data } = await supabase.from('crm_stages').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID).order('order_index');
-        setCrmStages(data || []);
-      },
-      deleteCrmStage: async (id: string) => {
-        const { error } = await supabase.from('crm_stages').delete().eq('id', id);
-        if (error) throw error;
-        setCrmStages(prev => prev.filter(s => s.id !== id));
-      },
-
-      addCrmField: async (field: Omit<CrmField, 'id' | 'user_id' | 'created_at'>) => {
-        const { data, error } = await supabase.from('crm_fields').insert({ ...field, user_id: JOAO_GESTOR_AUTH_ID }).select().single();
-        if (error) throw error;
-        setCrmFields(prev => [...prev, data]);
-        return data;
-      },
-      updateCrmField: async (id: string, updates: Partial<CrmField>) => {
-        const { data, error } = await supabase.from('crm_fields').update(updates).eq('id', id).select().single();
-        if (error) throw error;
-        setCrmFields(prev => prev.map(f => f.id === id ? data : f));
-        return data;
-      },
-
-      addCrmLead,
-      updateCrmLead,
-      deleteCrmLead,
-
-      addDailyChecklist,
-      updateDailyChecklist,
-      deleteDailyChecklist,
-
-      addDailyChecklistItem,
-      updateDailyChecklistItem,
-      deleteDailyChecklistItem,
-      moveDailyChecklistItem,
-
-      assignDailyChecklistToConsultant,
-      unassignDailyChecklistFromConsultant,
-      toggleDailyChecklistCompletion,
-
-      addWeeklyTarget, updateWeeklyTarget, deleteWeeklyTarget,
-      addWeeklyTargetItem, updateWeeklyTargetItem, deleteWeeklyTargetItem, updateWeeklyTargetItemOrder,
-      assignWeeklyTargetToConsultant, unassignWeeklyTargetFromConsultant,
-
-      addMetricLog,
-      updateMetricLog,
-      deleteMetricLog,
-
-      addSupportMaterialV2,
-      updateSupportMaterialV2,
-      deleteSupportMaterialV2,
-      assignSupportMaterialToConsultant,
-      unassignSupportMaterialFromConsultant,
-
-      addLeadTask, updateLeadTask, deleteLeadTask, toggleLeadTaskCompletion, updateLeadMeetingInvitationStatus,
-
-      addGestorTask, updateGestorTask, deleteGestorTask, toggleGestorTaskCompletion,
-
-      addFinancialEntry, updateFinancialEntry, deleteFinancialEntry,
-
-      getFormFilesForSubmission: (submissionId: string) => formFiles.filter(f => f.submission_id === submissionId),
-      updateFormCadastro,
-      deleteFormCadastro,
-
-      addTeamMemberFeedback,
-      updateTeamMemberFeedback,
-      deleteTeamMemberFeedback,
-
-      addTeamMember,
-      updateTeamMember,
-      deleteTeamMember,
-
-      addTeamProductionGoal,
-      updateTeamProductionGoal,
-      deleteTeamProductionGoal,
-
-      hasPendingSecretariaTasks,
-
-      addColdCallLead,
-      updateColdCallLead,
-      deleteColdCallLead,
-      addColdCallLog,
-      getColdCallMetrics,
-      createCrmLeadFromColdCall,
-
-      addConsultantEvent, // NOVO: Adicionar CRUD para eventos do consultor
-      updateConsultantEvent,
-      deleteConsultantEvent, // NOVO: Adicionar CRUD para eventos do consultor
-      refetchTeamMembers,
-    };
-  }, [
+  const value: AppContextType = useMemo(() => ({
     isDataLoading,
     candidates, teamMembers, commissions, supportMaterials, cutoffPeriods, onboardingSessions, onboardingTemplateVideos,
     checklistStructure, setChecklistStructure,
@@ -2040,7 +1225,398 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     metricLogs, supportMaterialsV2, supportMaterialAssignments,
     leadTasks, gestorTasks, gestorTaskCompletions, financialEntries,
     formCadastros, formFiles, notifications, teamProductionGoals,
-    coldCallLeads, coldCallLogs, consultantEvents, // NOVO: Adicionar eventos do consultor
+    coldCallLeads, coldCallLogs,
+    theme,
+
+    toggleTheme, updateConfig, resetLocalState, refetchCommissions, calculateCompetenceMonth, isGestorTaskDueOnDate, calculateNotifications,
+
+    addCandidate, updateCandidate, deleteCandidate,
+    getCandidate: (id: string) => candidates.find(c => c.id === id),
+    setCandidates,
+
+    toggleChecklistItem,
+    setChecklistDueDate: async (candidateId: string, itemId: string, dueDate: string) => {
+      const candidate = candidates.find(c => c.id === candidateId);
+      if (!candidate) return;
+      const currentProgress = candidate.checklistProgress || {};
+      const currentState = currentProgress[itemId] || { completed: false };
+      const newProgress = { ...currentProgress, [itemId]: { ...currentState, dueDate } };
+      await updateCandidate(candidateId, { checklistProgress: newProgress });
+    },
+    toggleConsultantGoal: async (candidateId: string, goalId: string) => {
+      const candidate = candidates.find(c => c.id === candidateId);
+      if (!candidate) return;
+      const currentProgress = candidate.consultantGoalsProgress || {};
+      const newProgress = { ...currentProgress, [goalId]: !currentProgress[goalId] };
+      await updateCandidate(candidateId, { consultantGoalsProgress: newProgress });
+    },
+
+    addChecklistItem: (stageId: string, label: string, responsibleRole: string) => {
+      const newStructure = checklistStructure.map(stage => {
+        if (stage.id === stageId) {
+          return { ...stage, items: [...stage.items, { id: crypto.randomUUID(), label, responsibleRole }] };
+        }
+        return stage;
+      });
+      setChecklistStructure(newStructure);
+      updateConfig({ checklistStructure: newStructure });
+    },
+    updateChecklistItem: (stageId: string, itemId: string, updates: Partial<ChecklistItem>) => {
+      const newStructure = checklistStructure.map(stage => {
+        if (stage.id !== stageId) return stage;
+        return {
+          ...stage,
+          items: stage.items.map(item => (item.id === itemId ? { ...item, ...updates } : item)),
+        };
+      });
+      setChecklistStructure(newStructure);
+      updateConfig({ checklistStructure: newStructure });
+      // Mantém a assinatura do contexto (Promise) por compatibilidade
+      return Promise.resolve({} as any);
+    },
+    deleteChecklistItem: (stageId: string, itemId: string) => {
+      const newStructure = checklistStructure.map(stage => {
+        if (stage.id === stageId) {
+          return { ...stage, items: stage.items.filter(item => item.id !== itemId) };
+        }
+        return stage;
+      });
+      setChecklistStructure(newStructure);
+      updateConfig({ checklistStructure: newStructure });
+    },
+    moveChecklistItem: (stageId: string, itemId: string, direction: 'up' | 'down') => {
+      const newStructure = checklistStructure.map(stage => {
+        if (stage.id === stageId) {
+          const index = stage.items.findIndex(i => i.id === itemId);
+          if (index === -1) return stage;
+          const newItems = [...stage.items];
+          const targetIndex = direction === 'up' ? index - 1 : index + 1;
+          if (targetIndex >= 0 && targetIndex < newItems.length) {
+            [newItems[index], newItems[targetIndex]] = [newItems[targetIndex], newItems[index]];
+          }
+          return { ...stage, items: newItems };
+        }
+        return stage;
+      });
+      setChecklistStructure(newStructure);
+      updateConfig({ checklistStructure: newStructure });
+    },
+    resetChecklistToDefault: () => {
+      setChecklistStructure(DEFAULT_STAGES);
+      updateConfig({ checklistStructure: DEFAULT_STAGES });
+    },
+
+    addGoalItem: (stageId: string, label: string) => {
+      const newStructure = consultantGoalsStructure.map(stage => {
+        if (stage.id === stageId) return { ...stage, items: [...stage.items, { id: crypto.randomUUID(), label }] };
+        return stage;
+      });
+      setConsultantGoalsStructure(newStructure);
+      updateConfig({ consultantGoalsStructure: newStructure });
+    },
+    updateGoalItem: (stageId: string, itemId: string, newLabel: string) => {
+      const newStructure = consultantGoalsStructure.map(stage => {
+        if (stage.id === stageId) return { ...stage, items: stage.items.map(item => item.id === itemId ? { ...item, label: newLabel } : item) };
+        return stage;
+      });
+      setConsultantGoalsStructure(newStructure);
+      updateConfig({ consultantGoalsStructure: newStructure });
+    },
+    deleteGoalItem: (stageId: string, itemId: string) => {
+      const newStructure = consultantGoalsStructure.map(stage => {
+        if (stage.id === stageId) return { ...stage, items: stage.items.filter(item => item.id !== itemId) };
+        return stage;
+      });
+      setConsultantGoalsStructure(newStructure);
+      updateConfig({ consultantGoalsStructure: newStructure });
+    },
+    moveGoalItem: (stageId: string, itemId: string, direction: 'up' | 'down') => {
+      const newStructure = consultantGoalsStructure.map(stage => {
+        if (stage.id === stageId) {
+          const index = stage.items.findIndex(i => i.id === itemId);
+          if (index === -1) return stage;
+          const newItems = [...stage.items];
+          const targetIndex = direction === 'up' ? index - 1 : index + 1;
+          if (targetIndex >= 0 && targetIndex < newItems.length) {
+            [newItems[index], newItems[targetIndex]] = [newItems[targetIndex], newItems[index]];
+          }
+          return { ...stage, items: newItems };
+        }
+        return stage;
+      });
+      setConsultantGoalsStructure(newStructure);
+      updateConfig({ consultantGoalsStructure: newStructure });
+    },
+    resetGoalsToDefault: () => {
+      setConsultantGoalsStructure(DEFAULT_GOALS);
+      updateConfig({ consultantGoalsStructure: DEFAULT_GOALS });
+    },
+
+    updateInterviewSection: (sectionId: string, updates: Partial<InterviewSection>) => {
+      const newStructure = interviewStructure.map(s => s.id === sectionId ? { ...s, ...updates } : s);
+      setInterviewStructure(newStructure);
+      updateConfig({ interviewStructure: newStructure });
+    },
+    addInterviewQuestion: (sectionId: string, text: string, points: number) => {
+      const newStructure = interviewStructure.map(s => s.id === sectionId ? { ...s, questions: [...s.questions, { id: crypto.randomUUID(), text, points }] } : s);
+      setInterviewStructure(newStructure);
+      updateConfig({ interviewStructure: newStructure });
+    },
+    updateInterviewQuestion: (sectionId: string, questionId: string, updates: Partial<{ text: string; points: number }>) => {
+      const newStructure = interviewStructure.map(s => s.id === sectionId ? { ...s, questions: s.questions.map(q => q.id === questionId ? { ...q, ...updates } : q) } : s);
+      setInterviewStructure(newStructure);
+      updateConfig({ interviewStructure: newStructure });
+    },
+    deleteInterviewQuestion: (sectionId: string, questionId: string) => {
+      const newStructure = interviewStructure.map(s => s.id === sectionId ? { ...s, questions: s.questions.filter(q => q.id !== questionId) } : s);
+      setInterviewStructure(newStructure);
+      updateConfig({ interviewStructure: newStructure });
+    },
+    moveInterviewQuestion: (sectionId: string, questionId: string, direction: 'up' | 'down') => {
+      const newStructure = interviewStructure.map(s => {
+        if (s.id === sectionId) {
+          const index = s.questions.findIndex(i => i.id === questionId);
+          if (index === -1) return s;
+          const newQuestions = [...s.questions];
+          const targetIndex = direction === 'up' ? index - 1 : index + 1;
+          if (targetIndex >= 0 && targetIndex < newQuestions.length) {
+            [newQuestions[index], newQuestions[targetIndex]] = [newQuestions[targetIndex], newQuestions[index]];
+          }
+          return { ...s, questions: newQuestions };
+        }
+        return s;
+      });
+      setInterviewStructure(newStructure);
+      updateConfig({ interviewStructure: newStructure });
+    },
+    resetInterviewToDefault: () => {
+      setInterviewStructure(INITIAL_INTERVIEW_STRUCTURE);
+      updateConfig({ interviewStructure: INITIAL_INTERVIEW_STRUCTURE });
+    },
+
+    saveTemplate: (itemId: string, updates: Partial<CommunicationTemplate>) => {
+      const newTemplates = { ...templates, [itemId]: { ...templates[itemId], ...updates } };
+      setTemplates(newTemplates);
+      updateConfig({ templates: newTemplates });
+    },
+    addOrigin: (newOrigin: string, type: 'sales' | 'hiring') => {
+      if (type === 'sales') {
+        const newOrigins = [...salesOrigins, newOrigin];
+        setSalesOrigins(newOrigins);
+        updateConfig({ salesOrigins: newOrigins });
+      } else {
+        const newOrigins = [...hiringOrigins, newOrigin];
+        setHiringOrigins(newOrigins);
+        updateConfig({ hiringOrigins: newOrigins });
+      }
+    },
+    deleteOrigin: (originToDelete: string, type: 'sales' | 'hiring') => {
+      if (type === 'sales') {
+        const newOrigins = salesOrigins.filter(o => o !== originToDelete);
+        setSalesOrigins(newOrigins);
+        updateConfig({ salesOrigins: newOrigins });
+      } else {
+        const newOrigins = hiringOrigins.filter(o => o !== originToDelete);
+        setHiringOrigins(newOrigins);
+        updateConfig({ hiringOrigins: newOrigins });
+      }
+    },
+    resetOriginsToDefault: () => {
+      setSalesOrigins(DEFAULT_APP_CONFIG_DATA.salesOrigins);
+      setHiringOrigins(DEFAULT_APP_CONFIG_DATA.hiringOrigins);
+      updateConfig({ salesOrigins: DEFAULT_APP_CONFIG_DATA.salesOrigins, hiringOrigins: DEFAULT_APP_CONFIG_DATA.hiringOrigins });
+    },
+    addPV: (newPV: string) => {
+      const newPvsList = [...pvs, newPV];
+      setPvs(newPvsList);
+      updateConfig({ pvs: newPvsList });
+    },
+
+    addCommission: async (commission: any) => {
+      const { error } = await supabase.from('commissions').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: commission }).select().single();
+      if (error) throw error;
+      refetchCommissions();
+      return { success: true };
+    },
+    updateCommission: async (id: string, updates: Partial<Commission>) => {
+      const { error } = await supabase.from('commissions').update({ data: updates }).eq('id', id);
+      if (error) throw error;
+      refetchCommissions();
+    },
+    deleteCommission: async (id: string) => { const { error } = await supabase.from('commissions').delete().eq('id', id); if (error) throw error; refetchCommissions(); },
+    updateInstallmentStatus: async (commissionDbId: string, installmentNumber: number, status: InstallmentStatus, paidDate?: string) => {
+      const current = commissions.find(c => c.db_id === commissionDbId);
+      if (!current) throw new Error('Comissão não encontrada');
+
+      const key = installmentNumber.toString();
+
+      const details = { ...(current.installmentDetails || {}) };
+      const prev = details[key] || { status: 'Pendente' as InstallmentStatus };
+
+      const updatedInfo: InstallmentInfo = { ...prev, status };
+
+      if (status === 'Pago') {
+        const effectiveDate = paidDate || new Date().toISOString().split('T')[0];
+        updatedInfo.paidDate = effectiveDate;
+        updatedInfo.competenceMonth = calculateCompetenceMonth(effectiveDate);
+      } else {
+        delete updatedInfo.paidDate;
+        delete updatedInfo.competenceMonth;
+      }
+
+      const newDetails = { ...details, [key]: updatedInfo };
+      const updatedCommission: Commission = {
+        ...current,
+        installmentDetails: newDetails,
+        status: getOverallStatus(newDetails),
+      };
+
+      const { db_id, criado_em, ...dataToSave } = updatedCommission as any;
+
+      const { error } = await supabase.from('commissions').update({ data: dataToSave }).eq('id', commissionDbId);
+      if (error) throw error;
+
+      setCommissions(prev => prev.map(c => (c.db_id === commissionDbId ? { ...updatedCommission } : c)));
+
+      toast.success(`Parcela ${installmentNumber} marcada como ${status}.`);
+    },
+
+    addCutoffPeriod,
+    updateCutoffPeriod,
+    deleteCutoffPeriod,
+
+    addOnlineOnboardingSession,
+    deleteOnlineOnboardingSession,
+    addVideoToTemplate,
+    deleteVideoFromTemplate,
+
+    addCrmPipeline: async (name: string) => {
+      const { data, error } = await supabase.from('crm_pipelines').insert({ user_id: JOAO_GESTOR_AUTH_ID, name }).select().single();
+      if (error) throw error;
+      setCrmPipelines(prev => [...prev, data]);
+      return data;
+    },
+    updateCrmPipeline: async (id: string, updates: Partial<CrmPipeline>) => {
+      const { data, error } = await supabase.from('crm_pipelines').update(updates).eq('id', id).select().single();
+      if (error) throw error;
+      setCrmPipelines(prev => prev.map(p => p.id === id ? data : p));
+      return data;
+    },
+    deleteCrmPipeline: async (id: string) => {
+      const { error } = await supabase.from('crm_pipelines').delete().eq('id', id);
+      if (error) throw error;
+      setCrmPipelines(prev => prev.filter(p => p.id !== id));
+    },
+
+    addCrmStage: async (stage: Omit<CrmStage, 'id' | 'user_id' | 'created_at'>) => {
+      const { data, error } = await supabase.from('crm_stages').insert({ ...stage, user_id: JOAO_GESTOR_AUTH_ID }).select().single();
+      if (error) throw error;
+      setCrmStages(prev => [...prev, data]);
+      return data;
+    },
+    updateCrmStage: async (id: string, updates: Partial<CrmStage>) => {
+      const { data, error } = await supabase.from('crm_stages').update(updates).eq('id', id).select().single();
+      if (error) throw error;
+      setCrmStages(prev => prev.map(s => s.id === id ? data : s));
+      return data;
+    },
+    updateCrmStageOrder: async (orderedStages: CrmStage[]) => {
+      const updates = orderedStages.map((stage, index) => supabase.from('crm_stages').update({ order_index: index }).eq('id', stage.id));
+      await Promise.all(updates);
+      const { data } = await supabase.from('crm_stages').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID).order('order_index');
+      setCrmStages(data || []);
+    },
+    deleteCrmStage: async (id: string) => {
+      const { error } = await supabase.from('crm_stages').delete().eq('id', id);
+      if (error) throw error;
+      setCrmStages(prev => prev.filter(s => s.id !== id));
+    },
+
+    addCrmField: async (field: Omit<CrmField, 'id' | 'user_id' | 'created_at'>) => {
+      const { data, error } = await supabase.from('crm_fields').insert({ ...field, user_id: JOAO_GESTOR_AUTH_ID }).select().single();
+      if (error) throw error;
+      setCrmFields(prev => [...prev, data]);
+      return data;
+    },
+    updateCrmField: async (id: string, updates: Partial<CrmField>) => {
+      const { data, error } = await supabase.from('crm_fields').update(updates).eq('id', id).select().single();
+      if (error) throw error;
+      setCrmFields(prev => prev.map(f => f.id === id ? data : f));
+      return data;
+    },
+
+    addCrmLead,
+    updateCrmLead,
+    deleteCrmLead,
+
+    addDailyChecklist,
+    updateDailyChecklist,
+    deleteDailyChecklist,
+
+    addDailyChecklistItem,
+    updateDailyChecklistItem,
+    deleteDailyChecklistItem,
+    moveDailyChecklistItem,
+
+    assignDailyChecklistToConsultant,
+    unassignDailyChecklistFromConsultant,
+    toggleDailyChecklistCompletion,
+
+    addWeeklyTarget, updateWeeklyTarget, deleteWeeklyTarget,
+    addWeeklyTargetItem, updateWeeklyTargetItem, deleteWeeklyTargetItem, updateWeeklyTargetItemOrder,
+    assignWeeklyTargetToConsultant, unassignWeeklyTargetFromConsultant,
+
+    addMetricLog,
+    updateMetricLog,
+    deleteMetricLog,
+
+    addSupportMaterialV2,
+    updateSupportMaterialV2,
+    deleteSupportMaterialV2,
+    assignSupportMaterialToConsultant,
+    unassignSupportMaterialFromConsultant,
+
+    addLeadTask, updateLeadTask, deleteLeadTask, toggleLeadTaskCompletion, updateLeadMeetingInvitationStatus,
+
+    addGestorTask, updateGestorTask, deleteGestorTask, toggleGestorTaskCompletion,
+
+    addFinancialEntry, updateFinancialEntry, deleteFinancialEntry,
+
+    getFormFilesForSubmission: (submissionId: string) => formFiles.filter(f => f.submission_id === submissionId),
+    updateFormCadastro,
+    deleteFormCadastro,
+
+    addTeamMemberFeedback,
+    updateTeamMemberFeedback,
+    deleteTeamMemberFeedback,
+
+    addTeamMember,
+    updateTeamMember,
+    deleteTeamMember,
+
+    addTeamProductionGoal,
+    updateTeamProductionGoal,
+    deleteTeamProductionGoal,
+
+    hasPendingSecretariaTasks,
+
+    addColdCallLead,
+    updateColdCallLead,
+    deleteColdCallLead,
+    addColdCallLog,
+    getColdCallMetrics,
+    createCrmLeadFromColdCall,
+  }), [
+    isDataLoading,
+    candidates, teamMembers, commissions, supportMaterials, cutoffPeriods, onboardingSessions, onboardingTemplateVideos,
+    checklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs,
+    crmPipelines, crmStages, crmFields, crmLeads, crmOwnerUserId,
+    dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions,
+    weeklyTargets, weeklyTargetItems, weeklyTargetAssignments,
+    metricLogs, supportMaterialsV2, supportMaterialAssignments,
+    leadTasks, gestorTasks, gestorTaskCompletions, financialEntries,
+    formCadastros, formFiles, notifications, teamProductionGoals,
+    coldCallLeads, coldCallLogs,
     theme,
     toggleTheme, updateConfig, resetLocalState, refetchCommissions, calculateCompetenceMonth, isGestorTaskDueOnDate, calculateNotifications,
     addCandidate, updateCandidate, deleteCandidate,
@@ -2063,8 +1639,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     hasPendingSecretariaTasks,
     addColdCallLead, updateColdCallLead, deleteColdCallLead, addColdCallLog, getColdCallMetrics, createCrmLeadFromColdCall,
     addOnlineOnboardingSession, deleteOnlineOnboardingSession, addVideoToTemplate, deleteVideoFromTemplate,
-    addConsultantEvent, updateConsultantEvent, deleteConsultantEvent, // NOVO: Adicionar CRUD para eventos do consultor
-    refetchTeamMembers,
   ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

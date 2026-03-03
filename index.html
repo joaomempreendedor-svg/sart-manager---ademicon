@@ -55,7 +55,18 @@
         }
       }
     </script>
-  <!-- REMOVED: importmap that pointed to CDN modules; using local npm dependencies via Vite instead -->
+  <script type="importmap">
+{
+  "imports": {
+    "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.9.6",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.554.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
 <style>
   /* Global override to remove focus outline for all interactive elements */
   /* WARNING: This can negatively impact accessibility for keyboard users. */

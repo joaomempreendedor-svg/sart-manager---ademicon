@@ -1,8 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useMemo, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Session, AuthApiError } from '@supabase/supabase-js';
-import { User, UserRole } from '@/types';
-import toast from 'react-hot-toast';
+import { Session } from '@supabase/supabase-js';
+import { User } from '@/types';
 
 interface AuthContextType {
   user: User | null;
@@ -73,27 +72,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, []);
 
   useEffect(() => {
-    // Verificação proativa de sessão inválida (refresh token expirado/ausente)
-    let cancelled = false;
-    supabase.auth.getUser().then(({ data, error }) => {
-      if (cancelled) return;
-      if (error instanceof AuthApiError && /Invalid Refresh Token/i.test(error.message || '')) {
-        console.warn('[AuthContext] Refresh token inválido detectado. Forçando sign out.');
-        toast.error('Sua sessão expirou. Faça login novamente.');
-        supabase.auth.signOut();
-      }
-    }).catch(() => {
-      // silencioso; o SDK já lida com outros casos
-    });
-    return () => { cancelled = true; };
-  }, []);
-
-  useEffect(() => {
     let isMounted = true;
 
-    const updateUserState = async (currentSession: Session | null, event?: string) => {
+    const updateUserState = async (currentSession: Session | null) => {
       if (!isMounted) return;
-      console.log(`[AuthContext] updateUserState called. Event: ${event || 'INITIAL_LOAD'}, Session: ${currentSession ? currentSession.user.id : 'null'}`);
 
       if (currentSession) {
         const userProfile = await fetchUserProfile(currentSession);
@@ -103,30 +85,24 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setUser(null);
         setSession(null);
       }
-      setIsLoading(false); // Always set isLoading to false after session determination
-      console.log(`[AuthContext] isLoading set to false. User: ${user ? user.id : 'null'}`);
+      setIsLoading(false);
     };
 
     // Check initial session on mount
     supabase.auth.getSession().then(({ data: { session } }) => {
-      updateUserState(session, 'INITIAL_SESSION_FETCH');
-    }).catch((error) => {
-      console.error("[AuthContext] Error getting initial session:", error);
-      setIsLoading(false); // Ensure loading is false even on error
+      updateUserState(session);
     });
 
     // Set up the listener for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, newSession) => {
-        console.log(`[AuthContext] onAuthStateChange event: ${event}`);
-        updateUserState(newSession, event);
+      (_event, newSession) => {
+        updateUserState(newSession);
       }
     );
 
     return () => {
       isMounted = false;
       subscription.unsubscribe();
-      console.log("[AuthContext] AuthContext cleanup.");
     };
   }, [fetchUserProfile]);
 

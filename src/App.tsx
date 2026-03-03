@@ -1,11 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, Outlet, Navigate, useLocation } from 'react-router-dom';
-const AppProviderLazy = React.lazy(() => import('@/context/AppContext').then(m => ({ default: m.AppProvider })));
-const LazyAppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <React.Suspense fallback={<div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-slate-900"><Loader2 className="w-12 h-12 text-brand-500 animate-spin" /></div>}>
-    <AppProviderLazy>{children}</AppProviderLazy>
-  </React.Suspense>
-);
+import { AppProvider, useApp } from '@/context/AppContext';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { UserRole } from '@/types';
 
@@ -52,18 +47,18 @@ import { FinancialPanel } from '@/pages/FinancialPanel';
 import { FormCadastros } from '@/pages/gestor/FormSubmissions';
 import TeamProductionGoals from '@/pages/gestor/TeamProductionGoals';
 import GestorTasksPage from '@/pages/gestor/GestorTasksPage';
-import ColdCallMetricsPage from '@/pages/gestor/ColdCallMetricsPage';
+import ColdCallMetricsPage from '@/pages/gestor/ColdCallMetricsPage'; // NOVO: Importar ColdCallMetricsPage
 
 // Consultor Pages
 import ConsultorDashboard from '@/pages/consultor/Dashboard';
 import ConsultorCrmPage from '@/pages/consultor/Crm';
 import { DailyChecklist } from '@/pages/consultor/DailyChecklist';
 import ConsultorSalesReports from '@/pages/consultor/ConsultorSalesReports';
-import ColdCallPage from '@/pages/consultor/ColdCallPage';
+import ColdCallPage from '@/pages/consultor/ColdCallPage'; // NOVO: Importar ColdCallPage
 
 // Secretaria Pages
 import { SecretariaDashboard } from '@/pages/secretaria/SecretariaDashboard';
-import { SecretariaDailyChecklist } from '@/pages/secretaria/SecretariaDailyChecklist';
+import { SecretariaDailyChecklist } from '@/pages/secretaria/SecretariaDailyChecklist'; // NOVO: Importar a página de checklist da secretaria
 
 const AppLoader = () => (
   <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-slate-900">
@@ -73,12 +68,13 @@ const AppLoader = () => (
 
 const RequireAuth: React.FC<{ allowedRoles: UserRole[] }> = ({ allowedRoles }) => {
   const { user, isLoading: isAuthLoading } = useAuth();
+  const { isDataLoading } = useApp();
   const location = useLocation();
 
   // Todos os hooks devem ser chamados incondicionalmente no nível superior do componente.
   // A lógica condicional para renderização/navegação vem depois.
 
-  if (isAuthLoading) {
+  if (isAuthLoading || isDataLoading) {
     return <AppLoader />;
   }
 
@@ -108,17 +104,8 @@ const RequireAuth: React.FC<{ allowedRoles: UserRole[] }> = ({ allowedRoles }) =
 };
 
 const AppRoutes = () => {
-  const { user, isLoading: isAuthLoading } = useAuth();
-
-  console.log("AppRoutes - isAuthLoading:", isAuthLoading, "user:", user ? user.id : "null");
-
-  if (isAuthLoading) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-slate-900">
-        <Loader2 className="w-12 h-12 text-brand-500 animate-spin" />
-      </div>
-    );
-  }
+  const { isLoading } = useAuth();
+  if (isLoading) return <AppLoader />;
 
   return (
     <Routes>
@@ -130,14 +117,14 @@ const AppRoutes = () => {
       <Route path="/public-form" element={<PublicForm />} />
       
       <Route element={<RequireAuth allowedRoles={['GESTOR', 'ADMIN', 'CONSULTOR', 'SECRETARIA']} />}>
-        <Route path="/" element={<LazyAppProvider><Home /></LazyAppProvider>} />
+        <Route path="/" element={<Home />} />
       </Route>
 
       {/* Rotas para GESTOR, ADMIN e SECRETARIA que usam o MainLayout */}
       <Route element={<RequireAuth allowedRoles={['GESTOR', 'ADMIN', 'SECRETARIA']} />}>
-        <Route path="/gestor" element={<LazyAppProvider><GestorLayout /></LazyAppProvider>}>
+        <Route path="/gestor" element={<GestorLayout />}>
           <Route path="dashboard" element={<Dashboard />} />
-          <Route path="candidate/:id" element={<CandidateDetail />} />
+          <Route path="candidate/:id" element={<CandidateDetail />} /> {/* Agora acessível por Gestor, Admin e Secretaria */}
           <Route path="commissions" element={<Commissions />} />
           <Route path="financial-panel" element={<FinancialPanel />} />
           <Route path="feedbacks" element={<Feedbacks />} />
@@ -161,10 +148,10 @@ const AppRoutes = () => {
           <Route path="form-cadastros" element={<FormCadastros />} />
           <Route path="team-production-goals" element={<TeamProductionGoals />} />
           <Route path="my-tasks" element={<GestorTasksPage />} />
-          <Route path="cold-call-metrics" element={<ColdCallMetricsPage />} />
+          <Route path="cold-call-metrics" element={<ColdCallMetricsPage />} /> {/* NOVO: Rota para ColdCallMetricsPage */}
         </Route>
 
-        <Route path="/secretaria" element={<LazyAppProvider><GestorLayout /></LazyAppProvider>}>
+        <Route path="/secretaria" element={<GestorLayout />}> {/* Secretaria também usa GestorLayout */}
           <Route path="dashboard" element={<SecretariaDashboard />} />
           <Route path="hiring-dashboard" element={<HiringDashboard />} />
           <Route path="hiring-pipeline" element={<HiringPipeline />} />
@@ -178,10 +165,10 @@ const AppRoutes = () => {
 
       {/* Rotas para CONSULTOR que usam o ConsultorLayout */}
       <Route element={<RequireAuth allowedRoles={['CONSULTOR']} />}>
-        <Route path="/consultor" element={<LazyAppProvider><ConsultorLayout /></LazyAppProvider>}>
+        <Route path="/consultor" element={<ConsultorLayout />}>
           <Route path="dashboard" element={<ConsultorDashboard />} />
           <Route path="crm" element={<ConsultorCrmPage />} />
-          <Route path="cold-call" element={<ColdCallPage />} />
+          <Route path="cold-call" element={<ColdCallPage />} /> {/* NOVO: Rota para Cold Call */}
           <Route path="daily-checklist" element={<DailyChecklist />} />
           <Route path="materials" element={<Materials />} />
           <Route path="sales-reports" element={<ConsultorSalesReports />} />
@@ -190,7 +177,7 @@ const AppRoutes = () => {
       
       {/* Página de Perfil, acessível por todos os usuários autenticados, usando ConsultorLayout */}
       <Route element={<RequireAuth allowedRoles={['GESTOR', 'ADMIN', 'CONSULTOR', 'SECRETARIA']} />}>
-        <Route path="/profile" element={<LazyAppProvider><ConsultorLayout /></LazyAppProvider>}>
+        <Route path="/profile" element={<ConsultorLayout />}>
           <Route index element={<Profile />} />
         </Route>
       </Route>
@@ -202,7 +189,9 @@ const App = () => {
   return (
     <HashRouter>
       <AuthProvider>
-        <AppRoutes />
+        <AppProvider>
+          <AppRoutes />
+        </AppProvider>
       </AuthProvider>
     </HashRouter>
   );

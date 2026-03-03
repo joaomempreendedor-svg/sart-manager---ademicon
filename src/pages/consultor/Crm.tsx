@@ -106,13 +106,9 @@ const ConsultorCrmPage = () => {
       const end = filterEndDate ? new Date(filterEndDate + 'T23:59:59') : null;
 
       currentLeads = currentLeads.filter(lead => {
-        // Se o estágio do lead é "Ganha", sempre mostrar na listagem (não filtra por data).
-        const stage = crmStages.find(s => s.id === lead.stage_id);
-        if (stage?.is_won) {
-          return true;
-        }
-        // Para os demais estágios, aplica filtro por data (prioriza sale_date quando existir)
-        const referenceDate = lead.sale_date ? new Date(lead.sale_date + 'T00:00:00') : new Date(lead.created_at);
+        // LÓGICA DE DATA DE REFERÊNCIA: Prioriza Data da Venda, senão usa Data de Criação
+        const referenceDate = lead.sale_date ? new Date(lead.sale_date + 'T00:00:00') : new Date(lead.created_at); // Usando snake_case
+        
         const matchesStart = !start || referenceDate >= start;
         const matchesEnd = !end || referenceDate <= end;
         return matchesStart && matchesEnd;
@@ -120,7 +116,7 @@ const ConsultorCrmPage = () => {
     }
 
     return currentLeads;
-  }, [consultantLeads, searchTerm, filterStartDate, filterEndDate, crmStages]);
+  }, [consultantLeads, searchTerm, filterStartDate, filterEndDate]);
 
   const groupedLeads = useMemo(() => {
     const groups: Record<string, CrmLead[]> = {};
