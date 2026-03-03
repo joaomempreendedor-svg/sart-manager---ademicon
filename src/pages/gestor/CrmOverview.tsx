@@ -135,31 +135,66 @@ const CrmOverviewPage = () => {
     return currentLeads;
   }, [crmLeads, searchTerm, filterStartDate, filterEndDate, selectedConsultantId, crmStages]);
 
+  // NOVO: identificar leads vendidos mesmo que o estágio não seja is_won ou esteja ausente/inativo
+  const soldLeadsFallback = useMemo(() => {
+    const stageById = new Map(crmStages.map(s => [s.id, s]));
+    return filteredLeads.filter(lead => {
+      const st = stageById.get(lead.stage_id);
+      const hasSaleFlag = Boolean(lead.sale_date) || (lead.sold_credit_value && lead.sold_credit_value > 0);
+      // Considera como "vendido" se tiver evidência de venda e o estágio não for de ganho ou não existir
+      return hasSaleFlag && (!st || !st.is_won);
+    });
+  }, [filteredLeads, crmStages]);
+
   const visibleStages = useMemo(() => {
     const base = [...pipelineStages];
     const baseIds = new Set(base.map(s => s.id));
     const stageById = new Map(crmStages.map(s => [s.id, s]));
-    const extras: typeof pipelineStages = [];
+    const extras: any[] = [];
+
     filteredLeads.forEach(lead => {
       if (!baseIds.has(lead.stage_id)) {
         const st = stageById.get(lead.stage_id);
-        // ALTERADO: incluir estágio mesmo se estiver inativo
+        // incluir estágio mesmo se estiver inativo
         if (st) {
           extras.push(st);
           baseIds.add(st.id);
         }
       }
     });
-    return [...base, ...extras];
-  }, [pipelineStages, crmStages, filteredLeads]);
+
+    let result: any[] = [...base, ...extras];
+
+    const hasWonStageVisible = result.some(s => s?.is_won);
+    // Se não houver nenhuma etapa marcada como "ganha" visível mas existirem leads vendidos, cria coluna sintética "Vendido"
+    if (!hasWonStageVisible && soldLeadsFallback.length > 0) {
+      result.push({
+        id: 'synthetic-won',
+        name: 'Vendido',
+        is_won: true,
+        is_lost: false,
+        is_active: true,
+        pipeline_id: activePipeline?.id || 'synthetic',
+        user_id: '',
+        order_index: 999,
+        created_at: new Date().toISOString(),
+      } as any);
+    }
+
+    return result;
+  }, [pipelineStages, crmStages, filteredLeads, soldLeadsFallback, activePipeline]);
 
   const groupedLeads = useMemo(() => {
     const groups: Record<string, CrmLead[]> = {};
     visibleStages.forEach(stage => {
-      groups[stage.id] = filteredLeads.filter(lead => lead.stage_id === stage.id);
+      if (stage.id === 'synthetic-won') {
+        groups[stage.id] = soldLeadsFallback;
+      } else {
+        groups[stage.id] = filteredLeads.filter(lead => lead.stage_id === stage.id);
+      }
     });
     return groups;
-  }, [visibleStages, filteredLeads]);
+  }, [visibleStages, filteredLeads, soldLeadsFallback]);
 
   const getConsultantName = (lead: CrmLead) => {
     const targetId = lead.consultant_id || lead.created_by;
