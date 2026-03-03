@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useMe
 import { supabase } from '@/integrations/supabase/client';
 import { Session, AuthApiError } from '@supabase/supabase-js';
 import { User, UserRole } from '@/types';
+import toast from 'react-hot-toast';
 
 interface AuthContextType {
   user: User | null;
@@ -69,6 +70,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         needs_password_change: false,
       };
     }
+  }, []);
+
+  useEffect(() => {
+    // Verificação proativa de sessão inválida (refresh token expirado/ausente)
+    let cancelled = false;
+    supabase.auth.getUser().then(({ data, error }) => {
+      if (cancelled) return;
+      if (error instanceof AuthApiError && /Invalid Refresh Token/i.test(error.message || '')) {
+        console.warn('[AuthContext] Refresh token inválido detectado. Forçando sign out.');
+        toast.error('Sua sessão expirou. Faça login novamente.');
+        supabase.auth.signOut();
+      }
+    }).catch(() => {
+      // silencioso; o SDK já lida com outros casos
+    });
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
