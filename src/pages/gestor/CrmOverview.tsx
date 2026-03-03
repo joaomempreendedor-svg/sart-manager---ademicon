@@ -143,7 +143,8 @@ const CrmOverviewPage = () => {
     filteredLeads.forEach(lead => {
       if (!baseIds.has(lead.stage_id)) {
         const st = stageById.get(lead.stage_id);
-        if (st && st.is_active) {
+        // ALTERADO: incluir estágio mesmo se estiver inativo
+        if (st) {
           extras.push(st);
           baseIds.add(st.id);
         }
