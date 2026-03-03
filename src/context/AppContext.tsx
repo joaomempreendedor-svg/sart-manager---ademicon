@@ -343,7 +343,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   useEffect(() => {
     let isMounted = true;
     const fetchData = async (userId: string) => {
-      console.log("[AppContext] fetchData started for user:", userId);
+      console.log("[AppContext] fetchData started for user:", userId, "Role:", user?.role);
       setIsDataLoading(true);
       try {
         const effectiveGestorId = JOAO_GESTOR_AUTH_ID;
@@ -364,7 +364,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           leadTasksRes, gestorTasksRes, gestorTaskCompletionsRes, financialEntriesRes,
           formCadastrosRes, formFilesRes, notificationsRes, teamProductionGoalsRes, teamMembersRes,
           coldCallLeadsRes, coldCallLogsRes, consultantEventsRes // NOVO: Adicionar eventos do consultor
-        ] = await Promise.all([
+        ] = await Promise.allSettled([
           // Candidates: RLS handles visibility (user_id = owner_id OR gestor/admin/secretaria role)
           supabase.from('candidates').select('id, data, created_at, last_updated_at'),
           // Support Materials (legacy): RLS handles visibility
@@ -434,10 +434,33 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           return;
         }
 
+        // --- Handle App Config ---
+        if (appConfigRes.status === 'fulfilled') {
+          const appConfigData = appConfigRes.value.data;
+          setChecklistStructure(appConfigData.checklistStructure || DEFAULT_STAGES);
+          setConsultantGoalsStructure(appConfigData.consultantGoalsStructure || DEFAULT_GOALS);
+          setInterviewStructure(appConfigData.interviewStructure || INITIAL_INTERVIEW_STRUCTURE);
+          setTemplates(appConfigData.templates || {});
+          setSalesOrigins(appConfigData.salesOrigins || DEFAULT_APP_CONFIG_DATA.salesOrigins);
+          setHiringOrigins(appConfigData.hiringOrigins !== undefined ? appConfigData.hiringOrigins : DEFAULT_APP_CONFIG_DATA.hiringOrigins);
+          setPvs(appConfigData.pvs || []);
+          console.log("[AppContext] App Config fetched successfully.");
+        } else {
+          console.error(`[AppContext] Error fetching app config:`, appConfigRes.reason);
+          toast.error(`Erro ao carregar configurações do aplicativo: ${appConfigRes.reason.message}`);
+          // Fallback to defaults if config fetch fails
+          setChecklistStructure(DEFAULT_STAGES);
+          setConsultantGoalsStructure(DEFAULT_GOALS);
+          setInterviewStructure(INITIAL_INTERVIEW_STRUCTURE);
+          setTemplates({});
+          setSalesOrigins(DEFAULT_APP_CONFIG_DATA.salesOrigins);
+          setHiringOrigins(DEFAULT_APP_CONFIG_DATA.hiringOrigins);
+          setPvs([]);
+        }
+
         // --- Handle Candidates ---
-        if (candidatesRes.error) { console.error(`[AppContext] Error loading candidates: ${candidatesRes.error.message}`); toast.error(`Erro ao carregar candidatos: ${candidatesRes.error.message}`); setCandidates([]); }
-        else {
-          const normalizedCandidates = (candidatesRes.data || []).map(item => {
+        if (candidatesRes.status === 'fulfilled') {
+          const normalizedCandidates = (candidatesRes.value.data || []).map(item => {
             const candidateData = item.data as Candidate;
             return { 
               ...candidateData, 
@@ -457,12 +480,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           });
           setCandidates(normalizedCandidates);
           console.log("[AppContext] Candidates fetched:", normalizedCandidates.length);
+        } else {
+          console.error(`[AppContext] Error loading candidates:`, candidatesRes.reason);
+          toast.error(`Erro ao carregar candidatos: ${candidatesRes.reason.message}`);
+          setCandidates([]);
         }
 
         // --- Handle Team Members ---
-        if (teamMembersRes.error) { console.error(`[AppContext] Error loading team members: ${teamMembersRes.error.message}`); toast.error(`Erro ao carregar membros da equipe: ${teamMembersRes.error.message}`); setTeamMembers([]); }
-        else {
-          const normalizedTeamMembers = (teamMembersRes.data || []).map(item => {
+        if (teamMembersRes.status === 'fulfilled') {
+          const normalizedTeamMembers = (teamMembersRes.value.data || []).map(item => {
             const data = item.data as any;
             const dbId = item.id;
             const authId = data.id || data.authUserId || null;
@@ -475,111 +501,326 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           });
           setTeamMembers(normalizedTeamMembers);
           console.log("[AppContext] Team Members fetched:", normalizedTeamMembers.length);
+        } else {
+          console.error(`[AppContext] Error loading team members:`, teamMembersRes.reason);
+          toast.error(`Erro ao carregar membros da equipe: ${teamMembersRes.reason.message}`);
+          setTeamMembers([]);
         }
 
-        // --- Handle Other Data (RLS-dependent) ---
-        if (materialsRes.error) { console.error(`[AppContext] Error loading support materials: ${materialsRes.error.message}`); toast.error(`Erro ao carregar materiais de apoio: ${materialsRes.error.message}`); setSupportMaterials([]); }
-        else { setSupportMaterials(materialsRes.data?.map(item => ({ ...(item.data as SupportMaterial), db_id: item.id })) || []); console.log("[AppContext] Support Materials fetched:", (materialsRes.data || []).length); }
+        // --- Handle Commissions ---
+        if (commissionsRes.status === 'fulfilled') {
+          const normalized: Commission[] = (commissionsRes.value.data || []).map(item => {
+            const commission = item.data as Commission;
+            if (!commission.installmentDetails) {
+              const details: Record<string, InstallmentInfo> = {};
+              for (let i = 1; i <= 15; i++) details[i.toString()] = { status: "Pendente" };
+              commission.installmentDetails = details;
+            }
+            return { ...commission, db_id: item.id, criado_em: item.created_at };
+          });
+          setCommissions(normalized);
+          console.log("[AppContext] Commissions fetched:", normalized.length);
+        } else {
+          console.error(`[AppContext] Error loading commissions:`, commissionsRes.reason);
+          toast.error(`Erro ao carregar comissões: ${commissionsRes.reason.message}`);
+          setCommissions([]);
+        }
 
-        if (cutoffRes.error) { console.error(`[AppContext] Error loading cutoff periods: ${cutoffRes.error.message}`); toast.error(`Erro ao carregar períodos de corte: ${cutoffRes.error.message}`); setCutoffPeriods([]); }
-        else { setCutoffPeriods(cutoffRes.data?.map(item => ({ ...(item.data as CutoffPeriod), db_id: item.id })) || []); console.log("[AppContext] Cutoff Periods fetched:", (cutoffRes.data || []).length); }
+        // --- Handle Support Materials (legacy) ---
+        if (supportMaterialsRes.status === 'fulfilled') {
+          setSupportMaterials(supportMaterialsRes.value.data?.map(item => ({ ...(item.data as SupportMaterial), db_id: item.id })) || []);
+          console.log("[AppContext] Support Materials fetched:", (supportMaterialsRes.value.data || []).length);
+        } else {
+          console.error(`[AppContext] Error loading support materials:`, supportMaterialsRes.reason);
+          toast.error(`Erro ao carregar materiais de apoio: ${supportMaterialsRes.reason.message}`);
+          setSupportMaterials([]);
+        }
 
-        if (onboardingRes.error) { console.error(`[AppContext] Error loading onboarding sessions: ${onboardingRes.error.message}`); toast.error(`Erro ao carregar sessões de onboarding: ${onboardingRes.error.message}`); setOnboardingSessions([]); }
-        else { setOnboardingSessions((onboardingRes.data as any[])?.map(s => ({...s, videos: s.videos.sort((a:any,b:any) => a.order - b.order)})) || []); console.log("[AppContext] Onboarding Sessions fetched:", (onboardingRes.data || []).length); }
+        // --- Handle Cutoff Periods ---
+        if (cutoffRes.status === 'fulfilled') {
+          setCutoffPeriods(cutoffRes.value.data?.map(item => ({ ...(item.data as CutoffPeriod), db_id: item.id })) || []);
+          console.log("[AppContext] Cutoff Periods fetched:", (cutoffRes.value.data || []).length);
+        } else {
+          console.error(`[AppContext] Error loading cutoff periods:`, cutoffRes.reason);
+          toast.error(`Erro ao carregar períodos de corte: ${cutoffRes.reason.message}`);
+          setCutoffPeriods([]);
+        }
 
-        if (templateVideosRes.error) { console.error(`[AppContext] Error loading video templates: ${templateVideosRes.error.message}`); toast.error(`Erro ao carregar templates de vídeo: ${templateVideosRes.error.message}`); setOnboardingTemplateVideos([]); }
-        else { setOnboardingTemplateVideos(templateVideosRes.data || []); console.log("[AppContext] Onboarding Video Templates fetched:", (templateVideosRes.data || []).length); }
+        // --- Handle Onboarding Sessions ---
+        if (onboardingRes.status === 'fulfilled') {
+          setOnboardingSessions((onboardingRes.value.data as any[])?.map(s => ({...s, videos: s.videos.sort((a:any,b:any) => a.order - b.order)})) || []);
+          console.log("[AppContext] Onboarding Sessions fetched:", (onboardingRes.value.data || []).length);
+        } else {
+          console.error(`[AppContext] Error loading onboarding sessions:`, onboardingRes.reason);
+          toast.error(`Erro ao carregar sessões de onboarding: ${onboardingRes.reason.message}`);
+          setOnboardingSessions([]);
+        }
 
-        if (pipelinesRes.error) { console.error(`[AppContext] Error loading CRM pipelines: ${pipelinesRes.error.message}`); toast.error(`Erro ao carregar pipelines do CRM: ${pipelinesRes.error.message}`); setCrmPipelines([]); }
-        else { setCrmPipelines(pipelinesRes.data || []); console.log("[AppContext] CRM Pipelines fetched:", (pipelinesRes.data || []).length); }
+        // --- Handle Onboarding Video Templates ---
+        if (templateVideosRes.status === 'fulfilled') {
+          setOnboardingTemplateVideos(templateVideosRes.value.data || []);
+          console.log("[AppContext] Onboarding Video Templates fetched:", (templateVideosRes.value.data || []).length);
+        } else {
+          console.error(`[AppContext] Error loading video templates:`, templateVideosRes.reason);
+          toast.error(`Erro ao carregar templates de vídeo: ${templateVideosRes.reason.message}`);
+          setOnboardingTemplateVideos([]);
+        }
 
-        if (stagesRes.error) { console.error(`[AppContext] Error loading CRM stages: ${stagesRes.error.message}`); toast.error(`Erro ao carregar etapas do CRM: ${stagesRes.error.message}`); setCrmStages([]); }
-        else { setCrmStages(stagesRes.data || []); console.log("[AppContext] CRM Stages fetched:", (stagesRes.data || []).length); }
+        // --- Handle CRM Pipelines ---
+        if (pipelinesRes.status === 'fulfilled') {
+          setCrmPipelines(pipelinesRes.value.data || []);
+          console.log("[AppContext] CRM Pipelines fetched:", (pipelinesRes.value.data || []).length);
+        } else {
+          console.error(`[AppContext] Error loading CRM pipelines:`, pipelinesRes.reason);
+          toast.error(`Erro ao carregar pipelines do CRM: ${pipelinesRes.reason.message}`);
+          setCrmPipelines([]);
+        }
 
-        if (fieldsRes.error) { console.error(`[AppContext] Error loading CRM fields: ${fieldsRes.error.message}`); toast.error(`Erro ao carregar campos do CRM: ${fieldsRes.error.message}`); setCrmFields([]); }
-        else { setCrmFields(fieldsRes.data || []); console.log("[AppContext] CRM Fields fetched:", (fieldsRes.data || []).length); }
+        // --- Handle CRM Stages ---
+        if (stagesRes.status === 'fulfilled') {
+          setCrmStages(stagesRes.value.data || []);
+          console.log("[AppContext] CRM Stages fetched:", (stagesRes.value.data || []).length);
+        } else {
+          console.error(`[AppContext] Error loading CRM stages:`, stagesRes.reason);
+          toast.error(`Erro ao carregar etapas do CRM: ${stagesRes.reason.message}`);
+          setCrmStages([]);
+        }
 
-        if (crmLeadsRes.error) { console.error(`[AppContext] Error loading CRM leads: ${crmLeadsRes.error.message}`); toast.error(`Erro ao carregar leads do CRM: ${crmLeadsRes.error.message}`); setCrmLeads([]); }
-        else { setCrmLeads(crmLeadsRes.data?.map((lead: any) => ({ 
-          id: lead.id, consultant_id: lead.consultant_id, stage_id: lead.stage_id, user_id: lead.user_id, name: lead.name, data: lead.data, created_at: lead.created_at, updated_at: lead.updated_at, created_by: lead.created_by, updated_by: lead.updated_by, 
-          proposal_value: parseDbCurrency(lead.proposal_value), proposal_closing_date: lead.proposal_closing_date, 
-          sold_credit_value: parseDbCurrency(lead.sold_credit_value), sold_group: lead.sold_group, sold_quota: lead.sold_quota, sale_date: lead.sale_date 
-        })) || []); console.log("[AppContext] CRM Leads fetched:", (crmLeadsRes.data || []).length); }
+        // --- Handle CRM Fields ---
+        if (fieldsRes.status === 'fulfilled') {
+          setCrmFields(fieldsRes.value.data || []);
+          console.log("[AppContext] CRM Fields fetched:", (fieldsRes.value.data || []).length);
+        } else {
+          console.error(`[AppContext] Error loading CRM fields:`, fieldsRes.reason);
+          toast.error(`Erro ao carregar campos do CRM: ${fieldsRes.reason.message}`);
+          setCrmFields([]);
+        }
 
-        if (dailyChecklistsRes.error) { console.error(`[AppContext] Error loading daily checklists: ${dailyChecklistsRes.error.message}`); toast.error(`Erro ao carregar checklists diários: ${dailyChecklistsRes.error.message}`); setDailyChecklists([]); }
-        else { setDailyChecklists(dailyChecklistsRes.data || []); console.log("[AppContext] Daily Checklists fetched:", (dailyChecklistsRes.data || []).length); }
+        // --- Handle CRM Leads ---
+        if (crmLeadsRes.status === 'fulfilled') {
+          setCrmLeads(crmLeadsRes.value.data?.map((lead: any) => ({ 
+            id: lead.id, consultant_id: lead.consultant_id, stage_id: lead.stage_id, user_id: lead.user_id, name: lead.name, data: lead.data, created_at: lead.created_at, updated_at: lead.updated_at, created_by: lead.created_by, updated_by: lead.updated_by, 
+            proposal_value: parseDbCurrency(lead.proposal_value), proposal_closing_date: lead.proposal_closing_date, 
+            sold_credit_value: parseDbCurrency(lead.sold_credit_value), sold_group: lead.sold_group, sold_quota: lead.sold_quota, sale_date: lead.sale_date 
+          })) || []);
+          console.log("[AppContext] CRM Leads fetched:", (crmLeadsRes.value.data || []).length);
+        } else {
+          console.error(`[AppContext] Error loading CRM leads:`, crmLeadsRes.reason);
+          toast.error(`Erro ao carregar leads do CRM: ${crmLeadsRes.reason.message}`);
+          setCrmLeads([]);
+        }
 
-        if (dailyChecklistItemsRes.error) { console.error(`[AppContext] Error loading daily checklist items: ${dailyChecklistItemsRes.error.message}`); toast.error(`Erro ao carregar itens do checklist diário: ${dailyChecklistItemsRes.error.message}`); setDailyChecklistItems([]); }
-        else { setDailyChecklistItems(dailyChecklistItemsRes.data || []); console.log("[AppContext] Daily Checklist Items fetched:", (dailyChecklistItemsRes.data || []).length); }
+        // --- Handle Daily Checklists ---
+        if (dailyChecklistsRes.status === 'fulfilled') {
+          setDailyChecklists(dailyChecklistsRes.value.data || []);
+          console.log("[AppContext] Daily Checklists fetched:", (dailyChecklistsRes.value.data || []).length);
+        } else {
+          console.error(`[AppContext] Error loading daily checklists:`, dailyChecklistsRes.reason);
+          toast.error(`Erro ao carregar checklists diários: ${dailyChecklistsRes.reason.message}`);
+          setDailyChecklists([]);
+        }
 
-        if (dailyChecklistAssignmentsRes.error) { console.error(`[AppContext] Error loading daily checklist assignments: ${dailyChecklistAssignmentsRes.error.message}`); toast.error(`Erro ao carregar atribuições do checklist diário: ${dailyChecklistAssignmentsRes.error.message}`); setDailyChecklistAssignments([]); }
-        else { setDailyChecklistAssignments(dailyChecklistAssignmentsRes.data || []); console.log("[AppContext] Daily Checklist Assignments fetched:", (dailyChecklistAssignmentsRes.data || []).length); }
+        // --- Handle Daily Checklist Items ---
+        if (dailyChecklistItemsRes.status === 'fulfilled') {
+          setDailyChecklistItems(dailyChecklistItemsRes.value.data || []);
+          console.log("[AppContext] Daily Checklist Items fetched:", (dailyChecklistItemsRes.value.data || []).length);
+        } else {
+          console.error(`[AppContext] Error loading daily checklist items:`, dailyChecklistItemsRes.reason);
+          toast.error(`Erro ao carregar itens do checklist diário: ${dailyChecklistItemsRes.reason.message}`);
+          setDailyChecklistItems([]);
+        }
 
-        if (dailyChecklistCompletionsRes.error) { console.error(`[AppContext] Error loading daily checklist completions: ${dailyChecklistCompletionsRes.error.message}`); toast.error(`Erro ao carregar conclusões do checklist diário: ${dailyChecklistCompletionsRes.error.message}`); setDailyChecklistCompletions([]); }
-        else { setDailyChecklistCompletions(dailyChecklistCompletionsRes.data || []); console.log("[AppContext] Daily Checklist Completions fetched:", (dailyChecklistCompletionsRes.data || []).length); }
+        // --- Handle Daily Checklist Assignments ---
+        if (dailyChecklistAssignmentsRes.status === 'fulfilled') {
+          setDailyChecklistAssignments(dailyChecklistAssignmentsRes.value.data || []);
+          console.log("[AppContext] Daily Checklist Assignments fetched:", (dailyChecklistAssignmentsRes.value.data || []).length);
+        } else {
+          console.error(`[AppContext] Error loading daily checklist assignments:`, dailyChecklistAssignmentsRes.reason);
+          toast.error(`Erro ao carregar atribuições do checklist diário: ${dailyChecklistAssignmentsRes.reason.message}`);
+          setDailyChecklistAssignments([]);
+        }
 
-        if (weeklyTargetsRes.error) { console.error(`[AppContext] Error loading weekly targets: ${weeklyTargetsRes.error.message}`); toast.error(`Erro ao carregar metas semanais: ${weeklyTargetsRes.error.message}`); setWeeklyTargets([]); }
-        else { setWeeklyTargets(weeklyTargetsRes.data || []); console.log("[AppContext] Weekly Targets fetched:", (weeklyTargetsRes.data || []).length); }
+        // --- Handle Daily Checklist Completions ---
+        if (dailyChecklistCompletionsRes.status === 'fulfilled') {
+          setDailyChecklistCompletions(dailyChecklistCompletionsRes.value.data || []);
+          console.log("[AppContext] Daily Checklist Completions fetched:", (dailyChecklistCompletionsRes.value.data || []).length);
+        } else {
+          console.error(`[AppContext] Error loading daily checklist completions:`, dailyChecklistCompletionsRes.reason);
+          toast.error(`Erro ao carregar conclusões do checklist diário: ${dailyChecklistCompletionsRes.reason.message}`);
+          setDailyChecklistCompletions([]);
+        }
 
-        if (weeklyTargetItemsRes.error) { console.error(`[AppContext] Error loading weekly target items: ${weeklyTargetItemsRes.error.message}`); toast.error(`Erro ao carregar itens de metas semanais: ${weeklyTargetItemsRes.error.message}`); setWeeklyTargetItems([]); }
-        else { setWeeklyTargetItems(weeklyTargetItemsRes.data || []); console.log("[AppContext] Weekly Target Items fetched:", (weeklyTargetItemsRes.data || []).length); }
+        // --- Handle Weekly Targets ---
+        if (weeklyTargetsRes.status === 'fulfilled') {
+          setWeeklyTargets(weeklyTargetsRes.value.data || []);
+          console.log("[AppContext] Weekly Targets fetched:", (weeklyTargetsRes.value.data || []).length);
+        } else {
+          console.error(`[AppContext] Error loading weekly targets:`, weeklyTargetsRes.reason);
+          toast.error(`Erro ao carregar metas semanais: ${weeklyTargetsRes.reason.message}`);
+          setWeeklyTargets([]);
+        }
 
-        if (weeklyTargetAssignmentsRes.error) { console.error(`[AppContext] Error loading weekly target assignments: ${weeklyTargetAssignmentsRes.error.message}`); toast.error(`Erro ao carregar atribuições de metas semanais: ${weeklyTargetAssignmentsRes.error.message}`); setWeeklyTargetAssignments([]); }
-        else { setWeeklyTargetAssignments(weeklyTargetAssignmentsRes.data || []); console.log("[AppContext] Weekly Target Assignments fetched:", (weeklyTargetAssignmentsRes.data || []).length); }
+        // --- Handle Weekly Target Items ---
+        if (weeklyTargetItemsRes.status === 'fulfilled') {
+          setWeeklyTargetItems(weeklyTargetItemsRes.value.data || []);
+          console.log("[AppContext] Weekly Target Items fetched:", (weeklyTargetItemsRes.value.data || []).length);
+        } else {
+          console.error(`[AppContext] Error loading weekly target items:`, weeklyTargetItemsRes.reason);
+          toast.error(`Erro ao carregar itens de metas semanais: ${weeklyTargetItemsRes.reason.message}`);
+          setWeeklyTargetItems([]);
+        }
 
-        if (metricLogsRes.error) { console.error(`[AppContext] Error loading metric logs: ${metricLogsRes.error.message}`); toast.error(`Erro ao carregar logs de métricas: ${metricLogsRes.error.message}`); setMetricLogs([]); }
-        else { setMetricLogs(metricLogsRes.data || []); console.log("[AppContext] Metric Logs fetched:", (metricLogsRes.data || []).length); }
+        // --- Handle Weekly Target Assignments ---
+        if (weeklyTargetAssignmentsRes.status === 'fulfilled') {
+          setWeeklyTargetAssignments(weeklyTargetAssignmentsRes.value.data || []);
+          console.log("[AppContext] Weekly Target Assignments fetched:", (weeklyTargetAssignmentsRes.value.data || []).length);
+        } else {
+          console.error(`[AppContext] Error loading weekly target assignments:`, weeklyTargetAssignmentsRes.reason);
+          toast.error(`Erro ao carregar atribuições de metas semanais: ${weeklyTargetAssignmentsRes.reason.message}`);
+          setWeeklyTargetAssignments([]);
+        }
 
-        if (supportMaterialsV2Res.error) { console.error(`[AppContext] Error loading support materials v2: ${supportMaterialsV2Res.error.message}`); toast.error(`Erro ao carregar materiais de apoio v2: ${supportMaterialsV2Res.error.message}`); setSupportMaterialsV2([]); }
-        else { setSupportMaterialsV2(supportMaterialsV2Res.data || []); console.log("[AppContext] Support Materials V2 fetched:", (supportMaterialsV2Res.data || []).length); }
+        // --- Handle Metric Logs ---
+        if (metricLogsRes.status === 'fulfilled') {
+          setMetricLogs(metricLogsRes.value.data || []);
+          console.log("[AppContext] Metric Logs fetched:", (metricLogsRes.value.data || []).length);
+        } else {
+          console.error(`[AppContext] Error loading metric logs:`, metricLogsRes.reason);
+          toast.error(`Erro ao carregar logs de métricas: ${metricLogsRes.reason.message}`);
+          setMetricLogs([]);
+        }
 
-        if (supportMaterialAssignmentsV2Res.error) { console.error(`[AppContext] Error loading support material assignments: ${supportMaterialAssignmentsV2Res.error.message}`); toast.error(`Erro ao carregar atribuições de materiais de apoio: ${supportMaterialAssignmentsV2Res.error.message}`); setSupportMaterialAssignments([]); }
-        else { setSupportMaterialAssignments(supportMaterialAssignmentsV2Res.data || []); console.log("[AppContext] Support Material Assignments fetched:", (supportMaterialAssignmentsV2Res.data || []).length); }
+        // --- Handle Support Materials V2 ---
+        if (supportMaterialsV2Res.status === 'fulfilled') {
+          setSupportMaterialsV2(supportMaterialsV2Res.value.data || []);
+          console.log("[AppContext] Support Materials V2 fetched:", (supportMaterialsV2Res.value.data || []).length);
+        } else {
+          console.error(`[AppContext] Error loading support materials v2:`, supportMaterialsV2Res.reason);
+          toast.error(`Erro ao carregar materiais de apoio v2: ${supportMaterialsV2Res.reason.message}`);
+          setSupportMaterialsV2([]);
+        }
 
-        if (leadTasksRes.error) { console.error(`[AppContext] Error loading lead tasks: ${leadTasksRes.error.message}`); toast.error(`Erro ao carregar tarefas de lead: ${leadTasksRes.error.message}`); setLeadTasks([]); }
-        else { setLeadTasks(leadTasksRes.data || []); console.log("[AppContext] Lead Tasks fetched:", (leadTasksRes.data || []).length); }
+        // --- Handle Support Material Assignments ---
+        if (supportMaterialAssignmentsV2Res.status === 'fulfilled') {
+          setSupportMaterialAssignments(supportMaterialAssignmentsV2Res.value.data || []);
+          console.log("[AppContext] Support Material Assignments fetched:", (supportMaterialAssignmentsV2Res.value.data || []).length);
+        } else {
+          console.error(`[AppContext] Error loading support material assignments:`, supportMaterialAssignmentsV2Res.reason);
+          toast.error(`Erro ao carregar atribuições de materiais de apoio: ${supportMaterialAssignmentsV2Res.reason.message}`);
+          setSupportMaterialAssignments([]);
+        }
 
-        if (gestorTasksRes.error) { console.error(`[AppContext] Error loading gestor tasks: ${gestorTasksRes.error.message}`); toast.error(`Erro ao carregar tarefas do gestor: ${gestorTasksRes.error.message}`); setGestorTasks([]); }
-        else { setGestorTasks(gestorTasksRes.data || []); console.log("[AppContext] Gestor Tasks fetched:", (gestorTasksRes.data || []).length); }
+        // --- Handle Lead Tasks ---
+        if (leadTasksRes.status === 'fulfilled') {
+          setLeadTasks(leadTasksRes.value.data || []);
+          console.log("[AppContext] Lead Tasks fetched:", (leadTasksRes.value.data || []).length);
+        } else {
+          console.error(`[AppContext] Error loading lead tasks:`, leadTasksRes.reason);
+          toast.error(`Erro ao carregar tarefas de lead: ${leadTasksRes.reason.message}`);
+          setLeadTasks([]);
+        }
 
-        if (gestorTaskCompletionsRes.error) { console.error(`[AppContext] Error loading gestor task completions: ${gestorTaskCompletionsRes.error.message}`); toast.error(`Erro ao carregar conclusões de tarefas do gestor: ${gestorTaskCompletionsRes.error.message}`); setGestorTaskCompletions([]); }
-        else { setGestorTaskCompletions(gestorTaskCompletionsRes.data || []); console.log("[AppContext] Gestor Task Completions fetched:", (gestorTaskCompletionsRes.data || []).length); }
+        // --- Handle Gestor Tasks ---
+        if (gestorTasksRes.status === 'fulfilled') {
+          setGestorTasks(gestorTasksRes.value.data || []);
+          console.log("[AppContext] Gestor Tasks fetched:", (gestorTasksRes.value.data || []).length);
+        } else {
+          console.error(`[AppContext] Error loading gestor tasks:`, gestorTasksRes.reason);
+          toast.error(`Erro ao carregar tarefas do gestor: ${gestorTasksRes.reason.message}`);
+          setGestorTasks([]);
+        }
 
-        if (financialEntriesRes.error) { console.error(`[AppContext] Error loading financial entries: ${financialEntriesRes.error.message}`); toast.error(`Erro ao carregar entradas financeiras: ${financialEntriesRes.error.message}`); setFinancialEntries([]); }
-        else {
-          setFinancialEntries(financialEntriesRes.data?.map((entry: any) => ({
+        // --- Handle Gestor Task Completions ---
+        if (gestorTaskCompletionsRes.status === 'fulfilled') {
+          setGestorTaskCompletions(gestorTaskCompletionsRes.value.data || []);
+          console.log("[AppContext] Gestor Task Completions fetched:", (gestorTaskCompletionsRes.value.data || []).length);
+        } else {
+          console.error(`[AppContext] Error loading gestor task completions:`, gestorTaskCompletionsRes.reason);
+          toast.error(`Erro ao carregar conclusões de tarefas do gestor: ${gestorTaskCompletionsRes.reason.message}`);
+          setGestorTaskCompletions([]);
+        }
+
+        // --- Handle Financial Entries ---
+        if (financialEntriesRes.status === 'fulfilled') {
+          setFinancialEntries(financialEntriesRes.value.data?.map((entry: any) => ({
             id: entry.id, db_id: entry.id, user_id: entry.user_id, entry_date: entry.entry_date, type: entry.type, description: entry.description, amount: parseFloat(entry.amount || '0'), created_at: entry.created_at
           })) || []);
-          console.log("[AppContext] Financial Entries fetched:", (financialEntriesRes.data || []).length);
+          console.log("[AppContext] Financial Entries fetched:", (financialEntriesRes.value.data || []).length);
+        } else {
+          console.error(`[AppContext] Error loading financial entries:`, financialEntriesRes.reason);
+          toast.error(`Erro ao carregar entradas financeiras: ${financialEntriesRes.reason.message}`);
+          setFinancialEntries([]);
         }
 
-        if (formCadastrosRes.error) { console.error(`[AppContext] Error loading form submissions: ${formCadastrosRes.error.message}`); toast.error(`Erro ao carregar cadastros de formulário: ${formCadastrosRes.error.message}`); setFormCadastros([]); }
-        else { setFormCadastros(formCadastrosRes.data || []); console.log("[AppContext] Form Cadastros fetched:", (formCadastrosRes.data || []).length); }
+        // --- Handle Form Cadastros ---
+        if (formCadastrosRes.status === 'fulfilled') {
+          setFormCadastros(formCadastrosRes.value.data || []);
+          console.log("[AppContext] Form Cadastros fetched:", (formCadastrosRes.value.data || []).length);
+        } else {
+          console.error(`[AppContext] Error loading form submissions:`, formCadastrosRes.reason);
+          toast.error(`Erro ao carregar cadastros de formulário: ${formCadastrosRes.reason.message}`);
+          setFormCadastros([]);
+        }
 
-        if (formFilesRes.error) { console.error(`[AppContext] Error loading form files: ${formFilesRes.error.message}`); toast.error(`Erro ao carregar arquivos de formulário: ${formFilesRes.error.message}`); setFormFiles([]); }
-        else { setFormFiles(formFilesRes.data || []); console.log("[AppContext] Form Files fetched:", (formFilesRes.data || []).length); }
+        // --- Handle Form Files ---
+        if (formFilesRes.status === 'fulfilled') {
+          setFormFiles(formFilesRes.value.data || []);
+          console.log("[AppContext] Form Files fetched:", (formFilesRes.value.data || []).length);
+        } else {
+          console.error(`[AppContext] Error loading form files:`, formFilesRes.reason);
+          toast.error(`Erro ao carregar arquivos de formulário: ${formFilesRes.reason.message}`);
+          setFormFiles([]);
+        }
 
-        if (notificationsRes.error) { console.error(`[AppContext] Error loading notifications: ${notificationsRes.error.message}`); toast.error(`Erro ao carregar notificações: ${notificationsRes.error.message}`); setNotifications([]); }
-        else { setNotifications(notificationsRes.data || []); console.log("[AppContext] Notifications fetched:", (notificationsRes.data || []).length); }
+        // --- Handle Notifications ---
+        if (notificationsRes.status === 'fulfilled') {
+          setNotifications(notificationsRes.value.data || []);
+          console.log("[AppContext] Notifications fetched:", (notificationsRes.value.data || []).length);
+        } else {
+          console.error(`[AppContext] Error loading notifications:`, notificationsRes.reason);
+          toast.error(`Erro ao carregar notificações: ${notificationsRes.reason.message}`);
+          setNotifications([]);
+        }
 
-        if (teamProductionGoalsRes.error) { console.error(`[AppContext] Error loading team production goals: ${teamProductionGoalsRes.error.message}`); toast.error(`Erro ao carregar metas da equipe: ${teamProductionGoalsRes.error.message}`); setTeamProductionGoals([]); }
-        else { setTeamProductionGoals(teamProductionGoalsRes.data || []); console.log("[AppContext] Team Production Goals fetched:", (teamProductionGoalsRes.data || []).length); }
+        // --- Handle Team Production Goals ---
+        if (teamProductionGoalsRes.status === 'fulfilled') {
+          setTeamProductionGoals(teamProductionGoalsRes.value.data || []);
+          console.log("[AppContext] Team Production Goals fetched:", (teamProductionGoalsRes.value.data || []).length);
+        } else {
+          console.error(`[AppContext] Error loading team production goals:`, teamProductionGoalsRes.reason);
+          toast.error(`Erro ao carregar metas da equipe: ${teamProductionGoalsRes.reason.message}`);
+          setTeamProductionGoals([]);
+        }
         
-        if (coldCallLeadsRes.error) { console.error(`[AppContext] Error loading cold call leads: ${coldCallLeadsRes.error.message}`); toast.error(`Erro ao carregar leads de cold call: ${coldCallLeadsRes.error.message}`); setColdCallLeads([]); }
-        else { 
-          setColdCallLeads(coldCallLeadsRes.data || []); 
-          console.log("[AppContext] Cold Call Leads fetched:", (coldCallLeadsRes.data || []).length, "Count:", coldCallLeadsRes.count);
+        // --- Handle Cold Call Leads ---
+        if (coldCallLeadsRes.status === 'fulfilled') {
+          setColdCallLeads(coldCallLeadsRes.value.data || []); 
+          console.log("[AppContext] Cold Call Leads fetched:", (coldCallLeadsRes.value.data || []).length);
+        } else {
+          console.error(`[AppContext] Error loading cold call leads:`, coldCallLeadsRes.reason);
+          toast.error(`Erro ao carregar leads de cold call: ${coldCallLeadsRes.reason.message}`);
+          setColdCallLeads([]);
         }
 
-        if (coldCallLogsRes.error) { console.error(`[AppContext] Error loading cold call logs: ${coldCallLogsRes.error.message}`); toast.error(`Erro ao carregar logs de cold call: ${coldCallLogsRes.error.message}`); setColdCallLogs([]); }
-        else { 
-          setColdCallLogs(coldCallLogsRes.data || []); 
-          console.log("[AppContext] Cold Call Logs fetched:", (coldCallLogsRes.data || []).length, "Count:", coldCallLogsRes.count);
+        // --- Handle Cold Call Logs ---
+        if (coldCallLogsRes.status === 'fulfilled') {
+          setColdCallLogs(coldCallLogsRes.value.data || []); 
+          console.log("[AppContext] Cold Call Logs fetched:", (coldCallLogsRes.value.data || []).length);
+        } else {
+          console.error(`[AppContext] Error loading cold call logs:`, coldCallLogsRes.reason);
+          toast.error(`Erro ao carregar logs de cold call: ${coldCallLogsRes.reason.message}`);
+          setColdCallLogs([]);
         }
 
-        if (consultantEventsRes.error) { console.error(`[AppContext] Error loading consultant events: ${consultantEventsRes.error.message}`); toast.error(`Erro ao carregar eventos do consultor: ${consultantEventsRes.error.message}`); setConsultantEvents([]); }
-        else { setConsultantEvents(consultantEventsRes.data || []); console.log("[AppContext] Consultant Events fetched:", (consultantEventsRes.data || []).length); }
-
+        // --- Handle Consultant Events ---
+        if (consultantEventsRes.status === 'fulfilled') {
+          setConsultantEvents(consultantEventsRes.value.data || []);
+          console.log("[AppContext] Consultant Events fetched:", (consultantEventsRes.value.data || []).length);
+        } else {
+          console.error(`[AppContext] Error loading consultant events:`, consultantEventsRes.reason);
+          toast.error(`Erro ao carregar eventos do consultor: ${consultantEventsRes.reason.message}`);
+          setConsultantEvents([]);
+        }
 
         refetchCommissions();
         console.log("[AppContext] fetchData completed successfully for user:", userId);
@@ -588,34 +829,32 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         console.error("[AppContext] Critical error during fetchData:", error.message, error);
         toast.error(`Erro crítico ao carregar dados: ${error.message}`);
       } finally {
-        // Removido if (isMounted) para garantir que o estado de carregamento seja sempre limpo
-        console.log("[AppContext] Setting isDataLoading to false in finally block.");
+        isFetchingRef.current = false;
         setIsDataLoading(false);
+        console.log("[AppContext] Setting isDataLoading to false in finally block.");
       }
     };
 
-    if (user && user.id !== fetchedUserIdRef.current) {
-      fetchedUserIdRef.current = user.id;
-      setIsDataLoading(true);
-      fetchData(user.id);
-    } else if (!user) {
+    if (user && user.id) {
+      // Only fetch if user ID has changed or if it's the initial load and not already fetching
+      if (user.id !== fetchedUserIdRef.current || !isFetchingRef.current) {
+        fetchedUserIdRef.current = user.id;
+        fetchData(user.id);
+      } else {
+        console.log("[AppContext] User is the same, or already fetching. Skipping fetchData.");
+      }
+    } else {
       fetchedUserIdRef.current = null;
       console.log("[AppContext] User is null, resetting local state.");
       resetLocalState();
-    } else {
-      console.log("[AppContext] User is the same, or already fetched. Ensuring isDataLoading is false.");
-      // Se o usuário é o mesmo e os dados ainda estão carregando, significa que um fetch anterior pode ter falhado
-      // ou foi interrompido. Devemos garantir que seja limpo.
-      if (isDataLoading) {
-        setIsDataLoading(false);
-      }
     }
 
     return () => {
       isMounted = false;
+      isFetchingRef.current = false; // Ensure ref is reset on unmount
       console.log("[AppContext] AppContext useEffect cleanup.");
     };
-  }, [user?.id, refetchCommissions, fetchAppConfig, resetLocalState, parseDbCurrency, user?.role]); // isDataLoading removido das dependências
+  }, [user, refetchCommissions, fetchAppConfig, resetLocalState, parseDbCurrency]);
 
   // CRUD candidatos
   const addCandidate = useCallback(async (candidate: Omit<Candidate, 'id' | 'createdAt' | 'db_id'>) => {
@@ -766,7 +1005,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const { data: newCrmLeads } = await supabase.from('crm_leads').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID).order('created_at', { ascending: false });
     setCrmLeads(newCrmLeads?.map((lead: any) => ({
       id: lead.id, consultant_id: lead.consultant_id, stage_id: lead.stage_id, user_id: lead.user_id, name: lead.name, data: lead.data,
-      created_at: lead.created_at, updated_at: lead.updated_at, created_by: data.created_by, updated_by: data.updated_by,
+      created_at: lead.created_at, updated_at: data.updated_at, created_by: data.created_by, updated_by: data.updated_by,
       proposal_value: parseDbCurrency(lead.proposal_value), proposal_closing_date: lead.proposal_closing_date,
       sold_credit_value: parseDbCurrency(lead.sold_credit_value), sold_group: lead.sold_group, sold_quota: lead.sold_quota, sale_date: lead.sale_date
     })) || []);
