@@ -50,7 +50,7 @@ export const Dashboard = () => {
   const [isLeadsDetailModalOpen, setIsLeadsDetailModalOpen] = useState(false);
   const [leadsModalTitle, setLeadsModalTitle] = useState('');
   const [leadsForModal, setLeadsForModal] = useState<CrmLead[]>([]);
-  const [leadsMetricType, setLeadsMetricType] = useState<'proposal' | 'sold' | 'meeting'>('proposal');
+  const [leadsMetricType, setLeadsMetricType] = useState<'proposal' | 'sold' | 'meeting' | 'all'>('proposal');
 
   const [isCandidatesDetailModalOpen, setIsCandidatesDetailModalOpen] = useState(false);
   const [candidatesModalTitle, setCandidatesModalTitle] = useState('');
@@ -340,7 +340,7 @@ export const Dashboard = () => {
     else if (item.personType === 'lead') navigate(`/gestor/crm`, { state: { highlightLeadId: item.personId } });
   };
 
-  const handleOpenLeadsDetailModal = (title: string, leads: CrmLead[], metricType: 'proposal' | 'sold' | 'meeting') => {
+  const handleOpenLeadsDetailModal = (title: string, leads: CrmLead[], metricType: 'proposal' | 'sold' | 'meeting' | 'all') => {
     setLeadsModalTitle(title);
     setLeadsForModal(leads);
     setLeadsMetricType(metricType);
@@ -540,12 +540,12 @@ export const Dashboard = () => {
             onClick={() => handleOpenCandidatesDetailModal('Entrevistas Realizadas', hiringMetrics.conductedList, 'conducted')}
           />
           <MetricCard 
-            title="Contratados (Em Prévia)" 
+            title="Total de Aprovados" 
             value={hiringMetrics.totalHired} 
             icon={TrendingUp} 
             colorClass="bg-blue-600 text-white" 
-            subValue="Passaram na seleção"
-            onClick={() => handleOpenCandidatesDetailModal('Contratados (Em Prévia)', hiringMetrics.totalHiredList, 'awaitingPreview')}
+            subValue="Entraram em prévia ou posterior"
+            onClick={() => handleOpenCandidatesDetailModal('Total de Aprovados', hiringMetrics.totalHiredList, 'awaitingPreview')}
           />
           <MetricCard 
             title="Autorizados" 
@@ -556,20 +556,20 @@ export const Dashboard = () => {
             onClick={() => handleOpenCandidatesDetailModal('Autorizados', hiringMetrics.hiredList, 'hired')}
           />
           <MetricCard 
+            title="Desistências" 
+            value={hiringMetrics.withdrawn} 
+            icon={UserMinus} 
+            colorClass="bg-rose-600 text-white" 
+            subValue="Aprovados que saíram"
+            onClick={() => handleOpenCandidatesDetailModal('Desistências', hiringMetrics.withdrawnList, 'withdrawn')}
+          />
+          <MetricCard 
             title="Faltas" 
             value={hiringMetrics.noShow} 
             icon={Ghost} 
             colorClass="bg-rose-500 text-white" 
             subValue="Não compareceram"
             onClick={() => handleOpenCandidatesDetailModal('Faltas', hiringMetrics.noShowList, 'noShow')}
-          />
-          <MetricCard 
-            title="Desistências" 
-            value={hiringMetrics.withdrawn} 
-            icon={UserMinus} 
-            colorClass="bg-rose-600 text-white" 
-            subValue="Candidato desistiu"
-            onClick={() => handleOpenCandidatesDetailModal('Desistências', hiringMetrics.withdrawnList, 'withdrawn')}
           />
           <MetricCard 
             title="Desqualificados" 

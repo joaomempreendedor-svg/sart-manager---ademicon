@@ -23,7 +23,7 @@ interface LeadsDetailModalProps {
   leads: CrmLead[];
   crmStages: CrmStage[];
   teamMembers: TeamMember[];
-  metricType: 'proposal' | 'sold' | 'meeting';
+  metricType: 'proposal' | 'sold' | 'meeting' | 'all';
 }
 
 const formatCurrency = (value: number) => {
@@ -45,8 +45,8 @@ export const LeadsDetailModal: React.FC<LeadsDetailModalProps> = ({
   if (!isOpen) return null;
 
   const handleGoToLead = (leadId: string) => {
-    onClose();
-    navigate(`/gestor/crm`, { state: { highlightLeadId: leadId } });
+    onClose(); // Fecha o modal antes de navegar
+    navigate(`/gestor/crm`, { state: { highlightLeadId: leadId } }); // Navega para o CRM, pode adicionar um estado para destacar o lead
   };
 
   const getConsultantName = (lead: CrmLead) => {
@@ -64,18 +64,22 @@ export const LeadsDetailModal: React.FC<LeadsDetailModalProps> = ({
     return 'Não atribuído';
   };
 
+  const getIconForMetric = (type: 'proposal' | 'sold' | 'meeting' | 'all') => {
+    switch (type) {
+      case 'proposal': return <Send className="w-6 h-6 text-purple-600 dark:text-purple-400" />;
+      case 'sold': return <DollarSign className="w-6 h-6 text-green-600 dark:text-green-400" />;
+      case 'meeting': return <Calendar className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />;
+      case 'all': return <Users className="w-6 h-6 text-blue-600 dark:text-blue-400" />;
+      default: return <Tag className="w-6 h-6 text-brand-500" />;
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-3xl bg-white dark:bg-slate-800 dark:text-white p-6">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
-            {metricType === 'proposal' ? (
-              <Send className="w-6 h-6 text-purple-600 dark:text-purple-400" />
-            ) : metricType === 'sold' ? (
-              <DollarSign className="w-6 h-6 text-green-600 dark:text-green-400" />
-            ) : (
-              <Calendar className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
-            )}
+            {getIconForMetric(metricType)}
             <span>{title} ({leads.length})</span>
           </DialogTitle>
           <DialogDescription>
@@ -135,10 +139,16 @@ export const LeadsDetailModal: React.FC<LeadsDetailModalProps> = ({
                             <>
                               <DollarSign className="w-3 h-3 mr-1" /> Valor Vendido: <span className="font-semibold">{formatCurrency(displayValue)}</span>
                             </>
-                          ) : (
+                          ) : metricType === 'all' && (lead.proposal_value || lead.sold_credit_value) ? (
                             <>
-                              <Users className="w-3 h-3 mr-1" /> Lead com Reunião
+                              <DollarSign className="w-3 h-3 mr-1" /> Valor: <span className="font-semibold">{formatCurrency(displayValue)}</span>
                             </>
+                          ) : (
+                            metricType === 'meeting' && (
+                              <>
+                                <Users className="w-3 h-3 mr-1" /> Lead com Reunião
+                              </>
+                            )
                           )}
                         </span>
                       </div>

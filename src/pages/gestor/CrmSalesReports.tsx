@@ -13,6 +13,9 @@ import * as XLSX from 'xlsx';
 import TopSellersChart from '@/components/crm/TopSellersChart';
 import { SalesByOriginDetailModal } from '@/components/crm/SalesByOriginDetailModal';
 import toast from 'react-hot-toast';
+import { CrmLead } from '@/types';
+import { LeadsDetailModal } from '@/components/gestor/LeadsDetailModal';
+import { MetricCard } from '@/components/MetricCard';
 
 const JOAO_GESTOR_AUTH_ID = "0c6d71b7-daeb-4dde-8eec-0e7a8ffef658";
 
@@ -39,6 +42,11 @@ const CrmSalesReports = () => {
   const [filterStageId, setFilterStageId] = useState<string | null>(null);
   const [selectedConsultantId, setSelectedConsultantId] = useState<string | null>(null);
   const [filterOrigin, setFilterOrigin] = useState<string | null>(null);
+
+  const [isLeadsDetailModalOpen, setIsLeadsDetailModalOpen] = useState(false);
+  const [leadsModalTitle, setLeadsModalTitle] = useState('');
+  const [leadsForModal, setLeadsForModal] = useState<CrmLead[]>([]);
+  const [leadsMetricType, setLeadsMetricType] = useState<'proposal' | 'sold' | 'meeting' | 'all'>('all');
 
   const activePipeline = useMemo(() => {
     return crmPipelines.find(p => p.is_active) || crmPipelines[0];
@@ -151,6 +159,8 @@ const CrmSalesReports = () => {
     let totalSoldValue = 0;
     let totalProposalsCount = 0;
     let totalSalesCount = 0;
+    const leadsWithProposal: CrmLead[] = [];
+    const leadsSold: CrmLead[] = [];
 
     const pipelineStageSummary: { [key: string]: { name: string; count: number; totalValue: number; } } = {};
     pipelineStages.forEach(stage => {
@@ -179,6 +189,7 @@ const CrmSalesReports = () => {
       if (lead.proposal_value && lead.proposal_value > 0) {
         totalProposalValue += lead.proposal_value;
         totalProposalsCount++;
+        leadsWithProposal.push(lead);
         if (consultantId && dataByConsultant[consultantId]) {
           dataByConsultant[consultantId].proposalsSent++;
           dataByConsultant[consultantId].proposalValue += lead.proposal_value;
@@ -194,6 +205,7 @@ const CrmSalesReports = () => {
         if (actualSoldValue > 0) {
           totalSalesCount++;
           totalSoldValue += actualSoldValue;
+          leadsSold.push(lead);
           if (consultantId && dataByConsultant[consultantId]) {
             dataByConsultant[consultantId].salesClosed++;
             dataByConsultant[consultantId].soldValue += actualSoldValue;
@@ -226,6 +238,8 @@ const CrmSalesReports = () => {
       consultantPerformance: performanceList,
       pipelineStageSummary: Object.values(pipelineStageSummary).filter(s => s.count > 0),
       salesByOrigin: Object.entries(salesByOrigin).map(([origin, data]) => ({ origin, ...data })).filter(o => o.count > 0).sort((a, b) => b.soldValue - a.soldValue),
+      leadsWithProposal,
+      leadsSold,
     };
   }, [filteredLeads, leadTasks, allTeamMembers, crmStages, pipelineStages, salesOrigins]);
 
@@ -275,6 +289,13 @@ const CrmSalesReports = () => {
     XLSX.utils.book_append_sheet(workbook, wsDetailedLeads, "Leads Detalhado");
     XLSX.writeFile(workbook, `Relatorio_Vendas_CRM_${new Date().toISOString().slice(0, 10)}.xlsx`);
     toast.success('Relatório exportado com sucesso!');
+  };
+
+  const handleOpenLeadsDetailModal = (title: string, leads: CrmLead[], metricType: 'proposal' | 'sold' | 'meeting' | 'all') => {
+    setLeadsModalTitle(title);
+    setLeadsForModal(leads);
+    setLeadsMetricType(metricType);
+    setIsLeadsDetailModalOpen(true);
   };
 
   if (isAuthLoading || isDataLoading) {
@@ -362,22 +383,33 @@ const CrmSalesReports = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
-          <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg"><Users className="w-6 h-6 text-blue-600" /></div>
-          <div><p className="text-sm text-gray-500">Total Leads</p><p className="text-xl font-bold">{reportData.totalLeads}</p></div>
-        </div>
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
-          <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg"><Send className="w-6 h-6 text-purple-600" /></div>
-          <div><p className="text-sm text-gray-500">Total Propostas</p><p className="text-xl font-bold">{formatCurrency(reportData.totalProposalValue)}</p></div>
-        </div>
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
-          <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg"><DollarSign className="w-6 h-6 text-green-600" /></div>
-          <div><p className="text-sm text-gray-500">Total Vendido</p><p className="text-xl font-bold">{formatCurrency(reportData.totalSoldValue)}</p></div>
-        </div>
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
-          <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg"><Percent className="w-6 h-6 text-yellow-600" /></div>
-          <div><p className="text-sm text-gray-500">Conversão</p><p className="text-xl font-bold">{reportData.overallConversionRate.toFixed(1)}%</p></div>
-        </div>
+        <MetricCard
+          title="Total Leads"
+          value={reportData.totalLeads}
+          icon={Users}
+          colorClass="bg-blue-600 text-white"
+          onClick={() => handleOpenLeadsDetailModal('Total de Leads no Período', filteredLeads, 'all')}
+        />
+        <MetricCard
+          title="Total Propostas"
+          value={formatCurrency(reportData.totalProposalValue)}
+          icon={Send}
+          colorClass="bg-purple-600 text-white"
+          onClick={() => handleOpenLeadsDetailModal('Leads com Proposta no Período', reportData.leadsWithProposal, 'proposal')}
+        />
+        <MetricCard
+          title="Total Vendido"
+          value={formatCurrency(reportData.totalSoldValue)}
+          icon={DollarSign}
+          colorClass="bg-green-600 text-white"
+          onClick={() => handleOpenLeadsDetailModal('Leads Vendidos no Período', reportData.leadsSold, 'sold')}
+        />
+        <MetricCard
+          title="Conversão"
+          value={`${reportData.overallConversionRate.toFixed(1)}%`}
+          icon={Percent}
+          colorClass="bg-yellow-600 text-white"
+        />
       </div>
 
       <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm mb-8">
@@ -414,6 +446,16 @@ const CrmSalesReports = () => {
           </table>
         </div>
       </div>
+
+      <LeadsDetailModal
+        isOpen={isLeadsDetailModalOpen}
+        onClose={() => setIsLeadsDetailModalOpen(false)}
+        title={leadsModalTitle}
+        leads={leadsForModal}
+        crmStages={crmStages}
+        teamMembers={allTeamMembers}
+        metricType={leadsMetricType}
+      />
     </div>
   );
 };
