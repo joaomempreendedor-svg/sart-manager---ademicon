@@ -491,33 +491,48 @@ const CrmSalesReports = () => {
       </div>
 
       <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50"><h3 className="font-bold">Desempenho por Consultor</h3></div>
+        <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
+          <h3 className="font-bold text-gray-900 dark:text-white flex items-center">
+            <Award className="w-5 h-5 mr-2 text-brand-500" /> Desempenho por Consultor
+          </h3>
+        </div>
         <div className="p-4 space-y-4">
-          {reportData.consultantPerformance.map(c => (
+          {reportData.consultantPerformance.map((c, index) => (
             <div key={c.name} className="p-4 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/50">
-              <h4 className="font-bold text-lg text-gray-900 dark:text-white mb-3">{c.name}</h4>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center space-x-3">
+                  <span className={`flex items-center justify-center w-8 h-8 rounded-full font-bold text-white ${index === 0 ? 'bg-amber-400' : index === 1 ? 'bg-slate-400' : index === 2 ? 'bg-amber-600' : 'bg-slate-300 dark:bg-slate-600'}`}>
+                    {index + 1}
+                  </span>
+                  <h4 className="font-bold text-lg text-gray-900 dark:text-white">{c.name}</h4>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-gray-500">Conversão (Proposta → Venda)</p>
+                  <p className="font-bold text-lg text-brand-600 dark:text-brand-400">{c.conversionRate.toFixed(1)}%</p>
+                </div>
+              </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 text-center">
-                <div className="p-2 rounded-lg bg-white dark:bg-slate-700">
+                <div className="p-3 rounded-lg bg-white dark:bg-slate-700 shadow-sm">
                   <Users className="w-5 h-5 mx-auto text-blue-500 mb-1" />
                   <p className="text-xs text-gray-500">Leads</p>
                   <p className="font-bold text-lg">{c.leadsRegistered}</p>
                 </div>
-                <div className="p-2 rounded-lg bg-white dark:bg-slate-700">
+                <div className="p-3 rounded-lg bg-white dark:bg-slate-700 shadow-sm">
                   <Calendar className="w-5 h-5 mx-auto text-orange-500 mb-1" />
                   <p className="text-xs text-gray-500">Reuniões</p>
                   <p className="font-bold text-lg">{c.meetingsScheduled}</p>
                 </div>
-                <div className="p-2 rounded-lg bg-white dark:bg-slate-700">
+                <div className="p-3 rounded-lg bg-white dark:bg-slate-700 shadow-sm">
                   <Send className="w-5 h-5 mx-auto text-purple-500 mb-1" />
                   <p className="text-xs text-gray-500">Propostas</p>
                   <p className="font-bold text-lg">{c.proposalsSent}</p>
                 </div>
-                <div className="p-2 rounded-lg bg-white dark:bg-slate-700">
+                <div className="p-3 rounded-lg bg-white dark:bg-slate-700 shadow-sm">
                   <CheckCircle2 className="w-5 h-5 mx-auto text-green-500 mb-1" />
                   <p className="text-xs text-gray-500">Vendas</p>
                   <p className="font-bold text-lg">{c.salesClosed}</p>
                 </div>
-                <div className="p-2 rounded-lg bg-white dark:bg-slate-700 col-span-2 sm:col-span-1 md:col-span-1">
+                <div className="p-3 rounded-lg bg-white dark:bg-slate-700 shadow-sm col-span-2 sm:col-span-1 md:col-span-1">
                   <DollarSign className="w-5 h-5 mx-auto text-teal-500 mb-1" />
                   <p className="text-xs text-gray-500">Valor Vendido</p>
                   <p className="font-bold text-lg">{formatCurrency(c.soldValue)}</p>

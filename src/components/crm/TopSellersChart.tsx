@@ -1,5 +1,5 @@
 import React from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface TopSellersChartProps {
   data: { name: string; soldValue: number; }[];
@@ -9,36 +9,68 @@ const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 };
 
+// Custom Tooltip Component
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-white dark:bg-slate-800 p-3 rounded-lg shadow-lg border border-gray-200 dark:border-slate-700">
+        <p className="font-bold text-gray-900 dark:text-white">{label}</p>
+        <p className="text-brand-600 dark:text-brand-400">{`Valor Vendido: ${formatCurrency(payload[0].value)}`}</p>
+      </div>
+    );
+  }
+  return null;
+};
+
 const TopSellersChart: React.FC<TopSellersChartProps> = ({ data }) => {
-  // Ordenar os dados do maior para o menor valor vendido
   const sortedData = [...data].sort((a, b) => b.soldValue - a.soldValue);
 
   return (
-    <div className="text-gray-700 dark:text-gray-300"> {/* Wrapper para controlar a cor do texto */}
-      <ResponsiveContainer width="100%" height={300}>
+    <div className="text-gray-700 dark:text-gray-300">
+      <ResponsiveContainer width="100%" height={350}>
         <BarChart
           data={sortedData}
           margin={{
-            top: 5,
+            top: 20,
             right: 30,
-            left: 40, // Aumentado para dar mais espaço ao rótulo do eixo Y
-            bottom: 5,
+            left: 20,
+            bottom: 60, // Increased bottom margin for angled labels
           }}
         >
-          <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" className="dark:stroke-slate-700" />
-          <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} interval={0} tick={{ fontSize: 12, fill: 'currentColor' }} /> {/* Usar currentColor */}
-          <YAxis tickFormatter={formatCurrency} tick={{ fontSize: 12, fill: 'currentColor' }} /> {/* Usar currentColor */}
-          <Tooltip
-            cursor={{ fill: 'rgba(0, 0, 0, 0.05)' }}
-            formatter={(value: number) => formatCurrency(value)}
-            labelFormatter={(label: string) => `Consultor: ${label}`}
-            // Explicitamente definir a cor do texto para o rótulo e itens do tooltip para garantir legibilidade
-            labelStyle={{ color: '#333' }} // Cor escura para o nome do consultor
-            itemStyle={{ color: '#333' }} // Cor escura para outros itens (se não sobrescrito pelo fill da barra)
-            contentStyle={{ backgroundColor: 'white', borderColor: '#e0e0e0', borderRadius: '8px', boxShadow: '0px 0px 10px rgba(0,0,0,0.1)' }} // Garantir fundo branco e estilo
+          <defs>
+            <linearGradient id="salesGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#ffb870" stopOpacity={0.9}/>
+              <stop offset="95%" stopColor="#ff7a00" stopOpacity={1}/>
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" className="dark:stroke-slate-700" vertical={false} />
+          <XAxis 
+            dataKey="name" 
+            angle={-45} 
+            textAnchor="end" 
+            interval={0} 
+            tick={{ fontSize: 12, fill: 'currentColor' }} 
+            tickLine={false}
+            axisLine={false}
           />
-          <Legend wrapperStyle={{ paddingTop: '20px' }} />
-          <Bar dataKey="soldValue" name="Valor Vendido" fill="#ff7a00" />
+          <YAxis 
+            tickFormatter={formatCurrency} 
+            tick={{ fontSize: 12, fill: 'currentColor' }} 
+            tickLine={false}
+            axisLine={false}
+            width={100} // Give more space for currency values
+          />
+          <Tooltip 
+            content={<CustomTooltip />} 
+            cursor={{ fill: 'rgba(255, 122, 0, 0.1)' }}
+          />
+          <Bar 
+            dataKey="soldValue" 
+            name="Valor Vendido" 
+            fill="url(#salesGradient)" 
+            radius={[4, 4, 0, 0]} // Rounded top corners
+            barSize={30}
+          />
         </BarChart>
       </ResponsiveContainer>
     </div>
