@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
-import { useAuth } from '@/context/AuthContext';
 import { 
   Users, 
   TrendingUp, 
@@ -24,93 +23,94 @@ import {
   MapPin,
   BarChart3,
   PieChart,
-  HelpCircle // NOVO: Importar HelpCircle
+  HelpCircle
 } from 'lucide-react';
-import { MetricCard } from '@/components/MetricCard'; // Importar MetricCard
+import { MetricCard } from '@/components/MetricCard';
+import { Candidate } from '@/types';
+import { CandidatesDetailModal } from '@/components/gestor/CandidatesDetailModal';
 
 const HiringDashboard = () => {
-  const { candidates, isDataLoading, hiringOrigins } = useApp();
+  const { candidates, isDataLoading, hiringOrigins, teamMembers } = useApp();
   
-  // Filtros de Data Padrão: Mês Atual
-  const [startDate, setStartDate] = useState(() => {
-    const d = new Date();
-    return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
-  });
-  const [endDate, setEndDate] = useState(() => {
-    const d = new Date();
-    return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
-  });
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+
+  const [isCandidatesDetailModalOpen, setIsCandidatesDetailModalOpen] = useState(false);
+  const [candidatesModalTitle, setCandidatesModalTitle] = useState('');
+  const [candidatesForModal, setCandidatesForModal] = useState<Candidate[]>([]);
+  const [candidatesMetricType, setCandidatesMetricType] = useState<'total' | 'newCandidates' | 'contacted' | 'scheduled' | 'conducted' | 'awaitingPreview' | 'hired' | 'noShow' | 'withdrawn' | 'disqualified' | 'noResponse'>('total');
 
   const metrics = useMemo(() => {
-    const start = new Date(startDate + 'T00:00:00');
-    const end = new Date(endDate + 'T23:59:59');
+    const start = startDate ? new Date(startDate + 'T00:00:00') : null;
+    const end = endDate ? new Date(endDate + 'T23:59:59') : null;
 
-    // Função auxiliar para verificar se uma data está dentro do período de filtro
     const isInFilterRange = (dateString?: string) => {
       if (!dateString) return false;
       const date = new Date(dateString);
-      return date >= start && date <= end;
+      return (!start || date >= start) && (!end || date <= end);
     };
 
-    const total = candidates.filter(c => isInFilterRange(c.createdAt)).length;
+    const totalCandidates = candidates.filter(c => isInFilterRange(c.createdAt));
     
-    // Entradas históricas em cada etapa (dentro do período de filtro)
-    const contacted = candidates.filter(c => 
-      isInFilterRange(c.contactedDate) // Usa contactedDate
-    ).length;
+    const newCandidatesList = totalCandidates.filter(c => 
+      (c.screeningStatus === 'Pending Contact' || !c.screeningStatus)
+    );
 
-    const noResponse = candidates.filter(c => // NOVO: Contagem de Não Respondidos
-      isInFilterRange(c.noResponseDate)
-    ).length;
+    const contactedList = totalCandidates.filter(c => 
+      isInFilterRange(c.contactedDate) && c.screeningStatus === 'Contacted'
+    );
 
-    const scheduled = candidates.filter(c => 
-      isInFilterRange(c.interviewScheduledDate) // Usa interviewScheduledDate, removida a condição !c.interviewConducted
-    ).length;
+    const noResponseList = totalCandidates.filter(c =>
+      isInFilterRange(c.noResponseDate) && c.screeningStatus === 'No Response'
+    );
 
-    const conducted = candidates.filter(c => 
-      isInFilterRange(c.interviewConductedDate) // Usa interviewConductedDate
-    ).length;
+    const scheduledList = totalCandidates.filter(c => 
+      isInFilterRange(c.interviewScheduledDate)
+    );
 
-    const awaitingPreview = candidates.filter(c => 
-      isInFilterRange(c.awaitingPreviewDate) // Usa awaitingPreviewDate
-    ).length;
+    const conductedList = totalCandidates.filter(c => 
+      isInFilterRange(c.interviewConductedDate)
+    );
 
-    const hired = candidates.filter(c => 
-      isInFilterRange(c.authorizedDate) // Usa authorizedDate
-    ).length;
+    const awaitingPreviewList = totalCandidates.filter(c => 
+      isInFilterRange(c.awaitingPreviewDate)
+    );
 
-    const noShow = candidates.filter(c => 
-      isInFilterRange(c.faltouDate) // Usa faltouDate
-    ).length;
+    const hiredList = totalCandidates.filter(c => 
+      isInFilterRange(c.authorizedDate)
+    );
 
-    const withdrawn = candidates.filter(c => 
-      isInFilterRange(c.reprovadoDate) // Usa reprovadoDate
-    ).length;
+    const noShowList = totalCandidates.filter(c => 
+      isInFilterRange(c.faltouDate)
+    );
 
-    const disqualified = candidates.filter(c => 
-      isInFilterRange(c.disqualifiedDate) // Usa disqualifiedDate
-    ).length;
+    const withdrawnList = totalCandidates.filter(c => 
+      isInFilterRange(c.reprovadoDate)
+    );
 
-    // NOVA LÓGICA: Total de Contratados (que passaram da triagem)
-    const totalHired = candidates.filter(c => 
-      isInFilterRange(c.awaitingPreviewDate) || // Entrou em 'Aguardando Prévia'
-      isInFilterRange(c.onboardingOnlineDate) || // Entrou em 'Onboarding Online'
-      isInFilterRange(c.integrationPresencialDate) || // Entrou em 'Integração Presencial'
-      isInFilterRange(c.acompanhamento90DiasDate) || // Entrou em 'Acompanhamento 90 Dias'
-      isInFilterRange(c.authorizedDate) // Entrou em 'Autorizado'
-    ).length;
+    const disqualifiedList = totalCandidates.filter(c => 
+      isInFilterRange(c.disqualifiedDate)
+    );
 
-    const totalInterviewsScheduled = candidates.filter(c => isInFilterRange(c.interviewScheduledDate)).length;
-    const totalInterviewsConducted = candidates.filter(c => isInFilterRange(c.interviewConductedDate)).length;
+    const totalHiredList = totalCandidates.filter(c => 
+      isInFilterRange(c.awaitingPreviewDate) ||
+      isInFilterRange(c.onboardingOnlineDate) ||
+      isInFilterRange(c.integrationPresencialDate) ||
+      isInFilterRange(c.acompanhamento90DiasDate) ||
+      isInFilterRange(c.authorizedDate)
+    );
+
+    const totalInterviewsScheduled = scheduledList.length;
+    const totalInterviewsConducted = conductedList.length;
 
     const attendanceRate = totalInterviewsScheduled > 0 ? (totalInterviewsConducted / totalInterviewsScheduled) * 100 : 0;
-    const hiringRate = total > 0 ? (totalHired / total) * 100 : 0;
+    const hiringRate = totalCandidates.length > 0 ? (totalHiredList.length / totalCandidates.length) * 100 : 0;
 
     const originCounts: Record<string, number> = {};
     hiringOrigins.forEach(origin => { originCounts[origin] = 0; });
     originCounts['Não Informado'] = 0;
 
-    candidates.filter(c => isInFilterRange(c.createdAt)).forEach(c => { // Conta a origem apenas para candidatos criados no período
+    totalCandidates.forEach(c => {
       const origin = c.origin || 'Não Informado';
       originCounts[origin] = (originCounts[origin] || 0) + 1;
     });
@@ -119,28 +119,48 @@ const HiringDashboard = () => {
       .map(([name, count]) => ({
         name,
         count,
-        percentage: total > 0 ? (count / total) * 100 : 0
+        percentage: totalCandidates.length > 0 ? (count / totalCandidates.length) * 100 : 0
       }))
       .filter(o => o.count > 0)
       .sort((a, b) => b.count - a.count);
 
     return {
-      total,
-      contacted,
-      noResponse, // NOVO: Adicionado noResponse
-      scheduled,
-      conducted,
-      awaitingPreview,
-      hired,
-      noShow,
-      withdrawn,
-      disqualified,
-      candidatesByOrigin,
+      total: totalCandidates.length,
+      newCandidates: newCandidatesList.length,
+      contacted: contactedList.length,
+      noResponse: noResponseList.length,
+      scheduled: scheduledList.length,
+      conducted: conductedList.length,
+      awaitingPreview: awaitingPreviewList.length,
+      hired: hiredList.length,
+      noShow: noShowList.length,
+      withdrawn: withdrawnList.length,
+      disqualified: disqualifiedList.length,
       attendanceRate,
       hiringRate,
-      totalHired
+      totalHired: totalHiredList.length,
+      newCandidatesList,
+      contactedList,
+      noResponseList,
+      scheduledList,
+      conductedList,
+      awaitingPreviewList,
+      hiredList,
+      noShowList,
+      withdrawnList,
+      disqualifiedList,
+      totalCandidatesList: totalCandidates,
+      totalHiredList,
+      candidatesByOrigin,
     };
   }, [candidates, startDate, endDate, hiringOrigins]);
+
+  const handleOpenCandidatesDetailModal = (title: string, candidates: Candidate[], metricType: 'total' | 'newCandidates' | 'contacted' | 'scheduled' | 'conducted' | 'awaitingPreview' | 'hired' | 'noShow' | 'withdrawn' | 'disqualified' | 'noResponse') => {
+    setCandidatesModalTitle(title);
+    setCandidatesForModal(candidates);
+    setCandidatesMetricType(metricType);
+    setIsCandidatesDetailModalOpen(true);
+  };
 
   if (isDataLoading) {
     return (
@@ -152,105 +172,114 @@ const HiringDashboard = () => {
 
   return (
     <div className="p-4 sm:p-8 max-w-7xl mx-auto min-h-screen bg-gray-50 dark:bg-slate-900">
-      <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight flex items-center">
-            <PieChart className="w-8 h-8 mr-3 text-brand-500" /> Dashboard de Candidaturas
-          </h1>
-          <p className="text-gray-500 dark:text-gray-400 font-medium">Métricas detalhadas do fluxo de contratação.</p>
-        </div>
-        
-        <div className="flex items-center space-x-2 bg-white dark:bg-slate-800 p-3 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm">
-          <Calendar className="w-4 h-4 text-gray-400" />
-          <input 
-            type="date" 
-            value={startDate} 
-            onChange={(e) => setStartDate(e.target.value)}
-            className="text-sm bg-transparent border-none focus:ring-0 dark:text-white"
-          />
-          <span className="text-gray-400 font-bold">→</span>
-          <input 
-            type="date" 
-            value={endDate} 
-            onChange={(e) => setEndDate(e.target.value)}
-            className="text-sm bg-transparent border-none focus:ring-0 dark:text-white"
-          />
-          <button 
-            onClick={() => {
-              const d = new Date();
-              setStartDate(new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0]);
-              setEndDate(new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0]);
-            }}
-            className="ml-2 p-1 text-gray-400 hover:text-brand-500 transition-colors"
-          >
-            <RotateCcw className="w-4 h-4" />
-          </button>
-        </div>
+      <div className="mb-8">
+        <h1 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight flex items-center">
+          <PieChart className="w-8 h-8 mr-3 text-brand-500" /> Dashboard de Candidaturas
+        </h1>
+        <p className="text-gray-500 dark:text-gray-400 font-medium">Métricas detalhadas do fluxo de contratação.</p>
+      </div>
+
+      <div className="flex items-center space-x-2 bg-white dark:bg-slate-800 p-3 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm mb-8">
+        <Calendar className="w-4 h-4 text-gray-400" />
+        <input 
+          type="date" 
+          value={startDate} 
+          onChange={(e) => setStartDate(e.target.value)}
+          className="text-sm bg-transparent border-none focus:ring-0 dark:text-white"
+        />
+        <span className="text-gray-400 font-bold">→</span>
+        <input 
+          type="date" 
+          value={endDate} 
+          onChange={(e) => setEndDate(e.target.value)}
+          className="text-sm bg-transparent border-none focus:ring-0 dark:text-white"
+        />
+        <button 
+          onClick={() => { setStartDate(''); setEndDate(''); }}
+          className="ml-2 p-1 text-gray-400 hover:text-brand-500 transition-colors"
+        >
+          <RotateCcw className="w-4 h-4" />
+        </button>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-12">
         <MetricCard 
-          title="Candidatos (Entrada no Funil)" 
+          title="Total de Candidaturas" 
           value={metrics.total} 
           icon={Users} 
           colorClass="bg-indigo-600 text-white" 
+          onClick={() => handleOpenCandidatesDetailModal('Total de Candidaturas', metrics.totalCandidatesList, 'total')}
         />
         <MetricCard 
-          title="Não Respondido (no Período)" // NOVO: Título alterado
-          value={metrics.noResponse} // NOVO: Usando a métrica de Não Respondido
-          icon={HelpCircle} // NOVO: Ícone alterado
-          colorClass="bg-orange-500 text-white" 
-        />
-        <MetricCard 
-          title="Contatados (no Período)" 
+          title="Contatados" 
           value={metrics.contacted} 
           icon={MessageSquare} 
           colorClass="bg-amber-500 text-white" 
+          subValue="Em triagem ativa"
+          onClick={() => handleOpenCandidatesDetailModal('Contatados', metrics.contactedList, 'contacted')}
         />
         <MetricCard 
-          title="Entrevistas Agendadas (no Período)" 
+          title="Não Respondido"
+          value={metrics.noResponse}
+          icon={HelpCircle}
+          colorClass="bg-orange-500 text-white"
+          subValue="Aguardando retorno"
+          onClick={() => handleOpenCandidatesDetailModal('Não Respondido', metrics.noResponseList, 'noResponse')}
+        />
+        <MetricCard 
+          title="Entrevistas Agendadas" 
           value={metrics.scheduled} 
           icon={Clock} 
           colorClass="bg-orange-600 text-white" 
+          onClick={() => handleOpenCandidatesDetailModal('Entrevistas Agendadas', metrics.scheduledList, 'scheduled')}
         />
         <MetricCard 
-          title="Entrevistas Realizadas (no Período)" 
+          title="Entrevistas Realizadas" 
           value={metrics.conducted} 
           icon={FileText} 
           colorClass="bg-purple-600 text-white" 
+          onClick={() => handleOpenCandidatesDetailModal('Entrevistas Realizadas', metrics.conductedList, 'conducted')}
         />
         <MetricCard 
-          title="Em Prévia (no Período)" 
-          value={metrics.awaitingPreview} 
+          title="Contratados (Em Prévia)" 
+          value={metrics.totalHired} 
           icon={TrendingUp} 
           colorClass="bg-blue-600 text-white" 
+          subValue="Passaram na seleção"
+          onClick={() => handleOpenCandidatesDetailModal('Contratados (Em Prévia)', metrics.totalHiredList, 'awaitingPreview')}
         />
         <MetricCard 
-          title="Autorizados (no Período)" 
+          title="Autorizados" 
           value={metrics.hired} 
           icon={UserCheck} 
           colorClass="bg-emerald-600 text-white" 
+          subValue="Contratações efetivas"
+          onClick={() => handleOpenCandidatesDetailModal('Autorizados', metrics.hiredList, 'hired')}
         />
-        
         <MetricCard 
-          title="Faltas (no Período)" 
+          title="Faltas" 
           value={metrics.noShow} 
           icon={Ghost} 
           colorClass="bg-rose-500 text-white" 
+          subValue="Não compareceram"
+          onClick={() => handleOpenCandidatesDetailModal('Faltas', metrics.noShowList, 'noShow')}
         />
         <MetricCard 
-          title="Desistências (no Período)" 
+          title="Desistências" 
           value={metrics.withdrawn} 
           icon={UserMinus} 
           colorClass="bg-rose-600 text-white" 
+          subValue="Candidato desistiu"
+          onClick={() => handleOpenCandidatesDetailModal('Desistências', metrics.withdrawnList, 'withdrawn')}
         />
         <MetricCard 
-          title="Desqualificados (no Período)" 
+          title="Desqualificados" 
           value={metrics.disqualified} 
           icon={XCircle} 
           colorClass="bg-rose-700 text-white" 
+          subValue="Reprovados pelo gestor"
+          onClick={() => handleOpenCandidatesDetailModal('Desqualificados', metrics.disqualifiedList, 'disqualified')}
         />
-        
         <MetricCard 
           title="Taxa de Comparecimento" 
           value={`${metrics.attendanceRate.toFixed(1)}%`} 
@@ -312,6 +341,15 @@ const HiringDashboard = () => {
           </table>
         </div>
       </div>
+
+      <CandidatesDetailModal 
+        isOpen={isCandidatesDetailModalOpen} 
+        onClose={() => setIsCandidatesDetailModalOpen(false)} 
+        title={candidatesModalTitle} 
+        candidates={candidatesForModal} 
+        teamMembers={teamMembers} 
+        metricType={candidatesMetricType} 
+      />
     </div>
   );
 };

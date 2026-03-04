@@ -42,6 +42,7 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
   const allLinks = useMemo(() => [
     // Dashboard (conditional path)
     { to: dashboardPath, icon: LayoutDashboard, label: "Dashboard", roles: ['GESTOR', 'ADMIN', 'SECRETARIA'], section: 'overview' },
+    { to: `${baseRoute}/hiring-dashboard`, icon: PieChart, label: "Dashboard Candidaturas", roles: ['GESTOR', 'ADMIN', 'SECRETARIA'], section: 'overview' },
 
     // CRM & Sales (Gestor/Admin only)
     { to: `${baseRoute}/crm`, icon: TrendingUp, label: "CRM", roles: ['GESTOR', 'ADMIN'], section: 'overview' },
