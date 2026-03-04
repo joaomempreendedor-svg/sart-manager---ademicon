@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, MessageSquare, Settings, FileText, Sun, Moon, Banknote, PlusCircle, Library, TrendingUp, Target, Users, LogOut, User as UserIcon, Star, Video, ListChecks, ClipboardCheck, UserPlus, ChevronLeft, ChevronRight, ChevronDown, UserSearch, BarChart3, MapPin, DollarSign, FileStack, UserCheck, Clock, Calendar, UsersRound, ListTodo, PieChart, PhoneCall } from 'lucide-react';
+import { LayoutDashboard, MessageSquare, Settings, FileText, Sun, Moon, Banknote, PlusCircle, Library, TrendingUp, Target, Users, LogOut, User as UserIcon, Star, Video, ListChecks, ClipboardCheck, UserPlus, ChevronLeft, ChevronRight, ChevronDown, UserSearch, BarChart3, MapPin, DollarSign, FileStack, UserCheck, Clock, Calendar, UsersRound, ListTodo, PieChart, PhoneCall, Search } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { UserRole } from '@/types'; // Importar UserRole
@@ -19,6 +19,7 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
   const [isOverviewCollapsed, setIsOverviewCollapsed] = useState(false);
   const [isConfigCollapsed, setIsConfigCollapsed] = useState(false);
   const [isPersonalCollapsed, setIsPersonalCollapsed] = useState(false);
+  const [configSearchTerm, setConfigSearchTerm] = useState('');
 
   const handleLogout = async () => {
     await logout();
@@ -50,7 +51,7 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
     { to: `${baseRoute}/feedbacks`, icon: Star, label: "Feedbacks", roles: ['GESTOR', 'ADMIN'], section: 'overview' },
     { to: `${baseRoute}/team-production-goals`, icon: Target, label: "Metas de Produção", roles: ['GESTOR', 'ADMIN'], section: 'overview' },
     { to: `${baseRoute}/my-tasks`, icon: ListTodo, label: "Minhas Tarefas", roles: ['GESTOR', 'ADMIN'], section: 'overview' },
-    { to: `${baseRoute}/cold-call-metrics`, icon: PhoneCall, label: "Métricas Cold Call", roles: ['GESTOR', 'ADMIN'], section: 'overview' }, // NOVO: Link para Métricas de Cold Call
+    { to: `${baseRoute}/cold-call-metrics`, icon: PhoneCall, label: "Métricas Cold Call", roles: ['GESTOR', 'ADMIN'], section: 'overview' },
 
     // Hiring & Onboarding (Shared, but some pages might be Gestor/Admin specific)
     { to: `${baseRoute}/hiring-pipeline`, icon: UserSearch, label: "Pipeline Contratação", roles: ['GESTOR', 'ADMIN', 'SECRETARIA'], section: 'overview' },
@@ -78,6 +79,15 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
 
   const overviewLinks = allLinks.filter(link => link.section === 'overview' && link.roles.includes(userRole));
   const configLinks = allLinks.filter(link => link.section === 'config' && link.roles.includes(userRole));
+
+  const filteredConfigLinks = useMemo(() => {
+    if (!configSearchTerm) {
+        return configLinks;
+    }
+    return configLinks.filter(link =>
+        link.label.toLowerCase().includes(configSearchTerm.toLowerCase())
+    );
+  }, [configLinks, configSearchTerm]);
 
   return (
     <>
@@ -146,7 +156,17 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
               )}
               {(!isSidebarCollapsed && !isConfigCollapsed) && (
                 <>
-                  {configLinks.map(link => (
+                  <div className="relative px-4 py-2">
+                    <Search className="absolute left-7 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                        type="text"
+                        placeholder="Buscar configuração..."
+                        value={configSearchTerm}
+                        onChange={(e) => setConfigSearchTerm(e.target.value)}
+                        className="w-full pl-9 pr-4 py-1.5 border border-gray-200 dark:border-slate-700 rounded-md text-sm bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 focus:ring-brand-500 focus:border-brand-500"
+                    />
+                  </div>
+                  {filteredConfigLinks.map(link => (
                     <NavLink key={link.to} to={link.to} className={linkClass} onClick={toggleSidebar}>
                       <link.icon className="w-5 h-5" />
                       <span>{link.label}</span>
