@@ -241,12 +241,12 @@ const HiringDashboard = () => {
           onClick={() => handleOpenCandidatesDetailModal('Entrevistas Realizadas', metrics.conductedList, 'conducted')}
         />
         <MetricCard 
-          title="Contratados (Em Prévia)" 
+          title="Total de Aprovados" 
           value={metrics.totalHired} 
           icon={TrendingUp} 
           colorClass="bg-blue-600 text-white" 
-          subValue="Passaram na seleção"
-          onClick={() => handleOpenCandidatesDetailModal('Contratados (Em Prévia)', metrics.totalHiredList, 'awaitingPreview')}
+          subValue="Entraram em prévia ou posterior"
+          onClick={() => handleOpenCandidatesDetailModal('Total de Aprovados', metrics.totalHiredList, 'awaitingPreview')}
         />
         <MetricCard 
           title="Autorizados" 
@@ -257,20 +257,20 @@ const HiringDashboard = () => {
           onClick={() => handleOpenCandidatesDetailModal('Autorizados', metrics.hiredList, 'hired')}
         />
         <MetricCard 
+          title="Desistências" 
+          value={metrics.withdrawn} 
+          icon={UserMinus} 
+          colorClass="bg-rose-600 text-white" 
+          subValue="Aprovados que saíram"
+          onClick={() => handleOpenCandidatesDetailModal('Desistências', metrics.withdrawnList, 'withdrawn')}
+        />
+        <MetricCard 
           title="Faltas" 
           value={metrics.noShow} 
           icon={Ghost} 
           colorClass="bg-rose-500 text-white" 
           subValue="Não compareceram"
           onClick={() => handleOpenCandidatesDetailModal('Faltas', metrics.noShowList, 'noShow')}
-        />
-        <MetricCard 
-          title="Desistências" 
-          value={metrics.withdrawn} 
-          icon={UserMinus} 
-          colorClass="bg-rose-600 text-white" 
-          subValue="Candidato desistiu"
-          onClick={() => handleOpenCandidatesDetailModal('Desistências', metrics.withdrawnList, 'withdrawn')}
         />
         <MetricCard 
           title="Desqualificados" 
@@ -280,6 +280,7 @@ const HiringDashboard = () => {
           subValue="Reprovados pelo gestor"
           onClick={() => handleOpenCandidatesDetailModal('Desqualificados', metrics.disqualifiedList, 'disqualified')}
         />
+        
         <MetricCard 
           title="Taxa de Comparecimento" 
           value={`${metrics.attendanceRate.toFixed(1)}%`} 
