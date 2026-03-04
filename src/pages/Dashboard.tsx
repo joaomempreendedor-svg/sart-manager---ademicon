@@ -423,6 +423,7 @@ export const Dashboard = () => {
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center">
             <PhoneCall className="w-5 h-5 mr-2 text-brand-500" /> Métricas de Cold Call
+            <span className="ml-3 text-xs font-medium text-gray-500 bg-gray-100 dark:bg-slate-700 dark:text-gray-400 px-2 py-1 rounded-full">Mês Atual</span>
           </h2>
           <div className="flex items-center space-x-2">
             <label htmlFor="coldCallConsultant" className="text-sm font-medium text-gray-700 dark:text-gray-300">Consultor:</label>
