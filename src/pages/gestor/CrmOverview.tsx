@@ -467,19 +467,36 @@ const CrmOverviewPage = () => {
                           )}
 
                           {isWonStage ? (
-                            <div className="flex items-center text-green-600 dark:text-green-400 font-semibold">
-                              <DollarSign className="w-3 h-3 mr-1" /> Vendido: {formatCurrency(lead.sold_credit_value || 0)}
-                            </div>
-                          ) : lead.proposal_value ? (
-                            <div className="flex items-center text-purple-600 dark:text-purple-400 font-semibold">
-                              <DollarSign className="w-3 h-3 mr-1" /> Proposta: {formatCurrency(lead.proposal_value)}
-                              {lead.proposal_closing_date && (
-                                <span className="ml-1 text-xs text-gray-500 dark:text-gray-400 font-normal">
-                                  (até {new Date(lead.proposal_closing_date + 'T00:00:00').toLocaleDateString('pt-BR')})
-                                </span>
-                              )}
-                            </div>
-                          ) : null}
+                            lead.sold_credit_value !== undefined && lead.sold_credit_value !== null ? (
+                              <div className="flex items-center text-green-600 dark:text-green-400 font-semibold">
+                                <CheckCircle2 className="w-3 h-3 mr-1" /> Vendido: {formatCurrency(lead.sold_credit_value)}
+                                {lead.sale_date && (
+                                  <span className="ml-1 text-xs text-gray-500 dark:text-gray-400 font-normal">
+                                    (em {new Date(lead.sale_date + 'T00:00:00').toLocaleDateString('pt-BR')})
+                                  </span>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="flex items-center text-green-600 dark:text-green-400">
+                                <CheckCircle2 className="w-3 h-3 mr-1" /> Vendido (valor não informado)
+                              </div>
+                            )
+                          ) : (
+                            lead.proposal_value !== undefined && lead.proposal_value !== null ? (
+                              <div className="flex items-center text-purple-600 dark:text-purple-400 font-semibold">
+                                <DollarSign className="w-3 h-3 mr-1" /> Proposta: {formatCurrency(lead.proposal_value)}
+                                {lead.proposal_closing_date && (
+                                  <span className="ml-1 text-xs text-gray-500 dark:text-gray-400 font-normal">
+                                    (até {new Date(lead.proposal_closing_date + 'T00:00:00').toLocaleDateString('pt-BR')})
+                                  </span>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="flex items-center text-gray-400 dark:text-gray-500">
+                                <DollarSign className="w-3 h-3 mr-1" /> Sem proposta
+                              </div>
+                            )
+                          )}
                         </div>
 
                         <div className="mt-3 pt-3 border-t border-gray-100 dark:border-slate-600">
