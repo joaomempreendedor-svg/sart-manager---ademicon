@@ -386,7 +386,8 @@ export const Dashboard = () => {
 
       <section className="animate-fade-in">
         <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center">
-          <TrendingUp className="w-5 h-5 mr-2 text-brand-500" /> Métricas Comerciais (Mês Atual)
+          <TrendingUp className="w-5 h-5 mr-2 text-brand-500" /> Métricas Comerciais
+          <span className="ml-3 text-xs font-medium text-gray-500 bg-gray-100 dark:bg-slate-700 dark:text-gray-400 px-2 py-1 rounded-full">Mês Atual</span>
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           <MetricCard
@@ -497,7 +498,8 @@ export const Dashboard = () => {
 
       <section className="animate-fade-in">
         <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center">
-          <PieChart className="w-5 h-5 mr-2 text-brand-500" /> Dashboard de Candidaturas (Mês Atual)
+          <PieChart className="w-5 h-5 mr-2 text-brand-500" /> Dashboard de Candidaturas
+          <span className="ml-3 text-xs font-medium text-gray-500 bg-gray-100 dark:bg-slate-700 dark:text-gray-400 px-2 py-1 rounded-full">Mês Atual</span>
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           <MetricCard 
