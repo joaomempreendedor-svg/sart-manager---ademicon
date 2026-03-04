@@ -65,8 +65,14 @@ export const Dashboard = () => {
   
   const [userSelectedColdCallConsultantId, setUserSelectedColdCallConsultantId] = useState<string | null>(null); 
 
-  const [coldCallFilterStartDate, setColdCallFilterStartDate] = useState('');
-  const [coldCallFilterEndDate, setColdCallFilterEndDate] = useState('');
+  const [coldCallFilterStartDate, setColdCallFilterStartDate] = useState(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
+  });
+  const [coldCallFilterEndDate, setColdCallFilterEndDate] = useState(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
+  });
 
   const handleOpenNotifications = () => setIsNotificationCenterOpen(true);
   const handleCloseNotifications = () => setIsNotificationCenterOpen(false);
