@@ -110,12 +110,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [theme]);
 
   const parseDbCurrency = useCallback((value: any): number | null => {
-    if (typeof value === 'number') return value;
+    console.log('Parsing value:', value);
+    if (typeof value === 'number') {
+      console.log('-> is number, returning:', value);
+      return value;
+    }
     if (typeof value === 'string') {
       const cleaned = value.replace(/[^0-9,-]+/g, '').replace(/\./g, '').replace(',', '.');
       const parsed = parseFloat(cleaned);
+      console.log('-> is string, cleaned:', cleaned, 'parsed:', parsed);
       return isNaN(parsed) ? null : parsed;
     }
+    console.log('-> is other type, returning null');
     return null;
   }, []);
 
@@ -397,11 +403,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         else { setCrmFields(fieldsRes.data || []); }
 
         if (crmLeadsRes.error) { toast.error(`Erro ao carregar leads do CRM: ${crmLeadsRes.error.message}`); setCrmLeads([]); }
-        else { setCrmLeads(crmLeadsRes.data?.map((lead: any) => ({ 
-          id: lead.id, consultant_id: lead.consultant_id, stage_id: lead.stage_id, user_id: lead.user_id, name: lead.name, data: lead.data, created_at: lead.created_at, updated_at: lead.updated_at, created_by: lead.created_by, updated_by: lead.updated_by, 
-          proposal_value: parseDbCurrency(lead.proposal_value), proposal_closing_date: lead.proposal_closing_date, 
-          sold_credit_value: parseDbCurrency(lead.sold_credit_value), sold_group: lead.sold_group, sold_quota: lead.sold_quota, sale_date: lead.sale_date 
-        })) || []); }
+        else { setCrmLeads(crmLeadsRes.data?.map((lead: any) => {
+          console.log('CRM Lead raw:', lead);
+          return { 
+            id: lead.id, consultant_id: lead.consultant_id, stage_id: lead.stage_id, user_id: lead.user_id, name: lead.name, data: lead.data, created_at: lead.created_at, updated_at: lead.updated_at, created_by: lead.created_by, updated_by: lead.updated_by, 
+            proposal_value: parseDbCurrency(lead.proposal_value), proposal_closing_date: lead.proposal_closing_date, 
+            sold_credit_value: parseDbCurrency(lead.sold_credit_value), sold_group: lead.sold_group, sold_quota: lead.sold_quota, sale_date: lead.sale_date 
+          };
+        }) || []); }
 
         if (dailyChecklistsRes.error) { toast.error(`Erro ao carregar checklists diários: ${dailyChecklistsRes.error.message}`); setDailyChecklists([]); }
         else { setDailyChecklists(dailyChecklistsRes.data || []); }
@@ -1005,12 +1014,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const { data, error } = await supabase.from('crm_leads').update({ 
       ...updates, 
       updated_by: user!.id,
-      proposal_value: updates.proposal_value,
-      proposal_closing_date: updates.proposal_closing_date,
-      sold_credit_value: updates.sold_credit_value,
-      sold_group: updates.sold_group,
-      sold_quota: updates.sold_quota,
-      sale_date: updates.sale_date
     }).eq('id', id).select().single();
     if (error) throw error;
     const updatedLead = {
