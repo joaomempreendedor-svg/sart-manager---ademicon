@@ -473,6 +473,11 @@ const CrmOverviewPage = () => {
                           ) : lead.proposal_value ? (
                             <div className="flex items-center text-purple-600 dark:text-purple-400 font-semibold">
                               <DollarSign className="w-3 h-3 mr-1" /> Proposta: {formatCurrency(lead.proposal_value)}
+                              {lead.proposal_closing_date && (
+                                <span className="ml-1 text-xs text-gray-500 dark:text-gray-400 font-normal">
+                                  (até {new Date(lead.proposal_closing_date + 'T00:00:00').toLocaleDateString('pt-BR')})
+                                </span>
+                              )}
                             </div>
                           ) : null}
                         </div>
