@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { LayoutDashboard, MessageSquare, Settings, FileText, Sun, Moon, Banknote, PlusCircle, Library, TrendingUp, Target, Users, LogOut, User as UserIcon, Star, Video, ListChecks, ClipboardCheck, UserPlus, ChevronLeft, ChevronRight, ChevronDown, UserSearch, BarChart3, MapPin, DollarSign, FileStack, UserCheck, Clock, Calendar, UsersRound, ListTodo, PieChart, PhoneCall, Search } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
@@ -19,7 +19,7 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
   const [isOverviewCollapsed, setIsOverviewCollapsed] = useState(false);
   const [isConfigCollapsed, setIsConfigCollapsed] = useState(false);
   const [isPersonalCollapsed, setIsPersonalCollapsed] = useState(false);
-  const [configSearchTerm, setConfigSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
 
   const handleLogout = async () => {
     await logout();
@@ -80,14 +80,23 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
   const overviewLinks = allLinks.filter(link => link.section === 'overview' && link.roles.includes(userRole));
   const configLinks = allLinks.filter(link => link.section === 'config' && link.roles.includes(userRole));
 
+  const filteredOverviewLinks = useMemo(() => {
+    if (!searchTerm) return overviewLinks;
+    return overviewLinks.filter(link => link.label.toLowerCase().includes(searchTerm.toLowerCase()));
+  }, [overviewLinks, searchTerm]);
+
   const filteredConfigLinks = useMemo(() => {
-    if (!configSearchTerm) {
-        return configLinks;
+    if (!searchTerm) return configLinks;
+    return configLinks.filter(link => link.label.toLowerCase().includes(searchTerm.toLowerCase()));
+  }, [configLinks, searchTerm]);
+
+  useEffect(() => {
+    if (searchTerm) {
+      setIsOverviewCollapsed(false);
+      setIsConfigCollapsed(false);
+      setIsPersonalCollapsed(false);
     }
-    return configLinks.filter(link =>
-        link.label.toLowerCase().includes(configSearchTerm.toLowerCase())
-    );
-  }, [configLinks, configSearchTerm]);
+  }, [searchTerm]);
 
   return (
     <>
@@ -118,35 +127,52 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
         </NavLink>
         
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto custom-scrollbar">
-          {/* Visão Geral e Operação */}
           {!isSidebarCollapsed && (
-            <button onClick={() => setIsOverviewCollapsed(!isOverviewCollapsed)} className={sectionTitleClass}>
-              <span>Visão Geral e Operação</span>
-              <ChevronDown className={`w-4 h-4 transition-transform ${isOverviewCollapsed ? 'rotate-0' : '-rotate-90'}`} />
-            </button>
+            <div className="relative px-0 py-2">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                  type="text"
+                  placeholder="Buscar no menu..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-9 pr-4 py-1.5 border border-gray-200 dark:border-slate-700 rounded-md text-sm bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 focus:ring-brand-500 focus:border-brand-500"
+              />
+            </div>
           )}
-          {(!isSidebarCollapsed && !isOverviewCollapsed) && (
+
+          {/* Visão Geral e Operação */}
+          {filteredOverviewLinks.length > 0 && (
             <>
-              {overviewLinks.map(link => (
-                <NavLink key={link.to} to={link.to} className={linkClass} onClick={toggleSidebar}>
-                  <link.icon className="w-5 h-5" />
-                  <span>{link.label}</span>
-                </NavLink>
-              ))}
-            </>
-          )}
-          {isSidebarCollapsed && (
-            <>
-              {overviewLinks.map(link => (
-                <NavLink key={link.to} to={link.to} className={linkClass} onClick={toggleSidebar} title={link.label}>
-                  <link.icon className="w-5 h-5" />
-                </NavLink>
-              ))}
+              {!isSidebarCollapsed && (
+                <button onClick={() => setIsOverviewCollapsed(!isOverviewCollapsed)} className={sectionTitleClass}>
+                  <span>Visão Geral e Operação</span>
+                  <ChevronDown className={`w-4 h-4 transition-transform ${isOverviewCollapsed ? 'rotate-0' : '-rotate-90'}`} />
+                </button>
+              )}
+              {(!isSidebarCollapsed && !isOverviewCollapsed) && (
+                <>
+                  {filteredOverviewLinks.map(link => (
+                    <NavLink key={link.to} to={link.to} className={linkClass} onClick={toggleSidebar}>
+                      <link.icon className="w-5 h-5" />
+                      <span>{link.label}</span>
+                    </NavLink>
+                  ))}
+                </>
+              )}
+              {isSidebarCollapsed && (
+                <>
+                  {filteredOverviewLinks.map(link => (
+                    <NavLink key={link.to} to={link.to} className={linkClass} onClick={toggleSidebar} title={link.label}>
+                      <link.icon className="w-5 h-5" />
+                    </NavLink>
+                  ))}
+                </>
+              )}
             </>
           )}
 
           {/* Configurações do Sistema */}
-          {userRole !== 'SECRETARIA' && ( // Renderiza a seção de configurações apenas para Gestor/Admin
+          {userRole !== 'SECRETARIA' && filteredConfigLinks.length > 0 && (
             <>
               {!isSidebarCollapsed && (
                 <button onClick={() => setIsConfigCollapsed(!isConfigCollapsed)} className={`${sectionTitleClass} mt-4`}>
@@ -156,16 +182,6 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
               )}
               {(!isSidebarCollapsed && !isConfigCollapsed) && (
                 <>
-                  <div className="relative px-4 py-2">
-                    <Search className="absolute left-7 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input
-                        type="text"
-                        placeholder="Buscar configuração..."
-                        value={configSearchTerm}
-                        onChange={(e) => setConfigSearchTerm(e.target.value)}
-                        className="w-full pl-9 pr-4 py-1.5 border border-gray-200 dark:border-slate-700 rounded-md text-sm bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 focus:ring-brand-500 focus:border-brand-500"
-                    />
-                  </div>
                   {filteredConfigLinks.map(link => (
                     <NavLink key={link.to} to={link.to} className={linkClass} onClick={toggleSidebar}>
                       <link.icon className="w-5 h-5" />
@@ -176,7 +192,7 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
               )}
               {isSidebarCollapsed && (
                 <>
-                  {configLinks.map(link => (
+                  {filteredConfigLinks.map(link => (
                     <NavLink key={link.to} to={link.to} className={linkClass} onClick={toggleSidebar} title={link.label}>
                       <link.icon className="w-5 h-5" />
                     </NavLink>
@@ -185,8 +201,7 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
               )}
             </>
           )}
-          {/* Configurações do Sistema para SECRETARIA (apenas Configurar Origens) */}
-          {userRole === 'SECRETARIA' && (
+          {userRole === 'SECRETARIA' && filteredConfigLinks.length > 0 && (
             <>
               {!isSidebarCollapsed && (
                 <button onClick={() => setIsConfigCollapsed(!isConfigCollapsed)} className={`${sectionTitleClass} mt-4`}>
@@ -208,24 +223,27 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
             </>
           )}
 
-
           {/* Pessoal */}
-          {!isSidebarCollapsed && (
-            <button onClick={() => setIsPersonalCollapsed(!isPersonalCollapsed)} className={`${sectionTitleClass} mt-4`}>
-              <span>Pessoal</span>
-              <ChevronDown className={`w-4 h-4 transition-transform ${isPersonalCollapsed ? 'rotate-0' : '-rotate-90'}`} />
-            </button>
-          )}
-          {(!isSidebarCollapsed && !isPersonalCollapsed) && (
-            <NavLink to="/profile" className={linkClass} onClick={toggleSidebar}>
-              <UserIcon className="w-5 h-5" />
-              <span>Meu Perfil</span>
-            </NavLink>
-          )}
-          {isSidebarCollapsed && (
-            <NavLink to="/profile" className={linkClass} onClick={toggleSidebar} title="Meu Perfil">
-              <UserIcon className="w-5 h-5" />
-            </NavLink>
+          {(!searchTerm || 'Meu Perfil'.toLowerCase().includes(searchTerm.toLowerCase())) && (
+            <>
+              {!isSidebarCollapsed && (
+                <button onClick={() => setIsPersonalCollapsed(!isPersonalCollapsed)} className={`${sectionTitleClass} mt-4`}>
+                  <span>Pessoal</span>
+                  <ChevronDown className={`w-4 h-4 transition-transform ${isPersonalCollapsed ? 'rotate-0' : '-rotate-90'}`} />
+                </button>
+              )}
+              {(!isSidebarCollapsed && !isPersonalCollapsed) && (
+                <NavLink to="/profile" className={linkClass} onClick={toggleSidebar}>
+                  <UserIcon className="w-5 h-5" />
+                  <span>Meu Perfil</span>
+                </NavLink>
+              )}
+              {isSidebarCollapsed && (
+                <NavLink to="/profile" className={linkClass} onClick={toggleSidebar} title="Meu Perfil">
+                  <UserIcon className="w-5 h-5" />
+                </NavLink>
+              )}
+            </>
           )}
         </nav>
 
