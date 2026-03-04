@@ -63,9 +63,9 @@ export const SalesByOriginDetailModal: React.FC<SalesByOriginDetailModalProps> =
             <div className="space-y-3">
               {leads.map(lead => {
                 const consultant = teamMembers.find(tm => tm.id === lead.consultant_id);
-                const soldValue = (lead.soldCreditValue && lead.soldCreditValue > 0)
-                  ? lead.soldCreditValue
-                  : (lead.proposalValue || 0); // Fallback to proposalValue if soldCreditValue is 0 or null
+                const soldValue = (lead.sold_credit_value && lead.sold_credit_value > 0)
+                  ? lead.sold_credit_value
+                  : (lead.proposal_value || 0); // Fallback to proposalValue if sold_credit_value is 0 or null
 
                 return (
                   <div
@@ -80,9 +80,9 @@ export const SalesByOriginDetailModal: React.FC<SalesByOriginDetailModalProps> =
                             <Users className="w-3 h-3 mr-1" /> Consultor: <span className="font-semibold">{consultant.name}</span>
                           </span>
                         )}
-                        {lead.saleDate && (
+                        {lead.sale_date && (
                           <span className="flex items-center">
-                            <Calendar className="w-3 h-3 mr-1" /> Data da Venda: <span className="font-semibold">{new Date(lead.saleDate + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
+                            <Calendar className="w-3 h-3 mr-1" /> Data da Venda: <span className="font-semibold">{new Date(lead.sale_date + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
                           </span>
                         )}
                         <span className="flex items-center text-green-600 dark:text-green-400 font-medium">

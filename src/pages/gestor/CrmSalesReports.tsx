@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Loader2, TrendingUp, Users, Calendar, DollarSign, Send, ListTodo, Award, Filter, RotateCcw, UserRound, FileText, Download, Percent, MapPin, BarChart } from 'lucide-react';
+import { Loader2, TrendingUp, Users, Calendar, DollarSign, Send, ListTodo, Award, Filter, RotateCcw, UserRound, FileText, Download, Percent, MapPin, BarChart, PieChart, HelpCircle } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -48,6 +48,9 @@ const CrmSalesReports = () => {
   const [leadsForModal, setLeadsForModal] = useState<CrmLead[]>([]);
   const [leadsMetricType, setLeadsMetricType] = useState<'proposal' | 'sold' | 'meeting' | 'all'>('all');
 
+  const [isSalesByOriginModalOpen, setIsSalesByOriginModalOpen] = useState(false);
+  const [selectedOriginData, setSelectedOriginData] = useState<{ originName: string; leads: CrmLead[] } | null>(null);
+
   const activePipeline = useMemo(() => {
     return crmPipelines.find(p => p.is_active) || crmPipelines[0];
   }, [crmPipelines]);
@@ -76,7 +79,6 @@ const CrmSalesReports = () => {
   }, [teamMembers]);
 
   const filteredLeads = useMemo(() => {
-    // CORREÇÃO: Filtra apenas leads que pertencem ao pipeline ativo
     let currentLeads = crmLeads.filter(lead => activeStageIds.has(lead.stage_id));
 
     if (selectedConsultantId) {
@@ -172,6 +174,11 @@ const CrmSalesReports = () => {
       salesByOrigin[origin] = { count: 0, soldValue: 0, leads: [] };
     });
 
+    const meetingsByOrigin: { [key: string]: number } = {};
+    salesOrigins.forEach(origin => {
+      meetingsByOrigin[origin] = 0;
+    });
+
     filteredLeads.forEach(lead => {
       totalLeads++;
       const consultantId = lead.consultant_id || lead.created_by;
@@ -220,8 +227,17 @@ const CrmSalesReports = () => {
     });
 
     leadTasks.forEach(task => {
-      if (task.type === 'meeting' && task.user_id && dataByConsultant[task.user_id]) {
-        dataByConsultant[task.user_id].meetingsScheduled++;
+      if (task.type === 'meeting') {
+        const lead = filteredLeads.find(l => l.id === task.lead_id);
+        if (lead) {
+          const consultantId = lead.consultant_id || lead.created_by;
+          if (consultantId && dataByConsultant[consultantId]) {
+            dataByConsultant[consultantId].meetingsScheduled++;
+          }
+          if (lead.data?.origin && meetingsByOrigin[lead.data.origin] !== undefined) {
+            meetingsByOrigin[lead.data.origin]++;
+          }
+        }
       }
     });
 
@@ -238,6 +254,7 @@ const CrmSalesReports = () => {
       consultantPerformance: performanceList,
       pipelineStageSummary: Object.values(pipelineStageSummary).filter(s => s.count > 0),
       salesByOrigin: Object.entries(salesByOrigin).map(([origin, data]) => ({ origin, ...data })).filter(o => o.count > 0).sort((a, b) => b.soldValue - a.soldValue),
+      meetingsByOrigin: Object.entries(meetingsByOrigin).map(([origin, count]) => ({ origin, count })).filter(o => o.count > 0).sort((a, b) => b.count - a.count),
       leadsWithProposal,
       leadsSold,
     };
@@ -296,6 +313,11 @@ const CrmSalesReports = () => {
     setLeadsForModal(leads);
     setLeadsMetricType(metricType);
     setIsLeadsDetailModalOpen(true);
+  };
+
+  const handleOpenSalesByOriginModal = (originName: string, leads: CrmLead[]) => {
+    setSelectedOriginData({ originName, leads });
+    setIsSalesByOriginModalOpen(true);
   };
 
   if (isAuthLoading || isDataLoading) {
@@ -412,6 +434,45 @@ const CrmSalesReports = () => {
         />
       </div>
 
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm">
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center">
+            <MapPin className="w-5 h-5 mr-2 text-brand-500" /> Vendas por Origem
+          </h2>
+          <div className="space-y-3">
+            {reportData.salesByOrigin.map(origin => (
+              <button key={origin.origin} onClick={() => handleOpenSalesByOriginModal(origin.origin, origin.leads)} className="w-full text-left p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition">
+                <div className="flex justify-between items-center mb-1">
+                  <span className="font-semibold text-gray-800 dark:text-gray-200">{origin.origin}</span>
+                  <span className="font-bold text-green-600 dark:text-green-400">{formatCurrency(origin.soldValue)} ({origin.count})</span>
+                </div>
+                <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-1.5">
+                  <div className="bg-green-500 h-1.5 rounded-full" style={{ width: `${(origin.soldValue / reportData.totalSoldValue) * 100}%` }}></div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm">
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center">
+            <Calendar className="w-5 h-5 mr-2 text-brand-500" /> Reuniões por Origem
+          </h2>
+          <div className="space-y-3">
+            {reportData.meetingsByOrigin.map(origin => (
+              <div key={origin.origin} className="p-3 rounded-lg">
+                <div className="flex justify-between items-center mb-1">
+                  <span className="font-semibold text-gray-800 dark:text-gray-200">{origin.origin}</span>
+                  <span className="font-bold text-blue-600 dark:text-blue-400">{origin.count} reuniões</span>
+                </div>
+                <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-1.5">
+                  <div className="bg-blue-500 h-1.5 rounded-full" style={{ width: `${(origin.count / (leadTasks.filter(t => t.type === 'meeting').length || 1)) * 100}%` }}></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
       <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm mb-8">
         <h2 className="text-xl font-bold mb-6 flex items-center"><BarChart className="w-5 h-5 mr-2 text-brand-500" />Ranking de Vendas</h2>
         {topSellersChartData.length > 0 ? <TopSellersChart data={topSellersChartData} /> : <p className="text-center py-8 text-gray-500">Sem dados para o período.</p>}
@@ -419,31 +480,39 @@ const CrmSalesReports = () => {
 
       <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50"><h3 className="font-bold">Desempenho por Consultor</h3></div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300">
-            <thead className="bg-gray-50 dark:bg-slate-700/50 text-gray-500 dark:text-gray-400 text-xs uppercase">
-              <tr>
-                <th className="px-4 py-3">Consultor</th>
-                <th className="px-4 py-3">Leads</th>
-                <th className="px-4 py-3">Reuniões</th>
-                <th className="px-4 py-3">Propostas</th>
-                <th className="px-4 py-3">Vendas</th>
-                <th className="px-4 py-3 text-right">Valor Vendido</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
-              {reportData.consultantPerformance.map(c => (
-                <tr key={c.name} className="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition">
-                  <td className="px-4 py-3 font-medium text-gray-900 dark:text-white flex items-center space-x-2"><UserRound className="w-4 h-4 text-gray-400" /><span>{c.name}</span></td>
-                  <td className="px-4 py-3">{c.leadsRegistered}</td>
-                  <td className="px-4 py-3">{c.meetingsScheduled}</td>
-                  <td className="px-4 py-3">{c.proposalsSent}</td>
-                  <td className="px-4 py-3">{c.salesClosed}</td>
-                  <td className="px-4 py-3 text-right font-bold text-gray-900 dark:text-white">{formatCurrency(c.soldValue)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="p-4 space-y-4">
+          {reportData.consultantPerformance.map(c => (
+            <div key={c.name} className="p-4 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/50">
+              <h4 className="font-bold text-lg text-gray-900 dark:text-white mb-3">{c.name}</h4>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 text-center">
+                <div className="p-2 rounded-lg bg-white dark:bg-slate-700">
+                  <Users className="w-5 h-5 mx-auto text-blue-500 mb-1" />
+                  <p className="text-xs text-gray-500">Leads</p>
+                  <p className="font-bold text-lg">{c.leadsRegistered}</p>
+                </div>
+                <div className="p-2 rounded-lg bg-white dark:bg-slate-700">
+                  <Calendar className="w-5 h-5 mx-auto text-orange-500 mb-1" />
+                  <p className="text-xs text-gray-500">Reuniões</p>
+                  <p className="font-bold text-lg">{c.meetingsScheduled}</p>
+                </div>
+                <div className="p-2 rounded-lg bg-white dark:bg-slate-700">
+                  <Send className="w-5 h-5 mx-auto text-purple-500 mb-1" />
+                  <p className="text-xs text-gray-500">Propostas</p>
+                  <p className="font-bold text-lg">{c.proposalsSent}</p>
+                </div>
+                <div className="p-2 rounded-lg bg-white dark:bg-slate-700">
+                  <CheckCircle2 className="w-5 h-5 mx-auto text-green-500 mb-1" />
+                  <p className="text-xs text-gray-500">Vendas</p>
+                  <p className="font-bold text-lg">{c.salesClosed}</p>
+                </div>
+                <div className="p-2 rounded-lg bg-white dark:bg-slate-700 col-span-2 sm:col-span-1 md:col-span-1">
+                  <DollarSign className="w-5 h-5 mx-auto text-teal-500 mb-1" />
+                  <p className="text-xs text-gray-500">Valor Vendido</p>
+                  <p className="font-bold text-lg">{formatCurrency(c.soldValue)}</p>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -456,6 +525,16 @@ const CrmSalesReports = () => {
         teamMembers={allTeamMembers}
         metricType={leadsMetricType}
       />
+      {selectedOriginData && (
+        <SalesByOriginDetailModal
+          isOpen={isSalesByOriginModalOpen}
+          onClose={() => setIsSalesByOriginModalOpen(false)}
+          originName={selectedOriginData.originName}
+          leads={selectedOriginData.leads}
+          crmStages={crmStages}
+          teamMembers={allTeamMembers}
+        />
+      )}
     </div>
   );
 };
