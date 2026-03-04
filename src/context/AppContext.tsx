@@ -9,6 +9,7 @@ import { generateRandomPassword } from '@/utils/authUtils';
 import { sanitizeFilename } from '@/utils/fileUtils';
 import toast from 'react-hot-toast';
 import { getOverallStatus } from '@/utils/commissionUtils';
+import { getAllFromTable } from '@/lib/supabase';
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
@@ -179,11 +180,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     isFetchingRef.current = true;
     try {
-      const { data, error } = await supabase
-        .from("commissions")
-        .select("id, data, created_at")
-        .eq("user_id", JOAO_GESTOR_AUTH_ID)
-        .order("created_at", { ascending: false });
+      const { data, error } = await getAllFromTable('commissions', {
+        select: 'id, data, created_at',
+        filters: { user_id: JOAO_GESTOR_AUTH_ID },
+        orderBy: 'created_at',
+        ascending: false,
+      });
       if (error) {
         toast.error(`Erro ao carregar comissões: ${error.message}`);
         setCommissions([]);
@@ -302,36 +304,36 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           formCadastrosRes, formFilesRes, notificationsRes, teamProductionGoalsRes, teamMembersRes,
           coldCallLeadsRes, coldCallLogsRes
         ] = await Promise.all([
-          supabase.from('candidates').select('id, data, created_at, last_updated_at').eq('user_id', effectiveGestorId),
-          supabase.from('support_materials').select('id, data').eq('user_id', effectiveGestorId),
-          supabase.from('cutoff_periods').select('id, data').eq('user_id', effectiveGestorId),
-          supabase.from('onboarding_sessions').select('*, videos:onboarding_videos(*)'),
-          supabase.from('onboarding_video_templates').select('*').order('order', { ascending: true }),
-          supabase.from('crm_pipelines').select('*').eq('user_id', effectiveGestorId),
-          supabase.from('crm_stages').select('*').eq('user_id', effectiveGestorId).order('order_index'),
-          supabase.from('crm_fields').select('*').eq('user_id', effectiveGestorId),
-          supabase.from('crm_leads').select('*').eq('user_id', effectiveGestorId).order('created_at', { ascending: false }),
-          supabase.from('daily_checklists').select('*').eq('user_id', effectiveGestorId),
-          supabase.from('daily_checklist_items').select('*'),
-          supabase.from('daily_checklist_assignments').select('*'),
-          supabase.from('daily_checklist_completions').select('*'),
-          supabase.from('weekly_targets').select('*').eq('user_id', effectiveGestorId),
-          supabase.from('weekly_target_items').select('*'),
-          supabase.from('weekly_target_assignments').select('*'),
-          supabase.from('metric_logs').select('*'),
-          supabase.from('support_materials_v2').select('*').eq('user_id', effectiveGestorId),
-          supabase.from('support_material_assignments').select('*'),
-          supabase.from('lead_tasks').select('*'),
-          supabase.from('gestor_tasks').select('*').eq('user_id', effectiveGestorId),
-          supabase.from('gestor_task_completions').select('*').eq('user_id', effectiveGestorId),
-          supabase.from('financial_entries').select('*').eq('user_id', effectiveGestorId),
-          supabase.from('form_submissions').select('id, submission_date, data, internal_notes, is_complete').eq('user_id', effectiveGestorId).order('submission_date', { ascending: false }),
-          supabase.from('form_files').select('*'),
-          supabase.from('notifications').select('*').eq('user_id', userId).eq('is_read', false).order('created_at', { ascending: false }),
-          supabase.from('team_production_goals').select('*').eq('user_id', effectiveGestorId).order('start_date', { ascending: false }),
-          supabase.from('team_members').select('id, data, cpf, user_id').eq('user_id', effectiveGestorId),
-          supabase.from('cold_call_leads').select('*'),
-          supabase.from('cold_call_logs').select('*')
+          getAllFromTable('candidates', { select: 'id, data, created_at, last_updated_at', filters: { user_id: effectiveGestorId } }),
+          getAllFromTable('support_materials', { select: 'id, data', filters: { user_id: effectiveGestorId } }),
+          getAllFromTable('cutoff_periods', { select: 'id, data', filters: { user_id: effectiveGestorId } }),
+          getAllFromTable('onboarding_sessions', { select: '*, videos:onboarding_videos(*)' }),
+          getAllFromTable('onboarding_video_templates', { orderBy: 'order', ascending: true }),
+          getAllFromTable('crm_pipelines', { filters: { user_id: effectiveGestorId } }),
+          getAllFromTable('crm_stages', { filters: { user_id: effectiveGestorId }, orderBy: 'order_index' }),
+          getAllFromTable('crm_fields', { filters: { user_id: effectiveGestorId } }),
+          getAllFromTable('crm_leads', { filters: { user_id: effectiveGestorId }, orderBy: 'created_at', ascending: false }),
+          getAllFromTable('daily_checklists', { filters: { user_id: effectiveGestorId } }),
+          getAllFromTable('daily_checklist_items'),
+          getAllFromTable('daily_checklist_assignments'),
+          getAllFromTable('daily_checklist_completions'),
+          getAllFromTable('weekly_targets', { filters: { user_id: effectiveGestorId } }),
+          getAllFromTable('weekly_target_items'),
+          getAllFromTable('weekly_target_assignments'),
+          getAllFromTable('metric_logs'),
+          getAllFromTable('support_materials_v2', { filters: { user_id: effectiveGestorId } }),
+          getAllFromTable('support_material_assignments'),
+          getAllFromTable('lead_tasks'),
+          getAllFromTable('gestor_tasks', { filters: { user_id: effectiveGestorId } }),
+          getAllFromTable('gestor_task_completions', { filters: { user_id: effectiveGestorId } }),
+          getAllFromTable('financial_entries', { filters: { user_id: effectiveGestorId } }),
+          getAllFromTable('form_submissions', { select: 'id, submission_date, data, internal_notes, is_complete', filters: { user_id: effectiveGestorId }, orderBy: 'submission_date', ascending: false }),
+          getAllFromTable('form_files'),
+          getAllFromTable('notifications', { filters: { user_id: userId, is_read: false }, orderBy: 'created_at', ascending: false }),
+          getAllFromTable('team_production_goals', { filters: { user_id: effectiveGestorId }, orderBy: 'start_date', ascending: false }),
+          getAllFromTable('team_members', { select: 'id, data, cpf, user_id', filters: { user_id: effectiveGestorId } }),
+          getAllFromTable('cold_call_leads'),
+          getAllFromTable('cold_call_logs')
         ]);
 
         if (candidatesRes.error) { toast.error(`Erro ao carregar candidatos: ${candidatesRes.error.message}`); setCandidates([]); }
