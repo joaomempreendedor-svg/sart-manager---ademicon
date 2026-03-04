@@ -12,6 +12,7 @@ import {
 import * as XLSX from 'xlsx';
 import TopSellersChart from '@/components/crm/TopSellersChart';
 import { SalesByOriginDetailModal } from '@/components/crm/SalesByOriginDetailModal';
+import { MeetingsByOriginDetailModal } from '@/components/crm/MeetingsByOriginDetailModal';
 import toast from 'react-hot-toast';
 import { CrmLead } from '@/types';
 import { LeadsDetailModal } from '@/components/gestor/LeadsDetailModal';
@@ -50,6 +51,9 @@ const CrmSalesReports = () => {
 
   const [isSalesByOriginModalOpen, setIsSalesByOriginModalOpen] = useState(false);
   const [selectedOriginData, setSelectedOriginData] = useState<{ originName: string; leads: CrmLead[] } | null>(null);
+
+  const [isMeetingsByOriginModalOpen, setIsMeetingsByOriginModalOpen] = useState(false);
+  const [selectedOriginDataForMeetings, setSelectedOriginDataForMeetings] = useState<{ originName: string; leads: CrmLead[] } | null>(null);
 
   const activePipeline = useMemo(() => {
     return crmPipelines.find(p => p.is_active) || crmPipelines[0];
@@ -169,14 +173,14 @@ const CrmSalesReports = () => {
       pipelineStageSummary[stage.id] = { name: stage.name, count: 0, totalValue: 0 };
     });
 
-    const salesByOrigin: { [key: string]: { count: number; soldValue: number; leads: any[] } } = {};
+    const salesByOrigin: { [key: string]: { count: number; soldValue: number; leads: CrmLead[] } } = {};
     salesOrigins.forEach(origin => {
       salesByOrigin[origin] = { count: 0, soldValue: 0, leads: [] };
     });
 
-    const meetingsByOrigin: { [key: string]: number } = {};
+    const meetingsByOrigin: { [key: string]: { count: number; leads: CrmLead[] } } = {};
     salesOrigins.forEach(origin => {
-      meetingsByOrigin[origin] = 0;
+      meetingsByOrigin[origin] = { count: 0, leads: [] };
     });
 
     filteredLeads.forEach(lead => {
@@ -235,7 +239,10 @@ const CrmSalesReports = () => {
             dataByConsultant[consultantId].meetingsScheduled++;
           }
           if (lead.data?.origin && meetingsByOrigin[lead.data.origin] !== undefined) {
-            meetingsByOrigin[lead.data.origin]++;
+            meetingsByOrigin[lead.data.origin].count++;
+            if (!meetingsByOrigin[lead.data.origin].leads.some(l => l.id === lead.id)) {
+              meetingsByOrigin[lead.data.origin].leads.push(lead);
+            }
           }
         }
       }
@@ -254,7 +261,7 @@ const CrmSalesReports = () => {
       consultantPerformance: performanceList,
       pipelineStageSummary: Object.values(pipelineStageSummary).filter(s => s.count > 0),
       salesByOrigin: Object.entries(salesByOrigin).map(([origin, data]) => ({ origin, ...data })).filter(o => o.count > 0).sort((a, b) => b.soldValue - a.soldValue),
-      meetingsByOrigin: Object.entries(meetingsByOrigin).map(([origin, count]) => ({ origin, count })).filter(o => o.count > 0).sort((a, b) => b.count - a.count),
+      meetingsByOrigin: Object.entries(meetingsByOrigin).map(([origin, data]) => ({ origin, ...data })).filter(o => o.count > 0).sort((a, b) => b.count - a.count),
       leadsWithProposal,
       leadsSold,
     };
@@ -318,6 +325,11 @@ const CrmSalesReports = () => {
   const handleOpenSalesByOriginModal = (originName: string, leads: CrmLead[]) => {
     setSelectedOriginData({ originName, leads });
     setIsSalesByOriginModalOpen(true);
+  };
+
+  const handleOpenMeetingsByOriginModal = (originName: string, leads: CrmLead[]) => {
+    setSelectedOriginDataForMeetings({ originName, leads });
+    setIsMeetingsByOriginModalOpen(true);
   };
 
   if (isAuthLoading || isDataLoading) {
@@ -459,7 +471,7 @@ const CrmSalesReports = () => {
           </h2>
           <div className="space-y-3">
             {reportData.meetingsByOrigin.map(origin => (
-              <div key={origin.origin} className="p-3 rounded-lg">
+              <button key={origin.origin} onClick={() => handleOpenMeetingsByOriginModal(origin.origin, origin.leads)} className="w-full text-left p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition">
                 <div className="flex justify-between items-center mb-1">
                   <span className="font-semibold text-gray-800 dark:text-gray-200">{origin.origin}</span>
                   <span className="font-bold text-blue-600 dark:text-blue-400">{origin.count} reuniões</span>
@@ -467,7 +479,7 @@ const CrmSalesReports = () => {
                 <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-1.5">
                   <div className="bg-blue-500 h-1.5 rounded-full" style={{ width: `${(origin.count / (leadTasks.filter(t => t.type === 'meeting').length || 1)) * 100}%` }}></div>
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         </div>
@@ -531,6 +543,16 @@ const CrmSalesReports = () => {
           onClose={() => setIsSalesByOriginModalOpen(false)}
           originName={selectedOriginData.originName}
           leads={selectedOriginData.leads}
+          crmStages={crmStages}
+          teamMembers={allTeamMembers}
+        />
+      )}
+      {selectedOriginDataForMeetings && (
+        <MeetingsByOriginDetailModal
+          isOpen={isMeetingsByOriginModalOpen}
+          onClose={() => setIsMeetingsByOriginModalOpen(false)}
+          originName={selectedOriginDataForMeetings.originName}
+          leads={selectedOriginDataForMeetings.leads}
           crmStages={crmStages}
           teamMembers={allTeamMembers}
         />
