@@ -1,13 +1,10 @@
 import React from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { formatLargeCurrency } from '@/utils/currencyUtils';
 
 interface TopSellersChartProps {
   data: { name: string; soldValue: number; }[];
 }
-
-const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-};
 
 // Custom Tooltip Component
 const CustomTooltip = ({ active, payload, label }: any) => {
@@ -15,7 +12,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
     return (
       <div className="bg-white dark:bg-slate-800 p-3 rounded-lg shadow-lg border border-gray-200 dark:border-slate-700">
         <p className="font-bold text-gray-900 dark:text-white">{label}</p>
-        <p className="text-brand-600 dark:text-brand-400">{`Valor Vendido: ${formatCurrency(payload[0].value)}`}</p>
+        <p className="text-brand-600 dark:text-brand-400">{`Valor Vendido: ${formatLargeCurrency(payload[0].value)}`}</p>
       </div>
     );
   }
@@ -54,7 +51,7 @@ const TopSellersChart: React.FC<TopSellersChartProps> = ({ data }) => {
             axisLine={false}
           />
           <YAxis 
-            tickFormatter={formatCurrency} 
+            tickFormatter={formatLargeCurrency} 
             tick={{ fontSize: 12, fill: 'currentColor' }} 
             tickLine={false}
             axisLine={false}
