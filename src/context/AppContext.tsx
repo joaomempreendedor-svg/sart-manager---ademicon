@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
-import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, InstallmentInfo, CutoffPeriod, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask, DailyChecklistItemResource, GestorTask, GestorTaskCompletion, FinancialEntry, FormCadastro, FormFile, Notification, Feedback, TeamProductionGoal, ColdCallLead, ColdCallLog } from '@/types';
+import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, InstallmentInfo, CutoffPeriod, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask, DailyChecklistItemResource, GestorTask, GestorTaskCompletion, FinancialEntry, FormCadastro, FormFile, Notification, Feedback, TeamProductionGoal, ColdCallLead, ColdCallLog, ChecklistItem } from '@/types';
 import { CHECKLIST_STAGES as DEFAULT_STAGES } from '@/data/checklistData';
 import { CONSULTANT_GOALS as DEFAULT_GOALS } from '@/data/consultantGoals';
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
@@ -1207,6 +1207,44 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     await updateCandidate(personId, { feedbacks: updatedFeedbacks });
   }, [candidates, updateCandidate]);
 
+  const addChecklistStage = useCallback((title: string, description: string) => {
+    const newStage: ChecklistStage = {
+      id: crypto.randomUUID(),
+      title,
+      description,
+      items: [],
+    };
+    const newStructure = [...checklistStructure, newStage];
+    setChecklistStructure(newStructure);
+    updateConfig({ checklistStructure: newStructure });
+  }, [checklistStructure, updateConfig]);
+
+  const updateChecklistStage = useCallback((stageId: string, updates: Partial<ChecklistStage>) => {
+    const newStructure = checklistStructure.map(stage =>
+      stage.id === stageId ? { ...stage, ...updates } : stage
+    );
+    setChecklistStructure(newStructure);
+    updateConfig({ checklistStructure: newStructure });
+  }, [checklistStructure, updateConfig]);
+
+  const deleteChecklistStage = useCallback((stageId: string) => {
+    const newStructure = checklistStructure.filter(stage => stage.id !== stageId);
+    setChecklistStructure(newStructure);
+    updateConfig({ checklistStructure: newStructure });
+  }, [checklistStructure, updateConfig]);
+
+  const moveChecklistStage = useCallback((stageId: string, direction: 'up' | 'down') => {
+    const index = checklistStructure.findIndex(s => s.id === stageId);
+    if (index === -1) return;
+    const newStructure = [...checklistStructure];
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex >= 0 && targetIndex < newStructure.length) {
+      [newStructure[index], newStructure[targetIndex]] = [newStructure[targetIndex], newStructure[index]];
+      setChecklistStructure(newStructure);
+      updateConfig({ checklistStructure: newStructure });
+    }
+  }, [checklistStructure, updateConfig]);
+
   const value: AppContextType = useMemo(() => ({
     isDataLoading,
     candidates, teamMembers, commissions, supportMaterials, cutoffPeriods, onboardingSessions, onboardingTemplateVideos,
@@ -1243,6 +1281,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const newProgress = { ...currentProgress, [goalId]: !currentProgress[goalId] };
       await updateCandidate(candidateId, { consultantGoalsProgress: newProgress });
     },
+
+    addChecklistStage,
+    updateChecklistStage,
+    deleteChecklistStage,
+    moveChecklistStage,
 
     addChecklistItem: (stageId: string, label: string, responsibleRole: string) => {
       const newStructure = checklistStructure.map(stage => {
@@ -1614,6 +1657,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     toggleTheme, updateConfig, resetLocalState, refetchCommissions, calculateCompetenceMonth, isGestorTaskDueOnDate, calculateNotifications,
     addCandidate, updateCandidate, deleteCandidate,
     toggleChecklistItem,
+    addChecklistStage, updateChecklistStage, deleteChecklistStage, moveChecklistStage,
     addDailyChecklist, updateDailyChecklist, deleteDailyChecklist,
     addDailyChecklistItem, updateDailyChecklistItem, deleteDailyChecklistItem, moveDailyChecklistItem,
     addWeeklyTarget, updateWeeklyTarget, deleteWeeklyTarget,
