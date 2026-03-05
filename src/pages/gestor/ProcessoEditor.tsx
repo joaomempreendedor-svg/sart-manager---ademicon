@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
 import { ArrowLeft, Loader2, Plus, Trash2, GripVertical, Type, Pilcrow, CheckSquare } from 'lucide-react';
@@ -10,10 +10,11 @@ import { Button } from '@/components/ui/button';
 const BlockComponent: React.FC<{
   block: ProcessBlock;
   onUpdate: (id: string, content: string) => void;
-  onToggleCheck?: (id: string) => void;
+  onToggleCheck: (id: string) => void;
   onKeyDown: (e: React.KeyboardEvent<HTMLDivElement>, id: string) => void;
   onFocus: () => void;
 }> = ({ block, onUpdate, onToggleCheck, onKeyDown, onFocus }) => {
+  
   const handleInput = (e: React.FormEvent<HTMLDivElement>) => {
     onUpdate(block.id, e.currentTarget.innerText);
   };
@@ -49,7 +50,7 @@ const BlockComponent: React.FC<{
           <input
             type="checkbox"
             checked={block.data.checked || false}
-            onChange={() => onToggleCheck?.(block.id)}
+            onChange={() => onToggleCheck(block.id)}
             className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
           />
           <span
@@ -68,6 +69,8 @@ const BlockComponent: React.FC<{
   }
 };
 
+const MemoizedBlockComponent = React.memo(BlockComponent);
+
 export const ProcessoEditor = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -76,68 +79,71 @@ export const ProcessoEditor = () => {
   const process = useMemo(() => processes.find(p => p.id === id), [processes, id]);
   const [blocks, setBlocks] = useState<ProcessBlock[]>([]);
   const [hoveredBlockId, setHoveredBlockId] = useState<string | null>(null);
+  const initialLoadRef = useRef(true);
 
   useEffect(() => {
     if (process?.content && Array.isArray(process.content)) {
       setBlocks(process.content);
+      initialLoadRef.current = true;
     } else if (process) {
       setBlocks([]);
+      initialLoadRef.current = true;
     }
   }, [process]);
 
-  const debouncedUpdate = useDebouncedCallback((updatedBlocks: ProcessBlock[]) => {
+  const debouncedSave = useDebouncedCallback((updatedBlocks: ProcessBlock[]) => {
     if (!process) return;
     updateProcess(process.id, { content: updatedBlocks })
       .then(() => toast.success('Salvo!'))
       .catch(err => toast.error(`Erro ao salvar: ${err.message}`));
-  }, 1000);
+  }, 1500);
 
-  const updateBlocks = (newBlocks: ProcessBlock[]) => {
-    setBlocks(newBlocks);
-    debouncedUpdate(newBlocks);
-  };
+  useEffect(() => {
+    if (initialLoadRef.current) {
+      initialLoadRef.current = false;
+      return;
+    }
+    if (blocks) {
+      debouncedSave(blocks);
+    }
+  }, [blocks, debouncedSave]);
 
-  const addBlock = (type: ProcessBlock['type'], index: number) => {
-    const newBlock: ProcessBlock = {
-      id: crypto.randomUUID(),
-      type,
-      content: '',
-      data: { checked: false },
-    };
-    const newBlocks = [...blocks];
-    newBlocks.splice(index + 1, 0, newBlock);
-    updateBlocks(newBlocks);
-  };
+  const addBlock = useCallback((type: ProcessBlock['type'], index: number) => {
+    const newBlock: ProcessBlock = { id: crypto.randomUUID(), type, content: '', data: { checked: false } };
+    setBlocks(currentBlocks => {
+      const newBlocks = [...currentBlocks];
+      newBlocks.splice(index + 1, 0, newBlock);
+      return newBlocks;
+    });
+  }, []);
 
-  const updateBlockContent = (id: string, content: string) => {
-    const newBlocks = blocks.map(block =>
-      block.id === id ? { ...block, content } : block
+  const updateBlockContent = useCallback((id: string, content: string) => {
+    setBlocks(currentBlocks =>
+      currentBlocks.map(block =>
+        block.id === id ? { ...block, content } : block
+      )
     );
-    // Don't call updateBlocks here, as it will trigger a re-render and lose focus
-    // The debounced update will be called on blur.
-    setBlocks(newBlocks);
-    debouncedUpdate(newBlocks);
-  };
+  }, []);
 
-  const toggleTodoCheck = (id: string) => {
-    const newBlocks = blocks.map(block =>
-      block.id === id ? { ...block, data: { ...block.data, checked: !block.data.checked } } : block
+  const toggleTodoCheck = useCallback((id: string) => {
+    setBlocks(currentBlocks =>
+      currentBlocks.map(block =>
+        block.id === id ? { ...block, data: { ...block.data, checked: !block.data.checked } } : block
+      )
     );
-    updateBlocks(newBlocks);
-  };
+  }, []);
 
-  const deleteBlock = (id: string) => {
-    const newBlocks = blocks.filter(block => block.id !== id);
-    updateBlocks(newBlocks);
-  };
+  const deleteBlock = useCallback((id: string) => {
+    setBlocks(currentBlocks => currentBlocks.filter(block => block.id !== id));
+  }, []);
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>, id: string) => {
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>, id: string) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       const currentIndex = blocks.findIndex(b => b.id === id);
       addBlock('text', currentIndex);
     }
-  };
+  }, [blocks, addBlock]);
 
   if (isDataLoading) {
     return (
@@ -178,7 +184,7 @@ export const ProcessoEditor = () => {
             onMouseLeave={() => setHoveredBlockId(null)}
           >
             <div className="flex items-center h-8 opacity-0 group-hover:opacity-100 transition-opacity">
-              <Button variant="ghost" size="icon" className="h-6 w-6 cursor-pointer" onClick={() => addBlock('text', index - 1)}>
+              <Button variant="ghost" size="icon" className="h-6 w-6 cursor-pointer" onClick={() => addBlock('text', index)}>
                 <Plus className="w-4 h-4" />
               </Button>
               <Button variant="ghost" size="icon" className="h-6 w-6 cursor-grab">
@@ -186,7 +192,7 @@ export const ProcessoEditor = () => {
               </Button>
             </div>
             <div className="flex-1">
-              <BlockComponent 
+              <MemoizedBlockComponent 
                 block={block} 
                 onUpdate={updateBlockContent} 
                 onToggleCheck={toggleTodoCheck}
