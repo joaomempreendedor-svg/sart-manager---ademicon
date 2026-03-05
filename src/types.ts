@@ -697,6 +697,10 @@ export interface AppContextType {
   addColdCallLog: (log: Omit<ColdCallLog, 'id' | 'user_id' | 'created_at' | 'duration_seconds'> & { start_time: string; end_time: string; }) => Promise<ColdCallLog>; // NOVO
   getColdCallMetrics: (consultantId: string) => { totalCalls: number; totalConversations: number; totalMeetingsScheduled: number; conversationToMeetingRate: number; }; // NOVO
   createCrmLeadFromColdCall: (coldCallLeadId: string, meeting?: { date?: string; time?: string; modality?: string; notes?: string }) => Promise<{ crmLeadId: string }>; // NOVO
+  addChecklistStage: (title: string, description: string) => void;
+  updateChecklistStage: (stageId: string, updates: Partial<ChecklistStage>) => void;
+  deleteChecklistStage: (stageId: string) => void;
+  moveChecklistStage: (stageId: string, direction: 'up' | 'down') => void;
 }
 
 export interface ColdCallMetrics { // NOVO: Interface para as métricas de Cold Call
@@ -707,3 +711,36 @@ export interface ColdCallMetrics { // NOVO: Interface para as métricas de Cold 
 }
 
 export type ColdCallDetailType = 'all' | 'calls' | 'conversations' | 'meetings' | 'interest' | 'answered';
+
+// Types for Process Editor
+export type BlockType = 'text' | 'heading1' | 'heading2' | 'heading3' | 'todo' | 'image' | 'pdf';
+
+export interface Block {
+  id: string;
+  type: BlockType;
+  content: string;
+  checked?: boolean;
+  fileUrl?: string;
+  fileName?: string;
+}
+
+export interface ProcessPage {
+  id: string;
+  process_id: string;
+  title: string;
+  blocks: Block[];
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Process {
+  id: string;
+  user_id: string;
+  title: string;
+  description?: string;
+  type: string;
+  content?: any;
+  created_at: string;
+  updated_at: string;
+}
