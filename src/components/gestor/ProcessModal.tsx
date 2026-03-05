@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Loader2, FileText, Type, MessageSquare } from 'lucide-react';
+import { X, Save, Loader2, FileText, Type, MessageSquare, Upload, Image as ImageIcon, Trash2 } from 'lucide-react';
 import { Process } from '@/types';
 import {
   Dialog,
@@ -18,13 +18,16 @@ interface ProcessModalProps {
   isOpen: boolean;
   onClose: () => void;
   process: Process | null;
-  onSave: (processData: Omit<Process, 'id' | 'user_id' | 'created_at' | 'updated_at'> | Process) => Promise<void>;
+  onSave: (processData: Omit<Process, 'id' | 'user_id' | 'created_at' | 'updated_at'> | Process, file?: File | null) => Promise<void>;
 }
 
 export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, process, onSave }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [content, setContent] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [existingFileUrl, setExistingFileUrl] = useState<string | undefined>(undefined);
+  const [removeFile, setRemoveFile] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -33,9 +36,27 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
       setTitle(process?.title || '');
       setDescription(process?.description || '');
       setContent(process?.content || '');
+      setSelectedFile(null);
+      setExistingFileUrl(process?.file_url);
+      setRemoveFile(false);
       setError('');
     }
   }, [isOpen, process]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      setExistingFileUrl(undefined); // Clear existing file if new one is selected
+      setRemoveFile(false);
+    }
+  };
+
+  const handleRemoveFile = () => {
+    setSelectedFile(null);
+    setExistingFileUrl(undefined);
+    setRemoveFile(true);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,13 +73,15 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
         title: title.trim(),
         description: description.trim(),
         content: content.trim(),
-        type: 'Documento', // Default type
+        type: 'Documento',
+        file_url: removeFile ? undefined : existingFileUrl,
+        file_type: removeFile ? undefined : (selectedFile?.type.startsWith('image/') ? 'image' : 'pdf'),
       };
 
       if (process) {
-        await onSave({ ...process, ...processData });
+        await onSave({ ...process, ...processData }, selectedFile);
       } else {
-        await onSave(processData);
+        await onSave(processData, selectedFile);
       }
       onClose();
     } catch (err: any) {
@@ -119,11 +142,31 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
                   id="content"
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
-                  rows={12}
+                  rows={8}
                   className="pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600"
                   placeholder="Descreva o passo a passo do processo aqui..."
                 />
               </div>
+            </div>
+            <div>
+              <Label>Anexo (PDF ou Imagem)</Label>
+              {existingFileUrl && !selectedFile ? (
+                <div className="flex items-center justify-between p-2 bg-gray-100 dark:bg-slate-700 rounded-lg">
+                  <div className="flex items-center space-x-2">
+                    {process?.file_type === 'image' ? <ImageIcon className="w-4 h-4 text-green-500" /> : <FileText className="w-4 h-4 text-red-500" />}
+                    <span className="text-sm text-gray-700 dark:text-gray-300 truncate">{existingFileUrl.split('/').pop()}</span>
+                  </div>
+                  <Button type="button" variant="ghost" size="sm" onClick={handleRemoveFile} className="text-red-500 hover:text-red-700">
+                    <Trash2 className="w-4 h-4 mr-1" /> Remover
+                  </Button>
+                </div>
+              ) : (
+                <label className="flex items-center justify-center px-4 py-2 border border-gray-300 dark:border-slate-600 border-dashed rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/50 transition bg-white dark:bg-slate-700">
+                  <Upload className="w-4 h-4 mr-2 text-gray-500" />
+                  <span className="text-sm text-gray-600 dark:text-gray-300 truncate">{selectedFile ? selectedFile.name : 'Selecionar arquivo...'}</span>
+                  <input type="file" className="hidden" accept="image/*,application/pdf" onChange={handleFileChange} />
+                </label>
+              )}
             </div>
             {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
           </div>

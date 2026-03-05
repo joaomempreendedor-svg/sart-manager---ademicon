@@ -1,30 +1,35 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
-import { useAuth } from '@/context/AuthContext';
 import { Process } from '@/types';
-import { Loader2, FileText, Plus, Search, Edit2, Trash2 } from 'lucide-react';
+import { Loader2, FileText, Plus, Search, Edit2, Trash2, Eye } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { ProcessModal } from '@/components/gestor/ProcessModal';
+import { ProcessViewModal } from '@/components/gestor/ProcessViewModal';
 
 export const Processos = () => {
-  const { user } = useAuth();
   const { processes, addProcess, updateProcess, deleteProcess, isDataLoading } = useApp();
   
   const [searchTerm, setSearchTerm] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingProcess, setEditingProcess] = useState<Process | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [selectedProcess, setSelectedProcess] = useState<Process | null>(null);
 
-  const handleOpenModal = (process: Process | null) => {
-    setEditingProcess(process);
-    setIsModalOpen(true);
+  const handleOpenEditModal = (process: Process | null) => {
+    setSelectedProcess(process);
+    setIsEditModalOpen(true);
   };
 
-  const handleSaveProcess = async (processData: Omit<Process, 'id' | 'user_id' | 'created_at' | 'updated_at'> | Process) => {
+  const handleOpenViewModal = (process: Process) => {
+    setSelectedProcess(process);
+    setIsViewModalOpen(true);
+  };
+
+  const handleSaveProcess = async (processData: Omit<Process, 'id' | 'user_id' | 'created_at' | 'updated_at'> | Process, file?: File | null) => {
     if ('id' in processData) {
-      await updateProcess(processData.id, processData);
+      await updateProcess(processData.id, processData, file);
       toast.success("Processo atualizado com sucesso!");
     } else {
-      await addProcess(processData);
+      await addProcess(processData, file);
       toast.success("Processo criado com sucesso!");
     }
   };
@@ -75,7 +80,7 @@ export const Processos = () => {
             />
           </div>
           <button
-            onClick={() => handleOpenModal(null)}
+            onClick={() => handleOpenEditModal(null)}
             className="flex items-center space-x-2 bg-brand-500 hover:bg-brand-600 text-white px-4 py-2 rounded-lg transition text-sm font-medium"
           >
             <Plus className="w-4 h-4" />
@@ -88,14 +93,14 @@ export const Processos = () => {
         {filteredProcesses.map(process => (
           <div
             key={process.id}
-            onClick={() => handleOpenModal(process)}
+            onClick={() => handleOpenViewModal(process)}
             className="block bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm hover:shadow-lg hover:border-brand-500 transition-all group cursor-pointer"
           >
             <div className="flex justify-between items-start">
               <FileText className="w-8 h-8 text-brand-500 mb-3" />
               <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button 
-                  onClick={(e) => { e.stopPropagation(); handleOpenModal(process); }}
+                  onClick={(e) => { e.stopPropagation(); handleOpenEditModal(process); }}
                   className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md"
                   title="Editar"
                 >
@@ -125,10 +130,15 @@ export const Processos = () => {
       )}
 
       <ProcessModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        process={editingProcess}
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        process={selectedProcess}
         onSave={handleSaveProcess}
+      />
+      <ProcessViewModal
+        isOpen={isViewModalOpen}
+        onClose={() => setIsViewModalOpen(false)}
+        process={selectedProcess}
       />
     </div>
   );
