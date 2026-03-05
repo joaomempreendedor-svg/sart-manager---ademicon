@@ -32,14 +32,8 @@ import { CandidatesDetailModal } from '@/components/gestor/CandidatesDetailModal
 const HiringDashboard = () => {
   const { candidates, isDataLoading, hiringOrigins, teamMembers } = useApp();
   
-  const [startDate, setStartDate] = useState(() => {
-    const d = new Date();
-    return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
-  });
-  const [endDate, setEndDate] = useState(() => {
-    const d = new Date();
-    return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
-  });
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
   const [isCandidatesDetailModalOpen, setIsCandidatesDetailModalOpen] = useState(false);
   const [candidatesModalTitle, setCandidatesModalTitle] = useState('');
@@ -50,63 +44,57 @@ const HiringDashboard = () => {
     const start = startDate ? new Date(startDate + 'T00:00:00') : null;
     const end = endDate ? new Date(endDate + 'T23:59:59') : null;
 
-    const isInDateRange = (dateString?: string) => {
+    const isInCreationDateRange = (dateString?: string) => {
       if (!dateString) return false;
-      const date = new Date(dateString + 'T00:00:00'); // Garante que a comparação seja apenas por data
+      const date = new Date(dateString);
       return (!start || date >= start) && (!end || date <= end);
     };
 
     // Base para métricas de fluxo (eventos no período)
-    const totalCandidatesInPeriod = candidates.filter(c => isInDateRange(c.createdAt));
+    const totalCandidatesInPeriod = candidates.filter(c => isInCreationDateRange(c.createdAt));
     
     // Métricas de fluxo (dependentes do filtro de data)
     const newCandidatesList = totalCandidatesInPeriod.filter(c => 
-      (c.status === 'Triagem' && (c.screeningStatus === 'Pending Contact' || !c.screeningStatus))
+      c.status === 'Triagem' && (c.screeningStatus === 'Pending Contact' || !c.screeningStatus)
     );
     const contactedList = totalCandidatesInPeriod.filter(c => 
       c.status === 'Triagem' && c.screeningStatus === 'Contacted'
     );
-    const noResponseList = totalCandidatesInPeriod.filter(c => 
+    const noResponseList = totalCandidatesInPeriod.filter(c =>
       c.status === 'Triagem' && c.screeningStatus === 'No Response'
     );
     const scheduledList = totalCandidatesInPeriod.filter(c => 
-      c.status === 'Entrevista' && isInDateRange(c.interviewScheduledDate)
+      isInCreationDateRange(c.interviewScheduledDate)
     );
     const conductedList = totalCandidatesInPeriod.filter(c => 
-      c.status === 'Entrevista' && isInDateRange(c.interviewConductedDate)
+      isInCreationDateRange(c.interviewConductedDate)
     );
     const noShowList = totalCandidatesInPeriod.filter(c => 
-      c.status === 'Faltou' && isInDateRange(c.faltouDate)
+      c.status === 'Faltou'
     );
     const withdrawnList = totalCandidatesInPeriod.filter(c => 
-      c.status === 'Reprovado' && isInDateRange(c.reprovadoDate)
+      c.status === 'Reprovado'
     );
     const disqualifiedList = totalCandidatesInPeriod.filter(c => 
-      c.status === 'Desqualificado' && isInDateRange(c.disqualifiedDate)
+      c.status === 'Desqualificado'
     );
 
-    // Métricas de estado (agora também dependentes do filtro de data de transição)
+    // Métricas de estado (independentes do filtro de data)
     const awaitingPreviewList = candidates.filter(c => 
-      c.status === 'Aguardando Prévia' && c.awaitingPreviewDate && isInDateRange(c.awaitingPreviewDate)
+      c.status === 'Aguardando Prévia'
     );
     const hiredList = candidates.filter(c => 
-      c.status === 'Autorizado' && c.authorizedDate && isInDateRange(c.authorizedDate)
+      c.status === 'Autorizado'
     );
-    
-    // Total de Aprovados: candidatos que entraram em qualquer uma dessas etapas no período
     const totalHiredList = candidates.filter(c => 
-      (c.awaitingPreviewDate && isInDateRange(c.awaitingPreviewDate)) ||
-      (c.onboardingOnlineDate && isInDateRange(c.onboardingOnlineDate)) ||
-      (c.integrationPresencialDate && isInDateRange(c.integrationPresencialDate)) ||
-      (c.acompanhamento90DiasDate && isInDateRange(c.acompanhamento90DiasDate)) ||
-      (c.authorizedDate && isInDateRange(c.authorizedDate))
+      ['Aguardando Prévia', 'Onboarding Online', 'Integração Presencial', 'Acompanhamento 90 Dias', 'Autorizado'].includes(c.status)
     );
 
     // Métricas calculadas
     const totalInterviewsScheduled = scheduledList.length;
     const totalInterviewsConducted = conductedList.length;
     const attendanceRate = totalInterviewsScheduled > 0 ? (totalInterviewsConducted / totalInterviewsScheduled) * 100 : 0;
-    const hiringRate = totalCandidatesInPeriod.length > 0 ? (totalHiredList.length / totalCandidatesInPeriod.length) * 100 : 0;
+    const hiringRate = totalCandidatesInPeriod.length > 0 ? (totalHiredList.filter(c => isInCreationDateRange(c.createdAt)).length / totalCandidatesInPeriod.length) * 100 : 0;
 
     // Métricas por origem (dependentes do filtro de data)
     const originCounts: Record<string, number> = {};
