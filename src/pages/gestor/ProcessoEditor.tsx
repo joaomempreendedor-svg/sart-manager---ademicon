@@ -263,9 +263,27 @@ export const ProcessoEditor = () => {
 
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      updateBlockContent(id, e.currentTarget.innerHTML);
+      
+      const currentContent = e.currentTarget.innerHTML;
       const newBlockType = currentBlock.type === 'todo' ? 'todo' : 'text';
-      addBlock(newBlockType, currentIndex);
+      const newBlock: ProcessBlock = { id: crypto.randomUUID(), type: newBlockType, content: '', data: { checked: false } };
+      
+      const newBlocks = currentBlocks.flatMap((block, index) => {
+        if (index === currentIndex) {
+          return [{ ...block, content: currentContent }, newBlock];
+        }
+        return block;
+      });
+      
+      updateBlocksAndSave(newBlocks);
+      
+      setTimeout(() => {
+        const newBlockEl = document.querySelector(`[data-block-id="${newBlock.id}"]`);
+        if (newBlockEl) {
+          (newBlockEl as HTMLElement).focus();
+        }
+      }, 50);
+
     } else if (e.key === 'Backspace' && (e.currentTarget.innerHTML === '' || !['heading1', 'text', 'todo'].includes(currentBlock.type))) {
       e.preventDefault();
       if (currentIndex > 0) {
@@ -288,7 +306,7 @@ export const ProcessoEditor = () => {
         deleteBlock(id);
       }
     }
-  }, [addBlock, deleteBlock, updateBlockContent]);
+  }, [updateBlocksAndSave, deleteBlock]);
 
   if (isDataLoading) {
     return (
