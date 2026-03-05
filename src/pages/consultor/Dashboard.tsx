@@ -73,10 +73,13 @@ const ConsultorDashboard = () => {
 
     // Valor de Propostas Enviadas no Mês
     const proposalValueThisMonth = consultantLeads.reduce((sum, lead) => {
-      if (lead.proposal_value && lead.proposal_value > 0 && lead.proposal_closing_date) { // Usando snake_case
-        const proposalDate = new Date(lead.proposal_closing_date + 'T00:00:00'); // Usando snake_case
+      const stage = crmStages.find(s => s.id === lead.stage_id);
+      const isResolved = stage?.is_won || stage?.is_lost;
+
+      if (lead.proposal_value && lead.proposal_value > 0 && lead.proposal_closing_date && !isResolved) {
+        const proposalDate = new Date(lead.proposal_closing_date + 'T00:00:00');
         if (proposalDate >= currentMonthStart && proposalDate <= currentMonthEnd) {
-          return sum + (lead.proposal_value || 0); // Usando snake_case
+          return sum + (lead.proposal_value || 0);
         }
       }
       return sum;
@@ -84,10 +87,10 @@ const ConsultorDashboard = () => {
 
     // Valor Vendido no Mês
     const soldValueThisMonth = consultantLeads.reduce((sum, lead) => {
-      if (lead.sold_credit_value && lead.sold_credit_value > 0 && lead.sale_date) { // Usando snake_case
-        const saleDate = new Date(lead.sale_date + 'T00:00:00'); // Usando snake_case
+      if (lead.sold_credit_value && lead.sold_credit_value > 0 && lead.sale_date) {
+        const saleDate = new Date(lead.sale_date + 'T00:00:00');
         if (saleDate >= currentMonthStart && saleDate <= currentMonthEnd) {
-          return sum + (lead.sold_credit_value || 0); // Usando snake_case
+          return sum + (lead.sold_credit_value || 0);
         }
       }
       return sum;

@@ -130,7 +130,10 @@ export const Dashboard = () => {
     );
 
     const leadsWithProposal = leadsForGestor.filter(lead => {
-      if (lead.proposal_value && lead.proposal_value > 0 && lead.proposal_closing_date) {
+      const stage = crmStages.find(s => s.id === lead.stage_id);
+      const isResolved = stage?.is_won || stage?.is_lost;
+
+      if (lead.proposal_value && lead.proposal_value > 0 && lead.proposal_closing_date && !isResolved) {
         const proposalDate = new Date(lead.proposal_closing_date + 'T00:00:00');
         return proposalDate >= currentMonthStart && proposalDate <= currentMonthEnd;
       }
@@ -153,7 +156,7 @@ export const Dashboard = () => {
     });
 
     return { totalLeads, newLeads, meetingsCount, proposalValue, soldValue, pendingTasks, leadsWithProposal, leadsSold, leadsWithMeetings };
-  }, [crmLeads, leadTasks, user, activeStageIds]);
+  }, [crmLeads, leadTasks, user, activeStageIds, crmStages]);
 
   const hiringMetrics = useMemo(() => {
     const today = new Date();

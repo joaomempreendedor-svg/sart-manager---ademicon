@@ -185,6 +185,9 @@ const CrmSalesReports = () => {
     });
 
     filteredLeads.forEach(lead => {
+      const stage = crmStages.find(s => s.id === lead.stage_id);
+      const isResolved = stage?.is_won || stage?.is_lost;
+
       totalLeads++;
       const consultantId = lead.consultant_id || lead.created_by;
       
@@ -198,7 +201,7 @@ const CrmSalesReports = () => {
         pipelineStageSummary[lead.stage_id].totalValue += currentVal;
       }
 
-      if (lead.proposal_value && lead.proposal_value > 0) {
+      if (lead.proposal_value && lead.proposal_value > 0 && !isResolved) {
         totalProposalValue += lead.proposal_value;
         totalProposalsCount++;
         leadsWithProposal.push(lead);
