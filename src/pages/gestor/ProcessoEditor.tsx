@@ -21,7 +21,7 @@ const BlockComponent = React.memo(React.forwardRef<
   }
 >(({ block, onUpdate, onToggleCheck, onKeyDown, onFocus, isUploading }, ref) => {
   
-  const handleInput = (e: React.FormEvent<HTMLDivElement>) => {
+  const handleBlur = (e: React.FocusEvent<HTMLDivElement>) => {
     onUpdate(block.id, e.currentTarget.innerHTML);
   };
 
@@ -33,7 +33,7 @@ const BlockComponent = React.memo(React.forwardRef<
           data-block-id={block.id}
           contentEditable
           suppressContentEditableWarning
-          onInput={handleInput}
+          onBlur={handleBlur}
           onKeyDown={(e) => onKeyDown(e, block.id)}
           onFocus={onFocus}
           className="text-3xl font-bold outline-none focus:ring-2 focus:ring-brand-500 rounded px-1"
@@ -47,7 +47,7 @@ const BlockComponent = React.memo(React.forwardRef<
           data-block-id={block.id}
           contentEditable
           suppressContentEditableWarning
-          onInput={handleInput}
+          onBlur={handleBlur}
           onKeyDown={(e) => onKeyDown(e, block.id)}
           onFocus={onFocus}
           className="text-base outline-none focus:ring-2 focus:ring-brand-500 rounded px-1"
@@ -68,7 +68,7 @@ const BlockComponent = React.memo(React.forwardRef<
             data-block-id={block.id}
             contentEditable
             suppressContentEditableWarning
-            onInput={handleInput}
+            onBlur={handleBlur}
             onKeyDown={(e) => onKeyDown(e, block.id)}
             onFocus={onFocus}
             className={`flex-grow outline-none focus:ring-2 focus:ring-brand-500 rounded px-1 ${block.data.checked ? 'line-through text-gray-400' : ''}`}
@@ -154,7 +154,6 @@ export const ProcessoEditor = () => {
     updateProcess(process.id, { content: updatedBlocks })
       .then(() => {
         hasUnsavedChanges.current = false;
-        // No visual feedback on success, as requested
       })
       .catch(err => {
         toast.error(`Erro ao salvar: ${err.message}`);
@@ -170,13 +169,9 @@ export const ProcessoEditor = () => {
   const addBlock = useCallback((type: ProcessBlock['type'], index: number) => {
     const newBlock: ProcessBlock = { id: crypto.randomUUID(), type, content: '', data: { checked: false } };
     
-    hasUnsavedChanges.current = true;
-    setBlocks(prevBlocks => {
-      const newBlocks = [...prevBlocks];
-      newBlocks.splice(index + 1, 0, newBlock);
-      debouncedSave(newBlocks);
-      return newBlocks;
-    });
+    const newBlocks = [...blocksRef.current];
+    newBlocks.splice(index + 1, 0, newBlock);
+    updateBlocksAndSave(newBlocks);
     
     setTimeout(() => {
       const newBlockEl = document.querySelector(`[data-block-id="${newBlock.id}"]`);
@@ -184,7 +179,7 @@ export const ProcessoEditor = () => {
         (newBlockEl as HTMLElement).focus();
       }
     }, 50);
-  }, [debouncedSave]);
+  }, [updateBlocksAndSave]);
 
   const handleAddFileBlock = useCallback((type: 'image' | 'pdf', index: number) => {
     if (fileInputRef.current) {
@@ -195,12 +190,9 @@ export const ProcessoEditor = () => {
 
         const newBlock: ProcessBlock = { id: crypto.randomUUID(), type, content: '', data: { name: file.name } };
         
-        hasUnsavedChanges.current = true;
-        setBlocks(prevBlocks => {
-          const newBlocks = [...prevBlocks];
-          newBlocks.splice(index + 1, 0, newBlock);
-          return newBlocks;
-        });
+        const newBlocks = [...blocksRef.current];
+        newBlocks.splice(index + 1, 0, newBlock);
+        setBlocks(newBlocks);
         setUploadingBlockId(newBlock.id);
 
         try {
@@ -217,11 +209,8 @@ export const ProcessoEditor = () => {
 
           const publicUrl = data.publicUrl;
 
-          setBlocks(prevBlocks => {
-            const finalBlocks = prevBlocks.map(b => b.id === newBlock.id ? { ...b, content: publicUrl } : b);
-            debouncedSave(finalBlocks);
-            return finalBlocks;
-          });
+          const finalBlocks = blocksRef.current.map(b => b.id === newBlock.id ? { ...b, content: publicUrl } : b);
+          updateBlocksAndSave(finalBlocks);
 
         } catch (error: any) {
           toast.error(`Falha no upload do arquivo: ${error.message}`);
@@ -235,7 +224,7 @@ export const ProcessoEditor = () => {
       };
       fileInputRef.current.click();
     }
-  }, [debouncedSave, process?.id]);
+  }, [process?.id, updateBlocksAndSave]);
 
   useEffect(() => {
     if (!isDataLoading && process && blocks.length === 0) {
@@ -244,35 +233,26 @@ export const ProcessoEditor = () => {
   }, [isDataLoading, process, blocks.length, addBlock]);
 
   const updateBlockContent = useCallback((id: string, content: string) => {
-    hasUnsavedChanges.current = true;
-    setBlocks(prevBlocks => {
-      const newBlocks = prevBlocks.map(block =>
-        block.id === id ? { ...block, content } : block
-      );
-      debouncedSave(newBlocks);
-      return newBlocks;
-    });
-  }, [debouncedSave]);
+    const currentBlock = blocksRef.current.find(b => b.id === id);
+    if (currentBlock && currentBlock.content === content) return;
+
+    const newBlocks = blocksRef.current.map(block =>
+      block.id === id ? { ...block, content } : block
+    );
+    updateBlocksAndSave(newBlocks);
+  }, [updateBlocksAndSave]);
 
   const toggleTodoCheck = useCallback((id: string) => {
-    hasUnsavedChanges.current = true;
-    setBlocks(prevBlocks => {
-      const newBlocks = prevBlocks.map(block =>
-        block.id === id ? { ...block, data: { ...block.data, checked: !block.data.checked } } : block
-      );
-      debouncedSave(newBlocks);
-      return newBlocks;
-    });
-  }, [debouncedSave]);
+    const newBlocks = blocksRef.current.map(block =>
+      block.id === id ? { ...block, data: { ...block.data, checked: !block.data.checked } } : block
+    );
+    updateBlocksAndSave(newBlocks);
+  }, [updateBlocksAndSave]);
 
   const deleteBlock = useCallback((id: string) => {
-    hasUnsavedChanges.current = true;
-    setBlocks(prevBlocks => {
-      const newBlocks = prevBlocks.filter(block => block.id !== id);
-      debouncedSave(newBlocks);
-      return newBlocks;
-    });
-  }, [debouncedSave]);
+    const newBlocks = blocksRef.current.filter(block => block.id !== id);
+    updateBlocksAndSave(newBlocks);
+  }, [updateBlocksAndSave]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>, id: string) => {
     const currentBlocks = blocksRef.current;
@@ -283,6 +263,7 @@ export const ProcessoEditor = () => {
 
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
+      updateBlockContent(id, e.currentTarget.innerHTML);
       const newBlockType = currentBlock.type === 'todo' ? 'todo' : 'text';
       addBlock(newBlockType, currentIndex);
     } else if (e.key === 'Backspace' && (e.currentTarget.innerHTML === '' || !['heading1', 'text', 'todo'].includes(currentBlock.type))) {
@@ -307,7 +288,7 @@ export const ProcessoEditor = () => {
         deleteBlock(id);
       }
     }
-  }, [addBlock, deleteBlock]);
+  }, [addBlock, deleteBlock, updateBlockContent]);
 
   if (isDataLoading) {
     return (
