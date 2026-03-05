@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Process } from '@/types';
 import { useApp } from '@/context/AppContext';
-import { Plus, Trash2, Save, X, ArrowUp, ArrowDown } from 'lucide-react';
+import { Plus, Trash2, Save, X, ArrowUp, ArrowDown, Edit2 } from 'lucide-react';
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
 import toast from 'react-hot-toast';
 import { Button } from '@/components/ui/button';
