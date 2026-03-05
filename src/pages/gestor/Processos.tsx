@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { Process } from '@/types';
-import { Loader2, FileText, Plus, Search, Edit2, Trash2, Eye } from 'lucide-react';
+import { Loader2, FileText, Plus, Search, Edit2, Trash2, Eye, Filter, RotateCcw, CalendarDays } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { ProcessModal } from '@/components/gestor/ProcessModal';
 import { ProcessViewModal } from '@/components/gestor/ProcessViewModal';
@@ -13,6 +13,10 @@ export const Processos = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedProcess, setSelectedProcess] = useState<Process | null>(null);
+
+  // NOVO: Estados para os filtros de data
+  const [filterStartDate, setFilterStartDate] = useState('');
+  const [filterEndDate, setFilterEndDate] = useState('');
 
   const handleOpenEditModal = (process: Process | null) => {
     setSelectedProcess(process);
@@ -47,11 +51,41 @@ export const Processos = () => {
   };
 
   const filteredProcesses = useMemo(() => {
-    return processes.filter(p =>
-      p.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (p.description && p.description.toLowerCase().includes(searchTerm.toLowerCase()))
-    ).sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
-  }, [processes, searchTerm]);
+    let currentProcesses = processes;
+
+    // Filtrar por termo de busca
+    if (searchTerm) {
+      const lowerCaseSearchTerm = searchTerm.toLowerCase();
+      currentProcesses = currentProcesses.filter(p =>
+        p.title.toLowerCase().includes(lowerCaseSearchTerm) ||
+        (p.description && p.description.toLowerCase().includes(lowerCaseSearchTerm)) ||
+        (p.content && p.content.toLowerCase().includes(lowerCaseSearchTerm))
+      );
+    }
+
+    // NOVO: Filtrar por datas de criação/atualização
+    if (filterStartDate || filterEndDate) {
+      const start = filterStartDate ? new Date(filterStartDate + 'T00:00:00') : null;
+      const end = filterEndDate ? new Date(filterEndDate + 'T23:59:59') : null;
+
+      currentProcesses = currentProcesses.filter(process => {
+        const processDate = new Date(process.updated_at); // Usar updated_at como referência
+        const matchesStart = !start || processDate >= start;
+        const matchesEnd = !end || processDate <= end;
+        return matchesStart && matchesEnd;
+      });
+    }
+
+    return currentProcesses.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+  }, [processes, searchTerm, filterStartDate, filterEndDate]);
+
+  const clearFilters = () => {
+    setSearchTerm('');
+    setFilterStartDate('');
+    setFilterEndDate('');
+  };
+
+  const hasActiveFilters = searchTerm || filterStartDate || filterEndDate;
 
   if (isDataLoading) {
     return (
@@ -69,16 +103,6 @@ export const Processos = () => {
           <p className="text-gray-500 dark:text-gray-400">Crie e gerencie documentos e processos da sua equipe.</p>
         </div>
         <div className="flex items-center space-x-2 mt-4 sm:mt-0">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Buscar processo..."
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              className="w-full pl-9 p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600"
-            />
-          </div>
           <button
             onClick={() => handleOpenEditModal(null)}
             className="flex items-center space-x-2 bg-brand-500 hover:bg-brand-600 text-white px-4 py-2 rounded-lg transition text-sm font-medium"
@@ -86,6 +110,41 @@ export const Processos = () => {
             <Plus className="w-4 h-4" />
             <span>Novo Processo</span>
           </button>
+        </div>
+      </div>
+
+      {/* NOVO: Seção de Filtros */}
+      <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm space-y-4 mb-6">
+        <div className="flex items-center justify-between flex-col sm:flex-row">
+          <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 flex items-center uppercase tracking-wide"><Filter className="w-4 h-4 mr-2" />Filtros</h3>
+          {hasActiveFilters && (
+            <button onClick={clearFilters} className="text-xs flex items-center text-red-500 hover:text-red-700 transition mt-2 sm:mt-0">
+              <RotateCcw className="w-3 h-3 mr-1" />Limpar Filtros
+            </button>
+          )}
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="flex flex-col">
+            <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 ml-1">Busca</label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Título, descrição ou conteúdo..."
+                className="w-full pl-9 pr-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="flex flex-col">
+            <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 ml-1">Atualizado de</label>
+            <input type="date" value={filterStartDate} onChange={(e) => setFilterStartDate(e.target.value)} className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2 text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white" />
+          </div>
+          <div className="flex flex-col">
+            <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 ml-1">Atualizado até</label>
+            <input type="date" value={filterEndDate} onChange={(e) => setFilterEndDate(e.target.value)} className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2 text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white" />
+          </div>
         </div>
       </div>
 
