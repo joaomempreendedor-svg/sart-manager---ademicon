@@ -120,13 +120,6 @@ export const ProcessoEditor = () => {
     debouncedSave(blocks);
   }, [blocks, debouncedSave]);
 
-  const updateBlocks = (newBlocks: ProcessBlock[], shouldSave: boolean = true) => {
-    setBlocks(newBlocks);
-    if (shouldSave) {
-      debouncedSave(newBlocks);
-    }
-  };
-
   const addBlock = useCallback((type: ProcessBlock['type'], index: number) => {
     const newBlock: ProcessBlock = { id: crypto.randomUUID(), type, content: '', data: { checked: false } };
     setBlocks(currentBlocks => {
@@ -253,7 +246,7 @@ export const ProcessoEditor = () => {
               </Button>
             </div>
             <div className="flex-1">
-              <MemoizedBlockComponent 
+              <BlockComponent 
                 block={block} 
                 onUpdate={updateBlockContent} 
                 onToggleCheck={toggleTodoCheck}
