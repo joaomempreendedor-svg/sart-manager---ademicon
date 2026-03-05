@@ -539,6 +539,17 @@ export interface ColdCallLog {
   created_at: string;
 }
 
+export interface Process {
+  id: string;
+  user_id: string;
+  title: string;
+  description?: string;
+  content?: string;
+  type: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface AppContextType {
   isDataLoading: boolean;
   candidates: Candidate[];
