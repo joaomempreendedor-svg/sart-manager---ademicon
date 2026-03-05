@@ -55,6 +55,7 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
     
     return teamMembers.filter(m => 
       m.isActive && 
+      m.authUserId && // Only show members with a login
       m.roles.some(role => allowedRoles.includes(role.toLowerCase()))
     ).sort((a, b) => a.name.localeCompare(b.name));
   }, [teamMembers]);
@@ -347,7 +348,7 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
                     </SelectTrigger>
                     <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700 max-h-[200px] overflow-y-auto">
                       {consultants.map(consultant => (
-                        <SelectItem key={consultant.id} value={consultant.id}>
+                        <SelectItem key={consultant.id} value={consultant.authUserId!}>
                           {consultant.name} ({consultant.roles.join(', ')})
                         </SelectItem>
                       ))}
