@@ -53,7 +53,6 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
     { to: `${baseRoute}/team-production-goals`, icon: Target, label: "Metas de Produção", roles: ['GESTOR', 'ADMIN'], section: 'overview' },
     { to: `${baseRoute}/my-tasks`, icon: ListTodo, label: "Minhas Tarefas", roles: ['GESTOR', 'ADMIN'], section: 'overview' },
     { to: `${baseRoute}/cold-call-metrics`, icon: PhoneCall, label: "Métricas Cold Call", roles: ['GESTOR', 'ADMIN'], section: 'overview' },
-    { to: `${baseRoute}/processos`, icon: FileText, label: "Processos", roles: ['GESTOR', 'ADMIN'], section: 'overview' },
 
     // Hiring & Onboarding (Shared, but some pages might be Gestor/Admin specific)
     { to: `${baseRoute}/hiring-pipeline`, icon: UserSearch, label: "Pipeline Contratação", roles: ['GESTOR', 'ADMIN', 'SECRETARIA'], section: 'overview' },

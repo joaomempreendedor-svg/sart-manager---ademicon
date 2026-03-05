@@ -711,36 +711,3 @@ export interface ColdCallMetrics { // NOVO: Interface para as métricas de Cold 
 }
 
 export type ColdCallDetailType = 'all' | 'calls' | 'conversations' | 'meetings' | 'interest' | 'answered';
-
-// Types for Process Editor
-export type BlockType = 'text' | 'heading1' | 'heading2' | 'heading3' | 'todo' | 'image' | 'pdf';
-
-export interface Block {
-  id: string;
-  type: BlockType;
-  content: string;
-  checked?: boolean;
-  fileUrl?: string;
-  fileName?: string;
-}
-
-export interface ProcessPage {
-  id: string;
-  process_id: string;
-  title: string;
-  blocks: Block[];
-  sort_order: number;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface Process {
-  id: string;
-  user_id: string;
-  title: string;
-  description?: string;
-  type: string;
-  content?: any;
-  created_at: string;
-  updated_at: string;
-}
