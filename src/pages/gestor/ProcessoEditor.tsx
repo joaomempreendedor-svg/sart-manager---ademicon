@@ -129,7 +129,6 @@ export const ProcessoEditor = () => {
   const process = useMemo(() => processes.find(p => p.id === id), [processes, id]);
   const [blocks, setBlocks] = useState<ProcessBlock[]>([]);
   const [hoveredBlockId, setHoveredBlockId] = useState<string | null>(null);
-  const [savingStatus, setSavingStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const hasUnsavedChanges = useRef(false);
   const initialLoadRef = useRef(true);
 
@@ -152,16 +151,13 @@ export const ProcessoEditor = () => {
 
   const debouncedSave = useDebouncedCallback((updatedBlocks: ProcessBlock[]) => {
     if (!process || !hasUnsavedChanges.current) return;
-    setSavingStatus('saving');
     updateProcess(process.id, { content: updatedBlocks })
       .then(() => {
-        setSavingStatus('saved');
         hasUnsavedChanges.current = false;
-        setTimeout(() => setSavingStatus('idle'), 2000);
+        // No visual feedback on success, as requested
       })
       .catch(err => {
         toast.error(`Erro ao salvar: ${err.message}`);
-        setSavingStatus('idle');
       });
   }, 1500);
 
@@ -340,8 +336,7 @@ export const ProcessoEditor = () => {
           <ArrowLeft className="w-4 h-4 mr-2" /> Voltar para Processos
         </button>
         <div className="text-sm text-gray-400 h-5">
-          {savingStatus === 'saving' && 'Salvando...'}
-          {savingStatus === 'saved' && 'Salvo!'}
+          {/* Saving status removed */}
         </div>
       </div>
       
