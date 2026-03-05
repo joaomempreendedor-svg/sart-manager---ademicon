@@ -39,7 +39,7 @@ const JOAO_GESTOR_AUTH_ID = "0c6d71b7-daeb-4dde-8eec-0e7a8ffef658";
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { user } = useAuth();
-  const fetchedUserIdRef = useRef<string | null>(null);
+  const fetchedUserIdRef = useRef<string | null>(fetchedUserIdRef.current);
   const isFetchingRef = useRef(false);
 
   const [isDataLoading, setIsDataLoading] = useState(true);
@@ -789,6 +789,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const updateDailyChecklistItem = useCallback(async (id: string, updates: Partial<DailyChecklistItem>, audioFile?: File, imageFile?: File) => {
     let finalResource = updates.resource;
+    const itemToUpdate = dailyChecklistItems.find(item => item.id === id);
+    if (!itemToUpdate) throw new Error("Item do checklist não encontrado.");
+
     const uploadFile = async (file: File) => {
       const sanitized = sanitizeFilename(file.name);
       const path = `checklist_resources/${Date.now()}-${sanitized}`;
@@ -796,11 +799,33 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (uploadError) throw uploadError;
       return supabase.storage.from('form_uploads').getPublicUrl(path).data.publicUrl;
     };
-    const audioUrl = audioFile ? await uploadFile(audioFile) : (updates.resource?.type === 'text_audio' || updates.resource?.type === 'text_audio_image' ? (updates.resource.content as any).audioUrl : undefined);
-    const imageUrl = imageFile ? await uploadFile(imageFile) : (updates.resource?.type === 'text_audio_image' ? (updates.resource.content as any).imageUrl : undefined);
-    if (updates.resource?.type === 'text_audio') finalResource = { ...updates.resource, content: { ...(updates.resource.content as any), audioUrl } };
-    else if (updates.resource?.type === 'text_audio_image') finalResource = { ...updates.resource, content: { ...(updates.resource.content as any), audioUrl, imageUrl } };
-    else if (updates.resource?.type === 'image' || updates.resource?.type === 'pdf' || updates.resource?.type === 'audio' || updates.resource?.type === 'video' || updates.resource?.type === 'link' || updates.resource?.type === 'text') finalResource = { ...updates.resource, content: audioUrl || imageUrl || updates.resource.content };
+
+    let currentAudioUrl = (itemToUpdate.resource?.type === 'text_audio' || itemToUpdate.resource?.type === 'text_audio_image') ? (itemToUpdate.resource.content as any).audioUrl : (itemToUpdate.resource?.type === 'audio' ? itemToUpdate.resource.content : undefined);
+    let currentImageUrl = (itemToUpdate.resource?.type === 'text_audio_image') ? (itemToUpdate.resource.content as any).imageUrl : (itemToUpdate.resource?.type === 'image' || itemToUpdate.resource?.type === 'pdf' ? itemToUpdate.resource.content : undefined);
+    let currentSingleFileContent = (itemToUpdate.resource?.type === 'text' || itemToUpdate.resource?.type === 'link' || itemToUpdate.resource?.type === 'video') ? itemToUpdate.resource.content : undefined;
+
+    if (audioFile) {
+      currentAudioUrl = await uploadFile(audioFile);
+    }
+    if (imageFile) {
+      currentImageUrl = await uploadFile(imageFile);
+    }
+
+    if (updates.resource) {
+      if (updates.resource.type === 'text_audio') {
+        finalResource = { ...updates.resource, content: { ...(updates.resource.content as any), audioUrl: currentAudioUrl } };
+      } else if (updates.resource.type === 'text_audio_image') {
+        finalResource = { ...updates.resource, content: { ...(updates.resource.content as any), audioUrl: currentAudioUrl, imageUrl: currentImageUrl } };
+      } else if (updates.resource.type === 'image' || updates.resource.type === 'pdf' || updates.resource.type === 'audio') {
+        finalResource = { ...updates.resource, content: currentAudioUrl || currentImageUrl || updates.resource.content };
+      } else if (updates.resource.type === 'text' || updates.resource.type === 'link' || updates.resource.type === 'video') {
+        finalResource = { ...updates.resource, content: updates.resource.content || currentSingleFileContent };
+      } else if (updates.resource.type === 'none') {
+        finalResource = undefined; // Remove o recurso
+      }
+    } else {
+      finalResource = itemToUpdate.resource; // Se updates.resource não foi fornecido, mantém o existente
+    }
 
     // USO DE EDGE FUNCTION PARA ATUALIZAR (BYPASS SEGURO DE RLS)
     const { data: fxRes, error: fxErr } = await supabase.functions.invoke('manage-daily-checklist-item', {
@@ -1005,7 +1030,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       created_by: data.created_by, 
       updated_by: data.updated_by,
       proposal_value: parseDbCurrency(data.proposal_value), 
-      proposal_closing_date: data.proposal_closing_date,
+      proposal_closing_date: data.proposal_closing_date, 
       sold_credit_value: parseDbCurrency(data.sold_credit_value), 
       sold_group: data.sold_group, 
       sold_quota: data.sold_quota, 
@@ -1251,20 +1276,65 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, [checklistStructure, updateConfig]);
 
-  const addProcess = useCallback(async (process: Omit<Process, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
+  const addProcess = useCallback(async (processData: Omit<Process, 'id' | 'user_id' | 'created_at' | 'updated_at'>, file?: File | null) => {
     if (!user) throw new Error("User not authenticated.");
-    const { data, error } = await supabase.from('processes').insert({ ...process, user_id: user.id }).select().single();
+    
+    let fileUrl: string | undefined = processData.file_url;
+    let fileType: string | undefined = processData.file_type;
+
+    if (file) {
+      const sanitized = sanitizeFilename(file.name);
+      const path = `process_files/${Date.now()}-${sanitized}`;
+      const { data: uploadData, error: uploadError } = await supabase.storage.from('form_uploads').upload(path, file);
+      if (uploadError) throw uploadError;
+      fileUrl = supabase.storage.from('form_uploads').getPublicUrl(path).data.publicUrl;
+      fileType = file.type.startsWith('image/') ? 'image' : 'pdf';
+    }
+
+    const { data, error } = await supabase.from('processes').insert({ 
+      ...processData, 
+      user_id: user.id, 
+      file_url: fileUrl, 
+      file_type: fileType 
+    }).select().single();
     if (error) throw error;
     setProcesses(prev => [data, ...prev].sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()));
     return data;
   }, [user]);
 
-  const updateProcess = useCallback(async (id: string, updates: Partial<Process>) => {
-    const { data, error } = await supabase.from('processes').update(updates).eq('id', id).select().single();
+  const updateProcess = useCallback(async (id: string, updates: Partial<Process>, file?: File | null) => {
+    const existingProcess = processes.find(p => p.id === id);
+    if (!existingProcess) throw new Error("Process not found.");
+
+    let fileUrl: string | undefined = updates.file_url;
+    let fileType: string | undefined = updates.file_type;
+
+    if (file) {
+      const sanitized = sanitizeFilename(file.name);
+      const path = `process_files/${Date.now()}-${sanitized}`;
+      const { data: uploadData, error: uploadError } = await supabase.storage.from('form_uploads').upload(path, file);
+      if (uploadError) throw uploadError;
+      fileUrl = supabase.storage.from('form_uploads').getPublicUrl(path).data.publicUrl;
+      fileType = file.type.startsWith('image/') ? 'image' : 'pdf';
+    } else if (updates.file_url === undefined && updates.file_type === undefined) {
+      // User explicitly removed the file
+      fileUrl = undefined;
+      fileType = undefined;
+    } else {
+      // No new file, retain existing if not explicitly removed
+      fileUrl = existingProcess.file_url;
+      fileType = existingProcess.file_type;
+    }
+
+    const { data, error } = await supabase.from('processes').update({ 
+      ...updates, 
+      file_url: fileUrl, 
+      file_type: fileType 
+    }).eq('id', id).select().single();
     if (error) throw error;
     setProcesses(prev => prev.map(p => p.id === id ? data : p).sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()));
     return data;
-  }, []);
+  }, [processes]);
 
   const deleteProcess = useCallback(async (id: string) => {
     const { error } = await supabase.from('processes').delete().eq('id', id);
