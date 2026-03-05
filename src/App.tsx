@@ -20,6 +20,7 @@ import { Home } from '@/pages/Home';
 import { Loader2 } from 'lucide-react';
 import { PendingApproval } from '@/pages/PendingApproval';
 import { PublicForm } from '@/pages/PublicForm';
+import { PublicProcessView } from '@/pages/PublicProcessView'; // NOVO: Importar PublicProcessView
 
 // Gestor Pages
 import { Dashboard } from '@/pages/Dashboard';
@@ -116,6 +117,7 @@ const AppRoutes = () => {
       <Route path="/onboarding/:sessionId" element={<PublicOnboarding />} />
       <Route path="/pending-approval" element={<PendingApproval />} />
       <Route path="/public-form" element={<PublicForm />} />
+      <Route path="/public-process/:processId" element={<PublicProcessView />} /> {/* NOVO: Rota pública para processos */}
       
       <Route element={<RequireAuth allowedRoles={['GESTOR', 'ADMIN', 'CONSULTOR', 'SECRETARIA']} />}>
         <Route path="/" element={<Home />} />
