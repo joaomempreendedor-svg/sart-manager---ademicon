@@ -74,7 +74,7 @@ const ColdCallPage = () => {
   const [loggingLead, setLoggingLead] = useState<ColdCallLead | null>(null);
   
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
-  const [viewingLeadHistory, setViewingLeadHistory] = useState<ColdCallLead | null>(null);
+  const [viewingLeadHistory, setViewingLeadHistory, ] = useState<ColdCallLead | null>(null);
 
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
@@ -288,7 +288,8 @@ const ColdCallPage = () => {
     switch (result) {
       case 'Agendar Reunião':
         return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300';
-      case 'Pedir retorno':
+      case 'Pedir retorno': // NOVO: Cor diferente para 'Pedir retorno'
+        return 'bg-blue-50 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300';
       case 'Conversou':
       case 'Demonstrou Interesse':
         return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300';
