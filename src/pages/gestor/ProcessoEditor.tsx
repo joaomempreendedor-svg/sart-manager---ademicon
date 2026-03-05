@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { ChecklistProcessEditor } from '@/components/process/ChecklistProcessEditor';
+import { MindMapProcessEditor } from '@/components/process/MindMapProcessEditor';
 
 export const ProcessoEditor = () => {
   const { id } = useParams<{ id: string }>();
@@ -35,16 +36,7 @@ export const ProcessoEditor = () => {
       case 'checklist':
         return <ChecklistProcessEditor process={process} />;
       case 'mindmap':
-        return (
-          <div className="mt-8">
-            <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg border border-yellow-200 dark:border-yellow-800">
-              <h2 className="font-bold text-yellow-800 dark:text-yellow-200">Em Construção</h2>
-              <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
-                O editor para Mapas Mentais ainda está em desenvolvimento.
-              </p>
-            </div>
-          </div>
-        );
+        return <MindMapProcessEditor process={process} />;
       default:
         return (
           <div className="mt-8">

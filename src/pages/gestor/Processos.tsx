@@ -50,7 +50,11 @@ export const Processos = () => {
     }
     setIsSaving(true);
     try {
-      const processData = { title, description, type, content: editingProcess?.content || (type === 'checklist' ? [] : {}) };
+      const content = editingProcess?.content || 
+                      (type === 'checklist' 
+                        ? [] 
+                        : { nodes: [{ id: '1', type: 'input', data: { label: 'Nó Central' }, position: { x: 250, y: 5 } }], edges: [] });
+      const processData = { title, description, type, content };
       if (editingProcess) {
         await updateProcess(editingProcess.id, processData);
         toast.success("Processo atualizado com sucesso!");
