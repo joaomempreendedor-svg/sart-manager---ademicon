@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
-import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, InstallmentInfo, CutoffPeriod, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask, DailyChecklistItemResource, GestorTask, GestorTaskCompletion, FinancialEntry, FormCadastro, FormFile, Notification, Feedback, TeamProductionGoal, ColdCallLead, ColdCallLog, ChecklistItem } from '@/types';
+import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, InstallmentInfo, CutoffPeriod, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask, DailyChecklistItemResource, GestorTask, GestorTaskCompletion, FinancialEntry, FormCadastro, FormFile, Notification, TeamProductionGoal, ColdCallLead, ColdCallLog, ChecklistItem, Process } from '@/types';
 import { CHECKLIST_STAGES as DEFAULT_STAGES } from '@/data/checklistData';
 import { CONSULTANT_GOALS as DEFAULT_GOALS } from '@/data/consultantGoals';
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
@@ -90,6 +90,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const [coldCallLeads, setColdCallLeads] = useState<ColdCallLead[]>([]);
   const [coldCallLogs, setColdCallLogs] = useState<ColdCallLog[]>([]);
+  const [processes, setProcesses] = useState<Process[]>([]);
 
   const [theme, setTheme] = useState<'light' | 'dark'>(() => (localStorage.getItem('sart_theme') as 'light' | 'dark') || 'light');
 
@@ -172,6 +173,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setSupportMaterialsV2([]); setSupportMaterialAssignments([]); setLeadTasks([]); setGestorTasks([]); setGestorTaskCompletions([]); setFinancialEntries([]);
     setFormCadastros([]); setFormFiles([]); setNotifications([]); setTeamProductionGoals([]);
     setColdCallLeads([]); setColdCallLogs([]);
+    setProcesses([]); // Reset processes
     setIsDataLoading(false);
   }, []);
 
@@ -308,7 +310,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           supportMaterialsV2Res, supportMaterialAssignmentsV2Res,
           leadTasksRes, gestorTasksRes, gestorTaskCompletionsRes, financialEntriesRes,
           formCadastrosRes, formFilesRes, notificationsRes, teamProductionGoalsRes, teamMembersRes,
-          coldCallLeadsRes, coldCallLogsRes
+          coldCallLeadsRes, coldCallLogsRes, processesRes
         ] = await Promise.all([
           getAllFromTable('candidates', { select: 'id, data, created_at, last_updated_at', filters: { user_id: effectiveGestorId } }),
           getAllFromTable('support_materials', { select: 'id, data', filters: { user_id: effectiveGestorId } }),
@@ -339,7 +341,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           getAllFromTable('team_production_goals', { filters: { user_id: effectiveGestorId }, orderBy: 'start_date', ascending: false }),
           getAllFromTable('team_members', { select: 'id, data, cpf, user_id', filters: { user_id: effectiveGestorId } }),
           getAllFromTable('cold_call_leads'),
-          getAllFromTable('cold_call_logs')
+          getAllFromTable('cold_call_logs'),
+          getAllFromTable('processes', { filters: { user_id: effectiveGestorId } })
         ]);
 
         if (candidatesRes.error) { toast.error(`Erro ao carregar candidatos: ${candidatesRes.error.message}`); setCandidates([]); }
@@ -475,6 +478,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
         if (coldCallLogsRes.error) { toast.error(`Erro ao carregar logs de cold call: ${coldCallLogsRes.error.message}`); setColdCallLogs([]); }
         else { setColdCallLogs(coldCallLogsRes.data || []); }
+
+        if (processesRes.error) { toast.error(`Erro ao carregar processos: ${processesRes.error.message}`); setProcesses([]); }
+        else { setProcesses(processesRes.data || []); }
 
         refetchCommissions();
       } catch (error: any) {
@@ -1245,6 +1251,27 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, [checklistStructure, updateConfig]);
 
+  const addProcess = useCallback(async (process: Omit<Process, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
+    if (!user) throw new Error("User not authenticated.");
+    const { data, error } = await supabase.from('processes').insert({ ...process, user_id: user.id }).select().single();
+    if (error) throw error;
+    setProcesses(prev => [data, ...prev].sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()));
+    return data;
+  }, [user]);
+
+  const updateProcess = useCallback(async (id: string, updates: Partial<Process>) => {
+    const { data, error } = await supabase.from('processes').update(updates).eq('id', id).select().single();
+    if (error) throw error;
+    setProcesses(prev => prev.map(p => p.id === id ? data : p).sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()));
+    return data;
+  }, []);
+
+  const deleteProcess = useCallback(async (id: string) => {
+    const { error } = await supabase.from('processes').delete().eq('id', id);
+    if (error) throw error;
+    setProcesses(prev => prev.filter(p => p.id !== id));
+  }, []);
+
   const value: AppContextType = useMemo(() => ({
     isDataLoading,
     candidates, teamMembers, commissions, supportMaterials, cutoffPeriods, onboardingSessions, onboardingTemplateVideos,
@@ -1257,6 +1284,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     leadTasks, gestorTasks, gestorTaskCompletions, financialEntries,
     formCadastros, formFiles, notifications, teamProductionGoals,
     coldCallLeads, coldCallLogs,
+    processes,
     theme,
 
     toggleTheme, updateConfig, resetLocalState, refetchCommissions, calculateCompetenceMonth, isGestorTaskDueOnDate, calculateNotifications,
@@ -1622,6 +1650,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     updateFormCadastro,
     deleteFormCadastro,
 
+    addFeedback,
+    updateFeedback,
+    deleteFeedback,
     addTeamMemberFeedback,
     updateTeamMemberFeedback,
     deleteTeamMemberFeedback,
@@ -1642,6 +1673,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addColdCallLog,
     getColdCallMetrics,
     createCrmLeadFromColdCall,
+    addChecklistStage,
+    updateChecklistStage,
+    deleteChecklistStage,
+    moveChecklistStage,
+    addProcess,
+    updateProcess,
+    deleteProcess,
   }), [
     isDataLoading,
     candidates, teamMembers, commissions, supportMaterials, cutoffPeriods, onboardingSessions, onboardingTemplateVideos,
@@ -1653,6 +1691,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     leadTasks, gestorTasks, gestorTaskCompletions, financialEntries,
     formCadastros, formFiles, notifications, teamProductionGoals,
     coldCallLeads, coldCallLogs,
+    processes,
     theme,
     toggleTheme, updateConfig, resetLocalState, refetchCommissions, calculateCompetenceMonth, isGestorTaskDueOnDate, calculateNotifications,
     addCandidate, updateCandidate, deleteCandidate,
@@ -1669,6 +1708,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addGestorTask, updateGestorTask, deleteGestorTask, toggleGestorTaskCompletion,
     addFinancialEntry, updateFinancialEntry, deleteFinancialEntry,
     updateFormCadastro, deleteFormCadastro,
+    addFeedback, updateFeedback, deleteFeedback,
     addTeamMemberFeedback, updateTeamMemberFeedback, deleteTeamMemberFeedback,
     addTeamMember, updateTeamMember, deleteTeamMember,
     addTeamProductionGoal, updateTeamProductionGoal, deleteTeamProductionGoal,
@@ -1676,6 +1716,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     hasPendingSecretariaTasks,
     addColdCallLead, updateColdCallLead, deleteColdCallLead, addColdCallLog, getColdCallMetrics, createCrmLeadFromColdCall,
     addOnlineOnboardingSession, deleteOnlineOnboardingSession, addVideoToTemplate, deleteVideoFromTemplate,
+    addProcess, updateProcess, deleteProcess,
   ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
