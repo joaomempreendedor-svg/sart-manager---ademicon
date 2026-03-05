@@ -264,25 +264,11 @@ export const ProcessoEditor = () => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       
-      const currentContent = e.currentTarget.innerHTML;
+      // Salva o conteúdo atual antes de criar um novo bloco
+      updateBlockContent(id, e.currentTarget.innerHTML);
+      
       const newBlockType = currentBlock.type === 'todo' ? 'todo' : 'text';
-      const newBlock: ProcessBlock = { id: crypto.randomUUID(), type: newBlockType, content: '', data: { checked: false } };
-      
-      const newBlocks = currentBlocks.flatMap((block, index) => {
-        if (index === currentIndex) {
-          return [{ ...block, content: currentContent }, newBlock];
-        }
-        return block;
-      });
-      
-      updateBlocksAndSave(newBlocks);
-      
-      setTimeout(() => {
-        const newBlockEl = document.querySelector(`[data-block-id="${newBlock.id}"]`);
-        if (newBlockEl) {
-          (newBlockEl as HTMLElement).focus();
-        }
-      }, 50);
+      addBlock(newBlockType, currentIndex);
 
     } else if (e.key === 'Backspace' && (e.currentTarget.innerHTML === '' || !['heading1', 'text', 'todo'].includes(currentBlock.type))) {
       e.preventDefault();
@@ -306,7 +292,7 @@ export const ProcessoEditor = () => {
         deleteBlock(id);
       }
     }
-  }, [updateBlocksAndSave, deleteBlock]);
+  }, [addBlock, deleteBlock, updateBlockContent]);
 
   if (isDataLoading) {
     return (
