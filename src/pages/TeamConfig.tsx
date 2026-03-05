@@ -6,10 +6,11 @@ import { TeamMember, TeamRole, Candidate } from '@/types';
 import { formatCpf, generateRandomPassword } from '@/utils/authUtils';
 import { ConsultantCredentialsModal } from '@/components/ConsultantCredentialsModal';
 import { RecordTeamMemberInterviewModal } from '@/components/TeamConfig/RecordTeamMemberInterviewModal';
-import { EditTeamMemberModal } from '@/components/TeamConfig/EditTeamMemberModal'; // NOVO: Importar o modal de edição
+import { EditTeamMemberModal } from '@/components/TeamConfig/EditTeamMemberModal';
 import toast from 'react-hot-toast';
 
 const ALL_ROLES: TeamRole[] = ['PRÉVIA', 'AUTORIZADO', 'GESTOR', 'ANJO', 'SECRETARIA'];
+const JOAO_GESTOR_AUTH_ID = "0c6d71b7-daeb-4dde-8eec-0e7a8ffef658";
 
 export const TeamConfig = () => {
   const { user } = useAuth();
@@ -26,8 +27,8 @@ export const TeamConfig = () => {
   const [copiedPassword, setCopiedPassword] = useState(false);
 
   // Estados para o modal de edição
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false); // NOVO: Estado para abrir/fechar o modal de edição
-  const [memberToEdit, setMemberToEdit] = useState<TeamMember | null>(null); // NOVO: Membro a ser editado
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [memberToEdit, setMemberToEdit] = useState<TeamMember | null>(null);
 
   const [showCredentialsModal, setShowCredentialsModal] = useState(false);
   const [createdConsultantCredentials, setCreatedConsultantCredentials] = useState<{ name: string, login: string, password: string, wasExistingUser: boolean } | null>(null);
@@ -111,15 +112,12 @@ export const TeamConfig = () => {
     }
   };
 
-  // NOVO: Função para abrir o modal de edição
   const handleOpenEditModal = (member: TeamMember) => {
     setMemberToEdit(member);
     setIsEditModalOpen(true);
   };
 
-  // NOVO: Função para salvar as edições do modal
   const handleSaveEditedMember = async (id: string, updates: Partial<TeamMember>) => {
-    // Esta função será chamada pelo EditTeamMemberModal
     await updateTeamMember(id, updates);
   };
 
@@ -143,7 +141,12 @@ export const TeamConfig = () => {
   };
 
   const handleResetPassword = async (member: TeamMember) => {
-    if (!member.authUserId) { // Usar authUserId
+    if (member.roles.includes('GESTOR')) {
+      toast.error("A senha de gestores não pode ser resetada aqui por segurança. O próprio gestor deve usar a opção 'Esqueci minha senha' na tela de login.");
+      return;
+    }
+
+    if (!member.authUserId) {
       toast.error("Não é possível resetar a senha: ID de autenticação do consultor não encontrado.");
       return;
     }
@@ -154,7 +157,7 @@ export const TeamConfig = () => {
     try {
       const newTempPassword = generateRandomPassword();
       
-      const { userEmail } = await resetConsultantPasswordViaEdge(member.authUserId, newTempPassword); // Usar authUserId
+      const { userEmail } = await resetConsultantPasswordViaEdge(member.authUserId, newTempPassword);
       
       setCreatedConsultantCredentials({
         name: member.name,
@@ -176,7 +179,7 @@ export const TeamConfig = () => {
           case 'GESTOR': return <Crown className="w-4 h-4 text-blue-500" />;
           case 'ANJO': return <Star className="w-4 h-4 text-yellow-500" />;
           case 'AUTORIZADO': return <Shield className="w-4 h-4 text-green-500" />;
-          case 'SECRETARIA': return <UserCheck className="w-4 h-4 text-purple-500" />; // Ícone para SECRETARIA
+          case 'SECRETARIA': return <UserCheck className="w-4 h-4 text-purple-500" />;
           default: return <User className="w-4 h-4 text-gray-500" />;
       }
   };
@@ -186,7 +189,7 @@ export const TeamConfig = () => {
           case 'GESTOR': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300';
           case 'ANJO': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300';
           case 'AUTORIZADO': return 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300';
-          case 'SECRETARIA': return 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300'; // Badge para SECRETARIA
+          case 'SECRETARIA': return 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300';
           default: return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
       }
   };
@@ -196,20 +199,18 @@ export const TeamConfig = () => {
     setIsRecordInterviewModalOpen(true);
   };
 
-  // Ordena os membros da equipe por nome em ordem alfabética
   const sortedTeamMembers = useMemo(() => {
     return [...teamMembers].sort((a, b) => a.name.localeCompare(b.name));
   }, [teamMembers]);
 
   return (
-    <div className="p-4 sm:p-8 min-h-screen bg-gray-50 dark:bg-slate-900"> {/* Removido max-w-6xl mx-auto */}
+    <div className="p-4 sm:p-8 min-h-screen bg-gray-50 dark:bg-slate-900">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Gestão de Equipe</h1>
         <p className="text-gray-500 dark:text-gray-400">Cadastre os membros da equipe e defina seus cargos para uso nas comissões.</p>
       </div>
 
       <div className="space-y-8">
-          {/* Seção de Adicionar Membro (Colapsável) */}
           <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm">
               <button 
                 onClick={() => setIsAddFormCollapsed(!isAddFormCollapsed)} 
@@ -293,7 +294,6 @@ export const TeamConfig = () => {
               )}
           </div>
 
-          {/* Seção de Membros da Equipe */}
           <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
               <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
                   <h3 className="font-semibold text-gray-900 dark:text-white">Membros da Equipe ({sortedTeamMembers.length})</h3>
@@ -380,7 +380,6 @@ export const TeamConfig = () => {
           teamMember={teamMemberToRecordInterview}
         />
       )}
-      {/* NOVO: Renderizar o modal de edição */}
       <EditTeamMemberModal
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
