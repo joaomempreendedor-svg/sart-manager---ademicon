@@ -541,10 +541,11 @@ export interface ColdCallLog {
 
 export interface ProcessBlock {
   id: string;
-  type: 'heading1' | 'text' | 'todo';
+  type: 'heading1' | 'text' | 'todo' | 'image' | 'pdf';
   content: string;
   data: {
     checked?: boolean;
+    name?: string;
   };
 }
 
