@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
 import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ChecklistProcessEditor } from '@/components/process/ChecklistProcessEditor';
 
 export const ProcessoEditor = () => {
   const { id } = useParams<{ id: string }>();
@@ -29,6 +30,35 @@ export const ProcessoEditor = () => {
     );
   }
 
+  const renderEditor = () => {
+    switch (process.type) {
+      case 'checklist':
+        return <ChecklistProcessEditor process={process} />;
+      case 'mindmap':
+        return (
+          <div className="mt-8">
+            <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg border border-yellow-200 dark:border-yellow-800">
+              <h2 className="font-bold text-yellow-800 dark:text-yellow-200">Em Construção</h2>
+              <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
+                O editor para Mapas Mentais ainda está em desenvolvimento.
+              </p>
+            </div>
+          </div>
+        );
+      default:
+        return (
+          <div className="mt-8">
+            <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-lg border border-red-200 dark:border-red-800">
+              <h2 className="font-bold text-red-800 dark:text-red-200">Tipo de Processo Desconhecido</h2>
+              <p className="text-sm text-red-700 dark:text-red-300 mt-1">
+                Não há um editor disponível para o tipo "{process.type}".
+              </p>
+            </div>
+          </div>
+        );
+    }
+  };
+
   return (
     <div className="p-4 sm:p-8 max-w-4xl mx-auto">
       <button onClick={() => navigate('/gestor/processos')} className="flex items-center text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white mb-6">
@@ -43,21 +73,7 @@ export const ProcessoEditor = () => {
         </p>
       </div>
 
-      <div className="mt-8">
-        <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg border border-yellow-200 dark:border-yellow-800">
-          <h2 className="font-bold text-yellow-800 dark:text-yellow-200">Em Construção</h2>
-          <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
-            O editor para este tipo de processo ainda está em desenvolvimento. Por enquanto, você pode ver o conteúdo bruto abaixo.
-          </p>
-        </div>
-        
-        <div className="mt-4">
-          <h3 className="font-semibold text-gray-700 dark:text-gray-300">Conteúdo (JSON):</h3>
-          <pre className="bg-gray-100 dark:bg-slate-800 p-4 rounded-lg mt-2 text-sm overflow-auto custom-scrollbar">
-            {JSON.stringify(process.content, null, 2)}
-          </pre>
-        </div>
-      </div>
+      {renderEditor()}
     </div>
   );
 };
