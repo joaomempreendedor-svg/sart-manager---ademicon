@@ -153,9 +153,9 @@ export const ProcessoEditor = () => {
     }
   }, [process]);
 
-  const debouncedSave = useDebouncedCallback((processId: string, updatedBlocks: ProcessBlock[]) => {
-    if (!hasUnsavedChanges.current) return;
-    updateProcess(processId, { content: updatedBlocks })
+  const debouncedSave = useDebouncedCallback(() => {
+    if (!process || !hasUnsavedChanges.current) return;
+    updateProcess(process.id, { content: blocksRef.current })
       .then(() => {
         hasUnsavedChanges.current = false;
       })
@@ -164,16 +164,11 @@ export const ProcessoEditor = () => {
       });
   }, 1500);
 
-  const updateBlocksAndSave = (newBlocks: ProcessBlock[] | ((prev: ProcessBlock[]) => ProcessBlock[])) => {
-    setBlocks(newBlocks);
+  const updateBlocksAndSave = useCallback((updater: (prevBlocks: ProcessBlock[]) => ProcessBlock[]) => {
     hasUnsavedChanges.current = true;
-    if (process) {
-      setBlocks(currentBlocks => {
-        debouncedSave(process.id, currentBlocks);
-        return currentBlocks;
-      });
-    }
-  };
+    setBlocks(updater);
+    debouncedSave();
+  }, [debouncedSave]);
 
   const addBlock = useCallback((type: ProcessBlock['type'], index: number) => {
     const newBlock: ProcessBlock = { id: crypto.randomUUID(), type, content: '', data: { checked: false } };
@@ -190,7 +185,7 @@ export const ProcessoEditor = () => {
         (newBlockEl as HTMLElement).focus();
       }
     }, 50);
-  }, []);
+  }, [updateBlocksAndSave]);
 
   const handleAddFileBlock = useCallback((type: 'image' | 'pdf', index: number) => {
     if (fileInputRef.current) {
@@ -236,7 +231,7 @@ export const ProcessoEditor = () => {
       };
       fileInputRef.current.click();
     }
-  }, [process?.id]);
+  }, [process?.id, updateBlocksAndSave]);
 
   useEffect(() => {
     if (!isDataLoading && process && blocks.length === 0) {
@@ -252,62 +247,71 @@ export const ProcessoEditor = () => {
             block.id === id ? { ...block, content } : block
         );
     });
-  }, []);
+  }, [updateBlocksAndSave]);
 
   const toggleTodoCheck = useCallback((id: string) => {
     updateBlocksAndSave(currentBlocks => currentBlocks.map(block =>
       block.id === id ? { ...block, data: { ...block.data, checked: !block.data.checked } } : block
     ));
-  }, []);
+  }, [updateBlocksAndSave]);
 
   const deleteBlock = useCallback((id: string) => {
     updateBlocksAndSave(currentBlocks => currentBlocks.filter(block => block.id !== id));
-  }, []);
+  }, [updateBlocksAndSave]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>, id: string) => {
-    const currentBlocks = blocksRef.current;
-    const currentIndex = currentBlocks.findIndex(b => b.id === id);
-    const currentBlock = currentBlocks[currentIndex];
-
-    if (!currentBlock) return;
-
     if (e.key === '/') {
-      e.preventDefault();
       const rect = e.currentTarget.getBoundingClientRect();
       setSlashMenuPosition({ top: rect.top + window.scrollY + 30, left: rect.left });
       setSlashMenuBlockId(id);
       setIsSlashMenuOpen(true);
     } else if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
+      const currentContent = e.currentTarget.innerHTML;
       
-      updateBlockContent(id, e.currentTarget.innerHTML);
-      
-      const newBlockType = currentBlock.type === 'todo' ? 'todo' : 'text';
-      addBlock(newBlockType, currentIndex);
+      updateBlocksAndSave(currentBlocks => {
+        const currentIndex = currentBlocks.findIndex(b => b.id === id);
+        if (currentIndex === -1) return currentBlocks;
 
-    } else if (e.key === 'Backspace' && (e.currentTarget.innerHTML === '' || !['heading1', 'text', 'todo'].includes(currentBlock.type))) {
-      e.preventDefault();
-      if (currentIndex > 0) {
-        const prevBlockId = currentBlocks[currentIndex - 1].id;
-        deleteBlock(id);
-        
+        const currentBlock = currentBlocks[currentIndex];
+        const newBlockType = currentBlock.type === 'todo' ? 'todo' : 'text';
+        const newBlock: ProcessBlock = { id: crypto.randomUUID(), type: newBlockType, content: '', data: { checked: false } };
+
+        const newBlocks = [...currentBlocks];
+        newBlocks[currentIndex] = { ...currentBlock, content: currentContent };
+        newBlocks.splice(currentIndex + 1, 0, newBlock);
+
         setTimeout(() => {
-          const prevBlockEl = document.querySelector(`[data-block-id="${prevBlockId}"]`);
-          if (prevBlockEl) {
-            (prevBlockEl as HTMLElement).focus();
-            const range = document.createRange();
-            const sel = window.getSelection();
-            range.selectNodeContents(prevBlockEl);
-            range.collapse(false);
-            sel?.removeAllRanges();
-            sel?.addRange(range);
-          }
+          const newBlockEl = document.querySelector(`[data-block-id="${newBlock.id}"]`);
+          if (newBlockEl) (newBlockEl as HTMLElement).focus();
         }, 50);
-      } else if (currentBlocks.length > 1) {
-        deleteBlock(id);
-      }
+
+        return newBlocks;
+      });
+    } else if (e.key === 'Backspace' && e.currentTarget.innerHTML === '' && blocksRef.current.length > 1) {
+      e.preventDefault();
+      updateBlocksAndSave(currentBlocks => {
+        const currentIndex = currentBlocks.findIndex(b => b.id === id);
+        if (currentIndex > 0) {
+          const prevBlockId = currentBlocks[currentIndex - 1].id;
+          setTimeout(() => {
+            const prevBlockEl = document.querySelector(`[data-block-id="${prevBlockId}"]`);
+            if (prevBlockEl) {
+              (prevBlockEl as HTMLElement).focus();
+              const range = document.createRange();
+              const sel = window.getSelection();
+              range.selectNodeContents(prevBlockEl);
+              range.collapse(false);
+              sel?.removeAllRanges();
+              sel?.addRange(range);
+            }
+          }, 50);
+          return currentBlocks.filter(block => block.id !== id);
+        }
+        return currentBlocks;
+      });
     }
-  }, [addBlock, deleteBlock, updateBlockContent]);
+  }, [updateBlocksAndSave]);
 
   const handleSelectSlashCommand = (type: ProcessBlock['type']) => {
     if (!slashMenuBlockId) return;
@@ -315,10 +319,10 @@ export const ProcessoEditor = () => {
     const index = blocks.findIndex(b => b.id === slashMenuBlockId);
 
     if (type === 'image' || type === 'pdf') {
-      updateBlocksAndSave(blocks.filter(b => b.id !== slashMenuBlockId));
+      updateBlocksAndSave(currentBlocks => currentBlocks.filter(b => b.id !== slashMenuBlockId));
       handleAddFileBlock(type, index - 1);
     } else {
-      updateBlocksAndSave(blocks.map(b => b.id === slashMenuBlockId ? { ...b, type, content: '' } : b));
+      updateBlocksAndSave(currentBlocks => currentBlocks.map(b => b.id === slashMenuBlockId ? { ...b, type, content: '' } : b));
       setTimeout(() => {
         const newBlockEl = document.querySelector(`[data-block-id="${slashMenuBlockId}"]`);
         if (newBlockEl) {
