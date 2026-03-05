@@ -544,7 +544,7 @@ export interface Process {
   user_id: string;
   title: string;
   description?: string;
-  type: 'checklist' | 'mindmap';
+  type: 'checklist';
   content: any;
   created_at: string;
   updated_at: string;

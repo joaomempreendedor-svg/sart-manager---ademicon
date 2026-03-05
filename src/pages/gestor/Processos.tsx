@@ -19,7 +19,6 @@ export const Processos = () => {
   const [editingProcess, setEditingProcess] = useState<Process | null>(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [type, setType] = useState<'checklist' | 'mindmap'>('checklist');
   const [isSaving, setIsSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -34,11 +33,9 @@ export const Processos = () => {
     if (process) {
       setTitle(process.title);
       setDescription(process.description || '');
-      setType(process.type);
     } else {
       setTitle('');
       setDescription('');
-      setType('checklist');
     }
     setIsModalOpen(true);
   };
@@ -50,11 +47,8 @@ export const Processos = () => {
     }
     setIsSaving(true);
     try {
-      const content = editingProcess?.content || 
-                      (type === 'checklist' 
-                        ? [] 
-                        : { nodes: [{ id: '1', type: 'input', data: { label: 'Nó Central' }, position: { x: 250, y: 5 } }], edges: [] });
-      const processData = { title, description, type, content };
+      const content = editingProcess?.content || [];
+      const processData = { title, description, type: 'checklist' as const, content };
       if (editingProcess) {
         await updateProcess(editingProcess.id, processData);
         toast.success("Processo atualizado com sucesso!");
@@ -82,10 +76,9 @@ export const Processos = () => {
     }
   };
 
-  const getIconForType = (type: 'checklist' | 'mindmap') => {
+  const getIconForType = (type: 'checklist') => {
     switch (type) {
       case 'checklist': return <CheckSquare className="w-8 h-8 text-blue-500" />;
-      case 'mindmap': return <GitBranch className="w-8 h-8 text-purple-500" />;
       default: return <FileText className="w-8 h-8 text-gray-500" />;
     }
   };
@@ -145,7 +138,7 @@ export const Processos = () => {
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{process.description}</p>
               </div>
               <div className="px-6 py-3 bg-gray-50 dark:bg-slate-700/50 border-t border-gray-100 dark:border-slate-700 text-xs text-gray-400 flex justify-between">
-                <span>{process.type === 'checklist' ? 'Checklist' : 'Mapa Mental'}</span>
+                <span>Checklist</span>
                 <span>Atualizado em: {new Date(process.updated_at).toLocaleDateString()}</span>
               </div>
             </div>
@@ -169,18 +162,6 @@ export const Processos = () => {
             <div className="grid gap-2">
               <Label htmlFor="description">Descrição (Opcional)</Label>
               <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="type">Tipo de Processo *</Label>
-              <Select value={type} onValueChange={(value: 'checklist' | 'mindmap') => setType(value)} required>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o tipo" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="checklist">Checklist</SelectItem>
-                  <SelectItem value="mindmap">Mapa Mental</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
           </div>
           <DialogFooter>

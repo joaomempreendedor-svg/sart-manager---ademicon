@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { ChecklistProcessEditor } from '@/components/process/ChecklistProcessEditor';
-import { MindMapProcessEditor } from '@/components/process/MindMapProcessEditor';
 
 export const ProcessoEditor = () => {
   const { id } = useParams<{ id: string }>();
@@ -35,8 +34,6 @@ export const ProcessoEditor = () => {
     switch (process.type) {
       case 'checklist':
         return <ChecklistProcessEditor process={process} />;
-      case 'mindmap':
-        return <MindMapProcessEditor process={process} />;
       default:
         return (
           <div className="mt-8">
