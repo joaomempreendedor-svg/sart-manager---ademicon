@@ -30,7 +30,7 @@ const BlockComponent = React.memo(React.forwardRef<
           data-block-id={block.id}
           contentEditable
           suppressContentEditableWarning
-          onBlur={handleInput}
+          onInput={handleInput}
           onKeyDown={(e) => onKeyDown(e, block.id)}
           onFocus={onFocus}
           className="text-3xl font-bold outline-none focus:ring-2 focus:ring-brand-500 rounded px-1"
@@ -44,7 +44,7 @@ const BlockComponent = React.memo(React.forwardRef<
           data-block-id={block.id}
           contentEditable
           suppressContentEditableWarning
-          onBlur={handleInput}
+          onInput={handleInput}
           onKeyDown={(e) => onKeyDown(e, block.id)}
           onFocus={onFocus}
           className="text-base outline-none focus:ring-2 focus:ring-brand-500 rounded px-1"
@@ -65,7 +65,7 @@ const BlockComponent = React.memo(React.forwardRef<
             data-block-id={block.id}
             contentEditable
             suppressContentEditableWarning
-            onBlur={handleInput}
+            onInput={handleInput}
             onKeyDown={(e) => onKeyDown(e, block.id)}
             onFocus={onFocus}
             className={`flex-grow outline-none focus:ring-2 focus:ring-brand-500 rounded px-1 ${block.data.checked ? 'line-through text-gray-400' : ''}`}
@@ -87,23 +87,21 @@ export const ProcessoEditor = () => {
   const [blocks, setBlocks] = useState<ProcessBlock[]>([]);
   const [hoveredBlockId, setHoveredBlockId] = useState<string | null>(null);
   const [savingStatus, setSavingStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
-  const initialLoadRef = useRef(true);
+  const hasUnsavedChanges = useRef(false);
 
   useEffect(() => {
-    if (process?.content && Array.isArray(process.content)) {
-      setBlocks(process.content);
-    } else if (process) {
-      setBlocks([]);
+    if (process) {
+      setBlocks(process.content || []);
     }
-    initialLoadRef.current = true;
   }, [process]);
 
   const debouncedSave = useDebouncedCallback((updatedBlocks: ProcessBlock[]) => {
-    if (!process) return;
+    if (!process || !hasUnsavedChanges.current) return;
     setSavingStatus('saving');
     updateProcess(process.id, { content: updatedBlocks })
       .then(() => {
         setSavingStatus('saved');
+        hasUnsavedChanges.current = false;
         setTimeout(() => setSavingStatus('idle'), 2000);
       })
       .catch(err => {
@@ -112,30 +110,25 @@ export const ProcessoEditor = () => {
       });
   }, 1500);
 
-  useEffect(() => {
-    if (initialLoadRef.current) {
-      initialLoadRef.current = false;
-      return;
-    }
-    debouncedSave(blocks);
-  }, [blocks, debouncedSave]);
+  const updateBlocks = (newBlocks: ProcessBlock[]) => {
+    setBlocks(newBlocks);
+    hasUnsavedChanges.current = true;
+    debouncedSave(newBlocks);
+  };
 
   const addBlock = useCallback((type: ProcessBlock['type'], index: number) => {
     const newBlock: ProcessBlock = { id: crypto.randomUUID(), type, content: '', data: { checked: false } };
-    setBlocks(currentBlocks => {
-      const newBlocks = [...currentBlocks];
-      newBlocks.splice(index + 1, 0, newBlock);
-      
-      setTimeout(() => {
-        const newBlockEl = document.querySelector(`[data-block-id="${newBlock.id}"]`);
-        if (newBlockEl) {
-          (newBlockEl as HTMLElement).focus();
-        }
-      }, 50);
-
-      return newBlocks;
-    });
-  }, []);
+    const newBlocks = [...blocks];
+    newBlocks.splice(index + 1, 0, newBlock);
+    updateBlocks(newBlocks);
+    
+    setTimeout(() => {
+      const newBlockEl = document.querySelector(`[data-block-id="${newBlock.id}"]`);
+      if (newBlockEl) {
+        (newBlockEl as HTMLElement).focus();
+      }
+    }, 50);
+  }, [blocks]);
 
   useEffect(() => {
     if (!isDataLoading && process && blocks.length === 0) {
@@ -144,24 +137,23 @@ export const ProcessoEditor = () => {
   }, [isDataLoading, process, blocks.length, addBlock]);
 
   const updateBlockContent = useCallback((id: string, content: string) => {
-    setBlocks(currentBlocks =>
-      currentBlocks.map(block =>
-        block.id === id ? { ...block, content } : block
-      )
+    const newBlocks = blocks.map(block =>
+      block.id === id ? { ...block, content } : block
     );
-  }, []);
+    updateBlocks(newBlocks);
+  }, [blocks]);
 
   const toggleTodoCheck = useCallback((id: string) => {
-    setBlocks(currentBlocks =>
-      currentBlocks.map(block =>
-        block.id === id ? { ...block, data: { ...block.data, checked: !block.data.checked } } : block
-      )
+    const newBlocks = blocks.map(block =>
+      block.id === id ? { ...block, data: { ...block.data, checked: !block.data.checked } } : block
     );
-  }, []);
+    updateBlocks(newBlocks);
+  }, [blocks]);
 
   const deleteBlock = useCallback((id: string) => {
-    setBlocks(currentBlocks => currentBlocks.filter(block => block.id !== id));
-  }, []);
+    const newBlocks = blocks.filter(block => block.id !== id);
+    updateBlocks(newBlocks);
+  }, [blocks]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>, id: string) => {
     const currentIndex = blocks.findIndex(b => b.id === id);
