@@ -136,6 +136,11 @@ export const ProcessoEditor = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadingBlockId, setUploadingBlockId] = useState<string | null>(null);
 
+  const blocksRef = useRef(blocks);
+  useEffect(() => {
+    blocksRef.current = blocks;
+  }, [blocks]);
+
   useEffect(() => {
     if (process?.content && Array.isArray(process.content)) {
       setBlocks(process.content);
@@ -160,7 +165,7 @@ export const ProcessoEditor = () => {
       });
   }, 1500);
 
-  const updateBlocks = (newBlocks: ProcessBlock[]) => {
+  const updateBlocksAndSave = (newBlocks: ProcessBlock[]) => {
     setBlocks(newBlocks);
     hasUnsavedChanges.current = true;
     debouncedSave(newBlocks);
@@ -168,9 +173,14 @@ export const ProcessoEditor = () => {
 
   const addBlock = useCallback((type: ProcessBlock['type'], index: number) => {
     const newBlock: ProcessBlock = { id: crypto.randomUUID(), type, content: '', data: { checked: false } };
-    const newBlocks = [...blocks];
-    newBlocks.splice(index + 1, 0, newBlock);
-    updateBlocks(newBlocks);
+    
+    hasUnsavedChanges.current = true;
+    setBlocks(prevBlocks => {
+      const newBlocks = [...prevBlocks];
+      newBlocks.splice(index + 1, 0, newBlock);
+      debouncedSave(newBlocks);
+      return newBlocks;
+    });
     
     setTimeout(() => {
       const newBlockEl = document.querySelector(`[data-block-id="${newBlock.id}"]`);
@@ -178,9 +188,9 @@ export const ProcessoEditor = () => {
         (newBlockEl as HTMLElement).focus();
       }
     }, 50);
-  }, [blocks]);
+  }, [debouncedSave]);
 
-  const handleAddFileBlock = (type: 'image' | 'pdf', index: number) => {
+  const handleAddFileBlock = useCallback((type: 'image' | 'pdf', index: number) => {
     if (fileInputRef.current) {
       fileInputRef.current.accept = type === 'image' ? 'image/*' : 'application/pdf';
       fileInputRef.current.onchange = async (e) => {
@@ -188,9 +198,13 @@ export const ProcessoEditor = () => {
         if (!file || !process) return;
 
         const newBlock: ProcessBlock = { id: crypto.randomUUID(), type, content: '', data: { name: file.name } };
-        const newBlocks = [...blocks];
-        newBlocks.splice(index + 1, 0, newBlock);
-        setBlocks(newBlocks);
+        
+        hasUnsavedChanges.current = true;
+        setBlocks(prevBlocks => {
+          const newBlocks = [...prevBlocks];
+          newBlocks.splice(index + 1, 0, newBlock);
+          return newBlocks;
+        });
         setUploadingBlockId(newBlock.id);
 
         try {
@@ -207,8 +221,11 @@ export const ProcessoEditor = () => {
 
           const publicUrl = data.publicUrl;
 
-          const finalBlocks = newBlocks.map(b => b.id === newBlock.id ? { ...b, content: publicUrl } : b);
-          updateBlocks(finalBlocks);
+          setBlocks(prevBlocks => {
+            const finalBlocks = prevBlocks.map(b => b.id === newBlock.id ? { ...b, content: publicUrl } : b);
+            debouncedSave(finalBlocks);
+            return finalBlocks;
+          });
 
         } catch (error: any) {
           toast.error(`Falha no upload do arquivo: ${error.message}`);
@@ -222,7 +239,7 @@ export const ProcessoEditor = () => {
       };
       fileInputRef.current.click();
     }
-  };
+  }, [debouncedSave, process?.id]);
 
   useEffect(() => {
     if (!isDataLoading && process && blocks.length === 0) {
@@ -231,35 +248,51 @@ export const ProcessoEditor = () => {
   }, [isDataLoading, process, blocks.length, addBlock]);
 
   const updateBlockContent = useCallback((id: string, content: string) => {
-    const newBlocks = blocks.map(block =>
-      block.id === id ? { ...block, content } : block
-    );
-    updateBlocks(newBlocks);
-  }, [blocks]);
+    hasUnsavedChanges.current = true;
+    setBlocks(prevBlocks => {
+      const newBlocks = prevBlocks.map(block =>
+        block.id === id ? { ...block, content } : block
+      );
+      debouncedSave(newBlocks);
+      return newBlocks;
+    });
+  }, [debouncedSave]);
 
   const toggleTodoCheck = useCallback((id: string) => {
-    const newBlocks = blocks.map(block =>
-      block.id === id ? { ...block, data: { ...block.data, checked: !block.data.checked } } : block
-    );
-    updateBlocks(newBlocks);
-  }, [blocks]);
+    hasUnsavedChanges.current = true;
+    setBlocks(prevBlocks => {
+      const newBlocks = prevBlocks.map(block =>
+        block.id === id ? { ...block, data: { ...block.data, checked: !block.data.checked } } : block
+      );
+      debouncedSave(newBlocks);
+      return newBlocks;
+    });
+  }, [debouncedSave]);
 
   const deleteBlock = useCallback((id: string) => {
-    const newBlocks = blocks.filter(block => block.id !== id);
-    updateBlocks(newBlocks);
-  }, [blocks]);
+    hasUnsavedChanges.current = true;
+    setBlocks(prevBlocks => {
+      const newBlocks = prevBlocks.filter(block => block.id !== id);
+      debouncedSave(newBlocks);
+      return newBlocks;
+    });
+  }, [debouncedSave]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>, id: string) => {
-    const currentIndex = blocks.findIndex(b => b.id === id);
-    const currentBlock = blocks[currentIndex];
+    const currentBlocks = blocksRef.current;
+    const currentIndex = currentBlocks.findIndex(b => b.id === id);
+    const currentBlock = currentBlocks[currentIndex];
+
+    if (!currentBlock) return;
 
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      addBlock('text', currentIndex);
+      const newBlockType = currentBlock.type === 'todo' ? 'todo' : 'text';
+      addBlock(newBlockType, currentIndex);
     } else if (e.key === 'Backspace' && (e.currentTarget.innerHTML === '' || !['heading1', 'text', 'todo'].includes(currentBlock.type))) {
       e.preventDefault();
       if (currentIndex > 0) {
-        const prevBlockId = blocks[currentIndex - 1].id;
+        const prevBlockId = currentBlocks[currentIndex - 1].id;
         deleteBlock(id);
         
         setTimeout(() => {
@@ -274,11 +307,11 @@ export const ProcessoEditor = () => {
             sel?.addRange(range);
           }
         }, 50);
-      } else if (blocks.length > 1) {
+      } else if (currentBlocks.length > 1) {
         deleteBlock(id);
       }
     }
-  }, [blocks, addBlock, deleteBlock]);
+  }, [addBlock, deleteBlock]);
 
   if (isDataLoading) {
     return (
