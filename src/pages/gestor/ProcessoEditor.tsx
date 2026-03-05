@@ -9,6 +9,45 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { sanitizeFilename } from '@/utils/fileUtils';
 
+const areBlocksEqual = (prevProps: any, nextProps: any) => {
+  const isEditable = ['heading1', 'text', 'todo'].includes(prevProps.block.type);
+
+  if (
+    prevProps.block.id !== nextProps.block.id ||
+    prevProps.block.type !== nextProps.block.type ||
+    prevProps.block.data.checked !== nextProps.block.data.checked ||
+    prevProps.isUploading !== nextProps.isUploading
+  ) {
+    return false;
+  }
+
+  if (!isEditable && prevProps.block.content !== nextProps.block.content) {
+    return false;
+  }
+
+  if (isEditable) {
+    const domElement = document.querySelector(`[data-block-id="${nextProps.block.id}"]`);
+    if (domElement && domElement.innerHTML !== nextProps.block.content) {
+      // This is a tricky case. If the prop content is different from the DOM,
+      // it means an external change happened (like undo/redo, or collaborative editing in the future).
+      // For now, we let it re-render to sync. But for user typing, this should not happen.
+      // A better check would be to see if the element is focused.
+      if (document.activeElement !== domElement) {
+        return false; // Re-render if not focused
+      }
+    }
+  }
+  
+  // For editable components, if only content changes, we often want to prevent re-render
+  // to avoid losing cursor position. But since we save on blur/enter, this should be safe.
+  // Let's try a simple comparison and see if the new logic holds.
+  if (prevProps.block.content !== nextProps.block.content && !isEditable) {
+      return false;
+  }
+
+  return true;
+};
+
 const BlockComponent = React.memo(React.forwardRef<
   HTMLDivElement,
   {
@@ -119,7 +158,7 @@ const BlockComponent = React.memo(React.forwardRef<
     default:
       return null;
   }
-}));
+}), areBlocksEqual);
 
 export const ProcessoEditor = () => {
   const { id } = useParams<{ id: string }>();
@@ -130,7 +169,6 @@ export const ProcessoEditor = () => {
   const [blocks, setBlocks] = useState<ProcessBlock[]>([]);
   const [hoveredBlockId, setHoveredBlockId] = useState<string | null>(null);
   const hasUnsavedChanges = useRef(false);
-  const initialLoadRef = useRef(true);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadingBlockId, setUploadingBlockId] = useState<string | null>(null);
@@ -146,12 +184,11 @@ export const ProcessoEditor = () => {
     } else if (process) {
       setBlocks([]);
     }
-    initialLoadRef.current = true;
   }, [process]);
 
-  const debouncedSave = useDebouncedCallback((updatedBlocks: ProcessBlock[]) => {
-    if (!process || !hasUnsavedChanges.current) return;
-    updateProcess(process.id, { content: updatedBlocks })
+  const debouncedSave = useDebouncedCallback((processId: string, updatedBlocks: ProcessBlock[]) => {
+    if (!hasUnsavedChanges.current) return;
+    updateProcess(processId, { content: updatedBlocks })
       .then(() => {
         hasUnsavedChanges.current = false;
       })
@@ -160,18 +197,26 @@ export const ProcessoEditor = () => {
       });
   }, 1500);
 
-  const updateBlocksAndSave = (newBlocks: ProcessBlock[]) => {
+  const updateBlocksAndSave = (newBlocks: ProcessBlock[] | ((prev: ProcessBlock[]) => ProcessBlock[])) => {
     setBlocks(newBlocks);
     hasUnsavedChanges.current = true;
-    debouncedSave(newBlocks);
+    if (process) {
+      // Pass the latest state to the debounced function
+      setBlocks(currentBlocks => {
+        debouncedSave(process.id, currentBlocks);
+        return currentBlocks;
+      });
+    }
   };
 
   const addBlock = useCallback((type: ProcessBlock['type'], index: number) => {
     const newBlock: ProcessBlock = { id: crypto.randomUUID(), type, content: '', data: { checked: false } };
     
-    const newBlocks = [...blocksRef.current];
-    newBlocks.splice(index + 1, 0, newBlock);
-    updateBlocksAndSave(newBlocks);
+    updateBlocksAndSave(currentBlocks => {
+        const newBlocks = [...currentBlocks];
+        newBlocks.splice(index + 1, 0, newBlock);
+        return newBlocks;
+    });
     
     setTimeout(() => {
       const newBlockEl = document.querySelector(`[data-block-id="${newBlock.id}"]`);
@@ -179,7 +224,7 @@ export const ProcessoEditor = () => {
         (newBlockEl as HTMLElement).focus();
       }
     }, 50);
-  }, [updateBlocksAndSave]);
+  }, []);
 
   const handleAddFileBlock = useCallback((type: 'image' | 'pdf', index: number) => {
     if (fileInputRef.current) {
@@ -190,10 +235,12 @@ export const ProcessoEditor = () => {
 
         const newBlock: ProcessBlock = { id: crypto.randomUUID(), type, content: '', data: { name: file.name } };
         
-        const newBlocks = [...blocksRef.current];
-        newBlocks.splice(index + 1, 0, newBlock);
-        setBlocks(newBlocks);
         setUploadingBlockId(newBlock.id);
+        updateBlocksAndSave(currentBlocks => {
+          const newBlocks = [...currentBlocks];
+          newBlocks.splice(index + 1, 0, newBlock);
+          return newBlocks;
+        });
 
         try {
           const formData = new FormData();
@@ -209,12 +256,11 @@ export const ProcessoEditor = () => {
 
           const publicUrl = data.publicUrl;
 
-          const finalBlocks = blocksRef.current.map(b => b.id === newBlock.id ? { ...b, content: publicUrl } : b);
-          updateBlocksAndSave(finalBlocks);
+          updateBlocksAndSave(currentBlocks => currentBlocks.map(b => b.id === newBlock.id ? { ...b, content: publicUrl } : b));
 
         } catch (error: any) {
           toast.error(`Falha no upload do arquivo: ${error.message}`);
-          setBlocks(currentBlocks => currentBlocks.filter(b => b.id !== newBlock.id));
+          updateBlocksAndSave(currentBlocks => currentBlocks.filter(b => b.id !== newBlock.id));
         } finally {
           setUploadingBlockId(null);
           if (fileInputRef.current) {
@@ -224,7 +270,7 @@ export const ProcessoEditor = () => {
       };
       fileInputRef.current.click();
     }
-  }, [process?.id, updateBlocksAndSave]);
+  }, [process?.id]);
 
   useEffect(() => {
     if (!isDataLoading && process && blocks.length === 0) {
@@ -233,47 +279,60 @@ export const ProcessoEditor = () => {
   }, [isDataLoading, process, blocks.length, addBlock]);
 
   const updateBlockContent = useCallback((id: string, content: string) => {
-    const currentBlock = blocksRef.current.find(b => b.id === id);
-    if (currentBlock && currentBlock.content === content) return;
-
-    const newBlocks = blocksRef.current.map(block =>
-      block.id === id ? { ...block, content } : block
-    );
-    updateBlocksAndSave(newBlocks);
-  }, [updateBlocksAndSave]);
+    updateBlocksAndSave(currentBlocks => {
+        const currentBlock = currentBlocks.find(b => b.id === id);
+        if (currentBlock && currentBlock.content === content) return currentBlocks;
+        return currentBlocks.map(block =>
+            block.id === id ? { ...block, content } : block
+        );
+    });
+  }, []);
 
   const toggleTodoCheck = useCallback((id: string) => {
-    const newBlocks = blocksRef.current.map(block =>
+    updateBlocksAndSave(currentBlocks => currentBlocks.map(block =>
       block.id === id ? { ...block, data: { ...block.data, checked: !block.data.checked } } : block
-    );
-    updateBlocksAndSave(newBlocks);
-  }, [updateBlocksAndSave]);
+    ));
+  }, []);
 
   const deleteBlock = useCallback((id: string) => {
-    const newBlocks = blocksRef.current.filter(block => block.id !== id);
-    updateBlocksAndSave(newBlocks);
-  }, [updateBlocksAndSave]);
+    updateBlocksAndSave(currentBlocks => currentBlocks.filter(block => block.id !== id));
+  }, []);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>, id: string) => {
-    const currentBlocks = blocksRef.current;
-    const currentIndex = currentBlocks.findIndex(b => b.id === id);
-    const currentBlock = currentBlocks[currentIndex];
+    const currentIndex = blocksRef.current.findIndex(b => b.id === id);
+    const currentBlock = blocksRef.current[currentIndex];
 
     if (!currentBlock) return;
 
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       
-      // Salva o conteúdo atual antes de criar um novo bloco
-      updateBlockContent(id, e.currentTarget.innerHTML);
-      
+      const currentContent = e.currentTarget.innerHTML;
       const newBlockType = currentBlock.type === 'todo' ? 'todo' : 'text';
-      addBlock(newBlockType, currentIndex);
+      const newBlock: ProcessBlock = { id: crypto.randomUUID(), type: newBlockType, content: '', data: { checked: false } };
+      
+      updateBlocksAndSave(currentBlocks => {
+          const updatedBlocks = [...currentBlocks];
+          const idx = updatedBlocks.findIndex(b => b.id === id);
+          if (idx === -1) return currentBlocks;
 
-    } else if (e.key === 'Backspace' && (e.currentTarget.innerHTML === '' || !['heading1', 'text', 'todo'].includes(currentBlock.type))) {
+          updatedBlocks[idx] = { ...updatedBlocks[idx], content: currentContent };
+          updatedBlocks.splice(idx + 1, 0, newBlock);
+          
+          return updatedBlocks;
+      });
+      
+      setTimeout(() => {
+        const newBlockEl = document.querySelector(`[data-block-id="${newBlock.id}"]`);
+        if (newBlockEl) {
+          (newBlockEl as HTMLElement).focus();
+        }
+      }, 50);
+
+    } else if (e.key === 'Backspace' && e.currentTarget.innerHTML === '' && blocksRef.current.length > 1) {
       e.preventDefault();
       if (currentIndex > 0) {
-        const prevBlockId = currentBlocks[currentIndex - 1].id;
+        const prevBlockId = blocksRef.current[currentIndex - 1].id;
         deleteBlock(id);
         
         setTimeout(() => {
@@ -288,11 +347,11 @@ export const ProcessoEditor = () => {
             sel?.addRange(range);
           }
         }, 50);
-      } else if (currentBlocks.length > 1) {
+      } else {
         deleteBlock(id);
       }
     }
-  }, [addBlock, deleteBlock, updateBlockContent]);
+  }, [deleteBlock]);
 
   if (isDataLoading) {
     return (
