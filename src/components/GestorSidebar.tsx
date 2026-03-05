@@ -47,6 +47,7 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
     // CRM & Sales (Gestor/Admin only)
     { to: `${baseRoute}/crm`, icon: TrendingUp, label: "CRM", roles: ['GESTOR', 'ADMIN'], section: 'overview' },
     { to: `${baseRoute}/crm-sales-reports`, icon: BarChart3, label: "Relatórios de Vendas", roles: ['GESTOR', 'ADMIN'], section: 'overview' },
+    { to: `${baseRoute}/processos`, icon: FileStack, label: "Processos Internos", roles: ['GESTOR', 'ADMIN'], section: 'overview' },
     { to: `${baseRoute}/commissions`, icon: Banknote, label: "Comissões", roles: ['GESTOR', 'ADMIN'], section: 'overview' },
     { to: `${baseRoute}/financial-panel`, icon: DollarSign, label: "Painel Financeiro", roles: ['GESTOR', 'ADMIN'], section: 'overview' },
     { to: `${baseRoute}/feedbacks`, icon: Star, label: "Feedbacks", roles: ['GESTOR', 'ADMIN'], section: 'overview' },

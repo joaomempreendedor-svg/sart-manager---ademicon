@@ -48,6 +48,8 @@ import { FormCadastros } from '@/pages/gestor/FormSubmissions';
 import TeamProductionGoals from '@/pages/gestor/TeamProductionGoals';
 import GestorTasksPage from '@/pages/gestor/GestorTasksPage';
 import ColdCallMetricsPage from '@/pages/gestor/ColdCallMetricsPage'; // NOVO: Importar ColdCallMetricsPage
+import { Processos } from '@/pages/gestor/Processos';
+import { ProcessoEditor } from '@/pages/gestor/ProcessoEditor';
 
 // Consultor Pages
 import ConsultorDashboard from '@/pages/consultor/Dashboard';
@@ -149,6 +151,8 @@ const AppRoutes = () => {
           <Route path="team-production-goals" element={<TeamProductionGoals />} />
           <Route path="my-tasks" element={<GestorTasksPage />} />
           <Route path="cold-call-metrics" element={<ColdCallMetricsPage />} /> {/* NOVO: Rota para ColdCallMetricsPage */}
+          <Route path="processos" element={<Processos />} />
+          <Route path="processos/:id" element={<ProcessoEditor />} />
         </Route>
 
         <Route path="/secretaria" element={<GestorLayout />}> {/* Secretaria também usa GestorLayout */}
