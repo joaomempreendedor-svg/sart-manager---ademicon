@@ -7,22 +7,27 @@ import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
 import toast from 'react-hot-toast';
 import { Button } from '@/components/ui/button';
 
-const BlockComponent: React.FC<{
-  block: ProcessBlock;
-  onUpdate: (id: string, content: string) => void;
-  onToggleCheck: (id: string) => void;
-  onKeyDown: (e: React.KeyboardEvent<HTMLDivElement>, id: string) => void;
-  onFocus: () => void;
-}> = ({ block, onUpdate, onToggleCheck, onKeyDown, onFocus }) => {
+const BlockComponent = React.memo(React.forwardRef<
+  HTMLDivElement,
+  {
+    block: ProcessBlock;
+    onUpdate: (id: string, content: string) => void;
+    onToggleCheck: (id: string) => void;
+    onKeyDown: (e: React.KeyboardEvent<HTMLDivElement>, id: string) => void;
+    onFocus: () => void;
+  }
+>(({ block, onUpdate, onToggleCheck, onKeyDown, onFocus }, ref) => {
   
   const handleInput = (e: React.FormEvent<HTMLDivElement>) => {
-    onUpdate(block.id, e.currentTarget.innerText);
+    onUpdate(block.id, e.currentTarget.innerHTML);
   };
 
   switch (block.type) {
     case 'heading1':
       return (
         <h1
+          ref={ref as any}
+          data-block-id={block.id}
           contentEditable
           suppressContentEditableWarning
           onBlur={handleInput}
@@ -35,6 +40,8 @@ const BlockComponent: React.FC<{
     case 'text':
       return (
         <p
+          ref={ref as any}
+          data-block-id={block.id}
           contentEditable
           suppressContentEditableWarning
           onBlur={handleInput}
@@ -54,6 +61,8 @@ const BlockComponent: React.FC<{
             className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
           />
           <span
+            ref={ref as any}
+            data-block-id={block.id}
             contentEditable
             suppressContentEditableWarning
             onBlur={handleInput}
@@ -67,9 +76,7 @@ const BlockComponent: React.FC<{
     default:
       return null;
   }
-};
-
-const MemoizedBlockComponent = React.memo(BlockComponent);
+}));
 
 export const ProcessoEditor = () => {
   const { id } = useParams<{ id: string }>();
@@ -79,23 +86,30 @@ export const ProcessoEditor = () => {
   const process = useMemo(() => processes.find(p => p.id === id), [processes, id]);
   const [blocks, setBlocks] = useState<ProcessBlock[]>([]);
   const [hoveredBlockId, setHoveredBlockId] = useState<string | null>(null);
+  const [savingStatus, setSavingStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const initialLoadRef = useRef(true);
 
   useEffect(() => {
     if (process?.content && Array.isArray(process.content)) {
       setBlocks(process.content);
-      initialLoadRef.current = true;
     } else if (process) {
       setBlocks([]);
-      initialLoadRef.current = true;
     }
+    initialLoadRef.current = true;
   }, [process]);
 
   const debouncedSave = useDebouncedCallback((updatedBlocks: ProcessBlock[]) => {
     if (!process) return;
+    setSavingStatus('saving');
     updateProcess(process.id, { content: updatedBlocks })
-      .then(() => toast.success('Salvo!'))
-      .catch(err => toast.error(`Erro ao salvar: ${err.message}`));
+      .then(() => {
+        setSavingStatus('saved');
+        setTimeout(() => setSavingStatus('idle'), 2000);
+      })
+      .catch(err => {
+        toast.error(`Erro ao salvar: ${err.message}`);
+        setSavingStatus('idle');
+      });
   }, 1500);
 
   useEffect(() => {
@@ -103,19 +117,38 @@ export const ProcessoEditor = () => {
       initialLoadRef.current = false;
       return;
     }
-    if (blocks) {
-      debouncedSave(blocks);
-    }
+    debouncedSave(blocks);
   }, [blocks, debouncedSave]);
+
+  const updateBlocks = (newBlocks: ProcessBlock[], shouldSave: boolean = true) => {
+    setBlocks(newBlocks);
+    if (shouldSave) {
+      debouncedSave(newBlocks);
+    }
+  };
 
   const addBlock = useCallback((type: ProcessBlock['type'], index: number) => {
     const newBlock: ProcessBlock = { id: crypto.randomUUID(), type, content: '', data: { checked: false } };
     setBlocks(currentBlocks => {
       const newBlocks = [...currentBlocks];
       newBlocks.splice(index + 1, 0, newBlock);
+      
+      setTimeout(() => {
+        const newBlockEl = document.querySelector(`[data-block-id="${newBlock.id}"]`);
+        if (newBlockEl) {
+          (newBlockEl as HTMLElement).focus();
+        }
+      }, 50);
+
       return newBlocks;
     });
   }, []);
+
+  useEffect(() => {
+    if (!isDataLoading && process && blocks.length === 0) {
+      addBlock('text', -1);
+    }
+  }, [isDataLoading, process, blocks.length, addBlock]);
 
   const updateBlockContent = useCallback((id: string, content: string) => {
     setBlocks(currentBlocks =>
@@ -138,12 +171,34 @@ export const ProcessoEditor = () => {
   }, []);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>, id: string) => {
+    const currentIndex = blocks.findIndex(b => b.id === id);
+    
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      const currentIndex = blocks.findIndex(b => b.id === id);
       addBlock('text', currentIndex);
+    } else if (e.key === 'Backspace' && e.currentTarget.innerHTML === '') {
+      e.preventDefault();
+      if (currentIndex > 0) {
+        const prevBlockId = blocks[currentIndex - 1].id;
+        deleteBlock(id);
+        
+        setTimeout(() => {
+          const prevBlockEl = document.querySelector(`[data-block-id="${prevBlockId}"]`);
+          if (prevBlockEl) {
+            (prevBlockEl as HTMLElement).focus();
+            const range = document.createRange();
+            const sel = window.getSelection();
+            range.selectNodeContents(prevBlockEl);
+            range.collapse(false);
+            sel?.removeAllRanges();
+            sel?.addRange(range);
+          }
+        }, 50);
+      } else if (blocks.length > 1) {
+        deleteBlock(id);
+      }
     }
-  }, [blocks, addBlock]);
+  }, [blocks, addBlock, deleteBlock]);
 
   if (isDataLoading) {
     return (
@@ -166,9 +221,15 @@ export const ProcessoEditor = () => {
 
   return (
     <div className="p-4 sm:p-8 max-w-4xl mx-auto">
-      <button onClick={() => navigate('/gestor/processos')} className="flex items-center text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white mb-6">
-        <ArrowLeft className="w-4 h-4 mr-2" /> Voltar para Processos
-      </button>
+      <div className="flex items-center justify-between mb-6">
+        <button onClick={() => navigate('/gestor/processos')} className="flex items-center text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white">
+          <ArrowLeft className="w-4 h-4 mr-2" /> Voltar para Processos
+        </button>
+        <div className="text-sm text-gray-400 h-5">
+          {savingStatus === 'saving' && 'Salvando...'}
+          {savingStatus === 'saved' && 'Salvo!'}
+        </div>
+      </div>
       
       <div className="mb-8">
         <h1 className="text-4xl font-extrabold text-gray-900 dark:text-white">{process.title}</h1>
@@ -207,11 +268,6 @@ export const ProcessoEditor = () => {
             </div>
           </div>
         ))}
-        {blocks.length === 0 && (
-          <div className="text-center py-12 text-gray-400">
-            <p>Página vazia. Comece a adicionar conteúdo!</p>
-          </div>
-        )}
       </div>
 
       <div className="mt-8 flex items-center justify-center space-x-2">
