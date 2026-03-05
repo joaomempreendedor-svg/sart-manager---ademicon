@@ -240,22 +240,34 @@ const HiringDashboard = () => {
           colorClass="bg-purple-600 text-white" 
           onClick={() => handleOpenCandidatesDetailModal('Entrevistas Realizadas', metrics.conductedList, 'conducted')}
         />
-        <MetricCard 
-          title="Total de Aprovados" 
-          value={metrics.totalHired} 
-          icon={TrendingUp} 
-          colorClass="bg-blue-600 text-white" 
-          subValue="Entraram em prévia ou posterior"
-          onClick={() => handleOpenCandidatesDetailModal('Total de Aprovados', metrics.totalHiredList, 'awaitingPreview')}
-        />
-        <MetricCard 
-          title="Autorizados" 
-          value={metrics.hired} 
-          icon={UserCheck} 
-          colorClass="bg-emerald-600 text-white" 
-          subValue="Contratações efetivas"
-          onClick={() => handleOpenCandidatesDetailModal('Autorizados', metrics.hiredList, 'hired')}
-        />
+        
+        {/* Card Dividido: Em Prévia / Autorizados */}
+        <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex flex-col space-y-2">
+          {/* Em Prévia */}
+          <button 
+            onClick={() => handleOpenCandidatesDetailModal('Candidatos em Prévia', metrics.awaitingPreviewList, 'awaitingPreview')}
+            className="flex-1 flex items-center space-x-3 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition"
+          >
+            <TrendingUp className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+            <div>
+              <p className="text-sm text-blue-800 dark:text-blue-300 font-semibold">Em Prévia</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white text-left">{metrics.awaitingPreview}</p>
+            </div>
+          </button>
+
+          {/* Autorizados */}
+          <button 
+            onClick={() => handleOpenCandidatesDetailModal('Candidatos Autorizados', metrics.hiredList, 'hired')}
+            className="flex-1 flex items-center space-x-3 p-3 rounded-lg bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30 transition"
+          >
+            <UserCheck className="w-6 h-6 text-green-600 dark:text-green-400" />
+            <div>
+              <p className="text-sm text-green-800 dark:text-green-300 font-semibold">Autorizados</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white text-left">{metrics.hired}</p>
+            </div>
+          </button>
+        </div>
+
         <MetricCard 
           title="Desistências" 
           value={metrics.withdrawn} 
