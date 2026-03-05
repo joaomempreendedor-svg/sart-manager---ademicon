@@ -65,11 +65,11 @@ const HiringDashboard = () => {
     );
 
     const scheduledList = totalCandidates.filter(c => 
-      c.status === 'Entrevista' && !c.interviewConducted
+      isInCreationDateRange(c.interviewScheduledDate)
     );
 
     const conductedList = totalCandidates.filter(c => 
-      c.status === 'Entrevista' && c.interviewConducted
+      isInCreationDateRange(c.interviewConductedDate)
     );
 
     const awaitingPreviewList = totalCandidates.filter(c => 
