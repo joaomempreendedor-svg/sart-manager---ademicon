@@ -593,6 +593,7 @@ export interface AppContextType {
   teamProductionGoals: TeamProductionGoal[];
   coldCallLeads: ColdCallLead[]; // NOVO
   coldCallLogs: ColdCallLog[];   // NOVO
+  processes: Process[]; // NOVO
   theme: 'light' | 'dark';
   toggleTheme: () => void;
   addCandidate: (candidate: Omit<Candidate, 'id' | 'createdAt' | 'db_id'>) => Promise<Candidate>;
@@ -712,6 +713,9 @@ export interface AppContextType {
   updateChecklistStage: (stageId: string, updates: Partial<ChecklistStage>) => void;
   deleteChecklistStage: (stageId: string) => void;
   moveChecklistStage: (stageId: string, direction: 'up' | 'down') => void;
+  addProcess: (process: Omit<Process, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => Promise<Process>;
+  updateProcess: (id: string, updates: Partial<Process>) => Promise<Process>;
+  deleteProcess: (id: string) => Promise<void>;
 }
 
 export interface ColdCallMetrics { // NOVO: Interface para as métricas de Cold Call

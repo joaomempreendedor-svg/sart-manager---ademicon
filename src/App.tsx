@@ -47,7 +47,8 @@ import { FinancialPanel } from '@/pages/FinancialPanel';
 import { FormCadastros } from '@/pages/gestor/FormSubmissions';
 import TeamProductionGoals from '@/pages/gestor/TeamProductionGoals';
 import GestorTasksPage from '@/pages/gestor/GestorTasksPage';
-import ColdCallMetricsPage from '@/pages/gestor/ColdCallMetricsPage'; // NOVO: Importar ColdCallMetricsPage
+import ColdCallMetricsPage from '@/pages/gestor/ColdCallMetricsPage';
+import { Processos } from '@/pages/gestor/Processos'; // NOVO
 
 // Consultor Pages
 import ConsultorDashboard from '@/pages/consultor/Dashboard';
@@ -149,6 +150,7 @@ const AppRoutes = () => {
           <Route path="team-production-goals" element={<TeamProductionGoals />} />
           <Route path="my-tasks" element={<GestorTasksPage />} />
           <Route path="cold-call-metrics" element={<ColdCallMetricsPage />} />
+          <Route path="processos" element={<Processos />} /> {/* NOVO */}
         </Route>
 
         <Route path="/secretaria" element={<GestorLayout />}> {/* Secretaria também usa GestorLayout */}
