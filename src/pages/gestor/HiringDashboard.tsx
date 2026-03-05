@@ -257,20 +257,36 @@ const HiringDashboard = () => {
         />
 
         {/* Hiring Stage */}
-        <MetricCard 
-          title="Em Prévia" 
-          value={metrics.awaitingPreview} 
-          icon={TrendingUp} 
-          colorClass="bg-blue-600 text-white" 
-          onClick={() => handleOpenCandidatesDetailModal('Candidatos em Prévia', metrics.awaitingPreviewList, 'awaitingPreview')}
-        />
-        <MetricCard 
-          title="Autorizados" 
-          value={metrics.hired} 
-          icon={UserCheck} 
-          colorClass="bg-emerald-600 text-white" 
-          onClick={() => handleOpenCandidatesDetailModal('Candidatos Autorizados', metrics.hiredList, 'hired')}
-        />
+        <div className="flex flex-col space-y-2 h-full">
+            <button 
+                onClick={() => handleOpenCandidatesDetailModal('Candidatos em Prévia', metrics.awaitingPreviewList, 'awaitingPreview')}
+                className="relative overflow-hidden p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm transition-all hover:shadow-md flex-1 flex flex-col bg-blue-600 text-white text-left"
+            >
+                <div className="flex justify-between items-start">
+                    <div className="space-y-1">
+                        <p className="text-[10px] font-bold uppercase tracking-wider opacity-70">Em Prévia</p>
+                        <h3 className="text-3xl font-black">{metrics.awaitingPreview}</h3>
+                    </div>
+                    <div className="absolute -right-2 -bottom-2 opacity-10">
+                        <TrendingUp size={60} strokeWidth={3} />
+                    </div>
+                </div>
+            </button>
+            <button 
+                onClick={() => handleOpenCandidatesDetailModal('Candidatos Autorizados', metrics.hiredList, 'hired')}
+                className="relative overflow-hidden p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm transition-all hover:shadow-md flex-1 flex flex-col bg-emerald-600 text-white text-left"
+            >
+                <div className="flex justify-between items-start">
+                    <div className="space-y-1">
+                        <p className="text-[10px] font-bold uppercase tracking-wider opacity-70">Autorizados</p>
+                        <h3 className="text-3xl font-black">{metrics.hired}</h3>
+                    </div>
+                    <div className="absolute -right-2 -bottom-2 opacity-10">
+                        <UserCheck size={60} strokeWidth={3} />
+                    </div>
+                </div>
+            </button>
+        </div>
         <MetricCard 
           title="Desistências" 
           value={metrics.withdrawn} 
