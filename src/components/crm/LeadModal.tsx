@@ -50,12 +50,11 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
   }, [salesOrigins]);
 
   const consultants = useMemo(() => {
-    // CORREÇÃO: Filtra membros ativos com busca insensível a maiúsculas nos cargos E que tenham um authUserId.
+    // CORREÇÃO: Filtra membros ativos com busca insensível a maiúsculas nos cargos.
     const allowedRoles = ['prévia', 'autorizado', 'gestor', 'anjo', 'consultor'];
     
     return teamMembers.filter(m => 
       m.isActive && 
-      m.authUserId && // Garante que o membro tem um ID de autenticação para ser atribuído
       m.roles.some(role => allowedRoles.includes(role.toLowerCase()))
     ).sort((a, b) => a.name.localeCompare(b.name));
   }, [teamMembers]);
@@ -348,7 +347,7 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields,
                     </SelectTrigger>
                     <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700 max-h-[200px] overflow-y-auto">
                       {consultants.map(consultant => (
-                        <SelectItem key={consultant.id} value={consultant.authUserId!}>
+                        <SelectItem key={consultant.id} value={consultant.id}>
                           {consultant.name} ({consultant.roles.join(', ')})
                         </SelectItem>
                       ))}
