@@ -50,78 +50,71 @@ const HiringDashboard = () => {
       return (!start || date >= start) && (!end || date <= end);
     };
 
-    const totalCandidates = candidates.filter(c => isInCreationDateRange(c.createdAt));
+    // Base para métricas de fluxo (eventos no período)
+    const totalCandidatesInPeriod = candidates.filter(c => isInCreationDateRange(c.createdAt));
     
-    const newCandidatesList = totalCandidates.filter(c => 
+    // Métricas de fluxo (dependentes do filtro de data)
+    const newCandidatesList = totalCandidatesInPeriod.filter(c => 
       c.status === 'Triagem' && (c.screeningStatus === 'Pending Contact' || !c.screeningStatus)
     );
-
-    const contactedList = totalCandidates.filter(c => 
+    const contactedList = totalCandidatesInPeriod.filter(c => 
       c.status === 'Triagem' && c.screeningStatus === 'Contacted'
     );
-
-    const noResponseList = totalCandidates.filter(c =>
+    const noResponseList = totalCandidatesInPeriod.filter(c =>
       c.status === 'Triagem' && c.screeningStatus === 'No Response'
     );
-
-    const scheduledList = totalCandidates.filter(c => 
+    const scheduledList = totalCandidatesInPeriod.filter(c => 
       isInCreationDateRange(c.interviewScheduledDate)
     );
-
-    const conductedList = totalCandidates.filter(c => 
+    const conductedList = totalCandidatesInPeriod.filter(c => 
       isInCreationDateRange(c.interviewConductedDate)
     );
-
-    const awaitingPreviewList = totalCandidates.filter(c => 
-      c.status === 'Aguardando Prévia'
-    );
-
-    const hiredList = totalCandidates.filter(c => 
-      c.status === 'Autorizado'
-    );
-
-    const noShowList = totalCandidates.filter(c => 
+    const noShowList = totalCandidatesInPeriod.filter(c => 
       c.status === 'Faltou'
     );
-
-    const withdrawnList = totalCandidates.filter(c => 
+    const withdrawnList = totalCandidatesInPeriod.filter(c => 
       c.status === 'Reprovado'
     );
-
-    const disqualifiedList = totalCandidates.filter(c => 
+    const disqualifiedList = totalCandidatesInPeriod.filter(c => 
       c.status === 'Desqualificado'
     );
 
-    const totalHiredList = totalCandidates.filter(c => 
+    // Métricas de estado (independentes do filtro de data)
+    const awaitingPreviewList = candidates.filter(c => 
+      c.status === 'Aguardando Prévia'
+    );
+    const hiredList = candidates.filter(c => 
+      c.status === 'Autorizado'
+    );
+    const totalHiredList = candidates.filter(c => 
       ['Aguardando Prévia', 'Onboarding Online', 'Integração Presencial', 'Acompanhamento 90 Dias', 'Autorizado'].includes(c.status)
     );
 
+    // Métricas calculadas
     const totalInterviewsScheduled = scheduledList.length;
     const totalInterviewsConducted = conductedList.length;
-
     const attendanceRate = totalInterviewsScheduled > 0 ? (totalInterviewsConducted / totalInterviewsScheduled) * 100 : 0;
-    const hiringRate = totalCandidates.length > 0 ? (totalHiredList.length / totalCandidates.length) * 100 : 0;
+    const hiringRate = totalCandidatesInPeriod.length > 0 ? (totalHiredList.filter(c => isInCreationDateRange(c.createdAt)).length / totalCandidatesInPeriod.length) * 100 : 0;
 
+    // Métricas por origem (dependentes do filtro de data)
     const originCounts: Record<string, number> = {};
     hiringOrigins.forEach(origin => { originCounts[origin] = 0; });
     originCounts['Não Informado'] = 0;
-
-    totalCandidates.forEach(c => {
+    totalCandidatesInPeriod.forEach(c => {
       const origin = c.origin || 'Não Informado';
       originCounts[origin] = (originCounts[origin] || 0) + 1;
     });
-
     const candidatesByOrigin = Object.entries(originCounts)
       .map(([name, count]) => ({
         name,
         count,
-        percentage: totalCandidates.length > 0 ? (count / totalCandidates.length) * 100 : 0
+        percentage: totalCandidatesInPeriod.length > 0 ? (count / totalCandidatesInPeriod.length) * 100 : 0
       }))
       .filter(o => o.count > 0)
       .sort((a, b) => b.count - a.count);
 
     return {
-      total: totalCandidates.length,
+      total: totalCandidatesInPeriod.length,
       newCandidates: newCandidatesList.length,
       contacted: contactedList.length,
       noResponse: noResponseList.length,
@@ -145,7 +138,7 @@ const HiringDashboard = () => {
       noShowList,
       withdrawnList,
       disqualifiedList,
-      totalCandidatesList: totalCandidates,
+      totalCandidatesList: totalCandidatesInPeriod,
       totalHiredList,
       candidatesByOrigin,
     };
