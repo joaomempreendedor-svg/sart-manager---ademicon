@@ -80,13 +80,14 @@ const HiringDashboard = () => {
     );
 
     // Métricas de estado (independentes do filtro de data)
-    const awaitingPreviewList = candidates.filter(c => 
+    // CORREÇÃO: Agora também filtra pelo período de criação
+    const awaitingPreviewList = totalCandidatesInPeriod.filter(c => 
       c.status === 'Aguardando Prévia'
     );
-    const hiredList = candidates.filter(c => 
+    const hiredList = totalCandidatesInPeriod.filter(c => 
       c.status === 'Autorizado'
     );
-    const totalHiredList = candidates.filter(c => 
+    const totalHiredList = totalCandidatesInPeriod.filter(c => 
       ['Aguardando Prévia', 'Onboarding Online', 'Integração Presencial', 'Acompanhamento 90 Dias', 'Autorizado'].includes(c.status)
     );
 
