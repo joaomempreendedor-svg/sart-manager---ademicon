@@ -85,7 +85,14 @@ const BlockComponent = React.memo(React.forwardRef<
               <span className="ml-2 text-gray-500">Enviando imagem...</span>
             </div>
           ) : (
-            <img src={block.content} alt={block.data.name || 'Imagem'} className="max-w-full rounded-lg" />
+            <a href={block.content} target="_blank" rel="noopener noreferrer" className="flex items-center p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition">
+              <ImageIcon className="w-8 h-8 text-green-500 mr-4" />
+              <div className="flex-1">
+                <p className="font-medium text-gray-900 dark:text-white">{block.data.name || 'Imagem'}</p>
+                <p className="text-xs text-gray-500">Clique para abrir ou baixar</p>
+              </div>
+              <Download className="w-5 h-5 text-gray-400" />
+            </a>
           )}
         </div>
       );
@@ -177,33 +184,40 @@ export const ProcessoEditor = () => {
     if (fileInputRef.current) {
       fileInputRef.current.accept = type === 'image' ? 'image/*' : 'application/pdf';
       fileInputRef.current.onchange = async (e) => {
-        const file = e.target.files?.[0];
+        const file = (e.target as HTMLInputElement).files?.[0];
         if (!file || !process) return;
 
         const newBlock: ProcessBlock = { id: crypto.randomUUID(), type, content: '', data: { name: file.name } };
         const newBlocks = [...blocks];
         newBlocks.splice(index + 1, 0, newBlock);
-        setBlocks(newBlocks);
+        setBlocks(newBlocks); // Show loading state immediately
         setUploadingBlockId(newBlock.id);
 
         try {
-          const path = `process_files/${process.id}/${Date.now()}-${sanitizeFilename(file.name)}`;
-          const { error: uploadError } = await supabase.storage.from('form_uploads').upload(path, file);
-          if (uploadError) throw uploadError;
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('processId', process.id);
 
-          const { data: publicUrlData } = supabase.storage.from('form_uploads').getPublicUrl(path);
-          const publicUrl = publicUrlData.publicUrl;
+          const { data, error } = await supabase.functions.invoke('upload-process-file', {
+            body: formData,
+          });
+
+          if (error) throw error;
+          if (data.error) throw new Error(data.error);
+
+          const publicUrl = data.publicUrl;
 
           const finalBlocks = newBlocks.map(b => b.id === newBlock.id ? { ...b, content: publicUrl } : b);
-          updateBlocks(finalBlocks);
+          updateBlocks(finalBlocks); // This will trigger the debounced save
 
-        } catch (error) {
-          toast.error("Falha no upload do arquivo.");
+        } catch (error: any) {
+          toast.error(`Falha no upload do arquivo: ${error.message}`);
+          // Remove the optimistic block on failure
           setBlocks(currentBlocks => currentBlocks.filter(b => b.id !== newBlock.id));
         } finally {
           setUploadingBlockId(null);
           if (fileInputRef.current) {
-            fileInputRef.current.value = '';
+            fileInputRef.current.value = ''; // Reset file input
           }
         }
       };
