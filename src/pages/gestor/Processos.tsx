@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Process } from '@/types';
 import { Loader2, FileText, Plus, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useAuth } from '@/context/AuthContext';
 
 export const Processos = () => {
   const { user } = useAuth();
