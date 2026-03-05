@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Plus, Trash2, User, Shield, Crown, Star, Edit2, Save, X, Archive, UserCheck, Loader2, Copy, RefreshCw, KeyRound, Mail, CalendarPlus, CalendarDays, ChevronDown, ChevronUp, UserPlus } from 'lucide-react';
+import { Plus, Trash2, User, Shield, Crown, Star, Edit2, Save, X, Archive, UserCheck, Loader2, Copy, RefreshCw, KeyRound, Mail, CalendarPlus, CalendarDays, ChevronDown, ChevronUp } from 'lucide-react';
 import { TeamMember, TeamRole, Candidate } from '@/types';
 import { formatCpf, generateRandomPassword } from '@/utils/authUtils';
 import { ConsultantCredentialsModal } from '@/components/ConsultantCredentialsModal';
@@ -13,7 +13,7 @@ const ALL_ROLES: TeamRole[] = ['PRÉVIA', 'AUTORIZADO', 'GESTOR', 'ANJO', 'SECRE
 
 export const TeamConfig = () => {
   const { user } = useAuth();
-  const { teamMembers, addTeamMember, updateTeamMember, deleteTeamMember, candidates, addCandidate, linkAuthUserToTeamMember } = useApp();
+  const { teamMembers, addTeamMember, updateTeamMember, deleteTeamMember, candidates, addCandidate } = useApp();
   const { resetConsultantPasswordViaEdge } = useAuth();
   
   const [newName, setNewName] = useState('');
@@ -36,7 +36,6 @@ export const TeamConfig = () => {
   const [teamMemberToRecordInterview, setTeamMemberToRecordInterview] = useState<TeamMember | null>(null);
 
   const [isAddFormCollapsed, setIsAddFormCollapsed] = useState(true);
-  const [linkingMemberId, setLinkingMemberId] = useState<string | null>(null);
 
   const handleRoleChange = (role: TeamRole, currentRoles: TeamRole[], setRoles: React.Dispatch<React.SetStateAction<TeamRole[]>>) => {
     const updatedRoles = currentRoles.includes(role)
@@ -169,26 +168,6 @@ export const TeamConfig = () => {
     } catch (error: any) {
       toast.error(`Falha ao resetar senha: ${error.message}`);
       console.error("Erro ao resetar senha:", error);
-    }
-  };
-
-  const handleLinkAuthUser = async (member: TeamMember) => {
-    if (!window.confirm(`Deseja criar um acesso de login para ${member.name}? Uma senha temporária será gerada.`)) return;
-    setLinkingMemberId(member.id);
-    try {
-      const result = await linkAuthUserToTeamMember(member.id);
-      setCreatedConsultantCredentials({
-        name: result.name,
-        login: result.email,
-        password: result.tempPassword,
-        wasExistingUser: result.wasExistingUser,
-      });
-      setShowCredentialsModal(true);
-      toast.success(`Acesso para ${member.name} criado com sucesso!`);
-    } catch (error: any) {
-      toast.error(`Falha ao criar acesso: ${error.message}`);
-    } finally {
-      setLinkingMemberId(null);
     }
   };
 
@@ -360,15 +339,9 @@ export const TeamConfig = () => {
                                         >
                                           <CalendarPlus className="w-4 h-4" />
                                         </button>
-                                      {member.authUserId ? (
-                                        <button onClick={() => handleResetPassword(member)} className="p-2 rounded-full text-gray-400 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/20" title="Resetar Senha">
-                                            <KeyRound className="w-4 h-4" />
-                                        </button>
-                                      ) : (
-                                        <button onClick={() => handleLinkAuthUser(member)} disabled={linkingMemberId === member.id} className="p-2 rounded-full text-gray-400 hover:text-green-500 hover:bg-green-50 dark:hover:bg-green-900/20 disabled:opacity-50" title="Criar Acesso de Login">
-                                          {linkingMemberId === member.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
-                                        </button>
-                                      )}
+                                      <button onClick={() => handleResetPassword(member)} className="p-2 rounded-full text-gray-400 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/20" title="Resetar Senha">
+                                          <KeyRound className="w-4 h-4" />
+                                      </button>
                                       <button onClick={() => handleToggleActive(member)} className={`p-2 rounded-full ${member.isActive ? 'text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20' : 'text-gray-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20'}`} title={member.isActive ? 'Inativar' : 'Ativar'}>
                                           <Archive className="w-4 h-4" />
                                       </button>

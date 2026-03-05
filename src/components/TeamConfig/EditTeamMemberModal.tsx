@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Loader2, Mail, CalendarDays, User, Shield, Crown, Star, UserCheck } from 'lucide-react';
+import { X, Save, Loader2, Mail, CalendarDays, User, Shield, Crown, Star, UserCheck } from 'lucide-react'; // Adicionado UserCheck
 import { TeamMember, TeamRole } from '@/types';
 import { formatCpf } from '@/utils/authUtils';
 import {
