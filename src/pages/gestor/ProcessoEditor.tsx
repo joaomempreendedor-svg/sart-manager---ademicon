@@ -190,7 +190,7 @@ export const ProcessoEditor = () => {
         const newBlock: ProcessBlock = { id: crypto.randomUUID(), type, content: '', data: { name: file.name } };
         const newBlocks = [...blocks];
         newBlocks.splice(index + 1, 0, newBlock);
-        setBlocks(newBlocks); // Show loading state immediately
+        setBlocks(newBlocks);
         setUploadingBlockId(newBlock.id);
 
         try {
@@ -208,16 +208,15 @@ export const ProcessoEditor = () => {
           const publicUrl = data.publicUrl;
 
           const finalBlocks = newBlocks.map(b => b.id === newBlock.id ? { ...b, content: publicUrl } : b);
-          updateBlocks(finalBlocks); // This will trigger the debounced save
+          updateBlocks(finalBlocks);
 
         } catch (error: any) {
           toast.error(`Falha no upload do arquivo: ${error.message}`);
-          // Remove the optimistic block on failure
           setBlocks(currentBlocks => currentBlocks.filter(b => b.id !== newBlock.id));
         } finally {
           setUploadingBlockId(null);
           if (fileInputRef.current) {
-            fileInputRef.current.value = ''; // Reset file input
+            fileInputRef.current.value = '';
           }
         }
       };
