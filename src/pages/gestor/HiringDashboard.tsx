@@ -199,12 +199,21 @@ const HiringDashboard = () => {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-12">
+        {/* Top of Funnel */}
         <MetricCard 
           title="Total de Candidaturas" 
           value={metrics.total} 
           icon={Users} 
           colorClass="bg-indigo-600 text-white" 
           onClick={() => handleOpenCandidatesDetailModal('Total de Candidaturas', metrics.totalCandidatesList, 'total')}
+        />
+        <MetricCard 
+          title="Novas Candidaturas" 
+          value={metrics.newCandidates} 
+          icon={UserPlus} 
+          colorClass="bg-sky-600 text-white" 
+          subValue="Aguardando contato"
+          onClick={() => handleOpenCandidatesDetailModal('Novas Candidaturas', metrics.newCandidatesList, 'newCandidates')}
         />
         <MetricCard 
           title="Contatados" 
@@ -222,6 +231,8 @@ const HiringDashboard = () => {
           subValue="Aguardando retorno"
           onClick={() => handleOpenCandidatesDetailModal('Não Respondido', metrics.noResponseList, 'noResponse')}
         />
+
+        {/* Interview Stage */}
         <MetricCard 
           title="Entrevistas Agendadas" 
           value={metrics.scheduled} 
@@ -236,42 +247,6 @@ const HiringDashboard = () => {
           colorClass="bg-purple-600 text-white" 
           onClick={() => handleOpenCandidatesDetailModal('Entrevistas Realizadas', metrics.conductedList, 'conducted')}
         />
-        
-        {/* Card Dividido: Em Prévia / Autorizados */}
-        <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex flex-col space-y-2">
-          {/* Em Prévia */}
-          <button 
-            onClick={() => handleOpenCandidatesDetailModal('Candidatos em Prévia', metrics.awaitingPreviewList, 'awaitingPreview')}
-            className="flex-1 flex items-center space-x-3 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition"
-          >
-            <TrendingUp className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-            <div>
-              <p className="text-sm text-blue-800 dark:text-blue-300 font-semibold">Em Prévia</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white text-left">{metrics.awaitingPreview}</p>
-            </div>
-          </button>
-
-          {/* Autorizados */}
-          <button 
-            onClick={() => handleOpenCandidatesDetailModal('Candidatos Autorizados', metrics.hiredList, 'hired')}
-            className="flex-1 flex items-center space-x-3 p-3 rounded-lg bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30 transition"
-          >
-            <UserCheck className="w-6 h-6 text-green-600 dark:text-green-400" />
-            <div>
-              <p className="text-sm text-green-800 dark:text-green-300 font-semibold">Autorizados</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white text-left">{metrics.hired}</p>
-            </div>
-          </button>
-        </div>
-
-        <MetricCard 
-          title="Desistências" 
-          value={metrics.withdrawn} 
-          icon={UserMinus} 
-          colorClass="bg-rose-600 text-white" 
-          subValue="Aprovados que saíram"
-          onClick={() => handleOpenCandidatesDetailModal('Desistências', metrics.withdrawnList, 'withdrawn')}
-        />
         <MetricCard 
           title="Faltas" 
           value={metrics.noShow} 
@@ -281,20 +256,59 @@ const HiringDashboard = () => {
           onClick={() => handleOpenCandidatesDetailModal('Faltas', metrics.noShowList, 'noShow')}
         />
         <MetricCard 
+          title="Taxa de Comparecimento" 
+          value={`${metrics.attendanceRate.toFixed(1)}%`} 
+          icon={Percent} 
+          colorClass="bg-slate-800 text-white dark:bg-slate-700" 
+          subValue="Efetividade da Agenda"
+        />
+
+        {/* Hiring Stage */}
+        <div className="flex flex-col space-y-2 h-full">
+            <button 
+                onClick={() => handleOpenCandidatesDetailModal('Candidatos em Prévia', metrics.awaitingPreviewList, 'awaitingPreview')}
+                className="relative overflow-hidden p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm transition-all hover:shadow-md flex-1 flex flex-col bg-blue-600 text-white text-left"
+            >
+                <div className="flex justify-between items-start">
+                    <div className="space-y-1">
+                        <p className="text-[10px] font-bold uppercase tracking-wider opacity-70">Em Prévia</p>
+                        <h3 className="text-3xl font-black">{metrics.awaitingPreview}</h3>
+                    </div>
+                    <div className="absolute -right-2 -bottom-2 opacity-10">
+                        <TrendingUp size={60} strokeWidth={3} />
+                    </div>
+                </div>
+            </button>
+            <button 
+                onClick={() => handleOpenCandidatesDetailModal('Candidatos Autorizados', metrics.hiredList, 'hired')}
+                className="relative overflow-hidden p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm transition-all hover:shadow-md flex-1 flex flex-col bg-emerald-600 text-white text-left"
+            >
+                <div className="flex justify-between items-start">
+                    <div className="space-y-1">
+                        <p className="text-[10px] font-bold uppercase tracking-wider opacity-70">Autorizados</p>
+                        <h3 className="text-3xl font-black">{metrics.hired}</h3>
+                    </div>
+                    <div className="absolute -right-2 -bottom-2 opacity-10">
+                        <UserCheck size={60} strokeWidth={3} />
+                    </div>
+                </div>
+            </button>
+        </div>
+        <MetricCard 
+          title="Desistências" 
+          value={metrics.withdrawn} 
+          icon={UserMinus} 
+          colorClass="bg-rose-600 text-white" 
+          subValue="Aprovados que saíram"
+          onClick={() => handleOpenCandidatesDetailModal('Desistências', metrics.withdrawnList, 'withdrawn')}
+        />
+        <MetricCard 
           title="Desqualificados" 
           value={metrics.disqualified} 
           icon={XCircle} 
           colorClass="bg-rose-700 text-white" 
           subValue="Reprovados pelo gestor"
           onClick={() => handleOpenCandidatesDetailModal('Desqualificados', metrics.disqualifiedList, 'disqualified')}
-        />
-        
-        <MetricCard 
-          title="Taxa de Comparecimento" 
-          value={`${metrics.attendanceRate.toFixed(1)}%`} 
-          icon={Percent} 
-          colorClass="bg-slate-800 text-white dark:bg-slate-700" 
-          subValue="Efetividade Agenda"
         />
         <MetricCard 
           title="Taxa de Contratação" 
