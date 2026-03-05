@@ -44,60 +44,56 @@ const HiringDashboard = () => {
     const start = startDate ? new Date(startDate + 'T00:00:00') : null;
     const end = endDate ? new Date(endDate + 'T23:59:59') : null;
 
-    const isInFilterRange = (dateString?: string) => {
+    const isInCreationDateRange = (dateString?: string) => {
       if (!dateString) return false;
       const date = new Date(dateString);
       return (!start || date >= start) && (!end || date <= end);
     };
 
-    const totalCandidates = candidates.filter(c => isInFilterRange(c.createdAt));
+    const totalCandidates = candidates.filter(c => isInCreationDateRange(c.createdAt));
     
     const newCandidatesList = totalCandidates.filter(c => 
-      (c.screeningStatus === 'Pending Contact' || !c.screeningStatus)
+      c.status === 'Triagem' && (c.screeningStatus === 'Pending Contact' || !c.screeningStatus)
     );
 
     const contactedList = totalCandidates.filter(c => 
-      isInFilterRange(c.contactedDate) && c.screeningStatus === 'Contacted'
+      c.status === 'Triagem' && c.screeningStatus === 'Contacted'
     );
 
     const noResponseList = totalCandidates.filter(c =>
-      isInFilterRange(c.noResponseDate) && c.screeningStatus === 'No Response'
+      c.status === 'Triagem' && c.screeningStatus === 'No Response'
     );
 
     const scheduledList = totalCandidates.filter(c => 
-      isInFilterRange(c.interviewScheduledDate)
+      c.status === 'Entrevista' && !c.interviewConducted
     );
 
     const conductedList = totalCandidates.filter(c => 
-      isInFilterRange(c.interviewConductedDate)
+      c.status === 'Entrevista' && c.interviewConducted
     );
 
     const awaitingPreviewList = totalCandidates.filter(c => 
-      isInFilterRange(c.awaitingPreviewDate)
+      c.status === 'Aguardando Prévia'
     );
 
     const hiredList = totalCandidates.filter(c => 
-      isInFilterRange(c.authorizedDate)
+      c.status === 'Autorizado'
     );
 
     const noShowList = totalCandidates.filter(c => 
-      isInFilterRange(c.faltouDate)
+      c.status === 'Faltou'
     );
 
     const withdrawnList = totalCandidates.filter(c => 
-      isInFilterRange(c.reprovadoDate)
+      c.status === 'Reprovado'
     );
 
     const disqualifiedList = totalCandidates.filter(c => 
-      isInFilterRange(c.disqualifiedDate)
+      c.status === 'Desqualificado'
     );
 
     const totalHiredList = totalCandidates.filter(c => 
-      isInFilterRange(c.awaitingPreviewDate) ||
-      isInFilterRange(c.onboardingOnlineDate) ||
-      isInFilterRange(c.integrationPresencialDate) ||
-      isInFilterRange(c.acompanhamento90DiasDate) ||
-      isInFilterRange(c.authorizedDate)
+      ['Aguardando Prévia', 'Onboarding Online', 'Integração Presencial', 'Acompanhamento 90 Dias', 'Autorizado'].includes(c.status)
     );
 
     const totalInterviewsScheduled = scheduledList.length;
