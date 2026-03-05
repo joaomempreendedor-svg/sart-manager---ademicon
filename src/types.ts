@@ -539,13 +539,22 @@ export interface ColdCallLog {
   created_at: string;
 }
 
+export interface ProcessBlock {
+  id: string;
+  type: 'heading1' | 'text' | 'todo';
+  content: string;
+  data: {
+    checked?: boolean;
+  };
+}
+
 export interface Process {
   id: string;
   user_id: string;
   title: string;
   description?: string;
-  type: 'checklist';
-  content: any;
+  type: 'document';
+  content: ProcessBlock[];
   created_at: string;
   updated_at: string;
 }

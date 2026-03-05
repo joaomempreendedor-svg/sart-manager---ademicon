@@ -48,13 +48,14 @@ export const Processos = () => {
     setIsSaving(true);
     try {
       const content = editingProcess?.content || [];
-      const processData = { title, description, type: 'checklist' as const, content };
+      const processData = { title, description, type: 'document' as const, content };
       if (editingProcess) {
         await updateProcess(editingProcess.id, processData);
         toast.success("Processo atualizado com sucesso!");
       } else {
-        await addProcess(processData);
+        const newProcess = await addProcess(processData);
         toast.success("Processo criado com sucesso!");
+        navigate(`/gestor/processos/${newProcess.id}`);
       }
       setIsModalOpen(false);
     } catch (error: any) {
@@ -76,9 +77,10 @@ export const Processos = () => {
     }
   };
 
-  const getIconForType = (type: 'checklist') => {
+  const getIconForType = (type: 'checklist' | 'document') => {
     switch (type) {
       case 'checklist': return <CheckSquare className="w-8 h-8 text-blue-500" />;
+      case 'document': return <FileText className="w-8 h-8 text-green-500" />;
       default: return <FileText className="w-8 h-8 text-gray-500" />;
     }
   };
@@ -138,7 +140,7 @@ export const Processos = () => {
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{process.description}</p>
               </div>
               <div className="px-6 py-3 bg-gray-50 dark:bg-slate-700/50 border-t border-gray-100 dark:border-slate-700 text-xs text-gray-400 flex justify-between">
-                <span>Checklist</span>
+                <span>{process.type === 'document' ? 'Documento' : 'Checklist'}</span>
                 <span>Atualizado em: {new Date(process.updated_at).toLocaleDateString()}</span>
               </div>
             </div>
