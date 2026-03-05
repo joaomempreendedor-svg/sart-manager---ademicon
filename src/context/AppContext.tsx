@@ -1260,11 +1260,31 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [user]);
 
   const updateProcess = useCallback(async (id: string, updates: Partial<Process>) => {
-    const { data, error } = await supabase.from('processes').update(updates).eq('id', id).select().single();
-    if (error) throw error;
+    // Optimistic update
+    setProcesses(prev => prev.map(p => 
+      p.id === id ? { ...p, ...updates, updated_at: new Date().toISOString() } : p
+    ));
+    
+    const { data, error } = await supabase
+      .from('processes')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+      
+    if (error) {
+      // Revert on error
+      toast.error(`Erro ao salvar processo: ${error.message}`);
+      // Refetch to be safe
+      const { data: processesData } = await supabase.from('processes').select('*').eq('user_id', user!.id);
+      if (processesData) setProcesses(processesData);
+      throw error;
+    }
+
+    // Sync with server response to get correct updated_at, etc.
     setProcesses(prev => prev.map(p => p.id === id ? data : p));
     return data;
-  }, []);
+  }, [user]);
 
   const deleteProcess = useCallback(async (id: string) => {
     const { error } = await supabase.from('processes').delete().eq('id', id);
@@ -1508,7 +1528,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       refetchCommissions();
     },
     deleteCommission: async (id: string) => { const { error } = await supabase.from('commissions').delete().eq('id', id); if (error) throw error; refetchCommissions(); },
-    updateInstallmentStatus: async (commissionDbId: string, installmentNumber: number, status: InstallmentStatus, paidDate?: string) => {
+    updateInstallmentStatus: async (commissionDbId: string, installmentNumber: number, newStatus: InstallmentStatus, paidDate?: string) => {
       const current = commissions.find(c => c.db_id === commissionDbId);
       if (!current) throw new Error('Comissão não encontrada');
 

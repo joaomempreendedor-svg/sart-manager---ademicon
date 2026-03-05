@@ -22,9 +22,41 @@ const BlockComponent = React.memo(React.forwardRef<
   }
 >(({ block, onUpdate, onToggleCheck, onKeyDown, onFocus, isUploading }, ref) => {
   
+  const selectionRef = useRef<{ start: number; end: number } | null>(null);
+  
   const handleBlur = (e: React.FocusEvent<HTMLDivElement>) => {
     onUpdate(block.id, e.currentTarget.innerHTML);
   };
+  
+  const handleKeyUp = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0 && e.currentTarget.contains(selection.anchorNode)) {
+      const range = selection.getRangeAt(0);
+      selectionRef.current = {
+        start: range.startOffset,
+        end: range.endOffset
+      };
+    }
+  };
+
+  useEffect(() => {
+    if (selectionRef.current && ref && 'current' in ref && ref.current) {
+      const element = ref.current as HTMLElement;
+      const selection = window.getSelection();
+      
+      if (element.contains(selection?.anchorNode || null)) {
+        try {
+          const range = document.createRange();
+          range.setStart(element.firstChild || element, selectionRef.current.start);
+          range.setEnd(element.firstChild || element, selectionRef.current.end);
+          selection?.removeAllRanges();
+          selection?.addRange(range);
+        } catch (e) {
+          // Silencioso
+        }
+      }
+    }
+  }, [block.content, ref]);
 
   switch (block.type) {
     case 'heading1':
@@ -36,6 +68,7 @@ const BlockComponent = React.memo(React.forwardRef<
           suppressContentEditableWarning
           onBlur={handleBlur}
           onKeyDown={(e) => onKeyDown(e, block.id)}
+          onKeyUp={handleKeyUp}
           onFocus={onFocus}
           className="text-3xl font-bold outline-none focus:ring-2 focus:ring-brand-500 rounded px-1"
           dangerouslySetInnerHTML={{ __html: block.content }}
@@ -50,6 +83,7 @@ const BlockComponent = React.memo(React.forwardRef<
           suppressContentEditableWarning
           onBlur={handleBlur}
           onKeyDown={(e) => onKeyDown(e, block.id)}
+          onKeyUp={handleKeyUp}
           onFocus={onFocus}
           className="text-base outline-none focus:ring-2 focus:ring-brand-500 rounded px-1"
           dangerouslySetInnerHTML={{ __html: block.content }}
@@ -71,6 +105,7 @@ const BlockComponent = React.memo(React.forwardRef<
             suppressContentEditableWarning
             onBlur={handleBlur}
             onKeyDown={(e) => onKeyDown(e, block.id)}
+            onKeyUp={handleKeyUp}
             onFocus={onFocus}
             className={`flex-grow outline-none focus:ring-2 focus:ring-brand-500 rounded px-1 ${block.data.checked ? 'line-through text-gray-400' : ''}`}
             dangerouslySetInnerHTML={{ __html: block.content }}
@@ -120,7 +155,14 @@ const BlockComponent = React.memo(React.forwardRef<
     default:
       return null;
   }
-}));
+}), (prevProps, nextProps) => {
+  return (
+    prevProps.block.id === nextProps.block.id &&
+    prevProps.block.content === nextProps.block.content &&
+    prevProps.block.data?.checked === nextProps.block.data?.checked &&
+    prevProps.isUploading === nextProps.isUploading
+  );
+});
 
 export const ProcessoEditor = () => {
   const { id } = useParams<{ id: string }>();
@@ -140,11 +182,6 @@ export const ProcessoEditor = () => {
   const [slashMenuBlockId, setSlashMenuBlockId] = useState<string | null>(null);
   const slashMenuRef = useRef<HTMLDivElement>(null);
 
-  const blocksRef = useRef(blocks);
-  useEffect(() => {
-    blocksRef.current = blocks;
-  }, [blocks]);
-
   useEffect(() => {
     if (process?.content && Array.isArray(process.content)) {
       setBlocks(process.content);
@@ -153,22 +190,47 @@ export const ProcessoEditor = () => {
     }
   }, [process]);
 
-  const debouncedSave = useDebouncedCallback(() => {
-    if (!process || !hasUnsavedChanges.current) return;
-    updateProcess(process.id, { content: blocksRef.current })
-      .then(() => {
-        hasUnsavedChanges.current = false;
-      })
-      .catch(err => {
-        toast.error(`Erro ao salvar: ${err.message}`);
-      });
+  const saveBlocks = useCallback(async (blocksToSave: ProcessBlock[]) => {
+    if (!process) return;
+    try {
+      await updateProcess(process.id, { content: blocksToSave });
+      hasUnsavedChanges.current = false;
+      toast.success('Salvo com sucesso');
+    } catch (err: any) {
+      toast.error(`Erro ao salvar: ${err.message}`);
+    }
+  }, [process, updateProcess]);
+
+  const debouncedSave = useDebouncedCallback((blocksToSave: ProcessBlock[]) => {
+    saveBlocks(blocksToSave);
   }, 1500);
 
   const updateBlocksAndSave = useCallback((updater: (prevBlocks: ProcessBlock[]) => ProcessBlock[]) => {
-    hasUnsavedChanges.current = true;
-    setBlocks(updater);
-    debouncedSave();
+    setBlocks(prev => {
+      const newBlocks = updater(prev);
+      hasUnsavedChanges.current = true;
+      debouncedSave(newBlocks);
+      return newBlocks;
+    });
   }, [debouncedSave]);
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges.current) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+  
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      if (hasUnsavedChanges.current && blocks.length > 0) {
+        saveBlocks(blocks);
+      }
+    };
+  }, [blocks, saveBlocks]);
 
   const addBlock = useCallback((type: ProcessBlock['type'], index: number) => {
     const newBlock: ProcessBlock = { id: crypto.randomUUID(), type, content: '', data: { checked: false } };
@@ -288,7 +350,7 @@ export const ProcessoEditor = () => {
 
         return newBlocks;
       });
-    } else if (e.key === 'Backspace' && e.currentTarget.innerHTML === '' && blocksRef.current.length > 1) {
+    } else if (e.key === 'Backspace' && e.currentTarget.innerHTML === '' && blocks.length > 1) {
       e.preventDefault();
       updateBlocksAndSave(currentBlocks => {
         const currentIndex = currentBlocks.findIndex(b => b.id === id);
@@ -311,7 +373,7 @@ export const ProcessoEditor = () => {
         return currentBlocks;
       });
     }
-  }, [updateBlocksAndSave]);
+  }, [updateBlocksAndSave, blocks]);
 
   const handleSelectSlashCommand = (type: ProcessBlock['type']) => {
     if (!slashMenuBlockId) return;
