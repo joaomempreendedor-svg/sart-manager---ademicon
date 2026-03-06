@@ -634,15 +634,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return { totalCalls, totalConversations, totalMeetingsScheduled, conversationToMeetingRate };
   }, [coldCallLogs]);
 
-  const createCrmLeadFromColdCall = useCallback(async (coldCallLeadId: string, meeting?: { date?: string; time?: string; modality?: string; notes?: string }, coldCallResult?: ColdCallResult) => {
+  const createCrmLeadFromColdCall = useCallback(async (coldCallLeadId: string, meeting?: { date?: string; time?: string; modality?: string; notes?: string }, coldCallResultParam?: ColdCallResult) => {
     if (!user) throw new Error("User not authenticated.");
+    
+    console.log("[AppContext] coldCallResultParam received:", coldCallResultParam); // ADDED LOG
+
     const { data, error } = await supabase.functions.invoke('create-crm-lead-from-cold-call', { body: {
       coldCallLeadId,
       meetingDate: meeting?.date,
       meetingTime: meeting?.time,
       meetingModality: meeting?.modality,
       meetingNotes: meeting?.notes,
-      coldCallResult: coldCallResult // Pass coldCallResult to the Edge Function
+      coldCallResult: coldCallResultParam // Pass coldCallResult to the Edge Function
     } });
     if (error) throw error;
     if (data.error) throw new Error(data.error);
@@ -657,7 +660,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     })) || []);
     const { data: newLeadTasks } = await supabase.from('lead_tasks').select('*');
     setLeadTasks(newLeadTasks || []);
-    return { crmLeadId: data.crmLeadId };
+    return { crmLeadId: data.crmCrmLeadId };
   }, [user, parseDbCurrency]);
 
   // Lead tasks
@@ -1747,15 +1750,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     deleteColdCallLead,
     addColdCallLog,
     getColdCallMetrics,
-    createCrmLeadFromColdCall: useCallback(async (coldCallLeadId: string, meeting?: { date?: string; time?: string; modality?: string; notes?: string }, coldCallResult?: ColdCallResult) => {
+    createCrmLeadFromColdCall: useCallback(async (coldCallLeadId: string, meeting?: { date?: string; time?: string; modality?: string; notes?: string }, coldCallResultParam?: ColdCallResult) => {
       if (!user) throw new Error("User not authenticated.");
+      
+      console.log("[AppContext] coldCallResultParam received:", coldCallResultParam); // ADDED LOG
+
       const { data, error } = await supabase.functions.invoke('create-crm-lead-from-cold-call', { body: {
         coldCallLeadId,
         meetingDate: meeting?.date,
         meetingTime: meeting?.time,
         meetingModality: meeting?.modality,
         meetingNotes: meeting?.notes,
-        coldCallResult: coldCallResult // Pass coldCallResult to the Edge Function
+        coldCallResult: coldCallResultParam // Pass coldCallResult to the Edge Function
       } });
       if (error) throw error;
       if (data.error) throw new Error(data.error);
@@ -1766,7 +1772,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         id: lead.id, consultant_id: lead.consultant_id, stage_id: lead.stage_id, user_id: lead.user_id, name: lead.name, data: lead.data,
         created_at: lead.created_at, updated_at: lead.updated_at, created_by: lead.created_by, updated_by: lead.updated_by,
         proposal_value: parseDbCurrency(lead.proposal_value), proposal_closing_date: lead.proposal_closing_date,
-        sold_credit_value: parseDbCurrency(lead.sold_credit_value), sold_group: lead.sold_group, sold_quota: lead.sold_quota, sale_date: lead.sale_date
+        sold_credit_value: parseDbCurrency(lead.sold_credit_value), sold_group: data.sold_group, sold_quota: data.sold_quota, sale_date: data.sale_date
       })) || []);
       const { data: newLeadTasks } = await supabase.from('lead_tasks').select('*');
       setLeadTasks(newLeadTasks || []);
