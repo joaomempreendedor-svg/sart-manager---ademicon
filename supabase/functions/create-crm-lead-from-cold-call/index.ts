@@ -16,6 +16,8 @@ serve(async (req) => {
   try {
     const { coldCallLeadId, meetingDate, meetingTime, meetingModality, meetingNotes, coldCallResult } = await req.json();
 
+    console.log("[Edge Function] Received request:", { coldCallLeadId, coldCallResult, meetingDate, meetingTime });
+
     if (!coldCallLeadId) {
       return new Response(JSON.stringify({ error: 'Cold Call Lead ID é obrigatório.' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -52,9 +54,11 @@ serve(async (req) => {
     if (!activePipeline) throw new Error(`Nenhum pipeline de CRM ativo encontrado. Configure um nas configurações do CRM.`);
 
     let targetStageId: string | null = null;
+    console.log(`[Edge Function] Active Pipeline ID: ${activePipeline.id}`);
 
-    // Lógica para determinar a etapa do CRM com base no coldCallResult
+    // Prioridade 1: "Demonstrou Interesse" stage if coldCallResult matches
     if (coldCallResult === 'Demonstrou Interesse') {
+      console.log("[Edge Function] coldCallResult is 'Demonstrou Interesse'. Searching for 'interesse' stage.");
       const { data: interestStage, error: interestStageError } = await supabaseAdmin
         .from('crm_stages')
         .select('id, name, order_index')
@@ -70,11 +74,15 @@ serve(async (req) => {
         console.error("[Edge Function] Erro ao buscar etapa de interesse:", interestStageError);
       } else if (interestStage) {
         targetStageId = interestStage.id;
+        console.log(`[Edge Function] Found 'interesse' stage: ${interestStage.name} (ID: ${interestStage.id})`);
+      } else {
+        console.log("[Edge Function] No 'interesse' stage found.");
       }
     }
     
-    // Se não encontrou etapa de interesse ou o resultado é 'Agendar Reunião', procura por etapa de reunião
+    // Prioridade 2: "Reunião" stage if meeting details exist AND no interest stage was found
     if (!targetStageId && meetingDate && meetingTime) {
+      console.log("[Edge Function] No 'interesse' stage found or coldCallResult is not 'Demonstrou Interesse', but meeting details exist. Searching for 'reunião' stage.");
       const { data: meetingStage, error: meetingStageError } = await supabaseAdmin
         .from('crm_stages')
         .select('id, name, order_index')
@@ -90,14 +98,18 @@ serve(async (req) => {
         console.error("[Edge Function] Erro ao buscar etapa de reunião:", meetingStageError);
       } else if (meetingStage) {
         targetStageId = meetingStage.id;
+        console.log(`[Edge Function] Found 'reunião' stage: ${meetingStage.name} (ID: ${meetingStage.id})`);
+      } else {
+        console.log("[Edge Function] No 'reunião' stage found.");
       }
     }
 
-    // Se ainda não encontrou uma etapa específica, usa a primeira etapa ativa do pipeline
+    // Prioridade 3: Fallback to the first active stage if no specific stage was found
     if (!targetStageId) {
+      console.log("[Edge Function] No specific stage found. Falling back to the first active stage.");
       const { data: firstActiveStage, error: stageError } = await supabaseAdmin
         .from('crm_stages')
-        .select('id')
+        .select('id, name')
         .eq('pipeline_id', activePipeline.id)
         .eq('is_active', true)
         .order('order_index', { ascending: true })
@@ -106,6 +118,7 @@ serve(async (req) => {
       if (stageError) throw stageError;
       if (!firstActiveStage) throw new Error(`Nenhuma etapa ativa encontrada no pipeline. Configure etapas nas configurações do CRM.`);
       targetStageId = firstActiveStage.id;
+      console.log(`[Edge Function] Selected first active stage: ${firstActiveStage.name} (ID: ${firstActiveStage.id})`);
     }
 
     // Criar o Lead no CRM
@@ -131,6 +144,7 @@ serve(async (req) => {
 
     if (crmLeadError) throw crmLeadError;
     if (!newCrmLead) throw new Error(`Falha ao criar Lead no CRM principal.`);
+    console.log(`[Edge Function] New CRM Lead created with ID: ${newCrmLead.id}`);
 
     // Se houver data/horário de reunião, criar tarefa de reunião
     if (meetingDate && meetingTime) {
@@ -158,6 +172,8 @@ serve(async (req) => {
       if (meetingTaskError) {
         console.error("[Edge Function] Erro ao criar tarefa de reunião:", meetingTaskError);
         // não aborta a criação do lead
+      } else {
+        console.log("[Edge Function] Meeting task created for the new CRM Lead.");
       }
     }
 
@@ -168,6 +184,7 @@ serve(async (req) => {
       .eq('id', coldCallLeadId);
 
     if (updateColdCallLeadError) throw updateColdCallLeadError;
+    console.log(`[Edge Function] Cold Call Lead ${coldCallLeadId} updated with crm_lead_id: ${newCrmLead.id}`);
 
     return new Response(JSON.stringify({ message: 'Lead criado no CRM principal e vinculado com sucesso!', crmLeadId: newCrmLead.id }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
