@@ -14,7 +14,7 @@ serve(async (req) => {
   }
 
   try {
-    const { coldCallLeadId, meetingDate, meetingTime, meetingModality, meetingNotes } = await req.json();
+    const { coldCallLeadId, meetingDate, meetingTime, meetingModality, meetingNotes, coldCallResult } = await req.json();
 
     if (!coldCallLeadId) {
       return new Response(JSON.stringify({ error: 'Cold Call Lead ID é obrigatório.' }), {
@@ -51,10 +51,30 @@ serve(async (req) => {
     if (pipelineError) throw pipelineError;
     if (!activePipeline) throw new Error(`Nenhum pipeline de CRM ativo encontrado. Configure um nas configurações do CRM.`);
 
-    // Se houver reunião, tentar encontrar uma etapa de reunião
     let targetStageId: string | null = null;
 
-    if (meetingDate && meetingTime) {
+    // Lógica para determinar a etapa do CRM com base no coldCallResult
+    if (coldCallResult === 'Demonstrou Interesse') {
+      const { data: interestStage, error: interestStageError } = await supabaseAdmin
+        .from('crm_stages')
+        .select('id, name, order_index')
+        .eq('user_id', JOAO_GESTOR_AUTH_ID)
+        .eq('pipeline_id', activePipeline.id)
+        .eq('is_active', true)
+        .ilike('name', '%interesse%') // Procura por 'interesse' no nome da etapa
+        .order('order_index', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      if (interestStageError) {
+        console.error("[Edge Function] Erro ao buscar etapa de interesse:", interestStageError);
+      } else if (interestStage) {
+        targetStageId = interestStage.id;
+      }
+    }
+    
+    // Se não encontrou etapa de interesse ou o resultado é 'Agendar Reunião', procura por etapa de reunião
+    if (!targetStageId && meetingDate && meetingTime) {
       const { data: meetingStage, error: meetingStageError } = await supabaseAdmin
         .from('crm_stages')
         .select('id, name, order_index')
@@ -67,14 +87,13 @@ serve(async (req) => {
         .maybeSingle();
 
       if (meetingStageError) {
-        // não aborta; apenas loga
         console.error("[Edge Function] Erro ao buscar etapa de reunião:", meetingStageError);
       } else if (meetingStage) {
         targetStageId = meetingStage.id;
       }
     }
 
-    // Se não encontramos etapa de reunião, usar a primeira etapa ativa do pipeline
+    // Se ainda não encontrou uma etapa específica, usa a primeira etapa ativa do pipeline
     if (!targetStageId) {
       const { data: firstActiveStage, error: stageError } = await supabaseAdmin
         .from('crm_stages')
