@@ -24,6 +24,7 @@ import toast from 'react-hot-toast';
 import { useApp } from '@/context/AppContext';
 import { useNavigate } from 'react-router-dom';
 
+const COLD_CALL_STAGES: ColdCallStage[] = ['Base Fria', 'Tentativa de Contato', 'Conversou', 'Reunião Agendada'];
 const COLD_CALL_RESULTS: ColdCallResult[] = ['Não atendeu', 'Número inválido', 'Sem interesse', 'Pedir retorno', 'Conversou', 'Demonstrou Interesse', 'Agendar Reunião'];
 const MEETING_MODALITIES = ['Online', 'Presencial', 'Telefone'];
 
@@ -157,7 +158,7 @@ export const ColdCallLogModal: React.FC<ColdCallLogModalProps> = ({
 
       let newStageValue: ColdCallLead['current_stage'] = lead.current_stage;
       if (callResult === 'Agendar Reunião') newStageValue = 'Reunião Agendada';
-      else if (callResult === 'Demonstrou Interesse') newStageValue = 'Demonstrou Interesse';
+      else if (callResult === 'Demonstrou Interesse') newStageValue = 'Conversou'; // Changed to 'Conversou' as 'Demonstrou Interesse' is not a stage
       else if (callResult === 'Conversou') newStageValue = 'Conversou';
       else if (callResult === 'Pedir retorno' || callResult === 'Não atendeu' || callResult === 'Número inválido' || callResult === 'Sem interesse') newStageValue = 'Tentativa de Contato';
 
@@ -189,10 +190,11 @@ export const ColdCallLogModal: React.FC<ColdCallLogModalProps> = ({
         // Atualiza o nome do lead antes de enviar ao CRM
         await onUpdateLeadStage(lead.id, { name: contactName.trim() });
         // Envia ao CRM com data/horário
+        console.log("[ColdCallLogModal] Calling onCreateCrmLeadFromColdCall with coldCallResult:", callResult); // ADDED LOG HERE
         onCreateCrmLeadFromColdCall(
           { ...lead, name: contactName.trim() },
           { date: meetingDate || undefined, time: meetingTime || undefined, modality: meetingModality || undefined, notes: meetingNotes || undefined },
-          callResult as ColdCallResult // Passa o coldCallResult
+          callResult as ColdCallResult // Pass the coldCallResult
         );
         onClose();
       } catch (e: any) {
