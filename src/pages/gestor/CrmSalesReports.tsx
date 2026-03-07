@@ -240,20 +240,6 @@ const CrmSalesReports = () => {
           }
         }
       }
-
-      // NOVO: Lógica para No-Show
-      const hasScheduledMeeting = leadTasks.some(task => 
-        task.lead_id === lead.id && 
-        task.type === 'meeting' && 
-        task.meeting_start_time && 
-        new Date(task.meeting_start_time) >= new Date(filterStartDate + 'T00:00:00') &&
-        new Date(task.meeting_start_time) <= new Date(filterEndDate + 'T23:59:59')
-      );
-
-      if (hasScheduledMeeting && lead.status === 'Faltou') { // Assuming 'Faltou' is the status for no-show
-        noShowLeadsCount++;
-        leadsNoShow.push(lead);
-      }
     });
 
     leadTasks.forEach(task => {
@@ -281,6 +267,27 @@ const CrmSalesReports = () => {
         }
       }
     });
+
+    // NOVO: Lógica para calcular leads No-Show
+    // Um lead é No-Show se teve uma reunião agendada no período E sua etapa atual é uma etapa marcada como is_no_show
+    const noShowStageIds = new Set(crmStages.filter(s => s.is_no_show).map(s => s.id));
+    const leadsWithScheduledMeetingsInPeriod = filteredLeads.filter(lead => 
+      leadTasks.some(task => 
+        task.lead_id === lead.id && 
+        task.type === 'meeting' && 
+        task.meeting_start_time && 
+        new Date(task.meeting_start_time) >= new Date(filterStartDate + 'T00:00:00') &&
+        new Date(task.meeting_start_time) <= new Date(filterEndDate + 'T23:59:59')
+      )
+    );
+
+    leadsWithScheduledMeetingsInPeriod.forEach(lead => {
+      if (noShowStageIds.has(lead.stage_id)) {
+        noShowLeadsCount++;
+        leadsNoShow.push(lead);
+      }
+    });
+
 
     const performanceList = Object.values(dataByConsultant).map(c => {
       const conversionRate = c.proposalsSent > 0 ? (c.salesClosed / c.proposalsSent) * 100 : 0;

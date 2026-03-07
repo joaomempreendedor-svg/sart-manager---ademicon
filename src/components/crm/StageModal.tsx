@@ -16,6 +16,7 @@ const StageModal: React.FC<StageModalProps> = ({ isOpen, onClose, stage, pipelin
   const [name, setName] = useState('');
   const [isWon, setIsWon] = useState(false);
   const [isLost, setIsLost] = useState(false);
+  const [isNoShow, setIsNoShow] = useState(false); // NOVO: Estado para isNoShow
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -23,10 +24,12 @@ const StageModal: React.FC<StageModalProps> = ({ isOpen, onClose, stage, pipelin
       setName(stage.name);
       setIsWon(stage.is_won);
       setIsLost(stage.is_lost);
+      setIsNoShow(stage.is_no_show || false); // NOVO: Inicializa isNoShow
     } else {
       setName('');
       setIsWon(false);
       setIsLost(false);
+      setIsNoShow(false); // NOVO: Inicializa isNoShow
     }
   }, [stage, isOpen]);
 
@@ -36,7 +39,7 @@ const StageModal: React.FC<StageModalProps> = ({ isOpen, onClose, stage, pipelin
     setIsSaving(true);
     try {
       if (stage) {
-        await updateCrmStage(stage.id, { name, is_won: isWon, is_lost: isLost });
+        await updateCrmStage(stage.id, { name, is_won: isWon, is_lost: isLost, is_no_show: isNoShow }); // NOVO: Inclui isNoShow
       } else {
         await addCrmStage({
           pipeline_id: pipelineId,
@@ -45,6 +48,7 @@ const StageModal: React.FC<StageModalProps> = ({ isOpen, onClose, stage, pipelin
           is_active: true,
           is_won: isWon,
           is_lost: isLost,
+          is_no_show: isNoShow, // NOVO: Inclui isNoShow
         });
       }
       onClose();
@@ -80,6 +84,12 @@ const StageModal: React.FC<StageModalProps> = ({ isOpen, onClose, stage, pipelin
               <label className="flex items-center space-x-2 cursor-pointer">
                 <input type="checkbox" checked={isLost} onChange={e => setIsLost(e.target.checked)} className="h-4 w-4 rounded" />
                 <span>Marcar como etapa de "Perdida"</span>
+              </label>
+            </div>
+            <div className="flex items-center space-x-4"> {/* NOVO: Checkbox para isNoShow */}
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <input type="checkbox" checked={isNoShow} onChange={e => setIsNoShow(e.target.checked)} className="h-4 w-4 rounded" />
+                <span>Marcar como etapa de "No-Show"</span>
               </label>
             </div>
           </div>
