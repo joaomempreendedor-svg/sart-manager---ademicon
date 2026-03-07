@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { LeadTask, CrmLead } from '@/types';
-import { X, Plus, CalendarPlus, CheckCircle2, Circle, Edit2, Trash2, Loader2, MessageSquare, Clock, Save } from 'lucide-react';
+import { X, Plus, CalendarPlus, CheckCircle2, Circle, Edit2, Trash2, Loader2, MessageSquare, Clock, Save, CalendarCheck, Link as LinkIcon } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -16,7 +16,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ScheduleMeetingModal } from './ScheduleMeetingModal'; // RE-ADDED: ScheduleMeetingModal
+import { ScheduleMeetingModal } from './ScheduleMeetingModal';
+import toast from 'react-hot-toast';
+import { MessageViewerModal } from '@/components/MessageViewerModal'; // Importar MessageViewerModal
 
 interface LeadTasksModalProps {
   isOpen: boolean;
@@ -27,7 +29,7 @@ interface LeadTasksModalProps {
 
 export const LeadTasksModal: React.FC<LeadTasksModalProps> = ({ isOpen, onClose, lead, highlightedTaskId }) => {
   const { user } = useAuth();
-  const { leadTasks, addLeadTask, updateLeadTask, deleteLeadTask, toggleLeadTaskCompletion } = useApp();
+  const { leadTasks, addLeadTask, updateLeadTask, deleteLeadTask, toggleLeadTaskCompletion, templates, toggleLeadCadenceStepCompletion } = useApp(); // NOVO: Adicionado templates e toggleLeadCadenceStepCompletion
 
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskDescription, setNewTaskDescription] = useState('');
@@ -40,8 +42,11 @@ export const LeadTasksModal: React.FC<LeadTasksModalProps> = ({ isOpen, onClose,
   const [editTaskDueDate, setEditTaskDueDate] = useState('');
   const [isUpdatingTask, setIsUpdatingTask] = useState(false);
 
-  const [isEditMeetingModalOpen, setIsEditMeetingModalOpen] = useState(false); // RE-ADDED: Meeting modal state
-  const [editingMeeting, setEditingMeeting] = useState<LeadTask | null>(null); // RE-ADDED: Meeting to edit state
+  const [isEditMeetingModalOpen, setIsEditMeetingModalOpen] = useState(false);
+  const [editingMeeting, setEditingMeeting] = useState<LeadTask | null>(null);
+
+  const [isMessageViewerModalOpen, setIsMessageViewerModalOpen] = useState(false); // NOVO: Estado para o modal de visualização de mensagem
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null); // NOVO: ID do template selecionado
 
   const tasksForLead = leadTasks.filter(task => task.lead_id === lead.id).sort((a, b) => {
     if (a.is_completed !== b.is_completed) {
@@ -55,7 +60,7 @@ export const LeadTasksModal: React.FC<LeadTasksModalProps> = ({ isOpen, onClose,
     return 0;
   });
 
-  useEffect(() => { // RE-ADDED: Effect to open meeting modal
+  useEffect(() => {
     if (isOpen && highlightedTaskId) {
       const taskToHighlight = tasksForLead.find(task => task.id === highlightedTaskId);
       if (taskToHighlight && taskToHighlight.type === 'meeting') {
@@ -109,7 +114,6 @@ export const LeadTasksModal: React.FC<LeadTasksModalProps> = ({ isOpen, onClose,
         description: editTaskDescription.trim() || undefined,
         due_date: editTaskDueDate || undefined,
         user_id: editingTask.user_id,
-        // Removido manager_id
       });
       setEditingTask(null);
     } catch (error) {
@@ -156,9 +160,27 @@ export const LeadTasksModal: React.FC<LeadTasksModalProps> = ({ isOpen, onClose,
     window.open(url, '_blank');
   };
 
-  const handleEditMeeting = (meeting: LeadTask) => { // RE-ADDED: Meeting edit handler
+  const handleEditMeeting = (meeting: LeadTask) => {
     setEditingMeeting(meeting);
     setIsEditMeetingModalOpen(true);
+  };
+
+  // NOVO: Função para abrir o modal de visualização de mensagem
+  const handleOpenMessageViewer = (templateId: string) => {
+    setSelectedTemplateId(templateId);
+    setIsMessageViewerModalOpen(true);
+  };
+
+  // NOVO: Função para marcar um passo da cadência como concluído
+  const handleToggleCadenceStepCompletion = async (leadTaskId: string, stepId: string, is_completed: boolean) => {
+    if (!user) return;
+    try {
+      await toggleLeadCadenceStepCompletion(leadTaskId, stepId, !is_completed);
+      toast.success(`Passo da cadência ${!is_completed ? 'concluído' : 'reaberto'}!`);
+    } catch (error) {
+      console.error("Failed to toggle cadence step completion:", error);
+      toast.error("Erro ao atualizar status do passo da cadência.");
+    }
   };
 
   if (!isOpen) return null;
@@ -262,7 +284,7 @@ export const LeadTasksModal: React.FC<LeadTasksModalProps> = ({ isOpen, onClose,
                           ) : (
                             task.due_date && (
                               <span className="flex items-center">
-                                <Clock className="w-3 h-3 mr-1" /> {new Date(task.due_date + 'T00:00:00').toLocaleDateString('pt-BR')}
+                                <Clock className="w-3 h-3 mr-1" /> Vence: {new Date(task.due_date + 'T00:00:00').toLocaleDateString('pt-BR')}
                               </span>
                             )
                           )}
@@ -272,9 +294,53 @@ export const LeadTasksModal: React.FC<LeadTasksModalProps> = ({ isOpen, onClose,
                             </span>
                           )}
                         </div>
+
+                        {/* NOVO: Exibição dos passos da cadência */}
+                        {task.type === 'meeting' && task.cadence_steps && task.cadence_steps.length > 0 && (
+                          <div className="mt-3 pt-2 border-t border-gray-100 dark:border-slate-600 space-y-2">
+                            <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-300 flex items-center">
+                              <CalendarCheck className="w-3 h-3 mr-1" /> Cadência Anti-NoShow
+                            </h4>
+                            {task.cadence_steps.map(step => {
+                              const isOverdue = !step.is_completed && new Date(step.due_date + 'T00:00:00') < new Date(new Date().toISOString().split('T')[0] + 'T00:00:00');
+                              const isDueToday = !step.is_completed && step.due_date === new Date().toISOString().split('T')[0];
+                              return (
+                                <div key={step.id} className={`flex items-center justify-between text-xs p-2 rounded-md ${step.is_completed ? 'bg-green-50 dark:bg-green-900/20' : isOverdue ? 'bg-red-50 dark:bg-red-900/20' : isDueToday ? 'bg-yellow-50 dark:bg-yellow-900/20' : 'bg-gray-50 dark:bg-slate-700/50'}`}>
+                                  <label className="flex items-center space-x-2 cursor-pointer flex-1">
+                                    <input
+                                      type="checkbox"
+                                      checked={step.is_completed}
+                                      onChange={() => handleToggleCadenceStepCompletion(task.id, step.id, step.is_completed)}
+                                      className="h-3.5 w-3.5 rounded text-brand-600 focus:ring-brand-500 dark:bg-slate-600 dark:border-slate-500"
+                                    />
+                                    <span className={`${step.is_completed ? 'line-through text-gray-500 dark:text-gray-400' : isOverdue ? 'text-red-800 dark:text-red-200' : isDueToday ? 'text-yellow-800 dark:text-yellow-200' : 'text-gray-700 dark:text-gray-300'}`}>
+                                      {step.text}
+                                    </span>
+                                  </label>
+                                  <div className="flex items-center space-x-1">
+                                    <span className={`text-[10px] font-medium ${step.is_completed ? 'text-green-600 dark:text-green-400' : isOverdue ? 'text-red-600 dark:text-red-400' : isDueToday ? 'text-yellow-600 dark:text-yellow-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                                      {new Date(step.due_date + 'T00:00:00').toLocaleDateString('pt-BR')}
+                                    </span>
+                                    {step.resource_template_id && (
+                                      <Button 
+                                        variant="ghost" 
+                                        size="icon" 
+                                        onClick={(e) => { e.stopPropagation(); handleOpenMessageViewer(step.resource_template_id!); }}
+                                        className="p-1 text-gray-400 hover:text-blue-600"
+                                        title="Ver Mensagem/Recurso"
+                                      >
+                                        <LinkIcon className="w-3 h-3" />
+                                      </Button>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                       <div className="flex-shrink-0 flex items-center space-x-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity mt-2 sm:mt-0 flex-wrap justify-end">
-                        {task.type === 'meeting' && ( // RE-ADDED: Meeting edit button
+                        {task.type === 'meeting' && (
                           <Button variant="ghost" size="icon" onClick={() => handleEditMeeting(task)} className="text-gray-400 hover:text-purple-600" title="Editar Reunião">
                             <Edit2 className="w-4 h-4" />
                           </Button>
@@ -301,7 +367,7 @@ export const LeadTasksModal: React.FC<LeadTasksModalProps> = ({ isOpen, onClose,
           </div>
         </div>
 
-        {isEditMeetingModalOpen && editingMeeting && ( // RE-ADDED: Meeting modal render
+        {isEditMeetingModalOpen && editingMeeting && (
           <ScheduleMeetingModal
             isOpen={isEditMeetingModalOpen}
             onClose={() => {
@@ -311,6 +377,15 @@ export const LeadTasksModal: React.FC<LeadTasksModalProps> = ({ isOpen, onClose,
             }}
             lead={lead}
             currentMeeting={editingMeeting}
+          />
+        )}
+
+        {isMessageViewerModalOpen && selectedTemplateId && templates[selectedTemplateId] && (
+          <MessageViewerModal
+            isOpen={isMessageViewerModalOpen}
+            onClose={() => setIsMessageViewerModalOpen(false)}
+            candidateName={lead.name || 'Lead'} // Usar o nome do lead
+            template={templates[selectedTemplateId]}
           />
         )}
       </DialogContent>

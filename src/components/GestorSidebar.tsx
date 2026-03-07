@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, MessageSquare, Settings, FileText, Sun, Moon, Banknote, PlusCircle, Library, TrendingUp, Target, Users, LogOut, User as UserIcon, Star, Video, ListChecks, ClipboardCheck, UserPlus, ChevronLeft, ChevronRight, ChevronDown, UserSearch, BarChart3, MapPin, DollarSign, FileStack, UserCheck, Clock, Calendar, UsersRound, ListTodo, PieChart, PhoneCall, Search } from 'lucide-react';
+import { LayoutDashboard, MessageSquare, Settings, FileText, Sun, Moon, Banknote, PlusCircle, Library, TrendingUp, Target, Users, LogOut, User as UserIcon, Star, Video, ListChecks, ClipboardCheck, UserPlus, ChevronLeft, ChevronRight, ChevronDown, UserSearch, BarChart3, MapPin, DollarSign, FileStack, UserCheck, Clock, Calendar, UsersRound, ListTodo, PieChart, PhoneCall, Search, CalendarCheck } from 'lucide-react'; // NOVO: Adicionado CalendarCheck
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { UserRole } from '@/types'; // Importar UserRole
@@ -74,6 +74,7 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
     { to: `${baseRoute}/config-templates`, icon: MessageSquare, label: "Configurar Mensagens", roles: ['GESTOR', 'ADMIN'], section: 'config' },
     { to: `${baseRoute}/config-cutoff`, icon: Clock, label: "Períodos de Corte", roles: ['GESTOR', 'ADMIN'], section: 'config' },
     { to: `${baseRoute}/crm-config`, icon: PlusCircle, label: "Configurar CRM", roles: ['GESTOR', 'ADMIN'], section: 'config' },
+    { to: `${baseRoute}/config-noshow-cadence`, icon: CalendarCheck, label: "Config. Cadência NoShow", roles: ['GESTOR', 'ADMIN'], section: 'config' }, // NOVO: Link para a configuração da cadência
     // Adicionado SECRETARIA
     { to: `${baseRoute}/config-origins`, icon: MapPin, label: "Configurar Origens", roles: ['GESTOR', 'ADMIN', 'SECRETARIA'], section: 'config' },
     { to: `${baseRoute}/config-process`, icon: Settings, label: "Editar Processo (Antigo)", roles: ['GESTOR', 'ADMIN'], section: 'config' },

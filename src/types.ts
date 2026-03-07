@@ -321,6 +321,23 @@ export interface CrmLead {
   updated_at: string;
 }
 
+// NOVO: Interface para um passo da cadência anti-no-show
+export interface NoShowCadenceTemplateStep {
+  id: string;
+  text: string;
+  offset_days: number; // Dias antes (negativo) ou depois (positivo) da reunião. 0 = no dia.
+  resource_template_id?: string; // ID de um CommunicationTemplate para mensagem/recurso
+}
+
+export interface LeadCadenceStep {
+  id: string; // ID do passo do template
+  text: string;
+  due_date: string; // Data de vencimento calculada para esta instância
+  is_completed: boolean;
+  completed_at?: string;
+  resource_template_id?: string; // ID de um CommunicationTemplate
+}
+
 export interface LeadTask {
   id: string;
   db_id?: string;
@@ -338,6 +355,7 @@ export interface LeadTask {
   manager_id?: string;
   manager_invitation_status?: 'pending' | 'accepted' | 'declined';
   updated_at?: string;
+  cadence_steps?: LeadCadenceStep[]; // NOVO: Passos da cadência anti-no-show
 }
 
 export interface GestorTask {
@@ -548,6 +566,8 @@ export interface Process {
   type: string;
   created_at: string;
   updated_at: string;
+  file_url?: string;
+  file_type?: string;
 }
 
 export interface AppContextType {
@@ -595,6 +615,8 @@ export interface AppContextType {
   coldCallLogs: ColdCallLog[];   // NOVO
   processes: Process[]; // NOVO
   theme: 'light' | 'dark';
+  noShowCadenceTemplate: NoShowCadenceTemplateStep[]; // NOVO: Template de cadência anti-no-show
+  
   toggleTheme: () => void;
   addCandidate: (candidate: Omit<Candidate, 'id' | 'createdAt' | 'db_id'>) => Promise<Candidate>;
   getCandidate: (id: string) => Candidate | undefined;
@@ -708,14 +730,22 @@ export interface AppContextType {
   deleteColdCallLead: (id: string) => Promise<void>; // NOVO
   addColdCallLog: (log: Omit<ColdCallLog, 'id' | 'user_id' | 'created_at' | 'duration_seconds'> & { start_time: string; end_time: string; }) => Promise<ColdCallLog>; // NOVO
   getColdCallMetrics: (consultantId: string) => { totalCalls: number; totalConversations: number; totalMeetingsScheduled: number; conversationToMeetingRate: number; }; // NOVO
-  createCrmLeadFromColdCall: (coldCallLeadId: string, meeting?: { date?: string; time?: string; modality?: string; notes?: string }) => Promise<{ crmLeadId: string }>; // NOVO
+  createCrmLeadFromColdCall: (coldCallLeadId: string, meeting?: { date?: string; time?: string; modality?: string; notes?: string }, coldCallResult?: ColdCallResult) => Promise<{ crmLeadId: string }>; // NOVO
   addChecklistStage: (title: string, description: string) => void;
   updateChecklistStage: (stageId: string, updates: Partial<ChecklistStage>) => void;
   deleteChecklistStage: (stageId: string) => void;
   moveChecklistStage: (stageId: string, direction: 'up' | 'down') => void;
-  addProcess: (process: Omit<Process, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => Promise<Process>;
-  updateProcess: (id: string, updates: Partial<Process>) => Promise<Process>;
+  addProcess: (process: Omit<Process, 'id' | 'user_id' | 'created_at' | 'updated_at'>, file?: File | null) => Promise<Process>;
+  updateProcess: (id: string, updates: Partial<Process>, file?: File | null) => Promise<Process>;
   deleteProcess: (id: string) => Promise<void>;
+
+  // NOVO: Funções para gerenciar o template de cadência anti-no-show
+  addNoShowCadenceTemplateStep: (step: Omit<NoShowCadenceTemplateStep, 'id'>) => void;
+  updateNoShowCadenceTemplateStep: (id: string, updates: Partial<NoShowCadenceTemplateStep>) => void;
+  deleteNoShowCadenceTemplateStep: (id: string) => void;
+  moveNoShowCadenceTemplateStep: (id: string, direction: 'up' | 'down') => void;
+  resetNoShowCadenceTemplate: () => void;
+  toggleLeadCadenceStepCompletion: (leadTaskId: string, stepId: string, is_completed: boolean) => Promise<void>; // NOVO
 }
 
 export interface ColdCallMetrics { // NOVO: Interface para as métricas de Cold Call

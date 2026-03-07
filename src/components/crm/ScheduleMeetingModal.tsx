@@ -33,7 +33,7 @@ interface ScheduleMeetingModalProps {
 
 export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOpen, onClose, lead, currentMeeting }) => {
   const { user } = useAuth();
-  const { addLeadTask, updateLeadTask, teamMembers } = useApp();
+  const { addLeadTask, updateLeadTask, teamMembers, noShowCadenceTemplate } = useApp(); // NOVO: Adicionado noShowCadenceTemplate
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [meetingDate, setMeetingDate] = useState('');
@@ -44,7 +44,7 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
   const [error, setError] = useState('');
 
   const managers = useMemo(() => {
-    return teamMembers.filter(m => m.isActive && m.roles.includes('Gestor'));
+    return teamMembers.filter(m => m.isActive && m.roles.includes('GESTOR'));
   }, [teamMembers]);
 
   useEffect(() => {
@@ -91,6 +91,19 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
 
     setIsSaving(true);
     try {
+      // NOVO: Gerar passos da cadência anti-no-show
+      const cadenceSteps = noShowCadenceTemplate.map(templateStep => {
+        const stepDueDate = new Date(startDateTime);
+        stepDueDate.setDate(startDateTime.getDate() + templateStep.offset_days);
+        return {
+          id: templateStep.id,
+          text: templateStep.text,
+          due_date: stepDueDate.toISOString().split('T')[0],
+          is_completed: false,
+          resource_template_id: templateStep.resource_template_id,
+        };
+      });
+
       const taskData = {
         lead_id: lead.id,
         user_id: user.id, // Consultant who created the task
@@ -103,6 +116,7 @@ export const ScheduleMeetingModal: React.FC<ScheduleMeetingModalProps> = ({ isOp
         meeting_end_time: endDateTime.toISOString(),
         manager_id: managerId, // Manager invited to the meeting
         manager_invitation_status: managerId ? 'pending' as const : undefined,
+        cadence_steps: cadenceSteps, // NOVO: Adiciona os passos da cadência
       };
 
       if (currentMeeting) {
