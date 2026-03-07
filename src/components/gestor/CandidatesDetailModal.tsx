@@ -19,7 +19,7 @@ interface CandidatesDetailModalProps {
   title: string;
   candidates: Candidate[];
   teamMembers: TeamMember[];
-  metricType: 'total' | 'newCandidates' | 'contacted' | 'scheduled' | 'conducted' | 'awaitingPreview' | 'hired' | 'noShow' | 'withdrawn' | 'disqualified';
+  metricType: 'total' | 'newCandidates' | 'contacted' | 'scheduled' | 'conducted' | 'awaitingPreview' | 'hired' | 'noShow' | 'withdrawn' | 'disqualified' | 'noResponse';
 }
 
 export const CandidatesDetailModal: React.FC<CandidatesDetailModalProps> = ({

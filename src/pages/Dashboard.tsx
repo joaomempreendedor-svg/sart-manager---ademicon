@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { ChevronRight, User, Calendar, CheckCircle2, TrendingUp, AlertCircle, Clock, Users, Star, CheckSquare, XCircle, BellRing, UserRound, Plus, ListTodo, Send, DollarSign, Repeat, Filter, RotateCcw, CalendarPlus, Mail, Phone, ClipboardCheck, UserPlus, ArrowUpRight, UserCheck, PieChart, MessageSquare, UserX, UserMinus, Ghost, MapPin, BarChart3, FileText, Percent, HelpCircle, PhoneCall, CalendarCheck } from 'lucide-react';
+import { ChevronRight, User, Calendar, CheckCircle2, TrendingUp, AlertCircle, Clock, Users, Star, CheckSquare, XCircle, BellRing, UserRound, Plus, ListTodo, Send, DollarSign, Repeat, Filter, RotateCcw, CalendarPlus, Mail, Phone, ClipboardCheck, UserPlus, ArrowUpRight, UserCheck, PieChart, MessageSquare, UserX, UserMinus, Ghost, MapPin, BarChart3, FileText, Percent, HelpCircle, PhoneCall, CalendarCheck, Loader2 } from 'lucide-react';
 import { CandidateStatus, ChecklistTaskState, GestorTask, LeadTask, CrmLead, Candidate, ColdCallLead, ColdCallLog, ColdCallDetailType } from '@/types';
 import { TableSkeleton } from '@/components/TableSkeleton';
 import { ScheduleInterviewModal } from '@/components/ScheduleInterviewModal';
@@ -45,6 +45,7 @@ export const Dashboard = () => {
   const navigate = useNavigate();
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [isPendingTasksModalOpen, setIsPendingTasksModalOpen] = useState(false);
+  const [hasAutoOpened, setHasAutoOpened] = useState(false); // NOVO: Para abrir apenas uma vez
   const [isNotificationCenterOpen, setIsNotificationCenterOpen] = useState(false);
 
   const [isLeadsDetailModalOpen, setIsLeadsDetailModalOpen] = useState(false);
@@ -338,6 +339,14 @@ export const Dashboard = () => {
     return { todayAgenda: todayAgendaItems, overdueTasks: overdueItems };
   }, [candidates, checklistStructure, user, gestorTasks, gestorTaskCompletions, isGestorTaskDueOnDate]);
 
+  // NOVO: Abrir modal automaticamente se houver tarefas pendentes
+  useEffect(() => {
+    if (!isDataLoading && commercialMetrics?.pendingTasks && commercialMetrics.pendingTasks.length > 0 && !hasAutoOpened) {
+      setIsPendingTasksModalOpen(true);
+      setHasAutoOpened(true);
+    }
+  }, [isDataLoading, commercialMetrics?.pendingTasks, hasAutoOpened]);
+
   const handleAgendaItemClick = (item: AgendaItem) => {
     if (item.personType === 'candidate') navigate(`/gestor/candidate/${item.personId}`);
     else if (item.personType === 'lead') navigate(`/gestor/crm`, { state: { highlightLeadId: item.personId } });
@@ -395,13 +404,13 @@ export const Dashboard = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           <MetricCard
             title="Novos Leads"
-            value={commercialMetrics?.newLeads}
+            value={commercialMetrics?.newLeads ?? 0}
             icon={Plus}
             colorClass="bg-green-600 text-white"
           />
           <MetricCard
             title="Reuniões"
-            value={commercialMetrics?.meetingsCount}
+            value={commercialMetrics?.meetingsCount ?? 0}
             icon={Calendar}
             colorClass="bg-orange-600 text-white"
             onClick={() => handleOpenLeadsDetailModal('Reuniões do Mês', commercialMetrics?.leadsWithMeetings || [], 'meeting')}

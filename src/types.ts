@@ -193,7 +193,7 @@ export interface SupportMaterialAssignment {
   created_at: string;
 }
 
-export type TeamRole = 'PRÉVIA' | 'AUTORIZADO' | 'GESTOR' | 'ANJO' | 'SECRETARIA';
+export type TeamRole = 'PRÉVIA' | 'AUTORIZADO' | 'GESTOR' | 'ANJO' | 'SECRETARIA' | 'CONSULTOR';
 
 export interface TeamMember {
   id: string;

@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { TrendingUp, User, CheckCircle2, ListChecks, Target, CalendarDays, Loader2, Phone, Mail, Tag, Clock, AlertCircle, Plus, Calendar, DollarSign, Send, Users, ListTodo, CalendarCheck, ChevronRight } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
@@ -29,6 +29,7 @@ const ConsultorDashboard = () => {
   } = useApp();
 
   const [isPendingTasksModalOpen, setIsPendingTasksModalOpen] = useState(false); // NOVO: Estado para o modal
+  const [hasAutoOpened, setHasAutoOpened] = useState(false); // NOVO: Para abrir apenas uma vez
 
   const activePipeline = useMemo(() => {
     return crmPipelines.find(p => p.is_active) || crmPipelines[0];
@@ -229,6 +230,14 @@ const ConsultorDashboard = () => {
 
     return allTasks;
   }, [user, leadTasks, crmLeads]);
+
+  // NOVO: Abrir modal automaticamente se houver tarefas pendentes
+  useEffect(() => {
+    if (!isDataLoading && pendingLeadTasksCount > 0 && !hasAutoOpened) {
+      setIsPendingTasksModalOpen(true);
+      setHasAutoOpened(true);
+    }
+  }, [isDataLoading, pendingLeadTasksCount, hasAutoOpened]);
 
 
   if (isAuthLoading || isDataLoading) {
