@@ -192,6 +192,9 @@ const CrmSalesReports = () => {
     let totalMeetingsScheduledCount = 0; // NOVO: Contador para todas as reuniões agendadas
     let noShowLeadsCount = 0; // NOVO: Contador para leads No-Show
 
+    // Identificar as etapas de No-Show
+    const noShowStageIds = new Set(crmStages.filter(s => s.is_no_show).map(s => s.id));
+
     filteredLeads.forEach(lead => {
       const stage = crmStages.find(s => s.id === lead.stage_id);
       const isResolved = stage?.is_won || stage?.is_lost;
@@ -241,16 +244,8 @@ const CrmSalesReports = () => {
         }
       }
 
-      // NOVO: Lógica para No-Show
-      const hasScheduledMeeting = leadTasks.some(task => 
-        task.lead_id === lead.id && 
-        task.type === 'meeting' && 
-        task.meeting_start_time && 
-        new Date(task.meeting_start_time) >= new Date(filterStartDate + 'T00:00:00') &&
-        new Date(task.meeting_start_time) <= new Date(filterEndDate + 'T23:59:59')
-      );
-
-      if (hasScheduledMeeting && lead.status === 'Faltou') { // Assuming 'Faltou' is the status for no-show
+      // NOVO: Lógica para No-Show usando is_no_show da etapa
+      if (noShowStageIds.has(lead.stage_id)) {
         noShowLeadsCount++;
         leadsNoShow.push(lead);
       }
