@@ -716,8 +716,8 @@ export interface AppContextType {
   updateChecklistStage: (stageId: string, updates: Partial<ChecklistStage>) => void;
   deleteChecklistStage: (stageId: string) => void;
   moveChecklistStage: (stageId: string, direction: 'up' | 'down') => void;
-  addProcess: (process: Omit<Process, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => Promise<Process>;
-  updateProcess: (id: string, updates: Partial<Process>) => Promise<Process>;
+  addProcess: (process: Omit<Process, 'id' | 'user_id' | 'created_at' | 'updated_at'>, file?: File | null) => Promise<Process>;
+  updateProcess: (id: string, updates: Partial<Process>, file?: File | null) => Promise<Process>;
   deleteProcess: (id: string) => Promise<void>;
 }
 

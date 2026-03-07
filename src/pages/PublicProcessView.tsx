@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Process } from '@/types';
-import { Loader2, FileText, Image as ImageIcon, Download, Link as LinkIcon, AlertTriangle, TrendingUp } from 'lucide-react';
+import { Loader2, FileText, Image as ImageIcon, Download, Link as LinkIcon, AlertTriangle, TrendingUp, Video, Music } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import toast from 'react-hot-toast';
@@ -73,14 +73,51 @@ export const PublicProcessView = () => {
       return (
         <div className="mt-4 p-4 bg-gray-100 dark:bg-slate-700 rounded-lg flex flex-col items-center justify-center space-y-3">
           <img src={process.file_url} alt="Anexo" className="rounded-lg max-h-80 w-auto" />
-          <Button 
-            variant="outline" 
-            size="sm" 
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => handleDownloadFile(process.file_url!, fileName)}
             className="dark:bg-slate-600 dark:text-white dark:border-slate-500"
           >
             <Download className="w-4 h-4 mr-2" />
             Baixar Imagem
+          </Button>
+        </div>
+      );
+    }
+
+    if (process.file_type === 'video') {
+      return (
+        <div className="mt-4 p-4 bg-gray-100 dark:bg-slate-700 rounded-lg flex flex-col items-center justify-center space-y-3">
+          <video src={process.file_url} controls className="rounded-lg max-h-80 w-full" />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleDownloadFile(process.file_url!, fileName)}
+            className="dark:bg-slate-600 dark:text-white dark:border-slate-500"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Baixar Vídeo
+          </Button>
+        </div>
+      );
+    }
+
+    if (process.file_type === 'audio') {
+      return (
+        <div className="mt-4 p-4 bg-gray-100 dark:bg-slate-700 rounded-lg flex flex-col items-center justify-center space-y-3">
+          <div className="flex items-center space-x-3 w-full">
+            <Music className="w-8 h-8 text-purple-500" />
+            <audio src={process.file_url} controls className="flex-1" />
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleDownloadFile(process.file_url!, fileName)}
+            className="dark:bg-slate-600 dark:text-white dark:border-slate-500"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Baixar Áudio
           </Button>
         </div>
       );
@@ -98,9 +135,9 @@ export const PublicProcessView = () => {
               </a>
             </div>
           </div>
-          <Button 
-            variant="outline" 
-            size="sm" 
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => handleDownloadFile(process.file_url!, fileName)}
             className="dark:bg-slate-600 dark:text-white dark:border-slate-500"
           >

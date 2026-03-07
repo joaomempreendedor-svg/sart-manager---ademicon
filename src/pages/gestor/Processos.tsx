@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { Process } from '@/types';
-import { Loader2, FileText, Plus, Search, Edit2, Trash2, Eye, Filter, RotateCcw, CalendarDays } from 'lucide-react';
+import { Loader2, FileText, Plus, Search, Edit2, Trash2, Eye, Filter, RotateCcw, CalendarDays, Image as ImageIcon, Video, Music } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { ProcessModal } from '@/components/gestor/ProcessModal';
 import { ProcessViewModal } from '@/components/gestor/ProcessViewModal';
@@ -87,6 +87,17 @@ export const Processos = () => {
 
   const hasActiveFilters = searchTerm || filterStartDate || filterEndDate;
 
+  const getProcessIcon = (process: Process) => {
+    if (!process.file_url) return <FileText className="w-8 h-8 text-brand-500 mb-3" />;
+    
+    switch (process.file_type) {
+      case 'image': return <ImageIcon className="w-8 h-8 text-green-500 mb-3" />;
+      case 'video': return <Video className="w-8 h-8 text-blue-500 mb-3" />;
+      case 'audio': return <Music className="w-8 h-8 text-purple-500 mb-3" />;
+      default: return <FileText className="w-8 h-8 text-brand-500 mb-3" />;
+    }
+  };
+
   if (isDataLoading) {
     return (
       <div className="flex items-center justify-center h-full p-8">
@@ -156,16 +167,16 @@ export const Processos = () => {
             className="block bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm hover:shadow-lg hover:border-brand-500 transition-all group cursor-pointer"
           >
             <div className="flex justify-between items-start">
-              <FileText className="w-8 h-8 text-brand-500 mb-3" />
+              {getProcessIcon(process)}
               <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button 
+                <button
                   onClick={(e) => { e.stopPropagation(); handleOpenEditModal(process); }}
                   className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md"
                   title="Editar"
                 >
                   <Edit2 className="w-4 h-4" />
                 </button>
-                <button 
+                <button
                   onClick={(e) => handleDeleteProcess(e, process)}
                   className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md"
                   title="Excluir"

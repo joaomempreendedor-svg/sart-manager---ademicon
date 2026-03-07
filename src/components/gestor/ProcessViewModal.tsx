@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, FileText, Image as ImageIcon, Download, Link as LinkIcon, Copy, Check } from 'lucide-react';
+import { X, FileText, Image as ImageIcon, Download, Link as LinkIcon, Copy, Check, Video, Music } from 'lucide-react';
 import { Process } from '@/types';
 import {
   Dialog,
@@ -64,14 +64,51 @@ export const ProcessViewModal: React.FC<ProcessViewModalProps> = ({ isOpen, onCl
       return (
         <div className="mt-4 p-4 bg-gray-100 dark:bg-slate-700 rounded-lg flex flex-col items-center justify-center space-y-3">
           <img src={process.file_url} alt="Anexo" className="rounded-lg max-h-80 w-auto" />
-          <Button 
-            variant="outline" 
-            size="sm" 
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => handleDownloadFile(process.file_url!, fileName)}
             className="dark:bg-slate-600 dark:text-white dark:border-slate-500"
           >
             <Download className="w-4 h-4 mr-2" />
             Baixar Imagem
+          </Button>
+        </div>
+      );
+    }
+
+    if (process.file_type === 'video') {
+      return (
+        <div className="mt-4 p-4 bg-gray-100 dark:bg-slate-700 rounded-lg flex flex-col items-center justify-center space-y-3">
+          <video src={process.file_url} controls className="rounded-lg max-h-80 w-full" />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleDownloadFile(process.file_url!, fileName)}
+            className="dark:bg-slate-600 dark:text-white dark:border-slate-500"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Baixar Vídeo
+          </Button>
+        </div>
+      );
+    }
+
+    if (process.file_type === 'audio') {
+      return (
+        <div className="mt-4 p-4 bg-gray-100 dark:bg-slate-700 rounded-lg flex flex-col items-center justify-center space-y-3">
+          <div className="flex items-center space-x-3 w-full">
+            <Music className="w-8 h-8 text-purple-500" />
+            <audio src={process.file_url} controls className="flex-1" />
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleDownloadFile(process.file_url!, fileName)}
+            className="dark:bg-slate-600 dark:text-white dark:border-slate-500"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Baixar Áudio
           </Button>
         </div>
       );
@@ -89,9 +126,9 @@ export const ProcessViewModal: React.FC<ProcessViewModalProps> = ({ isOpen, onCl
               </a>
             </div>
           </div>
-          <Button 
-            variant="outline" 
-            size="sm" 
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => handleDownloadFile(process.file_url!, fileName)}
             className="dark:bg-slate-600 dark:text-white dark:border-slate-500"
           >

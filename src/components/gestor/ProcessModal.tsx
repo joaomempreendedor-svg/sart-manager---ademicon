@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Loader2, FileText, Type, MessageSquare, Upload, Image as ImageIcon, Trash2 } from 'lucide-react';
+import { X, Save, Loader2, FileText, Type, MessageSquare, Upload, Image as ImageIcon, Trash2, Video, Music } from 'lucide-react';
 import { Process } from '@/types';
 import {
   Dialog,
@@ -58,6 +58,13 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
     setRemoveFile(true);
   };
 
+  const getFileType = (file: File) => {
+    if (file.type.startsWith('image/')) return 'image';
+    if (file.type.startsWith('video/')) return 'video';
+    if (file.type.startsWith('audio/')) return 'audio';
+    return 'pdf';
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -75,7 +82,7 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
         content: content.trim(),
         type: 'Documento',
         file_url: removeFile ? undefined : existingFileUrl,
-        file_type: removeFile ? undefined : (selectedFile?.type.startsWith('image/') ? 'image' : 'pdf'),
+        file_type: removeFile ? undefined : (selectedFile ? getFileType(selectedFile) : process?.file_type),
       };
 
       if (process) {
@@ -93,6 +100,15 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
   };
 
   if (!isOpen) return null;
+
+  const getFileIcon = (type?: string) => {
+    switch (type) {
+      case 'image': return <ImageIcon className="w-4 h-4 text-green-500" />;
+      case 'video': return <Video className="w-4 h-4 text-blue-500" />;
+      case 'audio': return <Music className="w-4 h-4 text-purple-500" />;
+      default: return <FileText className="w-4 h-4 text-red-500" />;
+    }
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -149,11 +165,11 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
               </div>
             </div>
             <div>
-              <Label>Anexo (PDF ou Imagem)</Label>
+              <Label>Anexo (PDF, Imagem, Áudio ou Vídeo)</Label>
               {existingFileUrl && !selectedFile ? (
                 <div className="flex items-center justify-between p-2 bg-gray-100 dark:bg-slate-700 rounded-lg">
                   <div className="flex items-center space-x-2">
-                    {process?.file_type === 'image' ? <ImageIcon className="w-4 h-4 text-green-500" /> : <FileText className="w-4 h-4 text-red-500" />}
+                    {getFileIcon(process?.file_type)}
                     <span className="text-sm text-gray-700 dark:text-gray-300 truncate">{existingFileUrl.split('/').pop()}</span>
                   </div>
                   <Button type="button" variant="ghost" size="sm" onClick={handleRemoveFile} className="text-red-500 hover:text-red-700">
@@ -164,7 +180,7 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
                 <label className="flex items-center justify-center px-4 py-2 border border-gray-300 dark:border-slate-600 border-dashed rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/50 transition bg-white dark:bg-slate-700">
                   <Upload className="w-4 h-4 mr-2 text-gray-500" />
                   <span className="text-sm text-gray-600 dark:text-gray-300 truncate">{selectedFile ? selectedFile.name : 'Selecionar arquivo...'}</span>
-                  <input type="file" className="hidden" accept="image/*,application/pdf" onChange={handleFileChange} />
+                  <input type="file" className="hidden" accept="image/*,application/pdf,video/*,audio/*" onChange={handleFileChange} />
                 </label>
               )}
             </div>
