@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Loader2, TrendingUp, Users, Calendar, DollarSign, Send, ListTodo, Award, Filter, RotateCcw, UserRound, FileText, Download, Percent, MapPin, BarChart, PieChart, HelpCircle, CheckCircle2, Ticket, UserX } from 'lucide-react';
+import { Loader2, TrendingUp, Users, Calendar, DollarSign, Send, ListTodo, Award, Filter, RotateCcw, UserRound, FileText, Download, Percent, MapPin, BarChart, PieChart, HelpCircle, CheckCircle2, Ticket, UserX, PhoneCall } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -167,8 +167,8 @@ const CrmSalesReports = () => {
 
     let totalLeads = 0;
     let totalProposalValue = 0;
-    let totalSoldValue = 0;
     let totalProposalsCount = 0;
+    let totalSoldValue = 0;
     let totalSalesCount = 0;
     const leadsWithProposal: CrmLead[] = [];
     const leadsSold: CrmLead[] = [];
@@ -465,13 +465,35 @@ const CrmSalesReports = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {/* Reordered and new cards */}
         <MetricCard
           title="Total Leads"
           value={reportData.totalLeads}
           icon={Users}
           colorClass="bg-blue-600 text-white"
           onClick={() => handleOpenLeadsDetailModal('Total de Leads no Período', filteredLeads, 'all')}
+        />
+        <MetricCard
+          title="Reuniões Agendadas"
+          value={reportData.totalMeetingsScheduledCount}
+          icon={Calendar}
+          colorClass="bg-orange-600 text-white"
+          onClick={() => handleOpenMeetingsByOriginModal('Total de Reuniões Agendadas', reportData.leadsWithMeetings)}
+        />
+        <MetricCard
+          title="Leads com No-Show"
+          value={reportData.noShowLeadsCount}
+          icon={UserX}
+          colorClass="bg-red-600 text-white"
+          onClick={() => handleOpenNoShowDetailModal('Leads com No-Show', reportData.leadsNoShow)}
+        />
+        <MetricCard
+          title="Taxa de No-Show"
+          value={`${reportData.noShowRate.toFixed(1)}%`}
+          icon={Percent}
+          colorClass="bg-rose-600 text-white"
+          subValue={`${reportData.noShowLeadsCount} de ${reportData.totalMeetingsScheduledCount} reuniões`}
         />
         <MetricCard
           title="Total Propostas"
@@ -490,25 +512,15 @@ const CrmSalesReports = () => {
         <MetricCard
           title="Conversão"
           value={`${reportData.overallConversionRate.toFixed(1)}%`}
-          icon={Percent}
+          icon={TrendingUp}
           colorClass="bg-yellow-600 text-white"
         />
-        {/* NOVO: Card de Ticket Médio */}
         <MetricCard
           title="Ticket Médio"
           value={formatLargeCurrency(reportData.averageTicket)}
           icon={Ticket}
           colorClass="bg-brand-500 text-white"
           subValue="Valor médio por venda"
-        />
-        {/* NOVO: Card de Taxa de No-Show */}
-        <MetricCard
-          title="Taxa de No-Show"
-          value={`${reportData.noShowRate.toFixed(1)}%`}
-          icon={UserX}
-          colorClass="bg-red-600 text-white"
-          subValue={`${reportData.noShowLeadsCount} de ${reportData.totalMeetingsScheduledCount} reuniões`}
-          onClick={() => handleOpenNoShowDetailModal('Leads com No-Show', reportData.leadsNoShow)}
         />
       </div>
 
