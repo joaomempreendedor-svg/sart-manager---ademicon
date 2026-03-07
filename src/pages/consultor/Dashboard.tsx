@@ -26,10 +26,12 @@ import { useAuth } from '@/context/AuthContext';
 import { DailyChecklistItem, LeadTask } from '@/types';
 import { DailyChecklistDisplay } from '@/components/consultor/DailyChecklistDisplay';
 import { PendingLeadTasksModal } from '@/components/gestor/PendingLeadTasksModal';
-import { format, isBefore, isSameDay, parseISO, startOfDay } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import moment from 'moment';
+import 'moment/locale/pt-br';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+
+moment.locale('pt-br');
 
 const ConsultorDashboard = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -64,8 +66,7 @@ const ConsultorDashboard = () => {
 
   // --- CRM Statistics ---
   const stats = useMemo(() => {
-    const today = startOfDay(new Date());
-    const todayFormatted = today.toISOString().split('T')[0];
+    const today = moment().startOf('day');
 
     if (!user) return { 
       totalLeads: 0, 
@@ -81,15 +82,15 @@ const ConsultorDashboard = () => {
     const consultantLeads = crmLeads.filter(lead => lead.consultant_id === user.id && activeStageIds.has(lead.stage_id));
     const totalLeads = consultantLeads.length;
 
-    const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-    const currentMonthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    const currentMonthStart = moment().startOf('month');
+    const currentMonthEnd = moment().endOf('month');
 
-    const newLeadsThisMonth = consultantLeads.filter(lead => new Date(lead.created_at) >= currentMonthStart).length;
+    const newLeadsThisMonth = consultantLeads.filter(lead => moment(lead.created_at).isSameOrAfter(currentMonthStart)).length;
 
     const meetingsThisMonth = leadTasks.filter(task => {
       if (task.user_id !== user.id || task.type !== 'meeting') return false;
-      const taskDate = new Date(task.meeting_start_time || '');
-      return taskDate >= currentMonthStart && taskDate <= currentMonthEnd;
+      const taskDate = moment(task.meeting_start_time || '');
+      return taskDate.isBetween(currentMonthStart, currentMonthEnd, null, '[]');
     }).length;
 
     const proposalValueThisMonth = consultantLeads.reduce((sum, lead) => {
@@ -97,8 +98,8 @@ const ConsultorDashboard = () => {
       const isResolved = stage?.is_won || stage?.is_lost;
 
       if (lead.proposal_value && lead.proposal_value > 0 && lead.proposal_closing_date && !isResolved) {
-        const proposalDate = new Date(lead.proposal_closing_date + 'T00:00:00');
-        if (proposalDate >= currentMonthStart && proposalDate <= currentMonthEnd) {
+        const proposalDate = moment(lead.proposal_closing_date, 'YYYY-MM-DD');
+        if (proposalDate.isBetween(currentMonthStart, currentMonthEnd, null, '[]')) {
           return sum + (lead.proposal_value || 0);
         }
       }
@@ -107,8 +108,8 @@ const ConsultorDashboard = () => {
 
     const soldValueThisMonth = consultantLeads.reduce((sum, lead) => {
       if (lead.sold_credit_value && lead.sold_credit_value > 0 && lead.sale_date) {
-        const saleDate = new Date(lead.sale_date + 'T00:00:00');
-        if (saleDate >= currentMonthStart && saleDate <= currentMonthEnd) {
+        const saleDate = moment(lead.sale_date, 'YYYY-MM-DD');
+        if (saleDate.isBetween(currentMonthStart, currentMonthEnd, null, '[]')) {
           return sum + (lead.sold_credit_value || 0);
         }
       }
@@ -118,12 +119,12 @@ const ConsultorDashboard = () => {
     const pendingLeadTasksList = leadTasks
       .filter(task => task.user_id === user.id && !task.is_completed)
       .map(task => {
-        const dueDate = task.due_date ? startOfDay(parseISO(task.due_date)) : null;
+        const dueDate = task.due_date ? moment(task.due_date, 'YYYY-MM-DD').startOf('day') : null;
         let status: 'overdue' | 'today' | 'upcoming' = 'upcoming';
         
         if (dueDate) {
-          if (isBefore(dueDate, today)) status = 'overdue';
-          else if (isSameDay(dueDate, today)) status = 'today';
+          if (dueDate.isBefore(today)) status = 'overdue';
+          else if (dueDate.isSame(today)) status = 'today';
         }
         
         return { ...task, status };
@@ -154,8 +155,7 @@ const ConsultorDashboard = () => {
 
   // --- Daily Checklist Progress ---
   const { completedDailyTasks, totalDailyTasks, dailyProgress } = useMemo(() => {
-    const today = new Date();
-    const todayFormatted = today.toISOString().split('T')[0];
+    const todayFormatted = moment().format('YYYY-MM-DD');
 
     if (!user) return { completedDailyTasks: 0, totalDailyTasks: 0, dailyProgress: 0 };
 
@@ -189,21 +189,19 @@ const ConsultorDashboard = () => {
 
   // --- Weekly Goals ---
   const { activeWeeklyTarget, weeklyGoalsProgress } = useMemo(() => {
-    const today = new Date();
+    const today = moment();
 
     if (!user) return { activeWeeklyTarget: null, weeklyGoalsProgress: [] };
 
-    const currentWeekStart = new Date(today);
-    currentWeekStart.setDate(today.getDate() - today.getDay());
-    const currentWeekEnd = new Date(currentWeekStart);
-    currentWeekEnd.setDate(currentWeekStart.getDate() + 6);
+    const currentWeekStart = moment().startOf('week');
+    const currentWeekEnd = moment().endOf('week');
 
     const activeTarget = weeklyTargets.find(target => {
-      const targetStart = new Date(target.week_start);
-      const targetEnd = new Date(target.week_end);
+      const targetStart = moment(target.week_start);
+      const targetEnd = moment(target.week_end);
       return target.is_active &&
              weeklyTargetAssignments.some(assignment => assignment.weekly_target_id === target.id && assignment.consultant_id === user.id) &&
-             targetStart <= currentWeekEnd && targetEnd >= currentWeekStart;
+             targetStart.isSameOrBefore(currentWeekEnd) && targetEnd.isSameOrAfter(currentWeekStart);
     });
 
     if (!activeTarget) return { activeWeeklyTarget: null, weeklyGoalsProgress: [] };
@@ -216,8 +214,7 @@ const ConsultorDashboard = () => {
       const logs = metricLogs.filter(log => 
         log.consultant_id === user.id && 
         log.metric_key === item.metric_key &&
-        new Date(log.date) >= new Date(activeTarget.week_start) &&
-        new Date(log.date) <= new Date(activeTarget.week_end)
+        moment(log.date).isBetween(activeTarget.week_start, activeTarget.week_end, null, '[]')
       );
       const currentValue = logs.reduce((sum, log) => sum + log.value, 0);
       const isCompleted = currentValue >= item.target_value;
@@ -374,7 +371,7 @@ const ConsultorDashboard = () => {
                           {task.due_date && (
                             <span className={`flex items-center ${task.status === 'overdue' ? 'text-red-600 font-bold' : ''}`}>
                               <CalendarDays className="w-3 h-3 mr-1" /> 
-                              Vence: {format(parseISO(task.due_date), "dd/MM/yyyy", { locale: ptBR })}
+                              Vence: {moment(task.due_date, 'YYYY-MM-DD').format('DD/MM/YYYY')}
                             </span>
                           )}
                           {task.type === 'meeting' && (
@@ -426,7 +423,7 @@ const ConsultorDashboard = () => {
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center"><Target className="w-5 h-5 mr-2 text-green-500" />Metas da Semana ({activeWeeklyTarget.title})</h2>
               <span className="text-sm text-gray-500 dark:text-gray-400">
-                {new Date(activeWeeklyTarget.week_start).toLocaleDateString()} - {new Date(activeWeeklyTarget.week_end).toLocaleDateString()}
+                {moment(activeWeeklyTarget.week_start).format('DD/MM/YYYY')} - {moment(activeWeeklyTarget.week_end).format('DD/MM/YYYY')}
               </span>
             </div>
             <div className="space-y-4">
