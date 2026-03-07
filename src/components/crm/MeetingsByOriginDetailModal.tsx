@@ -12,6 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/context/AuthContext';
 
 interface MeetingsByOriginDetailModalProps {
   isOpen: boolean;
@@ -31,12 +32,14 @@ export const MeetingsByOriginDetailModal: React.FC<MeetingsByOriginDetailModalPr
   teamMembers,
 }) => {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   if (!isOpen) return null;
 
   const handleGoToLead = (leadId: string) => {
     onClose();
-    navigate(`/gestor/crm`, { state: { highlightLeadId: leadId } });
+    const baseRoute = user?.role === 'GESTOR' || user?.role === 'ADMIN' ? '/gestor' : '/consultor';
+    navigate(`${baseRoute}/crm`, { state: { highlightLeadId: leadId } });
   };
 
   return (

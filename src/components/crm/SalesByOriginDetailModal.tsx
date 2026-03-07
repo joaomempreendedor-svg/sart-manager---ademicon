@@ -12,6 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/context/AuthContext';
 
 interface SalesByOriginDetailModalProps {
   isOpen: boolean;
@@ -35,12 +36,14 @@ export const SalesByOriginDetailModal: React.FC<SalesByOriginDetailModalProps> =
   teamMembers,
 }) => {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   if (!isOpen) return null;
 
   const handleGoToLead = (leadId: string) => {
     onClose(); // Fecha o modal antes de navegar
-    navigate(`/gestor/crm`, { state: { highlightLeadId: leadId } }); // Navega para o CRM, pode adicionar um estado para destacar o lead
+    const baseRoute = user?.role === 'GESTOR' || user?.role === 'ADMIN' ? '/gestor' : '/consultor';
+    navigate(`${baseRoute}/crm`, { state: { highlightLeadId: leadId } }); // Navega para o CRM correto
   };
 
   return (

@@ -353,7 +353,13 @@ const ConsultorDashboard = () => {
                             {item.dueDate && <span className="flex items-center"><Calendar className="w-3 h-3 mr-1" /> Vence: {new Date(item.dueDate + 'T00:00:00').toLocaleDateString()}</span>}
                           </div>
                         </div>
-                        <Link to={`/consultor/crm`} className="text-brand-600 hover:text-brand-700 text-sm font-medium flex-shrink-0">Ver Lead <ChevronRight className="w-4 h-4 inline ml-1" /></Link>
+                        <Link
+                          to={`/consultor/crm`}
+                          state={{ highlightLeadId: item.personId }}
+                          className="text-brand-600 hover:text-brand-700 text-sm font-medium flex-shrink-0"
+                        >
+                          Ver Lead <ChevronRight className="w-4 h-4 inline ml-1" />
+                        </Link>
                       </div>
                     </li>
                   ))}

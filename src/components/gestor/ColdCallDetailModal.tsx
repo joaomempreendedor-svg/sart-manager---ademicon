@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ColdCallLead, ColdCallLog, TeamMember, ColdCallDetailType } from '@/types';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/context/AuthContext';
 import toast from 'react-hot-toast';
 
 interface ColdCallDetailModalProps {
@@ -40,6 +41,7 @@ export const ColdCallDetailModal: React.FC<ColdCallDetailModalProps> = ({
   filterEndDate,
 }) => {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const filteredItems = useMemo(() => {
     const start = filterStartDate ? new Date(filterStartDate + 'T00:00:00') : null;
@@ -87,12 +89,14 @@ export const ColdCallDetailModal: React.FC<ColdCallDetailModalProps> = ({
 
   const handleGoToColdCallLead = (leadId: string) => {
     onClose();
-    navigate('/consultor/cold-call', { state: { highlightLeadId: leadId } });
+    const baseRoute = user?.role === 'GESTOR' || user?.role === 'ADMIN' ? '/gestor' : '/consultor';
+    navigate(`${baseRoute}/cold-call`, { state: { highlightLeadId: leadId } });
   };
 
   const handleGoToCrmLead = (crmLeadId: string) => {
     onClose();
-    navigate('/consultor/crm', { state: { highlightLeadId: crmLeadId } });
+    const baseRoute = user?.role === 'GESTOR' || user?.role === 'ADMIN' ? '/gestor' : '/consultor';
+    navigate(`${baseRoute}/crm`, { state: { highlightLeadId: crmLeadId } });
   };
 
   return (

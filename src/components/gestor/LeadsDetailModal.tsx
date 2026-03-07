@@ -46,7 +46,8 @@ export const LeadsDetailModal: React.FC<LeadsDetailModalProps> = ({
 
   const handleGoToLead = (leadId: string) => {
     onClose(); // Fecha o modal antes de navegar
-    navigate(`/gestor/crm`, { state: { highlightLeadId: leadId } }); // Navega para o CRM, pode adicionar um estado para destacar o lead
+    const baseRoute = user?.role === 'GESTOR' || user?.role === 'ADMIN' ? '/gestor' : '/consultor';
+    navigate(`${baseRoute}/crm`, { state: { highlightLeadId: leadId } }); // Navega para o CRM correto
   };
 
   const getConsultantName = (lead: CrmLead) => {

@@ -32,7 +32,8 @@ export const PendingLeadTasksModal: React.FC<PendingLeadTasksModalProps> = ({ is
 
   const handleGoToLead = (leadId: string) => {
     onClose(); // Fecha o modal antes de navegar
-    navigate(`/gestor/crm`, { state: { highlightLeadId: leadId } }); // Navega para o CRM
+    const baseRoute = user?.role === 'GESTOR' || user?.role === 'ADMIN' ? '/gestor' : '/consultor';
+    navigate(`${baseRoute}/crm`, { state: { highlightLeadId: leadId } }); // Navega para o CRM correto
   };
 
   const getConsultantName = (userId: string) => {

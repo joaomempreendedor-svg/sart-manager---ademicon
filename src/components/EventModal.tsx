@@ -219,7 +219,8 @@ export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, event, 
   const handleGoToLead = () => {
     if (eventLead?.id) {
       onClose();
-      navigate(`/gestor/crm`, { state: { highlightLeadId: eventLead.id } });
+      const baseRoute = user?.role === 'GESTOR' || user?.role === 'ADMIN' ? '/gestor' : '/consultor';
+      navigate(`${baseRoute}/crm`, { state: { highlightLeadId: eventLead.id } });
     }
   };
 
