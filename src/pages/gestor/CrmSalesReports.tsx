@@ -56,7 +56,6 @@ const CrmSalesReports = () => {
   const [isMeetingsByOriginModalOpen, setIsMeetingsByOriginModalOpen] = useState(false);
   const [selectedOriginDataForMeetings, setSelectedOriginDataForMeetings] = useState<{ originName: string; leads: CrmLead[] } | null>(null);
 
-  // NOVO: Estados para o modal de No-Show
   const [isNoShowDetailModalOpen, setIsNoShowDetailModalOpen] = useState(false);
   const [noShowLeadsForModal, setNoShowLeadsForModal] = useState<CrmLead[]>([]);
 
@@ -172,7 +171,8 @@ const CrmSalesReports = () => {
     let totalSalesCount = 0;
     const leadsWithProposal: CrmLead[] = [];
     const leadsSold: CrmLead[] = [];
-    const leadsNoShow: CrmLead[] = []; // NOVO: Lista de leads No-Show
+    const leadsNoShow: CrmLead[] = [];
+    const leadsWithMeetings: CrmLead[] = []; // NOVO: Lista para armazenar leads com reuniões
 
     const pipelineStageSummary: { [key: string]: { name: string; count: number; totalValue: number; } } = {};
     pipelineStages.forEach(stage => {
@@ -189,10 +189,9 @@ const CrmSalesReports = () => {
       meetingsByOrigin[origin] = { count: 0, leads: [] };
     });
 
-    let totalMeetingsScheduledCount = 0; // NOVO: Contador para todas as reuniões agendadas
-    let noShowLeadsCount = 0; // NOVO: Contador para leads No-Show
+    let totalMeetingsScheduledCount = 0;
+    let noShowLeadsCount = 0;
 
-    // Identificar as etapas de No-Show
     const noShowStageIds = new Set(crmStages.filter(s => s.is_no_show).map(s => s.id));
 
     filteredLeads.forEach(lead => {
@@ -244,7 +243,6 @@ const CrmSalesReports = () => {
         }
       }
 
-      // NOVO: Lógica para No-Show usando is_no_show da etapa
       if (noShowStageIds.has(lead.stage_id)) {
         noShowLeadsCount++;
         leadsNoShow.push(lead);
@@ -255,13 +253,18 @@ const CrmSalesReports = () => {
       if (task.type === 'meeting') {
         const lead = filteredLeads.find(l => l.id === task.lead_id);
         if (lead) {
-          // Check if the meeting date is within the filter range
           const meetingDate = new Date(task.meeting_start_time || '');
           const start = new Date(filterStartDate + 'T00:00:00');
           const end = new Date(filterEndDate + 'T23:59:59');
 
           if (meetingDate >= start && meetingDate <= end) {
-            totalMeetingsScheduledCount++; // Increment total meetings scheduled
+            totalMeetingsScheduledCount++;
+            
+            // Adiciona à lista geral de leads com reuniões no período
+            if (!leadsWithMeetings.some(l => l.id === lead.id)) {
+              leadsWithMeetings.push(lead);
+            }
+
             const consultantId = lead.consultant_id || lead.created_by;
             if (consultantId && dataByConsultant[consultantId]) {
               dataByConsultant[consultantId].meetingsScheduled++;
@@ -282,8 +285,8 @@ const CrmSalesReports = () => {
       return { ...c, conversionRate };
     }).sort((a, b) => b.soldValue - a.soldValue);
 
-    const averageTicket = totalSalesCount > 0 ? totalSoldValue / totalSalesCount : 0; // NOVO: Ticket Médio
-    const noShowRate = totalMeetingsScheduledCount > 0 ? (noShowLeadsCount / totalMeetingsScheduledCount) * 100 : 0; // NOVO: Taxa de No-Show
+    const averageTicket = totalSalesCount > 0 ? totalSoldValue / totalSalesCount : 0;
+    const noShowRate = totalMeetingsScheduledCount > 0 ? (noShowLeadsCount / totalMeetingsScheduledCount) * 100 : 0;
 
     return {
       totalLeads,
@@ -296,11 +299,12 @@ const CrmSalesReports = () => {
       meetingsByOrigin: Object.entries(meetingsByOrigin).map(([origin, data]) => ({ origin, ...data })).filter(o => o.count > 0).sort((a, b) => b.count - a.count),
       leadsWithProposal,
       leadsSold,
-      averageTicket, // NOVO
-      noShowRate, // NOVO
-      noShowLeadsCount, // NOVO
-      leadsNoShow, // NOVO
-      totalMeetingsScheduledCount, // NOVO
+      averageTicket,
+      noShowRate,
+      noShowLeadsCount,
+      leadsNoShow,
+      leadsWithMeetings, // Retornando a lista populada
+      totalMeetingsScheduledCount,
     };
   }, [filteredLeads, leadTasks, allTeamMembers, crmStages, pipelineStages, salesOrigins, filterStartDate, filterEndDate]);
 
@@ -369,7 +373,6 @@ const CrmSalesReports = () => {
     setIsMeetingsByOriginModalOpen(true);
   };
 
-  // NOVO: Handler para abrir o modal de detalhes de No-Show
   const handleOpenNoShowDetailModal = (title: string, leads: CrmLead[]) => {
     setLeadsModalTitle(title);
     setNoShowLeadsForModal(leads);
@@ -461,7 +464,6 @@ const CrmSalesReports = () => {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {/* Reordered and new cards */}
         <MetricCard
           title="Total Leads"
           value={reportData.totalLeads}
@@ -532,7 +534,7 @@ const CrmSalesReports = () => {
                   <span className="font-bold text-green-600 dark:text-green-400">{formatCurrency(origin.soldValue)} ({origin.count})</span>
                 </div>
                 <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-1.5">
-                  <div className="bg-green-500 h-1.5 rounded-full" style={{ width: `${(origin.soldValue / reportData.totalSoldValue) * 100}%` }}></div>
+                  <div className="bg-green-50 h-1.5 rounded-full" style={{ width: `${(origin.soldValue / reportData.totalSoldValue) * 100}%` }}></div>
                 </div>
               </button>
             ))}
@@ -630,7 +632,6 @@ const CrmSalesReports = () => {
           teamMembers={allTeamMembers}
         />
       )}
-      {/* NOVO: Modal de Detalhes de No-Show */}
       <LeadsDetailModal
         isOpen={isNoShowDetailModalOpen}
         onClose={() => setIsNoShowDetailModalOpen(false)}
@@ -638,7 +639,7 @@ const CrmSalesReports = () => {
         leads={noShowLeadsForModal}
         crmStages={crmStages}
         teamMembers={allTeamMembers}
-        metricType="meeting" // Pode ser 'meeting' ou um novo tipo 'no_show' se houver necessidade de diferenciação visual
+        metricType="meeting"
       />
     </div>
   );

@@ -26,7 +26,7 @@ export const MeetingsByOriginDetailModal: React.FC<MeetingsByOriginDetailModalPr
   isOpen,
   onClose,
   originName,
-  leads,
+  leads = [], // Proteção: valor padrão vazio
   crmStages,
   teamMembers,
 }) => {
@@ -45,7 +45,7 @@ export const MeetingsByOriginDetailModal: React.FC<MeetingsByOriginDetailModalPr
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
             <Calendar className="w-6 h-6 text-brand-500" />
-            <span>Reuniões da Origem: {originName} ({leads.length})</span>
+            <span>Reuniões da Origem: {originName} ({leads?.length || 0})</span>
           </DialogTitle>
           <DialogDescription>
             Lista de leads que tiveram reuniões agendadas e vieram da origem "{originName}".
@@ -53,7 +53,7 @@ export const MeetingsByOriginDetailModal: React.FC<MeetingsByOriginDetailModalPr
         </DialogHeader>
 
         <ScrollArea className="max-h-[70vh] py-4 pr-4 custom-scrollbar">
-          {leads.length === 0 ? (
+          {!leads || leads.length === 0 ? (
             <p className="text-center text-gray-500 dark:text-gray-400 py-4">Nenhuma reunião encontrada para esta origem.</p>
           ) : (
             <div className="space-y-3">
