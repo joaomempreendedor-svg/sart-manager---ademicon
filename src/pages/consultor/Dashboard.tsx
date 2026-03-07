@@ -1,13 +1,35 @@
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { TrendingUp, User, CheckCircle2, ListChecks, Target, CalendarDays, Loader2, Phone, Mail, Tag, Clock, AlertCircle, Plus, Calendar, DollarSign, Send, Users, ListTodo, CalendarCheck, ChevronRight } from 'lucide-react';
+import { 
+  TrendingUp, 
+  User, 
+  CheckCircle2, 
+  ListChecks, 
+  Target, 
+  Loader2, 
+  AlertCircle, 
+  Plus, 
+  Calendar, 
+  DollarSign, 
+  Send, 
+  Users, 
+  ListTodo, 
+  ChevronRight,
+  Clock,
+  Square,
+  CheckSquare,
+  CalendarDays,
+  Timer
+} from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { DailyChecklistItem, WeeklyTargetItem, MetricLog, LeadTask } from '@/types'; // Importar LeadTask
-import { TableSkeleton } from '@/components/TableSkeleton';
-import { ScheduleInterviewModal } from '@/components/ScheduleInterviewModal';
+import { DailyChecklistItem, LeadTask } from '@/types';
 import { DailyChecklistDisplay } from '@/components/consultor/DailyChecklistDisplay';
-import { PendingLeadTasksModal } from '@/components/gestor/PendingLeadTasksModal'; // NOVO: Importar o modal
+import { PendingLeadTasksModal } from '@/components/gestor/PendingLeadTasksModal';
+import { format, isBefore, isSameDay, parseISO, startOfDay } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const ConsultorDashboard = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -24,11 +46,12 @@ const ConsultorDashboard = () => {
     weeklyTargetAssignments,
     metricLogs,
     leadTasks,
-    teamMembers, // NOVO: Adicionar teamMembers para o modal
+    teamMembers,
+    toggleLeadTaskCompletion,
     isDataLoading 
   } = useApp();
 
-  const [isPendingTasksModalOpen, setIsPendingTasksModalOpen] = useState(false); // NOVO: Estado para o modal
+  const [isPendingTasksModalOpen, setIsPendingTasksModalOpen] = useState(false);
 
   const activePipeline = useMemo(() => {
     return crmPipelines.find(p => p.is_active) || crmPipelines[0];
@@ -40,38 +63,35 @@ const ConsultorDashboard = () => {
   }, [crmStages, activePipeline]);
 
   // --- CRM Statistics ---
-  const { 
-    totalLeads, 
-    newLeadsThisMonth, 
-    meetingsThisMonth, 
-    proposalValueThisMonth, 
-    soldValueThisMonth, 
-    pendingLeadTasks, // Agora é a lista de tarefas
-    pendingLeadTasksCount // NOVO: Contagem para o card
-  } = useMemo(() => {
-    const today = new Date();
+  const stats = useMemo(() => {
+    const today = startOfDay(new Date());
     const todayFormatted = today.toISOString().split('T')[0];
 
-    if (!user) return { totalLeads: 0, newLeadsThisMonth: 0, meetingsThisMonth: 0, proposalValueThisMonth: 0, soldValueThisMonth: 0, pendingLeadTasks: [], pendingLeadTasksCount: 0 };
+    if (!user) return { 
+      totalLeads: 0, 
+      newLeadsThisMonth: 0, 
+      meetingsThisMonth: 0, 
+      proposalValueThisMonth: 0, 
+      soldValueThisMonth: 0, 
+      pendingLeadTasks: [], 
+      pendingLeadTasksCount: 0,
+      overdueTasksCount: 0
+    };
 
-    // CORREÇÃO: Filtra apenas leads que pertencem ao pipeline ativo
     const consultantLeads = crmLeads.filter(lead => lead.consultant_id === user.id && activeStageIds.has(lead.stage_id));
     const totalLeads = consultantLeads.length;
 
     const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
     const currentMonthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
 
-    // Novos Leads do Mês
     const newLeadsThisMonth = consultantLeads.filter(lead => new Date(lead.created_at) >= currentMonthStart).length;
 
-    // Reuniões Agendadas no Mês (RE-ADDED: meetingsThisMonth calculation)
     const meetingsThisMonth = leadTasks.filter(task => {
       if (task.user_id !== user.id || task.type !== 'meeting') return false;
       const taskDate = new Date(task.meeting_start_time || '');
       return taskDate >= currentMonthStart && taskDate <= currentMonthEnd;
     }).length;
 
-    // Valor de Propostas Enviadas no Mês
     const proposalValueThisMonth = consultantLeads.reduce((sum, lead) => {
       const stage = crmStages.find(s => s.id === lead.stage_id);
       const isResolved = stage?.is_won || stage?.is_lost;
@@ -85,7 +105,6 @@ const ConsultorDashboard = () => {
       return sum;
     }, 0);
 
-    // Valor Vendido no Mês
     const soldValueThisMonth = consultantLeads.reduce((sum, lead) => {
       if (lead.sold_credit_value && lead.sold_credit_value > 0 && lead.sale_date) {
         const saleDate = new Date(lead.sale_date + 'T00:00:00');
@@ -96,21 +115,30 @@ const ConsultorDashboard = () => {
       return sum;
     }, 0);
 
-    // NOVO: Tarefas Pendentes (Hoje/Atrasadas) - AGORA RETORNA A LISTA DE TAREFAS
-    const pendingLeadTasksList: LeadTask[] = leadTasks.filter(task => {
-      if (task.user_id !== user.id || task.is_completed) return false;
-      if (!task.due_date) return false;
-      
-      const taskDueDate = new Date(task.due_date + 'T00:00:00');
-      const todayDate = new Date(todayFormatted + 'T00:00:00');
+    const pendingLeadTasksList = leadTasks
+      .filter(task => task.user_id === user.id && !task.is_completed)
+      .map(task => {
+        const dueDate = task.due_date ? startOfDay(parseISO(task.due_date)) : null;
+        let status: 'overdue' | 'today' | 'upcoming' = 'upcoming';
+        
+        if (dueDate) {
+          if (isBefore(dueDate, today)) status = 'overdue';
+          else if (isSameDay(dueDate, today)) status = 'today';
+        }
+        
+        return { ...task, status };
+      })
+      .sort((a, b) => {
+        const statusPriority = { overdue: 0, today: 1, upcoming: 2 };
+        if (statusPriority[a.status] !== statusPriority[b.status]) {
+          return statusPriority[a.status] - statusPriority[b.status];
+        }
+        if (!a.due_date) return 1;
+        if (!b.due_date) return -1;
+        return a.due_date.localeCompare(b.due_date);
+      });
 
-      return taskDueDate <= todayDate;
-    }).sort((a, b) => {
-      if (!a.due_date && !b.due_date) return 0;
-      if (!a.due_date) return 1;
-      if (!b.due_date) return -1;
-      return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
-    });
+    const overdueTasksCount = pendingLeadTasksList.filter(t => t.status === 'overdue').length;
 
     return { 
       totalLeads, 
@@ -118,8 +146,9 @@ const ConsultorDashboard = () => {
       meetingsThisMonth, 
       proposalValueThisMonth, 
       soldValueThisMonth,
-      pendingLeadTasks: pendingLeadTasksList, // Retorna a lista
-      pendingLeadTasksCount: pendingLeadTasksList.length // Retorna a contagem
+      pendingLeadTasks: pendingLeadTasksList,
+      pendingLeadTasksCount: pendingLeadTasksList.length,
+      overdueTasksCount
     };
   }, [user, crmLeads, crmPipelines, crmStages, leadTasks, activeStageIds]);
 
@@ -203,34 +232,6 @@ const ConsultorDashboard = () => {
     return { activeWeeklyTarget: activeTarget, weeklyGoalsProgress: progress };
   }, [user, weeklyTargets, weeklyTargetItems, weeklyTargetAssignments, metricLogs]);
 
-  // --- Consultant's Tasks ---
-  const allConsultantTasks = useMemo(() => {
-    if (!user) return [];
-
-    const consultantTasks = leadTasks.filter(task => task.user_id === user.id);
-
-    const allTasks = consultantTasks
-      .filter(task => !task.is_completed && task.type === 'task')
-      .map(task => ({
-        id: task.id,
-        type: 'task',
-        title: task.title,
-        personName: crmLeads.find(l => l.id === task.lead_id)?.name || 'Lead Desconhecido',
-        personId: task.lead_id,
-        personType: 'lead',
-        dueDate: task.due_date || '',
-      }))
-      .sort((a, b) => {
-        if (!a.dueDate && !b.dueDate) return 0;
-        if (!a.dueDate) return 1;
-        if (!b.dueDate) return -1;
-        return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
-      });
-
-    return allTasks;
-  }, [user, leadTasks, crmLeads]);
-
-
   if (isAuthLoading || isDataLoading) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-theme(spacing.16))]">
@@ -240,170 +241,225 @@ const ConsultorDashboard = () => {
   }
 
   return (
-    <div className="p-4 sm:p-8 max-w-7xl mx-auto">
-      <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Olá, {user?.name.split(' ')[0]}!</h1>
+    <div className="p-4 sm:p-8 max-w-7xl mx-auto bg-gray-50 dark:bg-slate-900 min-h-screen">
+      <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Olá, {user?.name.split(' ')[0]}! 👋</h1>
       <p className="text-gray-500 dark:text-gray-400 mb-8">Bem-vindo ao seu Dashboard. Aqui estão suas principais informações e atalhos.</p>
       
-        <div className="animate-fade-in">
-          {/* CRM Statistics */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
-              <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                <TrendingUp className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Total de Leads</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{totalLeads}</p>
-              </div>
+      <div className="animate-fade-in space-y-8">
+        {/* CRM Statistics */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
+            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+              <TrendingUp className="w-6 h-6 text-blue-600 dark:text-blue-400" />
             </div>
-            
-            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
-              <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                <Plus className="w-6 h-6 text-green-600 dark:text-green-400" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Novos Leads (Mês)</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{newLeadsThisMonth}</p>
-              </div>
+            <div>
+              <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Total de Leads</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.totalLeads}</p>
             </div>
-            
-            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
-              <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
-                <Calendar className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Reuniões Mês</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{meetingsThisMonth}</p>
-              </div>
+          </div>
+          
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
+            <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+              <Plus className="w-6 h-6 text-green-600 dark:text-green-400" />
             </div>
-
-            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
-              <div className="p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg">
-                <Send className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Propostas Mês</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(proposalValueThisMonth || 0)}</p>
-              </div>
+            <div>
+              <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Novos Leads (Mês)</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.newLeadsThisMonth}</p>
             </div>
-
-            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
-              <div className="p-3 bg-teal-50 dark:bg-teal-900/20 rounded-lg">
-                <DollarSign className="w-6 h-6 text-teal-600 dark:text-teal-400" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Vendido Mês</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(soldValueThisMonth || 0)}</p>
-              </div>
+          </div>
+          
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
+            <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+              <Calendar className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
             </div>
-
-            <button 
-              onClick={() => {
-                console.log("[ConsultorDashboard] Tarefas Pendentes card clicked!");
-                setIsPendingTasksModalOpen(true);
-              }} // NOVO: Abre o modal
-              className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition cursor-pointer"
-            >
-              <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
-                <ListTodo className="w-6 h-6 text-red-600 dark:text-red-400" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Tarefas Pendentes</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{pendingLeadTasksCount}</p> {/* NOVO: Usa a contagem */}
-              </div>
-            </button>
+            <div>
+              <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Reuniões Mês</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.meetingsThisMonth}</p>
+            </div>
           </div>
 
-          {/* Daily Checklist Progress */}
-          <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm mb-8">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center"><ListChecks className="w-5 h-5 mr-2 text-brand-500" />Progresso das Metas Diárias</h2>
-              <span className="text-sm font-semibold text-gray-500 dark:text-gray-400">{completedDailyTasks}/{totalDailyTasks} Concluídas</span>
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
+            <div className="p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg">
+              <Send className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
             </div>
-            <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2.5">
-              <div className="bg-brand-500 h-2.5 rounded-full transition-all duration-500" style={{ width: `${dailyProgress}%` }}></div>
+            <div>
+              <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Propostas Mês</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(stats.proposalValueThisMonth || 0)}</p>
             </div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">{dailyProgress}% do seu checklist de hoje está completo.</p>
           </div>
 
-          {/* Daily Checklist Display - NOVO */}
-          <div className="mb-8">
-            <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center mb-4"><ListChecks className="w-5 h-5 mr-2 text-brand-500" />Metas Diárias</h2>
-            <DailyChecklistDisplay user={user} isDataLoading={isDataLoading} />
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
+            <div className="p-3 bg-teal-50 dark:bg-teal-900/20 rounded-lg">
+              <DollarSign className="w-6 h-6 text-teal-600 dark:text-teal-400" />
+            </div>
+            <div>
+              <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Vendido Mês</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(stats.soldValueThisMonth || 0)}</p>
+            </div>
           </div>
 
-          {/* Minhas Tarefas */}
-          <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl shadow-sm flex flex-col mb-8">
-            <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700 flex items-center space-x-2 bg-blue-50 dark:bg-blue-900/20 rounded-t-xl">
+          <div className={`bg-white dark:bg-slate-800 p-6 rounded-xl border shadow-sm flex items-center space-x-4 ${stats.overdueTasksCount > 0 ? 'border-red-200 dark:border-red-900/50' : 'border-gray-200 dark:border-slate-700'}`}>
+            <div className={`p-3 rounded-lg ${stats.overdueTasksCount > 0 ? 'bg-red-50 dark:bg-red-900/20' : 'bg-gray-50 dark:bg-slate-700/50'}`}>
+              <ListTodo className={`w-6 h-6 ${stats.overdueTasksCount > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-gray-400'}`} />
+            </div>
+            <div>
+              <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Tarefas Pendentes</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.pendingLeadTasksCount}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Minhas Tarefas - PRIORIZADO E DESTACADO */}
+        <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl shadow-sm flex flex-col">
+          <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 rounded-t-xl">
+            <div className="flex items-center space-x-2">
               <ListTodo className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-              <h2 className="text-lg font-semibold text-blue-800 dark:text-blue-300">Minhas Tarefas ({allConsultantTasks.length})</h2>
+              <h2 className="text-lg font-semibold text-blue-800 dark:text-blue-300">Minhas Tarefas ({stats.pendingLeadTasksCount})</h2>
             </div>
-            <div className="flex-1 p-0 overflow-y-auto max-h-80 custom-scrollbar">
-              {allConsultantTasks.length === 0 ? (
-                <div className="p-6 text-center text-gray-400">Nenhuma tarefa pendente.</div>
+            {stats.overdueTasksCount > 0 && (
+              <Badge variant="destructive" className="animate-pulse">
+                {stats.overdueTasksCount} Vencidas
+              </Badge>
+            )}
+          </div>
+          
+          <ScrollArea className="h-[400px]">
+            <div className="p-4 space-y-3">
+              {stats.pendingLeadTasks.length === 0 ? (
+                <div className="text-center py-12 text-gray-400">Tudo em dia! Nenhuma tarefa pendente.</div>
               ) : (
-                <ul className="divide-y divide-gray-100 dark:divide-slate-700">
-                  {allConsultantTasks.map((item) => (
-                    <li key={item.id} className="p-4 hover:bg-blue-50 dark:hover:bg-blue-900/10 transition">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <p className="text-sm font-medium text-gray-900 dark:text-gray-200">{item.title}</p>
-                          <div className="flex flex-col sm:flex-row sm:items-center text-xs text-gray-500 dark:text-gray-400 mt-1 space-y-1 sm:space-y-0 sm:space-x-2">
-                            <span className="flex items-center"><User className="w-3 h-3 mr-1" /> Lead: <span className="font-semibold ml-1">{item.personName}</span></span>
-                            {item.dueDate && <span className="flex items-center"><Calendar className="w-3 h-3 mr-1" /> Vence: {new Date(item.dueDate + 'T00:00:00').toLocaleDateString()}</span>}
+                stats.pendingLeadTasks.map((task) => (
+                  <div 
+                    key={task.id}
+                    className={`group p-4 rounded-xl border transition-all duration-200 ${
+                      task.status === 'overdue' 
+                        ? 'bg-red-50/50 dark:bg-red-900/10 border-red-200 dark:border-red-800/50 hover:border-red-300' 
+                        : task.status === 'today'
+                        ? 'bg-orange-50/50 dark:bg-orange-900/10 border-orange-200 dark:border-orange-800/50 hover:border-orange-300'
+                        : 'bg-white dark:bg-slate-800 border-gray-100 dark:border-slate-700 hover:border-brand-200'
+                    }`}
+                  >
+                    <div className="flex items-start gap-4">
+                      <button 
+                        onClick={() => toggleLeadTaskCompletion(task.id, true)}
+                        className={`mt-1 flex-shrink-0 transition-colors ${
+                          task.status === 'overdue' ? 'text-red-400 hover:text-red-600' : 'text-gray-300 hover:text-brand-500'
+                        }`}
+                      >
+                        <Square className="w-5 h-5" />
+                      </button>
+                      
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <h3 className={`font-semibold truncate ${
+                            task.status === 'overdue' ? 'text-red-900 dark:text-red-200' : 'text-gray-900 dark:text-white'
+                          }`}>
+                            {task.title}
+                          </h3>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            {task.status === 'overdue' && (
+                              <Badge variant="destructive" className="text-[10px] uppercase tracking-wider">Vencida</Badge>
+                            )}
+                            {task.status === 'today' && (
+                              <Badge className="bg-orange-500 hover:bg-orange-600 text-[10px] uppercase tracking-wider">Hoje</Badge>
+                            )}
                           </div>
                         </div>
-                        <Link to={`/consultor/crm`} className="text-brand-600 hover:text-brand-700 text-sm font-medium flex-shrink-0">Ver Lead <ChevronRight className="w-4 h-4 inline ml-1" /></Link>
+                        
+                        <div className="flex flex-col sm:flex-row sm:items-center text-xs text-gray-500 dark:text-gray-400 mt-1 space-y-1 sm:space-y-0 sm:space-x-4">
+                          <span className="flex items-center">
+                            <User className="w-3 h-3 mr-1" /> 
+                            Lead: <span className="font-semibold ml-1">{crmLeads.find(l => l.id === task.lead_id)?.name || 'Lead Desconhecido'}</span>
+                          </span>
+                          {task.due_date && (
+                            <span className={`flex items-center ${task.status === 'overdue' ? 'text-red-600 font-bold' : ''}`}>
+                              <CalendarDays className="w-3 h-3 mr-1" /> 
+                              Vence: {format(parseISO(task.due_date), "dd/MM/yyyy", { locale: ptBR })}
+                            </span>
+                          )}
+                          {task.type === 'meeting' && (
+                            <span className="flex items-center text-brand-600 dark:text-brand-400">
+                              <Timer className="w-3 h-3 mr-1" /> Reunião
+                            </span>
+                          )}
+                        </div>
+                        
+                        <div className="mt-3 flex justify-end">
+                          <Link 
+                            to={`/consultor/crm`} 
+                            state={{ highlightLeadId: task.lead_id }}
+                            className="text-xs font-medium text-brand-600 hover:underline flex items-center"
+                          >
+                            Ver Lead <ChevronRight className="w-3 h-3 ml-0.5" />
+                          </Link>
+                        </div>
                       </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
-
-          {/* Weekly Goals */}
-          {activeWeeklyTarget && weeklyGoalsProgress.length > 0 && (
-            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm mb-8">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center"><Target className="w-5 h-5 mr-2 text-green-500" />Metas da Semana ({activeWeeklyTarget.title})</h2>
-                <span className="text-sm text-gray-500 dark:text-gray-400">
-                  {new Date(activeWeeklyTarget.week_start).toLocaleDateString()} - {new Date(activeWeeklyTarget.week_end).toLocaleDateString()}
-                </span>
-              </div>
-              <div className="space-y-4">
-                {weeklyGoalsProgress.map(goal => (
-                  <div key={goal.id} className="flex items-center space-x-3">
-                    <div className={`w-5 h-5 rounded-full flex items-center justify-center ${goal.isCompleted ? 'bg-green-500 text-white' : 'bg-gray-200 dark:bg-slate-700 text-gray-500'}`}>
-                      {goal.isCompleted ? <CheckCircle2 className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
-                    </div>
-                    <div className="flex-1">
-                      <p className={`text-sm font-medium ${goal.isCompleted ? 'text-gray-500 line-through' : 'text-gray-900 dark:text-white'}`}>{goal.label}</p>
-                      <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-1.5 mt-1">
-                        <div className="bg-blue-500 h-1.5 rounded-full" style={{ width: `${goal.progressPercent}%` }}></div>
-                      </div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        {goal.currentValue} / {goal.target_value} ({Math.round(goal.progressPercent)}%)
-                      </p>
                     </div>
                   </div>
-                ))}
-              </div>
+                ))
+              )}
             </div>
-          )}
+          </ScrollArea>
         </div>
-        {isPendingTasksModalOpen && (
-          <PendingLeadTasksModal
-            isOpen={isPendingTasksModalOpen}
-            onClose={() => {
-              console.log("[ConsultorDashboard] PendingLeadTasksModal onClose called");
-              setIsPendingTasksModalOpen(false);
-            }}
-            pendingTasks={pendingLeadTasks}
-            crmLeads={crmLeads}
-            teamMembers={teamMembers}
-          />
+
+        {/* Daily Checklist Progress */}
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center"><ListChecks className="w-5 h-5 mr-2 text-brand-500" />Progresso das Metas Diárias</h2>
+            <span className="text-sm font-semibold text-gray-500 dark:text-gray-400">{completedDailyTasks}/{totalDailyTasks} Concluídas</span>
+          </div>
+          <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2.5">
+            <div className="bg-brand-500 h-2.5 rounded-full transition-all duration-500" style={{ width: `${dailyProgress}%` }}></div>
+          </div>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">{dailyProgress}% do seu checklist de hoje está completo.</p>
+        </div>
+
+        {/* Daily Checklist Display */}
+        <div>
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center mb-4"><ListChecks className="w-5 h-5 mr-2 text-brand-500" />Metas Diárias</h2>
+          <DailyChecklistDisplay user={user} isDataLoading={isDataLoading} />
+        </div>
+
+        {/* Weekly Goals */}
+        {activeWeeklyTarget && weeklyGoalsProgress.length > 0 && (
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center"><Target className="w-5 h-5 mr-2 text-green-500" />Metas da Semana ({activeWeeklyTarget.title})</h2>
+              <span className="text-sm text-gray-500 dark:text-gray-400">
+                {new Date(activeWeeklyTarget.week_start).toLocaleDateString()} - {new Date(activeWeeklyTarget.week_end).toLocaleDateString()}
+              </span>
+            </div>
+            <div className="space-y-4">
+              {weeklyGoalsProgress.map(goal => (
+                <div key={goal.id} className="flex items-center space-x-3">
+                  <div className={`w-5 h-5 rounded-full flex items-center justify-center ${goal.isCompleted ? 'bg-green-500 text-white' : 'bg-gray-200 dark:bg-slate-700 text-gray-500'}`}>
+                    {goal.isCompleted ? <CheckCircle2 className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
+                  </div>
+                  <div className="flex-1">
+                    <p className={`text-sm font-medium ${goal.isCompleted ? 'text-gray-500 line-through' : 'text-gray-900 dark:text-white'}`}>{goal.label}</p>
+                    <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-1.5 mt-1">
+                      <div className="bg-blue-500 h-1.5 rounded-full" style={{ width: `${goal.progressPercent}%` }}></div>
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      {goal.currentValue} / {goal.target_value} ({Math.round(goal.progressPercent)}%)
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         )}
+      </div>
+      
+      {isPendingTasksModalOpen && (
+        <PendingLeadTasksModal
+          isOpen={isPendingTasksModalOpen}
+          onClose={() => setIsPendingTasksModalOpen(false)}
+          pendingTasks={stats.pendingLeadTasks}
+          crmLeads={crmLeads}
+          teamMembers={teamMembers}
+        />
+      )}
     </div>
   );
 };
