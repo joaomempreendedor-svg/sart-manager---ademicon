@@ -343,26 +343,36 @@ const ConsultorDashboard = () => {
                 <div className="p-6 text-center text-gray-400">Nenhuma tarefa pendente.</div>
               ) : (
                 <ul className="divide-y divide-gray-100 dark:divide-slate-700">
-                  {allConsultantTasks.map((item) => (
-                    <li key={item.id} className="p-4 hover:bg-blue-50 dark:hover:bg-blue-900/10 transition">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <p className="text-sm font-medium text-gray-900 dark:text-gray-200">{item.title}</p>
-                          <div className="flex flex-col sm:flex-row sm:items-center text-xs text-gray-500 dark:text-gray-400 mt-1 space-y-1 sm:space-y-0 sm:space-x-2">
-                            <span className="flex items-center"><User className="w-3 h-3 mr-1" /> Lead: <span className="font-semibold ml-1">{item.personName}</span></span>
-                            {item.dueDate && <span className="flex items-center"><Calendar className="w-3 h-3 mr-1" /> Vence: {new Date(item.dueDate + 'T00:00:00').toLocaleDateString()}</span>}
+                  {allConsultantTasks.map((item) => {
+                    const today = new Date().toISOString().split('T')[0];
+                    const isOverdue = item.dueDate && item.dueDate < today;
+                    const isDueToday = item.dueDate === today;
+
+                    return (
+                      <li key={item.id} className={`p-4 transition ${isOverdue ? 'bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30' : isDueToday ? 'bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100 dark:hover:bg-amber-900/30' : 'hover:bg-blue-50 dark:hover:bg-blue-900/10'}`}>
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <p className={`text-sm font-medium ${isOverdue ? 'text-red-800 dark:text-red-200' : isDueToday ? 'text-amber-800 dark:text-amber-200' : 'text-gray-900 dark:text-gray-200'}`}>
+                              {item.title}
+                              {isOverdue && <span className="ml-2 text-[10px] font-bold uppercase bg-red-100 text-red-600 px-1.5 py-0.5 rounded">Atrasada</span>}
+                              {isDueToday && <span className="ml-2 text-[10px] font-bold uppercase bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded">Hoje</span>}
+                            </p>
+                            <div className="flex flex-col sm:flex-row sm:items-center text-xs text-gray-500 dark:text-gray-400 mt-1 space-y-1 sm:space-y-0 sm:space-x-2">
+                              <span className="flex items-center"><User className="w-3 h-3 mr-1" /> Lead: <span className="font-semibold ml-1">{item.personName}</span></span>
+                              {item.dueDate && <span className={`flex items-center ${isOverdue ? 'text-red-600 dark:text-red-400 font-semibold' : ''}`}><Calendar className="w-3 h-3 mr-1" /> Vence: {new Date(item.dueDate + 'T00:00:00').toLocaleDateString()}</span>}
+                            </div>
                           </div>
+                          <Link
+                            to={`/consultor/crm`}
+                            state={{ highlightLeadId: item.personId }}
+                            className="text-brand-600 hover:text-brand-700 text-sm font-medium flex-shrink-0"
+                          >
+                            Ver Lead <ChevronRight className="w-4 h-4 inline ml-1" />
+                          </Link>
                         </div>
-                        <Link
-                          to={`/consultor/crm`}
-                          state={{ highlightLeadId: item.personId }}
-                          className="text-brand-600 hover:text-brand-700 text-sm font-medium flex-shrink-0"
-                        >
-                          Ver Lead <ChevronRight className="w-4 h-4 inline ml-1" />
-                        </Link>
-                      </div>
-                    </li>
-                  ))}
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </div>

@@ -353,6 +353,8 @@ export const GestorTasksSection: React.FC = () => {
                       <div className="flex-1 min-w-0">
                         <p className={titleClasses}>
                           {task.title}
+                          {isOverdue && !isVisuallyCompleted && <span className="ml-2 text-[10px] font-bold uppercase bg-red-100 text-red-600 px-1.5 py-0.5 rounded">Atrasada</span>}
+                          {isDueToday && !isVisuallyCompleted && <span className="ml-2 text-[10px] font-bold uppercase bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded">Hoje</span>}
                         </p>
                         {task.description && (
                           <p className={descriptionClasses}>
