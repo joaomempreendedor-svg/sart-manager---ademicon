@@ -289,7 +289,6 @@ export interface CrmStage {
   is_active: boolean;
   is_won: boolean;
   is_lost: boolean;
-  is_no_show?: boolean; // NOVO: Flag para identificar etapas de no-show
   created_at: string;
 }
 
