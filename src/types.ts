@@ -547,6 +547,8 @@ export interface Process {
   description?: string;
   content?: string;
   type: string;
+  file_url?: string;
+  file_type?: 'image' | 'pdf' | 'video' | 'audio';
   created_at: string;
   updated_at: string;
 }

@@ -1292,7 +1292,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const { data: uploadData, error: uploadError } = await supabase.storage.from('form_uploads').upload(path, file);
       if (uploadError) throw uploadError;
       fileUrl = supabase.storage.from('form_uploads').getPublicUrl(path).data.publicUrl;
-      fileType = file.type.startsWith('image/') ? 'image' : 'pdf';
+      
+      if (file.type.startsWith('image/')) fileType = 'image';
+      else if (file.type.startsWith('video/')) fileType = 'video';
+      else if (file.type.startsWith('audio/')) fileType = 'audio';
+      else fileType = 'pdf';
     }
 
     const { data, error } = await supabase.from('processes').insert({ 
@@ -1319,7 +1323,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const { data: uploadData, error: uploadError } = await supabase.storage.from('form_uploads').upload(path, file);
       if (uploadError) throw uploadError;
       fileUrl = supabase.storage.from('form_uploads').getPublicUrl(path).data.publicUrl;
-      fileType = file.type.startsWith('image/') ? 'image' : 'pdf';
+      
+      if (file.type.startsWith('image/')) fileType = 'image';
+      else if (file.type.startsWith('video/')) fileType = 'video';
+      else if (file.type.startsWith('audio/')) fileType = 'audio';
+      else fileType = 'pdf';
     } else if (updates.file_url === undefined && updates.file_type === undefined) {
       // User explicitly removed the file
       fileUrl = undefined;
