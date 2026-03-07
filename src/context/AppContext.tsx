@@ -204,7 +204,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         ascending: false,
       });
       if (error) {
-        toast.error(`Erro ao carregar comissões: ${error.message}`);
+      toast.error(`Erro ao carregar comissões: ${error.message}`);
         setCommissions([]);
         return;
       }
