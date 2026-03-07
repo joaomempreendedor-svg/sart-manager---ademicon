@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
-import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, InstallmentInfo, CutoffPeriod, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask, DailyChecklistItemResource, GestorTask, GestorTaskCompletion, FinancialEntry, FormCadastro, FormFile, Notification, TeamProductionGoal, ColdCallLead, ColdCallLog, ChecklistItem, Process, NoShowCadenceTemplateStep, LeadCadenceStep } from '@/types';
+import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, InstallmentInfo, CutoffPeriod, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask, DailyChecklistItemResource, GestorTask, GestorTaskCompletion, FinancialEntry, FormCadastro, FormFile, Notification, TeamProductionGoal, ColdCallLead, ColdCallLog, ChecklistItem, Process } from '@/types';
 import { CHECKLIST_STAGES as DEFAULT_STAGES } from '@/data/checklistData';
 import { CONSULTANT_GOALS as DEFAULT_GOALS } from '@/data/consultantGoals';
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
@@ -20,12 +20,6 @@ const INITIAL_INTERVIEW_STRUCTURE: InterviewSection[] = [
   { id: 'jobFit', title: '6. Fit com a Vaga', maxPoints: 20, questions: [ { id: 'jf_1', text: 'Perfil empreendedor?', points: 5 }, { id: 'jf_2', text: 'Interesse real pela oportunidade?', points: 5 }, { id: 'jf_3', text: 'Alinhamento com modelo comissionado?', points: 10 } ] }
 ];
 
-const DEFAULT_NOSHOW_CADENCE_TEMPLATE: NoShowCadenceTemplateStep[] = [
-  { id: 'cad_1', text: 'Enviar lembrete da reunião (24h antes)', offset_days: -1, resource_template_id: 'template_lembrete_24h' },
-  { id: 'cad_2', text: 'Confirmar presença (2h antes)', offset_days: 0, resource_template_id: 'template_confirmacao_2h' },
-  { id: 'cad_3', text: 'Enviar material de apoio pós-reunião', offset_days: 1, resource_template_id: 'template_pos_reuniao' },
-];
-
 const DEFAULT_APP_CONFIG_DATA = {
   checklistStructure: DEFAULT_STAGES,
   consultantGoalsStructure: DEFAULT_GOALS,
@@ -35,7 +29,6 @@ const DEFAULT_APP_CONFIG_DATA = {
   salesOrigins: ['WhatsApp', 'Instagram', 'Networking', 'Tráfego Pago', 'Indicação'],
   interviewers: ['João Müller'],
   pvs: ['SOARES E MORAES', 'SART INVESTIMENTOS', 'KR CONSÓRCIOS', 'SOLOM INVESTIMENTOS'],
-  noShowCadenceTemplate: DEFAULT_NOSHOW_CADENCE_TEMPLATE, // NOVO: Adicionado ao default
 };
 
 const MONTHLY_CUTOFF_DAYS: Record<number, number> = {
@@ -66,7 +59,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [salesOrigins, setSalesOrigins] = useState<string[]>(DEFAULT_APP_CONFIG_DATA.salesOrigins);
   const [interviewers, setInterviewers] = useState<string[]>(DEFAULT_APP_CONFIG_DATA.interviewers);
   const [pvs, setPvs] = useState<string[]>(DEFAULT_APP_CONFIG_DATA.pvs);
-  const [noShowCadenceTemplate, setNoShowCadenceTemplate] = useState<NoShowCadenceTemplateStep[]>(DEFAULT_NOSHOW_CADENCE_TEMPLATE); // NOVO: Estado para o template de cadência
   
   const [crmPipelines, setCrmPipelines] = useState<CrmPipeline[]>([]);
   const [crmStages, setCrmStages] = useState<CrmStage[]>([]);
@@ -167,15 +159,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const updateConfig = useCallback((updates: any) => {
     if (!user) return;
-    const currentConfig = { checklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs, noShowCadenceTemplate }; // NOVO: Incluído noShowCadenceTemplate
+    const currentConfig = { checklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs };
     debouncedUpdateConfig({ ...currentConfig, ...updates });
-  }, [user, checklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs, noShowCadenceTemplate, debouncedUpdateConfig]);
+  }, [user, checklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs, debouncedUpdateConfig]);
 
   const resetLocalState = useCallback(() => {
     setCandidates([]); setTeamMembers([]); setCommissions([]); setSupportMaterials([]); setCutoffPeriods([]); setOnboardingSessions([]); setOnboardingTemplateVideos([]);
     setChecklistStructure(DEFAULT_STAGES); setConsultantGoalsStructure(DEFAULT_GOALS); setInterviewStructure(INITIAL_INTERVIEW_STRUCTURE); setTemplates({});
     setHiringOrigins(DEFAULT_APP_CONFIG_DATA.hiringOrigins); setSalesOrigins(DEFAULT_APP_CONFIG_DATA.salesOrigins); setInterviewers(DEFAULT_APP_CONFIG_DATA.interviewers); setPvs(DEFAULT_APP_CONFIG_DATA.pvs);
-    setNoShowCadenceTemplate(DEFAULT_NOSHOW_CADENCE_TEMPLATE); // NOVO: Reset do template de cadência
     setCrmPipelines([]); setCrmStages([]); setCrmFields([]); setCrmLeads([]); setCrmOwnerUserId(null);
     setDailyChecklists([]); setDailyChecklistItems([]); setDailyChecklistAssignments([]); setDailyChecklistCompletions([]);
     setWeeklyTargets([]); setWeeklyTargetItems([]); setWeeklyTargetAssignments([]); setMetricLogs([]);
@@ -204,7 +195,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         ascending: false,
       });
       if (error) {
-      toast.error(`Erro ao carregar comissões: ${error.message}`);
+        toast.error(`Erro ao carregar comissões: ${error.message}`);
         setCommissions([]);
         return;
       }
@@ -271,7 +262,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setSalesOrigins(appConfigData.salesOrigins || DEFAULT_APP_CONFIG_DATA.salesOrigins);
       setHiringOrigins(appConfigData.hiringOrigins !== undefined ? appConfigData.hiringOrigins : DEFAULT_APP_CONFIG_DATA.hiringOrigins);
       setPvs(appConfigData.pvs || []);
-      setNoShowCadenceTemplate(appConfigData.noShowCadenceTemplate || DEFAULT_NOSHOW_CADENCE_TEMPLATE); // NOVO: Carrega o template de cadência
     } else {
       setChecklistStructure(DEFAULT_STAGES);
       setConsultantGoalsStructure(DEFAULT_GOALS);
@@ -280,7 +270,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setSalesOrigins(DEFAULT_APP_CONFIG_DATA.salesOrigins);
       setHiringOrigins(DEFAULT_APP_CONFIG_DATA.hiringOrigins);
       setPvs([]);
-      setNoShowCadenceTemplate(DEFAULT_NOSHOW_CADENCE_TEMPLATE); // NOVO: Define o default se não houver config
     }
   }, []);
 
@@ -468,7 +457,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (financialEntriesRes.error) { toast.error(`Erro ao carregar entradas financeiras: ${financialEntriesRes.error.message}`); setFinancialEntries([]); }
         else {
           setFinancialEntries(financialEntriesRes.data?.map((entry: any) => ({
-            id: entry.id, db_id: entry.id, user_id: entry.user_id, entry_date: entry.entry_date, type: entry.type, description: entry.description, amount: parseFloat(entry.amount) / 100, created_at: entry.created_at
+            id: entry.id, db_id: entry.id, user_id: entry.user_id, entry_date: entry.entry_date, type: entry.type, description: entry.description, amount: parseFloat(entry.amount), created_at: entry.created_at
           })) || []);
         }
 
@@ -667,7 +656,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       id: lead.id, consultant_id: lead.consultant_id, stage_id: lead.stage_id, user_id: lead.user_id, name: lead.name, data: lead.data,
       created_at: lead.created_at, updated_at: lead.updated_at, created_by: lead.created_by, updated_by: lead.updated_by,
       proposal_value: parseDbCurrency(lead.proposal_value), proposal_closing_date: lead.proposal_closing_date,
-      sold_credit_value: parseDbCurrency(lead.sold_credit_value), sold_group: data.sold_group, sold_quota: data.sold_quota, sale_date: data.sale_date
+      sold_credit_value: parseDbCurrency(lead.sold_credit_value), sold_group: lead.sold_group, sold_quota: lead.sold_quota, sale_date: lead.sale_date
     })) || []);
     const { data: newLeadTasks } = await supabase.from('lead_tasks').select('*');
     setLeadTasks(newLeadTasks || []);
@@ -676,29 +665,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // Lead tasks
   const addLeadTask = useCallback(async (task: Omit<LeadTask, 'id' | 'created_at' | 'completed_at' | 'updated_at'> & { user_id: string; manager_id?: string | null; }) => {
-    // NOVO: Gerar passos da cadência se for uma reunião
-    let cadenceSteps: LeadCadenceStep[] | undefined;
-    if (task.type === 'meeting' && task.meeting_start_time) {
-      const meetingDate = new Date(task.meeting_start_time);
-      cadenceSteps = noShowCadenceTemplate.map(templateStep => {
-        const stepDueDate = new Date(meetingDate);
-        stepDueDate.setDate(meetingDate.getDate() + templateStep.offset_days);
-        return {
-          id: templateStep.id,
-          text: templateStep.text,
-          due_date: stepDueDate.toISOString().split('T')[0],
-          is_completed: false,
-          resource_template_id: templateStep.resource_template_id,
-        };
-      });
-    }
-
-    const { data, error } = await supabase.from('lead_tasks').insert({ ...task, cadence_steps: cadenceSteps }).select().single();
+    const { data, error } = await supabase.from('lead_tasks').insert(task).select().single();
     if (error) throw error;
     setLeadTasks(prev => [...prev, data]);
     return data;
-  }, [noShowCadenceTemplate]);
-
+  }, []);
   const updateLeadTask = useCallback(async (id: string, updates: Partial<LeadTask>) => {
     const { data, error } = await supabase.from('lead_tasks').update(updates).eq('id', id).select().single();
     if (error) throw error;
@@ -722,18 +693,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setLeadTasks(prev => prev.map(t => t.id === taskId ? data : t));
     return data;
   }, []);
-
-  // NOVO: Função para marcar um passo da cadência como concluído
-  const toggleLeadCadenceStepCompletion = useCallback(async (leadTaskId: string, stepId: string, is_completed: boolean) => {
-    const leadTask = leadTasks.find(t => t.id === leadTaskId);
-    if (!leadTask || !leadTask.cadence_steps) return;
-
-    const updatedCadenceSteps = leadTask.cadence_steps.map(step =>
-      step.id === stepId ? { ...step, is_completed, completed_at: is_completed ? new Date().toISOString() : undefined } : step
-    );
-
-    await updateLeadTask(leadTaskId, { cadence_steps: updatedCadenceSteps });
-  }, [leadTasks, updateLeadTask]);
 
   // Gestor tasks
   const addGestorTask = useCallback(async (task: Omit<GestorTask, 'id' | 'user_id' | 'created_at' | 'is_completed'>) => {
@@ -1387,63 +1346,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setProcesses(prev => prev.filter(p => p.id !== id));
   }, []);
 
-  // NOVO: Funções para gerenciar o template de cadência anti-no-show
-  const addNoShowCadenceTemplateStep = useCallback((step: Omit<NoShowCadenceTemplateStep, 'id'>) => {
-    const newStep: NoShowCadenceTemplateStep = { ...step, id: crypto.randomUUID() };
-    const newTemplate = [...noShowCadenceTemplate, newStep];
-    setNoShowCadenceTemplate(newTemplate);
-    updateConfig({ noShowCadenceTemplate: newTemplate });
-  }, [noShowCadenceTemplate, updateConfig]);
-
-  const updateNoShowCadenceTemplateStep = useCallback((id: string, updates: Partial<NoShowCadenceTemplateStep>) => {
-    const newTemplate = noShowCadenceTemplate.map(step =>
-      step.id === id ? { ...step, ...updates } : step
-    );
-    setNoShowCadenceTemplate(newTemplate);
-    updateConfig({ noShowCadenceTemplate: newTemplate });
-  }, [noShowCadenceTemplate, updateConfig]);
-
-  const deleteNoShowCadenceTemplateStep = useCallback((id: string) => {
-    const newTemplate = noShowCadenceTemplate.filter(step => step.id !== id);
-    setNoShowCadenceTemplate(newTemplate);
-    updateConfig({ noShowCadenceTemplate: newTemplate });
-  }, [noShowCadenceTemplate, updateConfig]);
-
-  const moveNoShowCadenceTemplateStep = useCallback((id: string, direction: 'up' | 'down') => {
-    const index = noShowCadenceTemplate.findIndex(step => step.id === id);
-    if (index === -1) return;
-    const newTemplate = [...noShowCadenceTemplate];
-    const targetIndex = direction === 'up' ? index - 1 : index + 1;
-    if (targetIndex >= 0 && targetIndex < newTemplate.length) {
-      [newTemplate[index], newTemplate[targetIndex]] = [newTemplate[targetIndex], newTemplate[index]];
-    }
-    setNoShowCadenceTemplate(newTemplate);
-    updateConfig({ noShowCadenceTemplate: newTemplate });
-  }, [noShowCadenceTemplate, updateConfig]);
-
-  const resetNoShowCadenceTemplate = useCallback(() => {
-    setNoShowCadenceTemplate(DEFAULT_NOSHOW_CADENCE_TEMPLATE);
-    updateConfig({ noShowCadenceTemplate: DEFAULT_NOSHOW_CADENCE_TEMPLATE });
-  }, [updateConfig]);
-
-  // NOVO: Função para marcar um passo da cadência como concluído
-  const toggleLeadCadenceStepCompletion = useCallback(async (leadTaskId: string, stepId: string, is_completed: boolean) => {
-    const leadTask = leadTasks.find(t => t.id === leadTaskId);
-    if (!leadTask || !leadTask.cadence_steps) return;
-
-    const updatedCadenceSteps = leadTask.cadence_steps.map(step =>
-      step.id === stepId ? { ...step, is_completed, completed_at: is_completed ? new Date().toISOString() : undefined } : step
-    );
-
-    await updateLeadTask(leadTaskId, { cadence_steps: updatedCadenceSteps });
-  }, [leadTasks, updateLeadTask]);
-
   const value: AppContextType = useMemo(() => ({
     isDataLoading,
     candidates, teamMembers, commissions, supportMaterials, cutoffPeriods, onboardingSessions, onboardingTemplateVideos,
     checklistStructure, setChecklistStructure,
     consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs,
-    noShowCadenceTemplate, // NOVO: Adicionado ao contexto
     crmPipelines, crmStages, crmFields, crmLeads, crmOwnerUserId,
     dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions,
     weeklyTargets, weeklyTargetItems, weeklyTargetAssignments,
@@ -1808,7 +1715,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     unassignSupportMaterialFromConsultant,
 
     addLeadTask, updateLeadTask, deleteLeadTask, toggleLeadTaskCompletion, updateLeadMeetingInvitationStatus,
-    toggleLeadCadenceStepCompletion, // Adicionado ao contexto
 
     addGestorTask, updateGestorTask, deleteGestorTask, toggleGestorTaskCompletion,
 
@@ -1879,19 +1785,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addProcess,
     updateProcess,
     deleteProcess,
-
-    // NOVO: Funções para gerenciar o template de cadência anti-no-show
-    addNoShowCadenceTemplateStep,
-    updateNoShowCadenceTemplateStep,
-    deleteNoShowCadenceTemplateStep,
-    moveNoShowCadenceTemplateStep,
-    resetNoShowCadenceTemplate,
-    toggleLeadCadenceStepCompletion,
   }), [
     isDataLoading,
     candidates, teamMembers, commissions, supportMaterials, cutoffPeriods, onboardingSessions, onboardingTemplateVideos,
     checklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs,
-    noShowCadenceTemplate, // NOVO: Adicionado ao array de dependências
     crmPipelines, crmStages, crmFields, crmLeads, crmOwnerUserId,
     dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions,
     weeklyTargets, weeklyTargetItems, weeklyTargetAssignments,
@@ -1912,7 +1809,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     assignWeeklyTargetToConsultant, unassignWeeklyTargetFromConsultant,
     addMetricLog, updateMetricLog, deleteMetricLog,
     addSupportMaterialV2, updateSupportMaterialV2, deleteSupportMaterialV2, assignSupportMaterialToConsultant, unassignSupportMaterialFromConsultant,
-    addLeadTask, updateLeadTask, deleteLeadTask, toggleLeadTaskCompletion, updateLeadMeetingInvitationStatus, toggleLeadCadenceStepCompletion,
+    addLeadTask, updateLeadTask, deleteLeadTask, toggleLeadTaskCompletion, updateLeadMeetingInvitationStatus,
     addGestorTask, updateGestorTask, deleteGestorTask, toggleGestorTaskCompletion,
     addFinancialEntry, updateFinancialEntry, deleteFinancialEntry,
     updateFormCadastro, deleteFormCadastro,
@@ -1925,7 +1822,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addColdCallLead, updateColdCallLead, deleteColdCallLead, addColdCallLog, getColdCallMetrics,
     addOnlineOnboardingSession, deleteOnlineOnboardingSession, addVideoToTemplate, deleteVideoFromTemplate,
     addProcess, updateProcess, deleteProcess,
-    addNoShowCadenceTemplateStep, updateNoShowCadenceTemplateStep, deleteNoShowCadenceTemplateStep, moveNoShowCadenceTemplateStep, resetNoShowCadenceTemplate,
   ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

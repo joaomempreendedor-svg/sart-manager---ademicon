@@ -50,7 +50,6 @@ import TeamProductionGoals from '@/pages/gestor/TeamProductionGoals';
 import GestorTasksPage from '@/pages/gestor/GestorTasksPage';
 import ColdCallMetricsPage from '@/pages/gestor/ColdCallMetricsPage';
 import { Processos } from '@/pages/gestor/Processos'; // NOVO
-import { NoShowCadenceConfig } from '@/pages/gestor/NoShowCadenceConfig'; // NOVO: Importar NoShowCadenceConfig
 
 // Consultor Pages
 import ConsultorDashboard from '@/pages/consultor/Dashboard';
@@ -154,7 +153,6 @@ const AppRoutes = () => {
           <Route path="my-tasks" element={<GestorTasksPage />} />
           <Route path="cold-call-metrics" element={<ColdCallMetricsPage />} />
           <Route path="processos" element={<Processos />} /> {/* NOVO */}
-          <Route path="config-noshow-cadence" element={<NoShowCadenceConfig />} /> {/* NOVO: Rota para a configuração da cadência */}
         </Route>
 
         <Route path="/secretaria" element={<GestorLayout />}> {/* Secretaria também usa GestorLayout */}
