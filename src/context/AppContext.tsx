@@ -1881,39 +1881,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     deleteProcess,
 
     // NOVO: Funções para gerenciar o template de cadência anti-no-show
-    addNoShowCadenceTemplateStep: (step: Omit<NoShowCadenceTemplateStep, 'id'>) => {
-      const newStep: NoShowCadenceTemplateStep = { ...step, id: crypto.randomUUID() };
-      const newTemplate = [...noShowCadenceTemplate, newStep];
-      setNoShowCadenceTemplate(newTemplate);
-      updateConfig({ noShowCadenceTemplate: newTemplate });
-    },
-    updateNoShowCadenceTemplateStep: (id: string, updates: Partial<NoShowCadenceTemplateStep>) => {
-      const newTemplate = noShowCadenceTemplate.map(step =>
-        step.id === id ? { ...step, ...updates } : step
-      );
-      setNoShowCadenceTemplate(newTemplate);
-      updateConfig({ noShowCadenceTemplate: newTemplate });
-    },
-    deleteNoShowCadenceTemplateStep: (id: string) => {
-      const newTemplate = noShowCadenceTemplate.filter(step => step.id !== id);
-      setNoShowCadenceTemplate(newTemplate);
-      updateConfig({ noShowCadenceTemplate: newTemplate });
-    },
-    moveNoShowCadenceTemplateStep: (id: string, direction: 'up' | 'down') => {
-      const index = noShowCadenceTemplate.findIndex(step => step.id === id);
-      if (index === -1) return;
-      const newTemplate = [...noShowCadenceTemplate];
-      const targetIndex = direction === 'up' ? index - 1 : index + 1;
-      if (targetIndex >= 0 && targetIndex < newTemplate.length) {
-        [newTemplate[index], newTemplate[targetIndex]] = [newTemplate[targetIndex], newTemplate[index]];
-      }
-      setNoShowCadenceTemplate(newTemplate);
-      updateConfig({ noShowCadenceTemplate: newTemplate });
-    },
-    resetNoShowCadenceTemplate: () => {
-      setNoShowCadenceTemplate(DEFAULT_NOSHOW_CADENCE_TEMPLATE);
-      updateConfig({ noShowCadenceTemplate: DEFAULT_NOSHOW_CADENCE_TEMPLATE });
-    },
+    addNoShowCadenceTemplateStep,
+    updateNoShowCadenceTemplateStep,
+    deleteNoShowCadenceTemplateStep,
+    moveNoShowCadenceTemplateStep,
+    resetNoShowCadenceTemplate,
+    toggleLeadCadenceStepCompletion,
   }), [
     isDataLoading,
     candidates, teamMembers, commissions, supportMaterials, cutoffPeriods, onboardingSessions, onboardingTemplateVideos,
@@ -1952,6 +1925,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addColdCallLead, updateColdCallLead, deleteColdCallLead, addColdCallLog, getColdCallMetrics,
     addOnlineOnboardingSession, deleteOnlineOnboardingSession, addVideoToTemplate, deleteVideoFromTemplate,
     addProcess, updateProcess, deleteProcess,
+    addNoShowCadenceTemplateStep, updateNoShowCadenceTemplateStep, deleteNoShowCadenceTemplateStep, moveNoShowCadenceTemplateStep, resetNoShowCadenceTemplate,
   ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
