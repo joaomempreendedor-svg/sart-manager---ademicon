@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { CrmStage } from '@/types';
-import { Plus, Edit2, ArrowUp, ArrowDown, ToggleLeft, ToggleRight, CheckCircle, XCircle, Trophy, Skull, Trash2 } from 'lucide-react';
+import { Plus, Edit2, ArrowUp, ArrowDown, ToggleLeft, ToggleRight, CheckCircle, XCircle, Trophy, Skull, Trash2, UserX } from 'lucide-react';
 import StageModal from './StageModal';
 import { Button } from '@/components/ui/button'; // Import Button component
 
@@ -92,6 +92,7 @@ const PipelineStagesConfig = () => {
                   <div className="flex items-center space-x-2 text-xs mt-1">
                     {stage.is_won && <span className="flex items-center text-green-600"><Trophy className="w-3 h-3 mr-1"/> Ganha</span>}
                     {stage.is_lost && <span className="flex items-center text-red-600"><Skull className="w-3 h-3 mr-1"/> Perdida</span>}
+                    {stage.is_no_show && <span className="flex items-center text-rose-600"><UserX className="w-3 h-3 mr-1"/> No-Show</span>}
                   </div>
                 </div>
               </div>
