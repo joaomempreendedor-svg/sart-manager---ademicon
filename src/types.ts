@@ -51,12 +51,12 @@ export interface Candidate {
   phone: string;
   email?: string;
   interviewDate: string;
-  interviewStartTime?: string; // NOVO: Hora de início da entrevista
-  interviewEndTime?: string; // NOVO: Hora de término da entrevista
+  interviewStartTime?: string;
+  interviewEndTime?: string;
   interviewer: string;
   origin?: string;
   status: CandidateStatus;
-  screeningStatus?: 'Pending Contact' | 'Contacted' | 'No Fit' | 'No Response'; // NOVO: Adicionado 'No Response'
+  screeningStatus?: 'Pending Contact' | 'Contacted' | 'No Fit' | 'No Response';
   interviewConducted?: boolean;
   checkedQuestions?: Record<string, boolean>;
   checklistProgress?: Record<string, ChecklistTaskState>;
@@ -66,21 +66,20 @@ export interface Candidate {
   lastUpdatedAt?: string;
   responsibleUserId?: string;
   createdBy?: string;
-  notes?: string; // NOVO: Campo para observações rápidas
+  notes?: string;
   
-  // NOVOS CAMPOS PARA RASTREAR HISTÓRICO DE STATUS
-  contactedDate?: string; // Data em que o screeningStatus se tornou 'Contacted'
-  noResponseDate?: string; // NOVO: Data em que o screeningStatus se tornou 'No Response'
-  interviewScheduledDate?: string; // Data em que a entrevista foi agendada (interviewDate)
-  interviewConductedDate?: string; // Data em que a entrevista foi realizada (interviewConducted = true)
-  awaitingPreviewDate?: string; // Data em que o status se tornou 'Aguardando Prévia'
-  onboardingOnlineDate?: string; // Data em que o status se tornou 'Onboarding Online'
-  integrationPresencialDate?: string; // Data em que o status se tornou 'Integração Presencial'
-  acompanhamento90DiasDate?: string; // Data em que o status se tornou 'Acompanhamento 90 Dias'
-  authorizedDate?: string; // Data em que o status se tornou 'Autorizado'
-  reprovadoDate?: string; // Data em que o status se tornou 'Reprovado' (Desistência)
-  disqualifiedDate?: string; // Data em que o status se tornou 'Desqualificado'
-  faltouDate?: string; // Data em que o status se tornou 'Faltou'
+  contactedDate?: string;
+  noResponseDate?: string;
+  interviewScheduledDate?: string;
+  interviewConductedDate?: string;
+  awaitingPreviewDate?: string;
+  onboardingOnlineDate?: string;
+  integrationPresencialDate?: string;
+  acompanhamento90DiasDate?: string;
+  authorizedDate?: string;
+  reprovadoDate?: string;
+  disqualifiedDate?: string;
+  faltouDate?: string;
 }
 
 export interface ChecklistResource {
@@ -102,7 +101,7 @@ export interface ChecklistItem {
   isHeader?: boolean;
   whatsappTemplate?: string;
   resource?: ChecklistResource;
-  responsibleRole?: 'GESTOR' | 'SECRETARIA'; // NOVO: Define quem é o responsável pela tarefa
+  responsibleRole?: 'GESTOR' | 'SECRETARIA';
 }
 
 export interface ChecklistStage {
@@ -171,6 +170,14 @@ export interface Commission {
 }
 
 export type SupportMaterialContentType = 'link' | 'text' | 'image' | 'pdf';
+
+export interface SupportMaterial {
+  id: string;
+  title: string;
+  url: string;
+  type: string;
+  category?: string;
+}
 
 export interface SupportMaterialV2 {
   id: string;
@@ -312,12 +319,12 @@ export interface CrmLead {
   user_id: string;
   name?: string;
   data: Record<string, any>;
-  proposal_value?: number; // Alterado para snake_case
-  proposal_closing_date?: string; // Alterado para snake_case
-  sold_credit_value?: number; // Alterado para snake_case
-  sold_group?: string; // Alterado para snake_case
-  sold_quota?: string; // Alterado para snake_case
-  sale_date?: string; // Alterado para snake_case
+  proposal_value?: number;
+  proposal_closing_date?: string;
+  sold_credit_value?: number;
+  sold_group?: string;
+  sold_quota?: string;
+  sale_date?: string;
   created_at: string;
   updated_at: string;
 }
@@ -368,18 +375,18 @@ export type DailyChecklistItemResourceType = 'link' | 'text' | 'image' | 'pdf' |
 
 export interface DailyChecklistItemRecurrence {
   type: 'daily' | 'weekly' | 'monthly' | 'every_x_days' | 'specific_date';
-  dayOfWeek?: number;   // 0-6 (Domingo=0)
-  dayOfMonth?: number;  // 1-31
-  intervalDays?: number; // para every_x_days
-  startDate?: string;   // âncora para every_x_days (YYYY-MM-DD)
-  specificDate?: string; // NOVO: data única (YYYY-MM-DD)
+  dayOfWeek?: number;
+  dayOfMonth?: number;
+  intervalDays?: number;
+  startDate?: string;
+  specificDate?: string;
 }
 
 export interface DailyChecklistItemResource {
   type: DailyChecklistItemResourceType;
   content: string | { text: string; audioUrl: string; imageUrl?: string; };
   name?: string;
-  recurrence?: DailyChecklistItemRecurrence; // NOVO: recorrência opcional
+  recurrence?: DailyChecklistItemRecurrence;
 }
 
 export interface DailyChecklist {
@@ -398,7 +405,7 @@ export interface DailyChecklistItem {
   is_active: boolean;
   created_at: string;
   resource?: DailyChecklistItemResource;
-  responsibleRole?: 'GESTOR' | 'SECRETARIA'; // NOVO: Define quem é o responsável pela tarefa
+  responsibleRole?: 'GESTOR' | 'SECRETARIA';
 }
 
 export interface DailyChecklistAssignment {
@@ -513,13 +520,13 @@ export type ColdCallResult = 'Não atendeu' | 'Número inválido' | 'Sem interes
 export interface ColdCallLead {
   id: string;
   db_id?: string;
-  user_id: string; // Consultant who owns this cold call lead
-  name?: string; // Alterado para opcional
+  user_id: string;
+  name?: string;
   phone: string;
   email?: string;
   current_stage: ColdCallStage;
   notes?: string;
-  crm_lead_id?: string; // NOVO: Link to main CRM lead if meeting scheduled
+  crm_lead_id?: string;
   created_at: string;
   updated_at: string;
 }
@@ -528,7 +535,7 @@ export interface ColdCallLog {
   id: string;
   db_id?: string;
   cold_call_lead_id: string;
-  user_id: string; // Consultant who made the call
+  user_id: string;
   start_time: string;
   end_time: string;
   duration_seconds: number;
@@ -594,9 +601,9 @@ export interface AppContextType {
   formFiles: FormFile[];
   notifications: Notification[];
   teamProductionGoals: TeamProductionGoal[];
-  coldCallLeads: ColdCallLead[]; // NOVO
-  coldCallLogs: ColdCallLog[];   // NOVO
-  processes: Process[]; // NOVO
+  coldCallLeads: ColdCallLead[];
+  coldCallLogs: ColdCallLog[];
+  processes: Process[];
   theme: 'light' | 'dark';
   toggleTheme: () => void;
   addCandidate: (candidate: Omit<Candidate, 'id' | 'createdAt' | 'db_id'>) => Promise<Candidate>;
@@ -706,12 +713,12 @@ export interface AppContextType {
   updateTeamProductionGoal: (id: string, updates: Partial<TeamProductionGoal>) => Promise<TeamProductionGoal>;
   deleteTeamProductionGoal: (id: string) => Promise<void>;
   hasPendingSecretariaTasks: (candidate: Candidate) => boolean;
-  addColdCallLead: (lead: Omit<ColdCallLead, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'current_stage'>) => Promise<ColdCallLead>; // NOVO
-  updateColdCallLead: (id: string, updates: Partial<ColdCallLead>) => Promise<ColdCallLead>; // NOVO
-  deleteColdCallLead: (id: string) => Promise<void>; // NOVO
-  addColdCallLog: (log: Omit<ColdCallLog, 'id' | 'user_id' | 'created_at' | 'duration_seconds'> & { start_time: string; end_time: string; }) => Promise<ColdCallLog>; // NOVO
-  getColdCallMetrics: (consultantId: string) => { totalCalls: number; totalConversations: number; totalMeetingsScheduled: number; conversationToMeetingRate: number; }; // NOVO
-  createCrmLeadFromColdCall: (coldCallLeadId: string, meeting?: { date?: string; time?: string; modality?: string; notes?: string }) => Promise<{ crmLeadId: string }>; // NOVO
+  addColdCallLead: (lead: Omit<ColdCallLead, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'current_stage'>) => Promise<ColdCallLead>;
+  updateColdCallLead: (id: string, updates: Partial<ColdCallLead>) => Promise<ColdCallLead>;
+  deleteColdCallLead: (id: string) => Promise<void>;
+  addColdCallLog: (log: Omit<ColdCallLog, 'id' | 'user_id' | 'created_at' | 'duration_seconds'> & { start_time: string; end_time: string; }) => Promise<ColdCallLog>;
+  getColdCallMetrics: (consultantId: string) => { totalCalls: number; totalConversations: number; totalMeetingsScheduled: number; conversationToMeetingRate: number; };
+  createCrmLeadFromColdCall: (coldCallLeadId: string, meeting?: { date?: string; time?: string; modality?: string; notes?: string }) => Promise<{ crmLeadId: string }>;
   addChecklistStage: (title: string, description: string) => void;
   updateChecklistStage: (stageId: string, updates: Partial<ChecklistStage>) => void;
   deleteChecklistStage: (stageId: string) => void;
@@ -721,7 +728,7 @@ export interface AppContextType {
   deleteProcess: (id: string) => Promise<void>;
 }
 
-export interface ColdCallMetrics { // NOVO: Interface para as métricas de Cold Call
+export interface ColdCallMetrics {
   totalCalls: number;
   totalConversations: number;
   totalMeetingsScheduled: number;

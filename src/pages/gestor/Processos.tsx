@@ -14,7 +14,6 @@ export const Processos = () => {
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedProcess, setSelectedProcess] = useState<Process | null>(null);
 
-  // NOVO: Estados para os filtros de data
   const [filterStartDate, setFilterStartDate] = useState('');
   const [filterEndDate, setFilterEndDate] = useState('');
 
@@ -53,7 +52,6 @@ export const Processos = () => {
   const filteredProcesses = useMemo(() => {
     let currentProcesses = processes;
 
-    // Filtrar por termo de busca
     if (searchTerm) {
       const lowerCaseSearchTerm = searchTerm.toLowerCase();
       currentProcesses = currentProcesses.filter(p =>
@@ -63,13 +61,12 @@ export const Processos = () => {
       );
     }
 
-    // NOVO: Filtrar por datas de criação/atualização
     if (filterStartDate || filterEndDate) {
       const start = filterStartDate ? new Date(filterStartDate + 'T00:00:00') : null;
       const end = filterEndDate ? new Date(filterEndDate + 'T23:59:59') : null;
 
       currentProcesses = currentProcesses.filter(process => {
-        const processDate = new Date(process.updated_at); // Usar updated_at como referência
+        const processDate = new Date(process.updated_at);
         const matchesStart = !start || processDate >= start;
         const matchesEnd = !end || processDate <= end;
         return matchesStart && matchesEnd;
@@ -124,7 +121,6 @@ export const Processos = () => {
         </div>
       </div>
 
-      {/* NOVO: Seção de Filtros */}
       <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm space-y-4 mb-6">
         <div className="flex items-center justify-between flex-col sm:flex-row">
           <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 flex items-center uppercase tracking-wide"><Filter className="w-4 h-4 mr-2" />Filtros</h3>

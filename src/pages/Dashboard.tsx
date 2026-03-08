@@ -45,7 +45,6 @@ export const Dashboard = () => {
   const navigate = useNavigate();
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [isPendingTasksModalOpen, setIsPendingTasksModalOpen] = useState(false);
-  const [hasAutoOpened, setHasAutoOpened] = useState(false); // NOVO: Para abrir apenas uma vez
   const [isNotificationCenterOpen, setIsNotificationCenterOpen] = useState(false);
 
   const [isLeadsDetailModalOpen, setIsLeadsDetailModalOpen] = useState(false);
@@ -112,7 +111,6 @@ export const Dashboard = () => {
     const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
     const currentMonthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
 
-    // CORREÇÃO: Filtra apenas leads que pertencem ao pipeline ativo
     const leadsForGestor = crmLeads.filter(lead => lead.user_id === user.id && activeStageIds.has(lead.stage_id));
 
     const totalLeads = leadsForGestor.length;
@@ -338,14 +336,6 @@ export const Dashboard = () => {
 
     return { todayAgenda: todayAgendaItems, overdueTasks: overdueItems };
   }, [candidates, checklistStructure, user, gestorTasks, gestorTaskCompletions, isGestorTaskDueOnDate]);
-
-  // NOVO: Abrir modal automaticamente se houver tarefas pendentes
-  useEffect(() => {
-    if (!isDataLoading && commercialMetrics?.pendingTasks && commercialMetrics.pendingTasks.length > 0 && !hasAutoOpened) {
-      setIsPendingTasksModalOpen(true);
-      setHasAutoOpened(true);
-    }
-  }, [isDataLoading, commercialMetrics?.pendingTasks, hasAutoOpened]);
 
   const handleAgendaItemClick = (item: AgendaItem) => {
     if (item.personType === 'candidate') navigate(`/gestor/candidate/${item.personId}`);
