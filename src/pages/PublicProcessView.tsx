@@ -28,16 +28,31 @@ export const PublicProcessView = () => {
     }
 
     try {
-      const { data, error: fetchError } = await supabase
+      // 1. Busca os dados básicos do processo
+      const { data: processData, error: processError } = await supabase
         .from('processes')
-        .select('*, attachments:process_attachments(*)')
+        .select('*')
         .eq('id', processId)
         .maybeSingle();
 
-      if (fetchError) throw fetchError;
-      if (!data) throw new Error("Processo não encontrado.");
+      if (processError) throw processError;
+      if (!processData) throw new Error("Processo não encontrado.");
 
-      setProcess(data as Process);
+      // 2. Busca os anexos separadamente para evitar erro de relacionamento (join)
+      const { data: attachmentsData, error: attachmentsError } = await supabase
+        .from('process_attachments')
+        .select('*')
+        .eq('process_id', processId);
+
+      if (attachmentsError) {
+        console.warn("Erro ao carregar anexos, mas continuando com o processo:", attachmentsError);
+      }
+
+      setProcess({
+        ...processData,
+        attachments: attachmentsData || []
+      } as Process);
+
     } catch (err: any) {
       setError(err.message || "Ocorreu um erro ao carregar o processo.");
     } finally {
