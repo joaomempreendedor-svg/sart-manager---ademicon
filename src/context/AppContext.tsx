@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
-import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, InstallmentInfo, CutoffPeriod, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask, DailyChecklistItemResource, GestorTask, GestorTaskCompletion, FinancialEntry, FormCadastro, FormFile, Notification, TeamProductionGoal, ColdCallLead, ColdCallLog, ChecklistItem, Process } from '@/types';
+import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, InstallmentInfo, CutoffPeriod, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask, DailyChecklistItemResource, GestorTask, GestorTaskCompletion, FinancialEntry, FormCadastro, FormFile, Notification, TeamProductionGoal, ColdCallLead, ColdCallLog, ChecklistItem, Process, ProcessFile } from '@/types';
 import { CHECKLIST_STAGES as DEFAULT_STAGES } from '@/data/checklistData';
 import { CONSULTANT_GOALS as DEFAULT_GOALS } from '@/data/consultantGoals';
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
@@ -39,7 +39,7 @@ const JOAO_GESTOR_AUTH_ID = "0c6d71b7-daeb-4dde-8eec-0e7a8ffef658";
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { user } = useAuth();
-  const fetchedUserIdRef = useRef<string | null>(null); // Corrigido: Inicializado com null
+  const fetchedUserIdRef = useRef<string | null>(null);
   const isFetchingRef = useRef(false);
 
   const [isDataLoading, setIsDataLoading] = useState(true);
@@ -91,6 +91,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [coldCallLeads, setColdCallLeads] = useState<ColdCallLead[]>([]);
   const [coldCallLogs, setColdCallLogs] = useState<ColdCallLog[]>([]);
   const [processes, setProcesses] = useState<Process[]>([]);
+  const [processFiles, setProcessFiles] = useState<ProcessFile[]>([]);
 
   const [theme, setTheme] = useState<'light' | 'dark'>(() => (localStorage.getItem('sart_theme') as 'light' | 'dark') || 'light');
 
@@ -111,18 +112,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [theme]);
 
   const parseDbCurrency = useCallback((value: any): number | null => {
-    console.log('Parsing value:', value);
-    if (typeof value === 'number') {
-      console.log('-> is number, returning:', value);
-      return value;
-    }
+    if (typeof value === 'number') return value;
     if (typeof value === 'string') {
       const cleaned = value.replace(/[^0-9,-]+/g, '').replace(/\./g, '').replace(',', '.');
       const parsed = parseFloat(cleaned);
-      console.log('-> is string, cleaned:', cleaned, 'parsed:', parsed);
       return isNaN(parsed) ? null : parsed;
     }
-    console.log('-> is other type, returning null');
     return null;
   }, []);
 
@@ -145,10 +140,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [cutoffPeriods]);
 
   const debouncedUpdateConfig = useDebouncedCallback(async (newConfig: any) => {
-    if (!user) {
-      console.warn("[AppContext] No user authenticated, cannot save config.");
-      return;
-    }
+    if (!user) return;
     const { error } = await supabase.from('app_config').upsert({ user_id: JOAO_GESTOR_AUTH_ID, data: newConfig }, { onConflict: 'user_id' });
     if (error) {
       toast.error(`Erro ao salvar configurações: ${error.message}`);
@@ -173,13 +165,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setSupportMaterialsV2([]); setSupportMaterialAssignments([]); setLeadTasks([]); setGestorTasks([]); setGestorTaskCompletions([]); setFinancialEntries([]);
     setFormCadastros([]); setFormFiles([]); setNotifications([]); setTeamProductionGoals([]);
     setColdCallLeads([]); setColdCallLogs([]);
-    setProcesses([]); // Reset processes
+    setProcesses([]); setProcessFiles([]);
     setIsDataLoading(false);
   }, []);
 
   const refetchCommissions = useCallback(async () => {
     if (!user || isFetchingRef.current) return;
-    // Apenas perfis com permissão devem buscar comissões globais
     const allowedRoles = ['GESTOR', 'ADMIN', 'SECRETARIA'];
     if (!allowedRoles.includes(user.role)) {
       setCommissions([]);
@@ -262,36 +253,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setSalesOrigins(appConfigData.salesOrigins || DEFAULT_APP_CONFIG_DATA.salesOrigins);
       setHiringOrigins(appConfigData.hiringOrigins !== undefined ? appConfigData.hiringOrigins : DEFAULT_APP_CONFIG_DATA.hiringOrigins);
       setPvs(appConfigData.pvs || []);
-    } else {
-      setChecklistStructure(DEFAULT_STAGES);
-      setConsultantGoalsStructure(DEFAULT_GOALS);
-      setInterviewStructure(INITIAL_INTERVIEW_STRUCTURE);
-      setTemplates({});
-      setSalesOrigins(DEFAULT_APP_CONFIG_DATA.salesOrigins);
-      setHiringOrigins(DEFAULT_APP_CONFIG_DATA.hiringOrigins);
-      setPvs([]);
     }
   }, []);
-
-  useEffect(() => {
-    let subscription: any = null;
-    const effectiveGestorId = JOAO_GESTOR_AUTH_ID;
-
-    const setupRealtimeSubscription = () => {
-      subscription = supabase
-        .channel('app_config_changes')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'app_config', filter: `user_id=eq.${effectiveGestorId}` }, () => {
-          fetchAppConfig(effectiveGestorId);
-        })
-        .subscribe();
-    };
-
-    if (user && user.id) setupRealtimeSubscription();
-
-    return () => {
-      if (subscription) supabase.removeChannel(subscription);
-    };
-  }, [user, fetchAppConfig]);
 
   useEffect(() => {
     const fetchData = async (userId: string) => {
@@ -310,7 +273,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           supportMaterialsV2Res, supportMaterialAssignmentsV2Res,
           leadTasksRes, gestorTasksRes, gestorTaskCompletionsRes, financialEntriesRes,
           formCadastrosRes, formFilesRes, notificationsRes, teamProductionGoalsRes, teamMembersRes,
-          coldCallLeadsRes, coldCallLogsRes, processesRes
+          coldCallLeadsRes, coldCallLogsRes, processesRes, processFilesRes
         ] = await Promise.all([
           getAllFromTable('candidates', { select: 'id, data, created_at, last_updated_at', filters: { user_id: effectiveGestorId } }),
           getAllFromTable('support_materials', { select: 'id, data', filters: { user_id: effectiveGestorId } }),
@@ -342,10 +305,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           getAllFromTable('team_members', { select: 'id, data, cpf, user_id', filters: { user_id: effectiveGestorId } }),
           getAllFromTable('cold_call_leads'),
           getAllFromTable('cold_call_logs'),
-          getAllFromTable('processes', { filters: { user_id: effectiveGestorId } })
+          getAllFromTable('processes', { filters: { user_id: effectiveGestorId } }),
+          getAllFromTable('process_files')
         ]);
 
-        if (candidatesRes.error) { toast.error(`Erro ao carregar candidatos: ${candidatesRes.error.message}`); setCandidates([]); }
+        if (candidatesRes.error) setCandidates([]);
         else {
           const normalizedCandidates = (candidatesRes.data || []).map(item => {
             const candidateData = item.data as Candidate;
@@ -355,20 +319,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               db_id: item.id, 
               createdAt: item.created_at, 
               lastUpdatedAt: item.last_updated_at,
-              contactedDate: candidateData.contactedDate, interviewScheduledDate: candidateData.interviewScheduledDate,
-              interviewConductedDate: candidateData.interviewConductedDate, awaitingPreviewDate: candidateData.awaitingPreviewDate,
-              onboardingOnlineDate: candidateData.onboardingOnlineDate, integrationPresencialDate: candidateData.integrationPresencialDate,
-              acompanhamento90DiasDate: candidateData.acompanhamento90DiasDate, authorizedDate: candidateData.authorizedDate,
-              reprovadoDate: candidateData.reprovadoDate, disqualifiedDate: candidateData.disqualifiedDate, faltouDate: candidateData.faltouDate,
-              noResponseDate: candidateData.noResponseDate,
-              interviewStartTime: candidateData.interviewStartTime,
-              interviewEndTime: candidateData.interviewEndTime,
             };
           });
           setCandidates(normalizedCandidates);
         }
 
-        if (teamMembersRes.error) { toast.error(`Erro ao carregar membros da equipe: ${teamMembersRes.error.message}`); setTeamMembers([]); }
+        if (teamMembersRes.error) setTeamMembers([]);
         else {
           const normalizedTeamMembers = (teamMembersRes.data || []).map(item => {
             const data = item.data as any;
@@ -384,103 +340,109 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           setTeamMembers(normalizedTeamMembers);
         }
 
-        if (materialsRes.error) { toast.error(`Erro ao carregar materiais de apoio: ${materialsRes.error.message}`); setSupportMaterials([]); }
+        if (materialsRes.error) setSupportMaterials([]);
         else { setSupportMaterials(materialsRes.data?.map(item => ({ ...(item.data as SupportMaterial), db_id: item.id })) || []); }
 
-        if (cutoffRes.error) { toast.error(`Erro ao carregar períodos de corte: ${cutoffRes.error.message}`); setCutoffPeriods([]); }
+        if (cutoffRes.error) setCutoffPeriods([]);
         else { setCutoffPeriods(cutoffRes.data?.map(item => ({ ...(item.data as CutoffPeriod), db_id: item.id })) || []); }
 
-        if (onboardingRes.error) { toast.error(`Erro ao carregar sessões de onboarding: ${onboardingRes.error.message}`); setOnboardingSessions([]); }
+        if (onboardingRes.error) setOnboardingSessions([]);
         else { setOnboardingSessions((onboardingRes.data as any[])?.map(s => ({...s, videos: s.videos.sort((a:any,b:any) => a.order - b.order)})) || []); }
 
-        if (templateVideosRes.error) { toast.error(`Erro ao carregar templates de vídeo: ${templateVideosRes.error.message}`); setOnboardingTemplateVideos([]); }
+        if (templateVideosRes.error) setOnboardingTemplateVideos([]);
         else { setOnboardingTemplateVideos(templateVideosRes.data || []); }
 
-        if (pipelinesRes.error) { toast.error(`Erro ao carregar pipelines do CRM: ${pipelinesRes.error.message}`); setCrmPipelines([]); }
+        if (pipelinesRes.error) setCrmPipelines([]);
         else { setCrmPipelines(pipelinesRes.data || []); }
 
-        if (stagesRes.error) { toast.error(`Erro ao carregar etapas do CRM: ${stagesRes.error.message}`); setCrmStages([]); }
+        if (stagesRes.error) setCrmStages([]);
         else { setCrmStages(stagesRes.data || []); }
 
-        if (fieldsRes.error) { toast.error(`Erro ao carregar campos do CRM: ${fieldsRes.error.message}`); setCrmFields([]); }
+        if (fieldsRes.error) setCrmFields([]);
         else { setCrmFields(fieldsRes.data || []); }
 
-        if (crmLeadsRes.error) { toast.error(`Erro ao carregar leads do CRM: ${crmLeadsRes.error.message}`); setCrmLeads([]); }
-        else { setCrmLeads(crmLeadsRes.data?.map((lead: any) => {
-          console.log('CRM Lead raw:', lead);
-          return { 
-            id: lead.id, consultant_id: lead.consultant_id, stage_id: lead.stage_id, user_id: lead.user_id, name: lead.name, data: lead.data, created_at: lead.created_at, updated_at: lead.updated_at, created_by: lead.created_by, updated_by: lead.updated_by, 
-            proposal_value: parseDbCurrency(lead.proposal_value), proposal_closing_date: lead.proposal_closing_date, 
-            sold_credit_value: parseDbCurrency(lead.sold_credit_value), sold_group: lead.sold_group, sold_quota: lead.sold_quota, sale_date: lead.sale_date 
-          };
-        }) || []); }
+        if (crmLeadsRes.error) setCrmLeads([]);
+        else { setCrmLeads(crmLeadsRes.data?.map((lead: any) => ({ 
+          id: lead.id, consultant_id: lead.consultant_id, stage_id: lead.stage_id, user_id: lead.user_id, name: lead.name, data: lead.data, created_at: lead.created_at, updated_at: lead.updated_at, created_by: lead.created_by, updated_by: lead.updated_by, 
+          proposal_value: parseDbCurrency(lead.proposal_value), proposal_closing_date: lead.proposal_closing_date, 
+          sold_credit_value: parseDbCurrency(lead.sold_credit_value), sold_group: lead.sold_group, sold_quota: lead.sold_quota, sale_date: lead.sale_date 
+        })) || []); }
 
-        if (dailyChecklistsRes.error) { toast.error(`Erro ao carregar checklists diários: ${dailyChecklistsRes.error.message}`); setDailyChecklists([]); }
+        if (dailyChecklistsRes.error) setDailyChecklists([]);
         else { setDailyChecklists(dailyChecklistsRes.data || []); }
 
-        if (dailyChecklistItemsRes.error) { toast.error(`Erro ao carregar itens do checklist diário: ${dailyChecklistItemsRes.error.message}`); setDailyChecklistItems([]); }
+        if (dailyChecklistItemsRes.error) setDailyChecklistItems([]);
         else { setDailyChecklistItems(dailyChecklistItemsRes.data || []); }
 
-        if (dailyChecklistAssignmentsRes.error) { toast.error(`Erro ao carregar atribuições do checklist diário: ${dailyChecklistAssignmentsRes.error.message}`); setDailyChecklistAssignments([]); }
+        if (dailyChecklistAssignmentsRes.error) setDailyChecklistAssignments([]);
         else { setDailyChecklistAssignments(dailyChecklistAssignmentsRes.data || []); }
 
-        if (dailyChecklistCompletionsRes.error) { toast.error(`Erro ao carregar conclusões do checklist diário: ${dailyChecklistCompletionsRes.error.message}`); setDailyChecklistCompletions([]); }
+        if (dailyChecklistCompletionsRes.error) setDailyChecklistCompletions([]);
         else { setDailyChecklistCompletions(dailyChecklistCompletionsRes.data || []); }
 
-        if (weeklyTargetsRes.error) { toast.error(`Erro ao carregar metas semanais: ${weeklyTargetsRes.error.message}`); setWeeklyTargets([]); }
+        if (weeklyTargetsRes.error) setWeeklyTargets([]);
         else { setWeeklyTargets(weeklyTargetsRes.data || []); }
 
-        if (weeklyTargetItemsRes.error) { toast.error(`Erro ao carregar itens de metas semanais: ${weeklyTargetItemsRes.error.message}`); setWeeklyTargetItems([]); }
+        if (weeklyTargetItemsRes.error) setWeeklyTargetItems([]);
         else { setWeeklyTargetItems(weeklyTargetItemsRes.data || []); }
 
-        if (weeklyTargetAssignmentsRes.error) { toast.error(`Erro ao carregar atribuições de metas semanais: ${weeklyTargetAssignmentsRes.error.message}`); setWeeklyTargetAssignments([]); }
+        if (weeklyTargetAssignmentsRes.error) setWeeklyTargetAssignments([]);
         else { setWeeklyTargetAssignments(weeklyTargetAssignmentsRes.data || []); }
 
-        if (metricLogsRes.error) { toast.error(`Erro ao carregar logs de métricas: ${metricLogsRes.error.message}`); setMetricLogs([]); }
+        if (metricLogsRes.error) setMetricLogs([]);
         else { setMetricLogs(metricLogsRes.data || []); }
 
-        if (supportMaterialsV2Res.error) { toast.error(`Erro ao carregar materiais de apoio v2: ${supportMaterialsV2Res.error.message}`); setSupportMaterialsV2([]); }
+        if (supportMaterialsV2Res.error) setSupportMaterialsV2([]);
         else { setSupportMaterialsV2(supportMaterialsV2Res.data || []); }
 
-        if (supportMaterialAssignmentsV2Res.error) { toast.error(`Erro ao carregar atribuições de materiais de apoio: ${supportMaterialAssignmentsV2Res.error.message}`); setSupportMaterialAssignments([]); }
+        if (supportMaterialAssignmentsV2Res.error) setSupportMaterialAssignments([]);
         else { setSupportMaterialAssignments(supportMaterialAssignmentsV2Res.data || []); }
 
-        if (leadTasksRes.error) { toast.error(`Erro ao carregar tarefas de lead: ${leadTasksRes.error.message}`); setLeadTasks([]); }
+        if (leadTasksRes.error) setLeadTasks([]);
         else { setLeadTasks(leadTasksRes.data || []); }
 
-        if (gestorTasksRes.error) { toast.error(`Erro ao carregar tarefas do gestor: ${gestorTasksRes.error.message}`); setGestorTasks([]); }
+        if (gestorTasksRes.error) setGestorTasks([]);
         else { setGestorTasks(gestorTasksRes.data || []); }
 
-        if (gestorTaskCompletionsRes.error) { toast.error(`Erro ao carregar conclusões de tarefas do gestor: ${gestorTaskCompletionsRes.error.message}`); setGestorTaskCompletions([]); }
+        if (gestorTaskCompletionsRes.error) setGestorTaskCompletions([]);
         else { setGestorTaskCompletions(gestorTaskCompletionsRes.data || []); }
 
-        if (financialEntriesRes.error) { toast.error(`Erro ao carregar entradas financeiras: ${financialEntriesRes.error.message}`); setFinancialEntries([]); }
+        if (financialEntriesRes.error) setFinancialEntries([]);
         else {
           setFinancialEntries(financialEntriesRes.data?.map((entry: any) => ({
             id: entry.id, db_id: entry.id, user_id: entry.user_id, entry_date: entry.entry_date, type: entry.type, description: entry.description, amount: parseFloat(entry.amount), created_at: entry.created_at
           })) || []);
         }
 
-        if (formCadastrosRes.error) { toast.error(`Erro ao carregar cadastros de formulário: ${formCadastrosRes.error.message}`); setFormCadastros([]); }
+        if (formCadastrosRes.error) setFormCadastros([]);
         else { setFormCadastros(formCadastrosRes.data || []); }
 
-        if (formFilesRes.error) { toast.error(`Erro ao carregar arquivos de formulário: ${formFilesRes.error.message}`); setFormFiles([]); }
+        if (formFilesRes.error) setFormFiles([]);
         else { setFormFiles(formFilesRes.data || []); }
 
-        if (notificationsRes.error) { toast.error(`Erro ao carregar notificações: ${notificationsRes.error.message}`); setNotifications([]); }
+        if (notificationsRes.error) setNotifications([]);
         else { setNotifications(notificationsRes.data || []); }
 
-        if (teamProductionGoalsRes.error) { toast.error(`Erro ao carregar metas da equipe: ${teamProductionGoalsRes.error.message}`); setTeamProductionGoals([]); }
+        if (teamProductionGoalsRes.error) setTeamProductionGoals([]);
         else { setTeamProductionGoals(teamProductionGoalsRes.data || []); }
         
-        if (coldCallLeadsRes.error) { toast.error(`Erro ao carregar leads de cold call: ${coldCallLeadsRes.error.message}`); setColdCallLeads([]); }
+        if (coldCallLeadsRes.error) setColdCallLeads([]);
         else { setColdCallLeads(coldCallLeadsRes.data || []); }
 
-        if (coldCallLogsRes.error) { toast.error(`Erro ao carregar logs de cold call: ${coldCallLogsRes.error.message}`); setColdCallLogs([]); }
+        if (coldCallLogsRes.error) setColdCallLogs([]);
         else { setColdCallLogs(coldCallLogsRes.data || []); }
 
-        if (processesRes.error) { toast.error(`Erro ao carregar processos: ${processesRes.error.message}`); setProcesses([]); }
-        else { setProcesses(processesRes.data || []); }
+        if (processFilesRes.error) setProcessFiles([]);
+        else { setProcessFiles(processFilesRes.data || []); }
+
+        if (processesRes.error) setProcesses([]);
+        else {
+          const normalizedProcesses = (processesRes.data || []).map(p => ({
+            ...p,
+            files: (processFilesRes.data || []).filter((f: any) => f.process_id === p.id)
+          }));
+          setProcesses(normalizedProcesses);
+        }
 
         refetchCommissions();
       } catch (error: any) {
@@ -501,17 +463,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, [user?.id, refetchCommissions, fetchAppConfig, resetLocalState, parseDbCurrency]);
 
-  // CRUD candidatos
   const addCandidate = useCallback(async (candidate: Omit<Candidate, 'id' | 'createdAt' | 'db_id'>) => {
-    if (!user) throw new Error("Usuário não autenticado. Não é possível adicionar candidato.");
-    
+    if (!user) throw new Error("Usuário não autenticado.");
     const candidateDataWithCreator = { ...candidate, createdBy: user.id };
-
     const { data, error } = await supabase.from('candidates').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: candidateDataWithCreator }).select().single();
     if (error) throw error;
-    
     const newCandidate = { ...candidateDataWithCreator, id: (data.data as any).id || crypto.randomUUID(), db_id: data.id, createdAt: data.created_at } as Candidate;
-    
     setCandidates(prev => [newCandidate, ...prev]);
     return newCandidate;
   }, [user]);
@@ -519,33 +476,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const updateCandidate = useCallback(async (id: string, updates: Partial<Candidate>) => {
     const candidate = candidates.find(c => c.id === id || c.db_id === id);
     if (!candidate) return;
-
     const dbId = candidate.db_id || id;
     const updatedData = { ...candidate, ...updates };
     const now = new Date().toISOString();
-
-    if (updates.screeningStatus === 'Contacted' && candidate.screeningStatus !== 'Contacted') updatedData.contactedDate = now;
-    if (updates.screeningStatus === 'No Response' && candidate.screeningStatus !== 'No Response') updatedData.noResponseDate = now;
-    if (updates.interviewDate && candidate.interviewDate !== updates.interviewDate) updatedData.interviewScheduledDate = now;
-    if (updates.interviewConducted && !candidate.interviewConducted) updatedData.interviewConductedDate = now;
-    if (updates.status === 'Aguardando Prévia' && candidate.status !== 'Aguardando Prévia') updatedData.awaitingPreviewDate = now;
-    if (updates.status === 'Onboarding Online' && candidate.status !== 'Onboarding Online') updatedData.onboardingOnlineDate = now;
-    if (updates.status === 'Integração Presencial' && candidate.status !== 'Integração Presencial') updatedData.integrationPresencialDate = now;
-    if (updates.status === 'Acompanhamento 90 Dias' && candidate.status !== 'Acompanhamento 90 Dias') updatedData.acompanhamento90DiasDate = now;
-    if (updates.status === 'Autorizado' && candidate.status !== 'Autorizado') updatedData.authorizedDate = now;
-    if (updates.status === 'Reprovado' && candidate.status !== 'Reprovado') updatedData.reprovadoDate = now;
-    if (updates.status === 'Desqualificado' && candidate.status !== 'Desqualificado') updatedData.disqualifiedDate = now;
-    if (updates.status === 'Faltou' && candidate.status !== 'Faltou') updatedData.faltouDate = now;
-
-    if (updates.interviewStartTime !== undefined) updatedData.interviewStartTime = updates.interviewStartTime;
-    if (updates.interviewEndTime !== undefined) updatedData.interviewEndTime = updates.interviewEndTime;
-
     setCandidates(prev => prev.map(c => (c.id === id || c.db_id === id) ? { ...c, ...updatedData, lastUpdatedAt: now } : c));
-
     const dataToSave = { ...updatedData };
     delete (dataToSave as any).db_id;
     delete (dataToSave as any).createdAt;
-
     const { error } = await supabase.from('candidates').update({ data: dataToSave }).eq('id', dbId);
     if (error) throw error;
   }, [candidates]);
@@ -566,7 +503,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const dbId = candidate.db_id || candidate.id;
     const { error } = await supabase.from('candidates').update({ data: { ...candidate, checklistProgress: newProgress } }).eq('id', dbId);
     if (error) {
-      toast.error(`Erro ao atualizar checklist: ${error.message}`);
       setCandidates(prev => prev.map(c => (c.id === candidateId || c.db_id === candidateId) ? { ...c, checklistProgress: currentProgress } : c));
     }
   }, [candidates]);
@@ -580,7 +516,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     });
   }, [checklistStructure]);
 
-  // Cold call
   const addColdCallLead = useCallback(async (lead: Omit<ColdCallLead, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'current_stage'>) => {
     if (!user) throw new Error("User not authenticated.");
     const finalName = lead.name?.trim() || lead.phone.trim();
@@ -592,16 +527,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const updateColdCallLead = useCallback(async (id: string, updates: Partial<ColdCallLead>) => {
     if (!user) throw new Error("User not authenticated.");
-    const leadToUpdate = coldCallLeads.find(l => l.id === id);
-    if (!leadToUpdate) throw new Error(`Cold Call Lead com ID ${id} não encontrado.`);
     const { error: updateError } = await supabase.from('cold_call_leads').update(updates).eq('id', id);
     if (updateError) throw updateError;
     const { data, error: selectError } = await supabase.from('cold_call_leads').select('*').eq('id', id).maybeSingle();
     if (selectError) throw selectError;
-    if (!data) throw new Error("Nenhum dado retornado após atualizar o lead.");
     setColdCallLeads(prev => prev.map(l => l.id === id ? data : l));
     return data;
-  }, [user, coldCallLeads]);
+  }, [user]);
 
   const deleteColdCallLead = useCallback(async (id: string) => {
     const { error } = await supabase.from('cold_call_leads').delete().eq('id', id);
@@ -611,16 +543,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const addColdCallLog = useCallback(async (log: Omit<ColdCallLog, 'id' | 'user_id' | 'created_at'> & { start_time: string; end_time: string; duration_seconds: number; }) => {
     if (!user) throw new Error("User not authenticated.");
-    const insertData = { cold_call_lead_id: log.cold_call_lead_id, start_time: log.start_time, end_time: log.end_time, duration_seconds: log.duration_seconds, result: log.result, meeting_date: log.meeting_date, meeting_time: log.meeting_time, meeting_modality: log.meeting_modality, meeting_notes: log.meeting_notes, user_id: user.id };
+    const insertData = { ...log, user_id: user.id };
     const { data: insertedData, error: insertError } = await supabase.from('cold_call_logs').insert(insertData).select('*').maybeSingle();
     if (insertError) throw insertError;
-    if (!insertedData) {
-      const { data: fetchedData, error: selectError } = await supabase.from('cold_call_logs').select('*').eq('cold_call_lead_id', log.cold_call_lead_id).eq('user_id', user.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
-      if (selectError) throw selectError;
-      if (!fetchedData) throw new Error("Nenhum dado retornado após inserir o log.");
-      setColdCallLogs(prev => [...prev, fetchedData]);
-      return fetchedData;
-    }
     setColdCallLogs(prev => [...prev, insertedData]);
     return insertedData;
   }, [user]);
@@ -636,16 +561,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const createCrmLeadFromColdCall = useCallback(async (coldCallLeadId: string, meeting?: { date?: string; time?: string; modality?: string; notes?: string }, coldCallResultParam?: ColdCallResult) => {
     if (!user) throw new Error("User not authenticated.");
-    
-    console.log("[AppContext] coldCallResultParam received:", coldCallResultParam); // ADDED LOG
-
     const { data, error } = await supabase.functions.invoke('create-crm-lead-from-cold-call', { body: {
       coldCallLeadId,
       meetingDate: meeting?.date,
       meetingTime: meeting?.time,
       meetingModality: meeting?.modality,
       meetingNotes: meeting?.notes,
-      coldCallResult: coldCallResultParam // Pass coldCallResult to the Edge Function
+      coldCallResult: coldCallResultParam
     } });
     if (error) throw error;
     if (data.error) throw new Error(data.error);
@@ -663,7 +585,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return { crmLeadId: data.crmCrmLeadId };
   }, [user, parseDbCurrency]);
 
-  // Lead tasks
   const addLeadTask = useCallback(async (task: Omit<LeadTask, 'id' | 'created_at' | 'completed_at' | 'updated_at'> & { user_id: string; manager_id?: string | null; }) => {
     const { data, error } = await supabase.from('lead_tasks').insert(task).select().single();
     if (error) throw error;
@@ -694,7 +615,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return data;
   }, []);
 
-  // Gestor tasks
   const addGestorTask = useCallback(async (task: Omit<GestorTask, 'id' | 'user_id' | 'created_at' | 'is_completed'>) => {
     const { data, error } = await supabase.from('gestor_tasks').insert({ ...task, user_id: JOAO_GESTOR_AUTH_ID }).select().single();
     if (error) throw error;
@@ -716,12 +636,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const { data, error } = await supabase.from('gestor_task_completions').upsert({ gestor_task_id, user_id: JOAO_GESTOR_AUTH_ID, date, done }, { onConflict: 'gestor_task_id,user_id,date' }).select().single();
     if (error) throw error;
     setGestorTaskCompletions(prev => {
-      const filtered = prev.filter(c => !(c.gestor_task_id === gestor_task_id && c.consultant_id === JOAO_GESTOR_AUTH_ID && c.date === date));
+      const filtered = prev.filter(c => !(c.gestor_task_id === gestor_task_id && c.user_id === JOAO_GESTOR_AUTH_ID && c.date === date));
       return [...filtered, data];
     });
   }, []);
 
-  // Financeiro
   const addFinancialEntry = useCallback(async (entry: Omit<FinancialEntry, 'id' | 'user_id' | 'created_at'>) => {
     const { data, error } = await supabase.from('financial_entries').insert({ ...entry, user_id: JOAO_GESTOR_AUTH_ID, amount: entry.amount }).select().single();
     if (error) throw error;
@@ -740,7 +659,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setFinancialEntries(prev => prev.filter(e => e.id !== id));
   }, []);
 
-  // Daily checklist
   const addDailyChecklist = useCallback(async (title: string) => {
     const { data, error } = await supabase.from('daily_checklists').insert({ user_id: JOAO_GESTOR_AUTH_ID, title }).select().single();
     if (error) throw error;
@@ -774,18 +692,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     else if (resource?.type === 'text_audio_image') finalResource = { ...resource, content: { ...(resource.content as any), audioUrl, imageUrl } };
     else if (resource?.type === 'image' || resource?.type === 'pdf' || resource?.type === 'audio') finalResource = { ...resource, content: audioUrl || imageUrl };
 
-    // USO DE EDGE FUNCTION PARA INSERIR (BYPASS SEGURO DE RLS)
     const { data: fxRes, error: fxErr } = await supabase.functions.invoke('manage-daily-checklist-item', {
-      body: {
-        action: 'insert',
-        daily_checklist_id,
-        text,
-        order_index,
-        resource: finalResource
-      }
+      body: { action: 'insert', daily_checklist_id, text, order_index, resource: finalResource }
     });
     if (fxErr) throw fxErr;
-    if (!fxRes || !fxRes.data) throw new Error('Falha ao inserir item via edge function.');
     const inserted = fxRes.data;
     setDailyChecklistItems(prev => [...prev, inserted]);
     return inserted;
@@ -806,42 +716,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     let currentAudioUrl = (itemToUpdate.resource?.type === 'text_audio' || itemToUpdate.resource?.type === 'text_audio_image') ? (itemToUpdate.resource.content as any).audioUrl : (itemToUpdate.resource?.type === 'audio' ? itemToUpdate.resource.content : undefined);
     let currentImageUrl = (itemToUpdate.resource?.type === 'text_audio_image') ? (itemToUpdate.resource.content as any).imageUrl : (itemToUpdate.resource?.type === 'image' || itemToUpdate.resource?.type === 'pdf' ? itemToUpdate.resource.content : undefined);
-    let currentSingleFileContent = (itemToUpdate.resource?.type === 'text' || itemToUpdate.resource?.type === 'link' || itemToUpdate.resource?.type === 'video') ? itemToUpdate.resource.content : undefined;
 
-    if (audioFile) {
-      currentAudioUrl = await uploadFile(audioFile);
-    }
-    if (imageFile) {
-      currentImageUrl = await uploadFile(imageFile);
-    }
+    if (audioFile) currentAudioUrl = await uploadFile(audioFile);
+    if (imageFile) currentImageUrl = await uploadFile(imageFile);
 
     if (updates.resource) {
-      if (updates.resource.type === 'text_audio') {
-        finalResource = { ...updates.resource, content: { ...(updates.resource.content as any), audioUrl: currentAudioUrl } };
-      } else if (updates.resource.type === 'text_audio_image') {
-        finalResource = { ...updates.resource, content: { ...(updates.resource.content as any), audioUrl: currentAudioUrl, imageUrl: currentImageUrl } };
-      } else if (updates.resource.type === 'image' || updates.resource.type === 'pdf' || updates.resource.type === 'audio') {
-        finalResource = { ...updates.resource, content: currentAudioUrl || currentImageUrl || updates.resource.content };
-      } else if (updates.resource.type === 'text' || updates.resource.type === 'link' || updates.resource.type === 'video') {
-        finalResource = { ...updates.resource, content: updates.resource.content || currentSingleFileContent };
-      } else if (updates.resource.type === 'none') {
-        finalResource = undefined; // Remove o recurso
-      }
-    } else {
-      finalResource = itemToUpdate.resource; // Se updates.resource não foi fornecido, mantém o existente
+      if (updates.resource.type === 'text_audio') finalResource = { ...updates.resource, content: { ...(updates.resource.content as any), audioUrl: currentAudioUrl } };
+      else if (updates.resource.type === 'text_audio_image') finalResource = { ...updates.resource, content: { ...(updates.resource.content as any), audioUrl: currentAudioUrl, imageUrl: currentImageUrl } };
+      else if (updates.resource.type === 'image' || updates.resource.type === 'pdf' || updates.resource.type === 'audio') finalResource = { ...updates.resource, content: currentAudioUrl || currentImageUrl || updates.resource.content };
+      else if (updates.resource.type === 'none') finalResource = undefined;
     }
 
-    // USO DE EDGE FUNCTION PARA ATUALIZAR (BYPASS SEGURO DE RLS)
     const { data: fxRes, error: fxErr } = await supabase.functions.invoke('manage-daily-checklist-item', {
-      body: {
-        action: 'update',
-        id,
-        text: updates.text,
-        resource: finalResource
-      }
+      body: { action: 'update', id, text: updates.text, resource: finalResource }
     });
     if (fxErr) throw fxErr;
-    if (!fxRes || !fxRes.data) throw new Error('Falha ao atualizar item via edge function.');
     const updated = fxRes.data;
     setDailyChecklistItems(prev => prev.map(i => i.id === id ? updated : i));
     return updated;
@@ -888,7 +777,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     });
   }, []);
 
-  // Weekly targets
   const addWeeklyTarget = useCallback(async (target: Omit<WeeklyTarget, 'id' | 'user_id' | 'created_at'>) => {
     const { data, error } = await supabase.from('weekly_targets').insert({ ...target, user_id: JOAO_GESTOR_AUTH_ID }).select().single();
     if (error) throw error;
@@ -941,7 +829,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setWeeklyTargetAssignments(prev => prev.filter(a => !(a.weekly_target_id === weekly_target_id && a.consultant_id === consultant_id)));
   }, []);
 
-  // Metric logs
   const addMetricLog = useCallback(async (log: Omit<MetricLog, 'id' | 'created_at'>) => {
     if (!user) throw new Error("User not authenticated.");
     const insertData = { ...log, consultant_id: log.consultant_id ?? user.id };
@@ -964,7 +851,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setMetricLogs(prev => prev.filter(m => m.id !== id));
   }, []);
 
-  // Materiais de apoio v2
   const addSupportMaterialV2 = useCallback(async (material: Omit<SupportMaterialV2, 'id' | 'user_id' | 'created_at'>, file?: File) => {
     let content = material.content;
     if (file) {
@@ -1010,74 +896,29 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setSupportMaterialAssignments(prev => prev.filter(a => !(a.material_id === material_id && a.consultant_id === consultant_id)));
   }, []);
 
-  // CRM básico
   const addCrmLead = useCallback(async (lead: Omit<CrmLead, 'id' | 'created_at' | 'updated_at' | 'user_id' | 'created_by' | 'updated_by'>) => {
     if (!user) throw new Error("User not authenticated.");
-    if (!crmOwnerUserId) throw new Error("CRM Owner User ID is not set.");
-
-    const { data, error } = await supabase.from('crm_leads').insert({ 
-      ...lead, 
-      user_id: crmOwnerUserId,
-      created_by: user.id,
-    }).select().single();
+    const { data, error } = await supabase.from('crm_leads').insert({ ...lead, user_id: JOAO_GESTOR_AUTH_ID, created_by: user.id }).select().single();
     if (error) throw error;
-    
-    const newLead = {
-      id: data.id, 
-      consultant_id: data.consultant_id, 
-      stage_id: data.stage_id,
-      user_id: data.user_id, 
-      name: data.name, 
-      data: data.data,
-      created_at: data.created_at, 
-      updated_at: data.updated_at, 
-      created_by: data.created_by, 
-      updated_by: data.updated_by,
-      proposal_value: parseDbCurrency(data.proposal_value), 
-      proposal_closing_date: data.proposal_closing_date, 
-      sold_credit_value: parseDbCurrency(data.sold_credit_value), 
-      sold_group: data.sold_group, 
-      sold_quota: data.sold_quota, 
-      sale_date: data.sale_date
-    };
-    
+    const newLead = { ...data, proposal_value: parseDbCurrency(data.proposal_value), sold_credit_value: parseDbCurrency(data.sold_credit_value) };
     setCrmLeads(prev => [newLead, ...prev]);
     return newLead;
-  }, [user, crmOwnerUserId, parseDbCurrency]);
+  }, [user, parseDbCurrency]);
 
   const updateCrmLead = useCallback(async (id: string, updates: Partial<CrmLead>) => {
-    const { data, error } = await supabase.from('crm_leads').update({ 
-      ...updates, 
-      updated_by: user!.id,
-    }).eq('id', id).select().single();
+    const { data, error } = await supabase.from('crm_leads').update({ ...updates, updated_by: user!.id }).eq('id', id).select().single();
     if (error) throw error;
-    const updatedLead = {
-      id: data.id, consultant_id: data.consultant_id, stage_id: data.stage_id, user_id: data.user_id, name: data.name, data: data.data,
-      created_at: data.created_at, updated_at: data.updated_at, created_by: data.created_by, updated_by: data.updated_by,
-      proposal_value: parseDbCurrency(data.proposal_value), proposal_closing_date: data.proposal_closing_date,
-      sold_credit_value: parseDbCurrency(data.sold_credit_value), sold_group: data.sold_group, sold_quota: data.sold_quota, sale_date: data.sale_date
-    };
+    const updatedLead = { ...data, proposal_value: parseDbCurrency(data.proposal_value), sold_credit_value: parseDbCurrency(data.sold_credit_value) };
     setCrmLeads(prev => prev.map(l => l.id === id ? updatedLead : l));
     return updatedLead;
   }, [user, parseDbCurrency]);
 
   const deleteCrmLead = useCallback(async (id: string) => {
-    const { data, error } = await supabase
-      .from('crm_leads')
-      .delete()
-      .eq('id', id)
-      .eq('user_id', JOAO_GESTOR_AUTH_ID)
-      .select()
-      .maybeSingle();
+    const { error } = await supabase.from('crm_leads').delete().eq('id', id).eq('user_id', JOAO_GESTOR_AUTH_ID);
     if (error) throw error;
-    // Se nenhuma linha foi retornada, nada foi excluído (id incorreto/sem permissão)
-    if (!data) {
-      throw new Error('Lead não encontrado ou sem permissão para excluir.');
-    }
     setCrmLeads(prev => prev.filter(l => l.id !== id));
   }, []);
 
-  // Team members
   const updateTeamMember = useCallback(async (id: string, updates: Partial<TeamMember>) => {
     const member = teamMembers.find(m => m.id === id);
     if (!member) throw new Error("Member not found");
@@ -1114,18 +955,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const addTeamMember = useCallback(async (member: Omit<TeamMember, 'id'> & { email: string }) => {
     const tempPassword = generateRandomPassword();
     const loginFromCpf = (member.cpf || '').toString().slice(-4);
-    const primaryRole = member.roles?.includes('SECRETARIA')
-      ? 'SECRETARIA'
-      : (member.roles?.includes('GESTOR') ? 'GESTOR' : 'CONSULTOR');
-
+    const primaryRole = member.roles?.includes('SECRETARIA') ? 'SECRETARIA' : (member.roles?.includes('GESTOR') ? 'GESTOR' : 'CONSULTOR');
     const { data: authData, error: authError } = await supabase.functions.invoke('create-or-link-consultant', {
       body: { email: member.email, name: member.name, tempPassword, login: loginFromCpf, role: primaryRole }
     });
     if (authError) throw authError;
-
     const { data, error } = await supabase.from('team_members').insert({ user_id: JOAO_GESTOR_AUTH_ID, cpf: member.cpf, data: { ...member, id: authData.authUserId } }).select().single();
     if (error) throw error;
-
     const newMember = { id: data.id, db_id: data.id, authUserId: authData.authUserId, name: member.name, email: member.email, roles: member.roles, isActive: member.isActive, cpf: member.cpf, dateOfBirth: member.dateOfBirth, user_id: data.user_id };
     setTeamMembers(prev => [...prev, newMember]);
     return { success: true, member: newMember, tempPassword, wasExistingUser: authData.userExists };
@@ -1138,7 +974,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setTeamMembers(prev => prev.filter(m => m.id !== id));
   }, [teamMembers]);
 
-  // Metas da equipe
   const addTeamProductionGoal = useCallback(async (goal: Omit<TeamProductionGoal, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
     const { data, error } = await supabase.from('team_production_goals').insert({ ...goal, user_id: JOAO_GESTOR_AUTH_ID }).select().single();
     if (error) throw error;
@@ -1157,7 +992,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setTeamProductionGoals(prev => prev.filter(g => g.id !== id));
   }, []);
 
-  // Cutoff periods
   const addCutoffPeriod = useCallback(async (period: CutoffPeriod) => {
     const { error } = await supabase.from('cutoff_periods').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: period }).select().single();
     if (error) throw error;
@@ -1176,7 +1010,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setCutoffPeriods(prev => prev.filter(p => p.db_id !== id));
   }, []);
 
-  // Online onboarding (template + sessões)
   const addOnlineOnboardingSession = useCallback(async (consultantName: string) => {
     const { data: sessionData, error: sessionError } = await supabase.from('onboarding_sessions').insert({ user_id: JOAO_GESTOR_AUTH_ID, consultant_name: consultantName }).select().single();
     if (sessionError) throw sessionError;
@@ -1206,7 +1039,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setOnboardingTemplateVideos(prev => prev.filter(v => v.id !== videoId));
   }, []);
 
-  // Formulários
   const updateFormCadastro = useCallback(async (id: string, updates: Partial<FormCadastro>) => {
     const { data, error } = await supabase.from('form_submissions').update(updates).eq('id', id).select().single();
     if (error) throw error;
@@ -1219,7 +1051,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setFormCadastros(prev => prev.filter(f => f.id !== id));
   }, []);
 
-  // Feedbacks (candidato)
   const addFeedback = useCallback(async (personId: string, feedback: Omit<Feedback, 'id'>) => {
     const candidate = candidates.find(c => c.id === personId);
     if (!candidate) throw new Error("Candidate not found");
@@ -1243,21 +1074,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [candidates, updateCandidate]);
 
   const addChecklistStage = useCallback((title: string, description: string) => {
-    const newStage: ChecklistStage = {
-      id: crypto.randomUUID(),
-      title,
-      description,
-      items: [],
-    };
+    const newStage: ChecklistStage = { id: crypto.randomUUID(), title, description, items: [] };
     const newStructure = [...checklistStructure, newStage];
     setChecklistStructure(newStructure);
     updateConfig({ checklistStructure: newStructure });
   }, [checklistStructure, updateConfig]);
 
   const updateChecklistStage = useCallback((stageId: string, updates: Partial<ChecklistStage>) => {
-    const newStructure = checklistStructure.map(stage =>
-      stage.id === stageId ? { ...stage, ...updates } : stage
-    );
+    const newStructure = checklistStructure.map(stage => stage.id === stageId ? { ...stage, ...updates } : stage);
     setChecklistStructure(newStructure);
     updateConfig({ checklistStructure: newStructure });
   }, [checklistStructure, updateConfig]);
@@ -1280,78 +1104,75 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, [checklistStructure, updateConfig]);
 
-  const addProcess = useCallback(async (processData: Omit<Process, 'id' | 'user_id' | 'created_at' | 'updated_at'>, file?: File | null) => {
+  const addProcess = useCallback(async (processData: Omit<Process, 'id' | 'user_id' | 'created_at' | 'updated_at'>, files?: FileList | null) => {
     if (!user) throw new Error("User not authenticated.");
-    
-    let fileUrl: string | undefined = processData.file_url;
-    let fileType: string | undefined = processData.file_type;
-
-    if (file) {
-      const sanitized = sanitizeFilename(file.name);
-      const path = `process_files/${Date.now()}-${sanitized}`;
-      const { data: uploadData, error: uploadError } = await supabase.storage.from('form_uploads').upload(path, file);
-      if (uploadError) throw uploadError;
-      fileUrl = supabase.storage.from('form_uploads').getPublicUrl(path).data.publicUrl;
-      
-      if (file.type.startsWith('image/')) fileType = 'image';
-      else if (file.type.startsWith('video/')) fileType = 'video';
-      else if (file.type.startsWith('audio/')) fileType = 'audio';
-      else fileType = 'pdf';
-    }
-
-    const { data, error } = await supabase.from('processes').insert({ 
-      ...processData, 
-      user_id: user.id, 
-      file_url: fileUrl, 
-      file_type: fileType 
-    }).select().single();
+    const { data: process, error } = await supabase.from('processes').insert({ ...processData, user_id: user.id }).select().single();
     if (error) throw error;
-    setProcesses(prev => [data, ...prev].sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()));
-    return data;
+    const uploadedFiles: ProcessFile[] = [];
+    if (files && files.length > 0) {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const sanitized = sanitizeFilename(file.name);
+        const path = `process_files/${process.id}/${Date.now()}-${sanitized}`;
+        const { error: uploadError } = await supabase.storage.from('form_uploads').upload(path, file);
+        if (uploadError) throw uploadError;
+        const fileUrl = supabase.storage.from('form_uploads').getPublicUrl(path).data.publicUrl;
+        let fileType: 'image' | 'pdf' | 'video' | 'audio' = 'pdf';
+        if (file.type.startsWith('image/')) fileType = 'image';
+        else if (file.type.startsWith('video/')) fileType = 'video';
+        else if (file.type.startsWith('audio/')) fileType = 'audio';
+        const { data: fileRecord, error: fileError } = await supabase.from('process_files').insert({ process_id: process.id, file_url: fileUrl, file_type: fileType, file_name: file.name }).select().single();
+        if (fileError) throw fileError;
+        uploadedFiles.push(fileRecord);
+      }
+    }
+    const fullProcess = { ...process, files: uploadedFiles };
+    setProcesses(prev => [fullProcess, ...prev]);
+    setProcessFiles(prev => [...prev, ...uploadedFiles]);
+    return fullProcess;
   }, [user]);
 
-  const updateProcess = useCallback(async (id: string, updates: Partial<Process>, file?: File | null) => {
-    const existingProcess = processes.find(p => p.id === id);
-    if (!existingProcess) throw new Error("Process not found.");
-
-    let fileUrl: string | undefined = updates.file_url;
-    let fileType: string | undefined = updates.file_type;
-
-    if (file) {
-      const sanitized = sanitizeFilename(file.name);
-      const path = `process_files/${Date.now()}-${sanitized}`;
-      const { data: uploadData, error: uploadError } = await supabase.storage.from('form_uploads').upload(path, file);
-      if (uploadError) throw uploadError;
-      fileUrl = supabase.storage.from('form_uploads').getPublicUrl(path).data.publicUrl;
-      
-      if (file.type.startsWith('image/')) fileType = 'image';
-      else if (file.type.startsWith('video/')) fileType = 'video';
-      else if (file.type.startsWith('audio/')) fileType = 'audio';
-      else fileType = 'pdf';
-    } else if (updates.file_url === undefined && updates.file_type === undefined) {
-      // User explicitly removed the file
-      fileUrl = undefined;
-      fileType = undefined;
-    } else {
-      // No new file, retain existing if not explicitly removed
-      fileUrl = existingProcess.file_url;
-      fileType = existingProcess.file_type;
-    }
-
-    const { data, error } = await supabase.from('processes').update({ 
-      ...updates, 
-      file_url: fileUrl, 
-      file_type: fileType 
-    }).eq('id', id).select().single();
+  const updateProcess = useCallback(async (id: string, updates: Partial<Process>, files?: FileList | null) => {
+    const { data: process, error } = await supabase.from('processes').update(updates).eq('id', id).select().single();
     if (error) throw error;
-    setProcesses(prev => prev.map(p => p.id === id ? data : p).sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()));
-    return data;
-  }, [processes]);
+    const uploadedFiles: ProcessFile[] = [];
+    if (files && files.length > 0) {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const sanitized = sanitizeFilename(file.name);
+        const path = `process_files/${id}/${Date.now()}-${sanitized}`;
+        const { error: uploadError } = await supabase.storage.from('form_uploads').upload(path, file);
+        if (uploadError) throw uploadError;
+        const fileUrl = supabase.storage.from('form_uploads').getPublicUrl(path).data.publicUrl;
+        let fileType: 'image' | 'pdf' | 'video' | 'audio' = 'pdf';
+        if (file.type.startsWith('image/')) fileType = 'image';
+        else if (file.type.startsWith('video/')) fileType = 'video';
+        else if (file.type.startsWith('audio/')) fileType = 'audio';
+        const { data: fileRecord, error: fileError } = await supabase.from('process_files').insert({ process_id: id, file_url: fileUrl, file_type: fileType, file_name: file.name }).select().single();
+        if (fileError) throw fileError;
+        uploadedFiles.push(fileRecord);
+      }
+    }
+    const currentFiles = processFiles.filter(f => f.process_id === id);
+    const allFiles = [...currentFiles, ...uploadedFiles];
+    const fullProcess = { ...process, files: allFiles };
+    setProcesses(prev => prev.map(p => p.id === id ? fullProcess : p));
+    setProcessFiles(prev => [...prev, ...uploadedFiles]);
+    return fullProcess;
+  }, [processFiles]);
 
   const deleteProcess = useCallback(async (id: string) => {
     const { error } = await supabase.from('processes').delete().eq('id', id);
     if (error) throw error;
     setProcesses(prev => prev.filter(p => p.id !== id));
+    setProcessFiles(prev => prev.filter(f => f.process_id !== id));
+  }, []);
+
+  const deleteProcessFile = useCallback(async (fileId: string) => {
+    const { error } = await supabase.from('process_files').delete().eq('id', fileId);
+    if (error) throw error;
+    setProcessFiles(prev => prev.filter(f => f.id !== fileId));
+    setProcesses(prev => prev.map(p => ({ ...p, files: p.files?.filter(f => f.id !== fileId) })));
   }, []);
 
   const value: AppContextType = useMemo(() => ({
@@ -1366,15 +1187,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     leadTasks, gestorTasks, gestorTaskCompletions, financialEntries,
     formCadastros, formFiles, notifications, teamProductionGoals,
     coldCallLeads, coldCallLogs,
-    processes,
+    processes, processFiles,
     theme,
-
     toggleTheme, updateConfig, resetLocalState, refetchCommissions, calculateCompetenceMonth, isGestorTaskDueOnDate, calculateNotifications,
-
     addCandidate, updateCandidate, deleteCandidate,
     getCandidate: (id: string) => candidates.find(c => c.id === id),
     setCandidates,
-
     toggleChecklistItem,
     setChecklistDueDate: async (candidateId: string, itemId: string, dueDate: string) => {
       const candidate = candidates.find(c => c.id === candidateId);
@@ -1391,42 +1209,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const newProgress = { ...currentProgress, [goalId]: !currentProgress[goalId] };
       await updateCandidate(candidateId, { consultantGoalsProgress: newProgress });
     },
-
-    addChecklistStage,
-    updateChecklistStage,
-    deleteChecklistStage,
-    moveChecklistStage,
-
+    addChecklistStage, updateChecklistStage, deleteChecklistStage, moveChecklistStage,
     addChecklistItem: (stageId: string, label: string, responsibleRole: string) => {
-      const newStructure = checklistStructure.map(stage => {
-        if (stage.id === stageId) {
-          return { ...stage, items: [...stage.items, { id: crypto.randomUUID(), label, responsibleRole }] };
-        }
-        return stage;
-      });
+      const newStructure = checklistStructure.map(stage => stage.id === stageId ? { ...stage, items: [...stage.items, { id: crypto.randomUUID(), label, responsibleRole }] } : stage);
       setChecklistStructure(newStructure);
       updateConfig({ checklistStructure: newStructure });
     },
     updateChecklistItem: (stageId: string, itemId: string, updates: Partial<ChecklistItem>) => {
-      const newStructure = checklistStructure.map(stage => {
-        if (stage.id !== stageId) return stage;
-        return {
-          ...stage,
-          items: stage.items.map(item => (item.id === itemId ? { ...item, ...updates } : item)),
-        };
-      });
+      const newStructure = checklistStructure.map(stage => stage.id !== stageId ? stage : { ...stage, items: stage.items.map(item => (item.id === itemId ? { ...item, ...updates } : item)) });
       setChecklistStructure(newStructure);
       updateConfig({ checklistStructure: newStructure });
-      // Mantém a assinatura do contexto (Promise) por compatibilidade
       return Promise.resolve({} as any);
     },
     deleteChecklistItem: (stageId: string, itemId: string) => {
-      const newStructure = checklistStructure.map(stage => {
-        if (stage.id === stageId) {
-          return { ...stage, items: stage.items.filter(item => item.id !== itemId) };
-        }
-        return stage;
-      });
+      const newStructure = checklistStructure.map(stage => stage.id === stageId ? { ...stage, items: stage.items.filter(item => item.id !== itemId) } : stage);
       setChecklistStructure(newStructure);
       updateConfig({ checklistStructure: newStructure });
     },
@@ -1437,9 +1233,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           if (index === -1) return stage;
           const newItems = [...stage.items];
           const targetIndex = direction === 'up' ? index - 1 : index + 1;
-          if (targetIndex >= 0 && targetIndex < newItems.length) {
-            [newItems[index], newItems[targetIndex]] = [newItems[targetIndex], newItems[index]];
-          }
+          if (targetIndex >= 0 && targetIndex < newItems.length) [newItems[index], newItems[targetIndex]] = [newItems[targetIndex], newItems[index]];
           return { ...stage, items: newItems };
         }
         return stage;
@@ -1447,32 +1241,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setChecklistStructure(newStructure);
       updateConfig({ checklistStructure: newStructure });
     },
-    resetChecklistToDefault: () => {
-      setChecklistStructure(DEFAULT_STAGES);
-      updateConfig({ checklistStructure: DEFAULT_STAGES });
-    },
-
+    resetChecklistToDefault: () => { setChecklistStructure(DEFAULT_STAGES); updateConfig({ checklistStructure: DEFAULT_STAGES }); },
     addGoalItem: (stageId: string, label: string) => {
-      const newStructure = consultantGoalsStructure.map(stage => {
-        if (stage.id === stageId) return { ...stage, items: [...stage.items, { id: crypto.randomUUID(), label }] };
-        return stage;
-      });
+      const newStructure = consultantGoalsStructure.map(stage => stage.id === stageId ? { ...stage, items: [...stage.items, { id: crypto.randomUUID(), label }] } : stage);
       setConsultantGoalsStructure(newStructure);
       updateConfig({ consultantGoalsStructure: newStructure });
     },
     updateGoalItem: (stageId: string, itemId: string, newLabel: string) => {
-      const newStructure = consultantGoalsStructure.map(stage => {
-        if (stage.id === stageId) return { ...stage, items: stage.items.map(item => item.id === itemId ? { ...item, label: newLabel } : item) };
-        return stage;
-      });
+      const newStructure = consultantGoalsStructure.map(stage => stage.id === stageId ? { ...stage, items: stage.items.map(item => item.id === itemId ? { ...item, label: newLabel } : item) } : stage);
       setConsultantGoalsStructure(newStructure);
       updateConfig({ consultantGoalsStructure: newStructure });
     },
     deleteGoalItem: (stageId: string, itemId: string) => {
-      const newStructure = consultantGoalsStructure.map(stage => {
-        if (stage.id === stageId) return { ...stage, items: stage.items.filter(item => item.id !== itemId) };
-        return stage;
-      });
+      const newStructure = consultantGoalsStructure.map(stage => stage.id === stageId ? { ...stage, items: stage.items.filter(item => item.id !== itemId) } : stage);
       setConsultantGoalsStructure(newStructure);
       updateConfig({ consultantGoalsStructure: newStructure });
     },
@@ -1483,9 +1264,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           if (index === -1) return stage;
           const newItems = [...stage.items];
           const targetIndex = direction === 'up' ? index - 1 : index + 1;
-          if (targetIndex >= 0 && targetIndex < newItems.length) {
-            [newItems[index], newItems[targetIndex]] = [newItems[targetIndex], newItems[index]];
-          }
+          if (targetIndex >= 0 && targetIndex < newItems.length) [newItems[index], newItems[targetIndex]] = [newItems[targetIndex], newItems[index]];
           return { ...stage, items: newItems };
         }
         return stage;
@@ -1493,11 +1272,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setConsultantGoalsStructure(newStructure);
       updateConfig({ consultantGoalsStructure: newStructure });
     },
-    resetGoalsToDefault: () => {
-      setConsultantGoalsStructure(DEFAULT_GOALS);
-      updateConfig({ consultantGoalsStructure: DEFAULT_GOALS });
-    },
-
+    resetGoalsToDefault: () => { setConsultantGoalsStructure(DEFAULT_GOALS); updateConfig({ consultantGoalsStructure: DEFAULT_GOALS }); },
     updateInterviewSection: (sectionId: string, updates: Partial<InterviewSection>) => {
       const newStructure = interviewStructure.map(s => s.id === sectionId ? { ...s, ...updates } : s);
       setInterviewStructure(newStructure);
@@ -1525,9 +1300,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           if (index === -1) return s;
           const newQuestions = [...s.questions];
           const targetIndex = direction === 'up' ? index - 1 : index + 1;
-          if (targetIndex >= 0 && targetIndex < newQuestions.length) {
-            [newQuestions[index], newQuestions[targetIndex]] = [newQuestions[targetIndex], newQuestions[index]];
-          }
+          if (targetIndex >= 0 && targetIndex < newQuestions.length) [newQuestions[index], newQuestions[targetIndex]] = [newQuestions[targetIndex], newQuestions[index]];
           return { ...s, questions: newQuestions };
         }
         return s;
@@ -1535,301 +1308,73 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setInterviewStructure(newStructure);
       updateConfig({ interviewStructure: newStructure });
     },
-    resetInterviewToDefault: () => {
-      setInterviewStructure(INITIAL_INTERVIEW_STRUCTURE);
-      updateConfig({ interviewStructure: INITIAL_INTERVIEW_STRUCTURE });
-    },
-
+    resetInterviewToDefault: () => { setInterviewStructure(INITIAL_INTERVIEW_STRUCTURE); updateConfig({ interviewStructure: INITIAL_INTERVIEW_STRUCTURE }); },
     saveTemplate: (itemId: string, updates: Partial<CommunicationTemplate>) => {
       const newTemplates = { ...templates, [itemId]: { ...templates[itemId], ...updates } };
       setTemplates(newTemplates);
       updateConfig({ templates: newTemplates });
     },
     addOrigin: (newOrigin: string, type: 'sales' | 'hiring') => {
-      if (type === 'sales') {
-        const newOrigins = [...salesOrigins, newOrigin];
-        setSalesOrigins(newOrigins);
-        updateConfig({ salesOrigins: newOrigins });
-      } else {
-        const newOrigins = [...hiringOrigins, newOrigin];
-        setHiringOrigins(newOrigins);
-        updateConfig({ hiringOrigins: newOrigins });
-      }
+      if (type === 'sales') { const newOrigins = [...salesOrigins, newOrigin]; setSalesOrigins(newOrigins); updateConfig({ salesOrigins: newOrigins }); }
+      else { const newOrigins = [...hiringOrigins, newOrigin]; setHiringOrigins(newOrigins); updateConfig({ hiringOrigins: newOrigins }); }
     },
     deleteOrigin: (originToDelete: string, type: 'sales' | 'hiring') => {
-      if (type === 'sales') {
-        const newOrigins = salesOrigins.filter(o => o !== originToDelete);
-        setSalesOrigins(newOrigins);
-        updateConfig({ salesOrigins: newOrigins });
-      } else {
-        const newOrigins = hiringOrigins.filter(o => o !== originToDelete);
-        setHiringOrigins(newOrigins);
-        updateConfig({ hiringOrigins: newOrigins });
-      }
+      if (type === 'sales') { const newOrigins = salesOrigins.filter(o => o !== originToDelete); setSalesOrigins(newOrigins); updateConfig({ salesOrigins: newOrigins }); }
+      else { const newOrigins = hiringOrigins.filter(o => o !== originToDelete); setHiringOrigins(newOrigins); updateConfig({ hiringOrigins: newOrigins }); }
     },
-    resetOriginsToDefault: () => {
-      setSalesOrigins(DEFAULT_APP_CONFIG_DATA.salesOrigins);
-      setHiringOrigins(DEFAULT_APP_CONFIG_DATA.hiringOrigins);
-      updateConfig({ salesOrigins: DEFAULT_APP_CONFIG_DATA.salesOrigins, hiringOrigins: DEFAULT_APP_CONFIG_DATA.hiringOrigins });
-    },
-    addPV: (newPV: string) => {
-      const newPvsList = [...pvs, newPV];
-      setPvs(newPvsList);
-      updateConfig({ pvs: newPvsList });
-    },
-
-    addCommission: async (commission: any) => {
-      const { error } = await supabase.from('commissions').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: commission }).select().single();
-      if (error) throw error;
-      refetchCommissions();
-      return { success: true };
-    },
-    updateCommission: async (id: string, updates: Partial<Commission>) => {
-      const { error } = await supabase.from('commissions').update({ data: updates }).eq('id', id);
-      if (error) throw error;
-      refetchCommissions();
-    },
+    resetOriginsToDefault: () => { setSalesOrigins(DEFAULT_APP_CONFIG_DATA.salesOrigins); setHiringOrigins(DEFAULT_APP_CONFIG_DATA.hiringOrigins); updateConfig({ salesOrigins: DEFAULT_APP_CONFIG_DATA.salesOrigins, hiringOrigins: DEFAULT_APP_CONFIG_DATA.hiringOrigins }); },
+    addPV: (newPV: string) => { const newPvsList = [...pvs, newPV]; setPvs(newPvsList); updateConfig({ pvs: newPvsList }); },
+    addCommission: async (commission: any) => { const { error } = await supabase.from('commissions').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: commission }).select().single(); if (error) throw error; refetchCommissions(); return { success: true }; },
+    updateCommission: async (id: string, updates: Partial<Commission>) => { const { error } = await supabase.from('commissions').update({ data: updates }).eq('id', id); if (error) throw error; refetchCommissions(); },
     deleteCommission: async (id: string) => { const { error } = await supabase.from('commissions').delete().eq('id', id); if (error) throw error; refetchCommissions(); },
     updateInstallmentStatus: async (commissionDbId: string, installmentNumber: number, status: InstallmentStatus, paidDate?: string) => {
       const current = commissions.find(c => c.db_id === commissionDbId);
       if (!current) throw new Error('Comissão não encontrada');
-
       const key = installmentNumber.toString();
-
       const details = { ...(current.installmentDetails || {}) };
       const prev = details[key] || { status: 'Pendente' as InstallmentStatus };
-
       const updatedInfo: InstallmentInfo = { ...prev, status };
-
-      if (status === 'Pago') {
-        const effectiveDate = paidDate || new Date().toISOString().split('T')[0];
-        updatedInfo.paidDate = effectiveDate;
-        updatedInfo.competenceMonth = calculateCompetenceMonth(effectiveDate);
-      } else {
-        delete updatedInfo.paidDate;
-        delete updatedInfo.competenceMonth;
-      }
-
+      if (status === 'Pago') { const effectiveDate = paidDate || new Date().toISOString().split('T')[0]; updatedInfo.paidDate = effectiveDate; updatedInfo.competenceMonth = calculateCompetenceMonth(effectiveDate); }
+      else { delete updatedInfo.paidDate; delete updatedInfo.competenceMonth; }
       const newDetails = { ...details, [key]: updatedInfo };
-      const updatedCommission: Commission = {
-        ...current,
-        installmentDetails: newDetails,
-        status: getOverallStatus(newDetails),
-      };
-
+      const updatedCommission: Commission = { ...current, installmentDetails: newDetails, status: getOverallStatus(newDetails) };
       const { db_id, criado_em, ...dataToSave } = updatedCommission as any;
-
       const { error } = await supabase.from('commissions').update({ data: dataToSave }).eq('id', commissionDbId);
       if (error) throw error;
-
       setCommissions(prev => prev.map(c => (c.db_id === commissionDbId ? { ...updatedCommission } : c)));
-
       toast.success(`Parcela ${installmentNumber} marcada como ${status}.`);
     },
-
-    addCutoffPeriod,
-    updateCutoffPeriod,
-    deleteCutoffPeriod,
-
-    addOnlineOnboardingSession,
-    deleteOnlineOnboardingSession,
-    addVideoToTemplate,
-    deleteVideoFromTemplate,
-
-    addCrmPipeline: async (name: string) => {
-      const { data, error } = await supabase.from('crm_pipelines').insert({ user_id: JOAO_GESTOR_AUTH_ID, name }).select().single();
-      if (error) throw error;
-      setCrmPipelines(prev => [...prev, data]);
-      return data;
-    },
-    updateCrmPipeline: async (id: string, updates: Partial<CrmPipeline>) => {
-      const { data, error } = await supabase.from('crm_pipelines').update(updates).eq('id', id).select().single();
-      if (error) throw error;
-      setCrmPipelines(prev => prev.map(p => p.id === id ? data : p));
-      return data;
-    },
-    deleteCrmPipeline: async (id: string) => {
-      const { error } = await supabase.from('crm_pipelines').delete().eq('id', id);
-      if (error) throw error;
-      setCrmPipelines(prev => prev.filter(p => p.id !== id));
-    },
-
-    addCrmStage: async (stage: Omit<CrmStage, 'id' | 'user_id' | 'created_at'>) => {
-      const { data, error } = await supabase.from('crm_stages').insert({ ...stage, user_id: JOAO_GESTOR_AUTH_ID }).select().single();
-      if (error) throw error;
-      setCrmStages(prev => [...prev, data]);
-      return data;
-    },
-    updateCrmStage: async (id: string, updates: Partial<CrmStage>) => {
-      const { data, error } = await supabase.from('crm_stages').update(updates).eq('id', id).select().single();
-      if (error) throw error;
-      setCrmStages(prev => prev.map(s => s.id === id ? data : s));
-      return data;
-    },
-    updateCrmStageOrder: async (orderedStages: CrmStage[]) => {
-      const updates = orderedStages.map((stage, index) => supabase.from('crm_stages').update({ order_index: index }).eq('id', stage.id));
-      await Promise.all(updates);
-      const { data } = await supabase.from('crm_stages').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID).order('order_index');
-      setCrmStages(data || []);
-    },
-    deleteCrmStage: async (id: string) => {
-      const { error } = await supabase.from('crm_stages').delete().eq('id', id);
-      if (error) throw error;
-      setCrmStages(prev => prev.filter(s => s.id !== id));
-    },
-
-    addCrmField: async (field: Omit<CrmField, 'id' | 'user_id' | 'created_at'>) => {
-      const { data, error } = await supabase.from('crm_fields').insert({ ...field, user_id: JOAO_GESTOR_AUTH_ID }).select().single();
-      if (error) throw error;
-      setCrmFields(prev => [...prev, data]);
-      return data;
-    },
-    updateCrmField: async (id: string, updates: Partial<CrmField>) => {
-      const { data, error } = await supabase.from('crm_fields').update(updates).eq('id', id).select().single();
-      if (error) throw error;
-      setCrmFields(prev => prev.map(f => f.id === id ? data : f));
-      return data;
-    },
-
-    addCrmLead,
-    updateCrmLead,
-    deleteCrmLead,
-
-    addDailyChecklist,
-    updateDailyChecklist,
-    deleteDailyChecklist,
-
-    addDailyChecklistItem,
-    updateDailyChecklistItem,
-    deleteDailyChecklistItem,
-    moveDailyChecklistItem,
-
-    assignDailyChecklistToConsultant,
-    unassignDailyChecklistFromConsultant,
-    toggleDailyChecklistCompletion,
-
-    addWeeklyTarget, updateWeeklyTarget, deleteWeeklyTarget,
-    addWeeklyTargetItem, updateWeeklyTargetItem, deleteWeeklyTargetItem, updateWeeklyTargetItemOrder,
-    assignWeeklyTargetToConsultant, unassignWeeklyTargetFromConsultant,
-
-    addMetricLog,
-    updateMetricLog,
-    deleteMetricLog,
-
-    addSupportMaterialV2,
-    updateSupportMaterialV2,
-    deleteSupportMaterialV2,
-    assignSupportMaterialToConsultant,
-    unassignSupportMaterialFromConsultant,
-
-    addLeadTask, updateLeadTask, deleteLeadTask, toggleLeadTaskCompletion, updateLeadMeetingInvitationStatus,
-
-    addGestorTask, updateGestorTask, deleteGestorTask, toggleGestorTaskCompletion,
-
-    addFinancialEntry, updateFinancialEntry, deleteFinancialEntry,
-
-    getFormFilesForSubmission: (submissionId: string) => formFiles.filter(f => f.submission_id === submissionId),
-    updateFormCadastro,
-    deleteFormCadastro,
-
-    addFeedback,
-    updateFeedback,
-    deleteFeedback,
-    addTeamMemberFeedback,
-    updateTeamMemberFeedback,
-    deleteTeamMemberFeedback,
-
-    addTeamMember,
-    updateTeamMember,
-    deleteTeamMember,
-
-    addTeamProductionGoal,
-    updateTeamProductionGoal,
-    deleteTeamProductionGoal,
-
-    addCutoffPeriod,
-    updateCutoffPeriod,
-    deleteCutoffPeriod,
-
-    hasPendingSecretariaTasks,
-
-    addColdCallLead,
-    updateColdCallLead,
-    deleteColdCallLead,
-    addColdCallLog,
-    getColdCallMetrics,
-    createCrmLeadFromColdCall: useCallback(async (coldCallLeadId: string, meeting?: { date?: string; time?: string; modality?: string; notes?: string }, coldCallResultParam?: ColdCallResult) => {
-      if (!user) throw new Error("User not authenticated.");
-      
-      console.log("[AppContext] coldCallResultParam received:", coldCallResultParam); // ADDED LOG
-
-      const { data, error } = await supabase.functions.invoke('create-crm-lead-from-cold-call', { body: {
-        coldCallLeadId,
-        meetingDate: meeting?.date,
-        meetingTime: meeting?.time,
-        meetingModality: meeting?.modality,
-        meetingNotes: meeting?.notes,
-        coldCallResult: coldCallResultParam // Pass coldCallResult to the Edge Function
-      } });
-      if (error) throw error;
-      if (data.error) throw new Error(data.error);
-      const { data: updatedColdCallLead } = await supabase.from('cold_call_leads').select('*').eq('id', coldCallLeadId).maybeSingle();
-      if (updatedColdCallLead) setColdCallLeads(prev => prev.map(lead => lead.id === coldCallLeadId ? updatedColdCallLead : lead));
-      const { data: newCrmLeads } = await supabase.from('crm_leads').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID).order('created_at', { ascending: false });
-      setCrmLeads(newCrmLeads?.map((lead: any) => ({
-        id: lead.id, consultant_id: lead.consultant_id, stage_id: lead.stage_id, user_id: lead.user_id, name: lead.name, data: lead.data,
-        created_at: lead.created_at, updated_at: lead.updated_at, created_by: lead.created_by, updated_by: lead.updated_by,
-        proposal_value: parseDbCurrency(lead.proposal_value), proposal_closing_date: lead.proposal_closing_date,
-        sold_credit_value: parseDbCurrency(lead.sold_credit_value), sold_group: data.sold_group, sold_quota: data.sold_quota, sale_date: data.sale_date
-      })) || []);
-      const { data: newLeadTasks } = await supabase.from('lead_tasks').select('*');
-      setLeadTasks(newLeadTasks || []);
-      return { crmLeadId: data.crmCrmLeadId };
-    }, [user, parseDbCurrency]),
-    addChecklistStage,
-    updateChecklistStage,
-    deleteChecklistStage,
-    moveChecklistStage,
-    addProcess,
-    updateProcess,
-    deleteProcess,
-  }), [
-    isDataLoading,
-    candidates, teamMembers, commissions, supportMaterials, cutoffPeriods, onboardingSessions, onboardingTemplateVideos,
-    checklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs,
-    crmPipelines, crmStages, crmFields, crmLeads, crmOwnerUserId,
-    dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions,
-    weeklyTargets, weeklyTargetItems, weeklyTargetAssignments,
-    metricLogs, supportMaterialsV2, supportMaterialAssignments,
-    leadTasks, gestorTasks, gestorTaskCompletions, financialEntries,
-    formCadastros, formFiles, notifications, teamProductionGoals,
-    coldCallLeads, coldCallLogs,
-    processes,
-    theme,
-    toggleTheme, updateConfig, resetLocalState, refetchCommissions, calculateCompetenceMonth, isGestorTaskDueOnDate, calculateNotifications,
-    addCandidate, updateCandidate, deleteCandidate,
-    toggleChecklistItem,
-    addChecklistStage, updateChecklistStage, deleteChecklistStage, moveChecklistStage,
+    addCutoffPeriod, updateCutoffPeriod, deleteCutoffPeriod,
+    addOnlineOnboardingSession, deleteOnlineOnboardingSession, addVideoToTemplate, deleteVideoFromTemplate,
+    addCrmPipeline: async (name: string) => { const { data, error } = await supabase.from('crm_pipelines').insert({ user_id: JOAO_GESTOR_AUTH_ID, name }).select().single(); if (error) throw error; setCrmPipelines(prev => [...prev, data]); return data; },
+    updateCrmPipeline: async (id: string, updates: Partial<CrmPipeline>) => { const { data, error } = await supabase.from('crm_pipelines').update(updates).eq('id', id).select().single(); if (error) throw error; setCrmPipelines(prev => prev.map(p => p.id === id ? data : p)); return data; },
+    deleteCrmPipeline: async (id: string) => { const { error } = await supabase.from('crm_pipelines').delete().eq('id', id); if (error) throw error; setCrmPipelines(prev => prev.filter(p => p.id !== id)); },
+    addCrmStage: async (stage: Omit<CrmStage, 'id' | 'user_id' | 'created_at'>) => { const { data, error } = await supabase.from('crm_stages').insert({ ...stage, user_id: JOAO_GESTOR_AUTH_ID }).select().single(); if (error) throw error; setCrmStages(prev => [...prev, data]); return data; },
+    updateCrmStage: async (id: string, updates: Partial<CrmStage>) => { const { data, error } = await supabase.from('crm_stages').update(updates).eq('id', id).select().single(); if (error) throw error; setCrmStages(prev => prev.map(s => s.id === id ? data : s)); return data; },
+    updateCrmStageOrder: async (orderedStages: CrmStage[]) => { const updates = orderedStages.map((stage, index) => supabase.from('crm_stages').update({ order_index: index }).eq('id', stage.id)); await Promise.all(updates); const { data } = await supabase.from('crm_stages').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID).order('order_index'); setCrmStages(data || []); },
+    deleteCrmStage: async (id: string) => { const { error } = await supabase.from('crm_stages').delete().eq('id', id); if (error) throw error; setCrmStages(prev => prev.filter(s => s.id !== id)); },
+    addCrmField: async (field: Omit<CrmField, 'id' | 'user_id' | 'created_at'>) => { const { data, error } = await supabase.from('crm_fields').insert({ ...field, user_id: JOAO_GESTOR_AUTH_ID }).select().single(); if (error) throw error; setCrmFields(prev => [...prev, data]); return data; },
+    updateCrmField: async (id: string, updates: Partial<CrmField>) => { const { data, error } = await supabase.from('crm_fields').update(updates).eq('id', id).select().single(); if (error) throw error; setCrmFields(prev => prev.map(f => f.id === id ? data : f)); return data; },
+    addCrmLead, updateCrmLead, deleteCrmLead,
     addDailyChecklist, updateDailyChecklist, deleteDailyChecklist,
     addDailyChecklistItem, updateDailyChecklistItem, deleteDailyChecklistItem, moveDailyChecklistItem,
-    addWeeklyTarget, updateWeeklyTarget, deleteWeeklyTarget,
-    addWeeklyTargetItem, updateWeeklyTargetItem, deleteWeeklyTargetItem, updateWeeklyTargetItemOrder,
-    assignWeeklyTargetToConsultant, unassignWeeklyTargetFromConsultant,
+    assignDailyChecklistToConsultant, unassignDailyChecklistFromConsultant, toggleDailyChecklistCompletion,
+    addWeeklyTarget, updateWeeklyTarget, deleteWeeklyTarget, addWeeklyTargetItem, updateWeeklyTargetItem, deleteWeeklyTargetItem, updateWeeklyTargetItemOrder, assignWeeklyTargetToConsultant, unassignWeeklyTargetFromConsultant,
     addMetricLog, updateMetricLog, deleteMetricLog,
     addSupportMaterialV2, updateSupportMaterialV2, deleteSupportMaterialV2, assignSupportMaterialToConsultant, unassignSupportMaterialFromConsultant,
     addLeadTask, updateLeadTask, deleteLeadTask, toggleLeadTaskCompletion, updateLeadMeetingInvitationStatus,
     addGestorTask, updateGestorTask, deleteGestorTask, toggleGestorTaskCompletion,
     addFinancialEntry, updateFinancialEntry, deleteFinancialEntry,
+    getFormFilesForSubmission: (submissionId: string) => formFiles.filter(f => f.submission_id === submissionId),
     updateFormCadastro, deleteFormCadastro,
-    addFeedback, updateFeedback, deleteFeedback,
-    addTeamMemberFeedback, updateTeamMemberFeedback, deleteTeamMemberFeedback,
+    addFeedback, updateFeedback, deleteFeedback, addTeamMemberFeedback, updateTeamMemberFeedback, deleteTeamMemberFeedback,
     addTeamMember, updateTeamMember, deleteTeamMember,
     addTeamProductionGoal, updateTeamProductionGoal, deleteTeamProductionGoal,
-    addCutoffPeriod, updateCutoffPeriod, deleteCutoffPeriod,
     hasPendingSecretariaTasks,
-    addColdCallLead, updateColdCallLead, deleteColdCallLead, addColdCallLog, getColdCallMetrics,
-    addOnlineOnboardingSession, deleteOnlineOnboardingSession, addVideoToTemplate, deleteVideoFromTemplate,
-    addProcess, updateProcess, deleteProcess,
+    addColdCallLead, updateColdCallLead, deleteColdCallLead, addColdCallLog, getColdCallMetrics, createCrmLeadFromColdCall,
+    addProcess, updateProcess, deleteProcess, deleteProcessFile,
+  }), [
+    isDataLoading, candidates, teamMembers, commissions, supportMaterials, cutoffPeriods, onboardingSessions, onboardingTemplateVideos, checklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs, crmPipelines, crmStages, crmFields, crmLeads, crmOwnerUserId, dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions, weeklyTargets, weeklyTargetItems, weeklyTargetAssignments, metricLogs, supportMaterialsV2, supportMaterialAssignments, leadTasks, gestorTasks, gestorTaskCompletions, financialEntries, formCadastros, formFiles, notifications, teamProductionGoals, coldCallLeads, coldCallLogs, processes, processFiles, theme, toggleTheme, updateConfig, resetLocalState, refetchCommissions, calculateCompetenceMonth, isGestorTaskDueOnDate, calculateNotifications, addCandidate, updateCandidate, deleteCandidate, toggleChecklistItem, addChecklistStage, updateChecklistStage, deleteChecklistStage, moveChecklistStage, addDailyChecklist, updateDailyChecklist, deleteDailyChecklist, addDailyChecklistItem, updateDailyChecklistItem, deleteDailyChecklistItem, moveDailyChecklistItem, addWeeklyTarget, updateWeeklyTarget, deleteWeeklyTarget, addWeeklyTargetItem, updateWeeklyTargetItem, deleteWeeklyTargetItem, updateWeeklyTargetItemOrder, assignWeeklyTargetToConsultant, unassignWeeklyTargetFromConsultant, addMetricLog, updateMetricLog, deleteMetricLog, addSupportMaterialV2, updateSupportMaterialV2, deleteSupportMaterialV2, assignSupportMaterialToConsultant, unassignSupportMaterialFromConsultant, addLeadTask, updateLeadTask, deleteLeadTask, toggleLeadTaskCompletion, updateLeadMeetingInvitationStatus, addGestorTask, updateGestorTask, deleteGestorTask, toggleGestorTaskCompletion, addFinancialEntry, updateFinancialEntry, deleteFinancialEntry, updateFormCadastro, deleteFormCadastro, addFeedback, updateFeedback, deleteFeedback, addTeamMemberFeedback, updateTeamMemberFeedback, deleteTeamMemberFeedback, addTeamMember, updateTeamMember, deleteTeamMember, addTeamProductionGoal, updateTeamProductionGoal, deleteTeamProductionGoal, hasPendingSecretariaTasks, addColdCallLead, updateColdCallLead, deleteColdCallLead, addColdCallLog, getColdCallMetrics, createCrmLeadFromColdCall, addProcess, updateProcess, deleteProcess, deleteProcessFile,
   ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

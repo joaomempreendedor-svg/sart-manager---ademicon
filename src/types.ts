@@ -547,6 +547,15 @@ export interface ColdCallLog {
   created_at: string;
 }
 
+export interface ProcessFile {
+  id: string;
+  process_id: string;
+  file_url: string;
+  file_type: 'image' | 'pdf' | 'video' | 'audio';
+  file_name: string;
+  created_at: string;
+}
+
 export interface Process {
   id: string;
   user_id: string;
@@ -558,6 +567,7 @@ export interface Process {
   file_type?: 'image' | 'pdf' | 'video' | 'audio';
   created_at: string;
   updated_at: string;
+  files?: ProcessFile[];
 }
 
 export interface AppContextType {
@@ -604,6 +614,7 @@ export interface AppContextType {
   coldCallLeads: ColdCallLead[];
   coldCallLogs: ColdCallLog[];
   processes: Process[];
+  processFiles: ProcessFile[];
   theme: 'light' | 'dark';
   toggleTheme: () => void;
   addCandidate: (candidate: Omit<Candidate, 'id' | 'createdAt' | 'db_id'>) => Promise<Candidate>;
@@ -723,9 +734,10 @@ export interface AppContextType {
   updateChecklistStage: (stageId: string, updates: Partial<ChecklistStage>) => void;
   deleteChecklistStage: (stageId: string) => void;
   moveChecklistStage: (stageId: string, direction: 'up' | 'down') => void;
-  addProcess: (process: Omit<Process, 'id' | 'user_id' | 'created_at' | 'updated_at'>, file?: File | null) => Promise<Process>;
-  updateProcess: (id: string, updates: Partial<Process>, file?: File | null) => Promise<Process>;
+  addProcess: (process: Omit<Process, 'id' | 'user_id' | 'created_at' | 'updated_at'>, files?: FileList | null) => Promise<Process>;
+  updateProcess: (id: string, updates: Partial<Process>, files?: FileList | null) => Promise<Process>;
   deleteProcess: (id: string) => Promise<void>;
+  deleteProcessFile: (fileId: string) => Promise<void>;
 }
 
 export interface ColdCallMetrics {
