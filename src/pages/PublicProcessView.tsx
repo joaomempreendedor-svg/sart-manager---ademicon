@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { Process, ProcessFile } from '@/types';
+import { Process } from '@/types';
 import { Loader2, FileText, Image as ImageIcon, Download, Link as LinkIcon, AlertTriangle, TrendingUp, Video, Music } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
@@ -23,7 +23,7 @@ export const PublicProcessView = () => {
     try {
       const { data, error: fetchError } = await supabase
         .from('processes')
-        .select('*, files:process_files(*)')
+        .select('*')
         .eq('id', processId)
         .maybeSingle();
 
@@ -64,69 +64,73 @@ export const PublicProcessView = () => {
     }
   };
 
-  const renderFilePreview = (file: ProcessFile) => {
-    if (file.file_type === 'image') {
+  const renderFilePreview = () => {
+    if (!process?.file_url) return null;
+
+    const fileName = process.file_url.split('/').pop() || 'arquivo_anexado';
+
+    if (process.file_type === 'image') {
       return (
-        <div key={file.id} className="p-4 bg-gray-100 dark:bg-slate-700 rounded-lg flex flex-col items-center justify-center space-y-3">
-          <img src={file.file_url} alt={file.file_name} className="rounded-lg max-h-80 w-auto" />
+        <div className="mt-4 p-4 bg-gray-100 dark:bg-slate-700 rounded-lg flex flex-col items-center justify-center space-y-3">
+          <img src={process.file_url} alt="Anexo" className="rounded-lg max-h-80 w-auto" />
           <Button
             variant="outline"
             size="sm"
-            onClick={() => handleDownloadFile(file.file_url, file.file_name)}
+            onClick={() => handleDownloadFile(process.file_url!, fileName)}
             className="dark:bg-slate-600 dark:text-white dark:border-slate-500"
           >
             <Download className="w-4 h-4 mr-2" />
-            Baixar {file.file_name}
+            Baixar Imagem
           </Button>
         </div>
       );
     }
 
-    if (file.file_type === 'video') {
+    if (process.file_type === 'video') {
       return (
-        <div key={file.id} className="p-4 bg-gray-100 dark:bg-slate-700 rounded-lg flex flex-col items-center justify-center space-y-3">
-          <video src={file.file_url} controls className="rounded-lg max-h-80 w-full" />
+        <div className="mt-4 p-4 bg-gray-100 dark:bg-slate-700 rounded-lg flex flex-col items-center justify-center space-y-3">
+          <video src={process.file_url} controls className="rounded-lg max-h-80 w-full" />
           <Button
             variant="outline"
             size="sm"
-            onClick={() => handleDownloadFile(file.file_url, file.file_name)}
+            onClick={() => handleDownloadFile(process.file_url!, fileName)}
             className="dark:bg-slate-600 dark:text-white dark:border-slate-500"
           >
             <Download className="w-4 h-4 mr-2" />
-            Baixar {file.file_name}
+            Baixar Vídeo
           </Button>
         </div>
       );
     }
 
-    if (file.file_type === 'audio') {
+    if (process.file_type === 'audio') {
       return (
-        <div key={file.id} className="p-4 bg-gray-100 dark:bg-slate-700 rounded-lg flex flex-col items-center justify-center space-y-3">
+        <div className="mt-4 p-4 bg-gray-100 dark:bg-slate-700 rounded-lg flex flex-col items-center justify-center space-y-3">
           <div className="flex items-center space-x-3 w-full">
             <Music className="w-8 h-8 text-purple-500" />
-            <audio src={file.file_url} controls className="flex-1" />
+            <audio src={process.file_url} controls className="flex-1" />
           </div>
           <Button
             variant="outline"
             size="sm"
-            onClick={() => handleDownloadFile(file.file_url, file.file_name)}
+            onClick={() => handleDownloadFile(process.file_url!, fileName)}
             className="dark:bg-slate-600 dark:text-white dark:border-slate-500"
           >
             <Download className="w-4 h-4 mr-2" />
-            Baixar {file.file_name}
+            Baixar Áudio
           </Button>
         </div>
       );
     }
 
-    if (file.file_type === 'pdf') {
+    if (process.file_type === 'pdf') {
       return (
-        <div key={file.id} className="p-4 bg-gray-100 dark:bg-slate-700 rounded-lg flex flex-col sm:flex-row items-center justify-between space-y-3 sm:space-y-0">
+        <div className="mt-4 p-4 bg-gray-100 dark:bg-slate-700 rounded-lg flex flex-col sm:flex-row items-center justify-between space-y-3 sm:space-y-0">
           <div className="flex items-center space-x-3">
             <FileText className="w-8 h-8 text-red-500" />
             <div>
-              <p className="font-semibold text-gray-900 dark:text-white truncate max-w-[200px]">{file.file_name}</p>
-              <a href={file.file_url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 dark:text-blue-400 hover:underline">
+              <p className="font-semibold text-gray-900 dark:text-white">Documento PDF Anexado</p>
+              <a href={process.file_url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 dark:text-blue-400 hover:underline">
                 Abrir em nova aba
               </a>
             </div>
@@ -134,7 +138,7 @@ export const PublicProcessView = () => {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => handleDownloadFile(file.file_url, file.file_name)}
+            onClick={() => handleDownloadFile(process.file_url!, fileName)}
             className="dark:bg-slate-600 dark:text-white dark:border-slate-500"
           >
             <Download className="w-4 h-4 mr-2" />
@@ -188,22 +192,11 @@ export const PublicProcessView = () => {
           )}
           
           <ScrollArea className="max-h-[70vh] pr-4 custom-scrollbar">
-            <div className="space-y-8">
-              {process.files && process.files.length > 0 && (
-                <div className="space-y-4">
-                  <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider">Anexos ({process.files.length})</h4>
-                  <div className="grid grid-cols-1 gap-4">
-                    {process.files.map(file => renderFilePreview(file))}
-                  </div>
-                </div>
-              )}
-
+            <div className="space-y-6">
+              {renderFilePreview()}
               {process.content && (
-                <div className="space-y-2">
-                  <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider">Conteúdo</h4>
-                  <div className="prose dark:prose-invert max-w-none whitespace-pre-wrap text-gray-800 dark:text-gray-200 leading-relaxed bg-gray-50 dark:bg-slate-900/50 p-4 rounded-lg border border-gray-100 dark:border-slate-700">
-                    {process.content}
-                  </div>
+                <div className="prose dark:prose-invert max-w-none whitespace-pre-wrap text-gray-800 dark:text-gray-200 leading-relaxed">
+                  {process.content}
                 </div>
               )}
             </div>

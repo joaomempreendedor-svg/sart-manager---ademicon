@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Save, Loader2, FileText, Type, MessageSquare, Upload, Image as ImageIcon, Trash2, Video, Music } from 'lucide-react';
-import { Process, ProcessFile } from '@/types';
+import { Process } from '@/types';
 import {
   Dialog,
   DialogContent,
@@ -13,21 +13,21 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { useApp } from '@/context/AppContext';
 
 interface ProcessModalProps {
   isOpen: boolean;
   onClose: () => void;
   process: Process | null;
-  onSave: (processData: Omit<Process, 'id' | 'user_id' | 'created_at' | 'updated_at'> | Process, files?: FileList | null) => Promise<void>;
+  onSave: (processData: Omit<Process, 'id' | 'user_id' | 'created_at' | 'updated_at'> | Process, file?: File | null) => Promise<void>;
 }
 
 export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, process, onSave }) => {
-  const { deleteProcessFile } = useApp();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [content, setContent] = useState('');
-  const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [existingFileUrl, setExistingFileUrl] = useState<string | undefined>(undefined);
+  const [removeFile, setRemoveFile] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -36,26 +36,33 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
       setTitle(process?.title || '');
       setDescription(process?.description || '');
       setContent(process?.content || '');
-      setSelectedFiles(null);
+      setSelectedFile(null);
+      setExistingFileUrl(process?.file_url);
+      setRemoveFile(false);
       setError('');
     }
   }, [isOpen, process]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files) {
-      setSelectedFiles(files);
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      setExistingFileUrl(undefined); // Clear existing file if new one is selected
+      setRemoveFile(false);
     }
   };
 
-  const handleRemoveExistingFile = async (fileId: string) => {
-    if (window.confirm("Tem certeza que deseja remover este anexo?")) {
-      try {
-        await deleteProcessFile(fileId);
-      } catch (err: any) {
-        alert(`Erro ao remover arquivo: ${err.message}`);
-      }
-    }
+  const handleRemoveFile = () => {
+    setSelectedFile(null);
+    setExistingFileUrl(undefined);
+    setRemoveFile(true);
+  };
+
+  const getFileType = (file: File) => {
+    if (file.type.startsWith('image/')) return 'image';
+    if (file.type.startsWith('video/')) return 'video';
+    if (file.type.startsWith('audio/')) return 'audio';
+    return 'pdf';
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -74,12 +81,14 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
         description: description.trim(),
         content: content.trim(),
         type: 'Documento',
+        file_url: removeFile ? undefined : existingFileUrl,
+        file_type: removeFile ? undefined : (selectedFile ? getFileType(selectedFile) : process?.file_type),
       };
 
       if (process) {
-        await onSave({ ...process, ...processData }, selectedFiles);
+        await onSave({ ...process, ...processData }, selectedFile);
       } else {
-        await onSave(processData, selectedFiles);
+        await onSave(processData, selectedFile);
       }
       onClose();
     } catch (err: any) {
@@ -155,41 +164,25 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
                 />
               </div>
             </div>
-            
             <div>
-              <Label>Anexos Existentes</Label>
-              <div className="space-y-2 mt-1">
-                {process?.files && process.files.length > 0 ? (
-                  process.files.map(file => (
-                    <div key={file.id} className="flex items-center justify-between p-2 bg-gray-100 dark:bg-slate-700 rounded-lg">
-                      <div className="flex items-center space-x-2">
-                        {getFileIcon(file.file_type)}
-                        <span className="text-sm text-gray-700 dark:text-gray-300 truncate max-w-[300px]">{file.file_name}</span>
-                      </div>
-                      <Button type="button" variant="ghost" size="sm" onClick={() => handleRemoveExistingFile(file.id)} className="text-red-500 hover:text-red-700">
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-xs text-gray-500 italic">Nenhum anexo vinculado.</p>
-                )}
-              </div>
-            </div>
-
-            <div>
-              <Label>Adicionar Novos Anexos (PDF, Imagem, Áudio ou Vídeo)</Label>
-              <label className="flex items-center justify-center px-4 py-4 border border-gray-300 dark:border-slate-600 border-dashed rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/50 transition bg-white dark:bg-slate-700 mt-1">
-                <div className="flex flex-col items-center">
-                  <Upload className="w-6 h-6 mb-2 text-gray-500" />
-                  <span className="text-sm text-gray-600 dark:text-gray-300 text-center">
-                    {selectedFiles && selectedFiles.length > 0 
-                      ? `${selectedFiles.length} arquivo(s) selecionado(s)` 
-                      : 'Clique para selecionar múltiplos arquivos...'}
-                  </span>
+              <Label>Anexo (PDF, Imagem, Áudio ou Vídeo)</Label>
+              {existingFileUrl && !selectedFile ? (
+                <div className="flex items-center justify-between p-2 bg-gray-100 dark:bg-slate-700 rounded-lg">
+                  <div className="flex items-center space-x-2">
+                    {getFileIcon(process?.file_type)}
+                    <span className="text-sm text-gray-700 dark:text-gray-300 truncate">{existingFileUrl.split('/').pop()}</span>
+                  </div>
+                  <Button type="button" variant="ghost" size="sm" onClick={handleRemoveFile} className="text-red-500 hover:text-red-700">
+                    <Trash2 className="w-4 h-4 mr-1" /> Remover
+                  </Button>
                 </div>
-                <input type="file" className="hidden" accept="image/*,application/pdf,video/*,audio/*" multiple onChange={handleFileChange} />
-              </label>
+              ) : (
+                <label className="flex items-center justify-center px-4 py-2 border border-gray-300 dark:border-slate-600 border-dashed rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/50 transition bg-white dark:bg-slate-700">
+                  <Upload className="w-4 h-4 mr-2 text-gray-500" />
+                  <span className="text-sm text-gray-600 dark:text-gray-300 truncate">{selectedFile ? selectedFile.name : 'Selecionar arquivo...'}</span>
+                  <input type="file" className="hidden" accept="image/*,application/pdf,video/*,audio/*" onChange={handleFileChange} />
+                </label>
+              )}
             </div>
             {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
           </div>
