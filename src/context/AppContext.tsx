@@ -185,7 +185,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         ascending: false,
       });
       if (error) {
-        toast.error(`Erro ao carregar comissões: ${error.message}`);
+        console.warn(`Erro ao carregar comissões: ${error.message}`);
         setCommissions([]);
         return;
       }
@@ -261,6 +261,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
         await fetchAppConfig(effectiveGestorId);
 
+        // Helper para buscar dados ignorando erros de tabela inexistente
+        const safeFetch = async (table: string, options: any = {}) => {
+          try {
+            return await getAllFromTable(table, options);
+          } catch (e: any) {
+            if (e.code === 'PGRST116' || e.message?.includes('schema cache') || e.message?.includes('does not exist')) {
+              console.warn(`Tabela ${table} não encontrada. Ignorando.`);
+              return { data: [], error: null };
+            }
+            throw e;
+          }
+        };
+
         const [
           candidatesRes, materialsRes, cutoffRes, onboardingRes, templateVideosRes,
           pipelinesRes, stagesRes, fieldsRes, crmLeadsRes,
@@ -271,38 +284,38 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           formCadastrosRes, formFilesRes, notificationsRes, teamProductionGoalsRes, teamMembersRes,
           coldCallLeadsRes, coldCallLogsRes, processesRes, processAttachmentsRes
         ] = await Promise.all([
-          getAllFromTable('candidates', { select: 'id, data, created_at, last_updated_at', filters: { user_id: effectiveGestorId } }),
-          getAllFromTable('support_materials', { select: 'id, data', filters: { user_id: effectiveGestorId } }),
-          getAllFromTable('cutoff_periods', { select: 'id, data', filters: { user_id: effectiveGestorId } }),
-          getAllFromTable('onboarding_sessions', { select: '*, videos:onboarding_videos(*)' }),
-          getAllFromTable('onboarding_video_templates', { orderBy: 'order', ascending: true }),
-          getAllFromTable('crm_pipelines', { filters: { user_id: effectiveGestorId } }),
-          getAllFromTable('crm_stages', { filters: { user_id: effectiveGestorId }, orderBy: 'order_index' }),
-          getAllFromTable('crm_fields', { filters: { user_id: effectiveGestorId } }),
-          getAllFromTable('crm_leads', { filters: { user_id: effectiveGestorId }, orderBy: 'created_at', ascending: false }),
-          getAllFromTable('daily_checklists', { filters: { user_id: effectiveGestorId } }),
-          getAllFromTable('daily_checklist_items'),
-          getAllFromTable('daily_checklist_assignments'),
-          getAllFromTable('daily_checklist_completions'),
-          getAllFromTable('weekly_targets', { filters: { user_id: effectiveGestorId } }),
-          getAllFromTable('weekly_target_items'),
-          getAllFromTable('weekly_target_assignments'),
-          getAllFromTable('metric_logs'),
-          getAllFromTable('support_materials_v2', { filters: { user_id: effectiveGestorId } }),
-          getAllFromTable('support_material_assignments'),
-          getAllFromTable('lead_tasks'),
-          getAllFromTable('gestor_tasks', { filters: { user_id: effectiveGestorId } }),
-          getAllFromTable('gestor_task_completions', { filters: { user_id: effectiveGestorId } }),
-          getAllFromTable('financial_entries', { filters: { user_id: effectiveGestorId } }),
-          getAllFromTable('form_submissions', { select: 'id, submission_date, data, internal_notes, is_complete', filters: { user_id: effectiveGestorId }, orderBy: 'submission_date', ascending: false }),
-          getAllFromTable('form_files'),
-          getAllFromTable('notifications', { filters: { user_id: userId, is_read: false }, orderBy: 'created_at', ascending: false }),
-          getAllFromTable('team_production_goals', { filters: { user_id: effectiveGestorId }, orderBy: 'start_date', ascending: false }),
-          getAllFromTable('team_members', { select: 'id, data, cpf, user_id', filters: { user_id: effectiveGestorId } }),
-          getAllFromTable('cold_call_leads'),
-          getAllFromTable('cold_call_logs'),
-          getAllFromTable('processes', { filters: { user_id: effectiveGestorId } }),
-          getAllFromTable('process_attachments')
+          safeFetch('candidates', { select: 'id, data, created_at, last_updated_at', filters: { user_id: effectiveGestorId } }),
+          safeFetch('support_materials', { select: 'id, data', filters: { user_id: effectiveGestorId } }),
+          safeFetch('cutoff_periods', { select: 'id, data', filters: { user_id: effectiveGestorId } }),
+          safeFetch('onboarding_sessions', { select: '*, videos:onboarding_videos(*)' }),
+          safeFetch('onboarding_video_templates', { orderBy: 'order', ascending: true }),
+          safeFetch('crm_pipelines', { filters: { user_id: effectiveGestorId } }),
+          safeFetch('crm_stages', { filters: { user_id: effectiveGestorId }, orderBy: 'order_index' }),
+          safeFetch('crm_fields', { filters: { user_id: effectiveGestorId } }),
+          safeFetch('crm_leads', { filters: { user_id: effectiveGestorId }, orderBy: 'created_at', ascending: false }),
+          safeFetch('daily_checklists', { filters: { user_id: effectiveGestorId } }),
+          safeFetch('daily_checklist_items'),
+          safeFetch('daily_checklist_assignments'),
+          safeFetch('daily_checklist_completions'),
+          safeFetch('weekly_targets', { filters: { user_id: effectiveGestorId } }),
+          safeFetch('weekly_target_items'),
+          safeFetch('weekly_target_assignments'),
+          safeFetch('metric_logs'),
+          safeFetch('support_materials_v2', { filters: { user_id: effectiveGestorId } }),
+          safeFetch('support_material_assignments'),
+          safeFetch('lead_tasks'),
+          safeFetch('gestor_tasks', { filters: { user_id: effectiveGestorId } }),
+          safeFetch('gestor_task_completions', { filters: { user_id: effectiveGestorId } }),
+          safeFetch('financial_entries', { filters: { user_id: effectiveGestorId } }),
+          safeFetch('form_submissions', { select: 'id, submission_date, data, internal_notes, is_complete', filters: { user_id: effectiveGestorId }, orderBy: 'submission_date', ascending: false }),
+          safeFetch('form_files'),
+          safeFetch('notifications', { filters: { user_id: userId, is_read: false }, orderBy: 'created_at', ascending: false }),
+          safeFetch('team_production_goals', { filters: { user_id: effectiveGestorId }, orderBy: 'start_date', ascending: false }),
+          safeFetch('team_members', { select: 'id, data, cpf, user_id', filters: { user_id: effectiveGestorId } }),
+          safeFetch('cold_call_leads'),
+          safeFetch('cold_call_logs'),
+          safeFetch('processes', { filters: { user_id: effectiveGestorId } }),
+          safeFetch('process_attachments')
         ]);
 
         if (!candidatesRes.error) {
@@ -379,7 +392,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
         refetchCommissions();
       } catch (error: any) {
-        toast.error(`Erro crítico ao carregar dados: ${error.message}`);
+        console.error(`Erro crítico ao carregar dados: ${error.message}`);
         resetLocalState();
       } finally {
         setIsDataLoading(false);
