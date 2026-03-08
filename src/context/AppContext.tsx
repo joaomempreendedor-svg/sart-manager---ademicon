@@ -516,6 +516,490 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setProcesses(prev => prev.filter(p => p.id !== id));
   }, []);
 
+  // --- Checklist Stage Functions ---
+  const addChecklistStage = useCallback((title: string, description: string) => {
+    const newStructure = [...checklistStructure, { id: crypto.randomUUID(), title, description, items: [] }];
+    setChecklistStructure(newStructure); updateConfig({ checklistStructure: newStructure });
+  }, [checklistStructure, updateConfig]);
+
+  const updateChecklistStage = useCallback((stageId: string, updates: Partial<ChecklistStage>) => {
+    const newStructure = checklistStructure.map(stage => stage.id === stageId ? { ...stage, ...updates } : stage);
+    setChecklistStructure(newStructure); updateConfig({ checklistStructure: newStructure });
+  }, [checklistStructure, updateConfig]);
+
+  const deleteChecklistStage = useCallback((stageId: string) => {
+    const newStructure = checklistStructure.filter(stage => stage.id !== stageId);
+    setChecklistStructure(newStructure); updateConfig({ checklistStructure: newStructure });
+  }, [checklistStructure, updateConfig]);
+
+  const moveChecklistStage = useCallback((stageId: string, direction: 'up' | 'down') => {
+    const index = checklistStructure.findIndex(s => s.id === stageId);
+    if (index === -1) return;
+    const newStructure = [...checklistStructure];
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex >= 0 && targetIndex < newStructure.length) {
+      [newStructure[index], newStructure[targetIndex]] = [newStructure[targetIndex], newStructure[index]];
+      setChecklistStructure(newStructure); updateConfig({ checklistStructure: newStructure });
+    }
+  }, [checklistStructure, updateConfig]);
+
+  // --- Daily Checklist Functions ---
+  const addDailyChecklist = useCallback(async (title: string) => {
+    const { data, error } = await supabase.from('daily_checklists').insert({ user_id: JOAO_GESTOR_AUTH_ID, title }).select().single();
+    if (error) throw error; setDailyChecklists(prev => [...prev, data]); return data;
+  }, []);
+
+  const updateDailyChecklist = useCallback(async (id: string, updates: Partial<DailyChecklist>) => {
+    const { data, error } = await supabase.from('daily_checklists').update(updates).eq('id', id).select().single();
+    if (error) throw error; setDailyChecklists(prev => prev.map(c => c.id === id ? data : c)); return data;
+  }, []);
+
+  const deleteDailyChecklist = useCallback(async (id: string) => {
+    const { error } = await supabase.from('daily_checklists').delete().eq('id', id);
+    if (error) throw error; setDailyChecklists(prev => prev.filter(c => c.id !== id));
+  }, []);
+
+  const addDailyChecklistItem = useCallback(async (daily_checklist_id: string, text: string, order_index: number, resource?: DailyChecklistItemResource, audioFile?: File, imageFile?: File) => {
+    let finalResource = resource;
+    if (audioFile || imageFile) {
+      const uploadFile = async (file: File, prefix: string) => {
+        const sanitized = sanitizeFilename(file.name);
+        const path = `checklist_resources/${Date.now()}-${prefix}-${sanitized}`;
+        const { error: uploadError } = await supabase.storage.from('form_uploads').upload(path, file);
+        if (uploadError) throw uploadError;
+        return supabase.storage.from('form_uploads').getPublicUrl(path).data.publicUrl;
+      };
+      if (resource?.type === 'text_audio' && audioFile) {
+        const url = await uploadFile(audioFile, 'audio');
+        finalResource = { ...resource, content: { ...(resource.content as any), audioUrl: url } };
+      } else if (resource?.type === 'text_audio_image') {
+        let audioUrl = (resource.content as any).audioUrl;
+        let imageUrl = (resource.content as any).imageUrl;
+        if (audioFile) audioUrl = await uploadFile(audioFile, 'audio');
+        if (imageFile) imageUrl = await uploadFile(imageFile, 'image');
+        finalResource = { ...resource, content: { ...(resource.content as any), audioUrl, imageUrl } };
+      } else if ((resource?.type === 'image' || resource?.type === 'pdf' || resource?.type === 'audio') && imageFile) {
+        const url = await uploadFile(imageFile, resource.type);
+        finalResource = { ...resource, content: url };
+      }
+    }
+    const { data, error } = await supabase.from('daily_checklist_items').insert({ daily_checklist_id, text, order_index, resource: finalResource }).select().single();
+    if (error) throw error; setDailyChecklistItems(prev => [...prev, data]); return data;
+  }, []);
+
+  const updateDailyChecklistItem = useCallback(async (id: string, updates: Partial<DailyChecklistItem>, audioFile?: File, imageFile?: File) => {
+    let finalResource = updates.resource;
+    if (audioFile || imageFile) {
+      const uploadFile = async (file: File, prefix: string) => {
+        const sanitized = sanitizeFilename(file.name);
+        const path = `checklist_resources/${Date.now()}-${prefix}-${sanitized}`;
+        const { error: uploadError } = await supabase.storage.from('form_uploads').upload(path, file);
+        if (uploadError) throw uploadError;
+        return supabase.storage.from('form_uploads').getPublicUrl(path).data.publicUrl;
+      };
+      if (updates.resource?.type === 'text_audio' && audioFile) {
+        const url = await uploadFile(audioFile, 'audio');
+        finalResource = { ...updates.resource, content: { ...(updates.resource.content as any), audioUrl: url } };
+      } else if (updates.resource?.type === 'text_audio_image') {
+        let audioUrl = (updates.resource.content as any).audioUrl;
+        let imageUrl = (updates.resource.content as any).imageUrl;
+        if (audioFile) audioUrl = await uploadFile(audioFile, 'audio');
+        if (imageFile) imageUrl = await uploadFile(imageFile, 'image');
+        finalResource = { ...updates.resource, content: { ...(updates.resource.content as any), audioUrl, imageUrl } };
+      } else if ((updates.resource?.type === 'image' || updates.resource?.type === 'pdf' || updates.resource?.type === 'audio') && imageFile) {
+        const url = await uploadFile(imageFile, updates.resource.type);
+        finalResource = { ...updates.resource, content: url };
+      }
+    }
+    const { data, error } = await supabase.from('daily_checklist_items').update({ ...updates, resource: finalResource }).eq('id', id).select().single();
+    if (error) throw error; setDailyChecklistItems(prev => prev.map(i => i.id === id ? data : i)); return data;
+  }, []);
+
+  const deleteDailyChecklistItem = useCallback(async (id: string) => {
+    const { error } = await supabase.from('daily_checklist_items').delete().eq('id', id);
+    if (error) throw error; setDailyChecklistItems(prev => prev.filter(i => i.id !== id));
+  }, []);
+
+  const moveDailyChecklistItem = useCallback(async (checklistId: string, itemId: string, direction: 'up' | 'down') => {
+    const items = dailyChecklistItems.filter(i => i.daily_checklist_id === checklistId).sort((a, b) => a.order_index - b.order_index);
+    const index = items.findIndex(i => i.id === itemId);
+    if (index === -1) return;
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= items.length) return;
+    const itemA = items[index]; const itemB = items[targetIndex];
+    const { error } = await supabase.from('daily_checklist_items').update({ order_index: itemB.order_index }).eq('id', itemA.id);
+    if (error) throw error;
+    const { error: error2 } = await supabase.from('daily_checklist_items').update({ order_index: itemA.order_index }).eq('id', itemB.id);
+    if (error2) throw error2;
+    setDailyChecklistItems(prev => prev.map(i => i.id === itemA.id ? { ...i, order_index: itemB.order_index } : i.id === itemB.id ? { ...i, order_index: itemA.order_index } : i));
+  }, [dailyChecklistItems]);
+
+  const assignDailyChecklistToConsultant = useCallback(async (daily_checklist_id: string, consultant_id: string) => {
+    const { data, error } = await supabase.from('daily_checklist_assignments').insert({ daily_checklist_id, consultant_id }).select().single();
+    if (error) throw error; setDailyChecklistAssignments(prev => [...prev, data]); return data;
+  }, []);
+
+  const unassignDailyChecklistFromConsultant = useCallback(async (daily_checklist_id: string, consultant_id: string) => {
+    const { error } = await supabase.from('daily_checklist_assignments').delete().eq('daily_checklist_id', daily_checklist_id).eq('consultant_id', consultant_id);
+    if (error) throw error; setDailyChecklistAssignments(prev => prev.filter(a => !(a.daily_checklist_id === daily_checklist_id && a.consultant_id === consultant_id)));
+  }, []);
+
+  const toggleDailyChecklistCompletion = useCallback(async (daily_checklist_item_id: string, date: string, done: boolean, consultant_id: string) => {
+    if (done) {
+      const { data, error } = await supabase.from('daily_checklist_completions').insert({ daily_checklist_item_id, consultant_id, date, done: true }).select().single();
+      if (error) throw error; setDailyChecklistCompletions(prev => [...prev, data]);
+    } else {
+      const { error } = await supabase.from('daily_checklist_completions').delete().eq('daily_checklist_item_id', daily_checklist_item_id).eq('consultant_id', consultant_id).eq('date', date);
+      if (error) throw error; setDailyChecklistCompletions(prev => prev.filter(c => !(c.daily_checklist_item_id === daily_checklist_item_id && c.consultant_id === consultant_id && c.date === date)));
+    }
+  }, []);
+
+  // --- Weekly Target Functions ---
+  const addWeeklyTarget = useCallback(async (target: Omit<WeeklyTarget, 'id' | 'user_id' | 'created_at'>) => {
+    const { data, error } = await supabase.from('weekly_targets').insert({ ...target, user_id: JOAO_GESTOR_AUTH_ID }).select().single();
+    if (error) throw error; setWeeklyTargets(prev => [...prev, data]); return data;
+  }, []);
+
+  const updateWeeklyTarget = useCallback(async (id: string, updates: Partial<WeeklyTarget>) => {
+    const { data, error } = await supabase.from('weekly_targets').update(updates).eq('id', id).select().single();
+    if (error) throw error; setWeeklyTargets(prev => prev.map(t => t.id === id ? data : t)); return data;
+  }, []);
+
+  const deleteWeeklyTarget = useCallback(async (id: string) => {
+    const { error } = await supabase.from('weekly_targets').delete().eq('id', id);
+    if (error) throw error; setWeeklyTargets(prev => prev.filter(t => t.id !== id));
+  }, []);
+
+  const addWeeklyTargetItem = useCallback(async (item: Omit<WeeklyTargetItem, 'id' | 'created_at'>) => {
+    const { data, error } = await supabase.from('weekly_target_items').insert(item).select().single();
+    if (error) throw error; setWeeklyTargetItems(prev => [...prev, data]); return data;
+  }, []);
+
+  const updateWeeklyTargetItem = useCallback(async (id: string, updates: Partial<WeeklyTargetItem>) => {
+    const { data, error } = await supabase.from('weekly_target_items').update(updates).eq('id', id).select().single();
+    if (error) throw error; setWeeklyTargetItems(prev => prev.map(i => i.id === id ? data : i)); return data;
+  }, []);
+
+  const deleteWeeklyTargetItem = useCallback(async (id: string) => {
+    const { error } = await supabase.from('weekly_target_items').delete().eq('id', id);
+    if (error) throw error; setWeeklyTargetItems(prev => prev.filter(i => i.id !== id));
+  }, []);
+
+  const updateWeeklyTargetItemOrder = useCallback(async (orderedItems: WeeklyTargetItem[]) => {
+    const updates = orderedItems.map((item, index) => supabase.from('weekly_target_items').update({ order_index: index }).eq('id', item.id));
+    await Promise.all(updates);
+    const { data } = await supabase.from('weekly_target_items').select('*').order('order_index');
+    setWeeklyTargetItems(data || []);
+  }, []);
+
+  const assignWeeklyTargetToConsultant = useCallback(async (weekly_target_id: string, consultant_id: string) => {
+    const { data, error } = await supabase.from('weekly_target_assignments').insert({ weekly_target_id, consultant_id }).select().single();
+    if (error) throw error; setWeeklyTargetAssignments(prev => [...prev, data]); return data;
+  }, []);
+
+  const unassignWeeklyTargetFromConsultant = useCallback(async (weekly_target_id: string, consultant_id: string) => {
+    const { error } = await supabase.from('weekly_target_assignments').delete().eq('weekly_target_id', weekly_target_id).eq('consultant_id', consultant_id);
+    if (error) throw error; setWeeklyTargetAssignments(prev => prev.filter(a => !(a.weekly_target_id === weekly_target_id && a.consultant_id === consultant_id)));
+  }, []);
+
+  // --- Metric Log Functions ---
+  const addMetricLog = useCallback(async (log: Omit<MetricLog, 'id' | 'created_at'>) => {
+    const { data, error } = await supabase.from('metric_logs').insert(log).select().single();
+    if (error) throw error; setMetricLogs(prev => [...prev, data]); return data;
+  }, []);
+
+  const updateMetricLog = useCallback(async (id: string, updates: Partial<MetricLog>) => {
+    const { data, error } = await supabase.from('metric_logs').update(updates).eq('id', id).select().single();
+    if (error) throw error; setMetricLogs(prev => prev.map(l => l.id === id ? data : l)); return data;
+  }, []);
+
+  const deleteMetricLog = useCallback(async (id: string) => {
+    const { error } = await supabase.from('metric_logs').delete().eq('id', id);
+    if (error) throw error; setMetricLogs(prev => prev.filter(l => l.id !== id));
+  }, []);
+
+  // --- Support Material V2 Functions ---
+  const addSupportMaterialV2 = useCallback(async (material: Omit<SupportMaterialV2, 'id' | 'user_id' | 'created_at'>, file?: File) => {
+    let content = material.content;
+    if (file) {
+      const sanitized = sanitizeFilename(file.name);
+      const path = `support_materials/${Date.now()}-${sanitized}`;
+      const { error: uploadError } = await supabase.storage.from('form_uploads').upload(path, file);
+      if (uploadError) throw uploadError;
+      content = supabase.storage.from('form_uploads').getPublicUrl(path).data.publicUrl;
+    }
+    const { data, error } = await supabase.from('support_materials_v2').insert({ ...material, user_id: JOAO_GESTOR_AUTH_ID, content }).select().single();
+    if (error) throw error; setSupportMaterialsV2(prev => [...prev, data]); return data;
+  }, []);
+
+  const updateSupportMaterialV2 = useCallback(async (id: string, updates: Partial<SupportMaterialV2>, file?: File) => {
+    let content = updates.content;
+    if (file) {
+      const sanitized = sanitizeFilename(file.name);
+      const path = `support_materials/${Date.now()}-${sanitized}`;
+      const { error: uploadError } = await supabase.storage.from('form_uploads').upload(path, file);
+      if (uploadError) throw uploadError;
+      content = supabase.storage.from('form_uploads').getPublicUrl(path).data.publicUrl;
+    }
+    const { data, error } = await supabase.from('support_materials_v2').update({ ...updates, content }).eq('id', id).select().single();
+    if (error) throw error; setSupportMaterialsV2(prev => prev.map(m => m.id === id ? data : m)); return data;
+  }, []);
+
+  const deleteSupportMaterialV2 = useCallback(async (id: string) => {
+    const { error } = await supabase.from('support_materials_v2').delete().eq('id', id);
+    if (error) throw error; setSupportMaterialsV2(prev => prev.filter(m => m.id !== id));
+  }, []);
+
+  const assignSupportMaterialToConsultant = useCallback(async (material_id: string, consultant_id: string) => {
+    const { data, error } = await supabase.from('support_material_assignments').insert({ material_id, consultant_id }).select().single();
+    if (error) throw error; setSupportMaterialAssignments(prev => [...prev, data]); return data;
+  }, []);
+
+  const unassignSupportMaterialFromConsultant = useCallback(async (material_id: string, consultant_id: string) => {
+    const { error } = await supabase.from('support_material_assignments').delete().eq('material_id', material_id).eq('consultant_id', consultant_id);
+    if (error) throw error; setSupportMaterialAssignments(prev => prev.filter(a => !(a.material_id === material_id && a.consultant_id === consultant_id)));
+  }, []);
+
+  // --- Lead Task Functions ---
+  const addLeadTask = useCallback(async (task: Omit<LeadTask, 'id' | 'created_at' | 'completed_at' | 'updated_at'> & { user_id: string; manager_id?: string | null; }) => {
+    const { data, error } = await supabase.from('lead_tasks').insert(task).select().single();
+    if (error) throw error; setLeadTasks(prev => [...prev, data]); return data;
+  }, []);
+
+  const updateLeadTask = useCallback(async (id: string, updates: Partial<LeadTask>) => {
+    const { data, error } = await supabase.from('lead_tasks').update(updates).eq('id', id).select().single();
+    if (error) throw error; setLeadTasks(prev => prev.map(t => t.id === id ? data : t)); return data;
+  }, []);
+
+  const deleteLeadTask = useCallback(async (id: string) => {
+    const { error } = await supabase.from('lead_tasks').delete().eq('id', id);
+    if (error) throw error; setLeadTasks(prev => prev.filter(t => t.id !== id));
+  }, []);
+
+  const toggleLeadTaskCompletion = useCallback(async (id: string, is_completed: boolean) => {
+    const completed_at = is_completed ? new Date().toISOString() : null;
+    const { data, error } = await supabase.from('lead_tasks').update({ is_completed, completed_at }).eq('id', id).select().single();
+    if (error) throw error; setLeadTasks(prev => prev.map(t => t.id === id ? data : t)); return data;
+  }, []);
+
+  const updateLeadMeetingInvitationStatus = useCallback(async (taskId: string, status: 'accepted' | 'declined') => {
+    const { data, error } = await supabase.from('lead_tasks').update({ manager_invitation_status: status }).eq('id', taskId).select().single();
+    if (error) throw error; setLeadTasks(prev => prev.map(t => t.id === taskId ? data : t)); return data;
+  }, []);
+
+  // --- Gestor Task Functions ---
+  const addGestorTask = useCallback(async (task: Omit<GestorTask, 'id' | 'user_id' | 'created_at' | 'is_completed'>) => {
+    const { data, error } = await supabase.from('gestor_tasks').insert({ ...task, user_id: JOAO_GESTOR_AUTH_ID }).select().single();
+    if (error) throw error; setGestorTasks(prev => [...prev, data]); return data;
+  }, []);
+
+  const updateGestorTask = useCallback(async (id: string, updates: Partial<GestorTask>) => {
+    const { data, error } = await supabase.from('gestor_tasks').update(updates).eq('id', id).select().single();
+    if (error) throw error; setGestorTasks(prev => prev.map(t => t.id === id ? data : t)); return data;
+  }, []);
+
+  const deleteGestorTask = useCallback(async (id: string) => {
+    const { error } = await supabase.from('gestor_tasks').delete().eq('id', id);
+    if (error) throw error; setGestorTasks(prev => prev.filter(t => t.id !== id));
+  }, []);
+
+  const toggleGestorTaskCompletion = useCallback(async (gestor_task_id: string, done: boolean, date: string) => {
+    const task = gestorTasks.find(t => t.id === gestor_task_id);
+    if (!task) return;
+    const isRecurring = task.recurrence_pattern && task.recurrence_pattern.type !== 'none';
+    if (isRecurring) {
+      if (done) {
+        const { data, error } = await supabase.from('gestor_task_completions').insert({ gestor_task_id, user_id: JOAO_GESTOR_AUTH_ID, date, done: true }).select().single();
+        if (error) throw error; setGestorTaskCompletions(prev => [...prev, data]);
+      } else {
+        const { error } = await supabase.from('gestor_task_completions').delete().eq('gestor_task_id', gestor_task_id).eq('user_id', JOAO_GESTOR_AUTH_ID).eq('date', date);
+        if (error) throw error; setGestorTaskCompletions(prev => prev.filter(c => !(c.gestor_task_id === gestor_task_id && c.date === date)));
+      }
+    } else {
+      await updateGestorTask(gestor_task_id, { is_completed: done });
+    }
+  }, [gestorTasks, updateGestorTask]);
+
+  // --- Financial Entry Functions ---
+  const addFinancialEntry = useCallback(async (entry: Omit<FinancialEntry, 'id' | 'user_id' | 'created_at'>) => {
+    const { data, error } = await supabase.from('financial_entries').insert({ ...entry, user_id: JOAO_GESTOR_AUTH_ID }).select().single();
+    if (error) throw error; setFinancialEntries(prev => [...prev, { ...data, amount: parseFloat(data.amount) }]); return data;
+  }, []);
+
+  const updateFinancialEntry = useCallback(async (id: string, updates: Partial<FinancialEntry>) => {
+    const { data, error } = await supabase.from('financial_entries').update(updates).eq('id', id).select().single();
+    if (error) throw error; setFinancialEntries(prev => prev.map(e => e.id === id ? { ...data, amount: parseFloat(data.amount) } : e)); return data;
+  }, []);
+
+  const deleteFinancialEntry = useCallback(async (id: string) => {
+    const { error } = await supabase.from('financial_entries').delete().eq('id', id);
+    if (error) throw error; setFinancialEntries(prev => prev.filter(e => e.id !== id));
+  }, []);
+
+  // --- Form Cadastro Functions ---
+  const updateFormCadastro = useCallback(async (id: string, updates: Partial<FormCadastro>) => {
+    const { data, error } = await supabase.from('form_submissions').update(updates).eq('id', id).select().single();
+    if (error) throw error; setFormCadastros(prev => prev.map(f => f.id === id ? data : f)); return data;
+  }, []);
+
+  const deleteFormCadastro = useCallback(async (id: string) => {
+    const { error } = await supabase.from('form_submissions').delete().eq('id', id);
+    if (error) throw error; setFormCadastros(prev => prev.filter(f => f.id !== id));
+  }, []);
+
+  // --- Feedback Functions ---
+  const addFeedback = useCallback(async (personId: string, feedback: Omit<Feedback, 'id'>) => {
+    const candidate = candidates.find(c => c.id === personId || c.db_id === personId);
+    if (!candidate) throw new Error("Candidato não encontrado.");
+    const newFeedback = { ...feedback, id: crypto.randomUUID() };
+    const updatedFeedbacks = [...(candidate.feedbacks || []), newFeedback];
+    await updateCandidate(candidate.id, { feedbacks: updatedFeedbacks });
+    return newFeedback;
+  }, [candidates, updateCandidate]);
+
+  const updateFeedback = useCallback(async (personId: string, feedback: Feedback) => {
+    const candidate = candidates.find(c => c.id === personId || c.db_id === personId);
+    if (!candidate) throw new Error("Candidato não encontrado.");
+    const updatedFeedbacks = (candidate.feedbacks || []).map(f => f.id === feedback.id ? feedback : f);
+    await updateCandidate(candidate.id, { feedbacks: updatedFeedbacks });
+    return feedback;
+  }, [candidates, updateCandidate]);
+
+  const deleteFeedback = useCallback(async (personId: string, feedbackId: string) => {
+    const candidate = candidates.find(c => c.id === personId || c.db_id === personId);
+    if (!candidate) throw new Error("Candidato não encontrado.");
+    const updatedFeedbacks = (candidate.feedbacks || []).filter(f => f.id !== feedbackId);
+    await updateCandidate(candidate.id, { feedbacks: updatedFeedbacks });
+  }, [candidates, updateCandidate]);
+
+  const addTeamMemberFeedback = useCallback(async (teamMemberId: string, feedback: Omit<Feedback, 'id'>) => {
+    const member = teamMembers.find(m => m.id === teamMemberId);
+    if (!member) throw new Error("Membro da equipe não encontrado.");
+    const newFeedback = { ...feedback, id: crypto.randomUUID() };
+    const updatedFeedbacks = [...(member.feedbacks || []), newFeedback];
+    await updateTeamMember(teamMemberId, { feedbacks: updatedFeedbacks });
+    return newFeedback;
+  }, [teamMembers]);
+
+  const updateTeamMemberFeedback = useCallback(async (teamMemberId: string, feedback: Feedback) => {
+    const member = teamMembers.find(m => m.id === teamMemberId);
+    if (!member) throw new Error("Membro da equipe não encontrado.");
+    const updatedFeedbacks = (member.feedbacks || []).map(f => f.id === feedback.id ? feedback : f);
+    await updateTeamMember(teamMemberId, { feedbacks: updatedFeedbacks });
+    return feedback;
+  }, [teamMembers]);
+
+  const deleteTeamMemberFeedback = useCallback(async (teamMemberId: string, feedbackId: string) => {
+    const member = teamMembers.find(m => m.id === teamMemberId);
+    if (!member) throw new Error("Membro da equipe não encontrado.");
+    const updatedFeedbacks = (member.feedbacks || []).filter(f => f.id !== feedbackId);
+    await updateTeamMember(teamMemberId, { feedbacks: updatedFeedbacks });
+  }, [teamMembers]);
+
+  // --- Team Member Functions ---
+  const addTeamMember = useCallback(async (member: Omit<TeamMember, 'id'> & { email: string }) => {
+    const tempPassword = generateRandomPassword();
+    const roleForAuth = member.roles.includes('SECRETARIA') ? 'SECRETARIA' : member.roles.includes('GESTOR') ? 'GESTOR' : 'CONSULTOR';
+    const { data: edgeData, error: edgeError } = await supabase.functions.invoke('create-or-link-consultant', {
+      body: { email: member.email, name: member.name, tempPassword, login: member.cpf, role: roleForAuth }
+    });
+    if (edgeError) throw edgeError;
+    const authUserId = edgeData.authUserId;
+    const { data, error } = await supabase.from('team_members').insert({ user_id: JOAO_GESTOR_AUTH_ID, cpf: member.cpf, data: { ...member, id: authUserId, authUserId } }).select().single();
+    if (error) throw error;
+    const newMember = { ...member, id: data.id, db_id: data.id, authUserId, hasLogin: true, isLegacy: false };
+    setTeamMembers(prev => [...prev, newMember]);
+    return { success: true, member: newMember, tempPassword, wasExistingUser: edgeData.userExists };
+  }, []);
+
+  const updateTeamMember = useCallback(async (id: string, updates: Partial<TeamMember>) => {
+    const member = teamMembers.find(m => m.id === id);
+    if (!member) throw new Error("Membro não encontrado.");
+    const updatedData = { ...member, ...updates };
+    const { error } = await supabase.from('team_members').update({ cpf: updates.cpf || member.cpf, data: updatedData }).eq('id', id);
+    if (error) throw error;
+    setTeamMembers(prev => prev.map(m => m.id === id ? { ...m, ...updates } : m));
+    return { success: true };
+  }, [teamMembers]);
+
+  const deleteTeamMember = useCallback(async (id: string) => {
+    const { error } = await supabase.from('team_members').delete().eq('id', id);
+    if (error) throw error;
+    setTeamMembers(prev => prev.filter(m => m.id !== id));
+  }, []);
+
+  // --- Team Production Goal Functions ---
+  const addTeamProductionGoal = useCallback(async (goal: Omit<TeamProductionGoal, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
+    const { data, error } = await supabase.from('team_production_goals').insert({ ...goal, user_id: JOAO_GESTOR_AUTH_ID }).select().single();
+    if (error) throw error; setTeamProductionGoals(prev => [data, ...prev]); return data;
+  }, []);
+
+  const updateTeamProductionGoal = useCallback(async (id: string, updates: Partial<TeamProductionGoal>) => {
+    const { data, error } = await supabase.from('team_production_goals').update(updates).eq('id', id).select().single();
+    if (error) throw error; setTeamProductionGoals(prev => prev.map(g => g.id === id ? data : g)); return data;
+  }, []);
+
+  const deleteTeamProductionGoal = useCallback(async (id: string) => {
+    const { error } = await supabase.from('team_production_goals').delete().eq('id', id);
+    if (error) throw error; setTeamProductionGoals(prev => prev.filter(g => g.id !== id));
+  }, []);
+
+  // --- Cold Call Functions ---
+  const addColdCallLead = useCallback(async (lead: Omit<ColdCallLead, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'current_stage'>) => {
+    const { data, error } = await supabase.from('cold_call_leads').insert({ ...lead, user_id: user!.id, current_stage: 'Base Fria' }).select().single();
+    if (error) throw error; setColdCallLeads(prev => [data, ...prev]); return data;
+  }, [user]);
+
+  const updateColdCallLead = useCallback(async (id: string, updates: Partial<ColdCallLead>) => {
+    const { data, error } = await supabase.from('cold_call_leads').update(updates).eq('id', id).select().single();
+    if (error) throw error; setColdCallLeads(prev => prev.map(l => l.id === id ? data : l)); return data;
+  }, []);
+
+  const deleteColdCallLead = useCallback(async (id: string) => {
+    const { error } = await supabase.from('cold_call_leads').delete().eq('id', id);
+    if (error) throw error; setColdCallLeads(prev => prev.filter(l => l.id !== id));
+  }, []);
+
+  const addColdCallLog = useCallback(async (log: Omit<ColdCallLog, 'id' | 'user_id' | 'created_at' | 'duration_seconds'> & { start_time: string; end_time: string; }, leadId: string) => {
+    const duration_seconds = Math.round((new Date(log.end_time).getTime() - new Date(log.start_time).getTime()) / 1000);
+    const { data, error } = await supabase.from('cold_call_logs').insert({ ...log, user_id: user!.id, duration_seconds }).select().single();
+    if (error) throw error; setColdCallLogs(prev => [data, ...prev]); return data;
+  }, [user]);
+
+  const getColdCallMetrics = useCallback((consultantId: string) => {
+    const logs = coldCallLogs.filter(l => l.user_id === consultantId);
+    const totalCalls = logs.length;
+    const totalConversations = logs.filter(l => l.result === 'Conversou' || l.result === 'Demonstrou Interesse' || l.result === 'Agendar Reunião').length;
+    const totalMeetingsScheduled = logs.filter(l => l.result === 'Agendar Reunião').length;
+    const conversationToMeetingRate = totalConversations > 0 ? (totalMeetingsScheduled / totalConversations) * 100 : 0;
+    return { totalCalls, totalConversations, totalMeetingsScheduled, conversationToMeetingRate };
+  }, [coldCallLogs]);
+
+  const createCrmLeadFromColdCall = useCallback(async (coldCallLeadId: string, meeting?: { date?: string; time?: string; modality?: string; notes?: string }) => {
+    const { data, error } = await supabase.functions.invoke('create-crm-lead-from-cold-call', {
+      body: { 
+        coldCallLeadId, 
+        meetingDate: meeting?.date, 
+        meetingTime: meeting?.time, 
+        meetingModality: meeting?.modality, 
+        meetingNotes: meeting?.notes 
+      }
+    });
+    if (error) throw error;
+    if (data?.error) throw new Error(data.error);
+    const { data: updatedLead } = await supabase.from('cold_call_leads').select('*').eq('id', coldCallLeadId).single();
+    if (updatedLead) setColdCallLeads(prev => prev.map(l => l.id === coldCallLeadId ? updatedLead : l));
+    const { data: newCrmLead } = await supabase.from('crm_leads').select('*').eq('id', data.crmLeadId).single();
+    if (newCrmLead) setCrmLeads(prev => [newCrmLead, ...prev]);
+    return { crmLeadId: data.crmLeadId };
+  }, []);
+
+  const hasPendingSecretariaTasks = useCallback((candidate: Candidate) => {
+    const progress = candidate.checklistProgress || {};
+    const secretariaItems = checklistStructure.flatMap(s => s.items).filter(i => i.responsibleRole === 'SECRETARIA');
+    return secretariaItems.some(item => progress[item.id] && !progress[item.id].completed);
+  }, [checklistStructure]);
+
   const value: AppContextType = useMemo(() => ({
     isDataLoading, candidates, teamMembers, commissions, supportMaterials, cutoffPeriods, onboardingSessions, onboardingTemplateVideos,
     checklistStructure, setChecklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs,
@@ -541,28 +1025,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const newProgress = { ...currentProgress, [goalId]: !currentProgress[goalId] };
       await updateCandidate(candidateId, { consultantGoalsProgress: newProgress });
     },
-    addChecklistStage: (title: string, description: string) => {
-      const newStructure = [...checklistStructure, { id: crypto.randomUUID(), title, description, items: [] }];
-      setChecklistStructure(newStructure); updateConfig({ checklistStructure: newStructure });
-    },
-    updateChecklistStage: (stageId: string, updates: Partial<ChecklistStage>) => {
-      const newStructure = checklistStructure.map(stage => stage.id === stageId ? { ...stage, ...updates } : stage);
-      setChecklistStructure(newStructure); updateConfig({ checklistStructure: newStructure });
-    },
-    deleteChecklistStage: (stageId: string) => {
-      const newStructure = checklistStructure.filter(stage => stage.id !== stageId);
-      setChecklistStructure(newStructure); updateConfig({ checklistStructure: newStructure });
-    },
-    moveChecklistStage: (stageId: string, direction: 'up' | 'down') => {
-      const index = checklistStructure.findIndex(s => s.id === stageId);
-      if (index === -1) return;
-      const newStructure = [...checklistStructure];
-      const targetIndex = direction === 'up' ? index - 1 : index + 1;
-      if (targetIndex >= 0 && targetIndex < newStructure.length) {
-        [newStructure[index], newStructure[targetIndex]] = [newStructure[targetIndex], newStructure[index]];
-        setChecklistStructure(newStructure); updateConfig({ checklistStructure: newStructure });
-      }
-    },
+    addChecklistStage, updateChecklistStage, deleteChecklistStage, moveChecklistStage,
     addChecklistItem: (stageId: string, label: string, responsibleRole: string) => {
       const newStructure = checklistStructure.map(stage => stage.id === stageId ? { ...stage, items: [...stage.items, { id: crypto.randomUUID(), label, responsibleRole }] } : stage);
       setChecklistStructure(newStructure); updateConfig({ checklistStructure: newStructure });
@@ -734,7 +1197,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addCrmLead, updateCrmLead, deleteCrmLead,
     addDailyChecklist, updateDailyChecklist, deleteDailyChecklist,
     addDailyChecklistItem, updateDailyChecklistItem, deleteDailyChecklistItem, moveDailyChecklistItem,
-    assignDailyChecklistToConsultant, unassignDailyChecklistFromConsultant, toggleDailyChecklistCompletion,
+    assignDailyChecklistToConsultant: async (daily_checklist_id: string, consultant_id: string) => {
+      const { data, error } = await supabase.from('daily_checklist_assignments').insert({ daily_checklist_id, consultant_id }).select().single();
+      if (error) throw error; setDailyChecklistAssignments(prev => [...prev, data]); return data;
+    },
+    unassignDailyChecklistFromConsultant: async (daily_checklist_id: string, consultant_id: string) => {
+      const { error } = await supabase.from('daily_checklist_assignments').delete().eq('daily_checklist_id', daily_checklist_id).eq('consultant_id', consultant_id);
+      if (error) throw error; setDailyChecklistAssignments(prev => prev.filter(a => !(a.daily_checklist_id === daily_checklist_id && a.consultant_id === consultant_id)));
+    },
+    toggleDailyChecklistCompletion,
     addWeeklyTarget, updateWeeklyTarget, deleteWeeklyTarget,
     addWeeklyTargetItem, updateWeeklyTargetItem, deleteWeeklyTargetItem, updateWeeklyTargetItemOrder,
     assignWeeklyTargetToConsultant, unassignWeeklyTargetFromConsultant,
@@ -743,11 +1214,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addLeadTask, updateLeadTask, deleteLeadTask, toggleLeadTaskCompletion, updateLeadMeetingInvitationStatus,
     addGestorTask, updateGestorTask, deleteGestorTask, toggleGestorTaskCompletion,
     addFinancialEntry, updateFinancialEntry, deleteFinancialEntry,
-    updateFormCadastro, deleteFormCadastro,
+    updateFormCadastro, deleteFormCadastro, getFormFilesForSubmission: (submissionId: string) => formFiles.filter(f => f.submission_id === submissionId),
     addFeedback, updateFeedback, deleteFeedback, addTeamMemberFeedback, updateTeamMemberFeedback, deleteTeamMemberFeedback,
     addTeamMember, updateTeamMember, deleteTeamMember,
     addTeamProductionGoal, updateTeamProductionGoal, deleteTeamProductionGoal,
-    addCutoffPeriod, updateCutoffPeriod, deleteCutoffPeriod,
     hasPendingSecretariaTasks,
     addColdCallLead, updateColdCallLead, deleteColdCallLead, addColdCallLog, getColdCallMetrics,
     addOnlineOnboardingSession, deleteOnlineOnboardingSession, addVideoToTemplate, deleteVideoFromTemplate,
