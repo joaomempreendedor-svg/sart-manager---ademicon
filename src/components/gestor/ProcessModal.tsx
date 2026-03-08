@@ -139,8 +139,8 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
         </DialogHeader>
         
         <form onSubmit={handleSubmit}>
-          <ScrollArea className="max-h-[70vh] py-4 pr-4 custom-scrollbar">
-            <div className="grid gap-4">
+          <ScrollArea className="max-h-[70vh] pr-4 custom-scrollbar">
+            <div className="grid gap-4 py-4 pb-10"> {/* Adicionado pb-10 para garantir que o final não seja cortado */}
               <div>
                 <Label htmlFor="title">Título *</Label>
                 <div className="relative">
