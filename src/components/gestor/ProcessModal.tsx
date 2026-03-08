@@ -130,17 +130,19 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-2xl bg-white dark:bg-slate-800 dark:text-white p-6">
-        <DialogHeader>
-          <DialogTitle>{process ? 'Editar Processo' : 'Novo Processo'}</DialogTitle>
-          <DialogDescription>
-            {process ? 'Edite os detalhes deste processo.' : 'Crie um novo documento de processo interno.'}
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent className="sm:max-w-2xl bg-white dark:bg-slate-800 dark:text-white p-0 overflow-hidden flex flex-col max-h-[90vh]">
+        <div className="p-6 border-b border-gray-100 dark:border-slate-700">
+          <DialogHeader>
+            <DialogTitle>{process ? 'Editar Processo' : 'Novo Processo'}</DialogTitle>
+            <DialogDescription>
+              {process ? 'Edite os detalhes deste processo.' : 'Crie um novo documento de processo interno.'}
+            </DialogDescription>
+          </DialogHeader>
+        </div>
         
-        <form onSubmit={handleSubmit}>
-          <ScrollArea className="max-h-[60vh] pr-4 custom-scrollbar">
-            <div className="grid gap-6 py-4 pb-20"> {/* Aumentado gap e padding inferior consideravelmente */}
+        <form onSubmit={handleSubmit} className="flex-1 flex flex-col overflow-hidden">
+          <ScrollArea className="flex-1 px-6">
+            <div className="grid gap-6 py-6">
               <div className="space-y-2">
                 <Label htmlFor="title">Título *</Label>
                 <div className="relative">
@@ -184,7 +186,7 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
                 </div>
               </div>
 
-              <div className="border-t border-gray-200 dark:border-slate-700 pt-6 mt-2">
+              <div className="border-t border-gray-200 dark:border-slate-700 pt-6">
                 <Label className="mb-4 block font-bold text-gray-900 dark:text-white text-base">Anexo ou Link de Apoio</Label>
                 <div className="flex flex-wrap gap-2 mb-6">
                   <Button
@@ -214,7 +216,7 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
                 </div>
 
                 {attachmentType === 'file' && (
-                  <div className="space-y-4 animate-fade-in min-h-[120px]">
+                  <div className="space-y-4 animate-fade-in pb-6">
                     {existingFileUrl && !selectedFile ? (
                       <div className="flex items-center justify-between p-4 bg-gray-100 dark:bg-slate-700 rounded-lg border border-gray-200 dark:border-slate-600">
                         <div className="flex items-center space-x-3">
@@ -239,7 +241,7 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
                 )}
 
                 {attachmentType === 'link' && (
-                  <div className="space-y-3 animate-fade-in">
+                  <div className="space-y-3 animate-fade-in pb-6">
                     <Label htmlFor="linkUrl">URL do Link Externo</Label>
                     <div className="relative">
                       <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -259,17 +261,18 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
             </div>
           </ScrollArea>
           
-          {error && <p className="text-red-500 text-sm mt-4 flex items-center font-medium"><XCircle className="w-4 h-4 mr-2" />{error}</p>}
-          
-          <DialogFooter className="mt-6 pt-4 border-t border-gray-100 dark:border-slate-700">
-            <Button type="button" variant="outline" onClick={onClose} className="dark:bg-slate-700 dark:text-white dark:border-slate-600">
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={isSaving} className="bg-brand-600 hover:bg-brand-700 text-white min-w-[140px]">
-              {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-              <span>{isSaving ? 'Salvando...' : 'Salvar Processo'}</span>
-            </Button>
-          </DialogFooter>
+          <div className="p-6 border-t border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/50">
+            {error && <p className="text-red-500 text-sm mb-4 flex items-center font-medium"><XCircle className="w-4 h-4 mr-2" />{error}</p>}
+            <DialogFooter className="flex flex-col sm:flex-row gap-2">
+              <Button type="button" variant="outline" onClick={onClose} className="dark:bg-slate-700 dark:text-white dark:border-slate-600 w-full sm:w-auto">
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={isSaving} className="bg-brand-600 hover:bg-brand-700 text-white min-w-[140px] w-full sm:w-auto">
+                {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                <span>{isSaving ? 'Salvando...' : 'Salvar Processo'}</span>
+              </Button>
+            </DialogFooter>
+          </div>
         </form>
       </DialogContent>
     </Dialog>
