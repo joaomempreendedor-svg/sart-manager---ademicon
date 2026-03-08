@@ -543,6 +543,87 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, [checklistStructure, updateConfig]);
 
+  const addChecklistItem = useCallback((stageId: string, label: string, responsibleRole: string) => {
+    const newStructure = checklistStructure.map(stage => stage.id === stageId ? { ...stage, items: [...stage.items, { id: crypto.randomUUID(), label, responsibleRole }] } : stage);
+    setChecklistStructure(newStructure); updateConfig({ checklistStructure: newStructure });
+  }, [checklistStructure, updateConfig]);
+
+  const updateChecklistItem = useCallback((stageId: string, itemId: string, updates: Partial<ChecklistItem>) => {
+    const newStructure = checklistStructure.map(stage => stage.id !== stageId ? stage : { ...stage, items: stage.items.map(item => (item.id === itemId ? { ...item, ...updates } : item)) });
+    setChecklistStructure(newStructure); updateConfig({ checklistStructure: newStructure });
+    return Promise.resolve({} as any);
+  }, [checklistStructure, updateConfig]);
+
+  const deleteChecklistItem = useCallback((stageId: string, itemId: string) => {
+    const newStructure = checklistStructure.map(stage => stage.id === stageId ? { ...stage, items: stage.items.filter(item => item.id !== itemId) } : stage);
+    setChecklistStructure(newStructure); updateConfig({ checklistStructure: newStructure });
+  }, [checklistStructure, updateConfig]);
+
+  const moveChecklistItem = useCallback((stageId: string, itemId: string, direction: 'up' | 'down') => {
+    const newStructure = checklistStructure.map(stage => {
+      if (stage.id === stageId) {
+        const index = stage.items.findIndex(i => i.id === itemId);
+        if (index === -1) return stage;
+        const newItems = [...stage.items];
+        const targetIndex = direction === 'up' ? index - 1 : index + 1;
+        if (targetIndex >= 0 && targetIndex < newItems.length) [newItems[index], newItems[targetIndex]] = [newItems[targetIndex], newItems[index]];
+        return { ...stage, items: newItems };
+      }
+      return stage;
+    });
+    setChecklistStructure(newStructure); updateConfig({ checklistStructure: newStructure });
+  }, [checklistStructure, updateConfig]);
+
+  const resetChecklistToDefault = useCallback(() => { setChecklistStructure(DEFAULT_STAGES); updateConfig({ checklistStructure: DEFAULT_STAGES }); }, [updateConfig]);
+
+  // --- Cutoff Period Functions ---
+  const addCutoffPeriod = useCallback(async (period: Omit<CutoffPeriod, 'id' | 'db_id'>) => {
+    const { data, error } = await supabase.from('cutoff_periods').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: period }).select().single();
+    if (error) throw error;
+    setCutoffPeriods(prev => [...prev, { ...period, id: (period as any).id || crypto.randomUUID(), db_id: data.id }]);
+  }, []);
+
+  const updateCutoffPeriod = useCallback(async (id: string, updates: Partial<CutoffPeriod>) => {
+    const { error } = await supabase.from('cutoff_periods').update({ data: updates }).eq('id', id);
+    if (error) throw error;
+    setCutoffPeriods(prev => prev.map(p => p.db_id === id ? { ...p, ...updates } : p));
+  }, []);
+
+  const deleteCutoffPeriod = useCallback(async (id: string) => {
+    const { error } = await supabase.from('cutoff_periods').delete().eq('id', id);
+    if (error) throw error;
+    setCutoffPeriods(prev => prev.filter(p => p.db_id !== id));
+  }, []);
+
+  // --- Onboarding Functions ---
+  const addOnlineOnboardingSession = useCallback(async (consultantName: string) => {
+    const { data: session, error: sessionError } = await supabase.from('onboarding_sessions').insert({ user_id: JOAO_GESTOR_AUTH_ID, consultant_name: consultantName }).select().single();
+    if (sessionError) throw sessionError;
+    const videosToInsert = onboardingTemplateVideos.map(v => ({ session_id: session.id, title: v.title, video_url: v.video_url, order: v.order, is_completed: false }));
+    const { data: videos, error: videosError } = await supabase.from('onboarding_videos').insert(videosToInsert).select();
+    if (videosError) throw videosError;
+    setOnboardingSessions(prev => [...prev, { ...session, videos: videos || [] }]);
+  }, [onboardingTemplateVideos]);
+
+  const deleteOnlineOnboardingSession = useCallback(async (sessionId: string) => {
+    const { error } = await supabase.from('onboarding_sessions').delete().eq('id', sessionId);
+    if (error) throw error;
+    setOnboardingSessions(prev => prev.filter(s => s.id !== sessionId));
+  }, []);
+
+  const addVideoToTemplate = useCallback(async (title: string, video_url: string) => {
+    const order = onboardingTemplateVideos.length > 0 ? Math.max(...onboardingTemplateVideos.map(v => v.order)) + 1 : 1;
+    const { data, error } = await supabase.from('onboarding_video_templates').insert({ user_id: JOAO_GESTOR_AUTH_ID, title, video_url, order }).select().single();
+    if (error) throw error;
+    setOnboardingTemplateVideos(prev => [...prev, data]);
+  }, [onboardingTemplateVideos]);
+
+  const deleteVideoFromTemplate = useCallback(async (videoId: string) => {
+    const { error } = await supabase.from('onboarding_video_templates').delete().eq('id', videoId);
+    if (error) throw error;
+    setOnboardingTemplateVideos(prev => prev.filter(v => v.id !== videoId));
+  }, []);
+
   // --- Daily Checklist Functions ---
   const addDailyChecklist = useCallback(async (title: string) => {
     const { data, error } = await supabase.from('daily_checklists').insert({ user_id: JOAO_GESTOR_AUTH_ID, title }).select().single();
@@ -556,7 +637,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const deleteDailyChecklist = useCallback(async (id: string) => {
     const { error } = await supabase.from('daily_checklists').delete().eq('id', id);
-    if (error) throw error; setDailyChecklists(prev => prev.filter(c => c.id !== id));
+    if (error) throw error; setDailyChecklists(prev => prev.filter(c => i.id !== id));
   }, []);
 
   const addDailyChecklistItem = useCallback(async (daily_checklist_id: string, text: string, order_index: number, resource?: DailyChecklistItemResource, audioFile?: File, imageFile?: File) => {
@@ -1026,34 +1107,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       await updateCandidate(candidateId, { consultantGoalsProgress: newProgress });
     },
     addChecklistStage, updateChecklistStage, deleteChecklistStage, moveChecklistStage,
-    addChecklistItem: (stageId: string, label: string, responsibleRole: string) => {
-      const newStructure = checklistStructure.map(stage => stage.id === stageId ? { ...stage, items: [...stage.items, { id: crypto.randomUUID(), label, responsibleRole }] } : stage);
-      setChecklistStructure(newStructure); updateConfig({ checklistStructure: newStructure });
-    },
-    updateChecklistItem: (stageId: string, itemId: string, updates: Partial<ChecklistItem>) => {
-      const newStructure = checklistStructure.map(stage => stage.id !== stageId ? stage : { ...stage, items: stage.items.map(item => (item.id === itemId ? { ...item, ...updates } : item)) });
-      setChecklistStructure(newStructure); updateConfig({ checklistStructure: newStructure });
-      return Promise.resolve({} as any);
-    },
-    deleteChecklistItem: (stageId: string, itemId: string) => {
-      const newStructure = checklistStructure.map(stage => stage.id === stageId ? { ...stage, items: stage.items.filter(item => item.id !== itemId) } : stage);
-      setChecklistStructure(newStructure); updateConfig({ checklistStructure: newStructure });
-    },
-    moveChecklistItem: (stageId: string, itemId: string, direction: 'up' | 'down') => {
-      const newStructure = checklistStructure.map(stage => {
-        if (stage.id === stageId) {
-          const index = stage.items.findIndex(i => i.id === itemId);
-          if (index === -1) return stage;
-          const newItems = [...stage.items];
-          const targetIndex = direction === 'up' ? index - 1 : index + 1;
-          if (targetIndex >= 0 && targetIndex < newItems.length) [newItems[index], newItems[targetIndex]] = [newItems[targetIndex], newItems[index]];
-          return { ...stage, items: newItems };
-        }
-        return stage;
-      });
-      setChecklistStructure(newStructure); updateConfig({ checklistStructure: newStructure });
-    },
-    resetChecklistToDefault: () => { setChecklistStructure(DEFAULT_STAGES); updateConfig({ checklistStructure: DEFAULT_STAGES }); },
+    addChecklistItem, updateChecklistItem, deleteChecklistItem, moveChecklistItem,
+    resetChecklistToDefault,
     addGoalItem: (stageId: string, label: string) => {
       const newStructure = consultantGoalsStructure.map(stage => stage.id === stageId ? { ...stage, items: [...stage.items, { id: crypto.randomUUID(), label }] } : stage);
       setConsultantGoalsStructure(newStructure); updateConfig({ consultantGoalsStructure: newStructure });
@@ -1218,6 +1273,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addFeedback, updateFeedback, deleteFeedback, addTeamMemberFeedback, updateTeamMemberFeedback, deleteTeamMemberFeedback,
     addTeamMember, updateTeamMember, deleteTeamMember,
     addTeamProductionGoal, updateTeamProductionGoal, deleteTeamProductionGoal,
+    addCutoffPeriod, updateCutoffPeriod, deleteCutoffPeriod,
     hasPendingSecretariaTasks,
     addColdCallLead, updateColdCallLead, deleteColdCallLead, addColdCallLog, getColdCallMetrics,
     addOnlineOnboardingSession, deleteOnlineOnboardingSession, addVideoToTemplate, deleteVideoFromTemplate,
@@ -1233,6 +1289,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     toggleTheme, updateConfig, resetLocalState, refetchCommissions, calculateCompetenceMonth, isGestorTaskDueOnDate, calculateNotifications,
     addCandidate, updateCandidate, deleteCandidate, toggleChecklistItem,
     addChecklistStage, updateChecklistStage, deleteChecklistStage, moveChecklistStage,
+    addChecklistItem, updateChecklistItem, deleteChecklistItem, moveChecklistItem,
+    resetChecklistToDefault,
     addDailyChecklist, updateDailyChecklist, deleteDailyChecklist,
     addDailyChecklistItem, updateDailyChecklistItem, deleteDailyChecklistItem, moveDailyChecklistItem,
     addWeeklyTarget, updateWeeklyTarget, deleteWeeklyTarget,
