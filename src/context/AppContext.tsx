@@ -499,19 +499,28 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     if (filesToAdd && filesToAdd.length > 0) {
       for (const item of filesToAdd) {
-        const sanitized = sanitizeFilename(item.file.name);
-        const path = `process_files/${process.id}/${Date.now()}-${sanitized}`;
-        const { error: uploadError } = await supabase.storage.from('form_uploads').upload(path, item.file);
-        if (uploadError) throw uploadError;
-        const fileUrl = supabase.storage.from('form_uploads').getPublicUrl(path).data.publicUrl;
-        
-        const { data: attachment, error: attachError } = await supabase.from('process_attachments').insert({
-          process_id: process.id,
-          file_url: fileUrl,
-          file_type: item.type,
-          file_name: item.file.name
-        }).select().single();
-        if (!attachError) attachments.push(attachment);
+        try {
+          const sanitized = sanitizeFilename(item.file.name);
+          const path = `process_files/${process.id}/${Date.now()}-${sanitized}`;
+          const { error: uploadError } = await supabase.storage.from('form_uploads').upload(path, item.file);
+          if (uploadError) throw uploadError;
+          const fileUrl = supabase.storage.from('form_uploads').getPublicUrl(path).data.publicUrl;
+          
+          const { data: attachment, error: attachError } = await supabase.from('process_attachments').insert({
+            process_id: process.id,
+            file_url: fileUrl,
+            file_type: item.type,
+            file_name: item.file.name
+          }).select().single();
+          
+          if (attachError) {
+            console.error("Erro ao inserir anexo no banco:", attachError);
+          } else if (attachment) {
+            attachments.push(attachment);
+          }
+        } catch (err) {
+          console.error("Erro no upload de arquivo:", err);
+        }
       }
     }
 
@@ -523,7 +532,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           file_type: 'link',
           file_name: 'Link Externo'
         }).select().single();
-        if (!attachError) attachments.push(attachment);
+        if (!attachError && attachment) attachments.push(attachment);
       }
     }
 
@@ -541,29 +550,35 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     if (filesToAdd && filesToAdd.length > 0) {
       for (const item of filesToAdd) {
-        const sanitized = sanitizeFilename(item.file.name);
-        const path = `process_files/${id}/${Date.now()}-${sanitized}`;
-        const { error: uploadError } = await supabase.storage.from('form_uploads').upload(path, item.file);
-        if (uploadError) throw uploadError;
-        const fileUrl = supabase.storage.from('form_uploads').getPublicUrl(path).data.publicUrl;
-        
-        await supabase.from('process_attachments').insert({
-          process_id: id,
-          file_url: fileUrl,
-          file_type: item.type,
-          file_name: item.file.name
-        });
+        try {
+          const sanitized = sanitizeFilename(item.file.name);
+          const path = `process_files/${id}/${Date.now()}-${sanitized}`;
+          const { error: uploadError } = await supabase.storage.from('form_uploads').upload(path, item.file);
+          if (uploadError) throw uploadError;
+          const fileUrl = supabase.storage.from('form_uploads').getPublicUrl(path).data.publicUrl;
+          
+          const { error: attachError } = await supabase.from('process_attachments').insert({
+            process_id: id,
+            file_url: fileUrl,
+            file_type: item.type,
+            file_name: item.file.name
+          });
+          if (attachError) console.error("Erro ao inserir anexo no banco:", attachError);
+        } catch (err) {
+          console.error("Erro no upload de arquivo:", err);
+        }
       }
     }
 
     if (linksToAdd && linksToAdd.length > 0) {
       for (const item of linksToAdd) {
-        await supabase.from('process_attachments').insert({
+        const { error: attachError } = await supabase.from('process_attachments').insert({
           process_id: id,
           file_url: item.url,
           file_type: 'link',
           file_name: 'Link Externo'
         });
+        if (attachError) console.error("Erro ao inserir link no banco:", attachError);
       }
     }
 
@@ -709,7 +724,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const deleteDailyChecklist = useCallback(async (id: string) => {
     const { error } = await supabase.from('daily_checklists').delete().eq('id', id);
-    if (error) throw error; setDailyChecklists(prev => prev.filter(c => i.id !== id));
+    if (error) throw error; setDailyChecklists(prev => prev.filter(c => c.id !== id));
   }, []);
 
   const addDailyChecklistItem = useCallback(async (daily_checklist_id: string, text: string, order_index: number, resource?: DailyChecklistItemResource, audioFile?: File, imageFile?: File) => {
