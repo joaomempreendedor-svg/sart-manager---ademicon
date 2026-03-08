@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { Process } from '@/types';
-import { Loader2, FileText, Plus, Search, Edit2, Trash2, Eye, Filter, RotateCcw, CalendarDays, Image as ImageIcon, Video, Music } from 'lucide-react';
+import { Loader2, FileText, Plus, Search, Edit2, Trash2, Eye, Filter, RotateCcw, CalendarDays, Image as ImageIcon, Video, Music, Link as LinkIcon } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { ProcessModal } from '@/components/gestor/ProcessModal';
 import { ProcessViewModal } from '@/components/gestor/ProcessViewModal';
@@ -27,12 +27,12 @@ export const Processos = () => {
     setIsViewModalOpen(true);
   };
 
-  const handleSaveProcess = async (processData: Omit<Process, 'id' | 'user_id' | 'created_at' | 'updated_at'> | Process, file?: File | null) => {
+  const handleSaveProcess = async (processData: Omit<Process, 'id' | 'user_id' | 'created_at' | 'updated_at'> | Process, filesToAdd?: { file: File, type: string }[], linksToAdd?: { url: string, type: string }[]) => {
     if ('id' in processData) {
-      await updateProcess(processData.id, processData, file);
+      await updateProcess(processData.id, processData, filesToAdd, linksToAdd);
       toast.success("Processo atualizado com sucesso!");
     } else {
-      await addProcess(processData, file);
+      await addProcess(processData, filesToAdd, linksToAdd);
       toast.success("Processo criado com sucesso!");
     }
   };
@@ -85,12 +85,15 @@ export const Processos = () => {
   const hasActiveFilters = searchTerm || filterStartDate || filterEndDate;
 
   const getProcessIcon = (process: Process) => {
-    if (!process.file_url) return <FileText className="w-8 h-8 text-brand-500 mb-3" />;
+    const hasAttachments = process.attachments && process.attachments.length > 0;
+    if (!hasAttachments) return <FileText className="w-8 h-8 text-brand-500 mb-3" />;
     
-    switch (process.file_type) {
+    const firstType = process.attachments![0].file_type;
+    switch (firstType) {
       case 'image': return <ImageIcon className="w-8 h-8 text-green-500 mb-3" />;
       case 'video': return <Video className="w-8 h-8 text-blue-500 mb-3" />;
       case 'audio': return <Music className="w-8 h-8 text-purple-500 mb-3" />;
+      case 'link': return <LinkIcon className="w-8 h-8 text-blue-400 mb-3" />;
       default: return <FileText className="w-8 h-8 text-brand-500 mb-3" />;
     }
   };
@@ -183,6 +186,15 @@ export const Processos = () => {
             </div>
             <h3 className="font-bold text-gray-900 dark:text-white group-hover:text-brand-600">{process.title}</h3>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{process.description || 'Nenhuma descrição'}</p>
+            
+            {process.attachments && process.attachments.length > 0 && (
+              <div className="mt-3 flex items-center space-x-2">
+                <span className="text-[10px] font-bold bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded-full">
+                  {process.attachments.length} anexo(s)
+                </span>
+              </div>
+            )}
+
             <p className="text-xs text-gray-400 mt-3">Atualizado em: {new Date(process.updated_at).toLocaleDateString()}</p>
           </div>
         ))}

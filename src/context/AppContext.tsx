@@ -489,7 +489,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const addProcess = useCallback(async (processData: Omit<Process, 'id' | 'user_id' | 'created_at' | 'updated_at'>, filesToAdd?: { file: File, type: string }[], linksToAdd?: { url: string, type: string }[]) => {
     if (!user) throw new Error("User not authenticated.");
     
-    const { data: process, error } = await supabase.from('processes').insert({ ...processData, user_id: user.id }).select().single();
+    // Remove 'attachments' if it exists in processData to avoid DB error
+    const { attachments: _, ...cleanData } = processData as any;
+    
+    const { data: process, error } = await supabase.from('processes').insert({ ...cleanData, user_id: user.id }).select().single();
     if (error) throw error;
 
     const attachments: ProcessAttachment[] = [];
@@ -530,10 +533,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [user]);
 
   const updateProcess = useCallback(async (id: string, updates: Partial<Process>, filesToAdd?: { file: File, type: string }[], linksToAdd?: { url: string, type: string }[]) => {
-    const { data: process, error } = await supabase.from('processes').update(updates).eq('id', id).select().single();
+    // Remove 'attachments' if it exists in updates to avoid DB error
+    const { attachments: _, ...cleanUpdates } = updates as any;
+    
+    const { data: process, error } = await supabase.from('processes').update(cleanUpdates).eq('id', id).select().single();
     if (error) throw error;
-
-    const attachments: ProcessAttachment[] = [];
 
     if (filesToAdd && filesToAdd.length > 0) {
       for (const item of filesToAdd) {
@@ -543,25 +547,23 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (uploadError) throw uploadError;
         const fileUrl = supabase.storage.from('form_uploads').getPublicUrl(path).data.publicUrl;
         
-        const { data: attachment, error: attachError } = await supabase.from('process_attachments').insert({
+        await supabase.from('process_attachments').insert({
           process_id: id,
           file_url: fileUrl,
           file_type: item.type,
           file_name: item.file.name
-        }).select().single();
-        if (!attachError) attachments.push(attachment);
+        });
       }
     }
 
     if (linksToAdd && linksToAdd.length > 0) {
       for (const item of linksToAdd) {
-        const { data: attachment, error: attachError } = await supabase.from('process_attachments').insert({
+        await supabase.from('process_attachments').insert({
           process_id: id,
           file_url: item.url,
           file_type: 'link',
           file_name: 'Link Externo'
-        }).select().single();
-        if (!attachError) attachments.push(attachment);
+        });
       }
     }
 
@@ -707,7 +709,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const deleteDailyChecklist = useCallback(async (id: string) => {
     const { error } = await supabase.from('daily_checklists').delete().eq('id', id);
-    if (error) throw error; setDailyChecklists(prev => prev.filter(c => c.id !== id));
+    if (error) throw error; setDailyChecklists(prev => prev.filter(c => i.id !== id));
   }, []);
 
   const addDailyChecklistItem = useCallback(async (daily_checklist_id: string, text: string, order_index: number, resource?: DailyChecklistItemResource, audioFile?: File, imageFile?: File) => {
