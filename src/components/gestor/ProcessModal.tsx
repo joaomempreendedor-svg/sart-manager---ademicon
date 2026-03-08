@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Loader2, FileText, Type, MessageSquare, Upload, Image as ImageIcon, Trash2, Video, Music } from 'lucide-react';
+import { X, Save, Loader2, FileText, Type, MessageSquare, Upload, Image as ImageIcon, Trash2, Video, Music, Link as LinkIcon } from 'lucide-react';
 import { Process } from '@/types';
 import {
   Dialog,
@@ -25,9 +25,10 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [content, setContent] = useState('');
+  const [attachmentType, setAttachmentType] = useState<'none' | 'file' | 'link'>('none');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [linkUrl, setLinkUrl] = useState('');
   const [existingFileUrl, setExistingFileUrl] = useState<string | undefined>(undefined);
-  const [removeFile, setRemoveFile] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -38,7 +39,18 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
       setContent(process?.content || '');
       setSelectedFile(null);
       setExistingFileUrl(process?.file_url);
-      setRemoveFile(false);
+      
+      if (process?.file_type === 'link') {
+        setAttachmentType('link');
+        setLinkUrl(process.file_url || '');
+      } else if (process?.file_url) {
+        setAttachmentType('file');
+        setLinkUrl('');
+      } else {
+        setAttachmentType('none');
+        setLinkUrl('');
+      }
+      
       setError('');
     }
   }, [isOpen, process]);
@@ -47,15 +59,8 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
     const file = e.target.files?.[0];
     if (file) {
       setSelectedFile(file);
-      setExistingFileUrl(undefined); // Clear existing file if new one is selected
-      setRemoveFile(false);
+      setExistingFileUrl(undefined);
     }
-  };
-
-  const handleRemoveFile = () => {
-    setSelectedFile(null);
-    setExistingFileUrl(undefined);
-    setRemoveFile(true);
   };
 
   const getFileType = (file: File) => {
@@ -74,21 +79,42 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
       return;
     }
 
+    if (attachmentType === 'link' && !linkUrl.trim()) {
+      setError("A URL do link é obrigatória.");
+      return;
+    }
+
     setIsSaving(true);
     try {
-      const processData = {
+      const processData: any = {
         title: title.trim(),
         description: description.trim(),
         content: content.trim(),
         type: 'Documento',
-        file_url: removeFile ? undefined : existingFileUrl,
-        file_type: removeFile ? undefined : (selectedFile ? getFileType(selectedFile) : process?.file_type),
       };
 
+      let fileToUpload: File | null = null;
+
+      if (attachmentType === 'none') {
+        processData.file_url = null;
+        processData.file_type = null;
+      } else if (attachmentType === 'link') {
+        processData.file_url = linkUrl.trim();
+        processData.file_type = 'link';
+      } else if (attachmentType === 'file') {
+        if (selectedFile) {
+          fileToUpload = selectedFile;
+          processData.file_type = getFileType(selectedFile);
+        } else {
+          processData.file_url = existingFileUrl;
+          processData.file_type = process?.file_type;
+        }
+      }
+
       if (process) {
-        await onSave({ ...process, ...processData }, selectedFile);
+        await onSave({ ...process, ...processData }, fileToUpload);
       } else {
-        await onSave(processData, selectedFile);
+        await onSave(processData, fileToUpload);
       }
       onClose();
     } catch (err: any) {
@@ -101,15 +127,6 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
 
   if (!isOpen) return null;
 
-  const getFileIcon = (type?: string) => {
-    switch (type) {
-      case 'image': return <ImageIcon className="w-4 h-4 text-green-500" />;
-      case 'video': return <Video className="w-4 h-4 text-blue-500" />;
-      case 'audio': return <Music className="w-4 h-4 text-purple-500" />;
-      default: return <FileText className="w-4 h-4 text-red-500" />;
-    }
-  };
-
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-2xl bg-white dark:bg-slate-800 dark:text-white p-6">
@@ -121,71 +138,128 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
         </DialogHeader>
         
         <form onSubmit={handleSubmit}>
-          <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto custom-scrollbar pr-4">
-            <div>
-              <Label htmlFor="title">Título *</Label>
-              <div className="relative">
-                <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input
-                  id="title"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  required
-                  className="pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600"
-                  placeholder="Ex: Processo de Venda de Consórcio"
-                />
+          <ScrollArea className="max-h-[70vh] py-4 pr-4 custom-scrollbar">
+            <div className="grid gap-4">
+              <div>
+                <Label htmlFor="title">Título *</Label>
+                <div className="relative">
+                  <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Input
+                    id="title"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    required
+                    className="pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                    placeholder="Ex: Processo de Venda de Consórcio"
+                  />
+                </div>
               </div>
-            </div>
-            <div>
-              <Label htmlFor="description">Descrição (Opcional)</Label>
-              <div className="relative">
-                <MessageSquare className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-                <Textarea
-                  id="description"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  rows={2}
-                  className="pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600"
-                  placeholder="Uma breve descrição sobre o objetivo deste processo."
-                />
+              <div>
+                <Label htmlFor="description">Descrição (Opcional)</Label>
+                <div className="relative">
+                  <MessageSquare className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+                  <Textarea
+                    id="description"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    rows={2}
+                    className="pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                    placeholder="Uma breve descrição sobre o objetivo deste processo."
+                  />
+                </div>
               </div>
-            </div>
-            <div>
-              <Label htmlFor="content">Conteúdo do Processo</Label>
-              <div className="relative">
-                <FileText className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-                <Textarea
-                  id="content"
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  rows={8}
-                  className="pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600"
-                  placeholder="Descreva o passo a passo do processo aqui..."
-                />
+              <div>
+                <Label htmlFor="content">Conteúdo do Processo</Label>
+                <div className="relative">
+                  <FileText className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+                  <Textarea
+                    id="content"
+                    value={content}
+                    onChange={(e) => setContent(e.target.value)}
+                    rows={6}
+                    className="pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                    placeholder="Descreva o passo a passo do processo aqui..."
+                  />
+                </div>
               </div>
-            </div>
-            <div>
-              <Label>Anexo (PDF, Imagem, Áudio ou Vídeo)</Label>
-              {existingFileUrl && !selectedFile ? (
-                <div className="flex items-center justify-between p-2 bg-gray-100 dark:bg-slate-700 rounded-lg">
-                  <div className="flex items-center space-x-2">
-                    {getFileIcon(process?.file_type)}
-                    <span className="text-sm text-gray-700 dark:text-gray-300 truncate">{existingFileUrl.split('/').pop()}</span>
-                  </div>
-                  <Button type="button" variant="ghost" size="sm" onClick={handleRemoveFile} className="text-red-500 hover:text-red-700">
-                    <Trash2 className="w-4 h-4 mr-1" /> Remover
+
+              <div className="border-t border-gray-200 dark:border-slate-700 pt-4 mt-2">
+                <Label className="mb-3 block font-bold text-gray-900 dark:text-white">Anexo ou Link de Apoio</Label>
+                <div className="flex flex-wrap gap-2 mb-4">
+                  <Button
+                    type="button"
+                    variant={attachmentType === 'none' ? 'default' : 'outline'}
+                    onClick={() => setAttachmentType('none')}
+                    className={`flex-1 ${attachmentType === 'none' ? 'bg-brand-600 text-white' : 'dark:bg-slate-700 dark:text-white'}`}
+                  >
+                    Nenhum
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={attachmentType === 'file' ? 'default' : 'outline'}
+                    onClick={() => setAttachmentType('file')}
+                    className={`flex-1 ${attachmentType === 'file' ? 'bg-brand-600 text-white' : 'dark:bg-slate-700 dark:text-white'}`}
+                  >
+                    <Upload className="w-4 h-4 mr-2" /> Arquivo
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={attachmentType === 'link' ? 'default' : 'outline'}
+                    onClick={() => setAttachmentType('link')}
+                    className={`flex-1 ${attachmentType === 'link' ? 'bg-brand-600 text-white' : 'dark:bg-slate-700 dark:text-white'}`}
+                  >
+                    <LinkIcon className="w-4 h-4 mr-2" /> Link
                   </Button>
                 </div>
-              ) : (
-                <label className="flex items-center justify-center px-4 py-2 border border-gray-300 dark:border-slate-600 border-dashed rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/50 transition bg-white dark:bg-slate-700">
-                  <Upload className="w-4 h-4 mr-2 text-gray-500" />
-                  <span className="text-sm text-gray-600 dark:text-gray-300 truncate">{selectedFile ? selectedFile.name : 'Selecionar arquivo...'}</span>
-                  <input type="file" className="hidden" accept="image/*,application/pdf,video/*,audio/*" onChange={handleFileChange} />
-                </label>
-              )}
+
+                {attachmentType === 'file' && (
+                  <div className="space-y-3 animate-fade-in">
+                    {existingFileUrl && !selectedFile ? (
+                      <div className="flex items-center justify-between p-3 bg-gray-100 dark:bg-slate-700 rounded-lg border border-gray-200 dark:border-slate-600">
+                        <div className="flex items-center space-x-2">
+                          <FileText className="w-5 h-5 text-brand-500" />
+                          <span className="text-sm text-gray-700 dark:text-gray-300 truncate max-w-[200px]">{existingFileUrl.split('/').pop()}</span>
+                        </div>
+                        <Button type="button" variant="ghost" size="sm" onClick={() => setExistingFileUrl(undefined)} className="text-red-500 hover:text-red-700">
+                          Trocar Arquivo
+                        </Button>
+                      </div>
+                    ) : (
+                      <label className="flex flex-col items-center justify-center px-4 py-6 border-2 border-gray-300 dark:border-slate-600 border-dashed rounded-xl cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/50 transition bg-white dark:bg-slate-700">
+                        <Upload className="w-8 h-8 mb-2 text-gray-400" />
+                        <span className="text-sm font-medium text-gray-600 dark:text-gray-300 text-center">
+                          {selectedFile ? selectedFile.name : 'Clique para selecionar Imagem, PDF, Áudio ou Vídeo'}
+                        </span>
+                        <input type="file" className="hidden" accept="image/*,application/pdf,video/*,audio/*" onChange={handleFileChange} />
+                      </label>
+                    )}
+                    <p className="text-[10px] text-gray-500 text-center">Formatos aceitos: JPG, PNG, PDF, MP3, MP4.</p>
+                  </div>
+                )}
+
+                {attachmentType === 'link' && (
+                  <div className="space-y-2 animate-fade-in">
+                    <Label htmlFor="linkUrl">URL do Link Externo</Label>
+                    <div className="relative">
+                      <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <Input
+                        id="linkUrl"
+                        type="url"
+                        value={linkUrl}
+                        onChange={(e) => setLinkUrl(e.target.value)}
+                        className="pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                        placeholder="https://www.youtube.com/watch?v=... ou link externo"
+                      />
+                    </div>
+                    <p className="text-[10px] text-gray-500">Dica: Links do YouTube serão exibidos como player de vídeo.</p>
+                  </div>
+                )}
+              </div>
             </div>
-            {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
-          </div>
+          </ScrollArea>
+          
+          {error && <p className="text-red-500 text-sm mt-2 flex items-center"><XCircle className="w-4 h-4 mr-2" />{error}</p>}
+          
           <DialogFooter className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-700">
             <Button type="button" variant="outline" onClick={onClose} className="dark:bg-slate-700 dark:text-white dark:border-slate-600">
               Cancelar

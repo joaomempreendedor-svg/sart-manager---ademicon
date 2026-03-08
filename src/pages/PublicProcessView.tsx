@@ -2,10 +2,17 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Process } from '@/types';
-import { Loader2, FileText, Image as ImageIcon, Download, Link as LinkIcon, AlertTriangle, TrendingUp, Video, Music } from 'lucide-react';
+import { Loader2, FileText, Image as ImageIcon, Download, Link as LinkIcon, AlertTriangle, TrendingUp, Video, Music, ExternalLink } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import toast from 'react-hot-toast';
+import YouTube from 'react-youtube';
+
+const getYouTubeID = (url: string): string | null => {
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+  const match = url.match(regExp);
+  return (match && match[2].length === 11) ? match[2] : null;
+};
 
 export const PublicProcessView = () => {
   const { processId } = useParams<{ processId: string }>();
@@ -69,10 +76,40 @@ export const PublicProcessView = () => {
 
     const fileName = process.file_url.split('/').pop() || 'arquivo_anexado';
 
+    if (process.file_type === 'link') {
+      const youtubeId = getYouTubeID(process.file_url);
+      if (youtubeId) {
+        return (
+          <div className="mt-4 aspect-video w-full bg-black rounded-xl overflow-hidden shadow-lg">
+            <YouTube
+              videoId={youtubeId}
+              className="w-full h-full"
+              iframeClassName="w-full h-full"
+              opts={{ playerVars: { rel: 0 } }}
+            />
+          </div>
+        );
+      }
+      return (
+        <div className="mt-4 p-6 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-800 flex flex-col items-center text-center">
+          <LinkIcon className="w-10 h-10 text-blue-500 mb-3" />
+          <p className="font-semibold text-blue-900 dark:text-blue-100 mb-2">Link Externo de Apoio</p>
+          <a 
+            href={process.file_url} 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            className="text-blue-600 dark:text-blue-400 hover:underline break-all flex items-center"
+          >
+            {process.file_url} <ExternalLink className="w-3 h-3 ml-1" />
+          </a>
+        </div>
+      );
+    }
+
     if (process.file_type === 'image') {
       return (
-        <div className="mt-4 p-4 bg-gray-100 dark:bg-slate-700 rounded-lg flex flex-col items-center justify-center space-y-3">
-          <img src={process.file_url} alt="Anexo" className="rounded-lg max-h-80 w-auto" />
+        <div className="mt-4 p-4 bg-gray-100 dark:bg-slate-700 rounded-xl flex flex-col items-center justify-center space-y-3">
+          <img src={process.file_url} alt="Anexo" className="rounded-lg max-h-96 w-auto shadow-sm" />
           <Button
             variant="outline"
             size="sm"
@@ -88,8 +125,8 @@ export const PublicProcessView = () => {
 
     if (process.file_type === 'video') {
       return (
-        <div className="mt-4 p-4 bg-gray-100 dark:bg-slate-700 rounded-lg flex flex-col items-center justify-center space-y-3">
-          <video src={process.file_url} controls className="rounded-lg max-h-80 w-full" />
+        <div className="mt-4 p-4 bg-gray-100 dark:bg-slate-700 rounded-xl flex flex-col items-center justify-center space-y-3">
+          <video src={process.file_url} controls className="rounded-lg max-h-96 w-full shadow-sm" />
           <Button
             variant="outline"
             size="sm"
@@ -105,9 +142,11 @@ export const PublicProcessView = () => {
 
     if (process.file_type === 'audio') {
       return (
-        <div className="mt-4 p-4 bg-gray-100 dark:bg-slate-700 rounded-lg flex flex-col items-center justify-center space-y-3">
-          <div className="flex items-center space-x-3 w-full">
-            <Music className="w-8 h-8 text-purple-500" />
+        <div className="mt-4 p-6 bg-gray-100 dark:bg-slate-700 rounded-xl flex flex-col items-center justify-center space-y-4">
+          <div className="flex items-center space-x-4 w-full">
+            <div className="p-3 bg-purple-100 dark:bg-purple-900/40 rounded-full">
+              <Music className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+            </div>
             <audio src={process.file_url} controls className="flex-1" />
           </div>
           <Button
@@ -125,13 +164,15 @@ export const PublicProcessView = () => {
 
     if (process.file_type === 'pdf') {
       return (
-        <div className="mt-4 p-4 bg-gray-100 dark:bg-slate-700 rounded-lg flex flex-col sm:flex-row items-center justify-between space-y-3 sm:space-y-0">
+        <div className="mt-4 p-4 bg-gray-100 dark:bg-slate-700 rounded-xl flex flex-col sm:flex-row items-center justify-between space-y-3 sm:space-y-0">
           <div className="flex items-center space-x-3">
-            <FileText className="w-8 h-8 text-red-500" />
+            <div className="p-3 bg-red-100 dark:bg-red-900/40 rounded-full">
+              <FileText className="w-6 h-6 text-red-600 dark:text-red-400" />
+            </div>
             <div>
               <p className="font-semibold text-gray-900 dark:text-white">Documento PDF Anexado</p>
-              <a href={process.file_url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 dark:text-blue-400 hover:underline">
-                Abrir em nova aba
+              <a href={process.file_url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center">
+                Abrir em nova aba <ExternalLink className="w-2 h-2 ml-1" />
               </a>
             </div>
           </div>
@@ -195,7 +236,7 @@ export const PublicProcessView = () => {
             <div className="space-y-6">
               {renderFilePreview()}
               {process.content && (
-                <div className="prose dark:prose-invert max-w-none whitespace-pre-wrap text-gray-800 dark:text-gray-200 leading-relaxed">
+                <div className="prose dark:prose-invert max-w-none whitespace-pre-wrap text-gray-800 dark:text-gray-200 leading-relaxed bg-gray-50 dark:bg-slate-900/50 p-6 rounded-xl border border-gray-100 dark:border-slate-700">
                   {process.content}
                 </div>
               )}

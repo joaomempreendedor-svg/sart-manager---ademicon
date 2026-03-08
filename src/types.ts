@@ -555,7 +555,7 @@ export interface Process {
   content?: string;
   type: string;
   file_url?: string;
-  file_type?: 'image' | 'pdf' | 'video' | 'audio';
+  file_type?: 'image' | 'pdf' | 'video' | 'audio' | 'link';
   created_at: string;
   updated_at: string;
 }
