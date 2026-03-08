@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Loader2, FileText, Type, MessageSquare, Upload, Image as ImageIcon, Trash2, Video, Music, Link as LinkIcon, XCircle } from 'lucide-react';
-import { Process } from '@/types';
+import { X, Save, Loader2, FileText, Type, MessageSquare, Upload, Image as ImageIcon, Trash2, Video, Music, Link as LinkIcon, XCircle, Plus, ExternalLink } from 'lucide-react';
+import { Process, ProcessAttachment } from '@/types';
 import {
   Dialog,
   DialogContent,
@@ -13,22 +13,25 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { useApp } from '@/context/AppContext';
 
 interface ProcessModalProps {
   isOpen: boolean;
   onClose: () => void;
   process: Process | null;
-  onSave: (processData: Omit<Process, 'id' | 'user_id' | 'created_at' | 'updated_at'> | Process, file?: File | null) => Promise<void>;
+  onSave: (processData: Omit<Process, 'id' | 'user_id' | 'created_at' | 'updated_at'> | Process, filesToAdd?: { file: File, type: string }[], linksToAdd?: { url: string, type: string }[]) => Promise<void>;
 }
 
 export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, process, onSave }) => {
+  const { deleteProcessAttachment } = useApp();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [content, setContent] = useState('');
-  const [attachmentType, setAttachmentType] = useState<'none' | 'file' | 'link'>('none');
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [linkUrl, setLinkUrl] = useState('');
-  const [existingFileUrl, setExistingFileUrl] = useState<string | undefined>(undefined);
+  
+  const [filesToAdd, setFilesToAdd] = useState<{ file: File, type: string }[]>([]);
+  const [linksToAdd, setLinksToAdd] = useState<{ url: string, type: string }[]>([]);
+  const [newLinkUrl, setNewLinkUrl] = useState('');
+  
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -37,29 +40,21 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
       setTitle(process?.title || '');
       setDescription(process?.description || '');
       setContent(process?.content || '');
-      setSelectedFile(null);
-      setExistingFileUrl(process?.file_url);
-      
-      if (process?.file_type === 'link') {
-        setAttachmentType('link');
-        setLinkUrl(process.file_url || '');
-      } else if (process?.file_url) {
-        setAttachmentType('file');
-        setLinkUrl('');
-      } else {
-        setAttachmentType('none');
-        setLinkUrl('');
-      }
-      
+      setFilesToAdd([]);
+      setLinksToAdd([]);
+      setNewLinkUrl('');
       setError('');
     }
   }, [isOpen, process]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setSelectedFile(file);
-      setExistingFileUrl(undefined);
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      const newFiles = Array.from(files).map(file => ({
+        file,
+        type: getFileType(file)
+      }));
+      setFilesToAdd(prev => [...prev, ...newFiles]);
     }
   };
 
@@ -70,17 +65,36 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
     return 'pdf';
   };
 
+  const handleAddLink = () => {
+    if (!newLinkUrl.trim()) return;
+    setLinksToAdd(prev => [...prev, { url: newLinkUrl.trim(), type: 'link' }]);
+    setNewLinkUrl('');
+  };
+
+  const handleRemoveFileToAdd = (index: number) => {
+    setFilesToAdd(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleRemoveLinkToAdd = (index: number) => {
+    setLinksToAdd(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleDeleteExistingAttachment = async (attachmentId: string) => {
+    if (window.confirm("Deseja remover este anexo permanentemente?")) {
+      try {
+        await deleteProcessAttachment(attachmentId);
+      } catch (err: any) {
+        alert("Erro ao remover anexo.");
+      }
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
     if (!title.trim()) {
       setError("O título do processo é obrigatório.");
-      return;
-    }
-
-    if (attachmentType === 'link' && !linkUrl.trim()) {
-      setError("A URL do link é obrigatória.");
       return;
     }
 
@@ -93,28 +107,10 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
         type: 'Documento',
       };
 
-      let fileToUpload: File | null = null;
-
-      if (attachmentType === 'none') {
-        processData.file_url = null;
-        processData.file_type = null;
-      } else if (attachmentType === 'link') {
-        processData.file_url = linkUrl.trim();
-        processData.file_type = 'link';
-      } else if (attachmentType === 'file') {
-        if (selectedFile) {
-          fileToUpload = selectedFile;
-          processData.file_type = getFileType(selectedFile);
-        } else {
-          processData.file_url = existingFileUrl;
-          processData.file_type = process?.file_type;
-        }
-      }
-
       if (process) {
-        await onSave({ ...process, ...processData }, fileToUpload);
+        await onSave({ ...process, ...processData }, filesToAdd, linksToAdd);
       } else {
-        await onSave(processData, fileToUpload);
+        await onSave(processData, filesToAdd, linksToAdd);
       }
       onClose();
     } catch (err: any) {
@@ -186,76 +182,78 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
               </div>
 
               <div className="border-t border-gray-200 dark:border-slate-700 pt-6">
-                <Label className="mb-4 block font-bold text-gray-900 dark:text-white text-base">Anexo ou Link de Apoio</Label>
-                <div className="flex flex-wrap gap-2 mb-6">
-                  <Button
-                    type="button"
-                    variant={attachmentType === 'none' ? 'default' : 'outline'}
-                    onClick={() => setAttachmentType('none')}
-                    className={`flex-1 h-10 ${attachmentType === 'none' ? 'bg-brand-600 text-white' : 'dark:bg-slate-700 dark:text-white'}`}
-                  >
-                    Nenhum
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={attachmentType === 'file' ? 'default' : 'outline'}
-                    onClick={() => setAttachmentType('file')}
-                    className={`flex-1 h-10 ${attachmentType === 'file' ? 'bg-brand-600 text-white' : 'dark:bg-slate-700 dark:text-white'}`}
-                  >
-                    <Upload className="w-4 h-4 mr-2" /> Arquivo
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={attachmentType === 'link' ? 'default' : 'outline'}
-                    onClick={() => setAttachmentType('link')}
-                    className={`flex-1 h-10 ${attachmentType === 'link' ? 'bg-brand-600 text-white' : 'dark:bg-slate-700 dark:text-white'}`}
-                  >
-                    <LinkIcon className="w-4 h-4 mr-2" /> Link
-                  </Button>
-                </div>
-
-                {attachmentType === 'file' && (
-                  <div className="space-y-4 animate-fade-in pb-6">
-                    {existingFileUrl && !selectedFile ? (
-                      <div className="flex items-center justify-between p-4 bg-gray-100 dark:bg-slate-700 rounded-lg border border-gray-200 dark:border-slate-600">
-                        <div className="flex items-center space-x-3">
-                          <FileText className="w-5 h-5 text-brand-500" />
-                          <span className="text-sm text-gray-700 dark:text-gray-300 truncate max-w-[250px] font-medium">{existingFileUrl.split('/').pop()}</span>
+                <Label className="mb-4 block font-bold text-gray-900 dark:text-white text-base">Anexos e Links de Apoio</Label>
+                
+                {/* Lista de Anexos Existentes */}
+                {process?.attachments && process.attachments.length > 0 && (
+                  <div className="space-y-2 mb-6">
+                    <p className="text-xs font-bold text-gray-400 uppercase">Anexos Atuais</p>
+                    {process.attachments.map(att => (
+                      <div key={att.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-700/50 rounded-lg border border-gray-200 dark:border-slate-600">
+                        <div className="flex items-center space-x-3 overflow-hidden">
+                          {att.file_type === 'link' ? <LinkIcon className="w-4 h-4 text-blue-500" /> : <FileText className="w-4 h-4 text-brand-500" />}
+                          <span className="text-sm text-gray-700 dark:text-gray-300 truncate font-medium">{att.file_name || att.file_url}</span>
                         </div>
-                        <Button type="button" variant="ghost" size="sm" onClick={() => setExistingFileUrl(undefined)} className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20">
-                          Trocar Arquivo
+                        <Button type="button" variant="ghost" size="sm" onClick={() => handleDeleteExistingAttachment(att.id)} className="text-red-500 hover:text-red-700">
+                          <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
-                    ) : (
-                      <label className="flex flex-col items-center justify-center px-4 py-8 border-2 border-gray-300 dark:border-slate-600 border-dashed rounded-xl cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/50 transition bg-white dark:bg-slate-700 group">
-                        <Upload className="w-10 h-10 mb-3 text-gray-400 group-hover:text-brand-500 transition-colors" />
-                        <span className="text-sm font-semibold text-gray-600 dark:text-gray-300 text-center px-4">
-                          {selectedFile ? selectedFile.name : 'Clique para selecionar Imagem, PDF, Áudio ou Vídeo'}
-                        </span>
-                        <input type="file" className="hidden" accept="image/*,application/pdf,video/*,audio/*" onChange={handleFileChange} />
-                      </label>
-                    )}
-                    <p className="text-[11px] text-gray-500 dark:text-gray-400 text-center font-medium">Formatos aceitos: JPG, PNG, PDF, MP3, MP4.</p>
+                    ))}
                   </div>
                 )}
 
-                {attachmentType === 'link' && (
-                  <div className="space-y-3 animate-fade-in pb-6">
-                    <Label htmlFor="linkUrl">URL do Link Externo</Label>
-                    <div className="relative">
+                {/* Adicionar Novos Arquivos */}
+                <div className="space-y-4 mb-6">
+                  <p className="text-xs font-bold text-gray-400 uppercase">Adicionar Arquivos</p>
+                  <label className="flex flex-col items-center justify-center px-4 py-6 border-2 border-gray-300 dark:border-slate-600 border-dashed rounded-xl cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/50 transition bg-white dark:bg-slate-700 group">
+                    <Upload className="w-8 h-8 mb-2 text-gray-400 group-hover:text-brand-500 transition-colors" />
+                    <span className="text-sm font-semibold text-gray-600 dark:text-gray-300 text-center">
+                      Clique para selecionar Imagem, PDF, Áudio ou Vídeo
+                    </span>
+                    <input type="file" className="hidden" multiple accept="image/*,application/pdf,video/*,audio/*" onChange={handleFileChange} />
+                  </label>
+                  
+                  {filesToAdd.length > 0 && (
+                    <div className="space-y-2">
+                      {filesToAdd.map((f, i) => (
+                        <div key={i} className="flex items-center justify-between p-2 bg-brand-50 dark:bg-brand-900/20 rounded-lg border border-brand-100 dark:border-brand-900/30">
+                          <span className="text-xs font-medium text-brand-700 dark:text-brand-300 truncate max-w-[400px]">{f.file.name}</span>
+                          <button type="button" onClick={() => handleRemoveFileToAdd(i)} className="text-red-500 p-1"><X className="w-4 h-4" /></button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Adicionar Novos Links */}
+                <div className="space-y-3">
+                  <p className="text-xs font-bold text-gray-400 uppercase">Adicionar Links</p>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
                       <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                       <Input
-                        id="linkUrl"
-                        type="url"
-                        value={linkUrl}
-                        onChange={(e) => setLinkUrl(e.target.value)}
+                        value={newLinkUrl}
+                        onChange={(e) => setNewLinkUrl(e.target.value)}
                         className="pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600"
-                        placeholder="https://www.youtube.com/watch?v=... ou link externo"
+                        placeholder="https://..."
                       />
                     </div>
-                    <p className="text-[11px] text-gray-500 dark:text-gray-400 font-medium italic">Dica: Links do YouTube serão exibidos como player de vídeo.</p>
+                    <Button type="button" onClick={handleAddLink} variant="outline" className="dark:bg-slate-700 dark:text-white">
+                      <Plus className="w-4 h-4" />
+                    </Button>
                   </div>
-                )}
+                  
+                  {linksToAdd.length > 0 && (
+                    <div className="space-y-2">
+                      {linksToAdd.map((l, i) => (
+                        <div key={i} className="flex items-center justify-between p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-900/30">
+                          <span className="text-xs font-medium text-blue-700 dark:text-blue-300 truncate max-w-[400px]">{l.url}</span>
+                          <button type="button" onClick={() => handleRemoveLinkToAdd(i)} className="text-red-500 p-1"><X className="w-4 h-4" /></button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>

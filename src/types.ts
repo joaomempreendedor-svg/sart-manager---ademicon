@@ -547,6 +547,15 @@ export interface ColdCallLog {
   created_at: string;
 }
 
+export interface ProcessAttachment {
+  id: string;
+  process_id: string;
+  file_url: string;
+  file_type: 'image' | 'pdf' | 'video' | 'audio' | 'link';
+  file_name?: string;
+  created_at: string;
+}
+
 export interface Process {
   id: string;
   user_id: string;
@@ -558,6 +567,7 @@ export interface Process {
   file_type?: 'image' | 'pdf' | 'video' | 'audio' | 'link';
   created_at: string;
   updated_at: string;
+  attachments?: ProcessAttachment[];
 }
 
 export interface AppContextType {
@@ -723,9 +733,10 @@ export interface AppContextType {
   updateChecklistStage: (stageId: string, updates: Partial<ChecklistStage>) => void;
   deleteChecklistStage: (stageId: string) => void;
   moveChecklistStage: (stageId: string, direction: 'up' | 'down') => void;
-  addProcess: (process: Omit<Process, 'id' | 'user_id' | 'created_at' | 'updated_at'>, file?: File | null) => Promise<Process>;
-  updateProcess: (id: string, updates: Partial<Process>, file?: File | null) => Promise<Process>;
+  addProcess: (process: Omit<Process, 'id' | 'user_id' | 'created_at' | 'updated_at'>, files?: { file: File, type: string }[], links?: { url: string, type: string }[]) => Promise<Process>;
+  updateProcess: (id: string, updates: Partial<Process>, filesToAdd?: { file: File, type: string }[], linksToAdd?: { url: string, type: string }[]) => Promise<Process>;
   deleteProcess: (id: string) => Promise<void>;
+  deleteProcessAttachment: (attachmentId: string) => Promise<void>;
 }
 
 export interface ColdCallMetrics {

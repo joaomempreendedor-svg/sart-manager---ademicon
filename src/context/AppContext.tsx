@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
-import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, InstallmentInfo, CutoffPeriod, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask, DailyChecklistItemResource, GestorTask, GestorTaskCompletion, FinancialEntry, FormCadastro, FormFile, Notification, TeamProductionGoal, ColdCallLead, ColdCallLog, ChecklistItem, Process } from '@/types';
+import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, InstallmentInfo, CutoffPeriod, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask, DailyChecklistItemResource, GestorTask, GestorTaskCompletion, FinancialEntry, FormCadastro, FormFile, Notification, TeamProductionGoal, ColdCallLead, ColdCallLog, ChecklistItem, Process, ProcessAttachment } from '@/types';
 import { CHECKLIST_STAGES as DEFAULT_STAGES } from '@/data/checklistData';
 import { CONSULTANT_GOALS as DEFAULT_GOALS } from '@/data/consultantGoals';
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
@@ -269,7 +269,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           supportMaterialsV2Res, supportMaterialAssignmentsV2Res,
           leadTasksRes, gestorTasksRes, gestorTaskCompletionsRes, financialEntriesRes,
           formCadastrosRes, formFilesRes, notificationsRes, teamProductionGoalsRes, teamMembersRes,
-          coldCallLeadsRes, coldCallLogsRes, processesRes
+          coldCallLeadsRes, coldCallLogsRes, processesRes, processAttachmentsRes
         ] = await Promise.all([
           getAllFromTable('candidates', { select: 'id, data, created_at, last_updated_at', filters: { user_id: effectiveGestorId } }),
           getAllFromTable('support_materials', { select: 'id, data', filters: { user_id: effectiveGestorId } }),
@@ -301,7 +301,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           getAllFromTable('team_members', { select: 'id, data, cpf, user_id', filters: { user_id: effectiveGestorId } }),
           getAllFromTable('cold_call_leads'),
           getAllFromTable('cold_call_logs'),
-          getAllFromTable('processes', { filters: { user_id: effectiveGestorId } })
+          getAllFromTable('processes', { filters: { user_id: effectiveGestorId } }),
+          getAllFromTable('process_attachments')
         ]);
 
         if (!candidatesRes.error) {
@@ -352,6 +353,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (!weeklyTargetsRes.error) setWeeklyTargets(weeklyTargetsRes.data || []);
         if (!weeklyTargetItemsRes.error) setWeeklyTargetItems(weeklyTargetItemsRes.data || []);
         if (!weeklyTargetAssignmentsRes.error) setWeeklyTargetAssignments(weeklyTargetAssignmentsRes.data || []);
+        if (!weeklyTargetAssignmentsRes.error) setWeeklyTargetAssignments(weeklyTargetAssignmentsRes.data || []);
         if (!metricLogsRes.error) setMetricLogs(metricLogsRes.data || []);
         if (!supportMaterialsV2Res.error) setSupportMaterialsV2(supportMaterialsV2Res.data || []);
         if (!supportMaterialAssignmentsV2Res.error) setSupportMaterialAssignments(supportMaterialAssignmentsV2Res.data || []);
@@ -365,7 +367,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (!teamProductionGoalsRes.error) setTeamProductionGoals(teamProductionGoalsRes.data || []);
         if (!coldCallLeadsRes.error) setColdCallLeads(coldCallLeadsRes.data || []);
         if (!coldCallLogsRes.error) setColdCallLogs(coldCallLogsRes.data || []);
-        if (!processesRes.error) setProcesses(processesRes.data || []);
+        
+        if (!processesRes.error) {
+          const allAttachments = processAttachmentsRes.data || [];
+          const normalizedProcesses = (processesRes.data || []).map(p => ({
+            ...p,
+            attachments: allAttachments.filter(a => a.process_id === p.id)
+          }));
+          setProcesses(normalizedProcesses);
+        }
 
         refetchCommissions();
       } catch (error: any) {
@@ -463,57 +473,104 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setCrmLeads(prev => prev.filter(l => l.id !== id));
   }, []);
 
-  const addProcess = useCallback(async (processData: Omit<Process, 'id' | 'user_id' | 'created_at' | 'updated_at'>, file?: File | null) => {
+  const addProcess = useCallback(async (processData: Omit<Process, 'id' | 'user_id' | 'created_at' | 'updated_at'>, filesToAdd?: { file: File, type: string }[], linksToAdd?: { url: string, type: string }[]) => {
     if (!user) throw new Error("User not authenticated.");
-    let fileUrl: string | undefined = processData.file_url;
-    let fileType: string | undefined = processData.file_type;
-    if (file) {
-      const sanitized = sanitizeFilename(file.name);
-      const path = `process_files/${Date.now()}-${sanitized}`;
-      const { error: uploadError } = await supabase.storage.from('form_uploads').upload(path, file);
-      if (uploadError) throw uploadError;
-      fileUrl = supabase.storage.from('form_uploads').getPublicUrl(path).data.publicUrl;
-      if (file.type.startsWith('image/')) fileType = 'image';
-      else if (file.type.startsWith('video/')) fileType = 'video';
-      else if (file.type.startsWith('audio/')) fileType = 'audio';
-      else fileType = 'pdf';
-    }
-    const { data, error } = await supabase.from('processes').insert({ ...processData, user_id: user.id, file_url: fileUrl, file_type: fileType }).select().single();
+    
+    const { data: process, error } = await supabase.from('processes').insert({ ...processData, user_id: user.id }).select().single();
     if (error) throw error;
-    setProcesses(prev => [data, ...prev].sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()));
-    return data;
+
+    const attachments: ProcessAttachment[] = [];
+
+    if (filesToAdd && filesToAdd.length > 0) {
+      for (const item of filesToAdd) {
+        const sanitized = sanitizeFilename(item.file.name);
+        const path = `process_files/${process.id}/${Date.now()}-${sanitized}`;
+        const { error: uploadError } = await supabase.storage.from('form_uploads').upload(path, item.file);
+        if (uploadError) throw uploadError;
+        const fileUrl = supabase.storage.from('form_uploads').getPublicUrl(path).data.publicUrl;
+        
+        const { data: attachment, error: attachError } = await supabase.from('process_attachments').insert({
+          process_id: process.id,
+          file_url: fileUrl,
+          file_type: item.type,
+          file_name: item.file.name
+        }).select().single();
+        if (!attachError) attachments.push(attachment);
+      }
+    }
+
+    if (linksToAdd && linksToAdd.length > 0) {
+      for (const item of linksToAdd) {
+        const { data: attachment, error: attachError } = await supabase.from('process_attachments').insert({
+          process_id: process.id,
+          file_url: item.url,
+          file_type: 'link',
+          file_name: 'Link Externo'
+        }).select().single();
+        if (!attachError) attachments.push(attachment);
+      }
+    }
+
+    const newProcess = { ...process, attachments };
+    setProcesses(prev => [newProcess, ...prev].sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()));
+    return newProcess;
   }, [user]);
 
-  const updateProcess = useCallback(async (id: string, updates: Partial<Process>, file?: File | null) => {
-    const existingProcess = processes.find(p => p.id === id);
-    if (!existingProcess) throw new Error("Process not found.");
-    let fileUrl: string | undefined = updates.file_url;
-    let fileType: string | undefined = updates.file_type;
-    if (file) {
-      const sanitized = sanitizeFilename(file.name);
-      const path = `process_files/${Date.now()}-${sanitized}`;
-      const { error: uploadError } = await supabase.storage.from('form_uploads').upload(path, file);
-      if (uploadError) throw uploadError;
-      fileUrl = supabase.storage.from('form_uploads').getPublicUrl(path).data.publicUrl;
-      if (file.type.startsWith('image/')) fileType = 'image';
-      else if (file.type.startsWith('video/')) fileType = 'video';
-      else if (file.type.startsWith('audio/')) fileType = 'audio';
-      else fileType = 'pdf';
-    } else if (updates.file_url === undefined && updates.file_type === undefined) {
-      fileUrl = undefined; fileType = undefined;
-    } else {
-      fileUrl = existingProcess.file_url; fileType = existingProcess.file_type;
-    }
-    const { data, error } = await supabase.from('processes').update({ ...updates, file_url: fileUrl, file_type: fileType }).eq('id', id).select().single();
+  const updateProcess = useCallback(async (id: string, updates: Partial<Process>, filesToAdd?: { file: File, type: string }[], linksToAdd?: { url: string, type: string }[]) => {
+    const { data: process, error } = await supabase.from('processes').update(updates).eq('id', id).select().single();
     if (error) throw error;
-    setProcesses(prev => prev.map(p => p.id === id ? data : p).sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()));
-    return data;
-  }, [processes]);
+
+    const attachments: ProcessAttachment[] = [];
+
+    if (filesToAdd && filesToAdd.length > 0) {
+      for (const item of filesToAdd) {
+        const sanitized = sanitizeFilename(item.file.name);
+        const path = `process_files/${id}/${Date.now()}-${sanitized}`;
+        const { error: uploadError } = await supabase.storage.from('form_uploads').upload(path, item.file);
+        if (uploadError) throw uploadError;
+        const fileUrl = supabase.storage.from('form_uploads').getPublicUrl(path).data.publicUrl;
+        
+        const { data: attachment, error: attachError } = await supabase.from('process_attachments').insert({
+          process_id: id,
+          file_url: fileUrl,
+          file_type: item.type,
+          file_name: item.file.name
+        }).select().single();
+        if (!attachError) attachments.push(attachment);
+      }
+    }
+
+    if (linksToAdd && linksToAdd.length > 0) {
+      for (const item of linksToAdd) {
+        const { data: attachment, error: attachError } = await supabase.from('process_attachments').insert({
+          process_id: id,
+          file_url: item.url,
+          file_type: 'link',
+          file_name: 'Link Externo'
+        }).select().single();
+        if (!attachError) attachments.push(attachment);
+      }
+    }
+
+    const { data: allAttachments } = await supabase.from('process_attachments').select('*').eq('process_id', id);
+    const updatedProcess = { ...process, attachments: allAttachments || [] };
+    setProcesses(prev => prev.map(p => p.id === id ? updatedProcess : p).sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()));
+    return updatedProcess;
+  }, []);
 
   const deleteProcess = useCallback(async (id: string) => {
     const { error } = await supabase.from('processes').delete().eq('id', id);
     if (error) throw error;
     setProcesses(prev => prev.filter(p => p.id !== id));
+  }, []);
+
+  const deleteProcessAttachment = useCallback(async (attachmentId: string) => {
+    const { error } = await supabase.from('process_attachments').delete().eq('id', attachmentId);
+    if (error) throw error;
+    setProcesses(prev => prev.map(p => ({
+      ...p,
+      attachments: p.attachments?.filter(a => a.id !== attachmentId)
+    })));
   }, []);
 
   // --- Checklist Stage Functions ---
@@ -637,7 +694,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const deleteDailyChecklist = useCallback(async (id: string) => {
     const { error } = await supabase.from('daily_checklists').delete().eq('id', id);
-    if (error) throw error; setDailyChecklists(prev => prev.filter(c => i.id !== id));
+    if (error) throw error; setDailyChecklists(prev => prev.filter(c => c.id !== id));
   }, []);
 
   const addDailyChecklistItem = useCallback(async (daily_checklist_id: string, text: string, order_index: number, resource?: DailyChecklistItemResource, audioFile?: File, imageFile?: File) => {
@@ -1277,7 +1334,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     hasPendingSecretariaTasks,
     addColdCallLead, updateColdCallLead, deleteColdCallLead, addColdCallLog, getColdCallMetrics,
     addOnlineOnboardingSession, deleteOnlineOnboardingSession, addVideoToTemplate, deleteVideoFromTemplate,
-    addProcess, updateProcess, deleteProcess,
+    addProcess, updateProcess, deleteProcess, deleteProcessAttachment,
   }), [
     isDataLoading, candidates, teamMembers, commissions, supportMaterials, cutoffPeriods, onboardingSessions, onboardingTemplateVideos,
     checklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs,
@@ -1309,7 +1366,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     hasPendingSecretariaTasks,
     addColdCallLead, updateColdCallLead, deleteColdCallLead, addColdCallLog, getColdCallMetrics,
     addOnlineOnboardingSession, deleteOnlineOnboardingSession, addVideoToTemplate, deleteVideoFromTemplate,
-    addProcess, updateProcess, deleteProcess,
+    addProcess, updateProcess, deleteProcess, deleteProcessAttachment,
   ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

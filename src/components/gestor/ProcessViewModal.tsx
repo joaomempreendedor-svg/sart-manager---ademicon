@@ -1,6 +1,6 @@
 import React from 'react';
 import { X, FileText, Image as ImageIcon, Download, Link as LinkIcon, Copy, Check, Video, Music, ExternalLink } from 'lucide-react';
-import { Process } from '@/types';
+import { Process, ProcessAttachment } from '@/types';
 import {
   Dialog,
   DialogContent,
@@ -62,16 +62,14 @@ export const ProcessViewModal: React.FC<ProcessViewModalProps> = ({ isOpen, onCl
     }
   };
 
-  const renderFilePreview = () => {
-    if (!process.file_url) return null;
+  const renderAttachment = (att: ProcessAttachment) => {
+    const fileName = att.file_name || att.file_url.split('/').pop() || 'arquivo_anexado';
 
-    const fileName = process.file_url.split('/').pop() || 'arquivo_anexado';
-
-    if (process.file_type === 'link') {
-      const youtubeId = getYouTubeID(process.file_url);
+    if (att.file_type === 'link') {
+      const youtubeId = getYouTubeID(att.file_url);
       if (youtubeId) {
         return (
-          <div className="mt-4 aspect-video w-full bg-black rounded-xl overflow-hidden shadow-lg">
+          <div key={att.id} className="aspect-video w-full bg-black rounded-xl overflow-hidden shadow-lg">
             <YouTube
               videoId={youtubeId}
               className="w-full h-full"
@@ -82,105 +80,58 @@ export const ProcessViewModal: React.FC<ProcessViewModalProps> = ({ isOpen, onCl
         );
       }
       return (
-        <div className="mt-4 p-6 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-800 flex flex-col items-center text-center">
-          <LinkIcon className="w-10 h-10 text-blue-500 mb-3" />
-          <p className="font-semibold text-blue-900 dark:text-blue-100 mb-2">Link Externo de Apoio</p>
-          <a 
-            href={process.file_url} 
-            target="_blank" 
-            rel="noopener noreferrer" 
-            className="text-blue-600 dark:text-blue-400 hover:underline break-all flex items-center"
-          >
-            {process.file_url} <ExternalLink className="w-3 h-3 ml-1" />
+        <div key={att.id} className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-800 flex items-center justify-between">
+          <div className="flex items-center space-x-3 overflow-hidden">
+            <LinkIcon className="w-5 h-5 text-blue-500 shrink-0" />
+            <div className="overflow-hidden">
+              <p className="text-sm font-semibold text-blue-900 dark:text-blue-100 truncate">Link Externo</p>
+              <a href={att.file_url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 dark:text-blue-400 hover:underline truncate block">
+                {att.file_url}
+              </a>
+            </div>
+          </div>
+          <a href={att.file_url} target="_blank" rel="noopener noreferrer" className="p-2 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/40 rounded-full">
+            <ExternalLink className="w-4 h-4" />
           </a>
         </div>
       );
     }
 
-    if (process.file_type === 'image') {
-      return (
-        <div className="mt-4 p-4 bg-gray-100 dark:bg-slate-700 rounded-xl flex flex-col items-center justify-center space-y-3">
-          <img src={process.file_url} alt="Anexo" className="rounded-lg max-h-96 w-auto shadow-sm" />
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleDownloadFile(process.file_url!, fileName)}
-            className="dark:bg-slate-600 dark:text-white dark:border-slate-500"
-          >
-            <Download className="w-4 h-4 mr-2" />
-            Baixar Imagem
-          </Button>
-        </div>
-      );
-    }
+    const iconMap = {
+      image: <ImageIcon className="w-6 h-6 text-green-500" />,
+      video: <Video className="w-6 h-6 text-blue-500" />,
+      audio: <Music className="w-6 h-6 text-purple-500" />,
+      pdf: <FileText className="w-6 h-6 text-red-500" />,
+    };
 
-    if (process.file_type === 'video') {
-      return (
-        <div className="mt-4 p-4 bg-gray-100 dark:bg-slate-700 rounded-xl flex flex-col items-center justify-center space-y-3">
-          <video src={process.file_url} controls className="rounded-lg max-h-96 w-full shadow-sm" />
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleDownloadFile(process.file_url!, fileName)}
-            className="dark:bg-slate-600 dark:text-white dark:border-slate-500"
-          >
-            <Download className="w-4 h-4 mr-2" />
-            Baixar Vídeo
-          </Button>
-        </div>
-      );
-    }
-
-    if (process.file_type === 'audio') {
-      return (
-        <div className="mt-4 p-6 bg-gray-100 dark:bg-slate-700 rounded-xl flex flex-col items-center justify-center space-y-4">
-          <div className="flex items-center space-x-4 w-full">
-            <div className="p-3 bg-purple-100 dark:bg-purple-900/40 rounded-full">
-              <Music className="w-6 h-6 text-purple-600 dark:text-purple-400" />
-            </div>
-            <audio src={process.file_url} controls className="flex-1" />
+    return (
+      <div key={att.id} className="p-4 bg-gray-50 dark:bg-slate-700/50 rounded-xl border border-gray-200 dark:border-slate-600 flex items-center justify-between">
+        <div className="flex items-center space-x-3 overflow-hidden">
+          <div className="p-2 bg-white dark:bg-slate-800 rounded-lg shadow-sm">
+            {iconMap[att.file_type as keyof typeof iconMap] || <FileText className="w-6 h-6 text-gray-500" />}
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleDownloadFile(process.file_url!, fileName)}
-            className="dark:bg-slate-600 dark:text-white dark:border-slate-500"
-          >
-            <Download className="w-4 h-4 mr-2" />
-            Baixar Áudio
-          </Button>
-        </div>
-      );
-    }
-
-    if (process.file_type === 'pdf') {
-      return (
-        <div className="mt-4 p-4 bg-gray-100 dark:bg-slate-700 rounded-xl flex flex-col sm:flex-row items-center justify-between space-y-3 sm:space-y-0">
-          <div className="flex items-center space-x-3">
-            <div className="p-3 bg-red-100 dark:bg-red-900/40 rounded-full">
-              <FileText className="w-6 h-6 text-red-600 dark:text-red-400" />
-            </div>
-            <div>
-              <p className="font-semibold text-gray-900 dark:text-white">Documento PDF Anexado</p>
-              <a href={process.file_url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center">
-                Abrir em nova aba <ExternalLink className="w-2 h-2 ml-1" />
-              </a>
-            </div>
+          <div className="overflow-hidden">
+            <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{fileName}</p>
+            <p className="text-[10px] text-gray-500 uppercase">{att.file_type}</p>
           </div>
+        </div>
+        <div className="flex items-center space-x-1">
+          {att.file_type === 'image' && (
+            <a href={att.file_url} target="_blank" rel="noopener noreferrer" className="p-2 text-gray-400 hover:text-brand-500 rounded-full">
+              <ExternalLink className="w-4 h-4" />
+            </a>
+          )}
           <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleDownloadFile(process.file_url!, fileName)}
-            className="dark:bg-slate-600 dark:text-white dark:border-slate-500"
+            variant="ghost"
+            size="icon"
+            onClick={() => handleDownloadFile(att.file_url, fileName)}
+            className="text-gray-400 hover:text-brand-500"
           >
-            <Download className="w-4 h-4 mr-2" />
-            Baixar PDF
+            <Download className="w-4 h-4" />
           </Button>
         </div>
-      );
-    }
-
-    return null;
+      </div>
+    );
   };
 
   return (
@@ -197,9 +148,14 @@ export const ProcessViewModal: React.FC<ProcessViewModalProps> = ({ isOpen, onCl
         
         <ScrollArea className="max-h-[60vh] my-4 pr-4 custom-scrollbar">
           <div className="space-y-6">
-            {renderFilePreview()}
+            {process.attachments && process.attachments.length > 0 && (
+              <div className="grid grid-cols-1 gap-3">
+                {process.attachments.map(att => renderAttachment(att))}
+              </div>
+            )}
+            
             {process.content && (
-              <div className="prose dark:prose-invert max-w-none whitespace-pre-wrap text-gray-800 dark:text-gray-200 leading-relaxed bg-gray-50 dark:bg-slate-900/50 p-4 rounded-xl border border-gray-100 dark:border-slate-700">
+              <div className="prose dark:prose-invert max-w-none whitespace-pre-wrap text-gray-800 dark:text-gray-200 leading-relaxed bg-gray-50 dark:bg-slate-900/50 p-6 rounded-xl border border-gray-100 dark:border-slate-700">
                 {process.content}
               </div>
             )}
