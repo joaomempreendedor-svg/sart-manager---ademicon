@@ -153,7 +153,7 @@ export const ProcessViewModal: React.FC<ProcessViewModalProps> = ({ isOpen, onCl
           )}
         </DialogHeader>
         
-        <ScrollArea className="flex-1 my-4 px-6 custom-scrollbar">
+        <ScrollArea className="flex-1 my-4 px-6 custom-scrollbar" style={{ maxHeight: 'calc(95vh - 129px)' }}>
           <div className="space-y-6">
             {/* Render all attachments */}
             {process.attachments && process.attachments.length > 0 && (
