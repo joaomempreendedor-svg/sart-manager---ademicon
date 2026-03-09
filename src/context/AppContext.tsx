@@ -365,6 +365,63 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, [user?.id, refetchCommissions, fetchAppConfig, resetLocalState, parseDbCurrency]);
 
+  // --- Candidate Functions ---
+  const addCandidate = useCallback(async (candidateData: Omit<Candidate, 'id' | 'createdAt' | 'db_id'>) => {
+    if (!user) throw new Error("Não autenticado.");
+    const id = crypto.randomUUID();
+    const newCandidate = { ...candidateData, id, createdAt: new Date().toISOString() };
+    const { data, error } = await supabase.from('candidates').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: newCandidate }).select().single();
+    if (error) throw error;
+    const normalized = { ...newCandidate, db_id: data.id };
+    setCandidates(prev => [normalized, ...prev]);
+    return normalized;
+  }, [user]);
+
+  const updateCandidate = useCallback(async (id: string, updates: Partial<Candidate>) => {
+    const candidate = candidates.find(c => c.id === id);
+    if (!candidate || !candidate.db_id) return;
+    const updated = { ...candidate, ...updates };
+    const { error } = await supabase.from('candidates').update({ data: updated, last_updated_at: new Date().toISOString() }).eq('id', candidate.db_id);
+    if (error) throw error;
+    setCandidates(prev => prev.map(c => c.id === id ? updated : c));
+  }, [candidates]);
+
+  const deleteCandidate = useCallback(async (id: string) => {
+    const candidate = candidates.find(c => c.id === id);
+    if (!candidate || !candidate.db_id) return;
+    const { error } = await supabase.from('candidates').delete().eq('id', candidate.db_id);
+    if (error) throw error;
+    setCandidates(prev => prev.filter(c => c.id !== id));
+  }, [candidates]);
+
+  const getCandidate = useCallback((id: string) => candidates.find(c => c.id === id), [candidates]);
+
+  const toggleChecklistItem = useCallback(async (candidateId: string, itemId: string) => {
+    const candidate = candidates.find(c => c.id === candidateId);
+    if (!candidate) return;
+    const progress = { ...candidate.checklistProgress };
+    const current = progress[itemId] || { completed: false };
+    progress[itemId] = { ...current, completed: !current.completed };
+    await updateCandidate(candidateId, { checklistProgress: progress });
+  }, [candidates, updateCandidate]);
+
+  const setChecklistDueDate = useCallback(async (candidateId: string, itemId: string, dueDate: string) => {
+    const candidate = candidates.find(c => c.id === candidateId);
+    if (!candidate) return;
+    const progress = { ...candidate.checklistProgress };
+    const current = progress[itemId] || { completed: false };
+    progress[itemId] = { ...current, dueDate };
+    await updateCandidate(candidateId, { checklistProgress: progress });
+  }, [candidates, updateCandidate]);
+
+  const toggleConsultantGoal = useCallback(async (candidateId: string, goalId: string) => {
+    const candidate = candidates.find(c => c.id === candidateId);
+    if (!candidate) return;
+    const progress = { ...candidate.consultantGoalsProgress };
+    progress[goalId] = !progress[goalId];
+    await updateCandidate(candidateId, { consultantGoalsProgress: progress });
+  }, [candidates, updateCandidate]);
+
   // --- Process Functions ---
   const addProcess = useCallback(async (processData: Omit<Process, 'id' | 'user_id' | 'created_at' | 'updated_at'>, filesToAdd?: { file: File, type: string }[], linksToAdd?: { url: string, type: string }[]) => {
     if (!user) throw new Error("User not authenticated.");
@@ -482,7 +539,30 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     })));
   }, []);
 
-  // --- Outras funções (simplificadas para brevidade, mas mantendo a estrutura) ---
+  // --- CRM Functions ---
+  const addCrmLead = useCallback(async (leadData: any) => {
+    const { data, error } = await supabase.from('crm_leads').insert(leadData).select().single();
+    if (error) throw error;
+    const normalized = { ...data, proposal_value: parseDbCurrency(data.proposal_value), sold_credit_value: parseDbCurrency(data.sold_credit_value) };
+    setCrmLeads(prev => [normalized, ...prev]);
+    return normalized;
+  }, [parseDbCurrency]);
+
+  const updateCrmLead = useCallback(async (id: string, updates: any) => {
+    const { data, error } = await supabase.from('crm_leads').update(updates).eq('id', id).select().single();
+    if (error) throw error;
+    const normalized = { ...data, proposal_value: parseDbCurrency(data.proposal_value), sold_credit_value: parseDbCurrency(data.sold_credit_value) };
+    setCrmLeads(prev => prev.map(l => l.id === id ? normalized : l));
+    return normalized;
+  }, [parseDbCurrency]);
+
+  const deleteCrmLead = useCallback(async (id: string) => {
+    const { error } = await supabase.from('crm_leads').delete().eq('id', id);
+    if (error) throw error;
+    setCrmLeads(prev => prev.filter(l => l.id !== id));
+  }, []);
+
+  // --- Commission Functions ---
   const addCommission = useCallback(async (commission: any) => {
     const { error } = await supabase.from('commissions').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: commission });
     if (error) throw error;
@@ -502,6 +582,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     refetchCommissions();
   }, [refetchCommissions]);
 
+  // --- Value Object ---
   const value = useMemo(() => ({
     isDataLoading, candidates, teamMembers, commissions, supportMaterials, cutoffPeriods,
     onboardingSessions, onboardingTemplateVideos, checklistStructure, setChecklistStructure,
@@ -512,10 +593,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     supportMaterialsV2, supportMaterialAssignments, leadTasks, gestorTasks, gestorTaskCompletions,
     financialEntries, formCadastros, formFiles, notifications, teamProductionGoals,
     coldCallLeads, coldCallLogs, processes, theme, toggleTheme,
-    addCandidate, updateCandidate, deleteCandidate, toggleChecklistItem, addCrmLead, updateCrmLead, deleteCrmLead,
+    addCandidate, updateCandidate, deleteCandidate, getCandidate, toggleChecklistItem, setChecklistDueDate, toggleConsultantGoal,
+    addCrmLead, updateCrmLead, deleteCrmLead,
     addProcess, updateProcess, deleteProcess, deleteProcessAttachment,
     addCommission, updateCommission, deleteCommission,
-    // ... (adicione as outras funções conforme necessário)
   } as any), [
     isDataLoading, candidates, teamMembers, commissions, supportMaterials, cutoffPeriods,
     onboardingSessions, onboardingTemplateVideos, checklistStructure, consultantGoalsStructure,
@@ -526,7 +607,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     supportMaterialsV2, supportMaterialAssignments, leadTasks, gestorTasks,
     gestorTaskCompletions, financialEntries, formCadastros, formFiles, notifications,
     teamProductionGoals, coldCallLeads, coldCallLogs, processes, theme, toggleTheme,
-    addCandidate, updateCandidate, deleteCandidate, toggleChecklistItem, addCrmLead, updateCrmLead, deleteCrmLead,
+    addCandidate, updateCandidate, deleteCandidate, getCandidate, toggleChecklistItem, setChecklistDueDate, toggleConsultantGoal,
+    addCrmLead, updateCrmLead, deleteCrmLead,
     addProcess, updateProcess, deleteProcess, deleteProcessAttachment,
     addCommission, updateCommission, deleteCommission
   ]);
