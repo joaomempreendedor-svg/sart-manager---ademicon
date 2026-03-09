@@ -23,7 +23,7 @@ interface ProcessModalProps {
   onSave: (processData: Omit<Process, 'id' | 'user_id' | 'created_at' | 'updated_at'> | Process, filesToAdd?: { file: File, type: string }[], linksToAdd?: { url: string, type: string }[]) => Promise<void>;
 }
 
-const MAX_FILE_SIZE_MB = 50; // Limite de 50MB para upload de arquivos no cliente
+const MAX_FILE_SIZE_MB = 500; // Limite de 500MB para upload de arquivos no cliente
 
 export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, process, onSave }) => {
   const { deleteProcessAttachment } = useApp();
