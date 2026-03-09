@@ -182,7 +182,7 @@ export const PublicProcessView = () => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-slate-900 font-sans text-gray-900 dark:text-gray-100 transition-colors duration-200">
       <header className="bg-white dark:bg-slate-800 shadow-sm">
-        <div className="max-w-5xl mx-auto py-6 px-4 sm:px-6 lg:px-8 flex justify-between items-center"> {/* Changed max-w-4xl to max-w-5xl */}
+        <div className="max-w-5xl mx-auto py-6 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
           <div className="flex items-center space-x-3">
             <div className="bg-brand-500 text-white p-2 rounded-lg">
               <TrendingUp className="w-6 h-6" strokeWidth={3} />
@@ -191,7 +191,7 @@ export const PublicProcessView = () => {
           </div>
         </div>
       </header>
-      <main className="max-w-5xl mx-auto py-8 px-4 sm:px-6 lg:px-8"> {/* Changed max-w-4xl to max-w-5xl */}
+      <main className="max-w-5xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-md border border-gray-200 dark:border-slate-700">
           <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{process.title}</h2>
           {process.description && (
@@ -200,6 +200,7 @@ export const PublicProcessView = () => {
           
           <ScrollArea className="h-[calc(100vh-20rem)] pr-4 custom-scrollbar">
             <div className="space-y-6">
+              {/* Render all attachments */}
               {process.attachments && process.attachments.length > 0 && (
                 <div className="grid grid-cols-1 gap-3">
                   {process.attachments.map(att => renderAttachment(att))}

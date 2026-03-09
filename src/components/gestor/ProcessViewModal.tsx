@@ -51,7 +51,6 @@ export const ProcessViewModal: React.FC<ProcessViewModalProps> = ({ isOpen, onCl
       link.href = url;
       link.setAttribute('download', fileName);
       document.body.appendChild(link);
-      link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
 
@@ -136,7 +135,7 @@ export const ProcessViewModal: React.FC<ProcessViewModalProps> = ({ isOpen, onCl
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-5xl bg-white dark:bg-slate-800 dark:text-white p-0 overflow-hidden flex flex-col max-h-[95vh]"> {/* Changed sm:max-w-3xl to sm:max-w-5xl */}
+      <DialogContent className="sm:max-w-5xl bg-white dark:bg-slate-800 dark:text-white p-0 overflow-hidden flex flex-col max-h-[95vh]">
         <DialogHeader className="px-6 py-4 border-b border-gray-100 dark:border-slate-700 shrink-0">
           <DialogTitle className="text-2xl font-bold">{process.title}</DialogTitle>
           {process.description && (
@@ -148,6 +147,7 @@ export const ProcessViewModal: React.FC<ProcessViewModalProps> = ({ isOpen, onCl
         
         <ScrollArea className="flex-1 my-4 px-6 custom-scrollbar">
           <div className="space-y-6">
+            {/* Render all attachments */}
             {process.attachments && process.attachments.length > 0 && (
               <div className="grid grid-cols-1 gap-3">
                 {process.attachments.map(att => renderAttachment(att))}
