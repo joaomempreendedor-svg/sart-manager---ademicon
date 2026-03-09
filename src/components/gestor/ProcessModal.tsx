@@ -98,8 +98,6 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
       return;
     }
 
-    console.log("[ProcessModal] Iniciando salvamento...", { title, filesCount: filesToAdd.length, linksCount: linksToAdd.length });
-
     setIsSaving(true);
     try {
       const processData: any = {
@@ -109,16 +107,14 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
         type: 'Documento',
       };
 
-      console.log("[ProcessModal] Chamando onSave no contexto...");
       if (process) {
         await onSave({ ...process, ...processData }, filesToAdd, linksToAdd);
       } else {
         await onSave(processData, filesToAdd, linksToAdd);
       }
-      console.log("[ProcessModal] Salvamento concluído com sucesso!");
       onClose();
     } catch (err: any) {
-      console.error("[ProcessModal] Erro fatal ao salvar:", err);
+      console.error("Erro ao salvar processo:", err);
       setError(err.message || 'Falha ao salvar o processo.');
     } finally {
       setIsSaving(false);
@@ -188,6 +184,7 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
               <div className="border-t border-gray-200 dark:border-slate-700 pt-6">
                 <Label className="mb-4 block font-bold text-gray-900 dark:text-white text-base">Anexos e Links de Apoio</Label>
                 
+                {/* Lista de Anexos Existentes */}
                 {process?.attachments && process.attachments.length > 0 && (
                   <div className="space-y-2 mb-6">
                     <p className="text-xs font-bold text-gray-400 uppercase">Anexos Atuais</p>
@@ -205,6 +202,7 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
                   </div>
                 )}
 
+                {/* Adicionar Novos Arquivos */}
                 <div className="space-y-4 mb-6">
                   <p className="text-xs font-bold text-gray-400 uppercase">Adicionar Arquivos</p>
                   <label className="flex flex-col items-center justify-center px-4 py-6 border-2 border-gray-300 dark:border-slate-600 border-dashed rounded-xl cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/50 transition bg-white dark:bg-slate-700 group">
@@ -227,6 +225,7 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
                   )}
                 </div>
 
+                {/* Adicionar Novos Links */}
                 <div className="space-y-3">
                   <p className="text-xs font-bold text-gray-400 uppercase">Adicionar Links</p>
                   <div className="flex gap-2">
