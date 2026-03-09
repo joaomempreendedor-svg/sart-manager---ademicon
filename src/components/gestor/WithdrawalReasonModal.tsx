@@ -54,7 +54,7 @@ export const WithdrawalReasonModal: React.FC<WithdrawalReasonModalProps> = ({
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Motivo da Desistência</DialogTitle>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-muted-foreground">
             Informe por que o candidato <strong>{candidateName}</strong> desistiu do processo.
           </p>
         </DialogHeader>
@@ -85,9 +85,10 @@ export const WithdrawalReasonModal: React.FC<WithdrawalReasonModalProps> = ({
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancelar</Button>
-          <Button 
+          <Button
             onClick={handleConfirm}
             disabled={selectedReason === "Outro" && !customReason.trim()}
+            className="bg-brand-600 hover:bg-brand-700 text-white"
           >
             Confirmar
           </Button>
