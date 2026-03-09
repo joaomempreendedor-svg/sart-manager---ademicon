@@ -67,6 +67,7 @@ export interface Candidate {
   responsibleUserId?: string;
   createdBy?: string;
   notes?: string;
+  withdrawalReason?: string;
   
   contactedDate?: string;
   noResponseDate?: string;

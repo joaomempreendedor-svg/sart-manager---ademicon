@@ -114,6 +114,21 @@ const HiringDashboard = () => {
       .filter(o => o.count > 0)
       .sort((a, b) => b.count - a.count);
 
+    // Ranking de Desistências
+    const withdrawalReasonCounts: Record<string, number> = {};
+    withdrawnList.forEach(c => {
+      const reason = c.withdrawalReason || 'Não Informado';
+      withdrawalReasonCounts[reason] = (withdrawalReasonCounts[reason] || 0) + 1;
+    });
+    const withdrawalReasonsRanking = Object.entries(withdrawalReasonCounts)
+      .map(([name, count]) => ({
+        name,
+        count,
+        percentage: withdrawnList.length > 0 ? (count / withdrawnList.length) * 100 : 0
+      }))
+      .filter(r => r.count > 0)
+      .sort((a, b) => b.count - a.count);
+
     return {
       total: totalCandidatesInPeriod.length,
       newCandidates: newCandidatesList.length,
@@ -142,6 +157,7 @@ const HiringDashboard = () => {
       totalCandidatesList: totalCandidatesInPeriod,
       totalHiredList,
       candidatesByOrigin,
+      withdrawalReasonsRanking,
     };
   }, [candidates, startDate, endDate, hiringOrigins]);
 
@@ -359,13 +375,59 @@ const HiringDashboard = () => {
         </div>
       </div>
 
-      <CandidatesDetailModal 
-        isOpen={isCandidatesDetailModalOpen} 
-        onClose={() => setIsCandidatesDetailModalOpen(false)} 
-        title={candidatesModalTitle} 
-        candidates={candidatesForModal} 
-        teamMembers={teamMembers} 
-        metricType={candidatesMetricType} 
+      <div className="mt-8 bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50 flex items-center justify-between">
+          <h2 className="font-bold text-gray-900 dark:text-white flex items-center">
+            <UserMinus className="w-5 h-5 mr-2 text-rose-500" /> Ranking de Motivos de Desistência
+          </h2>
+          <BarChart3 className="w-5 h-5 text-gray-400" />
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300">
+            <thead className="bg-gray-50 dark:bg-slate-700/30 text-gray-500 dark:text-gray-400 text-xs uppercase">
+              <tr>
+                <th className="px-6 py-3">Motivo</th>
+                <th className="px-6 py-3">Quantidade</th>
+                <th className="px-6 py-3">Representatividade</th>
+                <th className="px-6 py-3">Barra de Volume</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
+              {metrics.withdrawalReasonsRanking.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="px-6 py-12 text-center text-gray-400">
+                    Nenhuma desistência registrada para o período selecionado.
+                  </td>
+                </tr>
+              ) : (
+                metrics.withdrawalReasonsRanking.map(reason => (
+                  <tr key={reason.name} className="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition">
+                    <td className="px-6 py-4 font-bold text-gray-900 dark:text-white">{reason.name}</td>
+                    <td className="px-6 py-4 font-medium">{reason.count} desistências</td>
+                    <td className="px-6 py-4 font-bold text-rose-600 dark:text-rose-400">{reason.percentage.toFixed(1)}%</td>
+                    <td className="px-6 py-4 w-1/3">
+                      <div className="w-full bg-gray-100 dark:bg-slate-700 rounded-full h-2">
+                        <div
+                          className="bg-rose-500 h-2 rounded-full transition-all duration-500"
+                          style={{ width: `${reason.percentage}%` }}
+                        ></div>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <CandidatesDetailModal
+        isOpen={isCandidatesDetailModalOpen}
+        onClose={() => setIsCandidatesDetailModalOpen(false)}
+        title={candidatesModalTitle}
+        candidates={candidatesForModal}
+        teamMembers={teamMembers}
+        metricType={candidatesMetricType}
       />
     </div>
   );

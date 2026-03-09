@@ -5,6 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { ArrowLeft, CheckSquare, FileText, Phone, Calendar, Clock, MessageCircle, Paperclip, CheckCircle2, Target, Trash2, CalendarPlus, Save, Loader2, Users, Filter, ShieldCheck, UserRound } from 'lucide-react';
 import { CandidateStatus, CommunicationTemplate, InterviewScores } from '@/types';
 import { MessageViewerModal } from '@/components/MessageViewerModal';
+import { WithdrawalReasonModal } from '@/components/gestor/WithdrawalReasonModal';
 import {
   Select,
   SelectContent,
@@ -38,6 +39,8 @@ export const CandidateDetail = () => {
   );
   const [isSaving, setIsSaving] = useState(false);
 
+  const [isWithdrawalModalOpen, setIsWithdrawalModalOpen] = useState(false);
+
   const [responsibleUserId, setResponsibleUserId] = useState<string>(candidate?.responsibleUserId || '');
   const [isUpdatingResponsible, setIsUpdatingResponsible] = useState(false);
 
@@ -58,7 +61,24 @@ export const CandidateDetail = () => {
   }
 
   const handleStatusChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-    await updateCandidate(candidate.id, { status: e.target.value as CandidateStatus });
+    const newStatus = e.target.value as CandidateStatus;
+    if (newStatus === 'Reprovado') {
+      setIsWithdrawalModalOpen(true);
+      return;
+    }
+    await updateCandidate(candidate.id, { status: newStatus });
+  };
+
+  const handleConfirmWithdrawal = async (reason: string) => {
+    try {
+      await updateCandidate(candidate.id, {
+        status: 'Reprovado',
+        withdrawalReason: reason
+      });
+      alert('Candidato movido para Desistências');
+    } catch (error: any) {
+      alert(`Erro ao atualizar status: ${error.message}`);
+    }
   };
 
   const handleDelete = async () => {
@@ -522,6 +542,13 @@ export const CandidateDetail = () => {
               template={selectedTemplate}
             />
         )}
+
+        <WithdrawalReasonModal
+          isOpen={isWithdrawalModalOpen}
+          onClose={() => setIsWithdrawalModalOpen(false)}
+          onConfirm={handleConfirmWithdrawal}
+          candidateName={candidate.name}
+        />
       </div>
     </ErrorBoundary>
   );

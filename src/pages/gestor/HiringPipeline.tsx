@@ -19,6 +19,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
 import { Candidate, CandidateStatus } from '@/types';
 import { ImportCandidatesModal } from '@/components/gestor/ImportCandidatesModal';
+import { WithdrawalReasonModal } from '@/components/gestor/WithdrawalReasonModal';
 
 const JOAO_GESTOR_AUTH_ID = "0c6d71b7-daeb-4dde-8eec-0e7a8ffef658";
 
@@ -36,6 +37,9 @@ const HiringPipeline = () => {
   const [selectedCandidateToEdit, setSelectedCandidateToEdit] = useState<Candidate | null>(null); // NOVO: Candidato a ser editado
   const [isUpdateDateModalOpen, setIsUpdateDateModalOpen] = useState(false);
   const [selectedCandidateForDate, setSelectedCandidateForDate] = useState<Candidate | null>(null);
+
+  const [isWithdrawalModalOpen, setIsWithdrawalModalOpen] = useState(false);
+  const [selectedCandidateForWithdrawal, setSelectedCandidateForWithdrawal] = useState<Candidate | null>(null);
 
   const [searchTerm, setSearchTerm] = useState('');
   
@@ -162,30 +166,37 @@ const HiringPipeline = () => {
     let updates: Partial<Candidate> = {};
 
     switch (targetColumnId) {
-      case 'candidates': 
-        newStatus = 'Triagem'; 
+      case 'candidates':
+        newStatus = 'Triagem';
         updates.screeningStatus = 'Pending Contact';
         break;
-      case 'contacted': 
-        newStatus = 'Triagem'; 
+      case 'contacted':
+        newStatus = 'Triagem';
         updates.screeningStatus = 'Contacted';
         break;
       case 'noResponse':
         newStatus = 'Triagem';
         updates.screeningStatus = 'No Response';
         break;
-      case 'scheduled': 
-        newStatus = 'Entrevista'; 
+      case 'scheduled':
+        newStatus = 'Entrevista';
         updates.interviewConducted = false;
         break;
-      case 'conducted': 
-        newStatus = 'Entrevista'; 
+      case 'conducted':
+        newStatus = 'Entrevista';
         updates.interviewConducted = true;
         break;
       case 'noShow': newStatus = 'Faltou'; break;
       case 'awaitingPreview': newStatus = 'Aguardando Prévia'; break;
       case 'authorized': newStatus = 'Autorizado'; break;
-      case 'droppedOut': newStatus = 'Reprovado'; break;
+      case 'droppedOut':
+        const candidate = candidates.find(c => c.id === candidateId);
+        if (candidate) {
+          setSelectedCandidateForWithdrawal(candidate);
+          setIsWithdrawalModalOpen(true);
+        }
+        setDraggingCandidateId(null);
+        return;
       case 'disqualified': newStatus = 'Desqualificado'; break;
       default: return;
     }
@@ -200,6 +211,26 @@ const HiringPipeline = () => {
     try {
       await updateCandidate(candidateId, { status: newStatus, ...updates });
       toast.success(`Candidato movido para ${newStatus}`);
+    } catch (error: any) {
+      toast.error("Erro ao atualizar status.");
+    }
+  };
+
+  const handleOpenWithdrawalModal = (e: React.MouseEvent, candidate: Candidate) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setSelectedCandidateForWithdrawal(candidate);
+    setIsWithdrawalModalOpen(true);
+  };
+
+  const handleConfirmWithdrawal = async (reason: string) => {
+    if (!selectedCandidateForWithdrawal) return;
+    try {
+      await updateCandidate(selectedCandidateForWithdrawal.id, {
+        status: 'Reprovado',
+        withdrawalReason: reason
+      });
+      toast.success(`Candidato movido para Desistências`);
     } catch (error: any) {
       toast.error("Erro ao atualizar status.");
     }
@@ -533,8 +564,8 @@ const HiringPipeline = () => {
                               <UserX className="w-3 h-3" />
                               <span>Desqualificado</span>
                             </button>
-                            <button 
-                              onClick={(e) => handleUpdateStatus(e, candidate.id, 'Reprovado')}
+                            <button
+                              onClick={(e) => handleOpenWithdrawalModal(e, candidate)}
                               className="col-span-2 flex items-center justify-center space-x-1 py-1.5 border border-gray-200 dark:border-slate-600 text-gray-500 rounded-lg text-[10px] font-bold hover:bg-gray-50 transition"
                             >
                               <UserMinus className="w-3 h-3" />
@@ -590,6 +621,15 @@ const HiringPipeline = () => {
         origins={hiringOrigins}
         responsibleMembers={responsibleMembersForModal}
         onImport={handleImportCandidates}
+      />
+      <WithdrawalReasonModal
+        isOpen={isWithdrawalModalOpen}
+        onClose={() => {
+          setIsWithdrawalModalOpen(false);
+          setSelectedCandidateForWithdrawal(null);
+        }}
+        onConfirm={handleConfirmWithdrawal}
+        candidateName={selectedCandidateForWithdrawal?.name || ''}
       />
     </div>
   );
