@@ -136,8 +136,8 @@ export const ProcessViewModal: React.FC<ProcessViewModalProps> = ({ isOpen, onCl
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-3xl bg-white dark:bg-slate-800 dark:text-white p-0 overflow-hidden flex flex-col max-h-[95vh]"> {/* Changed p-6 to p-0 and added flex-col max-h */}
-        <DialogHeader className="px-6 py-4 border-b border-gray-100 dark:border-slate-700 shrink-0"> {/* Added padding here */}
+      <DialogContent className="sm:max-w-5xl bg-white dark:bg-slate-800 dark:text-white p-0 overflow-hidden flex flex-col max-h-[95vh]"> {/* Changed sm:max-w-3xl to sm:max-w-5xl */}
+        <DialogHeader className="px-6 py-4 border-b border-gray-100 dark:border-slate-700 shrink-0">
           <DialogTitle className="text-2xl font-bold">{process.title}</DialogTitle>
           {process.description && (
             <DialogDescription className="text-base text-gray-500 dark:text-gray-400">
@@ -146,7 +146,7 @@ export const ProcessViewModal: React.FC<ProcessViewModalProps> = ({ isOpen, onCl
           )}
         </DialogHeader>
         
-        <ScrollArea className="flex-1 my-4 px-6 custom-scrollbar"> {/* Removed max-h, added flex-1, adjusted padding */}
+        <ScrollArea className="flex-1 my-4 px-6 custom-scrollbar">
           <div className="space-y-6">
             {process.attachments && process.attachments.length > 0 && (
               <div className="grid grid-cols-1 gap-3">
@@ -162,7 +162,7 @@ export const ProcessViewModal: React.FC<ProcessViewModalProps> = ({ isOpen, onCl
           </div>
         </ScrollArea>
 
-        <div className="px-6 pt-4 border-t border-gray-100 dark:border-slate-700 shrink-0"> {/* Added padding here */}
+        <div className="px-6 pt-4 border-t border-gray-100 dark:border-slate-700 shrink-0">
           <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center">
             <LinkIcon className="w-4 h-4 mr-2" /> Link de Compartilhamento
           </h3>
@@ -183,7 +183,7 @@ export const ProcessViewModal: React.FC<ProcessViewModalProps> = ({ isOpen, onCl
           </div>
         </div>
 
-        <DialogFooter className="px-6 py-4 border-t border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/50 shrink-0"> {/* Added padding here */}
+        <DialogFooter className="px-6 py-4 border-t border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/50 shrink-0">
           <Button onClick={onClose} className="bg-brand-600 hover:bg-brand-700 text-white w-full sm:w-auto">
             Fechar
           </Button>
