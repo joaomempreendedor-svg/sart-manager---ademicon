@@ -493,7 +493,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const { attachments: _, ...cleanData } = processData as any;
     
-    const { data: process, error } = await supabase.from('processes').insert({ ...cleanData, user_id: user.id }).select().single();
+    // Salva sempre sob o ID do Gestor principal para visibilidade da equipe
+    const { data: process, error } = await supabase.from('processes').insert({ ...cleanData, user_id: JOAO_GESTOR_AUTH_ID }).select().single();
     if (error) {
       console.error("[AppContext] Erro ao inserir processo:", error);
       throw error;
@@ -529,6 +530,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           
           if (attachError) {
             console.error("[AppContext] Erro ao inserir anexo no banco:", attachError);
+            throw attachError;
           } else if (attachment) {
             console.log("[AppContext] Anexo salvo com sucesso:", attachment);
             attachments.push(attachment);
@@ -588,7 +590,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             file_type: item.type,
             file_name: item.file.name
           });
-          if (attachError) console.error("[AppContext] Erro ao inserir anexo no banco:", attachError);
+          if (attachError) {
+            console.error("[AppContext] Erro ao inserir anexo no banco:", attachError);
+            throw attachError;
+          }
         } catch (err) {
           console.error("[AppContext] Erro no fluxo de upload de arquivo:", err);
           toast.error(`Falha ao salvar anexo: ${item.file.name}`);
@@ -719,7 +724,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [onboardingTemplateVideos]);
 
   const deleteOnlineOnboardingSession = useCallback(async (sessionId: string) => {
-    const { error } = await supabase.from('onboarding_sessions').delete().eq('id', sessionId);
+    const { error = null } = await supabase.from('onboarding_sessions').delete().eq('id', sessionId);
     if (error) throw error;
     setOnboardingSessions(prev => prev.filter(s => s.id !== sessionId));
   }, []);
@@ -750,7 +755,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const deleteDailyChecklist = useCallback(async (id: string) => {
     const { error } = await supabase.from('daily_checklists').delete().eq('id', id);
-    if (error) throw error; setDailyChecklists(prev => prev.filter(c => i.id !== id));
+    if (error) throw error; setDailyChecklists(prev => prev.filter(c => c.id !== id));
   }, []);
 
   const addDailyChecklistItem = useCallback(async (daily_checklist_id: string, text: string, order_index: number, resource?: DailyChecklistItemResource, audioFile?: File, imageFile?: File) => {

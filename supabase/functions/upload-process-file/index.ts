@@ -16,10 +16,10 @@ serve(async (req) => {
     const file = formData.get('file') as File;
     const processId = formData.get('processId') as string;
 
-    console.log(`[upload-process-file] Iniciando upload para processo: ${processId}, arquivo: ${file.name}`);
+    console.log(`[upload-process-file] Recebido arquivo: ${file?.name}, Processo: ${processId}`);
 
     if (!file || !processId) {
-      throw new Error("Arquivo ou ID do processo ausente.");
+      throw new Error("Arquivo ou ID do processo ausente no FormData.");
     }
 
     const supabaseAdmin = createClient(
@@ -27,16 +27,22 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
+    // Sanitização básica do nome do arquivo
     const sanitizedName = file.name.replace(/[^a-zA-Z0-9.]/g, '-').toLowerCase();
     const filePath = `process_files/${processId}/${Date.now()}-${sanitizedName}`;
 
-    // 1. Upload para o Storage
+    console.log(`[upload-process-file] Fazendo upload para: ${filePath}`);
+
+    // 1. Upload para o Storage (usando bucket form_uploads que já existe)
     const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
       .from('form_uploads')
-      .upload(filePath, file);
+      .upload(filePath, file, {
+        contentType: file.type,
+        upsert: true
+      });
 
     if (uploadError) {
-      console.error("[upload-process-file] Erro no storage:", uploadError);
+      console.error("[upload-process-file] Erro no Storage:", uploadError);
       throw uploadError;
     }
 
@@ -45,7 +51,7 @@ serve(async (req) => {
       .from('form_uploads')
       .getPublicUrl(filePath);
 
-    console.log(`[upload-process-file] Upload concluído. URL: ${publicUrl}`);
+    console.log(`[upload-process-file] Sucesso! URL gerada: ${publicUrl}`);
 
     return new Response(
       JSON.stringify({ publicUrl, fileName: file.name, filePath }),
