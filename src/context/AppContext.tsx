@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
-import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, InstallmentInfo, CutoffPeriod, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask, DailyChecklistItemResource, GestorTask, GestorTaskCompletion, FinancialEntry, FormCadastro, FormFile, Notification, TeamProductionGoal, ColdCallLead, ColdCallLog, ChecklistItem, Process, ProcessAttachment } from '@/types';
+import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, InstallmentInfo, CutoffPeriod, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask, DailyChecklistItemResource, GestorTask, GestorTaskCompletion, FinancialEntry, FormCadastro, FormFile, Notification, TeamProductionGoal, ColdCallLead, ColdCallLog, ChecklistItem, Process, ProcessAttachment, Feedback, InterviewQuestion } from '@/types';
 import { CHECKLIST_STAGES as DEFAULT_STAGES } from '@/data/checklistData';
 import { CONSULTANT_GOALS as DEFAULT_GOALS } from '@/data/consultantGoals';
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
@@ -230,7 +230,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (member.dateOfBirth) {
         const dob = new Date(member.dateOfBirth + 'T00:00:00');
         if (dob.getMonth() === currentMonth) {
-          newNotifications.push({ id: `birthday-${member.id}`, type: 'birthday', title: `Aniversário de ${member.name}!`, description: `Celebre o aniversário de ${member.name} neste mês.`, date: member.dateOfBirth, link: `/gestor/config-team`, isRead: false });
+          newNotifications.push({ id: `birthday-${member.id}`, user_id: user.id, type: 'birthday', title: `Aniversário de ${member.name}!`, description: `Celebre o aniversário de ${member.name} neste mês.`, date: member.dateOfBirth, link: `/gestor/config-team`, isRead: false });
         }
       }
     });
@@ -356,8 +356,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (!fieldsRes.error) setCrmFields(fieldsRes.data || []);
         if (!crmLeadsRes.error) setCrmLeads(crmLeadsRes.data?.map((lead: any) => ({ 
           id: lead.id, consultant_id: lead.consultant_id, stage_id: lead.stage_id, user_id: lead.user_id, name: lead.name, data: lead.data, created_at: lead.created_at, updated_at: lead.updated_at, created_by: lead.created_by, updated_by: lead.updated_by, 
-          proposal_value: parseDbCurrency(lead.proposal_value), proposal_closing_date: lead.proposal_closing_date, 
-          sold_credit_value: parseDbCurrency(lead.sold_credit_value), sold_group: lead.sold_group, sold_quota: lead.sold_quota, sale_date: lead.sale_date 
+          proposal_value: parseDbCurrency(lead.proposal_value) || undefined, proposal_closing_date: lead.proposal_closing_date, 
+          sold_credit_value: parseDbCurrency(lead.sold_credit_value) || undefined, sold_group: lead.sold_group, sold_quota: lead.sold_quota, sale_date: lead.sale_date 
         })) || []);
         if (!dailyChecklistsRes.error) setDailyChecklists(dailyChecklistsRes.data || []);
         if (!dailyChecklistItemsRes.error) setDailyChecklistItems(dailyChecklistItemsRes.data || []);
@@ -365,7 +365,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (!dailyChecklistCompletionsRes.error) setDailyChecklistCompletions(dailyChecklistCompletionsRes.data || []);
         if (!weeklyTargetsRes.error) setWeeklyTargets(weeklyTargetsRes.data || []);
         if (!weeklyTargetItemsRes.error) setWeeklyTargetItems(weeklyTargetItemsRes.data || []);
-        if (!weeklyTargetAssignmentsRes.error) setWeeklyTargetAssignments(weeklyTargetAssignmentsRes.data || []);
         if (!weeklyTargetAssignmentsRes.error) setWeeklyTargetAssignments(weeklyTargetAssignmentsRes.data || []);
         if (!metricLogsRes.error) setMetricLogs(metricLogsRes.data || []);
         if (!supportMaterialsV2Res.error) setSupportMaterialsV2(supportMaterialsV2Res.data || []);
@@ -460,8 +459,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const newLead = {
       id: data.id, consultant_id: data.consultant_id, stage_id: data.stage_id, user_id: data.user_id, name: data.name, data: data.data,
       created_at: data.created_at, updated_at: data.updated_at, created_by: data.created_by, updated_by: data.updated_by,
-      proposal_value: parseDbCurrency(data.proposal_value), proposal_closing_date: data.proposal_closing_date,
-      sold_credit_value: parseDbCurrency(data.sold_credit_value), sold_group: data.sold_group, sold_quota: data.sold_quota, sale_date: data.sale_date
+      proposal_value: parseDbCurrency(data.proposal_value) || undefined, proposal_closing_date: data.proposal_closing_date,
+      sold_credit_value: parseDbCurrency(data.sold_credit_value) || undefined, sold_group: data.sold_group, sold_quota: data.sold_quota, sale_date: data.sale_date
     };
     setCrmLeads(prev => [newLead, ...prev]);
     return newLead;
@@ -473,8 +472,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const updatedLead = {
       id: data.id, consultant_id: data.consultant_id, stage_id: data.stage_id, user_id: data.user_id, name: data.name, data: data.data,
       created_at: data.created_at, updated_at: data.updated_at, created_by: data.created_by, updated_by: data.updated_by,
-      proposal_value: parseDbCurrency(data.proposal_value), proposal_closing_date: data.proposal_closing_date,
-      sold_credit_value: parseDbCurrency(data.sold_credit_value), sold_group: data.sold_group, sold_quota: data.sold_quota, sale_date: data.sale_date
+      proposal_value: parseDbCurrency(data.proposal_value) || undefined, proposal_closing_date: data.proposal_closing_date,
+      sold_credit_value: parseDbCurrency(data.sold_credit_value) || undefined, sold_group: data.sold_group, sold_quota: data.sold_quota, sale_date: data.sale_date
     };
     setCrmLeads(prev => prev.map(l => l.id === id ? updatedLead : l));
     return updatedLead;
@@ -492,7 +491,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     // Remove 'attachments' if it exists in processData to avoid DB error
     const { attachments: _, ...cleanData } = processData as any;
     
-    const { data: process, error } = await supabase.from('processes').insert({ ...cleanData, user_id: user.id }).select().single();
+    const { data: process, error } = await supabase.from('processes').insert({ ...cleanData, user_id: JOAO_GESTOR_AUTH_ID }).select().single();
     if (error) throw error;
 
     const attachments: ProcessAttachment[] = [];
@@ -630,7 +629,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, [checklistStructure, updateConfig]);
 
-  const addChecklistItem = useCallback((stageId: string, label: string, responsibleRole: string) => {
+  const addChecklistItem = useCallback((stageId: string, label: string, responsibleRole?: 'GESTOR' | 'SECRETARIA') => {
     const newStructure = checklistStructure.map(stage => stage.id === stageId ? { ...stage, items: [...stage.items, { id: crypto.randomUUID(), label, responsibleRole }] } : stage);
     setChecklistStructure(newStructure); updateConfig({ checklistStructure: newStructure });
   }, [checklistStructure, updateConfig]);
@@ -1128,7 +1127,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (error) throw error; setColdCallLeads(prev => prev.filter(l => l.id !== id));
   }, []);
 
-  const addColdCallLog = useCallback(async (log: Omit<ColdCallLog, 'id' | 'user_id' | 'created_at' | 'duration_seconds'> & { start_time: string; end_time: string; }, leadId: string) => {
+  const addColdCallLog = useCallback(async (log: Omit<ColdCallLog, 'id' | 'user_id' | 'created_at' | 'duration_seconds'> & { start_time: string; end_time: string; }) => {
     const duration_seconds = Math.round((new Date(log.end_time).getTime() - new Date(log.start_time).getTime()) / 1000);
     const { data, error } = await supabase.from('cold_call_logs').insert({ ...log, user_id: user!.id, duration_seconds }).select().single();
     if (error) throw error; setColdCallLogs(prev => [data, ...prev]); return data;
@@ -1360,9 +1359,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addFeedback, updateFeedback, deleteFeedback, addTeamMemberFeedback, updateTeamMemberFeedback, deleteTeamMemberFeedback,
     addTeamMember, updateTeamMember, deleteTeamMember,
     addTeamProductionGoal, updateTeamProductionGoal, deleteTeamProductionGoal,
-    addCutoffPeriod, updateCutoffPeriod, deleteCutoffPeriod,
     hasPendingSecretariaTasks,
     addColdCallLead, updateColdCallLead, deleteColdCallLead, addColdCallLog, getColdCallMetrics,
+    createCrmLeadFromColdCall,
     addOnlineOnboardingSession, deleteOnlineOnboardingSession, addVideoToTemplate, deleteVideoFromTemplate,
     addProcess, updateProcess, deleteProcess, deleteProcessAttachment,
   }), [
@@ -1395,6 +1394,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addCutoffPeriod, updateCutoffPeriod, deleteCutoffPeriod,
     hasPendingSecretariaTasks,
     addColdCallLead, updateColdCallLead, deleteColdCallLead, addColdCallLog, getColdCallMetrics,
+    createCrmLeadFromColdCall,
     addOnlineOnboardingSession, deleteOnlineOnboardingSession, addVideoToTemplate, deleteVideoFromTemplate,
     addProcess, updateProcess, deleteProcess, deleteProcessAttachment,
   ]);
