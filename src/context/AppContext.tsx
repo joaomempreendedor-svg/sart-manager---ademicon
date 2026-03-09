@@ -489,37 +489,53 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const addProcess = useCallback(async (processData: Omit<Process, 'id' | 'user_id' | 'created_at' | 'updated_at'>, filesToAdd?: { file: File, type: string }[], linksToAdd?: { url: string, type: string }[]) => {
     if (!user) throw new Error("User not authenticated.");
     
-    // Remove 'attachments' if it exists in processData to avoid DB error
+    console.log("[AppContext] Iniciando addProcess", { processData, filesCount: filesToAdd?.length, linksCount: linksToAdd?.length });
+
     const { attachments: _, ...cleanData } = processData as any;
     
     const { data: process, error } = await supabase.from('processes').insert({ ...cleanData, user_id: user.id }).select().single();
-    if (error) throw error;
+    if (error) {
+      console.error("[AppContext] Erro ao inserir processo:", error);
+      throw error;
+    }
 
     const attachments: ProcessAttachment[] = [];
 
     if (filesToAdd && filesToAdd.length > 0) {
       for (const item of filesToAdd) {
         try {
-          const sanitized = sanitizeFilename(item.file.name);
-          const path = `process_files/${process.id}/${Date.now()}-${sanitized}`;
-          const { error: uploadError } = await supabase.storage.from('form_uploads').upload(path, item.file);
-          if (uploadError) throw uploadError;
-          const fileUrl = supabase.storage.from('form_uploads').getPublicUrl(path).data.publicUrl;
-          
+          console.log(`[AppContext] Fazendo upload do arquivo: ${item.file.name}`);
+          const formData = new FormData();
+          formData.append('file', item.file);
+          formData.append('processId', process.id);
+
+          const { data: uploadRes, error: uploadError } = await supabase.functions.invoke('upload-process-file', {
+            body: formData,
+          });
+
+          if (uploadError) {
+            console.error(`[AppContext] Erro no upload via Edge Function (${item.file.name}):`, uploadError);
+            throw uploadError;
+          }
+
+          console.log(`[AppContext] Resposta do upload (${item.file.name}):`, uploadRes);
+
           const { data: attachment, error: attachError } = await supabase.from('process_attachments').insert({
             process_id: process.id,
-            file_url: fileUrl,
+            file_url: uploadRes.publicUrl,
             file_type: item.type,
             file_name: item.file.name
           }).select().single();
           
           if (attachError) {
-            console.error("Erro ao inserir anexo no banco:", attachError);
+            console.error("[AppContext] Erro ao inserir anexo no banco:", attachError);
           } else if (attachment) {
+            console.log("[AppContext] Anexo salvo com sucesso:", attachment);
             attachments.push(attachment);
           }
         } catch (err) {
-          console.error("Erro no upload de arquivo:", err);
+          console.error("[AppContext] Erro no fluxo de upload de arquivo:", err);
+          toast.error(`Falha ao salvar anexo: ${item.file.name}`);
         }
       }
     }
@@ -542,30 +558,40 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [user]);
 
   const updateProcess = useCallback(async (id: string, updates: Partial<Process>, filesToAdd?: { file: File, type: string }[], linksToAdd?: { url: string, type: string }[]) => {
-    // Remove 'attachments' if it exists in updates to avoid DB error
+    console.log("[AppContext] Iniciando updateProcess", { id, updates, filesCount: filesToAdd?.length });
+
     const { attachments: _, ...cleanUpdates } = updates as any;
     
     const { data: process, error } = await supabase.from('processes').update(cleanUpdates).eq('id', id).select().single();
-    if (error) throw error;
+    if (error) {
+      console.error("[AppContext] Erro ao atualizar processo:", error);
+      throw error;
+    }
 
     if (filesToAdd && filesToAdd.length > 0) {
       for (const item of filesToAdd) {
         try {
-          const sanitized = sanitizeFilename(item.file.name);
-          const path = `process_files/${id}/${Date.now()}-${sanitized}`;
-          const { error: uploadError } = await supabase.storage.from('form_uploads').upload(path, item.file);
+          console.log(`[AppContext] Fazendo upload do novo arquivo: ${item.file.name}`);
+          const formData = new FormData();
+          formData.append('file', item.file);
+          formData.append('processId', id);
+
+          const { data: uploadRes, error: uploadError } = await supabase.functions.invoke('upload-process-file', {
+            body: formData,
+          });
+
           if (uploadError) throw uploadError;
-          const fileUrl = supabase.storage.from('form_uploads').getPublicUrl(path).data.publicUrl;
-          
+
           const { error: attachError } = await supabase.from('process_attachments').insert({
             process_id: id,
-            file_url: fileUrl,
+            file_url: uploadRes.publicUrl,
             file_type: item.type,
             file_name: item.file.name
           });
-          if (attachError) console.error("Erro ao inserir anexo no banco:", attachError);
+          if (attachError) console.error("[AppContext] Erro ao inserir anexo no banco:", attachError);
         } catch (err) {
-          console.error("Erro no upload de arquivo:", err);
+          console.error("[AppContext] Erro no fluxo de upload de arquivo:", err);
+          toast.error(`Falha ao salvar anexo: ${item.file.name}`);
         }
       }
     }
@@ -578,7 +604,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           file_type: 'link',
           file_name: 'Link Externo'
         });
-        if (attachError) console.error("Erro ao inserir link no banco:", attachError);
+        if (attachError) console.error("[AppContext] Erro ao inserir link no banco:", attachError);
       }
     }
 
@@ -724,7 +750,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const deleteDailyChecklist = useCallback(async (id: string) => {
     const { error } = await supabase.from('daily_checklists').delete().eq('id', id);
-    if (error) throw error; setDailyChecklists(prev => prev.filter(c => c.id !== id));
+    if (error) throw error; setDailyChecklists(prev => prev.filter(c => i.id !== id));
   }, []);
 
   const addDailyChecklistItem = useCallback(async (daily_checklist_id: string, text: string, order_index: number, resource?: DailyChecklistItemResource, audioFile?: File, imageFile?: File) => {
