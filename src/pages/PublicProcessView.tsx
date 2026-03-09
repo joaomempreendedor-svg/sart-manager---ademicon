@@ -198,7 +198,7 @@ export const PublicProcessView = () => {
             <p className="text-lg text-gray-500 dark:text-gray-400 mb-4">{process.description}</p>
           )}
           
-          <ScrollArea className="max-h-[70vh] pr-4 custom-scrollbar">
+          <ScrollArea className="h-[calc(100vh-20rem)] pr-4 custom-scrollbar"> {/* Adjusted height */}
             <div className="space-y-6">
               {process.attachments && process.attachments.length > 0 && (
                 <div className="grid grid-cols-1 gap-3">
