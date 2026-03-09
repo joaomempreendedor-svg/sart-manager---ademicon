@@ -53,8 +53,8 @@ export const WithdrawalReasonModal: React.FC<WithdrawalReasonModalProps> = ({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Motivo da Desistência</DialogTitle>
-          <p className="text-sm text-muted-foreground">
+          <DialogTitle className="text-gray-900 dark:text-white">Motivo da Desistência</DialogTitle>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
             Informe por que o candidato <strong>{candidateName}</strong> desistiu do processo.
           </p>
         </DialogHeader>
@@ -63,28 +63,30 @@ export const WithdrawalReasonModal: React.FC<WithdrawalReasonModalProps> = ({
           <RadioGroup value={selectedReason} onValueChange={setSelectedReason} className="space-y-3">
             {WITHDRAWAL_REASONS.map((reason) => (
               <div key={reason} className="flex items-center space-x-2">
-                <RadioGroupItem value={reason} id={reason} />
-                <Label htmlFor={reason} className="cursor-pointer">{reason}</Label>
+                <RadioGroupItem value={reason} id={reason} className="border-gray-300 dark:border-slate-600" />
+                <Label htmlFor={reason} className="cursor-pointer text-gray-700 dark:text-gray-200">{reason}</Label>
               </div>
             ))}
           </RadioGroup>
 
           {selectedReason === "Outro" && (
             <div className="mt-4">
-              <Label htmlFor="custom-reason" className="mb-2 block">Especifique o motivo</Label>
+              <Label htmlFor="custom-reason" className="mb-2 block text-gray-700 dark:text-gray-200">Especifique o motivo</Label>
               <Input
                 id="custom-reason"
                 placeholder="Digite o motivo..."
                 value={customReason}
                 onChange={(e) => setCustomReason(e.target.value)}
-                className="w-full"
+                className="w-full bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-gray-900 dark:text-white"
               />
             </div>
           )}
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancelar</Button>
+        <DialogFooter className="gap-2 sm:gap-0">
+          <Button variant="outline" onClick={onClose} className="border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700">
+            Cancelar
+          </Button>
           <Button
             onClick={handleConfirm}
             disabled={selectedReason === "Outro" && !customReason.trim()}
