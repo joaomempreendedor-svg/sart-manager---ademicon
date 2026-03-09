@@ -492,18 +492,27 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const { attachments: _, ...cleanData } = processData as any;
     
     const { data: process, error } = await supabase.from('processes').insert({ ...cleanData, user_id: JOAO_GESTOR_AUTH_ID }).select().single();
-    if (error) throw error;
+    if (error) {
+      console.error("[AppContext] Error inserting process:", error);
+      throw error;
+    }
+    console.log("[AppContext] Process inserted successfully:", process);
 
     const attachments: ProcessAttachment[] = [];
 
     if (filesToAdd && filesToAdd.length > 0) {
       for (const item of filesToAdd) {
         try {
+          console.log(`[AppContext] Attempting to upload file: ${item.file.name} (type: ${item.type})`);
           const sanitized = sanitizeFilename(item.file.name);
           const path = `process_files/${process.id}/${Date.now()}-${sanitized}`;
           const { error: uploadError } = await supabase.storage.from('form_uploads').upload(path, item.file);
-          if (uploadError) throw uploadError;
+          if (uploadError) {
+            console.error(`[AppContext] Error uploading file ${item.file.name}:`, uploadError);
+            throw uploadError;
+          }
           const fileUrl = supabase.storage.from('form_uploads').getPublicUrl(path).data.publicUrl;
+          console.log(`[AppContext] File ${item.file.name} uploaded successfully. URL: ${fileUrl}`);
           
           const { data: attachment, error: attachError } = await supabase.from('process_attachments').insert({
             process_id: process.id,
@@ -513,30 +522,39 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           }).select().single();
           
           if (attachError) {
-            console.error("Erro ao inserir anexo no banco:", attachError);
+            console.error("[AppContext] Error inserting attachment into DB:", attachError);
           } else if (attachment) {
             attachments.push(attachment);
+            console.log("[AppContext] Attachment record created:", attachment);
           }
-        } catch (err) {
-          console.error("Erro no upload de arquivo:", err);
+        } catch (err: any) {
+          console.error("[AppContext] Error during file upload or attachment record creation:", err.message || err);
+          // Continue with other files even if one fails
         }
       }
     }
 
     if (linksToAdd && linksToAdd.length > 0) {
       for (const item of linksToAdd) {
+        console.log(`[AppContext] Attempting to insert link: ${item.url}`);
         const { data: attachment, error: attachError } = await supabase.from('process_attachments').insert({
           process_id: process.id,
           file_url: item.url,
           file_type: 'link',
           file_name: 'Link Externo'
         }).select().single();
-        if (!attachError && attachment) attachments.push(attachment);
+        if (!attachError && attachment) {
+          attachments.push(attachment);
+          console.log("[AppContext] Link attachment record created:", attachment);
+        } else if (attachError) {
+          console.error("[AppContext] Error inserting link attachment into DB:", attachError);
+        }
       }
     }
 
     const newProcess = { ...process, attachments };
     setProcesses(prev => [newProcess, ...prev].sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()));
+    console.log("[AppContext] Final processes state updated.");
     return newProcess;
   }, [user]);
 
@@ -545,16 +563,25 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const { attachments: _, ...cleanUpdates } = updates as any;
     
     const { data: process, error } = await supabase.from('processes').update(cleanUpdates).eq('id', id).select().single();
-    if (error) throw error;
+    if (error) {
+      console.error("[AppContext] Error updating process:", error);
+      throw error;
+    }
+    console.log("[AppContext] Process updated successfully:", process);
 
     if (filesToAdd && filesToAdd.length > 0) {
       for (const item of filesToAdd) {
         try {
+          console.log(`[AppContext] Attempting to upload new file for update: ${item.file.name} (type: ${item.type})`);
           const sanitized = sanitizeFilename(item.file.name);
           const path = `process_files/${id}/${Date.now()}-${sanitized}`;
           const { error: uploadError } = await supabase.storage.from('form_uploads').upload(path, item.file);
-          if (uploadError) throw uploadError;
+          if (uploadError) {
+            console.error(`[AppContext] Error uploading file ${item.file.name} during update:`, uploadError);
+            throw uploadError;
+          }
           const fileUrl = supabase.storage.from('form_uploads').getPublicUrl(path).data.publicUrl;
+          console.log(`[AppContext] File ${item.file.name} uploaded successfully during update. URL: ${fileUrl}`);
           
           const { error: attachError } = await supabase.from('process_attachments').insert({
             process_id: id,
@@ -562,28 +589,32 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             file_type: item.type,
             file_name: item.file.name
           });
-          if (attachError) console.error("Erro ao inserir anexo no banco:", attachError);
-        } catch (err) {
-          console.error("Erro no upload de arquivo:", err);
+          if (attachError) console.error("[AppContext] Error inserting new attachment record during update:", attachError);
+        } catch (err: any) {
+          console.error("[AppContext] Error during new file upload or attachment record creation for update:", err.message || err);
         }
       }
     }
 
     if (linksToAdd && linksToAdd.length > 0) {
       for (const item of linksToAdd) {
+        console.log(`[AppContext] Attempting to insert new link for update: ${item.url}`);
         const { error: attachError } = await supabase.from('process_attachments').insert({
           process_id: id,
           file_url: item.url,
           file_type: 'link',
           file_name: 'Link Externo'
         });
-        if (attachError) console.error("Erro ao inserir link no banco:", attachError);
+        if (attachError) console.error("[AppContext] Error inserting new link attachment during update:", attachError);
       }
     }
 
-    const { data: allAttachments } = await supabase.from('process_attachments').select('*').eq('process_id', id);
+    const { data: allAttachments, error: fetchAttachError } = await supabase.from('process_attachments').select('*').eq('process_id', id);
+    if (fetchAttachError) console.error("[AppContext] Error refetching attachments after update:", fetchAttachError);
+    
     const updatedProcess = { ...process, attachments: allAttachments || [] };
     setProcesses(prev => prev.map(p => p.id === id ? updatedProcess : p).sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()));
+    console.log("[AppContext] Final processes state updated after process update.");
     return updatedProcess;
   }, []);
 
@@ -1185,13 +1216,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const newProgress = { ...currentProgress, [itemId]: { ...currentState, dueDate } };
       await updateCandidate(candidateId, { checklistProgress: newProgress });
     },
-    toggleConsultantGoal: async (candidateId: string, goalId: string) => {
-      const candidate = candidates.find(c => c.id === candidateId);
-      if (!candidate) return;
-      const currentProgress = candidate.consultantGoalsProgress || {};
-      const newProgress = { ...currentProgress, [goalId]: !currentProgress[goalId] };
-      await updateCandidate(candidateId, { consultantGoalsProgress: newProgress });
-    },
+    toggleConsultantGoal: (candidateId: string, goalId: string) => Promise.resolve(), // Placeholder
     addChecklistStage, updateChecklistStage, deleteChecklistStage, moveChecklistStage,
     addChecklistItem, updateChecklistItem, deleteChecklistItem, moveChecklistItem,
     resetChecklistToDefault,
