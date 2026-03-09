@@ -145,6 +145,11 @@ export const PublicProcessView = () => {
               <ExternalLink className="w-4 h-4" />
             </a>
           )}
+          {att.file_type === 'video' && (
+            <a href={att.file_url} target="_blank" rel="noopener noreferrer" className="p-2 text-gray-400 hover:text-brand-500 rounded-full">
+              <ExternalLink className="w-4 h-4" />
+            </a>
+          )}
           <Button
             variant="ghost"
             size="icon"
@@ -154,6 +159,9 @@ export const PublicProcessView = () => {
             <Download className="w-4 h-4" />
           </Button>
         </div>
+        {att.file_type === 'video' && (
+          <video controls src={att.file_url} className="w-full max-h-64 object-contain rounded-lg mt-4"></video>
+        )}
       </div>
     );
   };
