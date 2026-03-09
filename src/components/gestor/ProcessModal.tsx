@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useApp } from '@/context/AppContext';
+import toast from 'react-hot-toast';
 
 interface ProcessModalProps {
   isOpen: boolean;
@@ -21,6 +22,8 @@ interface ProcessModalProps {
   process: Process | null;
   onSave: (processData: Omit<Process, 'id' | 'user_id' | 'created_at' | 'updated_at'> | Process, filesToAdd?: { file: File, type: string }[], linksToAdd?: { url: string, type: string }[]) => Promise<void>;
 }
+
+const MAX_FILE_SIZE_MB = 50; // Limite de 50MB para upload de arquivos no cliente
 
 export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, process, onSave }) => {
   const { deleteProcessAttachment } = useApp();
@@ -50,10 +53,18 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      const newFiles = Array.from(files).map(file => ({
-        file,
-        type: getFileType(file)
-      }));
+      const newFiles: { file: File, type: string }[] = [];
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+          toast.error(`O arquivo "${file.name}" excede o limite de ${MAX_FILE_SIZE_MB}MB.`);
+          continue;
+        }
+        newFiles.push({
+          file,
+          type: getFileType(file)
+        });
+      }
       setFilesToAdd(prev => [...prev, ...newFiles]);
     }
   };
@@ -83,8 +94,9 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
     if (window.confirm("Deseja remover este anexo permanentemente?")) {
       try {
         await deleteProcessAttachment(attachmentId);
+        toast.success("Anexo removido com sucesso!");
       } catch (err: any) {
-        alert("Erro ao remover anexo.");
+        toast.error("Erro ao remover anexo.");
       }
     }
   };
@@ -208,7 +220,7 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
                   <label className="flex flex-col items-center justify-center px-4 py-6 border-2 border-gray-300 dark:border-slate-600 border-dashed rounded-xl cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/50 transition bg-white dark:bg-slate-700 group">
                     <Upload className="w-8 h-8 mb-2 text-gray-400 group-hover:text-brand-500 transition-colors" />
                     <span className="text-sm font-semibold text-gray-600 dark:text-gray-300 text-center">
-                      Clique para selecionar Imagem, PDF, Áudio ou Vídeo
+                      Clique para selecionar Imagem, PDF, Áudio ou Vídeo (máx. {MAX_FILE_SIZE_MB}MB por arquivo)
                     </span>
                     <input type="file" className="hidden" multiple accept="image/*,application/pdf,video/*,audio/*" onChange={handleFileChange} />
                   </label>
