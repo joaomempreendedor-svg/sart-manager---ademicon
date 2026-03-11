@@ -1,6 +1,6 @@
 "use client";
 
-import { Toaster as SonnerToaster } from "sonner";
+import { Toaster as SonnerToaster } from "sonner"; // Importar Toaster como named export
 import { useApp } from "@/context/AppContext";
 
 type ToasterProps = React.ComponentProps<typeof SonnerToaster>;

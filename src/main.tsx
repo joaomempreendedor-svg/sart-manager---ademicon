@@ -1,7 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
-import { Toaster } from './components/ui/sonner'; // Importar Sonner Toaster
+import { Toaster } from './components/ui/sonner'; // Importar Toaster como named export
 import './index.css';
 
 const rootElement = document.getElementById('root');
