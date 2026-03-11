@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, FileText, Image as ImageIcon, Download, Link as LinkIcon, Copy, Check, Video, Music, ExternalLink, BookText } from 'lucide-react';
+import { X, FileText, Image as ImageIcon, Download, Link as LinkIcon, Copy, Check, Video, Music, ExternalLink, BookText, Paperclip } from 'lucide-react';
 import { Process, ProcessAttachment } from '@/types';
 import {
   Dialog,
@@ -227,7 +227,7 @@ export const ProcessViewModal: React.FC<ProcessViewModalProps> = ({ isOpen, onCl
               {copiedLink ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
             </Button>
           </div>
-        </div>
+        </DialogFooter>
 
         <DialogFooter className="px-6 py-4 border-t border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/50 shrink-0">
           <Button onClick={onClose} className="bg-brand-600 hover:bg-brand-700 text-white w-full sm:w-auto">
