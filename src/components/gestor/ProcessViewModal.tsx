@@ -10,7 +10,6 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner'; // Using Sonner for toasts
 import YouTube from 'react-youtube';
 import { QRCodeGenerator } from '@/components/ui/qr-code'; // Import QR Code component
@@ -54,6 +53,7 @@ export const ProcessViewModal: React.FC<ProcessViewModalProps> = ({ isOpen, onCl
       link.href = url;
       link.setAttribute('download', fileName);
       document.body.appendChild(link);
+      link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
 
@@ -199,7 +199,7 @@ export const ProcessViewModal: React.FC<ProcessViewModalProps> = ({ isOpen, onCl
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-5xl bg-white dark:bg-slate-800 dark:text-white p-0 overflow-hidden flex flex-col max-h-[95vh] shadow-xl border border-gray-200 dark:border-slate-700">
+      <DialogContent className="sm:max-w-5xl bg-white dark:bg-slate-800 dark:text-white p-0 shadow-xl border border-gray-200 dark:border-slate-700 overflow-y-auto">
         <DialogHeader className="px-6 py-4 border-b border-gray-100 dark:border-slate-700 shrink-0">
           <DialogTitle className="text-2xl font-bold">{process.title}</DialogTitle>
           {process.description && (
@@ -209,8 +209,8 @@ export const ProcessViewModal: React.FC<ProcessViewModalProps> = ({ isOpen, onCl
           )}
         </DialogHeader>
         
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <ScrollArea className="flex-1 py-4 px-6 custom-scrollbar">
+        <div className="flex-1 flex flex-col"> {/* Removed overflow-hidden */}
+          <div className="flex-1 py-4 px-6 custom-scrollbar"> {/* Removed ScrollArea, applied padding directly */}
             <div className="space-y-8">
               {/* Main Content */}
               {process.content && (
@@ -223,7 +223,7 @@ export const ProcessViewModal: React.FC<ProcessViewModalProps> = ({ isOpen, onCl
                     <BookText className="w-6 h-6 text-brand-500" />
                     <span>Conteúdo Principal</span>
                   </h3>
-                  <div className="prose prose-lg dark:prose-invert max-w-none text-gray-800 dark:text-gray-200 leading-relaxed bg-gray-50 dark:bg-slate-900/50 p-6 rounded-xl border border-gray-100 dark:border-slate-700 shadow-inner">
+                  <div className="prose prose-lg dark:prose-invert max-w-none text-gray-800 dark:text-gray-200 leading-relaxed bg-gray-50 dark:bg-slate-900/50 p-6 rounded-xl border border-gray-100 dark:border-slate-700 shadow-inner whitespace-pre-wrap">
                     <div dangerouslySetInnerHTML={{ __html: process.content }} />
                   </div>
                 </motion.div>
@@ -248,7 +248,7 @@ export const ProcessViewModal: React.FC<ProcessViewModalProps> = ({ isOpen, onCl
                 </motion.div>
               )}
             </div>
-          </ScrollArea>
+          </div>
 
           <div className="px-6 pt-4 border-t border-gray-100 dark:border-slate-700 shrink-0">
             <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center">

@@ -3,7 +3,6 @@ import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Process, ProcessAttachment } from '@/types';
 import { Loader2, FileText, Image as ImageIcon, Download, Link as LinkIcon, AlertTriangle, TrendingUp, Video, Music, ExternalLink, BookText, Paperclip, Sun, Moon } from 'lucide-react';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner'; // Using Sonner for toasts
 import YouTube from 'react-youtube';
@@ -99,7 +98,6 @@ export const PublicProcessView = () => {
       link.href = url;
       link.setAttribute('download', fileName);
       document.body.appendChild(link);
-      link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
 
@@ -266,8 +264,8 @@ export const PublicProcessView = () => {
             <p className="text-xl text-gray-500 dark:text-gray-400 mb-8 leading-relaxed">{process.description}</p>
           )}
           
-          <div className="flex-1 flex flex-col overflow-hidden">
-            <ScrollArea className="h-auto max-h-[calc(100vh-20rem)] pr-4 custom-scrollbar">
+          <div className="flex-1 flex flex-col">
+            <div className="flex-1 py-4 custom-scrollbar"> {/* Removed ScrollArea, applied padding directly */}
               <div className="space-y-12">
                 {/* Main Content */}
                 {process.content && (
@@ -280,7 +278,7 @@ export const PublicProcessView = () => {
                       <BookText className="w-6 h-6 text-brand-500" />
                       <span>Conteúdo Principal</span>
                     </h3>
-                    <div className="prose prose-lg dark:prose-invert max-w-none text-gray-800 dark:text-gray-200 leading-relaxed bg-gray-50 dark:bg-slate-900/50 p-8 rounded-xl border border-gray-100 dark:border-slate-700 shadow-inner">
+                    <div className="prose prose-lg dark:prose-invert max-w-none text-gray-800 dark:text-gray-200 leading-relaxed bg-gray-50 dark:bg-slate-900/50 p-8 rounded-xl border border-gray-100 dark:border-slate-700 shadow-inner whitespace-pre-wrap">
                       <div dangerouslySetInnerHTML={{ __html: process.content }} />
                     </div>
                   </motion.div>
@@ -303,7 +301,7 @@ export const PublicProcessView = () => {
                   </motion.div>
                 )}
               </div>
-            </ScrollArea>
+            </div>
           </div>
         </motion.div>
       </main>
