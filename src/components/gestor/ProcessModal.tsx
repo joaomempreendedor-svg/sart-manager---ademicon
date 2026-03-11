@@ -75,7 +75,7 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
       });
       setFilesToAdd([]);
       setNewLinkUrl('');
-      setCurrentLinksToAdd(process?.attachments?.filter(att => att.file_type === 'link').map(att => ({ url: att.file_url, type: 'link' })) || []);
+      setCurrentLinksToAdd(process?.attachments?.filter(att => att.file_type !== 'link').map(att => ({ url: att.file_url, type: att.file_type })) || []);
     }
   }, [isOpen, process, reset]);
 
@@ -421,7 +421,7 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
               <motion.button 
                 type="submit" 
                 disabled={isSaving} 
-                className="bg-brand-600 hover:bg-brand-700 text-white min-w-[140px] w-full sm:w-auto flex items-center justify-center space-x-2"
+                className="bg-brand-600 hover:bg-brand-700 text-white min-w-[140px] w-full sm:w-auto flex items-center justify-center space-x-2 rounded-lg"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
