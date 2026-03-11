@@ -98,6 +98,7 @@ export const PublicProcessView = () => {
       link.href = url;
       link.setAttribute('download', fileName);
       document.body.appendChild(link);
+      link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
 
@@ -265,7 +266,7 @@ export const PublicProcessView = () => {
           )}
           
           <div className="flex-1 flex flex-col">
-            <div className="flex-1 py-4 custom-scrollbar"> {/* Removed ScrollArea, applied padding directly */}
+            <div className="flex-1 py-4">
               <div className="space-y-12">
                 {/* Main Content */}
                 {process.content && (
