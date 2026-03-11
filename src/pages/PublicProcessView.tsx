@@ -229,36 +229,39 @@ export const PublicProcessView = () => {
             <p className="text-lg text-gray-500 dark:text-gray-400 mb-4">{process.description}</p>
           )}
           
-          <ScrollArea className="h-[calc(100vh-20rem)] pr-4 custom-scrollbar">
-            <div className="space-y-8">
-              {/* Main Content */}
-              {process.content && (
-                <div>
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center space-x-2">
-                    <BookText className="w-5 h-5 text-brand-500" />
-                    <span>Conteúdo Principal</span>
-                  </h3>
-                  <div className="prose dark:prose-invert max-w-none text-gray-800 dark:text-gray-200 leading-relaxed bg-gray-50 dark:bg-slate-900/50 p-6 rounded-xl border border-gray-100 dark:border-slate-700">
-                    {/* Using dangerouslySetInnerHTML for rich text, assuming content might contain HTML */}
-                    <div dangerouslySetInnerHTML={{ __html: process.content }} />
+          {/* Consolidated main content area */}
+          <div className="flex-1 flex flex-col overflow-hidden">
+            <ScrollArea className="h-[calc(100vh-20rem)] pr-4 custom-scrollbar">
+              <div className="space-y-8">
+                {/* Main Content */}
+                {process.content && (
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center space-x-2">
+                      <BookText className="w-5 h-5 text-brand-500" />
+                      <span>Conteúdo Principal</span>
+                    </h3>
+                    <div className="prose dark:prose-invert max-w-none text-gray-800 dark:text-gray-200 leading-relaxed bg-gray-50 dark:bg-slate-900/50 p-6 rounded-xl border border-gray-100 dark:border-slate-700">
+                      {/* Using dangerouslySetInnerHTML for rich text, assuming content might contain HTML */}
+                      <div dangerouslySetInnerHTML={{ __html: process.content }} />
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* Attachments / Resources */}
-              {process.attachments && process.attachments.length > 0 && (
-                <div>
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center space-x-2">
-                    <Paperclip className="w-5 h-5 text-brand-500" />
-                    <span>Recursos de Apoio</span>
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {process.attachments.map(att => renderAttachment(att))}
+                {/* Attachments / Resources */}
+                {process.attachments && process.attachments.length > 0 && (
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center space-x-2">
+                      <Paperclip className="w-5 h-5 text-brand-500" />
+                      <span>Recursos de Apoio</span>
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {process.attachments.map(att => renderAttachment(att))}
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
-          </ScrollArea>
+                )}
+              </div>
+            </ScrollArea>
+          </div>
         </div>
       </main>
     </div>

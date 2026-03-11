@@ -177,57 +177,60 @@ export const ProcessViewModal: React.FC<ProcessViewModalProps> = ({ isOpen, onCl
           )}
         </DialogHeader>
         
-        <ScrollArea className="flex-1 py-4 px-6 custom-scrollbar">
-          <div className="space-y-8">
-            {/* Main Content */}
-            {process.content && (
-              <div>
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center space-x-2">
-                  <BookText className="w-5 h-5 text-brand-500" />
-                  <span>Conteúdo Principal</span>
-                </h3>
-                <div className="prose dark:prose-invert max-w-none text-gray-800 dark:text-gray-200 leading-relaxed bg-gray-50 dark:bg-slate-900/50 p-6 rounded-xl border border-gray-100 dark:border-slate-700">
-                  {/* Using dangerouslySetInnerHTML for rich text, assuming content might contain HTML */}
-                  <div dangerouslySetInnerHTML={{ __html: process.content }} />
+        {/* Consolidated main content area */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <ScrollArea className="flex-1 py-4 px-6 custom-scrollbar">
+            <div className="space-y-8">
+              {/* Main Content */}
+              {process.content && (
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center space-x-2">
+                    <BookText className="w-5 h-5 text-brand-500" />
+                    <span>Conteúdo Principal</span>
+                  </h3>
+                  <div className="prose dark:prose-invert max-w-none text-gray-800 dark:text-gray-200 leading-relaxed bg-gray-50 dark:bg-slate-900/50 p-6 rounded-xl border border-gray-100 dark:border-slate-700">
+                    {/* Using dangerouslySetInnerHTML for rich text, assuming content might contain HTML */}
+                    <div dangerouslySetInnerHTML={{ __html: process.content }} />
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Attachments / Resources */}
-            {process.attachments && process.attachments.length > 0 && (
-              <div>
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center space-x-2">
-                  <Paperclip className="w-5 h-5 text-brand-500" />
-                  <span>Recursos de Apoio</span>
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {process.attachments.map(att => renderAttachment(att))}
+              {/* Attachments / Resources */}
+              {process.attachments && process.attachments.length > 0 && (
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center space-x-2">
+                    <Paperclip className="w-5 h-5 text-brand-500" />
+                    <span>Recursos de Apoio</span>
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {process.attachments.map(att => renderAttachment(att))}
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
-        </ScrollArea>
+              )}
+            </div>
+          </ScrollArea>
 
-        <div className="px-6 pt-4 border-t border-gray-100 dark:border-slate-700 shrink-0">
-          <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center">
-            <LinkIcon className="w-4 h-4 mr-2" /> Link de Compartilhamento
-          </h3>
-          <div className="flex items-center space-x-3">
-            <input
-              type="text"
-              readOnly
-              value={shareableLink}
-              className="flex-1 p-2 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-lg text-gray-800 dark:text-gray-200 text-xs font-mono"
-            />
-            <Button
-              onClick={handleCopyLink}
-              className="p-2 bg-brand-500 text-white rounded-lg hover:bg-brand-600 transition"
-              title="Copiar Link"
-            >
-              {copiedLink ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-            </Button>
+          <div className="px-6 pt-4 border-t border-gray-100 dark:border-slate-700 shrink-0">
+            <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center">
+              <LinkIcon className="w-4 h-4 mr-2" /> Link de Compartilhamento
+            </h3>
+            <div className="flex items-center space-x-3">
+              <input
+                type="text"
+                readOnly
+                value={shareableLink}
+                className="flex-1 p-2 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-lg text-gray-800 dark:text-gray-200 text-xs font-mono"
+              />
+              <Button
+                onClick={handleCopyLink}
+                className="p-2 bg-brand-500 text-white rounded-lg hover:bg-brand-600 transition"
+                title="Copiar Link"
+              >
+                {copiedLink ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+              </Button>
+            </div>
           </div>
-        </DialogFooter>
+        </div> {/* End of new wrapper div */}
 
         <DialogFooter className="px-6 py-4 border-t border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/50 shrink-0">
           <Button onClick={onClose} className="bg-brand-600 hover:bg-brand-700 text-white w-full sm:w-auto">
