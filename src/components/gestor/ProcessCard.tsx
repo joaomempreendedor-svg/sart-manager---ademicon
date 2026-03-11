@@ -70,8 +70,7 @@ export const ProcessCard: React.FC<ProcessCardProps> = ({ process, onView, onEdi
       initial="hidden"
       animate="visible"
       transition={{ delay: index * 0.1 }}
-      className="relative group bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm hover:shadow-lg hover:border-brand-500 transition-all cursor-pointer overflow-hidden"
-      onClick={() => onView(process)}
+      className="relative group bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm hover:shadow-lg hover:border-brand-500 transition-all overflow-hidden"
     >
       {/* Thumbnail or Icon */}
       <div className="h-40 flex items-center justify-center relative overflow-hidden rounded-t-xl">
@@ -84,6 +83,15 @@ export const ProcessCard: React.FC<ProcessCardProps> = ({ process, onView, onEdi
         )}
         {/* Overlay for hover actions */}
         <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 space-x-2">
+          <motion.button
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            onClick={(e) => { e.stopPropagation(); onView(process); }}
+            className="p-3 bg-white/20 backdrop-blur-sm text-white rounded-full hover:bg-white/30 transition-colors"
+            title="Visualizar"
+          >
+            <Eye className="w-5 h-5" />
+          </motion.button>
           <motion.button
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
