@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Process, ProcessAttachment } from '@/types';
-import { Loader2, FileText, Image as ImageIcon, Download, Link as LinkIcon, AlertTriangle, TrendingUp, Video, Music, ExternalLink } from 'lucide-react';
+import { Loader2, FileText, Image as ImageIcon, Download, Link as LinkIcon, AlertTriangle, TrendingUp, Video, Music, ExternalLink, BookText, Paperclip } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import toast from 'react-hot-toast';
@@ -89,81 +89,104 @@ export const PublicProcessView = () => {
   const renderAttachment = (att: ProcessAttachment) => {
     const fileName = att.file_name || att.file_url.split('/').pop() || 'arquivo_anexado';
 
-    if (att.file_type === 'link') {
-      const youtubeId = getYouTubeID(att.file_url);
-      if (youtubeId) {
+    switch (att.file_type) {
+      case 'link':
+        const youtubeId = getYouTubeID(att.file_url);
+        if (youtubeId) {
+          return (
+            <div key={att.id} className="bg-black rounded-xl overflow-hidden shadow-lg">
+              <YouTube
+                videoId={youtubeId}
+                className="w-full h-full aspect-video"
+                iframeClassName="w-full h-full"
+                opts={{ playerVars: { rel: 0, autoplay: 0 } }}
+              />
+              <div className="p-3 bg-gray-800 text-white text-sm font-medium flex items-center space-x-2">
+                <Video className="w-4 h-4" />
+                <span>{fileName}</span>
+              </div>
+            </div>
+          );
+        }
         return (
-          <div key={att.id} className="aspect-video w-full bg-black rounded-xl overflow-hidden shadow-lg">
-            <YouTube
-              videoId={youtubeId}
-              className="w-full h-full"
-              iframeClassName="w-full h-full"
-              opts={{ playerVars: { rel: 0 } }}
-            />
+          <div key={att.id} className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-800 flex items-center justify-between">
+            <div className="flex items-center space-x-3 overflow-hidden">
+              <LinkIcon className="w-5 h-5 text-blue-500 shrink-0" />
+              <div className="overflow-hidden">
+                <p className="text-sm font-semibold text-blue-900 dark:text-blue-100 truncate">Link Externo</p>
+                <a href={att.file_url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 dark:text-blue-400 hover:underline truncate block">
+                  {att.file_url}
+                </a>
+              </div>
+            </div>
+            <a href={att.file_url} target="_blank" rel="noopener noreferrer" className="p-2 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/40 rounded-full">
+              <ExternalLink className="w-4 h-4" />
+            </a>
           </div>
         );
-      }
-      return (
-        <div key={att.id} className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-800 flex items-center justify-between">
-          <div className="flex items-center space-x-3 overflow-hidden">
-            <LinkIcon className="w-5 h-5 text-blue-500 shrink-0" />
-            <div className="overflow-hidden">
-              <p className="text-sm font-semibold text-blue-900 dark:text-blue-100 truncate">Link Externo</p>
-              <a href={att.file_url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 dark:text-blue-400 hover:underline truncate block">
-                {att.file_url}
-              </a>
+      case 'image':
+        return (
+          <div key={att.id} className="bg-gray-50 dark:bg-slate-700/50 rounded-xl border border-gray-200 dark:border-slate-600 overflow-hidden shadow-sm">
+            <img src={att.file_url} alt={fileName} className="w-full h-auto object-cover max-h-96" />
+            <div className="p-3 flex items-center justify-between border-t border-gray-200 dark:border-slate-600">
+              <div className="flex items-center space-x-2">
+                <ImageIcon className="w-4 h-4 text-green-500" />
+                <span className="text-sm font-medium text-gray-900 dark:text-white">{fileName}</span>
+              </div>
+              <Button variant="ghost" size="icon" onClick={() => handleDownloadFile(att.file_url, fileName)} className="text-gray-400 hover:text-brand-500">
+                <Download className="w-4 h-4" />
+              </Button>
             </div>
           </div>
-          <a href={att.file_url} target="_blank" rel="noopener noreferrer" className="p-2 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/40 rounded-full">
-            <ExternalLink className="w-4 h-4" />
-          </a>
-        </div>
-      );
+        );
+      case 'pdf':
+        return (
+          <div key={att.id} className="p-4 bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-100 dark:border-red-800 flex items-center justify-between">
+            <div className="flex items-center space-x-3 overflow-hidden">
+              <FileText className="w-5 h-5 text-red-500 shrink-0" />
+              <div className="overflow-hidden">
+                <p className="text-sm font-semibold text-red-900 dark:text-red-100 truncate">Documento PDF</p>
+                <span className="text-xs text-red-600 dark:text-red-400 truncate block">{fileName}</span>
+              </div>
+            </div>
+            <div className="flex items-center space-x-1">
+              <a href={att.file_url} target="_blank" rel="noopener noreferrer" className="p-2 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-full" title="Visualizar PDF">
+                <ExternalLink className="w-4 h-4" />
+              </a>
+              <Button variant="ghost" size="icon" onClick={() => handleDownloadFile(att.file_url, fileName)} className="text-red-600 hover:text-red-700">
+                <Download className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        );
+      case 'audio':
+        return (
+          <div key={att.id} className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-xl border border-purple-100 dark:border-purple-800 flex flex-col space-y-3">
+            <div className="flex items-center space-x-3">
+              <Music className="w-5 h-5 text-purple-500 shrink-0" />
+              <p className="text-sm font-semibold text-purple-900 dark:text-purple-100 truncate">{fileName}</p>
+            </div>
+            <audio controls src={att.file_url} className="w-full"></audio>
+            <div className="flex justify-end">
+              <Button variant="ghost" size="icon" onClick={() => handleDownloadFile(att.file_url, fileName)} className="text-purple-600 hover:text-purple-700">
+                <Download className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        );
+      default:
+        return (
+          <div key={att.id} className="p-4 bg-gray-50 dark:bg-slate-700/50 rounded-xl border border-gray-200 dark:border-slate-600 flex items-center justify-between">
+            <div className="flex items-center space-x-3 overflow-hidden">
+              <BookText className="w-5 h-5 text-gray-500 shrink-0" />
+              <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{fileName}</p>
+            </div>
+            <Button variant="ghost" size="icon" onClick={() => handleDownloadFile(att.file_url, fileName)} className="text-gray-400 hover:text-brand-500">
+              <Download className="w-4 h-4" />
+            </Button>
+          </div>
+        );
     }
-
-    const iconMap = {
-      image: <ImageIcon className="w-6 h-6 text-green-500" />,
-      video: <Video className="w-6 h-6 text-blue-500" />,
-      audio: <Music className="w-6 h-6 text-purple-500" />,
-      pdf: <FileText className="w-6 h-6 text-red-500" />,
-    };
-
-    return (
-      <div key={att.id} className="p-4 bg-gray-50 dark:bg-slate-700/50 rounded-xl border border-gray-200 dark:border-slate-600 flex items-center justify-between">
-        <div className="flex items-center space-x-3 overflow-hidden">
-          <div className="p-2 bg-white dark:bg-slate-800 rounded-lg shadow-sm">
-            {iconMap[att.file_type as keyof typeof iconMap] || <FileText className="w-6 h-6 text-gray-500" />}
-          </div>
-          <div className="overflow-hidden">
-            <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{fileName}</p>
-            <p className="text-[10px] text-gray-500 uppercase">{att.file_type}</p>
-          </div>
-        </div>
-        <div className="flex items-center space-x-1">
-          {att.file_type === 'image' && (
-            <a href={att.file_url} target="_blank" rel="noopener noreferrer" className="p-2 text-gray-400 hover:text-brand-500 rounded-full">
-              <ExternalLink className="w-4 h-4" />
-            </a>
-          )}
-          {att.file_type === 'video' && (
-            <a href={att.file_url} target="_blank" rel="noopener noreferrer" className="p-2 text-gray-400 hover:text-brand-500 rounded-full">
-              <ExternalLink className="w-4 h-4" />
-            </a>
-          )}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => handleDownloadFile(att.file_url, fileName)}
-            className="text-gray-400 hover:text-brand-500"
-          >
-            <Download className="w-4 h-4" />
-          </Button>
-        </div>
-        {att.file_type === 'video' && (
-          <video controls src={att.file_url} className="w-full max-h-64 object-contain rounded-lg mt-4"></video>
-        )}
-      </div>
-    );
   };
 
   if (loading) {
@@ -190,7 +213,7 @@ export const PublicProcessView = () => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-slate-900 font-sans text-gray-900 dark:text-gray-100 transition-colors duration-200">
       <header className="bg-white dark:bg-slate-800 shadow-sm">
-        <div className="max-w-5xl mx-auto py-6 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
+        <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 flex justify-between items-center"> {/* Aumentado max-w */}
           <div className="flex items-center space-x-3">
             <div className="bg-brand-500 text-white p-2 rounded-lg">
               <TrendingUp className="w-6 h-6" strokeWidth={3} />
@@ -199,29 +222,46 @@ export const PublicProcessView = () => {
           </div>
         </div>
       </header>
-      <main className="max-w-5xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-md border border-gray-200 dark:border-slate-700">
-          <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{process.title}</h2>
+      <main className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8"> {/* Aumentado max-w e padding */}
+        <div className="bg-white dark:bg-slate-800 p-8 rounded-xl shadow-md border border-gray-200 dark:border-slate-700"> {/* Aumentado padding */}
+          <h2 className="text-4xl font-extrabold text-gray-900 dark:text-white mb-4 leading-tight">{process.title}</h2> {/* Aumentado tamanho do título */}
           {process.description && (
-            <p className="text-lg text-gray-500 dark:text-gray-400 mb-4">{process.description}</p>
+            <p className="text-xl text-gray-500 dark:text-gray-400 mb-8 leading-relaxed">{process.description}</p> /* Aumentado tamanho e espaçamento */
           )}
           
-          <ScrollArea className="h-[calc(100vh-20rem)] pr-4 custom-scrollbar">
-            <div className="space-y-6">
-              {/* Render all attachments */}
-              {process.attachments && process.attachments.length > 0 && (
-                <div className="grid grid-cols-1 gap-3">
-                  {process.attachments.map(att => renderAttachment(att))}
-                </div>
-              )}
-              
-              {process.content && (
-                <div className="prose dark:prose-invert max-w-none whitespace-pre-wrap text-gray-800 dark:text-gray-200 leading-relaxed bg-gray-50 dark:bg-slate-900/50 p-6 rounded-xl border border-gray-100 dark:border-slate-700">
-                  {process.content}
-                </div>
-              )}
-            </div>
-          </ScrollArea>
+          {/* Consolidated main content area */}
+          <div className="flex-1 flex flex-col overflow-hidden">
+            <ScrollArea className="h-[calc(100vh-20rem)] pr-4 custom-scrollbar">
+              <div className="space-y-12"> {/* Aumentado espaçamento entre seções */}
+                {/* Main Content */}
+                {process.content && (
+                  <div>
+                    <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center space-x-3"> {/* Aumentado tamanho do subtítulo */}
+                      <BookText className="w-6 h-6 text-brand-500" />
+                      <span>Conteúdo Principal</span>
+                    </h3>
+                    <div className="prose prose-lg dark:prose-invert max-w-none text-gray-800 dark:text-gray-200 leading-relaxed bg-gray-50 dark:bg-slate-900/50 p-8 rounded-xl border border-gray-100 dark:border-slate-700 shadow-inner"> {/* Aumentado padding, adicionado shadow-inner */}
+                      {/* Using dangerouslySetInnerHTML for rich text, assuming content might contain HTML */}
+                      <div dangerouslySetInnerHTML={{ __html: process.content }} />
+                    </div>
+                  </div>
+                )}
+
+                {/* Attachments / Resources */}
+                {process.attachments && process.attachments.length > 0 && (
+                  <div>
+                    <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center space-x-3"> {/* Aumentado tamanho do subtítulo */}
+                      <Paperclip className="w-6 h-6 text-brand-500" />
+                      <span>Recursos de Apoio</span>
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6"> {/* Aumentado espaçamento do grid */}
+                      {process.attachments.map(att => renderAttachment(att))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </ScrollArea>
+          </div>
         </div>
       </main>
     </div>

@@ -67,7 +67,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [crmOwnerUserId, setCrmOwnerUserId] = useState<string | null>(null);
 
   const [dailyChecklists, setDailyChecklists] = useState<DailyChecklist[]>([]);
-  const [dailyChecklistItems, setDailyChecklistItems] = useState<DailyChecklistItem[]>([]);
+  const [dailyChecklistItems, setDailyChecklistItem] = useState<DailyChecklistItem[]>([]);
   const [dailyChecklistAssignments, setDailyChecklistAssignments] = useState<DailyChecklistAssignment[]>([]);
   const [dailyChecklistCompletions, setDailyChecklistCompletions] = useState<DailyChecklistCompletion[]>([]);
 
@@ -159,7 +159,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setChecklistStructure(DEFAULT_STAGES); setConsultantGoalsStructure(DEFAULT_GOALS); setInterviewStructure(INITIAL_INTERVIEW_STRUCTURE); setTemplates({});
     setHiringOrigins(DEFAULT_APP_CONFIG_DATA.hiringOrigins); setSalesOrigins(DEFAULT_APP_CONFIG_DATA.salesOrigins); setInterviewers(DEFAULT_APP_CONFIG_DATA.interviewers); setPvs(DEFAULT_APP_CONFIG_DATA.pvs);
     setCrmPipelines([]); setCrmStages([]); setCrmFields([]); setCrmLeads([]); setCrmOwnerUserId(null);
-    setDailyChecklists([]); setDailyChecklistItems([]); setDailyChecklistAssignments([]); setDailyChecklistCompletions([]);
+    setDailyChecklists([]); setDailyChecklistItem([]); setDailyChecklistAssignments([]); setDailyChecklistCompletions([]);
     setWeeklyTargets([]); setWeeklyTargetItems([]); setWeeklyTargetAssignments([]); setMetricLogs([]);
     setSupportMaterialsV2([]); setSupportMaterialAssignments([]); setLeadTasks([]); setGestorTasks([]); setGestorTaskCompletions([]); setFinancialEntries([]);
     setFormCadastros([]); setFormFiles([]); setNotifications([]); setTeamProductionGoals([]);
@@ -277,7 +277,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const [
           candidatesRes, materialsRes, cutoffRes, onboardingRes, templateVideosRes,
           pipelinesRes, stagesRes, fieldsRes, crmLeadsRes,
-          dailyChecklistsRes, dailyChecklistItemsRes, dailyChecklistAssignmentsRes, dailyChecklistCompletionsRes,
+          dailyChecklistsRes, dailyChecklistItemRes, dailyChecklistAssignmentsRes, dailyChecklistCompletionsRes,
           weeklyTargetsRes, weeklyTargetItemsRes, weeklyTargetAssignmentsRes, metricLogsRes,
           supportMaterialsV2Res, supportMaterialAssignmentsV2Res,
           leadTasksRes, gestorTasksRes, gestorTaskCompletionsRes, financialEntriesRes,
@@ -360,7 +360,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           sold_credit_value: parseDbCurrency(lead.sold_credit_value) || undefined, sold_group: lead.sold_group, sold_quota: lead.sold_quota, sale_date: lead.sale_date 
         })) || []);
         if (!dailyChecklistsRes.error) setDailyChecklists(dailyChecklistsRes.data || []);
-        if (!dailyChecklistItemsRes.error) setDailyChecklistItems(dailyChecklistItemsRes.data || []);
+        if (!dailyChecklistItemRes.error) setDailyChecklistItem(dailyChecklistItemRes.data || []);
         if (!dailyChecklistAssignmentsRes.error) setDailyChecklistAssignments(dailyChecklistAssignmentsRes.data || []);
         if (!dailyChecklistCompletionsRes.error) setDailyChecklistCompletions(dailyChecklistCompletionsRes.data || []);
         if (!weeklyTargetsRes.error) setWeeklyTargets(weeklyTargetsRes.data || []);
@@ -428,7 +428,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     delete (dataToSave as any).db_id;
     delete (dataToSave as any).createdAt;
     const { error } = await supabase.from('candidates').update({ data: dataToSave }).eq('id', dbId);
-    if (error) throw error;
+    if (error) {
+      toast.error(`Erro ao atualizar checklist: ${error.message}`);
+      setCandidates(prev => prev.map(c => (c.id === candidateId || c.db_id === candidateId) ? { ...c, checklistProgress: currentProgress } : c));
+    }
   }, [candidates]);
 
   const deleteCandidate = useCallback(async (dbId: string) => {
@@ -614,7 +617,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     
     const updatedProcess = { ...process, attachments: allAttachments || [] };
     setProcesses(prev => prev.map(p => p.id === id ? updatedProcess : p).sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()));
-    console.log("[AppContext] Final processes state updated after process update.");
+    console.log("[AppContext] Final processes state updated.");
     return updatedProcess;
   }, []);
 
@@ -782,7 +785,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
     }
     const { data, error } = await supabase.from('daily_checklist_items').insert({ daily_checklist_id, text, order_index, resource: finalResource }).select().single();
-    if (error) throw error; setDailyChecklistItems(prev => [...prev, data]); return data;
+    if (error) throw error; setDailyChecklistItem(prev => [...prev, data]); return data;
   }, []);
 
   const updateDailyChecklistItem = useCallback(async (id: string, updates: Partial<DailyChecklistItem>, audioFile?: File, imageFile?: File) => {
@@ -810,12 +813,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
     }
     const { data, error } = await supabase.from('daily_checklist_items').update({ ...updates, resource: finalResource }).eq('id', id).select().single();
-    if (error) throw error; setDailyChecklistItems(prev => prev.map(i => i.id === id ? data : i)); return data;
+    if (error) throw error; setDailyChecklistItem(prev => prev.map(i => i.id === id ? data : i)); return data;
   }, []);
 
   const deleteDailyChecklistItem = useCallback(async (id: string) => {
     const { error } = await supabase.from('daily_checklist_items').delete().eq('id', id);
-    if (error) throw error; setDailyChecklistItems(prev => prev.filter(i => i.id !== id));
+    if (error) throw error; setDailyChecklistItem(prev => prev.filter(i => i.id !== id));
   }, []);
 
   const moveDailyChecklistItem = useCallback(async (checklistId: string, itemId: string, direction: 'up' | 'down') => {
@@ -829,7 +832,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (error) throw error;
     const { error: error2 } = await supabase.from('daily_checklist_items').update({ order_index: itemA.order_index }).eq('id', itemB.id);
     if (error2) throw error2;
-    setDailyChecklistItems(prev => prev.map(i => i.id === itemA.id ? { ...i, order_index: itemB.order_index } : i.id === itemB.id ? { ...i, order_index: itemA.order_index } : i));
+    setDailyChecklistItem(prev => prev.map(i => i.id === itemA.id ? { ...i, order_index: itemB.order_index } : i.id === itemB.id ? { ...i, order_index: itemA.order_index } : i));
   }, [dailyChecklistItems]);
 
   const assignDailyChecklistToConsultant = useCallback(async (daily_checklist_id: string, consultant_id: string) => {
