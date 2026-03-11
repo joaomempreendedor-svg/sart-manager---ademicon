@@ -35,8 +35,6 @@ const formSchema = z.object({
   title: z.string().min(1, "O título é obrigatório."),
   description: z.string().optional(),
   content: z.string().optional(),
-  filesToAdd: z.array(z.any()).optional(), // Files are handled manually
-  linksToAdd: z.array(z.string().url("URL inválida.")).optional(),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -44,9 +42,10 @@ type FormData = z.infer<typeof formSchema>;
 export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, process, onSave }) => {
   const { deleteProcessAttachment } = useApp();
   const [filesToAdd, setFilesToAdd] = useState<{ file: File, type: string, preview: string }[]>([]);
+  const [linksToAdd, setLinksToAdd] = useState<string[]>([]);
   const [newLinkUrl, setNewLinkUrl] = useState('');
   const [isSaving, setIsSaving] = useState(false);
-  const [currentLinksToAdd, setCurrentLinksToAdd] = useState<{ url: string, type: string }[]>([]);
+  const [currentAttachments, setCurrentAttachments] = useState<ProcessAttachment[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -56,13 +55,8 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
       title: '',
       description: '',
       content: '',
-      filesToAdd: [],
-      linksToAdd: [],
     },
   });
-
-  const watchedLinksToAdd = watch('linksToAdd');
-  const watchedFilesToAdd = watch('filesToAdd');
 
   useEffect(() => {
     if (isOpen) {
@@ -70,12 +64,11 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
         title: process?.title || '',
         description: process?.description || '',
         content: process?.content || '',
-        filesToAdd: [],
-        linksToAdd: process?.attachments?.filter(att => att.file_type === 'link').map(att => att.file_url) || [],
       });
       setFilesToAdd([]);
+      setLinksToAdd([]);
       setNewLinkUrl('');
-      setCurrentLinksToAdd(process?.attachments?.filter(att => att.file_type !== 'link').map(att => ({ url: att.file_url, type: att.file_type })) || []);
+      setCurrentAttachments(process?.attachments || []);
     }
   }, [isOpen, process, reset]);
 
@@ -104,7 +97,6 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
         });
       }
       setFilesToAdd(prev => [...prev, ...newFiles]);
-      setValue('filesToAdd', [...(watchedFilesToAdd || []), ...newFiles], { shouldDirty: true });
     }
   };
 
@@ -127,44 +119,39 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
         });
       }
       setFilesToAdd(prev => [...prev, ...newFiles]);
-      setValue('filesToAdd', [...(watchedFilesToAdd || []), ...newFiles], { shouldDirty: true });
     }
   };
 
   const handleAddLink = () => {
     if (newLinkUrl.trim()) {
-      const newLink = { url: newLinkUrl.trim(), type: 'link' };
-      setCurrentLinksToAdd(prev => [...prev, newLink]);
-      setValue('linksToAdd', [...(watchedLinksToAdd || []), newLink.url], { shouldDirty: true });
+      if (!newLinkUrl.startsWith('http://') && !newLinkUrl.startsWith('https://')) {
+        toast.warning("URL pode não ser válida. Certifique-se de que começa com http:// ou https://");
+      }
+      setLinksToAdd(prev => [...prev, newLinkUrl.trim()]);
       setNewLinkUrl('');
     }
   };
 
   const handleRemoveFileToAdd = (index: number) => {
-    const newFiles = filesToAdd.filter((_, i) => i !== index);
-    setFilesToAdd(newFiles);
-    setValue('filesToAdd', newFiles, { shouldDirty: true });
+    setFilesToAdd(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleRemoveLinkToAdd = (index: number) => {
-    const newLinks = currentLinksToAdd.filter((_, i) => i !== index);
-    setCurrentLinksToAdd(newLinks);
-    setValue('linksToAdd', newLinks.map(l => l.url), { shouldDirty: true });
+    setLinksToAdd(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleDeleteExistingAttachment = async (attachmentId: string) => {
+    const originalAttachments = [...currentAttachments];
+    setCurrentAttachments(prev => prev.filter(att => att.id !== attachmentId));
     toast.promise(
-      async () => {
-        await deleteProcessAttachment(attachmentId);
-        // Update local state to reflect deletion
-        if (process) {
-          process.attachments = process.attachments?.filter(att => att.id !== attachmentId);
-        }
-      },
+      deleteProcessAttachment(attachmentId),
       {
         loading: "Removendo anexo...",
         success: "Anexo removido com sucesso!",
-        error: "Erro ao remover anexo.",
+        error: (err) => {
+          setCurrentAttachments(originalAttachments);
+          return `Erro ao remover anexo: ${err.message}`;
+        },
       }
     );
   };
@@ -176,11 +163,11 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
         title: data.title.trim(),
         description: data.description?.trim() || undefined,
         content: data.content?.trim() || undefined,
-        type: 'Documento', // Default type
+        type: 'Documento',
       };
 
       const filesToUpload = filesToAdd.map(f => ({ file: f.file, type: f.type }));
-      const linksToSave = currentLinksToAdd.filter(l => !process?.attachments?.some(att => att.file_url === l.url)); // Only new links
+      const linksToSave = linksToAdd.map(url => ({ url, type: 'link' as const }));
 
       await onSave(process ? { ...process, ...processData } : processData, filesToUpload, linksToSave);
       onClose();
@@ -211,7 +198,6 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
   const debouncedSaveIndicator = useDebouncedCallback(() => {
     if (isDirty && !isSaving) {
       toast.info("Salvando rascunho...", { duration: 1500 });
-      // In a real app, you'd trigger an auto-save here
     }
   }, 3000);
 
@@ -234,9 +220,8 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
         </div>
         
         <form onSubmit={handleSubmit(onSubmit)} className="flex-1 flex flex-col overflow-hidden">
-          <div className="flex-1 overflow-y-auto custom-scrollbar">
+          <ScrollArea className="flex-1 custom-scrollbar">
             <div className="grid gap-6 p-6">
-              {/* Anexos e Links de Apoio - MOVIDO PARA O TOPO */}
               <motion.div 
                 initial={{ opacity: 0, y: 10 }} 
                 animate={{ opacity: 1, y: 0 }} 
@@ -245,17 +230,17 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
               >
                 <Label className="mb-4 block font-bold text-gray-900 dark:text-white text-base">Anexos e Links de Apoio</Label>
                 
-                {/* Lista de Anexos Existentes */}
-                {process?.attachments && process.attachments.length > 0 && (
+                {currentAttachments.length > 0 && (
                   <div className="space-y-2 mb-6">
                     <p className="text-xs font-bold text-gray-400 uppercase">Anexos Atuais</p>
-                    {process.attachments.filter(att => att.file_type !== 'link').map(att => (
+                    {currentAttachments.map(att => (
                       <div key={att.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-700/50 rounded-lg border border-gray-200 dark:border-slate-600">
                         <div className="flex items-center space-x-3 overflow-hidden">
                           {att.file_type === 'image' ? <ImageIcon className="w-5 h-5 text-green-500" /> :
                            att.file_type === 'pdf' ? <FileText className="w-5 h-5 text-red-500" /> :
                            att.file_type === 'video' ? <Video className="w-5 h-5 text-blue-500" /> :
                            att.file_type === 'audio' ? <Music className="w-5 h-5 text-purple-500" /> :
+                           att.file_type === 'link' ? <LinkIcon className="w-5 h-5 text-blue-500" /> :
                            <FileText className="w-5 h-5 text-brand-500" />}
                           <span className="text-sm text-gray-700 dark:text-gray-300 truncate font-medium">{att.file_name || att.file_url}</span>
                         </div>
@@ -267,7 +252,6 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
                   </div>
                 )}
 
-                {/* Adicionar Novos Arquivos */}
                 <div className="space-y-4 mb-6">
                   <p className="text-xs font-bold text-gray-400 uppercase">Adicionar Arquivos</p>
                   <motion.label 
@@ -313,7 +297,6 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
                   )}
                 </div>
 
-                {/* Adicionar Novos Links */}
                 <div className="space-y-3">
                   <p className="text-xs font-bold text-gray-400 uppercase">Adicionar Links</p>
                   <div className="flex gap-2">
@@ -338,16 +321,16 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
                     </motion.button>
                   </div>
                   
-                  {currentLinksToAdd.length > 0 && (
+                  {linksToAdd.length > 0 && (
                     <motion.div 
                       initial={{ opacity: 0, y: 10 }} 
                       animate={{ opacity: 1, y: 0 }} 
                       transition={{ duration: 0.3 }}
                       className="space-y-2"
                     >
-                      {currentLinksToAdd.map((l, i) => (
+                      {linksToAdd.map((link, i) => (
                         <div key={i} className="flex items-center justify-between p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-900/30">
-                          <span className="text-xs font-medium text-blue-700 dark:text-blue-300 truncate max-w-[400px]">{l.url}</span>
+                          <span className="text-xs font-medium text-blue-700 dark:text-blue-300 truncate max-w-[400px]">{link}</span>
                           <button type="button" onClick={() => handleRemoveLinkToAdd(i)} className="text-red-500 p-1"><X className="w-4 h-4" /></button>
                         </div>
                       ))}
@@ -356,7 +339,6 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
                 </div>
               </motion.div>
 
-              {/* Campos de Título, Descrição e Conteúdo - AGORA ABAIXO DOS ANEXOS */}
               <motion.div 
                 initial={{ opacity: 0, y: 10 }} 
                 animate={{ opacity: 1, y: 0 }} 
