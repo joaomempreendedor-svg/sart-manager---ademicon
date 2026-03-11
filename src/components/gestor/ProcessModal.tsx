@@ -15,7 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useApp } from '@/context/AppContext';
 import { toast } from 'sonner'; // Using Sonner for toasts
-import { motion, AnimatePresence } => 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
