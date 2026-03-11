@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { HashRouter, Routes, Route, Outlet, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from '@/context/AppContext';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
@@ -6,10 +6,9 @@ import { UserRole } from '@/types';
 import { Toaster } from '@/components/ui/sonner'; // Importar Sonner Toaster
 
 // Layouts
-import { GestorSidebar } from '@/components/GestorSidebar';
 import { ConsultorLayout } from '@/components/ConsultorLayout';
-import { Header } from '@/components/Header';
 import { GestorLayout } from '@/components/GestorLayout'; // Importar GestorLayout
+import { ProtectedLayout } from '@/layouts/ProtectedLayout'; // NOVO: Importar ProtectedLayout
 
 // Common Pages
 import { Login } from '@/pages/Login';
@@ -63,53 +62,7 @@ import ColdCallPage from '@/pages/consultor/ColdCallPage'; // NOVO: Importar Col
 import { SecretariaDashboard } from '@/pages/secretaria/SecretariaDashboard';
 import { SecretariaDailyChecklist } from '@/pages/secretaria/SecretariaDailyChecklist'; // NOVO: Importar a página de checklist da secretaria
 
-const AppLoader = () => (
-  <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-slate-900">
-    <Loader2 className="w-12 h-12 text-brand-500 animate-spin" />
-  </div>
-);
-
-const RequireAuth: React.FC<{ allowedRoles: UserRole[] }> = ({ allowedRoles }) => {
-  const { user, isLoading: isAuthLoading } = useAuth();
-  const { isDataLoading } = useApp();
-  const location = useLocation();
-
-  // Todos os hooks devem ser chamados incondicionalmente no nível superior do componente.
-  // A lógica condicional para renderização/navegação vem depois.
-
-  if (isAuthLoading || isDataLoading) {
-    return <AppLoader />;
-  }
-
-  if (!user) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
-  }
-
-  // Verifica a necessidade de troca de senha
-  if (user.needs_password_change && location.pathname !== '/profile') {
-    return <Navigate to="/profile" replace />;
-  }
-
-  // Verifica se o usuário consultor está ativo
-  if (user.role === 'CONSULTOR' && user.isActive === false) {
-    return <Navigate to="/pending-approval" replace />;
-  }
-
-  // Verifica se o usuário tem a role permitida para a rota atual
-  if (!allowedRoles.includes(user.role)) {
-    // Redireciona para o dashboard padrão do usuário se não for permitido para esta rota
-    if (user.role === 'SECRETARIA') return <Navigate to="/secretaria/dashboard" replace />;
-    if (user.role === 'CONSULTOR') return <Navigate to="/consultor/dashboard" replace />;
-    return <Navigate to="/gestor/dashboard" replace />;
-  }
-
-  return <Outlet />;
-};
-
 const AppRoutes = () => {
-  const { isLoading } = useAuth();
-  if (isLoading) return <AppLoader />;
-
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
@@ -120,12 +73,12 @@ const AppRoutes = () => {
       <Route path="/public-form" element={<PublicForm />} />
       <Route path="/public-process/:processId" element={<PublicProcessView />} /> {/* NOVO: Rota pública para processos */}
       
-      <Route element={<RequireAuth allowedRoles={['GESTOR', 'ADMIN', 'CONSULTOR', 'SECRETARIA']} />}>
+      <Route element={<ProtectedLayout allowedRoles={['GESTOR', 'ADMIN', 'CONSULTOR', 'SECRETARIA']} />}>
         <Route path="/" element={<Home />} />
       </Route>
 
       {/* Rotas para GESTOR, ADMIN e SECRETARIA que usam o MainLayout */}
-      <Route element={<RequireAuth allowedRoles={['GESTOR', 'ADMIN', 'SECRETARIA']} />}>
+      <Route element={<ProtectedLayout allowedRoles={['GESTOR', 'ADMIN', 'SECRETARIA']} />}>
         <Route path="/gestor" element={<GestorLayout />}>
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="candidate/:id" element={<CandidateDetail />} /> {/* Agora acessível por Gestor, Admin e Secretaria */}
@@ -169,7 +122,7 @@ const AppRoutes = () => {
       </Route>
 
       {/* Rotas para CONSULTOR que usam o ConsultorLayout */}
-      <Route element={<RequireAuth allowedRoles={['CONSULTOR']} />}>
+      <Route element={<ProtectedLayout allowedRoles={['CONSULTOR']} />}>
         <Route path="/consultor" element={<ConsultorLayout />}>
           <Route path="dashboard" element={<ConsultorDashboard />} />
           <Route path="crm" element={<ConsultorCrmPage />} />
@@ -181,7 +134,7 @@ const AppRoutes = () => {
       </Route>
       
       {/* Página de Perfil, acessível por todos os usuários autenticados, usando ConsultorLayout */}
-      <Route element={<RequireAuth allowedRoles={['GESTOR', 'ADMIN', 'CONSULTOR', 'SECRETARIA']} />}>
+      <Route element={<ProtectedLayout allowedRoles={['GESTOR', 'ADMIN', 'CONSULTOR', 'SECRETARIA']} />}>
         <Route path="/profile" element={<ConsultorLayout />}>
           <Route index element={<Profile />} />
         </Route>
