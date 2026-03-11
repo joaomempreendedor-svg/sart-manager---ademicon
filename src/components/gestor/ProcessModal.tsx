@@ -16,10 +16,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { useApp } from '@/context/AppContext';
 import { toast } from 'sonner'; // Using Sonner for toasts
 import { motion, AnimatePresence } from 'framer-motion';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
 
 interface ProcessModalProps {
@@ -49,7 +48,7 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const { register, handleSubmit, control, reset, setValue, watch, formState: { errors, isDirty } } = useForm<FormData>({
+  const { register, handleSubmit, reset, formState: { errors, isDirty } } = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       title: '',
@@ -220,7 +219,7 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
         </div>
         
         <form onSubmit={handleSubmit(onSubmit)} className="flex-1 flex flex-col overflow-hidden">
-          <ScrollArea className="flex-1 custom-scrollbar">
+          <div className="flex-1 overflow-y-auto custom-scrollbar">
             <div className="grid gap-6 p-6">
               <motion.div 
                 initial={{ opacity: 0, y: 10 }} 
@@ -394,7 +393,7 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
                 </div>
               </motion.div>
             </div>
-          </ScrollArea>
+          </div>
           
           <div className="p-6 border-t border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/50 shrink-0">
             {Object.keys(errors).length > 0 && <p className="text-red-500 text-sm mb-4 flex items-center font-medium"><XCircle className="w-4 h-4 mr-2" />Por favor, corrija os erros no formulário.</p>}
