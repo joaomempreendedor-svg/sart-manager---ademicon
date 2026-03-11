@@ -236,66 +236,12 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
         <form onSubmit={handleSubmit(onSubmit)} className="flex-1 flex flex-col overflow-hidden">
           <ScrollArea className="flex-1 py-4 px-6 custom-scrollbar">
             <div className="grid gap-6 pb-6">
+              {/* Anexos e Links de Apoio - MOVIDO PARA O TOPO */}
               <motion.div 
                 initial={{ opacity: 0, y: 10 }} 
                 animate={{ opacity: 1, y: 0 }} 
                 transition={{ duration: 0.3 }}
-                className="space-y-2"
-              >
-                <Label htmlFor="title">Título *</Label>
-                <div className="relative">
-                  <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <Input
-                    id="title"
-                    {...register('title')}
-                    className={`pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600 ${errors.title ? 'border-red-500' : ''}`}
-                    placeholder="Ex: Processo de Venda de Consórcio"
-                  />
-                  {errors.title && <p className="text-red-500 text-xs mt-1">{errors.title.message}</p>}
-                </div>
-              </motion.div>
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }} 
-                animate={{ opacity: 1, y: 0 }} 
-                transition={{ duration: 0.3, delay: 0.1 }}
-                className="space-y-2"
-              >
-                <Label htmlFor="description">Descrição (Opcional)</Label>
-                <div className="relative">
-                  <MessageSquare className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-                  <Textarea
-                    id="description"
-                    {...register('description')}
-                    rows={2}
-                    className="pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600"
-                    placeholder="Uma breve descrição sobre o objetivo deste processo."
-                  />
-                </div>
-              </motion.div>
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }} 
-                animate={{ opacity: 1, y: 0 }} 
-                transition={{ duration: 0.3, delay: 0.2 }}
-                className="space-y-2"
-              >
-                <Label htmlFor="content">Conteúdo do Processo</Label>
-                <div className="relative">
-                  <FileText className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-                  <Textarea
-                    id="content"
-                    {...register('content')}
-                    rows={6}
-                    className="pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600"
-                    placeholder="Descreva o passo a passo do processo aqui..."
-                  />
-                </div>
-              </motion.div>
-
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }} 
-                animate={{ opacity: 1, y: 0 }} 
-                transition={{ duration: 0.3, delay: 0.3 }}
-                className="border-t border-gray-200 dark:border-slate-700 pt-6"
+                className="border-b border-gray-200 dark:border-slate-700 pb-6"
               >
                 <Label className="mb-4 block font-bold text-gray-900 dark:text-white text-base">Anexos e Links de Apoio</Label>
                 
@@ -409,6 +355,62 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
                   )}
                 </div>
               </motion.div>
+
+              {/* Campos de Título, Descrição e Conteúdo - AGORA ABAIXO DOS ANEXOS */}
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }} 
+                animate={{ opacity: 1, y: 0 }} 
+                transition={{ duration: 0.3, delay: 0.1 }}
+                className="space-y-2"
+              >
+                <Label htmlFor="title">Título *</Label>
+                <div className="relative">
+                  <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Input
+                    id="title"
+                    {...register('title')}
+                    className={`pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600 ${errors.title ? 'border-red-500' : ''}`}
+                    placeholder="Ex: Processo de Venda de Consórcio"
+                  />
+                  {errors.title && <p className="text-red-500 text-xs mt-1">{errors.title.message}</p>}
+                </div>
+              </motion.div>
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }} 
+                animate={{ opacity: 1, y: 0 }} 
+                transition={{ duration: 0.3, delay: 0.2 }}
+                className="space-y-2"
+              >
+                <Label htmlFor="description">Descrição (Opcional)</Label>
+                <div className="relative">
+                  <MessageSquare className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+                  <Textarea
+                    id="description"
+                    {...register('description')}
+                    rows={2}
+                    className="pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                    placeholder="Uma breve descrição sobre o objetivo deste processo."
+                  />
+                </div>
+              </motion.div>
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }} 
+                animate={{ opacity: 1, y: 0 }} 
+                transition={{ duration: 0.3, delay: 0.3 }}
+                className="space-y-2"
+              >
+                <Label htmlFor="content">Conteúdo do Processo</Label>
+                <div className="relative">
+                  <FileText className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+                  <Textarea
+                    id="content"
+                    {...register('content')}
+                    rows={6}
+                    className="pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                    placeholder="Descreva o passo a passo do processo aqui..."
+                  />
+                </div>
+              </motion.div>
             </div>
           </ScrollArea>
           
@@ -421,7 +423,7 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
               <motion.button 
                 type="submit" 
                 disabled={isSaving} 
-                className="bg-brand-600 hover:bg-brand-700 text-white min-w-[140px] w-full sm:w-auto flex items-center justify-center space-x-2 rounded-lg"
+                className="bg-brand-600 hover:bg-brand-700 text-white min-w-[140px] w-full sm:w-auto flex items-center justify-center space-x-2 rounded-lg shadow-lg shadow-brand-600/20"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
