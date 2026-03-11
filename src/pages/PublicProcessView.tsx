@@ -213,7 +213,7 @@ export const PublicProcessView = () => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-slate-900 font-sans text-gray-900 dark:text-gray-100 transition-colors duration-200">
       <header className="bg-white dark:bg-slate-800 shadow-sm">
-        <div className="max-w-5xl mx-auto py-6 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
+        <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 flex justify-between items-center"> {/* Aumentado max-w */}
           <div className="flex items-center space-x-3">
             <div className="bg-brand-500 text-white p-2 rounded-lg">
               <TrendingUp className="w-6 h-6" strokeWidth={3} />
@@ -222,46 +222,43 @@ export const PublicProcessView = () => {
           </div>
         </div>
       </header>
-      <main className="max-w-5xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-md border border-gray-200 dark:border-slate-700">
-          <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{process.title}</h2>
+      <main className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8"> {/* Aumentado max-w e padding */}
+        <div className="bg-white dark:bg-slate-800 p-8 rounded-xl shadow-md border border-gray-200 dark:border-slate-700"> {/* Aumentado padding */}
+          <h2 className="text-4xl font-extrabold text-gray-900 dark:text-white mb-4 leading-tight">{process.title}</h2> {/* Aumentado tamanho do título */}
           {process.description && (
-            <p className="text-lg text-gray-500 dark:text-gray-400 mb-4">{process.description}</p>
+            <p className="text-xl text-gray-500 dark:text-gray-400 mb-8 leading-relaxed">{process.description}</p> {/* Aumentado tamanho e espaçamento */}
           )}
           
-          {/* Consolidated main content area */}
-          <div className="flex-1 flex flex-col overflow-hidden">
-            <ScrollArea className="h-[calc(100vh-20rem)] pr-4 custom-scrollbar">
-              <div className="space-y-8">
-                {/* Main Content */}
-                {process.content && (
-                  <div>
-                    <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center space-x-2">
-                      <BookText className="w-5 h-5 text-brand-500" />
-                      <span>Conteúdo Principal</span>
-                    </h3>
-                    <div className="prose dark:prose-invert max-w-none text-gray-800 dark:text-gray-200 leading-relaxed bg-gray-50 dark:bg-slate-900/50 p-6 rounded-xl border border-gray-100 dark:border-slate-700">
-                      {/* Using dangerouslySetInnerHTML for rich text, assuming content might contain HTML */}
-                      <div dangerouslySetInnerHTML={{ __html: process.content }} />
-                    </div>
+          <ScrollArea className="h-[calc(100vh-20rem)] pr-4 custom-scrollbar">
+            <div className="space-y-12"> {/* Aumentado espaçamento entre seções */}
+              {/* Main Content */}
+              {process.content && (
+                <div>
+                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center space-x-3"> {/* Aumentado tamanho do subtítulo */}
+                    <BookText className="w-6 h-6 text-brand-500" />
+                    <span>Conteúdo Principal</span>
+                  </h3>
+                  <div className="prose prose-lg dark:prose-invert max-w-none text-gray-800 dark:text-gray-200 leading-relaxed bg-gray-50 dark:bg-slate-900/50 p-8 rounded-xl border border-gray-100 dark:border-slate-700 shadow-inner"> {/* Aumentado padding, adicionado shadow-inner */}
+                    {/* Using dangerouslySetInnerHTML for rich text, assuming content might contain HTML */}
+                    <div dangerouslySetInnerHTML={{ __html: process.content }} />
                   </div>
-                )}
+                </div>
+              )}
 
-                {/* Attachments / Resources */}
-                {process.attachments && process.attachments.length > 0 && (
-                  <div>
-                    <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center space-x-2">
-                      <Paperclip className="w-5 h-5 text-brand-500" />
-                      <span>Recursos de Apoio</span>
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {process.attachments.map(att => renderAttachment(att))}
-                    </div>
+              {/* Attachments / Resources */}
+              {process.attachments && process.attachments.length > 0 && (
+                <div>
+                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center space-x-3"> {/* Aumentado tamanho do subtítulo */}
+                    <Paperclip className="w-6 h-6 text-brand-500" />
+                    <span>Recursos de Apoio</span>
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6"> {/* Aumentado espaçamento do grid */}
+                    {process.attachments.map(att => renderAttachment(att))}
                   </div>
-                )}
-              </div>
-            </ScrollArea>
-          </div>
+                </div>
+              )}
+            </div>
+          </ScrollArea>
         </div>
       </main>
     </div>
