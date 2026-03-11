@@ -210,17 +210,15 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-2xl bg-white dark:bg-slate-800 dark:text-white p-0 overflow-hidden flex flex-col max-h-[95vh] shadow-xl border border-gray-200 dark:border-slate-700">
-        <div className="p-6 border-b border-gray-100 dark:border-slate-700 shrink-0">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-bold">{process ? 'Editar Processo' : 'Novo Processo'}</DialogTitle>
-            <DialogDescription>
-              {process ? 'Edite os detalhes deste processo.' : 'Crie um novo documento de processo interno.'}
-            </DialogDescription>
-          </DialogHeader>
-        </div>
+        <DialogHeader className="p-6 border-b border-gray-100 dark:border-slate-700 shrink-0">
+          <DialogTitle className="text-2xl font-bold">{process ? 'Editar Processo' : 'Novo Processo'}</DialogTitle>
+          <DialogDescription>
+            {process ? 'Edite os detalhes deste processo.' : 'Crie um novo documento de processo interno.'}
+          </DialogDescription>
+        </DialogHeader>
         
         <form onSubmit={handleSubmit(onSubmit)} className="flex-1 flex flex-col overflow-hidden">
-          <ScrollArea className="flex-1 custom-scrollbar">
+          <div className="flex-1 overflow-y-auto custom-scrollbar">
             <div className="grid gap-6 p-6">
               <motion.div 
                 initial={{ opacity: 0, y: 10 }} 
@@ -394,7 +392,7 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
                 </div>
               </motion.div>
             </div>
-          </ScrollArea>
+          </div>
           
           <div className="p-6 border-t border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/50 shrink-0">
             {Object.keys(errors).length > 0 && <p className="text-red-500 text-sm mb-4 flex items-center font-medium"><XCircle className="w-4 h-4 mr-2" />Por favor, corrija os erros no formulário.</p>}
