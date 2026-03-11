@@ -3,6 +3,7 @@ import { HashRouter, Routes, Route, Outlet, Navigate, useLocation } from 'react-
 import { AppProvider, useApp } from '@/context/AppContext';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { UserRole } from '@/types';
+import { Toaster } from '@/components/ui/sonner'; // Importar Sonner Toaster
 
 // Layouts
 import { GestorSidebar } from '@/components/GestorSidebar';

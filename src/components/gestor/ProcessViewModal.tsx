@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, FileText, Image as ImageIcon, Download, Link as LinkIcon, Copy, Check, Video, Music, ExternalLink, BookText, Paperclip } from 'lucide-react';
+import { X, FileText, Image as ImageIcon, Download, Link as LinkIcon, Copy, Check, Video, Music, ExternalLink, BookText, Paperclip, Share2 } from 'lucide-react';
 import { Process, ProcessAttachment } from '@/types';
 import {
   Dialog,
@@ -11,8 +11,10 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner'; // Using Sonner for toasts
 import YouTube from 'react-youtube';
+import { QRCodeGenerator } from '@/components/ui/qr-code'; // Import QR Code component
+import { motion } from 'framer-motion';
 
 interface ProcessViewModalProps {
   isOpen: boolean;
@@ -28,6 +30,7 @@ const getYouTubeID = (url: string): string | null => {
 
 export const ProcessViewModal: React.FC<ProcessViewModalProps> = ({ isOpen, onClose, process }) => {
   const [copiedLink, setCopiedLink] = React.useState(false);
+  const [showShareOptions, setShowShareOptions] = React.useState(false);
 
   if (!isOpen || !process) return null;
 
@@ -36,8 +39,8 @@ export const ProcessViewModal: React.FC<ProcessViewModalProps> = ({ isOpen, onCl
   const handleCopyLink = () => {
     navigator.clipboard.writeText(shareableLink);
     setCopiedLink(true);
-    setTimeout(() => setCopiedLink(false), 2000);
     toast.success("Link copiado para a área de transferência!");
+    setTimeout(() => setCopiedLink(false), 2000);
   };
 
   const handleDownloadFile = async (fileUrl: string, fileName: string) => {
@@ -70,7 +73,13 @@ export const ProcessViewModal: React.FC<ProcessViewModalProps> = ({ isOpen, onCl
         const youtubeId = getYouTubeID(att.file_url);
         if (youtubeId) {
           return (
-            <div key={att.id} className="bg-black rounded-xl overflow-hidden shadow-lg">
+            <motion.div 
+              key={att.id} 
+              initial={{ opacity: 0, y: 20 }} 
+              animate={{ opacity: 1, y: 0 }} 
+              transition={{ duration: 0.4 }}
+              className="bg-black rounded-xl overflow-hidden shadow-lg"
+            >
               <YouTube
                 videoId={youtubeId}
                 className="w-full h-full aspect-video"
@@ -81,11 +90,17 @@ export const ProcessViewModal: React.FC<ProcessViewModalProps> = ({ isOpen, onCl
                 <Video className="w-4 h-4" />
                 <span>{fileName}</span>
               </div>
-            </div>
+            </motion.div>
           );
         }
         return (
-          <div key={att.id} className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-800 flex items-center justify-between">
+          <motion.div 
+            key={att.id} 
+            initial={{ opacity: 0, y: 20 }} 
+            animate={{ opacity: 1, y: 0 }} 
+            transition={{ duration: 0.4 }}
+            className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-800 flex items-center justify-between"
+          >
             <div className="flex items-center space-x-3 overflow-hidden">
               <LinkIcon className="w-5 h-5 text-blue-500 shrink-0" />
               <div className="overflow-hidden">
@@ -98,11 +113,17 @@ export const ProcessViewModal: React.FC<ProcessViewModalProps> = ({ isOpen, onCl
             <a href={att.file_url} target="_blank" rel="noopener noreferrer" className="p-2 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/40 rounded-full">
               <ExternalLink className="w-4 h-4" />
             </a>
-          </div>
+          </motion.div>
         );
       case 'image':
         return (
-          <div key={att.id} className="bg-gray-50 dark:bg-slate-700/50 rounded-xl border border-gray-200 dark:border-slate-600 overflow-hidden shadow-sm">
+          <motion.div 
+            key={att.id} 
+            initial={{ opacity: 0, y: 20 }} 
+            animate={{ opacity: 1, y: 0 }} 
+            transition={{ duration: 0.4 }}
+            className="bg-gray-50 dark:bg-slate-700/50 rounded-xl border border-gray-200 dark:border-slate-600 overflow-hidden shadow-sm"
+          >
             <img src={att.file_url} alt={fileName} className="w-full h-auto object-cover max-h-96" />
             <div className="p-3 flex items-center justify-between border-t border-gray-200 dark:border-slate-600">
               <div className="flex items-center space-x-2">
@@ -113,11 +134,17 @@ export const ProcessViewModal: React.FC<ProcessViewModalProps> = ({ isOpen, onCl
                 <Download className="w-4 h-4" />
               </Button>
             </div>
-          </div>
+          </motion.div>
         );
       case 'pdf':
         return (
-          <div key={att.id} className="p-4 bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-100 dark:border-red-800 flex items-center justify-between">
+          <motion.div 
+            key={att.id} 
+            initial={{ opacity: 0, y: 20 }} 
+            animate={{ opacity: 1, y: 0 }} 
+            transition={{ duration: 0.4 }}
+            className="p-4 bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-100 dark:border-red-800 flex items-center justify-between"
+          >
             <div className="flex items-center space-x-3 overflow-hidden">
               <FileText className="w-5 h-5 text-red-500 shrink-0" />
               <div className="overflow-hidden">
@@ -133,11 +160,17 @@ export const ProcessViewModal: React.FC<ProcessViewModalProps> = ({ isOpen, onCl
                 <Download className="w-4 h-4" />
               </Button>
             </div>
-          </div>
+          </motion.div>
         );
       case 'audio':
         return (
-          <div key={att.id} className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-xl border border-purple-100 dark:border-purple-800 flex flex-col space-y-3">
+          <motion.div 
+            key={att.id} 
+            initial={{ opacity: 0, y: 20 }} 
+            animate={{ opacity: 1, y: 0 }} 
+            transition={{ duration: 0.4 }}
+            className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-xl border border-purple-100 dark:border-purple-800 flex flex-col space-y-3"
+          >
             <div className="flex items-center space-x-3">
               <Music className="w-5 h-5 text-purple-500 shrink-0" />
               <p className="text-sm font-semibold text-purple-900 dark:text-purple-100 truncate">{fileName}</p>
@@ -148,11 +181,17 @@ export const ProcessViewModal: React.FC<ProcessViewModalProps> = ({ isOpen, onCl
                 <Download className="w-4 h-4" />
               </Button>
             </div>
-          </div>
+          </motion.div>
         );
       default:
         return (
-          <div key={att.id} className="p-4 bg-gray-50 dark:bg-slate-700/50 rounded-xl border border-gray-200 dark:border-slate-600 flex items-center justify-between">
+          <motion.div 
+            key={att.id} 
+            initial={{ opacity: 0, y: 20 }} 
+            animate={{ opacity: 1, y: 0 }} 
+            transition={{ duration: 0.4 }}
+            className="p-4 bg-gray-50 dark:bg-slate-700/50 rounded-xl border border-gray-200 dark:border-slate-600 flex items-center justify-between"
+          >
             <div className="flex items-center space-x-3 overflow-hidden">
               <BookText className="w-5 h-5 text-gray-500 shrink-0" />
               <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{fileName}</p>
@@ -160,14 +199,14 @@ export const ProcessViewModal: React.FC<ProcessViewModalProps> = ({ isOpen, onCl
             <Button variant="ghost" size="icon" onClick={() => handleDownloadFile(att.file_url, fileName)} className="text-gray-400 hover:text-brand-500">
               <Download className="w-4 h-4" />
             </Button>
-          </div>
+          </motion.div>
         );
     }
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-5xl bg-white dark:bg-slate-800 dark:text-white p-0 overflow-hidden flex flex-col max-h-[95vh]">
+      <DialogContent className="sm:max-w-5xl bg-white dark:bg-slate-800 dark:text-white p-0 overflow-hidden flex flex-col max-h-[95vh] shadow-xl border border-gray-200 dark:border-slate-700">
         <DialogHeader className="px-6 py-4 border-b border-gray-100 dark:border-slate-700 shrink-0">
           <DialogTitle className="text-2xl font-bold">{process.title}</DialogTitle>
           {process.description && (
@@ -177,35 +216,43 @@ export const ProcessViewModal: React.FC<ProcessViewModalProps> = ({ isOpen, onCl
           )}
         </DialogHeader>
         
-        {/* Consolidated main content area */}
         <div className="flex-1 flex flex-col overflow-hidden">
           <ScrollArea className="flex-1 py-4 px-6 custom-scrollbar">
             <div className="space-y-8">
               {/* Main Content */}
               {process.content && (
-                <div>
+                <motion.div 
+                  initial={{ opacity: 0, y: 20 }} 
+                  animate={{ opacity: 1, y: 0 }} 
+                  transition={{ duration: 0.5 }}
+                >
                   <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center space-x-2">
                     <BookText className="w-5 h-5 text-brand-500" />
                     <span>Conteúdo Principal</span>
                   </h3>
-                  <div className="prose dark:prose-invert max-w-none text-gray-800 dark:text-gray-200 leading-relaxed bg-gray-50 dark:bg-slate-900/50 p-6 rounded-xl border border-gray-100 dark:border-slate-700">
-                    {/* Using dangerouslySetInnerHTML for rich text, assuming content might contain HTML */}
+                  <div className="prose dark:prose-invert max-w-none text-gray-800 dark:text-gray-200 leading-relaxed bg-gray-50 dark:bg-slate-900/50 p-6 rounded-xl border border-gray-100 dark:border-slate-700 shadow-inner">
                     <div dangerouslySetInnerHTML={{ __html: process.content }} />
                   </div>
-                </div>
+                </motion.div>
               )}
 
               {/* Attachments / Resources */}
               {process.attachments && process.attachments.length > 0 && (
-                <div>
+                <motion.div 
+                  initial={{ opacity: 0, y: 20 }} 
+                  animate={{ opacity: 1, y: 0 }} 
+                  transition={{ duration: 0.5, delay: 0.2 }}
+                >
                   <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center space-x-2">
                     <Paperclip className="w-5 h-5 text-brand-500" />
                     <span>Recursos de Apoio</span>
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {process.attachments.map(att => renderAttachment(att))}
+                    <AnimatePresence>
+                      {process.attachments.map(att => renderAttachment(att))}
+                    </AnimatePresence>
                   </div>
-                </div>
+                </motion.div>
               )}
             </div>
           </ScrollArea>
@@ -214,23 +261,48 @@ export const ProcessViewModal: React.FC<ProcessViewModalProps> = ({ isOpen, onCl
             <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center">
               <LinkIcon className="w-4 h-4 mr-2" /> Link de Compartilhamento
             </h3>
-            <div className="flex items-center space-x-3">
+            <div className="flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 sm:space-x-3">
               <input
                 type="text"
                 readOnly
                 value={shareableLink}
-                className="flex-1 p-2 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-lg text-gray-800 dark:text-gray-200 text-xs font-mono"
+                className="flex-1 p-2 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-lg text-gray-800 dark:text-gray-200 text-xs font-mono w-full"
               />
-              <Button
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
                 onClick={handleCopyLink}
-                className="p-2 bg-brand-500 text-white rounded-lg hover:bg-brand-600 transition"
+                className="p-2 bg-brand-500 text-white rounded-lg hover:bg-brand-600 transition w-full sm:w-auto"
                 title="Copiar Link"
               >
-                {copiedLink ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-              </Button>
+                {copiedLink ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setShowShareOptions(!showShareOptions)}
+                className="p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition w-full sm:w-auto"
+                title="Compartilhar"
+              >
+                <Share2 className="w-5 h-5" />
+              </motion.button>
             </div>
+            <AnimatePresence>
+              {showShareOptions && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.3, ease: "easeInOut" }}
+                  className="overflow-hidden mt-4 p-4 bg-gray-50 dark:bg-slate-700/50 rounded-lg border border-gray-200 dark:border-slate-600 flex flex-col items-center space-y-4"
+                >
+                  <p className="text-sm font-medium text-gray-700 dark:text-gray-200">Compartilhe este processo via QR Code:</p>
+                  <QRCodeGenerator value={shareableLink} size={160} fgColor="#ff7a00" bgColor="#ffffff" className="p-2 bg-white rounded-lg shadow-md" />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
-        </div> {/* End of new wrapper div */}
+        </div>
 
         <DialogFooter className="px-6 py-4 border-t border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/50 shrink-0">
           <Button onClick={onClose} className="bg-brand-600 hover:bg-brand-700 text-white w-full sm:w-auto">

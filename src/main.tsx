@@ -1,7 +1,8 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
-import ToastProvider from './components/ToastProvider'; // Importar ToastProvider
+import { Toaster } from './components/ui/sonner'; // Importar Sonner Toaster
+import './index.css';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -11,7 +12,7 @@ if (!rootElement) {
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
-    <ToastProvider /> {/* Adicionar ToastProvider aqui */}
+    <Toaster /> {/* Adicionar Sonner Toaster aqui */}
     <App />
   </React.StrictMode>
 );

@@ -2,11 +2,12 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Process, ProcessAttachment } from '@/types';
-import { Loader2, FileText, Image as ImageIcon, Download, Link as LinkIcon, AlertTriangle, TrendingUp, Video, Music, ExternalLink, BookText, Paperclip } from 'lucide-react';
+import { Loader2, FileText, Image as ImageIcon, Download, Link as LinkIcon, AlertTriangle, TrendingUp, Video, Music, ExternalLink, BookText, Paperclip, Sun, Moon } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner'; // Using Sonner for toasts
 import YouTube from 'react-youtube';
+import { motion, useScroll, useSpring } from 'framer-motion'; // Import Framer Motion hooks
 
 const getYouTubeID = (url: string): string | null => {
   const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
@@ -19,6 +20,31 @@ export const PublicProcessView = () => {
   const [process, setProcess] = useState<Process | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    if (typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      return 'dark';
+    }
+    return 'light';
+  });
+
+  const { scrollYProgress } = useScroll();
+  const scaleX = useSpring(scrollYProgress, {
+    stiffness: 100,
+    damping: 30,
+    restDelta: 0.001
+  });
+
+  const toggleTheme = useCallback(() => {
+    setTheme(prev => {
+      const newTheme = prev === 'light' ? 'dark' : 'light';
+      document.documentElement.classList.toggle('dark', newTheme === 'dark');
+      return newTheme;
+    });
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', theme === 'dark');
+  }, [theme]);
 
   const fetchProcess = useCallback(async () => {
     if (!processId) {
@@ -28,7 +54,6 @@ export const PublicProcessView = () => {
     }
 
     try {
-      // 1. Busca os dados básicos do processo
       const { data: processData, error: processError } = await supabase
         .from('processes')
         .select('*')
@@ -38,7 +63,6 @@ export const PublicProcessView = () => {
       if (processError) throw processError;
       if (!processData) throw new Error("Processo não encontrado.");
 
-      // 2. Busca os anexos separadamente para evitar erro de relacionamento (join)
       const { data: attachmentsData, error: attachmentsError } = await supabase
         .from('process_attachments')
         .select('*')
@@ -212,57 +236,76 @@ export const PublicProcessView = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-slate-900 font-sans text-gray-900 dark:text-gray-100 transition-colors duration-200">
-      <header className="bg-white dark:bg-slate-800 shadow-sm">
-        <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 flex justify-between items-center"> {/* Aumentado max-w */}
+      <motion.div className="fixed top-0 left-0 right-0 h-1 bg-brand-500 z-50 origin-[0%] rounded-full" style={{ scaleX }} />
+      <header className="bg-white dark:bg-slate-800 shadow-sm sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
           <div className="flex items-center space-x-3">
             <div className="bg-brand-500 text-white p-2 rounded-lg">
               <TrendingUp className="w-6 h-6" strokeWidth={3} />
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Processos Internos</h1>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-white">Processos Internos</h1>
           </div>
+          <button 
+            onClick={toggleTheme} 
+            className="p-2 rounded-full text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
+            title="Alternar Tema"
+          >
+            {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+          </button>
         </div>
       </header>
-      <main className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8"> {/* Aumentado max-w e padding */}
-        <div className="bg-white dark:bg-slate-800 p-8 rounded-xl shadow-md border border-gray-200 dark:border-slate-700"> {/* Aumentado padding */}
-          <h2 className="text-4xl font-extrabold text-gray-900 dark:text-white mb-4 leading-tight">{process.title}</h2> {/* Aumentado tamanho do título */}
+      <main className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }} 
+          animate={{ opacity: 1, y: 0 }} 
+          transition={{ duration: 0.6 }}
+          className="bg-white dark:bg-slate-800 p-8 rounded-xl shadow-md border border-gray-200 dark:border-slate-700"
+        >
+          <h2 className="text-4xl font-extrabold text-gray-900 dark:text-white mb-4 leading-tight">{process.title}</h2>
           {process.description && (
-            <p className="text-xl text-gray-500 dark:text-gray-400 mb-8 leading-relaxed">{process.description}</p> /* Aumentado tamanho e espaçamento */
+            <p className="text-xl text-gray-500 dark:text-gray-400 mb-8 leading-relaxed">{process.description}</p>
           )}
           
-          {/* Consolidated main content area */}
           <div className="flex-1 flex flex-col overflow-hidden">
-            <ScrollArea className="h-[calc(100vh-20rem)] pr-4 custom-scrollbar">
-              <div className="space-y-12"> {/* Aumentado espaçamento entre seções */}
+            <ScrollArea className="h-auto max-h-[calc(100vh-20rem)] pr-4 custom-scrollbar">
+              <div className="space-y-12">
                 {/* Main Content */}
                 {process.content && (
-                  <div>
-                    <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center space-x-3"> {/* Aumentado tamanho do subtítulo */}
+                  <motion.div 
+                    initial={{ opacity: 0, y: 20 }} 
+                    animate={{ opacity: 1, y: 0 }} 
+                    transition={{ duration: 0.5 }}
+                  >
+                    <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center space-x-3">
                       <BookText className="w-6 h-6 text-brand-500" />
                       <span>Conteúdo Principal</span>
                     </h3>
-                    <div className="prose prose-lg dark:prose-invert max-w-none text-gray-800 dark:text-gray-200 leading-relaxed bg-gray-50 dark:bg-slate-900/50 p-8 rounded-xl border border-gray-100 dark:border-slate-700 shadow-inner"> {/* Aumentado padding, adicionado shadow-inner */}
-                      {/* Using dangerouslySetInnerHTML for rich text, assuming content might contain HTML */}
+                    <div className="prose prose-lg dark:prose-invert max-w-none text-gray-800 dark:text-gray-200 leading-relaxed bg-gray-50 dark:bg-slate-900/50 p-8 rounded-xl border border-gray-100 dark:border-slate-700 shadow-inner">
                       <div dangerouslySetInnerHTML={{ __html: process.content }} />
                     </div>
-                  </div>
+                  </motion.div>
                 )}
 
                 {/* Attachments / Resources */}
                 {process.attachments && process.attachments.length > 0 && (
-                  <div>
-                    <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center space-x-3"> {/* Aumentado tamanho do subtítulo */}
+                  <motion.div 
+                    initial={{ opacity: 0, y: 20 }} 
+                    animate={{ opacity: 1, y: 0 }} 
+                    transition={{ duration: 0.5, delay: 0.2 }}
+                  >
+                    <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center space-x-3">
                       <Paperclip className="w-6 h-6 text-brand-500" />
                       <span>Recursos de Apoio</span>
                     </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6"> {/* Aumentado espaçamento do grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       {process.attachments.map(att => renderAttachment(att))}
                     </div>
-                  </div>
+                  </motion.div>
                 )}
               </div>
             </ScrollArea>
           </div>
-        </div>
+        </motion.div>
       </main>
     </div>
   );
