@@ -51,7 +51,7 @@ export const ProcessViewModal: React.FC<ProcessViewModalProps> = ({ isOpen, onCl
       link.href = url;
       link.setAttribute('download', fileName);
       document.body.appendChild(link);
-      document.body.removeChild(link);
+      link.removeChild(link); // Remove the element after click
       window.URL.revokeObjectURL(url);
 
       toast.success(`Download de "${fileName}" iniciado.`);
@@ -153,7 +153,6 @@ export const ProcessViewModal: React.FC<ProcessViewModalProps> = ({ isOpen, onCl
           )}
         </DialogHeader>
         
-        {/* Removido o estilo inline maxHeight e alterado my-4 para py-4 */}
         <ScrollArea className="flex-1 py-4 px-6 custom-scrollbar">
           <div className="space-y-6">
             {/* Render all attachments */}

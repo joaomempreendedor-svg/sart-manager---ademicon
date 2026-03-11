@@ -75,8 +75,7 @@ export const PublicProcessView = () => {
       link.href = url;
       link.setAttribute('download', fileName);
       document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      link.removeChild(link); // Remove the element after click
       window.URL.revokeObjectURL(url);
 
       toast.success(`Download de "${fileName}" iniciado.`);
