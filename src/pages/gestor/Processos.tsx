@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { useApp } from '@/context/AppContext';
 import { Process } from '@/types';
 import { Loader2, FileText, Plus, Search, Edit2, Trash2, Eye, Filter, RotateCcw, CalendarDays, Image as ImageIcon, Video, Music, Link as LinkIcon, Grid, List, LayoutDashboard, BarChart3, Clock, Paperclip } from 'lucide-react';
-import toast from 'sonner'; // Using Sonner for toasts
+import { toast } from 'sonner'; // Using Sonner for toasts
 import { ProcessModal } from '@/components/gestor/ProcessModal';
 import { ProcessViewModal } from '@/components/gestor/ProcessViewModal';
 import { motion, AnimatePresence } from 'framer-motion';
