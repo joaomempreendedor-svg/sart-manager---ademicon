@@ -234,7 +234,7 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
         </div>
         
         <form onSubmit={handleSubmit(onSubmit)} className="flex-1 flex flex-col overflow-hidden">
-          <ScrollArea className="flex-1 py-4 px-6 custom-scrollbar max-h-[calc(95vh - 150px)]"> {/* Ajustado para altura máxima */}
+          <ScrollArea className="flex-1 py-4 px-6 custom-scrollbar">
             <div className="grid gap-6 pb-6">
               {/* Anexos e Links de Apoio - MOVIDO PARA O TOPO */}
               <motion.div 
