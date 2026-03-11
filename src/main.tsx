@@ -1,7 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
-import { Toaster } from './components/ui/sonner'; // Importar Toaster como named export
 import './index.css';
 
 const rootElement = document.getElementById('root');
@@ -12,7 +11,7 @@ if (!rootElement) {
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
-    <Toaster /> {/* Adicionar Sonner Toaster aqui */}
+    {/* Toaster moved to App.tsx to be within AppProvider */}
     <App />
   </React.StrictMode>
 );

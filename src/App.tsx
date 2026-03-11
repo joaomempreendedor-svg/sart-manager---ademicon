@@ -148,6 +148,7 @@ const App = () => {
     <HashRouter>
       <AuthProvider>
         <AppProvider>
+          <Toaster /> {/* Adicionar Sonner Toaster aqui */}
           <AppRoutes />
         </AppProvider>
       </AuthProvider>
