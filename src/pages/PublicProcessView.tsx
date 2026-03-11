@@ -226,39 +226,42 @@ export const PublicProcessView = () => {
         <div className="bg-white dark:bg-slate-800 p-8 rounded-xl shadow-md border border-gray-200 dark:border-slate-700"> {/* Aumentado padding */}
           <h2 className="text-4xl font-extrabold text-gray-900 dark:text-white mb-4 leading-tight">{process.title}</h2> {/* Aumentado tamanho do título */}
           {process.description && (
-            <p className="text-xl text-gray-500 dark:text-gray-400 mb-8 leading-relaxed">{process.description}</p> {/* Aumentado tamanho e espaçamento */}
+            <p className="text-xl text-gray-500 dark:text-gray-400 mb-8 leading-relaxed">{process.description}</p> /* Aumentado tamanho e espaçamento */
           )}
           
-          <ScrollArea className="h-[calc(100vh-20rem)] pr-4 custom-scrollbar">
-            <div className="space-y-12"> {/* Aumentado espaçamento entre seções */}
-              {/* Main Content */}
-              {process.content && (
-                <div>
-                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center space-x-3"> {/* Aumentado tamanho do subtítulo */}
-                    <BookText className="w-6 h-6 text-brand-500" />
-                    <span>Conteúdo Principal</span>
-                  </h3>
-                  <div className="prose prose-lg dark:prose-invert max-w-none text-gray-800 dark:text-gray-200 leading-relaxed bg-gray-50 dark:bg-slate-900/50 p-8 rounded-xl border border-gray-100 dark:border-slate-700 shadow-inner"> {/* Aumentado padding, adicionado shadow-inner */}
-                    {/* Using dangerouslySetInnerHTML for rich text, assuming content might contain HTML */}
-                    <div dangerouslySetInnerHTML={{ __html: process.content }} />
+          {/* Consolidated main content area */}
+          <div className="flex-1 flex flex-col overflow-hidden">
+            <ScrollArea className="h-[calc(100vh-20rem)] pr-4 custom-scrollbar">
+              <div className="space-y-12"> {/* Aumentado espaçamento entre seções */}
+                {/* Main Content */}
+                {process.content && (
+                  <div>
+                    <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center space-x-3"> {/* Aumentado tamanho do subtítulo */}
+                      <BookText className="w-6 h-6 text-brand-500" />
+                      <span>Conteúdo Principal</span>
+                    </h3>
+                    <div className="prose prose-lg dark:prose-invert max-w-none text-gray-800 dark:text-gray-200 leading-relaxed bg-gray-50 dark:bg-slate-900/50 p-8 rounded-xl border border-gray-100 dark:border-slate-700 shadow-inner"> {/* Aumentado padding, adicionado shadow-inner */}
+                      {/* Using dangerouslySetInnerHTML for rich text, assuming content might contain HTML */}
+                      <div dangerouslySetInnerHTML={{ __html: process.content }} />
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* Attachments / Resources */}
-              {process.attachments && process.attachments.length > 0 && (
-                <div>
-                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center space-x-3"> {/* Aumentado tamanho do subtítulo */}
-                    <Paperclip className="w-6 h-6 text-brand-500" />
-                    <span>Recursos de Apoio</span>
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6"> {/* Aumentado espaçamento do grid */}
-                    {process.attachments.map(att => renderAttachment(att))}
+                {/* Attachments / Resources */}
+                {process.attachments && process.attachments.length > 0 && (
+                  <div>
+                    <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center space-x-3"> {/* Aumentado tamanho do subtítulo */}
+                      <Paperclip className="w-6 h-6 text-brand-500" />
+                      <span>Recursos de Apoio</span>
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6"> {/* Aumentado espaçamento do grid */}
+                      {process.attachments.map(att => renderAttachment(att))}
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
-          </ScrollArea>
+                )}
+              </div>
+            </ScrollArea>
+          </div>
         </div>
       </main>
     </div>
