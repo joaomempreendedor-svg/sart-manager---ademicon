@@ -234,7 +234,7 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
         </div>
         
         <form onSubmit={handleSubmit(onSubmit)} className="flex-1 flex flex-col overflow-hidden">
-          <ScrollArea className="py-4 px-6 custom-scrollbar max-h-[calc(95vh - 120px)]"> {/* Ajustado para altura máxima */}
+          <ScrollArea className="flex-1 py-4 px-6 custom-scrollbar">
             <div className="grid gap-6 pb-6">
               {/* Anexos e Links de Apoio - MOVIDO PARA O TOPO */}
               <motion.div 
@@ -417,13 +417,13 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
           <div className="p-6 border-t border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/50 shrink-0">
             {Object.keys(errors).length > 0 && <p className="text-red-500 text-sm mb-4 flex items-center font-medium"><XCircle className="w-4 h-4 mr-2" />Por favor, corrija os erros no formulário.</p>}
             <DialogFooter className="flex flex-col sm:flex-row gap-2">
-              <Button type="button" variant="outline" onClick={onClose} className="dark:bg-slate-700 dark:text-white dark:border-slate-600 w-full sm:w-auto">
+              <Button type="button" variant="outline" onClick={onClose} className="dark:bg-slate-700 dark:text-white dark:border-slate-600 w-full sm:w-auto !rounded-lg">
                 Cancelar
               </Button>
               <motion.button 
                 type="submit" 
                 disabled={isSaving} 
-                className="bg-brand-600 hover:bg-brand-700 text-white min-w-[140px] w-full sm:w-auto flex items-center justify-center space-x-2 rounded-lg shadow-lg shadow-brand-600/20"
+                className="bg-brand-600 hover:bg-brand-700 text-white min-w-[140px] w-full sm:w-auto flex items-center justify-center space-x-2 !rounded-lg shadow-lg shadow-brand-600/20"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
