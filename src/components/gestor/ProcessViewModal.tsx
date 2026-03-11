@@ -14,6 +14,7 @@ import { toast } from 'sonner'; // Using Sonner for toasts
 import YouTube from 'react-youtube';
 import { QRCodeGenerator } from '@/components/ui/qr-code'; // Import QR Code component
 import { motion, AnimatePresence } from 'framer-motion'; // Import AnimatePresence
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface ProcessViewModalProps {
   isOpen: boolean;
@@ -199,8 +200,8 @@ export const ProcessViewModal: React.FC<ProcessViewModalProps> = ({ isOpen, onCl
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-5xl bg-white dark:bg-slate-800 dark:text-white p-0 shadow-xl border border-gray-200 dark:border-slate-700 overflow-y-auto">
-        <DialogHeader className="px-6 py-4 border-b border-gray-100 dark:border-slate-700 shrink-0">
+      <DialogContent className="sm:max-w-5xl bg-white dark:bg-slate-800 dark:text-white p-0 shadow-xl border border-gray-200 dark:border-slate-700 flex flex-col max-h-[95vh]">
+        <DialogHeader className="p-6 border-b border-gray-100 dark:border-slate-700 shrink-0">
           <DialogTitle className="text-2xl font-bold">{process.title}</DialogTitle>
           {process.description && (
             <DialogDescription className="text-base text-gray-500 dark:text-gray-400">
@@ -209,95 +210,93 @@ export const ProcessViewModal: React.FC<ProcessViewModalProps> = ({ isOpen, onCl
           )}
         </DialogHeader>
         
-        <div className="flex-1 flex flex-col"> {/* Removed overflow-hidden */}
-          <div className="flex-1 py-4 px-6 custom-scrollbar"> {/* Removed ScrollArea, applied padding directly */}
-            <div className="space-y-8">
-              {/* Main Content */}
-              {process.content && (
-                <motion.div 
-                  initial={{ opacity: 0, y: 20 }} 
-                  animate={{ opacity: 1, y: 0 }} 
-                  transition={{ duration: 0.5 }}
-                >
-                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 flex items-center space-x-3">
-                    <BookText className="w-6 h-6 text-brand-500" />
-                    <span>Conteúdo Principal</span>
-                  </h3>
-                  <div className="prose prose-lg dark:prose-invert max-w-none text-gray-800 dark:text-gray-200 leading-relaxed bg-gray-50 dark:bg-slate-900/50 p-6 rounded-xl border border-gray-100 dark:border-slate-700 shadow-inner whitespace-pre-wrap">
-                    <div dangerouslySetInnerHTML={{ __html: process.content }} />
-                  </div>
-                </motion.div>
-              )}
-
-              {/* Attachments / Resources */}
-              {process.attachments && process.attachments.length > 0 && (
-                <motion.div 
-                  initial={{ opacity: 0, y: 20 }} 
-                  animate={{ opacity: 1, y: 0 }} 
-                  transition={{ duration: 0.5, delay: 0.2 }}
-                >
-                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 flex items-center space-x-3">
-                    <Paperclip className="w-6 h-6 text-brand-500" />
-                    <span>Recursos de Apoio</span>
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <AnimatePresence>
-                      {process.attachments.map(att => renderAttachment(att))}
-                    </AnimatePresence>
-                  </div>
-                </motion.div>
-              )}
-            </div>
-          </div>
-
-          <div className="px-6 pt-4 border-t border-gray-100 dark:border-slate-700 shrink-0">
-            <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center">
-              <LinkIcon className="w-4 h-4 mr-2" /> Link de Compartilhamento
-            </h3>
-            <div className="flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 sm:space-x-3">
-              <input
-                type="text"
-                readOnly
-                value={shareableLink}
-                className="flex-1 p-2 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-lg text-gray-800 dark:text-gray-200 text-xs font-mono w-full"
-              />
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={handleCopyLink}
-                className="p-2 bg-brand-500 text-white rounded-lg hover:bg-brand-600 transition w-full sm:w-auto"
-                title="Copiar Link"
+        <ScrollArea className="flex-1 custom-scrollbar">
+          <div className="p-6 space-y-8">
+            {/* Main Content */}
+            {process.content && (
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }} 
+                animate={{ opacity: 1, y: 0 }} 
+                transition={{ duration: 0.5 }}
               >
-                {copiedLink ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
-              </motion.button>
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setShowShareOptions(!showShareOptions)}
-                className="p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition w-full sm:w-auto"
-                title="Compartilhar"
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 flex items-center space-x-3">
+                  <BookText className="w-6 h-6 text-brand-500" />
+                  <span>Conteúdo Principal</span>
+                </h3>
+                <div className="text-gray-800 dark:text-gray-200 leading-relaxed bg-gray-50 dark:bg-slate-900/50 p-6 rounded-xl border border-gray-100 dark:border-slate-700 shadow-inner whitespace-pre-wrap">
+                  {process.content}
+                </div>
+              </motion.div>
+            )}
+
+            {/* Attachments / Resources */}
+            {process.attachments && process.attachments.length > 0 && (
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }} 
+                animate={{ opacity: 1, y: 0 }} 
+                transition={{ duration: 0.5, delay: 0.2 }}
               >
-                <Share2 className="w-5 h-5" />
-              </motion.button>
-            </div>
-            <AnimatePresence>
-              {showShareOptions && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.3, ease: "easeInOut" }}
-                  className="overflow-hidden mt-4 p-4 bg-gray-50 dark:bg-slate-700/50 rounded-lg border border-gray-200 dark:border-slate-600 flex flex-col items-center space-y-4"
-                >
-                  <p className="text-sm font-medium text-gray-700 dark:text-gray-200">Compartilhe este processo via QR Code:</p>
-                  <QRCodeGenerator value={shareableLink} size={160} fgColor="#ff7a00" bgColor="#ffffff" className="p-2 bg-white rounded-lg shadow-md" />
-                </motion.div>
-              )}
-            </AnimatePresence>
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 flex items-center space-x-3">
+                  <Paperclip className="w-6 h-6 text-brand-500" />
+                  <span>Recursos de Apoio</span>
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <AnimatePresence>
+                    {process.attachments.map(att => renderAttachment(att))}
+                  </AnimatePresence>
+                </div>
+              </motion.div>
+            )}
           </div>
+        </ScrollArea>
+
+        <div className="p-6 border-t border-gray-100 dark:border-slate-700 shrink-0">
+          <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center">
+            <LinkIcon className="w-4 h-4 mr-2" /> Link de Compartilhamento
+          </h3>
+          <div className="flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 sm:space-x-3">
+            <input
+              type="text"
+              readOnly
+              value={shareableLink}
+              className="flex-1 p-2 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-lg text-gray-800 dark:text-gray-200 text-xs font-mono w-full"
+            />
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handleCopyLink}
+              className="p-2 bg-brand-500 text-white rounded-lg hover:bg-brand-600 transition w-full sm:w-auto"
+              title="Copiar Link"
+            >
+              {copiedLink ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setShowShareOptions(!showShareOptions)}
+              className="p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition w-full sm:w-auto"
+              title="Compartilhar"
+            >
+              <Share2 className="w-5 h-5" />
+            </motion.button>
+          </div>
+          <AnimatePresence>
+            {showShareOptions && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.3, ease: "easeInOut" }}
+                className="overflow-hidden mt-4 p-4 bg-gray-50 dark:bg-slate-700/50 rounded-lg border border-gray-200 dark:border-slate-600 flex flex-col items-center space-y-4"
+              >
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-200">Compartilhe este processo via QR Code:</p>
+                <QRCodeGenerator value={shareableLink} size={160} fgColor="#ff7a00" bgColor="#ffffff" className="p-2 bg-white rounded-lg shadow-md" />
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
-        <DialogFooter className="px-6 py-4 border-t border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/50 shrink-0">
+        <DialogFooter className="p-6 border-t border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/50 shrink-0">
           <Button onClick={onClose} className="bg-brand-600 hover:bg-brand-700 text-white w-full sm:w-auto">
             Fechar
           </Button>

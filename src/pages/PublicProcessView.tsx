@@ -278,8 +278,8 @@ export const PublicProcessView = () => {
                       <BookText className="w-6 h-6 text-brand-500" />
                       <span>Conteúdo Principal</span>
                     </h3>
-                    <div className="prose prose-lg dark:prose-invert max-w-none text-gray-800 dark:text-gray-200 leading-relaxed bg-gray-50 dark:bg-slate-900/50 p-8 rounded-xl border border-gray-100 dark:border-slate-700 shadow-inner whitespace-pre-wrap">
-                      <div dangerouslySetInnerHTML={{ __html: process.content }} />
+                    <div className="text-gray-800 dark:text-gray-200 leading-relaxed bg-gray-50 dark:bg-slate-900/50 p-8 rounded-xl border border-gray-100 dark:border-slate-700 shadow-inner whitespace-pre-wrap">
+                      {process.content}
                     </div>
                   </motion.div>
                 )}
