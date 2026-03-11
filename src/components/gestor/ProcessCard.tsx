@@ -1,8 +1,9 @@
 import React from 'react';
 import { Process } from '@/types';
-import { FileText, Image as ImageIcon, Video, Music, Link as LinkIcon, MoreVertical, Trash2, Edit2, Eye, Paperclip, Clock } from 'lucide-react';
+import { FileText, Image as ImageIcon, Video, Music, Link as LinkIcon, MoreVertical, Trash2, Edit2, Eye, Paperclip, Clock, Check } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { formatRelativeDate } from '@/utils/dateUtils';
+import { toast } from 'sonner'; // Importar toast para notificações
 
 interface ProcessCardProps {
   process: Process;
@@ -49,8 +50,19 @@ const itemVariants = {
 };
 
 export const ProcessCard: React.FC<ProcessCardProps> = ({ process, onView, onEdit, onDelete, index }) => {
+  const [copiedLink, setCopiedLink] = React.useState(false);
   const thumbnail = getThumbnail(process);
   const bgColor = getBackgroundColor(process.title);
+
+  const shareableLink = `${window.location.origin}${window.location.pathname}#/public-process/${process.id}`;
+
+  const handleCopyLink = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Evita que o clique no botão abra o modal de visualização
+    navigator.clipboard.writeText(shareableLink);
+    setCopiedLink(true);
+    toast.success("Link copiado para a área de transferência!");
+    setTimeout(() => setCopiedLink(false), 2000);
+  };
 
   return (
     <motion.div
@@ -75,11 +87,11 @@ export const ProcessCard: React.FC<ProcessCardProps> = ({ process, onView, onEdi
           <motion.button
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
-            onClick={(e) => { e.stopPropagation(); onView(process); }}
+            onClick={handleCopyLink}
             className="p-3 bg-white/20 backdrop-blur-sm text-white rounded-full hover:bg-white/30 transition-colors"
-            title="Visualizar"
+            title="Copiar Link do Processo"
           >
-            <Eye className="w-5 h-5" />
+            {copiedLink ? <Check className="w-5 h-5 text-green-500" /> : <LinkIcon className="w-5 h-5" />}
           </motion.button>
           <motion.button
             whileHover={{ scale: 1.1 }}
