@@ -10,10 +10,10 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { toast } from 'sonner'; // Using Sonner for toasts
+import { toast } from 'sonner';
 import YouTube from 'react-youtube';
-import { QRCodeGenerator } from '@/components/ui/qr-code'; // Import QR Code component
-import { motion, AnimatePresence } from 'framer-motion'; // Import AnimatePresence
+import { QRCodeGenerator } from '@/components/ui/qr-code';
+import { motion, AnimatePresence } from 'framer-motion';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { getYouTubeID } from '@/utils/videoUtils';
 
@@ -220,7 +220,7 @@ export const ProcessViewModal: React.FC<ProcessViewModalProps> = ({ isOpen, onCl
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-5xl bg-white dark:bg-slate-800 dark:text-white p-0 shadow-xl border border-gray-200 dark:border-slate-700 flex flex-col max-h-[95vh]">
+      <DialogContent className="sm:max-w-5xl bg-white dark:bg-slate-800 dark:text-white p-0 shadow-xl border border-gray-200 dark:border-slate-700 flex flex-col max-h-[95vh] overflow-hidden">
         <DialogHeader className="p-6 border-b border-gray-100 dark:border-slate-700 shrink-0">
           <DialogTitle className="text-2xl font-bold">{process.title}</DialogTitle>
           {process.description && (
