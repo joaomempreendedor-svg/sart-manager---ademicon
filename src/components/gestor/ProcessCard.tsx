@@ -3,7 +3,7 @@ import { Process } from '@/types';
 import { FileText, Image as ImageIcon, Video, Music, Link as LinkIcon, MoreVertical, Trash2, Edit2, Eye, Paperclip, Clock, Check } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { formatRelativeDate } from '@/utils/dateUtils';
-import { toast } from 'sonner';
+import { toast } from 'sonner'; // Importar toast para notificações
 import { getYouTubeThumbnail } from '@/utils/videoUtils';
 
 interface ProcessCardProps {
@@ -11,7 +11,7 @@ interface ProcessCardProps {
   onView: (process: Process) => void;
   onEdit: (process: Process) => void;
   onDelete: (e: React.MouseEvent, process: Process) => void;
-  index: number;
+  index: number; // For stagger animation
 }
 
 const getProcessIcon = (process: Process) => {
@@ -29,21 +29,25 @@ const getProcessIcon = (process: Process) => {
 };
 
 const getThumbnail = (process: Process): { type: 'image' | 'video', url: string } | undefined => {
+  // Prioridade 0: Imagem de capa explícita
   if (process.cover_url) {
     return { type: 'image', url: process.cover_url };
   }
 
   if (!process.attachments || process.attachments.length === 0) return undefined;
 
+  // Prioridade 1: Anexo de imagem
   const imageAttachment = process.attachments.find(att => att.file_type === 'image');
   if (imageAttachment) return { type: 'image', url: imageAttachment.file_url };
 
+  // Prioridade 2: Thumbnail de vídeo do YouTube
   const videoLinkAttachment = process.attachments.find(att => att.file_type === 'link' && att.file_url.includes('youtu'));
   if (videoLinkAttachment) {
     const thumbnailUrl = getYouTubeThumbnail(videoLinkAttachment.file_url);
     if (thumbnailUrl) return { type: 'image', url: thumbnailUrl };
   }
 
+  // Prioridade 3: Arquivo de vídeo direto
   const videoFileAttachment = process.attachments.find(att => att.file_type === 'video');
   if (videoFileAttachment) {
     return { type: 'video', url: videoFileAttachment.file_url };
@@ -75,7 +79,7 @@ export const ProcessCard: React.FC<ProcessCardProps> = ({ process, onView, onEdi
   const shareableLink = `${window.location.origin}${window.location.pathname}#/public-process/${process.id}`;
 
   const handleCopyLink = (e: React.MouseEvent) => {
-    e.stopPropagation();
+    e.stopPropagation(); // Evita que o clique no botão abra o modal de visualização
     navigator.clipboard.writeText(shareableLink);
     setCopiedLink(true);
     toast.success("Link copiado para a área de transferência!");
@@ -90,6 +94,7 @@ export const ProcessCard: React.FC<ProcessCardProps> = ({ process, onView, onEdi
       transition={{ delay: index * 0.1 }}
       className="relative group bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm hover:shadow-lg hover:border-brand-500 transition-all overflow-hidden"
     >
+      {/* Thumbnail or Icon */}
       <div className="h-40 flex items-center justify-center relative overflow-hidden rounded-t-xl bg-gray-200 dark:bg-slate-700">
         {thumbnail ? (
           thumbnail.type === 'image' ? (
@@ -102,6 +107,7 @@ export const ProcessCard: React.FC<ProcessCardProps> = ({ process, onView, onEdi
             {React.cloneElement(getProcessIcon(process), { className: "w-12 h-12 text-white opacity-80" })}
           </div>
         )}
+        {/* Overlay for hover actions */}
         <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 space-x-2">
           <motion.button
             whileHover={{ scale: 1.1 }}

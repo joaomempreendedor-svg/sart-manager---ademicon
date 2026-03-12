@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useApp } from '@/context/AppContext';
-import { toast } from 'sonner';
+import { toast } from 'sonner'; // Using Sonner for toasts
 import { motion, AnimatePresence } from 'framer-motion';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -52,8 +52,13 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<FormData>({
+  const { register, handleSubmit, reset, formState: { errors, isDirty } } = useForm<FormData>({
     resolver: zodResolver(formSchema),
+    defaultValues: {
+      title: '',
+      description: '',
+      content: '',
+    },
   });
 
   useEffect(() => {
@@ -91,7 +96,11 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
           continue;
         }
         const preview = URL.createObjectURL(file);
-        newFiles.push({ file, type: getFileType(file), preview });
+        newFiles.push({
+          file,
+          type: getFileType(file),
+          preview
+        });
       }
       setFilesToAdd(prev => [...prev, ...newFiles]);
     }
@@ -128,7 +137,11 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
           continue;
         }
         const preview = URL.createObjectURL(file);
-        newFiles.push({ file, type: getFileType(file), preview });
+        newFiles.push({
+          file,
+          type: getFileType(file),
+          preview
+        });
       }
       setFilesToAdd(prev => [...prev, ...newFiles]);
     }
@@ -211,6 +224,18 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
     }
   };
 
+  const debouncedSaveIndicator = useDebouncedCallback(() => {
+    if (isDirty && !isSaving) {
+      toast.info("Salvando rascunho...", { duration: 1500 });
+    }
+  }, 3000);
+
+  useEffect(() => {
+    if (isDirty && !isSaving) {
+      debouncedSaveIndicator();
+    }
+  }, [isDirty, isSaving, debouncedSaveIndicator]);
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-2xl bg-white dark:bg-slate-800 dark:text-white p-0 overflow-hidden flex flex-col max-h-[95vh] shadow-xl border border-gray-200 dark:border-slate-700">
@@ -224,34 +249,75 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
         <form onSubmit={handleSubmit(onSubmit)} className="flex-1 flex flex-col overflow-hidden">
           <div className="flex-1 overflow-y-auto custom-scrollbar">
             <div className="grid gap-6 p-6">
-              <div className="space-y-2">
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }} 
+                animate={{ opacity: 1, y: 0 }} 
+                transition={{ duration: 0.3 }}
+                className="space-y-2"
+              >
                 <Label htmlFor="title">Título *</Label>
                 <div className="relative">
                   <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <Input id="title" {...register('title')} className={`pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600 ${errors.title ? 'border-red-500' : ''}`} placeholder="Ex: Processo de Venda de Consórcio" />
+                  <Input
+                    id="title"
+                    {...register('title')}
+                    className={`pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600 ${errors.title ? 'border-red-500' : ''}`}
+                    placeholder="Ex: Processo de Venda de Consórcio"
+                  />
                   {errors.title && <p className="text-red-500 text-xs mt-1">{errors.title.message}</p>}
                 </div>
-              </div>
-              <div className="space-y-2">
+              </motion.div>
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }} 
+                animate={{ opacity: 1, y: 0 }} 
+                transition={{ duration: 0.3, delay: 0.1 }}
+                className="space-y-2"
+              >
                 <Label htmlFor="description">Descrição (Opcional)</Label>
                 <div className="relative">
                   <MessageSquare className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-                  <Textarea id="description" {...register('description')} rows={2} className="pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600" placeholder="Uma breve descrição sobre o objetivo deste processo." />
+                  <Textarea
+                    id="description"
+                    {...register('description')}
+                    rows={2}
+                    className="pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                    placeholder="Uma breve descrição sobre o objetivo deste processo."
+                  />
                 </div>
-              </div>
-              <div className="space-y-2">
+              </motion.div>
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }} 
+                animate={{ opacity: 1, y: 0 }} 
+                transition={{ duration: 0.3, delay: 0.2 }}
+                className="space-y-2"
+              >
                 <Label htmlFor="content">Conteúdo do Processo</Label>
                 <div className="relative">
                   <FileText className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-                  <Textarea id="content" {...register('content')} rows={6} className="pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600" placeholder="Descreva o passo a passo do processo aqui..." />
+                  <Textarea
+                    id="content"
+                    {...register('content')}
+                    rows={6}
+                    className="pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                    placeholder="Descreva o passo a passo do processo aqui..."
+                  />
                 </div>
-              </div>
+              </motion.div>
 
-              <div className="border-t border-gray-200 dark:border-slate-700 pt-6">
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }} 
+                animate={{ opacity: 1, y: 0 }} 
+                transition={{ duration: 0.3, delay: 0.3 }}
+                className="border-t border-gray-200 dark:border-slate-700 pt-6"
+              >
                 <Label className="mb-4 block font-bold text-gray-900 dark:text-white text-base">Imagem de Capa</Label>
                 <div className="flex items-center gap-4">
                   <div className="w-32 h-20 bg-gray-100 dark:bg-slate-700 rounded-lg flex items-center justify-center overflow-hidden">
-                    {coverPreview ? <img src={coverPreview} alt="Pré-visualização da capa" className="w-full h-full object-cover" /> : <ImageIcon className="w-8 h-8 text-gray-400" />}
+                    {coverPreview ? (
+                      <img src={coverPreview} alt="Pré-visualização da capa" className="w-full h-full object-cover" />
+                    ) : (
+                      <ImageIcon className="w-8 h-8 text-gray-400" />
+                    )}
                   </div>
                   <div className="flex-1">
                     <input type="file" id="cover-upload" className="hidden" accept="image/*" onChange={handleCoverFileChange} />
@@ -259,70 +325,142 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
                       <Upload className="w-4 h-4 mr-2" />
                       {coverPreview ? 'Alterar Capa' : 'Escolher Capa'}
                     </Button>
-                    {coverPreview && <Button type="button" onClick={handleRemoveCover} variant="ghost" className="text-red-500 hover:text-red-700 ml-2"><Trash2 className="w-4 h-4 mr-2" />Remover</Button>}
+                    {coverPreview && (
+                      <Button type="button" onClick={handleRemoveCover} variant="ghost" className="text-red-500 hover:text-red-700 ml-2">
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Remover
+                      </Button>
+                    )}
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Recomendado: 1200x630px, máx 5MB.</p>
                   </div>
                 </div>
-              </div>
+              </motion.div>
 
-              <div className="border-t border-gray-200 dark:border-slate-700 pt-6">
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }} 
+                animate={{ opacity: 1, y: 0 }} 
+                transition={{ duration: 0.3, delay: 0.4 }}
+                className="border-t border-gray-200 dark:border-slate-700 pt-6"
+              >
                 <Label className="mb-4 block font-bold text-gray-900 dark:text-white text-base">Anexos e Links de Apoio</Label>
+                
                 {currentAttachments.length > 0 && (
                   <div className="space-y-2 mb-6">
                     <p className="text-xs font-bold text-gray-400 uppercase">Anexos Atuais</p>
                     {currentAttachments.map(att => (
                       <div key={att.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-700/50 rounded-lg border border-gray-200 dark:border-slate-600">
                         <div className="flex items-center space-x-3 overflow-hidden">
-                          {att.file_type === 'image' ? <ImageIcon className="w-5 h-5 text-green-500" /> : att.file_type === 'pdf' ? <FileText className="w-5 h-5 text-red-500" /> : att.file_type === 'video' ? <Video className="w-5 h-5 text-blue-500" /> : att.file_type === 'audio' ? <Music className="w-5 h-5 text-purple-500" /> : att.file_type === 'link' ? <LinkIcon className="w-5 h-5 text-blue-500" /> : <FileText className="w-5 h-5 text-brand-500" />}
+                          {att.file_type === 'image' ? <ImageIcon className="w-5 h-5 text-green-500" /> :
+                           att.file_type === 'pdf' ? <FileText className="w-5 h-5 text-red-500" /> :
+                           att.file_type === 'video' ? <Video className="w-5 h-5 text-blue-500" /> :
+                           att.file_type === 'audio' ? <Music className="w-5 h-5 text-purple-500" /> :
+                           att.file_type === 'link' ? <LinkIcon className="w-5 h-5 text-blue-500" /> :
+                           <FileText className="w-5 h-5 text-brand-500" />}
                           <span className="text-sm text-gray-700 dark:text-gray-300 truncate font-medium">{att.file_name || att.file_url}</span>
                         </div>
-                        <Button type="button" variant="ghost" size="sm" onClick={() => handleDeleteExistingAttachment(att.id)} className="text-red-500 hover:text-red-700"><Trash2 className="w-4 h-4" /></Button>
+                        <Button type="button" variant="ghost" size="sm" onClick={() => handleDeleteExistingAttachment(att.id)} className="text-red-500 hover:text-red-700">
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
                       </div>
                     ))}
                   </div>
                 )}
+
                 <div className="space-y-4 mb-6">
                   <p className="text-xs font-bold text-gray-400 uppercase">Adicionar Arquivos</p>
-                  <div onDragOver={(e) => e.preventDefault()} onDrop={handleDrop} className="flex flex-col items-center justify-center px-4 py-6 border-2 border-gray-300 dark:border-slate-600 border-dashed rounded-xl cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/50 transition bg-white dark:bg-slate-700 group" onClick={() => fileInputRef.current?.click()}>
+                  <motion.label 
+                    htmlFor="file-upload-zone"
+                    className="flex flex-col items-center justify-center px-4 py-6 border-2 border-gray-300 dark:border-slate-600 border-dashed rounded-xl cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/50 transition bg-white dark:bg-slate-700 group"
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={handleDrop}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
                     <Upload className="w-8 h-8 mb-2 text-gray-400 group-hover:text-brand-500 transition-colors" />
-                    <span className="text-sm font-semibold text-gray-600 dark:text-gray-300 text-center">Arraste e solte ou clique para selecionar (máx. {MAX_FILE_SIZE_MB}MB)</span>
-                    <input id="file-upload-zone" type="file" className="hidden" multiple accept="image/*,application/pdf,video/*,audio/*" onChange={handleFileChange} ref={fileInputRef} />
-                  </div>
+                    <span className="text-sm font-semibold text-gray-600 dark:text-gray-300 text-center">
+                      Arraste e solte arquivos aqui ou clique para selecionar (máx. {MAX_FILE_SIZE_MB}MB por arquivo)
+                    </span>
+                    <input 
+                      id="file-upload-zone"
+                      type="file" 
+                      className="hidden" 
+                      multiple 
+                      accept="image/*,application/pdf,video/*,audio/*" 
+                      onChange={handleFileChange} 
+                      ref={fileInputRef}
+                    />
+                  </motion.label>
+                  
                   {filesToAdd.length > 0 && (
-                    <div className="space-y-2">
+                    <motion.div 
+                      initial={{ opacity: 0, y: 10 }} 
+                      animate={{ opacity: 1, y: 0 }} 
+                      transition={{ duration: 0.3 }}
+                      className="space-y-2"
+                    >
                       {filesToAdd.map((f, i) => (
                         <div key={i} className="flex items-center justify-between p-2 bg-brand-50 dark:bg-brand-900/20 rounded-lg border border-brand-100 dark:border-brand-900/30">
-                          <div className="flex items-center space-x-2">{renderFilePreview(f, i)}<span className="text-xs font-medium text-brand-700 dark:text-brand-300 truncate max-w-[300px]">{f.file.name}</span></div>
+                          <div className="flex items-center space-x-2">
+                            {renderFilePreview(f, i)}
+                            <span className="text-xs font-medium text-brand-700 dark:text-brand-300 truncate max-w-[300px]">{f.file.name}</span>
+                          </div>
                           <button type="button" onClick={() => handleRemoveFileToAdd(i)} className="text-red-500 p-1"><X className="w-4 h-4" /></button>
                         </div>
                       ))}
-                    </div>
+                    </motion.div>
                   )}
                 </div>
+
                 <div className="space-y-3">
                   <p className="text-xs font-bold text-gray-400 uppercase">Adicionar Links</p>
                   <div className="flex gap-2">
-                    <div className="relative flex-1"><LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" /><Input value={newLinkUrl} onChange={(e) => setNewLinkUrl(e.target.value)} className="pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600" placeholder="https://..." /></div>
-                    <Button type="button" onClick={handleAddLink} variant="outline" className="dark:bg-slate-700 dark:text-white"><Plus className="w-4 h-4" /></Button>
+                    <div className="relative flex-1">
+                      <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <Input
+                        value={newLinkUrl}
+                        onChange={(e) => setNewLinkUrl(e.target.value)}
+                        className="pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                        placeholder="https://..."
+                      />
+                    </div>
+                    <motion.button 
+                      type="button" 
+                      onClick={handleAddLink} 
+                      variant="outline" 
+                      className="dark:bg-slate-700 dark:text-white"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      <Plus className="w-4 h-4" />
+                    </motion.button>
                   </div>
+                  
                   {linksToAdd.length > 0 && (
-                    <div className="space-y-2">
+                    <motion.div 
+                      initial={{ opacity: 0, y: 10 }} 
+                      animate={{ opacity: 1, y: 0 }} 
+                      transition={{ duration: 0.3 }}
+                      className="space-y-2"
+                    >
                       {linksToAdd.map((link, i) => (
                         <div key={i} className="flex items-center justify-between p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-900/30">
                           <span className="text-xs font-medium text-blue-700 dark:text-blue-300 truncate max-w-[400px]">{link}</span>
                           <button type="button" onClick={() => handleRemoveLinkToAdd(i)} className="text-red-500 p-1"><X className="w-4 h-4" /></button>
                         </div>
                       ))}
-                    </div>
+                    </motion.div>
                   )}
                 </div>
-              </div>
+              </motion.div>
             </div>
           </div>
+          
           <div className="p-6 border-t border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/50 shrink-0">
             {Object.keys(errors).length > 0 && <p className="text-red-500 text-sm mb-4 flex items-center font-medium"><XCircle className="w-4 h-4 mr-2" />Por favor, corrija os erros no formulário.</p>}
             <DialogFooter className="flex flex-col sm:flex-row sm:justify-end gap-2">
-              <Button type="button" variant="outline" onClick={onClose} className="dark:bg-slate-700 dark:text-white dark:border-slate-600 w-full sm:w-auto">Cancelar</Button>
+              <Button type="button" variant="outline" onClick={onClose} className="dark:bg-slate-700 dark:text-white dark:border-slate-600 w-full sm:w-auto">
+                Cancelar
+              </Button>
               <Button type="submit" disabled={isSaving} className="bg-brand-600 hover:bg-brand-700 text-white w-full sm:w-auto">
                 {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
                 <span>{isSaving ? 'Salvando...' : 'Salvar Processo'}</span>

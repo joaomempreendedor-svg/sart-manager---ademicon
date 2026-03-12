@@ -491,100 +491,123 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const addProcess = useCallback(async (processData: Omit<Process, 'id' | 'user_id' | 'created_at' | 'updated_at'>, filesToAdd?: { file: File, type: string }[], linksToAdd?: { url: string, type: string }[], coverFile?: File) => {
     if (!user) throw new Error("User not authenticated.");
     
-    let coverUrl: string | undefined = undefined;
+    const { attachments: _, ...cleanData } = processData as any;
+    
+    const { data: process, error } = await supabase.from('processes').insert({ ...cleanData, user_id: JOAO_GESTOR_AUTH_ID }).select().single();
+    if (error) throw error;
+
+    let finalProcessData = { ...process };
 
     if (coverFile) {
         const sanitized = sanitizeFilename(coverFile.name);
-        const path = `process_covers/${user.id}/${Date.now()}-${sanitized}`;
+        const path = `process_covers/${process.id}/${Date.now()}-${sanitized}`;
         const { error: uploadError } = await supabase.storage.from('form_uploads').upload(path, coverFile);
         if (uploadError) throw uploadError;
-        coverUrl = supabase.storage.from('form_uploads').getPublicUrl(path).data.publicUrl;
+        
+        const coverUrl = supabase.storage.from('form_uploads').getPublicUrl(path).data.publicUrl;
+        
+        const { data: updatedProcess, error: updateError } = await supabase.from('processes').update({ cover_url: coverUrl }).eq('id', process.id).select().single();
+        if (updateError) throw updateError;
+        finalProcessData = updatedProcess;
     }
-
-    const { attachments: _, ...cleanData } = processData as any;
-    const dataToInsert = { ...cleanData, user_id: user.id, cover_url: coverUrl };
-    
-    const { data: process, error } = await supabase.from('processes').insert(dataToInsert).select().single();
-    if (error) throw error;
 
     const attachments: ProcessAttachment[] = [];
 
     if (filesToAdd && filesToAdd.length > 0) {
       for (const item of filesToAdd) {
-        const sanitized = sanitizeFilename(item.file.name);
-        const path = `process_files/${process.id}/${Date.now()}-${sanitized}`;
-        const { error: uploadError } = await supabase.storage.from('form_uploads').upload(path, item.file);
-        if (uploadError) { console.error("File upload error:", uploadError); continue; }
-        const fileUrl = supabase.storage.from('form_uploads').getPublicUrl(path).data.publicUrl;
-        
-        const { data: attachment, error: attachError } = await supabase.from('process_attachments').insert({ process_id: process.id, file_url: fileUrl, file_type: item.type, file_name: item.file.name }).select().single();
-        if (!attachError && attachment) attachments.push(attachment);
+        try {
+          const sanitized = sanitizeFilename(item.file.name);
+          const path = `process_files/${process.id}/${Date.now()}-${sanitized}`;
+          const { error: uploadError } = await supabase.storage.from('form_uploads').upload(path, item.file);
+          if (uploadError) throw uploadError;
+          const fileUrl = supabase.storage.from('form_uploads').getPublicUrl(path).data.publicUrl;
+          
+          const { data: attachment, error: attachError } = await supabase.from('process_attachments').insert({
+            process_id: process.id,
+            file_url: fileUrl,
+            file_type: item.type,
+            file_name: item.file.name
+          }).select().single();
+          
+          if (!attachError && attachment) attachments.push(attachment);
+        } catch (err: any) {
+          console.error("Error during file upload or attachment record creation:", err.message || err);
+        }
       }
     }
 
     if (linksToAdd && linksToAdd.length > 0) {
       for (const item of linksToAdd) {
-        const { data: attachment, error: attachError } = await supabase.from('process_attachments').insert({ process_id: process.id, file_url: item.url, file_type: 'link', file_name: 'Link Externo' }).select().single();
+        const { data: attachment, error: attachError } = await supabase.from('process_attachments').insert({
+          process_id: process.id,
+          file_url: item.url,
+          file_type: 'link',
+          file_name: 'Link Externo'
+        }).select().single();
         if (!attachError && attachment) attachments.push(attachment);
       }
     }
 
-    const newProcess = { ...process, attachments };
+    const newProcess = { ...finalProcessData, attachments };
     setProcesses(prev => [newProcess, ...prev].sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()));
     return newProcess;
   }, [user]);
 
   const updateProcess = useCallback(async (id: string, updates: Partial<Process>, filesToAdd?: { file: File, type: string }[], linksToAdd?: { url: string, type: string }[], coverFile?: File) => {
-    if (!user) throw new Error("User not authenticated.");
-  
-    const updatesPayload: Partial<Process> = {
-      title: updates.title,
-      description: updates.description,
-      content: updates.content,
-    };
-  
+    const { attachments: _, ...cleanUpdates } = updates as any;
+    let finalUpdates = { ...cleanUpdates };
+
     if (coverFile) {
-      const sanitized = sanitizeFilename(coverFile.name);
-      const path = `process_covers/${user.id}/${Date.now()}-${sanitized}`;
-      const { error: uploadError } = await supabase.storage.from('form_uploads').upload(path, coverFile, { upsert: true });
-      if (uploadError) {
-        console.error("Cover upload error:", uploadError);
-        throw new Error(`Falha no upload da imagem de capa: ${uploadError.message}`);
-      }
-      updatesPayload.cover_url = supabase.storage.from('form_uploads').getPublicUrl(path).data.publicUrl;
-    } else if (updates.cover_url === null) {
-      updatesPayload.cover_url = null;
+        const sanitized = sanitizeFilename(coverFile.name);
+        const path = `process_covers/${id}/${Date.now()}-${sanitized}`;
+        const { error: uploadError } = await supabase.storage.from('form_uploads').upload(path, coverFile, { upsert: true });
+        if (uploadError) throw uploadError;
+        
+        const coverUrl = supabase.storage.from('form_uploads').getPublicUrl(path).data.publicUrl;
+        finalUpdates.cover_url = coverUrl;
     }
-  
-    const { data: process, error } = await supabase.from('processes').update(updatesPayload).eq('id', id).select().single();
-    if (error) {
-      console.error("Process update error:", error);
-      throw new Error(`Falha ao atualizar o processo: ${error.message}`);
-    }
-  
+    
+    const { data: process, error } = await supabase.from('processes').update(finalUpdates).eq('id', id).select().single();
+    if (error) throw error;
+
     if (filesToAdd && filesToAdd.length > 0) {
       for (const item of filesToAdd) {
-        const sanitized = sanitizeFilename(item.file.name);
-        const path = `process_files/${id}/${Date.now()}-${sanitized}`;
-        const { error: uploadError } = await supabase.storage.from('form_uploads').upload(path, item.file);
-        if (uploadError) { console.error("File upload error:", uploadError); continue; }
-        const fileUrl = supabase.storage.from('form_uploads').getPublicUrl(path).data.publicUrl;
-        await supabase.from('process_attachments').insert({ process_id: id, file_url: fileUrl, file_type: item.type, file_name: item.file.name });
+        try {
+          const sanitized = sanitizeFilename(item.file.name);
+          const path = `process_files/${id}/${Date.now()}-${sanitized}`;
+          const { error: uploadError } = await supabase.storage.from('form_uploads').upload(path, item.file);
+          if (uploadError) throw uploadError;
+          const fileUrl = supabase.storage.from('form_uploads').getPublicUrl(path).data.publicUrl;
+          
+          await supabase.from('process_attachments').insert({
+            process_id: id,
+            file_url: fileUrl,
+            file_type: item.type,
+            file_name: item.file.name
+          });
+        } catch (err: any) {
+          console.error("Error during new file upload for update:", err.message || err);
+        }
       }
     }
-  
+
     if (linksToAdd && linksToAdd.length > 0) {
       for (const item of linksToAdd) {
-        await supabase.from('process_attachments').insert({ process_id: id, file_url: item.url, file_type: 'link', file_name: 'Link Externo' });
+        await supabase.from('process_attachments').insert({
+          process_id: id,
+          file_url: item.url,
+          file_type: 'link',
+          file_name: 'Link Externo'
+        });
       }
     }
-  
+
     const { data: allAttachments } = await supabase.from('process_attachments').select('*').eq('process_id', id);
     
     const updatedProcess = { ...process, attachments: allAttachments || [] };
     setProcesses(prev => prev.map(p => p.id === id ? updatedProcess : p).sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()));
     return updatedProcess;
-  }, [user]);
+  }, []);
 
   const deleteProcess = useCallback(async (id: string) => {
     const { error } = await supabase.from('processes').delete().eq('id', id);
@@ -1269,7 +1292,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (error) throw error; refetchCommissions();
     },
     deleteCommission: async (id: string) => { const { error } = await supabase.from('commissions').delete().eq('id', id); if (error) throw error; refetchCommissions(); },
-    updateInstallmentStatus: async (commissionDbId: string, installmentNumber: number, newStatus: InstallmentStatus, paidDate?: string, saleType?: 'Imóvel' | 'Veículo') => {
+    updateInstallmentStatus: async (commissionDbId: string, installmentNumber: number, newStatus: InstallmentStatus, paidDate?: string) => {
       const current = commissions.find(c => c.db_id === commissionDbId);
       if (!current) throw new Error('Comissão não encontrada');
       const key = installmentNumber.toString();
