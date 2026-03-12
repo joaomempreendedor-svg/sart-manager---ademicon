@@ -222,7 +222,7 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
         </DialogHeader>
         
         <form onSubmit={handleSubmit(onSubmit)} className="flex-1 flex flex-col overflow-hidden">
-          <ScrollArea className="flex-1 custom-scrollbar">
+          <div className="flex-1 overflow-y-auto custom-scrollbar">
             <div className="grid gap-6 p-6">
               <div className="space-y-2">
                 <Label htmlFor="title">Título *</Label>
@@ -318,7 +318,7 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
                 </div>
               </div>
             </div>
-          </ScrollArea>
+          </div>
           <div className="p-6 border-t border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/50 shrink-0">
             {Object.keys(errors).length > 0 && <p className="text-red-500 text-sm mb-4 flex items-center font-medium"><XCircle className="w-4 h-4 mr-2" />Por favor, corrija os erros no formulário.</p>}
             <DialogFooter className="flex flex-col sm:flex-row sm:justify-end gap-2">
