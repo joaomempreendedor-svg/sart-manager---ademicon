@@ -230,7 +230,7 @@ export const ProcessViewModal: React.FC<ProcessViewModalProps> = ({ isOpen, onCl
           )}
         </DialogHeader>
         
-        <ScrollArea className="flex-1 custom-scrollbar">
+        <ScrollArea className="flex-1 custom-scrollbar overflow-y-auto">
           <div className="p-6 space-y-8">
             {/* Main Content */}
             {process.content && (
