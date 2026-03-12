@@ -6,19 +6,25 @@ moment.locale('pt-br');
 export const formatRelativeDate = (dateString: string): string => {
   const date = moment(dateString);
   const now = moment();
+  const diffSeconds = now.diff(date, 'seconds');
+  const diffMinutes = now.diff(date, 'minutes');
+  const diffHours = now.diff(date, 'hours');
+  const diffDays = now.diff(date, 'days');
 
-  // Se for hoje, mostra "há X horas/minutos"
-  if (date.isSame(now, 'day')) {
-    return date.fromNow();
+  if (diffSeconds < 60) {
+    return 'agora mesmo';
   }
-  // Se for ontem
-  if (date.isSame(now.clone().subtract(1, 'day'), 'day')) {
-    return 'Ontem';
+  if (diffMinutes < 60) {
+    return `há ${diffMinutes} minuto${diffMinutes > 1 ? 's' : ''}`;
   }
-  // Se for nos últimos 7 dias, mostra "há X dias"
-  if (date.isSame(now, 'week')) {
-    return date.fromNow();
+  if (diffHours < 24) {
+    return `há ${diffHours} hora${diffHours > 1 ? 's' : ''}`;
   }
-  // Caso contrário, mostra a data completa
+  if (diffDays === 1) {
+    return 'ontem';
+  }
+  if (diffDays < 7) {
+    return `há ${diffDays} dias`;
+  }
   return date.format('DD/MM/YYYY');
 };
