@@ -29,20 +29,25 @@ const getProcessIcon = (process: Process) => {
 };
 
 const getThumbnail = (process: Process): { type: 'image' | 'video', url: string } | undefined => {
+  // Prioridade 0: Imagem de capa explícita
+  if (process.cover_url) {
+    return { type: 'image', url: process.cover_url };
+  }
+
   if (!process.attachments || process.attachments.length === 0) return undefined;
 
-  // Priority 1: Image
+  // Prioridade 1: Anexo de imagem
   const imageAttachment = process.attachments.find(att => att.file_type === 'image');
   if (imageAttachment) return { type: 'image', url: imageAttachment.file_url };
 
-  // Priority 2: YouTube Video
+  // Prioridade 2: Thumbnail de vídeo do YouTube
   const videoLinkAttachment = process.attachments.find(att => att.file_type === 'link' && att.file_url.includes('youtu'));
   if (videoLinkAttachment) {
     const thumbnailUrl = getYouTubeThumbnail(videoLinkAttachment.file_url);
     if (thumbnailUrl) return { type: 'image', url: thumbnailUrl };
   }
 
-  // Priority 3: Direct Video file
+  // Prioridade 3: Arquivo de vídeo direto
   const videoFileAttachment = process.attachments.find(att => att.file_type === 'video');
   if (videoFileAttachment) {
     return { type: 'video', url: videoFileAttachment.file_url };

@@ -26,7 +26,7 @@ interface ProcessModalProps {
   isOpen: boolean;
   onClose: () => void;
   process: Process | null;
-  onSave: (processData: Omit<Process, 'id' | 'user_id' | 'created_at' | 'updated_at'> | Process, filesToAdd?: { file: File, type: string }[], linksToAdd?: { url: string, type: string }[]) => Promise<void>;
+  onSave: (processData: Omit<Process, 'id' | 'user_id' | 'created_at' | 'updated_at'> | Process, filesToAdd?: { file: File, type: string }[], linksToAdd?: { url: string, type: string }[], coverFile?: File) => Promise<void>;
 }
 
 const MAX_FILE_SIZE_MB = 500;
@@ -46,6 +46,9 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
   const [newLinkUrl, setNewLinkUrl] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [currentAttachments, setCurrentAttachments] = useState<ProcessAttachment[]>([]);
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [coverPreview, setCoverPreview] = useState<string | null>(null);
+  const [isCoverRemoved, setIsCoverRemoved] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -69,6 +72,9 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
       setLinksToAdd([]);
       setNewLinkUrl('');
       setCurrentAttachments(process?.attachments || []);
+      setCoverFile(null);
+      setCoverPreview(process?.cover_url || null);
+      setIsCoverRemoved(false);
     }
   }, [isOpen, process, reset]);
 
@@ -98,6 +104,25 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
       }
       setFilesToAdd(prev => [...prev, ...newFiles]);
     }
+  };
+
+  const handleCoverFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit for cover
+        toast.error("A imagem de capa não pode exceder 5MB.");
+        return;
+      }
+      setCoverFile(file);
+      setCoverPreview(URL.createObjectURL(file));
+      setIsCoverRemoved(false);
+    }
+  };
+
+  const handleRemoveCover = () => {
+    setCoverFile(null);
+    setCoverPreview(null);
+    setIsCoverRemoved(true);
   };
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
@@ -166,10 +191,14 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
         type: 'Documento',
       };
 
+      if (isCoverRemoved) {
+        processData.cover_url = null;
+      }
+
       const filesToUpload = filesToAdd.map(f => ({ file: f.file, type: f.type }));
       const linksToSave = linksToAdd.map(url => ({ url, type: 'link' as const }));
 
-      await onSave(process ? { ...process, ...processData } : processData, filesToUpload, linksToSave);
+      await onSave(process ? { ...process, ...processData } : processData, filesToUpload, linksToSave, coverFile || undefined);
       onClose();
     } catch (err: any) {
       console.error("Erro ao salvar processo:", err);
@@ -224,7 +253,94 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
                 initial={{ opacity: 0, y: 10 }} 
                 animate={{ opacity: 1, y: 0 }} 
                 transition={{ duration: 0.3 }}
-                className="border-b border-gray-200 dark:border-slate-700 pb-6"
+                className="space-y-2"
+              >
+                <Label htmlFor="title">Título *</Label>
+                <div className="relative">
+                  <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Input
+                    id="title"
+                    {...register('title')}
+                    className={`pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600 ${errors.title ? 'border-red-500' : ''}`}
+                    placeholder="Ex: Processo de Venda de Consórcio"
+                  />
+                  {errors.title && <p className="text-red-500 text-xs mt-1">{errors.title.message}</p>}
+                </div>
+              </motion.div>
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }} 
+                animate={{ opacity: 1, y: 0 }} 
+                transition={{ duration: 0.3, delay: 0.1 }}
+                className="space-y-2"
+              >
+                <Label htmlFor="description">Descrição (Opcional)</Label>
+                <div className="relative">
+                  <MessageSquare className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+                  <Textarea
+                    id="description"
+                    {...register('description')}
+                    rows={2}
+                    className="pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                    placeholder="Uma breve descrição sobre o objetivo deste processo."
+                  />
+                </div>
+              </motion.div>
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }} 
+                animate={{ opacity: 1, y: 0 }} 
+                transition={{ duration: 0.3, delay: 0.2 }}
+                className="space-y-2"
+              >
+                <Label htmlFor="content">Conteúdo do Processo</Label>
+                <div className="relative">
+                  <FileText className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+                  <Textarea
+                    id="content"
+                    {...register('content')}
+                    rows={6}
+                    className="pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                    placeholder="Descreva o passo a passo do processo aqui..."
+                  />
+                </div>
+              </motion.div>
+
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }} 
+                animate={{ opacity: 1, y: 0 }} 
+                transition={{ duration: 0.3, delay: 0.3 }}
+                className="border-t border-gray-200 dark:border-slate-700 pt-6"
+              >
+                <Label className="mb-4 block font-bold text-gray-900 dark:text-white text-base">Imagem de Capa</Label>
+                <div className="flex items-center gap-4">
+                  <div className="w-32 h-20 bg-gray-100 dark:bg-slate-700 rounded-lg flex items-center justify-center overflow-hidden">
+                    {coverPreview ? (
+                      <img src={coverPreview} alt="Pré-visualização da capa" className="w-full h-full object-cover" />
+                    ) : (
+                      <ImageIcon className="w-8 h-8 text-gray-400" />
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <input type="file" id="cover-upload" className="hidden" accept="image/*" onChange={handleCoverFileChange} />
+                    <Button type="button" onClick={() => document.getElementById('cover-upload')?.click()} variant="outline" className="dark:bg-slate-700 dark:text-white">
+                      <Upload className="w-4 h-4 mr-2" />
+                      {coverPreview ? 'Alterar Capa' : 'Escolher Capa'}
+                    </Button>
+                    {coverPreview && (
+                      <Button type="button" onClick={handleRemoveCover} variant="ghost" className="text-red-500 hover:text-red-700 ml-2">
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Remover
+                      </Button>
+                    )}
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Recomendado: 1200x630px, máx 5MB.</p>
+                  </div>
+                </div>
+              </motion.div>
+
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }} 
+                animate={{ opacity: 1, y: 0 }} 
+                transition={{ duration: 0.3, delay: 0.4 }}
+                className="border-t border-gray-200 dark:border-slate-700 pt-6"
               >
                 <Label className="mb-4 block font-bold text-gray-900 dark:text-white text-base">Anexos e Links de Apoio</Label>
                 
@@ -334,61 +450,6 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
                       ))}
                     </motion.div>
                   )}
-                </div>
-              </motion.div>
-
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }} 
-                animate={{ opacity: 1, y: 0 }} 
-                transition={{ duration: 0.3, delay: 0.1 }}
-                className="space-y-2"
-              >
-                <Label htmlFor="title">Título *</Label>
-                <div className="relative">
-                  <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <Input
-                    id="title"
-                    {...register('title')}
-                    className={`pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600 ${errors.title ? 'border-red-500' : ''}`}
-                    placeholder="Ex: Processo de Venda de Consórcio"
-                  />
-                  {errors.title && <p className="text-red-500 text-xs mt-1">{errors.title.message}</p>}
-                </div>
-              </motion.div>
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }} 
-                animate={{ opacity: 1, y: 0 }} 
-                transition={{ duration: 0.3, delay: 0.2 }}
-                className="space-y-2"
-              >
-                <Label htmlFor="description">Descrição (Opcional)</Label>
-                <div className="relative">
-                  <MessageSquare className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-                  <Textarea
-                    id="description"
-                    {...register('description')}
-                    rows={2}
-                    className="pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600"
-                    placeholder="Uma breve descrição sobre o objetivo deste processo."
-                  />
-                </div>
-              </motion.div>
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }} 
-                animate={{ opacity: 1, y: 0 }} 
-                transition={{ duration: 0.3, delay: 0.3 }}
-                className="space-y-2"
-              >
-                <Label htmlFor="content">Conteúdo do Processo</Label>
-                <div className="relative">
-                  <FileText className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-                  <Textarea
-                    id="content"
-                    {...register('content')}
-                    rows={6}
-                    className="pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600"
-                    placeholder="Descreva o passo a passo do processo aqui..."
-                  />
                 </div>
               </motion.div>
             </div>

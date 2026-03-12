@@ -39,12 +39,12 @@ export const Processos = () => {
     setIsViewModalOpen(true);
   };
 
-  const handleSaveProcess = async (processData: Omit<Process, 'id' | 'user_id' | 'created_at' | 'updated_at'> | Process, filesToAdd?: { file: File, type: string }[], linksToAdd?: { url: string, type: string }[]) => {
+  const handleSaveProcess = async (processData: Omit<Process, 'id' | 'user_id' | 'created_at' | 'updated_at'> | Process, filesToAdd?: { file: File, type: string }[], linksToAdd?: { url: string, type: string }[], coverFile?: File) => {
     if ('id' in processData) {
-      await updateProcess(processData.id, processData, filesToAdd, linksToAdd);
+      await updateProcess(processData.id, processData, filesToAdd, linksToAdd, coverFile);
       toast.success("Processo atualizado com sucesso!");
     } else {
-      await addProcess(processData, filesToAdd, linksToAdd);
+      await addProcess(processData, filesToAdd, linksToAdd, coverFile);
       toast.success("Processo criado com sucesso!");
     }
   };
