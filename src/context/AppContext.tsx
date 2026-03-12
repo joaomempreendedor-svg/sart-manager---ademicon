@@ -488,34 +488,39 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setCrmLeads(prev => prev.filter(l => l.id !== id));
   }, []);
 
-  const addProcess = useCallback(async (processData: Omit<Process, 'id' | 'user_id' | 'created_at' | 'updated_at'>, filesToAdd?: { file: File, type: string }[], linksToAdd?: { url: string, type: string }[]) => {
+  const addProcess = useCallback(async (processData: Omit<Process, 'id' | 'user_id' | 'created_at' | 'updated_at'>, filesToAdd?: { file: File, type: string }[], linksToAdd?: { url: string, type: string }[], coverFile?: File) => {
     if (!user) throw new Error("User not authenticated.");
     
-    // Remove 'attachments' if it exists in processData to avoid DB error
     const { attachments: _, ...cleanData } = processData as any;
     
     const { data: process, error } = await supabase.from('processes').insert({ ...cleanData, user_id: JOAO_GESTOR_AUTH_ID }).select().single();
-    if (error) {
-      console.error("[AppContext] Error inserting process:", error);
-      throw error;
+    if (error) throw error;
+
+    let finalProcessData = { ...process };
+
+    if (coverFile) {
+        const sanitized = sanitizeFilename(coverFile.name);
+        const path = `process_covers/${process.id}/${Date.now()}-${sanitized}`;
+        const { error: uploadError } = await supabase.storage.from('form_uploads').upload(path, coverFile);
+        if (uploadError) throw uploadError;
+        
+        const coverUrl = supabase.storage.from('form_uploads').getPublicUrl(path).data.publicUrl;
+        
+        const { data: updatedProcess, error: updateError } = await supabase.from('processes').update({ cover_url: coverUrl }).eq('id', process.id).select().single();
+        if (updateError) throw updateError;
+        finalProcessData = updatedProcess;
     }
-    console.log("[AppContext] Process inserted successfully:", process);
 
     const attachments: ProcessAttachment[] = [];
 
     if (filesToAdd && filesToAdd.length > 0) {
       for (const item of filesToAdd) {
         try {
-          console.log(`[AppContext] Attempting to upload file: ${item.file.name} (type: ${item.type})`);
           const sanitized = sanitizeFilename(item.file.name);
           const path = `process_files/${process.id}/${Date.now()}-${sanitized}`;
           const { error: uploadError } = await supabase.storage.from('form_uploads').upload(path, item.file);
-          if (uploadError) {
-            console.error(`[AppContext] Error uploading file ${item.file.name}:`, uploadError);
-            throw uploadError;
-          }
+          if (uploadError) throw uploadError;
           const fileUrl = supabase.storage.from('form_uploads').getPublicUrl(path).data.publicUrl;
-          console.log(`[AppContext] File ${item.file.name} uploaded successfully. URL: ${fileUrl}`);
           
           const { data: attachment, error: attachError } = await supabase.from('process_attachments').insert({
             process_id: process.id,
@@ -524,100 +529,83 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             file_name: item.file.name
           }).select().single();
           
-          if (attachError) {
-            console.error("[AppContext] Error inserting attachment into DB:", attachError);
-          } else if (attachment) {
-            attachments.push(attachment);
-            console.log("[AppContext] Attachment record created:", attachment);
-          }
+          if (!attachError && attachment) attachments.push(attachment);
         } catch (err: any) {
-          console.error("[AppContext] Error during file upload or attachment record creation:", err.message || err);
-          // Continue with other files even if one fails
+          console.error("Error during file upload or attachment record creation:", err.message || err);
         }
       }
     }
 
     if (linksToAdd && linksToAdd.length > 0) {
       for (const item of linksToAdd) {
-        console.log(`[AppContext] Attempting to insert link: ${item.url}`);
         const { data: attachment, error: attachError } = await supabase.from('process_attachments').insert({
           process_id: process.id,
           file_url: item.url,
           file_type: 'link',
           file_name: 'Link Externo'
         }).select().single();
-        if (!attachError && attachment) {
-          attachments.push(attachment);
-          console.log("[AppContext] Link attachment record created:", attachment);
-        } else if (attachError) {
-          console.error("[AppContext] Error inserting link attachment into DB:", attachError);
-        }
+        if (!attachError && attachment) attachments.push(attachment);
       }
     }
 
-    const newProcess = { ...process, attachments };
+    const newProcess = { ...finalProcessData, attachments };
     setProcesses(prev => [newProcess, ...prev].sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()));
-    console.log("[AppContext] Final processes state updated.");
     return newProcess;
   }, [user]);
 
-  const updateProcess = useCallback(async (id: string, updates: Partial<Process>, filesToAdd?: { file: File, type: string }[], linksToAdd?: { url: string, type: string }[]) => {
-    // Remove 'attachments' if it exists in updates to avoid DB error
+  const updateProcess = useCallback(async (id: string, updates: Partial<Process>, filesToAdd?: { file: File, type: string }[], linksToAdd?: { url: string, type: string }[], coverFile?: File) => {
     const { attachments: _, ...cleanUpdates } = updates as any;
-    
-    const { data: process, error } = await supabase.from('processes').update(cleanUpdates).eq('id', id).select().single();
-    if (error) {
-      console.error("[AppContext] Error updating process:", error);
-      throw error;
+    let finalUpdates = { ...cleanUpdates };
+
+    if (coverFile) {
+        const sanitized = sanitizeFilename(coverFile.name);
+        const path = `process_covers/${id}/${Date.now()}-${sanitized}`;
+        const { error: uploadError } = await supabase.storage.from('form_uploads').upload(path, coverFile, { upsert: true });
+        if (uploadError) throw uploadError;
+        
+        const coverUrl = supabase.storage.from('form_uploads').getPublicUrl(path).data.publicUrl;
+        finalUpdates.cover_url = coverUrl;
     }
-    console.log("[AppContext] Process updated successfully:", process);
+    
+    const { data: process, error } = await supabase.from('processes').update(finalUpdates).eq('id', id).select().single();
+    if (error) throw error;
 
     if (filesToAdd && filesToAdd.length > 0) {
       for (const item of filesToAdd) {
         try {
-          console.log(`[AppContext] Attempting to upload new file for update: ${item.file.name} (type: ${item.type})`);
           const sanitized = sanitizeFilename(item.file.name);
           const path = `process_files/${id}/${Date.now()}-${sanitized}`;
           const { error: uploadError } = await supabase.storage.from('form_uploads').upload(path, item.file);
-          if (uploadError) {
-            console.error(`[AppContext] Error uploading file ${item.file.name} during update:`, uploadError);
-            throw uploadError;
-          }
+          if (uploadError) throw uploadError;
           const fileUrl = supabase.storage.from('form_uploads').getPublicUrl(path).data.publicUrl;
-          console.log(`[AppContext] File ${item.file.name} uploaded successfully during update. URL: ${fileUrl}`);
           
-          const { error: attachError } = await supabase.from('process_attachments').insert({
+          await supabase.from('process_attachments').insert({
             process_id: id,
             file_url: fileUrl,
             file_type: item.type,
             file_name: item.file.name
           });
-          if (attachError) console.error("[AppContext] Error inserting new attachment record during update:", attachError);
         } catch (err: any) {
-          console.error("[AppContext] Error during new file upload or attachment record creation for update:", err.message || err);
+          console.error("Error during new file upload for update:", err.message || err);
         }
       }
     }
 
     if (linksToAdd && linksToAdd.length > 0) {
       for (const item of linksToAdd) {
-        console.log(`[AppContext] Attempting to insert new link for update: ${item.url}`);
-        const { error: attachError } = await supabase.from('process_attachments').insert({
+        await supabase.from('process_attachments').insert({
           process_id: id,
           file_url: item.url,
           file_type: 'link',
           file_name: 'Link Externo'
         });
-        if (attachError) console.error("[AppContext] Error inserting new link attachment during update:", attachError);
       }
     }
 
-    const { data: allAttachments, error: fetchAttachError } = await supabase.from('process_attachments').select('*').eq('process_id', id);
-    if (fetchAttachError) console.error("[AppContext] Error refetching attachments after update:", fetchAttachError);
+    const { data: allAttachments } = await supabase.from('process_attachments').select('*').eq('process_id', id);
     
     const updatedProcess = { ...process, attachments: allAttachments || [] };
     setProcesses(prev => prev.map(p => p.id === id ? updatedProcess : p).sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()));
-    console.log("[AppContext] Final processes state updated.");
     return updatedProcess;
   }, []);
 
@@ -1304,7 +1292,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (error) throw error; refetchCommissions();
     },
     deleteCommission: async (id: string) => { const { error } = await supabase.from('commissions').delete().eq('id', id); if (error) throw error; refetchCommissions(); },
-    updateInstallmentStatus: async (commissionDbId: string, installmentNumber: number, status: InstallmentStatus, paidDate?: string) => {
+    updateInstallmentStatus: async (commissionDbId: string, installmentNumber: number, newStatus: InstallmentStatus, paidDate?: string) => {
       const current = commissions.find(c => c.db_id === commissionDbId);
       if (!current) throw new Error('Comissão não encontrada');
       const key = installmentNumber.toString();
