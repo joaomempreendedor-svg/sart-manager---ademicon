@@ -491,26 +491,32 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const addProcess = useCallback(async (processData: Omit<Process, 'id' | 'user_id' | 'created_at' | 'updated_at'>, filesToAdd?: { file: File, type: string }[], linksToAdd?: { url: string, type: string }[], coverFile?: File) => {
     if (!user) throw new Error("User not authenticated.");
     
-    const { attachments: _, ...cleanData } = processData as any;
-    
-    const { data: process, error } = await supabase.from('processes').insert({ ...cleanData, user_id: user.id }).select().single();
-    if (error) throw error;
+    let coverUrl: string | undefined = undefined;
 
-    let finalProcessData = { ...process };
-
+    // 1. Upload cover image first, if it exists
     if (coverFile) {
         const sanitized = sanitizeFilename(coverFile.name);
-        const path = `process_covers/${process.id}/${Date.now()}-${sanitized}`;
+        // Use user.id and timestamp for a unique path before we have the process.id
+        const path = `process_covers/${user.id}/${Date.now()}-${sanitized}`;
         const { error: uploadError } = await supabase.storage.from('form_uploads').upload(path, coverFile);
         if (uploadError) throw uploadError;
         
-        const coverUrl = supabase.storage.from('form_uploads').getPublicUrl(path).data.publicUrl;
-        
-        const { data: updatedProcess, error: updateError } = await supabase.from('processes').update({ cover_url: coverUrl }).eq('id', process.id).select().single();
-        if (updateError) throw updateError;
-        finalProcessData = updatedProcess;
+        coverUrl = supabase.storage.from('form_uploads').getPublicUrl(path).data.publicUrl;
     }
 
+    // 2. Prepare the process data for a single insert
+    const { attachments: _, ...cleanData } = processData as any;
+    const dataToInsert = { 
+      ...cleanData, 
+      user_id: user.id,
+      cover_url: coverUrl // Add the cover_url directly
+    };
+    
+    // 3. Insert the process with all data in one go
+    const { data: process, error } = await supabase.from('processes').insert(dataToInsert).select().single();
+    if (error) throw error;
+
+    // 4. Handle other attachments (files and links)
     const attachments: ProcessAttachment[] = [];
 
     if (filesToAdd && filesToAdd.length > 0) {
@@ -548,7 +554,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
     }
 
-    const newProcess = { ...finalProcessData, attachments };
+    const newProcess = { ...process, attachments };
     setProcesses(prev => [newProcess, ...prev].sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()));
     return newProcess;
   }, [user]);
