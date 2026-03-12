@@ -108,6 +108,25 @@ export const PublicProcessView = () => {
     const fileName = att.file_name || att.file_url.split('/').pop() || 'arquivo_anexado';
 
     switch (att.file_type) {
+      case 'video':
+        return (
+          <div key={att.id} className="bg-black rounded-xl overflow-hidden shadow-lg">
+            <video
+              src={att.file_url}
+              controls
+              className="w-full h-full aspect-video"
+            />
+            <div className="p-3 bg-gray-800 text-white text-sm font-medium flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Video className="w-4 h-4" />
+                <span>{fileName}</span>
+              </div>
+              <Button variant="ghost" size="icon" onClick={() => handleDownloadFile(att.file_url, fileName)} className="text-gray-300 hover:text-white">
+                <Download className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        );
       case 'link':
         const youtubeId = getYouTubeID(att.file_url);
         if (youtubeId) {

@@ -28,18 +28,24 @@ const getProcessIcon = (process: Process) => {
   }
 };
 
-const getThumbnail = (process: Process): string | undefined => {
+const getThumbnail = (process: Process): { type: 'image' | 'video', url: string } | undefined => {
   if (!process.attachments || process.attachments.length === 0) return undefined;
 
-  // Prioridade 1: Imagem
+  // Priority 1: Image
   const imageAttachment = process.attachments.find(att => att.file_type === 'image');
-  if (imageAttachment) return imageAttachment.file_url;
+  if (imageAttachment) return { type: 'image', url: imageAttachment.file_url };
 
-  // Prioridade 2: Vídeo do YouTube
+  // Priority 2: YouTube Video
   const videoLinkAttachment = process.attachments.find(att => att.file_type === 'link' && att.file_url.includes('youtu'));
   if (videoLinkAttachment) {
     const thumbnailUrl = getYouTubeThumbnail(videoLinkAttachment.file_url);
-    if (thumbnailUrl) return thumbnailUrl;
+    if (thumbnailUrl) return { type: 'image', url: thumbnailUrl };
+  }
+
+  // Priority 3: Direct Video file
+  const videoFileAttachment = process.attachments.find(att => att.file_type === 'video');
+  if (videoFileAttachment) {
+    return { type: 'video', url: videoFileAttachment.file_url };
   }
 
   return undefined;
@@ -84,9 +90,13 @@ export const ProcessCard: React.FC<ProcessCardProps> = ({ process, onView, onEdi
       className="relative group bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm hover:shadow-lg hover:border-brand-500 transition-all overflow-hidden"
     >
       {/* Thumbnail or Icon */}
-      <div className="h-40 flex items-center justify-center relative overflow-hidden rounded-t-xl">
+      <div className="h-40 flex items-center justify-center relative overflow-hidden rounded-t-xl bg-gray-200 dark:bg-slate-700">
         {thumbnail ? (
-          <img src={thumbnail} alt={process.title} className="w-full h-full object-cover" />
+          thumbnail.type === 'image' ? (
+            <img src={thumbnail.url} alt={process.title} className="w-full h-full object-cover" />
+          ) : (
+            <video src={`${thumbnail.url}#t=0.5`} className="w-full h-full object-cover" preload="metadata" muted playsInline />
+          )
         ) : (
           <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: bgColor }}>
             {React.cloneElement(getProcessIcon(process), { className: "w-12 h-12 text-white opacity-80" })}
