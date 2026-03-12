@@ -493,7 +493,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     
     const { attachments: _, ...cleanData } = processData as any;
     
-    const { data: process, error } = await supabase.from('processes').insert({ ...cleanData, user_id: JOAO_GESTOR_AUTH_ID }).select().single();
+    const { data: process, error } = await supabase.from('processes').insert({ ...cleanData, user_id: user.id }).select().single();
     if (error) throw error;
 
     let finalProcessData = { ...process };
