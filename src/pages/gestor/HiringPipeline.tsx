@@ -309,7 +309,7 @@ const HiringPipeline = () => {
   if (isAuthLoading || isDataLoading) return <div className="flex items-center justify-center h-screen"><Loader2 className="w-12 h-12 text-brand-500 animate-spin" /></div>;
 
   return (
-    <div className="p-4 sm:p-8 max-w-full mx-auto min-h-screen bg-gray-50 dark:bg-slate-900">
+    <div className="p-4 sm:p-8 max-w-full mx-auto">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Pipeline de Contratação</h1>

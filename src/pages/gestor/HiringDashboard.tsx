@@ -177,7 +177,7 @@ const HiringDashboard = () => {
   }
 
   return (
-    <div className="p-4 sm:p-8 max-w-7xl mx-auto min-h-screen bg-gray-50 dark:bg-slate-900">
+    <div className="p-4 sm:p-8 max-w-7xl mx-auto">
       <div className="mb-8">
         <h1 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight flex items-center">
           <PieChart className="w-8 h-8 mr-3 text-brand-500" /> Dashboard de Candidaturas
@@ -263,7 +263,7 @@ const HiringDashboard = () => {
           icon={Ghost} 
           colorClass="bg-rose-500 text-white" 
           subValue="Não compareceram"
-          onClick={() => handleOpenCandidatesDetailModal('Faltas', metrics.noShowList, 'noShow')}
+          onClick={() => handleOpenCandidatesDetailModal('Faltas', hiringMetrics.noShowList, 'noShow')}
         />
         <MetricCard 
           title="Taxa de Comparecimento" 
