@@ -535,23 +535,33 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [user]);
 
   const updateProcess = useCallback(async (id: string, updates: Partial<Process>, filesToAdd?: { file: File, type: string }[], linksToAdd?: { url: string, type: string }[], coverFile?: File) => {
-    const { attachments: _, ...cleanUpdates } = updates as any;
-    let finalUpdates = { ...cleanUpdates };
-
+    if (!user) throw new Error("User not authenticated.");
+  
+    const updatesPayload: Partial<Process> = {
+      title: updates.title,
+      description: updates.description,
+      content: updates.content,
+    };
+  
     if (coverFile) {
-        const sanitized = sanitizeFilename(coverFile.name);
-        const path = `process_covers/${id}/${Date.now()}-${sanitized}`;
-        const { error: uploadError } = await supabase.storage.from('form_uploads').upload(path, coverFile, { upsert: true });
-        if (uploadError) throw uploadError;
-        finalUpdates.cover_url = supabase.storage.from('form_uploads').getPublicUrl(path).data.publicUrl;
-    } else if (finalUpdates.cover_url === null) {
-        // Handle cover removal
-        finalUpdates.cover_url = null;
+      const sanitized = sanitizeFilename(coverFile.name);
+      const path = `process_covers/${user.id}/${Date.now()}-${sanitized}`;
+      const { error: uploadError } = await supabase.storage.from('form_uploads').upload(path, coverFile, { upsert: true });
+      if (uploadError) {
+        console.error("Cover upload error:", uploadError);
+        throw new Error(`Falha no upload da imagem de capa: ${uploadError.message}`);
+      }
+      updatesPayload.cover_url = supabase.storage.from('form_uploads').getPublicUrl(path).data.publicUrl;
+    } else if (updates.cover_url === null) {
+      updatesPayload.cover_url = null;
     }
-    
-    const { data: process, error } = await supabase.from('processes').update(finalUpdates).eq('id', id).select().single();
-    if (error) throw error;
-
+  
+    const { data: process, error } = await supabase.from('processes').update(updatesPayload).eq('id', id).select().single();
+    if (error) {
+      console.error("Process update error:", error);
+      throw new Error(`Falha ao atualizar o processo: ${error.message}`);
+    }
+  
     if (filesToAdd && filesToAdd.length > 0) {
       for (const item of filesToAdd) {
         const sanitized = sanitizeFilename(item.file.name);
@@ -562,19 +572,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         await supabase.from('process_attachments').insert({ process_id: id, file_url: fileUrl, file_type: item.type, file_name: item.file.name });
       }
     }
-
+  
     if (linksToAdd && linksToAdd.length > 0) {
       for (const item of linksToAdd) {
         await supabase.from('process_attachments').insert({ process_id: id, file_url: item.url, file_type: 'link', file_name: 'Link Externo' });
       }
     }
-
+  
     const { data: allAttachments } = await supabase.from('process_attachments').select('*').eq('process_id', id);
     
     const updatedProcess = { ...process, attachments: allAttachments || [] };
     setProcesses(prev => prev.map(p => p.id === id ? updatedProcess : p).sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()));
     return updatedProcess;
-  }, []);
+  }, [user]);
 
   const deleteProcess = useCallback(async (id: string) => {
     const { error } = await supabase.from('processes').delete().eq('id', id);
