@@ -1,6 +1,6 @@
 import React from 'react';
 import { HashRouter, Routes, Route, Outlet, Navigate, useLocation } from 'react-router-dom';
-import { AppProvider, useApp } from '@/context/AppContext';
+import { AppProvider } from '@/context/AppContext';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { UserRole } from '@/types';
 import { Toaster } from '@/components/ui/sonner'; // Importar Sonner Toaster
