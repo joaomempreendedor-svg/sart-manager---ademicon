@@ -490,36 +490,48 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const addProcess = useCallback(async (processData: Omit<Process, 'id' | 'user_id' | 'created_at' | 'updated_at'>, filesToAdd?: { file: File, type: string }[], linksToAdd?: { url: string, type: string }[], coverFile?: File) => {
     if (!user) throw new Error("User not authenticated.");
-    
-    let coverUrl: string | undefined = undefined;
-
-    if (coverFile) {
-        const sanitized = sanitizeFilename(coverFile.name);
-        const path = `${user.id}/process_covers/${Date.now()}-${sanitized}`;
-        const { error: uploadError } = await supabase.storage.from('form_uploads').upload(path, coverFile);
-        if (uploadError) throw uploadError;
-        coverUrl = supabase.storage.from('form_uploads').getPublicUrl(path).data.publicUrl;
-    }
 
     const { attachments: _, ...cleanData } = processData as any;
-    const dataToInsert = { ...cleanData, user_id: user.id, cover_url: coverUrl };
+    const dataToInsert = { ...cleanData, user_id: user.id };
     
     const { data: process, error } = await supabase.from('processes').insert(dataToInsert).select().single();
     if (error) throw error;
 
     const attachments: ProcessAttachment[] = [];
 
+    if (coverFile) {
+        const formData = new FormData();
+        formData.append('file', coverFile);
+        formData.append('processId', process.id);
+        formData.append('assetType', 'cover');
+
+        const { data: coverResult, error: coverError } = await supabase.functions.invoke('upload-process-assets', { body: formData });
+
+        if (coverError || coverResult.error) {
+            console.error("Cover upload via Edge Function failed:", coverError || coverResult.error);
+        } else {
+            const { error: updateCoverError } = await supabase.from('processes').update({ cover_url: coverResult.publicUrl }).eq('id', process.id);
+            if (updateCoverError) console.error("Failed to update process with cover URL:", updateCoverError);
+            else process.cover_url = coverResult.publicUrl;
+        }
+    }
+
     if (filesToAdd && filesToAdd.length > 0) {
-      for (const item of filesToAdd) {
-        const sanitized = sanitizeFilename(item.file.name);
-        const path = `${user.id}/process_files/${process.id}/${Date.now()}-${sanitized}`;
-        const { error: uploadError } = await supabase.storage.from('form_uploads').upload(path, item.file);
-        if (uploadError) { console.error("File upload error:", uploadError); continue; }
-        const fileUrl = supabase.storage.from('form_uploads').getPublicUrl(path).data.publicUrl;
-        
-        const { data: attachment, error: attachError } = await supabase.from('process_attachments').insert({ process_id: process.id, file_url: fileUrl, file_type: item.type, file_name: item.file.name }).select().single();
-        if (!attachError && attachment) attachments.push(attachment);
-      }
+        for (const item of filesToAdd) {
+            const formData = new FormData();
+            formData.append('file', item.file);
+            formData.append('processId', process.id);
+            formData.append('assetType', 'attachment');
+            formData.append('attachmentType', item.type);
+
+            const { data: attachResult, error: attachError } = await supabase.functions.invoke('upload-process-assets', { body: formData });
+
+            if (attachError || attachResult.error) {
+                console.error(`Attachment upload failed for ${item.file.name}:`, attachError || attachResult.error);
+            } else if (attachResult.attachment) {
+                attachments.push(attachResult.attachment);
+            }
+        }
     }
 
     if (linksToAdd && linksToAdd.length > 0) {
@@ -544,14 +556,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
   
     if (coverFile) {
-      const sanitized = sanitizeFilename(coverFile.name);
-      const path = `${user.id}/process_covers/${id}-${sanitized}`;
-      const { error: uploadError } = await supabase.storage.from('form_uploads').upload(path, coverFile, { upsert: true });
-      if (uploadError) {
-        console.error("Cover upload error:", uploadError);
-        throw new Error(`Falha no upload da imagem de capa: ${uploadError.message}`);
-      }
-      updatesPayload.cover_url = supabase.storage.from('form_uploads').getPublicUrl(path).data.publicUrl;
+        const formData = new FormData();
+        formData.append('file', coverFile);
+        formData.append('processId', id);
+        formData.append('assetType', 'cover');
+
+        const { data: coverResult, error: coverError } = await supabase.functions.invoke('upload-process-assets', { body: formData });
+
+        if (coverError || coverResult.error) {
+            throw new Error(`Falha no upload da imagem de capa: ${coverError?.message || coverResult.error}`);
+        }
+        updatesPayload.cover_url = coverResult.publicUrl;
     } else if (updates.cover_url === null) {
       updatesPayload.cover_url = null;
     }
@@ -564,12 +579,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   
     if (filesToAdd && filesToAdd.length > 0) {
       for (const item of filesToAdd) {
-        const sanitized = sanitizeFilename(item.file.name);
-        const path = `${user.id}/process_files/${id}/${Date.now()}-${sanitized}`;
-        const { error: uploadError } = await supabase.storage.from('form_uploads').upload(path, item.file);
-        if (uploadError) { console.error("File upload error:", uploadError); continue; }
-        const fileUrl = supabase.storage.from('form_uploads').getPublicUrl(path).data.publicUrl;
-        await supabase.from('process_attachments').insert({ process_id: id, file_url: fileUrl, file_type: item.type, file_name: item.file.name });
+        const formData = new FormData();
+        formData.append('file', item.file);
+        formData.append('processId', id);
+        formData.append('assetType', 'attachment');
+        formData.append('attachmentType', item.type);
+
+        const { error: attachError } = await supabase.functions.invoke('upload-process-assets', { body: formData });
+        if (attachError) console.error(`Attachment upload failed for ${item.file.name}:`, attachError);
       }
     }
   
