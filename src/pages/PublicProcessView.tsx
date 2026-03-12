@@ -7,12 +7,7 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner'; // Using Sonner for toasts
 import YouTube from 'react-youtube';
 import { motion, useScroll, useSpring } from 'framer-motion'; // Import Framer Motion hooks
-
-const getYouTubeID = (url: string): string | null => {
-  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
-  const match = url.match(regExp);
-  return (match && match[2].length === 11) ? match[2] : null;
-};
+import { getYouTubeID } from '@/utils/videoUtils';
 
 export const PublicProcessView = () => {
   const { processId } = useParams<{ processId: string }>();

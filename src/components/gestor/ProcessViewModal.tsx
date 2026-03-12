@@ -15,18 +15,13 @@ import YouTube from 'react-youtube';
 import { QRCodeGenerator } from '@/components/ui/qr-code'; // Import QR Code component
 import { motion, AnimatePresence } from 'framer-motion'; // Import AnimatePresence
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { getYouTubeID } from '@/utils/videoUtils';
 
 interface ProcessViewModalProps {
   isOpen: boolean;
   onClose: () => void;
   process: Process | null;
 }
-
-const getYouTubeID = (url: string): string | null => {
-  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
-  const match = url.match(regExp);
-  return (match && match[2].length === 11) ? match[2] : null;
-};
 
 export const ProcessViewModal: React.FC<ProcessViewModalProps> = ({ isOpen, onClose, process }) => {
   const [copiedLink, setCopiedLink] = React.useState(false);
@@ -210,8 +205,8 @@ export const ProcessViewModal: React.FC<ProcessViewModalProps> = ({ isOpen, onCl
           )}
         </DialogHeader>
         
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
-          <div className="space-y-8">
+        <ScrollArea className="flex-1 custom-scrollbar">
+          <div className="p-6 space-y-8">
             {/* Main Content */}
             {process.content && (
               <motion.div 
@@ -248,7 +243,7 @@ export const ProcessViewModal: React.FC<ProcessViewModalProps> = ({ isOpen, onCl
               </motion.div>
             )}
           </div>
-        </div>
+        </ScrollArea>
 
         <div className="p-6 border-t border-gray-100 dark:border-slate-700 shrink-0">
           <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center">

@@ -4,6 +4,7 @@ import { FileText, Image as ImageIcon, Video, Music, Link as LinkIcon, MoreVerti
 import { motion } from 'framer-motion';
 import { formatRelativeDate } from '@/utils/dateUtils';
 import { toast } from 'sonner'; // Importar toast para notificações
+import { getYouTubeThumbnail } from '@/utils/videoUtils';
 
 interface ProcessCardProps {
   process: Process;
@@ -28,9 +29,19 @@ const getProcessIcon = (process: Process) => {
 };
 
 const getThumbnail = (process: Process): string | undefined => {
-  const imageAttachment = process.attachments?.find(att => att.file_type === 'image');
+  if (!process.attachments || process.attachments.length === 0) return undefined;
+
+  // Prioridade 1: Imagem
+  const imageAttachment = process.attachments.find(att => att.file_type === 'image');
   if (imageAttachment) return imageAttachment.file_url;
-  // Could generate a placeholder image based on title or type here
+
+  // Prioridade 2: Vídeo do YouTube
+  const videoLinkAttachment = process.attachments.find(att => att.file_type === 'link' && att.file_url.includes('youtu'));
+  if (videoLinkAttachment) {
+    const thumbnailUrl = getYouTubeThumbnail(videoLinkAttachment.file_url);
+    if (thumbnailUrl) return thumbnailUrl;
+  }
+
   return undefined;
 };
 
