@@ -142,7 +142,7 @@ export const Processos = () => {
   };
 
   return (
-    <div className="p-4 sm:p-8 max-w-7xl mx-auto">
+    <div className="p-4 sm:p-8 max-w-7xl mx-auto min-h-screen bg-gray-50 dark:bg-slate-900">
       {/* Header Section */}
       <div className="relative mb-8 p-6 rounded-xl overflow-hidden shadow-xl border border-gray-200 dark:border-slate-700 bg-gradient-to-r from-brand-500 to-orange-400 dark:from-brand-700 dark:to-orange-600">
         <div className="absolute inset-0 opacity-20 bg-cover bg-center" style={{ backgroundImage: "url('/path/to/subtle-pattern.png')" }}></div>

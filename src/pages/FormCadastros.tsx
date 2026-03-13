@@ -58,7 +58,7 @@ export const FormCadastros = () => {
   }
 
   return (
-    <div className="p-4 sm:p-8 max-w-7xl mx-auto">
+    <div className="p-4 sm:p-8 max-w-7xl mx-auto min-h-screen">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Gerenciar Formulários Públicos</h1>
         <p className="text-gray-500 dark:text-gray-400">Visualize os cadastros e gerencie os arquivos enviados.</p>

@@ -251,7 +251,7 @@ const ColdCallPage = () => {
     setIsColdCallDetailModalOpen(true);
   };
 
-  const handleCreateCrmLeadFromColdCall = useCallback(async (coldCallLead: ColdCallLead, meeting?: { date?: string; time?: string; modality?: string; notes?: string }, coldCallResult?: ColdCallResult) => {
+  const handleCreateCrmLeadFromColdCall = useCallback(async (coldCallLead: ColdCallLead, meeting?: { date?: string; time?: string; modality?: string; notes?: string }) => {
     try {
       const { crmLeadId } = await createCrmLeadFromColdCall(coldCallLead.id, meeting);
       toast.success((t) => (
@@ -311,7 +311,7 @@ const ColdCallPage = () => {
   }
 
   return (
-    <div key={user?.id || 'guest'} className="p-4 sm:p-8 max-w-7xl mx-auto">
+    <div key={user?.id || 'guest'} className="p-4 sm:p-8 max-w-7xl mx-auto min-h-screen bg-gray-50 dark:bg-slate-900">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Módulo Cold Call</h1>
