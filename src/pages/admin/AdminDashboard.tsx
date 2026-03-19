@@ -153,7 +153,7 @@ export const AdminDashboard = () => {
     if (!member) return;
 
     // Prevenir que o ADMIN remova seu próprio papel de ADMIN
-    if (member.authUserId === user?.id && !newRoles.includes('ADMIN')) {
+    if (member.authUserId === user?.id && newRoles.includes('ADMIN') && !newRoles.includes('ADMIN')) {
       toast.error("Você não pode remover seu próprio papel de ADMIN.");
       return;
     }
@@ -279,6 +279,44 @@ export const AdminDashboard = () => {
     toast.success("Membro da equipe atualizado com sucesso!");
   };
 
+  const handleCreateSuperAdmin = async () => {
+    setAddMemberError('');
+    setIsAddingMember(true);
+    try {
+      const newAdminEmail = "ademiconriachueloadm@ademicon.com";
+      const newAdminName = "Super Admin Ademicon";
+      const newAdminCpf = "00000000000"; // Placeholder CPF for admin
+      const newAdminRoles: UserRole[] = ['ADMIN'];
+      const tempPassword = generateRandomPassword();
+
+      const result = await addTeamMember({
+        name: newAdminName,
+        email: newAdminEmail,
+        cpf: newAdminCpf,
+        roles: newAdminRoles,
+        isActive: true,
+      });
+
+      if (result.success) {
+        toast.success("Super Admin criado com sucesso!");
+        setCreatedConsultantCredentials({
+          name: result.member.name,
+          login: result.member.email || '',
+          password: result.tempPassword || '',
+          wasExistingUser: result.wasExistingUser || false,
+        });
+        setShowCredentialsModal(true);
+      } else {
+        setAddMemberError(result.message || "Falha ao criar Super Admin.");
+      }
+    } catch (error: any) {
+      setAddMemberError(error.message || "Falha ao criar Super Admin.");
+      console.error("Erro ao criar Super Admin:", error);
+    } finally {
+      setIsAddingMember(false);
+    }
+  };
+
   if (isDataLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -293,6 +331,20 @@ export const AdminDashboard = () => {
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard do Escritório</h1>
         <p className="text-gray-500 dark:text-gray-400">Visão geral de todas as equipes e gestão de acessos.</p>
       </div>
+
+      {/* Botão para criar Super Admin */}
+      {!teamMembers.some(member => member.email === "ademiconriachueloadm@ademicon.com" && member.roles.includes('ADMIN')) && (
+        <div className="mb-8 p-6 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div>
+            <h3 className="text-lg font-semibold text-blue-800 dark:text-blue-200">Criar Acesso de Super Administrador</h3>
+            <p className="text-sm text-blue-700 dark:text-blue-300">Crie o acesso principal para gerenciar todo o escritório.</p>
+          </div>
+          <Button onClick={handleCreateSuperAdmin} disabled={isAddingMember} className="bg-blue-600 hover:bg-blue-700 text-white">
+            {isAddingMember ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <UserPlus className="w-4 h-4 mr-2" />}
+            Criar Super Admin
+          </Button>
+        </div>
+      )}
 
       {/* Filtros de Data */}
       <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm mb-8">
