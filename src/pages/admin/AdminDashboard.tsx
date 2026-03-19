@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Loader2, Users, DollarSign, TrendingUp, CalendarDays, BarChart3, UserRound, ShieldCheck, Plus, Edit2, Trash2, KeyRound, Mail, Phone, RotateCcw, Check, Copy, UserPlus, XCircle, AlertTriangle } from 'lucide-react';
+import { Loader2, Users, DollarSign, TrendingUp, CalendarDays, BarChart3, UserRound, ShieldCheck, Plus, Edit2, Trash2, KeyRound, Mail, Phone, RotateCcw, Check, Copy, UserPlus, XCircle, AlertTriangle, Star, MessageSquare, CalendarCheck, Percent, Ghost, UserMinus, FileText, Clock } from 'lucide-react';
 import { MetricCard } from '@/components/MetricCard';
 import { formatLargeCurrency } from '@/utils/currencyUtils';
 import { TeamMember, UserRole } from '@/types';
@@ -19,6 +19,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { ConsultantCredentialsModal } from '@/components/ConsultantCredentialsModal';
 import toast from 'react-hot-toast';
 import { generateRandomPassword, formatCpf } from '@/utils/authUtils';
+import { EditTeamMemberModal } from '@/components/TeamConfig/EditTeamMemberModal'; // Importar o modal de edição
 
 const ALL_ROLES: UserRole[] = ['CONSULTOR', 'PRÉVIA', 'AUTORIZADO', 'GESTOR', 'ANJO', 'SECRETARIA', 'ADMIN'];
 
@@ -27,7 +28,9 @@ export const AdminDashboard = () => {
   const { 
     teamMembers, 
     crmLeads, 
-    commissions, 
+    candidates, // Adicionado para métricas de contratação
+    coldCallLeads, // Adicionado para métricas de cold call
+    coldCallLogs, // Adicionado para métricas de cold call
     isDataLoading, 
     updateTeamMember, 
     deleteTeamMember, 
@@ -55,6 +58,9 @@ export const AdminDashboard = () => {
   const [showCredentialsModal, setShowCredentialsModal] = useState(false);
   const [createdConsultantCredentials, setCreatedConsultantCredentials] = useState<{ name: string, login: string, password: string, wasExistingUser: boolean } | null>(null);
 
+  const [isEditMemberModalOpen, setIsEditMemberModalOpen] = useState(false); // Estado para o modal de edição
+  const [memberToEdit, setMemberToEdit] = useState<TeamMember | null>(null); // Membro a ser editado
+
   const filteredLeads = useMemo(() => {
     const start = filterStartDate ? new Date(filterStartDate + 'T00:00:00') : null;
     const end = filterEndDate ? new Date(filterEndDate + 'T23:59:59') : null;
@@ -70,6 +76,30 @@ export const AdminDashboard = () => {
       return matchesStart && matchesEnd;
     });
   }, [crmLeads, filterStartDate, filterEndDate]);
+
+  const filteredCandidates = useMemo(() => {
+    const start = filterStartDate ? new Date(filterStartDate + 'T00:00:00') : null;
+    const end = filterEndDate ? new Date(filterEndDate + 'T23:59:59') : null;
+
+    return candidates.filter(candidate => {
+      const createdAt = new Date(candidate.createdAt);
+      const matchesStart = !start || createdAt >= start;
+      const matchesEnd = !end || createdAt <= end;
+      return matchesStart && matchesEnd;
+    });
+  }, [candidates, filterStartDate, filterEndDate]);
+
+  const filteredColdCallLogs = useMemo(() => {
+    const start = filterStartDate ? new Date(filterStartDate + 'T00:00:00') : null;
+    const end = filterEndDate ? new Date(filterEndDate + 'T23:59:59') : null;
+
+    return coldCallLogs.filter(log => {
+      const createdAt = new Date(log.created_at);
+      const matchesStart = !start || createdAt >= start;
+      const matchesEnd = !end || createdAt <= end;
+      return matchesStart && matchesEnd;
+    });
+  }, [coldCallLogs, filterStartDate, filterEndDate]);
 
   const officeMetrics = useMemo(() => {
     let totalSoldValue = 0;
@@ -99,14 +129,24 @@ export const AdminDashboard = () => {
       }
     });
 
+    const totalCandidates = filteredCandidates.length;
+    const totalHiredCandidates = filteredCandidates.filter(c => c.status === 'Autorizado').length;
+
+    const totalColdCalls = filteredColdCallLogs.length;
+    const totalColdCallMeetingsScheduled = filteredColdCallLogs.filter(log => log.result === 'Agendar Reunião').length;
+
     return {
       totalSoldValue,
       totalLeads,
       totalActiveConsultants,
       totalActiveManagers,
       totalActiveSecretarias,
+      totalCandidates,
+      totalHiredCandidates,
+      totalColdCalls,
+      totalColdCallMeetingsScheduled,
     };
-  }, [filteredLeads, teamMembers]);
+  }, [filteredLeads, teamMembers, filteredCandidates, filteredColdCallLogs]);
 
   const handleRoleChange = (memberId: string, newRoles: UserRole[]) => {
     const member = teamMembers.find(m => m.id === memberId);
@@ -220,6 +260,25 @@ export const AdminDashboard = () => {
     }
   };
 
+  const handleOpenEditMemberModal = (member: TeamMember) => {
+    setMemberToEdit(member);
+    setIsEditMemberModalOpen(true);
+  };
+
+  const handleSaveEditedMember = async (id: string, updates: Partial<TeamMember>) => {
+    const member = teamMembers.find(m => m.id === id);
+    if (!member) return;
+
+    // Prevenir que o ADMIN remova seu próprio papel de ADMIN
+    if (member.authUserId === user?.id && updates.roles && !updates.roles.includes('ADMIN')) {
+      toast.error("Você não pode remover seu próprio papel de ADMIN.");
+      return;
+    }
+
+    await updateTeamMember(id, updates);
+    toast.success("Membro da equipe atualizado com sucesso!");
+  };
+
   if (isDataLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -306,6 +365,36 @@ export const AdminDashboard = () => {
             icon={ShieldCheck}
             colorClass="bg-orange-600 text-white"
           />
+          <MetricCard
+            title="Secretarias Ativas"
+            value={officeMetrics.totalActiveSecretarias}
+            icon={MessageSquare}
+            colorClass="bg-sky-600 text-white"
+          />
+          <MetricCard
+            title="Candidatos Registrados"
+            value={officeMetrics.totalCandidates}
+            icon={UserPlus}
+            colorClass="bg-indigo-600 text-white"
+          />
+          <MetricCard
+            title="Candidatos Autorizados"
+            value={officeMetrics.totalHiredCandidates}
+            icon={UserCheck}
+            colorClass="bg-emerald-600 text-white"
+          />
+          <MetricCard
+            title="Total Cold Calls"
+            value={officeMetrics.totalColdCalls}
+            icon={Phone}
+            colorClass="bg-yellow-600 text-white"
+          />
+          <MetricCard
+            title="Reuniões Cold Call"
+            value={officeMetrics.totalColdCallMeetingsScheduled}
+            icon={CalendarCheck}
+            colorClass="bg-teal-600 text-white"
+          />
         </div>
       </section>
 
@@ -361,6 +450,9 @@ export const AdminDashboard = () => {
                         </Button>
                         <Button variant="ghost" size="sm" onClick={() => handleToggleActive(member)} title={member.isActive ? 'Inativar' : 'Ativar'}>
                           {member.isActive ? <XCircle className="w-4 h-4" /> : <Check className="w-4 h-4" />}
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => handleOpenEditMemberModal(member)} title="Editar Membro">
+                          <Edit2 className="w-4 h-4" />
                         </Button>
                         <Button variant="ghost" size="sm" onClick={() => handleDeleteMember(member.id, member.name)} title="Excluir Membro">
                           <Trash2 className="w-4 h-4" />
@@ -435,6 +527,15 @@ export const AdminDashboard = () => {
           login={createdConsultantCredentials.login}
           password={createdConsultantCredentials.password}
           wasExistingUser={createdConsultantCredentials.wasExistingUser}
+        />
+      )}
+
+      {isEditMemberModalOpen && memberToEdit && (
+        <EditTeamMemberModal
+          isOpen={isEditMemberModalOpen}
+          onClose={() => setIsEditMemberModalOpen(false)}
+          member={memberToEdit}
+          onSave={handleSaveEditedMember}
         />
       )}
     </div>
