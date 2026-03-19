@@ -1,15 +1,15 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Plus, Trash2, User, Shield, Crown, Star, Edit2, Save, X, Archive, UserCheck, Loader2, Copy, RefreshCw, KeyRound, Mail, CalendarPlus, CalendarDays, ChevronDown, ChevronUp } from 'lucide-react';
-import { TeamMember, TeamRole, Candidate } from '@/types';
+import { Plus, Trash2, User, Shield, Crown, Star, Edit2, Save, X, Archive, UserCheck, Loader2, Copy, RefreshCw, KeyRound, Mail, CalendarPlus, CalendarDays, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react';
+import { TeamMember, TeamRole, Candidate, UserRole } from '@/types';
 import { formatCpf, generateRandomPassword } from '@/utils/authUtils';
 import { ConsultantCredentialsModal } from '@/components/ConsultantCredentialsModal';
 import { RecordTeamMemberInterviewModal } from '@/components/TeamConfig/RecordTeamMemberInterviewModal';
 import { EditTeamMemberModal } from '@/components/TeamConfig/EditTeamMemberModal';
 import toast from 'react-hot-toast';
 
-const ALL_ROLES: TeamRole[] = ['PRÉVIA', 'AUTORIZADO', 'GESTOR', 'ANJO', 'SECRETARIA'];
+const ALL_ROLES: UserRole[] = ['CONSULTOR', 'PRÉVIA', 'AUTORIZADO', 'GESTOR', 'ANJO', 'SECRETARIA', 'ADMIN'];
 const JOAO_GESTOR_AUTH_ID = "0c6d71b7-daeb-4dde-8eec-0e7a8ffef658";
 
 export const TeamConfig = () => {
@@ -21,7 +21,7 @@ export const TeamConfig = () => {
   const [newEmail, setNewEmail] = useState('');
   const [newCpf, setNewCpf] = useState('');
   const [newDateOfBirth, setNewDateOfBirth] = useState('');
-  const [newRoles, setNewRoles] = useState<TeamRole[]>([]);
+  const [newRoles, setNewRoles] = useState<UserRole[]>(['CONSULTOR']);
   const [generatedPassword, setGeneratedPassword] = useState(generateRandomPassword());
   const [isAdding, setIsAdding] = useState(false);
   const [copiedPassword, setCopiedPassword] = useState(false);
@@ -38,7 +38,7 @@ export const TeamConfig = () => {
 
   const [isAddFormCollapsed, setIsAddFormCollapsed] = useState(true);
 
-  const handleRoleChange = (role: TeamRole, currentRoles: TeamRole[], setRoles: React.Dispatch<React.SetStateAction<TeamRole[]>>) => {
+  const handleRoleChange = (role: UserRole, currentRoles: UserRole[], setRoles: React.Dispatch<React.SetStateAction<UserRole[]>>) => {
     const updatedRoles = currentRoles.includes(role)
       ? currentRoles.filter(r => r !== role)
       : [...currentRoles, role];
@@ -101,7 +101,7 @@ export const TeamConfig = () => {
       setNewEmail('');
       setNewCpf('');
       setNewDateOfBirth('');
-      setNewRoles([]);
+      setNewRoles(['CONSULTOR']);
       setGeneratedPassword(generateRandomPassword());
       setIsAddFormCollapsed(true);
     } catch (error: any) {
@@ -118,10 +118,24 @@ export const TeamConfig = () => {
   };
 
   const handleSaveEditedMember = async (id: string, updates: Partial<TeamMember>) => {
+    const member = teamMembers.find(m => m.id === id);
+    if (!member) return;
+
+    // Prevenir que o ADMIN remova seu próprio papel de ADMIN
+    if (member.authUserId === user?.id && updates.roles && !updates.roles.includes('ADMIN')) {
+      toast.error("Você não pode remover seu próprio papel de ADMIN.");
+      return;
+    }
+
     await updateTeamMember(id, updates);
   };
 
   const handleDelete = async (id: string) => {
+    // Prevenir que o ADMIN se exclua
+    if (teamMembers.find(m => m.id === id)?.authUserId === user?.id) {
+      toast.error("Você não pode excluir sua própria conta de ADMIN.");
+      return;
+    }
     if (window.confirm('Tem certeza que deseja remover este membro da equipe? Esta ação não pode ser desfeita.')) {
       try {
         await deleteTeamMember(id);
@@ -133,6 +147,11 @@ export const TeamConfig = () => {
   };
 
   const handleToggleActive = async (member: TeamMember) => {
+    // Prevenir que o ADMIN se inative
+    if (member.authUserId === user?.id && member.isActive) {
+      toast.error("Você não pode inativar sua própria conta de ADMIN.");
+      return;
+    }
     try {
       await updateTeamMember(member.id, { isActive: !member.isActive });
     } catch (error: any) {
@@ -141,15 +160,16 @@ export const TeamConfig = () => {
   };
 
   const handleResetPassword = async (member: TeamMember) => {
-    if (member.roles.includes('GESTOR')) {
-      toast.error("A senha de gestores não pode ser resetada aqui por segurança. O próprio gestor deve usar a opção 'Esqueci minha senha' na tela de login.");
-      return;
-    }
-
     if (!member.authUserId) {
       toast.error("Não é possível resetar a senha: ID de autenticação do consultor não encontrado.");
       return;
     }
+    // Prevenir que o ADMIN resete a própria senha por aqui (deve usar o fluxo de 'Esqueci minha senha')
+    if (member.authUserId === user?.id && user.role === 'ADMIN') {
+      toast.error("Gestores ADMIN devem usar a opção 'Esqueci minha senha' na tela de login para resetar sua própria senha.");
+      return;
+    }
+
     if (!window.confirm(`Tem certeza que deseja resetar a senha de ${member.name}? Uma nova senha temporária será gerada e o consultor será forçado a trocá-la no próximo login.`)) {
       return;
     }
@@ -174,22 +194,24 @@ export const TeamConfig = () => {
     }
   };
 
-  const getRoleIcon = (role: TeamRole) => {
+  const getRoleIcon = (role: UserRole) => {
       switch(role) {
           case 'GESTOR': return <Crown className="w-4 h-4 text-blue-500" />;
           case 'ANJO': return <Star className="w-4 h-4 text-yellow-500" />;
           case 'AUTORIZADO': return <Shield className="w-4 h-4 text-green-500" />;
           case 'SECRETARIA': return <UserCheck className="w-4 h-4 text-purple-500" />;
+          case 'ADMIN': return <AlertTriangle className="w-4 h-4 text-red-500" />; // Ícone para ADMIN
           default: return <User className="w-4 h-4 text-gray-500" />;
       }
   };
 
-  const getRoleBadge = (role: TeamRole) => {
+  const getRoleBadge = (role: UserRole) => {
       switch(role) {
           case 'GESTOR': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300';
           case 'ANJO': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300';
           case 'AUTORIZADO': return 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300';
           case 'SECRETARIA': return 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300';
+          case 'ADMIN': return 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300'; // Cor para ADMIN
           default: return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
       }
   };
@@ -204,7 +226,7 @@ export const TeamConfig = () => {
   }, [teamMembers]);
 
   return (
-    <div className="p-4 sm:p-8 min-h-screen bg-gray-50 dark:bg-slate-900">
+    <div className="p-4 sm:p-8 max-w-7xl mx-auto">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Gestão de Equipe</h1>
         <p className="text-gray-500 dark:text-gray-400">Cadastre os membros da equipe e defina seus cargos para uso nas comissões.</p>

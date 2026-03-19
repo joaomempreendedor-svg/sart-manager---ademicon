@@ -62,6 +62,9 @@ import ColdCallPage from '@/pages/consultor/ColdCallPage'; // NOVO: Importar Col
 import { SecretariaDashboard } from '@/pages/secretaria/SecretariaDashboard';
 import { SecretariaDailyChecklist } from '@/pages/secretaria/SecretariaDailyChecklist'; // NOVO: Importar a página de checklist da secretaria
 
+// Admin Pages
+import { AdminDashboard } from '@/pages/admin/AdminDashboard'; // NOVO: Importar AdminDashboard
+
 const AppRoutes = () => {
   return (
     <Routes>
@@ -118,6 +121,13 @@ const AppRoutes = () => {
           <Route path="onboarding-admin" element={<OnlineOnboarding />} />
           <Route path="form-cadastros" element={<FormCadastros />} />
           <Route path="config-origins" element={<OriginConfig />} />
+        </Route>
+      </Route>
+
+      {/* NOVO: Rotas para ADMIN que usam o GestorLayout */}
+      <Route element={<ProtectedLayout allowedRoles={['ADMIN']} />}>
+        <Route path="/admin" element={<GestorLayout />}>
+          <Route path="dashboard" element={<AdminDashboard />} />
         </Route>
       </Route>
 

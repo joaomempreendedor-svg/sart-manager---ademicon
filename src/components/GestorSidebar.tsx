@@ -77,10 +77,14 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
     // Adicionado SECRETARIA
     { to: `${baseRoute}/config-origins`, icon: MapPin, label: "Configurar Origens", roles: ['GESTOR', 'ADMIN', 'SECRETARIA'], section: 'config' },
     { to: `${baseRoute}/config-process`, icon: Settings, label: "Editar Processo (Antigo)", roles: ['GESTOR', 'ADMIN'], section: 'config' },
+    
+    // NOVO: Link para o Admin Dashboard, visível apenas para ADMIN
+    { to: `/admin/dashboard`, icon: LayoutDashboard, label: "Dashboard Escritório", roles: ['ADMIN'], section: 'admin' },
   ], [dashboardPath, baseRoute, userRole]);
 
   const overviewLinks = allLinks.filter(link => link.section === 'overview' && link.roles.includes(userRole));
   const configLinks = allLinks.filter(link => link.section === 'config' && link.roles.includes(userRole));
+  const adminLinks = allLinks.filter(link => link.section === 'admin' && link.roles.includes(userRole));
 
   const filteredOverviewLinks = useMemo(() => {
     if (!searchTerm) return overviewLinks;
@@ -91,6 +95,11 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
     if (!searchTerm) return configLinks;
     return configLinks.filter(link => link.label.toLowerCase().includes(searchTerm.toLowerCase()));
   }, [configLinks, searchTerm]);
+
+  const filteredAdminLinks = useMemo(() => {
+    if (!searchTerm) return adminLinks;
+    return adminLinks.filter(link => link.label.toLowerCase().includes(searchTerm.toLowerCase()));
+  }, [adminLinks, searchTerm]);
 
   useEffect(() => {
     if (searchTerm) {
@@ -140,6 +149,37 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({ isSidebarOpen, tog
                   className="w-full pl-9 pr-4 py-1.5 border border-gray-200 dark:border-slate-700 rounded-md text-sm bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 focus:ring-brand-500 focus:border-brand-500"
               />
             </div>
+          )}
+
+          {/* Admin Links */}
+          {userRole === 'ADMIN' && filteredAdminLinks.length > 0 && (
+            <>
+              {!isSidebarCollapsed && (
+                <button onClick={() => setIsOverviewCollapsed(!isOverviewCollapsed)} className={sectionTitleClass}>
+                  <span>Administração</span>
+                  <ChevronDown className={`w-4 h-4 transition-transform ${isOverviewCollapsed ? 'rotate-0' : '-rotate-90'}`} />
+                </button>
+              )}
+              {(!isSidebarCollapsed && !isOverviewCollapsed) && (
+                <>
+                  {filteredAdminLinks.map(link => (
+                    <NavLink key={link.to} to={link.to} className={linkClass} onClick={toggleSidebar}>
+                      <link.icon className="w-5 h-5" />
+                      <span>{link.label}</span>
+                    </NavLink>
+                  ))}
+                </>
+              )}
+              {isSidebarCollapsed && (
+                <>
+                  {filteredAdminLinks.map(link => (
+                    <NavLink key={link.to} to={link.to} className={linkClass} onClick={toggleSidebar} title={link.label}>
+                      <link.icon className="w-5 h-5" />
+                    </NavLink>
+                  ))}
+                </>
+              )}
+            </>
           )}
 
           {/* Visão Geral e Operação */}
