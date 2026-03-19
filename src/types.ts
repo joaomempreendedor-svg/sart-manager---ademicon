@@ -201,7 +201,7 @@ export interface SupportMaterialAssignment {
   created_at: string;
 }
 
-export type TeamRole = 'PRÉVIA' | 'AUTORIZADO' | 'GESTOR' | 'ANJO' | 'SECRETARIA' | 'CONSULTOR' | 'ADMIN'; // Updated to include ADMIN
+export type TeamRole = 'PRÉVIA' | 'AUTORIZADO' | 'GESTOR' | 'ANJO' | 'SECRETARIA' | 'CONSULTOR';
 
 export interface TeamMember {
   id: string;
@@ -220,7 +220,7 @@ export interface TeamMember {
   user_id?: string;
 }
 
-export type UserRole = 'GESTOR' | 'CONSULTOR' | 'ADMIN' | 'SECRETARIA'; // Updated to include ADMIN
+export type UserRole = 'GESTOR' | 'CONSULTOR' | 'ADMIN' | 'SECRETARIA';
 
 export interface User {
   id: string;
@@ -625,14 +625,10 @@ export interface AppContextType {
   toggleChecklistItem: (candidateId: string, itemId: string) => Promise<void>;
   setChecklistDueDate: (candidateId: string, itemId: string, dueDate: string) => Promise<void>;
   toggleConsultantGoal: (candidateId: string, goalId: string) => Promise<void>;
-  addChecklistStage: (title: string, description: string) => void;
-  updateChecklistStage: (stageId: string, updates: Partial<ChecklistStage>) => void;
-  deleteChecklistStage: (stageId: string) => void;
-  moveChecklistStage: (stageId: string, direction: 'up' | 'down') => void;
-  addChecklistItem: (daily_checklist_id: string, text: string, order_index: number, resource?: DailyChecklistItemResource, audioFile?: File, imageFile?: File) => Promise<DailyChecklistItem>;
-  updateChecklistItem: (id: string, updates: Partial<DailyChecklistItem>, audioFile?: File, imageFile?: File) => Promise<DailyChecklistItem>;
-  deleteChecklistItem: (id: string) => Promise<void>;
-  moveChecklistItem: (checklistId: string, itemId: string, direction: 'up' | 'down') => Promise<void>;
+  addChecklistItem: (stageId: string, label: string, responsibleRole?: 'GESTOR' | 'SECRETARIA') => void;
+  updateChecklistItem: (stageId: string, itemId: string, updates: Partial<ChecklistItem>) => Promise<void>;
+  deleteChecklistItem: (stageId: string, itemId: string) => void;
+  moveChecklistItem: (stageId: string, itemId: string, direction: 'up' | 'down') => void;
   resetChecklistToDefault: () => void;
   addGoalItem: (stageId: string, label: string) => void;
   updateGoalItem: (stageId: string, itemId: string, newLabel: string) => void;
@@ -673,6 +669,13 @@ export interface AppContextType {
   addCrmLead: (lead: Omit<CrmLead, 'id' | 'created_at' | 'updated_at' | 'user_id' | 'created_by' | 'updated_by'>) => Promise<CrmLead>;
   updateCrmLead: (id: string, updates: Partial<CrmLead>) => Promise<CrmLead>;
   deleteCrmLead: (id: string) => Promise<void>;
+  addDailyChecklist: (title: string) => Promise<DailyChecklist>;
+  updateDailyChecklist: (id: string, updates: Partial<DailyChecklist>) => Promise<DailyChecklist>;
+  deleteDailyChecklist: (id: string) => Promise<void>;
+  addDailyChecklistItem: (daily_checklist_id: string, text: string, order_index: number, resource?: DailyChecklistItemResource, audioFile?: File, imageFile?: File) => Promise<DailyChecklistItem>;
+  updateDailyChecklistItem: (id: string, updates: Partial<DailyChecklistItem>, audioFile?: File, imageFile?: File) => Promise<DailyChecklistItem>;
+  deleteDailyChecklistItem: (id: string) => Promise<void>;
+  moveDailyChecklistItem: (checklistId: string, itemId: string, direction: 'up' | 'down') => Promise<void>;
   assignDailyChecklistToConsultant: (daily_checklist_id: string, consultant_id: string) => Promise<DailyChecklistAssignment>;
   unassignDailyChecklistFromConsultant: (daily_checklist_id: string, consultant_id: string) => Promise<void>;
   toggleDailyChecklistCompletion: (daily_checklist_item_id: string, date: string, done: boolean, consultant_id: string) => Promise<void>;
@@ -728,6 +731,10 @@ export interface AppContextType {
   addColdCallLog: (log: Omit<ColdCallLog, 'id' | 'user_id' | 'created_at' | 'duration_seconds'> & { start_time: string; end_time: string; }) => Promise<ColdCallLog>;
   getColdCallMetrics: (consultantId: string) => { totalCalls: number; totalConversations: number; totalMeetingsScheduled: number; conversationToMeetingRate: number; };
   createCrmLeadFromColdCall: (coldCallLeadId: string, meeting?: { date?: string; time?: string; modality?: string; notes?: string }) => Promise<{ crmLeadId: string }>;
+  addChecklistStage: (title: string, description: string) => void;
+  updateChecklistStage: (stageId: string, updates: Partial<ChecklistStage>) => void;
+  deleteChecklistStage: (stageId: string) => void;
+  moveChecklistStage: (stageId: string, direction: 'up' | 'down') => void;
   addProcess: (process: Omit<Process, 'id' | 'user_id' | 'created_at' | 'updated_at'>, files?: { file: File, type: string }[], links?: { url: string, type: string }[], coverFile?: File) => Promise<Process>;
   updateProcess: (id: string, updates: Partial<Process>, filesToAdd?: { file: File, type: string }[], linksToAdd?: { url: string, type: string }[], coverFile?: File) => Promise<Process>;
   deleteProcess: (id: string) => Promise<void>;

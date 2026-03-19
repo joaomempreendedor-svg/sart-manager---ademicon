@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useMemo, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Session } from '@supabase/supabase-js';
-import { User, UserRole } from '@/types'; // Importar UserRole
+import { User } from '@/types';
 
 interface AuthContextType {
   user: User | null;
@@ -164,8 +164,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         data: {
           first_name: cleanName.split(' ')[0],
           last_name: cleanName.split(' ').slice(1).join(' '),
-          role: 'CONSULTOR', // NOVO: Define o papel padrão como CONSULTOR
-          needs_password_change: true, // NOVO: Força a troca de senha no primeiro login
         }
       }
     });

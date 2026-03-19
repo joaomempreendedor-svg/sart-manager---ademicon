@@ -6,7 +6,7 @@ import { ChevronRight, User, Calendar, CheckCircle2, TrendingUp, AlertCircle, Cl
 import { CandidateStatus, ChecklistTaskState, GestorTask, LeadTask, CrmLead, Candidate, ColdCallLead, ColdCallLog, ColdCallDetailType } from '@/types';
 import { TableSkeleton } from '@/components/TableSkeleton';
 import { ScheduleInterviewModal } from '@/components/ScheduleInterviewModal';
-import { PendingLeadTasksModal } from '@/components/gestor/PendingLeadTasksModal'; // NOVO: Importar o modal
+import { PendingLeadTasksModal } from '@/components/gestor/PendingLeadTasksModal';
 import toast from 'react-hot-toast';
 import { NotificationBell } from '@/components/NotificationBell';
 import { NotificationCenter } from '@/components/NotificationCenter';
@@ -59,6 +59,8 @@ export const Dashboard = () => {
 
   const [isColdCallDetailModalOpen, setIsColdCallDetailModalOpen] = useState(false);
   const [coldCallModalTitle, setColdCallModalTitle] = useState('');
+  const [coldCallLeadsForModal, setColdCallLeadsForModal] = useState<ColdCallLead[]>([]);
+  const [coldCallLogsForModal, setColdCallLogsForModal] = useState<ColdCallLog[]>([]);
   const [coldCallDetailType, setColdCallDetailType] = useState<ColdCallDetailType>('all');
   
   const [userSelectedColdCallConsultantId, setUserSelectedColdCallConsultantId] = useState<string | null>(null); 
@@ -372,7 +374,7 @@ export const Dashboard = () => {
   if (isDataLoading) return <div className="flex items-center justify-center h-screen"><Loader2 className="w-12 h-12 text-brand-500 animate-spin" /></div>;
 
   return (
-    <div className="p-4 sm:p-8 max-w-7xl mx-auto">
+    <div className="p-4 sm:p-8 max-w-7xl mx-auto space-y-10">
       <div className="flex items-center justify-between flex-col sm:flex-row gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Olá, {user?.name.split(' ')[0]}!</h1>

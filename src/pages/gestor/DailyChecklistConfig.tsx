@@ -708,7 +708,7 @@ const ChecklistItemModal: React.FC<ChecklistItemModalProps> = ({ isOpen, onClose
                   <div className="grid gap-2 mt-4">
                     <Label htmlFor="resourceFile" className="text-left">Arquivo ({resourceType.toUpperCase()}) *</Label>
                     <label className="flex items-center justify-center px-4 py-2 border border-gray-300 dark:border-slate-600 border-dashed rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/50 transition bg-white dark:bg-slate-700">
-                        {getResourceTypeIcon(resourceType)}
+                      {getResourceTypeIcon(resourceType)}
                       <span className="text-sm text-gray-600 dark:text-gray-300 truncate ml-2">{singleSelectedFile ? singleSelectedFile.name : (item?.resource?.name || `Selecionar arquivo ${resourceType}...`)}</span>
                       <input type="file" id="resourceFile" className="hidden" accept={resourceType === 'pdf' ? 'application/pdf' : 'image/*'} onChange={handleSingleFileChange} />
                     </label>
@@ -970,7 +970,7 @@ export const DailyChecklistConfig = () => {
   };
 
   return (
-    <div className="p-4 sm:p-8 max-w-6xl mx-auto">
+    <div className="p-4 sm:p-8 max-w-6xl mx-auto pb-20">
       <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Configurar Metas Diárias</h1>

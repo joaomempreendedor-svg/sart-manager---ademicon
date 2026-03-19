@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { User, Mail, Lock, Save, Loader2, AlertTriangle, CheckCircle2, ShieldCheck } from 'lucide-react';
-import { UserRole } from '@/types'; // Import UserRole
 
 export const Profile = () => {
   const { user, updateUserPassword } = useAuth();
