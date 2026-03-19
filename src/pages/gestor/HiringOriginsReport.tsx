@@ -61,7 +61,7 @@ const HiringOriginsReport = () => {
   }
 
   return (
-    <div className="p-4 sm:p-8 max-w-5xl mx-auto min-h-screen bg-gray-50 dark:bg-slate-900">
+    <div className="p-4 sm:p-8 max-w-5xl mx-auto">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
           <MapPin className="w-6 h-6 mr-2 text-brand-500" /> Relatório de Origens

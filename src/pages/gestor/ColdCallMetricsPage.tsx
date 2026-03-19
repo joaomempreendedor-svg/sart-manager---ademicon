@@ -79,7 +79,7 @@ const ColdCallMetricsPage = () => {
     return leads;
   }, [coldCallLeads, selectedColdCallConsultantId, filterStartDate, filterEndDate]);
 
-  const coldCallMetrics = useMemo(() => {
+  const metrics = useMemo(() => {
     const totalCalls = filteredColdCallLogs.length;
     
     const answeredLogs = filteredColdCallLogs.filter(log => 
@@ -182,7 +182,7 @@ const ColdCallMetricsPage = () => {
               id="filterStartDate"
               value={filterStartDate}
               onChange={(e) => setFilterStartDate(e.target.value)}
-              className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2.5 text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500"
+              className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2.5 text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none"
             />
           </div>
           <div>
@@ -192,7 +192,7 @@ const ColdCallMetricsPage = () => {
               id="filterEndDate"
               value={filterEndDate}
               onChange={(e) => setFilterEndDate(e.target.value)}
-              className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2.5 text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500"
+              className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2.5 text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none"
             />
           </div>
         </div>
@@ -201,7 +201,7 @@ const ColdCallMetricsPage = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         <MetricCard
           title="Total de Ligações"
-          value={coldCallMetrics.totalCalls}
+          value={metrics.totalCalls}
           icon={PhoneCall}
           colorClass="bg-blue-600 text-white"
           subValue="Chamadas registradas no período"
@@ -209,7 +209,7 @@ const ColdCallMetricsPage = () => {
         />
         <MetricCard
           title="Ligações Atendidas"
-          value={coldCallMetrics.totalAnswered}
+          value={metrics.totalAnswered}
           icon={MessageSquare}
           colorClass="bg-sky-600 text-white"
           subValue="Chamadas que foram atendidas"
@@ -217,7 +217,7 @@ const ColdCallMetricsPage = () => {
         />
         <MetricCard
           title="Demonstraram Interesse"
-          value={coldCallMetrics.totalConversations}
+          value={metrics.totalConversations}
           icon={Star}
           colorClass="bg-amber-600 text-white"
           subValue="Conversou ou Agendou Reunião"
@@ -225,14 +225,14 @@ const ColdCallMetricsPage = () => {
         />
         <MetricCard
           title="Taxa de Interesse"
-          value={`${coldCallMetrics.interestConversionRate.toFixed(1)}%`}
+          value={`${metrics.interestConversionRate.toFixed(1)}%`}
           icon={Percent}
           colorClass="bg-yellow-600 text-white"
           subValue="Atendidas → Interesse"
         />
         <MetricCard
           title="Reuniões Agendadas"
-          value={coldCallMetrics.totalMeetingsScheduled}
+          value={metrics.totalMeetingsScheduled}
           icon={CalendarCheck}
           colorClass="bg-green-600 text-white"
           subValue="Agendadas durante a ligação"
@@ -240,7 +240,7 @@ const ColdCallMetricsPage = () => {
         />
         <MetricCard
           title="Taxa de Agendamento"
-          value={`${coldCallMetrics.meetingConversionRate.toFixed(1)}%`}
+          value={`${metrics.meetingConversionRate.toFixed(1)}%`}
           icon={TrendingUp}
           colorClass="bg-teal-600 text-white"
           subValue="Atendidas → Reunião"

@@ -35,7 +35,7 @@ const MONTHLY_CUTOFF_DAYS: Record<number, number> = {
   1: 19, 2: 18, 3: 19, 4: 19, 5: 19, 6: 17, 7: 19, 8: 19, 9: 19, 10: 19, 11: 19, 12: 19,
 };
 
-const JOAO_GESTOR_AUTH_ID = "0c6d71b7-daeb-4dde-8eec-0e7a8ffef658";
+const SUPER_ADMIN_ID = "0c6d71b7-daeb-4dde-8eec-0e7a8ffef658"; // ID do gestor principal (João Müller)
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { user } = useAuth();
@@ -122,17 +122,30 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const calculateCompetenceMonth = useCallback((paidDate: string): string => {
     const date = new Date(paidDate + 'T00:00:00');
+    
     const period = cutoffPeriods.find(p => {
       const start = new Date(p.startDate + 'T00:00:00');
       const end = new Date(p.endDate + 'T00:00:00');
       return date >= start && date <= end;
     });
-    if (period) return period.competenceMonth;
+  
+    if (period) {
+      return period.competenceMonth;
+    }
+  
     const month = date.getMonth() + 1;
     const day = date.getDate();
     const cutoffDay = MONTHLY_CUTOFF_DAYS[month] || 19;
-    const competenceDate = new Date(date);
-    competenceDate.setMonth(competenceDate.getMonth() + (day <= cutoffDay ? 1 : 2));
+    let competenceDate = new Date(date);
+    competenceDate.setFullYear(date.getFullYear()); // Garante que o ano seja o mesmo inicialmente
+    competenceDate.setMonth(date.getMonth()); // Garante que o mês seja o mesmo inicialmente
+    competenceDate.setDate(date.getDate()); // Garante que o dia seja o mesmo inicialmente
+
+    if (day <= cutoffDay) {
+      competenceDate.setMonth(competenceDate.getMonth() + 1);
+    } else {
+      competenceDate.setMonth(competenceDate.getMonth() + 2);
+    }
     const compYear = competenceDate.getFullYear();
     const compMonth = String(competenceDate.getMonth() + 1).padStart(2, '0');
     return `${compYear}-${compMonth}`;
@@ -140,7 +153,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const debouncedUpdateConfig = useDebouncedCallback(async (newConfig: any) => {
     if (!user) return;
-    const { error } = await supabase.from('app_config').upsert({ user_id: JOAO_GESTOR_AUTH_ID, data: newConfig }, { onConflict: 'user_id' });
+    // Configurações são salvas para o SUPER_ADMIN_ID, a menos que o usuário seja ADMIN e esteja editando sua própria config
+    const targetUserId = user.role === 'ADMIN' ? user.id : SUPER_ADMIN_ID;
+    const { error } = await supabase.from('app_config').upsert({ user_id: targetUserId, data: newConfig }, { onConflict: 'user_id' });
     if (error) {
       toast.error(`Erro ao salvar configurações: ${error.message}`);
       return;
@@ -170,17 +185,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const refetchCommissions = useCallback(async () => {
     if (!user || isFetchingRef.current) return;
-    const allowedRoles = ['GESTOR', 'ADMIN', 'SECRETARIA'];
-    if (!allowedRoles.includes(user.role)) {
-      setCommissions([]);
-      return;
-    }
-
+    
     isFetchingRef.current = true;
     try {
+      const filters = user.role === 'ADMIN' ? {} : { user_id: user.id };
       const { data, error } = await getAllFromTable('commissions', {
         select: 'id, data, created_at',
-        filters: { user_id: JOAO_GESTOR_AUTH_ID },
+        filters: filters,
         orderBy: 'created_at',
         ascending: false,
       });
@@ -256,15 +267,29 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const fetchData = async (userId: string) => {
       setIsDataLoading(true);
       try {
-        const effectiveGestorId = JOAO_GESTOR_AUTH_ID;
-        setCrmOwnerUserId(effectiveGestorId);
+        // Determine the effective user ID for data fetching
+        // ADMIN can see all, other roles see their own data
+        const effectiveDataOwnerId = user?.role === 'ADMIN' ? null : userId; // If ADMIN, fetch all (no user_id filter)
 
-        await fetchAppConfig(effectiveGestorId);
+        // For app_config, each manager has their own config. ADMIN can manage all.
+        // For now, let's assume the main config is owned by SUPER_ADMIN_ID
+        const configOwnerId = user?.role === 'ADMIN' ? userId : SUPER_ADMIN_ID;
+        setCrmOwnerUserId(configOwnerId); // Set the CRM owner to the current user if ADMIN, else SUPER_ADMIN_ID
+
+        await fetchAppConfig(configOwnerId);
 
         // Helper para buscar dados ignorando erros de tabela inexistente
         const safeFetch = async (table: string, options: any = {}) => {
           try {
-            return await getAllFromTable(table, options);
+            // Adjust filters based on effectiveDataOwnerId
+            const currentFilters = options.filters || {};
+            if (effectiveDataOwnerId) {
+              currentFilters.user_id = effectiveDataOwnerId;
+            } else {
+              // If effectiveDataOwnerId is null (ADMIN), remove user_id filter
+              delete currentFilters.user_id;
+            }
+            return await getAllFromTable(table, { ...options, filters: currentFilters });
           } catch (e: any) {
             if (e.code === 'PGRST116' || e.message?.includes('schema cache') || e.message?.includes('does not exist')) {
               console.warn(`Tabela ${table} não encontrada. Ignorando.`);
@@ -284,37 +309,37 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           formCadastrosRes, formFilesRes, notificationsRes, teamProductionGoalsRes, teamMembersRes,
           coldCallLeadsRes, coldCallLogsRes, processesRes, processAttachmentsRes
         ] = await Promise.all([
-          safeFetch('candidates', { select: 'id, data, created_at, last_updated_at', filters: { user_id: effectiveGestorId } }),
-          safeFetch('support_materials', { select: 'id, data', filters: { user_id: effectiveGestorId } }),
-          safeFetch('cutoff_periods', { select: 'id, data', filters: { user_id: effectiveGestorId } }),
+          safeFetch('candidates', { select: 'id, data, created_at, last_updated_at' }),
+          safeFetch('support_materials', { select: 'id, data' }),
+          safeFetch('cutoff_periods', { select: 'id, data' }),
           safeFetch('onboarding_sessions', { select: '*, videos:onboarding_videos(*)' }),
           safeFetch('onboarding_video_templates', { orderBy: 'order', ascending: true }),
-          safeFetch('crm_pipelines', { filters: { user_id: effectiveGestorId } }),
-          safeFetch('crm_stages', { filters: { user_id: effectiveGestorId }, orderBy: 'order_index' }),
-          safeFetch('crm_fields', { filters: { user_id: effectiveGestorId } }),
-          safeFetch('crm_leads', { filters: { user_id: effectiveGestorId }, orderBy: 'created_at', ascending: false }),
-          safeFetch('daily_checklists', { filters: { user_id: effectiveGestorId } }),
+          safeFetch('crm_pipelines'),
+          safeFetch('crm_stages', { orderBy: 'order_index' }),
+          safeFetch('crm_fields'),
+          safeFetch('crm_leads', { orderBy: 'created_at', ascending: false }),
+          safeFetch('daily_checklists'),
           safeFetch('daily_checklist_items'),
           safeFetch('daily_checklist_assignments'),
           safeFetch('daily_checklist_completions'),
-          safeFetch('weekly_targets', { filters: { user_id: effectiveGestorId } }),
+          safeFetch('weekly_targets'),
           safeFetch('weekly_target_items'),
           safeFetch('weekly_target_assignments'),
           safeFetch('metric_logs'),
-          safeFetch('support_materials_v2', { filters: { user_id: effectiveGestorId } }),
+          safeFetch('support_materials_v2'),
           safeFetch('support_material_assignments'),
           safeFetch('lead_tasks'),
-          safeFetch('gestor_tasks', { filters: { user_id: effectiveGestorId } }),
-          safeFetch('gestor_task_completions', { filters: { user_id: effectiveGestorId } }),
-          safeFetch('financial_entries', { filters: { user_id: effectiveGestorId } }),
-          safeFetch('form_submissions', { select: 'id, submission_date, data, internal_notes, is_complete', filters: { user_id: effectiveGestorId }, orderBy: 'submission_date', ascending: false }),
+          safeFetch('gestor_tasks'),
+          safeFetch('gestor_task_completions'),
+          safeFetch('financial_entries'),
+          safeFetch('form_submissions', { select: 'id, submission_date, data, internal_notes, is_complete', orderBy: 'submission_date', ascending: false }),
           safeFetch('form_files'),
           safeFetch('notifications', { filters: { user_id: userId, is_read: false }, orderBy: 'created_at', ascending: false }),
-          safeFetch('team_production_goals', { filters: { user_id: effectiveGestorId }, orderBy: 'start_date', ascending: false }),
-          safeFetch('team_members', { select: 'id, data, cpf, user_id', filters: { user_id: effectiveGestorId } }),
+          safeFetch('team_production_goals'),
+          safeFetch('team_members', { select: 'id, data, cpf, user_id' }),
           safeFetch('cold_call_leads'),
           safeFetch('cold_call_logs'),
-          safeFetch('processes', { filters: { user_id: effectiveGestorId } }),
+          safeFetch('processes'),
           safeFetch('process_attachments')
         ]);
 
@@ -341,7 +366,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               id: dbId, db_id: dbId, authUserId: authId, name: String(data.name || ''), email: data.email, 
               roles: Array.isArray(data.roles) ? data.roles.map((role: string) => role.toUpperCase()) : [],
               isActive: data.isActive !== false, 
-              hasLogin: !!authId, isLegacy: !authId, cpf: item.cpf, dateOfBirth: data.dateOfBirth, user_id: item.user_id 
+              hasLogin: !!authId, isLegacy: !authId, cpf: item.cpf, user_id: item.user_id 
             };
           });
           setTeamMembers(normalizedTeamMembers);
@@ -405,12 +430,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       fetchedUserIdRef.current = null;
       resetLocalState();
     }
-  }, [user?.id, refetchCommissions, fetchAppConfig, resetLocalState, parseDbCurrency]);
+  }, [user?.id, refetchCommissions, fetchAppConfig, resetLocalState, parseDbCurrency, user?.role]);
 
   const addCandidate = useCallback(async (candidate: Omit<Candidate, 'id' | 'createdAt' | 'db_id'>) => {
     if (!user) throw new Error("Usuário não autenticado.");
     const candidateDataWithCreator = { ...candidate, createdBy: user.id };
-    const { data, error } = await supabase.from('candidates').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: candidateDataWithCreator }).select().single();
+    const { data, error } = await supabase.from('candidates').insert({ user_id: user.id, data: candidateDataWithCreator }).select().single();
     if (error) throw error;
     const newCandidate = { ...candidateDataWithCreator, id: (data.data as any).id || crypto.randomUUID(), db_id: data.id, createdAt: data.created_at } as Candidate;
     setCandidates(prev => [newCandidate, ...prev]);
@@ -483,10 +508,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [user, parseDbCurrency]);
 
   const deleteCrmLead = useCallback(async (id: string) => {
-    const { error } = await supabase.from('crm_leads').delete().eq('id', id).eq('user_id', JOAO_GESTOR_AUTH_ID);
+    const { error } = await supabase.from('crm_leads').delete().eq('id', id).eq('user_id', crmOwnerUserId);
     if (error) throw error;
     setCrmLeads(prev => prev.filter(l => l.id !== id));
-  }, []);
+  }, [crmOwnerUserId]);
 
   const addProcess = useCallback(async (processData: Omit<Process, 'id' | 'user_id' | 'created_at' | 'updated_at'>, filesToAdd?: { file: File, type: string }[], linksToAdd?: { url: string, type: string }[], coverFile?: File) => {
     if (!user) throw new Error("User not authenticated.");
@@ -680,10 +705,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // --- Cutoff Period Functions ---
   const addCutoffPeriod = useCallback(async (period: Omit<CutoffPeriod, 'id' | 'db_id'>) => {
-    const { data, error } = await supabase.from('cutoff_periods').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: period }).select().single();
+    const { data, error } = await supabase.from('cutoff_periods').insert({ user_id: user!.id, data: period }).select().single();
     if (error) throw error;
     setCutoffPeriods(prev => [...prev, { ...period, id: (period as any).id || crypto.randomUUID(), db_id: data.id }]);
-  }, []);
+  }, [user]);
 
   const updateCutoffPeriod = useCallback(async (id: string, updates: Partial<CutoffPeriod>) => {
     const { error } = await supabase.from('cutoff_periods').update({ data: updates }).eq('id', id);
@@ -699,13 +724,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // --- Onboarding Functions ---
   const addOnlineOnboardingSession = useCallback(async (consultantName: string) => {
-    const { data: session, error: sessionError } = await supabase.from('onboarding_sessions').insert({ user_id: JOAO_GESTOR_AUTH_ID, consultant_name: consultantName }).select().single();
+    const { data: session, error: sessionError } = await supabase.from('onboarding_sessions').insert({ user_id: user!.id, consultant_name: consultantName }).select().single();
     if (sessionError) throw sessionError;
     const videosToInsert = onboardingTemplateVideos.map(v => ({ session_id: session.id, title: v.title, video_url: v.video_url, order: v.order, is_completed: false }));
     const { data: videos, error: videosError } = await supabase.from('onboarding_videos').insert(videosToInsert).select();
     if (videosError) throw videosError;
     setOnboardingSessions(prev => [...prev, { ...session, videos: videos || [] }]);
-  }, [onboardingTemplateVideos]);
+  }, [onboardingTemplateVideos, user]);
 
   const deleteOnlineOnboardingSession = useCallback(async (sessionId: string) => {
     const { error } = await supabase.from('onboarding_sessions').delete().eq('id', sessionId);
@@ -715,10 +740,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const addVideoToTemplate = useCallback(async (title: string, video_url: string) => {
     const order = onboardingTemplateVideos.length > 0 ? Math.max(...onboardingTemplateVideos.map(v => v.order)) + 1 : 1;
-    const { data, error } = await supabase.from('onboarding_video_templates').insert({ user_id: JOAO_GESTOR_AUTH_ID, title, video_url, order }).select().single();
+    const { data, error } = await supabase.from('onboarding_video_templates').insert({ user_id: user!.id, title, video_url, order }).select().single();
     if (error) throw error;
     setOnboardingTemplateVideos(prev => [...prev, data]);
-  }, [onboardingTemplateVideos]);
+  }, [onboardingTemplateVideos, user]);
 
   const deleteVideoFromTemplate = useCallback(async (videoId: string) => {
     const { error } = await supabase.from('onboarding_video_templates').delete().eq('id', videoId);
@@ -728,9 +753,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // --- Daily Checklist Functions ---
   const addDailyChecklist = useCallback(async (title: string) => {
-    const { data, error } = await supabase.from('daily_checklists').insert({ user_id: JOAO_GESTOR_AUTH_ID, title }).select().single();
+    const { data, error } = await supabase.from('daily_checklists').insert({ user_id: user!.id, title }).select().single();
     if (error) throw error; setDailyChecklists(prev => [...prev, data]); return data;
-  }, []);
+  }, [user]);
 
   const updateDailyChecklist = useCallback(async (id: string, updates: Partial<DailyChecklist>) => {
     const { data, error } = await supabase.from('daily_checklists').update(updates).eq('id', id).select().single();
@@ -839,9 +864,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // --- Weekly Target Functions ---
   const addWeeklyTarget = useCallback(async (target: Omit<WeeklyTarget, 'id' | 'user_id' | 'created_at'>) => {
-    const { data, error } = await supabase.from('weekly_targets').insert({ ...target, user_id: JOAO_GESTOR_AUTH_ID }).select().single();
+    const { data, error } = await supabase.from('weekly_targets').insert({ ...target, user_id: user!.id }).select().single();
     if (error) throw error; setWeeklyTargets(prev => [...prev, data]); return data;
-  }, []);
+  }, [user]);
 
   const updateWeeklyTarget = useCallback(async (id: string, updates: Partial<WeeklyTarget>) => {
     const { data, error } = await supabase.from('weekly_targets').update(updates).eq('id', id).select().single();
@@ -871,9 +896,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const updateWeeklyTargetItemOrder = useCallback(async (orderedItems: WeeklyTargetItem[]) => {
     const updates = orderedItems.map((item, index) => supabase.from('weekly_target_items').update({ order_index: index }).eq('id', item.id));
     await Promise.all(updates);
-    const { data } = await supabase.from('weekly_target_items').select('*').order('order_index');
+    const { data } = await supabase.from('weekly_target_items').select('*').eq('user_id', user!.id).order('order_index');
     setWeeklyTargetItems(data || []);
-  }, []);
+  }, [user]);
 
   const assignWeeklyTargetToConsultant = useCallback(async (weekly_target_id: string, consultant_id: string) => {
     const { data, error } = await supabase.from('weekly_target_assignments').insert({ weekly_target_id, consultant_id }).select().single();
@@ -911,9 +936,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (uploadError) throw uploadError;
       content = supabase.storage.from('form_uploads').getPublicUrl(path).data.publicUrl;
     }
-    const { data, error } = await supabase.from('support_materials_v2').insert({ ...material, user_id: JOAO_GESTOR_AUTH_ID, content }).select().single();
+    const { data, error } = await supabase.from('support_materials_v2').insert({ ...material, user_id: user!.id, content }).select().single();
     if (error) throw error; setSupportMaterialsV2(prev => [...prev, data]); return data;
-  }, []);
+  }, [user]);
 
   const updateSupportMaterialV2 = useCallback(async (id: string, updates: Partial<SupportMaterialV2>, file?: File) => {
     let content = updates.content;
@@ -972,9 +997,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // --- Gestor Task Functions ---
   const addGestorTask = useCallback(async (task: Omit<GestorTask, 'id' | 'user_id' | 'created_at' | 'is_completed'>) => {
-    const { data, error } = await supabase.from('gestor_tasks').insert({ ...task, user_id: JOAO_GESTOR_AUTH_ID }).select().single();
+    const { data, error } = await supabase.from('gestor_tasks').insert({ ...task, user_id: user!.id }).select().single();
     if (error) throw error; setGestorTasks(prev => [...prev, data]); return data;
-  }, []);
+  }, [user]);
 
   const updateGestorTask = useCallback(async (id: string, updates: Partial<GestorTask>) => {
     const { data, error } = await supabase.from('gestor_tasks').update(updates).eq('id', id).select().single();
@@ -992,22 +1017,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const isRecurring = task.recurrence_pattern && task.recurrence_pattern.type !== 'none';
     if (isRecurring) {
       if (done) {
-        const { data, error } = await supabase.from('gestor_task_completions').insert({ gestor_task_id, user_id: JOAO_GESTOR_AUTH_ID, date, done: true }).select().single();
+        const { data, error } = await supabase.from('gestor_task_completions').insert({ gestor_task_id, user_id: user!.id, date, done: true }).select().single();
         if (error) throw error; setGestorTaskCompletions(prev => [...prev, data]);
       } else {
-        const { error } = await supabase.from('gestor_task_completions').delete().eq('gestor_task_id', gestor_task_id).eq('user_id', JOAO_GESTOR_AUTH_ID).eq('date', date);
+        const { error } = await supabase.from('gestor_task_completions').delete().eq('gestor_task_id', gestor_task_id).eq('user_id', user!.id).eq('date', date);
         if (error) throw error; setGestorTaskCompletions(prev => prev.filter(c => !(c.gestor_task_id === gestor_task_id && c.date === date)));
       }
     } else {
       await updateGestorTask(gestor_task_id, { is_completed: done });
     }
-  }, [gestorTasks, updateGestorTask]);
+  }, [gestorTasks, updateGestorTask, user]);
 
   // --- Financial Entry Functions ---
   const addFinancialEntry = useCallback(async (entry: Omit<FinancialEntry, 'id' | 'user_id' | 'created_at'>) => {
-    const { data, error } = await supabase.from('financial_entries').insert({ ...entry, user_id: JOAO_GESTOR_AUTH_ID }).select().single();
+    const { data, error } = await supabase.from('financial_entries').insert({ ...entry, user_id: user!.id }).select().single();
     if (error) throw error; setFinancialEntries(prev => [...prev, { ...data, amount: parseFloat(data.amount) }]); return data;
-  }, []);
+  }, [user]);
 
   const updateFinancialEntry = useCallback(async (id: string, updates: Partial<FinancialEntry>) => {
     const { data, error } = await supabase.from('financial_entries').update(updates).eq('id', id).select().single();
@@ -1088,12 +1113,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     });
     if (edgeError) throw edgeError;
     const authUserId = edgeData.authUserId;
-    const { data, error } = await supabase.from('team_members').insert({ user_id: JOAO_GESTOR_AUTH_ID, cpf: member.cpf, data: { ...member, id: authUserId, authUserId } }).select().single();
+    const { data, error } = await supabase.from('team_members').insert({ user_id: user!.id, cpf: member.cpf, data: { ...member, id: authUserId, authUserId } }).select().single();
     if (error) throw error;
     const newMember = { ...member, id: data.id, db_id: data.id, authUserId, hasLogin: true, isLegacy: false };
     setTeamMembers(prev => [...prev, newMember]);
     return { success: true, member: newMember, tempPassword, wasExistingUser: edgeData.userExists };
-  }, []);
+  }, [user]);
 
   const updateTeamMember = useCallback(async (id: string, updates: Partial<TeamMember>) => {
     const member = teamMembers.find(m => m.id === id);
@@ -1113,9 +1138,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // --- Team Production Goal Functions ---
   const addTeamProductionGoal = useCallback(async (goal: Omit<TeamProductionGoal, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
-    const { data, error } = await supabase.from('team_production_goals').insert({ ...goal, user_id: JOAO_GESTOR_AUTH_ID }).select().single();
+    const { data, error } = await supabase.from('team_production_goals').insert({ ...goal, user_id: user!.id }).select().single();
     if (error) throw error; setTeamProductionGoals(prev => [data, ...prev]); return data;
-  }, []);
+  }, [user]);
 
   const updateTeamProductionGoal = useCallback(async (id: string, updates: Partial<TeamProductionGoal>) => {
     const { data, error } = await supabase.from('team_production_goals').update(updates).eq('id', id).select().single();
@@ -1278,7 +1303,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     resetOriginsToDefault: () => { setSalesOrigins(DEFAULT_APP_CONFIG_DATA.salesOrigins); setHiringOrigins(DEFAULT_APP_CONFIG_DATA.hiringOrigins); updateConfig({ salesOrigins: DEFAULT_APP_CONFIG_DATA.salesOrigins, hiringOrigins: DEFAULT_APP_CONFIG_DATA.hiringOrigins }); },
     addPV: (newPV: string) => { const newPvsList = [...pvs, newPV]; setPvs(newPvsList); updateConfig({ pvs: newPvsList }); },
     addCommission: async (commission: any) => {
-      const { error } = await supabase.from('commissions').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: commission }).select().single();
+      const { error } = await supabase.from('commissions').insert({ user_id: user!.id, data: commission }).select().single();
       if (error) throw error; refetchCommissions(); return { success: true };
     },
     updateCommission: async (id: string, updates: Partial<Commission>) => {
@@ -1308,7 +1333,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addCutoffPeriod, updateCutoffPeriod, deleteCutoffPeriod,
     addOnlineOnboardingSession, deleteOnlineOnboardingSession, addVideoToTemplate, deleteVideoFromTemplate,
     addCrmPipeline: async (name: string) => {
-      const { data, error } = await supabase.from('crm_pipelines').insert({ user_id: JOAO_GESTOR_AUTH_ID, name }).select().single();
+      const { data, error } = await supabase.from('crm_pipelines').insert({ user_id: user!.id, name }).select().single();
       if (error) throw error; setCrmPipelines(prev => [...prev, data]); return data;
     },
     updateCrmPipeline: async (id: string, updates: Partial<CrmPipeline>) => {
@@ -1320,7 +1345,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (error) throw error; setCrmPipelines(prev => prev.filter(p => p.id !== id));
     },
     addCrmStage: async (stage: Omit<CrmStage, 'id' | 'user_id' | 'created_at'>) => {
-      const { data, error } = await supabase.from('crm_stages').insert({ ...stage, user_id: JOAO_GESTOR_AUTH_ID }).select().single();
+      const { data, error } = await supabase.from('crm_stages').insert({ ...stage, user_id: user!.id }).select().single();
       if (error) throw error; setCrmStages(prev => [...prev, data]); return data;
     },
     updateCrmStage: async (id: string, updates: Partial<CrmStage>) => {
@@ -1330,7 +1355,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     updateCrmStageOrder: async (orderedStages: CrmStage[]) => {
       const updates = orderedStages.map((stage, index) => supabase.from('crm_stages').update({ order_index: index }).eq('id', stage.id));
       await Promise.all(updates);
-      const { data } = await supabase.from('crm_stages').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID).order('order_index');
+      const { data } = await supabase.from('crm_stages').select('*').eq('user_id', user!.id).order('order_index');
       setCrmStages(data || []);
     },
     deleteCrmStage: async (id: string) => {
@@ -1338,7 +1363,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (error) throw error; setCrmStages(prev => prev.filter(s => s.id !== id));
     },
     addCrmField: async (field: Omit<CrmField, 'id' | 'user_id' | 'created_at'>) => {
-      const { data, error } = await supabase.from('crm_fields').insert({ ...field, user_id: JOAO_GESTOR_AUTH_ID }).select().single();
+      const { data, error } = await supabase.from('crm_fields').insert({ ...field, user_id: user!.id }).select().single();
       if (error) throw error; setCrmFields(prev => [...prev, data]); return data;
     },
     updateCrmField: async (id: string, updates: Partial<CrmField>) => {
