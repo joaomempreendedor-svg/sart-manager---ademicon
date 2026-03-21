@@ -429,8 +429,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     delete (dataToSave as any).createdAt;
     const { error } = await supabase.from('candidates').update({ data: dataToSave }).eq('id', dbId);
     if (error) {
-      toast.error(`Erro ao atualizar checklist: ${error.message}`);
-      setCandidates(prev => prev.map(c => (c.id === candidateId || c.db_id === candidateId) ? { ...c, checklistProgress: currentProgress } : c));
+      toast.error(`Erro ao atualizar candidato: ${error.message}`);
     }
   }, [candidates]);
 
