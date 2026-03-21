@@ -177,23 +177,35 @@ const HiringPipeline = () => {
       case 'contacted':
         newStatus = 'Triagem';
         updates.screeningStatus = 'Contacted';
+        updates.contactedDate = new Date().toISOString();
         break;
       case 'noResponse':
         newStatus = 'Triagem';
         updates.screeningStatus = 'No Response';
+        updates.noResponseDate = new Date().toISOString();
         break;
       case 'scheduled':
         newStatus = 'Entrevista';
         updates.interviewConducted = false;
+        updates.interviewScheduledDate = new Date().toISOString();
         break;
       case 'conducted':
         newStatus = 'Entrevista';
         updates.interviewConducted = true;
         updates.interviewConductedDate = new Date().toISOString();
         break;
-      case 'noShow': newStatus = 'Faltou'; break;
-      case 'awaitingPreview': newStatus = 'Aguardando Prévia'; break;
-      case 'authorized': newStatus = 'Autorizado'; break;
+      case 'noShow':
+        newStatus = 'Faltou';
+        updates.faltouDate = new Date().toISOString();
+        break;
+      case 'awaitingPreview':
+        newStatus = 'Aguardando Prévia';
+        updates.awaitingPreviewDate = new Date().toISOString();
+        break;
+      case 'authorized':
+        newStatus = 'Autorizado';
+        updates.authorizedDate = new Date().toISOString();
+        break;
       case 'droppedOut':
         const candidate = candidates.find(c => c.id === candidateId);
         if (candidate) {
@@ -202,7 +214,10 @@ const HiringPipeline = () => {
         }
         setDraggingCandidateId(null);
         return;
-      case 'disqualified': newStatus = 'Desqualificado'; break;
+      case 'disqualified':
+        newStatus = 'Desqualificado';
+        updates.disqualifiedDate = new Date().toISOString();
+        break;
       default: return;
     }
 
@@ -233,7 +248,8 @@ const HiringPipeline = () => {
     try {
       await updateCandidate(selectedCandidateForWithdrawal.id, {
         status: 'Reprovado',
-        withdrawalReason: reason
+        withdrawalReason: reason,
+        reprovadoDate: new Date().toISOString(),
       });
       toast.success(`Candidato movido para Desistências`);
     } catch (error: any) {
@@ -470,7 +486,7 @@ const HiringPipeline = () => {
                         {id === 'candidates' && (
                           <>
                             <button 
-                              onClick={(e) => handleUpdateStatus(e, candidate.id, 'Triagem', { screeningStatus: 'Contacted' })}
+                              onClick={(e) => handleUpdateStatus(e, candidate.id, 'Triagem', { screeningStatus: 'Contacted', contactedDate: new Date().toISOString() })}
                               className="flex items-center justify-center space-x-1 py-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg text-[10px] font-bold hover:bg-blue-100 transition"
                             >
                               <MessageSquare className="w-3 h-3" />
@@ -496,7 +512,7 @@ const HiringPipeline = () => {
                               <span>Agendar</span>
                             </button>
                             <button
-                              onClick={(e) => handleUpdateStatus(e, candidate.id, 'Triagem', { screeningStatus: 'No Response' })}
+                              onClick={(e) => handleUpdateStatus(e, candidate.id, 'Triagem', { screeningStatus: 'No Response', noResponseDate: new Date().toISOString() })}
                               className="flex items-center justify-center space-x-1 py-1.5 bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 rounded-lg text-[10px] font-bold hover:bg-orange-100 transition"
                             >
                               <HelpCircle className="w-3 h-3" />
@@ -515,7 +531,7 @@ const HiringPipeline = () => {
                               <span>Compareceu</span>
                             </button>
                             <button 
-                              onClick={(e) => handleUpdateStatus(e, candidate.id, 'Faltou')}
+                              onClick={(e) => handleUpdateStatus(e, candidate.id, 'Faltou', { faltouDate: new Date().toISOString() })}
                               className="flex items-center justify-center space-x-1 py-1.5 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 rounded-lg text-[10px] font-bold hover:bg-red-100 transition"
                             >
                               <XCircle className="w-3 h-3" />
@@ -527,14 +543,14 @@ const HiringPipeline = () => {
                         {id === 'conducted' && (
                           <>
                             <button 
-                              onClick={(e) => handleUpdateStatus(e, candidate.id, 'Aguardando Prévia')}
+                              onClick={(e) => handleUpdateStatus(e, candidate.id, 'Aguardando Prévia', { awaitingPreviewDate: new Date().toISOString() })}
                               className="flex items-center justify-center space-x-1 py-1.5 bg-brand-500 text-white rounded-lg text-[10px] font-bold hover:bg-brand-600 transition"
                             >
                               <ArrowRight className="w-3 h-3" />
                               <span>Aprovar</span>
                             </button>
                             <button 
-                              onClick={(e) => handleUpdateStatus(e, candidate.id, 'Desqualificado')}
+                              onClick={(e) => handleUpdateStatus(e, candidate.id, 'Desqualificado', { disqualifiedDate: new Date().toISOString() })}
                               className="flex items-center justify-center space-x-1 py-1.5 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg text-[10px] font-bold hover:bg-red-100 transition"
                             >
                               <UserX className="w-3 h-3" />
@@ -556,14 +572,14 @@ const HiringPipeline = () => {
                         {id === 'awaitingPreview' && (
                           <>
                             <button 
-                              onClick={(e) => handleUpdateStatus(e, candidate.id, 'Autorizado')}
+                              onClick={(e) => handleUpdateStatus(e, candidate.id, 'Autorizado', { authorizedDate: new Date().toISOString() })}
                               className="flex items-center justify-center space-x-1 py-1.5 bg-green-600 text-white rounded-lg text-[10px] font-bold hover:bg-green-700 transition"
                             >
                               <UserCheck className="w-3 h-3" />
                               <span>Autorizar</span>
                             </button>
                             <button 
-                              onClick={(e) => handleUpdateStatus(e, candidate.id, 'Desqualificado')}
+                              onClick={(e) => handleUpdateStatus(e, candidate.id, 'Desqualificado', { disqualifiedDate: new Date().toISOString() })}
                               className="flex items-center justify-center space-x-1 py-1.5 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg text-[10px] font-bold hover:bg-red-100 transition"
                             >
                               <UserX className="w-3 h-3" />
