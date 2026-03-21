@@ -189,6 +189,7 @@ const HiringPipeline = () => {
       case 'conducted':
         newStatus = 'Entrevista';
         updates.interviewConducted = true;
+        updates.interviewConductedDate = new Date().toISOString();
         break;
       case 'noShow': newStatus = 'Faltou'; break;
       case 'awaitingPreview': newStatus = 'Aguardando Prévia'; break;
@@ -507,7 +508,7 @@ const HiringPipeline = () => {
                         {id === 'scheduled' && (
                           <>
                             <button 
-                              onClick={(e) => handleUpdateStatus(e, candidate.id, 'Entrevista', { interviewConducted: true })}
+                              onClick={(e) => handleUpdateStatus(e, candidate.id, 'Entrevista', { interviewConducted: true, interviewConductedDate: new Date().toISOString() })}
                               className="flex items-center justify-center space-x-1 py-1.5 bg-green-600 text-white rounded-lg text-[10px] font-bold hover:bg-green-700 transition"
                             >
                               <Check className="w-3 h-3" />
