@@ -120,8 +120,12 @@ const HiringPipeline = () => {
     ).sort(sortByRecentUpdate);
 
     const conducted = candidatesForGestor.filter(c => 
-      c.status === 'Entrevista' && 
-      (c.interviewConducted || c.interviewScores.basicProfile > 0 || c.interviewScores.commercialSkills > 0 || c.interviewScores.behavioralProfile > 0 || c.interviewScores.jobFit > 0 || c.interviewScores.notes !== '')
+      (c.interviewConducted ||
+        c.interviewScores.basicProfile > 0 ||
+        c.interviewScores.commercialSkills > 0 ||
+        c.interviewScores.behavioralProfile > 0 ||
+        c.interviewScores.jobFit > 0 ||
+        c.interviewScores.notes !== '')
     ).sort(sortByRecentUpdate);
 
     const awaitingPreview = candidatesForGestor.filter(c => c.status === 'Aguardando Prévia').sort(sortByRecentUpdate);
@@ -318,7 +322,7 @@ const HiringPipeline = () => {
         <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-4 w-full md:w-auto">
           <button
             onClick={() => setIsImportModalOpen(true)}
-            className="flex items-center justify-center space-x-2 bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded-lg transition font-medium flex-shrink-0"
+            className="flex items-center justify-center space-x-2 bg-gray-600 hover:bg-gray-700 text-white py-2.5 px-6 rounded-lg transition shadow-lg shadow-gray-600/20 font-bold"
           >
             <UploadCloud className="w-5 h-5" />
             <span>Importar Planilha</span>
