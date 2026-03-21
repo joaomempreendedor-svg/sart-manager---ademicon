@@ -71,8 +71,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     return getDay(currentDate);
   }, [currentDate, viewMode]);
 
-  const eventsToRender = useMemo(() => {
+  const eventsToRender = useMemo(() => { // Renamed from filteredEvents to avoid confusion
     if (!selectedConsultantId) {
+      console.log("[CalendarView] No consultant selected, showing all events:", events.length);
       return events;
     }
     const filtered = events.filter(event => {
@@ -84,6 +85,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       }
       return false;
     });
+    console.log("[CalendarView] Filtered events for selectedConsultantId:", selectedConsultantId, filtered.length, filtered);
     return filtered;
   }, [events, selectedConsultantId]);
 

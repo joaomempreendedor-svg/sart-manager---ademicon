@@ -1217,6 +1217,7 @@ export const Commissions = () => {
       )}
       {activeTab === 'reports' && (
         <div key="reports-tab-content" className="animate-fade-in">
+          {console.log("[Commissions] Renderizando aba de Relatórios.")}
           <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm mb-6">
             <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">Relatório por Mês de Competência</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
@@ -1325,6 +1326,7 @@ export const Commissions = () => {
       )}
       {editingInstallment && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          {console.log("[Commissions] Modal de edição de parcela está visível!")}
           <div className="bg-white dark:bg-slate-800 p-6 rounded-xl max-w-sm w-full shadow-lg">
             <h3 className="text-lg font-bold mb-1 text-gray-900 dark:text-white">Confirmar Pagamento</h3>
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Parcela {editingInstallment.number} de {editingInstallment.clientName}</p>

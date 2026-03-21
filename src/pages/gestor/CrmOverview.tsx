@@ -572,9 +572,10 @@ const CrmOverviewPage = () => {
       {isProposalModalOpen && selectedLeadForProposal && (
         <ProposalModal
           isOpen={isProposalModalOpen}
-          onClose={() => {
-            setIsProposalModalOpen(false);
-          }}
+        onClose={() => {
+          console.log("ProposalModal onClose called");
+          setIsProposalModalOpen(false);
+        }}
           lead={selectedLeadForProposal}
         />
       )}
