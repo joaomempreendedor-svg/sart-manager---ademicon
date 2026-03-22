@@ -47,7 +47,7 @@ const formatCurrencyInput = (value: string): string => {
 const DEFAULT_RULES = {
   consultant: { p1_10: 0.001288, p11_13: 0.002374, p15: 0.003 },
   manager: { 
-    noAngel: { p1_10: 0.00322, p11_13: 0.00593 }, 
+    noAngel: { p1_10: 0.000322, p11_13: 0.00593 }, 
     withAngel: { p1_10: 0.00194, p11_13: 0.00356 } 
   },
   angel: { p1_10: 0.0001288, p11_13: 0.0002374 }
