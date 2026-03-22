@@ -16,7 +16,10 @@ const formatCurrency = (value: number) => {
 };
 
 const formatPercent = (value: number) => {
-  return (value || 0).toFixed(1).replace('.', ',') + '%'; // Formatado para 1 casa decimal
+  const v = Number.isFinite(value) ? value : 0;
+  // Mais precisão para valores pequenos
+  const decimals = v < 0.1 ? 5 : v < 1 ? 4 : 1;
+  return v.toFixed(decimals).replace('.', ',') + '%';
 };
 
 // ADDED: helper de formatação de moeda para inputs (pt-BR)
