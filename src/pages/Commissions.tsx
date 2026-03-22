@@ -40,14 +40,14 @@ const formatCurrencyInput = (value: string): string => {
 };
 
 // --- REGRAS DE NEGÓCIO PADRÃO ---
+// Em frações (ex.: 0.001288 = 0,1288%)
 const DEFAULT_RULES = {
-  // Agora em frações (ex.: 0.1288 = 12,88%)
-  consultant: { p1_10: 0.1288, p11_13: 0.2374, p15: 0.30 },
+  consultant: { p1_10: 0.001288, p11_13: 0.002374, p15: 0.003 },
   manager: { 
-    noAngel: { p1_10: 0.0322, p11_13: 0.0593 }, 
-    withAngel: { p1_10: 0.0194, p11_13: 0.0356 } 
+    noAngel: { p1_10: 0.00322, p11_13: 0.00593 }, 
+    withAngel: { p1_10: 0.00194, p11_13: 0.00356 } 
   },
-  angel: { p1_10: 0.0128, p11_13: 0.0237 }
+  angel: { p1_10: 0.0001288, p11_13: 0.0002374 }
 };
 
 // ⚠️ CONFIGURAÇÃO DOS DIAS DE CORTE POR MÊS ⚠️
