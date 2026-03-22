@@ -41,9 +41,12 @@ const formatCurrencyInput = (value: string): string => {
 
 // --- REGRAS DE NEGÓCIO PADRÃO ---
 const DEFAULT_RULES = {
-  consultant: { p1_10: 0.1288, p11_13: 0.2374, p15: 0.30 },
-  manager: { noAngel: { p1_10: 0.0322, p11_13: 0.0593 }, withAngel: { p1_10: 0.0194, p11_13: 0.0356 } },
-  angel: { p1_10: 0.0128, p11_13: 0.0237 }
+  consultant: { p1_10: 12.88, p11_13: 23.74, p15: 30 },
+  manager: { 
+    noAngel: { p1_10: 3.22, p11_13: 5.93 }, 
+    withAngel: { p1_10: 1.94, p11_13: 3.56 } 
+  },
+  angel: { p1_10: 1.28, p11_13: 2.37 }
 };
 
 // ⚠️ CONFIGURAÇÃO DOS DIAS DE CORTE POR MÊS ⚠️
