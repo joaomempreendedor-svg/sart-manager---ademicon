@@ -41,12 +41,13 @@ const formatCurrencyInput = (value: string): string => {
 
 // --- REGRAS DE NEGÓCIO PADRÃO ---
 const DEFAULT_RULES = {
-  consultant: { p1_10: 12.88, p11_13: 23.74, p15: 30 },
+  // Agora em frações (ex.: 0.1288 = 12,88%)
+  consultant: { p1_10: 0.1288, p11_13: 0.2374, p15: 0.30 },
   manager: { 
-    noAngel: { p1_10: 3.22, p11_13: 5.93 }, 
-    withAngel: { p1_10: 1.94, p11_13: 3.56 } 
+    noAngel: { p1_10: 0.0322, p11_13: 0.0593 }, 
+    withAngel: { p1_10: 0.0194, p11_13: 0.0356 } 
   },
-  angel: { p1_10: 1.28, p11_13: 2.37 }
+  angel: { p1_10: 0.0128, p11_13: 0.0237 }
 };
 
 // ⚠️ CONFIGURAÇÃO DOS DIAS DE CORTE POR MÊS ⚠️
@@ -225,16 +226,19 @@ export const Commissions = () => {
 
   const simulation = useMemo(() => {
     const credit = parseCurrency(creditValue);
-    const calc = (pct: number) => credit * (pct / 100);
+    // Separar cálculo para percentual (custom rules) e fração (default rules)
+    const calcPercent = (pct: number) => credit * (pct / 100);
+    const calcFraction = (fraction: number) => credit * fraction;
+
     let breakdown: any[] = [];
     let totals = { consultant: 0, manager: 0, angel: 0, grandTotal: 0 };
 
     if (isCustomRulesMode) {
       customRules.forEach(rule => {
         const numInstallments = (rule.endInstallment - rule.startInstallment + 1);
-        const consVal = calc(rule.consultantRate) * numInstallments;
-        const manVal = calc(rule.managerRate) * numInstallments;
-        const angelVal = hasAngel ? calc(rule.angelRate) * numInstallments : 0;
+        const consVal = calcPercent(rule.consultantRate) * numInstallments;
+        const manVal = calcPercent(rule.managerRate) * numInstallments;
+        const angelVal = hasAngel ? calcPercent(rule.angelRate) * numInstallments : 0;
         
         totals.consultant += consVal;
         totals.manager += manVal;
@@ -243,30 +247,34 @@ export const Commissions = () => {
         breakdown.push({
           label: `Parcelas ${rule.startInstallment} a ${rule.endInstallment}`,
           count: numInstallments,
-          cons: { rate: rule.consultantRate, val: calc(rule.consultantRate) },
-          man: { rate: rule.managerRate, val: calc(rule.managerRate) },
-          angel: { rate: hasAngel ? rule.angelRate : 0, val: hasAngel ? calc(rule.angelRate) : 0 }
+          // Para exibição, manter 'rate' como percentual conforme o editor indica "%".
+          cons: { rate: rule.consultantRate, val: calcPercent(rule.consultantRate) },
+          man: { rate: rule.managerRate, val: calcPercent(rule.managerRate) },
+          angel: { rate: hasAngel ? rule.angelRate : 0, val: hasAngel ? calcPercent(rule.angelRate) : 0 }
         });
       });
     } else {
       const manRules = hasAngel ? DEFAULT_RULES.manager.withAngel : DEFAULT_RULES.manager.noAngel;
+
       const p1_10 = {
         label: 'Parcelas 1 a 10', count: 10,
-        cons: { rate: DEFAULT_RULES.consultant.p1_10, val: calc(DEFAULT_RULES.consultant.p1_10) },
-        man: { rate: manRules.p1_10, val: calc(manRules.p1_10) },
-        angel: { rate: hasAngel ? DEFAULT_RULES.angel.p1_10 : 0, val: hasAngel ? calc(DEFAULT_RULES.angel.p1_10) : 0 }
+        // 'rate' em percentual para exibição; 'val' em fração para cálculo
+        cons: { rate: DEFAULT_RULES.consultant.p1_10 * 100, val: calcFraction(DEFAULT_RULES.consultant.p1_10) },
+        man: { rate: manRules.p1_10 * 100, val: calcFraction(manRules.p1_10) },
+        angel: { rate: hasAngel ? DEFAULT_RULES.angel.p1_10 * 100 : 0, val: hasAngel ? calcFraction(DEFAULT_RULES.angel.p1_10) : 0 }
       };
       const p11_13 = {
         label: 'Parcelas 11 a 13', count: 3,
-        cons: { rate: DEFAULT_RULES.consultant.p11_13, val: calc(DEFAULT_RULES.consultant.p11_13) },
-        man: { rate: manRules.p11_13, val: calc(manRules.p11_13) },
-        angel: { rate: hasAngel ? DEFAULT_RULES.angel.p11_13 : 0, val: hasAngel ? calc(DEFAULT_RULES.angel.p11_13) : 0 }
+        cons: { rate: DEFAULT_RULES.consultant.p11_13 * 100, val: calcFraction(DEFAULT_RULES.consultant.p11_13) },
+        man: { rate: manRules.p11_13 * 100, val: calcFraction(manRules.p11_13) },
+        angel: { rate: hasAngel ? DEFAULT_RULES.angel.p11_13 * 100 : 0, val: hasAngel ? calcFraction(DEFAULT_RULES.angel.p11_13) : 0 }
       };
       const p15 = {
         label: 'Parcela 15', count: 1,
-        cons: { rate: DEFAULT_RULES.consultant.p15, val: calc(DEFAULT_RULES.consultant.p15) },
+        cons: { rate: DEFAULT_RULES.consultant.p15 * 100, val: calcFraction(DEFAULT_RULES.consultant.p15) },
         man: { rate: 0, val: 0 }, angel: { rate: 0, val: 0 }
       };
+
       breakdown = [p1_10, p11_13, p15];
       totals.consultant = (p1_10.cons.val * 10) + (p11_13.cons.val * 3) + p15.cons.val;
       totals.manager = (p1_10.man.val * 10) + (p11_13.man.val * 3);
@@ -281,27 +289,33 @@ export const Commissions = () => {
     const taxMultiplier = 1 - ((commission.taxRate || 0) / 100);
     const credit = commission.value;
     const hasAngel = !!commission.angelName;
+
     let consRate = 0, manRate = 0, angelRate = 0;
+    let ratesArePercent = false;
 
     if (commission.customRules) {
+      // Regras personalizadas continuam sendo percentuais (%)
       const rule = commission.customRules.find(r => installment >= r.startInstallment && installment <= r.endInstallment);
       if (rule) {
         consRate = rule.consultantRate;
         manRate = rule.managerRate;
         angelRate = hasAngel ? rule.angelRate : 0;
       }
+      ratesArePercent = true;
     } else {
+      // Regras padrão agora são frações
       const manRules = hasAngel ? DEFAULT_RULES.manager.withAngel : DEFAULT_RULES.manager.noAngel;
       if (installment <= 10) { consRate = DEFAULT_RULES.consultant.p1_10; manRate = manRules.p1_10; if (hasAngel) angelRate = DEFAULT_RULES.angel.p1_10; }
       else if (installment <= 13) { consRate = DEFAULT_RULES.consultant.p11_13; manRate = manRules.p11_13; if (hasAngel) angelRate = DEFAULT_RULES.angel.p11_13; }
       else if (installment === 15) { consRate = DEFAULT_RULES.consultant.p15; }
+      ratesArePercent = false;
     }
 
-    return {
-        cons: (credit * (consRate / 100)) * taxMultiplier,
-        man: (credit * (manRate / 100)) * taxMultiplier,
-        angel: (credit * (angelRate / 100)) * taxMultiplier
-    };
+    const consVal = credit * (ratesArePercent ? (consRate / 100) : consRate) * taxMultiplier;
+    const manVal = credit * (ratesArePercent ? (manRate / 100) : manRate) * taxMultiplier;
+    const angelVal = credit * (ratesArePercent ? (angelRate / 100) : angelRate) * taxMultiplier;
+
+    return { cons: consVal, man: manVal, angel: angelVal };
   };
 
   const handleSaveCommission = async (e: React.FormEvent) => {
@@ -723,50 +737,50 @@ export const Commissions = () => {
   const handleUpdateCommission = async (updatedCommission: Commission) => {
     setIsSaving(true);
     try {
-        const credit = updatedCommission.value;
-        const taxRate = updatedCommission.taxRate || 0;
-        const hasAngel = !!updatedCommission.angelName;
-        const isCustomRulesMode = !!updatedCommission.customRules && updatedCommission.customRules.length > 0;
-        const customRules = updatedCommission.customRules || [];
+      const credit = updatedCommission.value;
+      const taxRate = updatedCommission.taxRate || 0;
+      const hasAngel = !!updatedCommission.angelName;
+      const isCustomRulesMode = !!updatedCommission.customRules && updatedCommission.customRules.length > 0;
+      const customRules = updatedCommission.customRules || [];
 
-        let recalculatedTotals = { consultant: 0, manager: 0, angel: 0, grandTotal: 0 };
-        if (isCustomRulesMode) {
-            customRules.forEach(rule => {
-                const numInstallments = (rule.endInstallment - rule.startInstallment + 1);
-                const calc = (pct: number) => credit * (pct / 100);
-                recalculatedTotals.consultant += calc(rule.consultantRate) * numInstallments;
-                recalculatedTotals.manager += calc(rule.managerRate) * numInstallments;
-                recalculatedTotals.angel += hasAngel ? calc(rule.angelRate) * numInstallments : 0;
-            });
-        } else {
-            const manRules = hasAngel ? DEFAULT_RULES.manager.withAngel : DEFAULT_RULES.manager.noAngel;
-            recalculatedTotals.consultant = (credit * (DEFAULT_RULES.consultant.p1_10 / 100) * 10) +
-                                            (credit * (DEFAULT_RULES.consultant.p11_13 / 100) * 3) +
-                                            (credit * (DEFAULT_RULES.consultant.p15 / 100) * 1);
-            recalculatedTotals.manager = (credit * (manRules.p1_10 / 100) * 10) +
-                                         (credit * (manRules.p11_13 / 100) * 3);
-            recalculatedTotals.angel = hasAngel ? ((credit * (DEFAULT_RULES.angel.p1_10 / 100) * 10) +
-                                                          (credit * (DEFAULT_RULES.angel.p11_13 / 100) * 3)) : 0;
-        }
-        recalculatedTotals.grandTotal = recalculatedTotals.consultant + recalculatedTotals.manager + recalculatedTotals.angel;
+      let recalculatedTotals = { consultant: 0, manager: 0, angel: 0, grandTotal: 0 };
+      if (isCustomRulesMode) {
+          const pct = (p: number) => credit * (p / 100);
+          customRules.forEach(rule => {
+              const numInstallments = (rule.endInstallment - rule.startInstallment + 1);
+              recalculatedTotals.consultant += pct(rule.consultantRate) * numInstallments;
+              recalculatedTotals.manager += pct(rule.managerRate) * numInstallments;
+              recalculatedTotals.angel += hasAngel ? pct(rule.angelRate) * numInstallments : 0;
+          });
+      } else {
+          // Usar frações nos cálculos padrão
+          const manRules = hasAngel ? DEFAULT_RULES.manager.withAngel : DEFAULT_RULES.manager.noAngel;
+          recalculatedTotals.consultant = (credit * DEFAULT_RULES.consultant.p1_10 * 10) +
+                                          (credit * DEFAULT_RULES.consultant.p11_13 * 3) +
+                                          (credit * DEFAULT_RULES.consultant.p15 * 1);
+          recalculatedTotals.manager = (credit * manRules.p1_10 * 10) +
+                                       (credit * manRules.p11_13 * 3);
+          recalculatedTotals.angel = hasAngel ? ((credit * DEFAULT_RULES.angel.p1_10 * 10) +
+                                                 (credit * DEFAULT_RULES.angel.p11_13 * 3)) : 0;
+      }
+      recalculatedTotals.grandTotal = recalculatedTotals.consultant + recalculatedTotals.manager + recalculatedTotals.angel;
 
-        const finalUpdates: Partial<Commission> = {
-            ...updatedCommission,
-            netValue: recalculatedTotals.grandTotal * (1 - (taxRate / 100)),
-            consultantValue: recalculatedTotals.consultant,
-            managerValue: recalculatedTotals.manager,
-            angelValue: recalculatedTotals.angel,
-            status: getOverallStatus(updatedCommission.installmentDetails),
-        };
+      const finalUpdates: Partial<Commission> = {
+          ...updatedCommission,
+          netValue: recalculatedTotals.grandTotal * (1 - (taxRate / 100)),
+          consultantValue: recalculatedTotals.consultant,
+          managerValue: recalculatedTotals.manager,
+          angelValue: recalculatedTotals.angel,
+          status: getOverallStatus(updatedCommission.installmentDetails),
+      };
 
-        // Passa updatedCommission.db_id para updateCommission
-        await updateCommission(updatedCommission.db_id!, finalUpdates); // Usar db_id
-        toast.success("Comissão atualizada com sucesso!");
-        setIsEditCommissionModalOpen(false);
+      await updateCommission(updatedCommission.db_id!, finalUpdates);
+      toast.success("Comissão atualizada com sucesso!");
+      setIsEditCommissionModalOpen(false);
     } catch (error: any) {
-        toast.error(error.message || "Falha ao atualizar comissão.");
+      toast.error(error.message || "Falha ao atualizar comissão.");
     } finally {
-        setIsSaving(false);
+      setIsSaving(false);
     }
   };
 
