@@ -19,6 +19,26 @@ const formatPercent = (value: number) => {
   return (value || 0).toFixed(1).replace('.', ',') + '%'; // Formatado para 1 casa decimal
 };
 
+// ADDED: helper de formatação de moeda para inputs (pt-BR)
+const formatCurrencyInput = (value: string): string => {
+  if (!value) return '';
+  let v = value.replace(/\D/g, '');
+  if (!v) return '';
+
+  // Remove zeros à esquerda
+  v = v.replace(/^0+/, '');
+
+  if (v.length === 0) return '0,00';
+  if (v.length === 1) return `0,0${v}`;
+  if (v.length === 2) return `0,${v}`;
+
+  const integerPart = v.slice(0, -2);
+  const centsPart = v.slice(-2);
+  const formattedIntegerPart = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+
+  return `${formattedIntegerPart},${centsPart}`;
+};
+
 // --- REGRAS DE NEGÓCIO PADRÃO ---
 const DEFAULT_RULES = {
   consultant: { p1_10: 0.1288, p11_13: 0.2374, p15: 0.30 },
