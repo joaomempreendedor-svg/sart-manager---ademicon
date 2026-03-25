@@ -120,6 +120,10 @@ const HiringPipeline = () => {
     ).sort(sortByRecentUpdate);
 
     const conducted = candidatesForGestor.filter(c => 
+      // No pipeline, cada candidato deve aparecer em UMA única coluna (etapa atual).
+      // O histórico fica nas métricas (datas de evento). Aqui, "Realizadas" mostra apenas
+      // quem ainda está na etapa "Entrevista" e já teve a entrevista registrada.
+      c.status === 'Entrevista' &&
       (c.interviewConducted ||
         c.interviewScores.basicProfile > 0 ||
         c.interviewScores.commercialSkills > 0 ||
