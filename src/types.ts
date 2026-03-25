@@ -58,6 +58,7 @@ export interface Candidate {
   status: CandidateStatus;
   screeningStatus?: 'Pending Contact' | 'Contacted' | 'No Fit' | 'No Response';
   interviewConducted?: boolean;
+  interviewScores: InterviewScores;
   checkedQuestions?: Record<string, boolean>;
   checklistProgress?: Record<string, ChecklistTaskState>;
   consultantGoalsProgress?: Record<string, boolean>;
@@ -575,6 +576,7 @@ export interface Process {
 export interface AppContextType {
   isDataLoading: boolean;
   candidates: Candidate[];
+  setCandidates: React.Dispatch<React.SetStateAction<Candidate[]>>;
   teamMembers: TeamMember[];
   commissions: Commission[];
   supportMaterials: SupportMaterial[];

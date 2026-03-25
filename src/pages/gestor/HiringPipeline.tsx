@@ -292,7 +292,7 @@ const HiringPipeline = () => {
   }, 1000);
 
   const handleNotesChange = (candidateId: string, newNotes: string) => {
-    setCandidates(prev => prev.map(c => c.id === candidateId ? { ...c, notes: newNotes } : c));
+    setCandidates((prev: Candidate[]) => prev.map((c: Candidate) => c.id === candidateId ? { ...c, notes: newNotes } : c));
     debouncedUpdateCandidateNotes(candidateId, newNotes);
   };
 
@@ -396,7 +396,7 @@ const HiringPipeline = () => {
             </div>
             
             <div className="p-3 space-y-3 min-h-[500px]">
-              {stage.list.map(candidate => {
+              {stage.list.map((candidate: Candidate) => {
                 const totalScore = candidate.interviewScores.basicProfile + candidate.interviewScores.commercialSkills + candidate.interviewScores.behavioralProfile + candidate.interviewScores.jobFit;
                 const isToday = candidate.interviewDate === todayStr;
                 const hasPendingSecretariaTasksForCandidate = hasPendingSecretariaTasks(candidate);
