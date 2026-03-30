@@ -1292,18 +1292,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const key = installmentNumber.toString();
       const details = { ...(current.installmentDetails || {}) };
       const prev = details[key] || { status: 'Pendente' as InstallmentStatus };
-      const updatedInfo: InstallmentInfo = { ...prev, status };
-      if (status === 'Pago') {
+      const updatedInfo: InstallmentInfo = { ...prev, status: newStatus };
+      if (newStatus === 'Pago') {
         const effectiveDate = paidDate || new Date().toISOString().split('T')[0];
-        updatedInfo.paidDate = effectiveDate; updatedInfo.competenceMonth = calculateCompetenceMonth(effectiveDate);
-      } else { delete updatedInfo.paidDate; delete updatedInfo.competenceMonth; }
+        updatedInfo.paidDate = effectiveDate; 
+        updatedInfo.competenceMonth = calculateCompetenceMonth(effectiveDate);
+      } else { 
+        delete updatedInfo.paidDate; 
+        delete updatedInfo.competenceMonth; 
+      }
       const newDetails = { ...details, [key]: updatedInfo };
       const updatedCommission: Commission = { ...current, installmentDetails: newDetails, status: getOverallStatus(newDetails) };
       const { db_id, criado_em, ...dataToSave } = updatedCommission as any;
       const { error } = await supabase.from('commissions').update({ data: dataToSave }).eq('id', commissionDbId);
       if (error) throw error;
       setCommissions(prev => prev.map(c => (c.db_id === commissionDbId ? { ...updatedCommission } : c)));
-      toast.success(`Parcela ${installmentNumber} marcada como ${status}.`);
+      toast.success(`Parcela ${installmentNumber} marcada como ${newStatus}.`);
     },
     addCutoffPeriod, updateCutoffPeriod, deleteCutoffPeriod,
     addOnlineOnboardingSession, deleteOnlineOnboardingSession, addVideoToTemplate, deleteVideoFromTemplate,
