@@ -34,7 +34,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({ title, value, icon: Icon
                   {currencyPrefix}
                 </span>
               )}
-              <span className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight leading-snug whitespace-normal break-words">
+              <span className="text-[1.45rem] sm:text-[1.8rem] md:text-[2.15rem] font-black tracking-tight leading-snug whitespace-normal break-words">
                 {mainValue}
               </span>
             </span>
