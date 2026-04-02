@@ -480,96 +480,93 @@ const HiringPipeline = () => {
                         />
                       </div>
 
-                      <div className="pt-3 mt-1 border-t border-gray-50 dark:border-slate-600 flex flex-col gap-1.5">
-                        <button 
-                          onClick={(e) => handleOpenUpdateDate(e, candidate)}
-                          className="w-full min-w-0 px-2 min-h-[28px] flex items-center justify-start space-x-1 py-0.5 bg-blue-600 text-white rounded-lg text-[9px] font-bold hover:bg-blue-700 transition text-left whitespace-normal break-words leading-snug"
-                          title="Agendar entrevista"
-                        >
-                          <CalendarClock className="w-2.5 h-2.5" />
-                          <span>Agendar</span>
-                        </button>
-
-                        <button 
-                          onClick={(e) => handleUpdateStatus(e, candidate.id, 'Triagem', { screeningStatus: 'Contacted', contactedDate: new Date().toISOString() })}
-                          className="w-full min-w-0 px-2 min-h-[28px] flex items-center justify-start space-x-1 py-0.5 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg text-[9px] font-bold hover:bg-blue-100 transition text-left whitespace-normal break-words leading-snug"
-                          title="Marcar como contatado"
-                        >
-                          <MessageSquare className="w-2.5 h-2.5" />
-                          <span>Contatado</span>
-                        </button>
-
-                        <button
-                          onClick={(e) => handleUpdateStatus(e, candidate.id, 'Triagem', { screeningStatus: 'No Response', noResponseDate: new Date().toISOString() })}
-                          className="w-full min-w-0 px-2 min-h-[28px] flex items-center justify-start space-x-1 py-0.5 bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 rounded-lg text-[9px] font-bold hover:bg-orange-100 transition text-left whitespace-normal break-words leading-snug"
-                          title="Marcar como não respondido"
-                        >
-                          <HelpCircle className="w-2.5 h-2.5" />
-                          <span>Não Resp.</span>
-                        </button>
-
-                        <button 
-                          onClick={(e) => handleUpdateStatus(e, candidate.id, 'Entrevista', { interviewConducted: true, interviewConductedDate: new Date().toISOString() })}
-                          className="w-full min-w-0 px-2 min-h-[28px] flex items-center justify-start space-x-1 py-0.5 bg-green-600 text-white rounded-lg text-[9px] font-bold hover:bg-green-700 transition text-left whitespace-normal break-words leading-snug"
-                          title="Marcar como compareceu"
-                        >
-                          <Check className="w-2.5 h-2.5" />
-                          <span>Compareceu</span>
-                        </button>
-
-                        <button 
-                          onClick={(e) => handleUpdateStatus(e, candidate.id, 'Faltou', { faltouDate: new Date().toISOString() })}
-                          className="w-full min-w-0 px-2 min-h-[28px] flex items-center justify-start space-x-1 py-0.5 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 rounded-lg text-[9px] font-bold hover:bg-red-100 transition text-left whitespace-normal break-words leading-snug"
-                          title="Marcar como faltou"
-                        >
-                          <XCircle className="w-2.5 h-2.5" />
-                          <span>Faltou</span>
-                        </button>
-
-                        <button 
-                          onClick={(e) => handleOpenUpdateDate(e, candidate)}
-                          className="w-full min-w-0 px-2 min-h-[28px] flex items-center justify-start space-x-1 py-0.5 bg-blue-500 text-white rounded-lg text-[9px] font-bold hover:bg-blue-600 transition text-left whitespace-normal break-words leading-snug"
-                          title="Reagendar"
-                        >
-                          <RotateCcw className="w-2.5 h-2.5" />
-                          <span>Reagendar</span>
-                        </button>
-
-                        <button 
-                          onClick={(e) => handleUpdateStatus(e, candidate.id, 'Aguardando Prévia', { awaitingPreviewDate: new Date().toISOString() })}
-                          className="w-full min-w-0 px-2 min-h-[28px] flex items-center justify-start space-x-1 py-0.5 bg-brand-500 text-white rounded-lg text-[9px] font-bold hover:bg-brand-600 transition text-left whitespace-normal break-words leading-snug"
-                          title="Enviar para prévia"
-                        >
-                          <ArrowRight className="w-2.5 h-2.5" />
-                          <span>Prévia</span>
-                        </button>
-
-                        <button 
-                          onClick={(e) => handleUpdateStatus(e, candidate.id, 'Desqualificado', { disqualifiedDate: new Date().toISOString() })}
-                          className="w-full min-w-0 px-2 min-h-[28px] flex items-center justify-start space-x-1 py-0.5 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg text-[9px] font-bold hover:bg-red-100 transition text-left whitespace-normal break-words leading-snug"
-                          title="Desqualificar"
-                        >
-                          <UserX className="w-2.5 h-2.5" />
-                          <span>Desqualif.</span>
-                        </button>
-
-                        <button 
-                          onClick={(e) => handleUpdateStatus(e, candidate.id, 'Autorizado', { authorizedDate: new Date().toISOString() })}
-                          className="w-full min-w-0 px-2 min-h-[28px] flex items-center justify-start space-x-1 py-0.5 bg-green-600 text-white rounded-lg text-[9px] font-bold hover:bg-green-700 transition text-left whitespace-normal break-words leading-snug"
-                          title="Autorizar"
-                        >
-                          <UserCheck className="w-2.5 h-2.5" />
-                          <span>Autorizar</span>
-                        </button>
-
-                        <button
-                          onClick={(e) => handleOpenWithdrawalModal(e, candidate)}
-                          className="w-full min-w-0 px-2 min-h-[28px] flex items-center justify-start space-x-1 py-0.5 border border-gray-200 dark:border-slate-600 text-gray-500 rounded-lg text-[9px] font-bold hover:bg-gray-50 transition text-left whitespace-normal break-words leading-snug"
-                          title="Marcar desistência"
-                        >
-                          <UserMinus className="w-2.5 h-2.5" />
-                          <span>Desistiu</span>
-                        </button>
+                      <div className="pt-3 mt-1 border-t border-gray-50 dark:border-slate-600">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <div className="flex flex-col gap-1.5">
+                            <button 
+                              onClick={(e) => handleOpenUpdateDate(e, candidate)}
+                              className="w-full min-w-0 px-2 min-h-[28px] flex items-center justify-start space-x-1 py-0.5 bg-blue-600 text-white rounded-lg text-[9px] font-bold hover:bg-blue-700 transition text-left whitespace-normal break-words leading-snug"
+                              title="Agendar entrevista"
+                            >
+                              <CalendarClock className="w-2.5 h-2.5" />
+                              <span>Agendar</span>
+                            </button>
+                            <button 
+                              onClick={(e) => handleUpdateStatus(e, candidate.id, 'Triagem', { screeningStatus: 'Contacted', contactedDate: new Date().toISOString() })}
+                              className="w-full min-w-0 px-2 min-h-[28px] flex items-center justify-start space-x-1 py-0.5 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg text-[9px] font-bold hover:bg-blue-100 transition text-left whitespace-normal break-words leading-snug"
+                              title="Marcar como contatado"
+                            >
+                              <MessageSquare className="w-2.5 h-2.5" />
+                              <span>Contatado</span>
+                            </button>
+                            <button
+                              onClick={(e) => handleUpdateStatus(e, candidate.id, 'Triagem', { screeningStatus: 'No Response', noResponseDate: new Date().toISOString() })}
+                              className="w-full min-w-0 px-2 min-h-[28px] flex items-center justify-start space-x-1 py-0.5 bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 rounded-lg text-[9px] font-bold hover:bg-orange-100 transition text-left whitespace-normal break-words leading-snug"
+                              title="Marcar como não respondido"
+                            >
+                              <HelpCircle className="w-2.5 h-2.5" />
+                              <span>Não Resp.</span>
+                            </button>
+                            <button 
+                              onClick={(e) => handleUpdateStatus(e, candidate.id, 'Entrevista', { interviewConducted: true, interviewConductedDate: new Date().toISOString() })}
+                              className="w-full min-w-0 px-2 min-h-[28px] flex items-center justify-start space-x-1 py-0.5 bg-green-600 text-white rounded-lg text-[9px] font-bold hover:bg-green-700 transition text-left whitespace-normal break-words leading-snug"
+                              title="Marcar como compareceu"
+                            >
+                              <Check className="w-2.5 h-2.5" />
+                              <span>Compareceu</span>
+                            </button>
+                            <button 
+                              onClick={(e) => handleUpdateStatus(e, candidate.id, 'Faltou', { faltouDate: new Date().toISOString() })}
+                              className="w-full min-w-0 px-2 min-h-[28px] flex items-center justify-start space-x-1 py-0.5 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 rounded-lg text-[9px] font-bold hover:bg-red-100 transition text-left whitespace-normal break-words leading-snug"
+                              title="Marcar como faltou"
+                            >
+                              <XCircle className="w-2.5 h-2.5" />
+                              <span>Faltou</span>
+                            </button>
+                          </div>
+                          <div className="flex flex-col gap-1.5">
+                            <button 
+                              onClick={(e) => handleOpenUpdateDate(e, candidate)}
+                              className="w-full min-w-0 px-2 min-h-[28px] flex items-center justify-start space-x-1 py-0.5 bg-blue-500 text-white rounded-lg text-[9px] font-bold hover:bg-blue-600 transition text-left whitespace-normal break-words leading-snug"
+                              title="Reagendar"
+                            >
+                              <RotateCcw className="w-2.5 h-2.5" />
+                              <span>Reagendar</span>
+                            </button>
+                            <button 
+                              onClick={(e) => handleUpdateStatus(e, candidate.id, 'Aguardando Prévia', { awaitingPreviewDate: new Date().toISOString() })}
+                              className="w-full min-w-0 px-2 min-h-[28px] flex items-center justify-start space-x-1 py-0.5 bg-brand-500 text-white rounded-lg text-[9px] font-bold hover:bg-brand-600 transition text-left whitespace-normal break-words leading-snug"
+                              title="Enviar para prévia"
+                            >
+                              <ArrowRight className="w-2.5 h-2.5" />
+                              <span>Prévia</span>
+                            </button>
+                            <button 
+                              onClick={(e) => handleUpdateStatus(e, candidate.id, 'Desqualificado', { disqualifiedDate: new Date().toISOString() })}
+                              className="w-full min-w-0 px-2 min-h-[28px] flex items-center justify-start space-x-1 py-0.5 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg text-[9px] font-bold hover:bg-red-100 transition text-left whitespace-normal break-words leading-snug"
+                              title="Desqualificar"
+                            >
+                              <UserX className="w-2.5 h-2.5" />
+                              <span>Desqualif.</span>
+                            </button>
+                            <button 
+                              onClick={(e) => handleUpdateStatus(e, candidate.id, 'Autorizado', { authorizedDate: new Date().toISOString() })}
+                              className="w-full min-w-0 px-2 min-h-[28px] flex items-center justify-start space-x-1 py-0.5 bg-green-600 text-white rounded-lg text-[9px] font-bold hover:bg-green-700 transition text-left whitespace-normal break-words leading-snug"
+                              title="Autorizar"
+                            >
+                              <UserCheck className="w-2.5 h-2.5" />
+                              <span>Autorizar</span>
+                            </button>
+                            <button
+                              onClick={(e) => handleOpenWithdrawalModal(e, candidate)}
+                              className="w-full min-w-0 px-2 min-h-[28px] flex items-center justify-start space-x-1 py-0.5 border border-gray-200 dark:border-slate-600 text-gray-500 rounded-lg text-[9px] font-bold hover:bg-gray-50 transition text-left whitespace-normal break-words leading-snug"
+                              title="Marcar desistência"
+                            >
+                              <UserMinus className="w-2.5 h-2.5" />
+                              <span>Desistiu</span>
+                            </button>
+                          </div>
+                        </div>
                       </div>
 
                       <div className="pt-2 mt-1 flex justify-center">
