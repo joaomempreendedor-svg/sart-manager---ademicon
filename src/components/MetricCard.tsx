@@ -14,10 +14,10 @@ export const MetricCard: React.FC<MetricCardProps> = ({ title, value, icon: Icon
   const CardContent = (
     <>
       <div className="flex justify-between items-start">
-        <div className="space-y-1">
+        <div className="space-y-1 pr-16 md:pr-20">
           <p className="text-[10px] font-bold uppercase tracking-wider opacity-70">{title}</p>
-          <h3 className="text-4xl font-black">{value}</h3>
-          {subValue && <p className="text-xs font-medium opacity-60">{subValue}</p>}
+          <h3 className="text-3xl md:text-4xl font-black leading-tight break-words">{value}</h3>
+          {subValue && <p className="text-xs font-medium opacity-60 break-words">{subValue}</p>}
         </div>
         <div className="absolute -right-2 -bottom-2 opacity-10">
           <Icon size={80} strokeWidth={3} />
