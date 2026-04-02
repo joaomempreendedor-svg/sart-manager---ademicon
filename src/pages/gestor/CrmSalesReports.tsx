@@ -17,7 +17,6 @@ import toast from 'react-hot-toast';
 import { CrmLead } from '@/types';
 import { LeadsDetailModal } from '@/components/gestor/LeadsDetailModal';
 import { MetricCard } from '@/components/MetricCard';
-import { formatLargeCurrency } from '@/utils/currencyUtils';
 
 const JOAO_GESTOR_AUTH_ID = "0c6d71b7-daeb-4dde-8eec-0e7a8ffef658";
 
@@ -494,14 +493,14 @@ const CrmSalesReports = () => {
         />
         <MetricCard
           title="Total Propostas"
-          value={formatLargeCurrency(reportData.totalProposalValue)}
+          value={formatCurrency(reportData.totalProposalValue)}
           icon={Send}
           colorClass="bg-purple-600 text-white"
           onClick={() => handleOpenLeadsDetailModal('Leads com Proposta no Período', reportData.leadsWithProposal, 'proposal')}
         />
         <MetricCard
           title="Total Vendido"
-          value={formatLargeCurrency(reportData.totalSoldValue)}
+          value={formatCurrency(reportData.totalSoldValue)}
           icon={DollarSign}
           colorClass="bg-green-600 text-white"
           onClick={() => handleOpenLeadsDetailModal('Leads Vendidos no Período', reportData.leadsSold, 'sold')}
@@ -514,7 +513,7 @@ const CrmSalesReports = () => {
         />
         <MetricCard
           title="Ticket Médio"
-          value={formatLargeCurrency(reportData.averageTicket)}
+          value={formatCurrency(reportData.averageTicket)}
           icon={Ticket}
           colorClass="bg-brand-500 text-white"
           subValue="Valor médio por venda"
@@ -562,7 +561,11 @@ const CrmSalesReports = () => {
 
       <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm mb-8">
         <h2 className="text-xl font-bold mb-6 flex items-center"><BarChart className="w-5 h-5 mr-2 text-brand-500" />Ranking de Vendas</h2>
-        {topSellersChartData.length > 0 ? <TopSellersChart data={topSellersChartData} /> : <p className="text-center py-8 text-gray-500">Sem dados para o período.</p>}
+        {topSellersChartData.length > 0 ? (
+          <TopSellersChart data={topSellersChartData} valueFormatter={formatCurrency} />
+        ) : (
+          <p className="text-center py-8 text-gray-500">Sem dados para o período.</p>
+        )}
       </div>
 
       <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">

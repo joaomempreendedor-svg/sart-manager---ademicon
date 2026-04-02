@@ -3,24 +3,26 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { formatLargeCurrency } from '@/utils/currencyUtils';
 
 interface TopSellersChartProps {
-  data: { name: string; soldValue: number; }[];
+  data: { name: string; soldValue: number }[];
+  valueFormatter?: (value: number) => string;
 }
 
 // Custom Tooltip Component
-const CustomTooltip = ({ active, payload, label }: any) => {
+const CustomTooltip = ({ active, payload, label, valueFormatter }: any) => {
   if (active && payload && payload.length) {
     return (
       <div className="bg-white dark:bg-slate-800 p-3 rounded-lg shadow-lg border border-gray-200 dark:border-slate-700">
         <p className="font-bold text-gray-900 dark:text-white">{label}</p>
-        <p className="text-brand-600 dark:text-brand-400">{`Valor Vendido: ${formatLargeCurrency(payload[0].value)}`}</p>
+        <p className="text-brand-600 dark:text-brand-400">{`Valor Vendido: ${valueFormatter ? valueFormatter(payload[0].value) : formatLargeCurrency(payload[0].value)}`}</p>
       </div>
     );
   }
   return null;
 };
 
-const TopSellersChart: React.FC<TopSellersChartProps> = ({ data }) => {
+const TopSellersChart: React.FC<TopSellersChartProps> = ({ data, valueFormatter }) => {
   const sortedData = [...data].sort((a, b) => b.soldValue - a.soldValue);
+  const fmt = valueFormatter ?? ((v: number) => formatLargeCurrency(v));
 
   return (
     <div className="text-gray-700 dark:text-gray-300">
@@ -51,14 +53,14 @@ const TopSellersChart: React.FC<TopSellersChartProps> = ({ data }) => {
             axisLine={false}
           />
           <YAxis 
-            tickFormatter={formatLargeCurrency} 
+            tickFormatter={fmt}
             tick={{ fontSize: 12, fill: 'currentColor' }} 
             tickLine={false}
             axisLine={false}
-            width={100} // Give more space for currency values
+            width={120} // espaço extra para valores completos
           />
           <Tooltip 
-            content={<CustomTooltip />} 
+            content={<CustomTooltip valueFormatter={fmt} />} 
             cursor={{ fill: 'rgba(255, 122, 0, 0.1)' }}
           />
           <Bar 
