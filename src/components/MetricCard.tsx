@@ -25,24 +25,24 @@ export const MetricCard: React.FC<MetricCardProps> = ({ title, value, icon: Icon
   const CardContent = (
     <>
       <div className="flex justify-between items-start">
-        <div className="space-y-1 pr-24 md:pr-28">
+        <div className="space-y-1 pr-28 md:pr-32">
           <p className="text-[10px] font-bold uppercase tracking-wider opacity-70">{title}</p>
           <h3 className="leading-tight break-words">
             <span className="inline-flex items-baseline">
               {currencyPrefix && (
-                <span className="text-xs md:text-sm font-extrabold opacity-80 mr-1 shrink-0">
+                <span className="text-[10px] sm:text-xs md:text-sm font-extrabold opacity-80 mr-1 shrink-0">
                   {currencyPrefix}
                 </span>
               )}
-              <span className="text-4xl md:text-5xl font-black tracking-tight">
+              <span className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight leading-snug whitespace-normal break-words">
                 {mainValue}
               </span>
             </span>
           </h3>
           {subValue && <p className="text-xs font-medium opacity-60 break-words">{subValue}</p>}
         </div>
-        <div className="absolute -right-2 -bottom-2 opacity-10">
-          <Icon size={80} strokeWidth={3} />
+        <div className="absolute -right-1 -bottom-1 opacity-10">
+          <Icon size={70} strokeWidth={3} />
         </div>
       </div>
     </>
