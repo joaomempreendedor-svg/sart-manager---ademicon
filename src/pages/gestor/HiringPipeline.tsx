@@ -480,10 +480,10 @@ const HiringPipeline = () => {
                         />
                       </div>
 
-                      <div className="pt-3 mt-1 border-t border-gray-50 dark:border-slate-600 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2">
+                      <div className="pt-3 mt-1 border-t border-gray-50 dark:border-slate-600 grid grid-cols-[repeat(auto-fit,minmax(120px,1fr))] md:grid-cols-[repeat(auto-fit,minmax(140px,1fr))] gap-2">
                         <button 
                           onClick={(e) => handleOpenUpdateDate(e, candidate)}
-                          className="w-full min-w-0 px-2 flex items-center justify-start space-x-1 py-1.5 bg-blue-600 text-white rounded-lg text-[10px] font-bold hover:bg-blue-700 transition text-left whitespace-normal break-words leading-snug"
+                          className="w-full min-w-0 px-3 min-h-[36px] flex items-center justify-start space-x-1 py-1.5 bg-blue-600 text-white rounded-lg text-[10px] font-bold hover:bg-blue-700 transition text-left whitespace-normal break-words leading-snug"
                           title="Agendar entrevista"
                         >
                           <CalendarClock className="w-3 h-3" />
@@ -492,7 +492,7 @@ const HiringPipeline = () => {
 
                         <button 
                           onClick={(e) => handleUpdateStatus(e, candidate.id, 'Triagem', { screeningStatus: 'Contacted', contactedDate: new Date().toISOString() })}
-                          className="w-full min-w-0 px-2 flex items-center justify-start space-x-1 py-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg text-[10px] font-bold hover:bg-blue-100 transition text-left whitespace-normal break-words leading-snug"
+                          className="w-full min-w-0 px-3 min-h-[36px] flex items-center justify-start space-x-1 py-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg text-[10px] font-bold hover:bg-blue-100 transition text-left whitespace-normal break-words leading-snug"
                           title="Marcar como contatado"
                         >
                           <MessageSquare className="w-3 h-3" />
@@ -501,7 +501,7 @@ const HiringPipeline = () => {
 
                         <button
                           onClick={(e) => handleUpdateStatus(e, candidate.id, 'Triagem', { screeningStatus: 'No Response', noResponseDate: new Date().toISOString() })}
-                          className="w-full min-w-0 px-2 flex items-center justify-start space-x-1 py-1.5 bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 rounded-lg text-[10px] font-bold hover:bg-orange-100 transition text-left whitespace-normal break-words leading-snug"
+                          className="w-full min-w-0 px-3 min-h-[36px] flex items-center justify-start space-x-1 py-1.5 bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 rounded-lg text-[10px] font-bold hover:bg-orange-100 transition text-left whitespace-normal break-words leading-snug"
                           title="Marcar como não respondido"
                         >
                           <HelpCircle className="w-3 h-3" />
@@ -510,7 +510,7 @@ const HiringPipeline = () => {
 
                         <button 
                           onClick={(e) => handleUpdateStatus(e, candidate.id, 'Entrevista', { interviewConducted: true, interviewConductedDate: new Date().toISOString() })}
-                          className="w-full min-w-0 px-2 flex items-center justify-start space-x-1 py-1.5 bg-green-600 text-white rounded-lg text-[10px] font-bold hover:bg-green-700 transition text-left whitespace-normal break-words leading-snug"
+                          className="w-full min-w-0 px-3 min-h-[36px] flex items-center justify-start space-x-1 py-1.5 bg-green-600 text-white rounded-lg text-[10px] font-bold hover:bg-green-700 transition text-left whitespace-normal break-words leading-snug"
                           title="Marcar como compareceu"
                         >
                           <Check className="w-3 h-3" />
@@ -519,7 +519,7 @@ const HiringPipeline = () => {
 
                         <button 
                           onClick={(e) => handleUpdateStatus(e, candidate.id, 'Faltou', { faltouDate: new Date().toISOString() })}
-                          className="w-full min-w-0 px-2 flex items-center justify-start space-x-1 py-1.5 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 rounded-lg text-[10px] font-bold hover:bg-red-100 transition text-left whitespace-normal break-words leading-snug"
+                          className="w-full min-w-0 px-3 min-h-[36px] flex items-center justify-start space-x-1 py-1.5 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 rounded-lg text-[10px] font-bold hover:bg-red-100 transition text-left whitespace-normal break-words leading-snug"
                           title="Marcar como faltou"
                         >
                           <XCircle className="w-3 h-3" />
@@ -528,7 +528,7 @@ const HiringPipeline = () => {
 
                         <button 
                           onClick={(e) => handleOpenUpdateDate(e, candidate)}
-                          className="w-full min-w-0 px-2 flex items-center justify-start space-x-1 py-1.5 bg-blue-500 text-white rounded-lg text-[10px] font-bold hover:bg-blue-600 transition text-left whitespace-normal break-words leading-snug"
+                          className="w-full min-w-0 px-3 min-h-[36px] flex items-center justify-start space-x-1 py-1.5 bg-blue-500 text-white rounded-lg text-[10px] font-bold hover:bg-blue-600 transition text-left whitespace-normal break-words leading-snug"
                           title="Reagendar"
                         >
                           <RotateCcw className="w-3 h-3" />
@@ -537,7 +537,7 @@ const HiringPipeline = () => {
 
                         <button 
                           onClick={(e) => handleUpdateStatus(e, candidate.id, 'Aguardando Prévia', { awaitingPreviewDate: new Date().toISOString() })}
-                          className="w-full min-w-0 px-2 flex items-center justify-start space-x-1 py-1.5 bg-brand-500 text-white rounded-lg text-[10px] font-bold hover:bg-brand-600 transition text-left whitespace-normal break-words leading-snug"
+                          className="w-full min-w-0 px-3 min-h-[36px] md:col-span-2 flex items-center justify-start space-x-1 py-1.5 bg-brand-500 text-white rounded-lg text-[10px] font-bold hover:bg-brand-600 transition text-left whitespace-normal break-words leading-snug"
                           title="Enviar para prévia"
                         >
                           <ArrowRight className="w-3 h-3" />
@@ -546,7 +546,7 @@ const HiringPipeline = () => {
 
                         <button 
                           onClick={(e) => handleUpdateStatus(e, candidate.id, 'Desqualificado', { disqualifiedDate: new Date().toISOString() })}
-                          className="w-full min-w-0 px-2 flex items-center justify-start space-x-1 py-1.5 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg text-[10px] font-bold hover:bg-red-100 transition text-left whitespace-normal break-words leading-snug"
+                          className="w-full min-w-0 px-3 min-h-[36px] md:col-span-2 flex items-center justify-start space-x-1 py-1.5 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg text-[10px] font-bold hover:bg-red-100 transition text-left whitespace-normal break-words leading-snug"
                           title="Desqualificar"
                         >
                           <UserX className="w-3 h-3" />
@@ -555,7 +555,7 @@ const HiringPipeline = () => {
 
                         <button 
                           onClick={(e) => handleUpdateStatus(e, candidate.id, 'Autorizado', { authorizedDate: new Date().toISOString() })}
-                          className="w-full min-w-0 px-2 flex items-center justify-start space-x-1 py-1.5 bg-green-600 text-white rounded-lg text-[10px] font-bold hover:bg-green-700 transition text-left whitespace-normal break-words leading-snug"
+                          className="w-full min-w-0 px-3 min-h-[36px] flex items-center justify-start space-x-1 py-1.5 bg-green-600 text-white rounded-lg text-[10px] font-bold hover:bg-green-700 transition text-left whitespace-normal break-words leading-snug"
                           title="Autorizar"
                         >
                           <UserCheck className="w-3 h-3" />
@@ -564,7 +564,7 @@ const HiringPipeline = () => {
 
                         <button
                           onClick={(e) => handleOpenWithdrawalModal(e, candidate)}
-                          className="w-full min-w-0 px-2 flex items-center justify-start space-x-1 py-1.5 border border-gray-200 dark:border-slate-600 text-gray-500 rounded-lg text-[10px] font-bold hover:bg-gray-50 transition text-left whitespace-normal break-words leading-snug"
+                          className="w-full min-w-0 px-3 min-h-[36px] md:col-span-2 flex items-center justify-start space-x-1 py-1.5 border border-gray-200 dark:border-slate-600 text-gray-500 rounded-lg text-[10px] font-bold hover:bg-gray-50 transition text-left whitespace-normal break-words leading-snug"
                           title="Marcar desistência"
                         >
                           <UserMinus className="w-3 h-3" />
