@@ -13,7 +13,7 @@ import { NotificationCenter } from '@/components/NotificationCenter';
 import { LeadsDetailModal } from '@/components/gestor/LeadsDetailModal';
 import { CandidatesDetailModal } from '@/components/gestor/CandidatesDetailModal';
 import { ColdCallDetailModal } from '@/components/gestor/ColdCallDetailModal';
-import { formatLargeCurrency } from '@/utils/currencyUtils';
+// REMOVIDO: formatLargeCurrency para evitar abreviação K/M nos valores do dashboard
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
@@ -409,7 +409,7 @@ export const Dashboard = () => {
           />
           <MetricCard
             title="Propostas"
-            value={formatLargeCurrency(commercialMetrics?.proposalValue || 0)}
+            value={formatCurrency(commercialMetrics?.proposalValue || 0)}
             icon={Send}
             colorClass="bg-purple-600 text-white"
             size="compact"
@@ -417,7 +417,7 @@ export const Dashboard = () => {
           />
           <MetricCard
             title="Vendido"
-            value={formatLargeCurrency(commercialMetrics?.soldValue || 0)}
+            value={formatCurrency(commercialMetrics?.soldValue || 0)}
             icon={DollarSign}
             colorClass="bg-teal-600 text-white"
             size="compact"
