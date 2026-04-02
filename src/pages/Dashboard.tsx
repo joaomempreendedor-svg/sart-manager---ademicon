@@ -397,12 +397,14 @@ export const Dashboard = () => {
             value={commercialMetrics?.newLeads ?? 0}
             icon={Plus}
             colorClass="bg-green-600 text-white"
+            size="compact"
           />
           <MetricCard
             title="Reuniões"
             value={commercialMetrics?.meetingsCount ?? 0}
             icon={Calendar}
             colorClass="bg-orange-600 text-white"
+            size="compact"
             onClick={() => handleOpenLeadsDetailModal('Reuniões do Mês', commercialMetrics?.leadsWithMeetings || [], 'meeting')}
           />
           <MetricCard
@@ -410,6 +412,7 @@ export const Dashboard = () => {
             value={formatLargeCurrency(commercialMetrics?.proposalValue || 0)}
             icon={Send}
             colorClass="bg-purple-600 text-white"
+            size="compact"
             onClick={() => handleOpenLeadsDetailModal('Propostas do Mês', commercialMetrics?.leadsWithProposal || [], 'proposal')}
           />
           <MetricCard
@@ -417,6 +420,7 @@ export const Dashboard = () => {
             value={formatLargeCurrency(commercialMetrics?.soldValue || 0)}
             icon={DollarSign}
             colorClass="bg-teal-600 text-white"
+            size="compact"
             onClick={() => handleOpenLeadsDetailModal('Vendas do Mês', commercialMetrics?.leadsSold || [], 'sold')}
           />
         </div>
