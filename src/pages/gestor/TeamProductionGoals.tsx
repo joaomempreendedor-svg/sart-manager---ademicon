@@ -101,7 +101,7 @@ const TeamProductionGoals = () => {
     return target;
   };
 
-  const sumProducedInRange = (start: Date, end: Date) => {
+  function sumProducedInRange(start: Date, end: Date) {
     return crmLeads.reduce((sum, lead) => {
       if (lead.sale_date && lead.sold_credit_value) {
         const d = new Date(lead.sale_date + 'T00:00:00');
@@ -109,7 +109,7 @@ const TeamProductionGoals = () => {
       }
       return sum;
     }, 0);
-  };
+  }
 
   const getConsultantContributions = (start: Date, end: Date) => {
     const producedLeads = crmLeads.filter(lead => {
