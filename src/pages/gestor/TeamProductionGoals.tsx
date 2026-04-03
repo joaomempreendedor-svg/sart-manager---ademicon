@@ -37,7 +37,8 @@ const TeamProductionGoals = () => {
     return teamMembers.filter(member => {
       if (!member.isActive) return false;
       const roles = (member.roles || []).map(r => (r || '').toUpperCase());
-      return roles.includes('CONSULTOR') || roles.includes('AUTORIZADO');
+      // Conta consultores e prévias ativos (aceita PRÉVIA ou PREVIA)
+      return roles.some(role => role === 'CONSULTOR' || role === 'PRÉVIA' || role === 'PREVIA');
     }).length;
   }, [teamMembers]);
 
@@ -174,8 +175,8 @@ const TeamProductionGoals = () => {
     const activeConsultants = currentTeamSize;
     const monthsInRange = Math.max(1, (range.end.getFullYear() - range.start.getFullYear()) * 12 + (range.end.getMonth() - range.start.getMonth()) + 1);
     const contributions = getConsultantContributions(range.start, range.end);
-    const contributingConsultants = contributions.filter(c => (c.consultantId !== null) && c.amount > 0).length;
-    const divisor = contributingConsultants > 0 ? contributingConsultants : activeConsultants;
+    // Ticket médio divide sempre pelos consultores e prévias ativos
+    const divisor = activeConsultants;
     const ticketPerConsultantPeriod = divisor > 0 ? produced / divisor : 0;
     const ticketPerConsultantMonth = divisor > 0 ? produced / (divisor * monthsInRange) : 0;
     return { range, targetProduction, produced, targetConsultants, activeConsultants, monthsInRange, ticketPerConsultantPeriod, ticketPerConsultantMonth, contributions };
