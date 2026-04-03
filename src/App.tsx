@@ -43,6 +43,7 @@ import HiringPipeline from '@/pages/gestor/HiringPipeline';
 import CrmSalesReports from '@/pages/gestor/CrmSalesReports';
 import HiringDashboard from '@/pages/gestor/HiringDashboard'; 
 import HiringOriginsReport from '@/pages/gestor/HiringOriginsReport';
+import HiringPipelineReports from '@/pages/gestor/HiringPipelineReports';
 import { OriginConfig } from '@/pages/OriginConfig';
 import { FinancialPanel } from '@/pages/FinancialPanel';
 import { FormCadastros } from '@/pages/gestor/FormSubmissions';
@@ -98,6 +99,7 @@ const AppRoutes = () => {
           <Route path="daily-checklist-config" element={<DailyChecklistConfig />} />
           <Route path="daily-checklist-monitoring" element={<DailyChecklistMonitoring />} />
           <Route path="hiring-dashboard" element={<HiringDashboard />} />
+          <Route path="hiring-reports" element={<HiringPipelineReports />} />
           <Route path="hiring-pipeline" element={<HiringPipeline />} />
           <Route path="hiring-origins-report" element={<HiringOriginsReport />} />
           <Route path="crm-sales-reports" element={<CrmSalesReports />} />
@@ -111,6 +113,7 @@ const AppRoutes = () => {
 
         <Route path="/secretaria" element={<GestorLayout />}> {/* Secretaria também usa GestorLayout */}
           <Route path="dashboard" element={<SecretariaDashboard />} />
+          <Route path="hiring-reports" element={<HiringPipelineReports />} />
           <Route path="hiring-dashboard" element={<HiringDashboard />} />
           <Route path="hiring-pipeline" element={<HiringPipeline />} />
           <Route path="hiring-origins-report" element={<HiringOriginsReport />} />
