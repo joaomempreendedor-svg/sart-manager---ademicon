@@ -2,7 +2,8 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { TeamProductionGoal } from '@/types';
-import { Plus, Edit2, Trash2, Users, DollarSign, CalendarDays, Loader2, TrendingUp, Target, CheckCircle2, XCircle, RotateCcw, X, Save } from 'lucide-react';
+import { Plus, Edit2, Trash2, Users, DollarSign, CalendarDays, Loader2, TrendingUp, Target, CheckCircle2, XCircle, X, Save } from 'lucide-react';
+import ConsultantContributions from '@/components/gestor/ConsultantContributions';
 import toast from 'react-hot-toast';
 
 const formatCurrency = (value: number) => {
@@ -22,7 +23,10 @@ const TeamProductionGoals = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
 
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear()); // NOVO: Estado para o ano selecionado
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [timeframe, setTimeframe] = useState<'month' | 'quarter' | 'year'>('month');
+  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1); // 1-12
+  const [selectedQuarter, setSelectedQuarter] = useState<number>(Math.floor(new Date().getMonth() / 3) + 1); // 1-4
 
   const currentActiveGoal = useMemo(() => {
     const today = new Date().toISOString().split('T')[0];
@@ -33,81 +37,105 @@ const TeamProductionGoals = () => {
     return teamMembers.filter(member => member.isActive && (member.roles.includes('CONSULTOR') || member.roles.includes('Prévia') || member.roles.includes('Autorizado'))).length;
   }, [teamMembers]);
 
-  const currentProductionValue = useMemo(() => {
-    if (!currentActiveGoal) return 0;
-    const start = new Date(currentActiveGoal.start_date + 'T00:00:00');
-    const end = new Date(currentActiveGoal.end_date + 'T23:59:59');
+  // Helpers de período
+  const getMonthRange = (year: number, month: number) => {
+    const start = new Date(year, month - 1, 1);
+    const end = new Date(year, month, 0, 23, 59, 59, 999);
+    return { start, end };
+  };
 
+  const getQuarterRange = (year: number, quarter: number) => {
+    const startMonth = (quarter - 1) * 3;
+    const start = new Date(year, startMonth, 1);
+    const end = new Date(year, startMonth + 3, 0, 23, 59, 59, 999);
+    return { start, end };
+  };
+
+  const daysBetween = (a: Date, b: Date) => Math.max(0, Math.ceil((b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+  const clamp = (d: Date, min: Date, max: Date) => new Date(Math.min(Math.max(d.getTime(), min.getTime()), max.getTime()));
+
+  // Cálculo pró-rata da meta de produção no intervalo
+  const getProratedTargetForRange = (start: Date, end: Date) => {
+    let totalTarget = 0;
+    teamProductionGoals.forEach(goal => {
+      const gStart = new Date(goal.start_date + 'T00:00:00');
+      const gEnd = new Date(goal.end_date + 'T23:59:59');
+      // Checa sobreposição
+      if (gEnd < start || gStart > end) return;
+      const overlapStart = clamp(gStart, start, end);
+      const overlapEnd = clamp(gEnd, start, end);
+      const overlapDays = daysBetween(overlapStart, overlapEnd);
+      const goalDays = Math.max(1, daysBetween(gStart, gEnd));
+      const ratio = overlapDays / goalDays;
+      totalTarget += goal.target_production_value * ratio;
+    });
+    return totalTarget;
+  };
+
+  // Meta de consultores no período (usa o alvo do período mais recente que termina dentro do range)
+  const getTargetConsultantsForRange = (start: Date, end: Date) => {
+    let latestEnd: Date | null = null;
+    let target = 0;
+    teamProductionGoals.forEach(goal => {
+      const gEnd = new Date(goal.end_date + 'T23:59:59');
+      const gStart = new Date(goal.start_date + 'T00:00:00');
+      if (gEnd < start || gStart > end) return;
+      if (!latestEnd || gEnd > latestEnd) {
+        latestEnd = gEnd;
+        target = goal.target_team_size;
+      }
+    });
+    return target;
+  };
+
+  const sumProducedInRange = (start: Date, end: Date) => {
     return crmLeads.reduce((sum, lead) => {
-      if (lead.sale_date) { // Usando snake_case
-        const saleDate = new Date(lead.sale_date + 'T00:00:00'); // Usando snake_case
-        if (saleDate >= start && saleDate <= end && lead.sold_credit_value) { // Usando snake_case
-          return sum + lead.sold_credit_value; // Usando snake_case
-        }
+      if (lead.sale_date && lead.sold_credit_value) {
+        const d = new Date(lead.sale_date + 'T00:00:00');
+        if (d >= start && d <= end) return sum + (lead.sold_credit_value || 0);
       }
       return sum;
     }, 0);
-  }, [currentActiveGoal, crmLeads]);
+  };
 
-  // NOVO: Resumo Anual
+  const getConsultantContributions = (start: Date, end: Date) => {
+    const producedLeads = crmLeads.filter(lead => {
+      if (!lead.sale_date || !lead.sold_credit_value) return false;
+      const d = new Date(lead.sale_date + 'T00:00:00');
+      return d >= start && d <= end;
+    });
+    const byConsultant = new Map<string | null, number>();
+    producedLeads.forEach(lead => {
+      const key = lead.consultant_id || null;
+      const prev = byConsultant.get(key) || 0;
+      byConsultant.set(key, prev + (lead.sold_credit_value || 0));
+    });
+    const total = Array.from(byConsultant.values()).reduce((a, b) => a + b, 0);
+    const items = Array.from(byConsultant.entries()).map(([id, amount]) => {
+      const member = id ? teamMembers.find(m => (m.authUserId || m.id) === id) : undefined;
+      const name = member?.name || 'Sem Consultor';
+      const percent = total > 0 ? (amount / total) * 100 : 0;
+      return { consultantId: id, name, amount, percent };
+    });
+    items.sort((a, b) => b.amount - a.amount);
+    return items;
+  };
+
+  // Resumos por período
   const annualSummary = useMemo(() => {
     const startOfYear = new Date(selectedYear, 0, 1);
     const endOfYear = new Date(selectedYear, 11, 31, 23, 59, 59, 999);
 
-    const goalsInSelectedYear = teamProductionGoals.filter(goal => {
+    const totalTargetProductionValue = getProratedTargetForRange(startOfYear, endOfYear);
+    const projectedTeamSizeTarget = getTargetConsultantsForRange(startOfYear, endOfYear);
+    const totalActualProductionValueForYear = sumProducedInRange(startOfYear, endOfYear);
+    const goalsMetCount = teamProductionGoals.filter(goal => {
       const goalStart = new Date(goal.start_date + 'T00:00:00');
       const goalEnd = new Date(goal.end_date + 'T23:59:59');
-      // Uma meta é relevante se seu período se sobrepõe ao ano selecionado
-      return (goalStart <= endOfYear && goalEnd >= startOfYear);
-    });
-
-    let projectedTeamSizeTarget = 0; // Alterado de totalTargetTeamSize
-    let latestGoalEndDate: Date | null = null;
-
-    // Calcula o projectedTeamSizeTarget como a meta de tamanho da equipe do período mais recente
-    goalsInSelectedYear.forEach(goal => {
-      const goalEnd = new Date(goal.end_date + 'T00:00:00');
-      if (latestGoalEndDate === null || goalEnd > latestGoalEndDate) {
-        latestGoalEndDate = goalEnd;
-        projectedTeamSizeTarget = goal.target_team_size;
-      }
-    });
-
-    let totalTargetProductionValue = 0;
-    let totalActualProductionValueForYear = 0;
-    let goalsMetCount = 0; // Contagem de metas individuais onde o alvo de produção foi atingido
-
-    goalsInSelectedYear.forEach(goal => {
-      totalTargetProductionValue += goal.target_production_value;
-
-      const goalPeriodStart = new Date(goal.start_date + 'T00:00:00');
-      const goalPeriodEnd = new Date(goal.end_date + 'T23:59:59');
-
-      const actualProductionForThisGoal = crmLeads.reduce((sum, lead) => {
-        if (lead.sale_date) { // Usando snake_case
-          const saleDate = new Date(lead.sale_date + 'T00:00:00'); // Usando snake_case
-          if (saleDate >= goalPeriodStart && saleDate <= goalPeriodEnd && lead.sold_credit_value) { // Usando snake_case
-            return sum + lead.sold_credit_value; // Usando snake_case
-          }
-        }
-        return sum;
-      }, 0);
-
-      if (actualProductionForThisGoal >= goal.target_production_value) {
-        goalsMetCount++;
-      }
-    });
-
-    // Calcular a produção real total para o ano selecionado
-    totalActualProductionValueForYear = crmLeads.reduce((sum, lead) => {
-      if (lead.sale_date) { // Usando snake_case
-        const saleDate = new Date(lead.sale_date + 'T00:00:00'); // Usando snake_case
-        if (saleDate >= startOfYear && saleDate <= endOfYear && lead.sold_credit_value) { // Usando snake_case
-          return sum + lead.sold_credit_value; // Usando snake_case
-        }
-      }
-      return sum;
-    }, 0);
+      if (!(goalStart <= endOfYear && goalEnd >= startOfYear)) return false;
+      const producedInGoal = sumProducedInRange(goalStart, goalEnd);
+      return producedInGoal >= goal.target_production_value;
+    }).length;
 
     return {
       totalGoalsSet: goalsInSelectedYear.length,
@@ -117,8 +145,28 @@ const TeamProductionGoals = () => {
       totalActualProductionValueForYear,
       currentTeamSize, // Snapshot atual de membros ativos da equipe
     };
-  }, [teamProductionGoals, selectedYear, crmLeads, currentTeamSize]);
+  }, [teamProductionGoals, selectedYear, crmLeads, currentTeamSize, getProratedTargetForRange, getTargetConsultantsForRange, sumProducedInRange]);
 
+  // Resumo mensal/Trimestral com base no seletor
+  const timeframeSummary = useMemo(() => {
+    let range: { start: Date; end: Date };
+    if (timeframe === 'month') {
+      range = getMonthRange(selectedYear, selectedMonth);
+    } else if (timeframe === 'quarter') {
+      range = getQuarterRange(selectedYear, selectedQuarter);
+    } else {
+      range = { start: new Date(selectedYear, 0, 1), end: new Date(selectedYear, 11, 31, 23, 59, 59, 999) };
+    }
+    const targetProduction = getProratedTargetForRange(range.start, range.end);
+    const produced = sumProducedInRange(range.start, range.end);
+    const targetConsultants = getTargetConsultantsForRange(range.start, range.end);
+    const activeConsultants = currentTeamSize;
+    const monthsInRange = Math.max(1, (range.end.getFullYear() - range.start.getFullYear()) * 12 + (range.end.getMonth() - range.start.getMonth()) + 1);
+    const ticketPerConsultantPeriod = activeConsultants > 0 ? produced / activeConsultants : 0;
+    const ticketPerConsultantMonth = activeConsultants > 0 ? produced / (activeConsultants * monthsInRange) : 0;
+    const contributions = getConsultantContributions(range.start, range.end);
+    return { range, targetProduction, produced, targetConsultants, activeConsultants, monthsInRange, ticketPerConsultantPeriod, ticketPerConsultantMonth, contributions };
+  }, [timeframe, selectedYear, selectedMonth, selectedQuarter, getMonthRange, getQuarterRange, getProratedTargetForRange, sumProducedInRange, getTargetConsultantsForRange, currentTeamSize, getConsultantContributions]);
 
   useEffect(() => {
     if (isFormOpen && editingGoal) {
@@ -294,15 +342,14 @@ const TeamProductionGoals = () => {
         )}
       </div>
 
-      {/* NOVO: Resumo Anual */}
+      {/* Resumos por Período */}
       <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm mb-8">
         <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center">
-          <CalendarDays className="w-5 h-5 mr-2 text-brand-500" /> Resumo Anual
+          <CalendarDays className="w-5 h-5 mr-2 text-brand-500" /> Resumos por Período
         </h2>
-        <div className="flex items-center space-x-2 mb-4">
-          <label htmlFor="selectYear" className="text-sm font-medium text-gray-700 dark:text-gray-300">Ano:</label>
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Ano:</label>
           <select
-            id="selectYear"
             value={selectedYear}
             onChange={(e) => setSelectedYear(parseInt(e.target.value))}
             className="p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-gray-900 dark:text-white"
@@ -311,24 +358,113 @@ const TeamProductionGoals = () => {
               <option key={year} value={year}>{year}</option>
             ))}
           </select>
+          <div className="ml-auto flex items-center gap-2">
+            <button
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium border ${timeframe === 'month' ? 'bg-brand-600 text-white border-brand-600' : 'bg-gray-50 dark:bg-slate-700/50 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-slate-600'}`}
+              onClick={() => setTimeframe('month')}
+            >
+              Mês
+            </button>
+            <button
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium border ${timeframe === 'quarter' ? 'bg-brand-600 text-white border-brand-600' : 'bg-gray-50 dark:bg-slate-700/50 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-slate-600'}`}
+              onClick={() => setTimeframe('quarter')}
+            >
+              Trimestre
+            </button>
+            <button
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium border ${timeframe === 'year' ? 'bg-brand-600 text-white border-brand-600' : 'bg-gray-50 dark:bg-slate-700/50 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-slate-600'}`}
+              onClick={() => setTimeframe('year')}
+            >
+              Ano
+            </button>
+          </div>
         </div>
+
+        {/* Filtros específicos */}
+        {timeframe === 'month' && (
+          <div className="flex items-center gap-2 mb-4">
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Mês:</label>
+            <select
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+              className="p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-gray-900 dark:text-white"
+            >
+              {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
+                <option key={m} value={m}>{m.toString().padStart(2, '0')}</option>
+              ))}
+            </select>
+          </div>
+        )}
+        {timeframe === 'quarter' && (
+          <div className="flex items-center gap-2 mb-4">
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Trimestre:</label>
+            <select
+              value={selectedQuarter}
+              onChange={(e) => setSelectedQuarter(parseInt(e.target.value))}
+              className="p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-gray-900 dark:text-white"
+            >
+              <option value={1}>1º Trimestre</option>
+              <option value={2}>2º Trimestre</option>
+              <option value={3}>3º Trimestre</option>
+              <option value={4}>4º Trimestre</option>
+            </select>
+          </div>
+        )}
+
+        {/* Cards principais */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="bg-gray-50 dark:bg-slate-700/50 p-4 rounded-lg border border-gray-200 dark:border-slate-700">
-            <p className="text-sm text-gray-500 dark:text-gray-400">Metas Definidas</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{annualSummary.totalGoalsSet}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Produção</p>
+            <div className="flex items-center justify-between mt-1">
+              <span className="text-2xl font-bold text-gray-900 dark:text-white">
+                {formatCurrency(timeframeSummary.produced)} / {formatCurrency(timeframeSummary.targetProduction)}
+              </span>
+              <span className={`font-semibold ${timeframeSummary.produced - timeframeSummary.targetProduction >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {formatCurrency(timeframeSummary.produced - timeframeSummary.targetProduction)}
+              </span>
+            </div>
+            <div className="w-full bg-gray-200 dark:bg-slate-600 rounded-full h-2 mt-2">
+              <div
+                className={`h-2 rounded-full ${timeframeSummary.produced >= timeframeSummary.targetProduction ? 'bg-green-500' : 'bg-red-500'}`}
+                style={{ width: `${Math.min(100, (timeframeSummary.targetProduction > 0 ? (timeframeSummary.produced / timeframeSummary.targetProduction) * 100 : 0))}%` }}
+              />
+            </div>
           </div>
           <div className="bg-gray-50 dark:bg-slate-700/50 p-4 rounded-lg border border-gray-200 dark:border-slate-700">
-            <p className="text-sm text-gray-500 dark:text-gray-400">Metas de Produção Atingidas</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{annualSummary.goalsMetCount} / {annualSummary.totalGoalsSet}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Consultores</p>
+            <div className="flex items-center justify-between mt-1">
+              <span className="text-2xl font-bold text-gray-900 dark:text-white">
+                {timeframeSummary.activeConsultants} / {timeframeSummary.targetConsultants}
+              </span>
+              <span className={`font-semibold ${timeframeSummary.activeConsultants - timeframeSummary.targetConsultants >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {timeframeSummary.activeConsultants - timeframeSummary.targetConsultants >= 0 ? `+${timeframeSummary.activeConsultants - timeframeSummary.targetConsultants}` : (timeframeSummary.activeConsultants - timeframeSummary.targetConsultants)}
+              </span>
+            </div>
+            <div className="w-full bg-gray-200 dark:bg-slate-600 rounded-full h-2 mt-2">
+              <div
+                className={`h-2 rounded-full ${timeframeSummary.activeConsultants >= timeframeSummary.targetConsultants ? 'bg-green-500' : 'bg-red-500'}`}
+                style={{ width: `${Math.min(100, (timeframeSummary.targetConsultants > 0 ? (timeframeSummary.activeConsultants / timeframeSummary.targetConsultants) * 100 : 0))}%` }}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Tickets médios */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+          <div className="bg-gray-50 dark:bg-slate-700/50 p-4 rounded-lg border border-gray-200 dark:border-slate-700">
+            <p className="text-sm text-gray-500 dark:text-gray-400">Ticket Médio (por Consultor {timeframe === 'quarter' ? 'Trimestre' : timeframe === 'year' ? 'Ano' : 'Mês'})</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatCurrency(timeframeSummary.ticketPerConsultantPeriod)}</p>
           </div>
           <div className="bg-gray-50 dark:bg-slate-700/50 p-4 rounded-lg border border-gray-200 dark:border-slate-700">
-            <p className="text-sm text-gray-500 dark:text-gray-400">Tamanho da Equipe (Alvo Projetado)</p> {/* Título alterado */}
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{annualSummary.currentTeamSize} / {annualSummary.projectedTeamSizeTarget}</p> {/* Usando projectedTeamSizeTarget */}
+            <p className="text-sm text-gray-500 dark:text-gray-400">Ticket Médio (por Consultor Mês)</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatCurrency(timeframeSummary.ticketPerConsultantMonth)}</p>
           </div>
-          <div className="bg-gray-50 dark:bg-slate-700/50 p-4 rounded-lg border border-gray-200 dark:border-slate-700">
-            <p className="text-sm text-gray-500 dark:text-gray-400">Valor de Produção (Alvo Total)</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatCurrency(annualSummary.totalActualProductionValueForYear)} / {formatCurrency(annualSummary.totalTargetProductionValue)}</p>
-          </div>
+        </div>
+
+        {/* Contribuição por consultor */}
+        <div className="mt-6">
+          <h3 className="text-md font-bold text-gray-900 dark:text-white mb-2">Produtividade por Consultor</h3>
+          <ConsultantContributions contributions={timeframeSummary.contributions} formatCurrency={formatCurrency} />
         </div>
       </div>
 
