@@ -37,8 +37,8 @@ const TeamProductionGoals = () => {
     return teamMembers.filter(member => {
       if (!member.isActive) return false;
       const roles = (member.roles || []).map(r => (r || '').toUpperCase());
-      // Conta consultores e prévias ativos (aceita PRÉVIA ou PREVIA)
-      return roles.some(role => role === 'CONSULTOR' || role === 'PRÉVIA' || role === 'PREVIA');
+      // Conta consultores, prévias (com/sem acento) e autorizados ativos
+      return roles.some(role => role === 'CONSULTOR' || role === 'PRÉVIA' || role === 'PREVIA' || role === 'AUTORIZADO');
     }).length;
   }, [teamMembers]);
 
