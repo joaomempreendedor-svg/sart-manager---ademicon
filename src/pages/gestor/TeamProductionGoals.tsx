@@ -37,7 +37,7 @@ const TeamProductionGoals = () => {
     return teamMembers.filter(member => {
       if (!member.isActive) return false;
       const roles = (member.roles || []).map(r => (r || '').toUpperCase());
-      return roles.includes('CONSULTOR') || roles.includes('PRÉVIA') || roles.includes('AUTORIZADO');
+      return roles.includes('CONSULTOR') || roles.includes('AUTORIZADO');
     }).length;
   }, [teamMembers]);
 
