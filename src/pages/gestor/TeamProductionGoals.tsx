@@ -42,6 +42,14 @@ const TeamProductionGoals = () => {
     }).length;
   }, [teamMembers]);
 
+  // ADICIONADO: Soma da produção no período da meta ativa
+  const currentProductionValue = useMemo(() => {
+    if (!currentActiveGoal) return 0;
+    const start = new Date(currentActiveGoal.start_date + 'T00:00:00');
+    const end = new Date(currentActiveGoal.end_date + 'T23:59:59');
+    return sumProducedInRange(start, end);
+  }, [currentActiveGoal, crmLeads]);
+
   // Helpers de período
   const getMonthRange = (year: number, month: number) => {
     const start = new Date(year, month - 1, 1);
