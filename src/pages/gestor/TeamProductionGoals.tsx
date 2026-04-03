@@ -126,6 +126,13 @@ const TeamProductionGoals = () => {
     const startOfYear = new Date(selectedYear, 0, 1);
     const endOfYear = new Date(selectedYear, 11, 31, 23, 59, 59, 999);
 
+    // Metas que se sobrepõem ao ano selecionado
+    const goalsInSelectedYear = teamProductionGoals.filter(goal => {
+      const goalStart = new Date(goal.start_date + 'T00:00:00');
+      const goalEnd = new Date(goal.end_date + 'T23:59:59');
+      return (goalStart <= endOfYear && goalEnd >= startOfYear);
+    });
+
     const totalTargetProductionValue = getProratedTargetForRange(startOfYear, endOfYear);
     const projectedTeamSizeTarget = getTargetConsultantsForRange(startOfYear, endOfYear);
     const totalActualProductionValueForYear = sumProducedInRange(startOfYear, endOfYear);
