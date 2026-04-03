@@ -34,7 +34,11 @@ const TeamProductionGoals = () => {
   }, [teamProductionGoals]);
 
   const currentTeamSize = useMemo(() => {
-    return teamMembers.filter(member => member.isActive && (member.roles.includes('CONSULTOR') || member.roles.includes('Prévia') || member.roles.includes('Autorizado'))).length;
+    return teamMembers.filter(member => {
+      if (!member.isActive) return false;
+      const roles = (member.roles || []).map(r => (r || '').toUpperCase());
+      return roles.includes('CONSULTOR') || roles.includes('PRÉVIA') || roles.includes('AUTORIZADO');
+    }).length;
   }, [teamMembers]);
 
   // Helpers de período
@@ -169,9 +173,11 @@ const TeamProductionGoals = () => {
     const targetConsultants = getTargetConsultantsForRange(range.start, range.end);
     const activeConsultants = currentTeamSize;
     const monthsInRange = Math.max(1, (range.end.getFullYear() - range.start.getFullYear()) * 12 + (range.end.getMonth() - range.start.getMonth()) + 1);
-    const ticketPerConsultantPeriod = activeConsultants > 0 ? produced / activeConsultants : 0;
-    const ticketPerConsultantMonth = activeConsultants > 0 ? produced / (activeConsultants * monthsInRange) : 0;
     const contributions = getConsultantContributions(range.start, range.end);
+    const contributingConsultants = contributions.filter(c => (c.consultantId !== null) && c.amount > 0).length;
+    const divisor = contributingConsultants > 0 ? contributingConsultants : activeConsultants;
+    const ticketPerConsultantPeriod = divisor > 0 ? produced / divisor : 0;
+    const ticketPerConsultantMonth = divisor > 0 ? produced / (divisor * monthsInRange) : 0;
     return { range, targetProduction, produced, targetConsultants, activeConsultants, monthsInRange, ticketPerConsultantPeriod, ticketPerConsultantMonth, contributions };
   }, [timeframe, selectedYear, selectedMonth, selectedQuarter, getMonthRange, getQuarterRange, getProratedTargetForRange, sumProducedInRange, getTargetConsultantsForRange, currentTeamSize, getConsultantContributions]);
 
