@@ -27,6 +27,7 @@ import { FormCadastros } from '@/pages/gestor/FormSubmissions';
 import HiringPipeline from '@/pages/gestor/HiringPipeline';
 import HiringDashboard from '@/pages/gestor/HiringDashboard';
 import { Processos } from '@/pages/gestor/Processos';
+import { TeamConfig } from '@/pages/TeamConfig';
 
 import { SecretariaDashboard } from '@/pages/secretaria/SecretariaDashboard';
 
@@ -49,6 +50,7 @@ const AppRoutes = () => {
         <Route path="/gestor" element={<GestorLayout />}>
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="candidate/:id" element={<CandidateDetail />} />
+          <Route path="team-config" element={<TeamConfig />} />
           <Route path="commissions" element={<Commissions />} />
           <Route path="financial-panel" element={<FinancialPanel />} />
           <Route path="feedbacks" element={<Feedbacks />} />

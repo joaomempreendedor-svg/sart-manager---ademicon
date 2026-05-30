@@ -18,6 +18,7 @@ import {
   UserSearch,
   FileStack,
   FileText,
+  Users,
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
@@ -64,6 +65,7 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({
     { to: dashboardPath, icon: LayoutDashboard, label: 'Dashboard', roles: ['GESTOR', 'ADMIN', 'SECRETARIA'], section: 'main' },
     { to: `${baseRoute}/hiring-dashboard`, icon: TrendingUp, label: 'Contratação', roles: ['GESTOR', 'ADMIN', 'SECRETARIA'], section: 'main' },
     { to: `${baseRoute}/hiring-pipeline`, icon: UserSearch, label: 'Pipeline de Contratação', roles: ['GESTOR', 'ADMIN', 'SECRETARIA'], section: 'main' },
+    { to: `${baseRoute}/team-config`, icon: Users, label: 'Gestão de Equipe', roles: ['GESTOR', 'ADMIN'], section: 'main' },
     { to: `${baseRoute}/commissions`, icon: Banknote, label: 'Comissões', roles: ['GESTOR', 'ADMIN'], section: 'main' },
     { to: `${baseRoute}/financial-panel`, icon: DollarSign, label: 'Financeiro', roles: ['GESTOR', 'ADMIN'], section: 'main' },
     { to: `${baseRoute}/feedbacks`, icon: Star, label: 'Feedbacks', roles: ['GESTOR', 'ADMIN'], section: 'main' },

@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Loader2, Banknote, DollarSign, Star, FileText, Video, FileStack, UserSearch } from 'lucide-react';
+import { Loader2, Banknote, DollarSign, Star, FileText, Video, FileStack, UserSearch, Users } from 'lucide-react';
 import { MetricCard } from '@/components/MetricCard';
 import { useNavigate } from 'react-router-dom';
 
@@ -19,6 +19,7 @@ export const Dashboard = () => {
     processes,
     onboardingSessions,
     formCadastros,
+    teamMembers,
   } = useApp();
   const navigate = useNavigate();
 
@@ -45,8 +46,9 @@ export const Dashboard = () => {
       totalProcesses: processes.length,
       totalOnboarding: onboardingSessions.length,
       totalForms: formCadastros.length,
+      totalTeamMembers: teamMembers.length,
     };
-  }, [candidates, commissions, financialEntries, processes, onboardingSessions, formCadastros]);
+  }, [candidates, commissions, financialEntries, processes, onboardingSessions, formCadastros, teamMembers]);
 
   if (isDataLoading) {
     return (
@@ -75,6 +77,14 @@ export const Dashboard = () => {
             colorClass="bg-blue-600 text-white"
             subValue="Candidatos em andamento"
             onClick={() => navigate('/gestor/hiring-dashboard')}
+          />
+          <MetricCard
+            title="Equipe"
+            value={metrics.totalTeamMembers}
+            icon={Users}
+            colorClass="bg-indigo-600 text-white"
+            subValue="Pessoas cadastradas"
+            onClick={() => navigate('/gestor/team-config')}
           />
           <MetricCard
             title="Comissões"
@@ -115,14 +125,6 @@ export const Dashboard = () => {
             colorClass="bg-cyan-600 text-white"
             subValue="Envios recebidos"
             onClick={() => navigate('/gestor/form-cadastros')}
-          />
-          <MetricCard
-            title="Receitas"
-            value={formatCurrency(metrics.totalIncome)}
-            icon={DollarSign}
-            colorClass="bg-teal-600 text-white"
-            subValue="Entradas"
-            onClick={() => navigate('/gestor/financial-panel')}
           />
           <MetricCard
             title="Feedbacks"
