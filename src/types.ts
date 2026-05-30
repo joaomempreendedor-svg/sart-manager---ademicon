@@ -44,6 +44,23 @@ export interface Feedback {
   notes: string;
 }
 
+export interface HiringPipelineColumn {
+  id: string;
+  title: string;
+  color:
+    | 'gray'
+    | 'blue'
+    | 'purple'
+    | 'yellow'
+    | 'green'
+    | 'red'
+    | 'orange';
+  ownerRole: 'GESTOR' | 'SECRETARIA';
+  candidateStatus: CandidateStatus;
+  screeningStatus?: 'Pending Contact' | 'Contacted' | 'No Response';
+  interviewConducted?: boolean;
+}
+
 export interface Candidate {
   id: string;
   db_id?: string;
@@ -619,6 +636,7 @@ export interface AppContextType {
   coldCallLogs: ColdCallLog[];
   processes: Process[];
   theme: 'light' | 'dark';
+  hiringPipelineColumns: HiringPipelineColumn[];
   toggleTheme: () => void;
   addCandidate: (candidate: Omit<Candidate, 'id' | 'createdAt' | 'db_id'>) => Promise<Candidate>;
   getCandidate: (id: string) => Candidate | undefined;
@@ -741,6 +759,10 @@ export interface AppContextType {
   updateProcess: (id: string, updates: Partial<Process>, filesToAdd?: { file: File, type: string }[], linksToAdd?: { url: string, type: string }[], coverFile?: File) => Promise<Process>;
   deleteProcess: (id: string) => Promise<void>;
   deleteProcessAttachment: (attachmentId: string) => Promise<void>;
+  addHiringPipelineColumn: (column: Omit<HiringPipelineColumn, 'id'>) => void;
+  updateHiringPipelineColumn: (columnId: string, updates: Partial<HiringPipelineColumn>) => void;
+  deleteHiringPipelineColumn: (columnId: string) => void;
+  moveHiringPipelineColumn: (columnId: string, direction: 'left' | 'right') => void;
 }
 
 export interface ColdCallMetrics {

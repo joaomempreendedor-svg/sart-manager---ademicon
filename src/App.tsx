@@ -27,6 +27,7 @@ import { FinancialPanel } from '@/pages/FinancialPanel';
 import { FormCadastros } from '@/pages/gestor/FormSubmissions';
 import HiringPipeline from '@/pages/gestor/HiringPipeline';
 import HiringDashboard from '@/pages/gestor/HiringDashboard';
+import HiringPipelineConfig from '@/pages/gestor/HiringPipelineConfig';
 import { Processos } from '@/pages/gestor/Processos';
 import { TeamConfig } from '@/pages/TeamConfig';
 
@@ -59,6 +60,7 @@ const AppRoutes = () => {
           <Route path="onboarding-admin" element={<OnlineOnboarding />} />
           <Route path="hiring-dashboard" element={<HiringDashboard />} />
           <Route path="hiring-pipeline" element={<HiringPipeline />} />
+          <Route path="hiring-pipeline-config" element={<HiringPipelineConfig />} />
           <Route path="form-cadastros" element={<FormCadastros />} />
           <Route path="processos" element={<Processos />} />
         </Route>

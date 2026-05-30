@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
-import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, InstallmentInfo, CutoffPeriod, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask, DailyChecklistItemResource, GestorTask, GestorTaskCompletion, FinancialEntry, FormCadastro, FormFile, Notification, TeamProductionGoal, ColdCallLead, ColdCallLog, ChecklistItem, Process, ProcessAttachment, Feedback, InterviewQuestion } from '@/types';
+import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, InstallmentInfo, CutoffPeriod, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask, DailyChecklistItemResource, GestorTask, GestorTaskCompletion, FinancialEntry, FormCadastro, FormFile, Notification, TeamProductionGoal, ColdCallLead, ColdCallLog, ChecklistItem, Process, ProcessAttachment, Feedback, InterviewQuestion, HiringPipelineColumn } from '@/types';
 import { CHECKLIST_STAGES as DEFAULT_STAGES } from '@/data/checklistData';
 import { CONSULTANT_GOALS as DEFAULT_GOALS } from '@/data/consultantGoals';
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
@@ -20,6 +20,19 @@ const INITIAL_INTERVIEW_STRUCTURE: InterviewSection[] = [
   { id: 'jobFit', title: '6. Fit com a Vaga', maxPoints: 20, questions: [ { id: 'jf_1', text: 'Perfil empreendedor?', points: 5 }, { id: 'jf_2', text: 'Interesse real pela oportunidade?', points: 5 }, { id: 'jf_3', text: 'Alinhamento com modelo comissionado?', points: 10 } ] }
 ];
 
+const DEFAULT_HIRING_PIPELINE_COLUMNS: HiringPipelineColumn[] = [
+  { id: 'candidates', title: 'Candidatos', color: 'gray', ownerRole: 'SECRETARIA', candidateStatus: 'Triagem', screeningStatus: 'Pending Contact' },
+  { id: 'contacted', title: 'Contatados', color: 'blue', ownerRole: 'SECRETARIA', candidateStatus: 'Triagem', screeningStatus: 'Contacted' },
+  { id: 'noResponse', title: 'Não Respondido', color: 'orange', ownerRole: 'SECRETARIA', candidateStatus: 'Triagem', screeningStatus: 'No Response' },
+  { id: 'scheduled', title: 'Agendadas', color: 'blue', ownerRole: 'SECRETARIA', candidateStatus: 'Entrevista', interviewConducted: false },
+  { id: 'conducted', title: 'Realizadas', color: 'purple', ownerRole: 'GESTOR', candidateStatus: 'Entrevista', interviewConducted: true },
+  { id: 'noShow', title: 'Faltou', color: 'red', ownerRole: 'SECRETARIA', candidateStatus: 'Faltou' },
+  { id: 'awaitingPreview', title: 'Em Prévia', color: 'yellow', ownerRole: 'SECRETARIA', candidateStatus: 'Aguardando Prévia' },
+  { id: 'authorized', title: 'Autorizados', color: 'green', ownerRole: 'GESTOR', candidateStatus: 'Autorizado' },
+  { id: 'droppedOut', title: 'Desistências', color: 'red', ownerRole: 'SECRETARIA', candidateStatus: 'Reprovado' },
+  { id: 'disqualified', title: 'Desqualificado', color: 'red', ownerRole: 'GESTOR', candidateStatus: 'Desqualificado' },
+];
+
 const DEFAULT_APP_CONFIG_DATA = {
   checklistStructure: DEFAULT_STAGES,
   consultantGoalsStructure: DEFAULT_GOALS,
@@ -29,6 +42,7 @@ const DEFAULT_APP_CONFIG_DATA = {
   salesOrigins: ['WhatsApp', 'Instagram', 'Networking', 'Tráfego Pago', 'Indicação'],
   interviewers: ['João Müller'],
   pvs: ['SOARES E MORAES', 'SART INVESTIMENTOS', 'KR CONSÓRCIOS', 'SOLOM INVESTIMENTOS'],
+  hiringPipelineColumns: DEFAULT_HIRING_PIPELINE_COLUMNS,
 };
 
 const MONTHLY_CUTOFF_DAYS: Record<number, number> = {
@@ -59,6 +73,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [salesOrigins, setSalesOrigins] = useState<string[]>(DEFAULT_APP_CONFIG_DATA.salesOrigins);
   const [interviewers, setInterviewers] = useState<string[]>(DEFAULT_APP_CONFIG_DATA.interviewers);
   const [pvs, setPvs] = useState<string[]>(DEFAULT_APP_CONFIG_DATA.pvs);
+  const [hiringPipelineColumns, setHiringPipelineColumns] = useState<HiringPipelineColumn[]>(DEFAULT_HIRING_PIPELINE_COLUMNS);
   
   const [crmPipelines, setCrmPipelines] = useState<CrmPipeline[]>([]);
   const [crmStages, setCrmStages] = useState<CrmStage[]>([]);
@@ -103,11 +118,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, []);
 
   useEffect(() => {
-    if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
+    if (theme === 'dark') document.documentElement.classList.add('dark');
+    else document.documentElement.classList.remove('dark');
   }, [theme]);
 
   const parseDbCurrency = useCallback((value: any): number | null => {
@@ -150,21 +162,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const updateConfig = useCallback((updates: any) => {
     if (!user) return;
-    const currentConfig = { checklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs };
+    const currentConfig = { checklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs, hiringPipelineColumns };
     debouncedUpdateConfig({ ...currentConfig, ...updates });
-  }, [user, checklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs, debouncedUpdateConfig]);
+  }, [user, checklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs, hiringPipelineColumns, debouncedUpdateConfig]);
 
   const resetLocalState = useCallback(() => {
     setCandidates([]); setTeamMembers([]); setCommissions([]); setSupportMaterials([]); setCutoffPeriods([]); setOnboardingSessions([]); setOnboardingTemplateVideos([]);
     setChecklistStructure(DEFAULT_STAGES); setConsultantGoalsStructure(DEFAULT_GOALS); setInterviewStructure(INITIAL_INTERVIEW_STRUCTURE); setTemplates({});
     setHiringOrigins(DEFAULT_APP_CONFIG_DATA.hiringOrigins); setSalesOrigins(DEFAULT_APP_CONFIG_DATA.salesOrigins); setInterviewers(DEFAULT_APP_CONFIG_DATA.interviewers); setPvs(DEFAULT_APP_CONFIG_DATA.pvs);
+    setHiringPipelineColumns(DEFAULT_HIRING_PIPELINE_COLUMNS);
     setCrmPipelines([]); setCrmStages([]); setCrmFields([]); setCrmLeads([]); setCrmOwnerUserId(null);
     setDailyChecklists([]); setDailyChecklistItem([]); setDailyChecklistAssignments([]); setDailyChecklistCompletions([]);
     setWeeklyTargets([]); setWeeklyTargetItems([]); setWeeklyTargetAssignments([]); setMetricLogs([]);
     setSupportMaterialsV2([]); setSupportMaterialAssignments([]); setLeadTasks([]); setGestorTasks([]); setGestorTaskCompletions([]); setFinancialEntries([]);
     setFormCadastros([]); setFormFiles([]); setNotifications([]); setTeamProductionGoals([]);
-    setColdCallLeads([]); setColdCallLogs([]);
-    setProcesses([]);
+    setColdCallLeads([]); setColdCallLogs([]); setProcesses([]);
     setIsDataLoading(false);
   }, []);
 
@@ -249,6 +261,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setSalesOrigins(appConfigData.salesOrigins || DEFAULT_APP_CONFIG_DATA.salesOrigins);
       setHiringOrigins(appConfigData.hiringOrigins !== undefined ? appConfigData.hiringOrigins : DEFAULT_APP_CONFIG_DATA.hiringOrigins);
       setPvs(appConfigData.pvs || []);
+      setHiringPipelineColumns(appConfigData.hiringPipelineColumns || DEFAULT_HIRING_PIPELINE_COLUMNS);
     }
   }, []);
 
@@ -261,7 +274,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
         await fetchAppConfig(effectiveGestorId);
 
-        // Helper para buscar dados ignorando erros de tabela inexistente
         const safeFetch = async (table: string, options: any = {}) => {
           try {
             return await getAllFromTable(table, options);
@@ -430,7 +442,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const { error } = await supabase.from('candidates').update({ data: dataToSave }).eq('id', dbId);
     if (error) {
       toast.error(`Erro ao atualizar checklist: ${error.message}`);
-      setCandidates(prev => prev.map(c => (c.id === candidateId || c.db_id === candidateId) ? { ...c, checklistProgress: currentProgress } : c));
+      setCandidates(prev => prev.map(c => (c.id === id || c.db_id === id) ? candidate : c));
     }
   }, [candidates]);
 
@@ -454,6 +466,35 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setCandidates(prev => prev.map(c => (c.id === candidateId || c.db_id === candidateId) ? { ...c, checklistProgress: currentProgress } : c));
     }
   }, [candidates]);
+
+  const addHiringPipelineColumn = useCallback((column: Omit<HiringPipelineColumn, 'id'>) => {
+    const newColumns = [...hiringPipelineColumns, { ...column, id: crypto.randomUUID() }];
+    setHiringPipelineColumns(newColumns);
+    updateConfig({ hiringPipelineColumns: newColumns });
+  }, [hiringPipelineColumns, updateConfig]);
+
+  const updateHiringPipelineColumn = useCallback((columnId: string, updates: Partial<HiringPipelineColumn>) => {
+    const newColumns = hiringPipelineColumns.map(column => column.id === columnId ? { ...column, ...updates } : column);
+    setHiringPipelineColumns(newColumns);
+    updateConfig({ hiringPipelineColumns: newColumns });
+  }, [hiringPipelineColumns, updateConfig]);
+
+  const deleteHiringPipelineColumn = useCallback((columnId: string) => {
+    const newColumns = hiringPipelineColumns.filter(column => column.id !== columnId);
+    setHiringPipelineColumns(newColumns);
+    updateConfig({ hiringPipelineColumns: newColumns });
+  }, [hiringPipelineColumns, updateConfig]);
+
+  const moveHiringPipelineColumn = useCallback((columnId: string, direction: 'left' | 'right') => {
+    const index = hiringPipelineColumns.findIndex(column => column.id === columnId);
+    if (index === -1) return;
+    const targetIndex = direction === 'left' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= hiringPipelineColumns.length) return;
+    const newColumns = [...hiringPipelineColumns];
+    [newColumns[index], newColumns[targetIndex]] = [newColumns[targetIndex], newColumns[index]];
+    setHiringPipelineColumns(newColumns);
+    updateConfig({ hiringPipelineColumns: newColumns });
+  }, [hiringPipelineColumns, updateConfig]);
 
   const addCrmLead = useCallback(async (lead: Omit<CrmLead, 'id' | 'created_at' | 'updated_at' | 'user_id' | 'created_by' | 'updated_by'>) => {
     if (!user || !crmOwnerUserId) throw new Error("User not authenticated or CRM Owner not set.");
@@ -618,7 +659,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     })));
   }, []);
 
-  // --- Checklist Stage Functions ---
   const addChecklistStage = useCallback((title: string, description: string) => {
     const newStructure = [...checklistStructure, { id: crypto.randomUUID(), title, description, items: [] }];
     setChecklistStructure(newStructure); updateConfig({ checklistStructure: newStructure });
@@ -678,7 +718,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const resetChecklistToDefault = useCallback(() => { setChecklistStructure(DEFAULT_STAGES); updateConfig({ checklistStructure: DEFAULT_STAGES }); }, [updateConfig]);
 
-  // --- Cutoff Period Functions ---
   const addCutoffPeriod = useCallback(async (period: Omit<CutoffPeriod, 'id' | 'db_id'>) => {
     const { data, error } = await supabase.from('cutoff_periods').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: period }).select().single();
     if (error) throw error;
@@ -697,7 +736,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setCutoffPeriods(prev => prev.filter(p => p.db_id !== id));
   }, []);
 
-  // --- Onboarding Functions ---
   const addOnlineOnboardingSession = useCallback(async (consultantName: string) => {
     const { data: session, error: sessionError } = await supabase.from('onboarding_sessions').insert({ user_id: JOAO_GESTOR_AUTH_ID, consultant_name: consultantName }).select().single();
     if (sessionError) throw sessionError;
@@ -726,7 +764,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setOnboardingTemplateVideos(prev => prev.filter(v => v.id !== videoId));
   }, []);
 
-  // --- Daily Checklist Functions ---
   const addDailyChecklist = useCallback(async (title: string) => {
     const { data, error } = await supabase.from('daily_checklists').insert({ user_id: JOAO_GESTOR_AUTH_ID, title }).select().single();
     if (error) throw error; setDailyChecklists(prev => [...prev, data]); return data;
@@ -837,7 +874,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, []);
 
-  // --- Weekly Target Functions ---
   const addWeeklyTarget = useCallback(async (target: Omit<WeeklyTarget, 'id' | 'user_id' | 'created_at'>) => {
     const { data, error } = await supabase.from('weekly_targets').insert({ ...target, user_id: JOAO_GESTOR_AUTH_ID }).select().single();
     if (error) throw error; setWeeklyTargets(prev => [...prev, data]); return data;
@@ -885,7 +921,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (error) throw error; setWeeklyTargetAssignments(prev => prev.filter(a => !(a.weekly_target_id === weekly_target_id && a.consultant_id === consultant_id)));
   }, []);
 
-  // --- Metric Log Functions ---
   const addMetricLog = useCallback(async (log: Omit<MetricLog, 'id' | 'created_at'>) => {
     const { data, error } = await supabase.from('metric_logs').insert(log).select().single();
     if (error) throw error; setMetricLogs(prev => [...prev, data]); return data;
@@ -901,7 +936,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (error) throw error; setMetricLogs(prev => prev.filter(l => l.id !== id));
   }, []);
 
-  // --- Support Material V2 Functions ---
   const addSupportMaterialV2 = useCallback(async (material: Omit<SupportMaterialV2, 'id' | 'user_id' | 'created_at'>, file?: File) => {
     let content = material.content;
     if (file) {
@@ -943,7 +977,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (error) throw error; setSupportMaterialAssignments(prev => prev.filter(a => !(a.material_id === material_id && a.consultant_id === consultant_id)));
   }, []);
 
-  // --- Lead Task Functions ---
   const addLeadTask = useCallback(async (task: Omit<LeadTask, 'id' | 'created_at' | 'completed_at' | 'updated_at'> & { user_id: string; manager_id?: string | null; }) => {
     const { data, error } = await supabase.from('lead_tasks').insert(task).select().single();
     if (error) throw error; setLeadTasks(prev => [...prev, data]); return data;
@@ -970,7 +1003,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (error) throw error; setLeadTasks(prev => prev.map(t => t.id === taskId ? data : t)); return data;
   }, []);
 
-  // --- Gestor Task Functions ---
   const addGestorTask = useCallback(async (task: Omit<GestorTask, 'id' | 'user_id' | 'created_at' | 'is_completed'>) => {
     const { data, error } = await supabase.from('gestor_tasks').insert({ ...task, user_id: JOAO_GESTOR_AUTH_ID }).select().single();
     if (error) throw error; setGestorTasks(prev => [...prev, data]); return data;
@@ -1003,7 +1035,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, [gestorTasks, updateGestorTask]);
 
-  // --- Financial Entry Functions ---
   const addFinancialEntry = useCallback(async (entry: Omit<FinancialEntry, 'id' | 'user_id' | 'created_at'>) => {
     if (!user) throw new Error('Usuário não autenticado.');
     const { data, error } = await supabase.from('financial_entries').insert({ ...entry, user_id: user.id }).select().single();
@@ -1026,7 +1057,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (error) throw error; setFinancialEntries(prev => prev.filter(e => e.id !== id));
   }, []);
 
-  // --- Form Cadastro Functions ---
   const updateFormCadastro = useCallback(async (id: string, updates: Partial<FormCadastro>) => {
     const { data, error } = await supabase.from('form_submissions').update(updates).eq('id', id).select().single();
     if (error) throw error; setFormCadastros(prev => prev.map(f => f.id === id ? data : f)); return data;
@@ -1037,7 +1067,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (error) throw error; setFormCadastros(prev => prev.filter(f => f.id !== id));
   }, []);
 
-  // --- Feedback Functions ---
   const addFeedback = useCallback(async (personId: string, feedback: Omit<Feedback, 'id'>) => {
     const candidate = candidates.find(c => c.id === personId || c.db_id === personId);
     if (!candidate) throw new Error("Candidato não encontrado.");
@@ -1086,7 +1115,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     await updateTeamMember(teamMemberId, { feedbacks: updatedFeedbacks });
   }, [teamMembers]);
 
-  // --- Team Member Functions ---
   const addTeamMember = useCallback(async (member: Omit<TeamMember, 'id'> & { email: string }) => {
     const tempPassword = generateRandomPassword();
     const roleForAuth = member.roles.includes('SECRETARIA') ? 'SECRETARIA' : member.roles.includes('GESTOR') ? 'GESTOR' : 'CONSULTOR';
@@ -1118,7 +1146,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setTeamMembers(prev => prev.filter(m => m.id !== id));
   }, []);
 
-  // --- Team Production Goal Functions ---
   const addTeamProductionGoal = useCallback(async (goal: Omit<TeamProductionGoal, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
     const { data, error } = await supabase.from('team_production_goals').insert({ ...goal, user_id: JOAO_GESTOR_AUTH_ID }).select().single();
     if (error) throw error; setTeamProductionGoals(prev => [data, ...prev]); return data;
@@ -1134,7 +1161,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (error) throw error; setTeamProductionGoals(prev => prev.filter(g => g.id !== id));
   }, []);
 
-  // --- Cold Call Functions ---
   const addColdCallLead = useCallback(async (lead: Omit<ColdCallLead, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'current_stage'>) => {
     const { data, error } = await supabase.from('cold_call_leads').insert({ ...lead, user_id: user!.id, current_stage: 'Base Fria' }).select().single();
     if (error) throw error; setColdCallLeads(prev => [data, ...prev]); return data;
@@ -1197,7 +1223,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions,
     weeklyTargets, weeklyTargetItems, weeklyTargetAssignments, metricLogs, supportMaterialsV2, supportMaterialAssignments,
     leadTasks, gestorTasks, gestorTaskCompletions, financialEntries, formCadastros, formFiles, notifications, teamProductionGoals,
-    coldCallLeads, coldCallLogs, processes, theme,
+    coldCallLeads, coldCallLogs, processes, theme, hiringPipelineColumns,
     toggleTheme, updateConfig, resetLocalState, refetchCommissions, calculateCompetenceMonth, isGestorTaskDueOnDate, calculateNotifications,
     addCandidate, updateCandidate, deleteCandidate, getCandidate: (id: string) => candidates.find(c => c.id === id), setCandidates,
     toggleChecklistItem, setChecklistDueDate: async (candidateId: string, itemId: string, dueDate: string) => {
@@ -1208,7 +1234,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const newProgress = { ...currentProgress, [itemId]: { ...currentState, dueDate } };
       await updateCandidate(candidateId, { checklistProgress: newProgress });
     },
-    toggleConsultantGoal: (candidateId: string, goalId: string) => Promise.resolve(), // Placeholder
+    toggleConsultantGoal: (candidateId: string, goalId: string) => Promise.resolve(),
     addChecklistStage, updateChecklistStage, deleteChecklistStage, moveChecklistStage,
     addChecklistItem, updateChecklistItem, deleteChecklistItem, moveChecklistItem,
     resetChecklistToDefault,
@@ -1359,14 +1385,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addCrmLead, updateCrmLead, deleteCrmLead,
     addDailyChecklist, updateDailyChecklist, deleteDailyChecklist,
     addDailyChecklistItem, updateDailyChecklistItem, deleteDailyChecklistItem, moveDailyChecklistItem,
-    assignDailyChecklistToConsultant: async (daily_checklist_id: string, consultant_id: string) => {
-      const { data, error } = await supabase.from('daily_checklist_assignments').insert({ daily_checklist_id, consultant_id }).select().single();
-      if (error) throw error; setDailyChecklistAssignments(prev => [...prev, data]); return data;
-    },
-    unassignDailyChecklistFromConsultant: async (daily_checklist_id: string, consultant_id: string) => {
-      const { error } = await supabase.from('daily_checklist_assignments').delete().eq('daily_checklist_id', daily_checklist_id).eq('consultant_id', consultant_id);
-      if (error) throw error; setDailyChecklistAssignments(prev => prev.filter(a => !(a.daily_checklist_id === daily_checklist_id && a.consultant_id === consultant_id)));
-    },
+    assignDailyChecklistToConsultant,
+    unassignDailyChecklistFromConsultant,
     toggleDailyChecklistCompletion,
     addWeeklyTarget, updateWeeklyTarget, deleteWeeklyTarget,
     addWeeklyTargetItem, updateWeeklyTargetItem, deleteWeeklyTargetItem, updateWeeklyTargetItemOrder,
@@ -1383,8 +1403,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     hasPendingSecretariaTasks,
     addColdCallLead, updateColdCallLead, deleteColdCallLead, addColdCallLog, getColdCallMetrics,
     createCrmLeadFromColdCall,
-    addOnlineOnboardingSession, deleteOnlineOnboardingSession, addVideoToTemplate, deleteVideoFromTemplate,
     addProcess, updateProcess, deleteProcess, deleteProcessAttachment,
+    addHiringPipelineColumn, updateHiringPipelineColumn, deleteHiringPipelineColumn, moveHiringPipelineColumn,
   }), [
     isDataLoading, candidates, teamMembers, commissions, supportMaterials, cutoffPeriods, onboardingSessions, onboardingTemplateVideos,
     checklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs,
@@ -1392,7 +1412,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions,
     weeklyTargets, weeklyTargetItems, weeklyTargetAssignments, metricLogs, supportMaterialsV2, supportMaterialAssignments,
     leadTasks, gestorTasks, gestorTaskCompletions, financialEntries, formCadastros, formFiles, notifications, teamProductionGoals,
-    coldCallLeads, coldCallLogs, processes, theme,
+    coldCallLeads, coldCallLogs, processes, theme, hiringPipelineColumns,
     toggleTheme, updateConfig, resetLocalState, refetchCommissions, calculateCompetenceMonth, isGestorTaskDueOnDate, calculateNotifications,
     addCandidate, updateCandidate, deleteCandidate, toggleChecklistItem,
     addChecklistStage, updateChecklistStage, deleteChecklistStage, moveChecklistStage,
@@ -1416,8 +1436,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     hasPendingSecretariaTasks,
     addColdCallLead, updateColdCallLead, deleteColdCallLead, addColdCallLog, getColdCallMetrics,
     createCrmLeadFromColdCall,
-    addOnlineOnboardingSession, deleteOnlineOnboardingSession, addVideoToTemplate, deleteVideoFromTemplate,
     addProcess, updateProcess, deleteProcess, deleteProcessAttachment,
+    addHiringPipelineColumn, updateHiringPipelineColumn, deleteHiringPipelineColumn, moveHiringPipelineColumn,
   ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
