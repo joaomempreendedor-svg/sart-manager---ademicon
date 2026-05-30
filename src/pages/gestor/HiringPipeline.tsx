@@ -2,7 +2,6 @@ import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
-  ArrowRightCircle,
   Calendar,
   Edit2,
   Filter,
@@ -553,12 +552,6 @@ const HiringPipeline = () => {
                           </div>
                         </div>
 
-                        <div className="mt-1 flex justify-center pt-2">
-                          <div className="flex items-center text-[10px] font-bold text-brand-600 transition-transform group-hover:translate-x-1 dark:text-brand-400">
-                            VER PROCESSO
-                            <ArrowRightCircle className="ml-1 h-3 w-3" />
-                          </div>
-                        </div>
                       </div>
                     </div>
                   );
