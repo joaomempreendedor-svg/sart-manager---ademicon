@@ -1,281 +1,34 @@
-import React, { useState, useMemo } from 'react';
-import { useApp } from '@/context/AppContext';
-import { useAuth } from '@/context/AuthContext';
-import { Loader2, Search, Plus, Trash2, Calendar, RotateCcw, Filter, ArrowRightCircle, ShieldCheck, UserRound, HelpCircle, UserPlus, Edit2, Settings2 } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import {
+  ArrowRightCircle,
+  Calendar,
+  Edit2,
+  Filter,
+  Loader2,
+  Plus,
+  RotateCcw,
+  Search,
+  Settings2,
+  ShieldCheck,
+  Trash2,
+  UserPlus,
+  UserRound,
+} from 'lucide-react';
+import { useApp } from '@/context/AppContext';
+import { useAuth } from '@/context/AuthContext';
 import { EditScreeningCandidateModal } from '@/components/gestor/EditScreeningCandidateModal';
 import { UpdateInterviewDateModal } from '@/components/gestor/UpdateInterviewDateModal';
-import { highlightText } from '@/lib/utils';
-import { Textarea } from '@/components/ui/textarea';
-import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
-import { Candidate, CandidateStatus, HiringPipelineColumn } from '@/types';
 import { ImportCandidatesModal } from '@/components/gestor/ImportCandidatesModal';
 import { WithdrawalReasonModal } from '@/components/gestor/WithdrawalReasonModal';
-
-const HiringPipeline = () => {
-  const { user, isLoading: isAuthLoading } = useAuth();
-  const { candidates, setCandidates, teamMembers, isDataLoading, updateCandidate, deleteCandidate, hasPendingSecretariaTasks, addCandidate, hiringOrigins, hiringPipelineColumns } = useApp();
-  const navigate = useNavigate();
-
-  const [draggingCandidateId, setDraggingCandidateId] = useState<string | null>(null);
-  const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
-
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isEditCandidateModalOpen, setIsEditCandidateModalOpen] = useState(false);
-  const [selectedCandidateToEdit, setSelectedCandidateToEdit] = useState<Candidate | null>(null);
-  const [isUpdateDateModalOpen, setIsUpdateDateModalOpen] = useState(false);
-  const [selectedCandidateForDate, setSelectedCandidateForDate] = useState<Candidate | null>(null);
-  const [isWithdrawalModalOpen, setIsWithdrawalModalOpen] = useState(false);
-  const [selectedCandidateForWithdrawal, setSelectedCandidateForWithdrawal] = useState<Candidate | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterStartDate, setFilterStartDate] = useState('');
-  const [filterEndDate, setFilterEndDate] = useState('');
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-
-  const todayStr = new Date().toISOString().split('T')[0];
-
-  const sortByRecentUpdate = (a: Candidate, b: Candidate) => {
-    const dateA = new Date(a.lastUpdatedAt || a.createdAt).getTime();
-    const dateB = new Date(b.lastUpdatedAt || b.createdAt).getTime();
-    return dateB - dateA;
-  };
-
-  const getResponsibleName = (responsibleUserId: string | undefined) => {
-    if (!responsibleUserId) return 'Não atribuído';
-    const member = teamMembers.find(m => m.id === responsibleUserId || m.authUserId === responsibleUserId);
-    return member?.name || 'Desconhecido';
-  };
-
-  const getCreatorName = (creatorId: string | undefined) => {
-    if (!creatorId) return 'Desconhecido';
-    const member = teamMembers.find(m => m.authUserId === creatorId);
-    if (member) return member.name;
-    if (user && creatorId === user.id) return user.name;
-    return 'Desconhecido';
-  };
-
-  const pipelineStages = useMemo(() => {
-    let filteredCandidates = candidates.filter(Boolean);
-
-    if (searchTerm) {
-      const lowerCaseSearchTerm = searchTerm.toLowerCase();
-      filteredCandidates = filteredCandidates.filter(c =>
-        (String(c.name || '').toLowerCase()).includes(lowerCaseSearchTerm) ||
-        (String(c.phone || '').toLowerCase()).includes(lowerCaseSearchTerm) ||
-        (String(c.email || '').toLowerCase()).includes(lowerCaseSearchTerm) ||
-        (String(c.notes || '').toLowerCase()).includes(lowerCaseSearchTerm)
-      );
-    }
-
-    if (filterStartDate) {
-      const start = new Date(filterStartDate + 'T00:00:00');
-      filteredCandidates = filteredCandidates.filter(c => new Date(c.createdAt) >= start);
-    }
-
-    if (filterEndDate) {
-      const end = new Date(filterEndDate + 'T23:59:59');
-      filteredCandidates = filteredCandidates.filter(c => new Date(c.createdAt) <= end);
-    }
-
-    return hiringPipelineColumns.map((column) => {
-      const list = filteredCandidates.filter((candidate) => {
-        if (candidate.status !== column.candidateStatus) return false;
-        if (column.screeningStatus && candidate.screeningStatus !== column.screeningStatus) return false;
-        if (typeof column.interviewConducted === 'boolean' && candidate.interviewConducted !== column.interviewConducted) return false;
-        return true;
-      }).sort(sortByRecentUpdate);
-
-      return { ...column, list };
-    });
-  }, [candidates, searchTerm, filterStartDate, filterEndDate, hiringPipelineColumns]);
-
-  const getColumnColorClasses = (color: string) => {
-    switch (color) {
-      case 'blue': return 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800 text-blue-700 dark:text-blue-300';
-      case 'purple': return 'bg-purple-50 border-purple-200 dark:bg-purple-900/20 dark:border-purple-800 text-purple-700 dark:text-purple-300';
-      case 'yellow': return 'bg-yellow-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-800 text-yellow-700 dark:text-yellow-300';
-      case 'green': return 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800 text-green-700 dark:text-green-300';
-      case 'red': return 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800 text-red-700 dark:text-red-300';
-      case 'orange': return 'bg-orange-50 border-orange-200 dark:bg-orange-900/20 dark:border-orange-800 text-orange-700 dark:text-orange-300';
-      default: return 'bg-gray-50 border-gray-200 dark:bg-slate-800 dark:border-slate-700 text-gray-700 dark:text-gray-300';
-    }
-  };
-
-  const buildUpdatesFromColumn = (column: HiringPipelineColumn): Partial<Candidate> => {
-    const updates: Partial<Candidate> = {
-      status: column.candidateStatus,
-    };
-
-    if (column.screeningStatus) updates.screeningStatus = column.screeningStatus;
-    if (typeof column.interviewConducted === 'boolean') updates.interviewConducted = column.interviewConducted;
-
-    if (column.id === 'contacted') updates.contactedDate = new Date().toISOString();
-    if (column.id === 'noResponse') updates.noResponseDate = new Date().toISOString();
-    if (column.id === 'scheduled') updates.interviewScheduledDate = new Date().toISOString();
-    if (column.id === 'conducted') updates.interviewConductedDate = new Date().toISOString();
-    if (column.id === 'awaitingPreview') updates.awaitingPreviewDate = new Date().toISOString();
-    if (column.id === 'authorized') updates.authorizedDate = new Date().toISOString();
-    if (column.id === 'disqualified') updates.disqualifiedDate = new Date().toISOString();
-    if (column.id === 'noShow') updates.faltouDate = new Date().toISOString();
-
-    return updates;
-  };
-
-  const handleDragStart = (e: React.DragEvent, candidateId: string) => {
-    setDraggingCandidateId(candidateId);
-    e.dataTransfer.setData('candidateId', candidateId);
-  };
-
-  const handleDragOver = (e: React.DragEvent, columnId: string) => {
-    e.preventDefault();
-    setDragOverColumn(columnId);
-  };
-
-  const handleDrop = async (e: React.DragEvent, targetColumnId: string) => {
-    e.preventDefault();
-    setDragOverColumn(null);
-    const candidateId = e.dataTransfer.getData('candidateId');
-    if (!candidateId) return;
-
-    const targetColumn = hiringPipelineColumns.find(column => column.id === targetColumnId);
-    if (!targetColumn) return;
-
-    if (targetColumn.candidateStatus === 'Reprovado') {
-      const candidate = candidates.find(c => c.id === candidateId);
-      if (candidate) {
-        setSelectedCandidateForWithdrawal(candidate);
-        setIsWithdrawalModalOpen(true);
-      }
-      setDraggingCandidateId(null);
-      return;
-    }
-
-    try {
-      await updateCandidate(candidateId, buildUpdatesFromColumn(targetColumn));
-      toast.success(`Candidato movido para ${targetColumn.title}`);
-    } catch {
-      toast.error('Erro ao mover candidato.');
-    } finally {
-      setDraggingCandidateId(null);
-    }
-  };
-
-  const handleUpdateStatus = async (e: React.MouseEvent, candidateId: string, column: HiringPipelineColumn) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    if (column.candidateStatus === 'Reprovado') {
-      const candidate = candidates.find(c => c.id === candidateId);
-      if (candidate) {
-        setSelectedCandidateForWithdrawal(candidate);
-        setIsWithdrawalModalOpen(true);
-      }
-      return;
-    }
-
-    try {
-      await updateCandidate(candidateId, buildUpdatesFromColumn(column));
-      toast.success(`Candidato movido para<think>Initial files ranking:
-
-src/pages/secretaria/SecretariaDashboard.tsx: 0.96
-
-src/pages/secretaria/SecretariaDailyChecklist.tsx: 0.89
-
-src/layouts/SecretariaLayout.tsx: 0.88
-
-src/App.tsx: 0.88
-
-src/pages/gestor/DailyChecklistConfig.tsx: 0.82
-
-src/components/MetricCard.tsx: 0.75
-
-src/components/consultor/DailyChecklistDisplay.tsx: 0.75
-
-src/types.ts: 0.65
-
-src/components/GestorLayout.tsx: 0.65
-
-src/pages/gestor/DailyChecklistMonitoring.tsx: 0.62
-
-src/data/checklistData.ts: 0.59
-
-src/pages/ChecklistConfig.tsx: 0.59
-
-src/pages/gestor/HiringDashboard.tsx: 0.59
-
-src/context/AppContext.tsx: 0.56
-
-src/components/ConsultorLayout.tsx: 0.56
-
-src/layouts/ProtectedLayout.tsx: 0.56
-
-src/components/Header.tsx: 0.53
-
-src/components/gestor/CandidatesDetailModal.tsx: 0.53
-
-src/pages/consultor/DailyChecklist.tsx: 0.50
-
-public/favicon.svg: 0.47
-
-supabase/functions/manage-daily-checklist-item/index.ts: 0.47
-
-src/pages/gestor/HiringPipeline.tsx: 0.47
-
-src/pages/gestor/FormSubmissions.tsx: 0.47
-
-src/pages/Home.tsx: 0.41
-
-src/assets/edit-comissao-sem-anjo.png: 0.41
-
-src/components/ui/scroll-area.tsx: 0.38
-
-metadata.json: 0.38
-
-src/context/AuthContext.tsx: 0.38</think><think>Re-ranking the files. Please wait a moment...
-
-Reasoning: undefined
-
-</think><dyad-codebase-context files="src/types.ts,src/context/AppContext.tsx,src/pages/gestor/HiringPipeline.tsx,src/layouts/SecretariaLayout.tsx,src/pages/gestor/HiringDashboard.tsx,src/components/gestor/CandidatesDetailModal.tsx"></dyad-codebase-context><think>dyad-token-savings?original-tokens=381193.75&smart-context-tokens=45877.75</think>Vou continuar implementando a edição do pipeline com uma tela própria para criar colunas, definir responsável e reorganizar a ordem, além de finalizar o uso dessas colunas no pipeline visual.
-<dyad-write path="src/pages/gestor/HiringPipeline.tsx" description="Finalizando o pipeline para usar colunas configuráveis e mostrar responsável por etapa.">
-import React, { useState, useMemo } from 'react';
-import { useApp } from '@/context/AppContext';
-import { useAuth } from '@/context/AuthContext';
-import {
-  Loader2,
-  Search,
-  Plus,
-  Trash2,
-  Calendar,
-  RotateCcw,
-  Filter,
-  ArrowRightCircle,
-  ShieldCheck,
-  UserRound,
-  HelpCircle,
-  UserPlus,
-  Edit2,
-  Settings2,
-  ChevronRight,
-  Check,
-  MessageSquare,
-  UserX,
-  UserCheck,
-  Clock,
-  FileText,
-} from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import toast from 'react-hot-toast';
-import { EditScreeningCandidateModal } from '@/components/gestor/EditScreeningCandidateModal';
-import { UpdateInterviewDateModal } from '@/components/gestor/UpdateInterviewDateModal';
-import { highlightText } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
+import { highlightText } from '@/lib/utils';
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
 import { Candidate, HiringPipelineColumn } from '@/types';
-import { ImportCandidatesModal } from '@/components/gestor/ImportCandidatesModal';
-import { WithdrawalReasonModal } from '@/components/gestor/WithdrawalReasonModal';
 
 const HiringPipeline = () => {
+  const navigate = useNavigate();
   const { user, isLoading: isAuthLoading } = useAuth();
   const {
     candidates,
@@ -289,7 +42,6 @@ const HiringPipeline = () => {
     hiringOrigins,
     hiringPipelineColumns,
   } = useApp();
-  const navigate = useNavigate();
 
   const [draggingCandidateId, setDraggingCandidateId] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
@@ -313,13 +65,13 @@ const HiringPipeline = () => {
     return dateB - dateA;
   };
 
-  const getResponsibleName = (responsibleUserId: string | undefined) => {
+  const getResponsibleName = (responsibleUserId?: string) => {
     if (!responsibleUserId) return 'Não atribuído';
     const member = teamMembers.find((m) => m.id === responsibleUserId || m.authUserId === responsibleUserId);
     return member?.name || 'Desconhecido';
   };
 
-  const getCreatorName = (creatorId: string | undefined) => {
+  const getCreatorName = (creatorId?: string) => {
     if (!creatorId) return 'Desconhecido';
     const member = teamMembers.find((m) => m.authUserId === creatorId);
     if (member) return member.name;
@@ -331,24 +83,24 @@ const HiringPipeline = () => {
     let filteredCandidates = candidates.filter(Boolean);
 
     if (searchTerm) {
-      const lowerCaseSearchTerm = searchTerm.toLowerCase();
+      const lowerSearch = searchTerm.toLowerCase();
       filteredCandidates = filteredCandidates.filter(
-        (c) =>
-          String(c.name || '').toLowerCase().includes(lowerCaseSearchTerm) ||
-          String(c.phone || '').toLowerCase().includes(lowerCaseSearchTerm) ||
-          String(c.email || '').toLowerCase().includes(lowerCaseSearchTerm) ||
-          String(c.notes || '').toLowerCase().includes(lowerCaseSearchTerm),
+        (candidate) =>
+          String(candidate.name || '').toLowerCase().includes(lowerSearch) ||
+          String(candidate.phone || '').toLowerCase().includes(lowerSearch) ||
+          String(candidate.email || '').toLowerCase().includes(lowerSearch) ||
+          String(candidate.notes || '').toLowerCase().includes(lowerSearch),
       );
     }
 
     if (filterStartDate) {
-      const start = new Date(filterStartDate + 'T00:00:00');
-      filteredCandidates = filteredCandidates.filter((c) => new Date(c.createdAt) >= start);
+      const start = new Date(`${filterStartDate}T00:00:00`);
+      filteredCandidates = filteredCandidates.filter((candidate) => new Date(candidate.createdAt) >= start);
     }
 
     if (filterEndDate) {
-      const end = new Date(filterEndDate + 'T23:59:59');
-      filteredCandidates = filteredCandidates.filter((c) => new Date(c.createdAt) <= end);
+      const end = new Date(`${filterEndDate}T23:59:59`);
+      filteredCandidates = filteredCandidates.filter((candidate) => new Date(candidate.createdAt) <= end);
     }
 
     return hiringPipelineColumns.map((column) => {
@@ -384,16 +136,6 @@ const HiringPipeline = () => {
     }
   };
 
-  const getColumnActionIcon = (column: HiringPipelineColumn) => {
-    if (column.screeningStatus === 'Contacted') return MessageSquare;
-    if (column.screeningStatus === 'No Response') return HelpCircle;
-    if (column.candidateStatus === 'Autorizado') return UserCheck;
-    if (column.candidateStatus === 'Desqualificado' || column.candidateStatus === 'Reprovado' || column.candidateStatus === 'Faltou') return UserX;
-    if (column.candidateStatus === 'Aguardando Prévia') return Clock;
-    if (column.candidateStatus === 'Entrevista' && column.interviewConducted) return FileText;
-    return ChevronRight;
-  };
-
   const buildUpdatesFromColumn = (column: HiringPipelineColumn): Partial<Candidate> => {
     const updates: Partial<Candidate> = {
       status: column.candidateStatus,
@@ -414,27 +156,28 @@ const HiringPipeline = () => {
     return updates;
   };
 
-  const handleDragStart = (e: React.DragEvent, candidateId: string) => {
+  const handleDragStart = (event: React.DragEvent, candidateId: string) => {
     setDraggingCandidateId(candidateId);
-    e.dataTransfer.setData('candidateId', candidateId);
+    event.dataTransfer.setData('candidateId', candidateId);
   };
 
-  const handleDragOver = (e: React.DragEvent, columnId: string) => {
-    e.preventDefault();
+  const handleDragOver = (event: React.DragEvent, columnId: string) => {
+    event.preventDefault();
     setDragOverColumn(columnId);
   };
 
-  const handleDrop = async (e: React.DragEvent, targetColumnId: string) => {
-    e.preventDefault();
+  const handleDrop = async (event: React.DragEvent, targetColumnId: string) => {
+    event.preventDefault();
     setDragOverColumn(null);
-    const candidateId = e.dataTransfer.getData('candidateId');
+
+    const candidateId = event.dataTransfer.getData('candidateId');
     if (!candidateId) return;
 
     const targetColumn = hiringPipelineColumns.find((column) => column.id === targetColumnId);
     if (!targetColumn) return;
 
     if (targetColumn.candidateStatus === 'Reprovado') {
-      const candidate = candidates.find((c) => c.id === candidateId);
+      const candidate = candidates.find((item) => item.id === candidateId);
       if (candidate) {
         setSelectedCandidateForWithdrawal(candidate);
         setIsWithdrawalModalOpen(true);
@@ -453,12 +196,12 @@ const HiringPipeline = () => {
     }
   };
 
-  const handleMoveToColumn = async (e: React.MouseEvent, candidateId: string, column: HiringPipelineColumn) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const handleMoveToColumn = async (event: React.MouseEvent, candidateId: string, column: HiringPipelineColumn) => {
+    event.preventDefault();
+    event.stopPropagation();
 
     if (column.candidateStatus === 'Reprovado') {
-      const candidate = candidates.find((c) => c.id === candidateId);
+      const candidate = candidates.find((item) => item.id === candidateId);
       if (candidate) {
         setSelectedCandidateForWithdrawal(candidate);
         setIsWithdrawalModalOpen(true);
@@ -476,6 +219,7 @@ const HiringPipeline = () => {
 
   const handleConfirmWithdrawal = async (reason: string) => {
     if (!selectedCandidateForWithdrawal) return;
+
     try {
       await updateCandidate(selectedCandidateForWithdrawal.id, {
         status: 'Reprovado',
@@ -488,9 +232,9 @@ const HiringPipeline = () => {
     }
   };
 
-  const handleOpenUpdateDate = (e: React.MouseEvent, candidate: Candidate) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const handleOpenUpdateDate = (event: React.MouseEvent, candidate: Candidate) => {
+    event.preventDefault();
+    event.stopPropagation();
     setSelectedCandidateForDate(candidate);
     setIsUpdateDateModalOpen(true);
   };
@@ -505,25 +249,28 @@ const HiringPipeline = () => {
   }, 1000);
 
   const handleNotesChange = (candidateId: string, newNotes: string) => {
-    setCandidates((prev: Candidate[]) => prev.map((c: Candidate) => (c.id === candidateId ? { ...c, notes: newNotes } : c)));
+    setCandidates((prev) => prev.map((candidate) => (candidate.id === candidateId ? { ...candidate, notes: newNotes } : candidate)));
     debouncedUpdateCandidateNotes(candidateId, newNotes);
   };
 
-  const handleDeleteCandidatePermanently = async (e: React.MouseEvent, candidateDbId: string, candidateName: string) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (window.confirm(`Tem certeza que deseja excluir permanentemente "${candidateName}"?`)) {
-      try {
-        await deleteCandidate(candidateDbId);
-        toast.success(`Candidato "${candidateName}" excluído.`);
-      } catch (error: any) {
-        toast.error(`Erro ao excluir candidato: ${error.message}`);
-      }
+  const handleDeleteCandidatePermanently = async (event: React.MouseEvent, candidateDbId: string, candidateName: string) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (!window.confirm(`Tem certeza que deseja excluir permanentemente "${candidateName}"?`)) return;
+
+    try {
+      await deleteCandidate(candidateDbId);
+      toast.success(`Candidato "${candidateName}" excluído.`);
+    } catch (error: any) {
+      toast.error(`Erro ao excluir candidato: ${error.message}`);
     }
   };
 
   const responsibleMembersForModal = useMemo(() => {
-    return teamMembers.filter((m) => m.isActive && (m.roles.includes('GESTOR') || m.roles.includes('ANJO') || m.roles.includes('SECRETARIA')));
+    return teamMembers.filter(
+      (member) => member.isActive && (member.roles.includes('GESTOR') || member.roles.includes('ANJO') || member.roles.includes('SECRETARIA')),
+    );
   }, [teamMembers]);
 
   const handleImportCandidates = async (newCandidates: Omit<Candidate, 'id' | 'createdAt' | 'db_id'>[]) => {
@@ -532,23 +279,23 @@ const HiringPipeline = () => {
     }
   };
 
-  const handleOpenEditCandidateModal = (e: React.MouseEvent, candidate: Candidate) => {
-    e.stopPropagation();
+  const handleOpenEditCandidateModal = (event: React.MouseEvent, candidate: Candidate) => {
+    event.stopPropagation();
     setSelectedCandidateToEdit(candidate);
     setIsEditCandidateModalOpen(true);
   };
 
   if (isAuthLoading || isDataLoading) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <Loader2 className="w-12 h-12 text-brand-500 animate-spin" />
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="h-12 w-12 animate-spin text-brand-500" />
       </div>
     );
   }
 
   return (
-    <div className="p-4 sm:p-8 max-w-full mx-auto min-h-screen bg-gray-50 dark:bg-slate-900">
-      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-4 gap-4">
+    <div className="min-h-screen max-w-full bg-gray-50 p-4 dark:bg-slate-900 sm:p-8">
+      <div className="mb-4 flex flex-col items-start justify-between gap-4 xl:flex-row xl:items-center">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Pipeline de Contratação</h1>
           <p className="text-gray-500 dark:text-gray-400">
@@ -556,39 +303,40 @@ const HiringPipeline = () => {
           </p>
         </div>
 
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full xl:w-auto">
+        <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center xl:w-auto">
           <button
             onClick={() => navigate('/gestor/hiring-pipeline-config')}
-            className="flex items-center justify-center space-x-2 bg-slate-700 hover:bg-slate-800 text-white py-2.5 px-4 rounded-lg transition font-bold"
+            className="flex items-center justify-center gap-2 rounded-lg bg-slate-700 px-4 py-2.5 font-bold text-white transition hover:bg-slate-800"
           >
-            <Settings2 className="w-5 h-5" />
+            <Settings2 className="h-5 w-5" />
             <span>Editar Pipeline</span>
           </button>
 
           <button
             onClick={() => setIsImportModalOpen(true)}
-            className="flex items-center justify-center space-x-2 bg-gray-600 hover:bg-gray-700 text-white py-2.5 px-4 rounded-lg transition font-bold"
+            className="flex items-center justify-center gap-2 rounded-lg bg-gray-600 px-4 py-2.5 font-bold text-white transition hover:bg-gray-700"
           >
-            <Plus className="w-5 h-5" />
+            <Plus className="h-5 w-5" />
             <span>Importar Planilha</span>
           </button>
 
           <button
             onClick={() => setIsAddModalOpen(true)}
-            className="flex items-center justify-center space-x-2 bg-brand-600 hover:bg-brand-700 text-white py-2.5 px-4 rounded-lg transition font-bold"
+            className="flex items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 py-2.5 font-bold text-white transition hover:bg-brand-700"
           >
-            <Plus className="w-5 h-5" />
+            <Plus className="h-5 w-5" />
             <span>Novo Candidato</span>
           </button>
         </div>
       </div>
 
-      <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm space-y-4 mb-6">
-        <div className="flex items-center justify-between flex-col sm:flex-row">
-          <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 flex items-center uppercase tracking-wide">
-            <Filter className="w-4 h-4 mr-2" />
+      <div className="mb-6 space-y-4 rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+        <div className="flex flex-col items-center justify-between sm:flex-row">
+          <h3 className="flex items-center text-sm font-bold uppercase tracking-wide text-gray-700 dark:text-gray-300">
+            <Filter className="mr-2 h-4 w-4" />
             Filtros
           </h3>
+
           {(searchTerm || filterStartDate || filterEndDate) && (
             <button
               onClick={() => {
@@ -596,78 +344,78 @@ const HiringPipeline = () => {
                 setFilterStartDate('');
                 setFilterEndDate('');
               }}
-              className="text-xs flex items-center text-red-500 hover:text-red-700 transition"
+              className="flex items-center text-xs text-red-500 transition hover:text-red-700"
             >
-              <RotateCcw className="w-3 h-3 mr-1" />
+              <RotateCcw className="mr-1 h-3 w-3" />
               Limpar Filtros
             </button>
           )}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div className="flex flex-col">
-            <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 ml-1">Busca</label>
+            <label className="mb-1 ml-1 text-[10px] font-bold uppercase text-gray-400">Busca</label>
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
                 placeholder="Nome, telefone ou email..."
-                className="w-full pl-9 pr-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500"
+                className="w-full rounded-lg border border-gray-300 bg-gray-50 py-2 pl-9 pr-4 text-sm text-gray-900 focus:border-brand-500 focus:ring-brand-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(event) => setSearchTerm(event.target.value)}
               />
             </div>
           </div>
 
           <div className="flex flex-col">
-            <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 ml-1">Criado de</label>
+            <label className="mb-1 ml-1 text-[10px] font-bold uppercase text-gray-400">Criado de</label>
             <input
               type="date"
               value={filterStartDate}
-              onChange={(e) => setFilterStartDate(e.target.value)}
-              className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2 text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white"
+              onChange={(event) => setFilterStartDate(event.target.value)}
+              className="w-full rounded-lg border border-gray-300 bg-gray-50 p-2 text-sm text-gray-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
             />
           </div>
 
           <div className="flex flex-col">
-            <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 ml-1">Criado até</label>
+            <label className="mb-1 ml-1 text-[10px] font-bold uppercase text-gray-400">Criado até</label>
             <input
               type="date"
               value={filterEndDate}
-              onChange={(e) => setFilterEndDate(e.target.value)}
-              className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2 text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white"
+              onChange={(event) => setFilterEndDate(event.target.value)}
+              className="w-full rounded-lg border border-gray-300 bg-gray-50 p-2 text-sm text-gray-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
             />
           </div>
         </div>
       </div>
 
-      <div className="flex overflow-x-auto pb-6 space-x-4 custom-scrollbar">
+      <div className="custom-scrollbar flex space-x-4 overflow-x-auto pb-6">
         {pipelineStages.map((stage) => (
           <div
             key={stage.id}
-            onDragOver={(e) => handleDragOver(e, stage.id)}
-            onDrop={(e) => handleDrop(e, stage.id)}
-            className={`flex-shrink-0 w-80 bg-gray-100/50 dark:bg-slate-800/50 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 transition-all ${
-              dragOverColumn === stage.id ? 'ring-2 ring-brand-500 border-transparent bg-brand-50/50 dark:bg-brand-900/10' : ''
+            onDragOver={(event) => handleDragOver(event, stage.id)}
+            onDrop={(event) => handleDrop(event, stage.id)}
+            className={`w-80 flex-shrink-0 rounded-xl border border-gray-200 bg-gray-100/50 shadow-sm transition-all dark:border-slate-700 dark:bg-slate-800/50 ${
+              dragOverColumn === stage.id ? 'border-transparent bg-brand-50/50 ring-2 ring-brand-500 dark:bg-brand-900/10' : ''
             }`}
           >
-            <div className={`p-4 border-b rounded-t-xl ${getColumnColorClasses(stage.color)}`}>
-              <div className="flex items-center justify-between gap-2 mb-2">
+            <div className={`rounded-t-xl border-b p-4 ${getColumnColorClasses(stage.color)}`}>
+              <div className="mb-2 flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
-                  <UserRound className="w-4 h-4" />
-                  <h3 className="font-bold text-sm uppercase tracking-wider">{stage.title}</h3>
+                  <UserRound className="h-4 w-4" />
+                  <h3 className="text-sm font-bold uppercase tracking-wider">{stage.title}</h3>
                 </div>
-                <span className="bg-white/50 dark:bg-black/20 px-2 py-0.5 rounded text-xs font-bold">{stage.list.length}</span>
+                <span className="rounded bg-white/50 px-2 py-0.5 text-xs font-bold dark:bg-black/20">{stage.list.length}</span>
               </div>
 
-              <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wide">
-                <span className="px-2 py-1 rounded-full bg-white/60 dark:bg-black/20">
+              <div className="text-[10px] font-bold uppercase tracking-wide">
+                <span className="rounded-full bg-white/60 px-2 py-1 dark:bg-black/20">
                   {stage.ownerRole === 'GESTOR' ? 'Responsável: Gestor' : 'Responsável: Secretaria'}
                 </span>
               </div>
             </div>
 
-            <div className="p-3 space-y-3 min-h-[500px]">
+            <div className="min-h-[500px] space-y-3 p-3">
               {stage.list.map((candidate) => {
                 const totalScore =
                   candidate.interviewScores.basicProfile +
@@ -682,62 +430,61 @@ const HiringPipeline = () => {
                   <div
                     key={candidate.id}
                     draggable
-                    onDragStart={(e) => handleDragStart(e, candidate.id)}
+                    onDragStart={(event) => handleDragStart(event, candidate.id)}
                     onClick={() => navigate(`/gestor/candidate/${candidate.id}`)}
-                    className={`block bg-white dark:bg-slate-700 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 hover:border-brand-500 hover:shadow-md transition-all group relative overflow-hidden cursor-pointer ${
+                    className={`group relative cursor-pointer overflow-hidden rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-all hover:border-brand-500 hover:shadow-md dark:border-slate-700 dark:bg-slate-700 ${
                       isToday ? 'ring-2 ring-brand-500' : ''
                     }`}
                   >
                     {isToday && (
-                      <div className="absolute top-0 right-0 bg-brand-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-bl-lg flex items-center">
-                        <Clock className="w-3 h-3 mr-1" />
+                      <div className="absolute right-0 top-0 rounded-bl-lg bg-brand-500 px-2 py-0.5 text-[10px] font-bold text-white">
                         HOJE
                       </div>
                     )}
 
                     {hasPendingSecretariaTasksForCandidate && (
                       <div
-                        className="absolute top-0 left-0 bg-purple-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-br-lg flex items-center"
+                        className="absolute left-0 top-0 flex items-center rounded-br-lg bg-purple-500 px-2 py-0.5 text-[10px] font-bold text-white"
                         title="Tarefas da Secretaria Pendentes"
                       >
-                        <ShieldCheck className="w-3 h-3 mr-1" />
+                        <ShieldCheck className="mr-1 h-3 w-3" />
                         SECRETARIA
                       </div>
                     )}
 
-                    <div className="flex justify-between items-start mb-2">
-                      <p className="font-bold text-gray-900 dark:text-white leading-tight group-hover:text-brand-600 transition-colors">
-                        {highlightText(candidate.name, searchTerm)}
+                    <div className="mb-2 flex items-start justify-between">
+                      <p className="leading-tight text-gray-900 transition-colors group-hover:text-brand-600 dark:text-white">
+                        <span className="font-bold">{highlightText(candidate.name, searchTerm)}</span>
                       </p>
 
-                      <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center space-x-1 opacity-0 transition-opacity group-hover:opacity-100">
                         <button
-                          onClick={(e) => handleOpenEditCandidateModal(e, candidate)}
-                          className="p-1 text-gray-300 hover:text-blue-500 transition-colors"
+                          onClick={(event) => handleOpenEditCandidateModal(event, candidate)}
+                          className="p-1 text-gray-300 transition-colors hover:text-blue-500"
                           title="Editar Candidato"
                         >
-                          <Edit2 className="w-3.5 h-3.5" />
+                          <Edit2 className="h-3.5 w-3.5" />
                         </button>
                         <button
-                          onClick={(e) => handleDeleteCandidatePermanently(e, candidate.db_id || candidate.id, candidate.name)}
-                          className="p-1 text-gray-300 hover:text-red-500 transition-colors"
+                          onClick={(event) => handleDeleteCandidatePermanently(event, candidate.db_id || candidate.id, candidate.name)}
+                          className="p-1 text-gray-300 transition-colors hover:text-red-500"
                           title="Excluir Candidato"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <Trash2 className="h-3.5 w-3.5" />
                         </button>
                       </div>
                     </div>
 
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-bold text-gray-400 uppercase flex items-center">
-                          <UserRound className="w-3 h-3 mr-1" />
+                        <span className="flex items-center text-[10px] font-bold uppercase text-gray-400">
+                          <UserRound className="mr-1 h-3 w-3" />
                           {getResponsibleName(candidate.responsibleUserId)}
                         </span>
 
                         {totalScore > 0 && (
                           <span
-                            className={`text-[10px] font-black px-1.5 py-0.5 rounded ${
+                            className={`rounded px-1.5 py-0.5 text-[10px] font-black ${
                               totalScore >= 70 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
                             }`}
                           >
@@ -747,65 +494,62 @@ const HiringPipeline = () => {
                       </div>
 
                       {candidate.createdBy && (
-                        <div className="text-[10px] text-gray-400 uppercase flex items-center">
-                          <UserPlus className="w-3 h-3 mr-1" />
+                        <div className="flex items-center text-[10px] uppercase text-gray-400">
+                          <UserPlus className="mr-1 h-3 w-3" />
                           Adicionado por: {getCreatorName(candidate.createdBy)}
                         </div>
                       )}
 
-                      <div className="pt-2 border-t border-gray-50 dark:border-slate-600 flex items-center justify-between text-[10px] text-gray-400">
+                      <div className="flex items-center justify-between border-t border-gray-50 pt-2 text-[10px] text-gray-400 dark:border-slate-600">
                         <span className="flex items-center">
-                          <Calendar className="w-3 h-3 mr-1" />
-                          {candidate.interviewDate ? new Date(candidate.interviewDate + 'T00:00:00').toLocaleDateString('pt-BR') : 'Sem data'}
+                          <Calendar className="mr-1 h-3 w-3" />
+                          {candidate.interviewDate
+                            ? new Date(`${candidate.interviewDate}T00:00:00`).toLocaleDateString('pt-BR')
+                            : 'Sem data'}
                         </span>
                       </div>
 
                       <div className="mt-3">
                         <Textarea
                           value={candidate.notes || ''}
-                          onChange={(e) => handleNotesChange(candidate.id, e.target.value)}
-                          onClick={(e) => e.stopPropagation()}
+                          onChange={(event) => handleNotesChange(candidate.id, event.target.value)}
+                          onClick={(event) => event.stopPropagation()}
                           placeholder="Adicionar observações rápidas..."
                           rows={2}
-                          className="w-full text-xs p-2 border border-gray-200 dark:border-slate-600 rounded-md bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 focus:ring-brand-500 focus:border-brand-500 resize-y"
+                          className="w-full resize-y rounded-md border border-gray-200 bg-gray-50 p-2 text-xs text-gray-700 focus:border-brand-500 focus:ring-brand-500 dark:border-slate-600 dark:bg-slate-800 dark:text-gray-200"
                         />
                       </div>
 
-                      <div className="pt-3 mt-1 border-t border-gray-50 dark:border-slate-600">
+                      <div className="mt-1 border-t border-gray-50 pt-3 dark:border-slate-600">
                         <div className="grid grid-cols-1 gap-2">
                           {hiringPipelineColumns
                             .filter((column) => column.id !== stage.id)
                             .slice(0, 4)
-                            .map((column) => {
-                              const ActionIcon = getColumnActionIcon(column);
-                              return (
-                                <button
-                                  key={column.id}
-                                  onClick={(e) => handleMoveToColumn(e, candidate.id, column)}
-                                  className="w-full min-w-0 px-2 min-h-[30px] flex items-center justify-start space-x-1 py-1 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 rounded-lg text-[10px] font-bold hover:bg-gray-100 dark:hover:bg-slate-700 transition text-left whitespace-normal break-words leading-snug border border-gray-200 dark:border-slate-600"
-                                  title={`Mover para ${column.title}`}
-                                >
-                                  <ActionIcon className="w-3 h-3" />
-                                  <span>{column.title}</span>
-                                </button>
-                              );
-                            })}
+                            .map((column) => (
+                              <button
+                                key={column.id}
+                                onClick={(event) => handleMoveToColumn(event, candidate.id, column)}
+                                className="min-h-[30px] w-full rounded-lg border border-gray-200 bg-gray-50 px-2 py-1 text-left text-[10px] font-bold leading-snug text-gray-700 transition hover:bg-gray-100 dark:border-slate-600 dark:bg-slate-800 dark:text-gray-200 dark:hover:bg-slate-700"
+                                title={`Mover para ${column.title}`}
+                              >
+                                {column.title}
+                              </button>
+                            ))}
 
                           <button
-                            onClick={(e) => handleOpenUpdateDate(e, candidate)}
-                            className="w-full min-w-0 px-2 min-h-[30px] flex items-center justify-start space-x-1 py-1 bg-brand-600 text-white rounded-lg text-[10px] font-bold hover:bg-brand-700 transition text-left whitespace-normal break-words leading-snug"
+                            onClick={(event) => handleOpenUpdateDate(event, candidate)}
+                            className="min-h-[30px] w-full rounded-lg bg-brand-600 px-2 py-1 text-left text-[10px] font-bold leading-snug text-white transition hover:bg-brand-700"
                             title="Agendar ou reagendar entrevista"
                           >
-                            <Calendar className="w-3 h-3" />
-                            <span>Agendar / Reagendar</span>
+                            Agendar / Reagendar
                           </button>
                         </div>
                       </div>
 
-                      <div className="pt-2 mt-1 flex justify-center">
-                        <div className="flex items-center text-[10px] font-bold text-brand-600 dark:text-brand-400 group-hover:translate-x-1 transition-transform">
+                      <div className="mt-1 flex justify-center pt-2">
+                        <div className="flex items-center text-[10px] font-bold text-brand-600 transition-transform group-hover:translate-x-1 dark:text-brand-400">
                           VER PROCESSO
-                          <ArrowRightCircle className="w-3 h-3 ml-1" />
+                          <ArrowRightCircle className="ml-1 h-3 w-3" />
                         </div>
                       </div>
                     </div>
@@ -815,7 +559,7 @@ const HiringPipeline = () => {
 
               {stage.list.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-10 opacity-20">
-                  <UserRound className="w-8 h-8 mb-2" />
+                  <UserRound className="mb-2 h-8 w-8" />
                   <p className="text-xs font-medium">Vazio</p>
                 </div>
               )}
