@@ -10,30 +10,20 @@ import { sanitizeFilename } from '@/utils/fileUtils';
 import toast from 'react-hot-toast';
 import { getOverallStatus } from '@/utils/commissionUtils';
 import { getAllFromTable } from '@/lib/supabase';
+import { DEFAULT_HIRING_PIPELINE_COLUMNS, getCandidateStageKey, normalizeHiringPipelineColumns } from '@/lib/hiringPipeline';
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 const INITIAL_INTERVIEW_STRUCTURE: InterviewSection[] = [
+
   { id: 'basicProfile', title: '2. Perfil Básico', maxPoints: 20, questions: [ { id: 'bp_1', text: 'Já trabalhou no modelo PJ? Se não, teria algum impeditivo?', points: 5 }, { id: 'bp_2', text: 'Como você se organizaria para trabalhar nesse modelo?', points: 10 }, { id: 'bp_3', text: 'Tem disponibilidade para começar de imediato?', points: 5 } ] },
   { id: 'commercialSkills', title: '3. Habilidade Comercial', maxPoints: 30, questions: [ { id: 'cs_1', text: 'Já trabalhou com metas? Como foi quando não bateu?', points: 10 }, { id: 'cs_2', text: 'Já teve contato com consórcio/investimentos?', points: 5 }, { id: 'cs_3', text: 'Já trabalhou com CRM?', points: 5 }, { id: 'cs_4', text: 'Demonstra vivência comercial e resiliência?', points: 10 } ] },
   { id: 'behavioralProfile', title: '4. Perfil Comportamental', maxPoints: 30, questions: [ { id: 'bh_1', text: 'Maior desafio até hoje (Exemplo real)?', points: 10 }, { id: 'bh_2', text: 'Metas de vida/carreira definidas?', points: 10 }, { id: 'bh_3', text: 'Clareza na comunicação e nível de energia?', points: 10 } ] },
   { id: 'jobFit', title: '6. Fit com a Vaga', maxPoints: 20, questions: [ { id: 'jf_1', text: 'Perfil empreendedor?', points: 5 }, { id: 'jf_2', text: 'Interesse real pela oportunidade?', points: 5 }, { id: 'jf_3', text: 'Alinhamento com modelo comissionado?', points: 10 } ] }
 ];
 
-const DEFAULT_HIRING_PIPELINE_COLUMNS: HiringPipelineColumn[] = [
-  { id: 'candidates', title: 'Candidatos', color: 'gray', ownerRole: 'SECRETARIA', candidateStatus: 'Triagem', screeningStatus: 'Pending Contact' },
-  { id: 'contacted', title: 'Contatados', color: 'blue', ownerRole: 'SECRETARIA', candidateStatus: 'Triagem', screeningStatus: 'Contacted' },
-  { id: 'noResponse', title: 'Não Respondido', color: 'orange', ownerRole: 'SECRETARIA', candidateStatus: 'Triagem', screeningStatus: 'No Response' },
-  { id: 'scheduled', title: 'Agendadas', color: 'blue', ownerRole: 'SECRETARIA', candidateStatus: 'Entrevista', interviewConducted: false },
-  { id: 'conducted', title: 'Realizadas', color: 'purple', ownerRole: 'GESTOR', candidateStatus: 'Entrevista', interviewConducted: true },
-  { id: 'noShow', title: 'Faltou', color: 'red', ownerRole: 'SECRETARIA', candidateStatus: 'Faltou' },
-  { id: 'awaitingPreview', title: 'Em Prévia', color: 'yellow', ownerRole: 'SECRETARIA', candidateStatus: 'Aguardando Prévia' },
-  { id: 'authorized', title: 'Autorizados', color: 'green', ownerRole: 'GESTOR', candidateStatus: 'Autorizado' },
-  { id: 'droppedOut', title: 'Desistências', color: 'red', ownerRole: 'SECRETARIA', candidateStatus: 'Reprovado' },
-  { id: 'disqualified', title: 'Desqualificado', color: 'red', ownerRole: 'GESTOR', candidateStatus: 'Desqualificado' },
-];
-
 const DEFAULT_APP_CONFIG_DATA = {
+
   checklistStructure: DEFAULT_STAGES,
   consultantGoalsStructure: DEFAULT_GOALS,
   interviewStructure: INITIAL_INTERVIEW_STRUCTURE,
@@ -197,10 +187,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         ascending: false,
       });
       if (error) {
-        console.warn(`Erro ao carregar comissões: ${error.message}`);
+        const errorMessage = (error as any)?.message || 'Erro desconhecido';
+        console.warn(`Erro ao carregar comissões: ${errorMessage}`);
         setCommissions([]);
         return;
       }
+
       const normalized: Commission[] = (data || []).map(item => {
         const commission = item.data as Commission;
         if (!commission.installmentDetails) {
@@ -261,7 +253,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setSalesOrigins(appConfigData.salesOrigins || DEFAULT_APP_CONFIG_DATA.salesOrigins);
       setHiringOrigins(appConfigData.hiringOrigins !== undefined ? appConfigData.hiringOrigins : DEFAULT_APP_CONFIG_DATA.hiringOrigins);
       setPvs(appConfigData.pvs || []);
-      setHiringPipelineColumns(appConfigData.hiringPipelineColumns || DEFAULT_HIRING_PIPELINE_COLUMNS);
+      setHiringPipelineColumns(normalizeHiringPipelineColumns(appConfigData.hiringPipelineColumns));
     }
   }, []);
 
@@ -333,12 +325,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (!candidatesRes.error) {
           const normalizedCandidates = (candidatesRes.data || []).map(item => {
             const candidateData = item.data as Candidate;
-            return { 
-              ...candidateData, 
-              id: (item.data as any).id || crypto.randomUUID(), 
-              db_id: item.id, 
-              createdAt: item.created_at, 
+            return {
+              ...candidateData,
+              id: (item.data as any).id || crypto.randomUUID(),
+              db_id: item.id,
+              createdAt: item.created_at,
               lastUpdatedAt: item.last_updated_at,
+              pipelineStageKey: getCandidateStageKey(candidateData),
             };
           });
           setCandidates(normalizedCandidates);
@@ -496,7 +489,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     updateConfig({ hiringPipelineColumns: newColumns });
   }, [hiringPipelineColumns, updateConfig]);
 
+  const resetHiringPipelineColumnsToDefault = useCallback(() => {
+    setHiringPipelineColumns(DEFAULT_HIRING_PIPELINE_COLUMNS);
+    updateConfig({ hiringPipelineColumns: DEFAULT_HIRING_PIPELINE_COLUMNS });
+  }, [updateConfig]);
+
   const addCrmLead = useCallback(async (lead: Omit<CrmLead, 'id' | 'created_at' | 'updated_at' | 'user_id' | 'created_by' | 'updated_by'>) => {
+
     if (!user || !crmOwnerUserId) throw new Error("User not authenticated or CRM Owner not set.");
     const { data, error } = await supabase.from('crm_leads').insert({ ...lead, user_id: crmOwnerUserId, created_by: user.id }).select().single();
     if (error) throw error;
@@ -1405,7 +1404,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     createCrmLeadFromColdCall,
     addProcess, updateProcess, deleteProcess, deleteProcessAttachment,
     addHiringPipelineColumn, updateHiringPipelineColumn, deleteHiringPipelineColumn, moveHiringPipelineColumn,
+    resetHiringPipelineColumnsToDefault,
   }), [
+
     isDataLoading, candidates, teamMembers, commissions, supportMaterials, cutoffPeriods, onboardingSessions, onboardingTemplateVideos,
     checklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs,
     crmPipelines, crmStages, crmFields, crmLeads, crmOwnerUserId,
@@ -1438,6 +1439,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     createCrmLeadFromColdCall,
     addProcess, updateProcess, deleteProcess, deleteProcessAttachment,
     addHiringPipelineColumn, updateHiringPipelineColumn, deleteHiringPipelineColumn, moveHiringPipelineColumn,
+    resetHiringPipelineColumnsToDefault,
   ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

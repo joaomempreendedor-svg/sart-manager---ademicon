@@ -1,6 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { Candidate, InterviewScores } from '@/types';
+import { buildCandidateStageUpdates } from '@/lib/hiringPipeline';
+
 import { X, Save, Loader2, User, Phone, Calendar as CalendarIcon, CheckCircle2, Users, MapPin } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -61,20 +63,28 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({ 
     const emptyScores: InterviewScores = {
       basicProfile: 0, commercialSkills: 0, behavioralProfile: 0, jobFit: 0, notes: ''
     };
-
-    const newCandidate: Candidate = {
-      id: crypto.randomUUID(),
+    const candidateId = crypto.randomUUID();
+    const createdAt = new Date().toISOString();
+    const stageSeedCandidate = {
+      id: candidateId,
       name: formData.name,
       phone: formData.phone,
       interviewDate: formData.date,
       interviewer: 'Não definido',
       origin: formData.origin,
-      status: 'Entrevista',
+      status: 'Triagem',
+      interviewScores: emptyScores,
+      createdAt,
+    } as Candidate;
+
+    const newCandidate: Candidate = {
+      ...stageSeedCandidate,
+      ...buildCandidateStageUpdates(stageSeedCandidate, 'entrevista-agendada'),
       interviewScores: emptyScores,
       checkedQuestions: {},
       checklistProgress: {},
       consultantGoalsProgress: {},
-      createdAt: new Date().toISOString(),
+      createdAt,
       responsibleUserId: formData.responsibleUserId,
     };
 

@@ -21,6 +21,7 @@ import {
 import toast from 'react-hot-toast';
 import { Candidate, TeamMember } from '@/types';
 import { useApp } from '@/context/AppContext';
+import { DEFAULT_HIRING_PIPELINE_STAGE_KEY } from '@/lib/hiringPipeline';
 
 interface EditScreeningCandidateModalProps {
   isOpen: boolean;
@@ -112,6 +113,7 @@ export const EditScreeningCandidateModal: React.FC<EditScreeningCandidateModalPr
           email: formData.email.trim() || undefined,
           origin: formData.origin,
           status: 'Triagem',
+          pipelineStageKey: DEFAULT_HIRING_PIPELINE_STAGE_KEY,
           screeningStatus: 'Pending Contact',
           interviewDate: '',
           interviewer: '',
@@ -123,6 +125,7 @@ export const EditScreeningCandidateModal: React.FC<EditScreeningCandidateModalPr
           responsibleUserId: formData.responsibleUserId || undefined,
           notes: formData.notes.trim() || undefined,
         };
+
         await addCandidate(newCandidate);
         toast.success(`Candidato "${newCandidate.name}" adicionado para triagem!`);
       }

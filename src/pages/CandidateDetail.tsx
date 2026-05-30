@@ -3,9 +3,11 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { ArrowLeft, CheckSquare, FileText, Phone, Calendar, Clock, MessageCircle, Paperclip, CheckCircle2, Target, Trash2, CalendarPlus, Save, Loader2, Users, Filter, ShieldCheck, UserRound } from 'lucide-react';
-import { CandidateStatus, CommunicationTemplate, InterviewScores } from '@/types';
+import { CommunicationTemplate, InterviewScores } from '@/types';
 import { MessageViewerModal } from '@/components/MessageViewerModal';
 import { WithdrawalReasonModal } from '@/components/gestor/WithdrawalReasonModal';
+import { buildCandidateStageUpdates, getCandidateStageKey, normalizeHiringPipelineColumns } from '@/lib/hiringPipeline';
+
 import {
   Select,
   SelectContent,
@@ -18,7 +20,8 @@ import { ErrorBoundary } from '@/components/ErrorBoundary'; // Import ErrorBound
 export const CandidateDetail = () => {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
-  const { getCandidate, toggleChecklistItem, toggleConsultantGoal, updateCandidate, deleteCandidate, setChecklistDueDate, templates, checklistStructure, consultantGoalsStructure, interviewStructure, teamMembers } = useApp();
+  const { getCandidate, toggleChecklistItem, toggleConsultantGoal, updateCandidate, deleteCandidate, setChecklistDueDate, templates, checklistStructure, consultantGoalsStructure, interviewStructure, teamMembers, hiringPipelineColumns } = useApp();
+
   const navigate = useNavigate();
   const location = useLocation();
   
@@ -48,7 +51,11 @@ export const CandidateDetail = () => {
     return teamMembers.filter(m => m.isActive && (m.roles.includes('GESTOR') || m.roles.includes('ANJO')));
   }, [teamMembers]);
 
+  const stageOptions = useMemo(() => normalizeHiringPipelineColumns(hiringPipelineColumns), [hiringPipelineColumns]);
+  const currentStageKey = candidate ? getCandidateStageKey(candidate) : 'candidatos';
+
   useEffect(() => {
+
     if (candidate) {
       setScores(JSON.parse(JSON.stringify(candidate.interviewScores)));
       setCheckedQuestions(JSON.parse(JSON.stringify(candidate.checkedQuestions || {})));
@@ -60,22 +67,23 @@ export const CandidateDetail = () => {
     return <div className="p-4 sm:p-8 text-gray-500 dark:text-gray-400">Candidato não encontrado.</div>;
   }
 
-  const handleStatusChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const newStatus = e.target.value as CandidateStatus;
-    if (newStatus === 'Reprovado') {
+  const handleStageChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newStageKey = e.target.value;
+    if (newStageKey === 'reprovado-gestor') {
       setIsWithdrawalModalOpen(true);
       return;
     }
-    await updateCandidate(candidate.id, { status: newStatus });
+
+    const selectedColumn = stageOptions.find((stage) => stage.stageKey === newStageKey);
+    if (!selectedColumn) return;
+
+    await updateCandidate(candidate.id, buildCandidateStageUpdates(candidate, selectedColumn.stageKey));
   };
 
   const handleConfirmWithdrawal = async (reason: string) => {
     try {
-      await updateCandidate(candidate.id, {
-        status: 'Reprovado',
-        withdrawalReason: reason
-      });
-      alert('Candidato movido para Desistências');
+      await updateCandidate(candidate.id, buildCandidateStageUpdates(candidate, 'reprovado-gestor', reason));
+      alert('Candidato movido para Reprovado pelo Gestor');
     } catch (error: any) {
       alert(`Erro ao atualizar status: ${error.message}`);
     }
@@ -202,23 +210,16 @@ export const CandidateDetail = () => {
             </div>
 
             <div className="flex flex-col items-end w-full md:w-auto">
-              <label className="text-xs text-gray-500 dark:text-gray-400 font-medium uppercase mb-1">Status Atual</label>
+              <label className="text-xs text-gray-500 dark:text-gray-400 font-medium uppercase mb-1">Etapa Atual</label>
               <div className="flex flex-col sm:flex-row items-end sm:items-center space-y-2 sm:space-y-0 sm:space-x-2 w-full md:w-auto">
-                  <select 
-                      value={candidate.status} 
-                      onChange={handleStatusChange}
-                      className="block w-full sm:w-48 pl-3 pr-10 py-2 text-base border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:outline-none focus:ring-brand-500 focus:border-brand-500 sm:text-sm rounded-md border"
+                  <select
+                      value={currentStageKey}
+                      onChange={handleStageChange}
+                      className="block w-full sm:w-64 pl-3 pr-10 py-2 text-base border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:outline-none focus:ring-brand-500 focus:border-brand-500 sm:text-sm rounded-md border"
                   >
-                      <option value="Triagem">Candidatos</option>
-                      <option value="Entrevista">Entrevista</option>
-                      <option value="Faltou">Faltou</option>
-                      <option value="Aguardando Prévia">Aguardando Prévia</option>
-                      <option value="Onboarding Online">Onboarding Online</option>
-                      <option value="Integração Presencial">Integração Presencial</option>
-                      <option value="Acompanhamento 90 Dias">Acompanhamento 90 Dias</option>
-                      <option value="Autorizado">Autorizado</option>
-                      <option value="Reprovado">Desistência</option>
-                      <option value="Desqualificado">Desqualificado</option>
+                      {stageOptions.map(stage => (
+                        <option key={stage.id} value={stage.stageKey}>{stage.title}</option>
+                      ))}
                   </select>
                   <button
                       onClick={handleDelete}
@@ -228,6 +229,7 @@ export const CandidateDetail = () => {
                       <Trash2 className="w-4 h-4" />
                   </button>
               </div>
+
               <div className="mt-4 w-full">
                 <label className="block text-xs text-gray-500 dark:text-gray-400 font-medium uppercase mb-1">Responsável</label>
                 <div className="relative">
@@ -328,8 +330,9 @@ export const CandidateDetail = () => {
 
                 if (filteredItems.length === 0) return null;
 
-                const completedCount = stage.items.filter(i => candidate.checklistProgress[i.id]?.completed).length;
+                const completedCount = stage.items.filter(i => candidate.checklistProgress?.[i.id]?.completed).length;
                 const totalCount = stage.items.length;
+
                 const progress = totalCount === 0 ? 0 : Math.round((completedCount / totalCount) * 100);
 
                 return (
@@ -347,8 +350,9 @@ export const CandidateDetail = () => {
                     <div className="p-0">
                       <ul className="divide-y divide-gray-100 dark:divide-slate-700">
                         {filteredItems.map((item) => {
-                          const state = candidate.checklistProgress[item.id] || { completed: false };
+                          const state = candidate.checklistProgress?.[item.id] || { completed: false };
                           const hasTemplate = !!templates[item.id];
+
                           const template = templates[item.id];
                           const isMyTask = item.responsibleRole?.toUpperCase() === user?.role?.toUpperCase();
                           

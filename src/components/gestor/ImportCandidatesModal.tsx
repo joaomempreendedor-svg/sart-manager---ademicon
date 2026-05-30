@@ -13,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import toast from 'react-hot-toast';
 import { Candidate, TeamMember } from '@/types';
+import { DEFAULT_HIRING_PIPELINE_STAGE_KEY } from '@/lib/hiringPipeline';
 
 interface ImportCandidatesModalProps {
   isOpen: boolean;
@@ -111,6 +112,7 @@ export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
       const values = line.split(delimiter).map(v => v.trim());
       const candidateData: Partial<Omit<Candidate, 'id' | 'createdAt' | 'db_id'>> = {
         status: 'Triagem',
+        pipelineStageKey: DEFAULT_HIRING_PIPELINE_STAGE_KEY,
         screeningStatus: 'Pending Contact',
         interviewDate: '',
         interviewer: '',
@@ -118,11 +120,12 @@ export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
         checklistProgress: {},
         consultantGoalsProgress: {},
         feedbacks: [],
-        phone: '', 
-        email: '', 
-        origin: '', 
-        responsibleUserId: undefined, 
+        phone: '',
+        email: '',
+        origin: '',
+        responsibleUserId: undefined,
       };
+
       let recordIsValid = true;
       const currentRecordErrors: string[] = [];
 
@@ -186,7 +189,7 @@ export const ImportCandidatesModal: React.FC<ImportCandidatesModalProps> = ({
         successCount = 0;
       }
     } else if (failCount === 0) {
-      toast.info("Nenhum candidato válido para importar.");
+      toast("Nenhum candidato válido para importar.");
     }
 
     setImportResult({ success: successCount, failed: failCount, errors: failedRecords });

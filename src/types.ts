@@ -10,6 +10,27 @@ export type CandidateStatus =
   | 'Desqualificado'
   | 'Faltou';
 
+export type HiringPipelineStageKey =
+  | 'candidatos'
+  | 'contatados'
+  | 'respondeu'
+  | 'entrevista-agendada'
+  | 'compareceu-entrevista'
+  | 'faltou-entrevista'
+  | 'aprovado-gestor'
+  | 'reprovado-gestor'
+  | 'aprovacao-d1'
+  | 'documentacao-enviada'
+  | 'documentacao-nao-enviada'
+  | 'previa-cadastrada'
+  | 'onboarding-liberado'
+  | 'onboarding-finalizado'
+  | 'onboarding-nao-finalizado'
+  | 'integracao-agendada'
+  | 'integracao-nao-compareceu'
+  | 'integracao-compareceu'
+  | 'integracao-finalizada';
+
 export interface InterviewScores {
   basicProfile: number;
   commercialSkills: number;
@@ -46,6 +67,7 @@ export interface Feedback {
 
 export interface HiringPipelineColumn {
   id: string;
+  stageKey: HiringPipelineStageKey;
   title: string;
   color:
     | 'gray'
@@ -56,15 +78,13 @@ export interface HiringPipelineColumn {
     | 'red'
     | 'orange';
   ownerRole: 'GESTOR' | 'SECRETARIA';
-  candidateStatus: CandidateStatus;
-  screeningStatus?: 'Pending Contact' | 'Contacted' | 'No Response';
-  interviewConducted?: boolean;
 }
 
 export interface Candidate {
   id: string;
   db_id?: string;
   name: string;
+
   phone: string;
   email?: string;
   interviewDate: string;
@@ -73,6 +93,7 @@ export interface Candidate {
   interviewer: string;
   origin?: string;
   status: CandidateStatus;
+  pipelineStageKey?: HiringPipelineStageKey;
   screeningStatus?: 'Pending Contact' | 'Contacted' | 'No Fit' | 'No Response';
   interviewConducted?: boolean;
   interviewScores: InterviewScores;
@@ -86,13 +107,29 @@ export interface Candidate {
   createdBy?: string;
   notes?: string;
   withdrawalReason?: string;
-  
+
   contactedDate?: string;
+  respondedDate?: string;
   noResponseDate?: string;
   interviewScheduledDate?: string;
   interviewConductedDate?: string;
+  interviewAttendedDate?: string;
+  interviewNoShowDate?: string;
+  managerApprovedDate?: string;
+  managerRejectedDate?: string;
+  d1ApprovalDate?: string;
+  documentationSentDate?: string;
+  documentationNotSentDate?: string;
+  previewRegisteredDate?: string;
   awaitingPreviewDate?: string;
+  onboardingReleasedDate?: string;
+  onboardingFinishedDate?: string;
+  onboardingNotFinishedDate?: string;
   onboardingOnlineDate?: string;
+  integrationScheduledDate?: string;
+  integrationNoShowDate?: string;
+  integrationAttendedDate?: string;
+  integrationFinishedDate?: string;
   integrationPresencialDate?: string;
   acompanhamento90DiasDate?: string;
   authorizedDate?: string;
@@ -582,10 +619,11 @@ export interface Process {
   description?: string;
   content?: string;
   type: string;
-  cover_url?: string;
+  cover_url?: string | null;
   file_url?: string;
   file_type?: 'image' | 'pdf' | 'video' | 'audio' | 'link';
   created_at: string;
+
   updated_at: string;
   attachments?: ProcessAttachment[];
 }
@@ -642,7 +680,9 @@ export interface AppContextType {
   getCandidate: (id: string) => Candidate | undefined;
   updateCandidate: (id: string, updates: Partial<Candidate>) => Promise<void>;
   deleteCandidate: (id: string) => Promise<void>;
+  resetHiringPipelineColumnsToDefault: () => void;
   toggleChecklistItem: (candidateId: string, itemId: string) => Promise<void>;
+
   setChecklistDueDate: (candidateId: string, itemId: string, dueDate: string) => Promise<void>;
   toggleConsultantGoal: (candidateId: string, goalId: string) => Promise<void>;
   addChecklistItem: (stageId: string, label: string, responsibleRole?: 'GESTOR' | 'SECRETARIA') => void;

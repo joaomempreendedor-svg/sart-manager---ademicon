@@ -16,16 +16,17 @@ import {
   UserPlus,
   UserRound,
 } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { EditScreeningCandidateModal } from '@/components/gestor/EditScreeningCandidateModal';
 import { UpdateInterviewDateModal } from '@/components/gestor/UpdateInterviewDateModal';
 import { ImportCandidatesModal } from '@/components/gestor/ImportCandidatesModal';
 import { WithdrawalReasonModal } from '@/components/gestor/WithdrawalReasonModal';
-import { Textarea } from '@/components/ui/textarea';
-import { highlightText } from '@/lib/utils';
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
+import { highlightText } from '@/lib/utils';
 import { Candidate, HiringPipelineColumn } from '@/types';
+import { buildCandidateStageUpdates, getCandidateStageKey, normalizeHiringPipelineColumns } from '@/lib/hiringPipeline';
 
 const HiringPipeline = () => {
   const navigate = useNavigate();
@@ -59,6 +60,8 @@ const HiringPipeline = () => {
 
   const todayStr = new Date().toISOString().split('T')[0];
 
+  const normalizedColumns = useMemo(() => normalizeHiringPipelineColumns(hiringPipelineColumns), [hiringPipelineColumns]);
+
   const sortByRecentUpdate = (a: Candidate, b: Candidate) => {
     const dateA = new Date(a.lastUpdatedAt || a.createdAt).getTime();
     const dateB = new Date(b.lastUpdatedAt || b.createdAt).getTime();
@@ -67,13 +70,13 @@ const HiringPipeline = () => {
 
   const getResponsibleName = (responsibleUserId?: string) => {
     if (!responsibleUserId) return 'Não atribuído';
-    const member = teamMembers.find((m) => m.id === responsibleUserId || m.authUserId === responsibleUserId);
+    const member = teamMembers.find((item) => item.id === responsibleUserId || item.authUserId === responsibleUserId);
     return member?.name || 'Desconhecido';
   };
 
   const getCreatorName = (creatorId?: string) => {
     if (!creatorId) return 'Desconhecido';
-    const member = teamMembers.find((m) => m.authUserId === creatorId);
+    const member = teamMembers.find((item) => item.authUserId === creatorId);
     if (member) return member.name;
     if (user && creatorId === user.id) return user.name;
     return 'Desconhecido';
@@ -103,21 +106,15 @@ const HiringPipeline = () => {
       filteredCandidates = filteredCandidates.filter((candidate) => new Date(candidate.createdAt) <= end);
     }
 
-    return hiringPipelineColumns.map((column) => {
-      const list = filteredCandidates
-        .filter((candidate) => {
-          if (candidate.status !== column.candidateStatus) return false;
-          if (column.screeningStatus && candidate.screeningStatus !== column.screeningStatus) return false;
-          if (typeof column.interviewConducted === 'boolean' && candidate.interviewConducted !== column.interviewConducted) return false;
-          return true;
-        })
-        .sort(sortByRecentUpdate);
+    return normalizedColumns.map((column) => ({
+      ...column,
+      list: filteredCandidates
+        .filter((candidate) => getCandidateStageKey(candidate) === column.stageKey)
+        .sort(sortByRecentUpdate),
+    }));
+  }, [candidates, filterEndDate, filterStartDate, normalizedColumns, searchTerm]);
 
-      return { ...column, list };
-    });
-  }, [candidates, searchTerm, filterStartDate, filterEndDate, hiringPipelineColumns]);
-
-  const getColumnColorClasses = (color: string) => {
+  const getColumnColorClasses = (color: HiringPipelineColumn['color']) => {
     switch (color) {
       case 'blue':
         return 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800 text-blue-700 dark:text-blue-300';
@@ -136,24 +133,8 @@ const HiringPipeline = () => {
     }
   };
 
-  const buildUpdatesFromColumn = (column: HiringPipelineColumn): Partial<Candidate> => {
-    const updates: Partial<Candidate> = {
-      status: column.candidateStatus,
-    };
-
-    if (column.screeningStatus) updates.screeningStatus = column.screeningStatus;
-    if (typeof column.interviewConducted === 'boolean') updates.interviewConducted = column.interviewConducted;
-
-    if (column.screeningStatus === 'Contacted') updates.contactedDate = new Date().toISOString();
-    if (column.screeningStatus === 'No Response') updates.noResponseDate = new Date().toISOString();
-    if (column.candidateStatus === 'Entrevista' && column.interviewConducted === false) updates.interviewScheduledDate = new Date().toISOString();
-    if (column.candidateStatus === 'Entrevista' && column.interviewConducted === true) updates.interviewConductedDate = new Date().toISOString();
-    if (column.candidateStatus === 'Aguardando Prévia') updates.awaitingPreviewDate = new Date().toISOString();
-    if (column.candidateStatus === 'Autorizado') updates.authorizedDate = new Date().toISOString();
-    if (column.candidateStatus === 'Desqualificado') updates.disqualifiedDate = new Date().toISOString();
-    if (column.candidateStatus === 'Faltou') updates.faltouDate = new Date().toISOString();
-
-    return updates;
+  const moveCandidateToStage = async (candidate: Candidate, column: HiringPipelineColumn, reason?: string) => {
+    await updateCandidate(candidate.id, buildCandidateStageUpdates(candidate, column.stageKey, reason));
   };
 
   const handleDragStart = (event: React.DragEvent, candidateId: string) => {
@@ -166,6 +147,11 @@ const HiringPipeline = () => {
     setDragOverColumn(columnId);
   };
 
+  const openRejectionFlow = (candidate: Candidate) => {
+    setSelectedCandidateForWithdrawal(candidate);
+    setIsWithdrawalModalOpen(true);
+  };
+
   const handleDrop = async (event: React.DragEvent, targetColumnId: string) => {
     event.preventDefault();
     setDragOverColumn(null);
@@ -173,21 +159,19 @@ const HiringPipeline = () => {
     const candidateId = event.dataTransfer.getData('candidateId');
     if (!candidateId) return;
 
-    const targetColumn = hiringPipelineColumns.find((column) => column.id === targetColumnId);
-    if (!targetColumn) return;
+    const candidate = candidates.find((item) => item.id === candidateId);
+    const targetColumn = normalizedColumns.find((column) => column.id === targetColumnId);
 
-    if (targetColumn.candidateStatus === 'Reprovado') {
-      const candidate = candidates.find((item) => item.id === candidateId);
-      if (candidate) {
-        setSelectedCandidateForWithdrawal(candidate);
-        setIsWithdrawalModalOpen(true);
-      }
+    if (!candidate || !targetColumn) return;
+
+    if (targetColumn.stageKey === 'reprovado-gestor') {
+      openRejectionFlow(candidate);
       setDraggingCandidateId(null);
       return;
     }
 
     try {
-      await updateCandidate(candidateId, buildUpdatesFromColumn(targetColumn));
+      await moveCandidateToStage(candidate, targetColumn);
       toast.success(`Candidato movido para ${targetColumn.title}`);
     } catch {
       toast.error('Erro ao mover candidato.');
@@ -196,21 +180,17 @@ const HiringPipeline = () => {
     }
   };
 
-  const handleMoveToColumn = async (event: React.MouseEvent, candidateId: string, column: HiringPipelineColumn) => {
+  const handleMoveToColumn = async (event: React.MouseEvent, candidate: Candidate, column: HiringPipelineColumn) => {
     event.preventDefault();
     event.stopPropagation();
 
-    if (column.candidateStatus === 'Reprovado') {
-      const candidate = candidates.find((item) => item.id === candidateId);
-      if (candidate) {
-        setSelectedCandidateForWithdrawal(candidate);
-        setIsWithdrawalModalOpen(true);
-      }
+    if (column.stageKey === 'reprovado-gestor') {
+      openRejectionFlow(candidate);
       return;
     }
 
     try {
-      await updateCandidate(candidateId, buildUpdatesFromColumn(column));
+      await moveCandidateToStage(candidate, column);
       toast.success(`Candidato movido para ${column.title}`);
     } catch {
       toast.error('Erro ao atualizar status.');
@@ -220,13 +200,12 @@ const HiringPipeline = () => {
   const handleConfirmWithdrawal = async (reason: string) => {
     if (!selectedCandidateForWithdrawal) return;
 
+    const rejectionColumn = normalizedColumns.find((column) => column.stageKey === 'reprovado-gestor');
+    if (!rejectionColumn) return;
+
     try {
-      await updateCandidate(selectedCandidateForWithdrawal.id, {
-        status: 'Reprovado',
-        withdrawalReason: reason,
-        reprovadoDate: new Date().toISOString(),
-      });
-      toast.success('Candidato movido para desistências');
+      await moveCandidateToStage(selectedCandidateForWithdrawal, rejectionColumn, reason);
+      toast.success('Candidato movido para reprovado pelo gestor');
     } catch {
       toast.error('Erro ao atualizar status.');
     }
@@ -285,6 +264,11 @@ const HiringPipeline = () => {
     setIsEditCandidateModalOpen(true);
   };
 
+  const getNextColumns = (currentColumnId: string) => {
+    const currentIndex = normalizedColumns.findIndex((column) => column.id === currentColumnId);
+    return normalizedColumns.slice(currentIndex + 1, currentIndex + 4);
+  };
+
   if (isAuthLoading || isDataLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -299,7 +283,7 @@ const HiringPipeline = () => {
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Pipeline de Contratação</h1>
           <p className="text-gray-500 dark:text-gray-400">
-            Acompanhe o fluxo de candidatos e organize as etapas por responsável.
+            Fluxo reconstruído com as etapas novas da contratação, do primeiro contato até a integração finalizada.
           </p>
         </div>
 
@@ -331,11 +315,16 @@ const HiringPipeline = () => {
       </div>
 
       <div className="mb-6 space-y-4 rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-        <div className="flex flex-col items-center justify-between sm:flex-row">
-          <h3 className="flex items-center text-sm font-bold uppercase tracking-wide text-gray-700 dark:text-gray-300">
-            <Filter className="mr-2 h-4 w-4" />
-            Filtros
-          </h3>
+        <div className="flex flex-col items-center justify-between gap-3 sm:flex-row">
+          <div>
+            <h3 className="flex items-center text-sm font-bold uppercase tracking-wide text-gray-700 dark:text-gray-300">
+              <Filter className="mr-2 h-4 w-4" />
+              Filtros do pipeline
+            </h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              {pipelineStages.reduce((total, column) => total + column.list.length, 0)} candidatos visíveis nas etapas atuais.
+            </p>
+          </div>
 
           {(searchTerm || filterStartDate || filterEndDate) && (
             <button
@@ -390,145 +379,151 @@ const HiringPipeline = () => {
       </div>
 
       <div className="custom-scrollbar flex space-x-4 overflow-x-auto pb-6">
-        {pipelineStages.map((stage) => (
-          <div
-            key={stage.id}
-            onDragOver={(event) => handleDragOver(event, stage.id)}
-            onDrop={(event) => handleDrop(event, stage.id)}
-            className={`w-80 flex-shrink-0 rounded-xl border border-gray-200 bg-gray-100/50 shadow-sm transition-all dark:border-slate-700 dark:bg-slate-800/50 ${
-              dragOverColumn === stage.id ? 'border-transparent bg-brand-50/50 ring-2 ring-brand-500 dark:bg-brand-900/10' : ''
-            }`}
-          >
-            <div className={`rounded-t-xl border-b p-4 ${getColumnColorClasses(stage.color)}`}>
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <UserRound className="h-4 w-4" />
-                  <h3 className="text-sm font-bold uppercase tracking-wider">{stage.title}</h3>
+        {pipelineStages.map((stage) => {
+          const nextColumns = getNextColumns(stage.id);
+
+          return (
+            <div
+              key={stage.id}
+              onDragOver={(event) => handleDragOver(event, stage.id)}
+              onDrop={(event) => handleDrop(event, stage.id)}
+              className={`w-80 flex-shrink-0 rounded-xl border border-gray-200 bg-gray-100/50 shadow-sm transition-all dark:border-slate-700 dark:bg-slate-800/50 ${
+                dragOverColumn === stage.id ? 'border-transparent bg-brand-50/50 ring-2 ring-brand-500 dark:bg-brand-900/10' : ''
+              }`}
+            >
+              <div className={`rounded-t-xl border-b p-4 ${getColumnColorClasses(stage.color)}`}>
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <UserRound className="h-4 w-4" />
+                    <h3 className="text-sm font-bold uppercase tracking-wider">{stage.title}</h3>
+                  </div>
+                  <span className="rounded bg-white/50 px-2 py-0.5 text-xs font-bold dark:bg-black/20">{stage.list.length}</span>
                 </div>
-                <span className="rounded bg-white/50 px-2 py-0.5 text-xs font-bold dark:bg-black/20">{stage.list.length}</span>
+
+                <div className="text-[10px] font-bold uppercase tracking-wide">
+                  <span className="rounded-full bg-white/60 px-2 py-1 dark:bg-black/20">
+                    {stage.ownerRole === 'GESTOR' ? 'Responsável: Gestor' : 'Responsável: Secretaria'}
+                  </span>
+                </div>
               </div>
 
-              <div className="text-[10px] font-bold uppercase tracking-wide">
-                <span className="rounded-full bg-white/60 px-2 py-1 dark:bg-black/20">
-                  {stage.ownerRole === 'GESTOR' ? 'Responsável: Gestor' : 'Responsável: Secretaria'}
-                </span>
-              </div>
-            </div>
+              <div className="min-h-[500px] space-y-3 p-3">
+                {stage.list.map((candidate) => {
+                  const totalScore =
+                    candidate.interviewScores.basicProfile +
+                    candidate.interviewScores.commercialSkills +
+                    candidate.interviewScores.behavioralProfile +
+                    candidate.interviewScores.jobFit;
 
-            <div className="min-h-[500px] space-y-3 p-3">
-              {stage.list.map((candidate) => {
-                const totalScore =
-                  candidate.interviewScores.basicProfile +
-                  candidate.interviewScores.commercialSkills +
-                  candidate.interviewScores.behavioralProfile +
-                  candidate.interviewScores.jobFit;
+                  const isToday = candidate.interviewDate === todayStr;
+                  const hasPendingSecretariaTasksForCandidate = hasPendingSecretariaTasks(candidate);
 
-                const isToday = candidate.interviewDate === todayStr;
-                const hasPendingSecretariaTasksForCandidate = hasPendingSecretariaTasks(candidate);
-
-                return (
-                  <div
-                    key={candidate.id}
-                    draggable
-                    onDragStart={(event) => handleDragStart(event, candidate.id)}
-                    onClick={() => navigate(`/gestor/candidate/${candidate.id}`)}
-                    className={`group relative cursor-pointer overflow-hidden rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-all hover:border-brand-500 hover:shadow-md dark:border-slate-700 dark:bg-slate-700 ${
-                      isToday ? 'ring-2 ring-brand-500' : ''
-                    }`}
-                  >
-                    {isToday && (
-                      <div className="absolute right-0 top-0 rounded-bl-lg bg-brand-500 px-2 py-0.5 text-[10px] font-bold text-white">
-                        HOJE
-                      </div>
-                    )}
-
-                    {hasPendingSecretariaTasksForCandidate && (
-                      <div
-                        className="absolute left-0 top-0 flex items-center rounded-br-lg bg-purple-500 px-2 py-0.5 text-[10px] font-bold text-white"
-                        title="Tarefas da Secretaria Pendentes"
-                      >
-                        <ShieldCheck className="mr-1 h-3 w-3" />
-                        SECRETARIA
-                      </div>
-                    )}
-
-                    <div className="mb-2 flex items-start justify-between">
-                      <p className="leading-tight text-gray-900 transition-colors group-hover:text-brand-600 dark:text-white">
-                        <span className="font-bold">{highlightText(candidate.name, searchTerm)}</span>
-                      </p>
-
-                      <div className="flex items-center space-x-1 opacity-0 transition-opacity group-hover:opacity-100">
-                        <button
-                          onClick={(event) => handleOpenEditCandidateModal(event, candidate)}
-                          className="p-1 text-gray-300 transition-colors hover:text-blue-500"
-                          title="Editar Candidato"
-                        >
-                          <Edit2 className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          onClick={(event) => handleDeleteCandidatePermanently(event, candidate.db_id || candidate.id, candidate.name)}
-                          className="p-1 text-gray-300 transition-colors hover:text-red-500"
-                          title="Excluir Candidato"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="flex items-center text-[10px] font-bold uppercase text-gray-400">
-                          <UserRound className="mr-1 h-3 w-3" />
-                          {getResponsibleName(candidate.responsibleUserId)}
-                        </span>
-
-                        {totalScore > 0 && (
-                          <span
-                            className={`rounded px-1.5 py-0.5 text-[10px] font-black ${
-                              totalScore >= 70 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                            }`}
-                          >
-                            {totalScore} pts
-                          </span>
-                        )}
-                      </div>
-
-                      {candidate.createdBy && (
-                        <div className="flex items-center text-[10px] uppercase text-gray-400">
-                          <UserPlus className="mr-1 h-3 w-3" />
-                          Adicionado por: {getCreatorName(candidate.createdBy)}
+                  return (
+                    <div
+                      key={candidate.id}
+                      draggable
+                      onDragStart={(event) => handleDragStart(event, candidate.id)}
+                      onClick={() => navigate(`/gestor/candidate/${candidate.id}`)}
+                      className={`group relative cursor-pointer overflow-hidden rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-all hover:border-brand-500 hover:shadow-md dark:border-slate-700 dark:bg-slate-700 ${
+                        isToday ? 'ring-2 ring-brand-500' : ''
+                      } ${draggingCandidateId === candidate.id ? 'opacity-70' : ''}`}
+                    >
+                      {isToday && (
+                        <div className="absolute right-0 top-0 rounded-bl-lg bg-brand-500 px-2 py-0.5 text-[10px] font-bold text-white">
+                          HOJE
                         </div>
                       )}
 
-                      <div className="flex items-center justify-between border-t border-gray-50 pt-2 text-[10px] text-gray-400 dark:border-slate-600">
-                        <span className="flex items-center">
-                          <Calendar className="mr-1 h-3 w-3" />
-                          {candidate.interviewDate
-                            ? new Date(`${candidate.interviewDate}T00:00:00`).toLocaleDateString('pt-BR')
-                            : 'Sem data'}
-                        </span>
+                      {hasPendingSecretariaTasksForCandidate && (
+                        <div
+                          className="absolute left-0 top-0 flex items-center rounded-br-lg bg-purple-500 px-2 py-0.5 text-[10px] font-bold text-white"
+                          title="Tarefas da Secretaria Pendentes"
+                        >
+                          <ShieldCheck className="mr-1 h-3 w-3" />
+                          SECRETARIA
+                        </div>
+                      )}
+
+                      <div className="mb-2 flex items-start justify-between gap-3">
+                        <div>
+                          <p className="leading-tight text-gray-900 transition-colors group-hover:text-brand-600 dark:text-white">
+                            <span className="font-bold">{highlightText(candidate.name, searchTerm)}</span>
+                          </p>
+                          <div className="mt-1 flex flex-wrap gap-2 text-[10px] uppercase text-gray-400">
+                            {candidate.origin && <span className="rounded bg-gray-100 px-2 py-0.5 dark:bg-slate-800">{candidate.origin}</span>}
+                            <span className="rounded bg-gray-100 px-2 py-0.5 dark:bg-slate-800">{stage.title}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center space-x-1 opacity-0 transition-opacity group-hover:opacity-100">
+                          <button
+                            onClick={(event) => handleOpenEditCandidateModal(event, candidate)}
+                            className="p-1 text-gray-300 transition-colors hover:text-blue-500"
+                            title="Editar Candidato"
+                          >
+                            <Edit2 className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            onClick={(event) => handleDeleteCandidatePermanently(event, candidate.db_id || candidate.id, candidate.name)}
+                            className="p-1 text-gray-300 transition-colors hover:text-red-500"
+                            title="Excluir Candidato"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
                       </div>
 
-                      <div className="mt-3">
-                        <Textarea
-                          value={candidate.notes || ''}
-                          onChange={(event) => handleNotesChange(candidate.id, event.target.value)}
-                          onClick={(event) => event.stopPropagation()}
-                          placeholder="Adicionar observações rápidas..."
-                          rows={2}
-                          className="w-full resize-y rounded-md border border-gray-200 bg-gray-50 p-2 text-xs text-gray-700 focus:border-brand-500 focus:ring-brand-500 dark:border-slate-600 dark:bg-slate-800 dark:text-gray-200"
-                        />
-                      </div>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="flex items-center text-[10px] font-bold uppercase text-gray-400">
+                            <UserRound className="mr-1 h-3 w-3" />
+                            {getResponsibleName(candidate.responsibleUserId)}
+                          </span>
 
-                      <div className="mt-1 border-t border-gray-50 pt-3 dark:border-slate-600">
-                        <div className="grid grid-cols-1 gap-2">
-                          {hiringPipelineColumns
-                            .filter((column) => column.id !== stage.id)
-                            .slice(0, 4)
-                            .map((column) => (
+                          {totalScore > 0 && (
+                            <span
+                              className={`rounded px-1.5 py-0.5 text-[10px] font-black ${
+                                totalScore >= 70 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                              }`}
+                            >
+                              {totalScore} pts
+                            </span>
+                          )}
+                        </div>
+
+                        {candidate.createdBy && (
+                          <div className="flex items-center text-[10px] uppercase text-gray-400">
+                            <UserPlus className="mr-1 h-3 w-3" />
+                            Adicionado por: {getCreatorName(candidate.createdBy)}
+                          </div>
+                        )}
+
+                        <div className="flex items-center justify-between border-t border-gray-50 pt-2 text-[10px] text-gray-400 dark:border-slate-600">
+                          <span className="flex items-center">
+                            <Calendar className="mr-1 h-3 w-3" />
+                            {candidate.interviewDate
+                              ? new Date(`${candidate.interviewDate}T00:00:00`).toLocaleDateString('pt-BR')
+                              : 'Sem data'}
+                          </span>
+                        </div>
+
+                        <div className="mt-3">
+                          <Textarea
+                            value={candidate.notes || ''}
+                            onChange={(event) => handleNotesChange(candidate.id, event.target.value)}
+                            onClick={(event) => event.stopPropagation()}
+                            placeholder="Adicionar observações rápidas..."
+                            rows={2}
+                            className="w-full resize-y rounded-md border border-gray-200 bg-gray-50 p-2 text-xs text-gray-700 focus:border-brand-500 focus:ring-brand-500 dark:border-slate-600 dark:bg-slate-800 dark:text-gray-200"
+                          />
+                        </div>
+
+                        <div className="mt-1 border-t border-gray-50 pt-3 dark:border-slate-600">
+                          <div className="grid grid-cols-1 gap-2">
+                            {nextColumns.map((column) => (
                               <button
                                 key={column.id}
-                                onClick={(event) => handleMoveToColumn(event, candidate.id, column)}
+                                onClick={(event) => handleMoveToColumn(event, candidate, column)}
                                 className="min-h-[30px] w-full rounded-lg border border-gray-200 bg-gray-50 px-2 py-1 text-left text-[10px] font-bold leading-snug text-gray-700 transition hover:bg-gray-100 dark:border-slate-600 dark:bg-slate-800 dark:text-gray-200 dark:hover:bg-slate-700"
                                 title={`Mover para ${column.title}`}
                               >
@@ -536,36 +531,37 @@ const HiringPipeline = () => {
                               </button>
                             ))}
 
-                          <button
-                            onClick={(event) => handleOpenUpdateDate(event, candidate)}
-                            className="min-h-[30px] w-full rounded-lg bg-brand-600 px-2 py-1 text-left text-[10px] font-bold leading-snug text-white transition hover:bg-brand-700"
-                            title="Agendar ou reagendar entrevista"
-                          >
-                            Agendar / Reagendar
-                          </button>
+                            <button
+                              onClick={(event) => handleOpenUpdateDate(event, candidate)}
+                              className="min-h-[30px] w-full rounded-lg bg-brand-600 px-2 py-1 text-left text-[10px] font-bold leading-snug text-white transition hover:bg-brand-700"
+                              title="Agendar ou reagendar entrevista"
+                            >
+                              Agendar / Reagendar
+                            </button>
+                          </div>
                         </div>
-                      </div>
 
-                      <div className="mt-1 flex justify-center pt-2">
-                        <div className="flex items-center text-[10px] font-bold text-brand-600 transition-transform group-hover:translate-x-1 dark:text-brand-400">
-                          VER PROCESSO
-                          <ArrowRightCircle className="ml-1 h-3 w-3" />
+                        <div className="mt-1 flex justify-center pt-2">
+                          <div className="flex items-center text-[10px] font-bold text-brand-600 transition-transform group-hover:translate-x-1 dark:text-brand-400">
+                            VER PROCESSO
+                            <ArrowRightCircle className="ml-1 h-3 w-3" />
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
 
-              {stage.list.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-10 opacity-20">
-                  <UserRound className="mb-2 h-8 w-8" />
-                  <p className="text-xs font-medium">Vazio</p>
-                </div>
-              )}
+                {stage.list.length === 0 && (
+                  <div className="flex flex-col items-center justify-center py-10 opacity-20">
+                    <UserRound className="mb-2 h-8 w-8" />
+                    <p className="text-xs font-medium">Vazio</p>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <EditScreeningCandidateModal
