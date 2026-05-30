@@ -6,6 +6,7 @@ import { Toaster } from '@/components/ui/sonner';
 
 import { GestorLayout } from '@/components/GestorLayout';
 import { ProtectedLayout } from '@/layouts/ProtectedLayout';
+import { SecretariaLayout } from '@/layouts/SecretariaLayout';
 
 import { Login } from '@/pages/Login';
 import { Register } from '@/pages/Register';
@@ -30,6 +31,7 @@ import { Processos } from '@/pages/gestor/Processos';
 import { TeamConfig } from '@/pages/TeamConfig';
 
 import { SecretariaDashboard } from '@/pages/secretaria/SecretariaDashboard';
+import { SecretariaDailyChecklist } from '@/pages/secretaria/SecretariaDailyChecklist';
 
 const AppRoutes = () => {
   return (
@@ -61,8 +63,9 @@ const AppRoutes = () => {
           <Route path="processos" element={<Processos />} />
         </Route>
 
-        <Route path="/secretaria" element={<GestorLayout />}>
+        <Route path="/secretaria" element={<SecretariaLayout />}>
           <Route path="dashboard" element={<SecretariaDashboard />} />
+          <Route path="checklists" element={<SecretariaDailyChecklist />} />
           <Route path="hiring-dashboard" element={<HiringDashboard />} />
           <Route path="hiring-pipeline" element={<HiringPipeline />} />
           <Route path="onboarding-admin" element={<OnlineOnboarding />} />
