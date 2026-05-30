@@ -89,7 +89,15 @@ export const EditCommissionModal: React.FC<EditCommissionModalProps> = ({
   const [error, setError] = useState('');
 
   const activeMembers = useMemo(() => teamMembers.filter(m => m.isActive), [teamMembers]);
-  const consultants = useMemo(() => activeMembers.filter(m => m.roles.includes('PRÉVIA') || m.roles.includes('AUTORIZADO')), [activeMembers]);
+  const consultants = useMemo(
+    () => teamMembers
+      .filter(m => m.roles.includes('PRÉVIA') || m.roles.includes('AUTORIZADO'))
+      .sort((a, b) => {
+        if (a.isActive !== b.isActive) return a.isActive ? -1 : 1;
+        return a.name.localeCompare(b.name, 'pt-BR');
+      }),
+    [teamMembers],
+  );
   const managers = useMemo(() => activeMembers.filter(m => m.roles.includes('GESTOR')), [activeMembers]);
   const angels = useMemo(() => activeMembers.filter(m => m.roles.includes('ANJO')), [activeMembers]);
 
@@ -279,7 +287,7 @@ export const EditCommissionModal: React.FC<EditCommissionModalProps> = ({
                   </SelectTrigger>
                   <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
                     <SelectItem value="default-consultant">Selecione o Consultor</SelectItem> {/* Alterado para valor não vazio */}
-                    {consultants.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
+                    {consultants.map(c => <SelectItem key={c.id} value={c.name}>{c.isActive ? c.name : `${c.name} (Inativo)`}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>

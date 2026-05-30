@@ -345,7 +345,6 @@ export const Commissions = () => {
       }
 
       const payload: Omit<Commission, 'id' | 'db_id' | 'criado_em'> = {
-        id: crypto.randomUUID(),
         date: saleDate,
         clientName,
         type: saleType,
@@ -485,8 +484,20 @@ export const Commissions = () => {
     }
   };
 
-  const activeMembers = teamMembers.filter(m => m.isActive);
-  const consultants = activeMembers.filter(m => m.roles.includes('PRÉVIA') || m.roles.includes('AUTORIZADO'));
+  const activeMembers = useMemo(() => teamMembers.filter(m => m.isActive), [teamMembers]);
+  const consultants = useMemo(
+    () => teamMembers
+      .filter(m => m.roles.includes('PRÉVIA') || m.roles.includes('AUTORIZADO'))
+      .sort((a, b) => {
+        if (a.isActive !== b.isActive) return a.isActive ? -1 : 1;
+        return a.name.localeCompare(b.name, 'pt-BR');
+      }),
+    [teamMembers],
+  );
+  const consultantOptions = useMemo(
+    () => consultants.map(c => ({ value: c.name, label: c.isActive ? c.name : `${c.name} (Inativo)` })),
+    [consultants],
+  );
   const managers = activeMembers.filter(m => m.roles.includes('GESTOR'));
   const angels = activeMembers.filter(m => m.roles.includes('ANJO'));
 
@@ -1088,7 +1099,7 @@ export const Commissions = () => {
                       </SelectTrigger>
                       <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
                         <SelectItem value="default-consultant">Selecione o Prévia/Autorizado</SelectItem>
-                        {consultants.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
+                        {consultants.map(c => <SelectItem key={c.id} value={c.name}>{c.isActive ? c.name : `${c.name} (Inativo)`}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
@@ -1242,7 +1253,7 @@ export const Commissions = () => {
               <div className="col-span-1">
                 <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Prévia/Autorizado</label>
                 <MultiSelectFilter
-                  options={consultants.map(c => ({ value: c.name, label: c.name }))}
+                  options={consultantOptions}
                   selected={filterConsultant}
                   onSelectionChange={setFilterConsultant}
                   placeholder="Todos"
@@ -1365,7 +1376,7 @@ export const Commissions = () => {
                         <React.Fragment key={c.id}>
                           <tr className="hover:bg-gray-50 dark:hover:bg-slate-700/30 transition">
                             <td className="px-4 py-3 align-top"><div className="text-sm font-medium text-gray-900 dark:text-white">{new Date(c.date + 'T00:00:00').toLocaleDateString('pt-BR')}</div><div className="text-xs text-gray-500">{new Date(c.date + 'T00:00:00').toLocaleDateString('pt-BR', { weekday: 'long' })}</div></td>
-                            <td className="px-4 py-3 align-top"><div className="font-bold text-gray-900 dark:text-white flex items-center">{c.clientName}{c.angelName && <Crown className="w-3.5 h-3.5 text-yellow-500 ml-2" title={`Anjo: ${c.angelName}`} />}</div><div className="text-xs text-gray-500">{c.group} / {c.quota} <span className={`ml-2 text-xs px-2 py-0.5 rounded-full ${c.type === 'Imóvel' ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300' : 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300'}`}>{c.type === 'Imóvel' ? '🏠' : '🚗'} {c.type}</span></div></td>
+                            <td className="px-4 py-3 align-top"><div className="font-bold text-gray-900 dark:text-white flex items-center">{c.clientName}{c.angelName && <span title={`Anjo: ${c.angelName}`}><Crown className="ml-2 h-3.5 w-3.5 text-yellow-500" /></span>}</div><div className="text-xs text-gray-500">{c.group} / {c.quota} <span className={`ml-2 text-xs px-2 py-0.5 rounded-full ${c.type === 'Imóvel' ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300' : 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300'}`}>{c.type === 'Imóvel' ? '🏠' : '🚗'} {c.type}</span></div></td>
                             <td className="px-4 py-3 align-top text-xs space-y-1">
                               <div className="flex items-center" title={`Consultor: ${c.consultant}`}>
                                 <div className="w-2 h-2 bg-blue-500 rounded-full mr-2 shrink-0"></div>
@@ -1495,7 +1506,7 @@ export const Commissions = () => {
               <div className="flex-1">
                 <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Filtrar por Consultor:</label>
                 <MultiSelectFilter
-                  options={consultants.map(c => ({ value: c.name, label: c.name }))}
+                  options={consultantOptions}
                   selected={reportConsultant}
                   onSelectionChange={setReportConsultant}
                   placeholder="Todos os Consultores"

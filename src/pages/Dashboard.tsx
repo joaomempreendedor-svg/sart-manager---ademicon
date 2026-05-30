@@ -38,6 +38,9 @@ export const Dashboard = () => {
       .filter((entry) => entry.type === 'expense')
       .reduce((sum, entry) => sum + entry.amount, 0);
 
+    const activeTeamMembers = teamMembers.filter((member) => member.isActive).length;
+    const inactiveTeamMembers = teamMembers.length - activeTeamMembers;
+
     return {
       activeCandidates,
       totalCommissions,
@@ -47,6 +50,8 @@ export const Dashboard = () => {
       totalOnboarding: onboardingSessions.length,
       totalForms: formCadastros.length,
       totalTeamMembers: teamMembers.length,
+      activeTeamMembers,
+      inactiveTeamMembers,
     };
   }, [candidates, commissions, financialEntries, processes, onboardingSessions, formCadastros, teamMembers]);
 
@@ -83,7 +88,7 @@ export const Dashboard = () => {
             value={metrics.totalTeamMembers}
             icon={Users}
             colorClass="bg-indigo-600 text-white"
-            subValue="Pessoas cadastradas"
+            subValue={`${metrics.activeTeamMembers} ativos • ${metrics.inactiveTeamMembers} inativos`}
             onClick={() => navigate('/gestor/team-config')}
           />
           <MetricCard
