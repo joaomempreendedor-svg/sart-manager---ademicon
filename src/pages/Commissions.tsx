@@ -1,15 +1,15 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '@/context/AppContext';
-import { Commission, CommissionStatus, CommissionRule, InstallmentStatus, InstallmentInfo, CommissionReport } from '@/types';
-import { Trash2, Search, DollarSign, Calendar, Calculator, Save, Table as TableIcon, Car, Home, ChevronDown, MapPin, Percent, Filter, XCircle, Crown, Plus, Wand2, Loader2, FileText, Download, CheckCircle2 as MarkAllPaidIcon, Edit2, CalendarCheck, TrendingUp } from 'lucide-react';
+import { Commission, CommissionStatus, CommissionRule, InstallmentStatus, InstallmentInfo, CommissionReport, CutoffPeriod } from '@/types';
+import { Trash2, Search, DollarSign, Calendar, Calculator, Save, Table as TableIcon, Car, Home, ChevronDown, MapPin, Percent, Filter, XCircle, Crown, Plus, Wand2, Loader2, FileText, Download, CheckCircle2 as MarkAllPaidIcon, Edit2, CalendarCheck, TrendingUp, Settings2, AlertTriangle } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import toast from 'react-hot-toast';
 import { EditCommissionModal } from '@/components/EditCommissionModal';
 import { MarkInstallmentRangeModal } from '@/components/MarkInstallmentRangeModal';
-import { MultiSelectFilter } from '@/components/ui/MultiSelectFilter'; // Importar o novo componente
-import { Label } from '@/components/ui/label'; // Importar Label
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'; // Importar Select components
-import { getOverallStatus } from '@/utils/commissionUtils'; // Importar do novo arquivo
+import { MultiSelectFilter } from '@/components/ui/MultiSelectFilter';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { getOverallStatus } from '@/utils/commissionUtils';
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -17,50 +17,37 @@ const formatCurrency = (value: number) => {
 
 const formatPercent = (value: number) => {
   const v = Number.isFinite(value) ? value : 0;
-  // Mais precisão para valores pequenos
   const decimals = v < 0.1 ? 5 : v < 1 ? 4 : 1;
   return v.toFixed(decimals).replace('.', ',') + '%';
 };
 
-// ADDED: helper de formatação de moeda para inputs (pt-BR)
 const formatCurrencyInput = (value: string): string => {
   if (!value) return '';
   let v = value.replace(/\D/g, '');
   if (!v) return '';
-
-  // Remove zeros à esquerda
   v = v.replace(/^0+/, '');
-
   if (v.length === 0) return '0,00';
   if (v.length === 1) return `0,0${v}`;
   if (v.length === 2) return `0,${v}`;
-
   const integerPart = v.slice(0, -2);
   const centsPart = v.slice(-2);
   const formattedIntegerPart = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-
   return `${formattedIntegerPart},${centsPart}`;
 };
 
-// --- REGRAS DE NEGÓCIO PADRÃO ---
-// Em frações (ex.: 0.001288 = 0,1288%)
 const DEFAULT_RULES = {
   consultant: { p1_10: 0.001288, p11_13: 0.002374, p15: 0.003 },
-  manager: { 
-    noAngel: { p1_10: 0.000322, p11_13: 0.000593 }, // CORRIGIDO: 0,0593%
-    withAngel: { p1_10: 0.000194, p11_13: 0.000356 } 
+  manager: {
+    noAngel: { p1_10: 0.000322, p11_13: 0.000593 },
+    withAngel: { p1_10: 0.000194, p11_13: 0.000356 }
   },
   angel: { p1_10: 0.0001288, p11_13: 0.0002374 }
 };
 
-// ⚠️ CONFIGURAÇÃO DOS DIAS DE CORTE POR MÊS ⚠️
 const MONTHLY_CUTOFF_DAYS: Record<number, number> = {
   1: 19, 2: 18, 3: 19, 4: 19, 5: 19, 6: 17, 7: 19, 8: 19, 9: 19, 10: 19, 11: 19, 12: 19,
 };
 
-// REMOVIDO: getOverallStatus foi movido para src/utils/commissionUtils.ts
-
-// NOVO: Função para obter as classes de cor do status da parcela
 const getInstallmentStatusColor = (status: InstallmentStatus) => {
   switch (status) {
     case 'Pendente': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800';
@@ -72,13 +59,13 @@ const getInstallmentStatusColor = (status: InstallmentStatus) => {
 };
 
 type CustomRuleText = {
-    id: string;
-    startInstallment: string;
-    endInstallment: string;
-    consultantRate: string;
-    managerRate: string;
-    angelRate: string;
-}
+  id: string;
+  startInstallment: string;
+  endInstallment: string;
+  consultantRate: string;
+  managerRate: string;
+  angelRate: string;
+};
 
 interface DetailedInstallment {
   commission: Commission;
@@ -89,15 +76,27 @@ interface DetailedInstallment {
 }
 
 export const Commissions = () => {
-  const { commissions, addCommission, updateCommission, deleteCommission, teamMembers, pvs, addPV, updateInstallmentStatus, cutoffPeriods } = useApp();
-  
+  const {
+    commissions,
+    addCommission,
+    updateCommission,
+    deleteCommission,
+    teamMembers,
+    pvs,
+    addPV,
+    updateInstallmentStatus,
+    cutoffPeriods,
+    addCutoffPeriod,
+    updateCutoffPeriod,
+    deleteCutoffPeriod,
+  } = useApp();
+
   const [activeTab, setActiveTab] = useState<'calculator' | 'history' | 'reports'>('calculator');
   const [searchTerm, setSearchTerm] = useState('');
   const [isAngelMode, setIsAngelMode] = useState(false);
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Filtros
   const [filterStartDate, setFilterStartDate] = useState('');
   const [filterEndDate, setFilterEndDate] = useState('');
   const [filterConsultant, setFilterConsultant] = useState<string[]>([]);
@@ -105,24 +104,22 @@ export const Commissions = () => {
   const [filterPV, setFilterPV] = useState<string[]>([]);
   const [filterStatus, setFilterStatus] = useState<string[]>([]);
 
-  // Estado do Simulador
   const [creditValue, setCreditValue] = useState<string>('');
   const [hasAngel, setHasAngel] = useState(false);
   const [isCustomRulesMode, setIsCustomRulesMode] = useState(false);
-  
+
   const [customRules, setCustomRules] = useState<CommissionRule[]>([]);
   const [customRulesText, setCustomRulesText] = useState<CustomRuleText[]>([]);
 
-  // Estado para Salvar Venda
   const [clientName, setClientName] = useState('');
   const [saleDate, setSaleDate] = useState(new Date().toISOString().split('T')[0]);
   const [saleType, setSaleType] = useState<'Imóvel' | 'Veículo'>('Imóvel');
   const [group, setGroup] = useState('');
   const [quota, setQuota] = useState('');
-  const [selectedPV, setSelectedPV] = useState('default-pv'); // Alterado para valor não vazio
-  const [selectedConsultant, setSelectedConsultant] = useState('default-consultant'); // Alterado para valor não vazio
-  const [selectedManager, setSelectedManager] = useState('default-manager'); // Alterado para valor não vazio
-  const [selectedAngel, setSelectedAngel] = useState('default-angel'); // Alterado para valor não vazio
+  const [selectedPV, setSelectedPV] = useState('default-pv');
+  const [selectedConsultant, setSelectedConsultant] = useState('default-consultant');
+  const [selectedManager, setSelectedManager] = useState('default-manager');
+  const [selectedAngel, setSelectedAngel] = useState('default-angel');
   const [taxRateInput, setTaxRateInput] = useState('6');
 
   const [editingInstallment, setEditingInstallment] = useState<{
@@ -134,15 +131,12 @@ export const Commissions = () => {
   const [paymentDate, setPaymentDate] = useState('');
   const [calculatedCompetence, setCalculatedCompetence] = useState('');
 
-  // NOVO: Estados para o modal de edição de comissão
   const [isEditCommissionModalOpen, setIsEditCommissionModalOpen] = useState(false);
   const [commissionToEdit, setCommissionToEdit] = useState<Commission | null>(null);
 
-  // NOVO: Estados para o modal de marcar faixa de parcelas
   const [isRangeModalOpen, setIsRangeModalOpen] = useState(false);
   const [selectedCommissionForRange, setSelectedCommissionForRange] = useState<Commission | null>(null);
 
-  // Relatórios
   const [reportMonth, setReportMonth] = useState(new Date().toISOString().slice(0, 7));
   const [reportConsultant, setReportConsultant] = useState<string[]>([]);
   const [reportManager, setReportManager] = useState<string[]>([]);
@@ -154,38 +148,48 @@ export const Commissions = () => {
     detailedInstallments: DetailedInstallment[];
   } | null>(null);
 
-  // Movendo calculateCompetenceMonth para dentro do componente
+  const emptyPeriod: Omit<CutoffPeriod, 'id' | 'db_id'> = {
+    name: '',
+    startDate: '',
+    endDate: '',
+    competenceMonth: '',
+  };
+  const [showCutoffManager, setShowCutoffManager] = useState(false);
+  const [newPeriod, setNewPeriod] = useState<Omit<CutoffPeriod, 'id' | 'db_id'>>(emptyPeriod);
+  const [editingPeriod, setEditingPeriod] = useState<CutoffPeriod | null>(null);
+  const [cutoffError, setCutoffError] = useState<string | null>(null);
+
   const calculateCompetenceMonth = useMemo(() => (paidDate: string): string => {
     const date = new Date(paidDate + 'T00:00:00');
-    
+
     const period = cutoffPeriods.find(p => {
       const start = new Date(p.startDate + 'T00:00:00');
       const end = new Date(p.endDate + 'T00:00:00');
       return date >= start && date <= end;
     });
-  
+
     if (period) {
       return period.competenceMonth;
     }
-  
+
     const month = date.getMonth() + 1;
     const day = date.getDate();
     const cutoffDay = MONTHLY_CUTOFF_DAYS[month] || 19;
-    let competenceDate = new Date(date);
-    competenceDate.setFullYear(date.getFullYear()); // Garante que o ano seja o mesmo inicialmente
-    competenceDate.setMonth(date.getMonth()); // Garante que o mês seja o mesmo inicialmente
-    competenceDate.setDate(date.getDate()); // Garante que o dia seja o mesmo inicialmente
+    const competenceDate = new Date(date);
+    competenceDate.setFullYear(date.getFullYear());
+    competenceDate.setMonth(date.getMonth());
+    competenceDate.setDate(date.getDate());
 
     if (day <= cutoffDay) {
       competenceDate.setMonth(competenceDate.getMonth() + 1);
     } else {
       competenceDate.setMonth(competenceDate.getMonth() + 2);
     }
+
     const compYear = competenceDate.getFullYear();
     const compMonth = String(competenceDate.getMonth() + 1).padStart(2, '0');
     return `${compYear}-${compMonth}`;
   }, [cutoffPeriods]);
-
 
   const resetCalculatorForm = () => {
     setCreditValue('');
@@ -194,14 +198,14 @@ export const Commissions = () => {
     setSaleType('Imóvel');
     setGroup('');
     setQuota('');
-    setSelectedPV('default-pv'); // Alterado para valor não vazio
-    setSelectedConsultant('default-consultant'); // Alterado para valor não vazio
-    setSelectedManager('default-manager'); // Alterado para valor não vazio
-    setSelectedAngel('default-angel'); // Alterado para valor não vazio
+    setSelectedPV('default-pv');
+    setSelectedConsultant('default-consultant');
+    setSelectedManager('default-manager');
+    setSelectedAngel('default-angel');
     setTaxRateInput('6');
     setHasAngel(false);
     setIsCustomRulesMode(false);
-    
+
     const defaultRuleId = crypto.randomUUID();
     const defaultRule = { id: defaultRuleId, startInstallment: 1, endInstallment: 15, consultantRate: 0, managerRate: 0, angelRate: 0 };
     const defaultRuleText = { id: defaultRuleId, startInstallment: '1', endInstallment: '15', consultantRate: '0', managerRate: '0', angelRate: '0' };
@@ -213,9 +217,7 @@ export const Commissions = () => {
     resetCalculatorForm();
   }, []);
 
-  // NOVO: Efeito para fechar o modal de edição/confirmação quando a aba muda
   useEffect(() => {
-    console.log(`[Commissions] activeTab changed to: ${activeTab}. Closing modals.`);
     setEditingInstallment(null);
     setPaymentDate('');
     setCalculatedCompetence('');
@@ -229,7 +231,6 @@ export const Commissions = () => {
 
   const simulation = useMemo(() => {
     const credit = parseCurrency(creditValue);
-    // Separar cálculo para percentual (custom rules) e fração (default rules)
     const calcPercent = (pct: number) => credit * (pct / 100);
     const calcFraction = (fraction: number) => credit * fraction;
 
@@ -242,7 +243,7 @@ export const Commissions = () => {
         const consVal = calcPercent(rule.consultantRate) * numInstallments;
         const manVal = calcPercent(rule.managerRate) * numInstallments;
         const angelVal = hasAngel ? calcPercent(rule.angelRate) * numInstallments : 0;
-        
+
         totals.consultant += consVal;
         totals.manager += manVal;
         totals.angel += angelVal;
@@ -250,7 +251,6 @@ export const Commissions = () => {
         breakdown.push({
           label: `Parcelas ${rule.startInstallment} a ${rule.endInstallment}`,
           count: numInstallments,
-          // Para exibição, manter 'rate' como percentual conforme o editor indica "%".
           cons: { rate: rule.consultantRate, val: calcPercent(rule.consultantRate) },
           man: { rate: rule.managerRate, val: calcPercent(rule.managerRate) },
           angel: { rate: hasAngel ? rule.angelRate : 0, val: hasAngel ? calcPercent(rule.angelRate) : 0 }
@@ -261,7 +261,6 @@ export const Commissions = () => {
 
       const p1_10 = {
         label: 'Parcelas 1 a 10', count: 10,
-        // 'rate' em percentual para exibição; 'val' em fração para cálculo
         cons: { rate: DEFAULT_RULES.consultant.p1_10 * 100, val: calcFraction(DEFAULT_RULES.consultant.p1_10) },
         man: { rate: manRules.p1_10 * 100, val: calcFraction(manRules.p1_10) },
         angel: { rate: hasAngel ? DEFAULT_RULES.angel.p1_10 * 100 : 0, val: hasAngel ? calcFraction(DEFAULT_RULES.angel.p1_10) : 0 }
@@ -283,7 +282,7 @@ export const Commissions = () => {
       totals.manager = (p1_10.man.val * 10) + (p11_13.man.val * 3);
       totals.angel = hasAngel ? (p1_10.angel.val * 10) + (p11_13.angel.val * 3) : 0;
     }
-    
+
     totals.grandTotal = totals.consultant + totals.manager + totals.angel;
     return { credit, breakdown, totals };
   }, [creditValue, hasAngel, isCustomRulesMode, customRules]);
@@ -291,25 +290,23 @@ export const Commissions = () => {
   const getInstallmentValues = (commission: Commission, installment: number) => {
     const taxMultiplier = 1 - ((commission.taxRate || 0) / 100);
     const credit = commission.value;
-    const hasAngel = !!commission.angelName;
+    const hasAngelCommission = !!commission.angelName;
 
     let consRate = 0, manRate = 0, angelRate = 0;
     let ratesArePercent = false;
 
     if (commission.customRules) {
-      // Regras personalizadas continuam sendo percentuais (%)
       const rule = commission.customRules.find(r => installment >= r.startInstallment && installment <= r.endInstallment);
       if (rule) {
         consRate = rule.consultantRate;
         manRate = rule.managerRate;
-        angelRate = hasAngel ? rule.angelRate : 0;
+        angelRate = hasAngelCommission ? rule.angelRate : 0;
       }
       ratesArePercent = true;
     } else {
-      // Regras padrão agora são frações
-      const manRules = hasAngel ? DEFAULT_RULES.manager.withAngel : DEFAULT_RULES.manager.noAngel;
-      if (installment <= 10) { consRate = DEFAULT_RULES.consultant.p1_10; manRate = manRules.p1_10; if (hasAngel) angelRate = DEFAULT_RULES.angel.p1_10; }
-      else if (installment <= 13) { consRate = DEFAULT_RULES.consultant.p11_13; manRate = manRules.p11_13; if (hasAngel) angelRate = DEFAULT_RULES.angel.p11_13; }
+      const manRules = hasAngelCommission ? DEFAULT_RULES.manager.withAngel : DEFAULT_RULES.manager.noAngel;
+      if (installment <= 10) { consRate = DEFAULT_RULES.consultant.p1_10; manRate = manRules.p1_10; if (hasAngelCommission) angelRate = DEFAULT_RULES.angel.p1_10; }
+      else if (installment <= 13) { consRate = DEFAULT_RULES.consultant.p11_13; manRate = manRules.p11_13; if (hasAngelCommission) angelRate = DEFAULT_RULES.angel.p11_13; }
       else if (installment === 15) { consRate = DEFAULT_RULES.consultant.p15; }
       ratesArePercent = false;
     }
@@ -326,43 +323,57 @@ export const Commissions = () => {
 
     const errors = [];
     const credit = parseCurrency(creditValue);
-    if (!credit) errors.push("Valor do Crédito");
-    if (!clientName.trim()) errors.push("Nome do Cliente");
-    if (!saleDate) errors.push("Data da Venda");
-    if (selectedPV === 'default-pv') errors.push("Ponto de Venda (PV)"); // Alterado para valor não vazio
-    if (!group.trim()) errors.push("Grupo");
-    if (!quota.trim()) errors.push("Cota");
-    if (selectedConsultant === 'default-consultant') errors.push("Prévia/Autorizado"); // Alterado para valor não vazio
+    if (!credit) errors.push('Valor do Crédito');
+    if (!clientName.trim()) errors.push('Nome do Cliente');
+    if (!saleDate) errors.push('Data da Venda');
+    if (selectedPV === 'default-pv') errors.push('Ponto de Venda (PV)');
+    if (!group.trim()) errors.push('Grupo');
+    if (!quota.trim()) errors.push('Cota');
+    if (selectedConsultant === 'default-consultant') errors.push('Prévia/Autorizado');
 
     if (errors.length > 0) {
-        alert(`Por favor, preencha os seguintes campos obrigatórios:\n\n- ${errors.join('\n- ')}`);
-        return;
+      alert(`Por favor, preencha os seguintes campos obrigatórios:\n\n- ${errors.join('\n- ')}`);
+      return;
     }
 
     setIsSaving(true);
     try {
       const taxValue = parseFloat(taxRateInput.replace(',', '.')) || 0;
       const initialInstallments: Record<string, InstallmentInfo> = {};
-      for (let i = 1; i <= 15; i++) { initialInstallments[i] = { status: 'Pendente' }; }
+      for (let i = 1; i <= 15; i++) {
+        initialInstallments[i] = { status: 'Pendente' };
+      }
 
-      const payload: Omit<Commission, 'id' | 'db_id' | 'criado_em'> = { // Alterado para Omit<Commission, 'id' | 'db_id' | 'criado_em'>
-        id: crypto.randomUUID(), // Gerar o ID interno aqui
-        date: saleDate, clientName, type: saleType, group, quota, consultant: selectedConsultant, managerName: selectedManager === 'default-manager' ? 'N/A' : selectedManager, angelName: hasAngel ? (selectedAngel === 'default-angel' ? undefined : selectedAngel) : undefined, pv: selectedPV, value: credit, taxRate: taxValue, 
-        netValue: simulation.totals.grandTotal * (1 - (taxValue/100)),
-        installments: 15, status: 'Em Andamento', installmentDetails: initialInstallments,
-        consultantValue: simulation.totals.consultant, managerValue: simulation.totals.manager, angelValue: simulation.totals.angel,
+      const payload: Omit<Commission, 'id' | 'db_id' | 'criado_em'> = {
+        id: crypto.randomUUID(),
+        date: saleDate,
+        clientName,
+        type: saleType,
+        group,
+        quota,
+        consultant: selectedConsultant,
+        managerName: selectedManager === 'default-manager' ? 'N/A' : selectedManager,
+        angelName: hasAngel ? (selectedAngel === 'default-angel' ? undefined : selectedAngel) : undefined,
+        pv: selectedPV,
+        value: credit,
+        taxRate: taxValue,
+        netValue: simulation.totals.grandTotal * (1 - (taxValue / 100)),
+        installments: 15,
+        status: 'Em Andamento',
+        installmentDetails: initialInstallments,
+        consultantValue: simulation.totals.consultant,
+        managerValue: simulation.totals.manager,
+        angelValue: simulation.totals.angel,
         receivedValue: 0,
         customRules: isCustomRulesMode ? customRules : undefined
       };
-      
+
       await addCommission(payload);
-      
-      toast.success("Venda registrada com sucesso!");
+      toast.success('Venda registrada com sucesso!');
       resetCalculatorForm();
       setActiveTab('history');
-
     } catch (error: any) {
-      toast.error(error.message || "Falha ao salvar");
+      toast.error(error.message || 'Falha ao salvar');
     } finally {
       setIsSaving(false);
     }
@@ -372,17 +383,16 @@ export const Commissions = () => {
     if (window.confirm('Tem certeza que deseja excluir este registro de comissão? Esta ação não pode ser desfeita.')) {
       try {
         await deleteCommission(id);
-        toast.success("Comissão excluída com sucesso!");
+        toast.success('Comissão excluída com sucesso!');
       } catch (error: any) {
         toast.error(`Erro ao excluir comissão: ${error.message}`);
       }
     }
   };
 
-  // NOVO: Função para marcar todas as parcelas como pagas
   const handleMarkAllAsPaid = async (commission: Commission) => {
     if (commission.status === 'Concluído') {
-      toast.info("Esta comissão já está marcada como concluída.");
+      toast('Esta comissão já está marcada como concluída.');
       return;
     }
     if (!window.confirm(`Tem certeza que deseja marcar TODAS as 15 parcelas da comissão de "${commission.clientName}" como PAGAS? Esta ação não pode ser desfeita.`)) {
@@ -392,13 +402,10 @@ export const Commissions = () => {
     try {
       const updatedInstallmentDetails: Record<string, InstallmentInfo> = {};
       for (let i = 1; i <= 15; i++) {
-        updatedInstallmentDetails[i.toString()] = {
-          status: 'Pago',
-        };
+        updatedInstallmentDetails[i.toString()] = { status: 'Pago' };
       }
 
-      // Passa commission.db_id para updateCommission
-      await updateCommission(commission.db_id!, { // Usar db_id
+      await updateCommission(commission.db_id!, {
         installmentDetails: updatedInstallmentDetails,
         status: 'Concluído',
       });
@@ -408,15 +415,14 @@ export const Commissions = () => {
     }
   };
 
-  // NOVO: Função para salvar o intervalo de parcelas
   const handleSaveInstallmentRange = async (commissionId: string, start: number, end: number) => {
     const commission = commissions.find(c => c.id === commissionId);
     if (!commission) {
-      toast.error("Comissão não encontrada.");
+      toast.error('Comissão não encontrada.');
       return;
     }
-    if (!commission.db_id) { // Verifica se db_id existe
-      toast.error("ID do banco de dados da comissão não encontrado. Não é possível atualizar.");
+    if (!commission.db_id) {
+      toast.error('ID do banco de dados da comissão não encontrado. Não é possível atualizar.');
       return;
     }
 
@@ -425,8 +431,7 @@ export const Commissions = () => {
       updatedInstallmentDetails[i.toString()] = { status: 'Pago' };
     }
 
-    // Passa commission.db_id para updateCommission
-    await updateCommission(commission.db_id, { // Usar db_id
+    await updateCommission(commission.db_id, {
       installmentDetails: updatedInstallmentDetails,
       status: getOverallStatus(updatedInstallmentDetails),
     });
@@ -436,15 +441,15 @@ export const Commissions = () => {
   };
 
   const handleUpdateRuleText = (id: string, field: keyof CustomRuleText, value: string, isDecimal: boolean) => {
-    const sanitizedValue = isDecimal 
-        ? value.replace(/[^0-9,]/g, '').replace(/,(?=.*,)/g, '')
-        : value.replace(/[^0-9]/g, '');
+    const sanitizedValue = isDecimal
+      ? value.replace(/[^0-9,]/g, '').replace(/,(?=.*,)/g, '')
+      : value.replace(/[^0-9]/g, '');
 
     setCustomRulesText(rules => rules.map(r => r.id === id ? { ...r, [field]: sanitizedValue } : r));
 
     const numericValue = isDecimal
-        ? parseFloat(sanitizedValue.replace(',', '.'))
-        : parseInt(sanitizedValue, 10);
+      ? parseFloat(sanitizedValue.replace(',', '.'))
+      : parseInt(sanitizedValue, 10);
 
     setCustomRules(rules => rules.map(r => r.id === id ? { ...r, [field]: isNaN(numericValue) ? 0 : numericValue } : r));
   };
@@ -462,16 +467,23 @@ export const Commissions = () => {
     setCustomRulesText(rules => rules.filter(r => r.id !== id));
   };
 
-  const clearFilters = () => { 
-    setFilterStartDate(''); 
-    setFilterEndDate(''); 
+  const clearFilters = () => {
+    setFilterStartDate('');
+    setFilterEndDate('');
     setFilterConsultant([]);
     setFilterAngel([]);
     setFilterPV([]);
     setFilterStatus([]);
-    setSearchTerm(''); 
+    setSearchTerm('');
   };
-  const handleAddPV = () => { const newPVName = prompt("Digite o nome do novo Ponto de Venda (PV):"); if (newPVName && newPVName.trim()) { addPV(newPVName.trim()); setSelectedPV(newPVName.trim()); } };
+
+  const handleAddPV = () => {
+    const newPVName = prompt('Digite o nome do novo Ponto de Venda (PV):');
+    if (newPVName && newPVName.trim()) {
+      addPV(newPVName.trim());
+      setSelectedPV(newPVName.trim());
+    }
+  };
 
   const activeMembers = teamMembers.filter(m => m.isActive);
   const consultants = activeMembers.filter(m => m.roles.includes('PRÉVIA') || m.roles.includes('AUTORIZADO'));
@@ -481,12 +493,11 @@ export const Commissions = () => {
   const filteredHistory = useMemo(() => {
     const startFilterDate = filterStartDate ? new Date(filterStartDate + 'T00:00:00') : null;
     const endFilterDate = filterEndDate ? new Date(filterEndDate + 'T00:00:00') : null;
-
     const term = searchTerm.trim().toLowerCase();
 
     return commissions.filter(c => {
       if (isAngelMode && !c.angelName) return false;
-      
+
       const commissionDate = new Date(c.date + 'T00:00:00');
       const overallStatus = getOverallStatus(c.installmentDetails);
 
@@ -500,12 +511,11 @@ export const Commissions = () => {
 
       const matchesStart = !startFilterDate || commissionDate >= startFilterDate;
       const matchesEnd = !endFilterDate || commissionDate <= endFilterDate;
-      
       const matchesConsultant = filterConsultant.length === 0 || filterConsultant.includes(c.consultant);
       const matchesAngel = filterAngel.length === 0 || (c.angelName && filterAngel.includes(c.angelName));
       const matchesPV = filterPV.length === 0 || filterPV.includes(c.pv);
       const matchesStatus = filterStatus.length === 0 || filterStatus.includes(overallStatus);
-      
+
       return matchesSearch && matchesStart && matchesEnd && matchesConsultant && matchesAngel && matchesPV && matchesStatus;
     }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [commissions, searchTerm, filterStartDate, filterEndDate, filterConsultant, filterAngel, filterPV, filterStatus, isAngelMode]);
@@ -526,41 +536,41 @@ export const Commissions = () => {
     let nearCompletionCount = 0;
 
     filteredHistory.forEach(c => {
-        const status = getOverallStatus(c.installmentDetails);
-        const paidCount = Object.values(c.installmentDetails).filter(s => s.status === 'Pago').length;
-        const totalInstallments = 15; // Assuming 15 installments
-        const progressPercent = (paidCount / totalInstallments) * 100;
+      const status = getOverallStatus(c.installmentDetails);
+      const paidCount = Object.values(c.installmentDetails).filter(s => s.status === 'Pago').length;
+      const totalInstallments = 15;
+      const progressPercent = (paidCount / totalInstallments) * 100;
 
-        if (status === 'Em Andamento') { inProgress++; inProgressCount++; }
-        else if (status === 'Atraso') { delayed++; delayedCount++; }
-        else if (status === 'Concluído') { completed++; completedCount++; }
-        else if (status === 'Cancelado') { cancelled++; cancelledCount++; }
+      if (status === 'Em Andamento') { inProgress++; inProgressCount++; }
+      else if (status === 'Atraso') { delayed++; delayedCount++; }
+      else if (status === 'Concluído') { completed++; completedCount++; }
+      else if (status === 'Cancelado') { cancelled++; cancelledCount++; }
 
-        if (progressPercent > 70 && progressPercent < 100) {
-            nearCompletion++;
-            nearCompletionCount++;
-        }
-        totalValue += c.value;
+      if (progressPercent > 70 && progressPercent < 100) {
+        nearCompletion++;
+        nearCompletionCount++;
+      }
+      totalValue += c.value;
     });
 
     return {
-        totalCommissions,
-        inProgress,
-        delayed,
-        completed,
-        cancelled,
-        nearCompletion,
-        totalValue,
-        inProgressCount,
-        delayedCount,
-        completedCount,
-        cancelledCount,
-        nearCompletionCount,
-        inProgressPercentage: totalCommissions > 0 ? (inProgress / totalCommissions) * 100 : 0,
-        delayedPercentage: totalCommissions > 0 ? (delayed / totalCommissions) * 100 : 0,
-        completedPercentage: totalCommissions > 0 ? (completed / totalCommissions) * 100 : 0,
-        cancelledPercentage: totalCommissions > 0 ? (cancelled / totalCommissions) * 100 : 0,
-        nearCompletionPercentage: totalCommissions > 0 ? (nearCompletion / totalCommissions) * 100 : 0,
+      totalCommissions,
+      inProgress,
+      delayed,
+      completed,
+      cancelled,
+      nearCompletion,
+      totalValue,
+      inProgressCount,
+      delayedCount,
+      completedCount,
+      cancelledCount,
+      nearCompletionCount,
+      inProgressPercentage: totalCommissions > 0 ? (inProgress / totalCommissions) * 100 : 0,
+      delayedPercentage: totalCommissions > 0 ? (delayed / totalCommissions) * 100 : 0,
+      completedPercentage: totalCommissions > 0 ? (completed / totalCommissions) * 100 : 0,
+      cancelledPercentage: totalCommissions > 0 ? (cancelled / totalCommissions) * 100 : 0,
+      nearCompletionPercentage: totalCommissions > 0 ? (nearCompletion / totalCommissions) * 100 : 0,
     };
   }, [filteredHistory]);
 
@@ -569,19 +579,18 @@ export const Commissions = () => {
   };
 
   const handleStatusChange = async (
-    commissionId: string, 
-    installmentNumber: number, 
+    commissionId: string,
+    installmentNumber: number,
     newStatus: InstallmentStatus,
-    clientName: string,
-    saleType: 'Imóvel' | 'Veículo'
+    clientNameValue: string,
+    saleTypeValue: 'Imóvel' | 'Veículo'
   ) => {
     if (newStatus === 'Pago') {
       const today = new Date().toISOString().split('T')[0];
-      setEditingInstallment({ commissionId, number: installmentNumber, clientName, saleType });
+      setEditingInstallment({ commissionId, number: installmentNumber, clientName: clientNameValue, saleType: saleTypeValue });
       setPaymentDate(today);
       setCalculatedCompetence(calculateCompetenceMonth(today));
     } else {
-      // Para status diferente de 'Pago', não precisamos do modal de confirmação
       await updateInstallmentStatus(commissionId, installmentNumber, newStatus);
     }
   };
@@ -594,11 +603,11 @@ export const Commissions = () => {
 
   const confirmPayment = async () => {
     if (!editingInstallment) return;
-  
+
     const installmentToUpdate = { ...editingInstallment };
     const dateOfPayment = paymentDate;
     setEditingInstallment(null);
-  
+
     try {
       await updateInstallmentStatus(
         installmentToUpdate.commissionId,
@@ -607,13 +616,12 @@ export const Commissions = () => {
         dateOfPayment,
         installmentToUpdate.saleType
       );
-  
+
       setPaymentDate('');
       setCalculatedCompetence('');
-  
     } catch (error) {
-      console.error("Erro ao confirmar pagamento:", error);
-      toast.error("Erro ao salvar o pagamento. Por favor, verifique o histórico e tente novamente.");
+      console.error('Erro ao confirmar pagamento:', error);
+      toast.error('Erro ao salvar o pagamento. Por favor, verifique o histórico e tente novamente.');
     }
   };
 
@@ -632,7 +640,7 @@ export const Commissions = () => {
       return true;
     });
 
-    let detailedInstallments: DetailedInstallment[] = [];
+    const detailedInstallments: DetailedInstallment[] = [];
     const totalCommissions = { consultant: 0, manager: 0, angel: 0, total: 0 };
 
     filteredCommissions.forEach(commission => {
@@ -656,17 +664,16 @@ export const Commissions = () => {
     detailedInstallments.sort((a, b) => {
       const paidCountA = Object.values(a.commission.installmentDetails).filter(s => s.status === 'Pago').length;
       const paidCountB = Object.values(b.commission.installmentDetails).filter(s => s.status === 'Pago').length;
-      
+
       if (paidCountA !== paidCountB) {
         return paidCountB - paidCountA;
       }
-      
+
       return new Date(b.saleDate).getTime() - new Date(a.saleDate).getTime();
     });
 
-
     totalCommissions.total = totalCommissions.consultant + totalCommissions.manager + totalCommissions.angel;
-    
+
     setReportData({
       month: reportMonth,
       totalCommissions,
@@ -676,7 +683,7 @@ export const Commissions = () => {
 
   const handleExportToExcel = () => {
     if (!reportData || reportData.detailedInstallments.length === 0) {
-      alert("Não há dados para exportar. Gere um relatório primeiro.");
+      alert('Não há dados para exportar. Gere um relatório primeiro.');
       return;
     }
 
@@ -696,39 +703,37 @@ export const Commissions = () => {
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(dataToExport);
-    
     const currencyFormat = 'R$ #,##0.00';
-    const currencyCols = ['B', 'I', 'J', 'K']; 
-    
+    const currencyCols = ['B', 'J', 'K', 'L'];
+
     worksheet['!cols'] = [
-        { wch: 15 },
-        { wch: 20 },
-        { wch: 25 },
-        { wch: 25 },
-        { wch: 25 },
-        { wch: 25 },
-        { wch: 10 },
-        { wch: 15 },
-        { wch: 20 },
-        { wch: 20 },
-        { wch: 20 },
-        { wch: 20 },
+      { wch: 15 },
+      { wch: 20 },
+      { wch: 25 },
+      { wch: 25 },
+      { wch: 25 },
+      { wch: 25 },
+      { wch: 10 },
+      { wch: 15 },
+      { wch: 20 },
+      { wch: 20 },
+      { wch: 20 },
+      { wch: 20 },
     ];
 
     Object.keys(worksheet).forEach(cellRef => {
-        if (cellRef[0] === '!') return;
-        const col = cellRef.replace(/[0-9]/g, '');
-        if (currencyCols.includes(col)) {
-            const cell = worksheet[cellRef];
-            if (cell.t === 'n') {
-                cell.z = currencyFormat;
-            }
+      if (cellRef[0] === '!') return;
+      const col = cellRef.replace(/[0-9]/g, '');
+      if (currencyCols.includes(col)) {
+        const cell = worksheet[cellRef];
+        if (cell.t === 'n') {
+          cell.z = currencyFormat;
         }
+      }
     });
 
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Comissões");
-
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Comissões');
     XLSX.writeFile(workbook, `Relatorio_Comissoes_${reportData.month}.xlsx`);
   };
 
@@ -742,49 +747,131 @@ export const Commissions = () => {
     try {
       const credit = updatedCommission.value;
       const taxRate = updatedCommission.taxRate || 0;
-      const hasAngel = !!updatedCommission.angelName;
-      const isCustomRulesMode = !!updatedCommission.customRules && updatedCommission.customRules.length > 0;
-      const customRules = updatedCommission.customRules || [];
+      const hasAngelCommission = !!updatedCommission.angelName;
+      const customRulesValue = updatedCommission.customRules || [];
 
-      let recalculatedTotals = { consultant: 0, manager: 0, angel: 0, grandTotal: 0 };
-      if (isCustomRulesMode) {
-          const pct = (p: number) => credit * (p / 100);
-          customRules.forEach(rule => {
-              const numInstallments = (rule.endInstallment - rule.startInstallment + 1);
-              recalculatedTotals.consultant += pct(rule.consultantRate) * numInstallments;
-              recalculatedTotals.manager += pct(rule.managerRate) * numInstallments;
-              recalculatedTotals.angel += hasAngel ? pct(rule.angelRate) * numInstallments : 0;
-          });
+      const recalculatedTotals = { consultant: 0, manager: 0, angel: 0, grandTotal: 0 };
+
+      if (customRulesValue.length > 0) {
+        const pct = (p: number) => credit * (p / 100);
+        customRulesValue.forEach(rule => {
+          const numInstallments = (rule.endInstallment - rule.startInstallment + 1);
+          recalculatedTotals.consultant += pct(rule.consultantRate) * numInstallments;
+          recalculatedTotals.manager += pct(rule.managerRate) * numInstallments;
+          recalculatedTotals.angel += hasAngelCommission ? pct(rule.angelRate) * numInstallments : 0;
+        });
       } else {
-          // Usar frações nos cálculos padrão
-          const manRules = hasAngel ? DEFAULT_RULES.manager.withAngel : DEFAULT_RULES.manager.noAngel;
-          recalculatedTotals.consultant = (credit * DEFAULT_RULES.consultant.p1_10 * 10) +
-                                          (credit * DEFAULT_RULES.consultant.p11_13 * 3) +
-                                          (credit * DEFAULT_RULES.consultant.p15 * 1);
-          recalculatedTotals.manager = (credit * manRules.p1_10 * 10) +
-                                       (credit * manRules.p11_13 * 3);
-          recalculatedTotals.angel = hasAngel ? ((credit * DEFAULT_RULES.angel.p1_10 * 10) +
-                                                 (credit * DEFAULT_RULES.angel.p11_13 * 3)) : 0;
+        const manRules = hasAngelCommission ? DEFAULT_RULES.manager.withAngel : DEFAULT_RULES.manager.noAngel;
+        recalculatedTotals.consultant = (credit * DEFAULT_RULES.consultant.p1_10 * 10) +
+          (credit * DEFAULT_RULES.consultant.p11_13 * 3) +
+          (credit * DEFAULT_RULES.consultant.p15 * 1);
+        recalculatedTotals.manager = (credit * manRules.p1_10 * 10) +
+          (credit * manRules.p11_13 * 3);
+        recalculatedTotals.angel = hasAngelCommission ? ((credit * DEFAULT_RULES.angel.p1_10 * 10) +
+          (credit * DEFAULT_RULES.angel.p11_13 * 3)) : 0;
       }
+
       recalculatedTotals.grandTotal = recalculatedTotals.consultant + recalculatedTotals.manager + recalculatedTotals.angel;
 
       const finalUpdates: Partial<Commission> = {
-          ...updatedCommission,
-          netValue: recalculatedTotals.grandTotal * (1 - (taxRate / 100)),
-          consultantValue: recalculatedTotals.consultant,
-          managerValue: recalculatedTotals.manager,
-          angelValue: recalculatedTotals.angel,
-          status: getOverallStatus(updatedCommission.installmentDetails),
+        ...updatedCommission,
+        netValue: recalculatedTotals.grandTotal * (1 - (taxRate / 100)),
+        consultantValue: recalculatedTotals.consultant,
+        managerValue: recalculatedTotals.manager,
+        angelValue: recalculatedTotals.angel,
+        status: getOverallStatus(updatedCommission.installmentDetails),
       };
 
       await updateCommission(updatedCommission.db_id!, finalUpdates);
-      toast.success("Comissão atualizada com sucesso!");
+      toast.success('Comissão atualizada com sucesso!');
       setIsEditCommissionModalOpen(false);
     } catch (error: any) {
-      toast.error(error.message || "Falha ao atualizar comissão.");
+      toast.error(error.message || 'Falha ao atualizar comissão.');
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const sortedPeriods = [...cutoffPeriods].sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
+
+  const validateAndSaveCutoff = async () => {
+    setCutoffError(null);
+    const periodToSave = editingPeriod ? { ...editingPeriod, ...newPeriod } : { ...newPeriod, id: crypto.randomUUID() };
+
+    if (!periodToSave.name || !periodToSave.startDate || !periodToSave.endDate || !periodToSave.competenceMonth) {
+      setCutoffError('Todos os campos são obrigatórios.');
+      return;
+    }
+
+    const start = new Date(periodToSave.startDate + 'T00:00:00');
+    const end = new Date(periodToSave.endDate + 'T00:00:00');
+    const competence = new Date(periodToSave.competenceMonth + '-01T00:00:00');
+
+    if (start > end) {
+      setCutoffError('A data de início não pode ser posterior à data de fim.');
+      return;
+    }
+
+    if (competence <= end) {
+      setCutoffError('O mês de competência deve ser posterior ao fim do período.');
+      return;
+    }
+
+    const isOverlapping = cutoffPeriods.some(p => {
+      if (editingPeriod && p.id === editingPeriod.id) return false;
+      const pStart = new Date(p.startDate + 'T00:00:00');
+      const pEnd = new Date(p.endDate + 'T00:00:00');
+      return start <= pEnd && end >= pStart;
+    });
+
+    if (isOverlapping) {
+      setCutoffError('Este período está sobrepondo um período existente.');
+      return;
+    }
+
+    try {
+      if (editingPeriod) {
+        await updateCutoffPeriod(editingPeriod.id, newPeriod);
+        toast.success('Período de corte atualizado com sucesso!');
+      } else {
+        await addCutoffPeriod(periodToSave as CutoffPeriod);
+        toast.success('Período de corte adicionado com sucesso!');
+      }
+      setNewPeriod(emptyPeriod);
+      setEditingPeriod(null);
+    } catch (err: any) {
+      setCutoffError(err.message);
+    }
+  };
+
+  const handleEditCutoff = (period: CutoffPeriod) => {
+    setEditingPeriod(period);
+    setNewPeriod({
+      name: period.name,
+      startDate: period.startDate,
+      endDate: period.endDate,
+      competenceMonth: period.competenceMonth,
+    });
+    setCutoffError(null);
+  };
+
+  const cancelEditCutoff = () => {
+    setEditingPeriod(null);
+    setNewPeriod(emptyPeriod);
+    setCutoffError(null);
+  };
+
+  const handleDeleteCutoff = async (id: string) => {
+    if (window.confirm('Tem certeza que deseja excluir este período?')) {
+      await deleteCutoffPeriod(id);
+      toast.success('Período de corte excluído com sucesso!');
+    }
+  };
+
+  const formatDisplayDate = (dateStr: string) => new Date(dateStr + 'T00:00:00').toLocaleDateString('pt-BR');
+  const formatCompetence = (monthStr: string) => {
+    const [year, month] = monthStr.split('-');
+    return new Date(parseInt(year), parseInt(month) - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
   };
 
   return (
@@ -792,472 +879,612 @@ export const Commissions = () => {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Central de Comissões</h1>
-          <p className="text-gray-500 dark:text-gray-400">Simule ganhos e gerencie o fluxo mensal de recebíveis.</p>
+          <p className="text-gray-500 dark:text-gray-400">Simule ganhos, gerencie recebíveis e configure períodos de corte.</p>
         </div>
-        <div className="bg-white dark:bg-slate-800 p-1 rounded-lg border border-gray-200 dark:border-slate-700 flex">
-            <button onClick={() => setActiveTab('calculator')} className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition ${activeTab === 'calculator' ? 'bg-brand-500 text-white shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'}`}><Calculator className="w-4 h-4 mr-2" />Simulador</button>
-            <button onClick={() => setActiveTab('history')} className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition ${activeTab === 'history' ? 'bg-brand-500 text-white shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'}`}><TableIcon className="w-4 h-4 mr-2" />Histórico</button>
-            <button onClick={() => setActiveTab('reports')} className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition ${activeTab === 'reports' ? 'bg-purple-500 text-white shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'}`}><FileText className="w-4 h-4 mr-2" />Relatórios</button>
+        <div className="bg-white dark:bg-slate-800 p-1 rounded-lg border border-gray-200 dark:border-slate-700 flex flex-wrap gap-1">
+          <button onClick={() => setActiveTab('calculator')} className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition ${activeTab === 'calculator' ? 'bg-brand-500 text-white shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'}`}><Calculator className="w-4 h-4 mr-2" />Simulador</button>
+          <button onClick={() => setActiveTab('history')} className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition ${activeTab === 'history' ? 'bg-brand-500 text-white shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'}`}><TableIcon className="w-4 h-4 mr-2" />Histórico</button>
+          <button onClick={() => setActiveTab('reports')} className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition ${activeTab === 'reports' ? 'bg-purple-500 text-white shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'}`}><FileText className="w-4 h-4 mr-2" />Relatórios</button>
         </div>
+      </div>
+
+      <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm mb-8">
+        <button
+          onClick={() => setShowCutoffManager(!showCutoffManager)}
+          className="w-full flex items-center justify-between text-left"
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900/30">
+              <Settings2 className="w-5 h-5 text-purple-600 dark:text-purple-300" />
+            </div>
+            <div>
+              <h2 className="font-bold text-gray-900 dark:text-white">Períodos de corte</h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Configure aqui os períodos usados no cálculo automático da competência.
+              </p>
+            </div>
+          </div>
+          <ChevronDown className={`w-5 h-5 text-gray-500 transition-transform ${showCutoffManager ? 'rotate-180' : ''}`} />
+        </button>
+
+        {showCutoffManager && (
+          <div className="mt-6 grid grid-cols-1 xl:grid-cols-2 gap-6">
+            <div className="bg-gray-50 dark:bg-slate-900/40 p-6 rounded-xl border border-gray-200 dark:border-slate-700">
+              <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">
+                {editingPeriod ? 'Editando período' : 'Adicionar novo período'}
+              </h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input
+                  type="text"
+                  placeholder="Nome do período"
+                  value={newPeriod.name}
+                  onChange={e => setNewPeriod({ ...newPeriod, name: e.target.value })}
+                  className="w-full p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600"
+                />
+                <div>
+                  <label className="text-xs text-gray-500">Mês de competência</label>
+                  <input
+                    type="month"
+                    value={newPeriod.competenceMonth}
+                    onChange={e => setNewPeriod({ ...newPeriod, competenceMonth: e.target.value })}
+                    className="w-full p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500">Data de início</label>
+                  <input
+                    type="date"
+                    value={newPeriod.startDate}
+                    onChange={e => setNewPeriod({ ...newPeriod, startDate: e.target.value })}
+                    className="w-full p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500">Data de fim</label>
+                  <input
+                    type="date"
+                    value={newPeriod.endDate}
+                    onChange={e => setNewPeriod({ ...newPeriod, endDate: e.target.value })}
+                    className="w-full p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600"
+                  />
+                </div>
+              </div>
+
+              {cutoffError && (
+                <p className="text-red-500 text-sm mt-4 flex items-center">
+                  <AlertTriangle className="w-4 h-4 mr-2" />
+                  {cutoffError}
+                </p>
+              )}
+
+              <div className="flex justify-end gap-2 mt-4">
+                {editingPeriod && (
+                  <button
+                    onClick={cancelEditCutoff}
+                    className="px-4 py-2 bg-gray-200 dark:bg-slate-600 rounded-lg text-sm font-medium hover:bg-gray-300 dark:hover:bg-slate-500"
+                  >
+                    <XCircle className="w-4 h-4 inline mr-1" />
+                    Cancelar
+                  </button>
+                )}
+                <button
+                  onClick={validateAndSaveCutoff}
+                  className="px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700"
+                >
+                  {editingPeriod ? (
+                    <>
+                      <Save className="w-4 h-4 inline mr-1" />
+                      Salvar alterações
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-4 h-4 inline mr-1" />
+                      Adicionar período
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-gray-50 dark:bg-slate-900/40 rounded-xl border border-gray-200 dark:border-slate-700 overflow-hidden">
+              <div className="p-6 border-b border-gray-200 dark:border-slate-700">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Períodos configurados</h3>
+              </div>
+              <ul className="divide-y divide-gray-100 dark:divide-slate-700 max-h-[420px] overflow-y-auto">
+                {sortedPeriods.length === 0 ? (
+                  <li className="p-6 text-center text-gray-400">
+                    Nenhum período configurado. O sistema usará a regra padrão por mês.
+                  </li>
+                ) : (
+                  sortedPeriods.map(p => (
+                    <li key={p.id} className="p-4 flex justify-between items-center hover:bg-gray-50 dark:hover:bg-slate-700/50 group">
+                      <div>
+                        <p className="font-bold text-gray-900 dark:text-white">{p.name}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-300">
+                          De <span className="font-medium">{formatDisplayDate(p.startDate)}</span> até <span className="font-medium">{formatDisplayDate(p.endDate)}</span>
+                        </p>
+                        <p className="text-sm text-purple-700 dark:text-purple-400 font-semibold">
+                          → Competência: {formatCompetence(p.competenceMonth)}
+                        </p>
+                      </div>
+                      <div className="flex items-center opacity-100 xl:opacity-0 xl:group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => handleEditCutoff(p)} className="p-2 text-gray-400 hover:text-blue-500">
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => handleDeleteCutoff(p.id)} className="p-2 text-gray-400 hover:text-red-500">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </li>
+                  ))
+                )}
+              </ul>
+            </div>
+          </div>
+        )}
       </div>
 
       {activeTab === 'calculator' && (
         <div key="calculator-tab-content" className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-fade-in">
-            <div className="lg:col-span-1 space-y-6">
-                <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm">
-                    <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center"><DollarSign className="w-5 h-5 mr-2 text-brand-500" />Entrada de Dados</h2>
-                    <div className="space-y-4">
-                        <div>
-                            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Valor do Crédito (R$)</label>
-                            <input type="text" className="w-full text-2xl font-bold p-3 border border-gray-300 dark:border-slate-600 rounded-lg bg-gray-50 dark:bg-slate-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none" placeholder="0,00" value={creditValue} onChange={formatAndSetCurrency(setCreditValue)} />
-                        </div>
-                        <div className="flex items-center justify-between p-4 border border-gray-200 dark:border-slate-700 rounded-lg bg-gray-50 dark:bg-slate-700/30">
-                            <div><span className="block font-medium text-gray-900 dark:text-white">Existe Anjo?</span><span className="text-xs text-gray-500 dark:text-gray-400">Altera regras do Gestor</span></div>
-                            <label className="relative inline-flex items-center cursor-pointer"><input type="checkbox" className="sr-only peer" checked={hasAngel} onChange={() => setHasAngel(!hasAngel)} /><div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-600 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-brand-500"></div></label>
-                        </div>
-                        <div className="flex items-center justify-between p-4 border border-blue-200 dark:border-blue-800 rounded-lg bg-blue-50 dark:bg-blue-900/20">
-                            <div><span className="block font-medium text-blue-900 dark:text-blue-200">Personalizar Regras?</span><span className="text-xs text-blue-600 dark:text-blue-400">Definir coeficientes por faixa</span></div>
-                            <label className="relative inline-flex items-center cursor-pointer"><input type="checkbox" className="sr-only peer" checked={isCustomRulesMode} onChange={() => setIsCustomRulesMode(!isCustomRulesMode)} /><div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-600 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-brand-500"></div></label>
-                        </div>
-                    </div>
+          <div className="lg:col-span-1 space-y-6">
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center"><DollarSign className="w-5 h-5 mr-2 text-brand-500" />Entrada de Dados</h2>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Valor do Crédito (R$)</label>
+                  <input type="text" className="w-full text-2xl font-bold p-3 border border-gray-300 dark:border-slate-600 rounded-lg bg-gray-50 dark:bg-slate-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none" placeholder="0,00" value={creditValue} onChange={formatAndSetCurrency(setCreditValue)} />
                 </div>
-
-                <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm">
-                    <div className="flex justify-between items-center mb-4">
-                        <h3 className="font-bold text-gray-900 dark:text-white">Salvar Venda</h3>
-                        <button type="button" onClick={resetCalculatorForm} className="flex items-center space-x-1 text-xs text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 font-medium px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition">
-                            <XCircle className="w-3 h-3" />
-                            <span>Limpar Formulário</span>
-                        </button>
-                    </div>
-                    <form onSubmit={handleSaveCommission} className="space-y-4"> {/* Changed to space-y-4 for consistency */}
-                        <input required placeholder="Nome do Cliente" className="w-full border-gray-300 dark:border-slate-600 rounded-md text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white p-2" value={clientName} onChange={e => setClientName(e.target.value)} />
-                         <div className="flex space-x-2">
-                             <div className="flex-1"><label className="text-xs text-gray-500 dark:text-gray-400">Data da Venda</label><input type="date" required className="w-full border-gray-300 dark:border-slate-600 rounded-md text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white p-2" value={saleDate} onChange={e => setSaleDate(e.target.value)} /></div>
-                             <div className="flex-1"><label className="text-xs text-gray-500 dark:text-gray-400">PV (Ponto de Venda)</label><div className="flex gap-2">
-                                <Select value={selectedPV} onValueChange={setSelectedPV} required>
-                                  <SelectTrigger className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
-                                    <SelectValue placeholder="Selecione..." />
-                                  </SelectTrigger>
-                                  <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
-                                    <SelectItem value="default-pv">Selecione...</SelectItem> {/* Alterado para valor não vazio */}
-                                    {pvs.map(pv => <SelectItem key={pv} value={pv}>{pv}</SelectItem>)}
-                                  </SelectContent>
-                                </Select>
-                                <button type="button" onClick={handleAddPV} className="p-2 bg-brand-100 text-brand-700 rounded dark:bg-brand-900/30 dark:text-brand-400 hover:bg-brand-200" title="Adicionar novo PV"><Plus className="w-5 h-5" /></button></div></div>
-                        </div>
-                        <div className="flex space-x-2">
-                             <button type="button" onClick={() => setSaleType('Imóvel')} className={`flex-1 flex items-center justify-center space-x-2 p-2 rounded-md text-sm border ${saleType === 'Imóvel' ? 'bg-brand-50 border-brand-500 text-brand-700 dark:bg-brand-900/20 dark:text-brand-300' : 'border-gray-300 dark:border-slate-600 text-gray-500'}`}><Home className="w-4 h-4" /><span>Imóvel</span></button>
-                             <button type="button" onClick={() => setSaleType('Veículo')} className={`flex-1 flex items-center justify-center space-x-2 p-2 rounded-md text-sm border ${saleType === 'Veículo' ? 'bg-brand-50 border-brand-500 text-brand-700 dark:bg-brand-900/20 dark:text-brand-300' : 'border-gray-300 dark:border-slate-600 text-gray-500'}`}><Car className="w-4 h-4" /><span>Veículo</span></button>
-                        </div>
-                        <div className="flex space-x-2">
-                            <div className="w-1/3"><label className="text-xs text-gray-500 dark:text-gray-400">Grupo</label><input required placeholder="Ex: 5025" className="w-full border-gray-300 dark:border-slate-600 rounded-md text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white p-2" value={group} onChange={e => setGroup(e.target.value)} /></div>
-                            <div className="w-1/3"><label className="text-xs text-gray-500 dark:text-gray-400">Cota</label><input required placeholder="Ex: 150" className="w-full border-gray-300 dark:border-slate-600 rounded-md text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white p-2" value={quota} onChange={e => setQuota(e.target.value)} /></div>
-                            <div className="w-1/3 relative"><label className="text-xs text-gray-500 dark:text-gray-400 font-bold text-red-500">Imposto (%)</label><div className="relative"><input type="text" className="w-full border-red-200 dark:border-red-900/50 rounded-md text-sm bg-red-50 dark:bg-red-900/10 text-red-900 dark:text-red-300 p-2 pl-2" value={taxRateInput} onChange={e => setTaxRateInput(e.target.value)} /><Percent className="w-3 h-3 text-red-400 absolute right-2 top-2.5" /></div></div>
-                        </div>
-                        <div className="pt-2 border-t border-gray-100 dark:border-slate-700 space-y-2"> {/* Added space-y-2 here */}
-                            <div>
-                              <Label htmlFor="selectedConsultant">Prévia/Autorizado *</Label>
-                              <Select value={selectedConsultant} onValueChange={setSelectedConsultant} required>
-                                <SelectTrigger className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
-                                  <SelectValue placeholder="Selecione o Prévia/Autorizado" />
-                                </SelectTrigger>
-                                <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
-                                  <SelectItem value="default-consultant">Selecione o Prévia/Autorizado</SelectItem> {/* Alterado para valor não vazio */}
-                                  {consultants.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <div>
-                              <Label htmlFor="selectedManager">Gestor</Label>
-                              <Select value={selectedManager} onValueChange={setSelectedManager}>
-                                <SelectTrigger className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
-                                  <SelectValue placeholder="Selecione o Gestor" />
-                                </SelectTrigger>
-                                <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
-                                  <SelectItem value="default-manager">Selecione o Gestor</SelectItem> {/* Alterado para valor não vazio */}
-                                  {managers.map(m => <SelectItem key={m.id} value={m.name}>{m.name}</SelectItem>)}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            {hasAngel && (
-                              <div>
-                                <Label htmlFor="selectedAngel">Anjo</Label>
-                                <Select value={selectedAngel} onValueChange={setSelectedAngel} required>
-                                  <SelectTrigger className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
-                                    <SelectValue placeholder="Selecione o Anjo" />
-                                  </SelectTrigger>
-                                  <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
-                                    <SelectItem value="default-angel">Selecione o Anjo</SelectItem> {/* Alterado para valor não vazio */}
-                                    {angels.map(a => <SelectItem key={a.id} value={a.name}>{a.name}</SelectItem>)}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            )}
-                        </div>
-                        <button 
-                          type="submit" 
-                          disabled={isSaving}
-                          className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-3 rounded-lg flex items-center justify-center space-x-2 transition shadow-lg shadow-green-600/20 disabled:opacity-50 disabled:cursor-not-allowed relative"
-                        >
-                          {isSaving ? (
-                            <>
-                              <Loader2 className="w-5 h-5 animate-spin" />
-                              <span>Salvando...</span>
-                              <div className="absolute bottom-0 left-0 right-0 h-1 bg-green-800">
-                                <div className="h-full bg-green-300 animate-pulse"></div>
-                              </div>
-                            </>
-                          ) : (
-                            <>
-                              <Save className="w-5 h-5" />
-                              <span>Registrar Venda</span>
-                            </>
-                          )}
-                        </button>
-                        {isSaving && (
-                          <div className="mt-2 text-xs text-gray-500 dark:text-gray-400 text-center animate-pulse">
-                            ⚡ Salvando no banco de dados... Não feche esta página.
-                          </div>
-                        )}
-                    </form>
-                 </div>
+                <div className="flex items-center justify-between p-4 border border-gray-200 dark:border-slate-700 rounded-lg bg-gray-50 dark:bg-slate-700/30">
+                  <div><span className="block font-medium text-gray-900 dark:text-white">Existe Anjo?</span><span className="text-xs text-gray-500 dark:text-gray-400">Altera regras do Gestor</span></div>
+                  <label className="relative inline-flex items-center cursor-pointer"><input type="checkbox" className="sr-only peer" checked={hasAngel} onChange={() => setHasAngel(!hasAngel)} /><div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-600 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-brand-500"></div></label>
+                </div>
+                <div className="flex items-center justify-between p-4 border border-blue-200 dark:border-blue-800 rounded-lg bg-blue-50 dark:bg-blue-900/20">
+                  <div><span className="block font-medium text-blue-900 dark:text-blue-200">Personalizar Regras?</span><span className="text-xs text-blue-600 dark:text-blue-400">Definir coeficientes por faixa</span></div>
+                  <label className="relative inline-flex items-center cursor-pointer"><input type="checkbox" className="sr-only peer" checked={isCustomRulesMode} onChange={() => setIsCustomRulesMode(!isCustomRulesMode)} /><div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-600 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-brand-500"></div></label>
+                </div>
+              </div>
             </div>
 
-            <div className="lg:col-span-2">
-                <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden h-full">
-                    <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50 flex justify-between items-center">
-                        <h2 className="font-bold text-gray-900 dark:text-white">Detalhamento da Simulação (Valores Brutos)</h2>
-                        <span className="text-xs text-gray-500 dark:text-gray-400 bg-white dark:bg-slate-800 px-2 py-1 rounded border border-gray-200 dark:border-slate-600">Base: {creditValue || 'R$ 0,00'}</span>
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-bold text-gray-900 dark:text-white">Salvar Venda</h3>
+                <button type="button" onClick={resetCalculatorForm} className="flex items-center space-x-1 text-xs text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 font-medium px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition">
+                  <XCircle className="w-3 h-3" />
+                  <span>Limpar Formulário</span>
+                </button>
+              </div>
+              <form onSubmit={handleSaveCommission} className="space-y-4">
+                <input required placeholder="Nome do Cliente" className="w-full border-gray-300 dark:border-slate-600 rounded-md text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white p-2" value={clientName} onChange={e => setClientName(e.target.value)} />
+                <div className="flex space-x-2">
+                  <div className="flex-1"><label className="text-xs text-gray-500 dark:text-gray-400">Data da Venda</label><input type="date" required className="w-full border-gray-300 dark:border-slate-600 rounded-md text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white p-2" value={saleDate} onChange={e => setSaleDate(e.target.value)} /></div>
+                  <div className="flex-1"><label className="text-xs text-gray-500 dark:text-gray-400">PV (Ponto de Venda)</label><div className="flex gap-2">
+                    <Select value={selectedPV} onValueChange={setSelectedPV} required>
+                      <SelectTrigger className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
+                        <SelectValue placeholder="Selecione..." />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
+                        <SelectItem value="default-pv">Selecione...</SelectItem>
+                        {pvs.map(pv => <SelectItem key={pv} value={pv}>{pv}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    <button type="button" onClick={handleAddPV} className="p-2 bg-brand-100 text-brand-700 rounded dark:bg-brand-900/30 dark:text-brand-400 hover:bg-brand-200" title="Adicionar novo PV"><Plus className="w-5 h-5" /></button></div></div>
+                </div>
+                <div className="flex space-x-2">
+                  <button type="button" onClick={() => setSaleType('Imóvel')} className={`flex-1 flex items-center justify-center space-x-2 p-2 rounded-md text-sm border ${saleType === 'Imóvel' ? 'bg-brand-50 border-brand-500 text-brand-700 dark:bg-brand-900/20 dark:text-brand-300' : 'border-gray-300 dark:border-slate-600 text-gray-500'}`}><Home className="w-4 h-4" /><span>Imóvel</span></button>
+                  <button type="button" onClick={() => setSaleType('Veículo')} className={`flex-1 flex items-center justify-center space-x-2 p-2 rounded-md text-sm border ${saleType === 'Veículo' ? 'bg-brand-50 border-brand-500 text-brand-700 dark:bg-brand-900/20 dark:text-brand-300' : 'border-gray-300 dark:border-slate-600 text-gray-500'}`}><Car className="w-4 h-4" /><span>Veículo</span></button>
+                </div>
+                <div className="flex space-x-2">
+                  <div className="w-1/3"><label className="text-xs text-gray-500 dark:text-gray-400">Grupo</label><input required placeholder="Ex: 5025" className="w-full border-gray-300 dark:border-slate-600 rounded-md text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white p-2" value={group} onChange={e => setGroup(e.target.value)} /></div>
+                  <div className="w-1/3"><label className="text-xs text-gray-500 dark:text-gray-400">Cota</label><input required placeholder="Ex: 150" className="w-full border-gray-300 dark:border-slate-600 rounded-md text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white p-2" value={quota} onChange={e => setQuota(e.target.value)} /></div>
+                  <div className="w-1/3 relative"><label className="text-xs text-gray-500 dark:text-gray-400 font-bold text-red-500">Imposto (%)</label><div className="relative"><input type="text" className="w-full border-red-200 dark:border-red-900/50 rounded-md text-sm bg-red-50 dark:bg-red-900/10 text-red-900 dark:text-red-300 p-2 pl-2" value={taxRateInput} onChange={e => setTaxRateInput(e.target.value)} /><Percent className="w-3 h-3 text-red-400 absolute right-2 top-2.5" /></div></div>
+                </div>
+                <div className="pt-2 border-t border-gray-100 dark:border-slate-700 space-y-2">
+                  <div>
+                    <Label htmlFor="selectedConsultant">Prévia/Autorizado *</Label>
+                    <Select value={selectedConsultant} onValueChange={setSelectedConsultant} required>
+                      <SelectTrigger className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
+                        <SelectValue placeholder="Selecione o Prévia/Autorizado" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
+                        <SelectItem value="default-consultant">Selecione o Prévia/Autorizado</SelectItem>
+                        {consultants.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="selectedManager">Gestor</Label>
+                    <Select value={selectedManager} onValueChange={setSelectedManager}>
+                      <SelectTrigger className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
+                        <SelectValue placeholder="Selecione o Gestor" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
+                        <SelectItem value="default-manager">Selecione o Gestor</SelectItem>
+                        {managers.map(m => <SelectItem key={m.id} value={m.name}>{m.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {hasAngel && (
+                    <div>
+                      <Label htmlFor="selectedAngel">Anjo</Label>
+                      <Select value={selectedAngel} onValueChange={setSelectedAngel} required>
+                        <SelectTrigger className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
+                          <SelectValue placeholder="Selecione o Anjo" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
+                          <SelectItem value="default-angel">Selecione o Anjo</SelectItem>
+                          {angels.map(a => <SelectItem key={a.id} value={a.name}>{a.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
                     </div>
-                    
-                    {isCustomRulesMode && (
-                      <div className="p-4 border-b border-gray-200 dark:border-slate-700 bg-blue-50 dark:bg-blue-900/20">
-                        <h3 className="text-sm font-semibold text-blue-800 dark:text-blue-200 mb-2">Editor de Regras Personalizadas</h3>
-                        <div className="grid grid-cols-12 gap-2 items-center mb-2">
-                          <div className="col-span-4 text-xs font-medium text-gray-700 dark:text-gray-300 text-center">Parcelas</div>
-                          <div className="col-span-2 text-xs font-medium text-gray-700 dark:text-gray-300 text-center">Consultor</div>
-                          <div className="col-span-2 text-xs font-medium text-gray-700 dark:text-gray-300 text-center">Gestor</div>
-                          <div className="col-span-2 text-xs font-medium text-gray-700 dark:text-gray-300 text-center">Anjo</div>
-                          <div className="col-span-2"></div>
-                        </div>
-                        <div className="space-y-2">
-                          {customRulesText.map((rule) => (
-                            <div key={rule.id} className="grid grid-cols-12 gap-2 items-center">
-                              <div className="col-span-4 flex items-center gap-1">
-                                <input type="text" inputMode="numeric" placeholder="De" value={rule.startInstallment} onChange={e => handleUpdateRuleText(rule.id, 'startInstallment', e.target.value, false)} className="w-full p-1.5 text-sm border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 rounded" />
-                                <span className="text-xs">-</span>
-                                <input type="text" inputMode="numeric" placeholder="Até" value={rule.endInstallment} onChange={e => handleUpdateRuleText(rule.id, 'endInstallment', e.target.value, false)} className="w-full p-1.5 text-sm border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 rounded" />
-                              </div>
-                              <div className="col-span-2"><input type="text" inputMode="decimal" placeholder="Cons %" value={rule.consultantRate} onChange={e => handleUpdateRuleText(rule.id, 'consultantRate', e.target.value, true)} className="w-full p-1.5 text-sm border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 rounded" /></div>
-                              <div className="col-span-2"><input type="text" inputMode="decimal" placeholder="Gestor %" value={rule.managerRate} onChange={e => handleUpdateRuleText(rule.id, 'managerRate', e.target.value, true)} className="w-full p-1.5 text-sm border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 rounded" /></div>
-                              <div className="col-span-2"><input type="text" inputMode="decimal" placeholder="Anjo %" disabled={!hasAngel} value={rule.angelRate} onChange={e => handleUpdateRuleText(rule.id, 'angelRate', e.target.value, true)} className="w-full p-1.5 text-sm border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 rounded disabled:bg-gray-100 dark:disabled:bg-slate-800" /></div>
-                              <div className="col-span-2 flex justify-end"><button onClick={() => handleRemoveRule(rule.id)} className="p-2 text-gray-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button></div>
-                            </div>
-                          ))}
-                        </div>
-                        <button onClick={handleAddRule} className="text-xs text-blue-600 font-semibold mt-2 flex items-center"><Plus className="w-3 h-3 mr-1" />Adicionar Faixa</button>
+                  )}
+                </div>
+                <button
+                  type="submit"
+                  disabled={isSaving}
+                  className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-3 rounded-lg flex items-center justify-center space-x-2 transition shadow-lg shadow-green-600/20 disabled:opacity-50 disabled:cursor-not-allowed relative"
+                >
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span>Salvando...</span>
+                      <div className="absolute bottom-0 left-0 right-0 h-1 bg-green-800">
+                        <div className="h-full bg-green-300 animate-pulse"></div>
                       </div>
-                    )}
-
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm text-left">
-                            <thead className="text-xs text-gray-500 dark:text-gray-400 uppercase bg-gray-50 dark:bg-slate-700 border-b border-gray-200 dark:border-slate-600">
-                                <tr>
-                                    <th className="px-6 py-3">Parcela</th>
-                                    <th className="px-6 py-3 bg-blue-50/50 dark:bg-blue-900/10 text-blue-800 dark:text-blue-300"><div className="flex flex-col"><span>Prévia/Autorizado</span><span className="text-[10px] opacity-70">Coeficiente</span></div></th>
-                                    <th className="px-6 py-3"><div className="flex flex-col"><span>Gestor</span><span className="text-[10px] opacity-70">Coeficiente</span></div></th>
-                                    {hasAngel && (<th className="px-6 py-3 bg-yellow-50/50 dark:bg-yellow-900/10 text-yellow-800 dark:text-yellow-300"><div className="flex flex-col"><span>Anjo</span><span className="text-[10px] opacity-70">Coeficiente</span></div></th>)}
-                                    <th className="px-6 py-3 text-right font-bold text-gray-900 dark:text-white">Total Pago</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100 dark:divide-slate-700 text-gray-700 dark:text-gray-300">
-                                {simulation.breakdown.map((row, idx) => (
-                                    <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-slate-700/30">
-                                        <td className="px-6 py-4 font-medium">{row.label}<div className="text-xs text-gray-400 font-normal mt-0.5">{row.count}x parcelas</div></td>
-                                        <td className="px-6 py-4 bg-blue-50/30 dark:bg-blue-900/5 text-blue-900 dark:text-blue-100 font-medium"><div>{formatCurrency(row.cons.val)}</div><div className="text-xs text-blue-500 mt-1">{formatPercent(row.cons.rate)}</div></td>
-                                        <td className="px-6 py-4">{row.man.val > 0 ? ( <><div>{formatCurrency(row.man.val)}</div><div className="text-xs text-gray-500 mt-1">{formatPercent(row.man.rate)}</div></> ) : <span className="text-gray-400">-</span>}</td>
-                                        {hasAngel && (<td className="px-6 py-4 bg-yellow-50/30 dark:bg-yellow-900/5 text-yellow-900 dark:text-yellow-100">{row.angel.val > 0 ? ( <><div>{formatCurrency(row.angel.val)}</div><div className="text-xs text-yellow-600 dark:text-yellow-400 mt-1">{formatPercent(row.angel.rate)}</div></> ) : <span className="text-gray-400">-</span>}</td>)}
-                                        <td className="px-6 py-4 text-right font-bold text-gray-900 dark:text-white">{formatCurrency(row.cons.val + row.man.val + row.angel.val)}<div className="text-xs text-gray-400 font-normal mt-0.5">por parcela</div></td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                            <tfoot className="bg-gray-100 dark:bg-slate-800 border-t-2 border-gray-200 dark:border-slate-600 font-bold">
-                                <tr>
-                                    <td className="px-6 py-4 text-gray-900 dark:text-white">TOTAIS</td>
-                                    <td className="px-6 py-4 text-blue-700 dark:text-blue-300">{formatCurrency(simulation.totals.consultant)}</td>
-                                    <td className="px-6 py-4 text-gray-900 dark:text-white">{formatCurrency(simulation.totals.manager)}</td>
-                                    {hasAngel && <td className="px-6 py-4 text-yellow-700 dark:text-yellow-300">{formatCurrency(simulation.totals.angel)}</td>}
-                                    <td className="px-6 py-4 text-right text-lg text-green-600 dark:text-green-400">{formatCurrency(simulation.totals.grandTotal)}</td>
-                                </tr>
-                            </tfoot>
-                        </table>
-                    </div>
-                </div>
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-5 h-5" />
+                      <span>Registrar Venda</span>
+                    </>
+                  )}
+                </button>
+                {isSaving && (
+                  <div className="mt-2 text-xs text-gray-500 dark:text-gray-400 text-center animate-pulse">
+                    ⚡ Salvando no banco de dados... Não feche esta página.
+                  </div>
+                )}
+              </form>
             </div>
+          </div>
+
+          <div className="lg:col-span-2">
+            <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden h-full">
+              <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50 flex justify-between items-center">
+                <h2 className="font-bold text-gray-900 dark:text-white">Detalhamento da Simulação (Valores Brutos)</h2>
+                <span className="text-xs text-gray-500 dark:text-gray-400 bg-white dark:bg-slate-800 px-2 py-1 rounded border border-gray-200 dark:border-slate-600">Base: {creditValue || 'R$ 0,00'}</span>
+              </div>
+
+              {isCustomRulesMode && (
+                <div className="p-4 border-b border-gray-200 dark:border-slate-700 bg-blue-50 dark:bg-blue-900/20">
+                  <h3 className="text-sm font-semibold text-blue-800 dark:text-blue-200 mb-2">Editor de Regras Personalizadas</h3>
+                  <div className="grid grid-cols-12 gap-2 items-center mb-2">
+                    <div className="col-span-4 text-xs font-medium text-gray-700 dark:text-gray-300 text-center">Parcelas</div>
+                    <div className="col-span-2 text-xs font-medium text-gray-700 dark:text-gray-300 text-center">Consultor</div>
+                    <div className="col-span-2 text-xs font-medium text-gray-700 dark:text-gray-300 text-center">Gestor</div>
+                    <div className="col-span-2 text-xs font-medium text-gray-700 dark:text-gray-300 text-center">Anjo</div>
+                    <div className="col-span-2"></div>
+                  </div>
+                  <div className="space-y-2">
+                    {customRulesText.map((rule) => (
+                      <div key={rule.id} className="grid grid-cols-12 gap-2 items-center">
+                        <div className="col-span-4 flex items-center gap-1">
+                          <input type="text" inputMode="numeric" placeholder="De" value={rule.startInstallment} onChange={e => handleUpdateRuleText(rule.id, 'startInstallment', e.target.value, false)} className="w-full p-1.5 text-sm border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 rounded" />
+                          <span className="text-xs">-</span>
+                          <input type="text" inputMode="numeric" placeholder="Até" value={rule.endInstallment} onChange={e => handleUpdateRuleText(rule.id, 'endInstallment', e.target.value, false)} className="w-full p-1.5 text-sm border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 rounded" />
+                        </div>
+                        <div className="col-span-2"><input type="text" inputMode="decimal" placeholder="Cons %" value={rule.consultantRate} onChange={e => handleUpdateRuleText(rule.id, 'consultantRate', e.target.value, true)} className="w-full p-1.5 text-sm border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 rounded" /></div>
+                        <div className="col-span-2"><input type="text" inputMode="decimal" placeholder="Gestor %" value={rule.managerRate} onChange={e => handleUpdateRuleText(rule.id, 'managerRate', e.target.value, true)} className="w-full p-1.5 text-sm border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 rounded" /></div>
+                        <div className="col-span-2"><input type="text" inputMode="decimal" placeholder="Anjo %" disabled={!hasAngel} value={rule.angelRate} onChange={e => handleUpdateRuleText(rule.id, 'angelRate', e.target.value, true)} className="w-full p-1.5 text-sm border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 rounded disabled:bg-gray-100 dark:disabled:bg-slate-800" /></div>
+                        <div className="col-span-2 flex justify-end"><button onClick={() => handleRemoveRule(rule.id)} className="p-2 text-gray-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button></div>
+                      </div>
+                    ))}
+                  </div>
+                  <button onClick={handleAddRule} className="text-xs text-blue-600 font-semibold mt-2 flex items-center"><Plus className="w-3 h-3 mr-1" />Adicionar Faixa</button>
+                </div>
+              )}
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left">
+                  <thead className="text-xs text-gray-500 dark:text-gray-400 uppercase bg-gray-50 dark:bg-slate-700 border-b border-gray-200 dark:border-slate-600">
+                    <tr>
+                      <th className="px-6 py-3">Parcela</th>
+                      <th className="px-6 py-3 bg-blue-50/50 dark:bg-blue-900/10 text-blue-800 dark:text-blue-300"><div className="flex flex-col"><span>Prévia/Autorizado</span><span className="text-[10px] opacity-70">Coeficiente</span></div></th>
+                      <th className="px-6 py-3"><div className="flex flex-col"><span>Gestor</span><span className="text-[10px] opacity-70">Coeficiente</span></div></th>
+                      {hasAngel && (<th className="px-6 py-3 bg-yellow-50/50 dark:bg-yellow-900/10 text-yellow-800 dark:text-yellow-300"><div className="flex flex-col"><span>Anjo</span><span className="text-[10px] opacity-70">Coeficiente</span></div></th>)}
+                      <th className="px-6 py-3 text-right font-bold text-gray-900 dark:text-white">Total Pago</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 dark:divide-slate-700 text-gray-700 dark:text-gray-300">
+                    {simulation.breakdown.map((row, idx) => (
+                      <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-slate-700/30">
+                        <td className="px-6 py-4 font-medium">{row.label}<div className="text-xs text-gray-400 font-normal mt-0.5">{row.count}x parcelas</div></td>
+                        <td className="px-6 py-4 bg-blue-50/30 dark:bg-blue-900/5 text-blue-900 dark:text-blue-100 font-medium"><div>{formatCurrency(row.cons.val)}</div><div className="text-xs text-blue-500 mt-1">{formatPercent(row.cons.rate)}</div></td>
+                        <td className="px-6 py-4">{row.man.val > 0 ? (<><div>{formatCurrency(row.man.val)}</div><div className="text-xs text-gray-500 mt-1">{formatPercent(row.man.rate)}</div></>) : <span className="text-gray-400">-</span>}</td>
+                        {hasAngel && (<td className="px-6 py-4 bg-yellow-50/30 dark:bg-yellow-900/5 text-yellow-900 dark:text-yellow-100">{row.angel.val > 0 ? (<><div>{formatCurrency(row.angel.val)}</div><div className="text-xs text-yellow-600 dark:text-yellow-400 mt-1">{formatPercent(row.angel.rate)}</div></>) : <span className="text-gray-400">-</span>}</td>)}
+                        <td className="px-6 py-4 text-right font-bold text-gray-900 dark:text-white">{formatCurrency(row.cons.val + row.man.val + row.angel.val)}<div className="text-xs text-gray-400 font-normal mt-0.5">por parcela</div></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot className="bg-gray-100 dark:bg-slate-800 border-t-2 border-gray-200 dark:border-slate-600 font-bold">
+                    <tr>
+                      <td className="px-6 py-4 text-gray-900 dark:text-white">TOTAIS</td>
+                      <td className="px-6 py-4 text-blue-700 dark:text-blue-300">{formatCurrency(simulation.totals.consultant)}</td>
+                      <td className="px-6 py-4 text-gray-900 dark:text-white">{formatCurrency(simulation.totals.manager)}</td>
+                      {hasAngel && <td className="px-6 py-4 text-yellow-700 dark:text-yellow-300">{formatCurrency(simulation.totals.angel)}</td>}
+                      <td className="px-6 py-4 text-right text-lg text-green-600 dark:text-green-400">{formatCurrency(simulation.totals.grandTotal)}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
       {activeTab === 'history' && (
         <div key="history-tab-content" className="animate-fade-in space-y-6">
-            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm space-y-6 mb-6">
-                <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 flex items-center uppercase tracking-wide"><Filter className="w-4 h-4 mr-2" />Filtros Avançados</h3>
-                    <div className="flex items-center gap-3">
-                         <button onClick={() => setIsAngelMode(!isAngelMode)} className={`text-xs flex items-center px-3 py-1.5 rounded-full border transition-all font-medium ${isAngelMode ? 'bg-yellow-100 border-yellow-300 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300 dark:border-yellow-700' : 'bg-gray-50 border-gray-200 text-gray-600 dark:bg-slate-700 dark:border-slate-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-600'}`}>
-                            {isAngelMode ? <Crown className="w-3.5 h-3.5 mr-1.5 fill-yellow-500 text-yellow-600" /> : <Crown className="w-3.h-5 mr-1.5" />}
-                            {isAngelMode ? 'Modo Anjo Ativo' : 'Modo Pagamento Anjo'}
-                         </button>
-                        {(filterStartDate || filterEndDate || filterConsultant.length > 0 || filterAngel.length > 0 || filterPV.length > 0 || filterStatus.length > 0 || searchTerm) && (<button onClick={clearFilters} className="text-xs flex items-center text-red-500 hover:text-red-700 transition"><XCircle className="w-3 h-3 mr-1" />Limpar Filtros</button>)}
-                    </div>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    <div className="col-span-1"><label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Busca Geral</label><div className="relative"><input type="text" placeholder="Cliente, Grupo..." className="w-full pl-9 border border-gray-300 dark:border-slate-600 rounded-lg p-2.5 text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} /><Search className="w-4 h-4 text-gray-400 absolute left-3 top-3" /></div></div>
-                    <div className="col-span-1"><label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">De (Data)</label><input type="date" className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2.5 text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500" value={filterStartDate} onChange={e => setFilterStartDate(e.target.value)} /></div>
-                    <div className="col-span-1"><label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Até (Data)</label><input type="date" className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2.5 text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500" value={filterEndDate} onChange={e => setFilterEndDate(e.target.value)} /></div>
-                    <div className="col-span-1">
-                      <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Prévia/Autorizado</label>
-                      <MultiSelectFilter
-                        options={consultants.map(c => ({ value: c.name, label: c.name }))}
-                        selected={filterConsultant}
-                        onSelectionChange={setFilterConsultant}
-                        placeholder="Todos"
-                      />
-                    </div>
-                    <div className="col-span-1">
-                      <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Anjo (Participação)</label>
-                      <MultiSelectFilter
-                        options={angels.map(a => ({ value: a.name, label: a.name }))}
-                        selected={filterAngel}
-                        onSelectionChange={setFilterAngel}
-                        placeholder="Todos"
-                      />
-                    </div>
-                    <div className="col-span-1">
-                      <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Ponto de Venda (PV)</label>
-                      <MultiSelectFilter
-                        options={pvs.map(pv => ({ value: pv, label: pv }))}
-                        selected={filterPV}
-                        onSelectionChange={setFilterPV}
-                        placeholder="Todos"
-                      />
-                    </div>
-                    <div className="col-span-1">
-                      <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Status Geral</label>
-                      <MultiSelectFilter
-                        options={[
-                          { value: 'Em Andamento', label: 'Em Andamento' },
-                          { value: 'Atraso', label: 'Atraso' },
-                          { value: 'Concluído', label: 'Concluído' },
-                          { value: 'Cancelado', label: 'Cancelado' },
-                        ]}
-                        selected={filterStatus}
-                        onSelectionChange={setFilterStatus}
-                        placeholder="Todos"
-                      />
-                    </div>
-                </div>
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm space-y-6 mb-6">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 flex items-center uppercase tracking-wide"><Filter className="w-4 h-4 mr-2" />Filtros Avançados</h3>
+              <div className="flex items-center gap-3">
+                <button onClick={() => setIsAngelMode(!isAngelMode)} className={`text-xs flex items-center px-3 py-1.5 rounded-full border transition-all font-medium ${isAngelMode ? 'bg-yellow-100 border-yellow-300 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300 dark:border-yellow-700' : 'bg-gray-50 border-gray-200 text-gray-600 dark:bg-slate-700 dark:border-slate-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-600'}`}>
+                  {isAngelMode ? <Crown className="w-3.5 h-3.5 mr-1.5 fill-yellow-500 text-yellow-600" /> : <Crown className="w-3.5 h-3.5 mr-1.5" />}
+                  {isAngelMode ? 'Modo Anjo Ativo' : 'Modo Pagamento Anjo'}
+                </button>
+                {(filterStartDate || filterEndDate || filterConsultant.length > 0 || filterAngel.length > 0 || filterPV.length > 0 || filterStatus.length > 0 || searchTerm) && (<button onClick={clearFilters} className="text-xs flex items-center text-red-500 hover:text-red-700 transition"><XCircle className="w-3 h-3 mr-1" />Limpar Filtros</button>)}
+              </div>
             </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-3">
-                    <div className="p-2 bg-green-50 dark:bg-green-900/20 rounded-lg"><MarkAllPaidIcon className="w-5 h-5 text-green-600 dark:text-green-400" /></div>
-                    <div>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Concluídas</p>
-                        <p className="text-xl font-bold text-gray-900 dark:text-white">{formatPercent(summaryStats.completedPercentage)} <span className="text-sm font-normal text-gray-500 dark:text-gray-400">({summaryStats.completedCount})</span></p>
-                    </div>
-                </div>
-                <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-3">
-                    <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg"><TrendingUp className="w-5 h-5 text-blue-600 dark:text-blue-400" /></div>
-                    <div>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Em Andamento</p>
-                        <p className="text-xl font-bold text-gray-900 dark:text-white">{formatPercent(summaryStats.inProgressPercentage)} <span className="text-sm font-normal text-gray-500 dark:text-gray-400">({summaryStats.inProgressCount})</span></p>
-                    </div>
-                </div>
-                <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-3">
-                    <div className="p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg"><Wand2 className="w-5 h-5 text-yellow-600 dark:text-yellow-400" /></div>
-                    <div>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Próximas de Concluir</p>
-                        <p className="text-xl font-bold text-gray-900 dark:text-white">{formatPercent(summaryStats.nearCompletionPercentage)} <span className="text-sm font-normal text-gray-500 dark:text-gray-400">({summaryStats.nearCompletionCount})</span></p>
-                    </div>
-                </div>
-                <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-3">
-                    <div className="p-2 bg-red-50 dark:bg-red-900/20 rounded-lg"><XCircle className="w-5 h-5 text-red-600 dark:text-red-400" /></div>
-                    <div>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Atrasadas</p>
-                        <p className="text-xl font-bold text-gray-900 dark:text-white">{formatPercent(summaryStats.delayedPercentage)} <span className="text-sm font-normal text-gray-500 dark:text-gray-400">({summaryStats.delayedCount})</span></p>
-                    </div>
-                </div>
-                <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-3">
-                    <div className="p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg"><Trash2 className="w-5 h-5 text-gray-600 dark:text-gray-300" /></div>
-                    <div>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Canceladas</p>
-                        <p className="text-xl font-bold text-gray-900 dark:text-white">{formatPercent(summaryStats.cancelledPercentage)} <span className="text-sm font-normal text-gray-500 dark:text-gray-400">({summaryStats.cancelledCount})</span></p>
-                    </div>
-                </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              <div className="col-span-1"><label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Busca Geral</label><div className="relative"><input type="text" placeholder="Cliente, Grupo..." className="w-full pl-9 border border-gray-300 dark:border-slate-600 rounded-lg p-2.5 text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} /><Search className="w-4 h-4 text-gray-400 absolute left-3 top-3" /></div></div>
+              <div className="col-span-1"><label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">De (Data)</label><input type="date" className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2.5 text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500" value={filterStartDate} onChange={e => setFilterStartDate(e.target.value)} /></div>
+              <div className="col-span-1"><label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Até (Data)</label><input type="date" className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2.5 text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500" value={filterEndDate} onChange={e => setFilterEndDate(e.target.value)} /></div>
+              <div className="col-span-1">
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Prévia/Autorizado</label>
+                <MultiSelectFilter
+                  options={consultants.map(c => ({ value: c.name, label: c.name }))}
+                  selected={filterConsultant}
+                  onSelectionChange={setFilterConsultant}
+                  placeholder="Todos"
+                />
+              </div>
+              <div className="col-span-1">
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Anjo (Participação)</label>
+                <MultiSelectFilter
+                  options={angels.map(a => ({ value: a.name, label: a.name }))}
+                  selected={filterAngel}
+                  onSelectionChange={setFilterAngel}
+                  placeholder="Todos"
+                />
+              </div>
+              <div className="col-span-1">
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Ponto de Venda (PV)</label>
+                <MultiSelectFilter
+                  options={pvs.map(pv => ({ value: pv, label: pv }))}
+                  selected={filterPV}
+                  onSelectionChange={setFilterPV}
+                  placeholder="Todos"
+                />
+              </div>
+              <div className="col-span-1">
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Status Geral</label>
+                <MultiSelectFilter
+                  options={[
+                    { value: 'Em Andamento', label: 'Em Andamento' },
+                    { value: 'Atraso', label: 'Atraso' },
+                    { value: 'Concluído', label: 'Concluído' },
+                    { value: 'Cancelado', label: 'Cancelado' },
+                  ]}
+                  selected={filterStatus}
+                  onSelectionChange={setFilterStatus}
+                  placeholder="Todos"
+                />
+              </div>
             </div>
+          </div>
 
-            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center justify-center gap-4 mb-8">
-                <div className="p-3 bg-brand-50 dark:bg-brand-900/20 rounded-lg flex-shrink-0">
-                    <DollarSign className="w-6 h-6 text-brand-600 dark:text-brand-400" />
-                </div>
-                <div className="flex flex-col justify-center text-center">
-                    <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Valor Total Vendido</p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white whitespace-nowrap">{formatCurrency(summaryStats.totalValue)}</p>
-                </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-3">
+              <div className="p-2 bg-green-50 dark:bg-green-900/20 rounded-lg"><MarkAllPaidIcon className="w-5 h-5 text-green-600 dark:text-green-400" /></div>
+              <div>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Concluídas</p>
+                <p className="text-xl font-bold text-gray-900 dark:text-white">{formatPercent(summaryStats.completedPercentage)} <span className="text-sm font-normal text-gray-500 dark:text-gray-400">({summaryStats.completedCount})</span></p>
+              </div>
             </div>
+            <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-3">
+              <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg"><TrendingUp className="w-5 h-5 text-blue-600 dark:text-blue-400" /></div>
+              <div>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Em Andamento</p>
+                <p className="text-xl font-bold text-gray-900 dark:text-white">{formatPercent(summaryStats.inProgressPercentage)} <span className="text-sm font-normal text-gray-500 dark:text-gray-400">({summaryStats.inProgressCount})</span></p>
+              </div>
+            </div>
+            <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-3">
+              <div className="p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg"><Wand2 className="w-5 h-5 text-yellow-600 dark:text-yellow-400" /></div>
+              <div>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Próximas de Concluir</p>
+                <p className="text-xl font-bold text-gray-900 dark:text-white">{formatPercent(summaryStats.nearCompletionPercentage)} <span className="text-sm font-normal text-gray-500 dark:text-gray-400">({summaryStats.nearCompletionCount})</span></p>
+              </div>
+            </div>
+            <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-3">
+              <div className="p-2 bg-red-50 dark:bg-red-900/20 rounded-lg"><XCircle className="w-5 h-5 text-red-600 dark:text-red-400" /></div>
+              <div>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Atrasadas</p>
+                <p className="text-xl font-bold text-gray-900 dark:text-white">{formatPercent(summaryStats.delayedPercentage)} <span className="text-sm font-normal text-gray-500 dark:text-gray-400">({summaryStats.delayedCount})</span></p>
+              </div>
+            </div>
+            <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center space-x-3">
+              <div className="p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg"><Trash2 className="w-5 h-5 text-gray-600 dark:text-gray-300" /></div>
+              <div>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Canceladas</p>
+                <p className="text-xl font-bold text-gray-900 dark:text-white">{formatPercent(summaryStats.cancelledPercentage)} <span className="text-sm font-normal text-gray-500 dark:text-gray-400">({summaryStats.cancelledCount})</span></p>
+              </div>
+            </div>
+          </div>
 
-            <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300">
-                        <thead className="bg-gray-50 dark:bg-slate-700/50 text-gray-500 dark:text-gray-400 text-xs uppercase">
-                            <tr>
-                                <th className="px-4 py-3">Data</th>
-                                <th className="px-4 py-3">Cliente / Produto</th>
-                                <th className="px-4 py-3">Consultor & Equipe</th>
-                                <th className="px-4 py-3">Valor do Crédito</th>
-                                <th className="px-4 py-3">Progresso & Status</th>
-                                <th className="px-4 py-3 text-right">Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
-                            {filteredHistory.length === 0 ? (<tr><td colSpan={6} className="px-6 py-12 text-center text-gray-400">Nenhuma venda encontrada.</td></tr>) : (
-                                filteredHistory.map(c => {
-                                    const paidCount = Object.values(c.installmentDetails).filter(s => s.status === 'Pago').length;
-                                    const totalInstallments = 15;
-                                    const progressPercent = (paidCount / totalInstallments) * 100;
-                                    const status = getOverallStatus(c.installmentDetails);
-                                    const statusColors: Record<CommissionStatus, string> = {
-                                        'Em Andamento': 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
-                                        'Atraso': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
-                                        'Concluído': 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
-                                        'Cancelado': 'bg-gray-100 text-gray-800 dark:bg-slate-700 dark:text-gray-300'
-                                    };
-                                    const progressColor = progressPercent === 100 ? 'bg-green-500' : progressPercent > 50 ? 'bg-blue-500' : 'bg-yellow-500';
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center justify-center gap-4 mb-8">
+            <div className="p-3 bg-brand-50 dark:bg-brand-900/20 rounded-lg flex-shrink-0">
+              <DollarSign className="w-6 h-6 text-brand-600 dark:text-brand-400" />
+            </div>
+            <div className="flex flex-col justify-center text-center">
+              <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Valor Total Vendido</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white whitespace-nowrap">{formatCurrency(summaryStats.totalValue)}</p>
+            </div>
+          </div>
 
+          <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300">
+                <thead className="bg-gray-50 dark:bg-slate-700/50 text-gray-500 dark:text-gray-400 text-xs uppercase">
+                  <tr>
+                    <th className="px-4 py-3">Data</th>
+                    <th className="px-4 py-3">Cliente / Produto</th>
+                    <th className="px-4 py-3">Consultor & Equipe</th>
+                    <th className="px-4 py-3">Valor do Crédito</th>
+                    <th className="px-4 py-3">Progresso & Status</th>
+                    <th className="px-4 py-3 text-right">Ações</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
+                  {filteredHistory.length === 0 ? (
+                    <tr><td colSpan={6} className="px-6 py-12 text-center text-gray-400">Nenhuma venda encontrada.</td></tr>
+                  ) : (
+                    filteredHistory.map(c => {
+                      const paidCount = Object.values(c.installmentDetails).filter(s => s.status === 'Pago').length;
+                      const totalInstallments = 15;
+                      const progressPercent = (paidCount / totalInstallments) * 100;
+                      const status = getOverallStatus(c.installmentDetails);
+                      const statusColors: Record<CommissionStatus, string> = {
+                        'Em Andamento': 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
+                        'Atraso': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
+                        'Concluído': 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
+                        'Cancelado': 'bg-gray-100 text-gray-800 dark:bg-slate-700 dark:text-gray-300'
+                      };
+                      const progressColor = progressPercent === 100 ? 'bg-green-500' : progressPercent > 50 ? 'bg-blue-500' : 'bg-yellow-500';
+
+                      return (
+                        <React.Fragment key={c.id}>
+                          <tr className="hover:bg-gray-50 dark:hover:bg-slate-700/30 transition">
+                            <td className="px-4 py-3 align-top"><div className="text-sm font-medium text-gray-900 dark:text-white">{new Date(c.date + 'T00:00:00').toLocaleDateString('pt-BR')}</div><div className="text-xs text-gray-500">{new Date(c.date + 'T00:00:00').toLocaleDateString('pt-BR', { weekday: 'long' })}</div></td>
+                            <td className="px-4 py-3 align-top"><div className="font-bold text-gray-900 dark:text-white flex items-center">{c.clientName}{c.angelName && <Crown className="w-3.5 h-3.5 text-yellow-500 ml-2" title={`Anjo: ${c.angelName}`} />}</div><div className="text-xs text-gray-500">{c.group} / {c.quota} <span className={`ml-2 text-xs px-2 py-0.5 rounded-full ${c.type === 'Imóvel' ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300' : 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300'}`}>{c.type === 'Imóvel' ? '🏠' : '🚗'} {c.type}</span></div></td>
+                            <td className="px-4 py-3 align-top text-xs space-y-1">
+                              <div className="flex items-center" title={`Consultor: ${c.consultant}`}>
+                                <div className="w-2 h-2 bg-blue-500 rounded-full mr-2 shrink-0"></div>
+                                <span className="truncate">{c.consultant}</span>
+                              </div>
+                              {c.managerName && c.managerName !== 'N/A' && (
+                                <div className="pt-1">
+                                  <div className="font-semibold text-gray-600 dark:text-gray-400">Equipe SART</div>
+                                  <div className="flex items-center text-gray-500" title={`Gestor: ${c.managerName}`}>
+                                    <div className="w-2 h-2 bg-gray-400 rounded-full mr-2 shrink-0"></div>
+                                    <span className="truncate">{c.managerName}</span>
+                                  </div>
+                                </div>
+                              )}
+                              {c.angelName && (
+                                <div className="flex items-center text-yellow-700 dark:text-yellow-400" title={`Anjo: ${c.angelName}`}>
+                                  <div className="w-2 h-2 bg-yellow-500 rounded-full mr-2 shrink-0"></div>
+                                  <span className="truncate">{c.angelName}</span>
+                                </div>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 align-top"><div className="text-base font-bold text-gray-900 dark:text-white">{formatCurrency(c.value)}</div><div className="text-xs text-gray-500">PV: {c.pv}</div></td>
+                            <td className="px-4 py-3 align-top"><div className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${statusColors[status]}`}>{status}</div><div className="mt-2"><div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-1"><span>{paidCount}/{totalInstallments}</span><span>{Math.round(progressPercent)}%</span></div><div className="w-full bg-gray-200 dark:bg-slate-600 rounded-full h-1.5"><div className={`h-1.5 rounded-full ${progressColor}`} style={{ width: `${progressPercent}%` }}></div></div></div></td>
+                            <td className="px-4 py-3 text-right align-top">
+                              <div className="flex justify-end items-center">
+                                {status !== 'Concluído' && (
+                                  <button
+                                    onClick={() => handleMarkAllAsPaid(c)}
+                                    className="p-2 rounded-md hover:bg-green-100 dark:hover:bg-green-900/20 text-gray-400 hover:text-green-500"
+                                    title="Marcar Todas as Parcelas como Pagas"
+                                  >
+                                    <MarkAllPaidIcon className="w-4 h-4" />
+                                  </button>
+                                )}
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedCommissionForRange(c);
+                                    setIsRangeModalOpen(true);
+                                  }}
+                                  className="p-2 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/20 text-gray-400 hover:text-blue-500"
+                                  title="Marcar Faixa de Parcelas como Pagas"
+                                >
+                                  <CalendarCheck className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleOpenEditCommissionModal(c)}
+                                  className="p-2 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/20 text-gray-400 hover:text-blue-500"
+                                  title="Editar Venda"
+                                >
+                                  <Edit2 className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteCommission(c.db_id!)}
+                                  className="p-2 rounded-md hover:bg-red-100 dark:hover:bg-red-900/20 text-gray-400 hover:text-red-500"
+                                  title="Excluir Venda"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => setExpandedRow(expandedRow === c.id ? null : c.id)}
+                                  className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-slate-600 text-gray-500"
+                                >
+                                  <ChevronDown className={`w-5 h-5 transition-transform ${expandedRow === c.id ? 'rotate-180' : ''}`} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                          {expandedRow === c.id && (
+                            <tr className="bg-gray-50 dark:bg-slate-800">
+                              <td colSpan={6} className="p-4">
+                                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+                                  {Object.entries(c.installmentDetails).map(([num, info]) => {
+                                    const installmentInfo = info as InstallmentInfo;
+                                    const statusValue = installmentInfo?.status || 'Pendente';
+                                    const values = getInstallmentValues(c, parseInt(num));
                                     return (
-                                        <React.Fragment key={c.id}>
-                                        <tr className="hover:bg-gray-50 dark:hover:bg-slate-700/30 transition">
-                                            <td className="px-4 py-3 align-top"><div className="text-sm font-medium text-gray-900 dark:text-white">{new Date(c.date + 'T00:00:00').toLocaleDateString('pt-BR')}</div><div className="text-xs text-gray-500">{new Date(c.date + 'T00:00:00').toLocaleDateString('pt-BR', { weekday: 'long' })}</div></td>
-                                            <td className="px-4 py-3 align-top"><div className="font-bold text-gray-900 dark:text-white flex items-center">{c.clientName}{c.angelName && <Crown className="w-3.5 h-3.5 text-yellow-500 ml-2" title={`Anjo: ${c.angelName}`} />}</div><div className="text-xs text-gray-500">{c.group} / {c.quota} <span className={`ml-2 text-xs px-2 py-0.5 rounded-full ${c.type === 'Imóvel' ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300' : 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300'}`}>{c.type === 'Imóvel' ? '🏠' : '🚗'} {c.type}</span></div></td>
-                                            <td className="px-4 py-3 align-top text-xs space-y-1">
-                                                <div className="flex items-center" title={`Consultor: ${c.consultant}`}>
-                                                    <div className="w-2 h-2 bg-blue-500 rounded-full mr-2 shrink-0"></div>
-                                                    <span className="truncate">{c.consultant}</span>
-                                                </div>
-                                                {c.managerName && c.managerName !== 'N/A' && (
-                                                    <div className="pt-1">
-                                                        <div className="font-semibold text-gray-600 dark:text-gray-400">Equipe SART</div>
-                                                        <div className="flex items-center text-gray-500" title={`Gestor: ${c.managerName}`}>
-                                                            <div className="w-2 h-2 bg-gray-400 rounded-full mr-2 shrink-0"></div>
-                                                            <span className="truncate">{c.managerName}</span>
-                                                        </div>
-                                                    </div>
-                                                )}
-                                                {c.angelName && (
-                                                    <div className="flex items-center text-yellow-700 dark:text-yellow-400" title={`Anjo: ${c.angelName}`}>
-                                                        <div className="w-2 h-2 bg-yellow-500 rounded-full mr-2 shrink-0"></div>
-                                                        <span className="truncate">{c.angelName}</span>
-                                                    </div>
-                                                )}
-                                            </td>
-                                            <td className="px-4 py-3 align-top"><div className="text-base font-bold text-gray-900 dark:text-white">{formatCurrency(c.value)}</div><div className="text-xs text-gray-500">PV: {c.pv}</div></td>
-                                            <td className="px-4 py-3 align-top"><div className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${statusColors[status]}`}>{status}</div><div className="mt-2"><div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-1"><span>{paidCount}/{totalInstallments}</span><span>{Math.round(progressPercent)}%</span></div><div className="w-full bg-gray-200 dark:bg-slate-600 rounded-full h-1.5"><div className={`h-1.5 rounded-full ${progressColor}`} style={{ width: `${progressPercent}%` }}></div></div></div></td>
-                                            <td className="px-4 py-3 text-right align-top">
-                                                <div className="flex justify-end items-center">
-                                                    {status !== 'Concluído' && (
-                                                      <button 
-                                                        onClick={() => handleMarkAllAsPaid(c)} 
-                                                        className="p-2 rounded-md hover:bg-green-100 dark:hover:bg-green-900/20 text-gray-400 hover:text-green-500"
-                                                        title="Marcar Todas as Parcelas como Pagas"
-                                                      >
-                                                        <MarkAllPaidIcon className="w-4 h-4" />
-                                                      </button>
-                                                    )}
-                                                    <button
-                                                      onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setSelectedCommissionForRange(c);
-                                                        setIsRangeModalOpen(true);
-                                                      }}
-                                                      className="p-2 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/20 text-gray-400 hover:text-blue-500"
-                                                      title="Marcar Faixa de Parcelas como Pagas"
-                                                    >
-                                                      <CalendarCheck className="w-4 h-4" />
-                                                    </button>
-                                                    <button 
-                                                        onClick={() => handleOpenEditCommissionModal(c)}
-                                                        className="p-2 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/20 text-gray-400 hover:text-blue-500"
-                                                        title="Editar Venda"
-                                                    >
-                                                        <Edit2 className="w-4 h-4" />
-                                                    </button>
-                                                    <button 
-                                                        onClick={() => handleDeleteCommission(c.db_id!)} // Corrigido aqui: usando c.db_id!
-                                                        className="p-2 rounded-md hover:bg-red-100 dark:hover:bg-red-900/20 text-gray-400 hover:text-red-500"
-                                                        title="Excluir Venda"
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </button>
-                                                    <button 
-                                                        onClick={() => setExpandedRow(expandedRow === c.id ? null : c.id)} 
-                                                        className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-slate-600 text-gray-500"
-                                                    >
-                                                        <ChevronDown className={`w-5 h-5 transition-transform ${expandedRow === c.id ? 'rotate-180' : ''}`} />
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                        {expandedRow === c.id && (
-                                            <tr className="bg-gray-50 dark:bg-slate-800">
-                                                <td colSpan={6} className="p-4">
-                                                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
-                                                        {Object.entries(c.installmentDetails).map(([num, info]) => {
-                                                            const installmentInfo = info as InstallmentInfo;
-                                                            const status = installmentInfo?.status || 'Pendente';
-                                                            const values = getInstallmentValues(c, parseInt(num));
-                                                            return (
-                                                            <div key={num} className="text-center p-2 rounded-md border bg-white dark:bg-slate-700">
-                                                                <div className="text-xs text-gray-400">
-                                                                    Parcela {num}
-                                                                    {installmentInfo.competenceMonth && (
-                                                                    <div className="text-[10px] text-purple-600 dark:text-purple-400 font-semibold">
-                                                                        Comp: {installmentInfo.competenceMonth.slice(5,7)}/{installmentInfo.competenceMonth.slice(2,4)}
-                                                                    </div>
-                                                                    )}
-                                                                </div>
-                                                                <select value={status} onChange={async (e) => await handleStatusChange(c.db_id!, parseInt(num), e.target.value as InstallmentStatus, c.clientName, c.type)} className={`mt-1 w-full text-xs font-bold py-1 px-2 rounded border cursor-pointer focus:outline-none ${getInstallmentStatusColor(status)}`}>
-                                                                    <option value="Pendente">Pendente</option>
-                                                                    <option value="Pago">Pago</option>
-                                                                    <option value="Atraso">Atraso</option>
-                                                                    <option value="Cancelado">Cancelado</option>
-                                                                </select>
-                                                                {status === 'Pago' && (
-                                                                    <div className="mt-2 text-xs space-y-1 text-left text-gray-600 dark:text-gray-300">
-                                                                        <div className="flex justify-between"><span>Consultor:</span> <span className="font-medium text-gray-800 dark:text-gray-100">{formatCurrency(values.cons)}</span></div>
-                                                                        <div className="flex justify-between"><span>Gestor:</span> <span className="font-medium text-gray-800 dark:text-gray-100">{formatCurrency(values.man)}</span></div>
-                                                                        {c.angelName && <div className="flex justify-between"><span>Anjo:</span> <span className="font-medium text-gray-800 dark:text-gray-100">{formatCurrency(values.angel)}</span></div>}
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        )})}
-                                                    </div>
-                                                </td>
-                                            </tr>
+                                      <div key={num} className="text-center p-2 rounded-md border bg-white dark:bg-slate-700">
+                                        <div className="text-xs text-gray-400">
+                                          Parcela {num}
+                                          {installmentInfo.competenceMonth && (
+                                            <div className="text-[10px] text-purple-600 dark:text-purple-400 font-semibold">
+                                              Comp: {installmentInfo.competenceMonth.slice(5, 7)}/{installmentInfo.competenceMonth.slice(2, 4)}
+                                            </div>
+                                          )}
+                                        </div>
+                                        <select value={statusValue} onChange={async (e) => await handleStatusChange(c.db_id!, parseInt(num), e.target.value as InstallmentStatus, c.clientName, c.type)} className={`mt-1 w-full text-xs font-bold py-1 px-2 rounded border cursor-pointer focus:outline-none ${getInstallmentStatusColor(statusValue)}`}>
+                                          <option value="Pendente">Pendente</option>
+                                          <option value="Pago">Pago</option>
+                                          <option value="Atraso">Atraso</option>
+                                          <option value="Cancelado">Cancelado</option>
+                                        </select>
+                                        {statusValue === 'Pago' && (
+                                          <div className="mt-2 text-xs space-y-1 text-left text-gray-600 dark:text-gray-300">
+                                            <div className="flex justify-between"><span>Consultor:</span> <span className="font-medium text-gray-800 dark:text-gray-100">{formatCurrency(values.cons)}</span></div>
+                                            <div className="flex justify-between"><span>Gestor:</span> <span className="font-medium text-gray-800 dark:text-gray-100">{formatCurrency(values.man)}</span></div>
+                                            {c.angelName && <div className="flex justify-between"><span>Anjo:</span> <span className="font-medium text-gray-800 dark:text-gray-100">{formatCurrency(values.angel)}</span></div>}
+                                          </div>
                                         )}
-                                        </React.Fragment>
+                                      </div>
                                     );
-                                })
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+                                  })}
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
             </div>
+          </div>
         </div>
       )}
+
       {activeTab === 'reports' && (
         <div key="reports-tab-content" className="animate-fade-in">
-          {console.log("[Commissions] Renderizando aba de Relatórios.")}
           <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm mb-6">
             <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">Relatório por Mês de Competência</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
@@ -1306,7 +1533,7 @@ export const Commissions = () => {
               </button>
             </div>
           </div>
-          
+
           {reportData && (
             <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm animate-fade-in">
               <h3 className="text-lg font-bold mb-4 text-gray-900 dark:text-white">
@@ -1318,7 +1545,7 @@ export const Commissions = () => {
                 <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg"><div className="text-sm text-yellow-600 dark:text-yellow-300">Anjos</div><div className="text-2xl font-bold text-yellow-900 dark:text-yellow-100">{formatCurrency(reportData.totalCommissions.angel)}</div></div>
                 <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg"><div className="text-sm text-purple-600 dark:text-purple-300">Total do Mês</div><div className="text-2xl font-bold text-purple-900 dark:text-purple-100">{formatCurrency(reportData.totalCommissions.total)}</div></div>
               </div>
-              
+
               <hr className="my-6 border-gray-200 dark:border-slate-700" />
 
               <div className="overflow-x-auto">
@@ -1364,21 +1591,21 @@ export const Commissions = () => {
           )}
         </div>
       )}
+
       {editingInstallment && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          {console.log("[Commissions] Modal de edição de parcela está visível!")}
           <div className="bg-white dark:bg-slate-800 p-6 rounded-xl max-w-sm w-full shadow-lg">
             <h3 className="text-lg font-bold mb-1 text-gray-900 dark:text-white">Confirmar Pagamento</h3>
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Parcela {editingInstallment.number} de {editingInstallment.clientName}</p>
             <div className="space-y-4">
-                <div>
-                    <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Data de Pagamento</label>
-                    <input type="date" value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} className="w-full p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-gray-900 dark:text-white" max={new Date().toISOString().split('T')[0]} />
-                </div>
-                <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg text-center">
-                    <p className="text-xs text-purple-800 dark:text-purple-300 font-medium">Mês de Competência Calculado</p>
-                    <p className="font-bold text-purple-900 dark:text-purple-100">{calculatedCompetence ? formatMonthYear(calculatedCompetence) : '...'}</p>
-                </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Data de Pagamento</label>
+                <input type="date" value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} className="w-full p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-gray-900 dark:text-white" max={new Date().toISOString().split('T')[0]} />
+              </div>
+              <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg text-center">
+                <p className="text-xs text-purple-800 dark:text-purple-300 font-medium">Mês de Competência Calculado</p>
+                <p className="font-bold text-purple-900 dark:text-purple-100">{calculatedCompetence ? formatMonthYear(calculatedCompetence) : '...'}</p>
+              </div>
             </div>
             <div className="flex gap-2 mt-6">
               <button onClick={confirmPayment} className="flex-1 bg-green-600 text-white py-2 rounded hover:bg-green-700 transition font-medium">Confirmar</button>
