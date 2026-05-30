@@ -5,6 +5,7 @@ import {
   CheckSquare,
   FileStack,
   LayoutDashboard,
+  LogOut,
   Menu,
   UserSearch,
   Video,
@@ -23,7 +24,7 @@ const navItems = [
 ];
 
 export const SecretariaLayout = () => {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const linkClass = ({ isActive }: { isActive: boolean }) =>
@@ -32,6 +33,10 @@ export const SecretariaLayout = () => {
         ? 'bg-brand-50 text-brand-700 dark:bg-brand-900/20 dark:text-brand-300'
         : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-slate-800'
     }`;
+
+  const handleLogout = async () => {
+    await logout();
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-slate-900 flex font-sans text-gray-900 dark:text-gray-100 transition-colors duration-200">
@@ -69,14 +74,24 @@ export const SecretariaLayout = () => {
         </div>
 
         <div className="flex h-[calc(100vh-5rem)] flex-col justify-between p-4">
-          <nav className="space-y-2">
-            {navItems.map((item) => (
-              <NavLink key={item.to} to={item.to} className={linkClass} onClick={() => setIsSidebarOpen(false)}>
-                <item.icon className="h-4 w-4" />
-                <span>{item.label}</span>
-              </NavLink>
-            ))}
-          </nav>
+          <div className="space-y-6">
+            <nav className="space-y-2">
+              {navItems.map((item) => (
+                <NavLink key={item.to} to={item.to} className={linkClass} onClick={() => setIsSidebarOpen(false)}>
+                  <item.icon className="h-4 w-4" />
+                  <span>{item.label}</span>
+                </NavLink>
+              ))}
+            </nav>
+
+            <button
+              onClick={handleLogout}
+              className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+            >
+              <LogOut className="h-4 w-4" />
+              <span>Sair</span>
+            </button>
+          </div>
 
           <div className="rounded-xl bg-blue-50 p-4 dark:bg-blue-900/20">
             <p className="truncate text-sm font-semibold text-blue-900 dark:text-blue-200">
