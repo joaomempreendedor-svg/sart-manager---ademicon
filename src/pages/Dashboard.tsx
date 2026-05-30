@@ -1,684 +1,139 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { useNavigate } from 'react-router-dom';
-import { ChevronRight, User, Calendar, CheckCircle2, TrendingUp, AlertCircle, Clock, Users, Star, CheckSquare, XCircle, BellRing, UserRound, Plus, ListTodo, Send, DollarSign, Repeat, Filter, RotateCcw, CalendarPlus, Mail, Phone, ClipboardCheck, UserPlus, ArrowUpRight, UserCheck, PieChart, MessageSquare, UserX, UserMinus, Ghost, MapPin, BarChart3, FileText, Percent, HelpCircle, PhoneCall, CalendarCheck, Loader2 } from 'lucide-react';
-import { CandidateStatus, ChecklistTaskState, GestorTask, LeadTask, CrmLead, Candidate, ColdCallLead, ColdCallLog, ColdCallDetailType } from '@/types';
-import { TableSkeleton } from '@/components/TableSkeleton';
-import { ScheduleInterviewModal } from '@/components/ScheduleInterviewModal';
-import { PendingLeadTasksModal } from '@/components/gestor/PendingLeadTasksModal';
-import toast from 'react-hot-toast';
-import { NotificationBell } from '@/components/NotificationBell';
-import { NotificationCenter } from '@/components/NotificationCenter';
-import { LeadsDetailModal } from '@/components/gestor/LeadsDetailModal';
-import { CandidatesDetailModal } from '@/components/gestor/CandidatesDetailModal';
-import { ColdCallDetailModal } from '@/components/gestor/ColdCallDetailModal';
-// REMOVIDO: formatLargeCurrency para evitar abreviação K/M nos valores do dashboard
-import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Loader2, Banknote, DollarSign, Star, FileText, Video, FileStack, UserSearch } from 'lucide-react';
 import { MetricCard } from '@/components/MetricCard';
+import { useNavigate } from 'react-router-dom';
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 };
 
-interface AgendaItem {
-  id: string;
-  type: 'task' | 'interview' | 'gestor_task' | 'lead';
-  title: string;
-  personName: string;
-  personId: string;
-  personType: 'candidate' | 'teamMember' | 'lead';
-  dueDate: string;
-}
-
 export const Dashboard = () => {
   const { user } = useAuth();
-  const { candidates, checklistStructure, teamMembers, isDataLoading, leadTasks, crmLeads, crmStages, crmPipelines, gestorTasks, gestorTaskCompletions, isGestorTaskDueOnDate, notifications, hiringOrigins, getColdCallMetrics, coldCallLeads, coldCallLogs } = useApp();
+  const {
+    isDataLoading,
+    candidates,
+    commissions,
+    financialEntries,
+    processes,
+    onboardingSessions,
+    formCadastros,
+  } = useApp();
   const navigate = useNavigate();
-  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
-  const [isPendingTasksModalOpen, setIsPendingTasksModalOpen] = useState(false);
-  const [isNotificationCenterOpen, setIsNotificationCenterOpen] = useState(false);
 
-  const [isLeadsDetailModalOpen, setIsLeadsDetailModalOpen] = useState(false);
-  const [leadsModalTitle, setLeadsModalTitle] = useState('');
-  const [leadsForModal, setLeadsForModal] = useState<CrmLead[]>([]);
-  const [leadsMetricType, setLeadsMetricType] = useState<'proposal' | 'sold' | 'meeting' | 'all'>('proposal');
-
-  const [isCandidatesDetailModalOpen, setIsCandidatesDetailModalOpen] = useState(false);
-  const [candidatesModalTitle, setCandidatesModalTitle] = useState('');
-  const [candidatesForModal, setCandidatesForModal] = useState<Candidate[]>([]);
-  const [candidatesMetricType, setCandidatesMetricType] = useState<'total' | 'newCandidates' | 'contacted' | 'scheduled' | 'conducted' | 'awaitingPreview' | 'hired' | 'noShow' | 'withdrawn' | 'disqualified' | 'noResponse'>('total');
-
-  const [isColdCallDetailModalOpen, setIsColdCallDetailModalOpen] = useState(false);
-  const [coldCallModalTitle, setColdCallModalTitle] = useState('');
-  const [coldCallLeadsForModal, setColdCallLeadsForModal] = useState<ColdCallLead[]>([]);
-  const [coldCallLogsForModal, setColdCallLogsForModal] = useState<ColdCallLog[]>([]);
-  const [coldCallDetailType, setColdCallDetailType] = useState<ColdCallDetailType>('all');
-  
-  const [userSelectedColdCallConsultantId, setUserSelectedColdCallConsultantId] = useState<string | null>(null); 
-
-  const [coldCallFilterStartDate, setColdCallFilterStartDate] = useState(() => {
-    const d = new Date();
-    return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
-  });
-  const [coldCallFilterEndDate, setColdCallFilterEndDate] = useState(() => {
-    const d = new Date();
-    return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
-  });
-
-  const handleOpenNotifications = () => setIsNotificationCenterOpen(true);
-  const handleCloseNotifications = () => setIsNotificationCenterOpen(false);
-
-  const activePipeline = useMemo(() => {
-    return crmPipelines.find(p => p.is_active) || crmPipelines[0];
-  }, [crmPipelines]);
-
-  const activeStageIds = useMemo(() => {
-    if (!activePipeline) return new Set<string>();
-    return new Set(crmStages.filter(s => s.pipeline_id === activePipeline.id && s.is_active).map(s => s.id));
-  }, [crmStages, activePipeline]);
-
-  const coldCallConsultants = useMemo(() => {
-    return teamMembers.filter(m => m.isActive && (m.roles.includes('CONSULTOR') || m.roles.includes('PRÉVIA') || m.roles.includes('AUTORIZADO')));
-  }, [teamMembers]);
-
-  const effectiveColdCallConsultantId = useMemo(() => {
-    if (user?.role === 'CONSULTOR') {
-      return user.id;
-    }
-    return userSelectedColdCallConsultantId;
-  }, [user, userSelectedColdCallConsultantId]);
-
-  const selectedColdCallConsultantName = useMemo(() => {
-    if (!effectiveColdCallConsultantId) {
-      return 'Todos os Consultores';
-    }
-    return teamMembers.find(m => (m.authUserId || m.id) === effectiveColdCallConsultantId)?.name || 'Consultor Desconhecido';
-  }, [effectiveColdCallConsultantId, teamMembers]);
-
-  const commercialMetrics = useMemo(() => {
-    const today = new Date();
-    if (!user) return null;
-
-    const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-    const currentMonthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-
-    const leadsForGestor = crmLeads.filter(lead => lead.user_id === user.id && activeStageIds.has(lead.stage_id));
-
-    const totalLeads = leadsForGestor.length;
-    const newLeads = leadsForGestor.filter(lead => new Date(lead.created_at) >= currentMonthStart).length;
-
-    const meetingsTasks = leadTasks.filter(task => {
-      const lead = leadsForGestor.find(l => l.id === task.lead_id);
-      if (!lead || task.type !== 'meeting') return false;
-      const taskDate = new Date(task.due_date || task.meeting_start_time || '');
-      return taskDate >= currentMonthStart && taskDate <= currentMonthEnd;
-    });
-    const meetingsCount = meetingsTasks.length;
-
-    const leadsWithMeetings = leadsForGestor.filter(lead => 
-      meetingsTasks.some(task => task.lead_id === lead.id)
-    );
-
-    const leadsWithProposal = leadsForGestor.filter(lead => {
-      const stage = crmStages.find(s => s.id === lead.stage_id);
-      const isResolved = stage?.is_won || stage?.is_lost;
-
-      if (lead.proposal_value && lead.proposal_value > 0 && lead.proposal_closing_date && !isResolved) {
-        const proposalDate = new Date(lead.proposal_closing_date + 'T00:00:00');
-        return proposalDate >= currentMonthStart && proposalDate <= currentMonthEnd;
-      }
-      return false;
-    });
-    const proposalValue = leadsWithProposal.reduce((sum, lead) => sum + (lead.proposal_value || 0), 0);
-
-    const leadsSold = leadsForGestor.filter(lead => {
-      if (lead.sold_credit_value && lead.sold_credit_value > 0 && lead.sale_date) {
-        const saleDate = new Date(lead.sale_date + 'T00:00:00');
-        return saleDate >= currentMonthStart && saleDate <= currentMonthEnd;
-      }
-      return false;
-    });
-    const soldValue = leadsSold.reduce((sum, lead) => sum + (lead.sold_credit_value || 0), 0);
-
-    const pendingTasks = leadTasks.filter(task => {
-      const lead = leadsForGestor.find(l => l.id === task.lead_id);
-      return lead && !task.is_completed && task.due_date && new Date(task.due_date + 'T00:00:00') <= new Date(today.toISOString().split('T')[0] + 'T00:00:00');
-    });
-
-    return { totalLeads, newLeads, meetingsCount, proposalValue, soldValue, pendingTasks, leadsWithProposal, leadsSold, leadsWithMeetings };
-  }, [crmLeads, leadTasks, user, activeStageIds, crmStages]);
-
-  const hiringMetrics = useMemo(() => {
-    const today = new Date();
-    const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-    const currentMonthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-
-    const isInFilterRange = (dateString?: string) => {
-      if (!dateString) return false;
-      const date = new Date(dateString);
-      return date >= currentMonthStart && date <= currentMonthEnd;
-    };
-
-    const totalCandidates = candidates.filter(c => isInFilterRange(c.createdAt));
-    
-    const newCandidatesList = totalCandidates.filter(c => 
-      (c.screeningStatus === 'Pending Contact' || !c.screeningStatus)
-    );
-
-    const contactedList = totalCandidates.filter(c => 
-      isInFilterRange(c.contactedDate) && c.screeningStatus === 'Contacted'
-    );
-
-    const noResponseList = totalCandidates.filter(c =>
-      isInFilterRange(c.noResponseDate) && c.screeningStatus === 'No Response'
-    );
-
-    const scheduledList = totalCandidates.filter(c => 
-      isInFilterRange(c.interviewScheduledDate)
-    );
-
-    const conductedList = totalCandidates.filter(c => 
-      isInFilterRange(c.interviewConductedDate)
-    );
-
-    const awaitingPreviewList = totalCandidates.filter(c => 
-      isInFilterRange(c.awaitingPreviewDate)
-    );
-
-    const hiredList = totalCandidates.filter(c => 
-      isInFilterRange(c.authorizedDate)
-    );
-
-    const noShowList = totalCandidates.filter(c => 
-      isInFilterRange(c.faltouDate)
-    );
-
-    const withdrawnList = totalCandidates.filter(c => 
-      isInFilterRange(c.reprovadoDate)
-    );
-
-    const disqualifiedList = totalCandidates.filter(c => 
-      isInFilterRange(c.disqualifiedDate)
-    );
-
-    const totalHiredList = totalCandidates.filter(c => 
-      isInFilterRange(c.awaitingPreviewDate) ||
-      isInFilterRange(c.onboardingOnlineDate) ||
-      isInFilterRange(c.integrationPresencialDate) ||
-      isInFilterRange(c.acompanhamento90DiasDate) ||
-      isInFilterRange(c.authorizedDate)
-    );
-
-    const totalInterviewsScheduled = scheduledList.length;
-    const totalInterviewsConducted = conductedList.length;
-
-    const attendanceRate = totalInterviewsScheduled > 0 ? (totalInterviewsConducted / totalInterviewsScheduled) * 100 : 0;
-    const hiringRate = totalCandidates.length > 0 ? (totalHiredList.length / totalCandidates.length) * 100 : 0;
-
-    return {
-      total: totalCandidates.length,
-      newCandidates: newCandidatesList.length,
-      contacted: contactedList.length,
-      noResponse: noResponseList.length,
-      scheduled: scheduledList.length,
-      conducted: conductedList.length,
-      awaitingPreview: awaitingPreviewList.length,
-      hired: hiredList.length,
-      noShow: noShowList.length,
-      withdrawn: withdrawnList.length,
-      disqualified: disqualifiedList.length,
-      attendanceRate,
-      hiringRate,
-      totalHired: totalHiredList.length,
-      newCandidatesList,
-      contactedList,
-      noResponseList,
-      scheduledList,
-      conductedList,
-      awaitingPreviewList,
-      hiredList,
-      noShowList,
-      withdrawnList,
-      disqualifiedList,
-      totalCandidatesList: totalCandidates,
-      totalHiredList,
-    };
-  }, [candidates, hiringOrigins]);
-
-  const coldCallMetrics = useMemo(() => {
-    if (!user) return { totalCalls: 0, totalAnswered: 0, totalConversations: 0, totalMeetingsScheduled: 0, interestConversionRate: 0, meetingConversionRate: 0, filteredLeads: [], filteredLogs: [] };
-
-    const logsToConsider = effectiveColdCallConsultantId
-      ? (coldCallLogs || []).filter(log => log.user_id === effectiveColdCallConsultantId)
-      : (coldCallLogs || []);
-    
-    let filteredLogs = logsToConsider;
-    if (coldCallFilterStartDate) {
-      const start = new Date(coldCallFilterStartDate + 'T00:00:00');
-      filteredLogs = filteredLogs.filter(log => new Date(log.created_at) >= start);
-    }
-    if (coldCallFilterEndDate) {
-      const end = new Date(coldCallFilterEndDate + 'T23:59:59');
-      filteredLogs = filteredLogs.filter(log => new Date(log.created_at) <= end);
-    }
-
-    const totalCalls = filteredLogs.length;
-    
-    const answeredLogs = filteredLogs.filter(log => 
-      log.result !== 'Não atendeu' && log.result !== 'Número inválido'
-    );
-    const totalAnswered = answeredLogs.length;
-
-    const totalConversations = answeredLogs.filter(log =>
-      log.result === 'Demonstrou Interesse' || log.result === 'Agendar Reunião'
+  const metrics = useMemo(() => {
+    const activeCandidates = candidates.filter(
+      (candidate) => candidate.status !== 'Reprovado' && candidate.status !== 'Desqualificado',
     ).length;
-    const totalMeetingsScheduled = answeredLogs.filter(log => log.result === 'Agendar Reunião').length;
 
-    const interestConversionRate = totalAnswered > 0 ? (totalConversations / totalAnswered) * 100 : 0;
-    const meetingConversionRate = totalAnswered > 0 ? (totalMeetingsScheduled / totalAnswered) * 100 : 0;
+    const totalCommissions = commissions.reduce((sum, commission) => sum + (commission.netValue || 0), 0);
 
-    const filteredLeadIds = new Set(filteredLogs.map(log => log.cold_call_lead_id));
-    const filteredLeads = (coldCallLeads || []).filter(lead => filteredLeadIds.has(lead.id));
+    const totalIncome = financialEntries
+      .filter((entry) => entry.type === 'income')
+      .reduce((sum, entry) => sum + entry.amount, 0);
+
+    const totalExpense = financialEntries
+      .filter((entry) => entry.type === 'expense')
+      .reduce((sum, entry) => sum + entry.amount, 0);
 
     return {
-      totalCalls,
-      totalAnswered,
-      totalConversations,
-      totalMeetingsScheduled,
-      interestConversionRate,
-      meetingConversionRate,
-      filteredLeads,
-      filteredLogs,
+      activeCandidates,
+      totalCommissions,
+      totalIncome,
+      totalExpense,
+      totalProcesses: processes.length,
+      totalOnboarding: onboardingSessions.length,
+      totalForms: formCadastros.length,
     };
-  }, [user, effectiveColdCallConsultantId, coldCallLeads, coldCallLogs, coldCallFilterStartDate, coldCallFilterEndDate]);
+  }, [candidates, commissions, financialEntries, processes, onboardingSessions, formCadastros]);
 
-  const { todayAgenda, overdueTasks } = useMemo(() => {
-    const todayStr = new Date().toISOString().split('T')[0];
-    const todayAgendaItems: AgendaItem[] = [];
-    const overdueItems: AgendaItem[] = [];
-
-    candidates.filter(c => c.responsibleUserId === user?.id).forEach(candidate => {
-      Object.entries(candidate.checklistProgress || {}).forEach(([taskId, state]) => {
-        if (state.dueDate) {
-          const item = checklistStructure.flatMap(s => s.items).find(i => i.id === taskId);
-          if (item) {
-            const agendaItem: AgendaItem = { id: `${candidate.id}-${taskId}`, type: 'task', title: item.label, personName: candidate.name, personId: candidate.id, personType: 'candidate', dueDate: state.dueDate };
-            if (state.dueDate === todayStr && !state.completed) todayAgendaItems.push(agendaItem);
-            else if (state.dueDate < todayStr && !state.completed) overdueItems.push(agendaItem);
-          }
-        }
-      });
-      if (candidate.interviewDate === todayStr) {
-        todayAgendaItems.push({ id: `interview-${candidate.id}`, type: 'interview', title: 'Entrevista Agendada', personName: candidate.name, personId: candidate.id, personType: 'candidate', dueDate: candidate.interviewDate });
-      }
-    });
-
-    gestorTasks.filter(task => task.user_id === user?.id).forEach(task => {
-      const isRecurring = task.recurrence_pattern && task.recurrence_pattern.type !== 'none';
-      const isCompletedToday = isRecurring && gestorTaskCompletions.some(c => c.gestor_task_id === task.id && c.user_id === user?.id && c.date === todayStr && c.done);
-      const isDueToday = isGestorTaskDueOnDate(task, todayStr);
-
-      if (!isCompletedToday && isDueToday) {
-        todayAgendaItems.push({ id: `gestor-task-${task.id}`, type: 'gestor_task', title: task.title, personName: 'Eu', personId: user!.id, personType: 'teamMember', dueDate: task.due_date || '' });
-      } else if (!isRecurring && task.due_date && task.due_date < todayStr && !task.is_completed) {
-        overdueItems.push({ id: `gestor-task-${task.id}`, type: 'gestor_task', title: task.title, personName: 'Eu', personId: user!.id, personType: 'teamMember', dueDate: task.due_date });
-      }
-    });
-
-    return { todayAgenda: todayAgendaItems, overdueTasks: overdueItems };
-  }, [candidates, checklistStructure, user, gestorTasks, gestorTaskCompletions, isGestorTaskDueOnDate]);
-
-  const handleAgendaItemClick = (item: AgendaItem) => {
-    if (item.personType === 'candidate') navigate(`/gestor/candidate/${item.personId}`);
-    else if (item.personType === 'lead') navigate(`/gestor/crm`, { state: { highlightLeadId: item.personId } });
-  };
-
-  const handleOpenLeadsDetailModal = (title: string, leads: CrmLead[], metricType: 'proposal' | 'sold' | 'meeting' | 'all') => {
-    setLeadsModalTitle(title);
-    setLeadsForModal(leads);
-    setLeadsMetricType(metricType);
-    setIsLeadsDetailModalOpen(true);
-  };
-
-  const handleOpenCandidatesDetailModal = (title: string, candidates: Candidate[], metricType: 'total' | 'newCandidates' | 'contacted' | 'scheduled' | 'conducted' | 'awaitingPreview' | 'hired' | 'noShow' | 'withdrawn' | 'disqualified' | 'noResponse') => {
-    setCandidatesModalTitle(title);
-    setCandidatesForModal(candidates);
-    setCandidatesMetricType(metricType);
-    setIsCandidatesDetailModalOpen(true);
-  };
-
-  const handleOpenColdCallDetailModal = (title: string, type: ColdCallDetailType) => {
-    const leadsToPass = effectiveColdCallConsultantId 
-      ? coldCallLeads.filter(l => l.user_id === effectiveColdCallConsultantId)
-      : coldCallLeads;
-    const logsToPass = effectiveColdCallConsultantId
-      ? coldCallLogs.filter(log => log.user_id === effectiveColdCallConsultantId)
-      : coldCallLogs;
-
-    setColdCallModalTitle(title);
-    setColdCallLeadsForModal(leadsToPass);
-    setColdCallLogsForModal(logsToPass);
-    setColdCallDetailType(type);
-    setIsColdCallDetailModalOpen(true);
-  };
-
-  if (isDataLoading) return <div className="flex items-center justify-center h-screen"><Loader2 className="w-12 h-12 text-brand-500 animate-spin" /></div>;
+  if (isDataLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[calc(100vh-theme(spacing.16))]">
+        <Loader2 className="w-12 h-12 text-brand-500 animate-spin" />
+      </div>
+    );
+  }
 
   return (
-    <div className="p-4 sm:p-8 max-w-7xl mx-auto space-y-10">
-      <div className="flex items-center justify-between flex-col sm:flex-row gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Olá, {user?.name.split(' ')[0]}!</h1>
-          <p className="text-gray-500 dark:text-gray-400">Aqui está o resumo da sua operação hoje.</p>
-        </div>
-        <div className="flex items-center space-x-4">
-          <NotificationBell notificationCount={notifications.length} onClick={handleOpenNotifications} />
-          <NotificationCenter isOpen={isNotificationCenterOpen} onClose={handleCloseNotifications} notifications={notifications} />
-        </div>
+    <div className="p-4 sm:p-8 max-w-7xl mx-auto space-y-8">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Olá, {user?.name.split(' ')[0]}!</h1>
+        <p className="text-gray-500 dark:text-gray-400">
+          Este painel foi simplificado para os módulos que você está usando agora.
+        </p>
       </div>
 
-      <section className="animate-fade-in">
-        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center">
-          <TrendingUp className="w-5 h-5 mr-2 text-brand-500" /> Métricas Comerciais
-          <span className="ml-3 text-xs font-medium text-gray-500 bg-gray-100 dark:bg-slate-700 dark:text-gray-400 px-2 py-1 rounded-full">Mês Atual</span>
-        </h2>
+      <section>
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Resumo do sistema</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           <MetricCard
-            title="Novos Leads"
-            value={commercialMetrics?.newLeads ?? 0}
-            icon={Plus}
+            title="Contratação"
+            value={metrics.activeCandidates}
+            icon={UserSearch}
+            colorClass="bg-blue-600 text-white"
+            subValue="Candidatos em andamento"
+            onClick={() => navigate('/gestor/hiring-dashboard')}
+          />
+          <MetricCard
+            title="Comissões"
+            value={formatCurrency(metrics.totalCommissions)}
+            icon={Banknote}
             colorClass="bg-green-600 text-white"
-            size="compact"
+            subValue="Total registrado"
+            onClick={() => navigate('/gestor/commissions')}
           />
           <MetricCard
-            title="Reuniões"
-            value={commercialMetrics?.meetingsCount ?? 0}
-            icon={Calendar}
-            colorClass="bg-orange-600 text-white"
-            size="compact"
-            onClick={() => handleOpenLeadsDetailModal('Reuniões do Mês', commercialMetrics?.leadsWithMeetings || [], 'meeting')}
+            title="Financeiro"
+            value={formatCurrency(metrics.totalIncome - metrics.totalExpense)}
+            icon={DollarSign}
+            colorClass="bg-emerald-700 text-white"
+            subValue="Saldo atual"
+            onClick={() => navigate('/gestor/financial-panel')}
           />
           <MetricCard
-            title="Propostas"
-            value={formatCurrency(commercialMetrics?.proposalValue || 0)}
-            icon={Send}
+            title="Processos"
+            value={metrics.totalProcesses}
+            icon={FileText}
             colorClass="bg-purple-600 text-white"
-            size="compact"
-            onClick={() => handleOpenLeadsDetailModal('Propostas do Mês', commercialMetrics?.leadsWithProposal || [], 'proposal')}
+            subValue="Itens cadastrados"
+            onClick={() => navigate('/gestor/processos')}
           />
           <MetricCard
-            title="Vendido"
-            value={formatCurrency(commercialMetrics?.soldValue || 0)}
+            title="Onboarding"
+            value={metrics.totalOnboarding}
+            icon={Video}
+            colorClass="bg-orange-600 text-white"
+            subValue="Sessões criadas"
+            onClick={() => navigate('/gestor/onboarding-admin')}
+          />
+          <MetricCard
+            title="Formulários"
+            value={metrics.totalForms}
+            icon={FileStack}
+            colorClass="bg-cyan-600 text-white"
+            subValue="Envios recebidos"
+            onClick={() => navigate('/gestor/form-cadastros')}
+          />
+          <MetricCard
+            title="Receitas"
+            value={formatCurrency(metrics.totalIncome)}
             icon={DollarSign}
             colorClass="bg-teal-600 text-white"
-            size="compact"
-            onClick={() => handleOpenLeadsDetailModal('Vendas do Mês', commercialMetrics?.leadsSold || [], 'sold')}
-          />
-        </div>
-      </section>
-
-      <section className="animate-fade-in">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center">
-            <PhoneCall className="w-5 h-5 mr-2 text-brand-500" /> Métricas de Cold Call
-            <span className="ml-3 text-xs font-medium text-gray-500 bg-gray-100 dark:bg-slate-700 dark:text-gray-400 px-2 py-1 rounded-full">Mês Atual</span>
-          </h2>
-          <div className="flex items-center space-x-2">
-            <label htmlFor="coldCallConsultant" className="text-sm font-medium text-gray-700 dark:text-gray-300">Consultor:</label>
-            <Select
-              value={userSelectedColdCallConsultantId || 'all'}
-              onValueChange={(value) => setUserSelectedColdCallConsultantId(value === 'all' ? null : value)}
-            >
-              <SelectTrigger className="w-[180px] dark:bg-slate-700 dark:text-white dark:border-slate-600">
-                <SelectValue placeholder="Selecione o Consultor" />
-              </SelectTrigger>
-              <SelectContent className="bg-white text-gray-900 dark:bg-slate-800 dark:text-white dark:border-slate-700">
-                <SelectItem value="all">Todos os Consultores</SelectItem>
-                {coldCallConsultants.map(consultant => (
-                  <SelectItem key={consultant.id} value={consultant.authUserId || consultant.id}>
-                    {consultant.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-          <MetricCard
-            title="Total de Ligações"
-            value={coldCallMetrics.totalCalls}
-            icon={PhoneCall}
-            colorClass="bg-blue-600 text-white"
-            subValue="Chamadas registradas"
-            onClick={() => handleOpenColdCallDetailModal('Total de Ligações', 'calls')}
+            subValue="Entradas"
+            onClick={() => navigate('/gestor/financial-panel')}
           />
           <MetricCard
-            title="Ligações Atendidas"
-            value={coldCallMetrics.totalAnswered}
-            icon={MessageSquare}
-            colorClass="bg-sky-600 text-white"
-            subValue="Chamadas que foram atendidas"
-            onClick={() => handleOpenColdCallDetailModal('Ligações Atendidas', 'answered')}
-          />
-          <MetricCard
-            title="Demonstraram Interesse"
-            value={coldCallMetrics.totalConversations}
+            title="Feedbacks"
+            value={candidates.filter((candidate) => (candidate.feedbacks || []).length > 0).length}
             icon={Star}
-            colorClass="bg-amber-600 text-white"
-            subValue="Conversou ou Agendou Reunião"
-            onClick={() => handleOpenColdCallDetailModal('Demonstraram Interesse', 'conversations')}
-          />
-          <MetricCard
-            title="Taxa de Interesse"
-            value={`${coldCallMetrics.interestConversionRate.toFixed(1)}%`}
-            icon={Percent}
-            colorClass="bg-yellow-600 text-white"
-            subValue="Atendidas → Interesse"
-          />
-          <MetricCard
-            title="Reuniões Agendadas"
-            value={coldCallMetrics.totalMeetingsScheduled}
-            icon={CalendarCheck}
-            colorClass="bg-green-600 text-white"
-            subValue="Agendadas na ligação"
-            onClick={() => handleOpenColdCallDetailModal('Reuniões Agendadas', 'meetings')}
-          />
-          <MetricCard
-            title="Taxa de Agendamento"
-            value={`${coldCallMetrics.meetingConversionRate.toFixed(1)}%`}
-            icon={TrendingUp}
-            colorClass="bg-teal-600 text-white"
-            subValue="Atendidas → Reunião"
+            colorClass="bg-rose-600 text-white"
+            subValue="Candidatos com feedback"
+            onClick={() => navigate('/gestor/feedbacks')}
           />
         </div>
       </section>
-
-      <section className="animate-fade-in">
-        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center">
-          <PieChart className="w-5 h-5 mr-2 text-brand-500" /> Dashboard de Candidaturas
-          <span className="ml-3 text-xs font-medium text-gray-500 bg-gray-100 dark:bg-slate-700 dark:text-gray-400 px-2 py-1 rounded-full">Mês Atual</span>
-        </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          <MetricCard 
-            title="Total de Candidaturas" 
-            value={hiringMetrics.total} 
-            icon={Users} 
-            colorClass="bg-indigo-600 text-white" 
-            onClick={() => handleOpenCandidatesDetailModal('Total de Candidaturas', hiringMetrics.totalCandidatesList, 'total')}
-          />
-          <MetricCard 
-            title="Contatados" 
-            value={hiringMetrics.contacted} 
-            icon={MessageSquare} 
-            colorClass="bg-amber-500 text-white" 
-            subValue="Em triagem ativa"
-            onClick={() => handleOpenCandidatesDetailModal('Contatados', hiringMetrics.contactedList, 'contacted')}
-          />
-          <MetricCard 
-            title="Não Respondido"
-            value={hiringMetrics.noResponse}
-            icon={HelpCircle}
-            colorClass="bg-orange-500 text-white"
-            subValue="Aguardando retorno"
-            onClick={() => handleOpenCandidatesDetailModal('Não Respondido', hiringMetrics.noResponseList, 'noResponse')}
-          />
-          <MetricCard 
-            title="Entrevistas Agendadas" 
-            value={hiringMetrics.scheduled} 
-            icon={Clock} 
-            colorClass="bg-orange-600 text-white" 
-            onClick={() => handleOpenCandidatesDetailModal('Entrevistas Agendadas', hiringMetrics.scheduledList, 'scheduled')}
-          />
-          <MetricCard 
-            title="Entrevistas Realizadas" 
-            value={hiringMetrics.conducted} 
-            icon={FileText} 
-            colorClass="bg-purple-600 text-white" 
-            onClick={() => handleOpenCandidatesDetailModal('Entrevistas Realizadas', hiringMetrics.conductedList, 'conducted')}
-          />
-          <MetricCard 
-            title="Total de Aprovados" 
-            value={hiringMetrics.totalHired} 
-            icon={TrendingUp} 
-            colorClass="bg-blue-600 text-white" 
-            subValue="Entraram em prévia ou posterior"
-            onClick={() => handleOpenCandidatesDetailModal('Total de Aprovados', hiringMetrics.totalHiredList, 'awaitingPreview')}
-          />
-          <MetricCard 
-            title="Autorizados" 
-            value={hiringMetrics.hired} 
-            icon={UserCheck} 
-            colorClass="bg-emerald-600 text-white" 
-            subValue="Contratações efetivas"
-            onClick={() => handleOpenCandidatesDetailModal('Autorizados', hiringMetrics.hiredList, 'hired')}
-          />
-          <MetricCard 
-            title="Desistências" 
-            value={hiringMetrics.withdrawn} 
-            icon={UserMinus} 
-            colorClass="bg-rose-600 text-white" 
-            subValue="Aprovados que saíram"
-            onClick={() => handleOpenCandidatesDetailModal('Desistências', hiringMetrics.withdrawnList, 'withdrawn')}
-          />
-          <MetricCard 
-            title="Faltas" 
-            value={hiringMetrics.noShow} 
-            icon={Ghost} 
-            colorClass="bg-rose-500 text-white" 
-            subValue="Não compareceram"
-            onClick={() => handleOpenCandidatesDetailModal('Faltas', hiringMetrics.noShowList, 'noShow')}
-          />
-          <MetricCard 
-            title="Desqualificados" 
-            value={hiringMetrics.disqualified} 
-            icon={XCircle} 
-            colorClass="bg-rose-700 text-white" 
-            subValue="Reprovados pelo gestor"
-            onClick={() => handleOpenCandidatesDetailModal('Desqualificados', hiringMetrics.disqualifiedList, 'disqualified')}
-          />
-          
-          <MetricCard 
-            title="Taxa de Comparecimento" 
-            value={`${hiringMetrics.attendanceRate.toFixed(1)}%`} 
-            icon={Percent} 
-            colorClass="bg-slate-800 text-white dark:bg-slate-700" 
-            subValue="Efetividade Agenda"
-          />
-          <MetricCard 
-            title="Taxa de Contratação" 
-            value={`${hiringMetrics.hiringRate.toFixed(1)}%`} 
-            icon={Percent} 
-            colorClass="bg-slate-800 text-white dark:bg-slate-700" 
-            subValue="Conversão Final"
-          />
-        </div>
-      </section>
-
-      <section className="animate-fade-in">
-        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center">
-          <Calendar className="w-5 h-5 mr-2 text-brand-500" /> Agenda do Dia
-        </h2>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-md">
-            <h3 className="text-sm font-bold text-gray-400 uppercase mb-4">Compromissos de Hoje</h3>
-            {todayAgenda.length === 0 ? (
-              <p className="text-center text-gray-400 py-8">Nenhum compromisso com data para hoje.</p>
-            ) : (
-              <ScrollArea className="h-[250px] pr-4">
-                <ul className="space-y-3">
-                  {todayAgenda.map(item => (
-                    <li key={item.id} onClick={() => handleAgendaItemClick(item)} className="flex items-start space-x-3 p-3 rounded-lg bg-gray-50 dark:bg-slate-700/50 hover:bg-gray-100 transition-colors cursor-pointer border border-transparent hover:border-brand-200">
-                      <div className="mt-1">{item.type === 'interview' ? <Calendar className="w-4 h-4 text-green-500" /> : <CheckSquare className="w-4 h-4 text-blue-500" />}</div>
-                      <div className="flex-1">
-                        <p className="font-bold text-sm text-gray-900 dark:text-white">{item.title}</p>
-                        <p className="text-xs text-gray-500">{item.personName}</p>
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-gray-300" />
-                    </li>
-                  ))}
-                </ul>
-              </ScrollArea>
-            )}
-          </div>
-
-          <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-red-100 dark:border-red-900/30 shadow-md">
-            <h3 className="text-sm font-bold text-red-500 uppercase mb-4 flex items-center">
-              <AlertCircle className="w-4 h-4 mr-2" /> Pendências Atrasadas
-            </h3>
-            {overdueTasks.length === 0 ? (
-              <p className="text-center text-gray-400 py-8">Nenhuma tarefa atrasada. Bom trabalho!</p>
-            ) : (
-              <ScrollArea className="h-[250px] pr-4">
-                <ul className="space-y-3">
-                  {overdueTasks.map(item => (
-                    <li key={item.id} onClick={() => handleAgendaItemClick(item)} className="flex items-start space-x-3 p-3 rounded-lg bg-red-50 dark:bg-red-900/10 hover:bg-red-100 transition-colors cursor-pointer border border-red-100 dark:border-red-900/20">
-                      <div className="mt-1"><AlertCircle className="w-4 h-4 text-red-500" /></div>
-                      <div className="flex-1">
-                        <p className="font-bold text-sm text-red-900 dark:text-red-200">{item.title}</p>
-                        <p className="text-xs text-red-700 dark:text-red-400">{item.personName} • Venceu em {new Date(item.dueDate + 'T00:00:00').toLocaleDateString('pt-BR')}</p>
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-gray-300" />
-                    </li>
-                  ))}
-                </ul>
-              </ScrollArea>
-            )}
-          </div>
-        </div>
-      </section>
-
-      <ScheduleInterviewModal isOpen={isScheduleModalOpen} onClose={() => setIsScheduleModalOpen(false)} />
-      <PendingLeadTasksModal isOpen={isPendingTasksModalOpen} onClose={() => setIsPendingTasksModalOpen(false)} pendingTasks={commercialMetrics?.pendingTasks || []} crmLeads={crmLeads} teamMembers={teamMembers} />
-      <LeadsDetailModal isOpen={isLeadsDetailModalOpen} onClose={() => setIsLeadsDetailModalOpen(false)} title={leadsModalTitle} leads={leadsForModal} crmStages={crmStages} teamMembers={teamMembers} metricType={leadsMetricType} />
-      <CandidatesDetailModal 
-        isOpen={isCandidatesDetailModalOpen} 
-        onClose={() => setIsCandidatesDetailModalOpen(false)} 
-        title={candidatesModalTitle} 
-        candidates={candidatesForModal} 
-        teamMembers={teamMembers} 
-        metricType={candidatesMetricType} 
-      />
-      <ColdCallDetailModal
-        isOpen={isColdCallDetailModalOpen}
-        onClose={() => setIsColdCallDetailModalOpen(false)}
-        title={coldCallModalTitle}
-        consultantName={selectedColdCallConsultantName}
-        leads={coldCallMetrics.filteredLeads}
-        logs={coldCallMetrics.filteredLogs}
-        type={coldCallDetailType}
-        teamMembers={teamMembers}
-        filterStartDate={coldCallFilterStartDate}
-        filterEndDate={coldCallFilterEndDate}
-      />
     </div>
   );
 };

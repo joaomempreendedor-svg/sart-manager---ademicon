@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { Loader2 } from 'lucide-react';
@@ -14,13 +14,8 @@ export const Home = () => {
     );
   }
 
-  // O redirecionamento para /login se !user é tratado pelo RequireAuth
   if (user?.role === 'GESTOR' || user?.role === 'ADMIN') {
     return <Navigate to="/gestor/dashboard" replace />;
-  }
-
-  if (user?.role === 'CONSULTOR') {
-    return <Navigate to="/consultor/dashboard" replace />;
   }
 
   if (user?.role === 'SECRETARIA') {

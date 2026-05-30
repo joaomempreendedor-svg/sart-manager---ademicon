@@ -154,7 +154,8 @@ export const FinancialPanel = () => {
   const handleSaveEntry = async (entryData: Omit<FinancialEntry, 'id' | 'user_id' | 'created_at'> | FinancialEntry) => {
     try {
       if ('id' in entryData) { // Editing existing entry
-        await updateFinancialEntry(entryData.id, entryData);
+        const { id, db_id, user_id, created_at, ...updates } = entryData as FinancialEntry;
+        await updateFinancialEntry(id, updates);
         toast.success("Lançamento atualizado com sucesso!");
       } else { // Adding new entry
         const newEntry = { ...entryData, entry_date: selectedDateForNewEntry || entryData.entry_date };

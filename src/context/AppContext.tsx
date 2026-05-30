@@ -306,7 +306,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           safeFetch('lead_tasks'),
           safeFetch('gestor_tasks', { filters: { user_id: effectiveGestorId } }),
           safeFetch('gestor_task_completions', { filters: { user_id: effectiveGestorId } }),
-          safeFetch('financial_entries', { filters: { user_id: effectiveGestorId } }),
+          safeFetch('financial_entries', { filters: { user_id: userId } }),
           safeFetch('form_submissions', { select: 'id, submission_date, data, internal_notes, is_complete', filters: { user_id: effectiveGestorId }, orderBy: 'submission_date', ascending: false }),
           safeFetch('form_files'),
           safeFetch('notifications', { filters: { user_id: userId, is_read: false }, orderBy: 'created_at', ascending: false }),
@@ -1005,12 +1005,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // --- Financial Entry Functions ---
   const addFinancialEntry = useCallback(async (entry: Omit<FinancialEntry, 'id' | 'user_id' | 'created_at'>) => {
-    const { data, error } = await supabase.from('financial_entries').insert({ ...entry, user_id: JOAO_GESTOR_AUTH_ID }).select().single();
+    if (!user) throw new Error('Usuário não autenticado.');
+    const { data, error } = await supabase.from('financial_entries').insert({ ...entry, user_id: user.id }).select().single();
     if (error) throw error; setFinancialEntries(prev => [...prev, { ...data, amount: parseFloat(data.amount) }]); return data;
-  }, []);
+  }, [user]);
 
   const updateFinancialEntry = useCallback(async (id: string, updates: Partial<FinancialEntry>) => {
-    const { data, error } = await supabase.from('financial_entries').update(updates).eq('id', id).select().single();
+    const cleanUpdates: any = { ...updates };
+    delete cleanUpdates.id;
+    delete cleanUpdates.db_id;
+    delete cleanUpdates.user_id;
+    delete cleanUpdates.created_at;
+    
+    const { data, error } = await supabase.from('financial_entries').update(cleanUpdates).eq('id', id).select().single();
     if (error) throw error; setFinancialEntries(prev => prev.map(e => e.id === id ? { ...data, amount: parseFloat(data.amount) } : e)); return data;
   }, []);
 
