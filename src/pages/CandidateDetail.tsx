@@ -2,11 +2,12 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { ArrowLeft, CheckSquare, FileText, Phone, Calendar, Clock, MessageCircle, Paperclip, CheckCircle2, Target, Trash2, CalendarPlus, Save, Loader2, Users, Filter, ShieldCheck, UserRound } from 'lucide-react';
+import { ArrowLeft, CheckSquare, FileText, Phone, Calendar, Clock, MessageCircle, Paperclip, CheckCircle2, Target, Trash2, CalendarPlus, Save, Loader2, Users, Filter, ShieldCheck, UserRound, UserMinus } from 'lucide-react';
+
 import { CommunicationTemplate, InterviewScores } from '@/types';
 import { MessageViewerModal } from '@/components/MessageViewerModal';
-import { WithdrawalReasonModal } from '@/components/gestor/WithdrawalReasonModal';
-import { buildCandidateStageUpdates, getCandidateStageKey, normalizeHiringPipelineColumns } from '@/lib/hiringPipeline';
+import { WithdrawalReasonModal, WithdrawalReasonSelection } from '@/components/gestor/WithdrawalReasonModal';
+import { buildCandidateStageUpdates, getCandidateStageKey, getHiringStageLabel, normalizeHiringPipelineColumns } from '@/lib/hiringPipeline';
 
 import {
   Select,
@@ -69,21 +70,28 @@ export const CandidateDetail = () => {
 
   const handleStageChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newStageKey = e.target.value;
-    if (newStageKey === 'reprovado-gestor') {
-      setIsWithdrawalModalOpen(true);
-      return;
-    }
-
     const selectedColumn = stageOptions.find((stage) => stage.stageKey === newStageKey);
     if (!selectedColumn) return;
 
     await updateCandidate(candidate.id, buildCandidateStageUpdates(candidate, selectedColumn.stageKey));
   };
 
-  const handleConfirmWithdrawal = async (reason: string) => {
+  const handleConfirmWithdrawal = async (selection: WithdrawalReasonSelection) => {
+    const withdrawalStageKey = getCandidateStageKey(candidate);
+    const now = new Date().toISOString();
+
     try {
-      await updateCandidate(candidate.id, buildCandidateStageUpdates(candidate, 'reprovado-gestor', reason));
-      alert('Candidato movido para Reprovado pelo Gestor');
+      await updateCandidate(candidate.id, {
+        status: 'Reprovado',
+        pipelineStageKey: withdrawalStageKey,
+        withdrawalStageKey,
+        withdrawalReasonOption: selection.reasonOption,
+        withdrawalReason: selection.reasonText,
+        reprovadoDate: now,
+        lastUpdatedAt: now,
+      });
+      alert(`Desistência registrada em ${getHiringStageLabel(withdrawalStageKey)}`);
+      navigate('/gestor/hiring-pipeline');
     } catch (error: any) {
       alert(`Erro ao atualizar status: ${error.message}`);
     }
@@ -221,6 +229,14 @@ export const CandidateDetail = () => {
                         <option key={stage.id} value={stage.stageKey}>{stage.title}</option>
                       ))}
                   </select>
+                  <button
+                      onClick={() => setIsWithdrawalModalOpen(true)}
+                      className="inline-flex items-center justify-center gap-2 rounded-md border border-rose-200 bg-rose-50 px-3 py-2.5 text-sm font-medium text-rose-600 transition hover:bg-rose-100 dark:border-rose-900/30 dark:bg-rose-900/20 dark:text-rose-300 dark:hover:bg-rose-900/40 w-full sm:w-auto"
+                      title="Registrar desistência nesta etapa"
+                  >
+                      <UserMinus className="w-4 h-4" />
+                      Desistiu
+                  </button>
                   <button
                       onClick={handleDelete}
                       className="p-2.5 text-red-500 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 rounded-md transition border border-red-100 dark:border-red-900/30 w-full sm:w-auto"
@@ -552,7 +568,9 @@ export const CandidateDetail = () => {
           onClose={() => setIsWithdrawalModalOpen(false)}
           onConfirm={handleConfirmWithdrawal}
           candidateName={candidate.name}
+          stageName={getHiringStageLabel(getCandidateStageKey(candidate))}
         />
+
       </div>
     </ErrorBoundary>
   );

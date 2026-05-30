@@ -15,18 +15,20 @@ import {
   Trash2,
   UserPlus,
   UserRound,
+  UserMinus,
 } from 'lucide-react';
+
 import { Textarea } from '@/components/ui/textarea';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { EditScreeningCandidateModal } from '@/components/gestor/EditScreeningCandidateModal';
 import { UpdateInterviewDateModal } from '@/components/gestor/UpdateInterviewDateModal';
 import { ImportCandidatesModal } from '@/components/gestor/ImportCandidatesModal';
-import { WithdrawalReasonModal } from '@/components/gestor/WithdrawalReasonModal';
+import { WithdrawalReasonModal, WithdrawalReasonSelection } from '@/components/gestor/WithdrawalReasonModal';
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
 import { highlightText } from '@/lib/utils';
 import { Candidate, HiringPipelineColumn } from '@/types';
-import { buildCandidateStageUpdates, getCandidateStageKey, normalizeHiringPipelineColumns } from '@/lib/hiringPipeline';
+import { buildCandidateStageUpdates, getCandidateStageKey, getHiringStageLabel, normalizeHiringPipelineColumns } from '@/lib/hiringPipeline';
 
 const HiringPipeline = () => {
   const navigate = useNavigate();
@@ -109,9 +111,10 @@ const HiringPipeline = () => {
     return normalizedColumns.map((column) => ({
       ...column,
       list: filteredCandidates
-        .filter((candidate) => getCandidateStageKey(candidate) === column.stageKey)
+        .filter((candidate) => !candidate.reprovadoDate && getCandidateStageKey(candidate) === column.stageKey)
         .sort(sortByRecentUpdate),
     }));
+
   }, [candidates, filterEndDate, filterStartDate, normalizedColumns, searchTerm]);
 
   const getColumnColorClasses = (color: HiringPipelineColumn['color']) => {
@@ -147,7 +150,9 @@ const HiringPipeline = () => {
     setDragOverColumn(columnId);
   };
 
-  const openRejectionFlow = (candidate: Candidate) => {
+  const openWithdrawalFlow = (event: React.MouseEvent, candidate: Candidate) => {
+    event.preventDefault();
+    event.stopPropagation();
     setSelectedCandidateForWithdrawal(candidate);
     setIsWithdrawalModalOpen(true);
   };
@@ -164,12 +169,6 @@ const HiringPipeline = () => {
 
     if (!candidate || !targetColumn) return;
 
-    if (targetColumn.stageKey === 'reprovado-gestor') {
-      openRejectionFlow(candidate);
-      setDraggingCandidateId(null);
-      return;
-    }
-
     try {
       await moveCandidateToStage(candidate, targetColumn);
       toast.success(`Candidato movido para ${targetColumn.title}`);
@@ -184,11 +183,6 @@ const HiringPipeline = () => {
     event.preventDefault();
     event.stopPropagation();
 
-    if (column.stageKey === 'reprovado-gestor') {
-      openRejectionFlow(candidate);
-      return;
-    }
-
     try {
       await moveCandidateToStage(candidate, column);
       toast.success(`Candidato movido para ${column.title}`);
@@ -197,17 +191,25 @@ const HiringPipeline = () => {
     }
   };
 
-  const handleConfirmWithdrawal = async (reason: string) => {
+  const handleConfirmWithdrawal = async (selection: WithdrawalReasonSelection) => {
     if (!selectedCandidateForWithdrawal) return;
 
-    const rejectionColumn = normalizedColumns.find((column) => column.stageKey === 'reprovado-gestor');
-    if (!rejectionColumn) return;
+    const withdrawalStageKey = getCandidateStageKey(selectedCandidateForWithdrawal);
+    const now = new Date().toISOString();
 
     try {
-      await moveCandidateToStage(selectedCandidateForWithdrawal, rejectionColumn, reason);
-      toast.success('Candidato movido para reprovado pelo gestor');
+      await updateCandidate(selectedCandidateForWithdrawal.id, {
+        status: 'Reprovado',
+        pipelineStageKey: withdrawalStageKey,
+        withdrawalStageKey,
+        withdrawalReasonOption: selection.reasonOption,
+        withdrawalReason: selection.reasonText,
+        reprovadoDate: now,
+        lastUpdatedAt: now,
+      });
+      toast.success(`Desistência registrada em ${getHiringStageLabel(withdrawalStageKey)}`);
     } catch {
-      toast.error('Erro ao atualizar status.');
+      toast.error('Erro ao registrar desistência.');
     }
   };
 
@@ -521,23 +523,33 @@ const HiringPipeline = () => {
                         <div className="mt-1 border-t border-gray-50 pt-3 dark:border-slate-600">
                           <div className="grid grid-cols-1 gap-2">
                             {nextColumns.map((column) => (
+                                <button
+                                  key={column.id}
+                                  onClick={(event) => handleMoveToColumn(event, candidate, column)}
+                                  className="min-h-[30px] w-full rounded-lg border border-gray-200 bg-gray-50 px-2 py-1 text-left text-[10px] font-bold leading-snug text-gray-700 transition hover:bg-gray-100 dark:border-slate-600 dark:bg-slate-800 dark:text-gray-200 dark:hover:bg-slate-700"
+                                  title={`Mover para ${column.title}`}
+                                >
+                                  {column.title}
+                                </button>
+                              ))}
+  
                               <button
-                                key={column.id}
-                                onClick={(event) => handleMoveToColumn(event, candidate, column)}
-                                className="min-h-[30px] w-full rounded-lg border border-gray-200 bg-gray-50 px-2 py-1 text-left text-[10px] font-bold leading-snug text-gray-700 transition hover:bg-gray-100 dark:border-slate-600 dark:bg-slate-800 dark:text-gray-200 dark:hover:bg-slate-700"
-                                title={`Mover para ${column.title}`}
+                                onClick={(event) => handleOpenUpdateDate(event, candidate)}
+                                className="min-h-[30px] w-full rounded-lg bg-brand-600 px-2 py-1 text-left text-[10px] font-bold leading-snug text-white transition hover:bg-brand-700"
+                                title="Agendar ou reagendar entrevista"
                               >
-                                {column.title}
+                                Agendar / Reagendar
                               </button>
-                            ))}
-
-                            <button
-                              onClick={(event) => handleOpenUpdateDate(event, candidate)}
-                              className="min-h-[30px] w-full rounded-lg bg-brand-600 px-2 py-1 text-left text-[10px] font-bold leading-snug text-white transition hover:bg-brand-700"
-                              title="Agendar ou reagendar entrevista"
-                            >
-                              Agendar / Reagendar
-                            </button>
+  
+                              <button
+                                onClick={(event) => openWithdrawalFlow(event, candidate)}
+                                className="flex min-h-[30px] w-full items-center gap-1 rounded-lg bg-rose-600 px-2 py-1 text-left text-[10px] font-bold leading-snug text-white transition hover:bg-rose-700"
+                                title="Registrar desistência nesta etapa"
+                              >
+                                <UserMinus className="h-3 w-3" />
+                                Desistiu nesta etapa
+                              </button>
+  
                           </div>
                         </div>
 
@@ -604,7 +616,9 @@ const HiringPipeline = () => {
         }}
         onConfirm={handleConfirmWithdrawal}
         candidateName={selectedCandidateForWithdrawal?.name || ''}
+        stageName={selectedCandidateForWithdrawal ? getHiringStageLabel(getCandidateStageKey(selectedCandidateForWithdrawal)) : ''}
       />
+
     </div>
   );
 };

@@ -110,8 +110,11 @@ export interface Candidate {
   createdBy?: string;
   notes?: string;
   withdrawalReason?: string;
+  withdrawalReasonOption?: string;
+  withdrawalStageKey?: HiringPipelineStageKey;
 
   contactedDate?: string;
+
   respondedDate?: string;
   noResponseDate?: string;
   interviewScheduledDate?: string;
