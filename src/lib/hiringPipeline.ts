@@ -22,6 +22,8 @@ export const DEFAULT_HIRING_PIPELINE_COLUMNS: HiringPipelineColumn[] = [
   { id: 'integracao-nao-compareceu', stageKey: 'integracao-nao-compareceu', title: 'Não Compareceu à Integração', color: 'red', ownerRole: 'SECRETARIA' },
   { id: 'integracao-compareceu', stageKey: 'integracao-compareceu', title: 'Compareceu à Integração', color: 'purple', ownerRole: 'SECRETARIA' },
   { id: 'integracao-finalizada', stageKey: 'integracao-finalizada', title: 'Integração Finalizada', color: 'green', ownerRole: 'SECRETARIA' },
+  { id: 'candidato-em-previa', stageKey: 'candidato-em-previa', title: 'Candidato em Prévia', color: 'yellow', ownerRole: 'SECRETARIA' },
+  { id: 'autorizado', stageKey: 'autorizado', title: 'Autorizado', color: 'green', ownerRole: 'GESTOR' },
 ];
 
 const HIRING_STAGE_KEY_SET = new Set<HiringPipelineStageKey>(
@@ -43,13 +45,15 @@ export const getCandidateStageKey = (candidate: Candidate): HiringPipelineStageK
 
   if (candidate.status === 'Faltou') return 'faltou-entrevista';
   if (candidate.status === 'Desqualificado' || candidate.status === 'Reprovado') return 'reprovado-gestor';
-  if (candidate.status === 'Autorizado' || candidate.authorizedDate || candidate.integrationFinishedDate) return 'integracao-finalizada';
+  if (candidate.status === 'Autorizado' || candidate.authorizedDate) return 'autorizado';
+  if (candidate.integrationFinishedDate) return 'integracao-finalizada';
   if (candidate.integrationAttendedDate) return 'integracao-compareceu';
   if (candidate.integrationNoShowDate) return 'integracao-nao-compareceu';
   if (candidate.integrationScheduledDate || candidate.integrationPresencialDate) return 'integracao-agendada';
   if (candidate.onboardingFinishedDate) return 'onboarding-finalizado';
   if (candidate.onboardingNotFinishedDate) return 'onboarding-nao-finalizado';
   if (candidate.onboardingReleasedDate || candidate.onboardingOnlineDate) return 'onboarding-liberado';
+  if (candidate.status === 'Aguardando Prévia') return 'candidato-em-previa';
   if (candidate.previewRegisteredDate) return 'previa-cadastrada';
   if (candidate.documentationNotSentDate) return 'documentacao-nao-enviada';
   if (candidate.documentationSentDate) return 'documentacao-enviada';
@@ -117,6 +121,7 @@ export const getLegacyStatusForStage = (stageKey: HiringPipelineStageKey): Candi
     case 'documentacao-enviada':
     case 'documentacao-nao-enviada':
     case 'previa-cadastrada':
+    case 'candidato-em-previa':
       return 'Aguardando Prévia';
     case 'onboarding-liberado':
     case 'onboarding-finalizado':
@@ -125,8 +130,9 @@ export const getLegacyStatusForStage = (stageKey: HiringPipelineStageKey): Candi
     case 'integracao-agendada':
     case 'integracao-nao-compareceu':
     case 'integracao-compareceu':
-      return 'Integração Presencial';
     case 'integracao-finalizada':
+      return 'Integração Presencial';
+    case 'autorizado':
       return 'Autorizado';
     case 'reprovado-gestor':
       return 'Desqualificado';
@@ -232,6 +238,11 @@ export const buildCandidateStageUpdates = (
     case 'integracao-finalizada':
       updates.integrationFinishedDate = candidate.integrationFinishedDate || now;
       updates.integrationPresencialDate = candidate.integrationPresencialDate || now;
+      break;
+    case 'candidato-em-previa':
+      updates.awaitingPreviewDate = candidate.awaitingPreviewDate || now;
+      break;
+    case 'autorizado':
       updates.authorizedDate = candidate.authorizedDate || now;
       break;
   }

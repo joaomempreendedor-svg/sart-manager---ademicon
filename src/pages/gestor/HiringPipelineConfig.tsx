@@ -26,7 +26,9 @@ const stageDescriptions: Record<string, string> = {
   'integracao-agendada': 'Integração presencial já agendada.',
   'integracao-nao-compareceu': 'Candidato faltou à integração.',
   'integracao-compareceu': 'Candidato compareceu à integração.',
-  'integracao-finalizada': 'Fluxo finalizado com integração concluída.',
+  'integracao-finalizada': 'Integração concluída.',
+  'candidato-em-previa': 'Candidato movido para a etapa final de prévia.',
+  autorizado: 'Candidato autorizado na etapa final do processo.',
 };
 
 const HiringPipelineConfig = () => {

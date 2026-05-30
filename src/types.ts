@@ -29,9 +29,12 @@ export type HiringPipelineStageKey =
   | 'integracao-agendada'
   | 'integracao-nao-compareceu'
   | 'integracao-compareceu'
-  | 'integracao-finalizada';
+  | 'integracao-finalizada'
+  | 'candidato-em-previa'
+  | 'autorizado';
 
 export interface InterviewScores {
+
   basicProfile: number;
   commercialSkills: number;
   behavioralProfile: number;
