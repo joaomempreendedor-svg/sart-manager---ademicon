@@ -424,8 +424,7 @@ const HiringPipeline = () => {
                       key={candidate.id}
                       draggable
                       onDragStart={(event) => handleDragStart(event, candidate.id)}
-                      onClick={() => navigate(`/gestor/candidate/${candidate.id}`)}
-                      className={`group relative cursor-pointer overflow-hidden rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-all hover:border-brand-500 hover:shadow-md dark:border-slate-700 dark:bg-slate-700 ${
+                      className={`relative overflow-hidden rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-all hover:border-brand-500 hover:shadow-md dark:border-slate-700 dark:bg-slate-700 ${
                         isToday ? 'ring-2 ring-brand-500' : ''
                       } ${draggingCandidateId === candidate.id ? 'opacity-70' : ''}`}
                     >
