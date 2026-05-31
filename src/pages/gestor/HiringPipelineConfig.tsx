@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { ArrowLeft, ArrowRight, MapPin, Plus, RotateCcw, Save, Settings2, Trash2 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
@@ -33,6 +34,7 @@ const stageDescriptions: Record<string, string> = {
 };
 
 const HiringPipelineConfig = () => {
+  const navigate = useNavigate();
   const {
     hiringOrigins,
     hiringPipelineColumns,
@@ -108,16 +110,26 @@ const HiringPipelineConfig = () => {
           </p>
         </div>
 
-        <button
-          onClick={() => {
-            resetHiringPipelineColumnsToDefault();
-            toast.success('Pipeline restaurado para o padrão novo.');
-          }}
-          className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-slate-600 dark:bg-slate-800 dark:text-gray-100 dark:hover:bg-slate-700"
-        >
-          <RotateCcw className="h-4 w-4" />
-          Restaurar padrão
-        </button>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <button
+            onClick={() => navigate('/gestor/hiring-pipeline')}
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-slate-700 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Voltar ao Pipeline
+          </button>
+
+          <button
+            onClick={() => {
+              resetHiringPipelineColumnsToDefault();
+              toast.success('Pipeline restaurado para o padrão novo.');
+            }}
+            className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-slate-600 dark:bg-slate-800 dark:text-gray-100 dark:hover:bg-slate-700"
+          >
+            <RotateCcw className="h-4 w-4" />
+            Restaurar padrão
+          </button>
+        </div>
       </div>
 
       <div className="mb-8 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
