@@ -17,11 +17,95 @@ import {
 import { CandidatesDetailModal } from '@/components/gestor/CandidatesDetailModal';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Candidate, HiringPipelineColumn, TeamMember } from '@/types';
+import { Candidate, HiringPipelineColumn, HiringPipelineStageKey, TeamMember } from '@/types';
 import { getCandidateStageKey, getHiringStageLabel, normalizeHiringPipelineColumns } from '@/lib/hiringPipeline';
 
 type MetricType = 'total' | 'newCandidates' | 'contacted' | 'scheduled' | 'conducted' | 'awaitingPreview' | 'hired' | 'noShow' | 'withdrawn' | 'disqualified' | 'noResponse';
 type SectionKey = 'funnel' | 'withdrawals' | 'origins' | 'indications';
+
+type FunnelStageConfig = {
+  type: 'stage';
+  stageKey: HiringPipelineStageKey;
+  title?: string;
+  description?: string;
+};
+
+type FunnelBranchConfig = {
+  type: 'branch';
+  parentStageKey: HiringPipelineStageKey;
+  title: string;
+  description: string;
+  positiveStageKey: HiringPipelineStageKey;
+  negativeStageKey: HiringPipelineStageKey;
+};
+
+type FunnelConfig = FunnelStageConfig | FunnelBranchConfig;
+
+type StageMetric = {
+  stageKey: HiringPipelineStageKey;
+  title: string;
+  color: HiringPipelineColumn['color'];
+  count: number;
+  candidates: Candidate[];
+};
+
+const SECTION_OPTIONS: Array<{ key: SectionKey; title: string; icon: React.ComponentType<{ className?: string }> }> = [
+  { key: 'funnel', title: 'Funil histórico', icon: BarChart3 },
+  { key: 'withdrawals', title: 'Ranking de desistência', icon: UserMinus },
+  { key: 'origins', title: 'Origens', icon: MapPin },
+  { key: 'indications', title: 'Consultores que mais indicam', icon: UserPlus },
+];
+
+const FUNNEL_LAYOUT: FunnelConfig[] = [
+  { type: 'stage', stageKey: 'candidatos', description: 'Entrada de candidatos no processo.' },
+  { type: 'stage', stageKey: 'contatados', description: 'Receberam o primeiro contato.' },
+  { type: 'stage', stageKey: 'respondeu', description: 'Responderam ao contato.' },
+  {
+    type: 'branch',
+    parentStageKey: 'entrevista-agendada',
+    title: 'Entrevista agendada',
+    description: 'Depois do agendamento, o processo se divide entre quem compareceu e quem faltou.',
+    positiveStageKey: 'compareceu-entrevista',
+    negativeStageKey: 'faltou-entrevista',
+  },
+  {
+    type: 'branch',
+    parentStageKey: 'compareceu-entrevista',
+    title: 'Avaliação do gestor',
+    description: 'Dos que compareceram, parte segue e parte é reprovada.',
+    positiveStageKey: 'aprovado-gestor',
+    negativeStageKey: 'reprovado-gestor',
+  },
+  { type: 'stage', stageKey: 'aprovacao-d1', description: 'Aprovados que passaram por D+1.' },
+  {
+    type: 'branch',
+    parentStageKey: 'aprovacao-d1',
+    title: 'Envio de documentação',
+    description: 'Após D+1, o processo se divide entre quem enviou e quem não enviou a documentação.',
+    positiveStageKey: 'documentacao-enviada',
+    negativeStageKey: 'documentacao-nao-enviada',
+  },
+  { type: 'stage', stageKey: 'previa-cadastrada', description: 'Prévia cadastrada no processo.' },
+  {
+    type: 'branch',
+    parentStageKey: 'onboarding-liberado',
+    title: 'Resultado do onboarding',
+    description: 'Após liberação do onboarding, parte conclui e parte não conclui.',
+    positiveStageKey: 'onboarding-finalizado',
+    negativeStageKey: 'onboarding-nao-finalizado',
+  },
+  {
+    type: 'branch',
+    parentStageKey: 'integracao-agendada',
+    title: 'Resultado da integração',
+    description: 'Depois do agendamento da integração, o processo se divide entre quem compareceu e quem não compareceu.',
+    positiveStageKey: 'integracao-compareceu',
+    negativeStageKey: 'integracao-nao-compareceu',
+  },
+  { type: 'stage', stageKey: 'integracao-finalizada', description: 'Integração concluída.' },
+  { type: 'stage', stageKey: 'candidato-em-previa', description: 'Candidato em prévia.' },
+  { type: 'stage', stageKey: 'autorizado', description: 'Fechamento final do processo.' },
+];
 
 const getDateKey = (value?: string) => {
   if (!value) return '';
@@ -36,7 +120,7 @@ const isDateInRange = (value: string | undefined, startDate: string, endDate: st
   return true;
 };
 
-const getStageDateValues = (candidate: Candidate, stageKey: HiringPipelineColumn['stageKey']) => {
+const getStageDateValues = (candidate: Candidate, stageKey: HiringPipelineStageKey) => {
   switch (stageKey) {
     case 'candidatos':
       return [candidate.createdAt];
@@ -104,13 +188,6 @@ const getColumnColorClasses = (color: HiringPipelineColumn['color']) => {
   }
 };
 
-const SECTION_OPTIONS: Array<{ key: SectionKey; title: string; icon: React.ComponentType<{ className?: string }> }> = [
-  { key: 'funnel', title: 'Funil histórico', icon: BarChart3 },
-  { key: 'withdrawals', title: 'Ranking de desistência', icon: UserMinus },
-  { key: 'origins', title: 'Origens', icon: MapPin },
-  { key: 'indications', title: 'Consultores que mais indicam', icon: UserPlus },
-];
-
 const HiringMetrics = () => {
   const navigate = useNavigate();
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -146,23 +223,60 @@ const HiringMetrics = () => {
       isDateInRange(candidate.createdAt, filterStartDate, filterEndDate),
     );
 
-    const processFunnelSteps = normalizedColumns.map((column, index) => {
+    const columnsByKey = new Map(normalizedColumns.map((column) => [column.stageKey, column]));
+
+    const buildStageMetric = (stageKey: HiringPipelineStageKey): StageMetric => {
+      const column = columnsByKey.get(stageKey);
       const stageCandidates = searchFilteredCandidates.filter((candidate) =>
-        getStageDateValues(candidate, column.stageKey).some((value) => isDateInRange(value, filterStartDate, filterEndDate)),
+        getStageDateValues(candidate, stageKey).some((value) => isDateInRange(value, filterStartDate, filterEndDate)),
       );
-      const previousCount = index === 0 ? candidatesCreatedInPeriod.length : normalizedColumns.slice(0, index).reduce<number>((lastCount, previousColumn, previousIndex) => {
-        if (previousIndex !== index - 1) return lastCount;
-        return searchFilteredCandidates.filter((candidate) =>
-          getStageDateValues(candidate, previousColumn.stageKey).some((value) => isDateInRange(value, filterStartDate, filterEndDate)),
-        ).length;
-      }, candidatesCreatedInPeriod.length);
 
       return {
-        ...column,
+        stageKey,
+        title: column?.title || getHiringStageLabel(stageKey),
+        color: column?.color || 'gray',
         count: stageCandidates.length,
         candidates: stageCandidates,
-        overallRate: candidatesCreatedInPeriod.length > 0 ? (stageCandidates.length / candidatesCreatedInPeriod.length) * 100 : 0,
-        previousRate: index === 0 ? 100 : previousCount > 0 ? (stageCandidates.length / previousCount) * 100 : 0,
+      };
+    };
+
+    const processFunnelBlocks = FUNNEL_LAYOUT.map((item) => {
+      if (item.type === 'stage') {
+        const metric = buildStageMetric(item.stageKey);
+        return {
+          type: 'stage' as const,
+          stageKey: item.stageKey,
+          title: item.title || metric.title,
+          description: item.description || '',
+          color: metric.color,
+          count: metric.count,
+          candidates: metric.candidates,
+          baseRate: candidatesCreatedInPeriod.length > 0 ? (metric.count / candidatesCreatedInPeriod.length) * 100 : 0,
+        };
+      }
+
+      const parentMetric = buildStageMetric(item.parentStageKey);
+      const positiveMetric = buildStageMetric(item.positiveStageKey);
+      const negativeMetric = buildStageMetric(item.negativeStageKey);
+
+      return {
+        type: 'branch' as const,
+        parentStageKey: item.parentStageKey,
+        title: item.title,
+        description: item.description,
+        count: parentMetric.count,
+        candidates: parentMetric.candidates,
+        baseRate: candidatesCreatedInPeriod.length > 0 ? (parentMetric.count / candidatesCreatedInPeriod.length) * 100 : 0,
+        positive: {
+          ...positiveMetric,
+          stageRate: parentMetric.count > 0 ? (positiveMetric.count / parentMetric.count) * 100 : 0,
+          baseRate: candidatesCreatedInPeriod.length > 0 ? (positiveMetric.count / candidatesCreatedInPeriod.length) * 100 : 0,
+        },
+        negative: {
+          ...negativeMetric,
+          stageRate: parentMetric.count > 0 ? (negativeMetric.count / parentMetric.count) * 100 : 0,
+          baseRate: candidatesCreatedInPeriod.length > 0 ? (negativeMetric.count / candidatesCreatedInPeriod.length) * 100 : 0,
+        },
       };
     });
 
@@ -200,16 +314,16 @@ const HiringMetrics = () => {
       }))
       .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'pt-BR'));
 
-    const originMap = new Map<string, { name: string; count: number; percentage: number; candidates: Candidate[] }>();
+    const originMap = new Map<string, { name: string; count: number; candidates: Candidate[] }>();
 
     hiringOrigins.forEach((origin) => {
-      originMap.set(origin, { name: origin, count: 0, percentage: 0, candidates: [] });
+      originMap.set(origin, { name: origin, count: 0, candidates: [] });
     });
-    originMap.set('Não Informado', { name: 'Não Informado', count: 0, percentage: 0, candidates: [] });
+    originMap.set('Não Informado', { name: 'Não Informado', count: 0, candidates: [] });
 
     candidatesCreatedInPeriod.forEach((candidate) => {
       const originName = candidate.origin || 'Não Informado';
-      const current = originMap.get(originName) || { name: originName, count: 0, percentage: 0, candidates: [] };
+      const current = originMap.get(originName) || { name: originName, count: 0, candidates: [] };
       current.count += 1;
       current.candidates.push(candidate);
       originMap.set(originName, current);
@@ -262,7 +376,7 @@ const HiringMetrics = () => {
 
     return {
       candidatesCreatedInPeriod,
-      processFunnelSteps,
+      processFunnelBlocks,
       withdrawalStageRanking,
       candidatesByOrigin,
       topIndications,
@@ -405,7 +519,7 @@ const HiringMetrics = () => {
             <div>
               <h2 className="text-lg font-bold text-gray-900 dark:text-white">Funil histórico do processo inteiro</h2>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                Visão completa do processo em {periodLabel}, desde a entrada em candidatos até as etapas finais do pipeline.
+                Visão completa do processo em {periodLabel}, com as etapas que se dividem em dois resultados mostradas como ramificações reais.
               </p>
             </div>
             <BarChart3 className="h-5 w-5 text-gray-400" />
@@ -416,47 +530,109 @@ const HiringMetrics = () => {
               Nenhum candidato entrou no processo nesse período.
             </div>
           ) : (
-            <div className="space-y-3">
-              {analytics.processFunnelSteps.map((step, index) => (
-                <button
-                  key={step.id}
-                  onClick={() => handleOpenCandidatesDetailModal(step.title, step.candidates, 'total')}
-                  className="w-full rounded-xl border border-gray-200 p-4 text-left transition hover:border-brand-300 hover:shadow-sm dark:border-slate-700 dark:hover:border-brand-700"
-                >
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-3">
-                        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-100 text-xs font-black text-brand-700 dark:bg-brand-900/40 dark:text-brand-300">
-                          {index + 1}
-                        </span>
-                        <div>
-                          <h3 className="font-bold text-gray-900 dark:text-white">{step.title}</h3>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">{step.count} candidatos passaram por esta etapa.</p>
+            <div className="space-y-4">
+              {analytics.processFunnelBlocks.map((block, index) =>
+                block.type === 'stage' ? (
+                  <button
+                    key={`${block.type}-${block.stageKey}`}
+                    onClick={() => handleOpenCandidatesDetailModal(block.title, block.candidates, 'total')}
+                    className="w-full rounded-xl border border-gray-200 p-4 text-left transition hover:border-brand-300 hover:shadow-sm dark:border-slate-700 dark:hover:border-brand-700"
+                  >
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-3">
+                          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-100 text-xs font-black text-brand-700 dark:bg-brand-900/40 dark:text-brand-300">
+                            {index + 1}
+                          </span>
+                          <div>
+                            <h3 className="font-bold text-gray-900 dark:text-white">{block.title}</h3>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">{block.description}</p>
+                          </div>
+                        </div>
+                        <div className="mt-4 h-2.5 w-full rounded-full bg-gray-100 dark:bg-slate-700">
+                          <div className="h-2.5 rounded-full bg-brand-500" style={{ width: `${Math.min(100, block.baseRate)}%` }} />
                         </div>
                       </div>
 
-                      <div className="mt-4 h-2.5 w-full rounded-full bg-gray-100 dark:bg-slate-700">
-                        <div className="h-2.5 rounded-full bg-brand-500" style={{ width: `${Math.min(100, step.overallRate)}%` }} />
+                      <div className="grid min-w-[180px] grid-cols-2 gap-3 text-sm lg:text-right">
+                        <div>
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Quantidade</p>
+                          <p className="text-2xl font-black text-gray-900 dark:text-white">{block.count}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Taxa sobre a base</p>
+                          <p className="text-lg font-bold text-brand-600 dark:text-brand-400">{block.baseRate.toFixed(1)}%</p>
+                        </div>
                       </div>
                     </div>
+                  </button>
+                ) : (
+                  <div
+                    key={`${block.type}-${block.parentStageKey}`}
+                    className="rounded-xl border border-gray-200 p-4 dark:border-slate-700"
+                  >
+                    <button
+                      onClick={() => handleOpenCandidatesDetailModal(block.title, block.candidates, 'total')}
+                      className="w-full text-left"
+                    >
+                      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-3">
+                            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-100 text-xs font-black text-brand-700 dark:bg-brand-900/40 dark:text-brand-300">
+                              {index + 1}
+                            </span>
+                            <div>
+                              <h3 className="font-bold text-gray-900 dark:text-white">{block.title}</h3>
+                              <p className="text-sm text-gray-500 dark:text-gray-400">{block.description}</p>
+                            </div>
+                          </div>
+                          <div className="mt-4 h-2.5 w-full rounded-full bg-gray-100 dark:bg-slate-700">
+                            <div className="h-2.5 rounded-full bg-brand-500" style={{ width: `${Math.min(100, block.baseRate)}%` }} />
+                          </div>
+                        </div>
 
-                    <div className="grid min-w-[220px] grid-cols-1 gap-3 text-sm sm:grid-cols-3 lg:text-right">
-                      <div>
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Quantidade</p>
-                        <p className="text-2xl font-black text-gray-900 dark:text-white">{step.count}</p>
+                        <div className="grid min-w-[180px] grid-cols-2 gap-3 text-sm lg:text-right">
+                          <div>
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Base da bifurcação</p>
+                            <p className="text-2xl font-black text-gray-900 dark:text-white">{block.count}</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Taxa sobre a base</p>
+                            <p className="text-lg font-bold text-brand-600 dark:text-brand-400">{block.baseRate.toFixed(1)}%</p>
+                          </div>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Taxa da etapa</p>
-                        <p className="text-lg font-bold text-brand-600 dark:text-brand-400">{step.previousRate.toFixed(1)}%</p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Taxa sobre a base</p>
-                        <p className="text-lg font-bold text-slate-700 dark:text-slate-200">{step.overallRate.toFixed(1)}%</p>
-                      </div>
+                    </button>
+
+                    <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
+                      {[block.positive, block.negative].map((branch) => (
+                        <button
+                          key={branch.stageKey}
+                          onClick={() => handleOpenCandidatesDetailModal(branch.title, branch.candidates, 'total')}
+                          className={`rounded-xl border p-4 text-left transition hover:shadow-sm ${getColumnColorClasses(branch.color)}`}
+                        >
+                          <p className="text-[10px] font-bold uppercase tracking-wider opacity-70">Desdobramento</p>
+                          <h4 className="mt-1 font-bold">{branch.title}</h4>
+                          <div className="mt-4 grid grid-cols-3 gap-3 text-sm">
+                            <div>
+                              <p className="text-[10px] font-bold uppercase tracking-wider opacity-60">Qtd.</p>
+                              <p className="text-2xl font-black">{branch.count}</p>
+                            </div>
+                            <div>
+                              <p className="text-[10px] font-bold uppercase tracking-wider opacity-60">Da etapa</p>
+                              <p className="font-bold">{branch.stageRate.toFixed(1)}%</p>
+                            </div>
+                            <div>
+                              <p className="text-[10px] font-bold uppercase tracking-wider opacity-60">Da base</p>
+                              <p className="font-bold">{branch.baseRate.toFixed(1)}%</p>
+                            </div>
+                          </div>
+                        </button>
+                      ))}
                     </div>
                   </div>
-                </button>
-              ))}
+                ),
+              )}
             </div>
           )}
         </section>
