@@ -19,7 +19,10 @@ import {
   FileStack,
   FileText,
   Users,
+  CheckSquare,
+  ListTodo,
 } from 'lucide-react';
+
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 
@@ -69,8 +72,11 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({
     { to: `${baseRoute}/financial-panel`, icon: DollarSign, label: 'Financeiro', roles: ['GESTOR', 'ADMIN'], section: 'main' },
     { to: `${baseRoute}/feedbacks`, icon: Star, label: 'Feedbacks', roles: ['GESTOR', 'ADMIN'], section: 'main' },
     { to: `${baseRoute}/processos`, icon: FileText, label: 'Processos', roles: ['GESTOR', 'ADMIN'], section: 'main' },
+    { to: `${baseRoute}/daily-checklists?tab=secretaria`, icon: CheckSquare, label: 'Metas Diárias Secretaria', roles: ['GESTOR', 'ADMIN'], section: 'main' },
+    { to: `${baseRoute}/secretaria-tasks`, icon: ListTodo, label: 'Atividades da Secretaria', roles: ['GESTOR', 'ADMIN'], section: 'main' },
     { to: `${baseRoute}/onboarding-admin`, icon: Video, label: 'Onboarding', roles: ['GESTOR', 'ADMIN', 'SECRETARIA'], section: 'main' },
     { to: `${baseRoute}/form-cadastros`, icon: FileStack, label: 'Gerenciar Formulários', roles: ['GESTOR', 'ADMIN', 'SECRETARIA'], section: 'main' },
+
   ];
 
   const visibleLinks = allLinks.filter((link) => link.roles.includes(userRole));

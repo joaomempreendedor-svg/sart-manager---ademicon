@@ -1010,10 +1010,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (error) throw error; setLeadTasks(prev => prev.map(t => t.id === taskId ? data : t)); return data;
   }, []);
 
-  const addGestorTask = useCallback(async (task: Omit<GestorTask, 'id' | 'user_id' | 'created_at' | 'is_completed'>) => {
-    const { data, error } = await supabase.from('gestor_tasks').insert({ ...task, user_id: JOAO_GESTOR_AUTH_ID }).select().single();
+  const addGestorTask = useCallback(async (task: Omit<GestorTask, 'id' | 'user_id' | 'created_at' | 'is_completed'>, targetUserId?: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const { data, error } = await supabase.from('gestor_tasks').insert({ ...task, user_id: targetUserId || user.id }).select().single();
     if (error) throw error; setGestorTasks(prev => [...prev, data]); return data;
-  }, []);
+  }, [user]);
 
   const updateGestorTask = useCallback(async (id: string, updates: Partial<GestorTask>) => {
     const { data, error } = await supabase.from('gestor_tasks').update(updates).eq('id', id).select().single();

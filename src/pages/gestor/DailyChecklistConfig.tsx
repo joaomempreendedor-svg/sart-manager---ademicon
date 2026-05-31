@@ -1,6 +1,8 @@
 import React, { useState, useMemo, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
 import { DailyChecklist, DailyChecklistItem, TeamMember, DailyChecklistItemResource, DailyChecklistItemResourceType } from '@/types';
+
 import { Plus, Edit2, Trash2, ArrowUp, ArrowDown, ToggleLeft, ToggleRight, Users, Check, X, ListChecks, Loader2, Video, FileText, Image as ImageIcon, Link as LinkIcon, MessageSquare, Eye, Music, XCircle, BookText, UserRound, ShieldCheck } from 'lucide-react';
 import {
   Dialog,
@@ -867,17 +869,20 @@ const ChecklistItemModal: React.FC<ChecklistItemModalProps> = ({ isOpen, onClose
 
 // Componente principal da página de configuração
 export const DailyChecklistConfig = () => {
-  const { 
-    dailyChecklists, 
-    dailyChecklistItems, 
-    dailyChecklistAssignments, 
-    deleteDailyChecklistItem, 
+  const [searchParams] = useSearchParams();
+  const {
+    dailyChecklists,
+    dailyChecklistItems,
+    dailyChecklistAssignments,
+    deleteDailyChecklistItem,
     moveDailyChecklistItem,
     updateDailyChecklist,
     deleteDailyChecklist,
   } = useApp();
 
-  const [activeTab, setActiveTab] = useState<'GESTOR' | 'SECRETARIA'>('GESTOR');
+  const [activeTab, setActiveTab] = useState<'GESTOR' | 'SECRETARIA'>(
+    searchParams.get('tab')?.toLowerCase() === 'secretaria' ? 'SECRETARIA' : 'GESTOR',
+  );
 
   const [isChecklistModalOpen, setIsChecklistModalOpen] = useState(false);
   const [editingChecklist, setEditingChecklist] = useState<DailyChecklist | null>(null);

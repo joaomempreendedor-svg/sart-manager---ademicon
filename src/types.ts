@@ -767,8 +767,9 @@ export interface AppContextType {
   deleteLeadTask: (id: string) => Promise<void>;
   toggleLeadTaskCompletion: (id: string, is_completed: boolean) => Promise<LeadTask>;
   updateLeadMeetingInvitationStatus: (taskId: string, status: 'accepted' | 'declined') => Promise<LeadTask>;
-  addGestorTask: (task: Omit<GestorTask, 'id' | 'user_id' | 'created_at' | 'is_completed'>) => Promise<GestorTask>;
+  addGestorTask: (task: Omit<GestorTask, 'id' | 'user_id' | 'created_at' | 'is_completed'>, targetUserId?: string) => Promise<GestorTask>;
   updateGestorTask: (id: string, updates: Partial<GestorTask>) => Promise<GestorTask>;
+
   deleteGestorTask: (id: string) => Promise<void>;
   toggleGestorTaskCompletion: (gestor_task_id: string, done: boolean, date: string) => Promise<void>;
   isGestorTaskDueOnDate: (task: GestorTask, checkDate: string) => boolean;
