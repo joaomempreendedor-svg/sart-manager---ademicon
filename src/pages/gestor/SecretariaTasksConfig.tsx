@@ -39,6 +39,16 @@ const SecretariaTasksConfig = () => {
       });
   }, [effectiveSecretariaId, gestorTasks]);
 
+  const recurringTasks = useMemo(
+    () => secretariaTasks.filter((task) => task.recurrence_pattern?.type && task.recurrence_pattern.type !== 'none'),
+    [secretariaTasks],
+  );
+
+  const oneOffTasks = useMemo(
+    () => secretariaTasks.filter((task) => !task.recurrence_pattern?.type || task.recurrence_pattern.type === 'none'),
+    [secretariaTasks],
+  );
+
   const resetForm = () => {
     setTitle('');
     setDescription('');
@@ -148,8 +158,9 @@ const SecretariaTasksConfig = () => {
             Atividades da Secretaria
           </h1>
           <p className="text-gray-500 dark:text-gray-400">
-            Cadastre atividades avulsas ou recorrentes para aparecerem no dashboard da secretaria selecionada.
+            Cadastre separadamente atividades pontuais e atividades diárias/recorrentes para aparecerem no dashboard da secretaria.
           </p>
+
         </div>
       </div>
 
@@ -262,12 +273,12 @@ const SecretariaTasksConfig = () => {
             </form>
           </section>
 
-          <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-            <div className="mb-4 flex items-center justify-between gap-3">
+          <section className="space-y-6 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+            <div className="flex items-center justify-between gap-3">
               <div>
                 <h2 className="text-lg font-bold text-gray-900 dark:text-white">Atividades cadastradas</h2>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Tudo que estiver aqui aparece no dashboard da secretaria selecionada.
+                  As atividades foram separadas para não misturar o que é pontual com a rotina diária da secretaria.
                 </p>
               </div>
               <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-bold text-brand-700 dark:bg-brand-900/20 dark:text-brand-300">
@@ -275,63 +286,101 @@ const SecretariaTasksConfig = () => {
               </span>
             </div>
 
-            <div className="space-y-3">
-              {secretariaTasks.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-gray-300 px-4 py-10 text-center text-sm text-gray-500 dark:border-slate-700 dark:text-gray-400">
-                  Nenhuma atividade cadastrada para essa secretaria.
-                </div>
-              ) : (
-                secretariaTasks.map((task) => (
-                  <div
-                    key={task.id}
-                    className="rounded-xl border border-gray-200 p-4 dark:border-slate-700"
-                  >
-                    <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="font-bold text-gray-900 dark:text-white">{task.title}</h3>
-                          <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-bold uppercase text-gray-600 dark:bg-slate-700 dark:text-gray-300">
-                            {task.recurrence_pattern?.type === 'daily'
-                              ? 'Diária'
-                              : task.recurrence_pattern?.type === 'every_x_days'
-                                ? `A cada ${task.recurrence_pattern.interval} dias`
-                                : 'Pontual'}
-                          </span>
+            {secretariaTasks.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-gray-300 px-4 py-10 text-center text-sm text-gray-500 dark:border-slate-700 dark:text-gray-400">
+                Nenhuma atividade cadastrada para essa secretaria.
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {[
+                  {
+                    key: 'pontuais',
+                    title: 'Atividades pontuais',
+                    description: 'Demandas com vencimento único ou sem recorrência.',
+                    items: oneOffTasks,
+                  },
+                  {
+                    key: 'recorrentes',
+                    title: 'Atividades diárias e recorrentes',
+                    description: 'Rotinas que reaparecem no dashboard da secretaria.',
+                    items: recurringTasks,
+                  },
+                ].map((group) => (
+                  <div key={group.key} className="rounded-xl border border-gray-200 dark:border-slate-700">
+                    <div className="border-b border-gray-200 px-4 py-3 dark:border-slate-700">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <h3 className="font-bold text-gray-900 dark:text-white">{group.title}</h3>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">{group.description}</p>
                         </div>
-
-                        {task.description && (
-                          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">{task.description}</p>
-                        )}
-
-                        <div className="mt-3 flex flex-wrap gap-3 text-xs text-gray-500 dark:text-gray-400">
-                          <span className="inline-flex items-center gap-1">
-                            <Calendar className="h-3.5 w-3.5" />
-                            {task.due_date ? new Date(`${task.due_date}T00:00:00`).toLocaleDateString('pt-BR') : 'Sem data'}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => handleStartEdit(task)}
-                          className="rounded-lg border border-gray-300 px-3 py-2 text-xs font-bold text-gray-700 transition hover:bg-gray-50 dark:border-slate-600 dark:text-gray-200 dark:hover:bg-slate-700"
-                        >
-                          Editar
-                        </button>
-                        <button
-                          onClick={() => handleDelete(task)}
-                          className="inline-flex items-center gap-1 rounded-lg bg-red-50 px-3 py-2 text-xs font-bold text-red-600 transition hover:bg-red-100 dark:bg-red-900/20 dark:text-red-300 dark:hover:bg-red-900/30"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                          Excluir
-                        </button>
+                        <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[10px] font-bold uppercase text-gray-600 dark:bg-slate-700 dark:text-gray-300">
+                          {group.items.length} itens
+                        </span>
                       </div>
                     </div>
+
+                    <div className="space-y-3 p-4">
+                      {group.items.length === 0 ? (
+                        <div className="rounded-lg border border-dashed border-gray-300 px-4 py-6 text-center text-sm text-gray-500 dark:border-slate-700 dark:text-gray-400">
+                          Nenhuma atividade nesta seção.
+                        </div>
+                      ) : (
+                        group.items.map((task) => (
+                          <div
+                            key={task.id}
+                            className="rounded-xl border border-gray-200 p-4 dark:border-slate-700"
+                          >
+                            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                              <div className="min-w-0 flex-1">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <h4 className="font-bold text-gray-900 dark:text-white">{task.title}</h4>
+                                  <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-bold uppercase text-gray-600 dark:bg-slate-700 dark:text-gray-300">
+                                    {task.recurrence_pattern?.type === 'daily'
+                                      ? 'Diária'
+                                      : task.recurrence_pattern?.type === 'every_x_days'
+                                        ? `A cada ${task.recurrence_pattern.interval} dias`
+                                        : 'Pontual'}
+                                  </span>
+                                </div>
+
+                                {task.description && (
+                                  <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">{task.description}</p>
+                                )}
+
+                                <div className="mt-3 flex flex-wrap gap-3 text-xs text-gray-500 dark:text-gray-400">
+                                  <span className="inline-flex items-center gap-1">
+                                    <Calendar className="h-3.5 w-3.5" />
+                                    {task.due_date ? new Date(`${task.due_date}T00:00:00`).toLocaleDateString('pt-BR') : 'Sem data'}
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => handleStartEdit(task)}
+                                  className="rounded-lg border border-gray-300 px-3 py-2 text-xs font-bold text-gray-700 transition hover:bg-gray-50 dark:border-slate-600 dark:text-gray-200 dark:hover:bg-slate-700"
+                                >
+                                  Editar
+                                </button>
+                                <button
+                                  onClick={() => handleDelete(task)}
+                                  className="inline-flex items-center gap-1 rounded-lg bg-red-50 px-3 py-2 text-xs font-bold text-red-600 transition hover:bg-red-100 dark:bg-red-900/20 dark:text-red-300 dark:hover:bg-red-900/30"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                  Excluir
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
                   </div>
-                ))
-              )}
-            </div>
+                ))}
+              </div>
+            )}
           </section>
+
         </div>
       )}
     </div>

@@ -1,9 +1,9 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
 import { DailyChecklist, DailyChecklistItem, TeamMember, DailyChecklistItemResource, DailyChecklistItemResourceType } from '@/types';
 
-import { Plus, Edit2, Trash2, ArrowUp, ArrowDown, ToggleLeft, ToggleRight, Users, Check, X, ListChecks, Loader2, Video, FileText, Image as ImageIcon, Link as LinkIcon, MessageSquare, Eye, Music, XCircle, BookText, UserRound, ShieldCheck } from 'lucide-react';
+import { Plus, Edit2, Trash2, ArrowUp, ArrowDown, ToggleLeft, ToggleRight, Users, Check, X, ListChecks, Loader2, Video, FileText, Image as ImageIcon, Link as LinkIcon, MessageSquare, Eye, Music, XCircle, BookText, ShieldCheck } from 'lucide-react';
+
 import {
   Dialog,
   DialogContent,
@@ -28,10 +28,10 @@ interface ChecklistModalProps {
   isOpen: boolean;
   onClose: () => void;
   checklist: DailyChecklist | null;
-  targetRole: 'GESTOR' | 'SECRETARIA';
 }
 
-const ChecklistModal: React.FC<ChecklistModalProps> = ({ isOpen, onClose, checklist, targetRole }) => {
+const ChecklistModal: React.FC<ChecklistModalProps> = ({ isOpen, onClose, checklist }) => {
+
   const { addDailyChecklist, updateDailyChecklist } = useApp();
   const [title, setTitle] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -55,8 +55,7 @@ const ChecklistModal: React.FC<ChecklistModalProps> = ({ isOpen, onClose, checkl
     
     setIsSaving(true);
     try {
-      // Adiciona o prefixo se for para a secretaria
-      const finalTitle = targetRole === 'SECRETARIA' ? `${SECRETARIA_PREFIX}${title.trim()}` : title.trim();
+      const finalTitle = `${SECRETARIA_PREFIX}${title.trim()}`;
 
       if (checklist) {
         await updateDailyChecklist(checklist.id, { title: finalTitle });
@@ -65,6 +64,7 @@ const ChecklistModal: React.FC<ChecklistModalProps> = ({ isOpen, onClose, checkl
         await addDailyChecklist(finalTitle);
         toast.success(`✅ Checklist criado com sucesso!`);
       }
+
       onClose();
     } catch (error: any) {
       console.error("Failed to save checklist:", error);
@@ -80,11 +80,10 @@ const ChecklistModal: React.FC<ChecklistModalProps> = ({ isOpen, onClose, checkl
         <DialogHeader>
           <DialogTitle>{checklist ? 'Editar Checklist' : 'Novo Checklist'}</DialogTitle>
           <DialogDescription>
-            {targetRole === 'SECRETARIA' 
-              ? 'Criando checklist exclusivo para a equipe de SECRETARIA.' 
-              : 'Criando checklist para a equipe de Consultores.'}
+            Criando checklist exclusivo para a equipe de SECRETARIA.
           </DialogDescription>
         </DialogHeader>
+
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
@@ -141,22 +140,10 @@ const AssignmentModal: React.FC<AssignmentModalProps> = ({ isOpen, onClose, chec
   const { teamMembers, dailyChecklistAssignments, assignDailyChecklistToConsultant, unassignDailyChecklistFromConsultant } = useApp();
   const [isSaving, setIsSaving] = useState(false);
 
-  const isSecretariaChecklist = checklist?.title.startsWith(SECRETARIA_PREFIX);
-
-  // Filtra membros baseados no tipo de checklist
   const assignableMembers = useMemo(() => {
-    return teamMembers.filter(m => {
-      if (!m.isActive) return false;
-      
-      if (isSecretariaChecklist) {
-        return m.roles.includes('SECRETARIA');
-      } else {
-        // Ajustado para incluir todos os cargos de consultoria do sistema
-        return m.roles.includes('PRÉVIA') || m.roles.includes('AUTORIZADO') || m.roles.includes('GESTOR') || m.roles.includes('ANJO');
-      }
-    });
-  }, [teamMembers, isSecretariaChecklist]);
-  
+    return teamMembers.filter((member) => member.isActive && member.roles.includes('SECRETARIA'));
+  }, [teamMembers]);
+
   const assignedMemberIds = useMemo(() => 
     new Set(dailyChecklistAssignments.filter(a => a.daily_checklist_id === checklist?.id).map(a => a.consultant_id))
   , [dailyChecklistAssignments, checklist]);
@@ -869,7 +856,6 @@ const ChecklistItemModal: React.FC<ChecklistItemModalProps> = ({ isOpen, onClose
 
 // Componente principal da página de configuração
 export const DailyChecklistConfig = () => {
-  const [searchParams] = useSearchParams();
   const {
     dailyChecklists,
     dailyChecklistItems,
@@ -879,10 +865,6 @@ export const DailyChecklistConfig = () => {
     updateDailyChecklist,
     deleteDailyChecklist,
   } = useApp();
-
-  const [activeTab, setActiveTab] = useState<'GESTOR' | 'SECRETARIA'>(
-    searchParams.get('tab')?.toLowerCase() === 'secretaria' ? 'SECRETARIA' : 'GESTOR',
-  );
 
   const [isChecklistModalOpen, setIsChecklistModalOpen] = useState(false);
   const [editingChecklist, setEditingChecklist] = useState<DailyChecklist | null>(null);
@@ -951,13 +933,11 @@ export const DailyChecklistConfig = () => {
     setIsResourceModalOpen(true);
   };
 
-  // Filtra os checklists baseados na aba ativa
   const filteredChecklists = useMemo(() => {
-    return dailyChecklists.filter(c => {
-      const isSec = c.title.startsWith(SECRETARIA_PREFIX);
-      return activeTab === 'SECRETARIA' ? isSec : !isSec;
-    }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-  }, [dailyChecklists, activeTab]);
+    return dailyChecklists
+      .filter((checklist) => checklist.title.startsWith(SECRETARIA_PREFIX))
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }, [dailyChecklists]);
 
   const getResourceTypeIcon = (type: DailyChecklistItemResourceType) => {
     switch (type) {
@@ -976,12 +956,15 @@ export const DailyChecklistConfig = () => {
 
   return (
     <div className="p-4 sm:p-8 max-w-6xl mx-auto pb-20">
-      <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center">
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Configurar Metas Diárias</h1>
-          <p className="text-gray-500 dark:text-gray-400">Crie e gerencie as metas diárias para sua equipe.</p>
+          <h1 className="flex items-center gap-3 text-2xl font-bold text-gray-900 dark:text-white">
+            <ShieldCheck className="h-7 w-7 text-brand-500" />
+            Configurar Metas Diárias da Secretaria
+          </h1>
+          <p className="text-gray-500 dark:text-gray-400">Crie e gerencie apenas as metas diárias que aparecem para a secretaria.</p>
         </div>
-        <div className="flex items-center space-x-2 mt-4 sm:mt-0">
+        <div className="flex items-center space-x-2 mt-1 sm:mt-0">
           <Button onClick={handleAddNewChecklist} className="bg-brand-600 hover:bg-brand-700 text-white">
             <Plus className="w-4 h-4 mr-2" />
             Novo Checklist
@@ -989,35 +972,14 @@ export const DailyChecklistConfig = () => {
         </div>
       </div>
 
-      {/* Seletor de Abas */}
-      <div className="flex space-x-1 bg-gray-100 dark:bg-slate-800 p-1 rounded-lg w-fit mb-8">
-        <button
-          onClick={() => setActiveTab('GESTOR')}
-          className={`flex items-center space-x-2 px-6 py-2.5 rounded-md text-sm font-bold transition-all ${
-            activeTab === 'GESTOR' ? 'bg-white dark:bg-slate-700 text-brand-600 dark:text-brand-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
-          }`}
-        >
-          <UserRound className="w-4 h-4" />
-          <span>Consultores</span>
-        </button>
-        <button
-          onClick={() => setActiveTab('SECRETARIA')}
-          className={`flex items-center space-x-2 px-6 py-2.5 rounded-md text-sm font-bold transition-all ${
-            activeTab === 'SECRETARIA' ? 'bg-white dark:bg-slate-700 text-brand-600 dark:text-brand-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
-          }`}
-        >
-          <ShieldCheck className="w-4 h-4" />
-          <span>SECRETARIA</span>
-        </button>
-      </div>
-
       <div className="space-y-8">
         {filteredChecklists.length === 0 ? (
           <div className="text-center py-16 bg-white dark:bg-slate-800 rounded-xl border border-dashed border-gray-200 dark:border-slate-700">
             <ListChecks className="mx-auto w-12 h-12 text-gray-300 dark:text-slate-600" />
-            <p className="mt-4 text-gray-500 dark:text-gray-400">Nenhum checklist para {activeTab.toLowerCase()} criado ainda.</p>
+            <p className="mt-4 text-gray-500 dark:text-gray-400">Nenhuma meta diária da secretaria foi criada ainda.</p>
             <p className="text-sm text-gray-400">Clique em "Novo Checklist" para começar.</p>
           </div>
+
         ) : (
           filteredChecklists.map((checklist) => (
             <div key={checklist.id} className={`bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden ${!checklist.is_active ? 'opacity-60' : ''}`}>
@@ -1124,12 +1086,12 @@ export const DailyChecklistConfig = () => {
         )}
       </div>
 
-      <ChecklistModal 
-        isOpen={isChecklistModalOpen} 
-        onClose={() => setIsChecklistModalOpen(false)} 
-        checklist={editingChecklist} 
-        targetRole={activeTab}
+      <ChecklistModal
+        isOpen={isChecklistModalOpen}
+        onClose={() => setIsChecklistModalOpen(false)}
+        checklist={editingChecklist}
       />
+
       <AssignmentModal
         isOpen={isAssignmentModalOpen}
         onClose={() => setIsAssignmentModalOpen(false)}
