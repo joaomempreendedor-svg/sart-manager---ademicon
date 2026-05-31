@@ -1,3 +1,4 @@
+import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
@@ -288,10 +289,9 @@ const HiringPipeline = () => {
   }
 
   return (
-    <div className="flex h-screen max-w-full flex-col overflow-hidden bg-gray-50 p-4 dark:bg-slate-900 sm:p-8">
-      <div className="mb-6 flex-shrink-0 pt-1">
+    <div className="min-h-screen max-w-full bg-gray-50 p-4 dark:bg-slate-900 sm:p-8">
+      <div className="mb-6 pt-1">
         <div className="w-full max-w-5xl rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:p-5 xl:inline-block xl:w-auto">
-
           <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
             <div>
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Pipeline de Contratação</h1>
@@ -401,7 +401,7 @@ const HiringPipeline = () => {
         </div>
       </div>
 
-      <div className="custom-scrollbar flex flex-1 space-x-4 overflow-x-auto pb-6">
+      <div className="custom-scrollbar flex space-x-4 overflow-x-auto pb-6">
         {pipelineStages.map((stage) => {
           const nextColumns = getNextColumns(stage.id);
 
@@ -422,7 +422,6 @@ const HiringPipeline = () => {
                   </div>
                   <span className="rounded bg-white/50 px-2 py-0.5 text-xs font-bold dark:bg-black/20">{stage.list.length}</span>
                 </div>
-
                 <div className="text-[10px] font-bold uppercase tracking-wide">
                   <span className="rounded-full bg-white/60 px-2 py-1 dark:bg-black/20">
                     {stage.ownerRole === 'GESTOR' ? 'Responsável: Gestor' : 'Responsável: Secretaria'}
