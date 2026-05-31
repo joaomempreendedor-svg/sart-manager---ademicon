@@ -3,36 +3,25 @@ import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
   BarChart3,
-  Calendar,
   Loader2,
   MapPin,
-  Percent,
   PieChart,
   RotateCcw,
   Search,
   TrendingUp,
-  UserCheck,
   UserMinus,
   UserPlus,
   Users,
 } from 'lucide-react';
 
-import { MetricCard } from '@/components/MetricCard';
 import { CandidatesDetailModal } from '@/components/gestor/CandidatesDetailModal';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Candidate, HiringPipelineColumn } from '@/types';
+import { Candidate, HiringPipelineColumn, TeamMember } from '@/types';
 import { getCandidateStageKey, getHiringStageLabel, normalizeHiringPipelineColumns } from '@/lib/hiringPipeline';
 
 type MetricType = 'total' | 'newCandidates' | 'contacted' | 'scheduled' | 'conducted' | 'awaitingPreview' | 'hired' | 'noShow' | 'withdrawn' | 'disqualified' | 'noResponse';
-
-type FunnelStepDefinition = {
-  id: string;
-  title: string;
-  description: string;
-  metricType: MetricType;
-  matches: (candidate: Candidate) => boolean;
-};
+type SectionKey = 'funnel' | 'withdrawals' | 'origins' | 'indications';
 
 const getDateKey = (value?: string) => {
   if (!value) return '';
@@ -97,7 +86,6 @@ const getStageDateValues = (candidate: Candidate, stageKey: HiringPipelineColumn
 };
 
 const getColumnColorClasses = (color: HiringPipelineColumn['color']) => {
-
   switch (color) {
     case 'blue':
       return 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800 text-blue-700 dark:text-blue-300';
@@ -116,101 +104,11 @@ const getColumnColorClasses = (color: HiringPipelineColumn['color']) => {
   }
 };
 
-const HISTORICAL_MOVEMENT_STEPS: FunnelStepDefinition[] = [
-  {
-    id: 'created',
-    title: 'Novos candidatos',
-    description: 'Cadastros criados no período.',
-    metricType: 'newCandidates',
-    matches: (candidate) => !!candidate.createdAt,
-  },
-  {
-    id: 'contacted',
-    title: 'Mensagens enviadas',
-    description: 'Quem recebeu primeiro contato.',
-    metricType: 'contacted',
-    matches: (candidate) => !!candidate.contactedDate,
-  },
-  {
-    id: 'responded',
-    title: 'Responderam',
-    description: 'Retorno recebido após a mensagem.',
-    metricType: 'contacted',
-    matches: (candidate) => !!candidate.respondedDate,
-  },
-  {
-    id: 'scheduled',
-    title: 'Entrevistas marcadas',
-    description: 'Entrevistas agendadas no período.',
-    metricType: 'scheduled',
-    matches: (candidate) => !!candidate.interviewScheduledDate,
-  },
-  {
-    id: 'attended',
-    title: 'Compareceram',
-    description: 'Chegaram à entrevista.',
-    metricType: 'conducted',
-    matches: (candidate) => !!candidate.interviewAttendedDate || !!candidate.interviewConductedDate,
-  },
-  {
-    id: 'approved',
-    title: 'Aprovados pelo gestor',
-    description: 'Passaram da validação do gestor.',
-    metricType: 'awaitingPreview',
-    matches: (candidate) => !!candidate.managerApprovedDate || !!candidate.awaitingPreviewDate,
-  },
-  {
-    id: 'authorized',
-    title: 'Autorizados',
-    description: 'Fechamento final do funil.',
-    metricType: 'hired',
-    matches: (candidate) => !!candidate.authorizedDate,
-  },
-];
-
-const COHORT_CONVERSION_STEPS: FunnelStepDefinition[] = [
-  {
-    id: 'contacted',
-    title: 'Mensagens enviadas',
-    description: 'Base escolhida para a análise.',
-    metricType: 'contacted',
-    matches: (candidate) => !!candidate.contactedDate,
-  },
-  {
-    id: 'responded',
-    title: 'Responderam',
-    description: 'Dos contatados, quantos deram retorno.',
-    metricType: 'contacted',
-    matches: (candidate) => !!candidate.respondedDate,
-  },
-  {
-    id: 'scheduled',
-    title: 'Marcaram entrevista',
-    description: 'Dos que responderam, quantos avançaram para agendamento.',
-    metricType: 'scheduled',
-    matches: (candidate) => !!candidate.interviewScheduledDate,
-  },
-  {
-    id: 'attended',
-    title: 'Compareceram',
-    description: 'Dos agendados, quantos realmente participaram.',
-    metricType: 'conducted',
-    matches: (candidate) => !!candidate.interviewAttendedDate || !!candidate.interviewConductedDate,
-  },
-  {
-    id: 'approved',
-    title: 'Aprovados pelo gestor',
-    description: 'Dos que compareceram, quantos foram aprovados.',
-    metricType: 'awaitingPreview',
-    matches: (candidate) => !!candidate.managerApprovedDate || !!candidate.awaitingPreviewDate,
-  },
-  {
-    id: 'authorized',
-    title: 'Autorizados',
-    description: 'Resultado final da mesma base contatada.',
-    metricType: 'hired',
-    matches: (candidate) => !!candidate.authorizedDate,
-  },
+const SECTION_OPTIONS: Array<{ key: SectionKey; title: string; icon: React.ComponentType<{ className?: string }> }> = [
+  { key: 'funnel', title: 'Funil histórico', icon: BarChart3 },
+  { key: 'withdrawals', title: 'Ranking de desistência', icon: UserMinus },
+  { key: 'origins', title: 'Origens', icon: MapPin },
+  { key: 'indications', title: 'Consultores que mais indicam', icon: UserPlus },
 ];
 
 const HiringMetrics = () => {
@@ -221,6 +119,7 @@ const HiringMetrics = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStartDate, setFilterStartDate] = useState('');
   const [filterEndDate, setFilterEndDate] = useState('');
+  const [activeSection, setActiveSection] = useState<SectionKey>('funnel');
   const [isCandidatesDetailModalOpen, setIsCandidatesDetailModalOpen] = useState(false);
   const [candidatesModalTitle, setCandidatesModalTitle] = useState('');
   const [candidatesForModal, setCandidatesForModal] = useState<Candidate[]>([]);
@@ -247,74 +146,25 @@ const HiringMetrics = () => {
       isDateInRange(candidate.createdAt, filterStartDate, filterEndDate),
     );
 
-    const contactedCohort = searchFilteredCandidates.filter((candidate) =>
-      isDateInRange(candidate.contactedDate, filterStartDate, filterEndDate),
-    );
-
-    const conversionSteps = COHORT_CONVERSION_STEPS.map((step, index) => {
-      const stepCandidates = index === 0 ? contactedCohort : contactedCohort.filter(step.matches);
-      const previousCount = index === 0 ? contactedCohort.length : undefined;
-      const priorStepCount = index > 0 ? contactedCohort.filter(COHORT_CONVERSION_STEPS[index - 1].matches).length : contactedCohort.length;
-      const count = stepCandidates.length;
-      const overallRate = contactedCohort.length > 0 ? (count / contactedCohort.length) * 100 : 0;
-      const previousRate = index === 0 ? 100 : priorStepCount > 0 ? (count / priorStepCount) * 100 : 0;
-
-      return {
-        ...step,
-        count,
-        overallRate,
-        previousRate,
-        previousCount,
-        candidates: stepCandidates,
-      };
-    });
-
-    const historicalMovements = HISTORICAL_MOVEMENT_STEPS.map((step) => {
-      const stepCandidates = searchFilteredCandidates.filter((candidate) => {
-        switch (step.id) {
-          case 'created':
-            return isDateInRange(candidate.createdAt, filterStartDate, filterEndDate);
-          case 'contacted':
-            return isDateInRange(candidate.contactedDate, filterStartDate, filterEndDate);
-          case 'responded':
-            return isDateInRange(candidate.respondedDate, filterStartDate, filterEndDate);
-          case 'scheduled':
-            return isDateInRange(candidate.interviewScheduledDate, filterStartDate, filterEndDate);
-          case 'attended':
-            return (
-              isDateInRange(candidate.interviewAttendedDate, filterStartDate, filterEndDate) ||
-              isDateInRange(candidate.interviewConductedDate, filterStartDate, filterEndDate)
-            );
-          case 'approved':
-            return (
-              isDateInRange(candidate.managerApprovedDate, filterStartDate, filterEndDate) ||
-              isDateInRange(candidate.awaitingPreviewDate, filterStartDate, filterEndDate)
-            );
-          case 'authorized':
-            return isDateInRange(candidate.authorizedDate, filterStartDate, filterEndDate);
-          default:
-            return false;
-        }
-      });
+    const processFunnelSteps = normalizedColumns.map((column, index) => {
+      const stageCandidates = searchFilteredCandidates.filter((candidate) =>
+        getStageDateValues(candidate, column.stageKey).some((value) => isDateInRange(value, filterStartDate, filterEndDate)),
+      );
+      const previousCount = index === 0 ? candidatesCreatedInPeriod.length : normalizedColumns.slice(0, index).reduce<number>((lastCount, previousColumn, previousIndex) => {
+        if (previousIndex !== index - 1) return lastCount;
+        return searchFilteredCandidates.filter((candidate) =>
+          getStageDateValues(candidate, previousColumn.stageKey).some((value) => isDateInRange(value, filterStartDate, filterEndDate)),
+        ).length;
+      }, candidatesCreatedInPeriod.length);
 
       return {
-        ...step,
-        count: stepCandidates.length,
-        candidates: stepCandidates,
+        ...column,
+        count: stageCandidates.length,
+        candidates: stageCandidates,
+        overallRate: candidatesCreatedInPeriod.length > 0 ? (stageCandidates.length / candidatesCreatedInPeriod.length) * 100 : 0,
+        previousRate: index === 0 ? 100 : previousCount > 0 ? (stageCandidates.length / previousCount) * 100 : 0,
       };
     });
-
-    const losses = {
-      noResponse: contactedCohort.filter((candidate) => !!candidate.noResponseDate || candidate.screeningStatus === 'No Response'),
-      noShow: contactedCohort.filter((candidate) => !!candidate.interviewNoShowDate || !!candidate.faltouDate),
-      disqualified: contactedCohort.filter(
-        (candidate) =>
-          !!candidate.managerRejectedDate ||
-          !!candidate.disqualifiedDate ||
-          !!candidate.reprovadoDate ||
-          getCandidateStageKey(candidate) === 'reprovado-gestor',
-      ),
-    };
 
     const withdrawalCandidates = searchFilteredCandidates.filter(
       (candidate) =>
@@ -350,70 +200,74 @@ const HiringMetrics = () => {
       }))
       .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'pt-BR'));
 
-    const stageMetrics = normalizedColumns.map((column) => {
-      const stageCandidates = searchFilteredCandidates.filter((candidate) =>
-        getStageDateValues(candidate, column.stageKey).some((value) => isDateInRange(value, filterStartDate, filterEndDate)),
-      );
-
-      return {
-        ...column,
-        count: stageCandidates.length,
-        percentage: candidatesCreatedInPeriod.length > 0 ? (stageCandidates.length / candidatesCreatedInPeriod.length) * 100 : 0,
-        candidates: stageCandidates,
-      };
-    });
-
-    const processFunnelSteps = stageMetrics.map((stage, index) => {
-      const previousCount = index === 0 ? stage.count : stageMetrics[index - 1].count;
-      return {
-        ...stage,
-        overallRate: candidatesCreatedInPeriod.length > 0 ? (stage.count / candidatesCreatedInPeriod.length) * 100 : 0,
-        previousRate: index === 0 ? 100 : previousCount > 0 ? (stage.count / previousCount) * 100 : 0,
-      };
-    });
-
-    const originCounts: Record<string, number> = {};
+    const originMap = new Map<string, { name: string; count: number; percentage: number; candidates: Candidate[] }>();
 
     hiringOrigins.forEach((origin) => {
-      originCounts[origin] = 0;
+      originMap.set(origin, { name: origin, count: 0, percentage: 0, candidates: [] });
     });
-    originCounts['Não Informado'] = 0;
+    originMap.set('Não Informado', { name: 'Não Informado', count: 0, percentage: 0, candidates: [] });
 
     candidatesCreatedInPeriod.forEach((candidate) => {
-      const origin = candidate.origin || 'Não Informado';
-      originCounts[origin] = (originCounts[origin] || 0) + 1;
+      const originName = candidate.origin || 'Não Informado';
+      const current = originMap.get(originName) || { name: originName, count: 0, percentage: 0, candidates: [] };
+      current.count += 1;
+      current.candidates.push(candidate);
+      originMap.set(originName, current);
     });
 
-    const candidatesByOrigin = Object.entries(originCounts)
-      .map(([name, count]) => ({
-        name,
-        count,
-        percentage: candidatesCreatedInPeriod.length > 0 ? (count / candidatesCreatedInPeriod.length) * 100 : 0,
+    const candidatesByOrigin = Array.from(originMap.values())
+      .map((item) => ({
+        ...item,
+        percentage: candidatesCreatedInPeriod.length > 0 ? (item.count / candidatesCreatedInPeriod.length) * 100 : 0,
       }))
-      .filter((origin) => origin.count > 0 || hiringOrigins.includes(origin.name))
-      .sort((a, b) => b.count - a.count);
+      .filter((item) => item.count > 0 || hiringOrigins.includes(item.name))
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'pt-BR'));
 
-    const responseRate = contactedCohort.length > 0 ? (conversionSteps[1].count / contactedCohort.length) * 100 : 0;
-    const schedulingRate = conversionSteps[1].count > 0 ? (conversionSteps[2].count / conversionSteps[1].count) * 100 : 0;
-    const authorizationRate = contactedCohort.length > 0 ? (conversionSteps[5].count / contactedCohort.length) * 100 : 0;
+    const findMember = (reference?: string) => {
+      if (!reference) return undefined;
+      return teamMembers.find((member) => member.id === reference || member.authUserId === reference);
+    };
+
+    const indicationMap = new Map<string, { member: TeamMember; count: number; candidates: Candidate[] }>();
+
+    candidatesCreatedInPeriod.forEach((candidate) => {
+      const attributedMember = findMember(candidate.responsibleUserId) || findMember(candidate.createdBy);
+      if (!attributedMember || !attributedMember.roles.includes('CONSULTOR')) return;
+
+      const current = indicationMap.get(attributedMember.id);
+      if (current) {
+        current.count += 1;
+        current.candidates.push(candidate);
+        return;
+      }
+
+      indicationMap.set(attributedMember.id, {
+        member: attributedMember,
+        count: 1,
+        candidates: [candidate],
+      });
+    });
+
+    const totalIndications = Array.from(indicationMap.values()).reduce((sum, item) => sum + item.count, 0);
+
+    const topIndications = Array.from(indicationMap.values())
+      .map(({ member, count, candidates: attributedCandidates }) => ({
+        id: member.id,
+        name: member.isActive ? member.name : `${member.name} (Inativo)`,
+        count,
+        percentage: totalIndications > 0 ? (count / totalIndications) * 100 : 0,
+        candidates: attributedCandidates,
+      }))
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'pt-BR'));
 
     return {
       candidatesCreatedInPeriod,
-      contactedCohort,
-      conversionSteps,
-      historicalMovements,
-      losses,
-      withdrawalCandidates,
-      withdrawalStageRanking,
-      stageMetrics,
       processFunnelSteps,
+      withdrawalStageRanking,
       candidatesByOrigin,
-      responseRate,
-      schedulingRate,
-      authorizationRate,
+      topIndications,
     };
-
-  }, [filterEndDate, filterStartDate, hiringOrigins, normalizedColumns, searchFilteredCandidates]);
+  }, [filterEndDate, filterStartDate, hiringOrigins, normalizedColumns, searchFilteredCandidates, teamMembers]);
 
   const periodLabel = useMemo(() => {
     if (filterStartDate && filterEndDate) return `${filterStartDate} até ${filterEndDate}`;
@@ -446,7 +300,7 @@ const HiringMetrics = () => {
             Métricas de Contratação
           </h1>
           <p className="text-gray-500 dark:text-gray-400">
-            Agora a leitura foca em histórico salvo do funil: quem foi contatado, quem respondeu, quem marcou entrevista e quem virou autorizado.
+            Escolha a visão que quer analisar: funil histórico, desistências, origens ou consultores que mais indicam.
           </p>
         </div>
 
@@ -467,7 +321,7 @@ const HiringMetrics = () => {
               Filtros da análise
             </h3>
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              O período usa as datas salvas em cada etapa. Mesmo que o candidato avance no pipeline, o histórico continua aparecendo aqui.
+              O período usa as datas salvas em cada etapa do processo.
             </p>
           </div>
 
@@ -523,314 +377,269 @@ const HiringMetrics = () => {
         </div>
       </div>
 
-      <div className="mb-6 rounded-xl border border-blue-200 bg-blue-50 p-5 shadow-sm dark:border-blue-900/40 dark:bg-blue-950/20">
-        <div className="flex items-start gap-3">
-          <Calendar className="mt-0.5 h-5 w-5 text-blue-600 dark:text-blue-300" />
-          <div>
-            <h2 className="font-bold text-blue-900 dark:text-blue-100">Leitura principal do período</h2>
-            <p className="mt-1 text-sm text-blue-800 dark:text-blue-200">
-              A base desta análise são os candidatos <strong>contatados em {periodLabel}</strong>. A partir dela, você vê a conversão real do funil sem depender apenas da coluna atual do pipeline.
-            </p>
-          </div>
-        </div>
+      <div className="mb-6 flex flex-wrap gap-3">
+        {SECTION_OPTIONS.map((section) => {
+          const Icon = section.icon;
+          const isActive = activeSection === section.key;
+
+          return (
+            <button
+              key={section.key}
+              onClick={() => setActiveSection(section.key)}
+              className={`inline-flex items-center gap-2 rounded-xl border px-4 py-3 text-sm font-bold transition ${
+                isActive
+                  ? 'border-brand-500 bg-brand-500 text-white shadow-sm'
+                  : 'border-gray-200 bg-white text-gray-700 hover:border-brand-300 hover:text-brand-600 dark:border-slate-700 dark:bg-slate-800 dark:text-gray-200 dark:hover:border-brand-700 dark:hover:text-brand-400'
+              }`}
+            >
+              <Icon className="h-4 w-4" />
+              {section.title}
+            </button>
+          );
+        })}
       </div>
 
-      <div className="mb-6 grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard
-          title="Mensagens enviadas"
-          value={analytics.contactedCohort.length}
-          icon={Users}
-          colorClass="bg-indigo-600 text-white"
-          subValue="Base da análise"
-          onClick={() => handleOpenCandidatesDetailModal('Base contatada', analytics.contactedCohort, 'contacted')}
-        />
-        <MetricCard
-          title="Taxa de resposta"
-          value={`${analytics.responseRate.toFixed(1)}%`}
-          icon={TrendingUp}
-          colorClass="bg-blue-600 text-white"
-          subValue={`${analytics.conversionSteps[1].count} responderam`}
-          onClick={() => handleOpenCandidatesDetailModal('Responderam', analytics.conversionSteps[1].candidates, 'contacted')}
-        />
-        <MetricCard
-          title="Taxa de agendamento"
-          value={`${analytics.schedulingRate.toFixed(1)}%`}
-          icon={UserPlus}
-          colorClass="bg-emerald-600 text-white"
-          subValue={`${analytics.conversionSteps[2].count} entrevistas marcadas`}
-          onClick={() => handleOpenCandidatesDetailModal('Entrevistas marcadas', analytics.conversionSteps[2].candidates, 'scheduled')}
-        />
-        <MetricCard
-          title="Taxa final de autorização"
-          value={`${analytics.authorizationRate.toFixed(1)}%`}
-          icon={Percent}
-          colorClass="bg-slate-800 text-white dark:bg-slate-700"
-          subValue={`${analytics.conversionSteps[5].count} autorizados`}
-          onClick={() => handleOpenCandidatesDetailModal('Autorizados da base contatada', analytics.conversionSteps[5].candidates, 'hired')}
-        />
-      </div>
-
-      <section className="mb-6 rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <div>
-            <h2 className="text-lg font-bold text-gray-900 dark:text-white">Funil histórico do processo inteiro</h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Visão completa do processo no período, desde a entrada em candidatos até as etapas finais do pipeline.
-            </p>
-          </div>
-          <BarChart3 className="h-5 w-5 text-gray-400" />
-        </div>
-
-        {analytics.candidatesCreatedInPeriod.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-gray-300 px-6 py-10 text-center text-sm text-gray-500 dark:border-slate-600 dark:text-gray-400">
-            Nenhum candidato entrou no processo nesse período. Ajuste a data para montar o funil histórico.
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {analytics.processFunnelSteps.map((step, index) => (
-              <button
-                key={step.id}
-                onClick={() => handleOpenCandidatesDetailModal(step.title, step.candidates, 'total')}
-                className="w-full rounded-xl border border-gray-200 p-4 text-left transition hover:border-brand-300 hover:shadow-sm dark:border-slate-700 dark:hover:border-brand-700"
-              >
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-3">
-                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-100 text-xs font-black text-brand-700 dark:bg-brand-900/40 dark:text-brand-300">
-                        {index + 1}
-                      </span>
-                      <div>
-                        <h3 className="font-bold text-gray-900 dark:text-white">{step.title}</h3>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                          {step.count} candidatos passaram por esta etapa no período filtrado.
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="mt-4 h-2.5 w-full rounded-full bg-gray-100 dark:bg-slate-700">
-                      <div
-                        className="h-2.5 rounded-full bg-brand-500"
-                        style={{ width: `${Math.min(100, step.overallRate)}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid min-w-[220px] grid-cols-1 gap-3 text-sm sm:grid-cols-3 lg:text-right">
-                    <div>
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Quantidade</p>
-                      <p className="text-2xl font-black text-gray-900 dark:text-white">{step.count}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Taxa da etapa</p>
-                      <p className="text-lg font-bold text-brand-600 dark:text-brand-400">{step.previousRate.toFixed(1)}%</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Taxa sobre a base</p>
-                      <p className="text-lg font-bold text-slate-700 dark:text-slate-200">{step.overallRate.toFixed(1)}%</p>
-                    </div>
-                  </div>
-                </div>
-              </button>
-            ))}
-          </div>
-        )}
-      </section>
-
-      <div className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
-        <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-          <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-slate-700">
+      {activeSection === 'funnel' && (
+        <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          <div className="mb-4 flex items-center justify-between gap-3">
             <div>
-              <h2 className="flex items-center gap-2 font-bold text-gray-900 dark:text-white">
-                <Calendar className="h-5 w-5 text-brand-500" />
-                Movimentações registradas no período
-              </h2>
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">Funil histórico do processo inteiro</h2>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                Quantos eventos realmente aconteceram em {periodLabel}.
+                Visão completa do processo em {periodLabel}, desde a entrada em candidatos até as etapas finais do pipeline.
               </p>
             </div>
             <BarChart3 className="h-5 w-5 text-gray-400" />
           </div>
 
-          <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2">
-            {analytics.historicalMovements.map((movement) => (
-              <button
-                key={movement.id}
-                onClick={() => handleOpenCandidatesDetailModal(movement.title, movement.candidates, movement.metricType)}
-                className="rounded-xl border border-gray-200 p-4 text-left transition hover:border-brand-300 hover:shadow-sm dark:border-slate-700 dark:hover:border-brand-700"
-              >
-                <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Histórico salvo</p>
-                <h3 className="mt-1 font-bold text-gray-900 dark:text-white">{movement.title}</h3>
-                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{movement.description}</p>
-                <p className="mt-4 text-3xl font-black text-brand-600 dark:text-brand-400">{movement.count}</p>
-              </button>
-            ))}
-          </div>
-        </div>
+          {analytics.candidatesCreatedInPeriod.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-gray-300 px-6 py-10 text-center text-sm text-gray-500 dark:border-slate-600 dark:text-gray-400">
+              Nenhum candidato entrou no processo nesse período.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {analytics.processFunnelSteps.map((step, index) => (
+                <button
+                  key={step.id}
+                  onClick={() => handleOpenCandidatesDetailModal(step.title, step.candidates, 'total')}
+                  className="w-full rounded-xl border border-gray-200 p-4 text-left transition hover:border-brand-300 hover:shadow-sm dark:border-slate-700 dark:hover:border-brand-700"
+                >
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-3">
+                        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-100 text-xs font-black text-brand-700 dark:bg-brand-900/40 dark:text-brand-300">
+                          {index + 1}
+                        </span>
+                        <div>
+                          <h3 className="font-bold text-gray-900 dark:text-white">{step.title}</h3>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">{step.count} candidatos passaram por esta etapa.</p>
+                        </div>
+                      </div>
 
-        <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+                      <div className="mt-4 h-2.5 w-full rounded-full bg-gray-100 dark:bg-slate-700">
+                        <div className="h-2.5 rounded-full bg-brand-500" style={{ width: `${Math.min(100, step.overallRate)}%` }} />
+                      </div>
+                    </div>
+
+                    <div className="grid min-w-[220px] grid-cols-1 gap-3 text-sm sm:grid-cols-3 lg:text-right">
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Quantidade</p>
+                        <p className="text-2xl font-black text-gray-900 dark:text-white">{step.count}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Taxa da etapa</p>
+                        <p className="text-lg font-bold text-brand-600 dark:text-brand-400">{step.previousRate.toFixed(1)}%</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Taxa sobre a base</p>
+                        <p className="text-lg font-bold text-slate-700 dark:text-slate-200">{step.overallRate.toFixed(1)}%</p>
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {activeSection === 'withdrawals' && (
+        <section className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
           <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-slate-700">
             <div>
               <h2 className="flex items-center gap-2 font-bold text-gray-900 dark:text-white">
                 <UserMinus className="h-5 w-5 text-rose-500" />
-                Perdas da base contatada
+                Ranking de desistência por etapa
               </h2>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                Onde a mesma base perde força antes de virar contratação.
+                Mostra em qual etapa do pipeline mais acontece saída no período filtrado.
               </p>
             </div>
             <TrendingUp className="h-5 w-5 text-gray-400" />
           </div>
 
-          <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-3">
-            <button
-              onClick={() => handleOpenCandidatesDetailModal('Sem resposta', analytics.losses.noResponse, 'noResponse')}
-              className="rounded-xl border border-gray-200 p-4 text-left transition hover:border-rose-300 hover:shadow-sm dark:border-slate-700 dark:hover:border-rose-700"
-            >
-              <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Perda</p>
-              <h3 className="mt-1 font-bold text-gray-900 dark:text-white">Sem resposta</h3>
-              <p className="mt-3 text-3xl font-black text-rose-600 dark:text-rose-400">{analytics.losses.noResponse.length}</p>
-              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                {analytics.contactedCohort.length > 0 ? ((analytics.losses.noResponse.length / analytics.contactedCohort.length) * 100).toFixed(1) : '0.0'}% da base
-              </p>
-            </button>
-
-            <button
-              onClick={() => handleOpenCandidatesDetailModal('Faltaram na entrevista', analytics.losses.noShow, 'noShow')}
-              className="rounded-xl border border-gray-200 p-4 text-left transition hover:border-amber-300 hover:shadow-sm dark:border-slate-700 dark:hover:border-amber-700"
-            >
-              <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Perda</p>
-              <h3 className="mt-1 font-bold text-gray-900 dark:text-white">Faltaram</h3>
-              <p className="mt-3 text-3xl font-black text-amber-600 dark:text-amber-400">{analytics.losses.noShow.length}</p>
-              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                {analytics.contactedCohort.length > 0 ? ((analytics.losses.noShow.length / analytics.contactedCohort.length) * 100).toFixed(1) : '0.0'}% da base
-              </p>
-            </button>
-
-            <button
-              onClick={() => handleOpenCandidatesDetailModal('Reprovados', analytics.losses.disqualified, 'disqualified')}
-              className="rounded-xl border border-gray-200 p-4 text-left transition hover:border-slate-400 hover:shadow-sm dark:border-slate-700 dark:hover:border-slate-500"
-            >
-              <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Perda</p>
-              <h3 className="mt-1 font-bold text-gray-900 dark:text-white">Reprovados</h3>
-              <p className="mt-3 text-3xl font-black text-slate-700 dark:text-slate-200">{analytics.losses.disqualified.length}</p>
-              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                {analytics.contactedCohort.length > 0 ? ((analytics.losses.disqualified.length / analytics.contactedCohort.length) * 100).toFixed(1) : '0.0'}% da base
-              </p>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <section className="mb-6 rounded-xl border border-gray-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-slate-700">
-          <div>
-            <h2 className="flex items-center gap-2 font-bold text-gray-900 dark:text-white">
-              <UserMinus className="h-5 w-5 text-rose-500" />
-              Ranking de desistência por etapa
-            </h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Mostra em qual etapa do pipeline mais acontece saída no período filtrado.
-            </p>
-          </div>
-          <TrendingUp className="h-5 w-5 text-gray-400" />
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300">
-            <thead className="bg-gray-50 text-xs uppercase text-gray-500 dark:bg-slate-700/30 dark:text-gray-400">
-              <tr>
-                <th className="px-6 py-3">Etapa da saída</th>
-                <th className="px-6 py-3">Desistências</th>
-                <th className="px-6 py-3">Participação</th>
-                <th className="px-6 py-3">Barra</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
-              {analytics.withdrawalStageRanking.length === 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300">
+              <thead className="bg-gray-50 text-xs uppercase text-gray-500 dark:bg-slate-700/30 dark:text-gray-400">
                 <tr>
-                  <td colSpan={4} className="px-6 py-10 text-center text-gray-400">
-                    Nenhuma desistência registrada no período.
-                  </td>
+                  <th className="px-6 py-3">Etapa da saída</th>
+                  <th className="px-6 py-3">Desistências</th>
+                  <th className="px-6 py-3">Participação</th>
+                  <th className="px-6 py-3">Barra</th>
                 </tr>
-              ) : (
-                analytics.withdrawalStageRanking.map((stage) => (
-                  <tr key={stage.name} className="hover:bg-gray-50 dark:hover:bg-slate-700/40">
-                    <td className="px-6 py-4">
-                      <button
-                        onClick={() => handleOpenCandidatesDetailModal(`Desistências em ${stage.name}`, stage.candidates, 'withdrawn')}
-                        className="font-bold text-rose-600 transition hover:text-rose-700 dark:text-rose-400 dark:hover:text-rose-300"
-                      >
-                        {stage.name}
-                      </button>
-                    </td>
-                    <td className="px-6 py-4 font-black text-gray-900 dark:text-white">{stage.count}</td>
-                    <td className="px-6 py-4 font-bold text-rose-600 dark:text-rose-400">{stage.percentage.toFixed(1)}%</td>
-                    <td className="w-1/3 px-6 py-4">
-                      <div className="h-2 w-full rounded-full bg-gray-100 dark:bg-slate-700">
-                        <div className="h-2 rounded-full bg-rose-500" style={{ width: `${Math.min(100, stage.percentage)}%` }} />
-                      </div>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
+                {analytics.withdrawalStageRanking.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-6 py-10 text-center text-gray-400">
+                      Nenhuma desistência registrada no período.
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <section className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-
-        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-slate-700">
-          <div>
-            <h2 className="flex items-center gap-2 font-bold text-gray-900 dark:text-white">
-              <MapPin className="h-5 w-5 text-brand-500" />
-              Origem dos candidatos criados
-            </h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Distribuição dos cadastros em {periodLabel}.
-            </p>
+                ) : (
+                  analytics.withdrawalStageRanking.map((stage) => (
+                    <tr key={stage.name} className="hover:bg-gray-50 dark:hover:bg-slate-700/40">
+                      <td className="px-6 py-4">
+                        <button
+                          onClick={() => handleOpenCandidatesDetailModal(`Desistências em ${stage.name}`, stage.candidates, 'withdrawn')}
+                          className="font-bold text-rose-600 transition hover:text-rose-700 dark:text-rose-400 dark:hover:text-rose-300"
+                        >
+                          {stage.name}
+                        </button>
+                      </td>
+                      <td className="px-6 py-4 font-black text-gray-900 dark:text-white">{stage.count}</td>
+                      <td className="px-6 py-4 font-bold text-rose-600 dark:text-rose-400">{stage.percentage.toFixed(1)}%</td>
+                      <td className="w-1/3 px-6 py-4">
+                        <div className="h-2 w-full rounded-full bg-gray-100 dark:bg-slate-700">
+                          <div className="h-2 rounded-full bg-rose-500" style={{ width: `${Math.min(100, stage.percentage)}%` }} />
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
-          <BarChart3 className="h-5 w-5 text-gray-400" />
-        </div>
+        </section>
+      )}
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300">
-            <thead className="bg-gray-50 text-xs uppercase text-gray-500 dark:bg-slate-700/30 dark:text-gray-400">
-              <tr>
-                <th className="px-6 py-3">Origem</th>
-                <th className="px-6 py-3">Quantidade</th>
-                <th className="px-6 py-3">Participação</th>
-                <th className="px-6 py-3">Volume</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
-              {analytics.candidatesByOrigin.length === 0 ? (
+      {activeSection === 'origins' && (
+        <section className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-slate-700">
+            <div>
+              <h2 className="flex items-center gap-2 font-bold text-gray-900 dark:text-white">
+                <MapPin className="h-5 w-5 text-brand-500" />
+                Origem dos candidatos criados
+              </h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Distribuição dos cadastros em {periodLabel}.
+              </p>
+            </div>
+            <BarChart3 className="h-5 w-5 text-gray-400" />
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300">
+              <thead className="bg-gray-50 text-xs uppercase text-gray-500 dark:bg-slate-700/30 dark:text-gray-400">
                 <tr>
-                  <td colSpan={4} className="px-6 py-10 text-center text-gray-400">
-                    Nenhum cadastro encontrado para o período.
-                  </td>
+                  <th className="px-6 py-3">Origem</th>
+                  <th className="px-6 py-3">Quantidade</th>
+                  <th className="px-6 py-3">Participação</th>
+                  <th className="px-6 py-3">Barra</th>
                 </tr>
-              ) : (
-                analytics.candidatesByOrigin.map((origin) => (
-                  <tr key={origin.name} className="hover:bg-gray-50 dark:hover:bg-slate-700/40">
-                    <td className="px-6 py-4 font-bold text-gray-900 dark:text-white">{origin.name}</td>
-                    <td className="px-6 py-4">{origin.count}</td>
-                    <td className="px-6 py-4 font-bold text-brand-600 dark:text-brand-400">{origin.percentage.toFixed(1)}%</td>
-                    <td className="w-1/3 px-6 py-4">
-                      <div className="h-2 w-full rounded-full bg-gray-100 dark:bg-slate-700">
-                        <div className="h-2 rounded-full bg-brand-500" style={{ width: `${origin.percentage}%` }} />
-                      </div>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
+                {analytics.candidatesByOrigin.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-6 py-10 text-center text-gray-400">
+                      Nenhum cadastro encontrado para o período.
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
+                ) : (
+                  analytics.candidatesByOrigin.map((origin) => (
+                    <tr key={origin.name} className="hover:bg-gray-50 dark:hover:bg-slate-700/40">
+                      <td className="px-6 py-4">
+                        <button
+                          onClick={() => handleOpenCandidatesDetailModal(`Origem: ${origin.name}`, origin.candidates, 'total')}
+                          className="font-bold text-gray-900 transition hover:text-brand-600 dark:text-white dark:hover:text-brand-400"
+                        >
+                          {origin.name}
+                        </button>
+                      </td>
+                      <td className="px-6 py-4 font-black text-gray-900 dark:text-white">{origin.count}</td>
+                      <td className="px-6 py-4 font-bold text-brand-600 dark:text-brand-400">{origin.percentage.toFixed(1)}%</td>
+                      <td className="w-1/3 px-6 py-4">
+                        <div className="h-2 w-full rounded-full bg-gray-100 dark:bg-slate-700">
+                          <div className="h-2 rounded-full bg-brand-500" style={{ width: `${origin.percentage}%` }} />
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
+      {activeSection === 'indications' && (
+        <section className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-slate-700">
+            <div>
+              <h2 className="flex items-center gap-2 font-bold text-gray-900 dark:text-white">
+                <Users className="h-5 w-5 text-indigo-500" />
+                Consultores que mais indicam
+              </h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Ranking dos consultores com mais candidatos atribuídos no período.
+              </p>
+            </div>
+            <TrendingUp className="h-5 w-5 text-gray-400" />
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300">
+              <thead className="bg-gray-50 text-xs uppercase text-gray-500 dark:bg-slate-700/30 dark:text-gray-400">
+                <tr>
+                  <th className="px-6 py-3">Consultor</th>
+                  <th className="px-6 py-3">Indicações</th>
+                  <th className="px-6 py-3">Participação</th>
+                  <th className="px-6 py-3">Barra</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
+                {analytics.topIndications.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-6 py-10 text-center text-gray-400">
+                      Nenhuma indicação atribuída a consultor neste período.
+                    </td>
+                  </tr>
+                ) : (
+                  analytics.topIndications.map((consultant) => (
+                    <tr key={consultant.id} className="hover:bg-gray-50 dark:hover:bg-slate-700/40">
+                      <td className="px-6 py-4">
+                        <button
+                          onClick={() => handleOpenCandidatesDetailModal(`Indicações de ${consultant.name}`, consultant.candidates, 'total')}
+                          className="font-bold text-gray-900 transition hover:text-indigo-600 dark:text-white dark:hover:text-indigo-400"
+                        >
+                          {consultant.name}
+                        </button>
+                      </td>
+                      <td className="px-6 py-4 font-black text-gray-900 dark:text-white">{consultant.count}</td>
+                      <td className="px-6 py-4 font-bold text-indigo-600 dark:text-indigo-400">{consultant.percentage.toFixed(1)}%</td>
+                      <td className="w-1/3 px-6 py-4">
+                        <div className="h-2 w-full rounded-full bg-gray-100 dark:bg-slate-700">
+                          <div className="h-2 rounded-full bg-indigo-500" style={{ width: `${consultant.percentage}%` }} />
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
       <CandidatesDetailModal
-
         isOpen={isCandidatesDetailModalOpen}
         onClose={() => setIsCandidatesDetailModalOpen(false)}
         title={candidatesModalTitle}
