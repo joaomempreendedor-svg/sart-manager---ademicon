@@ -47,7 +47,57 @@ const isDateInRange = (value: string | undefined, startDate: string, endDate: st
   return true;
 };
 
+const getStageDateValues = (candidate: Candidate, stageKey: HiringPipelineColumn['stageKey']) => {
+  switch (stageKey) {
+    case 'candidatos':
+      return [candidate.createdAt];
+    case 'contatados':
+      return [candidate.contactedDate];
+    case 'respondeu':
+      return [candidate.respondedDate];
+    case 'entrevista-agendada':
+      return [candidate.interviewScheduledDate];
+    case 'compareceu-entrevista':
+      return [candidate.interviewAttendedDate, candidate.interviewConductedDate];
+    case 'faltou-entrevista':
+      return [candidate.interviewNoShowDate, candidate.faltouDate];
+    case 'aprovado-gestor':
+      return [candidate.managerApprovedDate, candidate.awaitingPreviewDate];
+    case 'reprovado-gestor':
+      return [candidate.managerRejectedDate, candidate.disqualifiedDate, candidate.reprovadoDate];
+    case 'aprovacao-d1':
+      return [candidate.d1ApprovalDate];
+    case 'documentacao-enviada':
+      return [candidate.documentationSentDate];
+    case 'documentacao-nao-enviada':
+      return [candidate.documentationNotSentDate];
+    case 'previa-cadastrada':
+      return [candidate.previewRegisteredDate];
+    case 'onboarding-liberado':
+      return [candidate.onboardingReleasedDate, candidate.onboardingOnlineDate];
+    case 'onboarding-finalizado':
+      return [candidate.onboardingFinishedDate];
+    case 'onboarding-nao-finalizado':
+      return [candidate.onboardingNotFinishedDate];
+    case 'integracao-agendada':
+      return [candidate.integrationScheduledDate, candidate.integrationPresencialDate];
+    case 'integracao-nao-compareceu':
+      return [candidate.integrationNoShowDate];
+    case 'integracao-compareceu':
+      return [candidate.integrationAttendedDate];
+    case 'integracao-finalizada':
+      return [candidate.integrationFinishedDate];
+    case 'candidato-em-previa':
+      return [candidate.awaitingPreviewDate];
+    case 'autorizado':
+      return [candidate.authorizedDate];
+    default:
+      return [];
+  }
+};
+
 const getColumnColorClasses = (color: HiringPipelineColumn['color']) => {
+
   switch (color) {
     case 'blue':
       return 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800 text-blue-700 dark:text-blue-300';
@@ -266,12 +316,22 @@ const HiringMetrics = () => {
       ),
     };
 
-    const currentPipelineSnapshot = normalizedColumns.map((column) => ({
-      ...column,
-      list: searchFilteredCandidates.filter((candidate) => getCandidateStageKey(candidate) === column.stageKey),
-    }));
+    const stageMetrics = normalizedColumns.map((column) => {
+      const stageCandidates = searchFilteredCandidates.filter((candidate) =>
+        getStageDateValues(candidate, column.stageKey).some((value) => isDateInRange(value, filterStartDate, filterEndDate)),
+      );
+
+      return {
+        ...column,
+        count: stageCandidates.length,
+        percentage: candidatesCreatedInPeriod.length > 0 ? (stageCandidates.length / candidatesCreatedInPeriod.length) * 100 : 0,
+        candidates: stageCandidates,
+        currentCount: searchFilteredCandidates.filter((candidate) => getCandidateStageKey(candidate) === column.stageKey).length,
+      };
+    });
 
     const originCounts: Record<string, number> = {};
+
     hiringOrigins.forEach((origin) => {
       originCounts[origin] = 0;
     });
@@ -301,12 +361,13 @@ const HiringMetrics = () => {
       conversionSteps,
       historicalMovements,
       losses,
-      currentPipelineSnapshot,
+      stageMetrics,
       candidatesByOrigin,
       responseRate,
       schedulingRate,
       authorizationRate,
     };
+
   }, [filterEndDate, filterStartDate, hiringOrigins, normalizedColumns, searchFilteredCandidates]);
 
   const periodLabel = useMemo(() => {
@@ -613,88 +674,107 @@ const HiringMetrics = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-        <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-          <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-slate-700">
-            <div>
-              <h2 className="flex items-center gap-2 font-bold text-gray-900 dark:text-white">
-                <MapPin className="h-5 w-5 text-brand-500" />
-                Origem dos candidatos criados
-              </h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                Distribuição dos cadastros em {periodLabel}.
-              </p>
-            </div>
-            <BarChart3 className="h-5 w-5 text-gray-400" />
+      <section className="mb-6 rounded-xl border border-gray-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-slate-700">
+          <div>
+            <h2 className="flex items-center gap-2 font-bold text-gray-900 dark:text-white">
+              <BarChart3 className="h-5 w-5 text-brand-500" />
+              Métricas do pipeline inteiro por etapa
+            </h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Aqui você vê cada etapa do pipeline com histórico salvo no período, sem repetir a foto atual do funil.
+            </p>
           </div>
+          <TrendingUp className="h-5 w-5 text-gray-400" />
+        </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300">
-              <thead className="bg-gray-50 text-xs uppercase text-gray-500 dark:bg-slate-700/30 dark:text-gray-400">
-                <tr>
-                  <th className="px-6 py-3">Origem</th>
-                  <th className="px-6 py-3">Quantidade</th>
-                  <th className="px-6 py-3">Participação</th>
-                  <th className="px-6 py-3">Volume</th>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300">
+            <thead className="bg-gray-50 text-xs uppercase text-gray-500 dark:bg-slate-700/30 dark:text-gray-400">
+              <tr>
+                <th className="px-6 py-3">Etapa</th>
+                <th className="px-6 py-3">Entraram na etapa</th>
+                <th className="px-6 py-3">% sobre novos candidatos</th>
+                <th className="px-6 py-3">Barra</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
+              {analytics.stageMetrics.map((stage) => (
+                <tr key={stage.id} className="hover:bg-gray-50 dark:hover:bg-slate-700/40">
+                  <td className="px-6 py-4">
+                    <button
+                      onClick={() => handleOpenCandidatesDetailModal(stage.title, stage.candidates, 'total')}
+                      className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold transition hover:opacity-90 ${getColumnColorClasses(stage.color)}`}
+                    >
+                      {stage.title}
+                    </button>
+                  </td>
+                  <td className="px-6 py-4 font-black text-gray-900 dark:text-white">{stage.count}</td>
+                  <td className="px-6 py-4 font-bold text-brand-600 dark:text-brand-400">{stage.percentage.toFixed(1)}%</td>
+                  <td className="w-1/3 px-6 py-4">
+                    <div className="h-2 w-full rounded-full bg-gray-100 dark:bg-slate-700">
+                      <div className="h-2 rounded-full bg-brand-500" style={{ width: `${Math.min(100, stage.percentage)}%` }} />
+                    </div>
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
-                {analytics.candidatesByOrigin.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="px-6 py-10 text-center text-gray-400">
-                      Nenhum cadastro encontrado para o período.
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-slate-700">
+          <div>
+            <h2 className="flex items-center gap-2 font-bold text-gray-900 dark:text-white">
+              <MapPin className="h-5 w-5 text-brand-500" />
+              Origem dos candidatos criados
+            </h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Distribuição dos cadastros em {periodLabel}.
+            </p>
+          </div>
+          <BarChart3 className="h-5 w-5 text-gray-400" />
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300">
+            <thead className="bg-gray-50 text-xs uppercase text-gray-500 dark:bg-slate-700/30 dark:text-gray-400">
+              <tr>
+                <th className="px-6 py-3">Origem</th>
+                <th className="px-6 py-3">Quantidade</th>
+                <th className="px-6 py-3">Participação</th>
+                <th className="px-6 py-3">Volume</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
+              {analytics.candidatesByOrigin.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="px-6 py-10 text-center text-gray-400">
+                    Nenhum cadastro encontrado para o período.
+                  </td>
+                </tr>
+              ) : (
+                analytics.candidatesByOrigin.map((origin) => (
+                  <tr key={origin.name} className="hover:bg-gray-50 dark:hover:bg-slate-700/40">
+                    <td className="px-6 py-4 font-bold text-gray-900 dark:text-white">{origin.name}</td>
+                    <td className="px-6 py-4">{origin.count}</td>
+                    <td className="px-6 py-4 font-bold text-brand-600 dark:text-brand-400">{origin.percentage.toFixed(1)}%</td>
+                    <td className="w-1/3 px-6 py-4">
+                      <div className="h-2 w-full rounded-full bg-gray-100 dark:bg-slate-700">
+                        <div className="h-2 rounded-full bg-brand-500" style={{ width: `${origin.percentage}%` }} />
+                      </div>
                     </td>
                   </tr>
-                ) : (
-                  analytics.candidatesByOrigin.map((origin) => (
-                    <tr key={origin.name} className="hover:bg-gray-50 dark:hover:bg-slate-700/40">
-                      <td className="px-6 py-4 font-bold text-gray-900 dark:text-white">{origin.name}</td>
-                      <td className="px-6 py-4">{origin.count}</td>
-                      <td className="px-6 py-4 font-bold text-brand-600 dark:text-brand-400">{origin.percentage.toFixed(1)}%</td>
-                      <td className="w-1/3 px-6 py-4">
-                        <div className="h-2 w-full rounded-full bg-gray-100 dark:bg-slate-700">
-                          <div className="h-2 rounded-full bg-brand-500" style={{ width: `${origin.percentage}%` }} />
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
-
-        <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-          <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-slate-700">
-            <div>
-              <h2 className="flex items-center gap-2 font-bold text-gray-900 dark:text-white">
-                <UserCheck className="h-5 w-5 text-emerald-500" />
-                Pipeline atual
-              </h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                Foto de como a base filtrada está distribuída hoje no pipeline.
-              </p>
-            </div>
-            <TrendingUp className="h-5 w-5 text-gray-400" />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3 p-4 md:grid-cols-3">
-            {analytics.currentPipelineSnapshot.map((stage) => (
-              <button
-                key={stage.id}
-                onClick={() => handleOpenCandidatesDetailModal(stage.title, stage.list, 'total')}
-                className={`rounded-xl border p-4 text-left transition hover:shadow-sm ${getColumnColorClasses(stage.color)}`}
-              >
-                <p className="text-[10px] font-bold uppercase tracking-wider opacity-70">Etapa atual</p>
-                <h3 className="mt-1 text-sm font-bold leading-tight">{stage.title}</h3>
-                <p className="mt-4 text-2xl font-black">{stage.list.length}</p>
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
+      </section>
 
       <CandidatesDetailModal
+
         isOpen={isCandidatesDetailModalOpen}
         onClose={() => setIsCandidatesDetailModalOpen(false)}
         title={candidatesModalTitle}
