@@ -224,7 +224,7 @@ export const EditScreeningCandidateModal: React.FC<EditScreeningCandidateModalPr
                   onValueChange={(value) => setFormData({...formData, responsibleUserId: value})}
                 >
                   <SelectTrigger className="w-full pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600">
-                    <SelectValue placeholder="Selecione um gestor ou anjo" />
+                    <SelectValue placeholder="Selecione quem indicou ou trouxe o candidato" />
                   </SelectTrigger>
                   <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
                     {responsibleMembers.map(member => (

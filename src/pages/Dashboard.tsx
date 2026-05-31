@@ -80,8 +80,8 @@ export const Dashboard = () => {
             value={metrics.activeCandidates}
             icon={UserSearch}
             colorClass="bg-blue-600 text-white"
-            subValue="Candidatos em andamento"
-            onClick={() => navigate('/gestor/hiring-dashboard')}
+            subValue="Pipeline e métricas"
+            onClick={() => navigate('/gestor/hiring-pipeline')}
           />
           <MetricCard
             title="Equipe"

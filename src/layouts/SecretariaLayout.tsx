@@ -17,8 +17,7 @@ import { useAuth } from '@/context/AuthContext';
 const navItems = [
   { to: '/secretaria/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/secretaria/checklists', label: 'Checklists', icon: CheckSquare },
-  { to: '/secretaria/hiring-dashboard', label: 'Contratação', icon: CalendarDays },
-  { to: '/secretaria/hiring-pipeline', label: 'Pipeline', icon: UserSearch },
+  { to: '/secretaria/hiring-pipeline', label: 'Contratação', icon: UserSearch },
   { to: '/secretaria/onboarding-admin', label: 'Onboarding', icon: Video },
   { to: '/secretaria/form-cadastros', label: 'Formulários', icon: FileStack },
 ];

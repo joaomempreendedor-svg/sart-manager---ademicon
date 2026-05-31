@@ -1,5 +1,5 @@
 import React from 'react';
-import { HashRouter, Routes, Route } from 'react-router-dom';
+import { HashRouter, Navigate, Routes, Route } from 'react-router-dom';
 import { AppProvider } from '@/context/AppContext';
 import { AuthProvider } from '@/context/AuthContext';
 import { Toaster } from '@/components/ui/sonner';
@@ -26,7 +26,6 @@ import { OnlineOnboarding } from '@/pages/OnlineOnboarding';
 import { FinancialPanel } from '@/pages/FinancialPanel';
 import { FormCadastros } from '@/pages/gestor/FormSubmissions';
 import HiringPipeline from '@/pages/gestor/HiringPipeline';
-import HiringDashboard from '@/pages/gestor/HiringDashboard';
 import HiringPipelineConfig from '@/pages/gestor/HiringPipelineConfig';
 import { Processos } from '@/pages/gestor/Processos';
 import { TeamConfig } from '@/pages/TeamConfig';
@@ -58,7 +57,7 @@ const AppRoutes = () => {
           <Route path="financial-panel" element={<FinancialPanel />} />
           <Route path="feedbacks" element={<Feedbacks />} />
           <Route path="onboarding-admin" element={<OnlineOnboarding />} />
-          <Route path="hiring-dashboard" element={<HiringDashboard />} />
+          <Route path="hiring-dashboard" element={<Navigate to="../hiring-pipeline" replace />} />
           <Route path="hiring-pipeline" element={<HiringPipeline />} />
           <Route path="hiring-pipeline-config" element={<HiringPipelineConfig />} />
           <Route path="form-cadastros" element={<FormCadastros />} />
@@ -68,7 +67,7 @@ const AppRoutes = () => {
         <Route path="/secretaria" element={<SecretariaLayout />}>
           <Route path="dashboard" element={<SecretariaDashboard />} />
           <Route path="checklists" element={<SecretariaDailyChecklist />} />
-          <Route path="hiring-dashboard" element={<HiringDashboard />} />
+          <Route path="hiring-dashboard" element={<Navigate to="../hiring-pipeline" replace />} />
           <Route path="hiring-pipeline" element={<HiringPipeline />} />
           <Route path="onboarding-admin" element={<OnlineOnboarding />} />
           <Route path="form-cadastros" element={<FormCadastros />} />
