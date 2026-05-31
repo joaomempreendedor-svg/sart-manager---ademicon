@@ -15,7 +15,6 @@ import { DEFAULT_HIRING_PIPELINE_COLUMNS, getCandidateStageKey, normalizeHiringP
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 const INITIAL_INTERVIEW_STRUCTURE: InterviewSection[] = [
-
   { id: 'basicProfile', title: '2. Perfil Básico', maxPoints: 20, questions: [ { id: 'bp_1', text: 'Já trabalhou no modelo PJ? Se não, teria algum impeditivo?', points: 5 }, { id: 'bp_2', text: 'Como você se organizaria para trabalhar nesse modelo?', points: 10 }, { id: 'bp_3', text: 'Tem disponibilidade para começar de imediato?', points: 5 } ] },
   { id: 'commercialSkills', title: '3. Habilidade Comercial', maxPoints: 30, questions: [ { id: 'cs_1', text: 'Já trabalhou com metas? Como foi quando não bateu?', points: 10 }, { id: 'cs_2', text: 'Já teve contato com consórcio/investimentos?', points: 5 }, { id: 'cs_3', text: 'Já trabalhou com CRM?', points: 5 }, { id: 'cs_4', text: 'Demonstra vivência comercial e resiliência?', points: 10 } ] },
   { id: 'behavioralProfile', title: '4. Perfil Comportamental', maxPoints: 30, questions: [ { id: 'bh_1', text: 'Maior desafio até hoje (Exemplo real)?', points: 10 }, { id: 'bh_2', text: 'Metas de vida/carreira definidas?', points: 10 }, { id: 'bh_3', text: 'Clareza na comunicação e nível de energia?', points: 10 } ] },
@@ -23,7 +22,6 @@ const INITIAL_INTERVIEW_STRUCTURE: InterviewSection[] = [
 ];
 
 const DEFAULT_APP_CONFIG_DATA = {
-
   checklistStructure: DEFAULT_STAGES,
   consultantGoalsStructure: DEFAULT_GOALS,
   interviewStructure: INITIAL_INTERVIEW_STRUCTURE,
@@ -280,34 +278,23 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
         const [
           candidatesRes, materialsRes, cutoffRes, onboardingRes, templateVideosRes,
-          pipelinesRes, stagesRes, fieldsRes, crmLeadsRes,
           dailyChecklistsRes, dailyChecklistItemRes, dailyChecklistAssignmentsRes, dailyChecklistCompletionsRes,
-          weeklyTargetsRes, weeklyTargetItemsRes, weeklyTargetAssignmentsRes, metricLogsRes,
           supportMaterialsV2Res, supportMaterialAssignmentsV2Res,
-          leadTasksRes, gestorTasksRes, gestorTaskCompletionsRes, financialEntriesRes,
+          gestorTasksRes, gestorTaskCompletionsRes, financialEntriesRes,
           formCadastrosRes, formFilesRes, notificationsRes, teamProductionGoalsRes, teamMembersRes,
-          coldCallLeadsRes, coldCallLogsRes, processesRes, processAttachmentsRes
+          processesRes, processAttachmentsRes
         ] = await Promise.all([
           safeFetch('candidates', { select: 'id, data, created_at, last_updated_at', filters: { user_id: effectiveGestorId } }),
           safeFetch('support_materials', { select: 'id, data', filters: { user_id: effectiveGestorId } }),
           safeFetch('cutoff_periods', { select: 'id, data', filters: { user_id: effectiveGestorId } }),
           safeFetch('onboarding_sessions', { select: '*, videos:onboarding_videos(*)' }),
           safeFetch('onboarding_video_templates', { orderBy: 'order', ascending: true }),
-          safeFetch('crm_pipelines', { filters: { user_id: effectiveGestorId } }),
-          safeFetch('crm_stages', { filters: { user_id: effectiveGestorId }, orderBy: 'order_index' }),
-          safeFetch('crm_fields', { filters: { user_id: effectiveGestorId } }),
-          safeFetch('crm_leads', { filters: { user_id: effectiveGestorId }, orderBy: 'created_at', ascending: false }),
           safeFetch('daily_checklists', { filters: { user_id: effectiveGestorId } }),
           safeFetch('daily_checklist_items'),
           safeFetch('daily_checklist_assignments'),
           safeFetch('daily_checklist_completions'),
-          safeFetch('weekly_targets', { filters: { user_id: effectiveGestorId } }),
-          safeFetch('weekly_target_items'),
-          safeFetch('weekly_target_assignments'),
-          safeFetch('metric_logs'),
           safeFetch('support_materials_v2', { filters: { user_id: effectiveGestorId } }),
           safeFetch('support_material_assignments'),
-          safeFetch('lead_tasks'),
           safeFetch('gestor_tasks', { filters: { user_id: effectiveGestorId } }),
           safeFetch('gestor_task_completions', { filters: { user_id: effectiveGestorId } }),
           safeFetch('financial_entries', { filters: { user_id: userId } }),
@@ -316,8 +303,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           safeFetch('notifications', { filters: { user_id: userId, is_read: false }, orderBy: 'created_at', ascending: false }),
           safeFetch('team_production_goals', { filters: { user_id: effectiveGestorId }, orderBy: 'start_date', ascending: false }),
           safeFetch('team_members', { select: 'id, data, cpf, user_id', filters: { user_id: effectiveGestorId } }),
-          safeFetch('cold_call_leads'),
-          safeFetch('cold_call_logs'),
           safeFetch('processes', { filters: { user_id: effectiveGestorId } }),
           safeFetch('process_attachments')
         ]);
@@ -356,25 +341,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (!cutoffRes.error) setCutoffPeriods(cutoffRes.data?.map(item => ({ ...(item.data as CutoffPeriod), db_id: item.id })) || []);
         if (!onboardingRes.error) setOnboardingSessions((onboardingRes.data as any[])?.map(s => ({...s, videos: s.videos.sort((a:any,b:any) => a.order - b.order)})) || []);
         if (!templateVideosRes.error) setOnboardingTemplateVideos(templateVideosRes.data || []);
-        if (!pipelinesRes.error) setCrmPipelines(pipelinesRes.data || []);
-        if (!stagesRes.error) setCrmStages(stagesRes.data || []);
-        if (!fieldsRes.error) setCrmFields(fieldsRes.data || []);
-        if (!crmLeadsRes.error) setCrmLeads(crmLeadsRes.data?.map((lead: any) => ({ 
-          id: lead.id, consultant_id: lead.consultant_id, stage_id: lead.stage_id, user_id: lead.user_id, name: lead.name, data: lead.data, created_at: lead.created_at, updated_at: lead.updated_at, created_by: lead.created_by, updated_by: lead.updated_by, 
-          proposal_value: parseDbCurrency(lead.proposal_value) || undefined, proposal_closing_date: lead.proposal_closing_date, 
-          sold_credit_value: parseDbCurrency(lead.sold_credit_value) || undefined, sold_group: lead.sold_group, sold_quota: lead.sold_quota, sale_date: lead.sale_date 
-        })) || []);
         if (!dailyChecklistsRes.error) setDailyChecklists(dailyChecklistsRes.data || []);
         if (!dailyChecklistItemRes.error) setDailyChecklistItem(dailyChecklistItemRes.data || []);
         if (!dailyChecklistAssignmentsRes.error) setDailyChecklistAssignments(dailyChecklistAssignmentsRes.data || []);
         if (!dailyChecklistCompletionsRes.error) setDailyChecklistCompletions(dailyChecklistCompletionsRes.data || []);
-        if (!weeklyTargetsRes.error) setWeeklyTargets(weeklyTargetsRes.data || []);
-        if (!weeklyTargetItemsRes.error) setWeeklyTargetItems(weeklyTargetItemsRes.data || []);
-        if (!weeklyTargetAssignmentsRes.error) setWeeklyTargetAssignments(weeklyTargetAssignmentsRes.data || []);
-        if (!metricLogsRes.error) setMetricLogs(metricLogsRes.data || []);
         if (!supportMaterialsV2Res.error) setSupportMaterialsV2(supportMaterialsV2Res.data || []);
         if (!supportMaterialAssignmentsV2Res.error) setSupportMaterialAssignments(supportMaterialAssignmentsV2Res.data || []);
-        if (!leadTasksRes.error) setLeadTasks(leadTasksRes.data || []);
         if (!gestorTasksRes.error) setGestorTasks(gestorTasksRes.data || []);
         if (!gestorTaskCompletionsRes.error) setGestorTaskCompletions(gestorTaskCompletionsRes.data || []);
         if (!financialEntriesRes.error) setFinancialEntries(financialEntriesRes.data?.map((entry: any) => ({ id: entry.id, db_id: entry.id, user_id: entry.user_id, entry_date: entry.entry_date, type: entry.type, description: entry.description, amount: parseFloat(entry.amount), created_at: entry.created_at })) || []);
@@ -382,8 +354,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (!formFilesRes.error) setFormFiles(formFilesRes.data || []);
         if (!notificationsRes.error) setNotifications(notificationsRes.data || []);
         if (!teamProductionGoalsRes.error) setTeamProductionGoals(teamProductionGoalsRes.data || []);
-        if (!coldCallLeadsRes.error) setColdCallLeads(coldCallLeadsRes.data || []);
-        if (!coldCallLogsRes.error) setColdCallLogs(coldCallLogsRes.data || []);
         
         if (!processesRes.error) {
           const allAttachments = processAttachmentsRes.data || [];
@@ -442,18 +412,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const deleteCandidate = useCallback(async (id: string) => {
     const candidate = candidates.find(c => c.id === id || c.db_id === id);
     if (!candidate) return;
-
     const dbId = candidate.db_id || id;
     const localId = candidate.id;
-
     const { error } = await supabase.from('candidates').delete().eq('id', dbId);
     if (error) throw error;
-
     setCandidates(prev => prev.filter(c => c.db_id !== dbId && c.id !== localId));
   }, [candidates]);
 
   const toggleChecklistItem = useCallback(async (candidateId: string, itemId: string) => {
-
     const candidate = candidates.find(c => c.id === candidateId);
     if (!candidate) return;
     const currentProgress = candidate.checklistProgress || {};
@@ -503,7 +469,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [updateConfig]);
 
   const addCrmLead = useCallback(async (lead: Omit<CrmLead, 'id' | 'created_at' | 'updated_at' | 'user_id' | 'created_by' | 'updated_by'>) => {
-
     if (!user || !crmOwnerUserId) throw new Error("User not authenticated or CRM Owner not set.");
     const { data, error } = await supabase.from('crm_leads').insert({ ...lead, user_id: crmOwnerUserId, created_by: user.id }).select().single();
     if (error) throw error;
@@ -538,57 +503,46 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const addProcess = useCallback(async (processData: Omit<Process, 'id' | 'user_id' | 'created_at' | 'updated_at'>, filesToAdd?: { file: File, type: string }[], linksToAdd?: { url: string, type: string }[], coverFile?: File) => {
     if (!user) throw new Error("User not authenticated.");
-
     const { attachments: _, ...cleanData } = processData as any;
     const dataToInsert = { ...cleanData, user_id: user.id };
-    
     const { data: process, error } = await supabase.from('processes').insert(dataToInsert).select().single();
     if (error) throw error;
-
     const attachments: ProcessAttachment[] = [];
-
     if (coverFile) {
-        const formData = new FormData();
-        formData.append('file', coverFile);
-        formData.append('processId', process.id);
-        formData.append('assetType', 'cover');
-
-        const { data: coverResult, error: coverError } = await supabase.functions.invoke('upload-process-assets', { body: formData });
-
-        if (coverError || coverResult.error) {
-            console.error("Cover upload via Edge Function failed:", coverError || coverResult.error);
-        } else {
-            const { error: updateCoverError } = await supabase.from('processes').update({ cover_url: coverResult.publicUrl }).eq('id', process.id);
-            if (updateCoverError) console.error("Failed to update process with cover URL:", updateCoverError);
-            else process.cover_url = coverResult.publicUrl;
-        }
+      const formData = new FormData();
+      formData.append('file', coverFile);
+      formData.append('processId', process.id);
+      formData.append('assetType', 'cover');
+      const { data: coverResult, error: coverError } = await supabase.functions.invoke('upload-process-assets', { body: formData });
+      if (coverError || coverResult.error) {
+        console.error("Cover upload via Edge Function failed:", coverError || coverResult.error);
+      } else {
+        const { error: updateCoverError } = await supabase.from('processes').update({ cover_url: coverResult.publicUrl }).eq('id', process.id);
+        if (updateCoverError) console.error("Failed to update process with cover URL:", updateCoverError);
+        else process.cover_url = coverResult.publicUrl;
+      }
     }
-
     if (filesToAdd && filesToAdd.length > 0) {
-        for (const item of filesToAdd) {
-            const formData = new FormData();
-            formData.append('file', item.file);
-            formData.append('processId', process.id);
-            formData.append('assetType', 'attachment');
-            formData.append('attachmentType', item.type);
-
-            const { data: attachResult, error: attachError } = await supabase.functions.invoke('upload-process-assets', { body: formData });
-
-            if (attachError || attachResult.error) {
-                console.error(`Attachment upload failed for ${item.file.name}:`, attachError || attachResult.error);
-            } else if (attachResult.attachment) {
-                attachments.push(attachResult.attachment);
-            }
+      for (const item of filesToAdd) {
+        const formData = new FormData();
+        formData.append('file', item.file);
+        formData.append('processId', process.id);
+        formData.append('assetType', 'attachment');
+        formData.append('attachmentType', item.type);
+        const { data: attachResult, error: attachError } = await supabase.functions.invoke('upload-process-assets', { body: formData });
+        if (attachError || attachResult.error) {
+          console.error(`Attachment upload failed for ${item.file.name}:`, attachError || attachResult.error);
+        } else if (attachResult.attachment) {
+          attachments.push(attachResult.attachment);
         }
+      }
     }
-
     if (linksToAdd && linksToAdd.length > 0) {
       for (const item of linksToAdd) {
         const { data: attachment, error: attachError } = await supabase.from('process_attachments').insert({ process_id: process.id, file_url: item.url, file_type: 'link', file_name: 'Link Externo' }).select().single();
         if (!attachError && attachment) attachments.push(attachment);
       }
     }
-
     const newProcess = { ...process, attachments };
     setProcesses(prev => [newProcess, ...prev].sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()));
     return newProcess;
@@ -596,35 +550,29 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const updateProcess = useCallback(async (id: string, updates: Partial<Process>, filesToAdd?: { file: File, type: string }[], linksToAdd?: { url: string, type: string }[], coverFile?: File) => {
     if (!user) throw new Error("User not authenticated.");
-  
     const updatesPayload: Partial<Process> = {
       title: updates.title,
       description: updates.description,
       content: updates.content,
     };
-  
     if (coverFile) {
-        const formData = new FormData();
-        formData.append('file', coverFile);
-        formData.append('processId', id);
-        formData.append('assetType', 'cover');
-
-        const { data: coverResult, error: coverError } = await supabase.functions.invoke('upload-process-assets', { body: formData });
-
-        if (coverError || coverResult.error) {
-            throw new Error(`Falha no upload da imagem de capa: ${coverError?.message || coverResult.error}`);
-        }
-        updatesPayload.cover_url = coverResult.publicUrl;
+      const formData = new FormData();
+      formData.append('file', coverFile);
+      formData.append('processId', id);
+      formData.append('assetType', 'cover');
+      const { data: coverResult, error: coverError } = await supabase.functions.invoke('upload-process-assets', { body: formData });
+      if (coverError || coverResult.error) {
+        throw new Error(`Falha no upload da imagem de capa: ${coverError?.message || coverResult.error}`);
+      }
+      updatesPayload.cover_url = coverResult.publicUrl;
     } else if (updates.cover_url === null) {
       updatesPayload.cover_url = null;
     }
-  
     const { data: process, error } = await supabase.from('processes').update(updatesPayload).eq('id', id).select().single();
     if (error) {
       console.error("Process update error:", error);
       throw new Error(`Falha ao atualizar o processo: ${error.message}`);
     }
-  
     if (filesToAdd && filesToAdd.length > 0) {
       for (const item of filesToAdd) {
         const formData = new FormData();
@@ -632,20 +580,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         formData.append('processId', id);
         formData.append('assetType', 'attachment');
         formData.append('attachmentType', item.type);
-
         const { error: attachError } = await supabase.functions.invoke('upload-process-assets', { body: formData });
         if (attachError) console.error(`Attachment upload failed for ${item.file.name}:`, attachError);
       }
     }
-  
     if (linksToAdd && linksToAdd.length > 0) {
       for (const item of linksToAdd) {
         await supabase.from('process_attachments').insert({ process_id: id, file_url: item.url, file_type: 'link', file_name: 'Link Externo' });
       }
     }
-  
     const { data: allAttachments } = await supabase.from('process_attachments').select('*').eq('process_id', id);
-    
     const updatedProcess = { ...process, attachments: allAttachments || [] };
     setProcesses(prev => prev.map(p => p.id === id ? updatedProcess : p).sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()));
     return updatedProcess;
@@ -1051,11 +995,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const updateFinancialEntry = useCallback(async (id: string, updates: Partial<FinancialEntry>) => {
     const cleanUpdates: any = { ...updates };
-    delete cleanUpdates.id;
-    delete cleanUpdates.db_id;
-    delete cleanUpdates.user_id;
-    delete cleanUpdates.created_at;
-    
+    delete cleanUpdates.id; delete cleanUpdates.db_id; delete cleanUpdates.user_id; delete cleanUpdates.created_at;
     const { data, error } = await supabase.from('financial_entries').update(cleanUpdates).eq('id', id).select().single();
     if (error) throw error; setFinancialEntries(prev => prev.map(e => e.id === id ? { ...data, amount: parseFloat(data.amount) } : e)); return data;
   }, []);
@@ -1201,13 +1141,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const createCrmLeadFromColdCall = useCallback(async (coldCallLeadId: string, meeting?: { date?: string; time?: string; modality?: string; notes?: string }) => {
     const { data, error } = await supabase.functions.invoke('create-crm-lead-from-cold-call', {
-      body: { 
-        coldCallLeadId, 
-        meetingDate: meeting?.date, 
-        meetingTime: meeting?.time, 
-        meetingModality: meeting?.modality, 
-        meetingNotes: meeting?.notes 
-      }
+      body: { coldCallLeadId, meetingDate: meeting?.date, meetingTime: meeting?.time, meetingModality: meeting?.modality, meetingNotes: meeting?.notes }
     });
     if (error) throw error;
     if (data?.error) throw new Error(data.error);
@@ -1336,11 +1270,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const updatedInfo: InstallmentInfo = { ...prev, status: newStatus };
       if (newStatus === 'Pago') {
         const effectiveDate = paidDate || new Date().toISOString().split('T')[0];
-        updatedInfo.paidDate = effectiveDate; 
+        updatedInfo.paidDate = effectiveDate;
         updatedInfo.competenceMonth = calculateCompetenceMonth(effectiveDate);
-      } else { 
-        delete updatedInfo.paidDate; 
-        delete updatedInfo.competenceMonth; 
+      } else {
+        delete updatedInfo.paidDate;
+        delete updatedInfo.competenceMonth;
       }
       const newDetails = { ...details, [key]: updatedInfo };
       const updatedCommission: Commission = { ...current, installmentDetails: newDetails, status: getOverallStatus(newDetails) };
@@ -1393,9 +1327,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addCrmLead, updateCrmLead, deleteCrmLead,
     addDailyChecklist, updateDailyChecklist, deleteDailyChecklist,
     addDailyChecklistItem, updateDailyChecklistItem, deleteDailyChecklistItem, moveDailyChecklistItem,
-    assignDailyChecklistToConsultant,
-    unassignDailyChecklistFromConsultant,
-    toggleDailyChecklistCompletion,
+    assignDailyChecklistToConsultant, unassignDailyChecklistFromConsultant, toggleDailyChecklistCompletion,
     addWeeklyTarget, updateWeeklyTarget, deleteWeeklyTarget,
     addWeeklyTargetItem, updateWeeklyTargetItem, deleteWeeklyTargetItem, updateWeeklyTargetItemOrder,
     assignWeeklyTargetToConsultant, unassignWeeklyTargetFromConsultant,
@@ -1415,7 +1347,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addHiringPipelineColumn, updateHiringPipelineColumn, deleteHiringPipelineColumn, moveHiringPipelineColumn,
     resetHiringPipelineColumnsToDefault,
   }), [
-
     isDataLoading, candidates, teamMembers, commissions, supportMaterials, cutoffPeriods, onboardingSessions, onboardingTemplateVideos,
     checklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs,
     crmPipelines, crmStages, crmFields, crmLeads, crmOwnerUserId,
