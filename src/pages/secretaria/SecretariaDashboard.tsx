@@ -1,21 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { DailyChecklistDisplay } from '@/components/consultor/DailyChecklistDisplay';
 import {
-  Users,
-  MessageSquare,
   Clock,
-  FileText,
-  TrendingUp,
-  UserCheck,
-  Ghost,
-  UserMinus,
-  XCircle,
-  Percent,
-  Calendar,
-  RotateCcw,
   ListChecks,
   Loader2,
   AlertCircle,
@@ -24,12 +13,11 @@ import {
   CalendarDays,
   Check,
   Trash2,
-  HelpCircle,
+  Calendar,
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import toast from 'react-hot-toast';
-import { Candidate, DailyChecklistItem } from '@/types';
-import { CandidatesDetailModal } from '@/components/gestor/CandidatesDetailModal';
+import { DailyChecklistItem } from '@/types';
 import { MetricCard } from '@/components/MetricCard';
 
 const SECRETARIA_PREFIX = '[SEC] ';
@@ -66,23 +54,7 @@ export const SecretariaDashboard = () => {
   } = useApp();
   const navigate = useNavigate();
 
-  const [startDate, setStartDate] = useState(() => {
-    const d = new Date();
-    return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
-  });
-  const [endDate, setEndDate] = useState(() => {
-    const d = new Date();
-    return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
-  });
-
   const todayStr = new Date().toISOString().split('T')[0];
-
-  const [isCandidatesDetailModalOpen, setIsCandidatesDetailModalOpen] = useState(false);
-  const [candidatesModalTitle, setCandidatesModalTitle] = useState('');
-  const [candidatesForModal, setCandidatesForModal] = useState<Candidate[]>([]);
-  const [candidatesMetricType, setCandidatesMetricType] = useState<
-    'total' | 'newCandidates' | 'contacted' | 'scheduled' | 'conducted' | 'awaitingPreview' | 'hired' | 'noShow' | 'withdrawn' | 'disqualified' | 'noResponse'
-  >('total');
 
   const { completedDailyTasks, totalDailyTasks, dailyProgress } = useMemo(() => {
     if (!user) return { completedDailyTasks: 0, totalDailyTasks: 0, dailyProgress: 0 };
@@ -240,96 +212,8 @@ export const SecretariaDashboard = () => {
     if (item.personType === 'candidate') navigate(`/gestor/candidate/${item.personId}`);
   };
 
-  const metrics = useMemo(() => {
-    const start = new Date(startDate + 'T00:00:00');
-    const end = new Date(endDate + 'T23:59:59');
-
-    const isInFilterRange = (dateString?: string) => {
-      if (!dateString) return false;
-      const date = new Date(dateString);
-      return date >= start && date <= end;
-    };
-
-    const totalCandidates = candidates.filter((c) => isInFilterRange(c.createdAt));
-
-    const newCandidatesList = totalCandidates.filter(
-      (c) => c.screeningStatus === 'Pending Contact' || !c.screeningStatus,
-    );
-
-    const contactedList = totalCandidates.filter(
-      (c) => isInFilterRange(c.contactedDate) && c.screeningStatus === 'Contacted',
-    );
-
-    const noResponseList = totalCandidates.filter(
-      (c) => isInFilterRange(c.noResponseDate) && c.screeningStatus === 'No Response',
-    );
-
-    const scheduledList = totalCandidates.filter((c) => isInFilterRange(c.interviewScheduledDate));
-    const conductedList = totalCandidates.filter((c) => isInFilterRange(c.interviewConductedDate));
-    const awaitingPreviewList = totalCandidates.filter((c) => isInFilterRange(c.awaitingPreviewDate));
-    const hiredList = totalCandidates.filter((c) => isInFilterRange(c.authorizedDate));
-    const noShowList = totalCandidates.filter((c) => isInFilterRange(c.faltouDate));
-    const withdrawnList = totalCandidates.filter((c) => isInFilterRange(c.reprovadoDate));
-    const disqualifiedList = totalCandidates.filter((c) => isInFilterRange(c.disqualifiedDate));
-
-    const totalHiredList = totalCandidates.filter(
-      (c) =>
-        isInFilterRange(c.awaitingPreviewDate) ||
-        isInFilterRange(c.onboardingOnlineDate) ||
-        isInFilterRange(c.integrationPresencialDate) ||
-        isInFilterRange(c.acompanhamento90DiasDate) ||
-        isInFilterRange(c.authorizedDate),
-    );
-
-    const totalInterviewsScheduled = scheduledList.length;
-    const totalInterviewsConducted = conductedList.length;
-
-    const attendanceRate =
-      totalInterviewsScheduled > 0 ? (totalInterviewsConducted / totalInterviewsScheduled) * 100 : 0;
-    const hiringRate = totalCandidates.length > 0 ? (totalHiredList.length / totalCandidates.length) * 100 : 0;
-
-    return {
-      total: totalCandidates.length,
-      newCandidates: newCandidatesList.length,
-      contacted: contactedList.length,
-      noResponse: noResponseList.length,
-      scheduled: scheduledList.length,
-      conducted: conductedList.length,
-      awaitingPreview: awaitingPreviewList.length,
-      hired: hiredList.length,
-      noShow: noShowList.length,
-      withdrawn: withdrawnList.length,
-      disqualified: disqualifiedList.length,
-      attendanceRate,
-      hiringRate,
-      totalHired: totalHiredList.length,
-      newCandidatesList,
-      contactedList,
-      noResponseList,
-      scheduledList,
-      conductedList,
-      awaitingPreviewList,
-      hiredList,
-      noShowList,
-      withdrawnList,
-      disqualifiedList,
-      totalCandidatesList: totalCandidates,
-      totalHiredList,
-    };
-  }, [candidates, startDate, endDate]);
-
-  const handleOpenCandidatesDetailModal = (
-    title: string,
-    modalCandidates: Candidate[],
-    metricType: 'total' | 'newCandidates' | 'contacted' | 'scheduled' | 'conducted' | 'awaitingPreview' | 'hired' | 'noShow' | 'withdrawn' | 'disqualified' | 'noResponse',
-  ) => {
-    setCandidatesModalTitle(title);
-    setCandidatesForModal(modalCandidates);
-    setCandidatesMetricType(metricType);
-    setIsCandidatesDetailModalOpen(true);
-  };
-
   if (isDataLoading) {
+
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="w-12 h-12 text-brand-500 animate-spin" />
@@ -535,150 +419,6 @@ export const SecretariaDashboard = () => {
         <DailyChecklistDisplay user={user} isDataLoading={isDataLoading} />
       </section>
 
-      <hr className="border-gray-200 dark:border-slate-800" />
-
-      <section className="animate-fade-in">
-        <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h2 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight flex items-center">
-              <TrendingUp className="w-8 h-8 mr-3 text-brand-500" /> Dashboard de Candidaturas
-            </h2>
-            <p className="text-gray-500 dark:text-gray-400 font-medium">
-              Métricas detalhadas do fluxo de contratação.
-            </p>
-          </div>
-
-          <div className="flex items-center space-x-2 bg-white dark:bg-slate-800 p-3 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm">
-            <Calendar className="w-4 h-4 text-gray-400" />
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="text-sm bg-transparent border-none focus:ring-0 dark:text-white"
-            />
-            <span className="text-gray-400 font-bold">→</span>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="text-sm bg-transparent border-none focus:ring-0 dark:text-white"
-            />
-            <button
-              onClick={() => {
-                const d = new Date();
-                setStartDate(new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0]);
-                setEndDate(new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0]);
-              }}
-              className="ml-2 p-1 text-gray-400 hover:text-brand-500 transition-colors"
-            >
-              <RotateCcw className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          <MetricCard
-            title="Total de Candidaturas"
-            value={metrics.total}
-            icon={Users}
-            colorClass="bg-indigo-600 text-white"
-            onClick={() => handleOpenCandidatesDetailModal('Total de Candidaturas', metrics.totalCandidatesList, 'total')}
-          />
-          <MetricCard
-            title="Contatados"
-            value={metrics.contacted}
-            icon={MessageSquare}
-            colorClass="bg-amber-500 text-white"
-            subValue="Em triagem ativa"
-            onClick={() => handleOpenCandidatesDetailModal('Contatados', metrics.contactedList, 'contacted')}
-          />
-          <MetricCard
-            title="Não Respondido"
-            value={metrics.noResponse}
-            icon={HelpCircle}
-            colorClass="bg-orange-500 text-white"
-            subValue="Aguardando retorno"
-            onClick={() => handleOpenCandidatesDetailModal('Não Respondido', metrics.noResponseList, 'noResponse')}
-          />
-          <MetricCard
-            title="Entrevistas Agendadas"
-            value={metrics.scheduled}
-            icon={Clock}
-            colorClass="bg-orange-600 text-white"
-            onClick={() => handleOpenCandidatesDetailModal('Entrevistas Agendadas', metrics.scheduledList, 'scheduled')}
-          />
-          <MetricCard
-            title="Entrevistas Realizadas"
-            value={metrics.conducted}
-            icon={FileText}
-            colorClass="bg-purple-600 text-white"
-            onClick={() => handleOpenCandidatesDetailModal('Entrevistas Realizadas', metrics.conductedList, 'conducted')}
-          />
-          <MetricCard
-            title="Contratados (Em Prévia)"
-            value={metrics.totalHired}
-            icon={TrendingUp}
-            colorClass="bg-blue-600 text-white"
-            subValue="Passaram na seleção"
-            onClick={() => handleOpenCandidatesDetailModal('Contratados (Em Prévia)', metrics.totalHiredList, 'awaitingPreview')}
-          />
-          <MetricCard
-            title="Autorizados"
-            value={metrics.hired}
-            icon={UserCheck}
-            colorClass="bg-emerald-600 text-white"
-            subValue="Contratações efetivas"
-            onClick={() => handleOpenCandidatesDetailModal('Autorizados', metrics.hiredList, 'hired')}
-          />
-          <MetricCard
-            title="Faltas"
-            value={metrics.noShow}
-            icon={Ghost}
-            colorClass="bg-rose-500 text-white"
-            subValue="Não compareceram"
-            onClick={() => handleOpenCandidatesDetailModal('Faltas', metrics.noShowList, 'noShow')}
-          />
-          <MetricCard
-            title="Desistências"
-            value={metrics.withdrawn}
-            icon={UserMinus}
-            colorClass="bg-rose-600 text-white"
-            subValue="Candidato desistiu"
-            onClick={() => handleOpenCandidatesDetailModal('Desistências', metrics.withdrawnList, 'withdrawn')}
-          />
-          <MetricCard
-            title="Desqualificados"
-            value={metrics.disqualified}
-            icon={XCircle}
-            colorClass="bg-rose-700 text-white"
-            subValue="Reprovados pelo gestor"
-            onClick={() => handleOpenCandidatesDetailModal('Desqualificados', metrics.disqualifiedList, 'disqualified')}
-          />
-          <MetricCard
-            title="Taxa de Comparecimento"
-            value={`${metrics.attendanceRate.toFixed(1)}%`}
-            icon={Percent}
-            colorClass="bg-slate-800 text-white dark:bg-slate-700"
-            subValue="Efetividade Agenda"
-          />
-          <MetricCard
-            title="Taxa de Contratação"
-            value={`${metrics.hiringRate.toFixed(1)}%`}
-            icon={Percent}
-            colorClass="bg-slate-800 text-white dark:bg-slate-700"
-            subValue="Conversão Final"
-          />
-        </div>
-      </section>
-
-      <CandidatesDetailModal
-        isOpen={isCandidatesDetailModalOpen}
-        onClose={() => setIsCandidatesDetailModalOpen(false)}
-        title={candidatesModalTitle}
-        candidates={candidatesForModal}
-        teamMembers={teamMembers}
-        metricType={candidatesMetricType}
-      />
     </div>
   );
 };
