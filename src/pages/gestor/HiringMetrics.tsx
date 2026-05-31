@@ -22,7 +22,7 @@ import { CandidatesDetailModal } from '@/components/gestor/CandidatesDetailModal
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { Candidate, HiringPipelineColumn } from '@/types';
-import { getCandidateStageKey, normalizeHiringPipelineColumns } from '@/lib/hiringPipeline';
+import { getCandidateStageKey, getHiringStageLabel, normalizeHiringPipelineColumns } from '@/lib/hiringPipeline';
 
 type MetricType = 'total' | 'newCandidates' | 'contacted' | 'scheduled' | 'conducted' | 'awaitingPreview' | 'hired' | 'noShow' | 'withdrawn' | 'disqualified' | 'noResponse';
 
@@ -316,7 +316,42 @@ const HiringMetrics = () => {
       ),
     };
 
+    const withdrawalCandidates = searchFilteredCandidates.filter(
+      (candidate) =>
+        isDateInRange(candidate.reprovadoDate, filterStartDate, filterEndDate) ||
+        isDateInRange(candidate.disqualifiedDate, filterStartDate, filterEndDate) ||
+        isDateInRange(candidate.managerRejectedDate, filterStartDate, filterEndDate),
+    );
+
+    const withdrawalStageMap = new Map<string, { name: string; count: number; candidates: Candidate[] }>();
+
+    withdrawalCandidates.forEach((candidate) => {
+      const stageKey = candidate.withdrawalStageKey || getCandidateStageKey(candidate);
+      const stageName = candidate.withdrawalStageKey ? getHiringStageLabel(candidate.withdrawalStageKey) : getHiringStageLabel(stageKey);
+      const current = withdrawalStageMap.get(stageName);
+
+      if (current) {
+        current.count += 1;
+        current.candidates.push(candidate);
+        return;
+      }
+
+      withdrawalStageMap.set(stageName, {
+        name: stageName,
+        count: 1,
+        candidates: [candidate],
+      });
+    });
+
+    const withdrawalStageRanking = Array.from(withdrawalStageMap.values())
+      .map((item) => ({
+        ...item,
+        percentage: withdrawalCandidates.length > 0 ? (item.count / withdrawalCandidates.length) * 100 : 0,
+      }))
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'pt-BR'));
+
     const stageMetrics = normalizedColumns.map((column) => {
+
       const stageCandidates = searchFilteredCandidates.filter((candidate) =>
         getStageDateValues(candidate, column.stageKey).some((value) => isDateInRange(value, filterStartDate, filterEndDate)),
       );
@@ -361,6 +396,8 @@ const HiringMetrics = () => {
       conversionSteps,
       historicalMovements,
       losses,
+      withdrawalCandidates,
+      withdrawalStageRanking,
       stageMetrics,
       candidatesByOrigin,
       responseRate,
@@ -674,56 +711,116 @@ const HiringMetrics = () => {
         </div>
       </div>
 
-      <section className="mb-6 rounded-xl border border-gray-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-slate-700">
-          <div>
-            <h2 className="flex items-center gap-2 font-bold text-gray-900 dark:text-white">
-              <BarChart3 className="h-5 w-5 text-brand-500" />
-              Métricas do pipeline inteiro por etapa
-            </h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Aqui você vê cada etapa do pipeline com histórico salvo no período, sem repetir a foto atual do funil.
-            </p>
+      <div className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
+        <section className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-slate-700">
+            <div>
+              <h2 className="flex items-center gap-2 font-bold text-gray-900 dark:text-white">
+                <BarChart3 className="h-5 w-5 text-brand-500" />
+                Métricas do pipeline inteiro por etapa
+              </h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Aqui você vê cada etapa do pipeline com histórico salvo no período, sem repetir a foto atual do funil.
+              </p>
+            </div>
+            <TrendingUp className="h-5 w-5 text-gray-400" />
           </div>
-          <TrendingUp className="h-5 w-5 text-gray-400" />
-        </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300">
-            <thead className="bg-gray-50 text-xs uppercase text-gray-500 dark:bg-slate-700/30 dark:text-gray-400">
-              <tr>
-                <th className="px-6 py-3">Etapa</th>
-                <th className="px-6 py-3">Entraram na etapa</th>
-                <th className="px-6 py-3">% sobre novos candidatos</th>
-                <th className="px-6 py-3">Barra</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
-              {analytics.stageMetrics.map((stage) => (
-                <tr key={stage.id} className="hover:bg-gray-50 dark:hover:bg-slate-700/40">
-                  <td className="px-6 py-4">
-                    <button
-                      onClick={() => handleOpenCandidatesDetailModal(stage.title, stage.candidates, 'total')}
-                      className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold transition hover:opacity-90 ${getColumnColorClasses(stage.color)}`}
-                    >
-                      {stage.title}
-                    </button>
-                  </td>
-                  <td className="px-6 py-4 font-black text-gray-900 dark:text-white">{stage.count}</td>
-                  <td className="px-6 py-4 font-bold text-brand-600 dark:text-brand-400">{stage.percentage.toFixed(1)}%</td>
-                  <td className="w-1/3 px-6 py-4">
-                    <div className="h-2 w-full rounded-full bg-gray-100 dark:bg-slate-700">
-                      <div className="h-2 rounded-full bg-brand-500" style={{ width: `${Math.min(100, stage.percentage)}%` }} />
-                    </div>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300">
+              <thead className="bg-gray-50 text-xs uppercase text-gray-500 dark:bg-slate-700/30 dark:text-gray-400">
+                <tr>
+                  <th className="px-6 py-3">Etapa</th>
+                  <th className="px-6 py-3">Entraram na etapa</th>
+                  <th className="px-6 py-3">% sobre novos candidatos</th>
+                  <th className="px-6 py-3">Barra</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
+                {analytics.stageMetrics.map((stage) => (
+                  <tr key={stage.id} className="hover:bg-gray-50 dark:hover:bg-slate-700/40">
+                    <td className="px-6 py-4">
+                      <button
+                        onClick={() => handleOpenCandidatesDetailModal(stage.title, stage.candidates, 'total')}
+                        className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold transition hover:opacity-90 ${getColumnColorClasses(stage.color)}`}
+                      >
+                        {stage.title}
+                      </button>
+                    </td>
+                    <td className="px-6 py-4 font-black text-gray-900 dark:text-white">{stage.count}</td>
+                    <td className="px-6 py-4 font-bold text-brand-600 dark:text-brand-400">{stage.percentage.toFixed(1)}%</td>
+                    <td className="w-1/3 px-6 py-4">
+                      <div className="h-2 w-full rounded-full bg-gray-100 dark:bg-slate-700">
+                        <div className="h-2 rounded-full bg-brand-500" style={{ width: `${Math.min(100, stage.percentage)}%` }} />
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-slate-700">
+            <div>
+              <h2 className="flex items-center gap-2 font-bold text-gray-900 dark:text-white">
+                <UserMinus className="h-5 w-5 text-rose-500" />
+                Ranking de desistência por etapa
+              </h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Mostra em qual etapa do pipeline mais acontece saída no período filtrado.
+              </p>
+            </div>
+            <TrendingUp className="h-5 w-5 text-gray-400" />
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300">
+              <thead className="bg-gray-50 text-xs uppercase text-gray-500 dark:bg-slate-700/30 dark:text-gray-400">
+                <tr>
+                  <th className="px-6 py-3">Etapa da saída</th>
+                  <th className="px-6 py-3">Desistências</th>
+                  <th className="px-6 py-3">Participação</th>
+                  <th className="px-6 py-3">Barra</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
+                {analytics.withdrawalStageRanking.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-6 py-10 text-center text-gray-400">
+                      Nenhuma desistência registrada no período.
+                    </td>
+                  </tr>
+                ) : (
+                  analytics.withdrawalStageRanking.map((stage) => (
+                    <tr key={stage.name} className="hover:bg-gray-50 dark:hover:bg-slate-700/40">
+                      <td className="px-6 py-4">
+                        <button
+                          onClick={() => handleOpenCandidatesDetailModal(`Desistências em ${stage.name}`, stage.candidates, 'withdrawn')}
+                          className="font-bold text-rose-600 transition hover:text-rose-700 dark:text-rose-400 dark:hover:text-rose-300"
+                        >
+                          {stage.name}
+                        </button>
+                      </td>
+                      <td className="px-6 py-4 font-black text-gray-900 dark:text-white">{stage.count}</td>
+                      <td className="px-6 py-4 font-bold text-rose-600 dark:text-rose-400">{stage.percentage.toFixed(1)}%</td>
+                      <td className="w-1/3 px-6 py-4">
+                        <div className="h-2 w-full rounded-full bg-gray-100 dark:bg-slate-700">
+                          <div className="h-2 rounded-full bg-rose-500" style={{ width: `${Math.min(100, stage.percentage)}%` }} />
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
 
       <section className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+
         <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-slate-700">
           <div>
             <h2 className="flex items-center gap-2 font-bold text-gray-900 dark:text-white">
