@@ -289,8 +289,8 @@ const HiringPipeline = () => {
   }
 
   return (
-    <div className="min-h-screen max-w-full bg-gray-50 p-4 dark:bg-slate-900 sm:p-8">
-      <div className="sticky top-0 z-20 mb-6 pt-1">
+    <div className="flex h-screen max-w-full flex-col overflow-hidden bg-gray-50 p-4 dark:bg-slate-900 sm:p-8">
+      <div className="mb-6 flex-shrink-0 pt-1">
         <div className="w-full max-w-5xl rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:p-5 xl:inline-block xl:w-auto">
 
           <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
@@ -402,7 +402,7 @@ const HiringPipeline = () => {
         </div>
       </div>
 
-      <div className="custom-scrollbar flex space-x-4 overflow-x-auto pb-6">
+      <div className="custom-scrollbar flex flex-1 space-x-4 overflow-x-auto pb-6">
         {pipelineStages.map((stage) => {
           const nextColumns = getNextColumns(stage.id);
 
@@ -451,7 +451,6 @@ const HiringPipeline = () => {
                         isToday ? 'ring-2 ring-brand-500' : ''
                       } ${draggingCandidateId === candidate.id ? 'opacity-70' : ''}`}
                     >
-
                       {isToday && (
                         <div className="absolute right-0 top-0 rounded-bl-lg bg-brand-500 px-2 py-0.5 text-[10px] font-bold text-white">
                           HOJE
