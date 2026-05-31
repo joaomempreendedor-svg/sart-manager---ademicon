@@ -351,7 +351,6 @@ const HiringMetrics = () => {
       .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'pt-BR'));
 
     const stageMetrics = normalizedColumns.map((column) => {
-
       const stageCandidates = searchFilteredCandidates.filter((candidate) =>
         getStageDateValues(candidate, column.stageKey).some((value) => isDateInRange(value, filterStartDate, filterEndDate)),
       );
@@ -361,7 +360,15 @@ const HiringMetrics = () => {
         count: stageCandidates.length,
         percentage: candidatesCreatedInPeriod.length > 0 ? (stageCandidates.length / candidatesCreatedInPeriod.length) * 100 : 0,
         candidates: stageCandidates,
-        currentCount: searchFilteredCandidates.filter((candidate) => getCandidateStageKey(candidate) === column.stageKey).length,
+      };
+    });
+
+    const processFunnelSteps = stageMetrics.map((stage, index) => {
+      const previousCount = index === 0 ? stage.count : stageMetrics[index - 1].count;
+      return {
+        ...stage,
+        overallRate: candidatesCreatedInPeriod.length > 0 ? (stage.count / candidatesCreatedInPeriod.length) * 100 : 0,
+        previousRate: index === 0 ? 100 : previousCount > 0 ? (stage.count / previousCount) * 100 : 0,
       };
     });
 
@@ -399,6 +406,7 @@ const HiringMetrics = () => {
       withdrawalCandidates,
       withdrawalStageRanking,
       stageMetrics,
+      processFunnelSteps,
       candidatesByOrigin,
       responseRate,
       schedulingRate,
@@ -565,24 +573,24 @@ const HiringMetrics = () => {
       <section className="mb-6 rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
-            <h2 className="text-lg font-bold text-gray-900 dark:text-white">Funil histórico da base contatada</h2>
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white">Funil histórico do processo inteiro</h2>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Exemplo prático: de quem recebeu mensagem neste período, quantos responderam, marcaram entrevista, compareceram e chegaram até autorizado.
+              Visão completa do processo no período, desde a entrada em candidatos até as etapas finais do pipeline.
             </p>
           </div>
           <BarChart3 className="h-5 w-5 text-gray-400" />
         </div>
 
-        {analytics.contactedCohort.length === 0 ? (
+        {analytics.candidatesCreatedInPeriod.length === 0 ? (
           <div className="rounded-xl border border-dashed border-gray-300 px-6 py-10 text-center text-sm text-gray-500 dark:border-slate-600 dark:text-gray-400">
-            Nenhum candidato contatado foi encontrado nesse período. Ajuste a data para montar a base histórica.
+            Nenhum candidato entrou no processo nesse período. Ajuste a data para montar o funil histórico.
           </div>
         ) : (
           <div className="space-y-3">
-            {analytics.conversionSteps.map((step, index) => (
+            {analytics.processFunnelSteps.map((step, index) => (
               <button
                 key={step.id}
-                onClick={() => handleOpenCandidatesDetailModal(step.title, step.candidates, step.metricType)}
+                onClick={() => handleOpenCandidatesDetailModal(step.title, step.candidates, 'total')}
                 className="w-full rounded-xl border border-gray-200 p-4 text-left transition hover:border-brand-300 hover:shadow-sm dark:border-slate-700 dark:hover:border-brand-700"
               >
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -593,7 +601,9 @@ const HiringMetrics = () => {
                       </span>
                       <div>
                         <h3 className="font-bold text-gray-900 dark:text-white">{step.title}</h3>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">{step.description}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          {step.count} candidatos passaram por esta etapa no período filtrado.
+                        </p>
                       </div>
                     </div>
 
