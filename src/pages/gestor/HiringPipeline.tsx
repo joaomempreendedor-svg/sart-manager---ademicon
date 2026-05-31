@@ -447,10 +447,11 @@ const HiringPipeline = () => {
                       key={candidate.id}
                       draggable
                       onDragStart={(event) => handleDragStart(event, candidate.id)}
-                      className={`relative overflow-hidden rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-all hover:border-brand-500 hover:shadow-md dark:border-slate-700 dark:bg-slate-700 ${
+                      className={`group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-all hover:border-brand-500 hover:shadow-md dark:border-slate-700 dark:bg-slate-700 ${
                         isToday ? 'ring-2 ring-brand-500' : ''
                       } ${draggingCandidateId === candidate.id ? 'opacity-70' : ''}`}
                     >
+
                       {isToday && (
                         <div className="absolute right-0 top-0 rounded-bl-lg bg-brand-500 px-2 py-0.5 text-[10px] font-bold text-white">
                           HOJE
@@ -478,17 +479,17 @@ const HiringPipeline = () => {
                           </div>
                         </div>
 
-                        <div className="flex items-center space-x-1 opacity-0 transition-opacity group-hover:opacity-100">
+                        <div className="flex items-center space-x-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
                           <button
                             onClick={(event) => handleOpenEditCandidateModal(event, candidate)}
-                            className="p-1 text-gray-300 transition-colors hover:text-blue-500"
+                            className="rounded-md p-1.5 text-gray-400 transition-colors hover:bg-blue-50 hover:text-blue-500 dark:text-gray-300 dark:hover:bg-slate-800"
                             title="Editar Candidato"
                           >
                             <Edit2 className="h-3.5 w-3.5" />
                           </button>
                           <button
                             onClick={(event) => handleDeleteCandidatePermanently(event, candidate.db_id || candidate.id, candidate.name)}
-                            className="p-1 text-gray-300 transition-colors hover:text-red-500"
+                            className="rounded-md bg-red-50 p-1.5 text-red-500 transition-colors hover:bg-red-100 hover:text-red-600 dark:bg-red-900/20 dark:text-red-300 dark:hover:bg-red-900/30"
                             title="Excluir Candidato"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
