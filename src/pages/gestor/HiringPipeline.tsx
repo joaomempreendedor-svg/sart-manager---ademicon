@@ -290,109 +290,113 @@ const HiringPipeline = () => {
 
   return (
     <div className="min-h-screen max-w-full bg-gray-50 p-4 dark:bg-slate-900 sm:p-8">
-      <div className="mb-4 flex flex-col items-start justify-between gap-4 xl:flex-row xl:items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Pipeline de Contratação</h1>
-          <p className="text-gray-500 dark:text-gray-400">
-            Fluxo operacional da contratação, com foco total na movimentação dos candidatos entre as etapas.
-          </p>
-        </div>
+      <div className="sticky top-0 z-20 -mx-4 mb-6 border-b border-gray-200 bg-gray-50/95 px-4 pb-4 pt-4 backdrop-blur dark:border-slate-800 dark:bg-slate-900/95 sm:-mx-8 sm:px-8 sm:pt-6">
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:p-5">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Pipeline de Contratação</h1>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Abra o pipeline e já tenha acesso imediato às ações principais e aos filtros.
+              </p>
+            </div>
 
-        <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center xl:w-auto">
-          <button
-            onClick={() => navigate(`${baseRoute}/hiring-metrics`)}
-            className="flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 font-bold text-white transition hover:bg-indigo-700"
-          >
-            <BarChart3 className="h-5 w-5" />
-            <span>Ver Métricas</span>
-          </button>
+            <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 xl:w-auto xl:min-w-[520px]">
+              <button
+                onClick={() => setIsAddModalOpen(true)}
+                className="order-1 flex items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-3 font-extrabold text-white shadow-lg shadow-brand-500/20 transition hover:bg-brand-700"
+              >
+                <Plus className="h-5 w-5" />
+                <span>Novo Candidato</span>
+              </button>
 
-          <button
-            onClick={() => navigate(`${baseRoute}/hiring-pipeline-config`)}
-            className="flex items-center justify-center gap-2 rounded-lg bg-slate-700 px-4 py-2.5 font-bold text-white transition hover:bg-slate-800"
-          >
-            <Settings2 className="h-5 w-5" />
-            <span>Editar Pipeline</span>
-          </button>
+              <button
+                onClick={() => navigate(`${baseRoute}/hiring-metrics`)}
+                className="order-2 flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 font-bold text-white transition hover:bg-indigo-700"
+              >
+                <BarChart3 className="h-5 w-5" />
+                <span>Ver Métricas</span>
+              </button>
 
-          <button
-            onClick={() => setIsImportModalOpen(true)}
-            className="flex items-center justify-center gap-2 rounded-lg bg-gray-600 px-4 py-2.5 font-bold text-white transition hover:bg-gray-700"
-          >
-            <Plus className="h-5 w-5" />
-            <span>Importar Planilha</span>
-          </button>
+              <button
+                onClick={() => navigate(`${baseRoute}/hiring-pipeline-config`)}
+                className="order-3 flex items-center justify-center gap-2 rounded-xl bg-slate-700 px-4 py-3 font-bold text-white transition hover:bg-slate-800"
+              >
+                <Settings2 className="h-5 w-5" />
+                <span>Editar Pipeline</span>
+              </button>
 
-          <button
-            onClick={() => setIsAddModalOpen(true)}
-            className="flex items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 py-2.5 font-bold text-white transition hover:bg-brand-700"
-          >
-            <Plus className="h-5 w-5" />
-            <span>Novo Candidato</span>
-          </button>
-        </div>
-      </div>
-
-      <div className="mb-6 space-y-4 rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-        <div className="flex flex-col items-center justify-between gap-3 sm:flex-row">
-          <div>
-            <h3 className="flex items-center text-sm font-bold uppercase tracking-wide text-gray-700 dark:text-gray-300">
-              <Filter className="mr-2 h-4 w-4" />
-              Filtros do pipeline
-            </h3>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              {pipelineStages.reduce((total, column) => total + column.list.length, 0)} candidatos visíveis nas etapas atuais.
-            </p>
-          </div>
-
-          {(searchTerm || filterStartDate || filterEndDate) && (
-            <button
-              onClick={() => {
-                setSearchTerm('');
-                setFilterStartDate('');
-                setFilterEndDate('');
-              }}
-              className="flex items-center text-xs text-red-500 transition hover:text-red-700"
-            >
-              <RotateCcw className="mr-1 h-3 w-3" />
-              Limpar Filtros
-            </button>
-          )}
-        </div>
-
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <div className="flex flex-col">
-            <label className="mb-1 ml-1 text-[10px] font-bold uppercase text-gray-400">Busca</label>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Nome, telefone ou email..."
-                className="w-full rounded-lg border border-gray-300 bg-gray-50 py-2 pl-9 pr-4 text-sm text-gray-900 focus:border-brand-500 focus:ring-brand-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
-              />
+              <button
+                onClick={() => setIsImportModalOpen(true)}
+                className="order-4 flex items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-3 font-bold text-gray-700 transition hover:bg-gray-50 dark:border-slate-600 dark:bg-slate-900 dark:text-gray-200 dark:hover:bg-slate-700"
+              >
+                <Plus className="h-5 w-5" />
+                <span>Importar Planilha</span>
+              </button>
             </div>
           </div>
 
-          <div className="flex flex-col">
-            <label className="mb-1 ml-1 text-[10px] font-bold uppercase text-gray-400">Criado de</label>
-            <input
-              type="date"
-              value={filterStartDate}
-              onChange={(event) => setFilterStartDate(event.target.value)}
-              className="w-full rounded-lg border border-gray-300 bg-gray-50 p-2 text-sm text-gray-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-            />
-          </div>
+          <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-slate-700 dark:bg-slate-900/50">
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="flex items-center text-sm font-bold uppercase tracking-wide text-gray-700 dark:text-gray-300">
+                  <Filter className="mr-2 h-4 w-4" />
+                  Filtros do pipeline
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {pipelineStages.reduce((total, column) => total + column.list.length, 0)} candidatos visíveis nas etapas atuais.
+                </p>
+              </div>
 
-          <div className="flex flex-col">
-            <label className="mb-1 ml-1 text-[10px] font-bold uppercase text-gray-400">Criado até</label>
-            <input
-              type="date"
-              value={filterEndDate}
-              onChange={(event) => setFilterEndDate(event.target.value)}
-              className="w-full rounded-lg border border-gray-300 bg-gray-50 p-2 text-sm text-gray-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-            />
+              {(searchTerm || filterStartDate || filterEndDate) && (
+                <button
+                  onClick={() => {
+                    setSearchTerm('');
+                    setFilterStartDate('');
+                    setFilterEndDate('');
+                  }}
+                  className="inline-flex items-center text-xs font-bold text-red-500 transition hover:text-red-700"
+                >
+                  <RotateCcw className="mr-1 h-3 w-3" />
+                  Limpar filtros
+                </button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1.5fr)_minmax(180px,0.75fr)_minmax(180px,0.75fr)]">
+              <div className="flex flex-col">
+                <label className="mb-1 ml-1 text-[10px] font-bold uppercase text-gray-400">Busca</label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Nome, telefone ou email..."
+                    className="w-full rounded-lg border border-gray-300 bg-white py-2.5 pl-9 pr-4 text-sm text-gray-900 focus:border-brand-500 focus:ring-brand-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+                    value={searchTerm}
+                    onChange={(event) => setSearchTerm(event.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col">
+                <label className="mb-1 ml-1 text-[10px] font-bold uppercase text-gray-400">Criado de</label>
+                <input
+                  type="date"
+                  value={filterStartDate}
+                  onChange={(event) => setFilterStartDate(event.target.value)}
+                  className="w-full rounded-lg border border-gray-300 bg-white p-2.5 text-sm text-gray-900 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+                />
+              </div>
+
+              <div className="flex flex-col">
+                <label className="mb-1 ml-1 text-[10px] font-bold uppercase text-gray-400">Criado até</label>
+                <input
+                  type="date"
+                  value={filterEndDate}
+                  onChange={(event) => setFilterEndDate(event.target.value)}
+                  className="w-full rounded-lg border border-gray-300 bg-white p-2.5 text-sm text-gray-900 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+                />
+              </div>
+            </div>
           </div>
         </div>
       </div>
