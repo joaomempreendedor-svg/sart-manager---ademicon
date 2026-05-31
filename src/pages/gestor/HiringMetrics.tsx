@@ -346,7 +346,7 @@ const HiringMetrics = () => {
 
     candidatesCreatedInPeriod.forEach((candidate) => {
       const attributedMember = findMember(candidate.responsibleUserId) || findMember(candidate.createdBy);
-      if (!attributedMember || !attributedMember.roles.includes('CONSULTOR')) return;
+      if (!attributedMember) return;
 
       const current = indicationMap.get(attributedMember.id);
       if (current) {
@@ -785,7 +785,7 @@ const HiringMetrics = () => {
                 {analytics.topIndications.length === 0 ? (
                   <tr>
                     <td colSpan={4} className="px-6 py-10 text-center text-gray-400">
-                      Nenhuma indicação atribuída a consultor neste período.
+                      Nenhuma indicação atribuída no período.
                     </td>
                   </tr>
                 ) : (
