@@ -439,13 +439,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, [candidates]);
 
-  const deleteCandidate = useCallback(async (dbId: string) => {
+  const deleteCandidate = useCallback(async (id: string) => {
+    const candidate = candidates.find(c => c.id === id || c.db_id === id);
+    if (!candidate) return;
+
+    const dbId = candidate.db_id || id;
+    const localId = candidate.id;
+
     const { error } = await supabase.from('candidates').delete().eq('id', dbId);
     if (error) throw error;
-    setCandidates(prev => prev.filter(c => c.db_id !== dbId));
-  }, []);
+
+    setCandidates(prev => prev.filter(c => c.db_id !== dbId && c.id !== localId));
+  }, [candidates]);
 
   const toggleChecklistItem = useCallback(async (candidateId: string, itemId: string) => {
+
     const candidate = candidates.find(c => c.id === candidateId);
     if (!candidate) return;
     const currentProgress = candidate.checklistProgress || {};
