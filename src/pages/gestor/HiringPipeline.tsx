@@ -290,8 +290,9 @@ const HiringPipeline = () => {
 
   return (
     <div className="min-h-screen max-w-full bg-gray-50 p-4 dark:bg-slate-900 sm:p-8">
-      <div className="sticky top-0 z-20 -mx-4 mb-6 border-b border-gray-200 bg-gray-50/95 px-4 pb-4 pt-4 backdrop-blur dark:border-slate-800 dark:bg-slate-900/95 sm:-mx-8 sm:px-8 sm:pt-6">
-        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:p-5">
+      <div className="sticky top-0 z-20 mb-6 pt-1">
+        <div className="w-full max-w-5xl rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:p-5 xl:inline-block xl:w-auto">
+
           <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
             <div>
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Pipeline de Contratação</h1>
