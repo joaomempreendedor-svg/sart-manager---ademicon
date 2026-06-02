@@ -4,10 +4,84 @@ import { Feedback, TeamMember } from '@/types';
 import { FeedbackModal } from '@/components/FeedbackModal';
 import {
   Star, Search, Users, Plus, Edit2, Trash2,
-  CalendarPlus, Clock, MessageSquarePlus, CheckCircle2, UserCircle2
+  CalendarPlus, Clock, MessageSquarePlus, CheckCircle2, Eye, X
 } from 'lucide-react';
 
 type Person = TeamMember & { type: 'teamMember' };
+
+// Modal de visualização
+const FeedbackViewModal: React.FC<{
+  feedback: Feedback | null;
+  personName: string;
+  onClose: () => void;
+}> = ({ feedback, personName, onClose }) => {
+  if (!feedback) return null;
+  const isScheduled = !feedback.notes?.trim();
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50 backdrop-blur-sm">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-2xl border border-gray-200 dark:border-slate-700 overflow-hidden">
+        
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-gray-100 dark:border-slate-700 flex items-start justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className={`w-2.5 h-2.5 rounded-full ${isScheduled ? 'bg-yellow-400' : 'bg-green-400'}`} />
+              <h3 className="font-bold text-lg text-gray-900 dark:text-white">{feedback.title}</h3>
+            </div>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{personName}</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <span className={`text-xs font-bold px-3 py-1 rounded-full ${
+              isScheduled
+                ? 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300'
+                : 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300'
+            }`}>
+              {isScheduled ? '⏰ Agendado' : '✅ Realizado'}
+            </span>
+            <span className="text-sm text-gray-500 dark:text-gray-400">
+              {new Date(feedback.date + 'T00:00:00').toLocaleDateString('pt-BR', {
+                day: '2-digit', month: 'long', year: 'numeric'
+              })}
+            </span>
+          </div>
+
+          {isScheduled ? (
+            <div className="bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-200 dark:border-yellow-800 rounded-xl p-4 text-yellow-700 dark:text-yellow-300 text-sm italic">
+              Feedback agendado — as anotações ainda não foram preenchidas.
+            </div>
+          ) : (
+            <div className="bg-gray-50 dark:bg-slate-700/50 rounded-xl p-5 min-h-[200px]">
+              <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed text-sm">
+                {feedback.notes}
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-gray-100 dark:border-slate-700 flex justify-end">
+          <button
+            onClick={onClose}
+            className="px-5 py-2.5 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 text-gray-700 dark:text-gray-200 rounded-xl font-bold text-sm transition"
+          >
+            Fechar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export const Feedbacks = () => {
   const {
@@ -21,6 +95,7 @@ export const Feedbacks = () => {
   const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingFeedback, setEditingFeedback] = useState<Feedback | null>(null);
+  const [viewingFeedback, setViewingFeedback] = useState<Feedback | null>(null);
 
   const allPeople = useMemo<Person[]>(() => {
     return teamMembers
@@ -101,9 +176,7 @@ export const Feedbacks = () => {
 
         <div className="flex-1 overflow-y-auto p-2">
           {filteredPeople.length === 0 ? (
-            <div className="text-center py-8 text-gray-400 text-sm">
-              Nenhum membro encontrado
-            </div>
+            <div className="text-center py-8 text-gray-400 text-sm">Nenhum membro encontrado</div>
           ) : (
             filteredPeople.map(person => {
               const feedbackCount = person.feedbacks?.length || 0;
@@ -119,9 +192,7 @@ export const Feedbacks = () => {
                   }`}
                 >
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 font-bold text-sm ${
-                    isSelected
-                      ? 'bg-brand-500 text-white'
-                      : 'bg-gray-100 dark:bg-slate-600 text-gray-600 dark:text-gray-300'
+                    isSelected ? 'bg-brand-500 text-white' : 'bg-gray-100 dark:bg-slate-600 text-gray-600 dark:text-gray-300'
                   }`}>
                     {person.name.charAt(0).toUpperCase()}
                   </div>
@@ -163,9 +234,7 @@ export const Feedbacks = () => {
                   {selectedPerson.name.charAt(0).toUpperCase()}
                 </div>
                 <div>
-                  <h2 className="text-2xl font-black text-gray-900 dark:text-white">
-                    {selectedPerson.name}
-                  </h2>
+                  <h2 className="text-2xl font-black text-gray-900 dark:text-white">{selectedPerson.name}</h2>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Membro da Equipe</p>
                 </div>
               </div>
@@ -246,14 +315,24 @@ export const Feedbacks = () => {
                                 Feedback agendado — adicione as anotações após a conversa.
                               </p>
                             ) : (
-                              <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 whitespace-pre-wrap leading-relaxed">
+                              <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 line-clamp-2 leading-relaxed">
                                 {fb.notes}
                               </p>
                             )}
                           </div>
                         </div>
 
+                        {/* Botões de ação */}
                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                          {!isScheduled && (
+                            <button
+                              onClick={() => setViewingFeedback(fb)}
+                              className="p-2 text-gray-400 hover:text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-900/20 rounded-lg transition"
+                              title="Visualizar"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+                          )}
                           <button
                             onClick={() => handleScheduleOnCalendar(fb)}
                             className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition"
@@ -308,11 +387,19 @@ export const Feedbacks = () => {
         )}
       </main>
 
+      {/* Modal de edição */}
       <FeedbackModal
         isOpen={isModalOpen}
         onClose={() => { setIsModalOpen(false); setEditingFeedback(null); }}
         onSave={handleSaveFeedback}
         feedback={editingFeedback}
+      />
+
+      {/* Modal de visualização */}
+      <FeedbackViewModal
+        feedback={viewingFeedback}
+        personName={selectedPerson?.name || ''}
+        onClose={() => setViewingFeedback(null)}
       />
     </div>
   );
