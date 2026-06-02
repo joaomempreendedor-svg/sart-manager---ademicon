@@ -39,10 +39,12 @@ export const isValidHiringPipelineStageKey = (value: unknown): value is HiringPi
 };
 
 export const getCandidateStageKey = (candidate: Candidate): HiringPipelineStageKey => {
+  // Se já tem pipelineStageKey salvo, usa direto — não tenta adivinhar
   if (isValidHiringPipelineStageKey(candidate.pipelineStageKey)) {
     return candidate.pipelineStageKey;
   }
 
+  // Fallback legado para candidatos antigos sem pipelineStageKey
   if (candidate.status === 'Faltou') return 'faltou-entrevista';
   if (candidate.status === 'Desqualificado' || candidate.status === 'Reprovado') return 'reprovado-gestor';
   if (candidate.status === 'Autorizado' || candidate.authorizedDate) return 'autorizado';
@@ -53,12 +55,11 @@ export const getCandidateStageKey = (candidate: Candidate): HiringPipelineStageK
   if (candidate.onboardingFinishedDate) return 'onboarding-finalizado';
   if (candidate.onboardingNotFinishedDate) return 'onboarding-nao-finalizado';
   if (candidate.onboardingReleasedDate || candidate.onboardingOnlineDate) return 'onboarding-liberado';
-  if (candidate.status === 'Aguardando Prévia') return 'candidato-em-previa';
   if (candidate.previewRegisteredDate) return 'previa-cadastrada';
   if (candidate.documentationNotSentDate) return 'documentacao-nao-enviada';
   if (candidate.documentationSentDate) return 'documentacao-enviada';
   if (candidate.d1ApprovalDate) return 'aprovacao-d1';
-  if (candidate.managerApprovedDate || candidate.awaitingPreviewDate) return 'aprovado-gestor';
+  if (candidate.managerApprovedDate) return 'aprovado-gestor';
   if (candidate.interviewNoShowDate || candidate.faltouDate) return 'faltou-entrevista';
   if (candidate.interviewAttendedDate || candidate.interviewConductedDate || candidate.interviewConducted) return 'compareceu-entrevista';
   if (candidate.interviewScheduledDate || candidate.status === 'Entrevista') return 'entrevista-agendada';
@@ -186,7 +187,6 @@ export const buildCandidateStageUpdates = (
       break;
     case 'aprovado-gestor':
       updates.managerApprovedDate = candidate.managerApprovedDate || now;
-      updates.awaitingPreviewDate = candidate.awaitingPreviewDate || now;
       break;
     case 'reprovado-gestor':
       updates.managerRejectedDate = candidate.managerRejectedDate || now;
@@ -195,19 +195,15 @@ export const buildCandidateStageUpdates = (
       break;
     case 'aprovacao-d1':
       updates.d1ApprovalDate = candidate.d1ApprovalDate || now;
-      updates.awaitingPreviewDate = candidate.awaitingPreviewDate || now;
       break;
     case 'documentacao-enviada':
       updates.documentationSentDate = candidate.documentationSentDate || now;
-      updates.awaitingPreviewDate = candidate.awaitingPreviewDate || now;
       break;
     case 'documentacao-nao-enviada':
       updates.documentationNotSentDate = candidate.documentationNotSentDate || now;
-      updates.awaitingPreviewDate = candidate.awaitingPreviewDate || now;
       break;
     case 'previa-cadastrada':
       updates.previewRegisteredDate = candidate.previewRegisteredDate || now;
-      updates.awaitingPreviewDate = candidate.awaitingPreviewDate || now;
       break;
     case 'onboarding-liberado':
       updates.onboardingReleasedDate = candidate.onboardingReleasedDate || now;
