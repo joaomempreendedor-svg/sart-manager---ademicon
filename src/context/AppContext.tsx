@@ -331,7 +331,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               id: dbId, db_id: dbId, authUserId: authId, name: String(data.name || ''), email: data.email, 
               roles: Array.isArray(data.roles) ? data.roles.map((role: string) => role.toUpperCase()) : [],
               isActive: data.isActive !== false, 
-              hasLogin: !!authId, isLegacy: !authId, cpf: item.cpf, dateOfBirth: data.dateOfBirth, user_id: item.user_id 
+              hasLogin: !!authId, isLegacy: !authId, cpf: item.cpf, dateOfBirth: data.dateOfBirth, user_id: item.user_id, feedbacks: Array.isArray(data.feedbacks) ? data.feedbacks : []
             };
           });
           setTeamMembers(normalizedTeamMembers);
