@@ -121,7 +121,10 @@ const HiringPipeline = () => {
     return normalizedColumns.map((column) => ({
       ...column,
       list: filteredCandidates
-        .filter((candidate) => getCandidateStageKey(candidate) === column.stageKey)
+        .filter((candidate) => {
+          const stageKey = candidate.withdrawalStageKey || getCandidateStageKey(candidate);
+          return stageKey === column.stageKey;
+        })
         .sort(sortByRecentUpdate),
     }));
   }, [filteredCandidates, normalizedColumns]);
@@ -467,13 +470,13 @@ const HiringPipeline = () => {
                   return (
                     <div
                       key={candidate.id}
-                      draggable
-                      onDragStart={(event) => handleDragStart(event, candidate.id)}
-                      className={`group relative overflow-hidden rounded-xl border p-4 shadow-sm transition-all hover:shadow-md dark:bg-slate-700 ${
+                      draggable={!hasWithdrawn}
+                      onDragStart={(event) => !hasWithdrawn && handleDragStart(event, candidate.id)}
+                      className={`group relative overflow-hidden rounded-xl border p-4 shadow-sm transition-all hover:shadow-md ${
                         hasWithdrawn
                           ? 'border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-900/20'
-                          : 'border-gray-200 bg-white hover:border-brand-500 dark:border-slate-700'
-                      } ${isToday ? 'ring-2 ring-brand-500' : ''} ${draggingCandidateId === candidate.id ? 'opacity-70' : ''}`}
+                          : 'border-gray-200 bg-white hover:border-brand-500 dark:border-slate-700 dark:bg-slate-700'
+                      } ${isToday && !hasWithdrawn ? 'ring-2 ring-brand-500' : ''} ${draggingCandidateId === candidate.id ? 'opacity-70' : ''}`}
                     >
                       {hasWithdrawn && (
                         <div className="absolute right-0 top-0 rounded-bl-lg bg-red-500 px-2 py-0.5 text-[10px] font-bold text-white">
@@ -487,7 +490,7 @@ const HiringPipeline = () => {
                         </div>
                       )}
 
-                      {hasPendingSecretariaTasksForCandidate && (
+                      {!hasWithdrawn && hasPendingSecretariaTasksForCandidate && (
                         <div
                           className="absolute left-0 top-0 flex items-center rounded-br-lg bg-purple-500 px-2 py-0.5 text-[10px] font-bold text-white"
                           title="Tarefas da Secretaria Pendentes"
@@ -498,7 +501,7 @@ const HiringPipeline = () => {
                       )}
 
                       <div className="mb-2 flex items-start justify-between gap-3">
-                        <div>
+                        <div className="min-w-0 flex-1">
                           <p className="leading-tight text-gray-900 dark:text-white">
                             <span className="font-bold">{highlightText(candidate.name, searchTerm)}</span>
                           </p>
@@ -506,8 +509,8 @@ const HiringPipeline = () => {
                             {candidate.origin && <span className="rounded bg-gray-100 px-2 py-0.5 dark:bg-slate-800">{candidate.origin}</span>}
                             <span className="rounded bg-gray-100 px-2 py-0.5 dark:bg-slate-800">{stage.title}</span>
                           </div>
-                          {hasWithdrawn && candidate.withdrawalReason && (
-                            <p className="mt-1 text-[10px] text-red-500 dark:text-red-400 italic">
+                          {hasWithdrawn && (candidate.withdrawalReasonOption || candidate.withdrawalReason) && (
+                            <p className="mt-1.5 text-[10px] text-red-600 dark:text-red-400 italic">
                               Motivo: {candidate.withdrawalReasonOption || candidate.withdrawalReason}
                             </p>
                           )}
