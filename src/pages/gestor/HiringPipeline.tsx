@@ -59,6 +59,7 @@ const HiringPipeline = () => {
   const [filterStartDate, setFilterStartDate] = useState('');
   const [filterEndDate, setFilterEndDate] = useState('');
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [showWithdrawn, setShowWithdrawn] = useState(false);
 
   const todayStr = new Date().toISOString().split('T')[0];
   const baseRoute = user?.role === 'SECRETARIA' ? '/secretaria' : '/gestor';
@@ -109,8 +110,12 @@ const HiringPipeline = () => {
       currentCandidates = currentCandidates.filter((candidate) => new Date(candidate.createdAt) <= end);
     }
 
-    return currentCandidates.filter((candidate) => !candidate.reprovadoDate);
-  }, [candidates, filterEndDate, filterStartDate, searchTerm]);
+    if (!showWithdrawn) {
+      return currentCandidates.filter((candidate) => !candidate.reprovadoDate);
+    }
+
+    return currentCandidates;
+  }, [candidates, filterEndDate, filterStartDate, searchTerm, showWithdrawn]);
 
   const pipelineStages = useMemo(() => {
     return normalizedColumns.map((column) => ({
@@ -120,6 +125,10 @@ const HiringPipeline = () => {
         .sort(sortByRecentUpdate),
     }));
   }, [filteredCandidates, normalizedColumns]);
+
+  const withdrawnCount = useMemo(() => {
+    return candidates.filter((c) => c.reprovadoDate).length;
+  }, [candidates]);
 
   const getColumnColorClasses = (color: HiringPipelineColumn['color']) => {
     switch (color) {
@@ -347,19 +356,33 @@ const HiringPipeline = () => {
                 </p>
               </div>
 
-              {(searchTerm || filterStartDate || filterEndDate) && (
+              <div className="flex items-center gap-3">
                 <button
-                  onClick={() => {
-                    setSearchTerm('');
-                    setFilterStartDate('');
-                    setFilterEndDate('');
-                  }}
-                  className="inline-flex items-center text-xs font-bold text-red-500 transition hover:text-red-700"
+                  onClick={() => setShowWithdrawn(!showWithdrawn)}
+                  className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                    showWithdrawn
+                      ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+                      : 'bg-gray-100 text-gray-500 dark:bg-slate-700 dark:text-gray-400 hover:bg-red-50 hover:text-red-600'
+                  }`}
                 >
-                  <RotateCcw className="mr-1 h-3 w-3" />
-                  Limpar filtros
+                  <UserMinus className="h-3.5 w-3.5" />
+                  {showWithdrawn ? 'Ocultar desistências' : `Ver desistências (${withdrawnCount})`}
                 </button>
-              )}
+
+                {(searchTerm || filterStartDate || filterEndDate) && (
+                  <button
+                    onClick={() => {
+                      setSearchTerm('');
+                      setFilterStartDate('');
+                      setFilterEndDate('');
+                    }}
+                    className="inline-flex items-center text-xs font-bold text-red-500 transition hover:text-red-700"
+                  >
+                    <RotateCcw className="mr-1 h-3 w-3" />
+                    Limpar filtros
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1.5fr)_minmax(180px,0.75fr)_minmax(180px,0.75fr)]">
@@ -439,17 +462,26 @@ const HiringPipeline = () => {
 
                   const isToday = candidate.interviewDate === todayStr;
                   const hasPendingSecretariaTasksForCandidate = hasPendingSecretariaTasks(candidate);
+                  const hasWithdrawn = !!candidate.reprovadoDate;
 
                   return (
                     <div
                       key={candidate.id}
                       draggable
                       onDragStart={(event) => handleDragStart(event, candidate.id)}
-                      className={`group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-all hover:border-brand-500 hover:shadow-md dark:border-slate-700 dark:bg-slate-700 ${
-                        isToday ? 'ring-2 ring-brand-500' : ''
-                      } ${draggingCandidateId === candidate.id ? 'opacity-70' : ''}`}
+                      className={`group relative overflow-hidden rounded-xl border p-4 shadow-sm transition-all hover:shadow-md dark:bg-slate-700 ${
+                        hasWithdrawn
+                          ? 'border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-900/20'
+                          : 'border-gray-200 bg-white hover:border-brand-500 dark:border-slate-700'
+                      } ${isToday ? 'ring-2 ring-brand-500' : ''} ${draggingCandidateId === candidate.id ? 'opacity-70' : ''}`}
                     >
-                      {isToday && (
+                      {hasWithdrawn && (
+                        <div className="absolute right-0 top-0 rounded-bl-lg bg-red-500 px-2 py-0.5 text-[10px] font-bold text-white">
+                          DESISTIU
+                        </div>
+                      )}
+
+                      {!hasWithdrawn && isToday && (
                         <div className="absolute right-0 top-0 rounded-bl-lg bg-brand-500 px-2 py-0.5 text-[10px] font-bold text-white">
                           HOJE
                         </div>
@@ -474,6 +506,11 @@ const HiringPipeline = () => {
                             {candidate.origin && <span className="rounded bg-gray-100 px-2 py-0.5 dark:bg-slate-800">{candidate.origin}</span>}
                             <span className="rounded bg-gray-100 px-2 py-0.5 dark:bg-slate-800">{stage.title}</span>
                           </div>
+                          {hasWithdrawn && candidate.withdrawalReason && (
+                            <p className="mt-1 text-[10px] text-red-500 dark:text-red-400 italic">
+                              Motivo: {candidate.withdrawalReasonOption || candidate.withdrawalReason}
+                            </p>
+                          )}
                         </div>
 
                         <div className="flex items-center space-x-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
@@ -522,8 +559,8 @@ const HiringPipeline = () => {
                         <div className="flex items-center justify-between border-t border-gray-50 pt-2 text-[10px] text-gray-400 dark:border-slate-600">
                           <span className="flex items-center">
                             <Calendar className="mr-1 h-3 w-3" />
-                            {candidate.interviewDate
-                              ? new Date(`${candidate.interviewDate}T00:00:00`).toLocaleDateString('pt-BR')
+                            {candidate.createdAt
+                              ? new Date(candidate.createdAt).toLocaleDateString('pt-BR')
                               : 'Sem data'}
                           </span>
                         </div>
@@ -539,37 +576,39 @@ const HiringPipeline = () => {
                           />
                         </div>
 
-                        <div className="mt-1 border-t border-gray-50 pt-3 dark:border-slate-600">
-                          <div className="grid grid-cols-1 gap-2">
-                            {nextColumns.map((column) => (
+                        {!hasWithdrawn && (
+                          <div className="mt-1 border-t border-gray-50 pt-3 dark:border-slate-600">
+                            <div className="grid grid-cols-1 gap-2">
+                              {nextColumns.map((column) => (
+                                <button
+                                  key={column.id}
+                                  onClick={(event) => handleMoveToColumn(event, candidate, column)}
+                                  className="min-h-[30px] w-full rounded-lg border border-gray-200 bg-gray-50 px-2 py-1 text-left text-[10px] font-bold leading-snug text-gray-700 transition hover:bg-gray-100 dark:border-slate-600 dark:bg-slate-800 dark:text-gray-200 dark:hover:bg-slate-700"
+                                  title={`Mover para ${column.title}`}
+                                >
+                                  {column.title}
+                                </button>
+                              ))}
+
                               <button
-                                key={column.id}
-                                onClick={(event) => handleMoveToColumn(event, candidate, column)}
-                                className="min-h-[30px] w-full rounded-lg border border-gray-200 bg-gray-50 px-2 py-1 text-left text-[10px] font-bold leading-snug text-gray-700 transition hover:bg-gray-100 dark:border-slate-600 dark:bg-slate-800 dark:text-gray-200 dark:hover:bg-slate-700"
-                                title={`Mover para ${column.title}`}
+                                onClick={(event) => handleOpenUpdateDate(event, candidate)}
+                                className="min-h-[30px] w-full rounded-lg bg-brand-600 px-2 py-1 text-left text-[10px] font-bold leading-snug text-white transition hover:bg-brand-700"
+                                title="Agendar ou reagendar entrevista"
                               >
-                                {column.title}
+                                Agendar / Reagendar
                               </button>
-                            ))}
 
-                            <button
-                              onClick={(event) => handleOpenUpdateDate(event, candidate)}
-                              className="min-h-[30px] w-full rounded-lg bg-brand-600 px-2 py-1 text-left text-[10px] font-bold leading-snug text-white transition hover:bg-brand-700"
-                              title="Agendar ou reagendar entrevista"
-                            >
-                              Agendar / Reagendar
-                            </button>
-
-                            <button
-                              onClick={(event) => openWithdrawalFlow(event, candidate)}
-                              className="flex min-h-[30px] w-full items-center gap-1 rounded-lg bg-rose-600 px-2 py-1 text-left text-[10px] font-bold leading-snug text-white transition hover:bg-rose-700"
-                              title="Registrar desistência nesta etapa"
-                            >
-                              <UserMinus className="h-3 w-3" />
-                              Desistiu nesta etapa
-                            </button>
+                              <button
+                                onClick={(event) => openWithdrawalFlow(event, candidate)}
+                                className="flex min-h-[30px] w-full items-center gap-1 rounded-lg bg-rose-600 px-2 py-1 text-left text-[10px] font-bold leading-snug text-white transition hover:bg-rose-700"
+                                title="Registrar desistência nesta etapa"
+                              >
+                                <UserMinus className="h-3 w-3" />
+                                Desistiu nesta etapa
+                              </button>
+                            </div>
                           </div>
-                        </div>
+                        )}
                       </div>
                     </div>
                   );
