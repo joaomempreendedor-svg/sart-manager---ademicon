@@ -59,8 +59,7 @@ const HiringPipeline = () => {
   const [filterStartDate, setFilterStartDate] = useState('');
   const [filterEndDate, setFilterEndDate] = useState('');
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [showWithdrawn, setShowWithdrawn] = useState(false);
-
+const [showWithdrawn, setShowWithdrawn] = useState(true);
   const todayStr = new Date().toISOString().split('T')[0];
   const baseRoute = user?.role === 'SECRETARIA' ? '/secretaria' : '/gestor';
 
