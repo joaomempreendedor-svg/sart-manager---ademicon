@@ -31,33 +31,31 @@ import { highlightText } from '@/lib/utils';
 import { Candidate, HiringPipelineColumn, HiringPipelineStageKey } from '@/types';
 import { buildCandidateStageUpdates, getCandidateStageKey, getHiringStageLabel, normalizeHiringPipelineColumns } from '@/lib/hiringPipeline';
 
-// Mapa de pré-requisitos: para mover para X, precisa ter passado por Y
 const STAGE_PREREQUISITES: Partial<Record<HiringPipelineStageKey, HiringPipelineStageKey[]>> = {
-  'contatados':               ['candidatos'],
-  'respondeu':                ['contatados'],
-  'entrevista-agendada':      ['respondeu'],
-  'compareceu-entrevista':    ['entrevista-agendada'],
-  'faltou-entrevista':        ['entrevista-agendada'],
-  'aprovado-gestor':          ['compareceu-entrevista'],
-  'reprovado-gestor':         ['compareceu-entrevista'],
-  'aprovacao-d1':             ['aprovado-gestor'],
-  'documentacao-enviada':     ['aprovacao-d1'],
-  'documentacao-nao-enviada': ['aprovacao-d1'],
-  'previa-cadastrada':        ['documentacao-enviada', 'documentacao-nao-enviada'],
-  'onboarding-liberado':      ['previa-cadastrada'],
-  'onboarding-finalizado':    ['onboarding-liberado'],
-  'onboarding-nao-finalizado':['onboarding-liberado'],
-  'integracao-agendada':      ['onboarding-finalizado', 'onboarding-nao-finalizado'],
-  'integracao-compareceu':    ['integracao-agendada'],
-  'integracao-nao-compareceu':['integracao-agendada'],
-  'integracao-finalizada':    ['integracao-compareceu'],
-  'assinatura-contrato':      ['integracao-finalizada'],
-  'contrato-assinado':        ['assinatura-contrato'],
-  'contrato-nao-assinado':    ['assinatura-contrato'],
-  'autorizado':               ['contrato-assinado'],
+  'contatados':                ['candidatos'],
+  'respondeu':                 ['contatados'],
+  'entrevista-agendada':       ['respondeu'],
+  'compareceu-entrevista':     ['entrevista-agendada'],
+  'faltou-entrevista':         ['entrevista-agendada'],
+  'aprovado-gestor':           ['compareceu-entrevista'],
+  'reprovado-gestor':          ['compareceu-entrevista'],
+  'aprovacao-d1':              ['aprovado-gestor'],
+  'documentacao-enviada':      ['aprovacao-d1'],
+  'documentacao-nao-enviada':  ['aprovacao-d1'],
+  'previa-cadastrada':         ['documentacao-enviada', 'documentacao-nao-enviada'],
+  'onboarding-liberado':       ['previa-cadastrada'],
+  'onboarding-finalizado':     ['onboarding-liberado'],
+  'onboarding-nao-finalizado': ['onboarding-liberado'],
+  'integracao-agendada':       ['onboarding-finalizado', 'onboarding-nao-finalizado'],
+  'integracao-compareceu':     ['integracao-agendada'],
+  'integracao-nao-compareceu': ['integracao-agendada'],
+  'integracao-finalizada':     ['integracao-compareceu'],
+  'assinatura-contrato':       ['integracao-finalizada'],
+  'contrato-assinado':         ['assinatura-contrato'],
+  'contrato-nao-assinado':     ['assinatura-contrato'],
+  'autorizado':                ['contrato-assinado'],
 };
 
-// Verifica se o candidato passou por uma etapa
 const candidatePassedStage = (candidate: Candidate, stageKey: HiringPipelineStageKey): boolean => {
   switch (stageKey) {
     case 'candidatos':               return true;
@@ -87,20 +85,13 @@ const candidatePassedStage = (candidate: Candidate, stageKey: HiringPipelineStag
   }
 };
 
-// Retorna o motivo do bloqueio ou null se pode mover
 const getBlockedReason = (candidate: Candidate, targetStageKey: HiringPipelineStageKey): string | null => {
   const prerequisites = STAGE_PREREQUISITES[targetStageKey];
   if (!prerequisites) return null;
-
-  // Verifica se pelo menos um dos pré-requisitos foi cumprido (para etapas com OR)
   const passed = prerequisites.some((req) => candidatePassedStage(candidate, req));
   if (passed) return null;
-
-  // Monta mensagem de erro
   const labels = prerequisites.map((req) => getHiringStageLabel(req));
-  if (labels.length === 1) {
-    return `Candidato precisa passar por "${labels[0]}" antes.`;
-  }
+  if (labels.length === 1) return `Candidato precisa passar por "${labels[0]}" antes.`;
   return `Candidato precisa passar por uma das etapas: ${labels.map(l => `"${l}"`).join(' ou ')}.`;
 };
 
@@ -120,8 +111,6 @@ const HiringPipeline = () => {
     hiringPipelineColumns,
   } = useApp();
 
-  const [draggingCandidateId, setDraggingCandidateId] = useState<string | null>(null);
-  const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditCandidateModalOpen, setIsEditCandidateModalOpen] = useState(false);
   const [selectedCandidateToEdit, setSelectedCandidateToEdit] = useState<Candidate | null>(null);
@@ -209,25 +198,17 @@ const HiringPipeline = () => {
 
   const getColumnColorClasses = (color: HiringPipelineColumn['color']) => {
     switch (color) {
-      case 'blue':
-        return 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800 text-blue-700 dark:text-blue-300';
-      case 'purple':
-        return 'bg-purple-50 border-purple-200 dark:bg-purple-900/20 dark:border-purple-800 text-purple-700 dark:text-purple-300';
-      case 'yellow':
-        return 'bg-yellow-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-800 text-yellow-700 dark:text-yellow-300';
-      case 'green':
-        return 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800 text-green-700 dark:text-green-300';
-      case 'red':
-        return 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800 text-red-700 dark:text-red-300';
-      case 'orange':
-        return 'bg-orange-50 border-orange-200 dark:bg-orange-900/20 dark:border-orange-800 text-orange-700 dark:text-orange-300';
-      default:
-        return 'bg-gray-50 border-gray-200 dark:bg-slate-800 dark:border-slate-700 text-gray-700 dark:text-gray-300';
+      case 'blue':    return 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800 text-blue-700 dark:text-blue-300';
+      case 'purple':  return 'bg-purple-50 border-purple-200 dark:bg-purple-900/20 dark:border-purple-800 text-purple-700 dark:text-purple-300';
+      case 'yellow':  return 'bg-yellow-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-800 text-yellow-700 dark:text-yellow-300';
+      case 'green':   return 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800 text-green-700 dark:text-green-300';
+      case 'red':     return 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800 text-red-700 dark:text-red-300';
+      case 'orange':  return 'bg-orange-50 border-orange-200 dark:bg-orange-900/20 dark:border-orange-800 text-orange-700 dark:text-orange-300';
+      default:        return 'bg-gray-50 border-gray-200 dark:bg-slate-800 dark:border-slate-700 text-gray-700 dark:text-gray-300';
     }
   };
 
   const moveCandidateToStage = async (candidate: Candidate, column: HiringPipelineColumn, reason?: string) => {
-    // Verifica bloqueio
     const blockedReason = getBlockedReason(candidate, column.stageKey);
     if (blockedReason) {
       toast.error(`🔒 ${blockedReason}`, { duration: 4000 });
@@ -236,44 +217,11 @@ const HiringPipeline = () => {
     await updateCandidate(candidate.id, buildCandidateStageUpdates(candidate, column.stageKey, reason));
   };
 
-  const handleDragStart = (event: React.DragEvent, candidateId: string) => {
-    setDraggingCandidateId(candidateId);
-    event.dataTransfer.setData('candidateId', candidateId);
-  };
-
-  const handleDragOver = (event: React.DragEvent, columnId: string) => {
-    event.preventDefault();
-    setDragOverColumn(columnId);
-  };
-
   const openWithdrawalFlow = (event: React.MouseEvent, candidate: Candidate) => {
     event.preventDefault();
     event.stopPropagation();
     setSelectedCandidateForWithdrawal(candidate);
     setIsWithdrawalModalOpen(true);
-  };
-
-  const handleDrop = async (event: React.DragEvent, targetColumnId: string) => {
-    event.preventDefault();
-    setDragOverColumn(null);
-
-    const candidateId = event.dataTransfer.getData('candidateId');
-    if (!candidateId) return;
-
-    const candidate = candidates.find((item) => item.id === candidateId);
-    const targetColumn = normalizedColumns.find((column) => column.id === targetColumnId);
-
-    if (!candidate || !targetColumn) return;
-
-    try {
-      await moveCandidateToStage(candidate, targetColumn);
-      const blockedReason = getBlockedReason(candidate, targetColumn.stageKey);
-      if (!blockedReason) toast.success(`Candidato movido para ${targetColumn.title}`);
-    } catch {
-      toast.error('Erro ao mover candidato.');
-    } finally {
-      setDraggingCandidateId(null);
-    }
   };
 
   const handleMoveToColumn = async (event: React.MouseEvent, candidate: Candidate, column: HiringPipelineColumn) => {
@@ -340,9 +288,7 @@ const HiringPipeline = () => {
   const handleDeleteCandidatePermanently = async (event: React.MouseEvent, candidateDbId: string, candidateName: string) => {
     event.preventDefault();
     event.stopPropagation();
-
     if (!window.confirm(`Tem certeza que deseja excluir permanentemente "${candidateName}"?`)) return;
-
     try {
       await deleteCandidate(candidateDbId);
       toast.success(`Candidato "${candidateName}" excluído.`);
@@ -461,11 +407,7 @@ const HiringPipeline = () => {
 
                 {(searchTerm || filterStartDate || filterEndDate) && (
                   <button
-                    onClick={() => {
-                      setSearchTerm('');
-                      setFilterStartDate('');
-                      setFilterEndDate('');
-                    }}
+                    onClick={() => { setSearchTerm(''); setFilterStartDate(''); setFilterEndDate(''); }}
                     className="inline-flex items-center text-xs font-bold text-red-500 transition hover:text-red-700"
                   >
                     <RotateCcw className="mr-1 h-3 w-3" />
@@ -521,11 +463,7 @@ const HiringPipeline = () => {
           return (
             <div
               key={stage.id}
-              onDragOver={(event) => handleDragOver(event, stage.id)}
-              onDrop={(event) => handleDrop(event, stage.id)}
-              className={`w-80 flex-shrink-0 rounded-xl border border-gray-200 bg-gray-100/50 shadow-sm transition-all dark:border-slate-700 dark:bg-slate-800/50 ${
-                dragOverColumn === stage.id ? 'border-transparent bg-brand-50/50 ring-2 ring-brand-500 dark:bg-brand-900/10' : ''
-              }`}
+              className="w-80 flex-shrink-0 rounded-xl border border-gray-200 bg-gray-100/50 shadow-sm dark:border-slate-700 dark:bg-slate-800/50"
             >
               <div className={`rounded-t-xl border-b p-4 ${getColumnColorClasses(stage.color)}`}>
                 <div className="mb-2 flex items-center justify-between gap-2">
@@ -553,17 +491,18 @@ const HiringPipeline = () => {
                   const isToday = candidate.interviewDate === todayStr;
                   const hasPendingSecretariaTasksForCandidate = hasPendingSecretariaTasks(candidate);
                   const hasWithdrawn = !!candidate.reprovadoDate;
+                  const currentStage = getCandidateStageKey(candidate);
+                  const showAgendar = currentStage === 'entrevista-agendada';
+                  const showReagendar = currentStage === 'faltou-entrevista';
 
                   return (
                     <div
                       key={candidate.id}
-                      draggable={!hasWithdrawn}
-                      onDragStart={(event) => !hasWithdrawn && handleDragStart(event, candidate.id)}
                       className={`group relative overflow-hidden rounded-xl border p-4 shadow-sm transition-all hover:shadow-md ${
                         hasWithdrawn
                           ? 'border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-900/20'
-                          : 'border-gray-200 bg-white hover:border-brand-500 dark:border-slate-700 dark:bg-slate-700'
-                      } ${isToday && !hasWithdrawn ? 'ring-2 ring-brand-500' : ''} ${draggingCandidateId === candidate.id ? 'opacity-70' : ''}`}
+                          : 'border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-700'
+                      } ${isToday && !hasWithdrawn ? 'ring-2 ring-brand-500' : ''}`}
                     >
                       {hasWithdrawn && (
                         <div className="absolute right-0 top-0 rounded-bl-lg bg-red-500 px-2 py-0.5 text-[10px] font-bold text-white">
@@ -629,11 +568,7 @@ const HiringPipeline = () => {
                           </span>
 
                           {totalScore > 0 && (
-                            <span
-                              className={`rounded px-1.5 py-0.5 text-[10px] font-black ${
-                                totalScore >= 70 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                              }`}
-                            >
+                            <span className={`rounded px-1.5 py-0.5 text-[10px] font-black ${totalScore >= 70 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                               {totalScore} pts
                             </span>
                           )}
@@ -646,13 +581,9 @@ const HiringPipeline = () => {
                           </div>
                         )}
 
-                        <div className="flex items-center justify-between border-t border-gray-50 pt-2 text-[10px] text-gray-400 dark:border-slate-600">
-                          <span className="flex items-center">
-                            <Calendar className="mr-1 h-3 w-3" />
-                            {candidate.createdAt
-                              ? new Date(candidate.createdAt).toLocaleDateString('pt-BR')
-                              : 'Sem data'}
-                          </span>
+                        <div className="flex items-center border-t border-gray-50 pt-2 text-[10px] text-gray-400 dark:border-slate-600">
+                          <Calendar className="mr-1 h-3 w-3" />
+                          {candidate.createdAt ? new Date(candidate.createdAt).toLocaleDateString('pt-BR') : 'Sem data'}
                         </div>
 
                         <div className="mt-3">
@@ -677,7 +608,7 @@ const HiringPipeline = () => {
                                     onClick={(event) => handleMoveToColumn(event, candidate, column)}
                                     className={`min-h-[30px] w-full rounded-lg border px-2 py-1 text-left text-[10px] font-bold leading-snug transition ${
                                       blocked
-                                        ? 'border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed dark:border-slate-700 dark:bg-slate-800/50 dark:text-gray-600'
+                                        ? 'cursor-not-allowed border-gray-100 bg-gray-50 text-gray-300 dark:border-slate-700 dark:bg-slate-800/50 dark:text-gray-600'
                                         : 'border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100 dark:border-slate-600 dark:bg-slate-800 dark:text-gray-200 dark:hover:bg-slate-700'
                                     }`}
                                     title={blocked ? blocked : `Mover para ${column.title}`}
@@ -690,18 +621,33 @@ const HiringPipeline = () => {
                                 );
                               })}
 
-                              <button
-                                onClick={(event) => handleOpenUpdateDate(event, candidate)}
-                                className="min-h-[30px] w-full rounded-lg bg-brand-600 px-2 py-1 text-left text-[10px] font-bold leading-snug text-white transition hover:bg-brand-700"
-                                title="Agendar ou reagendar entrevista"
-                              >
-                                Agendar / Reagendar
-                              </button>
+                              {showAgendar && (
+                                <button
+                                  onClick={(event) => handleOpenUpdateDate(event, candidate)}
+                                  className="min-h-[30px] w-full rounded-lg bg-brand-600 px-2 py-1 text-left text-[10px] font-bold leading-snug text-white transition hover:bg-brand-700"
+                                >
+                                  <span className="flex items-center gap-1">
+                                    <Calendar className="h-3 w-3" />
+                                    Agendar entrevista
+                                  </span>
+                                </button>
+                              )}
+
+                              {showReagendar && (
+                                <button
+                                  onClick={(event) => handleOpenUpdateDate(event, candidate)}
+                                  className="min-h-[30px] w-full rounded-lg bg-amber-500 px-2 py-1 text-left text-[10px] font-bold leading-snug text-white transition hover:bg-amber-600"
+                                >
+                                  <span className="flex items-center gap-1">
+                                    <RotateCcw className="h-3 w-3" />
+                                    Reagendar entrevista
+                                  </span>
+                                </button>
+                              )}
 
                               <button
                                 onClick={(event) => openWithdrawalFlow(event, candidate)}
                                 className="flex min-h-[30px] w-full items-center gap-1 rounded-lg bg-rose-600 px-2 py-1 text-left text-[10px] font-bold leading-snug text-white transition hover:bg-rose-700"
-                                title="Registrar desistência nesta etapa"
                               >
                                 <UserMinus className="h-3 w-3" />
                                 Desistiu nesta etapa
@@ -743,10 +689,7 @@ const HiringPipeline = () => {
 
       <UpdateInterviewDateModal
         isOpen={isUpdateDateModalOpen}
-        onClose={() => {
-          setIsUpdateDateModalOpen(false);
-          setSelectedCandidateForDate(null);
-        }}
+        onClose={() => { setIsUpdateDateModalOpen(false); setSelectedCandidateForDate(null); }}
         candidate={selectedCandidateForDate}
       />
 
@@ -760,10 +703,7 @@ const HiringPipeline = () => {
 
       <WithdrawalReasonModal
         isOpen={isWithdrawalModalOpen}
-        onClose={() => {
-          setIsWithdrawalModalOpen(false);
-          setSelectedCandidateForWithdrawal(null);
-        }}
+        onClose={() => { setIsWithdrawalModalOpen(false); setSelectedCandidateForWithdrawal(null); }}
         onConfirm={handleConfirmWithdrawal}
         candidateName={selectedCandidateForWithdrawal?.name || ''}
         stageName={selectedCandidateForWithdrawal ? getHiringStageLabel(getCandidateStageKey(selectedCandidateForWithdrawal)) : ''}
