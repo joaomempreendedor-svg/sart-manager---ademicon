@@ -30,6 +30,9 @@ export type HiringPipelineStageKey =
   | 'integracao-nao-compareceu'
   | 'integracao-compareceu'
   | 'integracao-finalizada'
+  | 'assinatura-contrato'
+  | 'contrato-assinado'
+  | 'contrato-nao-assinado'
   | 'candidato-em-previa'
   | 'autorizado';
 
