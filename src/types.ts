@@ -37,7 +37,6 @@ export type HiringPipelineStageKey =
   | 'autorizado';
 
 export interface InterviewScores {
-
   basicProfile: number;
   commercialSkills: number;
   behavioralProfile: number;
@@ -90,7 +89,6 @@ export interface Candidate {
   id: string;
   db_id?: string;
   name: string;
-
   phone: string;
   email?: string;
   interviewDate: string;
@@ -115,9 +113,7 @@ export interface Candidate {
   withdrawalReason?: string;
   withdrawalReasonOption?: string;
   withdrawalStageKey?: HiringPipelineStageKey;
-
   contactedDate?: string;
-
   respondedDate?: string;
   noResponseDate?: string;
   interviewScheduledDate?: string;
@@ -140,6 +136,9 @@ export interface Candidate {
   integrationAttendedDate?: string;
   integrationFinishedDate?: string;
   integrationPresencialDate?: string;
+  contractSignatureDate?: string;
+  contractSignedDate?: string;
+  contractNotSignedDate?: string;
   acompanhamento90DiasDate?: string;
   authorizedDate?: string;
   reprovadoDate?: string;
@@ -632,7 +631,6 @@ export interface Process {
   file_url?: string;
   file_type?: 'image' | 'pdf' | 'video' | 'audio' | 'link';
   created_at: string;
-
   updated_at: string;
   attachments?: ProcessAttachment[];
 }
@@ -691,7 +689,6 @@ export interface AppContextType {
   deleteCandidate: (id: string) => Promise<void>;
   resetHiringPipelineColumnsToDefault: () => void;
   toggleChecklistItem: (candidateId: string, itemId: string) => Promise<void>;
-
   setChecklistDueDate: (candidateId: string, itemId: string, dueDate: string) => Promise<void>;
   toggleConsultantGoal: (candidateId: string, goalId: string) => Promise<void>;
   addChecklistItem: (stageId: string, label: string, responsibleRole?: 'GESTOR' | 'SECRETARIA') => void;
@@ -772,7 +769,6 @@ export interface AppContextType {
   updateLeadMeetingInvitationStatus: (taskId: string, status: 'accepted' | 'declined') => Promise<LeadTask>;
   addGestorTask: (task: Omit<GestorTask, 'id' | 'user_id' | 'created_at' | 'is_completed'>, targetUserId?: string) => Promise<GestorTask>;
   updateGestorTask: (id: string, updates: Partial<GestorTask>) => Promise<GestorTask>;
-
   deleteGestorTask: (id: string) => Promise<void>;
   toggleGestorTaskCompletion: (gestor_task_id: string, done: boolean, date: string) => Promise<void>;
   isGestorTaskDueOnDate: (task: GestorTask, checkDate: string) => boolean;
@@ -813,6 +809,10 @@ export interface AppContextType {
   updateHiringPipelineColumn: (columnId: string, updates: Partial<HiringPipelineColumn>) => void;
   deleteHiringPipelineColumn: (columnId: string) => void;
   moveHiringPipelineColumn: (columnId: string, direction: 'left' | 'right') => void;
+  calculateNotifications: () => void;
+  refetchCommissions: () => Promise<void>;
+  resetLocalState: () => void;
+  calculateCompetenceMonth: (paidDate: string) => string;
 }
 
 export interface ColdCallMetrics {
