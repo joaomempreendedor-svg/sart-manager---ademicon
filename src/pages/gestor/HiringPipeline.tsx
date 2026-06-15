@@ -16,6 +16,7 @@ import {
   UserMinus,
   UserPlus,
   UserRound,
+  Lock,
 } from 'lucide-react';
 
 import { Textarea } from '@/components/ui/textarea';
@@ -27,8 +28,81 @@ import { ImportCandidatesModal } from '@/components/gestor/ImportCandidatesModal
 import { WithdrawalReasonModal, WithdrawalReasonSelection } from '@/components/gestor/WithdrawalReasonModal';
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
 import { highlightText } from '@/lib/utils';
-import { Candidate, HiringPipelineColumn } from '@/types';
+import { Candidate, HiringPipelineColumn, HiringPipelineStageKey } from '@/types';
 import { buildCandidateStageUpdates, getCandidateStageKey, getHiringStageLabel, normalizeHiringPipelineColumns } from '@/lib/hiringPipeline';
+
+// Mapa de pré-requisitos: para mover para X, precisa ter passado por Y
+const STAGE_PREREQUISITES: Partial<Record<HiringPipelineStageKey, HiringPipelineStageKey[]>> = {
+  'contatados':               ['candidatos'],
+  'respondeu':                ['contatados'],
+  'entrevista-agendada':      ['respondeu'],
+  'compareceu-entrevista':    ['entrevista-agendada'],
+  'faltou-entrevista':        ['entrevista-agendada'],
+  'aprovado-gestor':          ['compareceu-entrevista'],
+  'reprovado-gestor':         ['compareceu-entrevista'],
+  'aprovacao-d1':             ['aprovado-gestor'],
+  'documentacao-enviada':     ['aprovacao-d1'],
+  'documentacao-nao-enviada': ['aprovacao-d1'],
+  'previa-cadastrada':        ['documentacao-enviada', 'documentacao-nao-enviada'],
+  'onboarding-liberado':      ['previa-cadastrada'],
+  'onboarding-finalizado':    ['onboarding-liberado'],
+  'onboarding-nao-finalizado':['onboarding-liberado'],
+  'integracao-agendada':      ['onboarding-finalizado', 'onboarding-nao-finalizado'],
+  'integracao-compareceu':    ['integracao-agendada'],
+  'integracao-nao-compareceu':['integracao-agendada'],
+  'integracao-finalizada':    ['integracao-compareceu'],
+  'assinatura-contrato':      ['integracao-finalizada'],
+  'contrato-assinado':        ['assinatura-contrato'],
+  'contrato-nao-assinado':    ['assinatura-contrato'],
+  'autorizado':               ['contrato-assinado'],
+};
+
+// Verifica se o candidato passou por uma etapa
+const candidatePassedStage = (candidate: Candidate, stageKey: HiringPipelineStageKey): boolean => {
+  switch (stageKey) {
+    case 'candidatos':               return true;
+    case 'contatados':               return !!candidate.contactedDate;
+    case 'respondeu':                return !!candidate.respondedDate;
+    case 'entrevista-agendada':      return !!candidate.interviewScheduledDate;
+    case 'compareceu-entrevista':    return !!candidate.interviewAttendedDate || !!candidate.interviewConductedDate;
+    case 'faltou-entrevista':        return !!candidate.interviewNoShowDate || !!candidate.faltouDate;
+    case 'aprovado-gestor':          return !!candidate.managerApprovedDate;
+    case 'reprovado-gestor':         return !!candidate.managerRejectedDate;
+    case 'aprovacao-d1':             return !!candidate.d1ApprovalDate;
+    case 'documentacao-enviada':     return !!candidate.documentationSentDate;
+    case 'documentacao-nao-enviada': return !!candidate.documentationNotSentDate;
+    case 'previa-cadastrada':        return !!candidate.previewRegisteredDate;
+    case 'onboarding-liberado':      return !!candidate.onboardingReleasedDate || !!candidate.onboardingOnlineDate;
+    case 'onboarding-finalizado':    return !!candidate.onboardingFinishedDate;
+    case 'onboarding-nao-finalizado':return !!candidate.onboardingNotFinishedDate;
+    case 'integracao-agendada':      return !!candidate.integrationScheduledDate || !!candidate.integrationPresencialDate;
+    case 'integracao-compareceu':    return !!candidate.integrationAttendedDate;
+    case 'integracao-nao-compareceu':return !!candidate.integrationNoShowDate;
+    case 'integracao-finalizada':    return !!candidate.integrationFinishedDate;
+    case 'assinatura-contrato':      return !!candidate.contractSignatureDate;
+    case 'contrato-assinado':        return !!candidate.contractSignedDate;
+    case 'contrato-nao-assinado':    return !!candidate.contractNotSignedDate;
+    case 'autorizado':               return !!candidate.authorizedDate;
+    default:                         return true;
+  }
+};
+
+// Retorna o motivo do bloqueio ou null se pode mover
+const getBlockedReason = (candidate: Candidate, targetStageKey: HiringPipelineStageKey): string | null => {
+  const prerequisites = STAGE_PREREQUISITES[targetStageKey];
+  if (!prerequisites) return null;
+
+  // Verifica se pelo menos um dos pré-requisitos foi cumprido (para etapas com OR)
+  const passed = prerequisites.some((req) => candidatePassedStage(candidate, req));
+  if (passed) return null;
+
+  // Monta mensagem de erro
+  const labels = prerequisites.map((req) => getHiringStageLabel(req));
+  if (labels.length === 1) {
+    return `Candidato precisa passar por "${labels[0]}" antes.`;
+  }
+  return `Candidato precisa passar por uma das etapas: ${labels.map(l => `"${l}"`).join(' ou ')}.`;
+};
 
 const HiringPipeline = () => {
   const navigate = useNavigate();
@@ -59,7 +133,8 @@ const HiringPipeline = () => {
   const [filterStartDate, setFilterStartDate] = useState('');
   const [filterEndDate, setFilterEndDate] = useState('');
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-const [showWithdrawn, setShowWithdrawn] = useState(true);
+  const [showWithdrawn, setShowWithdrawn] = useState(true);
+
   const todayStr = new Date().toISOString().split('T')[0];
   const baseRoute = user?.role === 'SECRETARIA' ? '/secretaria' : '/gestor';
 
@@ -152,6 +227,12 @@ const [showWithdrawn, setShowWithdrawn] = useState(true);
   };
 
   const moveCandidateToStage = async (candidate: Candidate, column: HiringPipelineColumn, reason?: string) => {
+    // Verifica bloqueio
+    const blockedReason = getBlockedReason(candidate, column.stageKey);
+    if (blockedReason) {
+      toast.error(`🔒 ${blockedReason}`, { duration: 4000 });
+      return;
+    }
     await updateCandidate(candidate.id, buildCandidateStageUpdates(candidate, column.stageKey, reason));
   };
 
@@ -186,7 +267,8 @@ const [showWithdrawn, setShowWithdrawn] = useState(true);
 
     try {
       await moveCandidateToStage(candidate, targetColumn);
-      toast.success(`Candidato movido para ${targetColumn.title}`);
+      const blockedReason = getBlockedReason(candidate, targetColumn.stageKey);
+      if (!blockedReason) toast.success(`Candidato movido para ${targetColumn.title}`);
     } catch {
       toast.error('Erro ao mover candidato.');
     } finally {
@@ -197,6 +279,12 @@ const [showWithdrawn, setShowWithdrawn] = useState(true);
   const handleMoveToColumn = async (event: React.MouseEvent, candidate: Candidate, column: HiringPipelineColumn) => {
     event.preventDefault();
     event.stopPropagation();
+
+    const blockedReason = getBlockedReason(candidate, column.stageKey);
+    if (blockedReason) {
+      toast.error(`🔒 ${blockedReason}`, { duration: 4000 });
+      return;
+    }
 
     try {
       await moveCandidateToStage(candidate, column);
@@ -581,16 +669,26 @@ const [showWithdrawn, setShowWithdrawn] = useState(true);
                         {!hasWithdrawn && (
                           <div className="mt-1 border-t border-gray-50 pt-3 dark:border-slate-600">
                             <div className="grid grid-cols-1 gap-2">
-                              {nextColumns.map((column) => (
-                                <button
-                                  key={column.id}
-                                  onClick={(event) => handleMoveToColumn(event, candidate, column)}
-                                  className="min-h-[30px] w-full rounded-lg border border-gray-200 bg-gray-50 px-2 py-1 text-left text-[10px] font-bold leading-snug text-gray-700 transition hover:bg-gray-100 dark:border-slate-600 dark:bg-slate-800 dark:text-gray-200 dark:hover:bg-slate-700"
-                                  title={`Mover para ${column.title}`}
-                                >
-                                  {column.title}
-                                </button>
-                              ))}
+                              {nextColumns.map((column) => {
+                                const blocked = getBlockedReason(candidate, column.stageKey);
+                                return (
+                                  <button
+                                    key={column.id}
+                                    onClick={(event) => handleMoveToColumn(event, candidate, column)}
+                                    className={`min-h-[30px] w-full rounded-lg border px-2 py-1 text-left text-[10px] font-bold leading-snug transition ${
+                                      blocked
+                                        ? 'border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed dark:border-slate-700 dark:bg-slate-800/50 dark:text-gray-600'
+                                        : 'border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100 dark:border-slate-600 dark:bg-slate-800 dark:text-gray-200 dark:hover:bg-slate-700'
+                                    }`}
+                                    title={blocked ? blocked : `Mover para ${column.title}`}
+                                  >
+                                    <span className="flex items-center gap-1">
+                                      {blocked && <Lock className="h-2.5 w-2.5 flex-shrink-0" />}
+                                      {column.title}
+                                    </span>
+                                  </button>
+                                );
+                              })}
 
                               <button
                                 onClick={(event) => handleOpenUpdateDate(event, candidate)}
