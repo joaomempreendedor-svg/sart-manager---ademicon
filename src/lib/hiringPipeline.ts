@@ -22,6 +22,9 @@ export const DEFAULT_HIRING_PIPELINE_COLUMNS: HiringPipelineColumn[] = [
   { id: 'integracao-nao-compareceu', stageKey: 'integracao-nao-compareceu', title: 'Não Compareceu à Integração', color: 'red', ownerRole: 'SECRETARIA' },
   { id: 'integracao-compareceu', stageKey: 'integracao-compareceu', title: 'Compareceu à Integração', color: 'purple', ownerRole: 'SECRETARIA' },
   { id: 'integracao-finalizada', stageKey: 'integracao-finalizada', title: 'Integração Finalizada', color: 'green', ownerRole: 'SECRETARIA' },
+  { id: 'assinatura-contrato', stageKey: 'assinatura-contrato', title: 'Assinatura do Contrato', color: 'blue', ownerRole: 'GESTOR' },
+  { id: 'contrato-assinado', stageKey: 'contrato-assinado', title: 'Contrato Assinado', color: 'green', ownerRole: 'GESTOR' },
+  { id: 'contrato-nao-assinado', stageKey: 'contrato-nao-assinado', title: 'Contrato Não Assinado', color: 'red', ownerRole: 'GESTOR' },
   { id: 'candidato-em-previa', stageKey: 'candidato-em-previa', title: 'Candidato em Prévia', color: 'yellow', ownerRole: 'SECRETARIA' },
   { id: 'autorizado', stageKey: 'autorizado', title: 'Autorizado', color: 'green', ownerRole: 'GESTOR' },
 ];
@@ -39,15 +42,17 @@ export const isValidHiringPipelineStageKey = (value: unknown): value is HiringPi
 };
 
 export const getCandidateStageKey = (candidate: Candidate): HiringPipelineStageKey => {
-  // Se já tem pipelineStageKey salvo, usa direto — não tenta adivinhar
   if (isValidHiringPipelineStageKey(candidate.pipelineStageKey)) {
     return candidate.pipelineStageKey;
   }
 
-  // Fallback legado para candidatos antigos sem pipelineStageKey
+  // Fallback legado
   if (candidate.status === 'Faltou') return 'faltou-entrevista';
   if (candidate.status === 'Desqualificado' || candidate.status === 'Reprovado') return 'reprovado-gestor';
   if (candidate.status === 'Autorizado' || candidate.authorizedDate) return 'autorizado';
+  if (candidate.contractSignedDate) return 'contrato-assinado';
+  if (candidate.contractNotSignedDate) return 'contrato-nao-assinado';
+  if (candidate.contractSignatureDate) return 'assinatura-contrato';
   if (candidate.integrationFinishedDate) return 'integracao-finalizada';
   if (candidate.integrationAttendedDate) return 'integracao-compareceu';
   if (candidate.integrationNoShowDate) return 'integracao-nao-compareceu';
@@ -87,7 +92,6 @@ export const normalizeHiringPipelineColumns = (columns?: HiringPipelineColumn[])
   validColumns.forEach((column) => {
     const fallback = defaultsByKey.get(column.stageKey);
     if (!fallback || usedKeys.has(column.stageKey)) return;
-
     usedKeys.add(column.stageKey);
     normalized.push({
       ...fallback,
@@ -132,6 +136,10 @@ export const getLegacyStatusForStage = (stageKey: HiringPipelineStageKey): Candi
     case 'integracao-nao-compareceu':
     case 'integracao-compareceu':
     case 'integracao-finalizada':
+      return 'Integração Presencial';
+    case 'assinatura-contrato':
+    case 'contrato-assinado':
+    case 'contrato-nao-assinado':
       return 'Integração Presencial';
     case 'autorizado':
       return 'Autorizado';
@@ -234,6 +242,17 @@ export const buildCandidateStageUpdates = (
     case 'integracao-finalizada':
       updates.integrationFinishedDate = candidate.integrationFinishedDate || now;
       updates.integrationPresencialDate = candidate.integrationPresencialDate || now;
+      break;
+    case 'assinatura-contrato':
+      updates.contractSignatureDate = candidate.contractSignatureDate || now;
+      break;
+    case 'contrato-assinado':
+      updates.contractSignatureDate = candidate.contractSignatureDate || now;
+      updates.contractSignedDate = candidate.contractSignedDate || now;
+      break;
+    case 'contrato-nao-assinado':
+      updates.contractSignatureDate = candidate.contractSignatureDate || now;
+      updates.contractNotSignedDate = candidate.contractNotSignedDate || now;
       break;
     case 'candidato-em-previa':
       updates.awaitingPreviewDate = candidate.awaitingPreviewDate || now;
