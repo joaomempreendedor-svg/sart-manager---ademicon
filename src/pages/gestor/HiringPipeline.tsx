@@ -225,28 +225,27 @@ const HiringPipeline = () => {
   };
 
   const handleMoveToColumn = async (event: React.MouseEvent, candidate: Candidate, column: HiringPipelineColumn) => {
-  event.preventDefault();
-  event.stopPropagation();
+    event.preventDefault();
+    event.stopPropagation();
 
-  const blockedReason = getBlockedReason(candidate, column.stageKey);
-  if (blockedReason) {
-    toast.error(`🔒 ${blockedReason}`, { duration: 4000 });
-    return;
-  }
-
-  try {
-    await moveCandidateToStage(candidate, column);
-    toast.success(`Candidato movido para ${column.title}`);
-
-    // Abre modal de agendamento automaticamente ao entrar em entrevista-agendada
-    if (column.stageKey === 'entrevista-agendada') {
-      setSelectedCandidateForDate(candidate);
-      setIsUpdateDateModalOpen(true);
+    const blockedReason = getBlockedReason(candidate, column.stageKey);
+    if (blockedReason) {
+      toast.error(`🔒 ${blockedReason}`, { duration: 4000 });
+      return;
     }
-  } catch {
-    toast.error('Erro ao atualizar status.');
-  }
-};
+
+    try {
+      await moveCandidateToStage(candidate, column);
+      toast.success(`Candidato movido para ${column.title}`);
+
+      if (column.stageKey === 'entrevista-agendada') {
+        setSelectedCandidateForDate(candidate);
+        setIsUpdateDateModalOpen(true);
+      }
+    } catch {
+      toast.error('Erro ao atualizar status.');
+    }
+  };
 
   const handleConfirmWithdrawal = async (selection: WithdrawalReasonSelection) => {
     if (!selectedCandidateForWithdrawal) return;
@@ -498,8 +497,8 @@ const HiringPipeline = () => {
                   const hasPendingSecretariaTasksForCandidate = hasPendingSecretariaTasks(candidate);
                   const hasWithdrawn = !!candidate.reprovadoDate;
                   const currentStage = getCandidateStageKey(candidate);
-                  const showAgendar = currentStage === 'entrevista-agendada';
                   const showReagendar = currentStage === 'faltou-entrevista';
+                  const wasRescheduled = currentStage === 'faltou-entrevista' && !!candidate.interviewScheduledDate;
 
                   return (
                     <div
@@ -516,9 +515,15 @@ const HiringPipeline = () => {
                         </div>
                       )}
 
-                      {!hasWithdrawn && isToday && (
+                      {!hasWithdrawn && isToday && !wasRescheduled && (
                         <div className="absolute right-0 top-0 rounded-bl-lg bg-brand-500 px-2 py-0.5 text-[10px] font-bold text-white">
                           HOJE
+                        </div>
+                      )}
+
+                      {!hasWithdrawn && wasRescheduled && (
+                        <div className="absolute right-0 top-0 rounded-bl-lg bg-amber-500 px-2 py-0.5 text-[10px] font-bold text-white">
+                          REMARCADA
                         </div>
                       )}
 
@@ -588,17 +593,17 @@ const HiringPipeline = () => {
                         )}
 
                         <div className="flex flex-col gap-1 border-t border-gray-50 pt-2 text-[10px] text-gray-400 dark:border-slate-600">
-  <span className="flex items-center">
-    <Calendar className="mr-1 h-3 w-3" />
-    Cadastro: {candidate.createdAt ? new Date(candidate.createdAt).toLocaleDateString('pt-BR') : 'Sem data'}
-  </span>
-  {candidate.interviewScheduledDate && (
-    <span className="flex items-center text-blue-500 dark:text-blue-400 font-bold">
-      <Calendar className="mr-1 h-3 w-3" />
-      Entrevista: {new Date(candidate.interviewScheduledDate).toLocaleDateString('pt-BR')}
-    </span>
-  )}
-</div>
+                          <span className="flex items-center">
+                            <Calendar className="mr-1 h-3 w-3" />
+                            Cadastro: {candidate.createdAt ? new Date(candidate.createdAt).toLocaleDateString('pt-BR') : 'Sem data'}
+                          </span>
+                          {candidate.interviewScheduledDate && (
+                            <span className="flex items-center font-bold text-blue-500 dark:text-blue-400">
+                              <Calendar className="mr-1 h-3 w-3" />
+                              Entrevista: {new Date(candidate.interviewScheduledDate).toLocaleDateString('pt-BR')}
+                            </span>
+                          )}
+                        </div>
 
                         <div className="mt-3">
                           <Textarea
@@ -634,18 +639,6 @@ const HiringPipeline = () => {
                                   </button>
                                 );
                               })}
-
-                              {showAgendar && (
-                                <button
-                                  onClick={(event) => handleOpenUpdateDate(event, candidate)}
-                                  className="min-h-[30px] w-full rounded-lg bg-brand-600 px-2 py-1 text-left text-[10px] font-bold leading-snug text-white transition hover:bg-brand-700"
-                                >
-                                  <span className="flex items-center gap-1">
-                                    <Calendar className="h-3 w-3" />
-                                    Agendar entrevista
-                                  </span>
-                                </button>
-                              )}
 
                               {showReagendar && (
                                 <button
