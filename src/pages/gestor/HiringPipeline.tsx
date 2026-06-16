@@ -225,22 +225,28 @@ const HiringPipeline = () => {
   };
 
   const handleMoveToColumn = async (event: React.MouseEvent, candidate: Candidate, column: HiringPipelineColumn) => {
-    event.preventDefault();
-    event.stopPropagation();
+  event.preventDefault();
+  event.stopPropagation();
 
-    const blockedReason = getBlockedReason(candidate, column.stageKey);
-    if (blockedReason) {
-      toast.error(`🔒 ${blockedReason}`, { duration: 4000 });
-      return;
-    }
+  const blockedReason = getBlockedReason(candidate, column.stageKey);
+  if (blockedReason) {
+    toast.error(`🔒 ${blockedReason}`, { duration: 4000 });
+    return;
+  }
 
-    try {
-      await moveCandidateToStage(candidate, column);
-      toast.success(`Candidato movido para ${column.title}`);
-    } catch {
-      toast.error('Erro ao atualizar status.');
+  try {
+    await moveCandidateToStage(candidate, column);
+    toast.success(`Candidato movido para ${column.title}`);
+
+    // Abre modal de agendamento automaticamente ao entrar em entrevista-agendada
+    if (column.stageKey === 'entrevista-agendada') {
+      setSelectedCandidateForDate(candidate);
+      setIsUpdateDateModalOpen(true);
     }
-  };
+  } catch {
+    toast.error('Erro ao atualizar status.');
+  }
+};
 
   const handleConfirmWithdrawal = async (selection: WithdrawalReasonSelection) => {
     if (!selectedCandidateForWithdrawal) return;
