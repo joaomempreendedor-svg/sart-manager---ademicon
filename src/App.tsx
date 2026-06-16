@@ -25,7 +25,6 @@ import { Feedbacks } from '@/pages/Feedbacks';
 import { OnlineOnboarding } from '@/pages/OnlineOnboarding';
 import { FinancialPanel } from '@/pages/FinancialPanel';
 import { FormCadastros } from '@/pages/gestor/FormSubmissions';
-import { DailyChecklistConfig } from '@/pages/gestor/DailyChecklistConfig';
 import HiringMetrics from '@/pages/gestor/HiringMetrics';
 import HiringPipeline from '@/pages/gestor/HiringPipeline';
 import HiringPipelineConfig from '@/pages/gestor/HiringPipelineConfig';
@@ -60,7 +59,6 @@ const AppRoutes = () => {
           <Route path="financial-panel" element={<FinancialPanel />} />
           <Route path="feedbacks" element={<Feedbacks />} />
           <Route path="onboarding-admin" element={<OnlineOnboarding />} />
-          <Route path="daily-checklists" element={<DailyChecklistConfig />} />
           <Route path="secretaria-tasks" element={<SecretariaTasksConfig />} />
           <Route path="hiring-dashboard" element={<Navigate to="../hiring-metrics" replace />} />
           <Route path="hiring-pipeline" element={<HiringPipeline />} />
@@ -68,7 +66,6 @@ const AppRoutes = () => {
           <Route path="hiring-pipeline-config" element={<HiringPipelineConfig />} />
           <Route path="form-cadastros" element={<FormCadastros />} />
           <Route path="processos" element={<Processos />} />
-
         </Route>
 
         <Route path="/secretaria" element={<SecretariaLayout />}>
