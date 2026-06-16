@@ -144,6 +144,7 @@ export interface Candidate {
   reprovadoDate?: string;
   disqualifiedDate?: string;
   faltouDate?: string;
+rescheduledCount?: number;
 }
 
 export interface ChecklistResource {
