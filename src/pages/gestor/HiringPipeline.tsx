@@ -581,10 +581,18 @@ const HiringPipeline = () => {
                           </div>
                         )}
 
-                        <div className="flex items-center border-t border-gray-50 pt-2 text-[10px] text-gray-400 dark:border-slate-600">
-                          <Calendar className="mr-1 h-3 w-3" />
-                          {candidate.createdAt ? new Date(candidate.createdAt).toLocaleDateString('pt-BR') : 'Sem data'}
-                        </div>
+                        <div className="flex flex-col gap-1 border-t border-gray-50 pt-2 text-[10px] text-gray-400 dark:border-slate-600">
+  <span className="flex items-center">
+    <Calendar className="mr-1 h-3 w-3" />
+    Cadastro: {candidate.createdAt ? new Date(candidate.createdAt).toLocaleDateString('pt-BR') : 'Sem data'}
+  </span>
+  {candidate.interviewScheduledDate && (
+    <span className="flex items-center text-blue-500 dark:text-blue-400 font-bold">
+      <Calendar className="mr-1 h-3 w-3" />
+      Entrevista: {new Date(candidate.interviewScheduledDate).toLocaleDateString('pt-BR')}
+    </span>
+  )}
+</div>
 
                         <div className="mt-3">
                           <Textarea
