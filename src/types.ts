@@ -144,7 +144,7 @@ export interface Candidate {
   reprovadoDate?: string;
   disqualifiedDate?: string;
   faltouDate?: string;
-rescheduledCount?: number;
+  rescheduledCount?: number;
 }
 
 export interface ChecklistResource {
@@ -636,6 +636,16 @@ export interface Process {
   attachments?: ProcessAttachment[];
 }
 
+export interface Contrato {
+  id: string;
+  file_name: string;
+  display_name: string;
+  file_path: string;
+  file_type: string;
+  uploaded_by?: string;
+  created_at: string;
+}
+
 export interface AppContextType {
   isDataLoading: boolean;
   candidates: Candidate[];
@@ -681,6 +691,7 @@ export interface AppContextType {
   coldCallLeads: ColdCallLead[];
   coldCallLogs: ColdCallLog[];
   processes: Process[];
+  contratos: Contrato[];
   theme: 'light' | 'dark';
   hiringPipelineColumns: HiringPipelineColumn[];
   toggleTheme: () => void;
@@ -810,6 +821,8 @@ export interface AppContextType {
   updateHiringPipelineColumn: (columnId: string, updates: Partial<HiringPipelineColumn>) => void;
   deleteHiringPipelineColumn: (columnId: string) => void;
   moveHiringPipelineColumn: (columnId: string, direction: 'left' | 'right') => void;
+  addContrato: (file: File, displayName: string) => Promise<Contrato>;
+  deleteContrato: (id: string, filePath: string) => Promise<void>;
   calculateNotifications: () => void;
   refetchCommissions: () => Promise<void>;
   resetLocalState: () => void;
