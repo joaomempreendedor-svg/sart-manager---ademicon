@@ -250,6 +250,19 @@ const HiringMetrics = () => {
       };
     });
 
+    // Quadradinho extra: Reagendados
+    const reagendados = candidatesCreatedInPeriod.filter(c => (c.rescheduledCount || 0) > 0);
+    gridMetrics.push({
+      stageKey: 'faltou-entrevista',
+      label: 'Reagendados',
+      color: 'bg-amber-50 dark:bg-amber-900/20',
+      textColor: 'text-amber-700 dark:text-amber-300',
+      borderColor: 'border-amber-200 dark:border-amber-800',
+      count: reagendados.length,
+      candidates: reagendados,
+      baseRate: candidatesCreatedInPeriod.length > 0 ? (reagendados.length / candidatesCreatedInPeriod.length) * 100 : 0,
+    });
+
     const processFunnelBlocks = FUNNEL_LAYOUT.map((item) => {
       if (item.type === 'stage') {
         const metric = buildStageMetric(item.stageKey);
@@ -407,18 +420,14 @@ const HiringMetrics = () => {
         <div className="flex flex-col items-start justify-between gap-3 lg:flex-row lg:items-center">
           <div>
             <h3 className="flex items-center text-sm font-bold uppercase tracking-wide text-gray-700 dark:text-gray-300">
-              <BarChart3 className="mr-2 h-4 w-4" />
-              Filtros da análise
+              <BarChart3 className="mr-2 h-4 w-4" />Filtros da análise
             </h3>
             <p className="text-xs text-gray-500 dark:text-gray-400">O período usa as datas salvas em cada etapa do processo.</p>
           </div>
           {(searchTerm || filterStartDate || filterEndDate) && (
-            <button
-              onClick={() => { setSearchTerm(''); setFilterStartDate(''); setFilterEndDate(''); }}
-              className="flex items-center text-xs text-red-500 transition hover:text-red-700"
-            >
-              <RotateCcw className="mr-1 h-3 w-3" />
-              Limpar filtros
+            <button onClick={() => { setSearchTerm(''); setFilterStartDate(''); setFilterEndDate(''); }}
+              className="flex items-center text-xs text-red-500 transition hover:text-red-700">
+              <RotateCcw className="mr-1 h-3 w-3" />Limpar filtros
             </button>
           )}
         </div>
@@ -427,13 +436,9 @@ const HiringMetrics = () => {
             <label className="mb-1 ml-1 text-[10px] font-bold uppercase text-gray-400">Busca</label>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Nome, telefone ou email..."
+              <input type="text" placeholder="Nome, telefone ou email..."
                 className="w-full rounded-lg border border-gray-300 bg-gray-50 py-2 pl-9 pr-4 text-sm text-gray-900 focus:border-brand-500 focus:ring-brand-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
-              />
+                value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} />
             </div>
           </div>
           <div className="flex flex-col">
@@ -454,23 +459,18 @@ const HiringMetrics = () => {
           const Icon = section.icon;
           const isActive = activeSection === section.key;
           return (
-            <button
-              key={section.key}
-              onClick={() => setActiveSection(section.key)}
+            <button key={section.key} onClick={() => setActiveSection(section.key)}
               className={`inline-flex items-center gap-2 rounded-xl border px-4 py-3 text-sm font-bold transition ${
                 isActive
                   ? 'border-brand-500 bg-brand-500 text-white shadow-sm'
                   : 'border-gray-200 bg-white text-gray-700 hover:border-brand-300 hover:text-brand-600 dark:border-slate-700 dark:bg-slate-800 dark:text-gray-200'
-              }`}
-            >
-              <Icon className="h-4 w-4" />
-              {section.title}
+              }`}>
+              <Icon className="h-4 w-4" />{section.title}
             </button>
           );
         })}
       </div>
 
-      {/* FUNIL — Grid de quadradinhos */}
       {activeSection === 'funnel' && (
         <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
           <div className="mb-5 flex items-center justify-between">
@@ -489,9 +489,9 @@ const HiringMetrics = () => {
             </div>
           ) : (
             <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7">
-              {analytics.gridMetrics.map((stage) => (
+              {analytics.gridMetrics.map((stage, index) => (
                 <button
-                  key={stage.stageKey}
+                  key={`${stage.stageKey}-${index}`}
                   onClick={() => handleOpenCandidatesDetailModal(stage.label, stage.candidates, 'total')}
                   className={`flex flex-col items-center justify-center rounded-xl border p-3 text-center transition hover:shadow-md hover:scale-105 ${stage.color} ${stage.borderColor}`}
                 >
@@ -514,8 +514,7 @@ const HiringMetrics = () => {
           <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-slate-700">
             <div>
               <h2 className="flex items-center gap-2 font-bold text-gray-900 dark:text-white">
-                <UserMinus className="h-5 w-5 text-rose-500" />
-                Ranking de desistência por etapa
+                <UserMinus className="h-5 w-5 text-rose-500" />Ranking de desistência por etapa
               </h2>
               <p className="text-sm text-gray-500 dark:text-gray-400">Mostra em qual etapa do pipeline mais acontece saída no período filtrado.</p>
             </div>
@@ -539,7 +538,7 @@ const HiringMetrics = () => {
                     <tr key={stage.name} className="hover:bg-gray-50 dark:hover:bg-slate-700/40">
                       <td className="px-6 py-4">
                         <button onClick={() => handleOpenCandidatesDetailModal(`Desistências em ${stage.name}`, stage.candidates, 'withdrawn')}
-                          className="font-bold text-rose-600 transition hover:text-rose-700 dark:text-rose-400 dark:hover:text-rose-300">{stage.name}</button>
+                          className="font-bold text-rose-600 transition hover:text-rose-700 dark:text-rose-400">{stage.name}</button>
                       </td>
                       <td className="px-6 py-4 font-black text-gray-900 dark:text-white">{stage.count}</td>
                       <td className="px-6 py-4 font-bold text-rose-600 dark:text-rose-400">{stage.percentage.toFixed(1)}%</td>
@@ -562,8 +561,7 @@ const HiringMetrics = () => {
           <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-slate-700">
             <div>
               <h2 className="flex items-center gap-2 font-bold text-gray-900 dark:text-white">
-                <MapPin className="h-5 w-5 text-brand-500" />
-                Origem dos candidatos criados
+                <MapPin className="h-5 w-5 text-brand-500" />Origem dos candidatos criados
               </h2>
               <p className="text-sm text-gray-500 dark:text-gray-400">Distribuição dos cadastros em {periodLabel}.</p>
             </div>
@@ -587,7 +585,7 @@ const HiringMetrics = () => {
                     <tr key={origin.name} className="hover:bg-gray-50 dark:hover:bg-slate-700/40">
                       <td className="px-6 py-4">
                         <button onClick={() => handleOpenCandidatesDetailModal(`Origem: ${origin.name}`, origin.candidates, 'total')}
-                          className="font-bold text-gray-900 transition hover:text-brand-600 dark:text-white dark:hover:text-brand-400">{origin.name}</button>
+                          className="font-bold text-gray-900 transition hover:text-brand-600 dark:text-white">{origin.name}</button>
                       </td>
                       <td className="px-6 py-4 font-black text-gray-900 dark:text-white">{origin.count}</td>
                       <td className="px-6 py-4 font-bold text-brand-600 dark:text-brand-400">{origin.percentage.toFixed(1)}%</td>
@@ -610,8 +608,7 @@ const HiringMetrics = () => {
           <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-slate-700">
             <div>
               <h2 className="flex items-center gap-2 font-bold text-gray-900 dark:text-white">
-                <Users className="h-5 w-5 text-indigo-500" />
-                Consultores que mais indicam
+                <Users className="h-5 w-5 text-indigo-500" />Consultores que mais indicam
               </h2>
               <p className="text-sm text-gray-500 dark:text-gray-400">Ranking dos consultores com mais candidatos atribuídos no período.</p>
             </div>
@@ -635,7 +632,7 @@ const HiringMetrics = () => {
                     <tr key={consultant.id} className="hover:bg-gray-50 dark:hover:bg-slate-700/40">
                       <td className="px-6 py-4">
                         <button onClick={() => handleOpenCandidatesDetailModal(`Indicações de ${consultant.name}`, consultant.candidates, 'total')}
-                          className="font-bold text-gray-900 transition hover:text-indigo-600 dark:text-white dark:hover:text-indigo-400">{consultant.name}</button>
+                          className="font-bold text-gray-900 transition hover:text-indigo-600 dark:text-white">{consultant.name}</button>
                       </td>
                       <td className="px-6 py-4 font-black text-gray-900 dark:text-white">{consultant.count}</td>
                       <td className="px-6 py-4 font-bold text-indigo-600 dark:text-indigo-400">{consultant.percentage.toFixed(1)}%</td>
