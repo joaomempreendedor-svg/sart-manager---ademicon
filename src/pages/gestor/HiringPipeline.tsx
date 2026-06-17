@@ -269,9 +269,17 @@ const HiringPipeline = () => {
     }
   };
 
-  const handleOpenUpdateDate = (event: React.MouseEvent, candidate: Candidate) => {
+  const handleOpenUpdateDate = async (event: React.MouseEvent, candidate: Candidate) => {
     event.preventDefault();
     event.stopPropagation();
+
+    // Se está reagendando (já faltou), incrementa o contador
+    if (getCandidateStageKey(candidate) === 'faltou-entrevista') {
+      await updateCandidate(candidate.id, {
+        rescheduledCount: (candidate.rescheduledCount || 0) + 1,
+      });
+    }
+
     setSelectedCandidateForDate(candidate);
     setIsUpdateDateModalOpen(true);
   };
@@ -351,36 +359,21 @@ const HiringPipeline = () => {
             </div>
 
             <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 xl:w-auto xl:min-w-[520px]">
-              <button
-                onClick={() => setIsAddModalOpen(true)}
-                className="order-1 flex items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-3 font-extrabold text-white shadow-lg shadow-brand-500/20 transition hover:bg-brand-700"
-              >
-                <Plus className="h-5 w-5" />
-                <span>Novo Candidato</span>
+              <button onClick={() => setIsAddModalOpen(true)}
+                className="order-1 flex items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-3 font-extrabold text-white shadow-lg shadow-brand-500/20 transition hover:bg-brand-700">
+                <Plus className="h-5 w-5" /><span>Novo Candidato</span>
               </button>
-
-              <button
-                onClick={() => navigate(`${baseRoute}/hiring-metrics`)}
-                className="order-2 flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 font-bold text-white transition hover:bg-indigo-700"
-              >
-                <BarChart3 className="h-5 w-5" />
-                <span>Ver Métricas</span>
+              <button onClick={() => navigate(`${baseRoute}/hiring-metrics`)}
+                className="order-2 flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 font-bold text-white transition hover:bg-indigo-700">
+                <BarChart3 className="h-5 w-5" /><span>Ver Métricas</span>
               </button>
-
-              <button
-                onClick={() => navigate(`${baseRoute}/hiring-pipeline-config`)}
-                className="order-3 flex items-center justify-center gap-2 rounded-xl bg-slate-700 px-4 py-3 font-bold text-white transition hover:bg-slate-800"
-              >
-                <Settings2 className="h-5 w-5" />
-                <span>Editar Pipeline</span>
+              <button onClick={() => navigate(`${baseRoute}/hiring-pipeline-config`)}
+                className="order-3 flex items-center justify-center gap-2 rounded-xl bg-slate-700 px-4 py-3 font-bold text-white transition hover:bg-slate-800">
+                <Settings2 className="h-5 w-5" /><span>Editar Pipeline</span>
               </button>
-
-              <button
-                onClick={() => setIsImportModalOpen(true)}
-                className="order-4 flex items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-3 font-bold text-gray-700 transition hover:bg-gray-50 dark:border-slate-600 dark:bg-slate-900 dark:text-gray-200 dark:hover:bg-slate-700"
-              >
-                <Plus className="h-5 w-5" />
-                <span>Importar Planilha</span>
+              <button onClick={() => setIsImportModalOpen(true)}
+                className="order-4 flex items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-3 font-bold text-gray-700 transition hover:bg-gray-50 dark:border-slate-600 dark:bg-slate-900 dark:text-gray-200 dark:hover:bg-slate-700">
+                <Plus className="h-5 w-5" /><span>Importar Planilha</span>
               </button>
             </div>
           </div>
@@ -389,34 +382,24 @@ const HiringPipeline = () => {
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h3 className="flex items-center text-sm font-bold uppercase tracking-wide text-gray-700 dark:text-gray-300">
-                  <Filter className="mr-2 h-4 w-4" />
-                  Filtros do pipeline
+                  <Filter className="mr-2 h-4 w-4" />Filtros do pipeline
                 </h3>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
                   {pipelineStages.reduce((total, column) => total + column.list.length, 0)} candidatos visíveis nas etapas atuais.
                 </p>
               </div>
-
               <div className="flex items-center gap-3">
-                <button
-                  onClick={() => setShowWithdrawn(!showWithdrawn)}
+                <button onClick={() => setShowWithdrawn(!showWithdrawn)}
                   className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
-                    showWithdrawn
-                      ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
-                      : 'bg-gray-100 text-gray-500 dark:bg-slate-700 dark:text-gray-400 hover:bg-red-50 hover:text-red-600'
-                  }`}
-                >
+                    showWithdrawn ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' : 'bg-gray-100 text-gray-500 dark:bg-slate-700 dark:text-gray-400 hover:bg-red-50 hover:text-red-600'
+                  }`}>
                   <UserMinus className="h-3.5 w-3.5" />
                   {showWithdrawn ? 'Ocultar desistências' : `Ver desistências (${withdrawnCount})`}
                 </button>
-
                 {(searchTerm || filterStartDate || filterEndDate) && (
-                  <button
-                    onClick={() => { setSearchTerm(''); setFilterStartDate(''); setFilterEndDate(''); }}
-                    className="inline-flex items-center text-xs font-bold text-red-500 transition hover:text-red-700"
-                  >
-                    <RotateCcw className="mr-1 h-3 w-3" />
-                    Limpar filtros
+                  <button onClick={() => { setSearchTerm(''); setFilterStartDate(''); setFilterEndDate(''); }}
+                    className="inline-flex items-center text-xs font-bold text-red-500 transition hover:text-red-700">
+                    <RotateCcw className="mr-1 h-3 w-3" />Limpar filtros
                   </button>
                 )}
               </div>
@@ -427,34 +410,20 @@ const HiringPipeline = () => {
                 <label className="mb-1 ml-1 text-[10px] font-bold uppercase text-gray-400">Busca</label>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Nome, telefone ou email..."
+                  <input type="text" placeholder="Nome, telefone ou email..."
                     className="w-full rounded-lg border border-gray-300 bg-white py-2.5 pl-9 pr-4 text-sm text-gray-900 focus:border-brand-500 focus:ring-brand-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
-                    value={searchTerm}
-                    onChange={(event) => setSearchTerm(event.target.value)}
-                  />
+                    value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} />
                 </div>
               </div>
-
               <div className="flex flex-col">
                 <label className="mb-1 ml-1 text-[10px] font-bold uppercase text-gray-400">Criado de</label>
-                <input
-                  type="date"
-                  value={filterStartDate}
-                  onChange={(event) => setFilterStartDate(event.target.value)}
-                  className="w-full rounded-lg border border-gray-300 bg-white p-2.5 text-sm text-gray-900 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
-                />
+                <input type="date" value={filterStartDate} onChange={(event) => setFilterStartDate(event.target.value)}
+                  className="w-full rounded-lg border border-gray-300 bg-white p-2.5 text-sm text-gray-900 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
               </div>
-
               <div className="flex flex-col">
                 <label className="mb-1 ml-1 text-[10px] font-bold uppercase text-gray-400">Criado até</label>
-                <input
-                  type="date"
-                  value={filterEndDate}
-                  onChange={(event) => setFilterEndDate(event.target.value)}
-                  className="w-full rounded-lg border border-gray-300 bg-white p-2.5 text-sm text-gray-900 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
-                />
+                <input type="date" value={filterEndDate} onChange={(event) => setFilterEndDate(event.target.value)}
+                  className="w-full rounded-lg border border-gray-300 bg-white p-2.5 text-sm text-gray-900 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
               </div>
             </div>
           </div>
@@ -464,12 +433,9 @@ const HiringPipeline = () => {
       <div className="custom-scrollbar flex space-x-4 overflow-x-auto pb-6">
         {pipelineStages.map((stage) => {
           const nextColumns = getNextColumns(stage.id);
-
           return (
-            <div
-              key={stage.id}
-              className="w-80 flex-shrink-0 rounded-xl border border-gray-200 bg-gray-100/50 shadow-sm dark:border-slate-700 dark:bg-slate-800/50"
-            >
+            <div key={stage.id}
+              className="w-80 flex-shrink-0 rounded-xl border border-gray-200 bg-gray-100/50 shadow-sm dark:border-slate-700 dark:bg-slate-800/50">
               <div className={`rounded-t-xl border-b p-4 ${getColumnColorClasses(stage.color)}`}>
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
@@ -498,42 +464,31 @@ const HiringPipeline = () => {
                   const hasWithdrawn = !!candidate.reprovadoDate;
                   const currentStage = getCandidateStageKey(candidate);
                   const showReagendar = currentStage === 'faltou-entrevista';
-                  const wasRescheduled = currentStage === 'faltou-entrevista' && !!candidate.interviewScheduledDate;
+                  const wasRescheduled = (candidate.rescheduledCount || 0) > 0;
 
                   return (
-                    <div
-                      key={candidate.id}
+                    <div key={candidate.id}
                       className={`group relative overflow-hidden rounded-xl border p-4 shadow-sm transition-all hover:shadow-md ${
                         hasWithdrawn
                           ? 'border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-900/20'
                           : 'border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-700'
-                      } ${isToday && !hasWithdrawn ? 'ring-2 ring-brand-500' : ''}`}
-                    >
+                      } ${isToday && !hasWithdrawn ? 'ring-2 ring-brand-500' : ''}`}>
+
                       {hasWithdrawn && (
-                        <div className="absolute right-0 top-0 rounded-bl-lg bg-red-500 px-2 py-0.5 text-[10px] font-bold text-white">
-                          DESISTIU
-                        </div>
+                        <div className="absolute right-0 top-0 rounded-bl-lg bg-red-500 px-2 py-0.5 text-[10px] font-bold text-white">DESISTIU</div>
                       )}
-
-                      {!hasWithdrawn && isToday && !wasRescheduled && (
-                        <div className="absolute right-0 top-0 rounded-bl-lg bg-brand-500 px-2 py-0.5 text-[10px] font-bold text-white">
-                          HOJE
-                        </div>
-                      )}
-
                       {!hasWithdrawn && wasRescheduled && (
                         <div className="absolute right-0 top-0 rounded-bl-lg bg-amber-500 px-2 py-0.5 text-[10px] font-bold text-white">
-                          REMARCADA
+                          REMARCADA {(candidate.rescheduledCount || 0) > 1 ? `(${candidate.rescheduledCount}x)` : ''}
                         </div>
                       )}
-
+                      {!hasWithdrawn && !wasRescheduled && isToday && (
+                        <div className="absolute right-0 top-0 rounded-bl-lg bg-brand-500 px-2 py-0.5 text-[10px] font-bold text-white">HOJE</div>
+                      )}
                       {!hasWithdrawn && hasPendingSecretariaTasksForCandidate && (
-                        <div
-                          className="absolute left-0 top-0 flex items-center rounded-br-lg bg-purple-500 px-2 py-0.5 text-[10px] font-bold text-white"
-                          title="Tarefas da Secretaria Pendentes"
-                        >
-                          <ShieldCheck className="mr-1 h-3 w-3" />
-                          SECRETARIA
+                        <div className="absolute left-0 top-0 flex items-center rounded-br-lg bg-purple-500 px-2 py-0.5 text-[10px] font-bold text-white"
+                          title="Tarefas da Secretaria Pendentes">
+                          <ShieldCheck className="mr-1 h-3 w-3" />SECRETARIA
                         </div>
                       )}
 
@@ -554,18 +509,14 @@ const HiringPipeline = () => {
                         </div>
 
                         <div className="flex items-center space-x-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
-                          <button
-                            onClick={(event) => handleOpenEditCandidateModal(event, candidate)}
+                          <button onClick={(event) => handleOpenEditCandidateModal(event, candidate)}
                             className="rounded-md p-1.5 text-gray-400 transition-colors hover:bg-blue-50 hover:text-blue-500 dark:text-gray-300 dark:hover:bg-slate-800"
-                            title="Editar Candidato"
-                          >
+                            title="Editar Candidato">
                             <Edit2 className="h-3.5 w-3.5" />
                           </button>
-                          <button
-                            onClick={(event) => handleDeleteCandidatePermanently(event, candidate.db_id || candidate.id, candidate.name)}
+                          <button onClick={(event) => handleDeleteCandidatePermanently(event, candidate.db_id || candidate.id, candidate.name)}
                             className="rounded-md bg-red-50 p-1.5 text-red-500 transition-colors hover:bg-red-100 hover:text-red-600 dark:bg-red-900/20 dark:text-red-300 dark:hover:bg-red-900/30"
-                            title="Excluir Candidato"
-                          >
+                            title="Excluir Candidato">
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         </div>
@@ -574,10 +525,8 @@ const HiringPipeline = () => {
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
                           <span className="flex items-center text-[10px] font-bold uppercase text-gray-400">
-                            <UserRound className="mr-1 h-3 w-3" />
-                            {getResponsibleName(candidate.responsibleUserId)}
+                            <UserRound className="mr-1 h-3 w-3" />{getResponsibleName(candidate.responsibleUserId)}
                           </span>
-
                           {totalScore > 0 && (
                             <span className={`rounded px-1.5 py-0.5 text-[10px] font-black ${totalScore >= 70 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                               {totalScore} pts
@@ -622,16 +571,14 @@ const HiringPipeline = () => {
                               {nextColumns.map((column) => {
                                 const blocked = getBlockedReason(candidate, column.stageKey);
                                 return (
-                                  <button
-                                    key={column.id}
+                                  <button key={column.id}
                                     onClick={(event) => handleMoveToColumn(event, candidate, column)}
                                     className={`min-h-[30px] w-full rounded-lg border px-2 py-1 text-left text-[10px] font-bold leading-snug transition ${
                                       blocked
                                         ? 'cursor-not-allowed border-gray-100 bg-gray-50 text-gray-300 dark:border-slate-700 dark:bg-slate-800/50 dark:text-gray-600'
                                         : 'border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100 dark:border-slate-600 dark:bg-slate-800 dark:text-gray-200 dark:hover:bg-slate-700'
                                     }`}
-                                    title={blocked ? blocked : `Mover para ${column.title}`}
-                                  >
+                                    title={blocked ? blocked : `Mover para ${column.title}`}>
                                     <span className="flex items-center gap-1">
                                       {blocked && <Lock className="h-2.5 w-2.5 flex-shrink-0" />}
                                       {column.title}
@@ -641,10 +588,8 @@ const HiringPipeline = () => {
                               })}
 
                               {showReagendar && (
-                                <button
-                                  onClick={(event) => handleOpenUpdateDate(event, candidate)}
-                                  className="min-h-[30px] w-full rounded-lg bg-amber-500 px-2 py-1 text-left text-[10px] font-bold leading-snug text-white transition hover:bg-amber-600"
-                                >
+                                <button onClick={(event) => handleOpenUpdateDate(event, candidate)}
+                                  className="min-h-[30px] w-full rounded-lg bg-amber-500 px-2 py-1 text-left text-[10px] font-bold leading-snug text-white transition hover:bg-amber-600">
                                   <span className="flex items-center gap-1">
                                     <RotateCcw className="h-3 w-3" />
                                     Reagendar entrevista
@@ -652,12 +597,9 @@ const HiringPipeline = () => {
                                 </button>
                               )}
 
-                              <button
-                                onClick={(event) => openWithdrawalFlow(event, candidate)}
-                                className="flex min-h-[30px] w-full items-center gap-1 rounded-lg bg-rose-600 px-2 py-1 text-left text-[10px] font-bold leading-snug text-white transition hover:bg-rose-700"
-                              >
-                                <UserMinus className="h-3 w-3" />
-                                Desistiu nesta etapa
+                              <button onClick={(event) => openWithdrawalFlow(event, candidate)}
+                                className="flex min-h-[30px] w-full items-center gap-1 rounded-lg bg-rose-600 px-2 py-1 text-left text-[10px] font-bold leading-snug text-white transition hover:bg-rose-700">
+                                <UserMinus className="h-3 w-3" />Desistiu nesta etapa
                               </button>
                             </div>
                           </div>
@@ -679,42 +621,20 @@ const HiringPipeline = () => {
         })}
       </div>
 
-      <EditScreeningCandidateModal
-        isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-        origins={hiringOrigins}
-        responsibleMembers={responsibleMembersForModal}
-      />
-
-      <EditScreeningCandidateModal
-        isOpen={isEditCandidateModalOpen}
-        onClose={() => setIsEditCandidateModalOpen(false)}
-        origins={hiringOrigins}
-        responsibleMembers={responsibleMembersForModal}
-        candidateToEdit={selectedCandidateToEdit}
-      />
-
-      <UpdateInterviewDateModal
-        isOpen={isUpdateDateModalOpen}
+      <EditScreeningCandidateModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)}
+        origins={hiringOrigins} responsibleMembers={responsibleMembersForModal} />
+      <EditScreeningCandidateModal isOpen={isEditCandidateModalOpen} onClose={() => setIsEditCandidateModalOpen(false)}
+        origins={hiringOrigins} responsibleMembers={responsibleMembersForModal} candidateToEdit={selectedCandidateToEdit} />
+      <UpdateInterviewDateModal isOpen={isUpdateDateModalOpen}
         onClose={() => { setIsUpdateDateModalOpen(false); setSelectedCandidateForDate(null); }}
-        candidate={selectedCandidateForDate}
-      />
-
-      <ImportCandidatesModal
-        isOpen={isImportModalOpen}
-        onClose={() => setIsImportModalOpen(false)}
-        origins={hiringOrigins}
-        responsibleMembers={responsibleMembersForModal}
-        onImport={handleImportCandidates}
-      />
-
-      <WithdrawalReasonModal
-        isOpen={isWithdrawalModalOpen}
+        candidate={selectedCandidateForDate} />
+      <ImportCandidatesModal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)}
+        origins={hiringOrigins} responsibleMembers={responsibleMembersForModal} onImport={handleImportCandidates} />
+      <WithdrawalReasonModal isOpen={isWithdrawalModalOpen}
         onClose={() => { setIsWithdrawalModalOpen(false); setSelectedCandidateForWithdrawal(null); }}
         onConfirm={handleConfirmWithdrawal}
         candidateName={selectedCandidateForWithdrawal?.name || ''}
-        stageName={selectedCandidateForWithdrawal ? getHiringStageLabel(getCandidateStageKey(selectedCandidateForWithdrawal)) : ''}
-      />
+        stageName={selectedCandidateForWithdrawal ? getHiringStageLabel(getCandidateStageKey(selectedCandidateForWithdrawal)) : ''} />
     </div>
   );
 };
