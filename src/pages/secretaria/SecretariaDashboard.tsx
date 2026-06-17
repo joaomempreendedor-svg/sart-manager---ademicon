@@ -14,6 +14,8 @@ import {
   Check,
   Trash2,
   Calendar,
+  AlertTriangle,
+  Sparkles,
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import toast from 'react-hot-toast';
@@ -50,14 +52,35 @@ export const SecretariaDashboard = () => {
     dailyChecklistItems,
     dailyChecklistAssignments,
     dailyChecklistCompletions,
-    teamMembers,
   } = useApp();
   const navigate = useNavigate();
 
   const todayStr = new Date().toISOString().split('T')[0];
 
-  const { completedDailyTasks, totalDailyTasks, dailyProgress } = useMemo(() => {
-    if (!user) return { completedDailyTasks: 0, totalDailyTasks: 0, dailyProgress: 0 };
+  const isItemDueOnDate = (item: DailyChecklistItem, dateStr: string) => {
+    const rec = item.resource?.recurrence;
+    if (!rec || rec.type === 'daily') return true;
+    const toDate = (s: string) => new Date(s + 'T00:00:00');
+    if (rec.type === 'weekly') return new Date(dateStr + 'T00:00:00').getDay() === (rec.dayOfWeek ?? 0);
+    if (rec.type === 'monthly') return new Date(dateStr + 'T00:00:00').getDate() === (rec.dayOfMonth ?? 1);
+    if (rec.type === 'every_x_days') {
+      const start = rec.startDate ? toDate(rec.startDate) : new Date(item.created_at);
+      const target = toDate(dateStr);
+      if (target < start) return false;
+      const diffDays = Math.floor((target.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+      return diffDays % (rec.intervalDays ?? 2) === 0;
+    }
+    if (rec.type === 'specific_date') return dateStr === rec.specificDate;
+    return true;
+  };
+
+  const isItemRecorrente = (item: DailyChecklistItem) => {
+    const rec = item.resource?.recurrence?.type;
+    return rec && rec !== 'specific_date';
+  };
+
+  const { completedDailyTasks, totalDailyTasks, dailyProgress, todayChecklistItems, pendingChecklistItems } = useMemo(() => {
+    if (!user) return { completedDailyTasks: 0, totalDailyTasks: 0, dailyProgress: 0, todayChecklistItems: [], pendingChecklistItems: [] };
 
     const secretariaChecklists = dailyChecklists.filter((checklist) => {
       const isSecChecklist = checklist.title.startsWith(SECRETARIA_PREFIX);
@@ -71,23 +94,6 @@ export const SecretariaDashboard = () => {
       return checklist.is_active && (hasAssignment || (isSecChecklist && hasNoAssignment));
     });
 
-    const isItemDueOnDate = (item: DailyChecklistItem, dateStr: string) => {
-      const rec = item.resource?.recurrence;
-      if (!rec || rec.type === 'daily') return true;
-      const toDate = (s: string) => new Date(s + 'T00:00:00');
-      if (rec.type === 'weekly') return new Date(dateStr + 'T00:00:00').getDay() === (rec.dayOfWeek ?? 0);
-      if (rec.type === 'monthly') return new Date(dateStr + 'T00:00:00').getDate() === (rec.dayOfMonth ?? 1);
-      if (rec.type === 'every_x_days') {
-        const start = rec.startDate ? toDate(rec.startDate) : new Date(item.created_at);
-        const target = toDate(dateStr);
-        if (target < start) return false;
-        const diffDays = Math.floor((target.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-        return diffDays % (rec.intervalDays ?? 2) === 0;
-      }
-      if (rec.type === 'specific_date') return dateStr === rec.specificDate;
-      return true;
-    };
-
     const relevantItems = secretariaChecklists.flatMap((checklist) =>
       dailyChecklistItems.filter(
         (item) =>
@@ -97,19 +103,33 @@ export const SecretariaDashboard = () => {
       ),
     );
 
-    const total = relevantItems.length;
-    const completed = relevantItems.filter((item) =>
-      dailyChecklistCompletions.some(
+    const itemsWithStatus = relevantItems.map((item) => ({
+      ...item,
+      isDone: dailyChecklistCompletions.some(
         (c) => c.daily_checklist_item_id === item.id && c.consultant_id === user.id && c.date === todayStr && c.done,
       ),
-    ).length;
+      isRecorrente: isItemRecorrente(item),
+    }));
+
+    const total = itemsWithStatus.length;
+    const completed = itemsWithStatus.filter((item) => item.isDone).length;
+    const pending = itemsWithStatus.filter((item) => !item.isDone);
 
     return {
       completedDailyTasks: completed,
       totalDailyTasks: total,
       dailyProgress: total > 0 ? Math.round((completed / total) * 100) : 0,
+      todayChecklistItems: itemsWithStatus,
+      pendingChecklistItems: pending,
     };
   }, [user, dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions, todayStr]);
+
+  const handleToggleChecklistItem = async (itemId: string, currentlyDone: boolean) => {
+    if (!user) return;
+    try {
+      const { toggleDailyChecklistCompletion } = useApp();
+    } catch {}
+  };
 
   const handleCompleteItem = async (e: React.MouseEvent, item: AgendaItem) => {
     e.stopPropagation();
@@ -212,8 +232,9 @@ export const SecretariaDashboard = () => {
     if (item.personType === 'candidate') navigate(`/gestor/candidate/${item.personId}`);
   };
 
-  if (isDataLoading) {
+  const totalOverdueCount = overdueTasks.length;
 
+  if (isDataLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="w-12 h-12 text-brand-500 animate-spin" />
@@ -222,26 +243,133 @@ export const SecretariaDashboard = () => {
   }
 
   return (
-    <div className="p-4 sm:p-8 max-w-7xl mx-auto space-y-12">
-      <section className="animate-fade-in">
-        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h1 className="text-3xl font-black tracking-tight text-gray-900 dark:text-white">
-              Painel da Secretaria
-            </h1>
-            <p className="text-gray-500 dark:text-gray-400">
-              Acompanhe sua rotina, prazos e o andamento operacional da contratação.
-            </p>
+    <div className="p-4 sm:p-8 max-w-7xl mx-auto space-y-10">
+
+      <div className="flex flex-col gap-2">
+        <h1 className="text-3xl font-black tracking-tight text-gray-900 dark:text-white">
+          Olá{user?.name ? `, ${user.name.split(' ')[0]}` : ''}!
+        </h1>
+        <p className="text-gray-500 dark:text-gray-400">
+          Aqui está o que você precisa fazer hoje.
+        </p>
+      </div>
+
+      {/* ALERTA DE ATRASADOS — só aparece se houver */}
+      {totalOverdueCount > 0 && (
+        <section className="animate-fade-in rounded-2xl border-2 border-red-300 bg-red-50 p-5 dark:border-red-800 dark:bg-red-900/20">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-red-500 text-white">
+              <AlertTriangle className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="font-black text-red-700 dark:text-red-300">
+                {totalOverdueCount} {totalOverdueCount === 1 ? 'item atrasado' : 'itens atrasados'}
+              </h2>
+              <p className="text-xs text-red-600 dark:text-red-400">Precisam de atenção imediata</p>
+            </div>
           </div>
+          <ul className="space-y-2">
+            {overdueTasks.slice(0, 4).map((item) => (
+              <li
+                key={item.id + item.type + item.taskId}
+                onClick={() => handleAgendaItemClick(item)}
+                className="flex items-center justify-between rounded-lg bg-white/70 p-2.5 dark:bg-slate-800/50 cursor-pointer hover:bg-white dark:hover:bg-slate-800 transition group"
+              >
+                <div>
+                  <p className="text-sm font-bold text-red-900 dark:text-red-200">{item.title}</p>
+                  <p className="text-xs text-red-600 dark:text-red-400">
+                    {item.personName} • venceu em {new Date(item.dueDate + 'T00:00:00').toLocaleDateString('pt-BR')}
+                  </p>
+                </div>
+                <button
+                  onClick={(e) => handleCompleteItem(e, item)}
+                  className="p-2 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-md opacity-0 group-hover:opacity-100 transition"
+                  title="Concluir"
+                >
+                  <Check className="w-4 h-4" />
+                </button>
+              </li>
+            ))}
+          </ul>
+          {totalOverdueCount > 4 && (
+            <p className="mt-2 text-center text-xs font-bold text-red-500">
+              +{totalOverdueCount - 4} outros itens atrasados
+            </p>
+          )}
+        </section>
+      )}
+
+      {/* CHECKLIST DE HOJE — DESTAQUE PRINCIPAL */}
+      <section className="animate-fade-in">
+        <div className="rounded-2xl border border-brand-200 bg-gradient-to-br from-brand-50 to-white p-6 shadow-md dark:border-brand-800 dark:from-brand-900/20 dark:to-slate-800">
+          <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-600 text-white shadow-lg shadow-brand-500/30">
+                <Sparkles className="h-6 w-6" />
+              </div>
+              <div>
+                <h2 className="text-xl font-black text-gray-900 dark:text-white">Checklist de Hoje</h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  {completedDailyTasks} de {totalDailyTasks} tarefas concluídas
+                </p>
+              </div>
+            </div>
+            <span className={`text-3xl font-black ${dailyProgress === 100 ? 'text-green-600' : 'text-brand-600'}`}>
+              {dailyProgress}%
+            </span>
+          </div>
+
+          <div className="mb-5 h-3 w-full overflow-hidden rounded-full bg-white dark:bg-slate-700">
+            <div
+              className={`h-3 rounded-full transition-all duration-500 ${dailyProgress === 100 ? 'bg-green-500' : 'bg-brand-500'}`}
+              style={{ width: `${dailyProgress}%` }}
+            />
+          </div>
+
+          {totalDailyTasks === 0 ? (
+            <p className="text-center text-sm text-gray-400 py-6">Nenhuma tarefa configurada para hoje.</p>
+          ) : pendingChecklistItems.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-6 text-center">
+              <Check className="h-10 w-10 text-green-500 mb-2" />
+              <p className="font-bold text-green-700 dark:text-green-400">Tudo concluído por hoje! 🎉</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {pendingChecklistItems.slice(0, 6).map((item) => (
+                <div
+                  key={item.id}
+                  className="flex items-center gap-3 rounded-xl border border-gray-100 bg-white p-3 dark:border-slate-700 dark:bg-slate-800"
+                >
+                  <span className={`flex-shrink-0 text-[9px] font-bold px-2 py-0.5 rounded-full ${
+                    item.isRecorrente
+                      ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                      : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300'
+                  }`}>
+                    {item.isRecorrente ? 'RECORRENTE' : 'PONTUAL'}
+                  </span>
+                  <span className="text-sm text-gray-700 dark:text-gray-200 flex-1 truncate">{item.text}</span>
+                </div>
+              ))}
+              {pendingChecklistItems.length > 6 && (
+                <p className="text-center text-xs text-gray-400 pt-1">
+                  +{pendingChecklistItems.length - 6} outras tarefas pendentes
+                </p>
+              )}
+            </div>
+          )}
+
           <button
             onClick={() => navigate('/secretaria/checklists')}
-            className="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-700"
+            className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-3 font-bold text-white shadow-lg shadow-brand-500/20 transition hover:bg-brand-700"
           >
-            <CheckSquare className="h-4 w-4" />
-            Abrir meus checklists
+            <CheckSquare className="h-5 w-5" />
+            Abrir checklist completo
           </button>
         </div>
+      </section>
 
+      {/* MÉTRICAS RÁPIDAS */}
+      <section className="animate-fade-in">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <MetricCard
             title="Checklist de Hoje"
@@ -393,27 +521,6 @@ export const SecretariaDashboard = () => {
             <ChevronRight className="h-4 w-4" />
             Ver página completa
           </button>
-        </div>
-
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm mb-8">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center">
-              <ListChecks className="w-5 h-5 mr-2 text-brand-500" />
-              Progresso das Metas Diárias
-            </h2>
-            <span className="text-sm font-semibold text-gray-500 dark:text-gray-400">
-              {completedDailyTasks}/{totalDailyTasks} Concluídas
-            </span>
-          </div>
-          <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2.5">
-            <div
-              className="bg-brand-500 h-2.5 rounded-full transition-all duration-500"
-              style={{ width: `${dailyProgress}%` }}
-            />
-          </div>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-            {dailyProgress}% do seu checklist de hoje está completo.
-          </p>
         </div>
 
         <DailyChecklistDisplay user={user} isDataLoading={isDataLoading} />
