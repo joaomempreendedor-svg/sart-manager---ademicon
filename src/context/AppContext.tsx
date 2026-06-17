@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
-import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, InstallmentInfo, CutoffPeriod, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask, DailyChecklistItemResource, GestorTask, GestorTaskCompletion, FinancialEntry, FormCadastro, FormFile, Notification, TeamProductionGoal, ColdCallLead, ColdCallLog, ChecklistItem, Process, ProcessAttachment, Feedback, InterviewQuestion, HiringPipelineColumn } from '@/types';
+import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, InstallmentInfo, CutoffPeriod, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask, DailyChecklistItemResource, GestorTask, GestorTaskCompletion, FinancialEntry, FormCadastro, FormFile, Notification, TeamProductionGoal, ColdCallLead, ColdCallLog, ChecklistItem, Process, ProcessAttachment, Feedback, InterviewQuestion, HiringPipelineColumn, Contrato } from '@/types';
 import { CHECKLIST_STAGES as DEFAULT_STAGES } from '@/data/checklistData';
 import { CONSULTANT_GOALS as DEFAULT_GOALS } from '@/data/consultantGoals';
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
@@ -94,6 +94,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [coldCallLeads, setColdCallLeads] = useState<ColdCallLead[]>([]);
   const [coldCallLogs, setColdCallLogs] = useState<ColdCallLog[]>([]);
   const [processes, setProcesses] = useState<Process[]>([]);
+  const [contratos, setContratos] = useState<Contrato[]>([]);
 
   const [theme, setTheme] = useState<'light' | 'dark'>(() => (localStorage.getItem('sart_theme') as 'light' | 'dark') || 'light');
 
@@ -164,7 +165,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setWeeklyTargets([]); setWeeklyTargetItems([]); setWeeklyTargetAssignments([]); setMetricLogs([]);
     setSupportMaterialsV2([]); setSupportMaterialAssignments([]); setLeadTasks([]); setGestorTasks([]); setGestorTaskCompletions([]); setFinancialEntries([]);
     setFormCadastros([]); setFormFiles([]); setNotifications([]); setTeamProductionGoals([]);
-    setColdCallLeads([]); setColdCallLogs([]); setProcesses([]);
+    setColdCallLeads([]); setColdCallLogs([]); setProcesses([]); setContratos([]);
     setIsDataLoading(false);
   }, []);
 
@@ -282,7 +283,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           supportMaterialsV2Res, supportMaterialAssignmentsV2Res,
           gestorTasksRes, gestorTaskCompletionsRes, financialEntriesRes,
           formCadastrosRes, formFilesRes, notificationsRes, teamProductionGoalsRes, teamMembersRes,
-          processesRes, processAttachmentsRes
+          processesRes, processAttachmentsRes, contratosRes
         ] = await Promise.all([
           safeFetch('candidates', { select: 'id, data, created_at, last_updated_at', filters: { user_id: effectiveGestorId } }),
           safeFetch('support_materials', { select: 'id, data', filters: { user_id: effectiveGestorId } }),
@@ -304,7 +305,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           safeFetch('team_production_goals', { filters: { user_id: effectiveGestorId }, orderBy: 'start_date', ascending: false }),
           safeFetch('team_members', { select: 'id, data, cpf, user_id', filters: { user_id: effectiveGestorId } }),
           safeFetch('processes', { filters: { user_id: effectiveGestorId } }),
-          safeFetch('process_attachments')
+          safeFetch('process_attachments'),
+          safeFetch('contratos', { orderBy: 'created_at', ascending: false })
         ]);
 
         if (!candidatesRes.error) {
@@ -363,6 +365,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           }));
           setProcesses(normalizedProcesses);
         }
+
+        if (!contratosRes.error) setContratos(contratosRes.data || []);
 
         refetchCommissions();
       } catch (error: any) {
@@ -608,6 +612,32 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       ...p,
       attachments: p.attachments?.filter(a => a.id !== attachmentId)
     })));
+  }, []);
+
+  const addContrato = useCallback(async (file: File, displayName: string) => {
+    if (!user) throw new Error("Usuário não autenticado.");
+    const sanitized = sanitizeFilename(file.name);
+    const path = `${Date.now()}-${sanitized}`;
+    const { error: uploadError } = await supabase.storage.from('contratos').upload(path, file);
+    if (uploadError) throw uploadError;
+    const { data, error } = await supabase.from('contratos').insert({
+      file_name: file.name,
+      display_name: displayName,
+      file_path: path,
+      file_type: file.type,
+      uploaded_by: user.id,
+    }).select().single();
+    if (error) throw error;
+    setContratos(prev => [data, ...prev]);
+    return data;
+  }, [user]);
+
+  const deleteContrato = useCallback(async (id: string, filePath: string) => {
+    const { error: storageError } = await supabase.storage.from('contratos').remove([filePath]);
+    if (storageError) console.error("Erro ao remover arquivo do storage:", storageError);
+    const { error } = await supabase.from('contratos').delete().eq('id', id);
+    if (error) throw error;
+    setContratos(prev => prev.filter(c => c.id !== id));
   }, []);
 
   const addChecklistStage = useCallback((title: string, description: string) => {
@@ -1165,7 +1195,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions,
     weeklyTargets, weeklyTargetItems, weeklyTargetAssignments, metricLogs, supportMaterialsV2, supportMaterialAssignments,
     leadTasks, gestorTasks, gestorTaskCompletions, financialEntries, formCadastros, formFiles, notifications, teamProductionGoals,
-    coldCallLeads, coldCallLogs, processes, theme, hiringPipelineColumns,
+    coldCallLeads, coldCallLogs, processes, contratos, theme, hiringPipelineColumns,
     toggleTheme, updateConfig, resetLocalState, refetchCommissions, calculateCompetenceMonth, isGestorTaskDueOnDate, calculateNotifications,
     addCandidate, updateCandidate, deleteCandidate, getCandidate: (id: string) => candidates.find(c => c.id === id), setCandidates,
     toggleChecklistItem, setChecklistDueDate: async (candidateId: string, itemId: string, dueDate: string) => {
@@ -1344,6 +1374,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addColdCallLead, updateColdCallLead, deleteColdCallLead, addColdCallLog, getColdCallMetrics,
     createCrmLeadFromColdCall,
     addProcess, updateProcess, deleteProcess, deleteProcessAttachment,
+    addContrato, deleteContrato,
     addHiringPipelineColumn, updateHiringPipelineColumn, deleteHiringPipelineColumn, moveHiringPipelineColumn,
     resetHiringPipelineColumnsToDefault,
   }), [
@@ -1353,7 +1384,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions,
     weeklyTargets, weeklyTargetItems, weeklyTargetAssignments, metricLogs, supportMaterialsV2, supportMaterialAssignments,
     leadTasks, gestorTasks, gestorTaskCompletions, financialEntries, formCadastros, formFiles, notifications, teamProductionGoals,
-    coldCallLeads, coldCallLogs, processes, theme, hiringPipelineColumns,
+    coldCallLeads, coldCallLogs, processes, contratos, theme, hiringPipelineColumns,
     toggleTheme, updateConfig, resetLocalState, refetchCommissions, calculateCompetenceMonth, isGestorTaskDueOnDate, calculateNotifications,
     addCandidate, updateCandidate, deleteCandidate, toggleChecklistItem,
     addChecklistStage, updateChecklistStage, deleteChecklistStage, moveChecklistStage,
@@ -1378,6 +1409,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addColdCallLead, updateColdCallLead, deleteColdCallLead, addColdCallLog, getColdCallMetrics,
     createCrmLeadFromColdCall,
     addProcess, updateProcess, deleteProcess, deleteProcessAttachment,
+    addContrato, deleteContrato,
     addHiringPipelineColumn, updateHiringPipelineColumn, deleteHiringPipelineColumn, moveHiringPipelineColumn,
     resetHiringPipelineColumnsToDefault,
   ]);
