@@ -1,8 +1,7 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { DailyChecklistDisplay } from '@/components/consultor/DailyChecklistDisplay';
 import {
   Clock,
   ListChecks,
@@ -16,11 +15,13 @@ import {
   Calendar,
   AlertTriangle,
   Sparkles,
+  Eye,
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import toast from 'react-hot-toast';
 import { DailyChecklistItem } from '@/types';
 import { MetricCard } from '@/components/MetricCard';
+import { DailyChecklistItemResourceModal } from '@/components/DailyChecklistItemResourceModal';
 
 const SECRETARIA_PREFIX = '[SEC] ';
 
@@ -52,8 +53,13 @@ export const SecretariaDashboard = () => {
     dailyChecklistItems,
     dailyChecklistAssignments,
     dailyChecklistCompletions,
+    toggleDailyChecklistCompletion,
   } = useApp();
   const navigate = useNavigate();
+
+  const [selectedResourceItem, setSelectedResourceItem] = useState<DailyChecklistItem | null>(null);
+  const [isResourceModalOpen, setIsResourceModalOpen] = useState(false);
+  const [togglingItemId, setTogglingItemId] = useState<string | null>(null);
 
   const todayStr = new Date().toISOString().split('T')[0];
 
@@ -79,8 +85,8 @@ export const SecretariaDashboard = () => {
     return rec && rec !== 'specific_date';
   };
 
-  const { completedDailyTasks, totalDailyTasks, dailyProgress, todayChecklistItems, pendingChecklistItems } = useMemo(() => {
-    if (!user) return { completedDailyTasks: 0, totalDailyTasks: 0, dailyProgress: 0, todayChecklistItems: [], pendingChecklistItems: [] };
+  const { completedDailyTasks, totalDailyTasks, dailyProgress, allTodayItems } = useMemo(() => {
+    if (!user) return { completedDailyTasks: 0, totalDailyTasks: 0, dailyProgress: 0, allTodayItems: [] };
 
     const secretariaChecklists = dailyChecklists.filter((checklist) => {
       const isSecChecklist = checklist.title.startsWith(SECRETARIA_PREFIX);
@@ -113,22 +119,30 @@ export const SecretariaDashboard = () => {
 
     const total = itemsWithStatus.length;
     const completed = itemsWithStatus.filter((item) => item.isDone).length;
-    const pending = itemsWithStatus.filter((item) => !item.isDone);
 
     return {
       completedDailyTasks: completed,
       totalDailyTasks: total,
       dailyProgress: total > 0 ? Math.round((completed / total) * 100) : 0,
-      todayChecklistItems: itemsWithStatus,
-      pendingChecklistItems: pending,
+      allTodayItems: itemsWithStatus,
     };
   }, [user, dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions, todayStr]);
 
-  const handleToggleChecklistItem = async (itemId: string, currentlyDone: boolean) => {
+  const handleToggleItem = async (itemId: string, currentlyDone: boolean) => {
     if (!user) return;
+    setTogglingItemId(itemId);
     try {
-      const { toggleDailyChecklistCompletion } = useApp();
-    } catch {}
+      await toggleDailyChecklistCompletion(itemId, todayStr, !currentlyDone, user.id);
+    } catch {
+      toast.error('Erro ao atualizar tarefa.');
+    } finally {
+      setTogglingItemId(null);
+    }
+  };
+
+  const handleOpenResourceModal = (item: DailyChecklistItem) => {
+    setSelectedResourceItem(item);
+    setIsResourceModalOpen(true);
   };
 
   const handleCompleteItem = async (e: React.MouseEvent, item: AgendaItem) => {
@@ -299,7 +313,7 @@ export const SecretariaDashboard = () => {
         </section>
       )}
 
-      {/* CHECKLIST DE HOJE — DESTAQUE PRINCIPAL */}
+      {/* CHECKLIST DE HOJE — DESTAQUE PRINCIPAL E ÚNICO */}
       <section className="animate-fade-in">
         <div className="rounded-2xl border border-brand-200 bg-gradient-to-br from-brand-50 to-white p-6 shadow-md dark:border-brand-800 dark:from-brand-900/20 dark:to-slate-800">
           <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -328,43 +342,64 @@ export const SecretariaDashboard = () => {
 
           {totalDailyTasks === 0 ? (
             <p className="text-center text-sm text-gray-400 py-6">Nenhuma tarefa configurada para hoje.</p>
-          ) : pendingChecklistItems.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-6 text-center">
+          ) : allTodayItems.every((i) => i.isDone) ? (
+            <div className="flex flex-col items-center justify-center py-6 text-center mb-2">
               <Check className="h-10 w-10 text-green-500 mb-2" />
               <p className="font-bold text-green-700 dark:text-green-400">Tudo concluído por hoje! 🎉</p>
             </div>
-          ) : (
+          ) : null}
+
+          {totalDailyTasks > 0 && (
             <div className="space-y-2">
-              {pendingChecklistItems.slice(0, 6).map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-center gap-3 rounded-xl border border-gray-100 bg-white p-3 dark:border-slate-700 dark:bg-slate-800"
-                >
-                  <span className={`flex-shrink-0 text-[9px] font-bold px-2 py-0.5 rounded-full ${
-                    item.isRecorrente
-                      ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
-                      : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300'
-                  }`}>
-                    {item.isRecorrente ? 'RECORRENTE' : 'PONTUAL'}
-                  </span>
-                  <span className="text-sm text-gray-700 dark:text-gray-200 flex-1 truncate">{item.text}</span>
-                </div>
-              ))}
-              {pendingChecklistItems.length > 6 && (
-                <p className="text-center text-xs text-gray-400 pt-1">
-                  +{pendingChecklistItems.length - 6} outras tarefas pendentes
-                </p>
-              )}
+              {allTodayItems.map((item) => {
+                const hasResource = item.resource && item.resource.type !== 'none';
+                return (
+                  <div
+                    key={item.id}
+                    className={`flex items-center gap-3 rounded-xl border p-3 transition ${
+                      item.isDone
+                        ? 'border-green-100 bg-green-50 dark:border-green-900/30 dark:bg-green-900/10'
+                        : 'border-gray-100 bg-white dark:border-slate-700 dark:bg-slate-800'
+                    }`}
+                  >
+                    <button
+                      onClick={() => handleToggleItem(item.id, item.isDone)}
+                      disabled={togglingItemId === item.id}
+                      className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md border-2 transition ${
+                        item.isDone
+                          ? 'border-green-500 bg-green-500 text-white'
+                          : 'border-gray-300 bg-white hover:border-brand-400 dark:border-slate-600 dark:bg-slate-700'
+                      }`}
+                    >
+                      {item.isDone && <Check className="h-4 w-4" />}
+                    </button>
+
+                    <span className={`flex-shrink-0 text-[9px] font-bold px-2 py-0.5 rounded-full ${
+                      item.isRecorrente
+                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                        : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300'
+                    }`}>
+                      {item.isRecorrente ? 'RECORRENTE' : 'PONTUAL'}
+                    </span>
+
+                    <span className={`text-sm flex-1 truncate ${item.isDone ? 'text-gray-400 line-through' : 'text-gray-700 dark:text-gray-200'}`}>
+                      {item.text}
+                    </span>
+
+                    {hasResource && (
+                      <button
+                        onClick={() => handleOpenResourceModal(item)}
+                        className="flex flex-shrink-0 items-center gap-1 rounded-lg border border-brand-200 bg-brand-50 px-2.5 py-1.5 text-xs font-bold text-brand-700 transition hover:bg-brand-100 dark:border-brand-800 dark:bg-brand-900/20 dark:text-brand-300"
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                        Como fazer?
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
-
-          <button
-            onClick={() => navigate('/secretaria/checklists')}
-            className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-3 font-bold text-white shadow-lg shadow-brand-500/20 transition hover:bg-brand-700"
-          >
-            <CheckSquare className="h-5 w-5" />
-            Abrir checklist completo
-          </button>
         </div>
       </section>
 
@@ -377,7 +412,6 @@ export const SecretariaDashboard = () => {
             icon={ListChecks}
             colorClass="bg-brand-600 text-white"
             subValue={`${dailyProgress}% concluído`}
-            onClick={() => navigate('/secretaria/checklists')}
           />
           <MetricCard
             title="Prazos de Hoje"
@@ -504,28 +538,14 @@ export const SecretariaDashboard = () => {
         </div>
       </section>
 
-      <hr className="border-gray-200 dark:border-slate-800" />
-
-      <section className="animate-fade-in">
-        <div className="mb-6 flex items-center justify-between gap-4">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
-              <ListChecks className="w-6 h-6 mr-2 text-brand-500" /> Minhas Rotinas Diárias
-            </h2>
-            <p className="text-gray-500 dark:text-gray-400">Checklist de tarefas operacionais recorrentes.</p>
-          </div>
-          <button
-            onClick={() => navigate('/secretaria/checklists')}
-            className="hidden sm:inline-flex items-center gap-2 rounded-lg border border-brand-200 bg-brand-50 px-4 py-2 text-sm font-semibold text-brand-700 transition hover:bg-brand-100 dark:border-brand-800 dark:bg-brand-900/20 dark:text-brand-300 dark:hover:bg-brand-900/30"
-          >
-            <ChevronRight className="h-4 w-4" />
-            Ver página completa
-          </button>
-        </div>
-
-        <DailyChecklistDisplay user={user} isDataLoading={isDataLoading} />
-      </section>
-
+      {selectedResourceItem && (
+        <DailyChecklistItemResourceModal
+          isOpen={isResourceModalOpen}
+          onClose={() => setIsResourceModalOpen(false)}
+          itemText={selectedResourceItem.text}
+          resource={selectedResourceItem.resource}
+        />
+      )}
     </div>
   );
 };
