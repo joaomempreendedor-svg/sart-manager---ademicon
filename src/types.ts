@@ -116,6 +116,7 @@ export interface Candidate {
   documentationSentDate?: string;
   documentationNotSentDate?: string;
   previewRegisteredDate?: string;
+  
   awaitingPreviewDate?: string;
   onboardingReleasedDate?: string;
   onboardingFinishedDate?: string;
