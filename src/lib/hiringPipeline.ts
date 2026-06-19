@@ -15,6 +15,7 @@ export const DEFAULT_HIRING_PIPELINE_COLUMNS: HiringPipelineColumn[] = [
   { id: 'documentacao-enviada', stageKey: 'documentacao-enviada', title: 'Enviou a Documentação', color: 'green', ownerRole: 'SECRETARIA' },
   { id: 'documentacao-nao-enviada', stageKey: 'documentacao-nao-enviada', title: 'Não Enviou a Documentação', color: 'orange', ownerRole: 'SECRETARIA' },
   { id: 'previa-cadastrada', stageKey: 'previa-cadastrada', title: 'Prévia Cadastrada', color: 'yellow', ownerRole: 'SECRETARIA' },
+  { id: 'previa-retificada', stageKey: 'previa-retificada', title: 'Prévia Retificada', color: 'orange', ownerRole: 'SECRETARIA' },
   { id: 'onboarding-liberado', stageKey: 'onboarding-liberado', title: 'Onboarding Liberado', color: 'blue', ownerRole: 'SECRETARIA' },
   { id: 'onboarding-finalizado', stageKey: 'onboarding-finalizado', title: 'Onboarding Finalizado', color: 'green', ownerRole: 'SECRETARIA' },
   { id: 'onboarding-nao-finalizado', stageKey: 'onboarding-nao-finalizado', title: 'Onboarding Não Finalizado', color: 'orange', ownerRole: 'SECRETARIA' },
@@ -60,6 +61,7 @@ export const getCandidateStageKey = (candidate: Candidate): HiringPipelineStageK
   if (candidate.onboardingFinishedDate) return 'onboarding-finalizado';
   if (candidate.onboardingNotFinishedDate) return 'onboarding-nao-finalizado';
   if (candidate.onboardingReleasedDate || candidate.onboardingOnlineDate) return 'onboarding-liberado';
+  if (candidate.previewRectifiedDate) return 'previa-retificada';
   if (candidate.previewRegisteredDate) return 'previa-cadastrada';
   if (candidate.documentationNotSentDate) return 'documentacao-nao-enviada';
   if (candidate.documentationSentDate) return 'documentacao-enviada';
@@ -126,6 +128,7 @@ export const getLegacyStatusForStage = (stageKey: HiringPipelineStageKey): Candi
     case 'documentacao-enviada':
     case 'documentacao-nao-enviada':
     case 'previa-cadastrada':
+    case 'previa-retificada':
     case 'candidato-em-previa':
       return 'Aguardando Prévia';
     case 'onboarding-liberado':
@@ -212,6 +215,9 @@ export const buildCandidateStageUpdates = (
       break;
     case 'previa-cadastrada':
       updates.previewRegisteredDate = candidate.previewRegisteredDate || now;
+      break;
+    case 'previa-retificada':
+      updates.previewRectifiedDate = candidate.previewRectifiedDate || now;
       break;
     case 'onboarding-liberado':
       updates.onboardingReleasedDate = candidate.onboardingReleasedDate || now;
