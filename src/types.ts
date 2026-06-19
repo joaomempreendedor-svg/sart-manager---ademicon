@@ -23,18 +23,8 @@ export type HiringPipelineStageKey =
   | 'documentacao-enviada'
   | 'documentacao-nao-enviada'
   | 'previa-cadastrada'
+  | 'previa-retificada'
   | 'onboarding-liberado'
-  | 'onboarding-finalizado'
-  | 'onboarding-nao-finalizado'
-  | 'integracao-agendada'
-  | 'integracao-nao-compareceu'
-  | 'integracao-compareceu'
-  | 'integracao-finalizada'
-  | 'assinatura-contrato'
-  | 'contrato-assinado'
-  | 'contrato-nao-assinado'
-  | 'candidato-em-previa'
-  | 'autorizado';
 
 export interface InterviewScores {
   basicProfile: number;
