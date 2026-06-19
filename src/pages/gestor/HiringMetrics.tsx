@@ -67,15 +67,15 @@ const FUNNEL_STAGES: Array<{
   { stageKey: 'contatados', label: 'Contatados', color: 'bg-blue-50 dark:bg-blue-900/20', textColor: 'text-blue-700 dark:text-blue-300', borderColor: 'border-blue-200 dark:border-blue-800' },
   { stageKey: 'respondeu', label: 'Respondeu', color: 'bg-green-50 dark:bg-green-900/20', textColor: 'text-green-700 dark:text-green-300', borderColor: 'border-green-200 dark:border-green-800' },
   { stageKey: 'entrevista-agendada', label: 'Entrevista Agendada', color: 'bg-blue-50 dark:bg-blue-900/20', textColor: 'text-blue-700 dark:text-blue-300', borderColor: 'border-blue-200 dark:border-blue-800' },
-  { stageKey: 'compareceu-entrevista', label: 'Compareceu', color: 'bg-purple-50 dark:bg-purple-900/20', textColor: 'text-purple-700 dark:text-purple-300', borderColor: 'border-purple-200 dark:border-purple-800' },
   { stageKey: 'faltou-entrevista', label: 'Faltou', color: 'bg-red-50 dark:bg-red-900/20', textColor: 'text-red-700 dark:text-red-300', borderColor: 'border-red-200 dark:border-red-800' },
+  { stageKey: 'compareceu-entrevista', label: 'Compareceu', color: 'bg-purple-50 dark:bg-purple-900/20', textColor: 'text-purple-700 dark:text-purple-300', borderColor: 'border-purple-200 dark:border-purple-800' },
   { stageKey: 'aprovado-gestor', label: 'Aprovado Gestor', color: 'bg-green-50 dark:bg-green-900/20', textColor: 'text-green-700 dark:text-green-300', borderColor: 'border-green-200 dark:border-green-800' },
   { stageKey: 'reprovado-gestor', label: 'Reprovado Gestor', color: 'bg-red-50 dark:bg-red-900/20', textColor: 'text-red-700 dark:text-red-300', borderColor: 'border-red-200 dark:border-red-800' },
   { stageKey: 'aprovacao-d1', label: 'Aprovação D+1', color: 'bg-yellow-50 dark:bg-yellow-900/20', textColor: 'text-yellow-700 dark:text-yellow-300', borderColor: 'border-yellow-200 dark:border-yellow-800' },
   { stageKey: 'documentacao-enviada', label: 'Doc. Enviada', color: 'bg-green-50 dark:bg-green-900/20', textColor: 'text-green-700 dark:text-green-300', borderColor: 'border-green-200 dark:border-green-800' },
   { stageKey: 'documentacao-nao-enviada', label: 'Doc. Não Enviada', color: 'bg-orange-50 dark:bg-orange-900/20', textColor: 'text-orange-700 dark:text-orange-300', borderColor: 'border-orange-200 dark:border-orange-800' },
   { stageKey: 'previa-cadastrada', label: 'Prévia Cadastrada', color: 'bg-yellow-50 dark:bg-yellow-900/20', textColor: 'text-yellow-700 dark:text-yellow-300', borderColor: 'border-yellow-200 dark:border-yellow-800' },
-  { stageKey: 'candidato-em-previa', label: 'Em Prévia', color: 'bg-yellow-50 dark:bg-yellow-900/20', textColor: 'text-yellow-700 dark:text-yellow-300', borderColor: 'border-yellow-200 dark:border-yellow-800' },
+  { stageKey: 'previa-retificada', label: 'Prévia Retificada', color: 'bg-orange-50 dark:bg-orange-900/20', textColor: 'text-orange-700 dark:text-orange-300', borderColor: 'border-orange-200 dark:border-orange-800' },
   { stageKey: 'onboarding-liberado', label: 'Onboarding Liberado', color: 'bg-blue-50 dark:bg-blue-900/20', textColor: 'text-blue-700 dark:text-blue-300', borderColor: 'border-blue-200 dark:border-blue-800' },
   { stageKey: 'onboarding-finalizado', label: 'Onboarding Finalizado', color: 'bg-green-50 dark:bg-green-900/20', textColor: 'text-green-700 dark:text-green-300', borderColor: 'border-green-200 dark:border-green-800' },
   { stageKey: 'onboarding-nao-finalizado', label: 'Onboarding Pendente', color: 'bg-orange-50 dark:bg-orange-900/20', textColor: 'text-orange-700 dark:text-orange-300', borderColor: 'border-orange-200 dark:border-orange-800' },
@@ -83,6 +83,10 @@ const FUNNEL_STAGES: Array<{
   { stageKey: 'integracao-compareceu', label: 'Integração OK', color: 'bg-purple-50 dark:bg-purple-900/20', textColor: 'text-purple-700 dark:text-purple-300', borderColor: 'border-purple-200 dark:border-purple-800' },
   { stageKey: 'integracao-nao-compareceu', label: 'Integração Faltou', color: 'bg-red-50 dark:bg-red-900/20', textColor: 'text-red-700 dark:text-red-300', borderColor: 'border-red-200 dark:border-red-800' },
   { stageKey: 'integracao-finalizada', label: 'Integração Finalizada', color: 'bg-green-50 dark:bg-green-900/20', textColor: 'text-green-700 dark:text-green-300', borderColor: 'border-green-200 dark:border-green-800' },
+  { stageKey: 'assinatura-contrato', label: 'Assinatura Contrato', color: 'bg-blue-50 dark:bg-blue-900/20', textColor: 'text-blue-700 dark:text-blue-300', borderColor: 'border-blue-200 dark:border-blue-800' },
+  { stageKey: 'contrato-assinado', label: 'Contrato Assinado', color: 'bg-green-50 dark:bg-green-900/20', textColor: 'text-green-700 dark:text-green-300', borderColor: 'border-green-200 dark:border-green-800' },
+  { stageKey: 'contrato-nao-assinado', label: 'Contrato Não Assinado', color: 'bg-red-50 dark:bg-red-900/20', textColor: 'text-red-700 dark:text-red-300', borderColor: 'border-red-200 dark:border-red-800' },
+  { stageKey: 'candidato-em-previa', label: 'Em Prévia', color: 'bg-yellow-50 dark:bg-yellow-900/20', textColor: 'text-yellow-700 dark:text-yellow-300', borderColor: 'border-yellow-200 dark:border-yellow-800' },
   { stageKey: 'autorizado', label: 'Autorizado ✓', color: 'bg-emerald-50 dark:bg-emerald-900/20', textColor: 'text-emerald-700 dark:text-emerald-300', borderColor: 'border-emerald-300 dark:border-emerald-700' },
 ];
 
@@ -116,6 +120,7 @@ const FUNNEL_LAYOUT: FunnelConfig[] = [
     negativeStageKey: 'documentacao-nao-enviada',
   },
   { type: 'stage', stageKey: 'previa-cadastrada', description: 'Prévia cadastrada no processo.' },
+  { type: 'stage', stageKey: 'previa-retificada', description: 'Prévia precisou ser retificada e recadastrada.' },
   {
     type: 'branch',
     parentStageKey: 'onboarding-liberado',
@@ -164,6 +169,7 @@ const getStageDateValues = (candidate: Candidate, stageKey: HiringPipelineStageK
     case 'documentacao-enviada': return [candidate.documentationSentDate];
     case 'documentacao-nao-enviada': return [candidate.documentationNotSentDate];
     case 'previa-cadastrada': return [candidate.previewRegisteredDate];
+    case 'previa-retificada': return [candidate.previewRectifiedDate];
     case 'onboarding-liberado': return [candidate.onboardingReleasedDate, candidate.onboardingOnlineDate];
     case 'onboarding-finalizado': return [candidate.onboardingFinishedDate];
     case 'onboarding-nao-finalizado': return [candidate.onboardingNotFinishedDate];
@@ -239,7 +245,7 @@ const HiringMetrics = () => {
       };
     };
 
-    // Grid metrics — todas as etapas como quadradinhos
+    // Grid metrics — todas as etapas como quadradinhos, na ordem do pipeline
     const gridMetrics = FUNNEL_STAGES.map((stage) => {
       const metric = buildStageMetric(stage.stageKey);
       return {
@@ -250,7 +256,7 @@ const HiringMetrics = () => {
       };
     });
 
-    // Quadradinho extra: Reagendados
+    // Quadradinho extra: Reagendados (fica ao final, fora da sequência do pipeline)
     const reagendados = candidatesCreatedInPeriod.filter(c => (c.rescheduledCount || 0) > 0);
     gridMetrics.push({
       stageKey: 'faltou-entrevista',
