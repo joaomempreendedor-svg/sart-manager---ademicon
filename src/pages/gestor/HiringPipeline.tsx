@@ -43,6 +43,7 @@ const STAGE_PREREQUISITES: Partial<Record<HiringPipelineStageKey, HiringPipeline
   'documentacao-enviada':      ['aprovacao-d1'],
   'documentacao-nao-enviada':  ['aprovacao-d1'],
   'previa-cadastrada':         ['documentacao-enviada', 'documentacao-nao-enviada'],
+  'previa-retificada':         ['previa-cadastrada'],
   'onboarding-liberado':       ['previa-cadastrada'],
   'onboarding-finalizado':     ['onboarding-liberado'],
   'onboarding-nao-finalizado': ['onboarding-liberado'],
@@ -70,6 +71,7 @@ const candidatePassedStage = (candidate: Candidate, stageKey: HiringPipelineStag
     case 'documentacao-enviada':     return !!candidate.documentationSentDate;
     case 'documentacao-nao-enviada': return !!candidate.documentationNotSentDate;
     case 'previa-cadastrada':        return !!candidate.previewRegisteredDate;
+    case 'previa-retificada':        return !!candidate.previewRectifiedDate;
     case 'onboarding-liberado':      return !!candidate.onboardingReleasedDate || !!candidate.onboardingOnlineDate;
     case 'onboarding-finalizado':    return !!candidate.onboardingFinishedDate;
     case 'onboarding-nao-finalizado':return !!candidate.onboardingNotFinishedDate;
