@@ -97,7 +97,7 @@ export const UpdateInterviewDateModal: React.FC<UpdateInterviewDateModalProps> =
         interviewStartTime: startTime, // NOVO: Salva a hora de início
         interviewEndTime: endTime,     // NOVO: Salva a hora de término
         responsibleUserId: responsibleUserId,
-        interviewScheduledDate: new Date().toISOString(), // NOVO: registra data/hora do agendamento
+        interviewScheduledDate: startDateTime.toISOString(), // CORRIGIDO: usa a data/hora escolhida da entrevista, não o momento do clique
         status: 'Entrevista'
       });
       toast.success(`Entrevista com ${candidate.name} agendada!`);
