@@ -73,6 +73,8 @@ export interface HiringPipelineColumn {
     | 'red'
     | 'orange';
   ownerRole: 'GESTOR' | 'SECRETARIA';
+  description?: string;
+  suggestedMessage?: string;
 }
 
 export interface Candidate {
