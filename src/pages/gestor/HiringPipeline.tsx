@@ -4,9 +4,12 @@ import toast from 'react-hot-toast';
 import {
   BarChart3,
   Calendar,
+  Copy,
   Edit2,
   Filter,
+  Info,
   Loader2,
+  MessageSquare,
   Plus,
   RotateCcw,
   Search,
@@ -17,6 +20,7 @@ import {
   UserPlus,
   UserRound,
   Lock,
+  X,
 } from 'lucide-react';
 
 import { Textarea } from '@/components/ui/textarea';
@@ -97,6 +101,70 @@ const getBlockedReason = (candidate: Candidate, targetStageKey: HiringPipelineSt
   return `Candidato precisa passar por uma das etapas: ${labels.map(l => `"${l}"`).join(' ou ')}.`;
 };
 
+interface SuggestedMessageModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  stageTitle: string;
+  message: string;
+}
+
+const SuggestedMessageModal: React.FC<SuggestedMessageModalProps> = ({ isOpen, onClose, stageTitle, message }) => {
+  if (!isOpen) return null;
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(message);
+      toast.success('Mensagem copiada!');
+    } catch {
+      toast.error('Não foi possível copiar. Selecione o texto manualmente.');
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div
+        className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl dark:bg-slate-800"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="mb-3 flex items-start justify-between gap-3">
+          <div>
+            <h3 className="flex items-center gap-2 text-base font-bold text-gray-900 dark:text-white">
+              <MessageSquare className="h-4 w-4 text-brand-500" />
+              Mensagem para "{stageTitle}"
+            </h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Copie e envie ao candidato.</p>
+          </div>
+          <button onClick={onClose} className="rounded-md p-1 text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {message ? (
+          <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700 dark:border-slate-600 dark:bg-slate-900 dark:text-gray-200">
+            {message}
+          </div>
+        ) : (
+          <div className="mb-4 rounded-lg border border-dashed border-gray-300 p-3 text-sm text-gray-400 dark:border-slate-600">
+            Nenhuma mensagem sugerida cadastrada para esta etapa. Configure em "Editar Pipeline".
+          </div>
+        )}
+
+        <div className="flex justify-end gap-2">
+          <button onClick={onClose} className="rounded-lg px-4 py-2 text-sm font-semibold text-gray-500 hover:bg-gray-100 dark:hover:bg-slate-700">
+            Fechar
+          </button>
+          {message && (
+            <button onClick={handleCopy} className="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-bold text-white hover:bg-brand-700">
+              <Copy className="h-4 w-4" />
+              Copiar mensagem
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const HiringPipeline = () => {
   const navigate = useNavigate();
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -125,6 +193,7 @@ const HiringPipeline = () => {
   const [filterEndDate, setFilterEndDate] = useState('');
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [showWithdrawn, setShowWithdrawn] = useState(true);
+  const [messageModalStage, setMessageModalStage] = useState<HiringPipelineColumn | null>(null);
 
   const todayStr = new Date().toISOString().split('T')[0];
   const baseRoute = user?.role === 'SECRETARIA' ? '/secretaria' : '/gestor';
@@ -446,10 +515,26 @@ const HiringPipeline = () => {
                   </div>
                   <span className="rounded bg-white/50 px-2 py-0.5 text-xs font-bold dark:bg-black/20">{stage.list.length}</span>
                 </div>
-                <div className="text-[10px] font-bold uppercase tracking-wide">
-                  <span className="rounded-full bg-white/60 px-2 py-1 dark:bg-black/20">
+
+                {stage.description && (
+                  <div className="mb-2 flex items-start gap-1.5 rounded-lg bg-white/40 px-2 py-1.5 text-[11px] leading-snug dark:bg-black/15">
+                    <Info className="mt-0.5 h-3 w-3 flex-shrink-0 opacity-70" />
+                    <span className="opacity-90">{stage.description}</span>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between gap-2">
+                  <span className="rounded-full bg-white/60 px-2 py-1 text-[10px] font-bold uppercase tracking-wide dark:bg-black/20">
                     {stage.ownerRole === 'GESTOR' ? 'Responsável: Gestor' : 'Responsável: Secretaria'}
                   </span>
+                  <button
+                    onClick={() => setMessageModalStage(stage)}
+                    className="inline-flex items-center gap-1 rounded-full bg-white/70 px-2 py-1 text-[10px] font-bold uppercase tracking-wide transition hover:bg-white dark:bg-black/30 dark:hover:bg-black/50"
+                    title="Ver mensagem sugerida para essa etapa"
+                  >
+                    <MessageSquare className="h-3 w-3" />
+                    Mensagem
+                  </button>
                 </div>
               </div>
 
@@ -637,6 +722,12 @@ const HiringPipeline = () => {
         onConfirm={handleConfirmWithdrawal}
         candidateName={selectedCandidateForWithdrawal?.name || ''}
         stageName={selectedCandidateForWithdrawal ? getHiringStageLabel(getCandidateStageKey(selectedCandidateForWithdrawal)) : ''} />
+      <SuggestedMessageModal
+        isOpen={!!messageModalStage}
+        onClose={() => setMessageModalStage(null)}
+        stageTitle={messageModalStage?.title || ''}
+        message={messageModalStage?.suggestedMessage || ''}
+      />
     </div>
   );
 };
