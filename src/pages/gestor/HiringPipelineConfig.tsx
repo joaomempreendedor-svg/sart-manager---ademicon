@@ -1,37 +1,13 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { ArrowLeft, ArrowRight, MapPin, Plus, RotateCcw, Save, Settings2, Trash2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, MapPin, MessageSquare, Plus, RotateCcw, Save, Settings2, Trash2 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { HiringPipelineColumn } from '@/types';
 import { normalizeHiringPipelineColumns } from '@/lib/hiringPipeline';
 
 const colorOptions: HiringPipelineColumn['color'][] = ['gray', 'blue', 'purple', 'yellow', 'green', 'red', 'orange'];
 const defaultHiringOrigins = ['Indicação', 'Prospecção', 'Tráfego Linkedin'];
-
-const stageDescriptions: Record<string, string> = {
-  candidatos: 'Entrada inicial dos candidatos.',
-  contatados: 'Candidato recebeu o primeiro contato.',
-  respondeu: 'Candidato respondeu e segue no fluxo.',
-  'entrevista-agendada': 'Entrevista marcada com data definida.',
-  'compareceu-entrevista': 'Candidato compareceu para entrevista.',
-  'faltou-entrevista': 'Candidato não compareceu para entrevista.',
-  'aprovado-gestor': 'Gestor aprovou o avanço do candidato.',
-  'reprovado-gestor': 'Gestor reprovou o candidato.',
-  'aprovacao-d1': 'Candidato entrou na validação D+1.',
-  'documentacao-enviada': 'Documentação recebida pelo time.',
-  'documentacao-nao-enviada': 'Documentação pendente ou não recebida.',
-  'previa-cadastrada': 'Prévia já cadastrada no processo.',
-  'onboarding-liberado': 'Onboarding liberado para execução.',
-  'onboarding-finalizado': 'Onboarding concluído com sucesso.',
-  'onboarding-nao-finalizado': 'Onboarding não concluído.',
-  'integracao-agendada': 'Integração presencial já agendada.',
-  'integracao-nao-compareceu': 'Candidato faltou à integração.',
-  'integracao-compareceu': 'Candidato compareceu à integração.',
-  'integracao-finalizada': 'Integração concluída.',
-  'candidato-em-previa': 'Candidato movido para a etapa final de prévia.',
-  autorizado: 'Candidato autorizado na etapa final do processo.',
-};
 
 const HiringPipelineConfig = () => {
   const navigate = useNavigate();
@@ -106,7 +82,7 @@ const HiringPipelineConfig = () => {
             Editar Pipeline de Contratação
           </h1>
           <p className="font-medium text-gray-500 dark:text-gray-400">
-            O pipeline foi redefinido com as novas etapas fixas. Aqui você ajusta nomes visuais, cores, responsáveis e ordem.
+            O pipeline foi redefinido com as novas etapas fixas. Aqui você ajusta nomes visuais, cores, responsáveis, descrição e ordem.
           </p>
         </div>
 
@@ -230,10 +206,28 @@ const HiringPipelineConfig = () => {
                 </div>
 
                 <div>
-                  <label className="mb-1 block text-xs font-bold uppercase text-gray-400">Regra da etapa</label>
-                  <div className="rounded-lg border border-dashed border-gray-300 px-3 py-2 text-sm text-gray-500 dark:border-slate-600 dark:text-gray-300">
-                    {stageDescriptions[column.stageKey]}
-                  </div>
+                  <label className="mb-1 block text-xs font-bold uppercase text-gray-400">Descrição (o que precisa ser feito)</label>
+                  <textarea
+                    value={column.description || ''}
+                    onChange={(event) => updateHiringPipelineColumn(column.id, { description: event.target.value })}
+                    rows={2}
+                    placeholder="Ex: Confirmar presença e enviar local da entrevista."
+                    className="w-full resize-y rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 dark:border-slate-600 dark:bg-slate-900 dark:text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1 flex items-center gap-1 text-xs font-bold uppercase text-gray-400">
+                    <MessageSquare className="h-3 w-3" />
+                    Mensagem sugerida para essa etapa
+                  </label>
+                  <textarea
+                    value={column.suggestedMessage || ''}
+                    onChange={(event) => updateHiringPipelineColumn(column.id, { suggestedMessage: event.target.value })}
+                    rows={3}
+                    placeholder="Ex: Olá! Sua entrevista está confirmada para..."
+                    className="w-full resize-y rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 dark:border-slate-600 dark:bg-slate-900 dark:text-white"
+                  />
                 </div>
               </div>
 
