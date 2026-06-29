@@ -5,7 +5,6 @@ import {
   ArrowLeft,
   BarChart3,
   CheckCircle2,
-  ChevronDown,
   ChevronRight,
   History,
   Loader2,
@@ -150,23 +149,6 @@ const STAGE_CARD_STYLES: Record<HiringPipelineColumn['color'], { border: string;
   orange: { border: 'border-orange-300 dark:border-orange-800', bg: 'bg-orange-50 dark:bg-orange-900/20', text: 'text-orange-700 dark:text-orange-300', iconBg: 'bg-orange-100 dark:bg-orange-900/40' },
 };
 
-const MAX_PEOPLE_ICONS = 10;
-
-const PeopleIcons: React.FC<{ count: number; colorClass: string }> = ({ count, colorClass }) => {
-  if (count <= 0) return null;
-  const shown = Math.min(count, MAX_PEOPLE_ICONS);
-  return (
-    <div className="flex items-center gap-0.5">
-      {Array.from({ length: shown }).map((_, index) => (
-        <Users key={index} className={`h-3 w-3 ${colorClass}`} />
-      ))}
-      {count > MAX_PEOPLE_ICONS && (
-        <span className={`ml-1 text-[10px] font-bold ${colorClass}`}>+{count - MAX_PEOPLE_ICONS}</span>
-      )}
-    </div>
-  );
-};
-
 interface FunnelStageCardProps {
   title: string;
   color: HiringPipelineColumn['color'];
@@ -177,11 +159,9 @@ interface FunnelStageCardProps {
   branch?: {
     positiveLabel: string;
     positiveCount: number;
-    positiveColor: HiringPipelineColumn['color'];
     onOpenPositive: () => void;
     negativeLabel: string;
     negativeCount: number;
-    negativeColor: HiringPipelineColumn['color'];
     onOpenNegative: () => void;
   };
 }
@@ -191,46 +171,44 @@ const FunnelStageCard: React.FC<FunnelStageCardProps> = ({ title, color, count, 
   const percentOfTotal = totalCount > 0 ? Math.round((count / totalCount) * 100) : 0;
 
   return (
-    <div className={`flex w-full flex-col rounded-xl border-2 ${style.border} ${style.bg} p-4 shadow-sm sm:w-64`}>
-      <button onClick={onOpen} className="text-left">
-        <div className="flex items-center gap-2">
-          <span className={`flex h-7 w-7 items-center justify-center rounded-full ${style.iconBg}`}>
-            <BarChart3 className={`h-3.5 w-3.5 ${style.text}`} />
-          </span>
-          <h3 className={`text-sm font-bold ${style.text}`}>{title}</h3>
-        </div>
-        <div className="mt-2 flex items-baseline gap-2">
-          <span className={`text-3xl font-black ${style.text}`}>{count}</span>
-          {parentCount > 0 && <span className="text-xs text-gray-400">dos {parentCount}</span>}
-        </div>
-      </button>
+    <div className={`flex h-full w-44 flex-shrink-0 flex-col justify-between rounded-xl border-2 ${style.border} ${style.bg} p-3 shadow-sm`}>
+      <div>
+        <button onClick={onOpen} className="w-full text-left">
+          <div className="flex items-center gap-1.5">
+            <span className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full ${style.iconBg}`}>
+              <BarChart3 className={`h-3 w-3 ${style.text}`} />
+            </span>
+            <h3 className={`text-xs font-bold leading-tight ${style.text}`}>{title}</h3>
+          </div>
+          <div className="mt-2 flex items-baseline gap-1.5">
+            <span className={`text-2xl font-black ${style.text}`}>{count}</span>
+            {parentCount > 0 && <span className="text-[10px] text-gray-400">dos {parentCount}</span>}
+          </div>
+        </button>
 
-      {branch && (
-        <div className="mt-3 space-y-1.5">
-          <button
-            onClick={branch.onOpenPositive}
-            className="flex w-full items-center justify-between rounded-lg bg-white/70 px-2 py-1.5 text-left transition hover:bg-white dark:bg-black/20 dark:hover:bg-black/30"
-          >
-            <span className="text-xs font-bold text-green-700 dark:text-green-300">{branch.positiveLabel}</span>
-            <div className="flex items-center gap-1.5">
-              <PeopleIcons count={branch.positiveCount} colorClass="text-green-500" />
-              <span className="text-xs font-black text-green-700 dark:text-green-300">{branch.positiveCount}</span>
-            </div>
-          </button>
-          <button
-            onClick={branch.onOpenNegative}
-            className="flex w-full items-center justify-between rounded-lg bg-white/70 px-2 py-1.5 text-left transition hover:bg-white dark:bg-black/20 dark:hover:bg-black/30"
-          >
-            <span className="text-xs font-bold text-red-700 dark:text-red-300">{branch.negativeLabel}</span>
-            <div className="flex items-center gap-1.5">
-              <PeopleIcons count={branch.negativeCount} colorClass="text-red-500" />
-              <span className="text-xs font-black text-red-700 dark:text-red-300">{branch.negativeCount}</span>
-            </div>
-          </button>
-        </div>
-      )}
+        {branch ? (
+          <div className="mt-2 space-y-1">
+            <button
+              onClick={branch.onOpenPositive}
+              className="flex w-full items-center justify-between rounded-md bg-white/70 px-2 py-1 text-left transition hover:bg-white dark:bg-black/20 dark:hover:bg-black/30"
+            >
+              <span className="truncate text-[10px] font-bold text-green-700 dark:text-green-300">{branch.positiveLabel}</span>
+              <span className="ml-1 flex-shrink-0 text-[10px] font-black text-green-700 dark:text-green-300">{branch.positiveCount}</span>
+            </button>
+            <button
+              onClick={branch.onOpenNegative}
+              className="flex w-full items-center justify-between rounded-md bg-white/70 px-2 py-1 text-left transition hover:bg-white dark:bg-black/20 dark:hover:bg-black/30"
+            >
+              <span className="truncate text-[10px] font-bold text-red-700 dark:text-red-300">{branch.negativeLabel}</span>
+              <span className="ml-1 flex-shrink-0 text-[10px] font-black text-red-700 dark:text-red-300">{branch.negativeCount}</span>
+            </button>
+          </div>
+        ) : (
+          <div className="mt-2 h-[58px]" />
+        )}
+      </div>
 
-      <div className={`mt-3 border-t pt-2 text-[10px] font-bold uppercase ${style.border} ${style.text} opacity-70`}>
+      <div className={`mt-2 border-t pt-1.5 text-[9px] font-bold uppercase ${style.border} ${style.text} opacity-70`}>
         {percentOfTotal}% do funil
       </div>
     </div>
@@ -549,7 +527,7 @@ const HiringMetrics = () => {
               Nenhum candidato encontrado para o período selecionado.
             </div>
           ) : (
-            <div className="flex flex-wrap items-start gap-3">
+            <div className="flex items-stretch gap-2 overflow-x-auto pb-2 custom-scrollbar">
               {analytics.processFunnelBlocks.map((block, index) => (
                 <React.Fragment key={`${block.type}-${index}`}>
                   {block.type === 'stage' ? (
@@ -572,19 +550,16 @@ const HiringMetrics = () => {
                       branch={{
                         positiveLabel: block.positive.label,
                         positiveCount: block.positive.count,
-                        positiveColor: block.positive.color,
                         onOpenPositive: () => handleOpenCandidatesDetailModal(block.positive.label, block.positive.candidates, 'total'),
                         negativeLabel: block.negative.label,
                         negativeCount: block.negative.count,
-                        negativeColor: block.negative.color,
                         onOpenNegative: () => handleOpenCandidatesDetailModal(block.negative.label, block.negative.candidates, 'total'),
                       }}
                     />
                   )}
                   {index < analytics.processFunnelBlocks.length - 1 && (
-                    <div className="flex items-center self-center text-gray-300 dark:text-slate-600">
-                      <ChevronRight className="hidden h-5 w-5 sm:block" />
-                      <ChevronDown className="h-5 w-5 sm:hidden" />
+                    <div className="flex flex-shrink-0 items-center self-center text-gray-300 dark:text-slate-600">
+                      <ChevronRight className="h-5 w-5" />
                     </div>
                   )}
                 </React.Fragment>
