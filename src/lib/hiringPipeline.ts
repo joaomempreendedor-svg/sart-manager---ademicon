@@ -322,3 +322,50 @@ export const buildCandidateStageUpdates = (
 
   return updates;
 };
+
+export interface CandidateTimelineEvent {
+  key: string;
+  label: string;
+  date?: string;
+  isNegative?: boolean;
+}
+
+/**
+ * Monta a lista cronológica de eventos de um candidato (somente os que têm data preenchida),
+ * ordenada da mais antiga para a mais recente.
+ */
+export const buildCandidateTimeline = (candidate: Candidate): CandidateTimelineEvent[] => {
+  const rawEvents: CandidateTimelineEvent[] = [
+    { key: 'created', label: 'Cadastro do candidato', date: candidate.createdAt },
+    { key: 'contacted', label: 'Contatado', date: candidate.contactedDate },
+    { key: 'responded', label: 'Respondeu', date: candidate.respondedDate },
+    { key: 'interviewScheduled', label: 'Entrevista agendada', date: candidate.interviewScheduledDate },
+    { key: 'interviewAttended', label: 'Compareceu à entrevista', date: candidate.interviewAttendedDate || candidate.interviewConductedDate },
+    { key: 'interviewNoShow', label: 'Faltou à entrevista', date: candidate.interviewNoShowDate || candidate.faltouDate, isNegative: true },
+    { key: 'managerApproved', label: 'Aprovado pelo gestor', date: candidate.managerApprovedDate },
+    { key: 'managerRejected', label: 'Reprovado pelo gestor', date: candidate.managerRejectedDate, isNegative: true },
+    { key: 'd1Approval', label: 'Aprovação D+1', date: candidate.d1ApprovalDate },
+    { key: 'docSent', label: 'Documentação enviada', date: candidate.documentationSentDate },
+    { key: 'docNotSent', label: 'Documentação não enviada', date: candidate.documentationNotSentDate, isNegative: true },
+    { key: 'previewRegistered', label: 'Prévia cadastrada', date: candidate.previewRegisteredDate },
+    { key: 'previewRectified', label: 'Prévia retificada', date: candidate.previewRectifiedDate, isNegative: true },
+    { key: 'onboardingReleased', label: 'Onboarding liberado', date: candidate.onboardingReleasedDate || candidate.onboardingOnlineDate },
+    { key: 'onboardingFinished', label: 'Onboarding finalizado', date: candidate.onboardingFinishedDate },
+    { key: 'onboardingNotFinished', label: 'Onboarding não finalizado', date: candidate.onboardingNotFinishedDate, isNegative: true },
+    { key: 'integrationScheduled', label: 'Integração agendada', date: candidate.integrationScheduledDate || candidate.integrationPresencialDate },
+    { key: 'integrationAttended', label: 'Compareceu à integração', date: candidate.integrationAttendedDate },
+    { key: 'integrationNoShow', label: 'Não compareceu à integração', date: candidate.integrationNoShowDate, isNegative: true },
+    { key: 'integrationFinished', label: 'Integração finalizada', date: candidate.integrationFinishedDate },
+    { key: 'contractSignature', label: 'Contrato enviado para assinatura', date: candidate.contractSignatureDate },
+    { key: 'contractSigned', label: 'Contrato assinado', date: candidate.contractSignedDate },
+    { key: 'contractNotSigned', label: 'Contrato não assinado', date: candidate.contractNotSignedDate, isNegative: true },
+    { key: 'awaitingPreview', label: 'Em prévia', date: candidate.awaitingPreviewDate },
+    { key: 'authorized', label: 'Autorizado', date: candidate.authorizedDate },
+    { key: 'reprovado', label: 'Desistência registrada', date: candidate.reprovadoDate, isNegative: true },
+    { key: 'rescheduled', label: `Entrevista reagendada${(candidate.rescheduledCount || 0) > 1 ? ` (${candidate.rescheduledCount}x)` : ''}`, date: (candidate.rescheduledCount || 0) > 0 ? candidate.lastUpdatedAt : undefined },
+  ];
+
+  return rawEvents
+    .filter((event) => !!event.date)
+    .sort((a, b) => new Date(a.date as string).getTime() - new Date(b.date as string).getTime());
+};
