@@ -90,14 +90,8 @@ const FUNNEL_LAYOUT: FunnelConfig[] = [
     positiveStageKey: 'documentacao-enviada',
     negativeStageKey: 'documentacao-nao-enviada',
   },
-  {
-    type: 'branch',
-    parentStageKey: 'previa-cadastrada',
-    title: 'Prévia Cadastrada',
-    description: 'Da prévia cadastrada, parte segue direto e parte precisa de retificação.',
-    positiveStageKey: 'onboarding-liberado',
-    negativeStageKey: 'previa-retificada',
-  },
+  { type: 'stage', stageKey: 'previa-cadastrada', description: 'Prévia cadastrada no processo.' },
+  { type: 'stage', stageKey: 'previa-retificada', description: 'Prévia precisou ser retificada e recadastrada.' },
   {
     type: 'branch',
     parentStageKey: 'onboarding-liberado',
@@ -114,14 +108,7 @@ const FUNNEL_LAYOUT: FunnelConfig[] = [
     positiveStageKey: 'integracao-compareceu',
     negativeStageKey: 'integracao-nao-compareceu',
   },
-  {
-    type: 'branch',
-    parentStageKey: 'integracao-finalizada',
-    title: 'Integração Finalizada',
-    description: 'Após a integração finalizada, segue para assinatura do contrato.',
-    positiveStageKey: 'assinatura-contrato',
-    negativeStageKey: 'autorizado',
-  },
+  { type: 'stage', stageKey: 'integracao-finalizada', description: 'Integração concluída.' },
   {
     type: 'branch',
     parentStageKey: 'assinatura-contrato',
@@ -130,6 +117,7 @@ const FUNNEL_LAYOUT: FunnelConfig[] = [
     positiveStageKey: 'contrato-assinado',
     negativeStageKey: 'contrato-nao-assinado',
   },
+  { type: 'stage', stageKey: 'autorizado', description: 'Fechamento final do processo.' },
 ];
 
 const getDateKey = (value?: string) => {
