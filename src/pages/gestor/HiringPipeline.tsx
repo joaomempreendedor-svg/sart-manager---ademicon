@@ -1,27 +1,108 @@
-import React, { useState } from 'react';
-import { X, Users, Calendar, MessageSquare, UserCheck, TrendingUp, Clock, FileText, UserPlus, UserX, UserMinus, Ghost, XCircle, MapPin, User as UserIcon, ChevronRight, ChevronDown, Phone, Mail, History, CheckCircle2, AlertTriangle } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Candidate, TeamMember } from '@/types';
-import { buildCandidateTimeline } from '@/lib/hiringPipeline';
+import toast from 'react-hot-toast';
+import {
+  AlertTriangle,
+  BarChart3,
+  Calendar,
+  CheckCircle2,
+  Copy,
+  Edit2,
+  Filter,
+  History,
+  Info,
+  Loader2,
+  MessageSquare,
+  Plus,
+  RotateCcw,
+  Search,
+  Settings2,
+  ShieldCheck,
+  Trash2,
+  UserMinus,
+  UserPlus,
+  UserRound,
+  Lock,
+  X,
+} from 'lucide-react';
 
-interface CandidatesDetailModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  title: string;
-  candidates: Candidate[];
-  teamMembers: TeamMember[];
-  metricType: 'total' | 'newCandidates' | 'contacted' | 'scheduled' | 'conducted' | 'awaitingPreview' | 'hired' | 'noShow' | 'withdrawn' | 'disqualified' | 'noResponse';
-}
+import { Textarea } from '@/components/ui/textarea';
+import { useApp } from '@/context/AppContext';
+import { useAuth } from '@/context/AuthContext';
+import { EditScreeningCandidateModal } from '@/components/gestor/EditScreeningCandidateModal';
+import { UpdateInterviewDateModal } from '@/components/gestor/UpdateInterviewDateModal';
+import { ImportCandidatesModal } from '@/components/gestor/ImportCandidatesModal';
+import { WithdrawalReasonModal, WithdrawalReasonSelection } from '@/components/gestor/WithdrawalReasonModal';
+import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
+import { highlightText } from '@/lib/utils';
+import { Candidate, HiringPipelineColumn, HiringPipelineStageKey } from '@/types';
+import { buildCandidateStageUpdates, buildCandidateTimeline, getCandidateStageKey, getHiringStageLabel, normalizeHiringPipelineColumns } from '@/lib/hiringPipeline';
+
+const STAGE_PREREQUISITES: Partial<Record<HiringPipelineStageKey, HiringPipelineStageKey[]>> = {
+  'contatados':                ['candidatos'],
+  'respondeu':                 ['contatados'],
+  'entrevista-agendada':       ['respondeu'],
+  'compareceu-entrevista':     ['entrevista-agendada'],
+  'faltou-entrevista':         ['entrevista-agendada'],
+  'aprovado-gestor':           ['compareceu-entrevista'],
+  'reprovado-gestor':          ['compareceu-entrevista'],
+  'aprovacao-d1':              ['aprovado-gestor'],
+  'documentacao-enviada':      ['aprovacao-d1'],
+  'documentacao-nao-enviada':  ['aprovacao-d1'],
+  'previa-cadastrada':         ['documentacao-enviada', 'documentacao-nao-enviada'],
+  'previa-retificada':         ['previa-cadastrada'],
+  'onboarding-liberado':       ['previa-cadastrada'],
+  'onboarding-finalizado':     ['onboarding-liberado'],
+  'onboarding-nao-finalizado': ['onboarding-liberado'],
+  'integracao-agendada':       ['onboarding-finalizado', 'onboarding-nao-finalizado'],
+  'integracao-compareceu':     ['integracao-agendada'],
+  'integracao-nao-compareceu': ['integracao-agendada'],
+  'integracao-finalizada':     ['integracao-compareceu'],
+  'assinatura-contrato':       ['integracao-finalizada'],
+  'contrato-assinado':         ['assinatura-contrato'],
+  'contrato-nao-assinado':     ['assinatura-contrato'],
+  'autorizado':                ['contrato-assinado'],
+};
+
+const candidatePassedStage = (candidate: Candidate, stageKey: HiringPipelineStageKey): boolean => {
+  switch (stageKey) {
+    case 'candidatos':               return true;
+    case 'contatados':               return !!candidate.contactedDate;
+    case 'respondeu':                return !!candidate.respondedDate;
+    case 'entrevista-agendada':      return !!candidate.interviewScheduledDate;
+    case 'compareceu-entrevista':    return !!candidate.interviewAttendedDate || !!candidate.interviewConductedDate;
+    case 'faltou-entrevista':        return !!candidate.interviewNoShowDate || !!candidate.faltouDate;
+    case 'aprovado-gestor':          return !!candidate.managerApprovedDate;
+    case 'reprovado-gestor':         return !!candidate.managerRejectedDate;
+    case 'aprovacao-d1':             return !!candidate.d1ApprovalDate;
+    case 'documentacao-enviada':     return !!candidate.documentationSentDate;
+    case 'documentacao-nao-enviada': return !!candidate.documentationNotSentDate;
+    case 'previa-cadastrada':        return !!candidate.previewRegisteredDate;
+    case 'previa-retificada':        return !!candidate.previewRectifiedDate;
+    case 'onboarding-liberado':      return !!candidate.onboardingReleasedDate || !!candidate.onboardingOnlineDate;
+    case 'onboarding-finalizado':    return !!candidate.onboardingFinishedDate;
+    case 'onboarding-nao-finalizado':return !!candidate.onboardingNotFinishedDate;
+    case 'integracao-agendada':      return !!candidate.integrationScheduledDate || !!candidate.integrationPresencialDate;
+    case 'integracao-compareceu':    return !!candidate.integrationAttendedDate;
+    case 'integracao-nao-compareceu':return !!candidate.integrationNoShowDate;
+    case 'integracao-finalizada':    return !!candidate.integrationFinishedDate;
+    case 'assinatura-contrato':      return !!candidate.contractSignatureDate;
+    case 'contrato-assinado':        return !!candidate.contractSignedDate;
+    case 'contrato-nao-assinado':    return !!candidate.contractNotSignedDate;
+    case 'autorizado':               return !!candidate.authorizedDate;
+    default:                         return true;
+  }
+};
+
+const getBlockedReason = (candidate: Candidate, targetStageKey: HiringPipelineStageKey): string | null => {
+  const prerequisites = STAGE_PREREQUISITES[targetStageKey];
+  if (!prerequisites) return null;
+  const passed = prerequisites.some((req) => candidatePassedStage(candidate, req));
+  if (passed) return null;
+  const labels = prerequisites.map((req) => getHiringStageLabel(req));
+  if (labels.length === 1) return `Candidato precisa passar por "${labels[0]}" antes.`;
+  return `Candidato precisa passar por uma das etapas: ${labels.map(l => `"${l}"`).join(' ou ')}.`;
+};
 
 const formatDateTime = (value?: string) => {
   if (!value) return '';
@@ -30,172 +111,710 @@ const formatDateTime = (value?: string) => {
   return date.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 };
 
-export const CandidatesDetailModal: React.FC<CandidatesDetailModalProps> = ({
-  isOpen,
-  onClose,
-  title,
-  candidates,
-  teamMembers,
-  metricType,
-}) => {
-  const navigate = useNavigate();
-  const [expandedCandidateId, setExpandedCandidateId] = useState<string | null>(null);
+interface SuggestedMessageModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  stageTitle: string;
+  message: string;
+}
 
+const SuggestedMessageModal: React.FC<SuggestedMessageModalProps> = ({ isOpen, onClose, stageTitle, message }) => {
   if (!isOpen) return null;
 
-  const handleGoToCandidate = (candidateId: string) => {
-    onClose();
-    navigate(`/gestor/candidate/${candidateId}`);
-  };
-
-  const toggleTimeline = (event: React.MouseEvent, candidateId: string) => {
-    event.stopPropagation();
-    setExpandedCandidateId((prev) => (prev === candidateId ? null : candidateId));
-  };
-
-  const getResponsibleName = (responsibleUserId: string | undefined) => {
-    if (!responsibleUserId) return 'Não atribuído';
-    const member = teamMembers.find(m => m.id === responsibleUserId || m.authUserId === responsibleUserId);
-    return member?.name || 'Desconhecido';
-  };
-
-  const getIconForMetric = (type: string) => {
-    switch (type) {
-      case 'total': return <Users className="w-6 h-6 text-indigo-600" />;
-      case 'newCandidates': return <UserPlus className="w-6 h-6 text-slate-600" />;
-      case 'contacted': return <MessageSquare className="w-6 h-6 text-amber-500" />;
-      case 'scheduled': return <Clock className="w-6 h-6 text-orange-600" />;
-      case 'conducted': return <FileText className="w-6 h-6 text-purple-600" />;
-      case 'awaitingPreview': return <TrendingUp className="w-6 h-6 text-blue-600" />;
-      case 'hired': return <UserCheck className="w-6 h-6 text-emerald-600" />;
-      case 'noShow': return <Ghost className="w-6 h-6 text-rose-500" />;
-      case 'withdrawn': return <UserMinus className="w-6 h-6 text-rose-600" />;
-      case 'disqualified': return <XCircle className="w-6 h-6 text-rose-700" />;
-      default: return <Users className="w-6 h-6 text-gray-600" />;
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(message);
+      toast.success('Mensagem copiada!');
+    } catch {
+      toast.error('Não foi possível copiar. Selecione o texto manualmente.');
     }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-3xl bg-white dark:bg-slate-800 dark:text-white p-6">
-        <DialogHeader>
-          <DialogTitle className="flex items-center space-x-2">
-            {getIconForMetric(metricType)}
-            <span>{title} ({candidates.length})</span>
-          </DialogTitle>
-          <DialogDescription>
-            Lista de candidatos para a métrica "{title}". Clique no ícone de relógio para ver a linha do tempo completa.
-          </DialogDescription>
-        </DialogHeader>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div
+        className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl dark:bg-slate-800"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="mb-3 flex items-start justify-between gap-3">
+          <div>
+            <h3 className="flex items-center gap-2 text-base font-bold text-gray-900 dark:text-white">
+              <MessageSquare className="h-4 w-4 text-brand-500" />
+              Mensagem para "{stageTitle}"
+            </h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Copie e envie ao candidato.</p>
+          </div>
+          <button onClick={onClose} className="rounded-md p-1 text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
 
-        <ScrollArea className="max-h-[70vh] py-4 pr-4 custom-scrollbar">
-          {candidates.length === 0 ? (
-            <p className="text-center text-gray-500 dark:text-gray-400 py-4">Nenhum candidato encontrado para esta métrica.</p>
-          ) : (
-            <div className="space-y-3">
-              {candidates.map(candidate => {
-                const isExpanded = expandedCandidateId === candidate.id;
-                const timeline = isExpanded ? buildCandidateTimeline(candidate) : [];
+        {message ? (
+          <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700 dark:border-slate-600 dark:bg-slate-900 dark:text-gray-200">
+            {message}
+          </div>
+        ) : (
+          <div className="mb-4 rounded-lg border border-dashed border-gray-300 p-3 text-sm text-gray-400 dark:border-slate-600">
+            Nenhuma mensagem sugerida cadastrada para esta etapa. Configure em "Editar Pipeline".
+          </div>
+        )}
 
-                return (
-                  <div
-                    key={candidate.id}
-                    className="rounded-lg border bg-gray-50 dark:bg-slate-700/50 overflow-hidden"
+        <div className="flex justify-end gap-2">
+          <button onClick={onClose} className="rounded-lg px-4 py-2 text-sm font-semibold text-gray-500 hover:bg-gray-100 dark:hover:bg-slate-700">
+            Fechar
+          </button>
+          {message && (
+            <button onClick={handleCopy} className="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-bold text-white hover:bg-brand-700">
+              <Copy className="h-4 w-4" />
+              Copiar mensagem
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+interface TimelineModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  candidate: Candidate | null;
+}
+
+const TimelineModal: React.FC<TimelineModalProps> = ({ isOpen, onClose, candidate }) => {
+  if (!isOpen || !candidate) return null;
+
+  const timeline = buildCandidateTimeline(candidate);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div
+        className="max-h-[80vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-5 shadow-xl dark:bg-slate-800"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div>
+            <h3 className="flex items-center gap-2 text-base font-bold text-gray-900 dark:text-white">
+              <History className="h-4 w-4 text-brand-500" />
+              Linha do tempo — {candidate.name}
+            </h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Todos os eventos registrados, em ordem cronológica.</p>
+          </div>
+          <button onClick={onClose} className="rounded-md p-1 text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {timeline.length === 0 ? (
+          <p className="text-sm text-gray-400">Nenhum evento registrado ainda.</p>
+        ) : (
+          <ol className="relative ml-2 space-y-4 border-l-2 border-gray-200 pl-4 dark:border-slate-600">
+            {timeline.map((event) => (
+              <li key={event.key} className="relative">
+                <span
+                  className={`absolute -left-[21px] top-0.5 flex h-4 w-4 items-center justify-center rounded-full ${
+                    event.isNegative
+                      ? 'bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-300'
+                      : 'bg-green-100 text-green-600 dark:bg-green-900/40 dark:text-green-300'
+                  }`}
+                >
+                  {event.isNegative ? <AlertTriangle className="h-2.5 w-2.5" /> : <CheckCircle2 className="h-2.5 w-2.5" />}
+                </span>
+                <p className={`text-sm font-semibold ${event.isNegative ? 'text-red-600 dark:text-red-400' : 'text-gray-800 dark:text-gray-100'}`}>
+                  {event.label}
+                </p>
+                <p className="text-xs text-gray-400">{formatDateTime(event.date)}</p>
+              </li>
+            ))}
+          </ol>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const HiringPipeline = () => {
+  const navigate = useNavigate();
+  const { user, isLoading: isAuthLoading } = useAuth();
+  const {
+    candidates,
+    setCandidates,
+    teamMembers,
+    isDataLoading,
+    updateCandidate,
+    deleteCandidate,
+    hasPendingSecretariaTasks,
+    addCandidate,
+    hiringOrigins,
+    hiringPipelineColumns,
+  } = useApp();
+
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditCandidateModalOpen, setIsEditCandidateModalOpen] = useState(false);
+  const [selectedCandidateToEdit, setSelectedCandidateToEdit] = useState<Candidate | null>(null);
+  const [isUpdateDateModalOpen, setIsUpdateDateModalOpen] = useState(false);
+  const [selectedCandidateForDate, setSelectedCandidateForDate] = useState<Candidate | null>(null);
+  const [isWithdrawalModalOpen, setIsWithdrawalModalOpen] = useState(false);
+  const [selectedCandidateForWithdrawal, setSelectedCandidateForWithdrawal] = useState<Candidate | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterStartDate, setFilterStartDate] = useState('');
+  const [filterEndDate, setFilterEndDate] = useState('');
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [showWithdrawn, setShowWithdrawn] = useState(true);
+  const [messageModalStage, setMessageModalStage] = useState<HiringPipelineColumn | null>(null);
+  const [timelineCandidate, setTimelineCandidate] = useState<Candidate | null>(null);
+
+  const todayStr = new Date().toISOString().split('T')[0];
+  const baseRoute = user?.role === 'SECRETARIA' ? '/secretaria' : '/gestor';
+
+  const normalizedColumns = useMemo(() => normalizeHiringPipelineColumns(hiringPipelineColumns), [hiringPipelineColumns]);
+
+  const sortByRecentUpdate = (a: Candidate, b: Candidate) => {
+    const dateA = new Date(a.lastUpdatedAt || a.createdAt).getTime();
+    const dateB = new Date(b.lastUpdatedAt || b.createdAt).getTime();
+    return dateB - dateA;
+  };
+
+  const getResponsibleName = (responsibleUserId?: string) => {
+    if (!responsibleUserId) return 'Não atribuído';
+    const member = teamMembers.find((item) => item.id === responsibleUserId || item.authUserId === responsibleUserId);
+    return member?.name || 'Desconhecido';
+  };
+
+  const getCreatorName = (creatorId?: string) => {
+    if (!creatorId) return 'Desconhecido';
+    const member = teamMembers.find((item) => item.authUserId === creatorId);
+    if (member) return member.name;
+    if (user && creatorId === user.id) return user.name;
+    return 'Desconhecido';
+  };
+
+  const filteredCandidates = useMemo(() => {
+    let currentCandidates = candidates.filter(Boolean);
+
+    if (searchTerm) {
+      const lowerSearch = searchTerm.toLowerCase();
+      currentCandidates = currentCandidates.filter(
+        (candidate) =>
+          String(candidate.name || '').toLowerCase().includes(lowerSearch) ||
+          String(candidate.phone || '').toLowerCase().includes(lowerSearch) ||
+          String(candidate.email || '').toLowerCase().includes(lowerSearch) ||
+          String(candidate.notes || '').toLowerCase().includes(lowerSearch),
+      );
+    }
+
+    if (filterStartDate) {
+      const start = new Date(`${filterStartDate}T00:00:00`);
+      currentCandidates = currentCandidates.filter((candidate) => new Date(candidate.createdAt) >= start);
+    }
+
+    if (filterEndDate) {
+      const end = new Date(`${filterEndDate}T23:59:59`);
+      currentCandidates = currentCandidates.filter((candidate) => new Date(candidate.createdAt) <= end);
+    }
+
+    if (!showWithdrawn) {
+      return currentCandidates.filter((candidate) => !candidate.reprovadoDate);
+    }
+
+    return currentCandidates;
+  }, [candidates, filterEndDate, filterStartDate, searchTerm, showWithdrawn]);
+
+  const pipelineStages = useMemo(() => {
+    return normalizedColumns.map((column) => ({
+      ...column,
+      list: filteredCandidates
+        .filter((candidate) => {
+          const stageKey = candidate.withdrawalStageKey || getCandidateStageKey(candidate);
+          return stageKey === column.stageKey;
+        })
+        .sort(sortByRecentUpdate),
+    }));
+  }, [filteredCandidates, normalizedColumns]);
+
+  const withdrawnCount = useMemo(() => {
+    return candidates.filter((c) => c.reprovadoDate).length;
+  }, [candidates]);
+
+  const getColumnColorClasses = (color: HiringPipelineColumn['color']) => {
+    switch (color) {
+      case 'blue':    return 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800 text-blue-700 dark:text-blue-300';
+      case 'purple':  return 'bg-purple-50 border-purple-200 dark:bg-purple-900/20 dark:border-purple-800 text-purple-700 dark:text-purple-300';
+      case 'yellow':  return 'bg-yellow-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-800 text-yellow-700 dark:text-yellow-300';
+      case 'green':   return 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800 text-green-700 dark:text-green-300';
+      case 'red':     return 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800 text-red-700 dark:text-red-300';
+      case 'orange':  return 'bg-orange-50 border-orange-200 dark:bg-orange-900/20 dark:border-orange-800 text-orange-700 dark:text-orange-300';
+      default:        return 'bg-gray-50 border-gray-200 dark:bg-slate-800 dark:border-slate-700 text-gray-700 dark:text-gray-300';
+    }
+  };
+
+  const moveCandidateToStage = async (candidate: Candidate, column: HiringPipelineColumn, reason?: string) => {
+    const blockedReason = getBlockedReason(candidate, column.stageKey);
+    if (blockedReason) {
+      toast.error(`🔒 ${blockedReason}`, { duration: 4000 });
+      return;
+    }
+    await updateCandidate(candidate.id, buildCandidateStageUpdates(candidate, column.stageKey, reason));
+  };
+
+  const openWithdrawalFlow = (event: React.MouseEvent, candidate: Candidate) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setSelectedCandidateForWithdrawal(candidate);
+    setIsWithdrawalModalOpen(true);
+  };
+
+  const handleMoveToColumn = async (event: React.MouseEvent, candidate: Candidate, column: HiringPipelineColumn) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const blockedReason = getBlockedReason(candidate, column.stageKey);
+    if (blockedReason) {
+      toast.error(`🔒 ${blockedReason}`, { duration: 4000 });
+      return;
+    }
+
+    try {
+      await moveCandidateToStage(candidate, column);
+      toast.success(`Candidato movido para ${column.title}`);
+
+      if (column.stageKey === 'entrevista-agendada') {
+        setSelectedCandidateForDate(candidate);
+        setIsUpdateDateModalOpen(true);
+      }
+    } catch {
+      toast.error('Erro ao atualizar status.');
+    }
+  };
+
+  const handleConfirmWithdrawal = async (selection: WithdrawalReasonSelection) => {
+    if (!selectedCandidateForWithdrawal) return;
+
+    const withdrawalStageKey = getCandidateStageKey(selectedCandidateForWithdrawal);
+    const now = new Date().toISOString();
+
+    try {
+      await updateCandidate(selectedCandidateForWithdrawal.id, {
+        status: 'Reprovado',
+        pipelineStageKey: withdrawalStageKey,
+        withdrawalStageKey,
+        withdrawalReasonOption: selection.reasonOption,
+        withdrawalReason: selection.reasonText,
+        reprovadoDate: now,
+        lastUpdatedAt: now,
+      });
+      toast.success(`Desistência registrada em ${getHiringStageLabel(withdrawalStageKey)}`);
+    } catch {
+      toast.error('Erro ao registrar desistência.');
+    }
+  };
+
+  const handleOpenUpdateDate = async (event: React.MouseEvent, candidate: Candidate) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    // Se está reagendando (já faltou), incrementa o contador
+    if (getCandidateStageKey(candidate) === 'faltou-entrevista') {
+      await updateCandidate(candidate.id, {
+        rescheduledCount: (candidate.rescheduledCount || 0) + 1,
+      });
+    }
+
+    setSelectedCandidateForDate(candidate);
+    setIsUpdateDateModalOpen(true);
+  };
+
+  const debouncedUpdateCandidateNotes = useDebouncedCallback(async (candidateId: string, notes: string) => {
+    try {
+      await updateCandidate(candidateId, { notes });
+      toast.success('Observações salvas!');
+    } catch {
+      toast.error('Erro ao salvar observações.');
+    }
+  }, 1000);
+
+  const handleNotesChange = (candidateId: string, newNotes: string) => {
+    setCandidates((prev) => prev.map((candidate) => (candidate.id === candidateId ? { ...candidate, notes: newNotes } : candidate)));
+    debouncedUpdateCandidateNotes(candidateId, newNotes);
+  };
+
+  const handleDeleteCandidatePermanently = async (event: React.MouseEvent, candidateDbId: string, candidateName: string) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!window.confirm(`Tem certeza que deseja excluir permanentemente "${candidateName}"?`)) return;
+    try {
+      await deleteCandidate(candidateDbId);
+      toast.success(`Candidato "${candidateName}" excluído.`);
+    } catch (error: any) {
+      toast.error(`Erro ao excluir candidato: ${error.message}`);
+    }
+  };
+
+  const responsibleMembersForModal = useMemo(() => {
+    return teamMembers.filter(
+      (member) =>
+        member.isActive &&
+        (member.roles.includes('GESTOR') ||
+          member.roles.includes('CONSULTOR') ||
+          member.roles.includes('ANJO') ||
+          member.roles.includes('SECRETARIA')),
+    );
+  }, [teamMembers]);
+
+  const handleImportCandidates = async (newCandidates: Omit<Candidate, 'id' | 'createdAt' | 'db_id'>[]) => {
+    for (const candidateData of newCandidates) {
+      await addCandidate(candidateData);
+    }
+  };
+
+  const handleOpenEditCandidateModal = (event: React.MouseEvent, candidate: Candidate) => {
+    event.stopPropagation();
+    setSelectedCandidateToEdit(candidate);
+    setIsEditCandidateModalOpen(true);
+  };
+
+  const handleOpenTimeline = (event: React.MouseEvent, candidate: Candidate) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setTimelineCandidate(candidate);
+  };
+
+  const getNextColumns = (currentColumnId: string) => {
+    const currentIndex = normalizedColumns.findIndex((column) => column.id === currentColumnId);
+    return normalizedColumns.slice(currentIndex + 1, currentIndex + 4);
+  };
+
+  if (isAuthLoading || isDataLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="h-12 w-12 animate-spin text-brand-500" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen max-w-full bg-gray-50 p-4 dark:bg-slate-900 sm:p-8">
+      <div className="mb-6 pt-1">
+        <div className="w-full max-w-5xl rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:p-5 xl:inline-block xl:w-auto">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Pipeline de Contratação</h1>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Abra o pipeline e já tenha acesso imediato às ações principais e aos filtros.
+              </p>
+            </div>
+
+            <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 xl:w-auto xl:min-w-[520px]">
+              <button onClick={() => setIsAddModalOpen(true)}
+                className="order-1 flex items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-3 font-extrabold text-white shadow-lg shadow-brand-500/20 transition hover:bg-brand-700">
+                <Plus className="h-5 w-5" /><span>Novo Candidato</span>
+              </button>
+              <button onClick={() => navigate(`${baseRoute}/hiring-metrics`)}
+                className="order-2 flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 font-bold text-white transition hover:bg-indigo-700">
+                <BarChart3 className="h-5 w-5" /><span>Ver Métricas</span>
+              </button>
+              <button onClick={() => navigate(`${baseRoute}/hiring-pipeline-config`)}
+                className="order-3 flex items-center justify-center gap-2 rounded-xl bg-slate-700 px-4 py-3 font-bold text-white transition hover:bg-slate-800">
+                <Settings2 className="h-5 w-5" /><span>Editar Pipeline</span>
+              </button>
+              <button onClick={() => setIsImportModalOpen(true)}
+                className="order-4 flex items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-3 font-bold text-gray-700 transition hover:bg-gray-50 dark:border-slate-600 dark:bg-slate-900 dark:text-gray-200 dark:hover:bg-slate-700">
+                <Plus className="h-5 w-5" /><span>Importar Planilha</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-slate-700 dark:bg-slate-900/50">
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="flex items-center text-sm font-bold uppercase tracking-wide text-gray-700 dark:text-gray-300">
+                  <Filter className="mr-2 h-4 w-4" />Filtros do pipeline
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {pipelineStages.reduce((total, column) => total + column.list.length, 0)} candidatos visíveis nas etapas atuais.
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <button onClick={() => setShowWithdrawn(!showWithdrawn)}
+                  className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                    showWithdrawn ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' : 'bg-gray-100 text-gray-500 dark:bg-slate-700 dark:text-gray-400 hover:bg-red-50 hover:text-red-600'
+                  }`}>
+                  <UserMinus className="h-3.5 w-3.5" />
+                  {showWithdrawn ? 'Ocultar desistências' : `Ver desistências (${withdrawnCount})`}
+                </button>
+                {(searchTerm || filterStartDate || filterEndDate) && (
+                  <button onClick={() => { setSearchTerm(''); setFilterStartDate(''); setFilterEndDate(''); }}
+                    className="inline-flex items-center text-xs font-bold text-red-500 transition hover:text-red-700">
+                    <RotateCcw className="mr-1 h-3 w-3" />Limpar filtros
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1.5fr)_minmax(180px,0.75fr)_minmax(180px,0.75fr)]">
+              <div className="flex flex-col">
+                <label className="mb-1 ml-1 text-[10px] font-bold uppercase text-gray-400">Busca</label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                  <input type="text" placeholder="Nome, telefone ou email..."
+                    className="w-full rounded-lg border border-gray-300 bg-white py-2.5 pl-9 pr-4 text-sm text-gray-900 focus:border-brand-500 focus:ring-brand-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+                    value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} />
+                </div>
+              </div>
+              <div className="flex flex-col">
+                <label className="mb-1 ml-1 text-[10px] font-bold uppercase text-gray-400">Criado de</label>
+                <input type="date" value={filterStartDate} onChange={(event) => setFilterStartDate(event.target.value)}
+                  className="w-full rounded-lg border border-gray-300 bg-white p-2.5 text-sm text-gray-900 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
+              </div>
+              <div className="flex flex-col">
+                <label className="mb-1 ml-1 text-[10px] font-bold uppercase text-gray-400">Criado até</label>
+                <input type="date" value={filterEndDate} onChange={(event) => setFilterEndDate(event.target.value)}
+                  className="w-full rounded-lg border border-gray-300 bg-white p-2.5 text-sm text-gray-900 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="custom-scrollbar flex space-x-4 overflow-x-auto pb-6">
+        {pipelineStages.map((stage) => {
+          const nextColumns = getNextColumns(stage.id);
+          return (
+            <div key={stage.id}
+              className="w-80 flex-shrink-0 rounded-xl border border-gray-200 bg-gray-100/50 shadow-sm dark:border-slate-700 dark:bg-slate-800/50">
+              <div className={`rounded-t-xl border-b p-4 ${getColumnColorClasses(stage.color)}`}>
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <UserRound className="h-4 w-4" />
+                    <h3 className="text-sm font-bold uppercase tracking-wider">{stage.title}</h3>
+                  </div>
+                  <span className="rounded bg-white/50 px-2 py-0.5 text-xs font-bold dark:bg-black/20">{stage.list.length}</span>
+                </div>
+
+                {stage.description && (
+                  <div className="mb-2 flex items-start gap-1.5 rounded-lg bg-white/40 px-2 py-1.5 text-[11px] leading-snug dark:bg-black/15">
+                    <Info className="mt-0.5 h-3 w-3 flex-shrink-0 opacity-70" />
+                    <span className="opacity-90">{stage.description}</span>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between gap-2">
+                  <span className="rounded-full bg-white/60 px-2 py-1 text-[10px] font-bold uppercase tracking-wide dark:bg-black/20">
+                    {stage.ownerRole === 'GESTOR' ? 'Responsável: Gestor' : 'Responsável: Secretaria'}
+                  </span>
+                  <button
+                    onClick={() => setMessageModalStage(stage)}
+                    className="inline-flex items-center gap-1 rounded-full bg-white/70 px-2 py-1 text-[10px] font-bold uppercase tracking-wide transition hover:bg-white dark:bg-black/30 dark:hover:bg-black/50"
+                    title="Ver mensagem sugerida para essa etapa"
                   >
-                    <div
-                      className="flex items-start space-x-3 p-3 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors cursor-pointer group flex-col sm:flex-row"
-                      onClick={() => handleGoToCandidate(candidate.id)}
-                    >
-                      <div className="flex-1">
-                        <p className="font-medium text-gray-900 dark:text-white">{candidate.name}</p>
-                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 space-y-0.5">
-                          {candidate.responsibleUserId && (
-                            <span className="flex items-center">
-                              <UserIcon className="w-3 h-3 mr-1" /> Responsável: <span className="font-semibold">{getResponsibleName(candidate.responsibleUserId)}</span>
-                            </span>
+                    <MessageSquare className="h-3 w-3" />
+                    Mensagem
+                  </button>
+                </div>
+              </div>
+
+              <div className="min-h-[500px] space-y-3 p-3">
+                {stage.list.map((candidate) => {
+                  const totalScore =
+                    candidate.interviewScores.basicProfile +
+                    candidate.interviewScores.commercialSkills +
+                    candidate.interviewScores.behavioralProfile +
+                    candidate.interviewScores.jobFit;
+
+                  const isToday = candidate.interviewDate === todayStr;
+                  const hasPendingSecretariaTasksForCandidate = hasPendingSecretariaTasks(candidate);
+                  const hasWithdrawn = !!candidate.reprovadoDate;
+                  const currentStage = getCandidateStageKey(candidate);
+                  const showReagendar = currentStage === 'faltou-entrevista';
+                  const wasRescheduled = (candidate.rescheduledCount || 0) > 0;
+
+                  return (
+                    <div key={candidate.id}
+                      className={`group relative overflow-hidden rounded-xl border p-4 shadow-sm transition-all hover:shadow-md ${
+                        hasWithdrawn
+                          ? 'border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-900/20'
+                          : 'border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-700'
+                      } ${isToday && !hasWithdrawn ? 'ring-2 ring-brand-500' : ''}`}>
+
+                      {hasWithdrawn && (
+                        <div className="absolute right-0 top-0 rounded-bl-lg bg-red-500 px-2 py-0.5 text-[10px] font-bold text-white">DESISTIU</div>
+                      )}
+                      {!hasWithdrawn && wasRescheduled && (
+                        <div className="absolute right-0 top-0 rounded-bl-lg bg-amber-500 px-2 py-0.5 text-[10px] font-bold text-white">
+                          REMARCADA {(candidate.rescheduledCount || 0) > 1 ? `(${candidate.rescheduledCount}x)` : ''}
+                        </div>
+                      )}
+                      {!hasWithdrawn && !wasRescheduled && isToday && (
+                        <div className="absolute right-0 top-0 rounded-bl-lg bg-brand-500 px-2 py-0.5 text-[10px] font-bold text-white">HOJE</div>
+                      )}
+                      {!hasWithdrawn && hasPendingSecretariaTasksForCandidate && (
+                        <div className="absolute left-0 top-0 flex items-center rounded-br-lg bg-purple-500 px-2 py-0.5 text-[10px] font-bold text-white"
+                          title="Tarefas da Secretaria Pendentes">
+                          <ShieldCheck className="mr-1 h-3 w-3" />SECRETARIA
+                        </div>
+                      )}
+
+                      <div className="mb-2 flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <p className="leading-tight text-gray-900 dark:text-white">
+                            <span className="font-bold">{highlightText(candidate.name, searchTerm)}</span>
+                          </p>
+                          <div className="mt-1 flex flex-wrap gap-2 text-[10px] uppercase text-gray-400">
+                            {candidate.origin && <span className="rounded bg-gray-100 px-2 py-0.5 dark:bg-slate-800">{candidate.origin}</span>}
+                            <span className="rounded bg-gray-100 px-2 py-0.5 dark:bg-slate-800">{stage.title}</span>
+                          </div>
+                          {hasWithdrawn && (candidate.withdrawalReasonOption || candidate.withdrawalReason) && (
+                            <p className="mt-1.5 text-[10px] text-red-600 dark:text-red-400 italic">
+                              Motivo: {candidate.withdrawalReasonOption || candidate.withdrawalReason}
+                            </p>
                           )}
-                          {candidate.phone && (
-                            <span className="flex items-center">
-                              <Phone className="w-3 h-3 mr-1" /> Telefone: <span className="font-semibold">{candidate.phone}</span>
-                            </span>
-                          )}
-                          {candidate.email && (
-                            <span className="flex items-center">
-                              <Mail className="w-3 h-3 mr-1" /> Email: <span className="font-semibold">{candidate.email}</span>
-                            </span>
-                          )}
-                          {candidate.origin && (
-                            <span className="flex items-center">
-                              <MapPin className="w-3 h-3 mr-1" /> Origem: <span className="font-semibold">{candidate.origin}</span>
-                            </span>
-                          )}
-                          {candidate.interviewDate && (
-                            <span className="flex items-center">
-                              <Calendar className="w-3 h-3 mr-1" /> Entrevista: <span className="font-semibold">{new Date(candidate.interviewDate + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
+                        </div>
+
+                        <div className="flex items-center space-x-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
+                          <button onClick={(event) => handleOpenTimeline(event, candidate)}
+                            className="rounded-md p-1.5 text-gray-400 transition-colors hover:bg-indigo-50 hover:text-indigo-500 dark:text-gray-300 dark:hover:bg-slate-800"
+                            title="Ver Linha do Tempo">
+                            <History className="h-3.5 w-3.5" />
+                          </button>
+                          <button onClick={(event) => handleOpenEditCandidateModal(event, candidate)}
+                            className="rounded-md p-1.5 text-gray-400 transition-colors hover:bg-blue-50 hover:text-blue-500 dark:text-gray-300 dark:hover:bg-slate-800"
+                            title="Editar Candidato">
+                            <Edit2 className="h-3.5 w-3.5" />
+                          </button>
+                          <button onClick={(event) => handleDeleteCandidatePermanently(event, candidate.db_id || candidate.id, candidate.name)}
+                            className="rounded-md bg-red-50 p-1.5 text-red-500 transition-colors hover:bg-red-100 hover:text-red-600 dark:bg-red-900/20 dark:text-red-300 dark:hover:bg-red-900/30"
+                            title="Excluir Candidato">
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="flex items-center text-[10px] font-bold uppercase text-gray-400">
+                            <UserRound className="mr-1 h-3 w-3" />{getResponsibleName(candidate.responsibleUserId)}
+                          </span>
+                          {totalScore > 0 && (
+                            <span className={`rounded px-1.5 py-0.5 text-[10px] font-black ${totalScore >= 70 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                              {totalScore} pts
                             </span>
                           )}
                         </div>
-                      </div>
-                      <div className="flex items-center gap-1 flex-shrink-0 mt-2 sm:mt-0">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-gray-400 hover:text-brand-600"
-                          title="Ver linha do tempo"
-                          onClick={(event) => toggleTimeline(event, candidate.id)}
-                        >
-                          <History className="w-4 h-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="text-gray-400 hover:text-brand-600" title="Ver Detalhes">
-                          <ChevronRight className="w-5 h-5" />
-                        </Button>
-                      </div>
-                    </div>
 
-                    {isExpanded && (
-                      <div className="border-t border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-4">
-                        <h4 className="mb-3 flex items-center gap-1.5 text-xs font-bold uppercase text-gray-500 dark:text-gray-400">
-                          <History className="h-3.5 w-3.5" />
-                          Linha do tempo
-                        </h4>
-                        {timeline.length === 0 ? (
-                          <p className="text-xs text-gray-400">Nenhum evento registrado ainda.</p>
-                        ) : (
-                          <ol className="relative ml-2 space-y-4 border-l-2 border-gray-200 pl-4 dark:border-slate-600">
-                            {timeline.map((event) => (
-                              <li key={event.key} className="relative">
-                                <span
-                                  className={`absolute -left-[21px] top-0.5 flex h-4 w-4 items-center justify-center rounded-full ${
-                                    event.isNegative
-                                      ? 'bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-300'
-                                      : 'bg-green-100 text-green-600 dark:bg-green-900/40 dark:text-green-300'
-                                  }`}
-                                >
-                                  {event.isNegative ? <AlertTriangle className="h-2.5 w-2.5" /> : <CheckCircle2 className="h-2.5 w-2.5" />}
-                                </span>
-                                <p className={`text-sm font-semibold ${event.isNegative ? 'text-red-600 dark:text-red-400' : 'text-gray-800 dark:text-gray-100'}`}>
-                                  {event.label}
-                                </p>
-                                <p className="text-xs text-gray-400">{formatDateTime(event.date)}</p>
-                              </li>
-                            ))}
-                          </ol>
+                        {candidate.createdBy && (
+                          <div className="flex items-center text-[10px] uppercase text-gray-400">
+                            <UserPlus className="mr-1 h-3 w-3" />
+                            Adicionado por: {getCreatorName(candidate.createdBy)}
+                          </div>
+                        )}
+
+                        <div className="flex flex-col gap-1 border-t border-gray-50 pt-2 text-[10px] text-gray-400 dark:border-slate-600">
+                          <span className="flex items-center">
+                            <Calendar className="mr-1 h-3 w-3" />
+                            Cadastro: {candidate.createdAt ? new Date(candidate.createdAt).toLocaleDateString('pt-BR') : 'Sem data'}
+                          </span>
+                          {candidate.interviewScheduledDate && (
+                            <span className="flex items-center font-bold text-blue-500 dark:text-blue-400">
+                              <Calendar className="mr-1 h-3 w-3" />
+                              Entrevista: {new Date(candidate.interviewScheduledDate).toLocaleDateString('pt-BR')}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="mt-3">
+                          <Textarea
+                            value={candidate.notes || ''}
+                            onChange={(event) => handleNotesChange(candidate.id, event.target.value)}
+                            onClick={(event) => event.stopPropagation()}
+                            placeholder="Adicionar observações rápidas..."
+                            rows={2}
+                            className="w-full resize-y rounded-md border border-gray-200 bg-gray-50 p-2 text-xs text-gray-700 focus:border-brand-500 focus:ring-brand-500 dark:border-slate-600 dark:bg-slate-800 dark:text-gray-200"
+                          />
+                        </div>
+
+                        {!hasWithdrawn && (
+                          <div className="mt-1 border-t border-gray-50 pt-3 dark:border-slate-600">
+                            <div className="grid grid-cols-1 gap-2">
+                              {nextColumns.map((column) => {
+                                const blocked = getBlockedReason(candidate, column.stageKey);
+                                return (
+                                  <button key={column.id}
+                                    onClick={(event) => handleMoveToColumn(event, candidate, column)}
+                                    className={`min-h-[30px] w-full rounded-lg border px-2 py-1 text-left text-[10px] font-bold leading-snug transition ${
+                                      blocked
+                                        ? 'cursor-not-allowed border-gray-100 bg-gray-50 text-gray-300 dark:border-slate-700 dark:bg-slate-800/50 dark:text-gray-600'
+                                        : 'border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100 dark:border-slate-600 dark:bg-slate-800 dark:text-gray-200 dark:hover:bg-slate-700'
+                                    }`}
+                                    title={blocked ? blocked : `Mover para ${column.title}`}>
+                                    <span className="flex items-center gap-1">
+                                      {blocked && <Lock className="h-2.5 w-2.5 flex-shrink-0" />}
+                                      {column.title}
+                                    </span>
+                                  </button>
+                                );
+                              })}
+
+                              {showReagendar && (
+                                <button onClick={(event) => handleOpenUpdateDate(event, candidate)}
+                                  className="min-h-[30px] w-full rounded-lg bg-amber-500 px-2 py-1 text-left text-[10px] font-bold leading-snug text-white transition hover:bg-amber-600">
+                                  <span className="flex items-center gap-1">
+                                    <RotateCcw className="h-3 w-3" />
+                                    Reagendar entrevista
+                                  </span>
+                                </button>
+                              )}
+
+                              <button onClick={(event) => openWithdrawalFlow(event, candidate)}
+                                className="flex min-h-[30px] w-full items-center gap-1 rounded-lg bg-rose-600 px-2 py-1 text-left text-[10px] font-bold leading-snug text-white transition hover:bg-rose-700">
+                                <UserMinus className="h-3 w-3" />Desistiu nesta etapa
+                              </button>
+                            </div>
+                          </div>
                         )}
                       </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </ScrollArea>
+                    </div>
+                  );
+                })}
 
-        <DialogFooter className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-700 flex-col sm:flex-row">
-          <Button type="button" onClick={onClose} className="bg-gray-200 hover:bg-gray-300 text-gray-700 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-gray-200 w-full sm:w-auto">
-            Fechar
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+                {stage.list.length === 0 && (
+                  <div className="flex flex-col items-center justify-center py-10 opacity-20">
+                    <UserRound className="mb-2 h-8 w-8" />
+                    <p className="text-xs font-medium">Vazio</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <EditScreeningCandidateModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)}
+        origins={hiringOrigins} responsibleMembers={responsibleMembersForModal} />
+      <EditScreeningCandidateModal isOpen={isEditCandidateModalOpen} onClose={() => setIsEditCandidateModalOpen(false)}
+        origins={hiringOrigins} responsibleMembers={responsibleMembersForModal} candidateToEdit={selectedCandidateToEdit} />
+      <UpdateInterviewDateModal isOpen={isUpdateDateModalOpen}
+        onClose={() => { setIsUpdateDateModalOpen(false); setSelectedCandidateForDate(null); }}
+        candidate={selectedCandidateForDate} />
+      <ImportCandidatesModal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)}
+        origins={hiringOrigins} responsibleMembers={responsibleMembersForModal} onImport={handleImportCandidates} />
+      <WithdrawalReasonModal isOpen={isWithdrawalModalOpen}
+        onClose={() => { setIsWithdrawalModalOpen(false); setSelectedCandidateForWithdrawal(null); }}
+        onConfirm={handleConfirmWithdrawal}
+        candidateName={selectedCandidateForWithdrawal?.name || ''}
+        stageName={selectedCandidateForWithdrawal ? getHiringStageLabel(getCandidateStageKey(selectedCandidateForWithdrawal)) : ''} />
+      <SuggestedMessageModal
+        isOpen={!!messageModalStage}
+        onClose={() => setMessageModalStage(null)}
+        stageTitle={messageModalStage?.title || ''}
+        message={messageModalStage?.suggestedMessage || ''}
+      />
+      <TimelineModal
+        isOpen={!!timelineCandidate}
+        onClose={() => setTimelineCandidate(null)}
+        candidate={timelineCandidate}
+      />
+    </div>
   );
 };
+
+export default HiringPipeline;
