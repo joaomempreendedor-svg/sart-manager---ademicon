@@ -5,6 +5,8 @@ import {
   ArrowLeft,
   BarChart3,
   CheckCircle2,
+  ChevronDown,
+  ChevronRight,
   History,
   Loader2,
   MapPin,
@@ -60,40 +62,6 @@ const SECTION_OPTIONS: Array<{ key: SectionKey; title: string; icon: React.Compo
   { key: 'indications', title: 'Consultores que mais indicam', icon: UserPlus },
 ];
 
-const FUNNEL_STAGES: Array<{
-  stageKey: HiringPipelineStageKey;
-  label: string;
-  color: string;
-  textColor: string;
-  borderColor: string;
-}> = [
-  { stageKey: 'candidatos', label: 'Candidatos', color: 'bg-gray-100 dark:bg-slate-700', textColor: 'text-gray-700 dark:text-gray-200', borderColor: 'border-gray-300 dark:border-slate-600' },
-  { stageKey: 'contatados', label: 'Contatados', color: 'bg-blue-50 dark:bg-blue-900/20', textColor: 'text-blue-700 dark:text-blue-300', borderColor: 'border-blue-200 dark:border-blue-800' },
-  { stageKey: 'respondeu', label: 'Respondeu', color: 'bg-green-50 dark:bg-green-900/20', textColor: 'text-green-700 dark:text-green-300', borderColor: 'border-green-200 dark:border-green-800' },
-  { stageKey: 'entrevista-agendada', label: 'Entrevista Agendada', color: 'bg-blue-50 dark:bg-blue-900/20', textColor: 'text-blue-700 dark:text-blue-300', borderColor: 'border-blue-200 dark:border-blue-800' },
-  { stageKey: 'faltou-entrevista', label: 'Faltou', color: 'bg-red-50 dark:bg-red-900/20', textColor: 'text-red-700 dark:text-red-300', borderColor: 'border-red-200 dark:border-red-800' },
-  { stageKey: 'compareceu-entrevista', label: 'Compareceu', color: 'bg-purple-50 dark:bg-purple-900/20', textColor: 'text-purple-700 dark:text-purple-300', borderColor: 'border-purple-200 dark:border-purple-800' },
-  { stageKey: 'aprovado-gestor', label: 'Aprovado Gestor', color: 'bg-green-50 dark:bg-green-900/20', textColor: 'text-green-700 dark:text-green-300', borderColor: 'border-green-200 dark:border-green-800' },
-  { stageKey: 'reprovado-gestor', label: 'Reprovado Gestor', color: 'bg-red-50 dark:bg-red-900/20', textColor: 'text-red-700 dark:text-red-300', borderColor: 'border-red-200 dark:border-red-800' },
-  { stageKey: 'aprovacao-d1', label: 'Aprovação D+1', color: 'bg-yellow-50 dark:bg-yellow-900/20', textColor: 'text-yellow-700 dark:text-yellow-300', borderColor: 'border-yellow-200 dark:border-yellow-800' },
-  { stageKey: 'documentacao-enviada', label: 'Doc. Enviada', color: 'bg-green-50 dark:bg-green-900/20', textColor: 'text-green-700 dark:text-green-300', borderColor: 'border-green-200 dark:border-green-800' },
-  { stageKey: 'documentacao-nao-enviada', label: 'Doc. Não Enviada', color: 'bg-orange-50 dark:bg-orange-900/20', textColor: 'text-orange-700 dark:text-orange-300', borderColor: 'border-orange-200 dark:border-orange-800' },
-  { stageKey: 'previa-cadastrada', label: 'Prévia Cadastrada', color: 'bg-yellow-50 dark:bg-yellow-900/20', textColor: 'text-yellow-700 dark:text-yellow-300', borderColor: 'border-yellow-200 dark:border-yellow-800' },
-  { stageKey: 'previa-retificada', label: 'Prévia Retificada', color: 'bg-orange-50 dark:bg-orange-900/20', textColor: 'text-orange-700 dark:text-orange-300', borderColor: 'border-orange-200 dark:border-orange-800' },
-  { stageKey: 'onboarding-liberado', label: 'Onboarding Liberado', color: 'bg-blue-50 dark:bg-blue-900/20', textColor: 'text-blue-700 dark:text-blue-300', borderColor: 'border-blue-200 dark:border-blue-800' },
-  { stageKey: 'onboarding-finalizado', label: 'Onboarding Finalizado', color: 'bg-green-50 dark:bg-green-900/20', textColor: 'text-green-700 dark:text-green-300', borderColor: 'border-green-200 dark:border-green-800' },
-  { stageKey: 'onboarding-nao-finalizado', label: 'Onboarding Pendente', color: 'bg-orange-50 dark:bg-orange-900/20', textColor: 'text-orange-700 dark:text-orange-300', borderColor: 'border-orange-200 dark:border-orange-800' },
-  { stageKey: 'integracao-agendada', label: 'Integração Agendada', color: 'bg-blue-50 dark:bg-blue-900/20', textColor: 'text-blue-700 dark:text-blue-300', borderColor: 'border-blue-200 dark:border-blue-800' },
-  { stageKey: 'integracao-compareceu', label: 'Integração OK', color: 'bg-purple-50 dark:bg-purple-900/20', textColor: 'text-purple-700 dark:text-purple-300', borderColor: 'border-purple-200 dark:border-purple-800' },
-  { stageKey: 'integracao-nao-compareceu', label: 'Integração Faltou', color: 'bg-red-50 dark:bg-red-900/20', textColor: 'text-red-700 dark:text-red-300', borderColor: 'border-red-200 dark:border-red-800' },
-  { stageKey: 'integracao-finalizada', label: 'Integração Finalizada', color: 'bg-green-50 dark:bg-green-900/20', textColor: 'text-green-700 dark:text-green-300', borderColor: 'border-green-200 dark:border-green-800' },
-  { stageKey: 'assinatura-contrato', label: 'Assinatura Contrato', color: 'bg-blue-50 dark:bg-blue-900/20', textColor: 'text-blue-700 dark:text-blue-300', borderColor: 'border-blue-200 dark:border-blue-800' },
-  { stageKey: 'contrato-assinado', label: 'Contrato Assinado', color: 'bg-green-50 dark:bg-green-900/20', textColor: 'text-green-700 dark:text-green-300', borderColor: 'border-green-200 dark:border-green-800' },
-  { stageKey: 'contrato-nao-assinado', label: 'Contrato Não Assinado', color: 'bg-red-50 dark:bg-red-900/20', textColor: 'text-red-700 dark:text-red-300', borderColor: 'border-red-200 dark:border-red-800' },
-  { stageKey: 'candidato-em-previa', label: 'Em Prévia', color: 'bg-yellow-50 dark:bg-yellow-900/20', textColor: 'text-yellow-700 dark:text-yellow-300', borderColor: 'border-yellow-200 dark:border-yellow-800' },
-  { stageKey: 'autorizado', label: 'Autorizado ✓', color: 'bg-emerald-50 dark:bg-emerald-900/20', textColor: 'text-emerald-700 dark:text-emerald-300', borderColor: 'border-emerald-300 dark:border-emerald-700' },
-];
-
 const FUNNEL_LAYOUT: FunnelConfig[] = [
   { type: 'stage', stageKey: 'candidatos', description: 'Entrada de candidatos no processo.' },
   { type: 'stage', stageKey: 'contatados', description: 'Receberam o primeiro contato.' },
@@ -101,7 +69,7 @@ const FUNNEL_LAYOUT: FunnelConfig[] = [
   {
     type: 'branch',
     parentStageKey: 'entrevista-agendada',
-    title: 'Entrevista agendada',
+    title: 'Entrevista Agendada',
     description: 'Depois do agendamento, o processo se divide entre quem compareceu e quem faltou.',
     positiveStageKey: 'compareceu-entrevista',
     negativeStageKey: 'faltou-entrevista',
@@ -109,26 +77,31 @@ const FUNNEL_LAYOUT: FunnelConfig[] = [
   {
     type: 'branch',
     parentStageKey: 'compareceu-entrevista',
-    title: 'Avaliação do gestor',
-    description: 'Dos que compareceram, parte segue e parte é reprovada.',
+    title: 'Compareceu',
+    description: 'Dos que compareceram, parte é aprovada e parte é reprovada.',
     positiveStageKey: 'aprovado-gestor',
     negativeStageKey: 'reprovado-gestor',
   },
-  { type: 'stage', stageKey: 'aprovacao-d1', description: 'Aprovados que passaram por D+1.' },
   {
     type: 'branch',
     parentStageKey: 'aprovacao-d1',
-    title: 'Envio de documentação',
+    title: 'Aprovação D+1',
     description: 'Após D+1, o processo se divide entre quem enviou e quem não enviou a documentação.',
     positiveStageKey: 'documentacao-enviada',
     negativeStageKey: 'documentacao-nao-enviada',
   },
-  { type: 'stage', stageKey: 'previa-cadastrada', description: 'Prévia cadastrada no processo.' },
-  { type: 'stage', stageKey: 'previa-retificada', description: 'Prévia precisou ser retificada e recadastrada.' },
+  {
+    type: 'branch',
+    parentStageKey: 'previa-cadastrada',
+    title: 'Prévia Cadastrada',
+    description: 'Da prévia cadastrada, parte segue direto e parte precisa de retificação.',
+    positiveStageKey: 'onboarding-liberado',
+    negativeStageKey: 'previa-retificada',
+  },
   {
     type: 'branch',
     parentStageKey: 'onboarding-liberado',
-    title: 'Resultado do onboarding',
+    title: 'Onboarding Liberado',
     description: 'Após liberação do onboarding, parte conclui e parte não conclui.',
     positiveStageKey: 'onboarding-finalizado',
     negativeStageKey: 'onboarding-nao-finalizado',
@@ -136,14 +109,27 @@ const FUNNEL_LAYOUT: FunnelConfig[] = [
   {
     type: 'branch',
     parentStageKey: 'integracao-agendada',
-    title: 'Resultado da integração',
+    title: 'Integração Agendada',
     description: 'Depois do agendamento da integração, o processo se divide entre quem compareceu e quem não compareceu.',
     positiveStageKey: 'integracao-compareceu',
     negativeStageKey: 'integracao-nao-compareceu',
   },
-  { type: 'stage', stageKey: 'integracao-finalizada', description: 'Integração concluída.' },
-  { type: 'stage', stageKey: 'candidato-em-previa', description: 'Candidato em prévia.' },
-  { type: 'stage', stageKey: 'autorizado', description: 'Fechamento final do processo.' },
+  {
+    type: 'branch',
+    parentStageKey: 'integracao-finalizada',
+    title: 'Integração Finalizada',
+    description: 'Após a integração finalizada, segue para assinatura do contrato.',
+    positiveStageKey: 'assinatura-contrato',
+    negativeStageKey: 'autorizado',
+  },
+  {
+    type: 'branch',
+    parentStageKey: 'assinatura-contrato',
+    title: 'Assinatura do Contrato',
+    description: 'Do contrato enviado, parte assina e parte não assina.',
+    positiveStageKey: 'contrato-assinado',
+    negativeStageKey: 'contrato-nao-assinado',
+  },
 ];
 
 const getDateKey = (value?: string) => {
@@ -166,16 +152,101 @@ const formatDateTime = (value?: string) => {
   return date.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 };
 
-const getColumnColorClasses = (color: HiringPipelineColumn['color']) => {
-  switch (color) {
-    case 'blue': return 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800 text-blue-700 dark:text-blue-300';
-    case 'purple': return 'bg-purple-50 border-purple-200 dark:bg-purple-900/20 dark:border-purple-800 text-purple-700 dark:text-purple-300';
-    case 'yellow': return 'bg-yellow-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-800 text-yellow-700 dark:text-yellow-300';
-    case 'green': return 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800 text-green-700 dark:text-green-300';
-    case 'red': return 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800 text-red-700 dark:text-red-300';
-    case 'orange': return 'bg-orange-50 border-orange-200 dark:bg-orange-900/20 dark:border-orange-800 text-orange-700 dark:text-orange-300';
-    default: return 'bg-gray-50 border-gray-200 dark:bg-slate-800 dark:border-slate-700 text-gray-700 dark:text-gray-300';
-  }
+const STAGE_CARD_STYLES: Record<HiringPipelineColumn['color'], { border: string; bg: string; text: string; iconBg: string }> = {
+  gray:   { border: 'border-gray-300 dark:border-slate-600', bg: 'bg-gray-50 dark:bg-slate-800/60', text: 'text-gray-700 dark:text-gray-200', iconBg: 'bg-gray-200 dark:bg-slate-700' },
+  blue:   { border: 'border-blue-300 dark:border-blue-800', bg: 'bg-blue-50 dark:bg-blue-900/20', text: 'text-blue-700 dark:text-blue-300', iconBg: 'bg-blue-100 dark:bg-blue-900/40' },
+  purple: { border: 'border-purple-300 dark:border-purple-800', bg: 'bg-purple-50 dark:bg-purple-900/20', text: 'text-purple-700 dark:text-purple-300', iconBg: 'bg-purple-100 dark:bg-purple-900/40' },
+  yellow: { border: 'border-yellow-300 dark:border-yellow-800', bg: 'bg-yellow-50 dark:bg-yellow-900/20', text: 'text-yellow-700 dark:text-yellow-300', iconBg: 'bg-yellow-100 dark:bg-yellow-900/40' },
+  green:  { border: 'border-green-300 dark:border-green-800', bg: 'bg-green-50 dark:bg-green-900/20', text: 'text-green-700 dark:text-green-300', iconBg: 'bg-green-100 dark:bg-green-900/40' },
+  red:    { border: 'border-red-300 dark:border-red-800', bg: 'bg-red-50 dark:bg-red-900/20', text: 'text-red-700 dark:text-red-300', iconBg: 'bg-red-100 dark:bg-red-900/40' },
+  orange: { border: 'border-orange-300 dark:border-orange-800', bg: 'bg-orange-50 dark:bg-orange-900/20', text: 'text-orange-700 dark:text-orange-300', iconBg: 'bg-orange-100 dark:bg-orange-900/40' },
+};
+
+const MAX_PEOPLE_ICONS = 10;
+
+const PeopleIcons: React.FC<{ count: number; colorClass: string }> = ({ count, colorClass }) => {
+  if (count <= 0) return null;
+  const shown = Math.min(count, MAX_PEOPLE_ICONS);
+  return (
+    <div className="flex items-center gap-0.5">
+      {Array.from({ length: shown }).map((_, index) => (
+        <Users key={index} className={`h-3 w-3 ${colorClass}`} />
+      ))}
+      {count > MAX_PEOPLE_ICONS && (
+        <span className={`ml-1 text-[10px] font-bold ${colorClass}`}>+{count - MAX_PEOPLE_ICONS}</span>
+      )}
+    </div>
+  );
+};
+
+interface FunnelStageCardProps {
+  title: string;
+  color: HiringPipelineColumn['color'];
+  count: number;
+  parentCount: number;
+  totalCount: number;
+  onOpen: () => void;
+  branch?: {
+    positiveLabel: string;
+    positiveCount: number;
+    positiveColor: HiringPipelineColumn['color'];
+    onOpenPositive: () => void;
+    negativeLabel: string;
+    negativeCount: number;
+    negativeColor: HiringPipelineColumn['color'];
+    onOpenNegative: () => void;
+  };
+}
+
+const FunnelStageCard: React.FC<FunnelStageCardProps> = ({ title, color, count, parentCount, totalCount, onOpen, branch }) => {
+  const style = STAGE_CARD_STYLES[color] || STAGE_CARD_STYLES.gray;
+  const percentOfTotal = totalCount > 0 ? Math.round((count / totalCount) * 100) : 0;
+
+  return (
+    <div className={`flex w-full flex-col rounded-xl border-2 ${style.border} ${style.bg} p-4 shadow-sm sm:w-64`}>
+      <button onClick={onOpen} className="text-left">
+        <div className="flex items-center gap-2">
+          <span className={`flex h-7 w-7 items-center justify-center rounded-full ${style.iconBg}`}>
+            <BarChart3 className={`h-3.5 w-3.5 ${style.text}`} />
+          </span>
+          <h3 className={`text-sm font-bold ${style.text}`}>{title}</h3>
+        </div>
+        <div className="mt-2 flex items-baseline gap-2">
+          <span className={`text-3xl font-black ${style.text}`}>{count}</span>
+          {parentCount > 0 && <span className="text-xs text-gray-400">dos {parentCount}</span>}
+        </div>
+      </button>
+
+      {branch && (
+        <div className="mt-3 space-y-1.5">
+          <button
+            onClick={branch.onOpenPositive}
+            className="flex w-full items-center justify-between rounded-lg bg-white/70 px-2 py-1.5 text-left transition hover:bg-white dark:bg-black/20 dark:hover:bg-black/30"
+          >
+            <span className="text-xs font-bold text-green-700 dark:text-green-300">{branch.positiveLabel}</span>
+            <div className="flex items-center gap-1.5">
+              <PeopleIcons count={branch.positiveCount} colorClass="text-green-500" />
+              <span className="text-xs font-black text-green-700 dark:text-green-300">{branch.positiveCount}</span>
+            </div>
+          </button>
+          <button
+            onClick={branch.onOpenNegative}
+            className="flex w-full items-center justify-between rounded-lg bg-white/70 px-2 py-1.5 text-left transition hover:bg-white dark:bg-black/20 dark:hover:bg-black/30"
+          >
+            <span className="text-xs font-bold text-red-700 dark:text-red-300">{branch.negativeLabel}</span>
+            <div className="flex items-center gap-1.5">
+              <PeopleIcons count={branch.negativeCount} colorClass="text-red-500" />
+              <span className="text-xs font-black text-red-700 dark:text-red-300">{branch.negativeCount}</span>
+            </div>
+          </button>
+        </div>
+      )}
+
+      <div className={`mt-3 border-t pt-2 text-[10px] font-bold uppercase ${style.border} ${style.text} opacity-70`}>
+        {percentOfTotal}% do funil
+      </div>
+    </div>
+  );
 };
 
 const HiringMetrics = () => {
@@ -222,25 +293,6 @@ const HiringMetrics = () => {
     const candidatesCreatedInPeriod = cohortCandidates;
     const columnsByKey = new Map(normalizedColumns.map((column) => [column.stageKey, column]));
 
-    // Para o funil de coorte: cada etapa conta quantos candidatos da coorte JÁ PASSARAM por ela,
-    // independente de quando passaram. Isso garante números sempre decrescentes e coerentes.
-    const buildCohortStageMetric = (stageKey: HiringPipelineStageKey): StageMetric => {
-      const column = columnsByKey.get(stageKey);
-      const stageCandidates = candidatesCreatedInPeriod.filter((candidate) => {
-        const candidateStage = candidate.withdrawalStageKey || getCandidateStageKey(candidate);
-        // Considera "passou pela etapa" se o estágio atual do candidato é igual ou posterior a essa etapa.
-        // Como não temos uma ordem total estrita (há ramificações), usamos presença de data específica.
-        return candidateHasReachedStage(candidate, stageKey);
-      });
-      return {
-        stageKey,
-        title: column?.title || getHiringStageLabel(stageKey),
-        color: column?.color || 'gray',
-        count: stageCandidates.length,
-        candidates: stageCandidates,
-      };
-    };
-
     function candidateHasReachedStage(candidate: Candidate, stageKey: HiringPipelineStageKey): boolean {
       switch (stageKey) {
         case 'candidatos': return true;
@@ -272,29 +324,17 @@ const HiringMetrics = () => {
       }
     }
 
-    // Grid metrics — todas as etapas como quadradinhos, na ordem do pipeline, usando coorte
-    const gridMetrics = FUNNEL_STAGES.map((stage) => {
-      const metric = buildCohortStageMetric(stage.stageKey);
+    const buildCohortStageMetric = (stageKey: HiringPipelineStageKey): StageMetric => {
+      const column = columnsByKey.get(stageKey);
+      const stageCandidates = candidatesCreatedInPeriod.filter((candidate) => candidateHasReachedStage(candidate, stageKey));
       return {
-        ...stage,
-        count: metric.count,
-        candidates: metric.candidates,
-        baseRate: candidatesCreatedInPeriod.length > 0 ? (metric.count / candidatesCreatedInPeriod.length) * 100 : 0,
+        stageKey,
+        title: column?.title || getHiringStageLabel(stageKey),
+        color: column?.color || 'gray',
+        count: stageCandidates.length,
+        candidates: stageCandidates,
       };
-    });
-
-    // Quadradinho extra: Reagendados (fica ao final, fora da sequência do pipeline)
-    const reagendados = candidatesCreatedInPeriod.filter(c => (c.rescheduledCount || 0) > 0);
-    gridMetrics.push({
-      stageKey: 'faltou-entrevista',
-      label: 'Reagendados',
-      color: 'bg-amber-50 dark:bg-amber-900/20',
-      textColor: 'text-amber-700 dark:text-amber-300',
-      borderColor: 'border-amber-200 dark:border-amber-800',
-      count: reagendados.length,
-      candidates: reagendados,
-      baseRate: candidatesCreatedInPeriod.length > 0 ? (reagendados.length / candidatesCreatedInPeriod.length) * 100 : 0,
-    });
+    };
 
     const processFunnelBlocks = FUNNEL_LAYOUT.map((item) => {
       if (item.type === 'stage') {
@@ -303,36 +343,26 @@ const HiringMetrics = () => {
           type: 'stage' as const,
           stageKey: item.stageKey,
           title: item.title || metric.title,
-          description: item.description || '',
           color: metric.color,
           count: metric.count,
           candidates: metric.candidates,
-          baseRate: candidatesCreatedInPeriod.length > 0 ? (metric.count / candidatesCreatedInPeriod.length) * 100 : 0,
         };
       }
 
       const parentMetric = buildCohortStageMetric(item.parentStageKey);
       const positiveMetric = buildCohortStageMetric(item.positiveStageKey);
       const negativeMetric = buildCohortStageMetric(item.negativeStageKey);
+      const parentColumn = columnsByKey.get(item.parentStageKey);
 
       return {
         type: 'branch' as const,
         parentStageKey: item.parentStageKey,
         title: item.title,
-        description: item.description,
+        color: parentColumn?.color || 'gray',
         count: parentMetric.count,
         candidates: parentMetric.candidates,
-        baseRate: candidatesCreatedInPeriod.length > 0 ? (parentMetric.count / candidatesCreatedInPeriod.length) * 100 : 0,
-        positive: {
-          ...positiveMetric,
-          stageRate: parentMetric.count > 0 ? (positiveMetric.count / parentMetric.count) * 100 : 0,
-          baseRate: candidatesCreatedInPeriod.length > 0 ? (positiveMetric.count / candidatesCreatedInPeriod.length) * 100 : 0,
-        },
-        negative: {
-          ...negativeMetric,
-          stageRate: parentMetric.count > 0 ? (negativeMetric.count / parentMetric.count) * 100 : 0,
-          baseRate: candidatesCreatedInPeriod.length > 0 ? (negativeMetric.count / candidatesCreatedInPeriod.length) * 100 : 0,
-        },
+        positive: { ...positiveMetric, label: getHiringStageLabel(item.positiveStageKey) },
+        negative: { ...negativeMetric, label: getHiringStageLabel(item.negativeStageKey) },
       };
     });
 
@@ -398,7 +428,6 @@ const HiringMetrics = () => {
 
     return {
       candidatesCreatedInPeriod,
-      gridMetrics,
       processFunnelBlocks,
       withdrawalStageRanking,
       candidatesByOrigin,
@@ -435,6 +464,8 @@ const HiringMetrics = () => {
     );
   }
 
+  const totalCohort = analytics.candidatesCreatedInPeriod.length;
+
   return (
     <div className="min-h-screen max-w-7xl bg-gray-50 p-4 dark:bg-slate-900 sm:mx-auto sm:p-8">
       <div className="mb-6 flex flex-col items-start justify-between gap-4 xl:flex-row xl:items-center">
@@ -463,7 +494,7 @@ const HiringMetrics = () => {
               <BarChart3 className="mr-2 h-4 w-4" />Filtros da análise
             </h3>
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              No funil, o período filtra pela data de <strong>cadastro</strong> do candidato (coorte) — cada etapa mostra quantos desses candidatos já passaram por ela, garantindo um funil sempre coerente.
+              No funil, o período filtra pela data de <strong>cadastro</strong> do candidato (coorte) — cada etapa mostra quantos desses candidatos já passaram por ela.
             </p>
           </div>
           {(searchTerm || filterStartDate || filterEndDate) && (
@@ -519,32 +550,56 @@ const HiringMetrics = () => {
             <div>
               <h2 className="text-lg font-bold text-gray-900 dark:text-white">Funil de Contratação</h2>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                {analytics.candidatesCreatedInPeriod.length} candidatos cadastrados {periodLabel} — cada etapa mostra quantos já passaram por ela. Clique para ver os candidatos.
+                {totalCohort} candidatos cadastrados {periodLabel} — cada etapa mostra quantos já passaram por ela. Clique para ver os candidatos.
               </p>
             </div>
             <BarChart3 className="h-5 w-5 text-gray-400" />
           </div>
 
-          {analytics.candidatesCreatedInPeriod.length === 0 ? (
+          {totalCohort === 0 ? (
             <div className="rounded-xl border border-dashed border-gray-300 px-6 py-10 text-center text-sm text-gray-500 dark:border-slate-600 dark:text-gray-400">
               Nenhum candidato encontrado para o período selecionado.
             </div>
           ) : (
-            <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7">
-              {analytics.gridMetrics.map((stage, index) => (
-                <button
-                  key={`${stage.stageKey}-${index}`}
-                  onClick={() => handleOpenCandidatesDetailModal(stage.label, stage.candidates, 'total')}
-                  className={`flex flex-col items-center justify-center rounded-xl border p-3 text-center transition hover:shadow-md hover:scale-105 ${stage.color} ${stage.borderColor}`}
-                >
-                  <span className={`text-3xl font-black ${stage.textColor}`}>{stage.count}</span>
-                  <span className={`mt-1 text-[10px] font-bold leading-tight ${stage.textColor} opacity-80`}>{stage.label}</span>
-                  {analytics.candidatesCreatedInPeriod.length > 0 && (
-                    <span className={`mt-1.5 text-[9px] font-bold ${stage.textColor} opacity-60`}>
-                      {stage.baseRate.toFixed(0)}%
-                    </span>
+            <div className="flex flex-wrap items-start gap-3">
+              {analytics.processFunnelBlocks.map((block, index) => (
+                <React.Fragment key={`${block.type}-${index}`}>
+                  {block.type === 'stage' ? (
+                    <FunnelStageCard
+                      title={block.title}
+                      color={block.color}
+                      count={block.count}
+                      parentCount={index === 0 ? 0 : totalCohort}
+                      totalCount={totalCohort}
+                      onOpen={() => handleOpenCandidatesDetailModal(block.title, block.candidates, 'total')}
+                    />
+                  ) : (
+                    <FunnelStageCard
+                      title={block.title}
+                      color={block.color}
+                      count={block.count}
+                      parentCount={totalCohort}
+                      totalCount={totalCohort}
+                      onOpen={() => handleOpenCandidatesDetailModal(block.title, block.candidates, 'total')}
+                      branch={{
+                        positiveLabel: block.positive.label,
+                        positiveCount: block.positive.count,
+                        positiveColor: block.positive.color,
+                        onOpenPositive: () => handleOpenCandidatesDetailModal(block.positive.label, block.positive.candidates, 'total'),
+                        negativeLabel: block.negative.label,
+                        negativeCount: block.negative.count,
+                        negativeColor: block.negative.color,
+                        onOpenNegative: () => handleOpenCandidatesDetailModal(block.negative.label, block.negative.candidates, 'total'),
+                      }}
+                    />
                   )}
-                </button>
+                  {index < analytics.processFunnelBlocks.length - 1 && (
+                    <div className="flex items-center self-center text-gray-300 dark:text-slate-600">
+                      <ChevronRight className="hidden h-5 w-5 sm:block" />
+                      <ChevronDown className="h-5 w-5 sm:hidden" />
+                    </div>
+                  )}
+                </React.Fragment>
               ))}
             </div>
           )}
