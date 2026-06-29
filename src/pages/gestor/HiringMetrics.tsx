@@ -1,8 +1,11 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
+  AlertTriangle,
   ArrowLeft,
   BarChart3,
+  CheckCircle2,
+  History,
   Loader2,
   MapPin,
   PieChart,
@@ -18,10 +21,10 @@ import { CandidatesDetailModal } from '@/components/gestor/CandidatesDetailModal
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { Candidate, HiringPipelineColumn, HiringPipelineStageKey, TeamMember } from '@/types';
-import { getCandidateStageKey, getHiringStageLabel, normalizeHiringPipelineColumns } from '@/lib/hiringPipeline';
+import { buildCandidateTimeline, getCandidateStageKey, getHiringStageLabel, normalizeHiringPipelineColumns } from '@/lib/hiringPipeline';
 
 type MetricType = 'total' | 'newCandidates' | 'contacted' | 'scheduled' | 'conducted' | 'awaitingPreview' | 'hired' | 'noShow' | 'withdrawn' | 'disqualified' | 'noResponse';
-type SectionKey = 'funnel' | 'withdrawals' | 'origins' | 'indications';
+type SectionKey = 'funnel' | 'withdrawals' | 'origins' | 'indications' | 'timeline';
 
 type FunnelStageConfig = {
   type: 'stage';
@@ -51,6 +54,7 @@ type StageMetric = {
 
 const SECTION_OPTIONS: Array<{ key: SectionKey; title: string; icon: React.ComponentType<{ className?: string }> }> = [
   { key: 'funnel', title: 'Funil histórico', icon: BarChart3 },
+  { key: 'timeline', title: 'Linha do Tempo', icon: History },
   { key: 'withdrawals', title: 'Ranking de desistência', icon: UserMinus },
   { key: 'origins', title: 'Origens', icon: MapPin },
   { key: 'indications', title: 'Consultores que mais indicam', icon: UserPlus },
@@ -155,32 +159,11 @@ const isDateInRange = (value: string | undefined, startDate: string, endDate: st
   return true;
 };
 
-const getStageDateValues = (candidate: Candidate, stageKey: HiringPipelineStageKey) => {
-  switch (stageKey) {
-    case 'candidatos': return [candidate.createdAt];
-    case 'contatados': return [candidate.contactedDate];
-    case 'respondeu': return [candidate.respondedDate];
-    case 'entrevista-agendada': return [candidate.interviewScheduledDate];
-    case 'compareceu-entrevista': return [candidate.interviewAttendedDate, candidate.interviewConductedDate];
-    case 'faltou-entrevista': return [candidate.interviewNoShowDate, candidate.faltouDate];
-    case 'aprovado-gestor': return [candidate.managerApprovedDate, candidate.awaitingPreviewDate];
-    case 'reprovado-gestor': return [candidate.managerRejectedDate, candidate.disqualifiedDate, candidate.reprovadoDate];
-    case 'aprovacao-d1': return [candidate.d1ApprovalDate];
-    case 'documentacao-enviada': return [candidate.documentationSentDate];
-    case 'documentacao-nao-enviada': return [candidate.documentationNotSentDate];
-    case 'previa-cadastrada': return [candidate.previewRegisteredDate];
-    case 'previa-retificada': return [candidate.previewRectifiedDate];
-    case 'onboarding-liberado': return [candidate.onboardingReleasedDate, candidate.onboardingOnlineDate];
-    case 'onboarding-finalizado': return [candidate.onboardingFinishedDate];
-    case 'onboarding-nao-finalizado': return [candidate.onboardingNotFinishedDate];
-    case 'integracao-agendada': return [candidate.integrationScheduledDate, candidate.integrationPresencialDate];
-    case 'integracao-nao-compareceu': return [candidate.integrationNoShowDate];
-    case 'integracao-compareceu': return [candidate.integrationAttendedDate];
-    case 'integracao-finalizada': return [candidate.integrationFinishedDate];
-    case 'candidato-em-previa': return [candidate.awaitingPreviewDate];
-    case 'autorizado': return [candidate.authorizedDate];
-    default: return [];
-  }
+const formatDateTime = (value?: string) => {
+  if (!value) return '';
+  const date = new Date(value);
+  if (isNaN(date.getTime())) return '';
+  return date.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 };
 
 const getColumnColorClasses = (color: HiringPipelineColumn['color']) => {
@@ -208,6 +191,8 @@ const HiringMetrics = () => {
   const [candidatesModalTitle, setCandidatesModalTitle] = useState('');
   const [candidatesForModal, setCandidatesForModal] = useState<Candidate[]>([]);
   const [candidatesMetricType, setCandidatesMetricType] = useState<MetricType>('total');
+  const [timelineSearchTerm, setTimelineSearchTerm] = useState('');
+  const [expandedTimelineId, setExpandedTimelineId] = useState<string | null>(null);
 
   const baseRoute = user?.role === 'SECRETARIA' ? '/secretaria' : '/gestor';
   const normalizedColumns = useMemo(() => normalizeHiringPipelineColumns(hiringPipelineColumns), [hiringPipelineColumns]);
@@ -224,18 +209,29 @@ const HiringMetrics = () => {
     );
   }, [candidates, searchTerm]);
 
-  const analytics = useMemo(() => {
-    const candidatesCreatedInPeriod = searchFilteredCandidates.filter((candidate) =>
+  // Candidatos da coorte: aqueles cujo CADASTRO caiu dentro do período filtrado.
+  // Todas as etapas do funil usam essa mesma base, garantindo que o funil seja
+  // sempre decrescente e matematicamente coerente (cada etapa é subconjunto da anterior).
+  const cohortCandidates = useMemo(() => {
+    return searchFilteredCandidates.filter((candidate) =>
       isDateInRange(candidate.createdAt, filterStartDate, filterEndDate),
     );
+  }, [searchFilteredCandidates, filterStartDate, filterEndDate]);
 
+  const analytics = useMemo(() => {
+    const candidatesCreatedInPeriod = cohortCandidates;
     const columnsByKey = new Map(normalizedColumns.map((column) => [column.stageKey, column]));
 
-    const buildStageMetric = (stageKey: HiringPipelineStageKey): StageMetric => {
+    // Para o funil de coorte: cada etapa conta quantos candidatos da coorte JÁ PASSARAM por ela,
+    // independente de quando passaram. Isso garante números sempre decrescentes e coerentes.
+    const buildCohortStageMetric = (stageKey: HiringPipelineStageKey): StageMetric => {
       const column = columnsByKey.get(stageKey);
-      const stageCandidates = searchFilteredCandidates.filter((candidate) =>
-        getStageDateValues(candidate, stageKey).some((value) => isDateInRange(value, filterStartDate, filterEndDate)),
-      );
+      const stageCandidates = candidatesCreatedInPeriod.filter((candidate) => {
+        const candidateStage = candidate.withdrawalStageKey || getCandidateStageKey(candidate);
+        // Considera "passou pela etapa" se o estágio atual do candidato é igual ou posterior a essa etapa.
+        // Como não temos uma ordem total estrita (há ramificações), usamos presença de data específica.
+        return candidateHasReachedStage(candidate, stageKey);
+      });
       return {
         stageKey,
         title: column?.title || getHiringStageLabel(stageKey),
@@ -245,9 +241,40 @@ const HiringMetrics = () => {
       };
     };
 
-    // Grid metrics — todas as etapas como quadradinhos, na ordem do pipeline
+    function candidateHasReachedStage(candidate: Candidate, stageKey: HiringPipelineStageKey): boolean {
+      switch (stageKey) {
+        case 'candidatos': return true;
+        case 'contatados': return !!candidate.contactedDate;
+        case 'respondeu': return !!candidate.respondedDate;
+        case 'entrevista-agendada': return !!candidate.interviewScheduledDate;
+        case 'compareceu-entrevista': return !!candidate.interviewAttendedDate || !!candidate.interviewConductedDate;
+        case 'faltou-entrevista': return !!candidate.interviewNoShowDate || !!candidate.faltouDate;
+        case 'aprovado-gestor': return !!candidate.managerApprovedDate;
+        case 'reprovado-gestor': return !!candidate.managerRejectedDate;
+        case 'aprovacao-d1': return !!candidate.d1ApprovalDate;
+        case 'documentacao-enviada': return !!candidate.documentationSentDate;
+        case 'documentacao-nao-enviada': return !!candidate.documentationNotSentDate;
+        case 'previa-cadastrada': return !!candidate.previewRegisteredDate;
+        case 'previa-retificada': return !!candidate.previewRectifiedDate;
+        case 'onboarding-liberado': return !!candidate.onboardingReleasedDate || !!candidate.onboardingOnlineDate;
+        case 'onboarding-finalizado': return !!candidate.onboardingFinishedDate;
+        case 'onboarding-nao-finalizado': return !!candidate.onboardingNotFinishedDate;
+        case 'integracao-agendada': return !!candidate.integrationScheduledDate || !!candidate.integrationPresencialDate;
+        case 'integracao-compareceu': return !!candidate.integrationAttendedDate;
+        case 'integracao-nao-compareceu': return !!candidate.integrationNoShowDate;
+        case 'integracao-finalizada': return !!candidate.integrationFinishedDate;
+        case 'assinatura-contrato': return !!candidate.contractSignatureDate;
+        case 'contrato-assinado': return !!candidate.contractSignedDate;
+        case 'contrato-nao-assinado': return !!candidate.contractNotSignedDate;
+        case 'candidato-em-previa': return !!candidate.awaitingPreviewDate;
+        case 'autorizado': return !!candidate.authorizedDate;
+        default: return false;
+      }
+    }
+
+    // Grid metrics — todas as etapas como quadradinhos, na ordem do pipeline, usando coorte
     const gridMetrics = FUNNEL_STAGES.map((stage) => {
-      const metric = buildStageMetric(stage.stageKey);
+      const metric = buildCohortStageMetric(stage.stageKey);
       return {
         ...stage,
         count: metric.count,
@@ -271,7 +298,7 @@ const HiringMetrics = () => {
 
     const processFunnelBlocks = FUNNEL_LAYOUT.map((item) => {
       if (item.type === 'stage') {
-        const metric = buildStageMetric(item.stageKey);
+        const metric = buildCohortStageMetric(item.stageKey);
         return {
           type: 'stage' as const,
           stageKey: item.stageKey,
@@ -284,9 +311,9 @@ const HiringMetrics = () => {
         };
       }
 
-      const parentMetric = buildStageMetric(item.parentStageKey);
-      const positiveMetric = buildStageMetric(item.positiveStageKey);
-      const negativeMetric = buildStageMetric(item.negativeStageKey);
+      const parentMetric = buildCohortStageMetric(item.parentStageKey);
+      const positiveMetric = buildCohortStageMetric(item.positiveStageKey);
+      const negativeMetric = buildCohortStageMetric(item.negativeStageKey);
 
       return {
         type: 'branch' as const,
@@ -377,7 +404,7 @@ const HiringMetrics = () => {
       candidatesByOrigin,
       topIndications,
     };
-  }, [filterEndDate, filterStartDate, hiringOrigins, normalizedColumns, searchFilteredCandidates, teamMembers]);
+  }, [cohortCandidates, searchFilteredCandidates, filterEndDate, filterStartDate, hiringOrigins, normalizedColumns, teamMembers]);
 
   const periodLabel = useMemo(() => {
     if (filterStartDate && filterEndDate) return `${filterStartDate} até ${filterEndDate}`;
@@ -385,6 +412,13 @@ const HiringMetrics = () => {
     if (filterEndDate) return `até ${filterEndDate}`;
     return 'histórico completo';
   }, [filterEndDate, filterStartDate]);
+
+  const timelineCandidates = useMemo(() => {
+    const base = filterStartDate || filterEndDate ? cohortCandidates : searchFilteredCandidates;
+    if (!timelineSearchTerm.trim()) return base;
+    const lower = timelineSearchTerm.trim().toLowerCase();
+    return base.filter((candidate) => String(candidate.name || '').toLowerCase().includes(lower));
+  }, [cohortCandidates, searchFilteredCandidates, timelineSearchTerm, filterStartDate, filterEndDate]);
 
   const handleOpenCandidatesDetailModal = (title: string, metricCandidates: Candidate[], metricType: MetricType = 'total') => {
     setCandidatesModalTitle(title);
@@ -410,7 +444,7 @@ const HiringMetrics = () => {
             Métricas de Contratação
           </h1>
           <p className="text-gray-500 dark:text-gray-400">
-            Escolha a visão que quer analisar: funil histórico, desistências, origens ou consultores que mais indicam.
+            Escolha a visão que quer analisar: funil histórico, linha do tempo, desistências, origens ou consultores que mais indicam.
           </p>
         </div>
         <button
@@ -428,7 +462,9 @@ const HiringMetrics = () => {
             <h3 className="flex items-center text-sm font-bold uppercase tracking-wide text-gray-700 dark:text-gray-300">
               <BarChart3 className="mr-2 h-4 w-4" />Filtros da análise
             </h3>
-            <p className="text-xs text-gray-500 dark:text-gray-400">O período usa as datas salvas em cada etapa do processo.</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              No funil, o período filtra pela data de <strong>cadastro</strong> do candidato (coorte) — cada etapa mostra quantos desses candidatos já passaram por ela, garantindo um funil sempre coerente.
+            </p>
           </div>
           {(searchTerm || filterStartDate || filterEndDate) && (
             <button onClick={() => { setSearchTerm(''); setFilterStartDate(''); setFilterEndDate(''); }}
@@ -448,12 +484,12 @@ const HiringMetrics = () => {
             </div>
           </div>
           <div className="flex flex-col">
-            <label className="mb-1 ml-1 text-[10px] font-bold uppercase text-gray-400">Período de</label>
+            <label className="mb-1 ml-1 text-[10px] font-bold uppercase text-gray-400">Cadastrado de</label>
             <input type="date" value={filterStartDate} onChange={(event) => setFilterStartDate(event.target.value)}
               className="w-full rounded-lg border border-gray-300 bg-gray-50 p-2 text-sm text-gray-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white" />
           </div>
           <div className="flex flex-col">
-            <label className="mb-1 ml-1 text-[10px] font-bold uppercase text-gray-400">Período até</label>
+            <label className="mb-1 ml-1 text-[10px] font-bold uppercase text-gray-400">Cadastrado até</label>
             <input type="date" value={filterEndDate} onChange={(event) => setFilterEndDate(event.target.value)}
               className="w-full rounded-lg border border-gray-300 bg-gray-50 p-2 text-sm text-gray-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white" />
           </div>
@@ -483,7 +519,7 @@ const HiringMetrics = () => {
             <div>
               <h2 className="text-lg font-bold text-gray-900 dark:text-white">Funil de Contratação</h2>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                {analytics.candidatesCreatedInPeriod.length} candidatos em {periodLabel} — clique em qualquer etapa para ver os candidatos.
+                {analytics.candidatesCreatedInPeriod.length} candidatos cadastrados {periodLabel} — cada etapa mostra quantos já passaram por ela. Clique para ver os candidatos.
               </p>
             </div>
             <BarChart3 className="h-5 w-5 text-gray-400" />
@@ -510,6 +546,90 @@ const HiringMetrics = () => {
                   )}
                 </button>
               ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {activeSection === 'timeline' && (
+        <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          <div className="mb-5 flex items-center justify-between">
+            <div>
+              <h2 className="flex items-center gap-2 text-lg font-bold text-gray-900 dark:text-white">
+                <History className="h-5 w-5 text-indigo-500" />
+                Linha do Tempo dos Candidatos
+              </h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Veja o caminho completo de cada candidato no pipeline, em ordem cronológica.
+              </p>
+            </div>
+          </div>
+
+          <div className="mb-4 relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Buscar candidato pelo nome..."
+              value={timelineSearchTerm}
+              onChange={(event) => setTimelineSearchTerm(event.target.value)}
+              className="w-full rounded-lg border border-gray-300 bg-gray-50 py-2 pl-9 pr-4 text-sm text-gray-900 focus:border-brand-500 focus:ring-brand-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+            />
+          </div>
+
+          {timelineCandidates.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-gray-300 px-6 py-10 text-center text-sm text-gray-500 dark:border-slate-600 dark:text-gray-400">
+              Nenhum candidato encontrado.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {timelineCandidates.map((candidate) => {
+                const isExpanded = expandedTimelineId === candidate.id;
+                const events = isExpanded ? buildCandidateTimeline(candidate) : [];
+                return (
+                  <div key={candidate.id} className="overflow-hidden rounded-xl border border-gray-200 dark:border-slate-700">
+                    <button
+                      onClick={() => setExpandedTimelineId((prev) => (prev === candidate.id ? null : candidate.id))}
+                      className="flex w-full items-center justify-between bg-gray-50 px-4 py-3 text-left transition hover:bg-gray-100 dark:bg-slate-700/40 dark:hover:bg-slate-700"
+                    >
+                      <div>
+                        <p className="font-bold text-gray-900 dark:text-white">{candidate.name}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          {getHiringStageLabel(candidate.withdrawalStageKey || getCandidateStageKey(candidate))}
+                        </p>
+                      </div>
+                      <History className={`h-4 w-4 text-gray-400 transition ${isExpanded ? 'text-brand-500' : ''}`} />
+                    </button>
+
+                    {isExpanded && (
+                      <div className="bg-white p-4 dark:bg-slate-800">
+                        {events.length === 0 ? (
+                          <p className="text-xs text-gray-400">Nenhum evento registrado ainda.</p>
+                        ) : (
+                          <ol className="relative ml-2 space-y-4 border-l-2 border-gray-200 pl-4 dark:border-slate-600">
+                            {events.map((event) => (
+                              <li key={event.key} className="relative">
+                                <span
+                                  className={`absolute -left-[21px] top-0.5 flex h-4 w-4 items-center justify-center rounded-full ${
+                                    event.isNegative
+                                      ? 'bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-300'
+                                      : 'bg-green-100 text-green-600 dark:bg-green-900/40 dark:text-green-300'
+                                  }`}
+                                >
+                                  {event.isNegative ? <AlertTriangle className="h-2.5 w-2.5" /> : <CheckCircle2 className="h-2.5 w-2.5" />}
+                                </span>
+                                <p className={`text-sm font-semibold ${event.isNegative ? 'text-red-600 dark:text-red-400' : 'text-gray-800 dark:text-gray-100'}`}>
+                                  {event.label}
+                                </p>
+                                <p className="text-xs text-gray-400">{formatDateTime(event.date)}</p>
+                              </li>
+                            ))}
+                          </ol>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </section>
