@@ -139,13 +139,13 @@ const formatDateTime = (value?: string) => {
 };
 
 const STAGE_CARD_STYLES: Record<HiringPipelineColumn['color'], { border: string; bg: string; text: string; iconBg: string }> = {
-  gray:   { border: 'border-gray-300 dark:border-slate-600', bg: 'bg-gray-50 dark:bg-slate-800/60', text: 'text-gray-700 dark:text-gray-200', iconBg: 'bg-gray-200 dark:bg-slate-700' },
-  blue:   { border: 'border-blue-300 dark:border-blue-800', bg: 'bg-blue-50 dark:bg-blue-900/20', text: 'text-blue-700 dark:text-blue-300', iconBg: 'bg-blue-100 dark:bg-blue-900/40' },
-  purple: { border: 'border-purple-300 dark:border-purple-800', bg: 'bg-purple-50 dark:bg-purple-900/20', text: 'text-purple-700 dark:text-purple-300', iconBg: 'bg-purple-100 dark:bg-purple-900/40' },
-  yellow: { border: 'border-yellow-300 dark:border-yellow-800', bg: 'bg-yellow-50 dark:bg-yellow-900/20', text: 'text-yellow-700 dark:text-yellow-300', iconBg: 'bg-yellow-100 dark:bg-yellow-900/40' },
-  green:  { border: 'border-green-300 dark:border-green-800', bg: 'bg-green-50 dark:bg-green-900/20', text: 'text-green-700 dark:text-green-300', iconBg: 'bg-green-100 dark:bg-green-900/40' },
-  red:    { border: 'border-red-300 dark:border-red-800', bg: 'bg-red-50 dark:bg-red-900/20', text: 'text-red-700 dark:text-red-300', iconBg: 'bg-red-100 dark:bg-red-900/40' },
-  orange: { border: 'border-orange-300 dark:border-orange-800', bg: 'bg-orange-50 dark:bg-orange-900/20', text: 'text-orange-700 dark:text-orange-300', iconBg: 'bg-orange-100 dark:bg-orange-900/40' },
+  gray:   { border: 'border-gray-200 dark:border-slate-600', bg: 'bg-white dark:bg-slate-800/60', text: 'text-gray-700 dark:text-gray-200', iconBg: 'bg-gray-100 dark:bg-slate-700' },
+  blue:   { border: 'border-blue-200 dark:border-blue-800', bg: 'bg-blue-50/40 dark:bg-blue-900/20', text: 'text-blue-700 dark:text-blue-300', iconBg: 'bg-blue-100/80 dark:bg-blue-900/40' },
+  purple: { border: 'border-purple-200 dark:border-purple-800', bg: 'bg-purple-50/40 dark:bg-purple-900/20', text: 'text-purple-700 dark:text-purple-300', iconBg: 'bg-purple-100/80 dark:bg-purple-900/40' },
+  yellow: { border: 'border-yellow-200 dark:border-yellow-800', bg: 'bg-yellow-50/50 dark:bg-yellow-900/20', text: 'text-yellow-700 dark:text-yellow-300', iconBg: 'bg-yellow-100/80 dark:bg-yellow-900/40' },
+  green:  { border: 'border-green-200 dark:border-green-800', bg: 'bg-green-50/40 dark:bg-green-900/20', text: 'text-green-700 dark:text-green-300', iconBg: 'bg-green-100/80 dark:bg-green-900/40' },
+  red:    { border: 'border-red-200 dark:border-red-800', bg: 'bg-red-50/40 dark:bg-red-900/20', text: 'text-red-700 dark:text-red-300', iconBg: 'bg-red-100/80 dark:bg-red-900/40' },
+  orange: { border: 'border-orange-200 dark:border-orange-800', bg: 'bg-orange-50/40 dark:bg-orange-900/20', text: 'text-orange-700 dark:text-orange-300', iconBg: 'bg-orange-100/80 dark:bg-orange-900/40' },
 };
 
 interface BranchRowData {
@@ -180,7 +180,7 @@ const BranchRow: React.FC<{ row: BranchRowData; tone: 'green' | 'red' }> = ({ ro
     <div className="space-y-1">
       <button
         onClick={row.onOpen}
-        className="flex w-full items-center justify-between rounded-md bg-white/70 px-2 py-1 text-left transition hover:bg-white dark:bg-black/20 dark:hover:bg-black/30"
+        className="flex w-full items-center justify-between rounded-lg border border-white/80 bg-white px-2.5 py-1.5 text-left shadow-sm transition hover:bg-white dark:border-slate-600 dark:bg-black/20 dark:hover:bg-black/30"
       >
         <span className={`truncate text-[10px] font-bold ${toneClasses}`}>{row.label}</span>
         <span className={`ml-1 flex-shrink-0 text-[10px] font-black ${toneClasses}`}>{row.count}</span>
@@ -188,7 +188,7 @@ const BranchRow: React.FC<{ row: BranchRowData; tone: 'green' | 'red' }> = ({ ro
       {row.withdrawnCount > 0 && (
         <button
           onClick={row.onOpenWithdrawn}
-          className="flex w-full items-center justify-between rounded-md bg-rose-100 px-2 py-0.5 pl-3 text-left transition hover:bg-rose-200 dark:bg-rose-900/30 dark:hover:bg-rose-900/50"
+          className="flex w-full items-center justify-between rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-left transition hover:bg-rose-100 dark:border-rose-800 dark:bg-rose-900/30 dark:hover:bg-rose-900/50"
         >
           <span className="flex items-center gap-1 truncate text-[9px] font-bold text-rose-700 dark:text-rose-300">
             <UserMinus className="h-2 w-2 flex-shrink-0" />
@@ -208,35 +208,34 @@ const FunnelStageCard: React.FC<FunnelStageCardProps> = ({
   const percentOfTotal = totalCount > 0 ? Math.round((count / totalCount) * 100) : 0;
 
   return (
-    <div className={`flex h-full w-full flex-col justify-between rounded-xl border-2 ${style.border} ${style.bg} p-3 shadow-sm`}>
+    <div className={`flex h-full w-full flex-col justify-between rounded-2xl border ${style.border} ${style.bg} p-4 shadow-sm`}>
       <div>
         <button onClick={onOpen} className="w-full text-left">
-          <div className="flex items-center gap-1.5">
-            <span className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full ${style.iconBg}`}>
-              <BarChart3 className={`h-3 w-3 ${style.text}`} />
+          <div className="flex items-center gap-2">
+            <span className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full ${style.iconBg}`}>
+              <BarChart3 className={`h-3.5 w-3.5 ${style.text}`} />
             </span>
-            <h3 className={`text-xs font-bold leading-tight ${style.text}`}>{title}</h3>
+            <h3 className={`text-sm font-bold leading-tight ${style.text}`}>{title}</h3>
           </div>
-          <div className={`mt-2 mb-1 rounded-lg ${style.iconBg} px-3 py-2.5`}>
-            <div className="flex items-baseline gap-1.5">
+          <div className={`mt-3 mb-2 rounded-xl border border-white/70 bg-white px-3 py-3 shadow-sm dark:border-slate-600 dark:bg-slate-900/40`}>
+            <div className="flex items-end gap-2">
               <span className={`text-4xl font-black leading-none ${style.text}`}>{count}</span>
-              {parentCount > 0 && <span className="text-[10px] font-bold text-gray-400">dos {parentCount}</span>}
+              {parentCount > 0 && <span className="pb-1 text-[10px] font-bold text-gray-400">dos {parentCount}</span>}
             </div>
           </div>
         </button>
 
-        <div className="mt-2 space-y-1.5">
+        <div className="mt-3 space-y-2">
           {branch && (
             <>
               <BranchRow row={branch.positive} tone="green" />
               <BranchRow row={branch.negative} tone="red" />
             </>
           )}
-          {/* Desistência registrada diretamente nesta etapa (não em um ramo filho) */}
           {withdrawnCount > 0 && (
             <button
               onClick={onOpenWithdrawn}
-              className="flex w-full items-center justify-between rounded-md bg-rose-100 px-2 py-1 text-left transition hover:bg-rose-200 dark:bg-rose-900/30 dark:hover:bg-rose-900/50"
+              className="flex w-full items-center justify-between rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-left transition hover:bg-rose-100 dark:border-rose-800 dark:bg-rose-900/30 dark:hover:bg-rose-900/50"
             >
               <span className="flex items-center gap-1 truncate text-[10px] font-bold text-rose-700 dark:text-rose-300">
                 <UserMinus className="h-2.5 w-2.5 flex-shrink-0" />
@@ -248,7 +247,7 @@ const FunnelStageCard: React.FC<FunnelStageCardProps> = ({
         </div>
       </div>
 
-      <div className={`mt-2 border-t pt-1.5 text-[9px] font-bold uppercase ${style.border} ${style.text} opacity-70`}>
+      <div className={`mt-3 border-t pt-2 text-[10px] font-bold uppercase ${style.border} ${style.text} opacity-70`}>
         {percentOfTotal}% do funil
       </div>
     </div>
@@ -571,8 +570,8 @@ const HiringMetrics = () => {
       </div>
 
       {activeSection === 'funnel' && (
-        <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-          <div className="mb-5 flex items-center justify-between">
+        <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          <div className="mb-6 flex items-center justify-between">
             <div>
               <h2 className="text-lg font-bold text-gray-900 dark:text-white">Funil de Contratação</h2>
               <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -587,50 +586,52 @@ const HiringMetrics = () => {
               Nenhum candidato encontrado para o período selecionado.
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {analytics.processFunnelBlocks.map((block, index) => (
-                block.type === 'stage' ? (
-                  <FunnelStageCard
-                    key={`${block.type}-${index}`}
-                    title={block.title}
-                    color={block.color}
-                    count={block.count}
-                    parentCount={index === 0 ? 0 : totalCohort}
-                    totalCount={totalCohort}
-                    withdrawnCount={block.withdrawnHere.length}
-                    onOpen={() => handleOpenCandidatesDetailModal(block.title, block.candidates, 'total')}
-                    onOpenWithdrawn={() => handleOpenCandidatesDetailModal(`Desistiu em "${block.title}"`, block.withdrawnHere, 'withdrawn')}
-                  />
-                ) : (
-                  <FunnelStageCard
-                    key={`${block.type}-${index}`}
-                    title={block.title}
-                    color={block.color}
-                    count={block.count}
-                    parentCount={totalCohort}
-                    totalCount={totalCohort}
-                    withdrawnCount={block.withdrawnHere.length}
-                    onOpen={() => handleOpenCandidatesDetailModal(block.title, block.candidates, 'total')}
-                    onOpenWithdrawn={() => handleOpenCandidatesDetailModal(`Desistiu em "${block.title}"`, block.withdrawnHere, 'withdrawn')}
-                    branch={{
-                      positive: {
-                        label: block.positive.label,
-                        count: block.positive.count,
-                        withdrawnCount: block.positive.withdrawnHere.length,
-                        onOpen: () => handleOpenCandidatesDetailModal(block.positive.label, block.positive.candidates, 'total'),
-                        onOpenWithdrawn: () => handleOpenCandidatesDetailModal(`Desistiu em "${block.positive.label}"`, block.positive.withdrawnHere, 'withdrawn'),
-                      },
-                      negative: {
-                        label: block.negative.label,
-                        count: block.negative.count,
-                        withdrawnCount: block.negative.withdrawnHere.length,
-                        onOpen: () => handleOpenCandidatesDetailModal(block.negative.label, block.negative.candidates, 'total'),
-                        onOpenWithdrawn: () => handleOpenCandidatesDetailModal(`Desistiu em "${block.negative.label}"`, block.negative.withdrawnHere, 'withdrawn'),
-                      },
-                    }}
-                  />
-                )
-              ))}
+            <div className="rounded-2xl bg-gray-50/80 p-4 dark:bg-slate-900/30">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {analytics.processFunnelBlocks.map((block, index) => (
+                  block.type === 'stage' ? (
+                    <FunnelStageCard
+                      key={`${block.type}-${index}`}
+                      title={block.title}
+                      color={block.color}
+                      count={block.count}
+                      parentCount={index === 0 ? 0 : totalCohort}
+                      totalCount={totalCohort}
+                      withdrawnCount={block.withdrawnHere.length}
+                      onOpen={() => handleOpenCandidatesDetailModal(block.title, block.candidates, 'total')}
+                      onOpenWithdrawn={() => handleOpenCandidatesDetailModal(`Desistiu em "${block.title}"`, block.withdrawnHere, 'withdrawn')}
+                    />
+                  ) : (
+                    <FunnelStageCard
+                      key={`${block.type}-${index}`}
+                      title={block.title}
+                      color={block.color}
+                      count={block.count}
+                      parentCount={totalCohort}
+                      totalCount={totalCohort}
+                      withdrawnCount={block.withdrawnHere.length}
+                      onOpen={() => handleOpenCandidatesDetailModal(block.title, block.candidates, 'total')}
+                      onOpenWithdrawn={() => handleOpenCandidatesDetailModal(`Desistiu em "${block.title}"`, block.withdrawnHere, 'withdrawn')}
+                      branch={{
+                        positive: {
+                          label: block.positive.label,
+                          count: block.positive.count,
+                          withdrawnCount: block.positive.withdrawnHere.length,
+                          onOpen: () => handleOpenCandidatesDetailModal(block.positive.label, block.positive.candidates, 'total'),
+                          onOpenWithdrawn: () => handleOpenCandidatesDetailModal(`Desistiu em "${block.positive.label}"`, block.positive.withdrawnHere, 'withdrawn'),
+                        },
+                        negative: {
+                          label: block.negative.label,
+                          count: block.negative.count,
+                          withdrawnCount: block.negative.withdrawnHere.length,
+                          onOpen: () => handleOpenCandidatesDetailModal(block.negative.label, block.negative.candidates, 'total'),
+                          onOpenWithdrawn: () => handleOpenCandidatesDetailModal(`Desistiu em "${block.negative.label}"`, block.negative.withdrawnHere, 'withdrawn'),
+                        },
+                      }}
+                    />
+                  )
+                ))}
+              </div>
             </div>
           )}
         </section>
