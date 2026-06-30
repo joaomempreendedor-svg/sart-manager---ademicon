@@ -166,15 +166,18 @@ interface FunnelStageCardProps {
   onOpen: () => void;
   onOpenWithdrawn: () => void;
   branch?: {
+    current: BranchRowData;
     positive: BranchRowData;
     negative: BranchRowData;
   };
 }
 
-const BranchRow: React.FC<{ row: BranchRowData; tone: 'green' | 'red' }> = ({ row, tone }) => {
+const BranchRow: React.FC<{ row: BranchRowData; tone: 'green' | 'red' | 'blue' }> = ({ row, tone }) => {
   const toneClasses = tone === 'green'
     ? 'text-green-700 dark:text-green-300'
-    : 'text-red-700 dark:text-red-300';
+    : tone === 'red'
+      ? 'text-red-700 dark:text-red-300'
+      : 'text-blue-700 dark:text-blue-300';
 
   return (
     <div className="space-y-1">
@@ -228,6 +231,7 @@ const FunnelStageCard: React.FC<FunnelStageCardProps> = ({
         <div className="mt-3 space-y-2">
           {branch && (
             <>
+              <BranchRow row={branch.current} tone="blue" />
               <BranchRow row={branch.positive} tone="green" />
               <BranchRow row={branch.negative} tone="red" />
             </>
@@ -371,12 +375,14 @@ const HiringMetrics = () => {
       const negativeMetric = buildCohortStageMetric(item.negativeStageKey);
       const parentColumn = columnsByKey.get(item.parentStageKey);
 
-      // Desistência registrada no próprio nó pai (raro, mas possível se a saída
-      // foi marcada antes de ramificar para um dos dois lados)
       const withdrawnAtParent = buildWithdrawnAtStage(item.parentStageKey);
-      // Desistência registrada especificamente em cada ramo (ex: desistiu logo após "Faltou")
       const withdrawnAtPositive = buildWithdrawnAtStage(item.positiveStageKey);
       const withdrawnAtNegative = buildWithdrawnAtStage(item.negativeStageKey);
+
+      const currentCandidates = parentMetric.candidates.filter((candidate) => {
+        const currentStageKey = getCandidateStageKey(candidate);
+        return currentStageKey === item.parentStageKey;
+      });
 
       return {
         type: 'branch' as const,
@@ -386,6 +392,13 @@ const HiringMetrics = () => {
         count: parentMetric.count,
         candidates: parentMetric.candidates,
         withdrawnHere: withdrawnAtParent,
+        current: {
+          stageKey: item.parentStageKey,
+          label: 'Ainda nesta etapa',
+          count: currentCandidates.length,
+          candidates: currentCandidates,
+          withdrawnHere: withdrawnAtParent,
+        },
         positive: { ...positiveMetric, label: getHiringStageLabel(item.positiveStageKey), withdrawnHere: withdrawnAtPositive },
         negative: { ...negativeMetric, label: getHiringStageLabel(item.negativeStageKey), withdrawnHere: withdrawnAtNegative },
       };
@@ -613,6 +626,13 @@ const HiringMetrics = () => {
                       onOpen={() => handleOpenCandidatesDetailModal(block.title, block.candidates, 'total')}
                       onOpenWithdrawn={() => handleOpenCandidatesDetailModal(`Desistiu em "${block.title}"`, block.withdrawnHere, 'withdrawn')}
                       branch={{
+                        current: {
+                          label: block.current.label,
+                          count: block.current.count,
+                          withdrawnCount: block.current.withdrawnHere.length,
+                          onOpen: () => handleOpenCandidatesDetailModal(`${block.title} · Ainda nesta etapa`, block.current.candidates, 'total'),
+                          onOpenWithdrawn: () => handleOpenCandidatesDetailModal(`Desistiu em "${block.title}"`, block.current.withdrawnHere, 'withdrawn'),
+                        },
                         positive: {
                           label: block.positive.label,
                           count: block.positive.count,
