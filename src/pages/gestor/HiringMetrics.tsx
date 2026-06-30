@@ -5,7 +5,6 @@ import {
   ArrowLeft,
   BarChart3,
   CheckCircle2,
-  ChevronRight,
   History,
   Loader2,
   MapPin,
@@ -155,7 +154,9 @@ interface FunnelStageCardProps {
   count: number;
   parentCount: number;
   totalCount: number;
+  withdrawnCount: number;
   onOpen: () => void;
+  onOpenWithdrawn: () => void;
   branch?: {
     positiveLabel: string;
     positiveCount: number;
@@ -166,12 +167,14 @@ interface FunnelStageCardProps {
   };
 }
 
-const FunnelStageCard: React.FC<FunnelStageCardProps> = ({ title, color, count, parentCount, totalCount, onOpen, branch }) => {
+const FunnelStageCard: React.FC<FunnelStageCardProps> = ({
+  title, color, count, parentCount, totalCount, withdrawnCount, onOpen, onOpenWithdrawn, branch,
+}) => {
   const style = STAGE_CARD_STYLES[color] || STAGE_CARD_STYLES.gray;
   const percentOfTotal = totalCount > 0 ? Math.round((count / totalCount) * 100) : 0;
 
   return (
-    <div className={`flex h-full w-44 flex-shrink-0 flex-col justify-between rounded-xl border-2 ${style.border} ${style.bg} p-3 shadow-sm`}>
+    <div className={`flex h-full w-full flex-col justify-between rounded-xl border-2 ${style.border} ${style.bg} p-3 shadow-sm`}>
       <div>
         <button onClick={onOpen} className="w-full text-left">
           <div className="flex items-center gap-1.5">
@@ -186,26 +189,38 @@ const FunnelStageCard: React.FC<FunnelStageCardProps> = ({ title, color, count, 
           </div>
         </button>
 
-        {branch ? (
-          <div className="mt-2 space-y-1">
+        <div className="mt-2 space-y-1">
+          {branch && (
+            <>
+              <button
+                onClick={branch.onOpenPositive}
+                className="flex w-full items-center justify-between rounded-md bg-white/70 px-2 py-1 text-left transition hover:bg-white dark:bg-black/20 dark:hover:bg-black/30"
+              >
+                <span className="truncate text-[10px] font-bold text-green-700 dark:text-green-300">{branch.positiveLabel}</span>
+                <span className="ml-1 flex-shrink-0 text-[10px] font-black text-green-700 dark:text-green-300">{branch.positiveCount}</span>
+              </button>
+              <button
+                onClick={branch.onOpenNegative}
+                className="flex w-full items-center justify-between rounded-md bg-white/70 px-2 py-1 text-left transition hover:bg-white dark:bg-black/20 dark:hover:bg-black/30"
+              >
+                <span className="truncate text-[10px] font-bold text-red-700 dark:text-red-300">{branch.negativeLabel}</span>
+                <span className="ml-1 flex-shrink-0 text-[10px] font-black text-red-700 dark:text-red-300">{branch.negativeCount}</span>
+              </button>
+            </>
+          )}
+          {withdrawnCount > 0 && (
             <button
-              onClick={branch.onOpenPositive}
-              className="flex w-full items-center justify-between rounded-md bg-white/70 px-2 py-1 text-left transition hover:bg-white dark:bg-black/20 dark:hover:bg-black/30"
+              onClick={onOpenWithdrawn}
+              className="flex w-full items-center justify-between rounded-md bg-rose-100 px-2 py-1 text-left transition hover:bg-rose-200 dark:bg-rose-900/30 dark:hover:bg-rose-900/50"
             >
-              <span className="truncate text-[10px] font-bold text-green-700 dark:text-green-300">{branch.positiveLabel}</span>
-              <span className="ml-1 flex-shrink-0 text-[10px] font-black text-green-700 dark:text-green-300">{branch.positiveCount}</span>
+              <span className="flex items-center gap-1 truncate text-[10px] font-bold text-rose-700 dark:text-rose-300">
+                <UserMinus className="h-2.5 w-2.5 flex-shrink-0" />
+                Desistiu aqui
+              </span>
+              <span className="ml-1 flex-shrink-0 text-[10px] font-black text-rose-700 dark:text-rose-300">{withdrawnCount}</span>
             </button>
-            <button
-              onClick={branch.onOpenNegative}
-              className="flex w-full items-center justify-between rounded-md bg-white/70 px-2 py-1 text-left transition hover:bg-white dark:bg-black/20 dark:hover:bg-black/30"
-            >
-              <span className="truncate text-[10px] font-bold text-red-700 dark:text-red-300">{branch.negativeLabel}</span>
-              <span className="ml-1 flex-shrink-0 text-[10px] font-black text-red-700 dark:text-red-300">{branch.negativeCount}</span>
-            </button>
-          </div>
-        ) : (
-          <div className="mt-2 h-[58px]" />
-        )}
+          )}
+        </div>
       </div>
 
       <div className={`mt-2 border-t pt-1.5 text-[9px] font-bold uppercase ${style.border} ${style.text} opacity-70`}>
@@ -302,9 +317,21 @@ const HiringMetrics = () => {
       };
     };
 
+    // Candidatos que alcançaram a etapa E cuja desistência foi registrada NESSA mesma etapa
+    // (usa withdrawalStageKey, que é o registro real de onde a pessoa saiu — mais preciso
+    // do que inferir por ausência na próxima etapa).
+    const buildWithdrawnAtStage = (stageKey: HiringPipelineStageKey) => {
+      return candidatesCreatedInPeriod.filter((candidate) => {
+        if (!candidate.reprovadoDate) return false;
+        const exitStage = candidate.withdrawalStageKey || getCandidateStageKey(candidate);
+        return exitStage === stageKey;
+      });
+    };
+
     const processFunnelBlocks = FUNNEL_LAYOUT.map((item) => {
       if (item.type === 'stage') {
         const metric = buildCohortStageMetric(item.stageKey);
+        const withdrawnHere = buildWithdrawnAtStage(item.stageKey);
         return {
           type: 'stage' as const,
           stageKey: item.stageKey,
@@ -312,6 +339,7 @@ const HiringMetrics = () => {
           color: metric.color,
           count: metric.count,
           candidates: metric.candidates,
+          withdrawnHere,
         };
       }
 
@@ -319,6 +347,7 @@ const HiringMetrics = () => {
       const positiveMetric = buildCohortStageMetric(item.positiveStageKey);
       const negativeMetric = buildCohortStageMetric(item.negativeStageKey);
       const parentColumn = columnsByKey.get(item.parentStageKey);
+      const withdrawnHere = buildWithdrawnAtStage(item.parentStageKey);
 
       return {
         type: 'branch' as const,
@@ -327,6 +356,7 @@ const HiringMetrics = () => {
         color: parentColumn?.color || 'gray',
         count: parentMetric.count,
         candidates: parentMetric.candidates,
+        withdrawnHere,
         positive: { ...positiveMetric, label: getHiringStageLabel(item.positiveStageKey) },
         negative: { ...negativeMetric, label: getHiringStageLabel(item.negativeStageKey) },
       };
@@ -460,7 +490,7 @@ const HiringMetrics = () => {
               <BarChart3 className="mr-2 h-4 w-4" />Filtros da análise
             </h3>
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              No funil, o período filtra pela data de <strong>cadastro</strong> do candidato (coorte) — cada etapa mostra quantos desses candidatos já passaram por ela.
+              No funil, o período filtra pela data de <strong>cadastro</strong> do candidato (coorte). O card vermelho "Desistiu aqui" mostra quantos saíram do processo exatamente naquela etapa.
             </p>
           </div>
           {(searchTerm || filterStartDate || filterEndDate) && (
@@ -527,42 +557,41 @@ const HiringMetrics = () => {
               Nenhum candidato encontrado para o período selecionado.
             </div>
           ) : (
-            <div className="flex items-stretch gap-2 overflow-x-auto pb-2 custom-scrollbar">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {analytics.processFunnelBlocks.map((block, index) => (
-                <React.Fragment key={`${block.type}-${index}`}>
-                  {block.type === 'stage' ? (
-                    <FunnelStageCard
-                      title={block.title}
-                      color={block.color}
-                      count={block.count}
-                      parentCount={index === 0 ? 0 : totalCohort}
-                      totalCount={totalCohort}
-                      onOpen={() => handleOpenCandidatesDetailModal(block.title, block.candidates, 'total')}
-                    />
-                  ) : (
-                    <FunnelStageCard
-                      title={block.title}
-                      color={block.color}
-                      count={block.count}
-                      parentCount={totalCohort}
-                      totalCount={totalCohort}
-                      onOpen={() => handleOpenCandidatesDetailModal(block.title, block.candidates, 'total')}
-                      branch={{
-                        positiveLabel: block.positive.label,
-                        positiveCount: block.positive.count,
-                        onOpenPositive: () => handleOpenCandidatesDetailModal(block.positive.label, block.positive.candidates, 'total'),
-                        negativeLabel: block.negative.label,
-                        negativeCount: block.negative.count,
-                        onOpenNegative: () => handleOpenCandidatesDetailModal(block.negative.label, block.negative.candidates, 'total'),
-                      }}
-                    />
-                  )}
-                  {index < analytics.processFunnelBlocks.length - 1 && (
-                    <div className="flex flex-shrink-0 items-center self-center text-gray-300 dark:text-slate-600">
-                      <ChevronRight className="h-5 w-5" />
-                    </div>
-                  )}
-                </React.Fragment>
+                block.type === 'stage' ? (
+                  <FunnelStageCard
+                    key={`${block.type}-${index}`}
+                    title={block.title}
+                    color={block.color}
+                    count={block.count}
+                    parentCount={index === 0 ? 0 : totalCohort}
+                    totalCount={totalCohort}
+                    withdrawnCount={block.withdrawnHere.length}
+                    onOpen={() => handleOpenCandidatesDetailModal(block.title, block.candidates, 'total')}
+                    onOpenWithdrawn={() => handleOpenCandidatesDetailModal(`Desistiu em "${block.title}"`, block.withdrawnHere, 'withdrawn')}
+                  />
+                ) : (
+                  <FunnelStageCard
+                    key={`${block.type}-${index}`}
+                    title={block.title}
+                    color={block.color}
+                    count={block.count}
+                    parentCount={totalCohort}
+                    totalCount={totalCohort}
+                    withdrawnCount={block.withdrawnHere.length}
+                    onOpen={() => handleOpenCandidatesDetailModal(block.title, block.candidates, 'total')}
+                    onOpenWithdrawn={() => handleOpenCandidatesDetailModal(`Desistiu em "${block.title}"`, block.withdrawnHere, 'withdrawn')}
+                    branch={{
+                      positiveLabel: block.positive.label,
+                      positiveCount: block.positive.count,
+                      onOpenPositive: () => handleOpenCandidatesDetailModal(block.positive.label, block.positive.candidates, 'total'),
+                      negativeLabel: block.negative.label,
+                      negativeCount: block.negative.count,
+                      onOpenNegative: () => handleOpenCandidatesDetailModal(block.negative.label, block.negative.candidates, 'total'),
+                    }}
+                  />
+                )
               ))}
             </div>
           )}
