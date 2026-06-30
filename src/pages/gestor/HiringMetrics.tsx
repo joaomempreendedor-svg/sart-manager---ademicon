@@ -375,14 +375,21 @@ const HiringMetrics = () => {
       const negativeMetric = buildCohortStageMetric(item.negativeStageKey);
       const parentColumn = columnsByKey.get(item.parentStageKey);
 
-      const withdrawnAtParent = buildWithdrawnAtStage(item.parentStageKey);
-      const withdrawnAtPositive = buildWithdrawnAtStage(item.positiveStageKey);
-      const withdrawnAtNegative = buildWithdrawnAtStage(item.negativeStageKey);
-
       const currentCandidates = parentMetric.candidates.filter((candidate) => {
         const currentStageKey = getCandidateStageKey(candidate);
         return currentStageKey === item.parentStageKey;
       });
+
+      const positiveActiveCandidates = positiveMetric.candidates.filter(
+        (candidate) => !candidate.reprovadoDate && !candidate.disqualifiedDate && !candidate.managerRejectedDate,
+      );
+      const negativeActiveCandidates = negativeMetric.candidates.filter(
+        (candidate) => !candidate.reprovadoDate && !candidate.disqualifiedDate && !candidate.managerRejectedDate,
+      );
+
+      const withdrawnAtParent = buildWithdrawnAtStage(item.parentStageKey);
+      const withdrawnAtPositive = buildWithdrawnAtStage(item.positiveStageKey);
+      const withdrawnAtNegative = buildWithdrawnAtStage(item.negativeStageKey);
 
       return {
         type: 'branch' as const,
@@ -399,8 +406,20 @@ const HiringMetrics = () => {
           candidates: currentCandidates,
           withdrawnHere: withdrawnAtParent,
         },
-        positive: { ...positiveMetric, label: getHiringStageLabel(item.positiveStageKey), withdrawnHere: withdrawnAtPositive },
-        negative: { ...negativeMetric, label: getHiringStageLabel(item.negativeStageKey), withdrawnHere: withdrawnAtNegative },
+        positive: {
+          ...positiveMetric,
+          count: positiveActiveCandidates.length,
+          candidates: positiveActiveCandidates,
+          label: getHiringStageLabel(item.positiveStageKey),
+          withdrawnHere: withdrawnAtPositive,
+        },
+        negative: {
+          ...negativeMetric,
+          count: negativeActiveCandidates.length,
+          candidates: negativeActiveCandidates,
+          label: getHiringStageLabel(item.negativeStageKey),
+          withdrawnHere: withdrawnAtNegative,
+        },
       };
     });
 
