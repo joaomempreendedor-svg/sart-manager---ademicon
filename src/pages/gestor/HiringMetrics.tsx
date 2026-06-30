@@ -54,6 +54,7 @@ type StageMetric = {
 
 type BranchBreakdownRow = {
   label: string;
+  helperText?: string;
   count: number;
   onOpen: () => void;
   tone: 'blue' | 'green' | 'red' | 'rose';
@@ -183,10 +184,15 @@ const BreakdownRow: React.FC<{ row: BranchBreakdownRow }> = ({ row }) => {
   return (
     <button
       onClick={row.onOpen}
-      className={`flex w-full items-center justify-between rounded-lg border px-2.5 py-1.5 text-left shadow-sm transition hover:opacity-90 ${toneBorders[row.tone]}`}
+      className={`flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left shadow-sm transition hover:opacity-90 ${toneBorders[row.tone]}`}
     >
-      <span className={`truncate text-[10px] font-bold ${toneClasses[row.tone]}`}>{row.label}</span>
-      <span className={`ml-1 flex-shrink-0 text-[10px] font-black ${toneClasses[row.tone]}`}>{row.count}</span>
+      <div className="min-w-0">
+        <div className={`truncate text-[11px] font-bold ${toneClasses[row.tone]}`}>{row.label}</div>
+        {row.helperText && (
+          <div className="mt-0.5 text-[10px] text-gray-500 dark:text-gray-400">{row.helperText}</div>
+        )}
+      </div>
+      <span className={`ml-3 flex-shrink-0 text-sm font-black ${toneClasses[row.tone]}`}>{row.count}</span>
     </button>
   );
 };
@@ -208,6 +214,9 @@ const FunnelStageCard: React.FC<FunnelStageCardProps> = ({
             <h3 className={`text-sm font-bold leading-tight ${style.text}`}>{title}</h3>
           </div>
           <div className="mt-3 mb-2 rounded-xl border border-white/70 bg-white px-3 py-3 shadow-sm dark:border-slate-600 dark:bg-slate-900/40">
+            <div className="mb-1 text-[10px] font-bold uppercase tracking-wide text-gray-400">
+              Total nesta etapa
+            </div>
             <div className="flex items-end gap-2">
               <span className={`text-4xl font-black leading-none ${style.text}`}>{count}</span>
               {parentCount > 0 && <span className="pb-1 text-[10px] font-bold text-gray-400">dos {parentCount}</span>}
@@ -217,11 +226,14 @@ const FunnelStageCard: React.FC<FunnelStageCardProps> = ({
 
         {breakdownRows && breakdownRows.length > 0 && (
           <div className="mt-3 space-y-2">
+            <div className="rounded-lg border border-dashed border-gray-200 bg-white/70 px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-gray-500 dark:border-slate-600 dark:bg-slate-900/30 dark:text-gray-400">
+              Como esse total está dividido
+            </div>
             {breakdownRows.map((row) => (
               <BreakdownRow key={row.label} row={row} />
             ))}
             <div className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-[10px] font-medium leading-relaxed text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
-              A soma das linhas abaixo representa exatamente o número principal deste card.
+              As linhas abaixo explicam para onde foram as pessoas deste card.
             </div>
           </div>
         )}
@@ -527,7 +539,7 @@ const HiringMetrics = () => {
               <BarChart3 className="mr-2 h-4 w-4" />Filtros da análise
             </h3>
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              No funil, o período filtra pela data de <strong>cadastro</strong> do candidato. Nos cards com divisão, as linhas abaixo mostram exatamente como o total do topo foi distribuído.
+              No funil, o período filtra pela data de <strong>cadastro</strong> do candidato. Nos cards com divisão, o número grande mostra o total da etapa e as linhas abaixo explicam exatamente como esse total foi distribuído.
             </p>
           </div>
           {(searchTerm || filterStartDate || filterEndDate) && (
@@ -634,25 +646,29 @@ const HiringMetrics = () => {
                       onOpen={() => handleOpenCandidatesDetailModal(block.title, block.candidates, 'total')}
                       breakdownRows={[
                         {
-                          label: block.current.label,
+                          label: 'Ainda nesta etapa',
+                          helperText: `Continuam em ${block.title}`,
                           count: block.current.count,
                           onOpen: () => handleOpenCandidatesDetailModal(`${block.title} · Ainda nesta etapa`, block.current.candidates, 'total'),
                           tone: 'blue',
                         },
                         {
                           label: block.positive.label,
+                          helperText: 'Avançaram para o próximo resultado positivo',
                           count: block.positive.count,
                           onOpen: () => handleOpenCandidatesDetailModal(block.positive.label, block.positive.candidates, 'total'),
                           tone: 'green',
                         },
                         {
-                          label: block.withdrawn.label,
+                          label: 'Desistiu aqui',
+                          helperText: `Saíram durante ${block.title}`,
                           count: block.withdrawn.count,
                           onOpen: () => handleOpenCandidatesDetailModal(`Desistiu em "${block.title}"`, block.withdrawn.candidates, 'withdrawn'),
                           tone: 'rose',
                         },
                         {
                           label: block.negative.label,
+                          helperText: 'Seguiram para o resultado negativo desta etapa',
                           count: block.negative.count,
                           onOpen: () => handleOpenCandidatesDetailModal(block.negative.label, block.negative.candidates, 'total'),
                           tone: 'red',
