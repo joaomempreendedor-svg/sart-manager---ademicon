@@ -237,16 +237,21 @@ const FunnelStageCard: React.FC<FunnelStageCardProps> = ({
             </>
           )}
           {withdrawnCount > 0 && (
-            <button
-              onClick={onOpenWithdrawn}
-              className="flex w-full items-center justify-between rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-left transition hover:bg-rose-100 dark:border-rose-800 dark:bg-rose-900/30 dark:hover:bg-rose-900/50"
-            >
-              <span className="flex items-center gap-1 truncate text-[10px] font-bold text-rose-700 dark:text-rose-300">
-                <UserMinus className="h-2.5 w-2.5 flex-shrink-0" />
-                Desistiu aqui
-              </span>
-              <span className="ml-1 flex-shrink-0 text-[10px] font-black text-rose-700 dark:text-rose-300">{withdrawnCount}</span>
-            </button>
+            <>
+              <button
+                onClick={onOpenWithdrawn}
+                className="flex w-full items-center justify-between rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-left transition hover:bg-rose-100 dark:border-rose-800 dark:bg-rose-900/30 dark:hover:bg-rose-900/50"
+              >
+                <span className="flex items-center gap-1 truncate text-[10px] font-bold text-rose-700 dark:text-rose-300">
+                  <UserMinus className="h-2.5 w-2.5 flex-shrink-0" />
+                  Desistiu aqui
+                </span>
+                <span className="ml-1 flex-shrink-0 text-[10px] font-black text-rose-700 dark:text-rose-300">{withdrawnCount}</span>
+              </button>
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-[10px] font-medium leading-relaxed text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
+                Atenção: quem desistiu aqui também pode estar contado no total desta etapa.
+              </div>
+            </>
           )}
         </div>
       </div>
@@ -551,7 +556,7 @@ const HiringMetrics = () => {
               <BarChart3 className="mr-2 h-4 w-4" />Filtros da análise
             </h3>
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              No funil, o período filtra pela data de <strong>cadastro</strong> do candidato (coorte). O indicador vermelho "Desistiu aqui" mostra quantos saíram exatamente naquele ponto — inclusive dentro de cada ramo (ex: "Faltou" → "Desistiu aqui").
+              No funil, o período filtra pela data de <strong>cadastro</strong> do candidato (coorte). O indicador vermelho "Desistiu aqui" mostra quantos saíram exatamente naquele ponto — inclusive dentro de cada ramo (ex: "Faltou" → "Desistiu aqui"). Quando esse aviso aparecer, significa que essas desistências também podem estar incluídas no total principal da etapa.
             </p>
           </div>
           {(searchTerm || filterStartDate || filterEndDate) && (
