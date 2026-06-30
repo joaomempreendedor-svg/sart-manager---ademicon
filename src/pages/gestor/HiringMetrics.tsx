@@ -148,6 +148,14 @@ const STAGE_CARD_STYLES: Record<HiringPipelineColumn['color'], { border: string;
   orange: { border: 'border-orange-300 dark:border-orange-800', bg: 'bg-orange-50 dark:bg-orange-900/20', text: 'text-orange-700 dark:text-orange-300', iconBg: 'bg-orange-100 dark:bg-orange-900/40' },
 };
 
+interface BranchRowData {
+  label: string;
+  count: number;
+  withdrawnCount: number;
+  onOpen: () => void;
+  onOpenWithdrawn: () => void;
+}
+
 interface FunnelStageCardProps {
   title: string;
   color: HiringPipelineColumn['color'];
@@ -158,14 +166,40 @@ interface FunnelStageCardProps {
   onOpen: () => void;
   onOpenWithdrawn: () => void;
   branch?: {
-    positiveLabel: string;
-    positiveCount: number;
-    onOpenPositive: () => void;
-    negativeLabel: string;
-    negativeCount: number;
-    onOpenNegative: () => void;
+    positive: BranchRowData;
+    negative: BranchRowData;
   };
 }
+
+const BranchRow: React.FC<{ row: BranchRowData; tone: 'green' | 'red' }> = ({ row, tone }) => {
+  const toneClasses = tone === 'green'
+    ? 'text-green-700 dark:text-green-300'
+    : 'text-red-700 dark:text-red-300';
+
+  return (
+    <div className="space-y-1">
+      <button
+        onClick={row.onOpen}
+        className="flex w-full items-center justify-between rounded-md bg-white/70 px-2 py-1 text-left transition hover:bg-white dark:bg-black/20 dark:hover:bg-black/30"
+      >
+        <span className={`truncate text-[10px] font-bold ${toneClasses}`}>{row.label}</span>
+        <span className={`ml-1 flex-shrink-0 text-[10px] font-black ${toneClasses}`}>{row.count}</span>
+      </button>
+      {row.withdrawnCount > 0 && (
+        <button
+          onClick={row.onOpenWithdrawn}
+          className="flex w-full items-center justify-between rounded-md bg-rose-100 px-2 py-0.5 pl-3 text-left transition hover:bg-rose-200 dark:bg-rose-900/30 dark:hover:bg-rose-900/50"
+        >
+          <span className="flex items-center gap-1 truncate text-[9px] font-bold text-rose-700 dark:text-rose-300">
+            <UserMinus className="h-2 w-2 flex-shrink-0" />
+            Desistiu aqui
+          </span>
+          <span className="ml-1 flex-shrink-0 text-[9px] font-black text-rose-700 dark:text-rose-300">{row.withdrawnCount}</span>
+        </button>
+      )}
+    </div>
+  );
+};
 
 const FunnelStageCard: React.FC<FunnelStageCardProps> = ({
   title, color, count, parentCount, totalCount, withdrawnCount, onOpen, onOpenWithdrawn, branch,
@@ -189,25 +223,14 @@ const FunnelStageCard: React.FC<FunnelStageCardProps> = ({
           </div>
         </button>
 
-        <div className="mt-2 space-y-1">
+        <div className="mt-2 space-y-1.5">
           {branch && (
             <>
-              <button
-                onClick={branch.onOpenPositive}
-                className="flex w-full items-center justify-between rounded-md bg-white/70 px-2 py-1 text-left transition hover:bg-white dark:bg-black/20 dark:hover:bg-black/30"
-              >
-                <span className="truncate text-[10px] font-bold text-green-700 dark:text-green-300">{branch.positiveLabel}</span>
-                <span className="ml-1 flex-shrink-0 text-[10px] font-black text-green-700 dark:text-green-300">{branch.positiveCount}</span>
-              </button>
-              <button
-                onClick={branch.onOpenNegative}
-                className="flex w-full items-center justify-between rounded-md bg-white/70 px-2 py-1 text-left transition hover:bg-white dark:bg-black/20 dark:hover:bg-black/30"
-              >
-                <span className="truncate text-[10px] font-bold text-red-700 dark:text-red-300">{branch.negativeLabel}</span>
-                <span className="ml-1 flex-shrink-0 text-[10px] font-black text-red-700 dark:text-red-300">{branch.negativeCount}</span>
-              </button>
+              <BranchRow row={branch.positive} tone="green" />
+              <BranchRow row={branch.negative} tone="red" />
             </>
           )}
+          {/* Desistência registrada diretamente nesta etapa (não em um ramo filho) */}
           {withdrawnCount > 0 && (
             <button
               onClick={onOpenWithdrawn}
@@ -317,9 +340,8 @@ const HiringMetrics = () => {
       };
     };
 
-    // Candidatos que alcançaram a etapa E cuja desistência foi registrada NESSA mesma etapa
-    // (usa withdrawalStageKey, que é o registro real de onde a pessoa saiu — mais preciso
-    // do que inferir por ausência na próxima etapa).
+    // Candidatos da coorte cuja desistência foi registrada EXATAMENTE nesta stageKey
+    // (usa withdrawalStageKey, o registro real de onde a pessoa saiu).
     const buildWithdrawnAtStage = (stageKey: HiringPipelineStageKey) => {
       return candidatesCreatedInPeriod.filter((candidate) => {
         if (!candidate.reprovadoDate) return false;
@@ -347,7 +369,13 @@ const HiringMetrics = () => {
       const positiveMetric = buildCohortStageMetric(item.positiveStageKey);
       const negativeMetric = buildCohortStageMetric(item.negativeStageKey);
       const parentColumn = columnsByKey.get(item.parentStageKey);
-      const withdrawnHere = buildWithdrawnAtStage(item.parentStageKey);
+
+      // Desistência registrada no próprio nó pai (raro, mas possível se a saída
+      // foi marcada antes de ramificar para um dos dois lados)
+      const withdrawnAtParent = buildWithdrawnAtStage(item.parentStageKey);
+      // Desistência registrada especificamente em cada ramo (ex: desistiu logo após "Faltou")
+      const withdrawnAtPositive = buildWithdrawnAtStage(item.positiveStageKey);
+      const withdrawnAtNegative = buildWithdrawnAtStage(item.negativeStageKey);
 
       return {
         type: 'branch' as const,
@@ -356,9 +384,9 @@ const HiringMetrics = () => {
         color: parentColumn?.color || 'gray',
         count: parentMetric.count,
         candidates: parentMetric.candidates,
-        withdrawnHere,
-        positive: { ...positiveMetric, label: getHiringStageLabel(item.positiveStageKey) },
-        negative: { ...negativeMetric, label: getHiringStageLabel(item.negativeStageKey) },
+        withdrawnHere: withdrawnAtParent,
+        positive: { ...positiveMetric, label: getHiringStageLabel(item.positiveStageKey), withdrawnHere: withdrawnAtPositive },
+        negative: { ...negativeMetric, label: getHiringStageLabel(item.negativeStageKey), withdrawnHere: withdrawnAtNegative },
       };
     });
 
@@ -490,7 +518,7 @@ const HiringMetrics = () => {
               <BarChart3 className="mr-2 h-4 w-4" />Filtros da análise
             </h3>
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              No funil, o período filtra pela data de <strong>cadastro</strong> do candidato (coorte). O card vermelho "Desistiu aqui" mostra quantos saíram do processo exatamente naquela etapa.
+              No funil, o período filtra pela data de <strong>cadastro</strong> do candidato (coorte). O indicador vermelho "Desistiu aqui" mostra quantos saíram exatamente naquele ponto — inclusive dentro de cada ramo (ex: "Faltou" → "Desistiu aqui").
             </p>
           </div>
           {(searchTerm || filterStartDate || filterEndDate) && (
@@ -583,12 +611,20 @@ const HiringMetrics = () => {
                     onOpen={() => handleOpenCandidatesDetailModal(block.title, block.candidates, 'total')}
                     onOpenWithdrawn={() => handleOpenCandidatesDetailModal(`Desistiu em "${block.title}"`, block.withdrawnHere, 'withdrawn')}
                     branch={{
-                      positiveLabel: block.positive.label,
-                      positiveCount: block.positive.count,
-                      onOpenPositive: () => handleOpenCandidatesDetailModal(block.positive.label, block.positive.candidates, 'total'),
-                      negativeLabel: block.negative.label,
-                      negativeCount: block.negative.count,
-                      onOpenNegative: () => handleOpenCandidatesDetailModal(block.negative.label, block.negative.candidates, 'total'),
+                      positive: {
+                        label: block.positive.label,
+                        count: block.positive.count,
+                        withdrawnCount: block.positive.withdrawnHere.length,
+                        onOpen: () => handleOpenCandidatesDetailModal(block.positive.label, block.positive.candidates, 'total'),
+                        onOpenWithdrawn: () => handleOpenCandidatesDetailModal(`Desistiu em "${block.positive.label}"`, block.positive.withdrawnHere, 'withdrawn'),
+                      },
+                      negative: {
+                        label: block.negative.label,
+                        count: block.negative.count,
+                        withdrawnCount: block.negative.withdrawnHere.length,
+                        onOpen: () => handleOpenCandidatesDetailModal(block.negative.label, block.negative.candidates, 'total'),
+                        onOpenWithdrawn: () => handleOpenCandidatesDetailModal(`Desistiu em "${block.negative.label}"`, block.negative.withdrawnHere, 'withdrawn'),
+                      },
                     }}
                   />
                 )
