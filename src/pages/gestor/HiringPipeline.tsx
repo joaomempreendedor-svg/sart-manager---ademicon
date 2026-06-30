@@ -132,10 +132,7 @@ const SuggestedMessageModal: React.FC<SuggestedMessageModalProps> = ({ isOpen, o
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-      <div
-        className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl dark:bg-slate-800"
-        onClick={(event) => event.stopPropagation()}
-      >
+      <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl dark:bg-slate-800" onClick={(e) => e.stopPropagation()}>
         <div className="mb-3 flex items-start justify-between gap-3">
           <div>
             <h3 className="flex items-center gap-2 text-base font-bold text-gray-900 dark:text-white">
@@ -148,7 +145,6 @@ const SuggestedMessageModal: React.FC<SuggestedMessageModalProps> = ({ isOpen, o
             <X className="h-4 w-4" />
           </button>
         </div>
-
         {message ? (
           <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700 dark:border-slate-600 dark:bg-slate-900 dark:text-gray-200">
             {message}
@@ -158,15 +154,13 @@ const SuggestedMessageModal: React.FC<SuggestedMessageModalProps> = ({ isOpen, o
             Nenhuma mensagem sugerida cadastrada para esta etapa. Configure em "Editar Pipeline".
           </div>
         )}
-
         <div className="flex justify-end gap-2">
           <button onClick={onClose} className="rounded-lg px-4 py-2 text-sm font-semibold text-gray-500 hover:bg-gray-100 dark:hover:bg-slate-700">
             Fechar
           </button>
           {message && (
             <button onClick={handleCopy} className="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-bold text-white hover:bg-brand-700">
-              <Copy className="h-4 w-4" />
-              Copiar mensagem
+              <Copy className="h-4 w-4" />Copiar mensagem
             </button>
           )}
         </div>
@@ -183,15 +177,11 @@ interface TimelineModalProps {
 
 const TimelineModal: React.FC<TimelineModalProps> = ({ isOpen, onClose, candidate }) => {
   if (!isOpen || !candidate) return null;
-
   const timeline = buildCandidateTimeline(candidate);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-      <div
-        className="max-h-[80vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-5 shadow-xl dark:bg-slate-800"
-        onClick={(event) => event.stopPropagation()}
-      >
+      <div className="max-h-[80vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-5 shadow-xl dark:bg-slate-800" onClick={(e) => e.stopPropagation()}>
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
             <h3 className="flex items-center gap-2 text-base font-bold text-gray-900 dark:text-white">
@@ -204,25 +194,16 @@ const TimelineModal: React.FC<TimelineModalProps> = ({ isOpen, onClose, candidat
             <X className="h-4 w-4" />
           </button>
         </div>
-
         {timeline.length === 0 ? (
           <p className="text-sm text-gray-400">Nenhum evento registrado ainda.</p>
         ) : (
           <ol className="relative ml-2 space-y-4 border-l-2 border-gray-200 pl-4 dark:border-slate-600">
             {timeline.map((event) => (
               <li key={event.key} className="relative">
-                <span
-                  className={`absolute -left-[21px] top-0.5 flex h-4 w-4 items-center justify-center rounded-full ${
-                    event.isNegative
-                      ? 'bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-300'
-                      : 'bg-green-100 text-green-600 dark:bg-green-900/40 dark:text-green-300'
-                  }`}
-                >
+                <span className={`absolute -left-[21px] top-0.5 flex h-4 w-4 items-center justify-center rounded-full ${event.isNegative ? 'bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-300' : 'bg-green-100 text-green-600 dark:bg-green-900/40 dark:text-green-300'}`}>
                   {event.isNegative ? <AlertTriangle className="h-2.5 w-2.5" /> : <CheckCircle2 className="h-2.5 w-2.5" />}
                 </span>
-                <p className={`text-sm font-semibold ${event.isNegative ? 'text-red-600 dark:text-red-400' : 'text-gray-800 dark:text-gray-100'}`}>
-                  {event.label}
-                </p>
+                <p className={`text-sm font-semibold ${event.isNegative ? 'text-red-600 dark:text-red-400' : 'text-gray-800 dark:text-gray-100'}`}>{event.label}</p>
                 <p className="text-xs text-gray-400">{formatDateTime(event.date)}</p>
               </li>
             ))}
@@ -233,20 +214,111 @@ const TimelineModal: React.FC<TimelineModalProps> = ({ isOpen, onClose, candidat
   );
 };
 
+interface RevertWithdrawalModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  candidate: Candidate | null;
+  columns: HiringPipelineColumn[];
+  onConfirm: (candidate: Candidate, targetStageKey: HiringPipelineStageKey) => Promise<void>;
+}
+
+const RevertWithdrawalModal: React.FC<RevertWithdrawalModalProps> = ({ isOpen, onClose, candidate, columns, onConfirm }) => {
+  const [selectedStageKey, setSelectedStageKey] = useState<HiringPipelineStageKey | ''>('');
+  const [isSaving, setIsSaving] = useState(false);
+
+  if (!isOpen || !candidate) return null;
+
+  const handleConfirm = async () => {
+    if (!selectedStageKey) {
+      toast.error('Selecione uma etapa para o candidato retornar.');
+      return;
+    }
+    setIsSaving(true);
+    try {
+      await onConfirm(candidate, selectedStageKey as HiringPipelineStageKey);
+      toast.success(`Desistência revertida! ${candidate.name} voltou para "${getHiringStageLabel(selectedStageKey as HiringPipelineStageKey)}".`);
+      onClose();
+    } catch {
+      toast.error('Erro ao reverter desistência.');
+    } finally {
+      setIsSaving(false);
+      setSelectedStageKey('');
+    }
+  };
+
+  const handleClose = () => {
+    setSelectedStageKey('');
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={handleClose}>
+      <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl dark:bg-slate-800" onClick={(e) => e.stopPropagation()}>
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div>
+            <h3 className="flex items-center gap-2 text-base font-bold text-gray-900 dark:text-white">
+              <RotateCcw className="h-4 w-4 text-brand-500" />
+              Reverter desistência — {candidate.name}
+            </h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              Escolha para qual etapa o candidato deve retornar. Os dados de desistência serão apagados.
+            </p>
+          </div>
+          <button onClick={handleClose} className="rounded-md p-1 text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {candidate.withdrawalStageKey && (
+          <div className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700 dark:bg-red-900/20 dark:text-red-300">
+            Desistência registrada em: <strong>{getHiringStageLabel(candidate.withdrawalStageKey)}</strong>
+            {candidate.withdrawalReasonOption && <> — motivo: {candidate.withdrawalReasonOption}</>}
+          </div>
+        )}
+
+        <div className="mb-4">
+          <label className="mb-1.5 block text-xs font-bold uppercase text-gray-500 dark:text-gray-400">
+            Retornar para qual etapa?
+          </label>
+          <select
+            value={selectedStageKey}
+            onChange={(e) => setSelectedStageKey(e.target.value as HiringPipelineStageKey)}
+            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+          >
+            <option value="">Selecione uma etapa...</option>
+            {columns.map((column) => (
+              <option key={column.id} value={column.stageKey}>
+                {column.title}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex justify-end gap-2">
+          <button onClick={handleClose} className="rounded-lg px-4 py-2 text-sm font-semibold text-gray-500 hover:bg-gray-100 dark:hover:bg-slate-700">
+            Cancelar
+          </button>
+          <button
+            onClick={handleConfirm}
+            disabled={!selectedStageKey || isSaving}
+            className="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-bold text-white hover:bg-brand-700 disabled:opacity-50"
+          >
+            {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
+            Confirmar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const HiringPipeline = () => {
   const navigate = useNavigate();
   const { user, isLoading: isAuthLoading } = useAuth();
   const {
-    candidates,
-    setCandidates,
-    teamMembers,
-    isDataLoading,
-    updateCandidate,
-    deleteCandidate,
-    hasPendingSecretariaTasks,
-    addCandidate,
-    hiringOrigins,
-    hiringPipelineColumns,
+    candidates, setCandidates, teamMembers, isDataLoading,
+    updateCandidate, deleteCandidate, hasPendingSecretariaTasks,
+    addCandidate, hiringOrigins, hiringPipelineColumns,
   } = useApp();
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -263,10 +335,10 @@ const HiringPipeline = () => {
   const [showWithdrawn, setShowWithdrawn] = useState(true);
   const [messageModalStage, setMessageModalStage] = useState<HiringPipelineColumn | null>(null);
   const [timelineCandidate, setTimelineCandidate] = useState<Candidate | null>(null);
+  const [revertCandidate, setRevertCandidate] = useState<Candidate | null>(null);
 
   const todayStr = new Date().toISOString().split('T')[0];
   const baseRoute = user?.role === 'SECRETARIA' ? '/secretaria' : '/gestor';
-
   const normalizedColumns = useMemo(() => normalizeHiringPipelineColumns(hiringPipelineColumns), [hiringPipelineColumns]);
 
   const sortByRecentUpdate = (a: Candidate, b: Candidate) => {
@@ -290,34 +362,26 @@ const HiringPipeline = () => {
   };
 
   const filteredCandidates = useMemo(() => {
-    let currentCandidates = candidates.filter(Boolean);
-
+    let current = candidates.filter(Boolean);
     if (searchTerm) {
-      const lowerSearch = searchTerm.toLowerCase();
-      currentCandidates = currentCandidates.filter(
-        (candidate) =>
-          String(candidate.name || '').toLowerCase().includes(lowerSearch) ||
-          String(candidate.phone || '').toLowerCase().includes(lowerSearch) ||
-          String(candidate.email || '').toLowerCase().includes(lowerSearch) ||
-          String(candidate.notes || '').toLowerCase().includes(lowerSearch),
+      const lower = searchTerm.toLowerCase();
+      current = current.filter((c) =>
+        String(c.name || '').toLowerCase().includes(lower) ||
+        String(c.phone || '').toLowerCase().includes(lower) ||
+        String(c.email || '').toLowerCase().includes(lower) ||
+        String(c.notes || '').toLowerCase().includes(lower),
       );
     }
-
     if (filterStartDate) {
       const start = new Date(`${filterStartDate}T00:00:00`);
-      currentCandidates = currentCandidates.filter((candidate) => new Date(candidate.createdAt) >= start);
+      current = current.filter((c) => new Date(c.createdAt) >= start);
     }
-
     if (filterEndDate) {
       const end = new Date(`${filterEndDate}T23:59:59`);
-      currentCandidates = currentCandidates.filter((candidate) => new Date(candidate.createdAt) <= end);
+      current = current.filter((c) => new Date(c.createdAt) <= end);
     }
-
-    if (!showWithdrawn) {
-      return currentCandidates.filter((candidate) => !candidate.reprovadoDate);
-    }
-
-    return currentCandidates;
+    if (!showWithdrawn) return current.filter((c) => !c.reprovadoDate);
+    return current;
   }, [candidates, filterEndDate, filterStartDate, searchTerm, showWithdrawn]);
 
   const pipelineStages = useMemo(() => {
@@ -332,9 +396,7 @@ const HiringPipeline = () => {
     }));
   }, [filteredCandidates, normalizedColumns]);
 
-  const withdrawnCount = useMemo(() => {
-    return candidates.filter((c) => c.reprovadoDate).length;
-  }, [candidates]);
+  const withdrawnCount = useMemo(() => candidates.filter((c) => c.reprovadoDate).length, [candidates]);
 
   const getColumnColorClasses = (color: HiringPipelineColumn['color']) => {
     switch (color) {
@@ -350,121 +412,92 @@ const HiringPipeline = () => {
 
   const moveCandidateToStage = async (candidate: Candidate, column: HiringPipelineColumn, reason?: string) => {
     const blockedReason = getBlockedReason(candidate, column.stageKey);
-    if (blockedReason) {
-      toast.error(`🔒 ${blockedReason}`, { duration: 4000 });
-      return;
-    }
+    if (blockedReason) { toast.error(`🔒 ${blockedReason}`, { duration: 4000 }); return; }
     await updateCandidate(candidate.id, buildCandidateStageUpdates(candidate, column.stageKey, reason));
   };
 
   const openWithdrawalFlow = (event: React.MouseEvent, candidate: Candidate) => {
-    event.preventDefault();
-    event.stopPropagation();
+    event.preventDefault(); event.stopPropagation();
     setSelectedCandidateForWithdrawal(candidate);
     setIsWithdrawalModalOpen(true);
   };
 
   const handleMoveToColumn = async (event: React.MouseEvent, candidate: Candidate, column: HiringPipelineColumn) => {
-    event.preventDefault();
-    event.stopPropagation();
-
+    event.preventDefault(); event.stopPropagation();
     const blockedReason = getBlockedReason(candidate, column.stageKey);
-    if (blockedReason) {
-      toast.error(`🔒 ${blockedReason}`, { duration: 4000 });
-      return;
-    }
-
+    if (blockedReason) { toast.error(`🔒 ${blockedReason}`, { duration: 4000 }); return; }
     try {
       await moveCandidateToStage(candidate, column);
       toast.success(`Candidato movido para ${column.title}`);
-
       if (column.stageKey === 'entrevista-agendada') {
         setSelectedCandidateForDate(candidate);
         setIsUpdateDateModalOpen(true);
       }
-    } catch {
-      toast.error('Erro ao atualizar status.');
-    }
+    } catch { toast.error('Erro ao atualizar status.'); }
   };
 
   const handleConfirmWithdrawal = async (selection: WithdrawalReasonSelection) => {
     if (!selectedCandidateForWithdrawal) return;
-
     const withdrawalStageKey = getCandidateStageKey(selectedCandidateForWithdrawal);
     const now = new Date().toISOString();
-
     try {
       await updateCandidate(selectedCandidateForWithdrawal.id, {
-        status: 'Reprovado',
-        pipelineStageKey: withdrawalStageKey,
-        withdrawalStageKey,
-        withdrawalReasonOption: selection.reasonOption,
-        withdrawalReason: selection.reasonText,
-        reprovadoDate: now,
-        lastUpdatedAt: now,
+        status: 'Reprovado', pipelineStageKey: withdrawalStageKey, withdrawalStageKey,
+        withdrawalReasonOption: selection.reasonOption, withdrawalReason: selection.reasonText,
+        reprovadoDate: now, lastUpdatedAt: now,
       });
       toast.success(`Desistência registrada em ${getHiringStageLabel(withdrawalStageKey)}`);
-    } catch {
-      toast.error('Erro ao registrar desistência.');
-    }
+    } catch { toast.error('Erro ao registrar desistência.'); }
+  };
+
+  const handleRevertWithdrawal = async (candidate: Candidate, targetStageKey: HiringPipelineStageKey) => {
+    const now = new Date().toISOString();
+    const stageUpdates = buildCandidateStageUpdates(candidate, targetStageKey);
+    await updateCandidate(candidate.id, {
+      ...stageUpdates,
+      reprovadoDate: undefined,
+      withdrawalStageKey: undefined,
+      withdrawalReasonOption: undefined,
+      withdrawalReason: undefined,
+      lastUpdatedAt: now,
+    });
   };
 
   const handleOpenUpdateDate = async (event: React.MouseEvent, candidate: Candidate) => {
-    event.preventDefault();
-    event.stopPropagation();
-
-    // Se está reagendando (já faltou), incrementa o contador
+    event.preventDefault(); event.stopPropagation();
     if (getCandidateStageKey(candidate) === 'faltou-entrevista') {
-      await updateCandidate(candidate.id, {
-        rescheduledCount: (candidate.rescheduledCount || 0) + 1,
-      });
+      await updateCandidate(candidate.id, { rescheduledCount: (candidate.rescheduledCount || 0) + 1 });
     }
-
     setSelectedCandidateForDate(candidate);
     setIsUpdateDateModalOpen(true);
   };
 
   const debouncedUpdateCandidateNotes = useDebouncedCallback(async (candidateId: string, notes: string) => {
-    try {
-      await updateCandidate(candidateId, { notes });
-      toast.success('Observações salvas!');
-    } catch {
-      toast.error('Erro ao salvar observações.');
-    }
+    try { await updateCandidate(candidateId, { notes }); toast.success('Observações salvas!'); }
+    catch { toast.error('Erro ao salvar observações.'); }
   }, 1000);
 
   const handleNotesChange = (candidateId: string, newNotes: string) => {
-    setCandidates((prev) => prev.map((candidate) => (candidate.id === candidateId ? { ...candidate, notes: newNotes } : candidate)));
+    setCandidates((prev) => prev.map((c) => (c.id === candidateId ? { ...c, notes: newNotes } : c)));
     debouncedUpdateCandidateNotes(candidateId, newNotes);
   };
 
   const handleDeleteCandidatePermanently = async (event: React.MouseEvent, candidateDbId: string, candidateName: string) => {
-    event.preventDefault();
-    event.stopPropagation();
+    event.preventDefault(); event.stopPropagation();
     if (!window.confirm(`Tem certeza que deseja excluir permanentemente "${candidateName}"?`)) return;
-    try {
-      await deleteCandidate(candidateDbId);
-      toast.success(`Candidato "${candidateName}" excluído.`);
-    } catch (error: any) {
-      toast.error(`Erro ao excluir candidato: ${error.message}`);
-    }
+    try { await deleteCandidate(candidateDbId); toast.success(`Candidato "${candidateName}" excluído.`); }
+    catch (error: any) { toast.error(`Erro ao excluir candidato: ${error.message}`); }
   };
 
   const responsibleMembersForModal = useMemo(() => {
-    return teamMembers.filter(
-      (member) =>
-        member.isActive &&
-        (member.roles.includes('GESTOR') ||
-          member.roles.includes('CONSULTOR') ||
-          member.roles.includes('ANJO') ||
-          member.roles.includes('SECRETARIA')),
+    return teamMembers.filter((member) =>
+      member.isActive && (member.roles.includes('GESTOR') || member.roles.includes('CONSULTOR') ||
+        member.roles.includes('ANJO') || member.roles.includes('SECRETARIA')),
     );
   }, [teamMembers]);
 
   const handleImportCandidates = async (newCandidates: Omit<Candidate, 'id' | 'createdAt' | 'db_id'>[]) => {
-    for (const candidateData of newCandidates) {
-      await addCandidate(candidateData);
-    }
+    for (const candidateData of newCandidates) await addCandidate(candidateData);
   };
 
   const handleOpenEditCandidateModal = (event: React.MouseEvent, candidate: Candidate) => {
@@ -474,8 +507,7 @@ const HiringPipeline = () => {
   };
 
   const handleOpenTimeline = (event: React.MouseEvent, candidate: Candidate) => {
-    event.preventDefault();
-    event.stopPropagation();
+    event.preventDefault(); event.stopPropagation();
     setTimelineCandidate(candidate);
   };
 
@@ -485,11 +517,7 @@ const HiringPipeline = () => {
   };
 
   if (isAuthLoading || isDataLoading) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <Loader2 className="h-12 w-12 animate-spin text-brand-500" />
-      </div>
-    );
+    return <div className="flex h-screen items-center justify-center"><Loader2 className="h-12 w-12 animate-spin text-brand-500" /></div>;
   }
 
   return (
@@ -499,26 +527,19 @@ const HiringPipeline = () => {
           <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
             <div>
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Pipeline de Contratação</h1>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                Abra o pipeline e já tenha acesso imediato às ações principais e aos filtros.
-              </p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Abra o pipeline e já tenha acesso imediato às ações principais e aos filtros.</p>
             </div>
-
             <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 xl:w-auto xl:min-w-[520px]">
-              <button onClick={() => setIsAddModalOpen(true)}
-                className="order-1 flex items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-3 font-extrabold text-white shadow-lg shadow-brand-500/20 transition hover:bg-brand-700">
+              <button onClick={() => setIsAddModalOpen(true)} className="order-1 flex items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-3 font-extrabold text-white shadow-lg shadow-brand-500/20 transition hover:bg-brand-700">
                 <Plus className="h-5 w-5" /><span>Novo Candidato</span>
               </button>
-              <button onClick={() => navigate(`${baseRoute}/hiring-metrics`)}
-                className="order-2 flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 font-bold text-white transition hover:bg-indigo-700">
+              <button onClick={() => navigate(`${baseRoute}/hiring-metrics`)} className="order-2 flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 font-bold text-white transition hover:bg-indigo-700">
                 <BarChart3 className="h-5 w-5" /><span>Ver Métricas</span>
               </button>
-              <button onClick={() => navigate(`${baseRoute}/hiring-pipeline-config`)}
-                className="order-3 flex items-center justify-center gap-2 rounded-xl bg-slate-700 px-4 py-3 font-bold text-white transition hover:bg-slate-800">
+              <button onClick={() => navigate(`${baseRoute}/hiring-pipeline-config`)} className="order-3 flex items-center justify-center gap-2 rounded-xl bg-slate-700 px-4 py-3 font-bold text-white transition hover:bg-slate-800">
                 <Settings2 className="h-5 w-5" /><span>Editar Pipeline</span>
               </button>
-              <button onClick={() => setIsImportModalOpen(true)}
-                className="order-4 flex items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-3 font-bold text-gray-700 transition hover:bg-gray-50 dark:border-slate-600 dark:bg-slate-900 dark:text-gray-200 dark:hover:bg-slate-700">
+              <button onClick={() => setIsImportModalOpen(true)} className="order-4 flex items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-3 font-bold text-gray-700 transition hover:bg-gray-50 dark:border-slate-600 dark:bg-slate-900 dark:text-gray-200 dark:hover:bg-slate-700">
                 <Plus className="h-5 w-5" /><span>Importar Planilha</span>
               </button>
             </div>
@@ -536,9 +557,7 @@ const HiringPipeline = () => {
               </div>
               <div className="flex items-center gap-3">
                 <button onClick={() => setShowWithdrawn(!showWithdrawn)}
-                  className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
-                    showWithdrawn ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' : 'bg-gray-100 text-gray-500 dark:bg-slate-700 dark:text-gray-400 hover:bg-red-50 hover:text-red-600'
-                  }`}>
+                  className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-bold transition ${showWithdrawn ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' : 'bg-gray-100 text-gray-500 dark:bg-slate-700 dark:text-gray-400 hover:bg-red-50 hover:text-red-600'}`}>
                   <UserMinus className="h-3.5 w-3.5" />
                   {showWithdrawn ? 'Ocultar desistências' : `Ver desistências (${withdrawnCount})`}
                 </button>
@@ -550,7 +569,6 @@ const HiringPipeline = () => {
                 )}
               </div>
             </div>
-
             <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1.5fr)_minmax(180px,0.75fr)_minmax(180px,0.75fr)]">
               <div className="flex flex-col">
                 <label className="mb-1 ml-1 text-[10px] font-bold uppercase text-gray-400">Busca</label>
@@ -580,8 +598,7 @@ const HiringPipeline = () => {
         {pipelineStages.map((stage) => {
           const nextColumns = getNextColumns(stage.id);
           return (
-            <div key={stage.id}
-              className="w-80 flex-shrink-0 rounded-xl border border-gray-200 bg-gray-100/50 shadow-sm dark:border-slate-700 dark:bg-slate-800/50">
+            <div key={stage.id} className="w-80 flex-shrink-0 rounded-xl border border-gray-200 bg-gray-100/50 shadow-sm dark:border-slate-700 dark:bg-slate-800/50">
               <div className={`rounded-t-xl border-b p-4 ${getColumnColorClasses(stage.color)}`}>
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
@@ -590,37 +607,27 @@ const HiringPipeline = () => {
                   </div>
                   <span className="rounded bg-white/50 px-2 py-0.5 text-xs font-bold dark:bg-black/20">{stage.list.length}</span>
                 </div>
-
                 {stage.description && (
                   <div className="mb-2 flex items-start gap-1.5 rounded-lg bg-white/40 px-2 py-1.5 text-[11px] leading-snug dark:bg-black/15">
                     <Info className="mt-0.5 h-3 w-3 flex-shrink-0 opacity-70" />
                     <span className="opacity-90">{stage.description}</span>
                   </div>
                 )}
-
                 <div className="flex items-center justify-between gap-2">
                   <span className="rounded-full bg-white/60 px-2 py-1 text-[10px] font-bold uppercase tracking-wide dark:bg-black/20">
                     {stage.ownerRole === 'GESTOR' ? 'Responsável: Gestor' : 'Responsável: Secretaria'}
                   </span>
-                  <button
-                    onClick={() => setMessageModalStage(stage)}
+                  <button onClick={() => setMessageModalStage(stage)}
                     className="inline-flex items-center gap-1 rounded-full bg-white/70 px-2 py-1 text-[10px] font-bold uppercase tracking-wide transition hover:bg-white dark:bg-black/30 dark:hover:bg-black/50"
-                    title="Ver mensagem sugerida para essa etapa"
-                  >
-                    <MessageSquare className="h-3 w-3" />
-                    Mensagem
+                    title="Ver mensagem sugerida para essa etapa">
+                    <MessageSquare className="h-3 w-3" />Mensagem
                   </button>
                 </div>
               </div>
 
               <div className="min-h-[500px] space-y-3 p-3">
                 {stage.list.map((candidate) => {
-                  const totalScore =
-                    candidate.interviewScores.basicProfile +
-                    candidate.interviewScores.commercialSkills +
-                    candidate.interviewScores.behavioralProfile +
-                    candidate.interviewScores.jobFit;
-
+                  const totalScore = candidate.interviewScores.basicProfile + candidate.interviewScores.commercialSkills + candidate.interviewScores.behavioralProfile + candidate.interviewScores.jobFit;
                   const isToday = candidate.interviewDate === todayStr;
                   const hasPendingSecretariaTasksForCandidate = hasPendingSecretariaTasks(candidate);
                   const hasWithdrawn = !!candidate.reprovadoDate;
@@ -631,25 +638,18 @@ const HiringPipeline = () => {
                   return (
                     <div key={candidate.id}
                       className={`group relative overflow-hidden rounded-xl border p-4 shadow-sm transition-all hover:shadow-md ${
-                        hasWithdrawn
-                          ? 'border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-900/20'
-                          : 'border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-700'
+                        hasWithdrawn ? 'border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-900/20' : 'border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-700'
                       } ${isToday && !hasWithdrawn ? 'ring-2 ring-brand-500' : ''}`}>
 
-                      {hasWithdrawn && (
-                        <div className="absolute right-0 top-0 rounded-bl-lg bg-red-500 px-2 py-0.5 text-[10px] font-bold text-white">DESISTIU</div>
-                      )}
+                      {hasWithdrawn && <div className="absolute right-0 top-0 rounded-bl-lg bg-red-500 px-2 py-0.5 text-[10px] font-bold text-white">DESISTIU</div>}
                       {!hasWithdrawn && wasRescheduled && (
                         <div className="absolute right-0 top-0 rounded-bl-lg bg-amber-500 px-2 py-0.5 text-[10px] font-bold text-white">
                           REMARCADA {(candidate.rescheduledCount || 0) > 1 ? `(${candidate.rescheduledCount}x)` : ''}
                         </div>
                       )}
-                      {!hasWithdrawn && !wasRescheduled && isToday && (
-                        <div className="absolute right-0 top-0 rounded-bl-lg bg-brand-500 px-2 py-0.5 text-[10px] font-bold text-white">HOJE</div>
-                      )}
+                      {!hasWithdrawn && !wasRescheduled && isToday && <div className="absolute right-0 top-0 rounded-bl-lg bg-brand-500 px-2 py-0.5 text-[10px] font-bold text-white">HOJE</div>}
                       {!hasWithdrawn && hasPendingSecretariaTasksForCandidate && (
-                        <div className="absolute left-0 top-0 flex items-center rounded-br-lg bg-purple-500 px-2 py-0.5 text-[10px] font-bold text-white"
-                          title="Tarefas da Secretaria Pendentes">
+                        <div className="absolute left-0 top-0 flex items-center rounded-br-lg bg-purple-500 px-2 py-0.5 text-[10px] font-bold text-white" title="Tarefas da Secretaria Pendentes">
                           <ShieldCheck className="mr-1 h-3 w-3" />SECRETARIA
                         </div>
                       )}
@@ -664,7 +664,7 @@ const HiringPipeline = () => {
                             <span className="rounded bg-gray-100 px-2 py-0.5 dark:bg-slate-800">{stage.title}</span>
                           </div>
                           {hasWithdrawn && (candidate.withdrawalReasonOption || candidate.withdrawalReason) && (
-                            <p className="mt-1.5 text-[10px] text-red-600 dark:text-red-400 italic">
+                            <p className="mt-1.5 text-[10px] italic text-red-600 dark:text-red-400">
                               Motivo: {candidate.withdrawalReasonOption || candidate.withdrawalReason}
                             </p>
                           )}
@@ -732,10 +732,20 @@ const HiringPipeline = () => {
                           />
                         </div>
 
-                        {!hasWithdrawn && (
+                        {hasWithdrawn ? (
+                          <div className="mt-1 border-t border-red-100 pt-3 dark:border-red-900/30">
+                            <button
+                              onClick={(event) => { event.preventDefault(); event.stopPropagation(); setRevertCandidate(candidate); }}
+                              className="flex w-full items-center justify-center gap-2 rounded-lg bg-amber-500 px-3 py-2 text-[11px] font-bold text-white transition hover:bg-amber-600"
+                            >
+                              <RotateCcw className="h-3.5 w-3.5" />
+                              Reverter desistência
+                            </button>
+                          </div>
+                        ) : (
                           <div className="mt-1 border-t border-gray-50 pt-3 dark:border-slate-600">
                             <div className="grid grid-cols-1 gap-2">
-                              {nextColumns.map((column) => {
+                              {getNextColumns(stage.id).map((column) => {
                                 const blocked = getBlockedReason(candidate, column.stageKey);
                                 return (
                                   <button key={column.id}
@@ -753,17 +763,14 @@ const HiringPipeline = () => {
                                   </button>
                                 );
                               })}
-
                               {showReagendar && (
                                 <button onClick={(event) => handleOpenUpdateDate(event, candidate)}
                                   className="min-h-[30px] w-full rounded-lg bg-amber-500 px-2 py-1 text-left text-[10px] font-bold leading-snug text-white transition hover:bg-amber-600">
                                   <span className="flex items-center gap-1">
-                                    <RotateCcw className="h-3 w-3" />
-                                    Reagendar entrevista
+                                    <RotateCcw className="h-3 w-3" />Reagendar entrevista
                                   </span>
                                 </button>
                               )}
-
                               <button onClick={(event) => openWithdrawalFlow(event, candidate)}
                                 className="flex min-h-[30px] w-full items-center gap-1 rounded-lg bg-rose-600 px-2 py-1 text-left text-[10px] font-bold leading-snug text-white transition hover:bg-rose-700">
                                 <UserMinus className="h-3 w-3" />Desistiu nesta etapa
@@ -812,6 +819,13 @@ const HiringPipeline = () => {
         isOpen={!!timelineCandidate}
         onClose={() => setTimelineCandidate(null)}
         candidate={timelineCandidate}
+      />
+      <RevertWithdrawalModal
+        isOpen={!!revertCandidate}
+        onClose={() => setRevertCandidate(null)}
+        candidate={revertCandidate}
+        columns={normalizedColumns}
+        onConfirm={handleRevertWithdrawal}
       />
     </div>
   );
