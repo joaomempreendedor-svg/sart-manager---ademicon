@@ -217,9 +217,11 @@ const FunnelStageCard: React.FC<FunnelStageCardProps> = ({
             </span>
             <h3 className={`text-xs font-bold leading-tight ${style.text}`}>{title}</h3>
           </div>
-          <div className="mt-2 flex items-baseline gap-1.5">
-            <span className={`text-2xl font-black ${style.text}`}>{count}</span>
-            {parentCount > 0 && <span className="text-[10px] text-gray-400">dos {parentCount}</span>}
+          <div className={`mt-2 mb-1 rounded-lg ${style.iconBg} px-3 py-2.5`}>
+            <div className="flex items-baseline gap-1.5">
+              <span className={`text-4xl font-black leading-none ${style.text}`}>{count}</span>
+              {parentCount > 0 && <span className="text-[10px] font-bold text-gray-400">dos {parentCount}</span>}
+            </div>
           </div>
         </button>
 
