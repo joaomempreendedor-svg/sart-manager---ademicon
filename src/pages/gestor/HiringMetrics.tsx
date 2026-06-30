@@ -52,6 +52,13 @@ type StageMetric = {
   candidates: Candidate[];
 };
 
+type BranchBreakdownRow = {
+  label: string;
+  count: number;
+  onOpen: () => void;
+  tone: 'blue' | 'green' | 'red' | 'rose';
+};
+
 const SECTION_OPTIONS: Array<{ key: SectionKey; title: string; icon: React.ComponentType<{ className?: string }> }> = [
   { key: 'funnel', title: 'Funil histórico', icon: BarChart3 },
   { key: 'timeline', title: 'Linha do Tempo', icon: History },
@@ -139,22 +146,14 @@ const formatDateTime = (value?: string) => {
 };
 
 const STAGE_CARD_STYLES: Record<HiringPipelineColumn['color'], { border: string; bg: string; text: string; iconBg: string }> = {
-  gray:   { border: 'border-gray-200 dark:border-slate-600', bg: 'bg-white dark:bg-slate-800/60', text: 'text-gray-700 dark:text-gray-200', iconBg: 'bg-gray-100 dark:bg-slate-700' },
-  blue:   { border: 'border-blue-200 dark:border-blue-800', bg: 'bg-blue-50/40 dark:bg-blue-900/20', text: 'text-blue-700 dark:text-blue-300', iconBg: 'bg-blue-100/80 dark:bg-blue-900/40' },
+  gray: { border: 'border-gray-200 dark:border-slate-600', bg: 'bg-white dark:bg-slate-800/60', text: 'text-gray-700 dark:text-gray-200', iconBg: 'bg-gray-100 dark:bg-slate-700' },
+  blue: { border: 'border-blue-200 dark:border-blue-800', bg: 'bg-blue-50/40 dark:bg-blue-900/20', text: 'text-blue-700 dark:text-blue-300', iconBg: 'bg-blue-100/80 dark:bg-blue-900/40' },
   purple: { border: 'border-purple-200 dark:border-purple-800', bg: 'bg-purple-50/40 dark:bg-purple-900/20', text: 'text-purple-700 dark:text-purple-300', iconBg: 'bg-purple-100/80 dark:bg-purple-900/40' },
   yellow: { border: 'border-yellow-200 dark:border-yellow-800', bg: 'bg-yellow-50/50 dark:bg-yellow-900/20', text: 'text-yellow-700 dark:text-yellow-300', iconBg: 'bg-yellow-100/80 dark:bg-yellow-900/40' },
-  green:  { border: 'border-green-200 dark:border-green-800', bg: 'bg-green-50/40 dark:bg-green-900/20', text: 'text-green-700 dark:text-green-300', iconBg: 'bg-green-100/80 dark:bg-green-900/40' },
-  red:    { border: 'border-red-200 dark:border-red-800', bg: 'bg-red-50/40 dark:bg-red-900/20', text: 'text-red-700 dark:text-red-300', iconBg: 'bg-red-100/80 dark:bg-red-900/40' },
+  green: { border: 'border-green-200 dark:border-green-800', bg: 'bg-green-50/40 dark:bg-green-900/20', text: 'text-green-700 dark:text-green-300', iconBg: 'bg-green-100/80 dark:bg-green-900/40' },
+  red: { border: 'border-red-200 dark:border-red-800', bg: 'bg-red-50/40 dark:bg-red-900/20', text: 'text-red-700 dark:text-red-300', iconBg: 'bg-red-100/80 dark:bg-red-900/40' },
   orange: { border: 'border-orange-200 dark:border-orange-800', bg: 'bg-orange-50/40 dark:bg-orange-900/20', text: 'text-orange-700 dark:text-orange-300', iconBg: 'bg-orange-100/80 dark:bg-orange-900/40' },
 };
-
-interface BranchRowData {
-  label: string;
-  count: number;
-  withdrawnCount: number;
-  onOpen: () => void;
-  onOpenWithdrawn: () => void;
-}
 
 interface FunnelStageCardProps {
   title: string;
@@ -162,50 +161,38 @@ interface FunnelStageCardProps {
   count: number;
   parentCount: number;
   totalCount: number;
-  withdrawnCount: number;
   onOpen: () => void;
-  onOpenWithdrawn: () => void;
-  branch?: {
-    current: BranchRowData;
-    positive: BranchRowData;
-    negative: BranchRowData;
-  };
+  breakdownRows?: BranchBreakdownRow[];
 }
 
-const BranchRow: React.FC<{ row: BranchRowData; tone: 'green' | 'red' | 'blue' }> = ({ row, tone }) => {
-  const toneClasses = tone === 'green'
-    ? 'text-green-700 dark:text-green-300'
-    : tone === 'red'
-      ? 'text-red-700 dark:text-red-300'
-      : 'text-blue-700 dark:text-blue-300';
+const BreakdownRow: React.FC<{ row: BranchBreakdownRow }> = ({ row }) => {
+  const toneClasses = {
+    blue: 'text-blue-700 dark:text-blue-300',
+    green: 'text-green-700 dark:text-green-300',
+    red: 'text-red-700 dark:text-red-300',
+    rose: 'text-rose-700 dark:text-rose-300',
+  };
+
+  const toneBorders = {
+    blue: 'border-white/80 bg-white dark:border-slate-600 dark:bg-black/20',
+    green: 'border-white/80 bg-white dark:border-slate-600 dark:bg-black/20',
+    red: 'border-white/80 bg-white dark:border-slate-600 dark:bg-black/20',
+    rose: 'border-rose-200 bg-rose-50 dark:border-rose-800 dark:bg-rose-900/30',
+  };
 
   return (
-    <div className="space-y-1">
-      <button
-        onClick={row.onOpen}
-        className="flex w-full items-center justify-between rounded-lg border border-white/80 bg-white px-2.5 py-1.5 text-left shadow-sm transition hover:bg-white dark:border-slate-600 dark:bg-black/20 dark:hover:bg-black/30"
-      >
-        <span className={`truncate text-[10px] font-bold ${toneClasses}`}>{row.label}</span>
-        <span className={`ml-1 flex-shrink-0 text-[10px] font-black ${toneClasses}`}>{row.count}</span>
-      </button>
-      {row.withdrawnCount > 0 && (
-        <button
-          onClick={row.onOpenWithdrawn}
-          className="flex w-full items-center justify-between rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-left transition hover:bg-rose-100 dark:border-rose-800 dark:bg-rose-900/30 dark:hover:bg-rose-900/50"
-        >
-          <span className="flex items-center gap-1 truncate text-[9px] font-bold text-rose-700 dark:text-rose-300">
-            <UserMinus className="h-2 w-2 flex-shrink-0" />
-            Desistiu aqui
-          </span>
-          <span className="ml-1 flex-shrink-0 text-[9px] font-black text-rose-700 dark:text-rose-300">{row.withdrawnCount}</span>
-        </button>
-      )}
-    </div>
+    <button
+      onClick={row.onOpen}
+      className={`flex w-full items-center justify-between rounded-lg border px-2.5 py-1.5 text-left shadow-sm transition hover:opacity-90 ${toneBorders[row.tone]}`}
+    >
+      <span className={`truncate text-[10px] font-bold ${toneClasses[row.tone]}`}>{row.label}</span>
+      <span className={`ml-1 flex-shrink-0 text-[10px] font-black ${toneClasses[row.tone]}`}>{row.count}</span>
+    </button>
   );
 };
 
 const FunnelStageCard: React.FC<FunnelStageCardProps> = ({
-  title, color, count, parentCount, totalCount, withdrawnCount, onOpen, onOpenWithdrawn, branch,
+  title, color, count, parentCount, totalCount, onOpen, breakdownRows,
 }) => {
   const style = STAGE_CARD_STYLES[color] || STAGE_CARD_STYLES.gray;
   const percentOfTotal = totalCount > 0 ? Math.round((count / totalCount) * 100) : 0;
@@ -220,7 +207,7 @@ const FunnelStageCard: React.FC<FunnelStageCardProps> = ({
             </span>
             <h3 className={`text-sm font-bold leading-tight ${style.text}`}>{title}</h3>
           </div>
-          <div className={`mt-3 mb-2 rounded-xl border border-white/70 bg-white px-3 py-3 shadow-sm dark:border-slate-600 dark:bg-slate-900/40`}>
+          <div className="mt-3 mb-2 rounded-xl border border-white/70 bg-white px-3 py-3 shadow-sm dark:border-slate-600 dark:bg-slate-900/40">
             <div className="flex items-end gap-2">
               <span className={`text-4xl font-black leading-none ${style.text}`}>{count}</span>
               {parentCount > 0 && <span className="pb-1 text-[10px] font-bold text-gray-400">dos {parentCount}</span>}
@@ -228,32 +215,16 @@ const FunnelStageCard: React.FC<FunnelStageCardProps> = ({
           </div>
         </button>
 
-        <div className="mt-3 space-y-2">
-          {branch && (
-            <>
-              <BranchRow row={branch.current} tone="blue" />
-              <BranchRow row={branch.positive} tone="green" />
-              <BranchRow row={branch.negative} tone="red" />
-            </>
-          )}
-          {withdrawnCount > 0 && (
-            <>
-              <button
-                onClick={onOpenWithdrawn}
-                className="flex w-full items-center justify-between rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-left transition hover:bg-rose-100 dark:border-rose-800 dark:bg-rose-900/30 dark:hover:bg-rose-900/50"
-              >
-                <span className="flex items-center gap-1 truncate text-[10px] font-bold text-rose-700 dark:text-rose-300">
-                  <UserMinus className="h-2.5 w-2.5 flex-shrink-0" />
-                  Desistiu aqui
-                </span>
-                <span className="ml-1 flex-shrink-0 text-[10px] font-black text-rose-700 dark:text-rose-300">{withdrawnCount}</span>
-              </button>
-              <div className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-[10px] font-medium leading-relaxed text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
-                Atenção: quem desistiu aqui também pode estar contado no total desta etapa.
-              </div>
-            </>
-          )}
-        </div>
+        {breakdownRows && breakdownRows.length > 0 && (
+          <div className="mt-3 space-y-2">
+            {breakdownRows.map((row) => (
+              <BreakdownRow key={row.label} row={row} />
+            ))}
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-[10px] font-medium leading-relaxed text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
+              A soma das linhas abaixo representa exatamente o número principal deste card.
+            </div>
+          </div>
+        )}
       </div>
 
       <div className={`mt-3 border-t pt-2 text-[10px] font-bold uppercase ${style.border} ${style.text} opacity-70`}>
@@ -294,9 +265,6 @@ const HiringMetrics = () => {
     );
   }, [candidates, searchTerm]);
 
-  // Candidatos da coorte: aqueles cujo CADASTRO caiu dentro do período filtrado.
-  // Todas as etapas do funil usam essa mesma base, garantindo que o funil seja
-  // sempre decrescente e matematicamente coerente (cada etapa é subconjunto da anterior).
   const cohortCandidates = useMemo(() => {
     return searchFilteredCandidates.filter((candidate) =>
       isDateInRange(candidate.createdAt, filterStartDate, filterEndDate),
@@ -350,8 +318,6 @@ const HiringMetrics = () => {
       };
     };
 
-    // Candidatos da coorte cuja desistência foi registrada EXATAMENTE nesta stageKey
-    // (usa withdrawalStageKey, o registro real de onde a pessoa saiu).
     const buildWithdrawnAtStage = (stageKey: HiringPipelineStageKey) => {
       return candidatesCreatedInPeriod.filter((candidate) => {
         if (!candidate.reprovadoDate) return false;
@@ -363,7 +329,6 @@ const HiringMetrics = () => {
     const processFunnelBlocks = FUNNEL_LAYOUT.map((item) => {
       if (item.type === 'stage') {
         const metric = buildCohortStageMetric(item.stageKey);
-        const withdrawnHere = buildWithdrawnAtStage(item.stageKey);
         return {
           type: 'stage' as const,
           stageKey: item.stageKey,
@@ -371,7 +336,6 @@ const HiringMetrics = () => {
           color: metric.color,
           count: metric.count,
           candidates: metric.candidates,
-          withdrawnHere,
         };
       }
 
@@ -380,21 +344,21 @@ const HiringMetrics = () => {
       const negativeMetric = buildCohortStageMetric(item.negativeStageKey);
       const parentColumn = columnsByKey.get(item.parentStageKey);
 
+      const withdrawnAtParent = buildWithdrawnAtStage(item.parentStageKey);
       const currentCandidates = parentMetric.candidates.filter((candidate) => {
         const currentStageKey = getCandidateStageKey(candidate);
         return currentStageKey === item.parentStageKey;
       });
 
-      const positiveActiveCandidates = positiveMetric.candidates.filter(
-        (candidate) => !candidate.reprovadoDate && !candidate.disqualifiedDate && !candidate.managerRejectedDate,
-      );
-      const negativeActiveCandidates = negativeMetric.candidates.filter(
-        (candidate) => !candidate.reprovadoDate && !candidate.disqualifiedDate && !candidate.managerRejectedDate,
-      );
+      const positiveCandidates = positiveMetric.candidates.filter((candidate) => {
+        const currentStageKey = getCandidateStageKey(candidate);
+        return currentStageKey === item.positiveStageKey;
+      });
 
-      const withdrawnAtParent = buildWithdrawnAtStage(item.parentStageKey);
-      const withdrawnAtPositive = buildWithdrawnAtStage(item.positiveStageKey);
-      const withdrawnAtNegative = buildWithdrawnAtStage(item.negativeStageKey);
+      const negativeCandidates = negativeMetric.candidates.filter((candidate) => {
+        const currentStageKey = getCandidateStageKey(candidate);
+        return currentStageKey === item.negativeStageKey;
+      });
 
       return {
         type: 'branch' as const,
@@ -403,27 +367,25 @@ const HiringMetrics = () => {
         color: parentColumn?.color || 'gray',
         count: parentMetric.count,
         candidates: parentMetric.candidates,
-        withdrawnHere: withdrawnAtParent,
         current: {
-          stageKey: item.parentStageKey,
           label: 'Ainda nesta etapa',
           count: currentCandidates.length,
           candidates: currentCandidates,
-          withdrawnHere: withdrawnAtParent,
         },
         positive: {
-          ...positiveMetric,
-          count: positiveActiveCandidates.length,
-          candidates: positiveActiveCandidates,
           label: getHiringStageLabel(item.positiveStageKey),
-          withdrawnHere: withdrawnAtPositive,
+          count: positiveCandidates.length,
+          candidates: positiveCandidates,
+        },
+        withdrawn: {
+          label: 'Desistiu aqui',
+          count: withdrawnAtParent.length,
+          candidates: withdrawnAtParent,
         },
         negative: {
-          ...negativeMetric,
-          count: negativeActiveCandidates.length,
-          candidates: negativeActiveCandidates,
           label: getHiringStageLabel(item.negativeStageKey),
-          withdrawnHere: withdrawnAtNegative,
+          count: negativeCandidates.length,
+          candidates: negativeCandidates,
         },
       };
     });
@@ -440,7 +402,11 @@ const HiringMetrics = () => {
       const stageKey = candidate.withdrawalStageKey || getCandidateStageKey(candidate);
       const stageName = candidate.withdrawalStageKey ? getHiringStageLabel(candidate.withdrawalStageKey) : getHiringStageLabel(stageKey);
       const current = withdrawalStageMap.get(stageName);
-      if (current) { current.count += 1; current.candidates.push(candidate); return; }
+      if (current) {
+        current.count += 1;
+        current.candidates.push(candidate);
+        return;
+      }
       withdrawalStageMap.set(stageName, { name: stageName, count: 1, candidates: [candidate] });
     });
 
@@ -454,7 +420,8 @@ const HiringMetrics = () => {
     candidatesCreatedInPeriod.forEach((candidate) => {
       const originName = candidate.origin || 'Não Informado';
       const current = originMap.get(originName) || { name: originName, count: 0, candidates: [] };
-      current.count += 1; current.candidates.push(candidate);
+      current.count += 1;
+      current.candidates.push(candidate);
       originMap.set(originName, current);
     });
 
@@ -473,7 +440,11 @@ const HiringMetrics = () => {
       const attributedMember = findMember(candidate.responsibleUserId) || findMember(candidate.createdBy);
       if (!attributedMember) return;
       const current = indicationMap.get(attributedMember.id);
-      if (current) { current.count += 1; current.candidates.push(candidate); return; }
+      if (current) {
+        current.count += 1;
+        current.candidates.push(candidate);
+        return;
+      }
       indicationMap.set(attributedMember.id, { member: attributedMember, count: 1, candidates: [candidate] });
     });
 
@@ -556,7 +527,7 @@ const HiringMetrics = () => {
               <BarChart3 className="mr-2 h-4 w-4" />Filtros da análise
             </h3>
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              No funil, o período filtra pela data de <strong>cadastro</strong> do candidato (coorte). O indicador vermelho "Desistiu aqui" mostra quantos saíram exatamente naquele ponto — inclusive dentro de cada ramo (ex: "Faltou" → "Desistiu aqui"). Quando esse aviso aparecer, significa que essas desistências também podem estar incluídas no total principal da etapa.
+              No funil, o período filtra pela data de <strong>cadastro</strong> do candidato. Nos cards com divisão, as linhas abaixo mostram exatamente como o total do topo foi distribuído.
             </p>
           </div>
           {(searchTerm || filterStartDate || filterEndDate) && (
@@ -571,20 +542,32 @@ const HiringMetrics = () => {
             <label className="mb-1 ml-1 text-[10px] font-bold uppercase text-gray-400">Busca</label>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-              <input type="text" placeholder="Nome, telefone ou email..."
+              <input
+                type="text"
+                placeholder="Nome, telefone ou email..."
                 className="w-full rounded-lg border border-gray-300 bg-gray-50 py-2 pl-9 pr-4 text-sm text-gray-900 focus:border-brand-500 focus:ring-brand-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} />
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+              />
             </div>
           </div>
           <div className="flex flex-col">
             <label className="mb-1 ml-1 text-[10px] font-bold uppercase text-gray-400">Cadastrado de</label>
-            <input type="date" value={filterStartDate} onChange={(event) => setFilterStartDate(event.target.value)}
-              className="w-full rounded-lg border border-gray-300 bg-gray-50 p-2 text-sm text-gray-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white" />
+            <input
+              type="date"
+              value={filterStartDate}
+              onChange={(event) => setFilterStartDate(event.target.value)}
+              className="w-full rounded-lg border border-gray-300 bg-gray-50 p-2 text-sm text-gray-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+            />
           </div>
           <div className="flex flex-col">
             <label className="mb-1 ml-1 text-[10px] font-bold uppercase text-gray-400">Cadastrado até</label>
-            <input type="date" value={filterEndDate} onChange={(event) => setFilterEndDate(event.target.value)}
-              className="w-full rounded-lg border border-gray-300 bg-gray-50 p-2 text-sm text-gray-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white" />
+            <input
+              type="date"
+              value={filterEndDate}
+              onChange={(event) => setFilterEndDate(event.target.value)}
+              className="w-full rounded-lg border border-gray-300 bg-gray-50 p-2 text-sm text-gray-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+            />
           </div>
         </div>
       </div>
@@ -594,13 +577,17 @@ const HiringMetrics = () => {
           const Icon = section.icon;
           const isActive = activeSection === section.key;
           return (
-            <button key={section.key} onClick={() => setActiveSection(section.key)}
+            <button
+              key={section.key}
+              onClick={() => setActiveSection(section.key)}
               className={`inline-flex items-center gap-2 rounded-xl border px-4 py-3 text-sm font-bold transition ${
                 isActive
                   ? 'border-brand-500 bg-brand-500 text-white shadow-sm'
                   : 'border-gray-200 bg-white text-gray-700 hover:border-brand-300 hover:text-brand-600 dark:border-slate-700 dark:bg-slate-800 dark:text-gray-200'
-              }`}>
-              <Icon className="h-4 w-4" />{section.title}
+              }`}
+            >
+              <Icon className="h-4 w-4" />
+              {section.title}
             </button>
           );
         })}
@@ -612,7 +599,7 @@ const HiringMetrics = () => {
             <div>
               <h2 className="text-lg font-bold text-gray-900 dark:text-white">Funil de Contratação</h2>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                {totalCohort} candidatos cadastrados {periodLabel} — cada etapa mostra quantos já passaram por ela. Clique para ver os candidatos.
+                {totalCohort} candidatos cadastrados {periodLabel} — cada etapa mostra quantos já passaram por ela.
               </p>
             </div>
             <BarChart3 className="h-5 w-5 text-gray-400" />
@@ -634,9 +621,7 @@ const HiringMetrics = () => {
                       count={block.count}
                       parentCount={index === 0 ? 0 : totalCohort}
                       totalCount={totalCohort}
-                      withdrawnCount={block.withdrawnHere.length}
                       onOpen={() => handleOpenCandidatesDetailModal(block.title, block.candidates, 'total')}
-                      onOpenWithdrawn={() => handleOpenCandidatesDetailModal(`Desistiu em "${block.title}"`, block.withdrawnHere, 'withdrawn')}
                     />
                   ) : (
                     <FunnelStageCard
@@ -646,32 +631,33 @@ const HiringMetrics = () => {
                       count={block.count}
                       parentCount={totalCohort}
                       totalCount={totalCohort}
-                      withdrawnCount={block.withdrawnHere.length}
                       onOpen={() => handleOpenCandidatesDetailModal(block.title, block.candidates, 'total')}
-                      onOpenWithdrawn={() => handleOpenCandidatesDetailModal(`Desistiu em "${block.title}"`, block.withdrawnHere, 'withdrawn')}
-                      branch={{
-                        current: {
+                      breakdownRows={[
+                        {
                           label: block.current.label,
                           count: block.current.count,
-                          withdrawnCount: block.current.withdrawnHere.length,
                           onOpen: () => handleOpenCandidatesDetailModal(`${block.title} · Ainda nesta etapa`, block.current.candidates, 'total'),
-                          onOpenWithdrawn: () => handleOpenCandidatesDetailModal(`Desistiu em "${block.title}"`, block.current.withdrawnHere, 'withdrawn'),
+                          tone: 'blue',
                         },
-                        positive: {
+                        {
                           label: block.positive.label,
                           count: block.positive.count,
-                          withdrawnCount: block.positive.withdrawnHere.length,
                           onOpen: () => handleOpenCandidatesDetailModal(block.positive.label, block.positive.candidates, 'total'),
-                          onOpenWithdrawn: () => handleOpenCandidatesDetailModal(`Desistiu em "${block.positive.label}"`, block.positive.withdrawnHere, 'withdrawn'),
+                          tone: 'green',
                         },
-                        negative: {
+                        {
+                          label: block.withdrawn.label,
+                          count: block.withdrawn.count,
+                          onOpen: () => handleOpenCandidatesDetailModal(`Desistiu em "${block.title}"`, block.withdrawn.candidates, 'withdrawn'),
+                          tone: 'rose',
+                        },
+                        {
                           label: block.negative.label,
                           count: block.negative.count,
-                          withdrawnCount: block.negative.withdrawnHere.length,
                           onOpen: () => handleOpenCandidatesDetailModal(block.negative.label, block.negative.candidates, 'total'),
-                          onOpenWithdrawn: () => handleOpenCandidatesDetailModal(`Desistiu em "${block.negative.label}"`, block.negative.withdrawnHere, 'withdrawn'),
+                          tone: 'red',
                         },
-                      }}
+                      ]}
                     />
                   )
                 ))}
@@ -793,8 +779,12 @@ const HiringMetrics = () => {
                   analytics.withdrawalStageRanking.map((stage) => (
                     <tr key={stage.name} className="hover:bg-gray-50 dark:hover:bg-slate-700/40">
                       <td className="px-6 py-4">
-                        <button onClick={() => handleOpenCandidatesDetailModal(`Desistências em ${stage.name}`, stage.candidates, 'withdrawn')}
-                          className="font-bold text-rose-600 transition hover:text-rose-700 dark:text-rose-400">{stage.name}</button>
+                        <button
+                          onClick={() => handleOpenCandidatesDetailModal(`Desistências em ${stage.name}`, stage.candidates, 'withdrawn')}
+                          className="font-bold text-rose-600 transition hover:text-rose-700 dark:text-rose-400"
+                        >
+                          {stage.name}
+                        </button>
                       </td>
                       <td className="px-6 py-4 font-black text-gray-900 dark:text-white">{stage.count}</td>
                       <td className="px-6 py-4 font-bold text-rose-600 dark:text-rose-400">{stage.percentage.toFixed(1)}%</td>
@@ -840,8 +830,12 @@ const HiringMetrics = () => {
                   analytics.candidatesByOrigin.map((origin) => (
                     <tr key={origin.name} className="hover:bg-gray-50 dark:hover:bg-slate-700/40">
                       <td className="px-6 py-4">
-                        <button onClick={() => handleOpenCandidatesDetailModal(`Origem: ${origin.name}`, origin.candidates, 'total')}
-                          className="font-bold text-gray-900 transition hover:text-brand-600 dark:text-white">{origin.name}</button>
+                        <button
+                          onClick={() => handleOpenCandidatesDetailModal(`Origem: ${origin.name}`, origin.candidates, 'total')}
+                          className="font-bold text-gray-900 transition hover:text-brand-600 dark:text-white"
+                        >
+                          {origin.name}
+                        </button>
                       </td>
                       <td className="px-6 py-4 font-black text-gray-900 dark:text-white">{origin.count}</td>
                       <td className="px-6 py-4 font-bold text-brand-600 dark:text-brand-400">{origin.percentage.toFixed(1)}%</td>
@@ -887,8 +881,12 @@ const HiringMetrics = () => {
                   analytics.topIndications.map((consultant) => (
                     <tr key={consultant.id} className="hover:bg-gray-50 dark:hover:bg-slate-700/40">
                       <td className="px-6 py-4">
-                        <button onClick={() => handleOpenCandidatesDetailModal(`Indicações de ${consultant.name}`, consultant.candidates, 'total')}
-                          className="font-bold text-gray-900 transition hover:text-indigo-600 dark:text-white">{consultant.name}</button>
+                        <button
+                          onClick={() => handleOpenCandidatesDetailModal(`Indicações de ${consultant.name}`, consultant.candidates, 'total')}
+                          className="font-bold text-gray-900 transition hover:text-indigo-600 dark:text-white"
+                        >
+                          {consultant.name}
+                        </button>
                       </td>
                       <td className="px-6 py-4 font-black text-gray-900 dark:text-white">{consultant.count}</td>
                       <td className="px-6 py-4 font-bold text-indigo-600 dark:text-indigo-400">{consultant.percentage.toFixed(1)}%</td>
