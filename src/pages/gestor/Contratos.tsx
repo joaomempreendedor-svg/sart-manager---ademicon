@@ -77,6 +77,33 @@ export const Contratos = () => {
     }
   };
 
+  const handleOpenContrato = async (filePath: string) => {
+    const { data, error } = await supabase.storage.from('contratos').createSignedUrl(filePath, 60);
+    if (error || !data?.signedUrl) {
+      toast.error(error?.message || 'Não foi possível abrir o contrato.');
+      return;
+    }
+
+    window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleDownloadContrato = async (filePath: string, fileName: string) => {
+    const { data, error } = await supabase.storage.from('contratos').download(filePath);
+    if (error || !data) {
+      toast.error(error?.message || 'Não foi possível baixar o contrato.');
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(data);
+    const link = document.createElement('a');
+    link.href = objectUrl;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(objectUrl);
+  };
+
   const getPublicUrl = (filePath: string) => {
     return supabase.storage.from('contratos').getPublicUrl(filePath).data.publicUrl;
   };
@@ -198,26 +225,23 @@ export const Contratos = () => {
                   </div>
 
                   <div className="flex items-center gap-2 flex-wrap">
-                    <a
-                      href={getPublicUrl(contrato.file_path)}
-                      target="_blank"
-                      rel="noreferrer"
+                    <Button
+                      variant="outline"
+                      className="gap-2"
+                      onClick={() => handleOpenContrato(contrato.file_path)}
                     >
-                      <Button variant="outline" className="gap-2">
-                        <FileText className="w-4 h-4" />
-                        Ver PDF
-                      </Button>
-                    </a>
+                      <FileText className="w-4 h-4" />
+                      Ver PDF
+                    </Button>
 
-                    <a
-                      href={getPublicUrl(contrato.file_path)}
-                      download={contrato.file_name}
+                    <Button
+                      variant="outline"
+                      className="gap-2"
+                      onClick={() => handleDownloadContrato(contrato.file_path, contrato.file_name)}
                     >
-                      <Button variant="outline" className="gap-2">
-                        <Download className="w-4 h-4" />
-                        Baixar
-                      </Button>
-                    </a>
+                      <Download className="w-4 h-4" />
+                      Baixar
+                    </Button>
 
                     <Button
                       variant="outline"
