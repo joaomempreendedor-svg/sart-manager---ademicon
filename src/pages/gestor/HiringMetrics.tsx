@@ -6,6 +6,7 @@ import {
   BarChart3,
   Calendar,
   CheckCircle2,
+  ChevronRight,
   History,
   Loader2,
   MapPin,
@@ -186,14 +187,14 @@ const formatDateTime = (value?: string) => {
   });
 };
 
-const STAGE_CARD_STYLES: Record<HiringPipelineColumn['color'], { border: string; bg: string; text: string; iconBg: string }> = {
-  gray: { border: 'border-gray-200 dark:border-slate-600', bg: 'bg-white dark:bg-slate-800/60', text: 'text-gray-700 dark:text-gray-200', iconBg: 'bg-gray-100 dark:bg-slate-700' },
-  blue: { border: 'border-blue-200 dark:border-blue-800', bg: 'bg-blue-50/70 dark:bg-blue-900/20', text: 'text-blue-700 dark:text-blue-300', iconBg: 'bg-blue-100/80 dark:bg-blue-900/40' },
-  purple: { border: 'border-purple-200 dark:border-purple-800', bg: 'bg-purple-50/70 dark:bg-purple-900/20', text: 'text-purple-700 dark:text-purple-300', iconBg: 'bg-purple-100/80 dark:bg-purple-900/40' },
-  yellow: { border: 'border-yellow-200 dark:border-yellow-800', bg: 'bg-yellow-50/80 dark:bg-yellow-900/20', text: 'text-yellow-700 dark:text-yellow-300', iconBg: 'bg-yellow-100/80 dark:bg-yellow-900/40' },
-  green: { border: 'border-green-200 dark:border-green-800', bg: 'bg-green-50/70 dark:bg-green-900/20', text: 'text-green-700 dark:text-green-300', iconBg: 'bg-green-100/80 dark:bg-green-900/40' },
-  red: { border: 'border-red-200 dark:border-red-800', bg: 'bg-red-50/70 dark:bg-red-900/20', text: 'text-red-700 dark:text-red-300', iconBg: 'bg-red-100/80 dark:bg-red-900/40' },
-  orange: { border: 'border-orange-200 dark:border-orange-800', bg: 'bg-orange-50/70 dark:bg-orange-900/20', text: 'text-orange-700 dark:text-orange-300', iconBg: 'bg-orange-100/80 dark:bg-orange-900/40' },
+const STAGE_CARD_STYLES: Record<HiringPipelineColumn['color'], { border: string; bg: string; text: string; iconBg: string; badge: string }> = {
+  gray: { border: 'border-gray-200 dark:border-slate-600', bg: 'bg-white dark:bg-slate-800/60', text: 'text-gray-700 dark:text-gray-200', iconBg: 'bg-gray-100 dark:bg-slate-700', badge: 'bg-gray-100 text-gray-700 dark:bg-slate-700 dark:text-gray-200' },
+  blue: { border: 'border-blue-200 dark:border-blue-800', bg: 'bg-blue-50/70 dark:bg-blue-900/20', text: 'text-blue-700 dark:text-blue-300', iconBg: 'bg-blue-100/80 dark:bg-blue-900/40', badge: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' },
+  purple: { border: 'border-purple-200 dark:border-purple-800', bg: 'bg-purple-50/70 dark:bg-purple-900/20', text: 'text-purple-700 dark:text-purple-300', iconBg: 'bg-purple-100/80 dark:bg-purple-900/40', badge: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300' },
+  yellow: { border: 'border-yellow-200 dark:border-yellow-800', bg: 'bg-yellow-50/80 dark:bg-yellow-900/20', text: 'text-yellow-700 dark:text-yellow-300', iconBg: 'bg-yellow-100/80 dark:bg-yellow-900/40', badge: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300' },
+  green: { border: 'border-green-200 dark:border-green-800', bg: 'bg-green-50/70 dark:bg-green-900/20', text: 'text-green-700 dark:text-green-300', iconBg: 'bg-green-100/80 dark:bg-green-900/40', badge: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300' },
+  red: { border: 'border-red-200 dark:border-red-800', bg: 'bg-red-50/70 dark:bg-red-900/20', text: 'text-red-700 dark:text-red-300', iconBg: 'bg-red-100/80 dark:bg-red-900/40', badge: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' },
+  orange: { border: 'border-orange-200 dark:border-orange-800', bg: 'bg-orange-50/70 dark:bg-orange-900/20', text: 'text-orange-700 dark:text-orange-300', iconBg: 'bg-orange-100/80 dark:bg-orange-900/40', badge: 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300' },
 };
 
 const SECTION_BUTTON_STYLES: Record<MetricsSection, string> = {
@@ -206,31 +207,22 @@ const SECTION_BUTTON_STYLES: Record<MetricsSection, string> = {
 
 const BreakdownRow: React.FC<{ row: BranchBreakdownRow }> = ({ row }) => {
   const toneClasses = {
-    blue: 'text-blue-700 dark:text-blue-300',
-    green: 'text-green-700 dark:text-green-300',
-    red: 'text-red-700 dark:text-red-300',
-    rose: 'text-rose-700 dark:text-rose-300',
-  };
-
-  const toneBorders = {
-    blue: 'border-blue-100 bg-white dark:border-slate-600 dark:bg-black/20',
-    green: 'border-green-100 bg-white dark:border-slate-600 dark:bg-black/20',
-    red: 'border-red-100 bg-white dark:border-slate-600 dark:bg-black/20',
-    rose: 'border-rose-200 bg-rose-50 dark:border-rose-800 dark:bg-rose-900/30',
+    blue: 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/40 dark:bg-blue-950/20 dark:text-blue-300',
+    green: 'border-green-200 bg-green-50 text-green-700 dark:border-green-900/40 dark:bg-green-950/20 dark:text-green-300',
+    red: 'border-red-200 bg-red-50 text-red-700 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-300',
+    rose: 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/40 dark:bg-rose-950/20 dark:text-rose-300',
   };
 
   return (
     <button
       onClick={row.onOpen}
-      className={`flex w-full items-center justify-between rounded-md border px-1.5 py-1 text-left transition hover:opacity-90 ${toneBorders[row.tone]}`}
+      className={`flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left transition hover:opacity-90 ${toneClasses[row.tone]}`}
     >
       <div className="min-w-0">
-        <div className={`truncate text-[8px] font-bold ${toneClasses[row.tone]}`}>{row.label}</div>
-        {row.helperText && (
-          <div className="mt-0.5 line-clamp-1 text-[7px] text-gray-500 dark:text-gray-400">{row.helperText}</div>
-        )}
+        <div className="truncate text-xs font-bold">{row.label}</div>
+        {row.helperText && <div className="mt-0.5 line-clamp-1 text-[11px] opacity-80">{row.helperText}</div>}
       </div>
-      <span className={`ml-1.5 flex-shrink-0 text-[9px] font-black ${toneClasses[row.tone]}`}>{row.count}</span>
+      <span className="ml-3 flex-shrink-0 text-sm font-black">{row.count}</span>
     </button>
   );
 };
@@ -260,44 +252,50 @@ const FunnelStageCard: React.FC<FunnelStageCardProps> = ({
   const percentOfTotal = totalCount > 0 ? Math.round((count / totalCount) * 100) : 0;
 
   return (
-    <div className={`flex h-full min-h-[118px] w-full flex-col justify-between rounded-lg border ${style.border} ${style.bg} p-2 shadow-sm`}>
-      <div>
-        <button onClick={onOpen} className="w-full text-left">
-          <div className="flex items-start gap-1">
-            <span className={`mt-0.5 flex h-4.5 w-4.5 flex-shrink-0 items-center justify-center rounded-full ${style.iconBg}`}>
-              <BarChart3 className={`h-2.5 w-2.5 ${style.text}`} />
+    <div className={`rounded-2xl border ${style.border} ${style.bg} p-4 shadow-sm`}>
+      <button onClick={onOpen} className="w-full text-left">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 items-start gap-3">
+            <span className={`mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl ${style.iconBg}`}>
+              <BarChart3 className={`h-4 w-4 ${style.text}`} />
             </span>
-            <h3 className={`line-clamp-2 text-[9px] font-bold leading-tight ${style.text}`}>{title}</h3>
-          </div>
-
-          <div className="mt-1.5 rounded-md border border-white/70 bg-white px-1.5 py-1 shadow-sm dark:border-slate-600 dark:bg-slate-900/40">
-            <div className="text-[6px] font-bold uppercase tracking-wide text-gray-400">
-              Total
-            </div>
-            <div className="mt-0.5 flex items-end gap-1">
-              <span className={`text-lg font-black leading-none ${style.text}`}>{count}</span>
-              {parentCount > 0 && <span className="pb-0.5 text-[6px] font-bold text-gray-400">/ {parentCount}</span>}
-            </div>
-            {withdrawalNote && withdrawalNote.count > 0 && (
-              <div className="mt-0.5 text-[7px] font-semibold text-rose-600 dark:text-rose-400">
-                {withdrawalNote.label}
+            <div className="min-w-0">
+              <h3 className={`text-sm font-bold leading-tight ${style.text}`}>{title}</h3>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${style.badge}`}>
+                  {count} candidatos
+                </span>
+                {parentCount > 0 && (
+                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                    de {parentCount}
+                  </span>
+                )}
+                <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                  {percentOfTotal}% do funil
+                </span>
               </div>
-            )}
+            </div>
           </div>
+          <ChevronRight className="mt-1 h-4 w-4 flex-shrink-0 text-gray-400" />
+        </div>
+      </button>
+
+      {withdrawalNote && withdrawalNote.count > 0 && (
+        <button
+          onClick={withdrawalNote.onOpen}
+          className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-left text-xs font-semibold text-rose-700 transition hover:bg-rose-100 dark:border-rose-900/40 dark:bg-rose-950/20 dark:text-rose-300"
+        >
+          {withdrawalNote.label}
         </button>
+      )}
 
-        {breakdownRows && breakdownRows.length > 0 && (
-          <div className="mt-1.5 space-y-1">
-            {breakdownRows.map((row) => (
-              <BreakdownRow key={row.label} row={row} />
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className={`mt-1.5 border-t pt-1 text-[6px] font-bold uppercase ${style.border} ${style.text} opacity-70`}>
-        {percentOfTotal}% do funil
-      </div>
+      {breakdownRows && breakdownRows.length > 0 && (
+        <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-3">
+          {breakdownRows.map((row) => (
+            <BreakdownRow key={row.label} row={row} />
+          ))}
+        </div>
+      )}
     </div>
   );
 };
@@ -706,9 +704,11 @@ const HiringMetrics = () => {
   }
 
   const totalCohort = analytics.candidatesCreatedInPeriod.length;
+  const firstRowBlocks = analytics.processFunnelBlocks.slice(0, 7);
+  const secondRowBlocks = analytics.processFunnelBlocks.slice(7);
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 dark:bg-slate-900 sm:mx-auto sm:max-w-[1800px] sm:p-6">
+    <div className="min-h-screen bg-gray-50 p-4 dark:bg-slate-900 sm:mx-auto sm:max-w-[1600px] sm:p-6">
       <div className="mb-6 rounded-3xl border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
         <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
           <div>
@@ -823,12 +823,12 @@ const HiringMetrics = () => {
       </div>
 
       {activeSection === 'funnel' && (
-        <section className="mb-8 rounded-2xl border border-gray-200 bg-white p-3 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-          <div className="mb-3 flex items-center justify-between">
+        <section className="mb-8 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          <div className="mb-4 flex items-center justify-between">
             <div>
               <h2 className="text-lg font-bold text-gray-900 dark:text-white">Funil de Contratação</h2>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                Visualização em 2 linhas com 7 cards por linha.
+                Organização em duas faixas horizontais para leitura mais clara das etapas.
               </p>
             </div>
             <BarChart3 className="h-5 w-5 text-gray-400" />
@@ -839,12 +839,12 @@ const HiringMetrics = () => {
               Nenhum candidato encontrado para o período selecionado.
             </div>
           ) : (
-            <div className="rounded-2xl bg-gray-50/80 p-2 dark:bg-slate-900/30">
-              <div className="grid grid-cols-7 gap-2">
-                {analytics.processFunnelBlocks.map((block, index) =>
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                {firstRowBlocks.map((block, index) =>
                   block.type === 'stage' ? (
                     <FunnelStageCard
-                      key={`${block.type}-${index}`}
+                      key={`${block.type}-top-${index}`}
                       title={block.title}
                       color={block.color}
                       count={block.count}
@@ -869,7 +869,79 @@ const HiringMetrics = () => {
                     />
                   ) : (
                     <FunnelStageCard
-                      key={`${block.type}-${index}`}
+                      key={`${block.type}-top-${index}`}
+                      title={block.title}
+                      color={block.color}
+                      count={block.count}
+                      parentCount={totalCohort}
+                      totalCount={totalCohort}
+                      onOpen={() => handleOpenCandidatesDetailModal(block.title, block.candidates, 'total')}
+                      breakdownRows={[
+                        {
+                          label: 'Ainda nesta etapa',
+                          helperText: `Continuam em ${block.title}`,
+                          count: block.current.count,
+                          onOpen: () => handleOpenCandidatesDetailModal(`${block.title} · Ainda nesta etapa`, block.current.candidates, 'total'),
+                          tone: 'blue',
+                        },
+                        {
+                          label: block.positive.label,
+                          helperText:
+                            block.positive.withdrawalNote && block.positive.withdrawalNote.count > 0
+                              ? `${block.positive.count} total, ${block.positive.withdrawalNote.count} desistiram`
+                              : 'Avançaram',
+                          count: block.positive.count,
+                          onOpen: () =>
+                            handleOpenCandidatesDetailModal(
+                              `${block.positive.label} · incluindo quem depois desistiu`,
+                              block.positive.candidates,
+                              'total',
+                            ),
+                          tone: 'green',
+                        },
+                        {
+                          label: block.negative.label,
+                          helperText: 'Seguiram para este caminho',
+                          count: block.negative.count,
+                          onOpen: () => handleOpenCandidatesDetailModal(block.negative.label, block.negative.candidates, 'total'),
+                          tone: 'red',
+                        },
+                      ]}
+                    />
+                  ),
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                {secondRowBlocks.map((block, index) =>
+                  block.type === 'stage' ? (
+                    <FunnelStageCard
+                      key={`${block.type}-bottom-${index}`}
+                      title={block.title}
+                      color={block.color}
+                      count={block.count}
+                      parentCount={totalCohort}
+                      totalCount={totalCohort}
+                      onOpen={() => handleOpenCandidatesDetailModal(block.title, block.candidates, 'total')}
+                      withdrawalNote={
+                        block.withdrawalNote
+                          ? {
+                              label: block.withdrawalNote.label,
+                              count: block.withdrawalNote.count,
+                              helperText: 'Foram aprovados nesta etapa, mas não seguiram o processo.',
+                              onOpen: () =>
+                                handleOpenCandidatesDetailModal(
+                                  `Desistências em "${block.title}"`,
+                                  block.withdrawalNote?.candidates || [],
+                                  'withdrawn',
+                                ),
+                            }
+                          : undefined
+                      }
+                    />
+                  ) : (
+                    <FunnelStageCard
+                      key={`${block.type}-bottom-${index}`}
                       title={block.title}
                       color={block.color}
                       count={block.count}
