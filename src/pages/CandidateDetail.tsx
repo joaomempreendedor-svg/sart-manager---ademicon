@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { ArrowLeft, CheckSquare, FileText, Phone, Calendar, Clock, MessageCircle, Paperclip, CheckCircle2, Target, Trash2, CalendarPlus, Save, Loader2, Users, Filter, ShieldCheck, UserRound, UserMinus } from 'lucide-react';
+import { ArrowLeft, CheckSquare, FileText, Phone, Calendar, Clock, MessageCircle, Paperclip, Target, Trash2, CalendarPlus, Save, Loader2, Users, ShieldCheck, UserRound, UserMinus } from 'lucide-react';
 
 import { CommunicationTemplate, InterviewScores } from '@/types';
 import { MessageViewerModal } from '@/components/MessageViewerModal';
@@ -16,30 +16,62 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ErrorBoundary } from '@/components/ErrorBoundary'; // Import ErrorBoundary
+import { ErrorBoundary } from '@/components/ErrorBoundary';
+
+const WITHDRAWAL_ALLOWED_STAGE_KEYS = [
+  'aprovado-gestor',
+  'aprovacao-d1',
+  'documentacao-enviada',
+  'previa-cadastrada',
+  'previa-retificada',
+  'onboarding-liberado',
+  'onboarding-finalizado',
+  'onboarding-nao-finalizado',
+  'integracao-agendada',
+  'integracao-compareceu',
+  'integracao-nao-compareceu',
+  'integracao-finalizada',
+  'assinatura-contrato',
+  'contrato-assinado',
+  'contrato-nao-assinado',
+  'autorizado',
+] as const;
 
 export const CandidateDetail = () => {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
-  const { getCandidate, toggleChecklistItem, toggleConsultantGoal, updateCandidate, deleteCandidate, setChecklistDueDate, templates, checklistStructure, consultantGoalsStructure, interviewStructure, teamMembers, hiringPipelineColumns } = useApp();
+  const {
+    getCandidate,
+    toggleChecklistItem,
+    toggleConsultantGoal,
+    updateCandidate,
+    deleteCandidate,
+    setChecklistDueDate,
+    templates,
+    checklistStructure,
+    consultantGoalsStructure,
+    interviewStructure,
+    teamMembers,
+    hiringPipelineColumns,
+  } = useApp();
 
   const navigate = useNavigate();
   const location = useLocation();
-  
+
   const candidate = getCandidate(id || '');
-  
+
   const [activeTab, setActiveTab] = useState<'checklist' | 'goals' | 'interview'>(
-    location.state?.openInterviewTab ? 'interview' : 'checklist'
+    location.state?.openInterviewTab ? 'interview' : 'checklist',
   );
   const [checklistFilter, setChecklistFilter] = useState<'ALL' | 'MINE'>('MINE');
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<CommunicationTemplate | null>(null);
-  
+
   const [scores, setScores] = useState<InterviewScores>(
-    candidate?.interviewScores ? JSON.parse(JSON.stringify(candidate.interviewScores)) : { basicProfile: 0, commercialSkills: 0, behavioralProfile: 0, jobFit: 0, notes: '' }
+    candidate?.interviewScores ? JSON.parse(JSON.stringify(candidate.interviewScores)) : { basicProfile: 0, commercialSkills: 0, behavioralProfile: 0, jobFit: 0, notes: '' },
   );
   const [checkedQuestions, setCheckedQuestions] = useState<Record<string, boolean>>(
-    candidate?.checkedQuestions ? JSON.parse(JSON.stringify(candidate.checkedQuestions || {})) : {}
+    candidate?.checkedQuestions ? JSON.parse(JSON.stringify(candidate.checkedQuestions || {})) : {},
   );
   const [isSaving, setIsSaving] = useState(false);
 
@@ -49,14 +81,14 @@ export const CandidateDetail = () => {
   const [isUpdatingResponsible, setIsUpdatingResponsible] = useState(false);
 
   const responsibleMembers = useMemo(() => {
-    return teamMembers.filter(m => m.isActive && (m.roles.includes('GESTOR') || m.roles.includes('ANJO')));
+    return teamMembers.filter((m) => m.isActive && (m.roles.includes('GESTOR') || m.roles.includes('ANJO')));
   }, [teamMembers]);
 
   const stageOptions = useMemo(() => normalizeHiringPipelineColumns(hiringPipelineColumns), [hiringPipelineColumns]);
   const currentStageKey = candidate ? getCandidateStageKey(candidate) : 'candidatos';
+  const canRegisterWithdrawal = candidate ? WITHDRAWAL_ALLOWED_STAGE_KEYS.includes(currentStageKey as typeof WITHDRAWAL_ALLOWED_STAGE_KEYS[number]) : false;
 
   useEffect(() => {
-
     if (candidate) {
       setScores(JSON.parse(JSON.stringify(candidate.interviewScores)));
       setCheckedQuestions(JSON.parse(JSON.stringify(candidate.checkedQuestions || {})));
@@ -77,12 +109,16 @@ export const CandidateDetail = () => {
   };
 
   const handleConfirmWithdrawal = async (selection: WithdrawalReasonSelection) => {
+    if (!canRegisterWithdrawal) {
+      alert('Desistência só pode ser registrada para candidatos aprovados que não seguiram o processo.');
+      return;
+    }
+
     const withdrawalStageKey = getCandidateStageKey(candidate);
     const now = new Date().toISOString();
 
     try {
       await updateCandidate(candidate.id, {
-        status: 'Reprovado',
         pipelineStageKey: withdrawalStageKey,
         withdrawalStageKey,
         withdrawalReasonOption: selection.reasonOption,
@@ -107,8 +143,8 @@ export const CandidateDetail = () => {
   const openMessageModal = (templateId: string) => {
     const template = templates[templateId];
     if (template) {
-        setSelectedTemplate(template);
-        setModalOpen(true);
+      setSelectedTemplate(template);
+      setModalOpen(true);
     }
   };
 
@@ -124,20 +160,20 @@ export const CandidateDetail = () => {
   };
 
   const handleScoreChange = (sectionId: string, value: number) => {
-    setScores(prev => ({ ...prev, [sectionId]: value }));
+    setScores((prev) => ({ ...prev, [sectionId]: value }));
   };
 
   const handleQuestionToggle = (questionId: string, points: number, sectionId: string) => {
-    setCheckedQuestions(prev => {
+    setCheckedQuestions((prev) => {
       const newCheckedQuestions = { ...prev, [questionId]: !prev[questionId] };
-      
-      setScores(currentScores => {
+
+      setScores((currentScores) => {
         const currentSectionScore = (currentScores[sectionId] as number) || 0;
-        const newSectionScore = newCheckedQuestions[questionId] 
-          ? currentSectionScore + points 
+        const newSectionScore = newCheckedQuestions[questionId]
+          ? currentSectionScore + points
           : currentSectionScore - points;
-        
-        const sectionMaxPoints = interviewStructure.find(s => s.id === sectionId)?.maxPoints || 0;
+
+        const sectionMaxPoints = interviewStructure.find((s) => s.id === sectionId)?.maxPoints || 0;
         const finalSectionScore = Math.max(0, Math.min(sectionMaxPoints, newSectionScore));
 
         return { ...currentScores, [sectionId]: finalSectionScore };
@@ -152,7 +188,7 @@ export const CandidateDetail = () => {
     try {
       await updateCandidate(candidate.id, {
         interviewScores: scores,
-        checkedQuestions: checkedQuestions,
+        checkedQuestions,
       });
       alert('Avaliação salva com sucesso!');
     } catch (error: any) {
@@ -177,10 +213,10 @@ export const CandidateDetail = () => {
 
   const totalScore = Object.entries(scores)
     .filter(([key]) => key !== 'notes')
-    .reduce((sum, [_, val]) => sum + (typeof val === 'number' ? val : 0), 0);
+    .reduce((sum, [, val]) => sum + (typeof val === 'number' ? val : 0), 0);
 
   const getGoalColorClass = (color: string, isHeader = false) => {
-    switch(color) {
+    switch (color) {
       case 'blue': return isHeader ? 'bg-blue-600 text-white' : 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800';
       case 'green': return isHeader ? 'bg-green-600 text-white' : 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800';
       case 'orange': return isHeader ? 'bg-orange-500 text-white' : 'bg-orange-50 border-orange-200 dark:bg-orange-900/20 dark:border-orange-800';
@@ -190,29 +226,28 @@ export const CandidateDetail = () => {
   };
 
   return (
-    <ErrorBoundary> {/* Wrap the component with ErrorBoundary */}
+    <ErrorBoundary>
       <div className="p-4 sm:p-8 max-w-6xl mx-auto">
         <button onClick={() => navigate('/gestor/hiring-pipeline')} className="flex items-center text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white mb-6">
           <ArrowLeft className="w-4 h-4 mr-2" /> Voltar para Pipeline
         </button>
 
-        {/* Header */}
         <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm mb-6">
           <div className="flex flex-col md:flex-row justify-between md:items-start gap-4">
             <div className="flex items-start space-x-4">
               <div className="w-16 h-16 rounded-full bg-brand-100 dark:bg-brand-900/40 flex items-center justify-center text-brand-700 dark:text-brand-400 font-bold text-xl">
-                  {candidate.name.substring(0, 2).toUpperCase()}
+                {candidate.name.substring(0, 2).toUpperCase()}
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{candidate.name}</h1>
                 <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-4 text-sm text-gray-500 dark:text-gray-400 mt-1">
-                   <span className="flex items-center"><Phone className="w-3 h-3 mr-1" /> {candidate.phone || 'Não informado'}</span>
-                   <div className="flex items-center">
-                      <Calendar className="w-3 h-3 mr-1" /> Entrevista: {candidate.interviewDate ? new Date(candidate.interviewDate + 'T00:00:00').toLocaleDateString() : 'Não agendada'}
-                      {candidate.interviewDate && (
-                        <button onClick={() => handleAddToGoogleCalendar('Entrevista', candidate.interviewDate)} className="ml-2 p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full"><CalendarPlus className="w-4 h-4" /></button>
-                      )}
-                   </div>
+                  <span className="flex items-center"><Phone className="w-3 h-3 mr-1" /> {candidate.phone || 'Não informado'}</span>
+                  <div className="flex items-center">
+                    <Calendar className="w-3 h-3 mr-1" /> Entrevista: {candidate.interviewDate ? new Date(candidate.interviewDate + 'T00:00:00').toLocaleDateString() : 'Não agendada'}
+                    {candidate.interviewDate && (
+                      <button onClick={() => handleAddToGoogleCalendar('Entrevista', candidate.interviewDate)} className="ml-2 p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full"><CalendarPlus className="w-4 h-4" /></button>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -220,31 +255,48 @@ export const CandidateDetail = () => {
             <div className="flex flex-col items-end w-full md:w-auto">
               <label className="text-xs text-gray-500 dark:text-gray-400 font-medium uppercase mb-1">Etapa Atual</label>
               <div className="flex flex-col sm:flex-row items-end sm:items-center space-y-2 sm:space-y-0 sm:space-x-2 w-full md:w-auto">
-                  <select
-                      value={currentStageKey}
-                      onChange={handleStageChange}
-                      className="block w-full sm:w-64 pl-3 pr-10 py-2 text-base border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:outline-none focus:ring-brand-500 focus:border-brand-500 sm:text-sm rounded-md border"
-                  >
-                      {stageOptions.map(stage => (
-                        <option key={stage.id} value={stage.stageKey}>{stage.title}</option>
-                      ))}
-                  </select>
-                  <button
-                      onClick={() => setIsWithdrawalModalOpen(true)}
-                      className="inline-flex items-center justify-center gap-2 rounded-md border border-rose-200 bg-rose-50 px-3 py-2.5 text-sm font-medium text-rose-600 transition hover:bg-rose-100 dark:border-rose-900/30 dark:bg-rose-900/20 dark:text-rose-300 dark:hover:bg-rose-900/40 w-full sm:w-auto"
-                      title="Registrar desistência nesta etapa"
-                  >
-                      <UserMinus className="w-4 h-4" />
-                      Desistiu
-                  </button>
-                  <button
-                      onClick={handleDelete}
-                      className="p-2.5 text-red-500 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 rounded-md transition border border-red-100 dark:border-red-900/30 w-full sm:w-auto"
-                      title="Excluir Candidato"
-                  >
-                      <Trash2 className="w-4 h-4" />
-                  </button>
+                <select
+                  value={currentStageKey}
+                  onChange={handleStageChange}
+                  className="block w-full sm:w-64 pl-3 pr-10 py-2 text-base border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:outline-none focus:ring-brand-500 focus:border-brand-500 sm:text-sm rounded-md border"
+                >
+                  {stageOptions.map((stage) => (
+                    <option key={stage.id} value={stage.stageKey}>{stage.title}</option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => {
+                    if (!canRegisterWithdrawal) {
+                      alert('Desistência só pode ser registrada para candidatos aprovados que não seguiram o processo.');
+                      return;
+                    }
+                    setIsWithdrawalModalOpen(true);
+                  }}
+                  disabled={!canRegisterWithdrawal}
+                  className={`inline-flex items-center justify-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium transition w-full sm:w-auto ${
+                    canRegisterWithdrawal
+                      ? 'border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 dark:border-rose-900/30 dark:bg-rose-900/20 dark:text-rose-300 dark:hover:bg-rose-900/40'
+                      : 'border border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed dark:border-slate-700 dark:bg-slate-700 dark:text-gray-500'
+                  }`}
+                  title={canRegisterWithdrawal ? 'Registrar desistência nesta etapa' : 'Desistência só vale para candidatos aprovados que não seguiram o processo'}
+                >
+                  <UserMinus className="w-4 h-4" />
+                  {canRegisterWithdrawal ? 'Desistiu' : 'Desistência não se aplica'}
+                </button>
+                <button
+                  onClick={handleDelete}
+                  className="p-2.5 text-red-500 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 rounded-md transition border border-red-100 dark:border-red-900/30 w-full sm:w-auto"
+                  title="Excluir Candidato"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
               </div>
+
+              {!canRegisterWithdrawal && (
+                <p className="mt-2 text-xs text-gray-400 dark:text-gray-500 text-right max-w-xs">
+                  Só marque desistência quando o candidato já foi aprovado e decidiu não seguir.
+                </p>
+              )}
 
               <div className="mt-4 w-full">
                 <label className="block text-xs text-gray-500 dark:text-gray-400 font-medium uppercase mb-1">Responsável</label>
@@ -259,7 +311,7 @@ export const CandidateDetail = () => {
                       <SelectValue placeholder="Selecione um gestor ou anjo" />
                     </SelectTrigger>
                     <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
-                      {responsibleMembers.map(member => (
+                      {responsibleMembers.map((member) => (
                         <SelectItem key={member.authUserId} value={member.authUserId!}>
                           {member.name} ({member.roles.join(', ')})
                         </SelectItem>
@@ -273,7 +325,6 @@ export const CandidateDetail = () => {
           </div>
         </div>
 
-        {/* Tabs */}
         <div className="flex flex-wrap space-x-1 bg-gray-100 dark:bg-slate-800 p-1 rounded-lg w-fit mb-6">
           <button
             onClick={() => setActiveTab('checklist')}
@@ -304,59 +355,55 @@ export const CandidateDetail = () => {
           </button>
         </div>
 
-        {/* Content */}
         <div className="grid grid-cols-1 gap-6">
           {activeTab === 'checklist' && (
             <div className="space-y-6">
-              {/* Filtro de Responsabilidade */}
               <div className="flex justify-end mb-2">
-                  <div className="flex bg-gray-100 dark:bg-slate-800 p-1 rounded-lg">
-                      <button 
-                          onClick={() => setChecklistFilter('MINE')}
-                          className={`px-3 py-1 text-xs font-bold rounded transition-all ${checklistFilter === 'MINE' ? 'bg-brand-500 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-                      >
-                          Minhas Tarefas
-                      </button>
-                      <button 
-                          onClick={() => setChecklistFilter('ALL')}
-                          className={`px-3 py-1 text-xs font-bold rounded transition-all ${checklistFilter === 'ALL' ? 'bg-brand-500 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-                      >
-                          Todas
-                      </button>
-                  </div>
+                <div className="flex bg-gray-100 dark:bg-slate-800 p-1 rounded-lg">
+                  <button
+                    onClick={() => setChecklistFilter('MINE')}
+                    className={`px-3 py-1 text-xs font-bold rounded transition-all ${checklistFilter === 'MINE' ? 'bg-brand-500 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                  >
+                    Minhas Tarefas
+                  </button>
+                  <button
+                    onClick={() => setChecklistFilter('ALL')}
+                    className={`px-3 py-1 text-xs font-bold rounded transition-all ${checklistFilter === 'ALL' ? 'bg-brand-500 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                  >
+                    Todas
+                  </button>
+                </div>
               </div>
 
               {checklistStructure.map((stage) => {
-                const filteredItems = stage.items.filter(item => {
-                    if (checklistFilter === 'ALL') return true;
-                    
-                    const itemResponsibleRole = item.responsibleRole?.toUpperCase();
-                    const currentUserRole = user?.role?.toUpperCase();
+                const filteredItems = stage.items.filter((item) => {
+                  if (checklistFilter === 'ALL') return true;
 
-                    if (!itemResponsibleRole || !currentUserRole) return false; // Handle undefined roles
+                  const itemResponsibleRole = item.responsibleRole?.toUpperCase();
+                  const currentUserRole = user?.role?.toUpperCase();
 
-                    // Logic for 'MINE' filter
-                    if (currentUserRole === 'GESTOR' || currentUserRole === 'ADMIN') {
-                        return itemResponsibleRole === 'GESTOR';
-                    } else if (currentUserRole === 'SECRETARIA') {
-                        return itemResponsibleRole === 'SECRETARIA';
-                    }
-                    return false; // Default for roles not explicitly handled
+                  if (!itemResponsibleRole || !currentUserRole) return false;
+
+                  if (currentUserRole === 'GESTOR' || currentUserRole === 'ADMIN') {
+                    return itemResponsibleRole === 'GESTOR';
+                  } else if (currentUserRole === 'SECRETARIA') {
+                    return itemResponsibleRole === 'SECRETARIA';
+                  }
+                  return false;
                 });
 
                 if (filteredItems.length === 0) return null;
 
-                const completedCount = stage.items.filter(i => candidate.checklistProgress?.[i.id]?.completed).length;
+                const completedCount = stage.items.filter((i) => candidate.checklistProgress?.[i.id]?.completed).length;
                 const totalCount = stage.items.length;
-
                 const progress = totalCount === 0 ? 0 : Math.round((completedCount / totalCount) * 100);
 
                 return (
                   <div key={stage.id} className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 overflow-hidden shadow-sm">
                     <div className="bg-gray-50 dark:bg-slate-700/50 px-6 py-4 border-b border-gray-200 dark:border-slate-700">
                       <div className="flex justify-between items-center flex-col sm:flex-row mb-2">
-                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{stage.title}</h3>
-                          <span className="text-xs font-semibold text-gray-500 dark:text-gray-300 bg-gray-200 dark:bg-slate-600 px-2 py-1 rounded mt-2 sm:mt-0">{progress}% Concluído</span>
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{stage.title}</h3>
+                        <span className="text-xs font-semibold text-gray-500 dark:text-gray-300 bg-gray-200 dark:bg-slate-600 px-2 py-1 rounded mt-2 sm:mt-0">{progress}% Concluído</span>
                       </div>
                       <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">{stage.description}</p>
                       <div className="w-full bg-gray-200 dark:bg-slate-600 rounded-full h-1.5">
@@ -368,66 +415,65 @@ export const CandidateDetail = () => {
                         {filteredItems.map((item) => {
                           const state = candidate.checklistProgress?.[item.id] || { completed: false };
                           const hasTemplate = !!templates[item.id];
-
                           const template = templates[item.id];
                           const isMyTask = item.responsibleRole?.toUpperCase() === user?.role?.toUpperCase();
-                          
+
                           return (
-                          <li key={item.id} className={`flex flex-col sm:flex-row sm:items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-slate-700/30 transition ${isMyTask ? 'border-l-4 border-brand-500' : ''}`}>
-                            <div className="flex items-start sm:items-center space-x-3 mb-2 sm:mb-0 flex-1">
-                              <div className="flex items-center h-5">
-                                <input
-                                  id={item.id}
-                                  type="checkbox"
-                                  checked={!!state.completed}
-                                  onChange={async () => await toggleChecklistItem(candidate.id, item.id)}
-                                  className="focus:ring-brand-500 h-5 w-5 text-brand-600 border-gray-300 dark:border-slate-500 rounded cursor-pointer dark:bg-slate-600"
-                                />
-                              </div>
-                              <div className="flex flex-col">
+                            <li key={item.id} className={`flex flex-col sm:flex-row sm:items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-slate-700/30 transition ${isMyTask ? 'border-l-4 border-brand-500' : ''}`}>
+                              <div className="flex items-start sm:items-center space-x-3 mb-2 sm:mb-0 flex-1">
+                                <div className="flex items-center h-5">
+                                  <input
+                                    id={item.id}
+                                    type="checkbox"
+                                    checked={!!state.completed}
+                                    onChange={async () => await toggleChecklistItem(candidate.id, item.id)}
+                                    className="focus:ring-brand-500 h-5 w-5 text-brand-600 border-gray-300 dark:border-slate-500 rounded cursor-pointer dark:bg-slate-600"
+                                  />
+                                </div>
+                                <div className="flex flex-col">
                                   <div className="flex items-center space-x-2">
-                                      <label htmlFor={item.id} className={`text-sm font-medium cursor-pointer select-none ${state.completed ? 'text-gray-400 dark:text-gray-500 line-through' : 'text-gray-700 dark:text-gray-200'}`}>
-                                          {item.label}
-                                      </label>
-                                      {item.responsibleRole && (
-                                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-tighter ${item.responsibleRole === 'SECRETARIA' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'}`}>
-                                              {item.responsibleRole === 'SECRETARIA' ? <ShieldCheck className="w-2.5 h-2.5 inline mr-1" /> : <UserRound className="w-2.5 h-2.5 inline mr-1" />}
-                                              {item.responsibleRole}
-                                          </span>
-                                      )}
+                                    <label htmlFor={item.id} className={`text-sm font-medium cursor-pointer select-none ${state.completed ? 'text-gray-400 dark:text-gray-500 line-through' : 'text-gray-700 dark:text-gray-200'}`}>
+                                      {item.label}
+                                    </label>
+                                    {item.responsibleRole && (
+                                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-tighter ${item.responsibleRole === 'SECRETARIA' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'}`}>
+                                        {item.responsibleRole === 'SECRETARIA' ? <ShieldCheck className="w-2.5 h-2.5 inline mr-1" /> : <UserRound className="w-2.5 h-2.5 inline mr-1" />}
+                                        {item.responsibleRole}
+                                      </span>
+                                    )}
                                   </div>
                                   {hasTemplate && (template.text || template.resource) && (
-                                      <div className="flex space-x-2 mt-1">
-                                          <button 
-                                              onClick={(e) => { e.stopPropagation(); openMessageModal(item.id); }}
-                                              className="inline-flex items-center space-x-1 px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/50 text-xs font-medium transition border border-blue-200 dark:border-blue-800 group"
-                                          >
-                                              {template.text && <MessageCircle className="w-3 h-3" />}
-                                              {template.resource && <Paperclip className="w-3 h-3" />}
-                                              <span>
-                                                  {template.text && template.resource ? 'Ver Mensagem + Anexo' : 
-                                                   template.text ? 'Ver Mensagem' : 'Ver Anexo'}
-                                              </span>
-                                          </button>
-                                      </div>
-                                  )}
-                              </div>
-                            </div>
-                            
-                            <div className="flex items-center ml-8 sm:ml-0 space-x-2 flex-wrap justify-end">
-                                <div className="relative">
-                                    <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
-                                       <Clock className={`w-4 h-4 ${state.dueDate ? 'text-brand-500' : 'text-gray-300 dark:text-gray-600'}`} />
+                                    <div className="flex space-x-2 mt-1">
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); openMessageModal(item.id); }}
+                                        className="inline-flex items-center space-x-1 px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/50 text-xs font-medium transition border border-blue-200 dark:border-blue-800 group"
+                                      >
+                                        {template.text && <MessageCircle className="w-3 h-3" />}
+                                        {template.resource && <Paperclip className="w-3 h-3" />}
+                                        <span>
+                                          {template.text && template.resource ? 'Ver Mensagem + Anexo' :
+                                            template.text ? 'Ver Mensagem' : 'Ver Anexo'}
+                                        </span>
+                                      </button>
                                     </div>
-                                    <input 
-                                      type="date"
-                                      value={state.dueDate || ''}
-                                      onChange={async (e) => await setChecklistDueDate(candidate.id, item.id, e.target.value)}
-                                      className={`pl-8 pr-2 py-1 text-xs border rounded-md focus:outline-none focus:ring-1 focus:ring-brand-500 ${state.dueDate ? 'border-brand-200 bg-brand-50 text-brand-700 dark:bg-brand-900/20 dark:border-brand-800 dark:text-brand-400' : 'border-gray-200 bg-white text-gray-400 dark:bg-slate-700 dark:border-slate-600 dark:text-gray-500'}`}
-                                    />
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="flex items-center ml-8 sm:ml-0 space-x-2 flex-wrap justify-end">
+                                <div className="relative">
+                                  <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
+                                    <Clock className={`w-4 h-4 ${state.dueDate ? 'text-brand-500' : 'text-gray-300 dark:text-gray-600'}`} />
+                                  </div>
+                                  <input
+                                    type="date"
+                                    value={state.dueDate || ''}
+                                    onChange={async (e) => await setChecklistDueDate(candidate.id, item.id, e.target.value)}
+                                    className={`pl-8 pr-2 py-1 text-xs border rounded-md focus:outline-none focus:ring-1 focus:ring-brand-500 ${state.dueDate ? 'border-brand-200 bg-brand-50 text-brand-700 dark:bg-brand-900/20 dark:border-brand-800 dark:text-brand-400' : 'border-gray-200 bg-white text-gray-400 dark:bg-slate-700 dark:border-slate-600 dark:text-gray-500'}`}
+                                  />
                                 </div>
                                 {state.dueDate && (
-                                  <button 
+                                  <button
                                     onClick={() => handleAddToGoogleCalendar(item.label, state.dueDate!)}
                                     className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:text-blue-400 dark:hover:bg-blue-900/20 rounded-md transition"
                                     title="Adicionar ao Google Agenda"
@@ -435,9 +481,10 @@ export const CandidateDetail = () => {
                                     <CalendarPlus className="w-4 h-4" />
                                   </button>
                                 )}
-                            </div>
-                          </li>
-                        )})}
+                              </div>
+                            </li>
+                          );
+                        })}
                       </ul>
                     </div>
                   </div>
@@ -447,120 +494,120 @@ export const CandidateDetail = () => {
           )}
 
           {activeTab === 'goals' && (
-             <div className="space-y-6">
-                <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm mb-4">
-                    <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-1">Metas e Evolução do Consultor</h2>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Acompanhamento detalhado do plano de 90 dias.</p>
-                </div>
+            <div className="space-y-6">
+              <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm mb-4">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-1">Metas e Evolução do Consultor</h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Acompanhamento detalhado do plano de 90 dias.</p>
+              </div>
 
-                {consultantGoalsStructure.map((stage) => {
-                   const progress = candidate.consultantGoalsProgress || {};
-                   const completedCount = stage.items.filter(item => progress[item.id]).length;
-                   const totalCount = stage.items.length;
-                   
-                   return (
-                      <div key={stage.id} className={`rounded-xl border overflow-hidden shadow-sm ${getGoalColorClass(stage.color)}`}>
-                          <div className={`px-6 py-4 flex flex-col md:flex-row md:items-center justify-between ${getGoalColorClass(stage.color, true)}`}>
-                              <div>
-                                  <h3 className="font-bold text-lg">{stage.title}</h3>
-                                  <p className="text-sm opacity-90 mt-1">{stage.objective}</p>
-                              </div>
-                              <div className="mt-2 md:mt-0 bg-black/20 px-3 py-1 rounded text-sm font-bold whitespace-nowrap">
-                                  {completedCount} / {totalCount} Concluídos
-                              </div>
-                          </div>
-                          <div className="p-4">
-                              <ul className="space-y-3">
-                                  {stage.items.map(item => {
-                                      const checked = progress[item.id] || false;
-                                      return (
-                                          <li key={item.id} className="flex items-start space-x-3 p-2 rounded hover:bg-black/5 dark:hover:bg-white/5 transition cursor-pointer" onClick={async () => await toggleConsultantGoal(candidate.id, item.id)}>
-                                              <div className={`mt-0.5 w-5 h-5 rounded border flex items-center justify-center transition-colors ${checked ? 'bg-green-500 border-green-500 text-white' : 'bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-500'}`}>
-                                                  {checked && <CheckSquare className="w-3.5 h-3.5" />}
-                                              </div>
-                                              <span className={`text-sm ${checked ? 'line-through opacity-60' : 'opacity-90'} dark:text-gray-200 text-gray-800`}>{item.label}</span>
-                                          </li>
-                                      );
-                                  })}
-                              </ul>
-                          </div>
+              {consultantGoalsStructure.map((stage) => {
+                const progress = candidate.consultantGoalsProgress || {};
+                const completedCount = stage.items.filter((item) => progress[item.id]).length;
+                const totalCount = stage.items.length;
+
+                return (
+                  <div key={stage.id} className={`rounded-xl border overflow-hidden shadow-sm ${getGoalColorClass(stage.color)}`}>
+                    <div className={`px-6 py-4 flex flex-col md:flex-row md:items-center justify-between ${getGoalColorClass(stage.color, true)}`}>
+                      <div>
+                        <h3 className="font-bold text-lg">{stage.title}</h3>
+                        <p className="text-sm opacity-90 mt-1">{stage.objective}</p>
                       </div>
-                   );
-                })}
-             </div>
+                      <div className="mt-2 md:mt-0 bg-black/20 px-3 py-1 rounded text-sm font-bold whitespace-nowrap">
+                        {completedCount} / {totalCount} Concluídos
+                      </div>
+                    </div>
+                    <div className="p-4">
+                      <ul className="space-y-3">
+                        {stage.items.map((item) => {
+                          const checked = progress[item.id] || false;
+                          return (
+                            <li key={item.id} className="flex items-start space-x-3 p-2 rounded hover:bg-black/5 dark:hover:bg-white/5 transition cursor-pointer" onClick={async () => await toggleConsultantGoal(candidate.id, item.id)}>
+                              <div className={`mt-0.5 w-5 h-5 rounded border flex items-center justify-center transition-colors ${checked ? 'bg-green-500 border-green-500 text-white' : 'bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-500'}`}>
+                                {checked && <CheckSquare className="w-3.5 h-3.5" />}
+                              </div>
+                              <span className={`text-sm ${checked ? 'line-through opacity-60' : 'opacity-90'} dark:text-gray-200 text-gray-800`}>{item.label}</span>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           )}
 
           {activeTab === 'interview' && (
             <div className="bg-white dark:bg-slate-800 p-8 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
-                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">Formulário de Avaliação</h2>
-                  <div className="flex items-center space-x-2 mt-2 sm:mt-0 flex-wrap justify-end">
-                      <span className={`text-2xl font-bold ${totalScore >= 70 ? 'text-green-600 dark:text-green-400' : 'text-brand-900 dark:text-brand-400'}`}>{totalScore}/100</span>
-                      <button onClick={handleSaveInterview} disabled={isSaving} className="flex items-center space-x-2 bg-brand-600 text-white px-4 py-2 rounded-lg hover:bg-brand-700 disabled:opacity-50">
-                          {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-                          <span>Salvar Avaliação</span>
-                      </button>
-                  </div>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Formulário de Avaliação</h2>
+                <div className="flex items-center space-x-2 mt-2 sm:mt-0 flex-wrap justify-end">
+                  <span className={`text-2xl font-bold ${totalScore >= 70 ? 'text-green-600 dark:text-green-400' : 'text-brand-900 dark:text-brand-400'}`}>{totalScore}/100</span>
+                  <button onClick={handleSaveInterview} disabled={isSaving} className="flex items-center space-x-2 bg-brand-600 text-white px-4 py-2 rounded-lg hover:bg-brand-700 disabled:opacity-50">
+                    {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+                    <span>Salvar Avaliação</span>
+                  </button>
+                </div>
               </div>
-              
+
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  <div className="space-y-6">
-                      {interviewStructure.map(section => (
-                          <div key={section.id}>
-                              <h3 className="font-semibold text-gray-800 dark:text-gray-200 mb-3">{section.title}</h3>
-                              <div className="mb-4">
-                                  <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-1">
-                                      <span>0</span>
-                                      <span>{section.maxPoints}</span>
-                                  </div>
-                                  <input 
-                                      type="range" 
-                                      min="0" 
-                                      max={section.maxPoints} 
-                                      value={(scores[section.id] as number) || 0}
-                                      onChange={(e) => handleScoreChange(section.id, parseInt(e.target.value))}
-                                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
-                                  />
-                                  <div className="text-center font-bold text-brand-600 dark:text-brand-400 mt-1">{(scores[section.id] as number) || 0} pts</div>
-                              </div>
-                              <div className="space-y-2">
-                                  {section.questions.map(q => (
-                                      <label key={q.id} className="flex items-center space-x-2 cursor-pointer p-2 rounded hover:bg-gray-50 dark:hover:bg-slate-700/50">
-                                          <input 
-                                              type="checkbox"
-                                              checked={!!checkedQuestions[q.id]}
-                                              onChange={() => handleQuestionToggle(q.id, q.points, section.id)}
-                                              className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
-                                          />
-                                          <span className="text-sm text-gray-700 dark:text-gray-300">{q.text} <span className="text-xs text-gray-400">({q.points} pts)</span></span>
-                                      </label>
-                                  ))}
-                              </div>
-                          </div>
-                      ))}
-                  </div>
-                  <div>
-                      <h3 className="font-semibold text-gray-800 dark:text-gray-200 mb-3">Anotações Gerais</h3>
-                      <textarea 
-                          value={scores.notes}
-                          onChange={(e) => setScores(prev => ({ ...prev, notes: e.target.value }))}
-                          rows={20}
-                          className="w-full p-3 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 focus:ring-brand-500 focus:border-brand-500"
-                          placeholder="Digite aqui as anotações sobre o candidato..."
-                      />
-                  </div>
+                <div className="space-y-6">
+                  {interviewStructure.map((section) => (
+                    <div key={section.id}>
+                      <h3 className="font-semibold text-gray-800 dark:text-gray-200 mb-3">{section.title}</h3>
+                      <div className="mb-4">
+                        <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-1">
+                          <span>0</span>
+                          <span>{section.maxPoints}</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0"
+                          max={section.maxPoints}
+                          value={(scores[section.id] as number) || 0}
+                          onChange={(e) => handleScoreChange(section.id, parseInt(e.target.value))}
+                          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
+                        />
+                        <div className="text-center font-bold text-brand-600 dark:text-brand-400 mt-1">{(scores[section.id] as number) || 0} pts</div>
+                      </div>
+                      <div className="space-y-2">
+                        {section.questions.map((q) => (
+                          <label key={q.id} className="flex items-center space-x-2 cursor-pointer p-2 rounded hover:bg-gray-50 dark:hover:bg-slate-700/50">
+                            <input
+                              type="checkbox"
+                              checked={!!checkedQuestions[q.id]}
+                              onChange={() => handleQuestionToggle(q.id, q.points, section.id)}
+                              className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+                            />
+                            <span className="text-sm text-gray-700 dark:text-gray-300">{q.text} <span className="text-xs text-gray-400">({q.points} pts)</span></span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-800 dark:text-gray-200 mb-3">Anotações Gerais</h3>
+                  <textarea
+                    value={scores.notes}
+                    onChange={(e) => setScores((prev) => ({ ...prev, notes: e.target.value }))}
+                    rows={20}
+                    className="w-full p-3 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 focus:ring-brand-500 focus:border-brand-500"
+                    placeholder="Digite aqui as anotações sobre o candidato..."
+                  />
+                </div>
               </div>
             </div>
           )}
         </div>
 
         {selectedTemplate && (
-            <MessageViewerModal 
-              isOpen={modalOpen} 
-              onClose={() => setModalOpen(false)} 
-              candidateName={candidate.name}
-              template={selectedTemplate}
-            />
+          <MessageViewerModal
+            isOpen={modalOpen}
+            onClose={() => setModalOpen(false)}
+            candidateName={candidate.name}
+            template={selectedTemplate}
+          />
         )}
 
         <WithdrawalReasonModal
@@ -570,7 +617,6 @@ export const CandidateDetail = () => {
           candidateName={candidate.name}
           stageName={getHiringStageLabel(getCandidateStageKey(candidate))}
         />
-
       </div>
     </ErrorBoundary>
   );

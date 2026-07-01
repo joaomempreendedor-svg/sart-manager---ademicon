@@ -39,59 +39,83 @@ import { Candidate, HiringPipelineColumn, HiringPipelineStageKey } from '@/types
 import { buildCandidateStageUpdates, buildCandidateTimeline, getCandidateStageKey, getHiringStageLabel, normalizeHiringPipelineColumns } from '@/lib/hiringPipeline';
 
 const STAGE_PREREQUISITES: Partial<Record<HiringPipelineStageKey, HiringPipelineStageKey[]>> = {
-  'contatados':                ['candidatos'],
-  'respondeu':                 ['contatados'],
-  'entrevista-agendada':       ['respondeu'],
-  'compareceu-entrevista':     ['entrevista-agendada'],
-  'faltou-entrevista':         ['entrevista-agendada'],
-  'aprovado-gestor':           ['compareceu-entrevista'],
-  'reprovado-gestor':          ['compareceu-entrevista'],
-  'aprovacao-d1':              ['aprovado-gestor'],
-  'documentacao-enviada':      ['aprovacao-d1'],
-  'documentacao-nao-enviada':  ['aprovacao-d1'],
-  'previa-cadastrada':         ['documentacao-enviada', 'documentacao-nao-enviada'],
-  'previa-retificada':         ['previa-cadastrada'],
-  'onboarding-liberado':       ['previa-cadastrada'],
-  'onboarding-finalizado':     ['onboarding-liberado'],
+  'contatados': ['candidatos'],
+  'respondeu': ['contatados'],
+  'entrevista-agendada': ['respondeu'],
+  'compareceu-entrevista': ['entrevista-agendada'],
+  'faltou-entrevista': ['entrevista-agendada'],
+  'aprovado-gestor': ['compareceu-entrevista'],
+  'reprovado-gestor': ['compareceu-entrevista'],
+  'aprovacao-d1': ['aprovado-gestor'],
+  'documentacao-enviada': ['aprovacao-d1'],
+  'documentacao-nao-enviada': ['aprovacao-d1'],
+  'previa-cadastrada': ['documentacao-enviada', 'documentacao-nao-enviada'],
+  'previa-retificada': ['previa-cadastrada'],
+  'onboarding-liberado': ['previa-cadastrada'],
+  'onboarding-finalizado': ['onboarding-liberado'],
   'onboarding-nao-finalizado': ['onboarding-liberado'],
-  'integracao-agendada':       ['onboarding-finalizado', 'onboarding-nao-finalizado'],
-  'integracao-compareceu':     ['integracao-agendada'],
+  'integracao-agendada': ['onboarding-finalizado', 'onboarding-nao-finalizado'],
+  'integracao-compareceu': ['integracao-agendada'],
   'integracao-nao-compareceu': ['integracao-agendada'],
-  'integracao-finalizada':     ['integracao-compareceu'],
-  'assinatura-contrato':       ['integracao-finalizada'],
-  'contrato-assinado':         ['assinatura-contrato'],
-  'contrato-nao-assinado':     ['assinatura-contrato'],
-  'autorizado':                ['contrato-assinado'],
+  'integracao-finalizada': ['integracao-compareceu'],
+  'assinatura-contrato': ['integracao-finalizada'],
+  'contrato-assinado': ['assinatura-contrato'],
+  'contrato-nao-assinado': ['assinatura-contrato'],
+  'autorizado': ['contrato-assinado'],
 };
+
+const WITHDRAWAL_ALLOWED_STAGE_KEYS: HiringPipelineStageKey[] = [
+  'aprovado-gestor',
+  'aprovacao-d1',
+  'documentacao-enviada',
+  'previa-cadastrada',
+  'previa-retificada',
+  'onboarding-liberado',
+  'onboarding-finalizado',
+  'onboarding-nao-finalizado',
+  'integracao-agendada',
+  'integracao-compareceu',
+  'integracao-nao-compareceu',
+  'integracao-finalizada',
+  'assinatura-contrato',
+  'contrato-assinado',
+  'contrato-nao-assinado',
+  'autorizado',
+];
 
 const candidatePassedStage = (candidate: Candidate, stageKey: HiringPipelineStageKey): boolean => {
   switch (stageKey) {
-    case 'candidatos':               return true;
-    case 'contatados':               return !!candidate.contactedDate;
-    case 'respondeu':                return !!candidate.respondedDate;
-    case 'entrevista-agendada':      return !!candidate.interviewScheduledDate;
-    case 'compareceu-entrevista':    return !!candidate.interviewAttendedDate || !!candidate.interviewConductedDate;
-    case 'faltou-entrevista':        return !!candidate.interviewNoShowDate || !!candidate.faltouDate;
-    case 'aprovado-gestor':          return !!candidate.managerApprovedDate;
-    case 'reprovado-gestor':         return !!candidate.managerRejectedDate;
-    case 'aprovacao-d1':             return !!candidate.d1ApprovalDate;
-    case 'documentacao-enviada':     return !!candidate.documentationSentDate;
+    case 'candidatos': return true;
+    case 'contatados': return !!candidate.contactedDate;
+    case 'respondeu': return !!candidate.respondedDate;
+    case 'entrevista-agendada': return !!candidate.interviewScheduledDate;
+    case 'compareceu-entrevista': return !!candidate.interviewAttendedDate || !!candidate.interviewConductedDate;
+    case 'faltou-entrevista': return !!candidate.interviewNoShowDate || !!candidate.faltouDate;
+    case 'aprovado-gestor': return !!candidate.managerApprovedDate;
+    case 'reprovado-gestor': return !!candidate.managerRejectedDate;
+    case 'aprovacao-d1': return !!candidate.d1ApprovalDate;
+    case 'documentacao-enviada': return !!candidate.documentationSentDate;
     case 'documentacao-nao-enviada': return !!candidate.documentationNotSentDate;
-    case 'previa-cadastrada':        return !!candidate.previewRegisteredDate;
-    case 'previa-retificada':        return !!candidate.previewRectifiedDate;
-    case 'onboarding-liberado':      return !!candidate.onboardingReleasedDate || !!candidate.onboardingOnlineDate;
-    case 'onboarding-finalizado':    return !!candidate.onboardingFinishedDate;
-    case 'onboarding-nao-finalizado':return !!candidate.onboardingNotFinishedDate;
-    case 'integracao-agendada':      return !!candidate.integrationScheduledDate || !!candidate.integrationPresencialDate;
-    case 'integracao-compareceu':    return !!candidate.integrationAttendedDate;
-    case 'integracao-nao-compareceu':return !!candidate.integrationNoShowDate;
-    case 'integracao-finalizada':    return !!candidate.integrationFinishedDate;
-    case 'assinatura-contrato':      return !!candidate.contractSignatureDate;
-    case 'contrato-assinado':        return !!candidate.contractSignedDate;
-    case 'contrato-nao-assinado':    return !!candidate.contractNotSignedDate;
-    case 'autorizado':               return !!candidate.authorizedDate;
-    default:                         return true;
+    case 'previa-cadastrada': return !!candidate.previewRegisteredDate;
+    case 'previa-retificada': return !!candidate.previewRectifiedDate;
+    case 'onboarding-liberado': return !!candidate.onboardingReleasedDate || !!candidate.onboardingOnlineDate;
+    case 'onboarding-finalizado': return !!candidate.onboardingFinishedDate;
+    case 'onboarding-nao-finalizado': return !!candidate.onboardingNotFinishedDate;
+    case 'integracao-agendada': return !!candidate.integrationScheduledDate || !!candidate.integrationPresencialDate;
+    case 'integracao-compareceu': return !!candidate.integrationAttendedDate;
+    case 'integracao-nao-compareceu': return !!candidate.integrationNoShowDate;
+    case 'integracao-finalizada': return !!candidate.integrationFinishedDate;
+    case 'assinatura-contrato': return !!candidate.contractSignatureDate;
+    case 'contrato-assinado': return !!candidate.contractSignedDate;
+    case 'contrato-nao-assinado': return !!candidate.contractNotSignedDate;
+    case 'autorizado': return !!candidate.authorizedDate;
+    default: return true;
   }
+};
+
+const canRegisterWithdrawal = (candidate: Candidate) => {
+  const stageKey = getCandidateStageKey(candidate);
+  return WITHDRAWAL_ALLOWED_STAGE_KEYS.includes(stageKey);
 };
 
 const getBlockedReason = (candidate: Candidate, targetStageKey: HiringPipelineStageKey): string | null => {
@@ -101,7 +125,7 @@ const getBlockedReason = (candidate: Candidate, targetStageKey: HiringPipelineSt
   if (passed) return null;
   const labels = prerequisites.map((req) => getHiringStageLabel(req));
   if (labels.length === 1) return `Candidato precisa passar por "${labels[0]}" antes.`;
-  return `Candidato precisa passar por uma das etapas: ${labels.map(l => `"${l}"`).join(' ou ')}.`;
+  return `Candidato precisa passar por uma das etapas: ${labels.map((l) => `"${l}"`).join(' ou ')}.`;
 };
 
 const formatDateTime = (value?: string) => {
@@ -400,32 +424,46 @@ const HiringPipeline = () => {
 
   const getColumnColorClasses = (color: HiringPipelineColumn['color']) => {
     switch (color) {
-      case 'blue':    return 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800 text-blue-700 dark:text-blue-300';
-      case 'purple':  return 'bg-purple-50 border-purple-200 dark:bg-purple-900/20 dark:border-purple-800 text-purple-700 dark:text-purple-300';
-      case 'yellow':  return 'bg-yellow-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-800 text-yellow-700 dark:text-yellow-300';
-      case 'green':   return 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800 text-green-700 dark:text-green-300';
-      case 'red':     return 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800 text-red-700 dark:text-red-300';
-      case 'orange':  return 'bg-orange-50 border-orange-200 dark:bg-orange-900/20 dark:border-orange-800 text-orange-700 dark:text-orange-300';
-      default:        return 'bg-gray-50 border-gray-200 dark:bg-slate-800 dark:border-slate-700 text-gray-700 dark:text-gray-300';
+      case 'blue': return 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800 text-blue-700 dark:text-blue-300';
+      case 'purple': return 'bg-purple-50 border-purple-200 dark:bg-purple-900/20 dark:border-purple-800 text-purple-700 dark:text-purple-300';
+      case 'yellow': return 'bg-yellow-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-800 text-yellow-700 dark:text-yellow-300';
+      case 'green': return 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800 text-green-700 dark:text-green-300';
+      case 'red': return 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800 text-red-700 dark:text-red-300';
+      case 'orange': return 'bg-orange-50 border-orange-200 dark:bg-orange-900/20 dark:border-orange-800 text-orange-700 dark:text-orange-300';
+      default: return 'bg-gray-50 border-gray-200 dark:bg-slate-800 dark:border-slate-700 text-gray-700 dark:text-gray-300';
     }
   };
 
   const moveCandidateToStage = async (candidate: Candidate, column: HiringPipelineColumn, reason?: string) => {
     const blockedReason = getBlockedReason(candidate, column.stageKey);
-    if (blockedReason) { toast.error(`🔒 ${blockedReason}`, { duration: 4000 }); return; }
+    if (blockedReason) {
+      toast.error(`🔒 ${blockedReason}`, { duration: 4000 });
+      return;
+    }
     await updateCandidate(candidate.id, buildCandidateStageUpdates(candidate, column.stageKey, reason));
   };
 
   const openWithdrawalFlow = (event: React.MouseEvent, candidate: Candidate) => {
-    event.preventDefault(); event.stopPropagation();
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (!canRegisterWithdrawal(candidate)) {
+      toast.error('Desistência só pode ser registrada para candidatos aprovados que não seguiram o processo.');
+      return;
+    }
+
     setSelectedCandidateForWithdrawal(candidate);
     setIsWithdrawalModalOpen(true);
   };
 
   const handleMoveToColumn = async (event: React.MouseEvent, candidate: Candidate, column: HiringPipelineColumn) => {
-    event.preventDefault(); event.stopPropagation();
+    event.preventDefault();
+    event.stopPropagation();
     const blockedReason = getBlockedReason(candidate, column.stageKey);
-    if (blockedReason) { toast.error(`🔒 ${blockedReason}`, { duration: 4000 }); return; }
+    if (blockedReason) {
+      toast.error(`🔒 ${blockedReason}`, { duration: 4000 });
+      return;
+    }
     try {
       await moveCandidateToStage(candidate, column);
       toast.success(`Candidato movido para ${column.title}`);
@@ -433,21 +471,35 @@ const HiringPipeline = () => {
         setSelectedCandidateForDate(candidate);
         setIsUpdateDateModalOpen(true);
       }
-    } catch { toast.error('Erro ao atualizar status.'); }
+    } catch {
+      toast.error('Erro ao atualizar status.');
+    }
   };
 
   const handleConfirmWithdrawal = async (selection: WithdrawalReasonSelection) => {
     if (!selectedCandidateForWithdrawal) return;
+
+    if (!canRegisterWithdrawal(selectedCandidateForWithdrawal)) {
+      toast.error('Desistência só pode ser registrada para candidatos aprovados que não seguiram o processo.');
+      return;
+    }
+
     const withdrawalStageKey = getCandidateStageKey(selectedCandidateForWithdrawal);
     const now = new Date().toISOString();
+
     try {
       await updateCandidate(selectedCandidateForWithdrawal.id, {
-        status: 'Reprovado', pipelineStageKey: withdrawalStageKey, withdrawalStageKey,
-        withdrawalReasonOption: selection.reasonOption, withdrawalReason: selection.reasonText,
-        reprovadoDate: now, lastUpdatedAt: now,
+        pipelineStageKey: withdrawalStageKey,
+        withdrawalStageKey,
+        withdrawalReasonOption: selection.reasonOption,
+        withdrawalReason: selection.reasonText,
+        reprovadoDate: now,
+        lastUpdatedAt: now,
       });
       toast.success(`Desistência registrada em ${getHiringStageLabel(withdrawalStageKey)}`);
-    } catch { toast.error('Erro ao registrar desistência.'); }
+    } catch {
+      toast.error('Erro ao registrar desistência.');
+    }
   };
 
   const handleRevertWithdrawal = async (candidate: Candidate, targetStageKey: HiringPipelineStageKey) => {
@@ -464,7 +516,8 @@ const HiringPipeline = () => {
   };
 
   const handleOpenUpdateDate = async (event: React.MouseEvent, candidate: Candidate) => {
-    event.preventDefault(); event.stopPropagation();
+    event.preventDefault();
+    event.stopPropagation();
     if (getCandidateStageKey(candidate) === 'faltou-entrevista') {
       await updateCandidate(candidate.id, { rescheduledCount: (candidate.rescheduledCount || 0) + 1 });
     }
@@ -473,8 +526,12 @@ const HiringPipeline = () => {
   };
 
   const debouncedUpdateCandidateNotes = useDebouncedCallback(async (candidateId: string, notes: string) => {
-    try { await updateCandidate(candidateId, { notes }); toast.success('Observações salvas!'); }
-    catch { toast.error('Erro ao salvar observações.'); }
+    try {
+      await updateCandidate(candidateId, { notes });
+      toast.success('Observações salvas!');
+    } catch {
+      toast.error('Erro ao salvar observações.');
+    }
   }, 1000);
 
   const handleNotesChange = (candidateId: string, newNotes: string) => {
@@ -483,16 +540,25 @@ const HiringPipeline = () => {
   };
 
   const handleDeleteCandidatePermanently = async (event: React.MouseEvent, candidateDbId: string, candidateName: string) => {
-    event.preventDefault(); event.stopPropagation();
+    event.preventDefault();
+    event.stopPropagation();
     if (!window.confirm(`Tem certeza que deseja excluir permanentemente "${candidateName}"?`)) return;
-    try { await deleteCandidate(candidateDbId); toast.success(`Candidato "${candidateName}" excluído.`); }
-    catch (error: any) { toast.error(`Erro ao excluir candidato: ${error.message}`); }
+    try {
+      await deleteCandidate(candidateDbId);
+      toast.success(`Candidato "${candidateName}" excluído.`);
+    } catch (error: any) {
+      toast.error(`Erro ao excluir candidato: ${error.message}`);
+    }
   };
 
   const responsibleMembersForModal = useMemo(() => {
     return teamMembers.filter((member) =>
-      member.isActive && (member.roles.includes('GESTOR') || member.roles.includes('CONSULTOR') ||
-        member.roles.includes('ANJO') || member.roles.includes('SECRETARIA')),
+      member.isActive && (
+        member.roles.includes('GESTOR') ||
+        member.roles.includes('CONSULTOR') ||
+        member.roles.includes('ANJO') ||
+        member.roles.includes('SECRETARIA')
+      ),
     );
   }, [teamMembers]);
 
@@ -507,7 +573,8 @@ const HiringPipeline = () => {
   };
 
   const handleOpenTimeline = (event: React.MouseEvent, candidate: Candidate) => {
-    event.preventDefault(); event.stopPropagation();
+    event.preventDefault();
+    event.stopPropagation();
     setTimelineCandidate(candidate);
   };
 
@@ -556,14 +623,18 @@ const HiringPipeline = () => {
                 </p>
               </div>
               <div className="flex items-center gap-3">
-                <button onClick={() => setShowWithdrawn(!showWithdrawn)}
-                  className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-bold transition ${showWithdrawn ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' : 'bg-gray-100 text-gray-500 dark:bg-slate-700 dark:text-gray-400 hover:bg-red-50 hover:text-red-600'}`}>
+                <button
+                  onClick={() => setShowWithdrawn(!showWithdrawn)}
+                  className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-bold transition ${showWithdrawn ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' : 'bg-gray-100 text-gray-500 dark:bg-slate-700 dark:text-gray-400 hover:bg-red-50 hover:text-red-600'}`}
+                >
                   <UserMinus className="h-3.5 w-3.5" />
                   {showWithdrawn ? 'Ocultar desistências' : `Ver desistências (${withdrawnCount})`}
                 </button>
                 {(searchTerm || filterStartDate || filterEndDate) && (
-                  <button onClick={() => { setSearchTerm(''); setFilterStartDate(''); setFilterEndDate(''); }}
-                    className="inline-flex items-center text-xs font-bold text-red-500 transition hover:text-red-700">
+                  <button
+                    onClick={() => { setSearchTerm(''); setFilterStartDate(''); setFilterEndDate(''); }}
+                    className="inline-flex items-center text-xs font-bold text-red-500 transition hover:text-red-700"
+                  >
                     <RotateCcw className="mr-1 h-3 w-3" />Limpar filtros
                   </button>
                 )}
@@ -574,20 +645,32 @@ const HiringPipeline = () => {
                 <label className="mb-1 ml-1 text-[10px] font-bold uppercase text-gray-400">Busca</label>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                  <input type="text" placeholder="Nome, telefone ou email..."
+                  <input
+                    type="text"
+                    placeholder="Nome, telefone ou email..."
                     className="w-full rounded-lg border border-gray-300 bg-white py-2.5 pl-9 pr-4 text-sm text-gray-900 focus:border-brand-500 focus:ring-brand-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
-                    value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} />
+                    value={searchTerm}
+                    onChange={(event) => setSearchTerm(event.target.value)}
+                  />
                 </div>
               </div>
               <div className="flex flex-col">
                 <label className="mb-1 ml-1 text-[10px] font-bold uppercase text-gray-400">Criado de</label>
-                <input type="date" value={filterStartDate} onChange={(event) => setFilterStartDate(event.target.value)}
-                  className="w-full rounded-lg border border-gray-300 bg-white p-2.5 text-sm text-gray-900 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
+                <input
+                  type="date"
+                  value={filterStartDate}
+                  onChange={(event) => setFilterStartDate(event.target.value)}
+                  className="w-full rounded-lg border border-gray-300 bg-white p-2.5 text-sm text-gray-900 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+                />
               </div>
               <div className="flex flex-col">
                 <label className="mb-1 ml-1 text-[10px] font-bold uppercase text-gray-400">Criado até</label>
-                <input type="date" value={filterEndDate} onChange={(event) => setFilterEndDate(event.target.value)}
-                  className="w-full rounded-lg border border-gray-300 bg-white p-2.5 text-sm text-gray-900 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
+                <input
+                  type="date"
+                  value={filterEndDate}
+                  onChange={(event) => setFilterEndDate(event.target.value)}
+                  className="w-full rounded-lg border border-gray-300 bg-white p-2.5 text-sm text-gray-900 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+                />
               </div>
             </div>
           </div>
@@ -617,9 +700,11 @@ const HiringPipeline = () => {
                   <span className="rounded-full bg-white/60 px-2 py-1 text-[10px] font-bold uppercase tracking-wide dark:bg-black/20">
                     {stage.ownerRole === 'GESTOR' ? 'Responsável: Gestor' : 'Responsável: Secretaria'}
                   </span>
-                  <button onClick={() => setMessageModalStage(stage)}
+                  <button
+                    onClick={() => setMessageModalStage(stage)}
                     className="inline-flex items-center gap-1 rounded-full bg-white/70 px-2 py-1 text-[10px] font-bold uppercase tracking-wide transition hover:bg-white dark:bg-black/30 dark:hover:bg-black/50"
-                    title="Ver mensagem sugerida para essa etapa">
+                    title="Ver mensagem sugerida para essa etapa"
+                  >
                     <MessageSquare className="h-3 w-3" />Mensagem
                   </button>
                 </div>
@@ -634,13 +719,15 @@ const HiringPipeline = () => {
                   const currentStage = getCandidateStageKey(candidate);
                   const showReagendar = currentStage === 'faltou-entrevista';
                   const wasRescheduled = (candidate.rescheduledCount || 0) > 0;
+                  const canWithdraw = canRegisterWithdrawal(candidate);
 
                   return (
-                    <div key={candidate.id}
+                    <div
+                      key={candidate.id}
                       className={`group relative overflow-hidden rounded-xl border p-4 shadow-sm transition-all hover:shadow-md ${
                         hasWithdrawn ? 'border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-900/20' : 'border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-700'
-                      } ${isToday && !hasWithdrawn ? 'ring-2 ring-brand-500' : ''}`}>
-
+                      } ${isToday && !hasWithdrawn ? 'ring-2 ring-brand-500' : ''}`}
+                    >
                       {hasWithdrawn && <div className="absolute right-0 top-0 rounded-bl-lg bg-red-500 px-2 py-0.5 text-[10px] font-bold text-white">DESISTIU</div>}
                       {!hasWithdrawn && wasRescheduled && (
                         <div className="absolute right-0 top-0 rounded-bl-lg bg-amber-500 px-2 py-0.5 text-[10px] font-bold text-white">
@@ -671,19 +758,25 @@ const HiringPipeline = () => {
                         </div>
 
                         <div className="flex items-center space-x-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
-                          <button onClick={(event) => handleOpenTimeline(event, candidate)}
+                          <button
+                            onClick={(event) => handleOpenTimeline(event, candidate)}
                             className="rounded-md p-1.5 text-gray-400 transition-colors hover:bg-indigo-50 hover:text-indigo-500 dark:text-gray-300 dark:hover:bg-slate-800"
-                            title="Ver Linha do Tempo">
+                            title="Ver Linha do Tempo"
+                          >
                             <History className="h-3.5 w-3.5" />
                           </button>
-                          <button onClick={(event) => handleOpenEditCandidateModal(event, candidate)}
+                          <button
+                            onClick={(event) => handleOpenEditCandidateModal(event, candidate)}
                             className="rounded-md p-1.5 text-gray-400 transition-colors hover:bg-blue-50 hover:text-blue-500 dark:text-gray-300 dark:hover:bg-slate-800"
-                            title="Editar Candidato">
+                            title="Editar Candidato"
+                          >
                             <Edit2 className="h-3.5 w-3.5" />
                           </button>
-                          <button onClick={(event) => handleDeleteCandidatePermanently(event, candidate.db_id || candidate.id, candidate.name)}
+                          <button
+                            onClick={(event) => handleDeleteCandidatePermanently(event, candidate.db_id || candidate.id, candidate.name)}
                             className="rounded-md bg-red-50 p-1.5 text-red-500 transition-colors hover:bg-red-100 hover:text-red-600 dark:bg-red-900/20 dark:text-red-300 dark:hover:bg-red-900/30"
-                            title="Excluir Candidato">
+                            title="Excluir Candidato"
+                          >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         </div>
@@ -748,14 +841,16 @@ const HiringPipeline = () => {
                               {getNextColumns(stage.id).map((column) => {
                                 const blocked = getBlockedReason(candidate, column.stageKey);
                                 return (
-                                  <button key={column.id}
+                                  <button
+                                    key={column.id}
                                     onClick={(event) => handleMoveToColumn(event, candidate, column)}
                                     className={`min-h-[30px] w-full rounded-lg border px-2 py-1 text-left text-[10px] font-bold leading-snug transition ${
                                       blocked
                                         ? 'cursor-not-allowed border-gray-100 bg-gray-50 text-gray-300 dark:border-slate-700 dark:bg-slate-800/50 dark:text-gray-600'
                                         : 'border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100 dark:border-slate-600 dark:bg-slate-800 dark:text-gray-200 dark:hover:bg-slate-700'
                                     }`}
-                                    title={blocked ? blocked : `Mover para ${column.title}`}>
+                                    title={blocked ? blocked : `Mover para ${column.title}`}
+                                  >
                                     <span className="flex items-center gap-1">
                                       {blocked && <Lock className="h-2.5 w-2.5 flex-shrink-0" />}
                                       {column.title}
@@ -764,16 +859,27 @@ const HiringPipeline = () => {
                                 );
                               })}
                               {showReagendar && (
-                                <button onClick={(event) => handleOpenUpdateDate(event, candidate)}
-                                  className="min-h-[30px] w-full rounded-lg bg-amber-500 px-2 py-1 text-left text-[10px] font-bold leading-snug text-white transition hover:bg-amber-600">
+                                <button
+                                  onClick={(event) => handleOpenUpdateDate(event, candidate)}
+                                  className="min-h-[30px] w-full rounded-lg bg-amber-500 px-2 py-1 text-left text-[10px] font-bold leading-snug text-white transition hover:bg-amber-600"
+                                >
                                   <span className="flex items-center gap-1">
                                     <RotateCcw className="h-3 w-3" />Reagendar entrevista
                                   </span>
                                 </button>
                               )}
-                              <button onClick={(event) => openWithdrawalFlow(event, candidate)}
-                                className="flex min-h-[30px] w-full items-center gap-1 rounded-lg bg-rose-600 px-2 py-1 text-left text-[10px] font-bold leading-snug text-white transition hover:bg-rose-700">
-                                <UserMinus className="h-3 w-3" />Desistiu nesta etapa
+                              <button
+                                onClick={(event) => openWithdrawalFlow(event, candidate)}
+                                disabled={!canWithdraw}
+                                className={`flex min-h-[30px] w-full items-center gap-1 rounded-lg px-2 py-1 text-left text-[10px] font-bold leading-snug transition ${
+                                  canWithdraw
+                                    ? 'bg-rose-600 text-white hover:bg-rose-700'
+                                    : 'cursor-not-allowed bg-gray-200 text-gray-500 dark:bg-slate-700 dark:text-gray-400'
+                                }`}
+                                title={canWithdraw ? 'Registrar desistência nesta etapa' : 'Desistência só vale para candidatos aprovados que não seguiram o processo'}
+                              >
+                                <UserMinus className="h-3 w-3" />
+                                {canWithdraw ? 'Desistiu nesta etapa' : 'Desistência não se aplica'}
                               </button>
                             </div>
                           </div>
@@ -795,20 +901,38 @@ const HiringPipeline = () => {
         })}
       </div>
 
-      <EditScreeningCandidateModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)}
-        origins={hiringOrigins} responsibleMembers={responsibleMembersForModal} />
-      <EditScreeningCandidateModal isOpen={isEditCandidateModalOpen} onClose={() => setIsEditCandidateModalOpen(false)}
-        origins={hiringOrigins} responsibleMembers={responsibleMembersForModal} candidateToEdit={selectedCandidateToEdit} />
-      <UpdateInterviewDateModal isOpen={isUpdateDateModalOpen}
+      <EditScreeningCandidateModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        origins={hiringOrigins}
+        responsibleMembers={responsibleMembersForModal}
+      />
+      <EditScreeningCandidateModal
+        isOpen={isEditCandidateModalOpen}
+        onClose={() => setIsEditCandidateModalOpen(false)}
+        origins={hiringOrigins}
+        responsibleMembers={responsibleMembersForModal}
+        candidateToEdit={selectedCandidateToEdit}
+      />
+      <UpdateInterviewDateModal
+        isOpen={isUpdateDateModalOpen}
         onClose={() => { setIsUpdateDateModalOpen(false); setSelectedCandidateForDate(null); }}
-        candidate={selectedCandidateForDate} />
-      <ImportCandidatesModal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)}
-        origins={hiringOrigins} responsibleMembers={responsibleMembersForModal} onImport={handleImportCandidates} />
-      <WithdrawalReasonModal isOpen={isWithdrawalModalOpen}
+        candidate={selectedCandidateForDate}
+      />
+      <ImportCandidatesModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        origins={hiringOrigins}
+        responsibleMembers={responsibleMembersForModal}
+        onImport={handleImportCandidates}
+      />
+      <WithdrawalReasonModal
+        isOpen={isWithdrawalModalOpen}
         onClose={() => { setIsWithdrawalModalOpen(false); setSelectedCandidateForWithdrawal(null); }}
         onConfirm={handleConfirmWithdrawal}
         candidateName={selectedCandidateForWithdrawal?.name || ''}
-        stageName={selectedCandidateForWithdrawal ? getHiringStageLabel(getCandidateStageKey(selectedCandidateForWithdrawal)) : ''} />
+        stageName={selectedCandidateForWithdrawal ? getHiringStageLabel(getCandidateStageKey(selectedCandidateForWithdrawal)) : ''}
+      />
       <SuggestedMessageModal
         isOpen={!!messageModalStage}
         onClose={() => setMessageModalStage(null)}

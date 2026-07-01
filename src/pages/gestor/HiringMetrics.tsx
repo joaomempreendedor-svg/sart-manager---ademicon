@@ -21,7 +21,7 @@ import { CandidatesDetailModal } from '@/components/gestor/CandidatesDetailModal
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { Candidate, HiringPipelineColumn, HiringPipelineStageKey, TeamMember } from '@/types';
-import { buildCandidateTimeline, getCandidateStageKey, getHiringStageLabel, normalizeHiringPipelineColumns } from '@/lib/hiringPipeline';
+import { buildCandidateTimeline, getHiringStageLabel, normalizeHiringPipelineColumns } from '@/lib/hiringPipeline';
 
 type MetricType = 'total' | 'newCandidates' | 'contacted' | 'scheduled' | 'conducted' | 'awaitingPreview' | 'hired' | 'noShow' | 'withdrawn' | 'disqualified' | 'noResponse';
 type SectionKey = 'funnel' | 'withdrawals' | 'origins' | 'indications' | 'timeline';
@@ -59,6 +59,25 @@ type BranchBreakdownRow = {
   onOpen: () => void;
   tone: 'blue' | 'green' | 'red' | 'rose';
 };
+
+const WITHDRAWAL_ALLOWED_STAGE_KEYS: HiringPipelineStageKey[] = [
+  'aprovado-gestor',
+  'aprovacao-d1',
+  'documentacao-enviada',
+  'previa-cadastrada',
+  'previa-retificada',
+  'onboarding-liberado',
+  'onboarding-finalizado',
+  'onboarding-nao-finalizado',
+  'integracao-agendada',
+  'integracao-compareceu',
+  'integracao-nao-compareceu',
+  'integracao-finalizada',
+  'assinatura-contrato',
+  'contrato-assinado',
+  'contrato-nao-assinado',
+  'autorizado',
+];
 
 const SECTION_OPTIONS: Array<{ key: SectionKey; title: string; icon: React.ComponentType<{ className?: string }> }> = [
   { key: 'funnel', title: 'Funil histórico', icon: BarChart3 },
@@ -307,6 +326,10 @@ const HiringMetrics = () => {
     const candidatesCreatedInPeriod = cohortCandidates;
     const columnsByKey = new Map(normalizedColumns.map((column) => [column.stageKey, column]));
 
+    const isWithdrawnCandidate = (candidate: Candidate) => {
+      return !!candidate.reprovadoDate && !!candidate.withdrawalStageKey && WITHDRAWAL_ALLOWED_STAGE_KEYS.includes(candidate.withdrawalStageKey);
+    };
+
     function candidateHasReachedStage(candidate: Candidate, stageKey: HiringPipelineStageKey): boolean {
       switch (stageKey) {
         case 'candidatos': return true;
@@ -337,10 +360,6 @@ const HiringMetrics = () => {
         default: return false;
       }
     }
-
-    const isWithdrawnCandidate = (candidate: Candidate) => {
-      return !!candidate.withdrawalStageKey || !!candidate.reprovadoDate || !!candidate.withdrawalReason || !!candidate.withdrawalReasonOption;
-    };
 
     const buildWithdrawnAtStage = (stageKey: HiringPipelineStageKey) => {
       return candidatesCreatedInPeriod.filter((candidate) => {
@@ -390,19 +409,49 @@ const HiringMetrics = () => {
       const negativeCandidates: Candidate[] = [];
 
       parentMetric.candidates.forEach((candidate) => {
-        const currentStageKey = getCandidateStageKey(candidate);
+        const currentStageKey = candidate.withdrawalStageKey || null;
+
+        if (!currentStageKey && candidateHasReachedStage(candidate, item.positiveStageKey)) {
+          positiveCandidates.push(candidate);
+          return;
+        }
+
+        if (!currentStageKey && candidateHasReachedStage(candidate, item.negativeStageKey)) {
+          negativeCandidates.push(candidate);
+          return;
+        }
+
+        if (!currentStageKey) {
+          currentCandidates.push(candidate);
+          return;
+        }
 
         if (currentStageKey === item.parentStageKey) {
           currentCandidates.push(candidate);
+          return;
+        }
+
+        if (currentStageKey === item.positiveStageKey) {
+          positiveCandidates.push(candidate);
+          return;
+        }
+
+        if (currentStageKey === item.negativeStageKey) {
+          negativeCandidates.push(candidate);
+          return;
         }
 
         if (candidateHasReachedStage(candidate, item.positiveStageKey)) {
           positiveCandidates.push(candidate);
+          return;
         }
 
         if (candidateHasReachedStage(candidate, item.negativeStageKey)) {
           negativeCandidates.push(candidate);
+          return;
         }
+
+        currentCandidates.push(candidate);
       });
 
       const uniqueById = (list: Candidate[]) => {
@@ -415,10 +464,6 @@ const HiringMetrics = () => {
         });
       };
 
-      const uniqueCurrentCandidates = uniqueById(currentCandidates);
-      const uniquePositiveCandidates = uniqueById(positiveCandidates);
-      const uniqueNegativeCandidates = uniqueById(negativeCandidates);
-
       return {
         type: 'branch' as const,
         parentStageKey: item.parentStageKey,
@@ -428,13 +473,13 @@ const HiringMetrics = () => {
         candidates: parentMetric.candidates,
         current: {
           label: 'Ainda nesta etapa',
-          count: uniqueCurrentCandidates.length,
-          candidates: uniqueCurrentCandidates,
+          count: uniqueById(currentCandidates).length,
+          candidates: uniqueById(currentCandidates),
         },
         positive: {
           label: getHiringStageLabel(item.positiveStageKey),
-          count: uniquePositiveCandidates.length,
-          candidates: uniquePositiveCandidates,
+          count: uniqueById(positiveCandidates).length,
+          candidates: uniqueById(positiveCandidates),
         },
         withdrawn: {
           label: 'Desistiu aqui',
@@ -443,8 +488,8 @@ const HiringMetrics = () => {
         },
         negative: {
           label: getHiringStageLabel(item.negativeStageKey),
-          count: uniqueNegativeCandidates.length,
-          candidates: uniqueNegativeCandidates,
+          count: uniqueById(negativeCandidates).length,
+          candidates: uniqueById(negativeCandidates),
         },
       };
     });
@@ -453,7 +498,7 @@ const HiringMetrics = () => {
 
     const withdrawalStageMap = new Map<string, { name: string; count: number; candidates: Candidate[] }>();
     withdrawalCandidates.forEach((candidate) => {
-      const stageKey = candidate.withdrawalStageKey || getCandidateStageKey(candidate);
+      const stageKey = candidate.withdrawalStageKey as HiringPipelineStageKey;
       const stageName = getHiringStageLabel(stageKey);
       const current = withdrawalStageMap.get(stageName);
       if (current) {
@@ -581,7 +626,7 @@ const HiringMetrics = () => {
               <BarChart3 className="mr-2 h-4 w-4" />Filtros da análise
             </h3>
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              No funil, o período filtra pela data de <strong>cadastro</strong> do candidato. O total principal continua mostrando quem chegou na etapa, e a observação “Desistiu aqui” mostra quem também desistiu nela.
+              A desistência agora aparece apenas para quem foi aprovado e abandonou o processo depois. Reprovados e eliminados continuam só no fluxo normal.
             </p>
           </div>
           {(searchTerm || filterStartDate || filterEndDate) && (
@@ -679,7 +724,7 @@ const HiringMetrics = () => {
                       footerNote={{
                         label: 'Desistiu aqui',
                         count: block.withdrawn.count,
-                        helperText: `Chegaram nesta etapa e também desistiram aqui`,
+                        helperText: `Foi aprovado, chegou nesta etapa, mas não seguiu o processo`,
                         onOpen: () => handleOpenCandidatesDetailModal(`Desistiu em "${block.title}"`, block.withdrawn.candidates, 'withdrawn'),
                       }}
                     />
@@ -718,7 +763,7 @@ const HiringMetrics = () => {
                       footerNote={{
                         label: 'Desistiu aqui',
                         count: block.withdrawn.count,
-                        helperText: `Foi aprovado/reprovado ou avançou, mas também desistiu nesta etapa`,
+                        helperText: `Foi aprovado, chegou até aqui, mas também desistiu depois`,
                         onOpen: () => handleOpenCandidatesDetailModal(`Desistiu em "${block.title}"`, block.withdrawn.candidates, 'withdrawn'),
                       }}
                     />
@@ -773,7 +818,9 @@ const HiringMetrics = () => {
                       <div>
                         <p className="font-bold text-gray-900 dark:text-white">{candidate.name}</p>
                         <p className="text-xs text-gray-500 dark:text-gray-400">
-                          {getHiringStageLabel(candidate.withdrawalStageKey || getCandidateStageKey(candidate))}
+                          {candidate.withdrawalStageKey
+                            ? `${getHiringStageLabel(candidate.withdrawalStageKey)} · desistiu`
+                            : 'Em andamento'}
                         </p>
                       </div>
                       <History className={`h-4 w-4 text-gray-400 transition ${isExpanded ? 'text-brand-500' : ''}`} />
@@ -821,7 +868,7 @@ const HiringMetrics = () => {
               <h2 className="flex items-center gap-2 font-bold text-gray-900 dark:text-white">
                 <UserMinus className="h-5 w-5 text-rose-500" />Ranking de desistência por etapa
               </h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Mostra em qual etapa do pipeline mais acontece saída no período filtrado.</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Mostra apenas quem foi aprovado e abandonou o processo depois.</p>
             </div>
             <TrendingUp className="h-5 w-5 text-gray-400" />
           </div>
