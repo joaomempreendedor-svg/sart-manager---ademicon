@@ -89,6 +89,7 @@ const WITHDRAWAL_ALLOWED_STAGE_KEYS: HiringPipelineStageKey[] = [
 const STAGES_WITH_INLINE_WITHDRAWAL_NOTE: HiringPipelineStageKey[] = [
   'respondeu',
   'compareceu-entrevista',
+  'aprovado-gestor',
   'previa-cadastrada',
   'integracao-finalizada',
   'candidato-em-previa',
