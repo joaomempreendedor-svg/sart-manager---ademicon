@@ -216,13 +216,13 @@ const BreakdownRow: React.FC<{ row: BranchBreakdownRow }> = ({ row }) => {
   return (
     <button
       onClick={row.onOpen}
-      className={`flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left transition hover:opacity-90 ${toneClasses[row.tone]}`}
+      className={`flex w-full items-center justify-between rounded-lg border px-2.5 py-2 text-left transition hover:opacity-90 ${toneClasses[row.tone]}`}
     >
       <div className="min-w-0">
-        <div className="truncate text-xs font-bold">{row.label}</div>
-        {row.helperText && <div className="mt-0.5 line-clamp-1 text-[11px] opacity-80">{row.helperText}</div>}
+        <div className="truncate text-[11px] font-bold">{row.label}</div>
+        {row.helperText && <div className="mt-0.5 line-clamp-1 text-[10px] opacity-80">{row.helperText}</div>}
       </div>
-      <span className="ml-3 flex-shrink-0 text-sm font-black">{row.count}</span>
+      <span className="ml-2 flex-shrink-0 text-xs font-black">{row.count}</span>
     </button>
   );
 };
@@ -236,6 +236,7 @@ interface FunnelStageCardProps {
   onOpen: () => void;
   breakdownRows?: BranchBreakdownRow[];
   withdrawalNote?: StageWithdrawalNote;
+  compact?: boolean;
 }
 
 const FunnelStageCard: React.FC<FunnelStageCardProps> = ({
@@ -247,22 +248,23 @@ const FunnelStageCard: React.FC<FunnelStageCardProps> = ({
   onOpen,
   breakdownRows,
   withdrawalNote,
+  compact = false,
 }) => {
   const style = STAGE_CARD_STYLES[color] || STAGE_CARD_STYLES.gray;
   const percentOfTotal = totalCount > 0 ? Math.round((count / totalCount) * 100) : 0;
 
   return (
-    <div className={`rounded-2xl border ${style.border} ${style.bg} p-4 shadow-sm`}>
+    <div className={`rounded-2xl border ${style.border} ${style.bg} ${compact ? 'p-3' : 'p-4'} shadow-sm`}>
       <button onClick={onOpen} className="w-full text-left">
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-start gap-3">
-            <span className={`mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl ${style.iconBg}`}>
-              <BarChart3 className={`h-4 w-4 ${style.text}`} />
+            <span className={`mt-0.5 flex ${compact ? 'h-8 w-8' : 'h-9 w-9'} flex-shrink-0 items-center justify-center rounded-xl ${style.iconBg}`}>
+              <BarChart3 className={`${compact ? 'h-3.5 w-3.5' : 'h-4 w-4'} ${style.text}`} />
             </span>
             <div className="min-w-0">
-              <h3 className={`text-sm font-bold leading-tight ${style.text}`}>{title}</h3>
+              <h3 className={`${compact ? 'text-xs' : 'text-sm'} font-bold leading-tight ${style.text}`}>{title}</h3>
               <div className="mt-2 flex flex-wrap items-center gap-2">
-                <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${style.badge}`}>
+                <span className={`rounded-full px-2.5 py-1 ${compact ? 'text-[11px]' : 'text-xs'} font-bold ${style.badge}`}>
                   {count} candidatos
                 </span>
                 {parentCount > 0 && (
@@ -290,7 +292,7 @@ const FunnelStageCard: React.FC<FunnelStageCardProps> = ({
       )}
 
       {breakdownRows && breakdownRows.length > 0 && (
-        <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-3">
+        <div className="mt-3 grid grid-cols-1 gap-2">
           {breakdownRows.map((row) => (
             <BreakdownRow key={row.label} row={row} />
           ))}
@@ -704,8 +706,9 @@ const HiringMetrics = () => {
   }
 
   const totalCohort = analytics.candidatesCreatedInPeriod.length;
-  const firstRowBlocks = analytics.processFunnelBlocks.slice(0, 7);
-  const secondRowBlocks = analytics.processFunnelBlocks.slice(7);
+  const firstRowBlocks = analytics.processFunnelBlocks.slice(0, 3);
+  const middleRowBlocks = analytics.processFunnelBlocks.slice(3, 11);
+  const lastRowBlocks = analytics.processFunnelBlocks.slice(11);
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 dark:bg-slate-900 sm:mx-auto sm:max-w-[1600px] sm:p-6">
@@ -828,7 +831,7 @@ const HiringMetrics = () => {
             <div>
               <h2 className="text-lg font-bold text-gray-900 dark:text-white">Funil de Contratação</h2>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                Organização em duas faixas horizontais para leitura mais clara das etapas.
+                Cards organizados para leitura rápida, com destaque maior nas etapas que se dividem.
               </p>
             </div>
             <BarChart3 className="h-5 w-5 text-gray-400" />
@@ -840,7 +843,7 @@ const HiringMetrics = () => {
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                 {firstRowBlocks.map((block, index) =>
                   block.type === 'stage' ? (
                     <FunnelStageCard
@@ -851,6 +854,39 @@ const HiringMetrics = () => {
                       parentCount={index === 0 ? 0 : totalCohort}
                       totalCount={totalCohort}
                       onOpen={() => handleOpenCandidatesDetailModal(block.title, block.candidates, 'total')}
+                      compact
+                      withdrawalNote={
+                        block.withdrawalNote
+                          ? {
+                              label: block.withdrawalNote.label,
+                              count: block.withdrawalNote.count,
+                              helperText: 'Foram aprovados nesta etapa, mas não seguiram o processo.',
+                              onOpen: () =>
+                                handleOpenCandidatesDetailModal(
+                                  `Desistências em "${block.title}"`,
+                                  block.withdrawalNote?.candidates || [],
+                                  'withdrawn',
+                                ),
+                            }
+                          : undefined
+                      }
+                    />
+                  ) : null,
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                {middleRowBlocks.map((block, index) =>
+                  block.type === 'stage' ? (
+                    <FunnelStageCard
+                      key={`${block.type}-middle-${index}`}
+                      title={block.title}
+                      color={block.color}
+                      count={block.count}
+                      parentCount={totalCohort}
+                      totalCount={totalCohort}
+                      onOpen={() => handleOpenCandidatesDetailModal(block.title, block.candidates, 'total')}
+                      compact
                       withdrawalNote={
                         block.withdrawalNote
                           ? {
@@ -869,7 +905,7 @@ const HiringMetrics = () => {
                     />
                   ) : (
                     <FunnelStageCard
-                      key={`${block.type}-top-${index}`}
+                      key={`${block.type}-middle-${index}`}
                       title={block.title}
                       color={block.color}
                       count={block.count}
@@ -912,8 +948,8 @@ const HiringMetrics = () => {
                 )}
               </div>
 
-              <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-                {secondRowBlocks.map((block, index) =>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                {lastRowBlocks.map((block, index) =>
                   block.type === 'stage' ? (
                     <FunnelStageCard
                       key={`${block.type}-bottom-${index}`}
@@ -923,6 +959,7 @@ const HiringMetrics = () => {
                       parentCount={totalCohort}
                       totalCount={totalCohort}
                       onOpen={() => handleOpenCandidatesDetailModal(block.title, block.candidates, 'total')}
+                      compact
                       withdrawalNote={
                         block.withdrawalNote
                           ? {
@@ -939,48 +976,7 @@ const HiringMetrics = () => {
                           : undefined
                       }
                     />
-                  ) : (
-                    <FunnelStageCard
-                      key={`${block.type}-bottom-${index}`}
-                      title={block.title}
-                      color={block.color}
-                      count={block.count}
-                      parentCount={totalCohort}
-                      totalCount={totalCohort}
-                      onOpen={() => handleOpenCandidatesDetailModal(block.title, block.candidates, 'total')}
-                      breakdownRows={[
-                        {
-                          label: 'Ainda nesta etapa',
-                          helperText: `Continuam em ${block.title}`,
-                          count: block.current.count,
-                          onOpen: () => handleOpenCandidatesDetailModal(`${block.title} · Ainda nesta etapa`, block.current.candidates, 'total'),
-                          tone: 'blue',
-                        },
-                        {
-                          label: block.positive.label,
-                          helperText:
-                            block.positive.withdrawalNote && block.positive.withdrawalNote.count > 0
-                              ? `${block.positive.count} total, ${block.positive.withdrawalNote.count} desistiram`
-                              : 'Avançaram',
-                          count: block.positive.count,
-                          onOpen: () =>
-                            handleOpenCandidatesDetailModal(
-                              `${block.positive.label} · incluindo quem depois desistiu`,
-                              block.positive.candidates,
-                              'total',
-                            ),
-                          tone: 'green',
-                        },
-                        {
-                          label: block.negative.label,
-                          helperText: 'Seguiram para este caminho',
-                          count: block.negative.count,
-                          onOpen: () => handleOpenCandidatesDetailModal(block.negative.label, block.negative.candidates, 'total'),
-                          tone: 'red',
-                        },
-                      ]}
-                    />
-                  ),
+                  ) : null,
                 )}
               </div>
             </div>
