@@ -222,15 +222,15 @@ const BreakdownRow: React.FC<{ row: BranchBreakdownRow }> = ({ row }) => {
   return (
     <button
       onClick={row.onOpen}
-      className={`flex w-full items-center justify-between rounded-md border px-2 py-1 text-left transition hover:opacity-90 ${toneBorders[row.tone]}`}
+      className={`flex w-full items-center justify-between rounded-md border px-1.5 py-1 text-left transition hover:opacity-90 ${toneBorders[row.tone]}`}
     >
       <div className="min-w-0">
-        <div className={`truncate text-[9px] font-bold ${toneClasses[row.tone]}`}>{row.label}</div>
+        <div className={`truncate text-[8px] font-bold ${toneClasses[row.tone]}`}>{row.label}</div>
         {row.helperText && (
-          <div className="mt-0.5 line-clamp-1 text-[8px] text-gray-500 dark:text-gray-400">{row.helperText}</div>
+          <div className="mt-0.5 line-clamp-1 text-[7px] text-gray-500 dark:text-gray-400">{row.helperText}</div>
         )}
       </div>
-      <span className={`ml-2 flex-shrink-0 text-[10px] font-black ${toneClasses[row.tone]}`}>{row.count}</span>
+      <span className={`ml-1.5 flex-shrink-0 text-[9px] font-black ${toneClasses[row.tone]}`}>{row.count}</span>
     </button>
   );
 };
@@ -260,26 +260,26 @@ const FunnelStageCard: React.FC<FunnelStageCardProps> = ({
   const percentOfTotal = totalCount > 0 ? Math.round((count / totalCount) * 100) : 0;
 
   return (
-    <div className={`flex h-full min-h-[132px] w-full flex-col justify-between rounded-lg border ${style.border} ${style.bg} p-2.5 shadow-sm`}>
+    <div className={`flex h-full min-h-[118px] w-full flex-col justify-between rounded-lg border ${style.border} ${style.bg} p-2 shadow-sm`}>
       <div>
         <button onClick={onOpen} className="w-full text-left">
-          <div className="flex items-start gap-1.5">
-            <span className={`mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full ${style.iconBg}`}>
+          <div className="flex items-start gap-1">
+            <span className={`mt-0.5 flex h-4.5 w-4.5 flex-shrink-0 items-center justify-center rounded-full ${style.iconBg}`}>
               <BarChart3 className={`h-2.5 w-2.5 ${style.text}`} />
             </span>
-            <h3 className={`line-clamp-2 text-[10px] font-bold leading-tight ${style.text}`}>{title}</h3>
+            <h3 className={`line-clamp-2 text-[9px] font-bold leading-tight ${style.text}`}>{title}</h3>
           </div>
 
-          <div className="mt-2 rounded-md border border-white/70 bg-white px-2 py-1.5 shadow-sm dark:border-slate-600 dark:bg-slate-900/40">
-            <div className="text-[7px] font-bold uppercase tracking-wide text-gray-400">
+          <div className="mt-1.5 rounded-md border border-white/70 bg-white px-1.5 py-1 shadow-sm dark:border-slate-600 dark:bg-slate-900/40">
+            <div className="text-[6px] font-bold uppercase tracking-wide text-gray-400">
               Total
             </div>
-            <div className="mt-1 flex items-end gap-1">
-              <span className={`text-xl font-black leading-none ${style.text}`}>{count}</span>
-              {parentCount > 0 && <span className="pb-0.5 text-[7px] font-bold text-gray-400">/ {parentCount}</span>}
+            <div className="mt-0.5 flex items-end gap-1">
+              <span className={`text-lg font-black leading-none ${style.text}`}>{count}</span>
+              {parentCount > 0 && <span className="pb-0.5 text-[6px] font-bold text-gray-400">/ {parentCount}</span>}
             </div>
             {withdrawalNote && withdrawalNote.count > 0 && (
-              <div className="mt-1 text-[8px] font-semibold text-rose-600 dark:text-rose-400">
+              <div className="mt-0.5 text-[7px] font-semibold text-rose-600 dark:text-rose-400">
                 {withdrawalNote.label}
               </div>
             )}
@@ -287,7 +287,7 @@ const FunnelStageCard: React.FC<FunnelStageCardProps> = ({
         </button>
 
         {breakdownRows && breakdownRows.length > 0 && (
-          <div className="mt-2 space-y-1">
+          <div className="mt-1.5 space-y-1">
             {breakdownRows.map((row) => (
               <BreakdownRow key={row.label} row={row} />
             ))}
@@ -295,7 +295,7 @@ const FunnelStageCard: React.FC<FunnelStageCardProps> = ({
         )}
       </div>
 
-      <div className={`mt-2 border-t pt-1.5 text-[7px] font-bold uppercase ${style.border} ${style.text} opacity-70`}>
+      <div className={`mt-1.5 border-t pt-1 text-[6px] font-bold uppercase ${style.border} ${style.text} opacity-70`}>
         {percentOfTotal}% do funil
       </div>
     </div>
@@ -706,12 +706,9 @@ const HiringMetrics = () => {
   }
 
   const totalCohort = analytics.candidatesCreatedInPeriod.length;
-  const totalWithdrawals = analytics.withdrawalStageRanking.reduce((sum, item) => sum + item.count, 0);
-  const topOrigin = analytics.candidatesByOrigin[0];
-  const topIndication = analytics.topIndications[0];
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 dark:bg-slate-900 sm:mx-auto sm:max-w-7xl sm:p-8">
+    <div className="min-h-screen bg-gray-50 p-4 dark:bg-slate-900 sm:mx-auto sm:max-w-[1800px] sm:p-6">
       <div className="mb-6 rounded-3xl border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
         <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
           <div>
@@ -826,12 +823,12 @@ const HiringMetrics = () => {
       </div>
 
       {activeSection === 'funnel' && (
-        <section className="mb-8 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:p-5">
-          <div className="mb-4 flex items-center justify-between">
+        <section className="mb-8 rounded-2xl border border-gray-200 bg-white p-3 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          <div className="mb-3 flex items-center justify-between">
             <div>
               <h2 className="text-lg font-bold text-gray-900 dark:text-white">Funil de Contratação</h2>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                Cards mais compactos para visualizar melhor todas as etapas na mesma tela.
+                Visualização em 2 linhas com 7 cards por linha.
               </p>
             </div>
             <BarChart3 className="h-5 w-5 text-gray-400" />
@@ -843,7 +840,7 @@ const HiringMetrics = () => {
             </div>
           ) : (
             <div className="rounded-2xl bg-gray-50/80 p-2 dark:bg-slate-900/30">
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+              <div className="grid grid-cols-7 gap-2">
                 {analytics.processFunnelBlocks.map((block, index) =>
                   block.type === 'stage' ? (
                     <FunnelStageCard
