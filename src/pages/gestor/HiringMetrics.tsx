@@ -88,7 +88,7 @@ const WITHDRAWAL_ALLOWED_STAGE_KEYS: HiringPipelineStageKey[] = [
 
 const STAGES_WITH_INLINE_WITHDRAWAL_NOTE: HiringPipelineStageKey[] = [
   'respondeu',
-  'aprovado-gestor',
+  'compareceu-entrevista',
   'previa-cadastrada',
   'integracao-finalizada',
   'candidato-em-previa',
@@ -149,6 +149,7 @@ const FUNNEL_LAYOUT: FunnelConfig[] = [
     negativeStageKey: 'integracao-nao-compareceu',
   },
   { type: 'stage', stageKey: 'integracao-finalizada', description: 'Integração concluída.' },
+  { type: 'stage', stageKey: 'candidato-em-previa', description: 'Candidato está na etapa final de prévia.' },
   {
     type: 'branch',
     parentStageKey: 'assinatura-contrato',
