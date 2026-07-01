@@ -394,21 +394,30 @@ const HiringMetrics = () => {
 
         if (currentStageKey === item.parentStageKey) {
           currentCandidates.push(candidate);
-          return;
         }
 
         if (candidateHasReachedStage(candidate, item.positiveStageKey)) {
           positiveCandidates.push(candidate);
-          return;
         }
 
         if (candidateHasReachedStage(candidate, item.negativeStageKey)) {
           negativeCandidates.push(candidate);
-          return;
         }
-
-        currentCandidates.push(candidate);
       });
+
+      const uniqueById = (list: Candidate[]) => {
+        const seen = new Set<string>();
+        return list.filter((candidate) => {
+          const key = candidate.db_id || candidate.id;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+      };
+
+      const uniqueCurrentCandidates = uniqueById(currentCandidates);
+      const uniquePositiveCandidates = uniqueById(positiveCandidates);
+      const uniqueNegativeCandidates = uniqueById(negativeCandidates);
 
       return {
         type: 'branch' as const,
@@ -419,13 +428,13 @@ const HiringMetrics = () => {
         candidates: parentMetric.candidates,
         current: {
           label: 'Ainda nesta etapa',
-          count: currentCandidates.length,
-          candidates: currentCandidates,
+          count: uniqueCurrentCandidates.length,
+          candidates: uniqueCurrentCandidates,
         },
         positive: {
           label: getHiringStageLabel(item.positiveStageKey),
-          count: positiveCandidates.length,
-          candidates: positiveCandidates,
+          count: uniquePositiveCandidates.length,
+          candidates: uniquePositiveCandidates,
         },
         withdrawn: {
           label: 'Desistiu aqui',
@@ -434,8 +443,8 @@ const HiringMetrics = () => {
         },
         negative: {
           label: getHiringStageLabel(item.negativeStageKey),
-          count: negativeCandidates.length,
-          candidates: negativeCandidates,
+          count: uniqueNegativeCandidates.length,
+          candidates: uniqueNegativeCandidates,
         },
       };
     });
@@ -695,7 +704,7 @@ const HiringMetrics = () => {
                           label: block.positive.label,
                           helperText: 'Avançaram para este caminho',
                           count: block.positive.count,
-                          onOpen: () => handleOpenCandidatesDetailModal(block.positive.label, block.positive.candidates, 'total'),
+                          onOpen: () => handleOpenCandidatesDetailModal(`${block.positive.label} · incluindo quem depois desistiu`, block.positive.candidates, 'total'),
                           tone: 'green',
                         },
                         {
@@ -709,7 +718,7 @@ const HiringMetrics = () => {
                       footerNote={{
                         label: 'Desistiu aqui',
                         count: block.withdrawn.count,
-                        helperText: `Foram ${block.count} nesta etapa, e ${block.withdrawn.count} também desistiram aqui`,
+                        helperText: `Foi aprovado/reprovado ou avançou, mas também desistiu nesta etapa`,
                         onOpen: () => handleOpenCandidatesDetailModal(`Desistiu em "${block.title}"`, block.withdrawn.candidates, 'withdrawn'),
                       }}
                     />
