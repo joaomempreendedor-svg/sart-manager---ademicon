@@ -187,12 +187,12 @@ const formatDateTime = (value?: string) => {
 
 const STAGE_CARD_STYLES: Record<HiringPipelineColumn['color'], { border: string; bg: string; text: string; iconBg: string }> = {
   gray: { border: 'border-gray-200 dark:border-slate-600', bg: 'bg-white dark:bg-slate-800/60', text: 'text-gray-700 dark:text-gray-200', iconBg: 'bg-gray-100 dark:bg-slate-700' },
-  blue: { border: 'border-blue-200 dark:border-blue-800', bg: 'bg-blue-50/60 dark:bg-blue-900/20', text: 'text-blue-700 dark:text-blue-300', iconBg: 'bg-blue-100/80 dark:bg-blue-900/40' },
-  purple: { border: 'border-purple-200 dark:border-purple-800', bg: 'bg-purple-50/60 dark:bg-purple-900/20', text: 'text-purple-700 dark:text-purple-300', iconBg: 'bg-purple-100/80 dark:bg-purple-900/40' },
-  yellow: { border: 'border-yellow-200 dark:border-yellow-800', bg: 'bg-yellow-50/70 dark:bg-yellow-900/20', text: 'text-yellow-700 dark:text-yellow-300', iconBg: 'bg-yellow-100/80 dark:bg-yellow-900/40' },
-  green: { border: 'border-green-200 dark:border-green-800', bg: 'bg-green-50/60 dark:bg-green-900/20', text: 'text-green-700 dark:text-green-300', iconBg: 'bg-green-100/80 dark:bg-green-900/40' },
-  red: { border: 'border-red-200 dark:border-red-800', bg: 'bg-red-50/60 dark:bg-red-900/20', text: 'text-red-700 dark:text-red-300', iconBg: 'bg-red-100/80 dark:bg-red-900/40' },
-  orange: { border: 'border-orange-200 dark:border-orange-800', bg: 'bg-orange-50/60 dark:bg-orange-900/20', text: 'text-orange-700 dark:text-orange-300', iconBg: 'bg-orange-100/80 dark:bg-orange-900/40' },
+  blue: { border: 'border-blue-200 dark:border-blue-800', bg: 'bg-blue-50/70 dark:bg-blue-900/20', text: 'text-blue-700 dark:text-blue-300', iconBg: 'bg-blue-100/80 dark:bg-blue-900/40' },
+  purple: { border: 'border-purple-200 dark:border-purple-800', bg: 'bg-purple-50/70 dark:bg-purple-900/20', text: 'text-purple-700 dark:text-purple-300', iconBg: 'bg-purple-100/80 dark:bg-purple-900/40' },
+  yellow: { border: 'border-yellow-200 dark:border-yellow-800', bg: 'bg-yellow-50/80 dark:bg-yellow-900/20', text: 'text-yellow-700 dark:text-yellow-300', iconBg: 'bg-yellow-100/80 dark:bg-yellow-900/40' },
+  green: { border: 'border-green-200 dark:border-green-800', bg: 'bg-green-50/70 dark:bg-green-900/20', text: 'text-green-700 dark:text-green-300', iconBg: 'bg-green-100/80 dark:bg-green-900/40' },
+  red: { border: 'border-red-200 dark:border-red-800', bg: 'bg-red-50/70 dark:bg-red-900/20', text: 'text-red-700 dark:text-red-300', iconBg: 'bg-red-100/80 dark:bg-red-900/40' },
+  orange: { border: 'border-orange-200 dark:border-orange-800', bg: 'bg-orange-50/70 dark:bg-orange-900/20', text: 'text-orange-700 dark:text-orange-300', iconBg: 'bg-orange-100/80 dark:bg-orange-900/40' },
 };
 
 interface SummaryCardProps {
@@ -239,24 +239,24 @@ const BreakdownRow: React.FC<{ row: BranchBreakdownRow }> = ({ row }) => {
   };
 
   const toneBorders = {
-    blue: 'border-white/80 bg-white dark:border-slate-600 dark:bg-black/20',
-    green: 'border-white/80 bg-white dark:border-slate-600 dark:bg-black/20',
-    red: 'border-white/80 bg-white dark:border-slate-600 dark:bg-black/20',
+    blue: 'border-blue-100 bg-white dark:border-slate-600 dark:bg-black/20',
+    green: 'border-green-100 bg-white dark:border-slate-600 dark:bg-black/20',
+    red: 'border-red-100 bg-white dark:border-slate-600 dark:bg-black/20',
     rose: 'border-rose-200 bg-rose-50 dark:border-rose-800 dark:bg-rose-900/30',
   };
 
   return (
     <button
       onClick={row.onOpen}
-      className={`flex w-full items-center justify-between rounded-lg border px-2 py-1.5 text-left shadow-sm transition hover:opacity-90 ${toneBorders[row.tone]}`}
+      className={`flex w-full items-center justify-between rounded-md border px-2 py-1 text-left transition hover:opacity-90 ${toneBorders[row.tone]}`}
     >
       <div className="min-w-0">
-        <div className={`truncate text-[10px] font-bold ${toneClasses[row.tone]}`}>{row.label}</div>
+        <div className={`truncate text-[9px] font-bold ${toneClasses[row.tone]}`}>{row.label}</div>
         {row.helperText && (
-          <div className="mt-0.5 line-clamp-2 text-[9px] text-gray-500 dark:text-gray-400">{row.helperText}</div>
+          <div className="mt-0.5 line-clamp-1 text-[8px] text-gray-500 dark:text-gray-400">{row.helperText}</div>
         )}
       </div>
-      <span className={`ml-2 flex-shrink-0 text-[11px] font-black ${toneClasses[row.tone]}`}>{row.count}</span>
+      <span className={`ml-2 flex-shrink-0 text-[10px] font-black ${toneClasses[row.tone]}`}>{row.count}</span>
     </button>
   );
 };
@@ -286,26 +286,26 @@ const FunnelStageCard: React.FC<FunnelStageCardProps> = ({
   const percentOfTotal = totalCount > 0 ? Math.round((count / totalCount) * 100) : 0;
 
   return (
-    <div className={`flex h-full min-h-[170px] w-full flex-col justify-between rounded-xl border ${style.border} ${style.bg} p-3 shadow-sm`}>
+    <div className={`flex h-full min-h-[132px] w-full flex-col justify-between rounded-lg border ${style.border} ${style.bg} p-2.5 shadow-sm`}>
       <div>
         <button onClick={onOpen} className="w-full text-left">
-          <div className="flex items-start gap-2">
-            <span className={`mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full ${style.iconBg}`}>
-              <BarChart3 className={`h-3 w-3 ${style.text}`} />
+          <div className="flex items-start gap-1.5">
+            <span className={`mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full ${style.iconBg}`}>
+              <BarChart3 className={`h-2.5 w-2.5 ${style.text}`} />
             </span>
-            <h3 className={`line-clamp-2 text-[11px] font-bold leading-snug ${style.text}`}>{title}</h3>
+            <h3 className={`line-clamp-2 text-[10px] font-bold leading-tight ${style.text}`}>{title}</h3>
           </div>
 
-          <div className="mb-2 mt-2 rounded-lg border border-white/70 bg-white px-2.5 py-2 shadow-sm dark:border-slate-600 dark:bg-slate-900/40">
-            <div className="mb-1 text-[8px] font-bold uppercase tracking-wide text-gray-400">
-              Total nesta etapa
+          <div className="mt-2 rounded-md border border-white/70 bg-white px-2 py-1.5 shadow-sm dark:border-slate-600 dark:bg-slate-900/40">
+            <div className="text-[7px] font-bold uppercase tracking-wide text-gray-400">
+              Total
             </div>
-            <div className="flex items-end gap-1.5">
-              <span className={`text-2xl font-black leading-none ${style.text}`}>{count}</span>
-              {parentCount > 0 && <span className="pb-0.5 text-[8px] font-bold text-gray-400">dos {parentCount}</span>}
+            <div className="mt-1 flex items-end gap-1">
+              <span className={`text-xl font-black leading-none ${style.text}`}>{count}</span>
+              {parentCount > 0 && <span className="pb-0.5 text-[7px] font-bold text-gray-400">/ {parentCount}</span>}
             </div>
             {withdrawalNote && withdrawalNote.count > 0 && (
-              <div className="mt-1 text-[10px] font-semibold text-rose-600 dark:text-rose-400">
+              <div className="mt-1 text-[8px] font-semibold text-rose-600 dark:text-rose-400">
                 {withdrawalNote.label}
               </div>
             )}
@@ -321,7 +321,7 @@ const FunnelStageCard: React.FC<FunnelStageCardProps> = ({
         )}
       </div>
 
-      <div className={`mt-2 border-t pt-2 text-[8px] font-bold uppercase ${style.border} ${style.text} opacity-70`}>
+      <div className={`mt-2 border-t pt-1.5 text-[7px] font-bold uppercase ${style.border} ${style.text} opacity-70`}>
         {percentOfTotal}% do funil
       </div>
     </div>
@@ -745,7 +745,7 @@ const HiringMetrics = () => {
               Métricas de Contratação
             </h1>
             <p className="mt-2 max-w-3xl text-sm text-gray-500 dark:text-gray-400">
-              Estrutura por abas mantida, com o funil reorganizado para ficar visível sem rolagem lateral.
+              Estrutura por abas mantida, com o funil reorganizado para caber melhor em uma única tela.
             </p>
           </div>
 
@@ -862,7 +862,7 @@ const HiringMetrics = () => {
           <div>
             <h2 className="text-lg font-bold text-gray-900 dark:text-white">Funil de Contratação</h2>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Visão compacta do funil para acompanhar todas as etapas sem arrastar para o lado.
+              Cards mais compactos para visualizar melhor todas as etapas na mesma tela.
             </p>
           </div>
           <BarChart3 className="h-5 w-5 text-gray-400" />
@@ -873,8 +873,8 @@ const HiringMetrics = () => {
             Nenhum candidato encontrado para o período selecionado.
           </div>
         ) : (
-          <div className="rounded-2xl bg-gray-50/80 p-2 dark:bg-slate-900/30 sm:p-3">
-            <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+          <div className="rounded-2xl bg-gray-50/80 p-2 dark:bg-slate-900/30">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
               {analytics.processFunnelBlocks.map((block, index) =>
                 block.type === 'stage' ? (
                   <FunnelStageCard
@@ -922,8 +922,8 @@ const HiringMetrics = () => {
                         label: block.positive.label,
                         helperText:
                           block.positive.withdrawalNote && block.positive.withdrawalNote.count > 0
-                            ? `${block.positive.count} no total, porém ${block.positive.withdrawalNote.count} desistiram`
-                            : 'Avançaram para este caminho',
+                            ? `${block.positive.count} total, ${block.positive.withdrawalNote.count} desistiram`
+                            : 'Avançaram',
                         count: block.positive.count,
                         onOpen: () =>
                           handleOpenCandidatesDetailModal(
