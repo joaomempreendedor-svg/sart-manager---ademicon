@@ -4,6 +4,7 @@ import {
   AlertTriangle,
   ArrowLeft,
   BarChart3,
+  Calendar,
   CheckCircle2,
   History,
   Loader2,
@@ -24,7 +25,6 @@ import { Candidate, HiringPipelineColumn, HiringPipelineStageKey, TeamMember } f
 import { buildCandidateTimeline, getHiringStageLabel, normalizeHiringPipelineColumns } from '@/lib/hiringPipeline';
 
 type MetricType = 'total' | 'newCandidates' | 'contacted' | 'scheduled' | 'conducted' | 'awaitingPreview' | 'hired' | 'noShow' | 'withdrawn' | 'disqualified' | 'noResponse';
-type SectionKey = 'funnel' | 'withdrawals' | 'origins' | 'indications' | 'timeline';
 
 type FunnelStageConfig = {
   type: 'stage';
@@ -67,6 +67,13 @@ type StageWithdrawalNote = {
   onOpen: () => void;
 };
 
+const getCurrentMonthRange = () => {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+  return { start, end };
+};
+
 const WITHDRAWAL_ALLOWED_STAGE_KEYS: HiringPipelineStageKey[] = [
   'aprovado-gestor',
   'aprovacao-d1',
@@ -93,14 +100,6 @@ const STAGES_WITH_INLINE_WITHDRAWAL_NOTE: HiringPipelineStageKey[] = [
   'previa-cadastrada',
   'integracao-finalizada',
   'candidato-em-previa',
-];
-
-const SECTION_OPTIONS: Array<{ key: SectionKey; title: string; icon: React.ComponentType<{ className?: string }> }> = [
-  { key: 'funnel', title: 'Funil histórico', icon: BarChart3 },
-  { key: 'timeline', title: 'Linha do Tempo', icon: History },
-  { key: 'withdrawals', title: 'Ranking de desistência', icon: UserMinus },
-  { key: 'origins', title: 'Origens', icon: MapPin },
-  { key: 'indications', title: 'Consultores que mais indicam', icon: UserPlus },
 ];
 
 const FUNNEL_LAYOUT: FunnelConfig[] = [
@@ -179,29 +178,59 @@ const formatDateTime = (value?: string) => {
   if (!value) return '';
   const date = new Date(value);
   if (isNaN(date.getTime())) return '';
-  return date.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  return date.toLocaleString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 };
 
 const STAGE_CARD_STYLES: Record<HiringPipelineColumn['color'], { border: string; bg: string; text: string; iconBg: string }> = {
   gray: { border: 'border-gray-200 dark:border-slate-600', bg: 'bg-white dark:bg-slate-800/60', text: 'text-gray-700 dark:text-gray-200', iconBg: 'bg-gray-100 dark:bg-slate-700' },
-  blue: { border: 'border-blue-200 dark:border-blue-800', bg: 'bg-blue-50/40 dark:bg-blue-900/20', text: 'text-blue-700 dark:text-blue-300', iconBg: 'bg-blue-100/80 dark:bg-blue-900/40' },
-  purple: { border: 'border-purple-200 dark:border-purple-800', bg: 'bg-purple-50/40 dark:bg-purple-900/20', text: 'text-purple-700 dark:text-purple-300', iconBg: 'bg-purple-100/80 dark:bg-purple-900/40' },
-  yellow: { border: 'border-yellow-200 dark:border-yellow-800', bg: 'bg-yellow-50/50 dark:bg-yellow-900/20', text: 'text-yellow-700 dark:text-yellow-300', iconBg: 'bg-yellow-100/80 dark:bg-yellow-900/40' },
-  green: { border: 'border-green-200 dark:border-green-800', bg: 'bg-green-50/40 dark:bg-green-900/20', text: 'text-green-700 dark:text-green-300', iconBg: 'bg-green-100/80 dark:bg-green-900/40' },
-  red: { border: 'border-red-200 dark:border-red-800', bg: 'bg-red-50/40 dark:bg-red-900/20', text: 'text-red-700 dark:text-red-300', iconBg: 'bg-red-100/80 dark:bg-red-900/40' },
-  orange: { border: 'border-orange-200 dark:border-orange-800', bg: 'bg-orange-50/40 dark:bg-orange-900/20', text: 'text-orange-700 dark:text-orange-300', iconBg: 'bg-orange-100/80 dark:bg-orange-900/40' },
+  blue: { border: 'border-blue-200 dark:border-blue-800', bg: 'bg-blue-50/60 dark:bg-blue-900/20', text: 'text-blue-700 dark:text-blue-300', iconBg: 'bg-blue-100/80 dark:bg-blue-900/40' },
+  purple: { border: 'border-purple-200 dark:border-purple-800', bg: 'bg-purple-50/60 dark:bg-purple-900/20', text: 'text-purple-700 dark:text-purple-300', iconBg: 'bg-purple-100/80 dark:bg-purple-900/40' },
+  yellow: { border: 'border-yellow-200 dark:border-yellow-800', bg: 'bg-yellow-50/70 dark:bg-yellow-900/20', text: 'text-yellow-700 dark:text-yellow-300', iconBg: 'bg-yellow-100/80 dark:bg-yellow-900/40' },
+  green: { border: 'border-green-200 dark:border-green-800', bg: 'bg-green-50/60 dark:bg-green-900/20', text: 'text-green-700 dark:text-green-300', iconBg: 'bg-green-100/80 dark:bg-green-900/40' },
+  red: { border: 'border-red-200 dark:border-red-800', bg: 'bg-red-50/60 dark:bg-red-900/20', text: 'text-red-700 dark:text-red-300', iconBg: 'bg-red-100/80 dark:bg-red-900/40' },
+  orange: { border: 'border-orange-200 dark:border-orange-800', bg: 'bg-orange-50/60 dark:bg-orange-900/20', text: 'text-orange-700 dark:text-orange-300', iconBg: 'bg-orange-100/80 dark:bg-orange-900/40' },
 };
 
-interface FunnelStageCardProps {
+interface SummaryCardProps {
   title: string;
-  color: HiringPipelineColumn['color'];
-  count: number;
-  parentCount: number;
-  totalCount: number;
-  onOpen: () => void;
-  breakdownRows?: BranchBreakdownRow[];
-  withdrawalNote?: StageWithdrawalNote;
+  value: number;
+  helper: string;
+  tone: 'brand' | 'green' | 'rose' | 'indigo';
+  onClick?: () => void;
 }
+
+const SummaryCard: React.FC<SummaryCardProps> = ({ title, value, helper, tone, onClick }) => {
+  const tones = {
+    brand: 'border-brand-200 bg-brand-50 text-brand-700 dark:border-brand-900/40 dark:bg-brand-950/20 dark:text-brand-300',
+    green: 'border-green-200 bg-green-50 text-green-700 dark:border-green-900/40 dark:bg-green-950/20 dark:text-green-300',
+    rose: 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/40 dark:bg-rose-950/20 dark:text-rose-300',
+    indigo: 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-900/40 dark:bg-indigo-950/20 dark:text-indigo-300',
+  };
+
+  const content = (
+    <div className={`rounded-2xl border p-4 shadow-sm transition hover:shadow-md ${tones[tone]}`}>
+      <div className="text-[11px] font-bold uppercase tracking-[0.18em] opacity-70">{title}</div>
+      <div className="mt-2 text-3xl font-black leading-none">{value}</div>
+      <div className="mt-2 text-xs font-medium opacity-80">{helper}</div>
+    </div>
+  );
+
+  if (onClick) {
+    return (
+      <button onClick={onClick} className="w-full text-left">
+        {content}
+      </button>
+    );
+  }
+
+  return content;
+};
 
 const BreakdownRow: React.FC<{ row: BranchBreakdownRow }> = ({ row }) => {
   const toneClasses = {
@@ -221,7 +250,7 @@ const BreakdownRow: React.FC<{ row: BranchBreakdownRow }> = ({ row }) => {
   return (
     <button
       onClick={row.onOpen}
-      className={`flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left shadow-sm transition hover:opacity-90 ${toneBorders[row.tone]}`}
+      className={`flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-left shadow-sm transition hover:opacity-90 ${toneBorders[row.tone]}`}
     >
       <div className="min-w-0">
         <div className={`truncate text-[11px] font-bold ${toneClasses[row.tone]}`}>{row.label}</div>
@@ -234,8 +263,26 @@ const BreakdownRow: React.FC<{ row: BranchBreakdownRow }> = ({ row }) => {
   );
 };
 
+interface FunnelStageCardProps {
+  title: string;
+  color: HiringPipelineColumn['color'];
+  count: number;
+  parentCount: number;
+  totalCount: number;
+  onOpen: () => void;
+  breakdownRows?: BranchBreakdownRow[];
+  withdrawalNote?: StageWithdrawalNote;
+}
+
 const FunnelStageCard: React.FC<FunnelStageCardProps> = ({
-  title, color, count, parentCount, totalCount, onOpen, breakdownRows, withdrawalNote,
+  title,
+  color,
+  count,
+  parentCount,
+  totalCount,
+  onOpen,
+  breakdownRows,
+  withdrawalNote,
 }) => {
   const style = STAGE_CARD_STYLES[color] || STAGE_CARD_STYLES.gray;
   const percentOfTotal = totalCount > 0 ? Math.round((count / totalCount) * 100) : 0;
@@ -245,12 +292,12 @@ const FunnelStageCard: React.FC<FunnelStageCardProps> = ({
       <div>
         <button onClick={onOpen} className="w-full text-left">
           <div className="flex items-center gap-2">
-            <span className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full ${style.iconBg}`}>
-              <BarChart3 className={`h-3.5 w-3.5 ${style.text}`} />
+            <span className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full ${style.iconBg}`}>
+              <BarChart3 className={`h-4 w-4 ${style.text}`} />
             </span>
             <h3 className={`text-sm font-bold leading-tight ${style.text}`}>{title}</h3>
           </div>
-          <div className="mt-3 mb-2 rounded-xl border border-white/70 bg-white px-3 py-3 shadow-sm dark:border-slate-600 dark:bg-slate-900/40">
+          <div className="mb-2 mt-3 rounded-xl border border-white/70 bg-white px-3 py-3 shadow-sm dark:border-slate-600 dark:bg-slate-900/40">
             <div className="mb-1 text-[10px] font-bold uppercase tracking-wide text-gray-400">
               Total nesta etapa
             </div>
@@ -285,15 +332,90 @@ const FunnelStageCard: React.FC<FunnelStageCardProps> = ({
   );
 };
 
+const RankingTable = ({
+  title,
+  subtitle,
+  icon,
+  rows,
+  emptyMessage,
+  colorClass,
+  onOpen,
+  countLabel,
+}: {
+  title: string;
+  subtitle: string;
+  icon: React.ReactNode;
+  rows: Array<{ name: string; count: number; percentage: number; candidates: Candidate[] }>;
+  emptyMessage: string;
+  colorClass: string;
+  onOpen: (title: string, candidates: Candidate[]) => void;
+  countLabel: string;
+}) => (
+  <section className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+    <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4 dark:border-slate-700">
+      <div>
+        <h2 className="flex items-center gap-2 font-bold text-gray-900 dark:text-white">
+          {icon}
+          {title}
+        </h2>
+        <p className="text-sm text-gray-500 dark:text-gray-400">{subtitle}</p>
+      </div>
+    </div>
+    <div className="overflow-x-auto">
+      <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300">
+        <thead className="bg-gray-50 text-xs uppercase text-gray-500 dark:bg-slate-700/30 dark:text-gray-400">
+          <tr>
+            <th className="px-5 py-3">Nome</th>
+            <th className="px-5 py-3">Quantidade</th>
+            <th className="px-5 py-3">Participação</th>
+            <th className="px-5 py-3">Barra</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
+          {rows.length === 0 ? (
+            <tr>
+              <td colSpan={4} className="px-5 py-10 text-center text-gray-400">
+                {emptyMessage}
+              </td>
+            </tr>
+          ) : (
+            rows.map((row) => (
+              <tr key={row.name} className="hover:bg-gray-50 dark:hover:bg-slate-700/40">
+                <td className="px-5 py-4">
+                  <button
+                    onClick={() => onOpen(`${title}: ${row.name}`, row.candidates)}
+                    className="font-bold text-gray-900 transition hover:text-brand-600 dark:text-white"
+                  >
+                    {row.name}
+                  </button>
+                </td>
+                <td className="px-5 py-4 font-black text-gray-900 dark:text-white">
+                  {row.count} {countLabel}
+                </td>
+                <td className={`px-5 py-4 font-bold ${colorClass}`}>{row.percentage.toFixed(1)}%</td>
+                <td className="w-1/3 px-5 py-4">
+                  <div className="h-2 w-full rounded-full bg-gray-100 dark:bg-slate-700">
+                    <div className={`h-2 rounded-full ${colorClass.replace('text-', 'bg-')}`} style={{ width: `${Math.min(100, row.percentage)}%` }} />
+                  </div>
+                </td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+    </div>
+  </section>
+);
+
 const HiringMetrics = () => {
   const navigate = useNavigate();
   const { user, isLoading: isAuthLoading } = useAuth();
   const { candidates, teamMembers, isDataLoading, hiringOrigins, hiringPipelineColumns } = useApp();
 
+  const currentMonthRange = useMemo(() => getCurrentMonthRange(), []);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStartDate, setFilterStartDate] = useState('');
-  const [filterEndDate, setFilterEndDate] = useState('');
-  const [activeSection, setActiveSection] = useState<SectionKey>('funnel');
+  const [filterStartDate, setFilterStartDate] = useState(currentMonthRange.start);
+  const [filterEndDate, setFilterEndDate] = useState(currentMonthRange.end);
   const [isCandidatesDetailModalOpen, setIsCandidatesDetailModalOpen] = useState(false);
   const [candidatesModalTitle, setCandidatesModalTitle] = useState('');
   const [candidatesForModal, setCandidatesForModal] = useState<Candidate[]>([]);
@@ -317,9 +439,7 @@ const HiringMetrics = () => {
   }, [candidates, searchTerm]);
 
   const cohortCandidates = useMemo(() => {
-    return searchFilteredCandidates.filter((candidate) =>
-      isDateInRange(candidate.createdAt, filterStartDate, filterEndDate),
-    );
+    return searchFilteredCandidates.filter((candidate) => isDateInRange(candidate.createdAt, filterStartDate, filterEndDate));
   }, [searchFilteredCandidates, filterStartDate, filterEndDate]);
 
   const analytics = useMemo(() => {
@@ -393,11 +513,13 @@ const HiringMetrics = () => {
           color: metric.color,
           count: metric.count,
           candidates: metric.candidates,
-          withdrawalNote: showWithdrawalNote ? {
-            label: `Porém ${withdrawnAtStage.length} desistiram`,
-            count: withdrawnAtStage.length,
-            candidates: withdrawnAtStage,
-          } : null,
+          withdrawalNote: showWithdrawalNote
+            ? {
+                label: `Porém ${withdrawnAtStage.length} desistiram`,
+                count: withdrawnAtStage.length,
+                candidates: withdrawnAtStage,
+              }
+            : null,
         };
       }
 
@@ -465,7 +587,9 @@ const HiringMetrics = () => {
       };
 
       const uniquePositiveCandidates = uniqueById(positiveCandidates);
-      const positiveWithdrawals = uniquePositiveCandidates.filter((candidate) => isWithdrawnCandidate(candidate) && candidate.withdrawalStageKey === item.positiveStageKey);
+      const positiveWithdrawals = uniquePositiveCandidates.filter(
+        (candidate) => isWithdrawnCandidate(candidate) && candidate.withdrawalStageKey === item.positiveStageKey,
+      );
       const showPositiveWithdrawalNote = STAGES_WITH_INLINE_WITHDRAWAL_NOTE.includes(item.positiveStageKey);
 
       return {
@@ -484,11 +608,13 @@ const HiringMetrics = () => {
           label: getHiringStageLabel(item.positiveStageKey),
           count: uniquePositiveCandidates.length,
           candidates: uniquePositiveCandidates,
-          withdrawalNote: showPositiveWithdrawalNote ? {
-            label: `Porém ${positiveWithdrawals.length} desistiram`,
-            count: positiveWithdrawals.length,
-            candidates: positiveWithdrawals,
-          } : null,
+          withdrawalNote: showPositiveWithdrawalNote
+            ? {
+                label: `Porém ${positiveWithdrawals.length} desistiram`,
+                count: positiveWithdrawals.length,
+                candidates: positiveWithdrawals,
+              }
+            : null,
         },
         negative: {
           label: getHiringStageLabel(item.negativeStageKey),
@@ -514,12 +640,18 @@ const HiringMetrics = () => {
     });
 
     const withdrawalStageRanking = Array.from(withdrawalStageMap.values())
-      .map((item) => ({ ...item, percentage: withdrawalCandidates.length > 0 ? (item.count / withdrawalCandidates.length) * 100 : 0 }))
+      .map((item) => ({
+        ...item,
+        percentage: withdrawalCandidates.length > 0 ? (item.count / withdrawalCandidates.length) * 100 : 0,
+      }))
       .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'pt-BR'));
 
     const originMap = new Map<string, { name: string; count: number; candidates: Candidate[] }>();
-    hiringOrigins.forEach((origin) => { originMap.set(origin, { name: origin, count: 0, candidates: [] }); });
+    hiringOrigins.forEach((origin) => {
+      originMap.set(origin, { name: origin, count: 0, candidates: [] });
+    });
     originMap.set('Não Informado', { name: 'Não Informado', count: 0, candidates: [] });
+
     candidatesCreatedInPeriod.forEach((candidate) => {
       const originName = candidate.origin || 'Não Informado';
       const current = originMap.get(originName) || { name: originName, count: 0, candidates: [] };
@@ -529,7 +661,10 @@ const HiringMetrics = () => {
     });
 
     const candidatesByOrigin = Array.from(originMap.values())
-      .map((item) => ({ ...item, percentage: candidatesCreatedInPeriod.length > 0 ? (item.count / candidatesCreatedInPeriod.length) * 100 : 0 }))
+      .map((item) => ({
+        ...item,
+        percentage: candidatesCreatedInPeriod.length > 0 ? (item.count / candidatesCreatedInPeriod.length) * 100 : 0,
+      }))
       .filter((item) => item.count > 0 || hiringOrigins.includes(item.name))
       .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'pt-BR'));
 
@@ -554,7 +689,6 @@ const HiringMetrics = () => {
     const totalIndications = Array.from(indicationMap.values()).reduce((sum, item) => sum + item.count, 0);
     const topIndications = Array.from(indicationMap.values())
       .map(({ member, count, candidates: attributedCandidates }) => ({
-        id: member.id,
         name: member.isActive ? member.name : `${member.name} (Inativo)`,
         count,
         percentage: totalIndications > 0 ? (count / totalIndications) * 100 : 0,
@@ -601,190 +735,269 @@ const HiringMetrics = () => {
   }
 
   const totalCohort = analytics.candidatesCreatedInPeriod.length;
+  const totalWithdrawals = analytics.withdrawalStageRanking.reduce((sum, item) => sum + item.count, 0);
+  const topOrigin = analytics.candidatesByOrigin[0];
+  const topIndication = analytics.topIndications[0];
 
   return (
-    <div className="min-h-screen max-w-7xl bg-gray-50 p-4 dark:bg-slate-900 sm:mx-auto sm:p-8">
-      <div className="mb-6 flex flex-col items-start justify-between gap-4 xl:flex-row xl:items-center">
-        <div>
-          <h1 className="flex items-center gap-3 text-2xl font-bold text-gray-900 dark:text-white">
-            <PieChart className="h-7 w-7 text-brand-500" />
-            Métricas de Contratação
-          </h1>
-          <p className="text-gray-500 dark:text-gray-400">
-            Escolha a visão que quer analisar: funil histórico, linha do tempo, desistências, origens ou consultores que mais indicam.
-          </p>
-        </div>
-        <button
-          onClick={() => navigate(`${baseRoute}/hiring-pipeline`)}
-          className="inline-flex items-center justify-center gap-2 rounded-lg bg-slate-700 px-4 py-2.5 font-bold text-white transition hover:bg-slate-800"
-        >
-          <ArrowLeft className="h-5 w-5" />
-          Voltar ao Pipeline
-        </button>
-      </div>
-
-      <div className="mb-6 space-y-4 rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-        <div className="flex flex-col items-start justify-between gap-3 lg:flex-row lg:items-center">
+    <div className="min-h-screen bg-gray-50 p-4 dark:bg-slate-900 sm:mx-auto sm:max-w-7xl sm:p-8">
+      <div className="mb-6 rounded-3xl border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
           <div>
-            <h3 className="flex items-center text-sm font-bold uppercase tracking-wide text-gray-700 dark:text-gray-300">
-              <BarChart3 className="mr-2 h-4 w-4" />Filtros da análise
-            </h3>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              O total da etapa não muda. Nas etapas principais, a desistência aparece só como complemento visual.
+            <h1 className="flex items-center gap-3 text-2xl font-black tracking-tight text-gray-900 dark:text-white sm:text-3xl">
+              <PieChart className="h-8 w-8 text-brand-500" />
+              Métricas de Contratação
+            </h1>
+            <p className="mt-2 max-w-3xl text-sm text-gray-500 dark:text-gray-400">
+              Painel consolidado do mês atual com funil, desistências, origens, indicações e linha do tempo em uma única tela.
             </p>
           </div>
-          {(searchTerm || filterStartDate || filterEndDate) && (
-            <button onClick={() => { setSearchTerm(''); setFilterStartDate(''); setFilterEndDate(''); }}
-              className="flex items-center text-xs text-red-500 transition hover:text-red-700">
-              <RotateCcw className="mr-1 h-3 w-3" />Limpar filtros
-            </button>
-          )}
+
+          <button
+            onClick={() => navigate(`${baseRoute}/hiring-pipeline`)}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-800 px-4 py-2.5 font-bold text-white transition hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600"
+          >
+            <ArrowLeft className="h-5 w-5" />
+            Voltar ao Pipeline
+          </button>
         </div>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <div className="flex flex-col">
-            <label className="mb-1 ml-1 text-[10px] font-bold uppercase text-gray-400">Busca</label>
+
+        <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-4">
+          <div className="lg:col-span-2">
+            <label className="mb-1 ml-1 block text-[10px] font-bold uppercase tracking-wide text-gray-400">Busca</label>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
-                placeholder="Nome, telefone ou email..."
-                className="w-full rounded-lg border border-gray-300 bg-gray-50 py-2 pl-9 pr-4 text-sm text-gray-900 focus:border-brand-500 focus:ring-brand-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                placeholder="Nome, telefone, email ou observação..."
+                className="w-full rounded-xl border border-gray-300 bg-gray-50 py-3 pl-10 pr-4 text-sm text-gray-900 focus:border-brand-500 focus:ring-brand-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
               />
             </div>
           </div>
-          <div className="flex flex-col">
-            <label className="mb-1 ml-1 text-[10px] font-bold uppercase text-gray-400">Cadastrado de</label>
-            <input
-              type="date"
-              value={filterStartDate}
-              onChange={(event) => setFilterStartDate(event.target.value)}
-              className="w-full rounded-lg border border-gray-300 bg-gray-50 p-2 text-sm text-gray-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-            />
+
+          <div>
+            <label className="mb-1 ml-1 block text-[10px] font-bold uppercase tracking-wide text-gray-400">Cadastrado de</label>
+            <div className="relative">
+              <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <input
+                type="date"
+                value={filterStartDate}
+                onChange={(event) => setFilterStartDate(event.target.value)}
+                className="w-full rounded-xl border border-gray-300 bg-gray-50 py-3 pl-10 pr-4 text-sm text-gray-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+              />
+            </div>
           </div>
-          <div className="flex flex-col">
-            <label className="mb-1 ml-1 text-[10px] font-bold uppercase text-gray-400">Cadastrado até</label>
-            <input
-              type="date"
-              value={filterEndDate}
-              onChange={(event) => setFilterEndDate(event.target.value)}
-              className="w-full rounded-lg border border-gray-300 bg-gray-50 p-2 text-sm text-gray-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-            />
+
+          <div>
+            <label className="mb-1 ml-1 block text-[10px] font-bold uppercase tracking-wide text-gray-400">Cadastrado até</label>
+            <div className="relative">
+              <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <input
+                type="date"
+                value={filterEndDate}
+                onChange={(event) => setFilterEndDate(event.target.value)}
+                className="w-full rounded-xl border border-gray-300 bg-gray-50 py-3 pl-10 pr-4 text-sm text-gray-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+              />
+            </div>
           </div>
+        </div>
+
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="text-xs font-medium text-gray-500 dark:text-gray-400">
+            Exibindo dados de <span className="font-bold text-gray-700 dark:text-gray-200">{periodLabel}</span>
+          </div>
+
+          <button
+            onClick={() => {
+              setSearchTerm('');
+              setFilterStartDate(currentMonthRange.start);
+              setFilterEndDate(currentMonthRange.end);
+              setTimelineSearchTerm('');
+            }}
+            className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-600 transition hover:bg-red-100 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-300"
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+            Voltar para mês atual
+          </button>
         </div>
       </div>
 
-      <div className="mb-6 flex flex-wrap gap-3">
-        {SECTION_OPTIONS.map((section) => {
-          const Icon = section.icon;
-          const isActive = activeSection === section.key;
-          return (
-            <button
-              key={section.key}
-              onClick={() => setActiveSection(section.key)}
-              className={`inline-flex items-center gap-2 rounded-xl border px-4 py-3 text-sm font-bold transition ${
-                isActive
-                  ? 'border-brand-500 bg-brand-500 text-white shadow-sm'
-                  : 'border-gray-200 bg-white text-gray-700 hover:border-brand-300 hover:text-brand-600 dark:border-slate-700 dark:bg-slate-800 dark:text-gray-200'
-              }`}
-            >
-              <Icon className="h-4 w-4" />
-              {section.title}
-            </button>
-          );
-        })}
+      <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <SummaryCard
+          title="Candidatos no período"
+          value={totalCohort}
+          helper="Base principal do painel"
+          tone="brand"
+          onClick={() => handleOpenCandidatesDetailModal('Candidatos no período', analytics.candidatesCreatedInPeriod, 'total')}
+        />
+        <SummaryCard
+          title="Desistências"
+          value={totalWithdrawals}
+          helper="Saídas após aprovação"
+          tone="rose"
+          onClick={() =>
+            handleOpenCandidatesDetailModal(
+              'Todas as desistências do período',
+              analytics.withdrawalStageRanking.flatMap((item) => item.candidates),
+              'withdrawn',
+            )
+          }
+        />
+        <SummaryCard
+          title="Origem líder"
+          value={topOrigin?.count || 0}
+          helper={topOrigin ? topOrigin.name : 'Sem origem líder no período'}
+          tone="green"
+          onClick={topOrigin ? () => handleOpenCandidatesDetailModal(`Origem: ${topOrigin.name}`, topOrigin.candidates, 'total') : undefined}
+        />
+        <SummaryCard
+          title="Consultor líder"
+          value={topIndication?.count || 0}
+          helper={topIndication ? topIndication.name : 'Sem indicações no período'}
+          tone="indigo"
+          onClick={topIndication ? () => handleOpenCandidatesDetailModal(`Indicações de ${topIndication.name}`, topIndication.candidates, 'total') : undefined}
+        />
       </div>
 
-      {activeSection === 'funnel' && (
-        <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-          <div className="mb-6 flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-bold text-gray-900 dark:text-white">Funil de Contratação</h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                {totalCohort} candidatos cadastrados {periodLabel} — cada etapa mostra quantos já passaram por ela.
-              </p>
-            </div>
-            <BarChart3 className="h-5 w-5 text-gray-400" />
+      <section className="mb-8 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+        <div className="mb-5 flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white">Funil de Contratação</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              {totalCohort} candidatos cadastrados no período — cada etapa mostra quantos já passaram por ela.
+            </p>
           </div>
+          <BarChart3 className="h-5 w-5 text-gray-400" />
+        </div>
 
-          {totalCohort === 0 ? (
-            <div className="rounded-xl border border-dashed border-gray-300 px-6 py-10 text-center text-sm text-gray-500 dark:border-slate-600 dark:text-gray-400">
-              Nenhum candidato encontrado para o período selecionado.
-            </div>
-          ) : (
-            <div className="rounded-2xl bg-gray-50/80 p-4 dark:bg-slate-900/30">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {analytics.processFunnelBlocks.map((block, index) => (
-                  block.type === 'stage' ? (
-                    <FunnelStageCard
-                      key={`${block.type}-${index}`}
-                      title={block.title}
-                      color={block.color}
-                      count={block.count}
-                      parentCount={index === 0 ? 0 : totalCohort}
-                      totalCount={totalCohort}
-                      onOpen={() => handleOpenCandidatesDetailModal(block.title, block.candidates, 'total')}
-                      withdrawalNote={block.withdrawalNote ? {
-                        label: block.withdrawalNote.label,
-                        count: block.withdrawalNote.count,
-                        helperText: 'Foram aprovados nesta etapa, mas não seguiram o processo.',
-                        onOpen: () => handleOpenCandidatesDetailModal(`Desistências em "${block.title}"`, block.withdrawalNote?.candidates || [], 'withdrawn'),
-                      } : undefined}
-                    />
-                  ) : (
-                    <FunnelStageCard
-                      key={`${block.type}-${index}`}
-                      title={block.title}
-                      color={block.color}
-                      count={block.count}
-                      parentCount={totalCohort}
-                      totalCount={totalCohort}
-                      onOpen={() => handleOpenCandidatesDetailModal(block.title, block.candidates, 'total')}
-                      breakdownRows={[
-                        {
-                          label: 'Ainda nesta etapa',
-                          helperText: `Continuam em ${block.title}`,
-                          count: block.current.count,
-                          onOpen: () => handleOpenCandidatesDetailModal(`${block.title} · Ainda nesta etapa`, block.current.candidates, 'total'),
-                          tone: 'blue',
-                        },
-                        {
-                          label: block.positive.label,
-                          helperText: block.positive.withdrawalNote && block.positive.withdrawalNote.count > 0
+        {totalCohort === 0 ? (
+          <div className="rounded-xl border border-dashed border-gray-300 px-6 py-10 text-center text-sm text-gray-500 dark:border-slate-600 dark:text-gray-400">
+            Nenhum candidato encontrado para o período selecionado.
+          </div>
+        ) : (
+          <div className="rounded-2xl bg-gray-50/80 p-4 dark:bg-slate-900/30">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+              {analytics.processFunnelBlocks.map((block, index) =>
+                block.type === 'stage' ? (
+                  <FunnelStageCard
+                    key={`${block.type}-${index}`}
+                    title={block.title}
+                    color={block.color}
+                    count={block.count}
+                    parentCount={index === 0 ? 0 : totalCohort}
+                    totalCount={totalCohort}
+                    onOpen={() => handleOpenCandidatesDetailModal(block.title, block.candidates, 'total')}
+                    withdrawalNote={
+                      block.withdrawalNote
+                        ? {
+                            label: block.withdrawalNote.label,
+                            count: block.withdrawalNote.count,
+                            helperText: 'Foram aprovados nesta etapa, mas não seguiram o processo.',
+                            onOpen: () =>
+                              handleOpenCandidatesDetailModal(
+                                `Desistências em "${block.title}"`,
+                                block.withdrawalNote?.candidates || [],
+                                'withdrawn',
+                              ),
+                          }
+                        : undefined
+                    }
+                  />
+                ) : (
+                  <FunnelStageCard
+                    key={`${block.type}-${index}`}
+                    title={block.title}
+                    color={block.color}
+                    count={block.count}
+                    parentCount={totalCohort}
+                    totalCount={totalCohort}
+                    onOpen={() => handleOpenCandidatesDetailModal(block.title, block.candidates, 'total')}
+                    breakdownRows={[
+                      {
+                        label: 'Ainda nesta etapa',
+                        helperText: `Continuam em ${block.title}`,
+                        count: block.current.count,
+                        onOpen: () => handleOpenCandidatesDetailModal(`${block.title} · Ainda nesta etapa`, block.current.candidates, 'total'),
+                        tone: 'blue',
+                      },
+                      {
+                        label: block.positive.label,
+                        helperText:
+                          block.positive.withdrawalNote && block.positive.withdrawalNote.count > 0
                             ? `${block.positive.count} no total, porém ${block.positive.withdrawalNote.count} desistiram`
                             : 'Avançaram para este caminho',
-                          count: block.positive.count,
-                          onOpen: () => handleOpenCandidatesDetailModal(`${block.positive.label} · incluindo quem depois desistiu`, block.positive.candidates, 'total'),
-                          tone: 'green',
-                        },
-                        {
-                          label: block.negative.label,
-                          helperText: 'Seguiram para este caminho',
-                          count: block.negative.count,
-                          onOpen: () => handleOpenCandidatesDetailModal(block.negative.label, block.negative.candidates, 'total'),
-                          tone: 'red',
-                        },
-                      ]}
-                    />
-                  )
-                ))}
-              </div>
+                        count: block.positive.count,
+                        onOpen: () =>
+                          handleOpenCandidatesDetailModal(
+                            `${block.positive.label} · incluindo quem depois desistiu`,
+                            block.positive.candidates,
+                            'total',
+                          ),
+                        tone: 'green',
+                      },
+                      {
+                        label: block.negative.label,
+                        helperText: 'Seguiram para este caminho',
+                        count: block.negative.count,
+                        onOpen: () => handleOpenCandidatesDetailModal(block.negative.label, block.negative.candidates, 'total'),
+                        tone: 'red',
+                      },
+                    ]}
+                  />
+                ),
+              )}
             </div>
-          )}
-        </section>
-      )}
+          </div>
+        )}
+      </section>
 
-      {activeSection === 'timeline' && (
-        <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-          <div className="mb-5 flex items-center justify-between">
+      <div className="mb-8 grid grid-cols-1 gap-8 xl:grid-cols-2">
+        <RankingTable
+          title="Ranking de desistência"
+          subtitle="Mostra apenas quem foi aprovado e abandonou o processo depois."
+          icon={<UserMinus className="h-5 w-5 text-rose-500" />}
+          rows={analytics.withdrawalStageRanking}
+          emptyMessage="Nenhuma desistência registrada no período."
+          colorClass="text-rose-600 dark:text-rose-400"
+          onOpen={(title, metricCandidates) => handleOpenCandidatesDetailModal(title, metricCandidates, 'withdrawn')}
+          countLabel="desist."
+        />
+
+        <RankingTable
+          title="Origens"
+          subtitle="Distribuição dos cadastros no período selecionado."
+          icon={<MapPin className="h-5 w-5 text-brand-500" />}
+          rows={analytics.candidatesByOrigin}
+          emptyMessage="Nenhum cadastro encontrado para o período."
+          colorClass="text-brand-600 dark:text-brand-400"
+          onOpen={(title, metricCandidates) => handleOpenCandidatesDetailModal(title, metricCandidates, 'total')}
+          countLabel="cand."
+        />
+      </div>
+
+      <div className="mb-8 grid grid-cols-1 gap-8 xl:grid-cols-2">
+        <RankingTable
+          title="Consultores que mais indicam"
+          subtitle="Ranking dos consultores com mais candidatos atribuídos no período."
+          icon={<Users className="h-5 w-5 text-indigo-500" />}
+          rows={analytics.topIndications}
+          emptyMessage="Nenhuma indicação atribuída no período."
+          colorClass="text-indigo-600 dark:text-indigo-400"
+          onOpen={(title, metricCandidates) => handleOpenCandidatesDetailModal(title, metricCandidates, 'total')}
+          countLabel="ind."
+        />
+
+        <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          <div className="mb-4 flex items-center justify-between">
             <div>
               <h2 className="flex items-center gap-2 text-lg font-bold text-gray-900 dark:text-white">
                 <History className="h-5 w-5 text-indigo-500" />
-                Linha do Tempo dos Candidatos
+                Linha do Tempo
               </h2>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                Veja o caminho completo de cada candidato no pipeline, em ordem cronológica.
+                Veja rapidamente o caminho dos candidatos sem sair da tela.
               </p>
             </div>
           </div>
@@ -796,7 +1009,7 @@ const HiringMetrics = () => {
               placeholder="Buscar candidato pelo nome..."
               value={timelineSearchTerm}
               onChange={(event) => setTimelineSearchTerm(event.target.value)}
-              className="w-full rounded-lg border border-gray-300 bg-gray-50 py-2 pl-9 pr-4 text-sm text-gray-900 focus:border-brand-500 focus:ring-brand-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+              className="w-full rounded-xl border border-gray-300 bg-gray-50 py-3 pl-10 pr-4 text-sm text-gray-900 focus:border-brand-500 focus:ring-brand-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
             />
           </div>
 
@@ -805,25 +1018,24 @@ const HiringMetrics = () => {
               Nenhum candidato encontrado.
             </div>
           ) : (
-            <div className="space-y-3">
-              {timelineCandidates.map((candidate) => {
+            <div className="max-h-[720px] space-y-3 overflow-y-auto pr-1">
+              {timelineCandidates.slice(0, 12).map((candidate) => {
                 const isExpanded = expandedTimelineId === candidate.id;
                 const events = isExpanded ? buildCandidateTimeline(candidate) : [];
+
                 return (
                   <div key={candidate.id} className="overflow-hidden rounded-xl border border-gray-200 dark:border-slate-700">
                     <button
                       onClick={() => setExpandedTimelineId((prev) => (prev === candidate.id ? null : candidate.id))}
                       className="flex w-full items-center justify-between bg-gray-50 px-4 py-3 text-left transition hover:bg-gray-100 dark:bg-slate-700/40 dark:hover:bg-slate-700"
                     >
-                      <div>
-                        <p className="font-bold text-gray-900 dark:text-white">{candidate.name}</p>
+                      <div className="min-w-0">
+                        <p className="truncate font-bold text-gray-900 dark:text-white">{candidate.name}</p>
                         <p className="text-xs text-gray-500 dark:text-gray-400">
-                          {candidate.withdrawalStageKey
-                            ? `${getHiringStageLabel(candidate.withdrawalStageKey)} · desistiu`
-                            : 'Em andamento'}
+                          {candidate.withdrawalStageKey ? `${getHiringStageLabel(candidate.withdrawalStageKey)} · desistiu` : 'Em andamento'}
                         </p>
                       </div>
-                      <History className={`h-4 w-4 text-gray-400 transition ${isExpanded ? 'text-brand-500' : ''}`} />
+                      <History className={`h-4 w-4 flex-shrink-0 text-gray-400 transition ${isExpanded ? 'text-brand-500' : ''}`} />
                     </button>
 
                     {isExpanded && (
@@ -859,160 +1071,7 @@ const HiringMetrics = () => {
             </div>
           )}
         </section>
-      )}
-
-      {activeSection === 'withdrawals' && (
-        <section className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-          <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-slate-700">
-            <div>
-              <h2 className="flex items-center gap-2 font-bold text-gray-900 dark:text-white">
-                <UserMinus className="h-5 w-5 text-rose-500" />Ranking de desistência por etapa
-              </h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Mostra apenas quem foi aprovado e abandonou o processo depois.</p>
-            </div>
-            <TrendingUp className="h-5 w-5 text-gray-400" />
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300">
-              <thead className="bg-gray-50 text-xs uppercase text-gray-500 dark:bg-slate-700/30 dark:text-gray-400">
-                <tr>
-                  <th className="px-6 py-3">Etapa da saída</th>
-                  <th className="px-6 py-3">Desistências</th>
-                  <th className="px-6 py-3">Participação</th>
-                  <th className="px-6 py-3">Barra</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
-                {analytics.withdrawalStageRanking.length === 0 ? (
-                  <tr><td colSpan={4} className="px-6 py-10 text-center text-gray-400">Nenhuma desistência registrada no período.</td></tr>
-                ) : (
-                  analytics.withdrawalStageRanking.map((stage) => (
-                    <tr key={stage.name} className="hover:bg-gray-50 dark:hover:bg-slate-700/40">
-                      <td className="px-6 py-4">
-                        <button
-                          onClick={() => handleOpenCandidatesDetailModal(`Desistências em ${stage.name}`, stage.candidates, 'withdrawn')}
-                          className="font-bold text-rose-600 transition hover:text-rose-700 dark:text-rose-400"
-                        >
-                          {stage.name}
-                        </button>
-                      </td>
-                      <td className="px-6 py-4 font-black text-gray-900 dark:text-white">{stage.count}</td>
-                      <td className="px-6 py-4 font-bold text-rose-600 dark:text-rose-400">{stage.percentage.toFixed(1)}%</td>
-                      <td className="w-1/3 px-6 py-4">
-                        <div className="h-2 w-full rounded-full bg-gray-100 dark:bg-slate-700">
-                          <div className="h-2 rounded-full bg-rose-500" style={{ width: `${Math.min(100, stage.percentage)}%` }} />
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      )}
-
-      {activeSection === 'origins' && (
-        <section className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-          <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-slate-700">
-            <div>
-              <h2 className="flex items-center gap-2 font-bold text-gray-900 dark:text-white">
-                <MapPin className="h-5 w-5 text-brand-500" />Origem dos candidatos criados
-              </h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Distribuição dos cadastros em {periodLabel}.</p>
-            </div>
-            <BarChart3 className="h-5 w-5 text-gray-400" />
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300">
-              <thead className="bg-gray-50 text-xs uppercase text-gray-500 dark:bg-slate-700/30 dark:text-gray-400">
-                <tr>
-                  <th className="px-6 py-3">Origem</th>
-                  <th className="px-6 py-3">Quantidade</th>
-                  <th className="px-6 py-3">Participação</th>
-                  <th className="px-6 py-3">Barra</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
-                {analytics.candidatesByOrigin.length === 0 ? (
-                  <tr><td colSpan={4} className="px-6 py-10 text-center text-gray-400">Nenhum cadastro encontrado para o período.</td></tr>
-                ) : (
-                  analytics.candidatesByOrigin.map((origin) => (
-                    <tr key={origin.name} className="hover:bg-gray-50 dark:hover:bg-slate-700/40">
-                      <td className="px-6 py-4">
-                        <button
-                          onClick={() => handleOpenCandidatesDetailModal(`Origem: ${origin.name}`, origin.candidates, 'total')}
-                          className="font-bold text-gray-900 transition hover:text-brand-600 dark:text-white"
-                        >
-                          {origin.name}
-                        </button>
-                      </td>
-                      <td className="px-6 py-4 font-black text-gray-900 dark:text-white">{origin.count}</td>
-                      <td className="px-6 py-4 font-bold text-brand-600 dark:text-brand-400">{origin.percentage.toFixed(1)}%</td>
-                      <td className="w-1/3 px-6 py-4">
-                        <div className="h-2 w-full rounded-full bg-gray-100 dark:bg-slate-700">
-                          <div className="h-2 rounded-full bg-brand-500" style={{ width: `${origin.percentage}%` }} />
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      )}
-
-      {activeSection === 'indications' && (
-        <section className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-          <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-slate-700">
-            <div>
-              <h2 className="flex items-center gap-2 font-bold text-gray-900 dark:text-white">
-                <Users className="h-5 w-5 text-indigo-500" />Consultores que mais indicam
-              </h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Ranking dos consultores com mais candidatos atribuídos no período.</p>
-            </div>
-            <TrendingUp className="h-5 w-5 text-gray-400" />
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300">
-              <thead className="bg-gray-50 text-xs uppercase text-gray-500 dark:bg-slate-700/30 dark:text-gray-400">
-                <tr>
-                  <th className="px-6 py-3">Consultor</th>
-                  <th className="px-6 py-3">Indicações</th>
-                  <th className="px-6 py-3">Participação</th>
-                  <th className="px-6 py-3">Barra</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
-                {analytics.topIndications.length === 0 ? (
-                  <tr><td colSpan={4} className="px-6 py-10 text-center text-gray-400">Nenhuma indicação atribuída no período.</td></tr>
-                ) : (
-                  analytics.topIndications.map((consultant) => (
-                    <tr key={consultant.id} className="hover:bg-gray-50 dark:hover:bg-slate-700/40">
-                      <td className="px-6 py-4">
-                        <button
-                          onClick={() => handleOpenCandidatesDetailModal(`Indicações de ${consultant.name}`, consultant.candidates, 'total')}
-                          className="font-bold text-gray-900 transition hover:text-indigo-600 dark:text-white"
-                        >
-                          {consultant.name}
-                        </button>
-                      </td>
-                      <td className="px-6 py-4 font-black text-gray-900 dark:text-white">{consultant.count}</td>
-                      <td className="px-6 py-4 font-bold text-indigo-600 dark:text-indigo-400">{consultant.percentage.toFixed(1)}%</td>
-                      <td className="w-1/3 px-6 py-4">
-                        <div className="h-2 w-full rounded-full bg-gray-100 dark:bg-slate-700">
-                          <div className="h-2 rounded-full bg-indigo-500" style={{ width: `${consultant.percentage}%` }} />
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      )}
+      </div>
 
       <CandidatesDetailModal
         isOpen={isCandidatesDetailModalOpen}
