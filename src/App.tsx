@@ -32,6 +32,7 @@ import HiringPipelineConfig from '@/pages/gestor/HiringPipelineConfig';
 import { Processos } from '@/pages/gestor/Processos';
 import { TeamConfig } from '@/pages/TeamConfig';
 import GestorTasksPage from '@/pages/gestor/GestorTasksPage';
+import Contratos from '@/pages/gestor/Contratos';
 
 import { SecretariaDashboard } from '@/pages/secretaria/SecretariaDashboard';
 import { SecretariaDailyChecklist } from '@/pages/secretaria/SecretariaDailyChecklist';
@@ -68,6 +69,7 @@ const AppRoutes = () => {
           <Route path="hiring-pipeline-config" element={<HiringPipelineConfig />} />
           <Route path="form-cadastros" element={<FormCadastros />} />
           <Route path="processos" element={<Processos />} />
+          <Route path="contratos" element={<Contratos />} />
         </Route>
 
         <Route path="/secretaria" element={<SecretariaLayout />}>
