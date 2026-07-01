@@ -167,6 +167,7 @@ interface FunnelStageCardProps {
   footerNote?: {
     label: string;
     count: number;
+    helperText?: string;
     onOpen: () => void;
   };
 }
@@ -248,7 +249,7 @@ const FunnelStageCard: React.FC<FunnelStageCardProps> = ({
             <div className="min-w-0">
               <div className="text-[11px] font-bold text-rose-700 dark:text-rose-300">{footerNote.label}</div>
               <div className="mt-0.5 text-[10px] text-rose-600/80 dark:text-rose-300/80">
-                Informação complementar desta etapa
+                {footerNote.helperText || 'Informação complementar desta etapa'}
               </div>
             </div>
             <span className="ml-3 flex-shrink-0 text-sm font-black text-rose-700 dark:text-rose-300">
@@ -571,7 +572,7 @@ const HiringMetrics = () => {
               <BarChart3 className="mr-2 h-4 w-4" />Filtros da análise
             </h3>
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              No funil, o período filtra pela data de <strong>cadastro</strong> do candidato. Os totais principais continuam mostrando quem passou pela etapa, e a linha “Desistiu aqui” aparece como informação complementar da mesma etapa.
+              No funil, o período filtra pela data de <strong>cadastro</strong> do candidato. O total principal continua mostrando quem chegou na etapa, e a observação “Desistiu aqui” mostra quem também desistiu nela.
             </p>
           </div>
           {(searchTerm || filterStartDate || filterEndDate) && (
@@ -669,6 +670,7 @@ const HiringMetrics = () => {
                       footerNote={{
                         label: 'Desistiu aqui',
                         count: block.withdrawn.count,
+                        helperText: `Chegaram nesta etapa e também desistiram aqui`,
                         onOpen: () => handleOpenCandidatesDetailModal(`Desistiu em "${block.title}"`, block.withdrawn.candidates, 'withdrawn'),
                       }}
                     />
@@ -707,6 +709,7 @@ const HiringMetrics = () => {
                       footerNote={{
                         label: 'Desistiu aqui',
                         count: block.withdrawn.count,
+                        helperText: `Foram ${block.count} nesta etapa, e ${block.withdrawn.count} também desistiram aqui`,
                         onOpen: () => handleOpenCandidatesDetailModal(`Desistiu em "${block.title}"`, block.withdrawn.candidates, 'withdrawn'),
                       }}
                     />
