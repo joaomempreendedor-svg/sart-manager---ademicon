@@ -31,6 +31,7 @@ import HiringPipeline from '@/pages/gestor/HiringPipeline';
 import HiringPipelineConfig from '@/pages/gestor/HiringPipelineConfig';
 import { Processos } from '@/pages/gestor/Processos';
 import { TeamConfig } from '@/pages/TeamConfig';
+import GestorTasksPage from '@/pages/gestor/GestorTasksPage';
 
 import { SecretariaDashboard } from '@/pages/secretaria/SecretariaDashboard';
 import { SecretariaDailyChecklist } from '@/pages/secretaria/SecretariaDailyChecklist';
@@ -60,6 +61,7 @@ const AppRoutes = () => {
           <Route path="feedbacks" element={<Feedbacks />} />
           <Route path="onboarding-admin" element={<OnlineOnboarding />} />
           <Route path="daily-checklists" element={<DailyChecklistConfig />} />
+          <Route path="tasks" element={<GestorTasksPage />} />
           <Route path="hiring-dashboard" element={<Navigate to="../hiring-metrics" replace />} />
           <Route path="hiring-pipeline" element={<HiringPipeline />} />
           <Route path="hiring-metrics" element={<HiringMetrics />} />

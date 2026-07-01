@@ -2,11 +2,12 @@ import React, { useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import {
-  Loader2, Banknote, DollarSign, Star, FileText, Video, FileStack,
+  Loader2, DollarSign, Star, FileText, Video, FileStack,
   UserSearch, Users, TrendingUp, TrendingDown, CheckCircle2, Clock,
-  UserCheck, UserX, ArrowUpRight, BarChart3, Calendar, Briefcase
+  UserCheck, UserX, ArrowUpRight, BarChart3, Calendar, Briefcase, ListTodo
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { GestorTasksSection } from '@/components/gestor/GestorTasksSection';
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -34,7 +35,6 @@ export const Dashboard = () => {
   const greeting = now.getHours() < 12 ? 'Bom dia' : now.getHours() < 18 ? 'Boa tarde' : 'Boa noite';
 
   const metrics = useMemo(() => {
-    // Candidatos
     const activeCandidates = candidates.filter(c => !c.reprovadoDate).length;
     const withdrawnCandidates = candidates.filter(c => !!c.reprovadoDate).length;
     const authorizedCandidates = candidates.filter(c => c.authorizedDate).length;
@@ -45,13 +45,11 @@ export const Dashboard = () => {
     }).length;
     const pendingInterview = candidates.filter(c => c.pipelineStageKey === 'entrevista-agendada').length;
 
-    // Funil do mês
     const thisMonthCandidates = candidates.filter(c => {
       const d = new Date(c.createdAt);
       return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
     }).length;
 
-    // Comissões
     const totalCommissions = commissions.reduce((sum, c) => sum + (c.netValue || 0), 0);
     const paidCommissions = commissions.reduce((sum, c) => {
       const installments = c.installmentDetails || {};
@@ -62,7 +60,6 @@ export const Dashboard = () => {
       return sum + Object.values(installments).filter((i: any) => i.status === 'Pendente').length;
     }, 0);
 
-    // Financeiro
     const totalIncome = financialEntries.filter(e => e.type === 'income').reduce((sum, e) => sum + e.amount, 0);
     const totalExpense = financialEntries.filter(e => e.type === 'expense').reduce((sum, e) => sum + e.amount, 0);
     const balance = totalIncome - totalExpense;
@@ -74,18 +71,15 @@ export const Dashboard = () => {
       .filter(e => e.type === 'expense' && new Date(e.entry_date).getMonth() === currentMonth && new Date(e.entry_date).getFullYear() === currentYear)
       .reduce((sum, e) => sum + e.amount, 0);
 
-    // Equipe
     const activeTeamMembers = teamMembers.filter(m => m.isActive).length;
     const inactiveTeamMembers = teamMembers.length - activeTeamMembers;
     const consultors = teamMembers.filter(m => m.isActive && m.roles.includes('CONSULTOR')).length;
 
-    // Onboarding
     const completedOnboarding = onboardingSessions.filter(s =>
       s.videos && s.videos.length > 0 && s.videos.every((v: any) => v.is_completed)
     ).length;
     const pendingOnboarding = onboardingSessions.length - completedOnboarding;
 
-    // Taxa de contratação
     const hiringRate = candidates.length > 0 ? (authorizedCandidates / candidates.length) * 100 : 0;
 
     return {
@@ -100,7 +94,7 @@ export const Dashboard = () => {
       totalTeamMembers: teamMembers.length,
       totalCandidates: candidates.length,
     };
-  }, [candidates, commissions, financialEntries, processes, onboardingSessions, formCadastros, teamMembers]);
+  }, [candidates, commissions, financialEntries, processes, onboardingSessions, formCadastros, teamMembers, now, currentMonth, currentYear]);
 
   if (isDataLoading) {
     return (
@@ -113,8 +107,6 @@ export const Dashboard = () => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-slate-900 p-4 sm:p-8">
       <div className="max-w-7xl mx-auto space-y-8">
-
-        {/* Header */}
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-3xl font-black text-gray-900 dark:text-white">
@@ -126,7 +118,22 @@ export const Dashboard = () => {
           </div>
         </div>
 
-        {/* Alertas do dia */}
+        <section>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-black text-gray-900 dark:text-white flex items-center gap-2">
+              <ListTodo className="w-5 h-5 text-brand-500" />
+              Meu checklist principal
+            </h2>
+            <button
+              onClick={() => navigate('/gestor/tasks')}
+              className="text-xs font-bold text-brand-600 dark:text-brand-400 flex items-center gap-1 hover:underline"
+            >
+              Abrir página completa <ArrowUpRight className="w-3 h-3" />
+            </button>
+          </div>
+          <GestorTasksSection compact />
+        </section>
+
         {(metrics.interviewsToday > 0 || metrics.pendingInterview > 0) && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {metrics.interviewsToday > 0 && (
@@ -162,7 +169,6 @@ export const Dashboard = () => {
           </div>
         )}
 
-        {/* Contratação */}
         <section>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-black text-gray-900 dark:text-white flex items-center gap-2">
@@ -206,7 +212,6 @@ export const Dashboard = () => {
           </div>
         </section>
 
-        {/* Equipe */}
         <section>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-black text-gray-900 dark:text-white flex items-center gap-2">
@@ -249,7 +254,6 @@ export const Dashboard = () => {
           </div>
         </section>
 
-        {/* Financeiro e Comissões */}
         <section>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-black text-gray-900 dark:text-white flex items-center gap-2">
@@ -258,8 +262,6 @@ export const Dashboard = () => {
             </h2>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-
-            {/* Financeiro */}
             <div
               onClick={() => navigate('/gestor/financial-panel')}
               className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 p-6 cursor-pointer hover:border-green-300 transition"
@@ -289,7 +291,6 @@ export const Dashboard = () => {
               </div>
             </div>
 
-            {/* Comissões */}
             <div
               onClick={() => navigate('/gestor/commissions')}
               className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 p-6 cursor-pointer hover:border-emerald-300 transition"
@@ -321,7 +322,6 @@ export const Dashboard = () => {
           </div>
         </section>
 
-        {/* Outros módulos */}
         <section>
           <h2 className="text-lg font-black text-gray-900 dark:text-white flex items-center gap-2 mb-4">
             <Briefcase className="w-5 h-5 text-purple-500" />
@@ -375,7 +375,6 @@ export const Dashboard = () => {
             </button>
           </div>
         </section>
-
       </div>
     </div>
   );

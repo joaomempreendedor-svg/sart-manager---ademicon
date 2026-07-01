@@ -1,13 +1,30 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { GestorTask } from '@/types';
-import { Plus, Edit2, Trash2, CheckCircle2, Circle, Loader2, Calendar, MessageSquare, Clock, Save, X, ListTodo, CalendarPlus, Repeat, CalendarDays, ChevronDown, ChevronUp } from 'lucide-react';
+import {
+  Plus,
+  Edit2,
+  Trash2,
+  CheckCircle2,
+  Circle,
+  Loader2,
+  Calendar,
+  Clock,
+  Save,
+  X,
+  ListTodo,
+  CalendarPlus,
+  Repeat,
+  CalendarDays,
+  ChevronDown,
+  ChevronUp,
+  ArrowRightCircle,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Select,
   SelectContent,
@@ -17,11 +34,23 @@ import {
 } from '@/components/ui/select';
 import toast from 'react-hot-toast';
 
-const formatDate = (date: Date) => date.toISOString().split('T')[0]; // YYYY-MM-DD
+const formatDate = (date: Date) => date.toISOString().split('T')[0];
 
-export const GestorTasksSection: React.FC = () => {
+interface GestorTasksSectionProps {
+  compact?: boolean;
+}
+
+export const GestorTasksSection: React.FC<GestorTasksSectionProps> = ({ compact = false }) => {
   const { user } = useAuth();
-  const { gestorTasks, gestorTaskCompletions, addGestorTask, updateGestorTask, deleteGestorTask, toggleGestorTaskCompletion, isGestorTaskDueOnDate } = useApp();
+  const {
+    gestorTasks,
+    gestorTaskCompletions,
+    addGestorTask,
+    updateGestorTask,
+    deleteGestorTask,
+    toggleGestorTaskCompletion,
+    isGestorTaskDueOnDate,
+  } = useApp();
 
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskDescription, setNewTaskDescription] = useState('');
@@ -39,8 +68,11 @@ export const GestorTasksSection: React.FC = () => {
   const [isUpdatingTask, setIsUpdatingTask] = useState(false);
 
   const [showAllTasks, setShowAllTasks] = useState(false);
-  const VISIBLE_TASK_LIMIT = 3;
+  const [rescheduleTaskId, setRescheduleTaskId] = useState<string | null>(null);
+  const [rescheduleDate, setRescheduleDate] = useState('');
+  const [isRescheduling, setIsRescheduling] = useState(false);
 
+  const VISIBLE_TASK_LIMIT = compact ? 5 : 3;
   const today = formatDate(new Date());
 
   const sortedTasks = useMemo(() => {
@@ -74,23 +106,24 @@ export const GestorTasksSection: React.FC = () => {
   const handleAddTask = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !newTaskTitle.trim()) {
-      toast.error("O título da tarefa é obrigatório.");
+      toast.error('O título da tarefa é obrigatório.');
       return;
     }
+
     if (newTaskRecurrenceType === 'every_x_days' && (!newTaskRecurrenceInterval || isNaN(newTaskRecurrenceInterval) || newTaskRecurrenceInterval < 2)) {
-      toast.error("Para recorrência 'A cada X dias', o intervalo deve ser um número maior ou igual a 2.");
+      toast.error("Para recorrência 'A cada X dias', o intervalo deve ser maior ou igual a 2.");
       return;
     }
 
     setIsAddingTask(true);
     try {
-      const recurrence_pattern = newTaskRecurrenceType === 'none' 
-        ? { type: 'none' } 
-        : { 
-            type: newTaskRecurrenceType, 
-            interval: newTaskRecurrenceType === 'every_x_days' 
-              ? (newTaskRecurrenceInterval && !isNaN(newTaskRecurrenceInterval) ? Math.max(2, newTaskRecurrenceInterval) : 2) 
-              : undefined 
+      const recurrence_pattern = newTaskRecurrenceType === 'none'
+        ? { type: 'none' as const }
+        : {
+            type: newTaskRecurrenceType,
+            interval: newTaskRecurrenceType === 'every_x_days'
+              ? (newTaskRecurrenceInterval && !isNaN(newTaskRecurrenceInterval) ? Math.max(2, newTaskRecurrenceInterval) : 2)
+              : undefined,
           };
 
       await addGestorTask({
@@ -98,17 +131,18 @@ export const GestorTasksSection: React.FC = () => {
         description: newTaskDescription.trim() || undefined,
         due_date: newTaskDueDate || undefined,
         is_completed: false,
-        recurrence_pattern: recurrence_pattern,
+        recurrence_pattern,
       });
+
       setNewTaskTitle('');
       setNewTaskDescription('');
       setNewTaskDueDate('');
       setNewTaskRecurrenceType('none');
       setNewTaskRecurrenceInterval(undefined);
-      toast.success("Tarefa do gestor adicionada!");
+      toast.success('Tarefa adicionada!');
     } catch (error) {
-      console.error("Failed to add gestor task:", error);
-      toast.error("Erro ao adicionar tarefa do gestor.");
+      console.error('Failed to add gestor task:', error);
+      toast.error('Erro ao adicionar tarefa.');
     } finally {
       setIsAddingTask(false);
     }
@@ -126,49 +160,51 @@ export const GestorTasksSection: React.FC = () => {
   const handleUpdateTask = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !editingTask || !editTaskTitle.trim()) {
-      toast.error("O título da tarefa é obrigatório.");
+      toast.error('O título da tarefa é obrigatório.');
       return;
     }
+
     if (editTaskRecurrenceType === 'every_x_days' && (!editTaskRecurrenceInterval || isNaN(editTaskRecurrenceInterval) || editTaskRecurrenceInterval < 2)) {
-      toast.error("Para recorrência 'A cada X dias', o intervalo deve ser um número maior ou igual a 2.");
+      toast.error("Para recorrência 'A cada X dias', o intervalo deve ser maior ou igual a 2.");
       return;
     }
 
     setIsUpdatingTask(true);
     try {
-      const recurrence_pattern = editTaskRecurrenceType === 'none' 
-        ? { type: 'none' } 
-        : { 
-            type: editTaskRecurrenceType, 
-            interval: editTaskRecurrenceType === 'every_x_days' 
-              ? (editTaskRecurrenceInterval && !isNaN(editTaskRecurrenceInterval) ? Math.max(2, editTaskRecurrenceInterval) : 2) 
-              : undefined 
+      const recurrence_pattern = editTaskRecurrenceType === 'none'
+        ? { type: 'none' as const }
+        : {
+            type: editTaskRecurrenceType,
+            interval: editTaskRecurrenceType === 'every_x_days'
+              ? (editTaskRecurrenceInterval && !isNaN(editTaskRecurrenceInterval) ? Math.max(2, editTaskRecurrenceInterval) : 2)
+              : undefined,
           };
 
       await updateGestorTask(editingTask.id, {
         title: editTaskTitle.trim(),
         description: editTaskDescription.trim() || undefined,
         due_date: editTaskDueDate || undefined,
-        recurrence_pattern: recurrence_pattern,
+        recurrence_pattern,
       });
+
       setEditingTask(null);
-      toast.success("Tarefa do gestor atualizada!");
+      toast.success('Tarefa atualizada!');
     } catch (error) {
-      console.error("Failed to update gestor task:", error);
-      toast.error("Erro ao atualizar tarefa do gestor.");
+      console.error('Failed to update gestor task:', error);
+      toast.error('Erro ao atualizar tarefa.');
     } finally {
       setIsUpdatingTask(false);
     }
   };
 
   const handleDeleteTask = async (taskId: string) => {
-    if (!user || !window.confirm("Tem certeza que deseja excluir esta tarefa do gestor?")) return;
+    if (!user || !window.confirm('Tem certeza que deseja excluir esta tarefa?')) return;
     try {
       await deleteGestorTask(taskId);
-      toast.success("Tarefa do gestor excluída!");
+      toast.success('Tarefa excluída!');
     } catch (error) {
-      console.error("Failed to delete gestor task:", error);
-      toast.error("Erro ao excluir tarefa do gestor.");
+      console.error('Failed to delete gestor task:', error);
+      toast.error('Erro ao excluir tarefa.');
     }
   };
 
@@ -177,47 +213,79 @@ export const GestorTasksSection: React.FC = () => {
     try {
       const isRecurring = task.recurrence_pattern && task.recurrence_pattern.type !== 'none';
       const isCompletedToday = isRecurring && gestorTaskCompletions.some(c => c.gestor_task_id === task.id && c.user_id === user?.id && c.date === today && c.done);
-      
+
       await toggleGestorTaskCompletion(task.id, !isCompletedToday, today);
-      
       toast.success(`Tarefa ${isCompletedToday ? 'marcada como pendente' : 'concluída'}!`);
     } catch (error) {
-      console.error("Failed to toggle task completion:", error);
-      toast.error("Erro ao atualizar status da tarefa do gestor.");
+      console.error('Failed to toggle task completion:', error);
+      toast.error('Erro ao atualizar status da tarefa.');
     }
   };
 
   const handleAddToGoogleCalendar = (task: GestorTask) => {
     if (!task.due_date) {
-      toast.error("Adicione uma data de vencimento à tarefa para agendar no Google Agenda.");
+      toast.error('Adicione uma data à tarefa para enviar ao Google Agenda.');
       return;
     }
+
     const title = encodeURIComponent(`${task.title} (Tarefa do Gestor)`);
     const startDate = new Date(task.due_date + 'T00:00:00');
     const endDate = new Date(startDate);
-    endDate.setDate(startDate.getDate() + 1); // Evento de dia inteiro
+    endDate.setDate(startDate.getDate() + 1);
+
     const formatDateForGoogle = (date: Date) => date.toISOString().split('T')[0].replace(/-/g, '');
     const dates = `${formatDateForGoogle(startDate)}/${formatDateForGoogle(endDate)}`;
     const details = encodeURIComponent(`Tarefa do gestor: ${task.description || ''}`);
     const url = `https://www.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${dates}&details=${details}`;
+
     window.open(url, '_blank');
   };
 
+  const openReschedule = (task: GestorTask) => {
+    setRescheduleTaskId(task.id);
+    setRescheduleDate(task.due_date || today);
+  };
+
+  const cancelReschedule = () => {
+    setRescheduleTaskId(null);
+    setRescheduleDate('');
+  };
+
+  const handleRescheduleTask = async (task: GestorTask) => {
+    if (!rescheduleDate) {
+      toast.error('Escolha uma nova data.');
+      return;
+    }
+
+    setIsRescheduling(true);
+    try {
+      await updateGestorTask(task.id, { due_date: rescheduleDate, is_completed: false });
+      toast.success('Atividade jogada para outra data!');
+      cancelReschedule();
+    } catch (error) {
+      console.error('Failed to reschedule task:', error);
+      toast.error('Erro ao alterar a data da atividade.');
+    } finally {
+      setIsRescheduling(false);
+    }
+  };
+
   return (
-    <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl shadow-sm flex flex-col">
-      <div className="px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex items-center space-x-2 bg-brand-50 dark:bg-brand-900/20 rounded-t-xl">
+    <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl shadow-sm flex flex-col overflow-hidden">
+      <div className="px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex items-center space-x-2 bg-brand-50 dark:bg-brand-900/20">
         <ListTodo className="w-5 h-5 text-brand-600 dark:text-brand-400" />
         <h2 className="text-lg font-semibold text-brand-800 dark:text-brand-300">Minhas Tarefas ({gestorTasks.length})</h2>
       </div>
-      <div className="p-3 grid grid-cols-1 md:grid-cols-2 gap-3">
-        {/* Coluna de Adicionar/Editar Tarefa */}
-        <div className="space-y-2">
+
+      <div className={`p-4 ${compact ? 'grid grid-cols-1 xl:grid-cols-[1.1fr_1.4fr] gap-4' : 'grid grid-cols-1 md:grid-cols-2 gap-4'}`}>
+        <div className="space-y-3">
           <h3 className="text-md font-semibold text-gray-900 dark:text-white">
-            {editingTask ? 'Editar Tarefa' : 'Adicionar Nova Tarefa'}
+            {editingTask ? 'Editar tarefa' : 'Adicionar nova tarefa'}
           </h3>
-          <form onSubmit={editingTask ? handleUpdateTask : handleAddTask} className="space-y-2">
+
+          <form onSubmit={editingTask ? handleUpdateTask : handleAddTask} className="space-y-3">
             <div>
-              <Label htmlFor="taskTitle">Título da Tarefa *</Label>
+              <Label htmlFor="taskTitle">Título da tarefa *</Label>
               <Input
                 id="taskTitle"
                 value={editingTask ? editTaskTitle : newTaskTitle}
@@ -226,18 +294,20 @@ export const GestorTasksSection: React.FC = () => {
                 className="dark:bg-slate-700 dark:text-white dark:border-slate-600"
               />
             </div>
+
             <div>
-              <Label htmlFor="taskDescription">Descrição (Opcional)</Label>
+              <Label htmlFor="taskDescription">Descrição</Label>
               <Textarea
                 id="taskDescription"
                 value={editingTask ? editTaskDescription : newTaskDescription}
                 onChange={(e) => (editingTask ? setEditTaskDescription(e.target.value) : setNewTaskDescription(e.target.value))}
-                rows={2}
+                rows={compact ? 2 : 3}
                 className="dark:bg-slate-700 dark:text-white dark:border-slate-600"
               />
             </div>
+
             <div>
-              <Label htmlFor="taskDueDate">Data de Vencimento (Opcional)</Label>
+              <Label htmlFor="taskDueDate">Data</Label>
               <Input
                 id="taskDueDate"
                 type="date"
@@ -246,6 +316,7 @@ export const GestorTasksSection: React.FC = () => {
                 className="dark:bg-slate-700 dark:text-white dark:border-slate-600"
               />
             </div>
+
             <div>
               <Label htmlFor="recurrenceType">Recorrência</Label>
               <Select
@@ -274,6 +345,7 @@ export const GestorTasksSection: React.FC = () => {
                 </SelectContent>
               </Select>
             </div>
+
             {(editingTask ? editTaskRecurrenceType === 'every_x_days' : newTaskRecurrenceType === 'every_x_days') && (
               <div>
                 <Label htmlFor="recurrenceInterval">Repetir a cada (dias) *</Label>
@@ -293,11 +365,13 @@ export const GestorTasksSection: React.FC = () => {
                 />
               </div>
             )}
+
             <div className="flex gap-2 flex-col sm:flex-row">
               <Button type="submit" disabled={isAddingTask || isUpdatingTask} className="bg-brand-600 hover:bg-brand-700 text-white flex-1">
-                {isAddingTask || isUpdatingTask ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-                {editingTask ? 'Salvar Edição' : 'Adicionar Tarefa'}
+                {isAddingTask || isUpdatingTask ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : editingTask ? <Save className="w-4 h-4 mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
+                {editingTask ? 'Salvar edição' : 'Adicionar tarefa'}
               </Button>
+
               {editingTask && (
                 <Button type="button" variant="outline" onClick={() => setEditingTask(null)} className="dark:bg-slate-700 dark:text-white dark:border-slate-600 flex-1">
                   <X className="w-4 h-4 mr-2" /> Cancelar
@@ -307,13 +381,13 @@ export const GestorTasksSection: React.FC = () => {
           </form>
         </div>
 
-        {/* Coluna de Lista de Tarefas */}
-        <div className="space-y-2">
-          <h3 className="text-md font-semibold text-gray-900 dark:text-white">Lista de Tarefas ({sortedTasks.length})</h3>
+        <div className="space-y-3">
+          <h3 className="text-md font-semibold text-gray-900 dark:text-white">Checklist de tarefas ({sortedTasks.length})</h3>
+
           {tasksToDisplay.length === 0 ? (
-            <p className="text-center text-gray-500 dark:text-gray-400 py-4">Nenhuma tarefa do gestor.</p>
+            <p className="text-center text-gray-500 dark:text-gray-400 py-6">Nenhuma tarefa cadastrada.</p>
           ) : (
-            <> {/* Adicionado React.Fragment aqui */}
+            <>
               <div className="space-y-2">
                 {tasksToDisplay.map(task => {
                   const isRecurring = task.recurrence_pattern && task.recurrence_pattern.type !== 'none';
@@ -322,7 +396,7 @@ export const GestorTasksSection: React.FC = () => {
                   const isDueToday = isGestorTaskDueOnDate(task, today);
                   const isOverdue = !isRecurring && !task.is_completed && task.due_date && new Date(task.due_date + 'T00:00:00') < new Date(today + 'T00:00:00');
 
-                  let itemClasses = 'flex items-start space-x-2 p-2 rounded-lg border group flex-col sm:flex-row flex-wrap';
+                  let itemClasses = 'flex items-start space-x-2 p-3 rounded-xl border group flex-col';
                   let titleClasses = 'font-medium';
                   let descriptionClasses = 'text-sm mt-1';
 
@@ -342,72 +416,102 @@ export const GestorTasksSection: React.FC = () => {
 
                   return (
                     <div key={task.id} className={itemClasses}>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleToggleCompletion(task)}
-                        className={`flex-none ${isVisuallyCompleted ? 'text-green-600 hover:text-green-700' : 'text-gray-400 hover:text-brand-600'}`}
-                      >
-                        {isVisuallyCompleted ? <CheckCircle2 className="w-5 h-5" /> : <Circle className="w-5 h-5" />}
-                      </Button>
-                      <div className="flex-1 min-w-0">
-                        <p className={titleClasses}>
-                          {task.title}
-                          {isOverdue && !isVisuallyCompleted && <span className="ml-2 text-[10px] font-bold uppercase bg-red-100 text-red-600 px-1.5 py-0.5 rounded">Atrasada</span>}
-                          {isDueToday && !isVisuallyCompleted && <span className="ml-2 text-[10px] font-bold uppercase bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded">Hoje</span>}
-                        </p>
-                        {task.description && (
-                          <p className={descriptionClasses}>
-                            {task.description}
+                      <div className="flex w-full items-start gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleToggleCompletion(task)}
+                          className={`flex-none ${isVisuallyCompleted ? 'text-green-600 hover:text-green-700' : 'text-gray-400 hover:text-brand-600'}`}
+                        >
+                          {isVisuallyCompleted ? <CheckCircle2 className="w-5 h-5" /> : <Circle className="w-5 h-5" />}
+                        </Button>
+
+                        <div className="flex-1 min-w-0">
+                          <p className={titleClasses}>
+                            {task.title}
+                            {isOverdue && !isVisuallyCompleted && <span className="ml-2 text-[10px] font-bold uppercase bg-red-100 text-red-600 px-1.5 py-0.5 rounded">Atrasada</span>}
+                            {isDueToday && !isVisuallyCompleted && <span className="ml-2 text-[10px] font-bold uppercase bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded">Hoje</span>}
                           </p>
-                        )}
-                        {isVisuallyCompleted ? (
-                          <span className="flex items-center text-base text-green-600 dark:text-green-400 font-bold mt-1">
-                            <CheckCircle2 className="w-4 h-4 mr-1 inline-block" /> {isRecurring ? 'Concluído hoje' : 'Concluído'}
-                          </span>
-                        ) : (
-                          <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400 mt-1 flex-wrap">
-                            {task.due_date && !isRecurring && (
-                              <span className="flex items-center">
-                                <Calendar className="w-3 h-3 mr-1" /> Vence: {new Date(task.due_date + 'T00:00:00').toLocaleDateString('pt-BR')}
-                              </span>
-                            )}
-                            {isRecurring && (
-                              <span className="flex items-center text-brand-600 dark:text-brand-400">
-                                {task.recurrence_pattern?.type === 'daily' ? <Repeat className="w-3 h-3 mr-1" /> : <CalendarDays className="w-3 h-3 mr-1" />}
-                                {task.recurrence_pattern?.type === 'daily' ? 'Diária' : `A cada ${task.recurrence_pattern?.interval} dias`}
-                              </span>
-                            )}
-                            {isDueToday && (
-                              <span className="flex items-center text-red-600 dark:text-red-400 font-medium">
-                                <Clock className="w-3 h-3 mr-1" /> Vence Hoje!
-                              </span>
-                            )}
-                            {isOverdue && !isDueToday && (
-                              <span className="flex items-center text-red-600 dark:text-red-400 font-medium">
-                                <Clock className="w-3 h-3 mr-1" /> Atrasada!
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                      <div className={`flex-none flex items-center space-x-1 mt-2 sm:mt-0`}>
-                        {task.due_date && (
-                          <Button variant="ghost" size="icon" onClick={() => handleAddToGoogleCalendar(task)} className="text-gray-400 hover:text-blue-600" title="Adicionar ao Google Agenda">
-                            <CalendarPlus className="w-4 h-4" />
+
+                          {task.description && <p className={descriptionClasses}>{task.description}</p>}
+
+                          {isVisuallyCompleted ? (
+                            <span className="flex items-center text-sm text-green-600 dark:text-green-400 font-bold mt-1">
+                              <CheckCircle2 className="w-4 h-4 mr-1 inline-block" /> {isRecurring ? 'Concluído hoje' : 'Concluído'}
+                            </span>
+                          ) : (
+                            <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400 mt-1 flex-wrap">
+                              {task.due_date && !isRecurring && (
+                                <span className="flex items-center">
+                                  <Calendar className="w-3 h-3 mr-1" /> {new Date(task.due_date + 'T00:00:00').toLocaleDateString('pt-BR')}
+                                </span>
+                              )}
+                              {isRecurring && (
+                                <span className="flex items-center text-brand-600 dark:text-brand-400">
+                                  {task.recurrence_pattern?.type === 'daily' ? <Repeat className="w-3 h-3 mr-1" /> : <CalendarDays className="w-3 h-3 mr-1" />}
+                                  {task.recurrence_pattern?.type === 'daily' ? 'Diária' : `A cada ${task.recurrence_pattern?.interval} dias`}
+                                </span>
+                              )}
+                              {isDueToday && (
+                                <span className="flex items-center text-red-600 dark:text-red-400 font-medium">
+                                  <Clock className="w-3 h-3 mr-1" /> Vence hoje
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="flex items-center space-x-1">
+                          {task.due_date && (
+                            <Button variant="ghost" size="icon" onClick={() => handleAddToGoogleCalendar(task)} className="text-gray-400 hover:text-blue-600" title="Adicionar ao Google Agenda">
+                              <CalendarPlus className="w-4 h-4" />
+                            </Button>
+                          )}
+                          <Button variant="ghost" size="icon" onClick={() => openReschedule(task)} className="text-gray-400 hover:text-amber-600" title="Jogar para outra data">
+                            <ArrowRightCircle className="w-4 h-4" />
                           </Button>
-                        )}
-                        <Button variant="ghost" size="icon" onClick={() => startEditingTask(task)} className="text-gray-400 hover:text-brand-600" title="Editar Tarefa">
-                          <Edit2 className="w-4 h-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDeleteTask(task.id)} className="text-gray-400 hover:text-red-600" title="Excluir Tarefa">
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                          <Button variant="ghost" size="icon" onClick={() => startEditingTask(task)} className="text-gray-400 hover:text-brand-600" title="Editar tarefa">
+                            <Edit2 className="w-4 h-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => handleDeleteTask(task.id)} className="text-gray-400 hover:text-red-600" title="Excluir tarefa">
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
+
+                      {rescheduleTaskId === task.id && (
+                        <div className="mt-3 flex flex-col gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-900/40 dark:bg-amber-950/20 sm:flex-row sm:items-end">
+                          <div className="flex-1">
+                            <Label htmlFor={`reschedule-${task.id}`}>Nova data</Label>
+                            <Input
+                              id={`reschedule-${task.id}`}
+                              type="date"
+                              value={rescheduleDate}
+                              onChange={(e) => setRescheduleDate(e.target.value)}
+                              className="dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                            />
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              type="button"
+                              onClick={() => handleRescheduleTask(task)}
+                              disabled={isRescheduling}
+                              className="bg-amber-600 hover:bg-amber-700 text-white"
+                            >
+                              {isRescheduling ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Calendar className="w-4 h-4 mr-2" />}
+                              Salvar data
+                            </Button>
+                            <Button type="button" variant="outline" onClick={cancelReschedule}>
+                              Cancelar
+                            </Button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
               </div>
+
               {sortedTasks.length > VISIBLE_TASK_LIMIT && (
                 <div className="mt-4 text-center">
                   <Button
@@ -417,11 +521,11 @@ export const GestorTasksSection: React.FC = () => {
                   >
                     {showAllTasks ? (
                       <>
-                        <ChevronUp className="w-4 h-4 mr-1" /> Ver Menos
+                        <ChevronUp className="w-4 h-4 mr-1" /> Ver menos
                       </>
                     ) : (
                       <>
-                        <ChevronDown className="w-4 h-4 mr-1" /> Ver Mais ({sortedTasks.length - VISIBLE_TASK_LIMIT} mais)
+                        <ChevronDown className="w-4 h-4 mr-1" /> Ver mais ({sortedTasks.length - VISIBLE_TASK_LIMIT} mais)
                       </>
                     )}
                   </Button>
