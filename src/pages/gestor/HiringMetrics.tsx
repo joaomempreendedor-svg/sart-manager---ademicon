@@ -763,15 +763,6 @@ const HiringMetrics = () => {
                           onOpen: () => handleOpenCandidatesDetailModal(block.negative.label, block.negative.candidates, 'total'),
                           tone: 'red',
                         },
-                        ...(block.positive.withdrawalNote && block.positive.withdrawalNote.count > 0
-                          ? [{
-                              label: `Porém ${block.positive.withdrawalNote.count} desistiram`,
-                              helperText: `Saíram depois de chegar em ${block.positive.label}`,
-                              count: block.positive.withdrawalNote.count,
-                              onOpen: () => handleOpenCandidatesDetailModal(`Desistências em "${block.positive.label}"`, block.positive.withdrawalNote?.candidates || [], 'withdrawn'),
-                              tone: 'rose' as const,
-                            }]
-                          : []),
                       ]}
                     />
                   )
