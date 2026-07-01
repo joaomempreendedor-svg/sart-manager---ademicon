@@ -332,9 +332,15 @@ const HiringMetrics = () => {
 
     const buildWithdrawnAtStage = (stageKey: HiringPipelineStageKey) => {
       return candidatesCreatedInPeriod.filter((candidate) => {
-        if (!candidate.reprovadoDate) return false;
-        const exitStage = candidate.withdrawalStageKey || getCandidateStageKey(candidate);
-        return exitStage === stageKey;
+        const exitStage = candidate.withdrawalStageKey;
+        if (!exitStage || exitStage !== stageKey) return false;
+
+        return (
+          isDateInRange(candidate.reprovadoDate, filterStartDate, filterEndDate) ||
+          isDateInRange(candidate.disqualifiedDate, filterStartDate, filterEndDate) ||
+          isDateInRange(candidate.managerRejectedDate, filterStartDate, filterEndDate) ||
+          isDateInRange(candidate.faltouDate, filterStartDate, filterEndDate)
+        );
       });
     };
 
