@@ -230,9 +230,10 @@ export const GestorTasksSection: React.FC<GestorTasksSectionProps> = ({
     try {
       const isRecurring = task.recurrence_pattern && task.recurrence_pattern.type !== 'none';
       const isCompletedToday = isRecurring && gestorTaskCompletions.some(c => c.gestor_task_id === task.id && c.user_id === user?.id && c.date === today && c.done);
+      const nextDoneState = isRecurring ? !isCompletedToday : !task.is_completed;
 
-      await toggleGestorTaskCompletion(task.id, !isCompletedToday, today);
-      toast.success(`Tarefa ${isCompletedToday ? 'marcada como pendente' : 'concluída'}!`);
+      await toggleGestorTaskCompletion(task.id, nextDoneState, today);
+      toast.success(`Tarefa ${nextDoneState ? 'concluída' : 'marcada como pendente'}!`);
     } catch (error) {
       console.error('Failed to toggle task completion:', error);
       toast.error('Erro ao atualizar status da tarefa.');
