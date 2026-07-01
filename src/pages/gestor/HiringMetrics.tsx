@@ -23,6 +23,7 @@ import { Candidate, HiringPipelineColumn, HiringPipelineStageKey, TeamMember } f
 import { buildCandidateTimeline, getHiringStageLabel, normalizeHiringPipelineColumns } from '@/lib/hiringPipeline';
 
 type MetricType = 'total' | 'newCandidates' | 'contacted' | 'scheduled' | 'conducted' | 'awaitingPreview' | 'hired' | 'noShow' | 'withdrawn' | 'disqualified' | 'noResponse';
+type MetricsSection = 'funnel' | 'withdrawals' | 'origins' | 'indications' | 'timeline';
 
 type FunnelStageConfig = {
   type: 'stage';
@@ -195,39 +196,12 @@ const STAGE_CARD_STYLES: Record<HiringPipelineColumn['color'], { border: string;
   orange: { border: 'border-orange-200 dark:border-orange-800', bg: 'bg-orange-50/70 dark:bg-orange-900/20', text: 'text-orange-700 dark:text-orange-300', iconBg: 'bg-orange-100/80 dark:bg-orange-900/40' },
 };
 
-interface SummaryCardProps {
-  title: string;
-  value: number;
-  helper: string;
-  tone: 'brand' | 'green' | 'rose' | 'indigo';
-  onClick?: () => void;
-}
-
-const SummaryCard: React.FC<SummaryCardProps> = ({ title, value, helper, tone, onClick }) => {
-  const tones = {
-    brand: 'border-brand-200 bg-brand-50 text-brand-700 dark:border-brand-900/40 dark:bg-brand-950/20 dark:text-brand-300',
-    green: 'border-green-200 bg-green-50 text-green-700 dark:border-green-900/40 dark:bg-green-950/20 dark:text-green-300',
-    rose: 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/40 dark:bg-rose-950/20 dark:text-rose-300',
-    indigo: 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-900/40 dark:bg-indigo-950/20 dark:text-indigo-300',
-  };
-
-  const content = (
-    <div className={`rounded-2xl border p-4 shadow-sm transition hover:shadow-md ${tones[tone]}`}>
-      <div className="text-[11px] font-bold uppercase tracking-[0.18em] opacity-70">{title}</div>
-      <div className="mt-2 text-3xl font-black leading-none">{value}</div>
-      <div className="mt-2 text-xs font-medium opacity-80">{helper}</div>
-    </div>
-  );
-
-  if (onClick) {
-    return (
-      <button onClick={onClick} className="w-full text-left">
-        {content}
-      </button>
-    );
-  }
-
-  return content;
+const SECTION_BUTTON_STYLES: Record<MetricsSection, string> = {
+  funnel: 'border-brand-200 bg-brand-50 text-brand-700 dark:border-brand-900/40 dark:bg-brand-950/20 dark:text-brand-300',
+  withdrawals: 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/40 dark:bg-rose-950/20 dark:text-rose-300',
+  origins: 'border-green-200 bg-green-50 text-green-700 dark:border-green-900/40 dark:bg-green-950/20 dark:text-green-300',
+  indications: 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-900/40 dark:bg-indigo-950/20 dark:text-indigo-300',
+  timeline: 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200',
 };
 
 const BreakdownRow: React.FC<{ row: BranchBreakdownRow }> = ({ row }) => {
@@ -412,6 +386,7 @@ const HiringMetrics = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStartDate, setFilterStartDate] = useState(currentMonthRange.start);
   const [filterEndDate, setFilterEndDate] = useState(currentMonthRange.end);
+  const [activeSection, setActiveSection] = useState<MetricsSection>('funnel');
   const [isCandidatesDetailModalOpen, setIsCandidatesDetailModalOpen] = useState(false);
   const [candidatesModalTitle, setCandidatesModalTitle] = useState('');
   const [candidatesForModal, setCandidatesForModal] = useState<Candidate[]>([]);
@@ -744,9 +719,6 @@ const HiringMetrics = () => {
               <PieChart className="h-8 w-8 text-brand-500" />
               Métricas de Contratação
             </h1>
-            <p className="mt-2 max-w-3xl text-sm text-gray-500 dark:text-gray-400">
-              Estrutura por abas mantida, com o funil reorganizado para caber melhor em uma única tela.
-            </p>
           </div>
 
           <button
@@ -818,174 +790,182 @@ const HiringMetrics = () => {
             Voltar para mês atual
           </button>
         </div>
-      </div>
 
-      <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <SummaryCard
-          title="Candidatos no período"
-          value={totalCohort}
-          helper="Base principal do painel"
-          tone="brand"
-          onClick={() => handleOpenCandidatesDetailModal('Candidatos no período', analytics.candidatesCreatedInPeriod, 'total')}
-        />
-        <SummaryCard
-          title="Desistências"
-          value={totalWithdrawals}
-          helper="Saídas após aprovação"
-          tone="rose"
-          onClick={() =>
-            handleOpenCandidatesDetailModal(
-              'Todas as desistências do período',
-              analytics.withdrawalStageRanking.flatMap((item) => item.candidates),
-              'withdrawn',
-            )
-          }
-        />
-        <SummaryCard
-          title="Origem líder"
-          value={topOrigin?.count || 0}
-          helper={topOrigin ? topOrigin.name : 'Sem origem líder no período'}
-          tone="green"
-          onClick={topOrigin ? () => handleOpenCandidatesDetailModal(`Origem: ${topOrigin.name}`, topOrigin.candidates, 'total') : undefined}
-        />
-        <SummaryCard
-          title="Consultor líder"
-          value={topIndication?.count || 0}
-          helper={topIndication ? topIndication.name : 'Sem indicações no período'}
-          tone="indigo"
-          onClick={topIndication ? () => handleOpenCandidatesDetailModal(`Indicações de ${topIndication.name}`, topIndication.candidates, 'total') : undefined}
-        />
-      </div>
-
-      <section className="mb-8 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:p-5">
-        <div className="mb-4 flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-bold text-gray-900 dark:text-white">Funil de Contratação</h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Cards mais compactos para visualizar melhor todas as etapas na mesma tela.
-            </p>
-          </div>
-          <BarChart3 className="h-5 w-5 text-gray-400" />
+        <div className="mt-6 flex flex-wrap gap-3">
+          <button
+            onClick={() => setActiveSection('funnel')}
+            className={`rounded-xl border px-4 py-2 text-sm font-bold transition hover:opacity-90 ${SECTION_BUTTON_STYLES.funnel}`}
+          >
+            Funil
+          </button>
+          <button
+            onClick={() => setActiveSection('withdrawals')}
+            className={`rounded-xl border px-4 py-2 text-sm font-bold transition hover:opacity-90 ${SECTION_BUTTON_STYLES.withdrawals}`}
+          >
+            Desistências
+          </button>
+          <button
+            onClick={() => setActiveSection('origins')}
+            className={`rounded-xl border px-4 py-2 text-sm font-bold transition hover:opacity-90 ${SECTION_BUTTON_STYLES.origins}`}
+          >
+            Origens
+          </button>
+          <button
+            onClick={() => setActiveSection('indications')}
+            className={`rounded-xl border px-4 py-2 text-sm font-bold transition hover:opacity-90 ${SECTION_BUTTON_STYLES.indications}`}
+          >
+            Consultores
+          </button>
+          <button
+            onClick={() => setActiveSection('timeline')}
+            className={`rounded-xl border px-4 py-2 text-sm font-bold transition hover:opacity-90 ${SECTION_BUTTON_STYLES.timeline}`}
+          >
+            Linha do Tempo
+          </button>
         </div>
-
-        {totalCohort === 0 ? (
-          <div className="rounded-xl border border-dashed border-gray-300 px-6 py-10 text-center text-sm text-gray-500 dark:border-slate-600 dark:text-gray-400">
-            Nenhum candidato encontrado para o período selecionado.
-          </div>
-        ) : (
-          <div className="rounded-2xl bg-gray-50/80 p-2 dark:bg-slate-900/30">
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
-              {analytics.processFunnelBlocks.map((block, index) =>
-                block.type === 'stage' ? (
-                  <FunnelStageCard
-                    key={`${block.type}-${index}`}
-                    title={block.title}
-                    color={block.color}
-                    count={block.count}
-                    parentCount={index === 0 ? 0 : totalCohort}
-                    totalCount={totalCohort}
-                    onOpen={() => handleOpenCandidatesDetailModal(block.title, block.candidates, 'total')}
-                    withdrawalNote={
-                      block.withdrawalNote
-                        ? {
-                            label: block.withdrawalNote.label,
-                            count: block.withdrawalNote.count,
-                            helperText: 'Foram aprovados nesta etapa, mas não seguiram o processo.',
-                            onOpen: () =>
-                              handleOpenCandidatesDetailModal(
-                                `Desistências em "${block.title}"`,
-                                block.withdrawalNote?.candidates || [],
-                                'withdrawn',
-                              ),
-                          }
-                        : undefined
-                    }
-                  />
-                ) : (
-                  <FunnelStageCard
-                    key={`${block.type}-${index}`}
-                    title={block.title}
-                    color={block.color}
-                    count={block.count}
-                    parentCount={totalCohort}
-                    totalCount={totalCohort}
-                    onOpen={() => handleOpenCandidatesDetailModal(block.title, block.candidates, 'total')}
-                    breakdownRows={[
-                      {
-                        label: 'Ainda nesta etapa',
-                        helperText: `Continuam em ${block.title}`,
-                        count: block.current.count,
-                        onOpen: () => handleOpenCandidatesDetailModal(`${block.title} · Ainda nesta etapa`, block.current.candidates, 'total'),
-                        tone: 'blue',
-                      },
-                      {
-                        label: block.positive.label,
-                        helperText:
-                          block.positive.withdrawalNote && block.positive.withdrawalNote.count > 0
-                            ? `${block.positive.count} total, ${block.positive.withdrawalNote.count} desistiram`
-                            : 'Avançaram',
-                        count: block.positive.count,
-                        onOpen: () =>
-                          handleOpenCandidatesDetailModal(
-                            `${block.positive.label} · incluindo quem depois desistiu`,
-                            block.positive.candidates,
-                            'total',
-                          ),
-                        tone: 'green',
-                      },
-                      {
-                        label: block.negative.label,
-                        helperText: 'Seguiram para este caminho',
-                        count: block.negative.count,
-                        onOpen: () => handleOpenCandidatesDetailModal(block.negative.label, block.negative.candidates, 'total'),
-                        tone: 'red',
-                      },
-                    ]}
-                  />
-                ),
-              )}
-            </div>
-          </div>
-        )}
-      </section>
-
-      <div className="mb-8 grid grid-cols-1 gap-8 xl:grid-cols-2">
-        <RankingTable
-          title="Ranking de desistência"
-          subtitle="Mostra apenas quem foi aprovado e abandonou o processo depois."
-          icon={<UserMinus className="h-5 w-5 text-rose-500" />}
-          rows={analytics.withdrawalStageRanking}
-          emptyMessage="Nenhuma desistência registrada no período."
-          colorClass="text-rose-600 dark:text-rose-400"
-          onOpen={(title, metricCandidates) => handleOpenCandidatesDetailModal(title, metricCandidates, 'withdrawn')}
-          countLabel="desist."
-        />
-
-        <RankingTable
-          title="Origens"
-          subtitle="Distribuição dos cadastros no período selecionado."
-          icon={<MapPin className="h-5 w-5 text-brand-500" />}
-          rows={analytics.candidatesByOrigin}
-          emptyMessage="Nenhum cadastro encontrado para o período."
-          colorClass="text-brand-600 dark:text-brand-400"
-          onOpen={(title, metricCandidates) => handleOpenCandidatesDetailModal(title, metricCandidates, 'total')}
-          countLabel="cand."
-        />
       </div>
 
-      <div className="mb-8 grid grid-cols-1 gap-8 xl:grid-cols-2">
-        <RankingTable
-          title="Consultores que mais indicam"
-          subtitle="Ranking dos consultores com mais candidatos atribuídos no período."
-          icon={<Users className="h-5 w-5 text-indigo-500" />}
-          rows={analytics.topIndications}
-          emptyMessage="Nenhuma indicação atribuída no período."
-          colorClass="text-indigo-600 dark:text-indigo-400"
-          onOpen={(title, metricCandidates) => handleOpenCandidatesDetailModal(title, metricCandidates, 'total')}
-          countLabel="ind."
-        />
+      {activeSection === 'funnel' && (
+        <section className="mb-8 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:p-5">
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">Funil de Contratação</h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Cards mais compactos para visualizar melhor todas as etapas na mesma tela.
+              </p>
+            </div>
+            <BarChart3 className="h-5 w-5 text-gray-400" />
+          </div>
 
-        <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          {totalCohort === 0 ? (
+            <div className="rounded-xl border border-dashed border-gray-300 px-6 py-10 text-center text-sm text-gray-500 dark:border-slate-600 dark:text-gray-400">
+              Nenhum candidato encontrado para o período selecionado.
+            </div>
+          ) : (
+            <div className="rounded-2xl bg-gray-50/80 p-2 dark:bg-slate-900/30">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+                {analytics.processFunnelBlocks.map((block, index) =>
+                  block.type === 'stage' ? (
+                    <FunnelStageCard
+                      key={`${block.type}-${index}`}
+                      title={block.title}
+                      color={block.color}
+                      count={block.count}
+                      parentCount={index === 0 ? 0 : totalCohort}
+                      totalCount={totalCohort}
+                      onOpen={() => handleOpenCandidatesDetailModal(block.title, block.candidates, 'total')}
+                      withdrawalNote={
+                        block.withdrawalNote
+                          ? {
+                              label: block.withdrawalNote.label,
+                              count: block.withdrawalNote.count,
+                              helperText: 'Foram aprovados nesta etapa, mas não seguiram o processo.',
+                              onOpen: () =>
+                                handleOpenCandidatesDetailModal(
+                                  `Desistências em "${block.title}"`,
+                                  block.withdrawalNote?.candidates || [],
+                                  'withdrawn',
+                                ),
+                            }
+                          : undefined
+                      }
+                    />
+                  ) : (
+                    <FunnelStageCard
+                      key={`${block.type}-${index}`}
+                      title={block.title}
+                      color={block.color}
+                      count={block.count}
+                      parentCount={totalCohort}
+                      totalCount={totalCohort}
+                      onOpen={() => handleOpenCandidatesDetailModal(block.title, block.candidates, 'total')}
+                      breakdownRows={[
+                        {
+                          label: 'Ainda nesta etapa',
+                          helperText: `Continuam em ${block.title}`,
+                          count: block.current.count,
+                          onOpen: () => handleOpenCandidatesDetailModal(`${block.title} · Ainda nesta etapa`, block.current.candidates, 'total'),
+                          tone: 'blue',
+                        },
+                        {
+                          label: block.positive.label,
+                          helperText:
+                            block.positive.withdrawalNote && block.positive.withdrawalNote.count > 0
+                              ? `${block.positive.count} total, ${block.positive.withdrawalNote.count} desistiram`
+                              : 'Avançaram',
+                          count: block.positive.count,
+                          onOpen: () =>
+                            handleOpenCandidatesDetailModal(
+                              `${block.positive.label} · incluindo quem depois desistiu`,
+                              block.positive.candidates,
+                              'total',
+                            ),
+                          tone: 'green',
+                        },
+                        {
+                          label: block.negative.label,
+                          helperText: 'Seguiram para este caminho',
+                          count: block.negative.count,
+                          onOpen: () => handleOpenCandidatesDetailModal(block.negative.label, block.negative.candidates, 'total'),
+                          tone: 'red',
+                        },
+                      ]}
+                    />
+                  ),
+                )}
+              </div>
+            </div>
+          )}
+        </section>
+      )}
+
+      {activeSection === 'withdrawals' && (
+        <div className="mb-8">
+          <RankingTable
+            title="Ranking de desistência"
+            subtitle="Mostra apenas quem foi aprovado e abandonou o processo depois."
+            icon={<UserMinus className="h-5 w-5 text-rose-500" />}
+            rows={analytics.withdrawalStageRanking}
+            emptyMessage="Nenhuma desistência registrada no período."
+            colorClass="text-rose-600 dark:text-rose-400"
+            onOpen={(title, metricCandidates) => handleOpenCandidatesDetailModal(title, metricCandidates, 'withdrawn')}
+            countLabel="desist."
+          />
+        </div>
+      )}
+
+      {activeSection === 'origins' && (
+        <div className="mb-8">
+          <RankingTable
+            title="Origens"
+            subtitle="Distribuição dos cadastros no período selecionado."
+            icon={<MapPin className="h-5 w-5 text-brand-500" />}
+            rows={analytics.candidatesByOrigin}
+            emptyMessage="Nenhum cadastro encontrado para o período."
+            colorClass="text-brand-600 dark:text-brand-400"
+            onOpen={(title, metricCandidates) => handleOpenCandidatesDetailModal(title, metricCandidates, 'total')}
+            countLabel="cand."
+          />
+        </div>
+      )}
+
+      {activeSection === 'indications' && (
+        <div className="mb-8">
+          <RankingTable
+            title="Consultores que mais indicam"
+            subtitle="Ranking dos consultores com mais candidatos atribuídos no período."
+            icon={<Users className="h-5 w-5 text-indigo-500" />}
+            rows={analytics.topIndications}
+            emptyMessage="Nenhuma indicação atribuída no período."
+            colorClass="text-indigo-600 dark:text-indigo-400"
+            onOpen={(title, metricCandidates) => handleOpenCandidatesDetailModal(title, metricCandidates, 'total')}
+            countLabel="ind."
+          />
+        </div>
+      )}
+
+      {activeSection === 'timeline' && (
+        <section className="mb-8 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
           <div className="mb-4 flex items-center justify-between">
             <div>
               <h2 className="flex items-center gap-2 text-lg font-bold text-gray-900 dark:text-white">
@@ -1067,7 +1047,7 @@ const HiringMetrics = () => {
             </div>
           )}
         </section>
-      </div>
+      )}
 
       <CandidatesDetailModal
         isOpen={isCandidatesDetailModalOpen}
