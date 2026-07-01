@@ -330,17 +330,14 @@ const HiringMetrics = () => {
       };
     };
 
+    const isWithdrawnCandidate = (candidate: Candidate) => {
+      return !!candidate.withdrawalStageKey || !!candidate.reprovadoDate || !!candidate.withdrawalReason || !!candidate.withdrawalReasonOption;
+    };
+
     const buildWithdrawnAtStage = (stageKey: HiringPipelineStageKey) => {
       return candidatesCreatedInPeriod.filter((candidate) => {
-        const exitStage = candidate.withdrawalStageKey;
-        if (!exitStage || exitStage !== stageKey) return false;
-
-        return (
-          isDateInRange(candidate.reprovadoDate, filterStartDate, filterEndDate) ||
-          isDateInRange(candidate.disqualifiedDate, filterStartDate, filterEndDate) ||
-          isDateInRange(candidate.managerRejectedDate, filterStartDate, filterEndDate) ||
-          isDateInRange(candidate.faltouDate, filterStartDate, filterEndDate)
-        );
+        if (!isWithdrawnCandidate(candidate)) return false;
+        return candidate.withdrawalStageKey === stageKey;
       });
     };
 
@@ -367,11 +364,11 @@ const HiringMetrics = () => {
       const negativeCandidates: Candidate[] = [];
 
       parentMetric.candidates.forEach((candidate) => {
-        const currentStageKey = getCandidateStageKey(candidate);
-
         if (withdrawnIds.has(candidate.id)) {
           return;
         }
+
+        const currentStageKey = getCandidateStageKey(candidate);
 
         if (currentStageKey === item.parentStageKey) {
           currentCandidates.push(candidate);
@@ -421,17 +418,12 @@ const HiringMetrics = () => {
       };
     });
 
-    const withdrawalCandidates = searchFilteredCandidates.filter(
-      (candidate) =>
-        isDateInRange(candidate.reprovadoDate, filterStartDate, filterEndDate) ||
-        isDateInRange(candidate.disqualifiedDate, filterStartDate, filterEndDate) ||
-        isDateInRange(candidate.managerRejectedDate, filterStartDate, filterEndDate),
-    );
+    const withdrawalCandidates = searchFilteredCandidates.filter((candidate) => isWithdrawnCandidate(candidate));
 
     const withdrawalStageMap = new Map<string, { name: string; count: number; candidates: Candidate[] }>();
     withdrawalCandidates.forEach((candidate) => {
       const stageKey = candidate.withdrawalStageKey || getCandidateStageKey(candidate);
-      const stageName = candidate.withdrawalStageKey ? getHiringStageLabel(candidate.withdrawalStageKey) : getHiringStageLabel(stageKey);
+      const stageName = getHiringStageLabel(stageKey);
       const current = withdrawalStageMap.get(stageName);
       if (current) {
         current.count += 1;
@@ -497,7 +489,7 @@ const HiringMetrics = () => {
       candidatesByOrigin,
       topIndications,
     };
-  }, [cohortCandidates, searchFilteredCandidates, filterEndDate, filterStartDate, hiringOrigins, normalizedColumns, teamMembers]);
+  }, [cohortCandidates, searchFilteredCandidates, hiringOrigins, normalizedColumns, teamMembers]);
 
   const periodLabel = useMemo(() => {
     if (filterStartDate && filterEndDate) return `${filterStartDate} até ${filterEndDate}`;
