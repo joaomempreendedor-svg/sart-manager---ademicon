@@ -60,6 +60,13 @@ type BranchBreakdownRow = {
   tone: 'blue' | 'green' | 'red' | 'rose';
 };
 
+type StageWithdrawalNote = {
+  label: string;
+  count: number;
+  helperText: string;
+  onOpen: () => void;
+};
+
 const WITHDRAWAL_ALLOWED_STAGE_KEYS: HiringPipelineStageKey[] = [
   'aprovado-gestor',
   'aprovacao-d1',
@@ -77,6 +84,14 @@ const WITHDRAWAL_ALLOWED_STAGE_KEYS: HiringPipelineStageKey[] = [
   'contrato-assinado',
   'contrato-nao-assinado',
   'autorizado',
+];
+
+const STAGES_WITH_INLINE_WITHDRAWAL_NOTE: HiringPipelineStageKey[] = [
+  'respondeu',
+  'aprovado-gestor',
+  'previa-cadastrada',
+  'integracao-finalizada',
+  'candidato-em-previa',
 ];
 
 const SECTION_OPTIONS: Array<{ key: SectionKey; title: string; icon: React.ComponentType<{ className?: string }> }> = [
@@ -183,12 +198,7 @@ interface FunnelStageCardProps {
   totalCount: number;
   onOpen: () => void;
   breakdownRows?: BranchBreakdownRow[];
-  footerNote?: {
-    label: string;
-    count: number;
-    helperText?: string;
-    onOpen: () => void;
-  };
+  withdrawalNote?: StageWithdrawalNote;
 }
 
 const BreakdownRow: React.FC<{ row: BranchBreakdownRow }> = ({ row }) => {
@@ -223,7 +233,7 @@ const BreakdownRow: React.FC<{ row: BranchBreakdownRow }> = ({ row }) => {
 };
 
 const FunnelStageCard: React.FC<FunnelStageCardProps> = ({
-  title, color, count, parentCount, totalCount, onOpen, breakdownRows, footerNote,
+  title, color, count, parentCount, totalCount, onOpen, breakdownRows, withdrawalNote,
 }) => {
   const style = STAGE_CARD_STYLES[color] || STAGE_CARD_STYLES.gray;
   const percentOfTotal = totalCount > 0 ? Math.round((count / totalCount) * 100) : 0;
@@ -249,6 +259,23 @@ const FunnelStageCard: React.FC<FunnelStageCardProps> = ({
           </div>
         </button>
 
+        {withdrawalNote && withdrawalNote.count > 0 && (
+          <button
+            onClick={withdrawalNote.onOpen}
+            className="mb-3 flex w-full items-center justify-between rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-left transition hover:opacity-90 dark:border-rose-800 dark:bg-rose-900/20"
+          >
+            <div className="min-w-0">
+              <div className="text-[11px] font-bold text-rose-700 dark:text-rose-300">{withdrawalNote.label}</div>
+              <div className="mt-0.5 text-[10px] text-rose-600/80 dark:text-rose-300/80">
+                {withdrawalNote.helperText}
+              </div>
+            </div>
+            <span className="ml-3 flex-shrink-0 text-sm font-black text-rose-700 dark:text-rose-300">
+              {withdrawalNote.count}
+            </span>
+          </button>
+        )}
+
         {breakdownRows && breakdownRows.length > 0 && (
           <div className="mt-3 space-y-2">
             <div className="rounded-lg border border-dashed border-gray-200 bg-white/70 px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-gray-500 dark:border-slate-600 dark:bg-slate-900/30 dark:text-gray-400">
@@ -258,23 +285,6 @@ const FunnelStageCard: React.FC<FunnelStageCardProps> = ({
               <BreakdownRow key={row.label} row={row} />
             ))}
           </div>
-        )}
-
-        {footerNote && (
-          <button
-            onClick={footerNote.onOpen}
-            className="mt-3 flex w-full items-center justify-between rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-left transition hover:opacity-90 dark:border-rose-800 dark:bg-rose-900/20"
-          >
-            <div className="min-w-0">
-              <div className="text-[11px] font-bold text-rose-700 dark:text-rose-300">{footerNote.label}</div>
-              <div className="mt-0.5 text-[10px] text-rose-600/80 dark:text-rose-300/80">
-                {footerNote.helperText || 'Informação complementar desta etapa'}
-              </div>
-            </div>
-            <span className="ml-3 flex-shrink-0 text-sm font-black text-rose-700 dark:text-rose-300">
-              {footerNote.count}
-            </span>
-          </button>
         )}
       </div>
 
@@ -384,6 +394,7 @@ const HiringMetrics = () => {
       if (item.type === 'stage') {
         const metric = buildCohortStageMetric(item.stageKey);
         const withdrawnAtStage = buildWithdrawnAtStage(item.stageKey);
+        const showWithdrawalNote = STAGES_WITH_INLINE_WITHDRAWAL_NOTE.includes(item.stageKey);
 
         return {
           type: 'stage' as const,
@@ -392,17 +403,16 @@ const HiringMetrics = () => {
           color: metric.color,
           count: metric.count,
           candidates: metric.candidates,
-          withdrawn: {
-            label: 'Desistiu aqui',
+          withdrawalNote: showWithdrawalNote ? {
+            label: `Porém ${withdrawnAtStage.length} desistiram`,
             count: withdrawnAtStage.length,
             candidates: withdrawnAtStage,
-          },
+          } : null,
         };
       }
 
       const parentMetric = buildCohortStageMetric(item.parentStageKey);
       const parentColumn = columnsByKey.get(item.parentStageKey);
-      const withdrawnAtParent = buildWithdrawnAtStage(item.parentStageKey);
 
       const currentCandidates: Candidate[] = [];
       const positiveCandidates: Candidate[] = [];
@@ -464,6 +474,10 @@ const HiringMetrics = () => {
         });
       };
 
+      const uniquePositiveCandidates = uniqueById(positiveCandidates);
+      const positiveWithdrawals = uniquePositiveCandidates.filter((candidate) => isWithdrawnCandidate(candidate) && candidate.withdrawalStageKey === item.positiveStageKey);
+      const showPositiveWithdrawalNote = STAGES_WITH_INLINE_WITHDRAWAL_NOTE.includes(item.positiveStageKey);
+
       return {
         type: 'branch' as const,
         parentStageKey: item.parentStageKey,
@@ -478,13 +492,13 @@ const HiringMetrics = () => {
         },
         positive: {
           label: getHiringStageLabel(item.positiveStageKey),
-          count: uniqueById(positiveCandidates).length,
-          candidates: uniqueById(positiveCandidates),
-        },
-        withdrawn: {
-          label: 'Desistiu aqui',
-          count: withdrawnAtParent.length,
-          candidates: withdrawnAtParent,
+          count: uniquePositiveCandidates.length,
+          candidates: uniquePositiveCandidates,
+          withdrawalNote: showPositiveWithdrawalNote ? {
+            label: `Porém ${positiveWithdrawals.length} desistiram`,
+            count: positiveWithdrawals.length,
+            candidates: positiveWithdrawals,
+          } : null,
         },
         negative: {
           label: getHiringStageLabel(item.negativeStageKey),
@@ -626,7 +640,7 @@ const HiringMetrics = () => {
               <BarChart3 className="mr-2 h-4 w-4" />Filtros da análise
             </h3>
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              A desistência agora aparece apenas para quem foi aprovado e abandonou o processo depois. Reprovados e eliminados continuam só no fluxo normal.
+              O total da etapa não muda. Nas etapas principais, a desistência aparece só como complemento visual.
             </p>
           </div>
           {(searchTerm || filterStartDate || filterEndDate) && (
@@ -721,12 +735,12 @@ const HiringMetrics = () => {
                       parentCount={index === 0 ? 0 : totalCohort}
                       totalCount={totalCohort}
                       onOpen={() => handleOpenCandidatesDetailModal(block.title, block.candidates, 'total')}
-                      footerNote={{
-                        label: 'Desistiu aqui',
-                        count: block.withdrawn.count,
-                        helperText: `Foi aprovado, chegou nesta etapa, mas não seguiu o processo`,
-                        onOpen: () => handleOpenCandidatesDetailModal(`Desistiu em "${block.title}"`, block.withdrawn.candidates, 'withdrawn'),
-                      }}
+                      withdrawalNote={block.withdrawalNote ? {
+                        label: block.withdrawalNote.label,
+                        count: block.withdrawalNote.count,
+                        helperText: 'Foram aprovados nesta etapa, mas não seguiram o processo.',
+                        onOpen: () => handleOpenCandidatesDetailModal(`Desistências em "${block.title}"`, block.withdrawalNote?.candidates || [], 'withdrawn'),
+                      } : undefined}
                     />
                   ) : (
                     <FunnelStageCard
@@ -747,7 +761,9 @@ const HiringMetrics = () => {
                         },
                         {
                           label: block.positive.label,
-                          helperText: 'Avançaram para este caminho',
+                          helperText: block.positive.withdrawalNote && block.positive.withdrawalNote.count > 0
+                            ? `${block.positive.count} no total, porém ${block.positive.withdrawalNote.count} desistiram`
+                            : 'Avançaram para este caminho',
                           count: block.positive.count,
                           onOpen: () => handleOpenCandidatesDetailModal(`${block.positive.label} · incluindo quem depois desistiu`, block.positive.candidates, 'total'),
                           tone: 'green',
@@ -759,13 +775,16 @@ const HiringMetrics = () => {
                           onOpen: () => handleOpenCandidatesDetailModal(block.negative.label, block.negative.candidates, 'total'),
                           tone: 'red',
                         },
+                        ...(block.positive.withdrawalNote && block.positive.withdrawalNote.count > 0
+                          ? [{
+                              label: `Porém ${block.positive.withdrawalNote.count} desistiram`,
+                              helperText: `Saíram depois de chegar em ${block.positive.label}`,
+                              count: block.positive.withdrawalNote.count,
+                              onOpen: () => handleOpenCandidatesDetailModal(`Desistências em "${block.positive.label}"`, block.positive.withdrawalNote?.candidates || [], 'withdrawn'),
+                              tone: 'rose' as const,
+                            }]
+                          : []),
                       ]}
-                      footerNote={{
-                        label: 'Desistiu aqui',
-                        count: block.withdrawn.count,
-                        helperText: `Foi aprovado, chegou até aqui, mas também desistiu depois`,
-                        onOpen: () => handleOpenCandidatesDetailModal(`Desistiu em "${block.title}"`, block.withdrawn.candidates, 'withdrawn'),
-                      }}
                     />
                   )
                 ))}
