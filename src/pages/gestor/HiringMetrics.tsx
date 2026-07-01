@@ -4,17 +4,22 @@ import {
   AlertTriangle,
   ArrowLeft,
   BarChart3,
+  Briefcase,
   Calendar,
   CheckCircle2,
   ChevronRight,
+  Clock3,
   History,
   Loader2,
   MapPin,
   PieChart,
   RotateCcw,
   Search,
+  TrendingUp,
+  UserCheck,
   UserMinus,
   Users,
+  XCircle,
 } from 'lucide-react';
 
 import { CandidatesDetailModal } from '@/components/gestor/CandidatesDetailModal';
@@ -57,7 +62,7 @@ type BranchBreakdownRow = {
   helperText?: string;
   count: number;
   onOpen: () => void;
-  tone: 'blue' | 'green' | 'red' | 'rose';
+  tone: 'blue' | 'green' | 'red' | 'rose' | 'purple' | 'orange';
 };
 
 type StageWithdrawalNote = {
@@ -187,14 +192,14 @@ const formatDateTime = (value?: string) => {
   });
 };
 
-const STAGE_CARD_STYLES: Record<HiringPipelineColumn['color'], { border: string; bg: string; text: string; iconBg: string; badge: string }> = {
-  gray: { border: 'border-gray-200 dark:border-slate-600', bg: 'bg-white dark:bg-slate-800/60', text: 'text-gray-700 dark:text-gray-200', iconBg: 'bg-gray-100 dark:bg-slate-700', badge: 'bg-gray-100 text-gray-700 dark:bg-slate-700 dark:text-gray-200' },
-  blue: { border: 'border-blue-200 dark:border-blue-800', bg: 'bg-blue-50/70 dark:bg-blue-900/20', text: 'text-blue-700 dark:text-blue-300', iconBg: 'bg-blue-100/80 dark:bg-blue-900/40', badge: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' },
-  purple: { border: 'border-purple-200 dark:border-purple-800', bg: 'bg-purple-50/70 dark:bg-purple-900/20', text: 'text-purple-700 dark:text-purple-300', iconBg: 'bg-purple-100/80 dark:bg-purple-900/40', badge: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300' },
-  yellow: { border: 'border-yellow-200 dark:border-yellow-800', bg: 'bg-yellow-50/80 dark:bg-yellow-900/20', text: 'text-yellow-700 dark:text-yellow-300', iconBg: 'bg-yellow-100/80 dark:bg-yellow-900/40', badge: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300' },
-  green: { border: 'border-green-200 dark:border-green-800', bg: 'bg-green-50/70 dark:bg-green-900/20', text: 'text-green-700 dark:text-green-300', iconBg: 'bg-green-100/80 dark:bg-green-900/40', badge: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300' },
-  red: { border: 'border-red-200 dark:border-red-800', bg: 'bg-red-50/70 dark:bg-red-900/20', text: 'text-red-700 dark:text-red-300', iconBg: 'bg-red-100/80 dark:bg-red-900/40', badge: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' },
-  orange: { border: 'border-orange-200 dark:border-orange-800', bg: 'bg-orange-50/70 dark:bg-orange-900/20', text: 'text-orange-700 dark:text-orange-300', iconBg: 'bg-orange-100/80 dark:bg-orange-900/40', badge: 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300' },
+const STAGE_CARD_STYLES: Record<HiringPipelineColumn['color'], { border: string; bg: string; text: string; iconBg: string; badge: string; progress: string }> = {
+  gray: { border: 'border-gray-200 dark:border-slate-600', bg: 'bg-white dark:bg-slate-800', text: 'text-blue-600 dark:text-blue-400', iconBg: 'bg-blue-50 dark:bg-blue-950/30', badge: 'bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300', progress: 'bg-blue-500' },
+  blue: { border: 'border-blue-200 dark:border-blue-800', bg: 'bg-white dark:bg-slate-800', text: 'text-blue-600 dark:text-blue-400', iconBg: 'bg-blue-50 dark:bg-blue-950/30', badge: 'bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300', progress: 'bg-blue-500' },
+  purple: { border: 'border-purple-200 dark:border-purple-800', bg: 'bg-white dark:bg-slate-800', text: 'text-purple-600 dark:text-purple-400', iconBg: 'bg-purple-50 dark:bg-purple-950/30', badge: 'bg-purple-50 text-purple-700 dark:bg-purple-950/30 dark:text-purple-300', progress: 'bg-purple-500' },
+  yellow: { border: 'border-amber-200 dark:border-amber-800', bg: 'bg-white dark:bg-slate-800', text: 'text-amber-600 dark:text-amber-400', iconBg: 'bg-amber-50 dark:bg-amber-950/30', badge: 'bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300', progress: 'bg-amber-500' },
+  green: { border: 'border-green-200 dark:border-green-800', bg: 'bg-white dark:bg-slate-800', text: 'text-green-600 dark:text-green-400', iconBg: 'bg-green-50 dark:bg-green-950/30', badge: 'bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-300', progress: 'bg-green-500' },
+  red: { border: 'border-red-200 dark:border-red-800', bg: 'bg-white dark:bg-slate-800', text: 'text-red-600 dark:text-red-400', iconBg: 'bg-red-50 dark:bg-red-950/30', badge: 'bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-300', progress: 'bg-red-500' },
+  orange: { border: 'border-cyan-200 dark:border-cyan-800', bg: 'bg-white dark:bg-slate-800', text: 'text-cyan-600 dark:text-cyan-400', iconBg: 'bg-cyan-50 dark:bg-cyan-950/30', badge: 'bg-cyan-50 text-cyan-700 dark:bg-cyan-950/30 dark:text-cyan-300', progress: 'bg-cyan-500' },
 };
 
 const SECTION_BUTTON_STYLES: Record<MetricsSection, string> = {
@@ -205,29 +210,82 @@ const SECTION_BUTTON_STYLES: Record<MetricsSection, string> = {
   timeline: 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200',
 };
 
+const getStageIcon = (color: HiringPipelineColumn['color']) => {
+  switch (color) {
+    case 'green':
+      return CheckCircle2;
+    case 'purple':
+      return UserCheck;
+    case 'yellow':
+      return TrendingUp;
+    case 'red':
+      return XCircle;
+    case 'orange':
+      return Briefcase;
+    default:
+      return Users;
+  }
+};
+
 const BreakdownRow: React.FC<{ row: BranchBreakdownRow }> = ({ row }) => {
   const toneClasses = {
-    blue: 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/40 dark:bg-blue-950/20 dark:text-blue-300',
-    green: 'border-green-200 bg-green-50 text-green-700 dark:border-green-900/40 dark:bg-green-950/20 dark:text-green-300',
-    red: 'border-red-200 bg-red-50 text-red-700 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-300',
-    rose: 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/40 dark:bg-rose-950/20 dark:text-rose-300',
+    blue: 'text-blue-700 dark:text-blue-300',
+    green: 'text-green-700 dark:text-green-300',
+    red: 'text-red-700 dark:text-red-300',
+    rose: 'text-rose-700 dark:text-rose-300',
+    purple: 'text-purple-700 dark:text-purple-300',
+    orange: 'text-amber-700 dark:text-amber-300',
   };
 
   return (
     <button
       onClick={row.onOpen}
-      className={`flex w-full items-center justify-between rounded-lg border px-2.5 py-2 text-left transition hover:opacity-90 ${toneClasses[row.tone]}`}
+      className="flex w-full items-center justify-between py-1 text-left transition hover:opacity-80"
     >
       <div className="min-w-0">
-        <div className="truncate text-[11px] font-bold">{row.label}</div>
-        {row.helperText && <div className="mt-0.5 line-clamp-1 text-[10px] opacity-80">{row.helperText}</div>}
+        <div className="truncate text-[12px] text-slate-600 dark:text-slate-300">{row.label}</div>
+        {row.helperText && <div className="mt-0.5 line-clamp-1 text-[10px] text-slate-400">{row.helperText}</div>}
       </div>
-      <span className="ml-2 flex-shrink-0 text-xs font-black">{row.count}</span>
+      <span className={`ml-2 flex-shrink-0 text-[13px] font-black ${toneClasses[row.tone]}`}>{row.count}</span>
     </button>
   );
 };
 
+interface SummaryMetricCardProps {
+  title: string;
+  value: string;
+  subtitle: string;
+  color: 'blue' | 'green' | 'purple' | 'amber' | 'red';
+  icon: React.ElementType;
+}
+
+const SummaryMetricCard: React.FC<SummaryMetricCardProps> = ({ title, value, subtitle, color, icon: Icon }) => {
+  const styles = {
+    blue: 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/30',
+    green: 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950/30',
+    purple: 'text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/30',
+    amber: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30',
+    red: 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30',
+  };
+
+  return (
+    <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+      <div className="flex items-start gap-4">
+        <div className={`flex h-12 w-12 items-center justify-center rounded-full ${styles[color]}`}>
+          <Icon className="h-6 w-6" />
+        </div>
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">{title}</p>
+          <p className="mt-1 text-4xl font-black tracking-tight text-slate-900 dark:text-white">{value}</p>
+          <p className={`mt-2 text-sm font-semibold ${styles[color].split(' ')[0]} ${styles[color].split(' ')[1]}`}>{subtitle}</p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 interface FunnelStageCardProps {
+  index: number;
   title: string;
   color: HiringPipelineColumn['color'];
   count: number;
@@ -236,10 +294,10 @@ interface FunnelStageCardProps {
   onOpen: () => void;
   breakdownRows?: BranchBreakdownRow[];
   withdrawalNote?: StageWithdrawalNote;
-  compact?: boolean;
 }
 
 const FunnelStageCard: React.FC<FunnelStageCardProps> = ({
+  index,
   title,
   color,
   count,
@@ -248,56 +306,90 @@ const FunnelStageCard: React.FC<FunnelStageCardProps> = ({
   onOpen,
   breakdownRows,
   withdrawalNote,
-  compact = false,
 }) => {
   const style = STAGE_CARD_STYLES[color] || STAGE_CARD_STYLES.gray;
-  const percentOfTotal = totalCount > 0 ? Math.round((count / totalCount) * 100) : 0;
+  const Icon = getStageIcon(color);
+  const percentOfTotal = totalCount > 0 ? (count / totalCount) * 100 : 0;
+  const conversionRate = parentCount > 0 ? (count / parentCount) * 100 : 100;
 
   return (
-    <div className={`rounded-2xl border ${style.border} ${style.bg} ${compact ? 'p-4' : 'p-5'} shadow-sm transition hover:shadow-md`}>
+    <div className={`rounded-2xl border ${style.border} ${style.bg} p-4 shadow-sm transition hover:shadow-md`}>
       <button onClick={onOpen} className="w-full text-left">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex min-w-0 items-start gap-3">
-            <span className={`mt-0.5 flex ${compact ? 'h-9 w-9' : 'h-10 w-10'} flex-shrink-0 items-center justify-center rounded-xl ${style.iconBg}`}>
-              <BarChart3 className={`${compact ? 'h-4 w-4' : 'h-5 w-5'} ${style.text}`} />
+        <div className="mb-5 flex items-start justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <span className={`rounded-xl px-3 py-1 text-sm font-black ${style.badge}`}>
+              {String(index).padStart(2, '0')}
             </span>
-            <div className="min-w-0">
-              <h3 className={`${compact ? 'text-xs sm:text-sm' : 'text-sm'} font-bold leading-tight ${style.text}`}>{title}</h3>
-              <div className={`mt-2 font-black tracking-tight text-gray-900 dark:text-white ${compact ? 'text-3xl sm:text-4xl' : 'text-4xl sm:text-5xl'}`}>
-                {count}
-              </div>
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-                {parentCount > 0 && (
-                  <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${style.badge}`}>
-                    de {parentCount}
-                  </span>
-                )}
-                <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
-                  {percentOfTotal}% do funil
-                </span>
-              </div>
+            <div>
+              <h3 className="text-[15px] font-bold leading-tight text-slate-900 dark:text-white">{title}</h3>
             </div>
           </div>
-          <ChevronRight className="mt-1 h-4 w-4 flex-shrink-0 text-gray-400" />
+          <ChevronRight className="mt-1 h-4 w-4 text-slate-300" />
+        </div>
+
+        <div className="mb-5 flex flex-col items-center text-center">
+          <div className={`mb-4 flex h-20 w-20 items-center justify-center rounded-full ${style.iconBg}`}>
+            <Icon className={`h-9 w-9 ${style.text}`} />
+          </div>
+          <div className="text-5xl font-black tracking-tight text-slate-900 dark:text-white">{count}</div>
+          <div className="mt-1 text-xl font-bold text-slate-500 dark:text-slate-400">
+            {percentOfTotal.toFixed(2)}%
+          </div>
         </div>
       </button>
 
-      {withdrawalNote && withdrawalNote.count > 0 && (
-        <button
-          onClick={withdrawalNote.onOpen}
-          className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-left text-xs font-semibold text-rose-700 transition hover:bg-rose-100 dark:border-rose-900/40 dark:bg-rose-950/20 dark:text-rose-300"
-        >
-          {withdrawalNote.label}
-        </button>
-      )}
+      <div className="border-t border-gray-100 pt-4 dark:border-slate-700">
+        {breakdownRows && breakdownRows.length > 0 ? (
+          <div className="space-y-1">
+            {breakdownRows.map((row) => (
+              <BreakdownRow key={row.label} row={row} />
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-1">
+            <BreakdownRow
+              row={{
+                label: 'Total nesta etapa',
+                count,
+                onOpen,
+                tone: color === 'red' ? 'red' : color === 'green' ? 'green' : color === 'purple' ? 'purple' : color === 'yellow' ? 'orange' : 'blue',
+              }}
+            />
+            {withdrawalNote && withdrawalNote.count > 0 && (
+              <BreakdownRow
+                row={{
+                  label: 'Desistências',
+                  helperText: withdrawalNote.helperText,
+                  count: withdrawalNote.count,
+                  onOpen: withdrawalNote.onOpen,
+                  tone: 'red',
+                }}
+              />
+            )}
+            <BreakdownRow
+              row={{
+                label: 'Seguem para próxima',
+                count,
+                onOpen,
+                tone: color === 'red' ? 'red' : color === 'green' ? 'green' : color === 'purple' ? 'purple' : color === 'yellow' ? 'orange' : 'blue',
+              }}
+            />
+          </div>
+        )}
 
-      {breakdownRows && breakdownRows.length > 0 && (
-        <div className="mt-4 grid grid-cols-1 gap-2">
-          {breakdownRows.map((row) => (
-            <BreakdownRow key={row.label} row={row} />
-          ))}
+        <div className="mt-5 border-t border-gray-100 pt-4 dark:border-slate-700">
+          <div className="mb-2 flex items-center justify-between text-[12px] font-semibold text-slate-500 dark:text-slate-400">
+            <span>Taxa de Conversão</span>
+            <span className={`${style.text}`}>{conversionRate.toFixed(2)}%</span>
+          </div>
+          <div className="h-3 w-full rounded-full bg-slate-100 dark:bg-slate-700">
+            <div
+              className={`h-3 rounded-full ${style.progress}`}
+              style={{ width: `${Math.min(100, conversionRate)}%` }}
+            />
+          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 };
@@ -571,12 +663,24 @@ const HiringMetrics = () => {
         count: parentMetric.count,
         candidates: parentMetric.candidates,
         current: {
-          label: 'Ainda nesta etapa',
+          label: 'Novos nesta etapa',
           count: uniqueById(currentCandidates).length,
           candidates: uniqueById(currentCandidates),
         },
         positive: {
-          label: getHiringStageLabel(item.positiveStageKey),
+          label: item.positiveStageKey === 'compareceu-entrevista'
+            ? 'Compareceram'
+            : item.positiveStageKey === 'aprovado-gestor'
+            ? 'Aprovados'
+            : item.positiveStageKey === 'documentacao-enviada'
+            ? 'Enviadas'
+            : item.positiveStageKey === 'onboarding-finalizado'
+            ? 'Finalizados'
+            : item.positiveStageKey === 'integracao-compareceu'
+            ? 'Compareceram'
+            : item.positiveStageKey === 'contrato-assinado'
+            ? 'Contratados'
+            : getHiringStageLabel(item.positiveStageKey),
           count: uniquePositiveCandidates.length,
           candidates: uniquePositiveCandidates,
           withdrawalNote: showPositiveWithdrawalNote
@@ -588,7 +692,19 @@ const HiringMetrics = () => {
             : null,
         },
         negative: {
-          label: getHiringStageLabel(item.negativeStageKey),
+          label: item.negativeStageKey === 'faltou-entrevista'
+            ? 'Desistências'
+            : item.negativeStageKey === 'reprovado-gestor'
+            ? 'Reprovados'
+            : item.negativeStageKey === 'documentacao-nao-enviada'
+            ? 'Recusadas'
+            : item.negativeStageKey === 'onboarding-nao-finalizado'
+            ? 'Não concluíram'
+            : item.negativeStageKey === 'integracao-nao-compareceu'
+            ? 'Faltaram'
+            : item.negativeStageKey === 'contrato-nao-assinado'
+            ? 'Desistências'
+            : getHiringStageLabel(item.negativeStageKey),
           count: uniqueById(negativeCandidates).length,
           candidates: uniqueById(negativeCandidates),
         },
@@ -667,12 +783,49 @@ const HiringMetrics = () => {
       }))
       .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'pt-BR'));
 
+    const totalCandidates = candidatesCreatedInPeriod.length;
+    const contractedCount = buildCohortStageMetric('autorizado').count;
+    const contactedCount = buildCohortStageMetric('contatados').count;
+    const withdrawnCount = withdrawalCandidates.length;
+    const conversionRate = totalCandidates > 0 ? (contractedCount / totalCandidates) * 100 : 0;
+
+    const timelineDates = candidatesCreatedInPeriod
+      .flatMap((candidate) => buildCandidateTimeline(candidate).map((event) => event.date))
+      .filter(Boolean)
+      .map((date) => new Date(date as string).getTime())
+      .filter((time) => !Number.isNaN(time));
+
+    const averageProcessDays = timelineDates.length > 0
+      ? Math.max(
+          0,
+          Math.round(
+            candidatesCreatedInPeriod.reduce((sum, candidate) => {
+              const start = new Date(candidate.createdAt).getTime();
+              const end = candidate.authorizedDate
+                ? new Date(candidate.authorizedDate).getTime()
+                : new Date(candidate.lastUpdatedAt || candidate.createdAt).getTime();
+              return sum + Math.max(0, end - start);
+            }, 0) /
+              Math.max(1, candidatesCreatedInPeriod.length) /
+              (1000 * 60 * 60 * 24),
+          ),
+        )
+      : 0;
+
     return {
       candidatesCreatedInPeriod,
       processFunnelBlocks,
       withdrawalStageRanking,
       candidatesByOrigin,
       topIndications,
+      summary: {
+        totalCandidates,
+        contactedCount,
+        contractedCount,
+        withdrawnCount,
+        conversionRate,
+        averageProcessDays,
+      },
     };
   }, [cohortCandidates, searchFilteredCandidates, hiringOrigins, normalizedColumns, teamMembers]);
 
@@ -706,28 +859,37 @@ const HiringMetrics = () => {
   }
 
   const totalCohort = analytics.candidatesCreatedInPeriod.length;
-  const firstRowBlocks = analytics.processFunnelBlocks.slice(0, 3);
-  const middleRowBlocks = analytics.processFunnelBlocks.slice(3, 11);
-  const lastRowBlocks = analytics.processFunnelBlocks.slice(11);
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 dark:bg-slate-900 sm:mx-auto sm:max-w-[1600px] sm:p-6">
+    <div className="min-h-screen bg-[#f7f8fc] p-4 dark:bg-slate-900 sm:mx-auto sm:max-w-[1700px] sm:p-6">
       <div className="mb-6 rounded-3xl border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-        <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
-          <div>
-            <h1 className="flex items-center gap-3 text-2xl font-black tracking-tight text-gray-900 dark:text-white sm:text-3xl">
-              <PieChart className="h-8 w-8 text-brand-500" />
-              Métricas de Contratação
-            </h1>
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+          <div className="flex items-start gap-4">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/30 dark:text-indigo-400">
+              <BarChart3 className="h-7 w-7" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white">
+                Métricas de Contratação
+              </h1>
+              <p className="mt-1 text-base text-slate-500 dark:text-slate-400">
+                Visão geral do funil de recrutamento
+              </p>
+            </div>
           </div>
 
-          <button
-            onClick={() => navigate(`${baseRoute}/hiring-pipeline`)}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-800 px-4 py-2.5 font-bold text-white transition hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600"
-          >
-            <ArrowLeft className="h-5 w-5" />
-            Voltar ao Pipeline
-          </button>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-semibold text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
+              {filterStartDate || 'Início'} - {filterEndDate || 'Fim'}
+            </div>
+            <button
+              onClick={() => navigate(`${baseRoute}/hiring-pipeline`)}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-800 px-4 py-3 font-bold text-white transition hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600"
+            >
+              <ArrowLeft className="h-5 w-5" />
+              Voltar ao Pipeline
+            </button>
+          </div>
         </div>
 
         <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-4">
@@ -826,86 +988,87 @@ const HiringMetrics = () => {
       </div>
 
       {activeSection === 'funnel' && (
-        <section className="mb-8 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-          <div className="mb-4 flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-bold text-gray-900 dark:text-white">Funil de Contratação</h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                Cards organizados para leitura rápida, com destaque maior nas etapas que se dividem.
-              </p>
-            </div>
-            <BarChart3 className="h-5 w-5 text-gray-400" />
+        <>
+          <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
+            <SummaryMetricCard
+              title="Total de Candidatos"
+              value={String(analytics.summary.totalCandidates)}
+              subtitle={`${analytics.summary.totalCandidates > 0 ? '100% do funil' : 'Sem dados no período'}`}
+              color="blue"
+              icon={Users}
+            />
+            <SummaryMetricCard
+              title="Contatados"
+              value={String(analytics.summary.contactedCount)}
+              subtitle={`${analytics.summary.totalCandidates > 0 ? `${((analytics.summary.contactedCount / analytics.summary.totalCandidates) * 100).toFixed(2)}% do total` : 'Sem dados'}`}
+              color="green"
+              icon={Users}
+            />
+            <SummaryMetricCard
+              title="Taxa de Conversão"
+              value={`${analytics.summary.conversionRate.toFixed(2)}%`}
+              subtitle="Do início ao fim"
+              color="purple"
+              icon={TrendingUp}
+            />
+            <SummaryMetricCard
+              title="Tempo Médio do Processo"
+              value={`${analytics.summary.averageProcessDays} dias`}
+              subtitle="Do início à contratação"
+              color="amber"
+              icon={Clock3}
+            />
+            <SummaryMetricCard
+              title="Desistências"
+              value={String(analytics.summary.withdrawnCount)}
+              subtitle={`${analytics.summary.totalCandidates > 0 ? `${((analytics.summary.withdrawnCount / analytics.summary.totalCandidates) * 100).toFixed(2)}% do total` : 'Sem dados'}`}
+              color="red"
+              icon={UserMinus}
+            />
           </div>
 
-          {totalCohort === 0 ? (
-            <div className="rounded-xl border border-dashed border-gray-300 px-6 py-10 text-center text-sm text-gray-500 dark:border-slate-600 dark:text-gray-400">
-              Nenhum candidato encontrado para o período selecionado.
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                {firstRowBlocks.map((block, index) =>
-                  block.type === 'stage' ? (
-                    <FunnelStageCard
-                      key={`${block.type}-top-${index}`}
-                      title={block.title}
-                      color={block.color}
-                      count={block.count}
-                      parentCount={index === 0 ? 0 : totalCohort}
-                      totalCount={totalCohort}
-                      onOpen={() => handleOpenCandidatesDetailModal(block.title, block.candidates, 'total')}
-                      compact
-                      withdrawalNote={
-                        block.withdrawalNote
-                          ? {
-                              label: block.withdrawalNote.label,
-                              count: block.withdrawalNote.count,
-                              helperText: 'Foram aprovados nesta etapa, mas não seguiram o processo.',
-                              onOpen: () =>
-                                handleOpenCandidatesDetailModal(
-                                  `Desistências em "${block.title}"`,
-                                  block.withdrawalNote?.candidates || [],
-                                  'withdrawn',
-                                ),
-                            }
-                          : undefined
-                      }
-                    />
-                  ) : null,
-                )}
+          <section className="mb-8 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+            {totalCohort === 0 ? (
+              <div className="rounded-xl border border-dashed border-gray-300 px-6 py-10 text-center text-sm text-gray-500 dark:border-slate-600 dark:text-gray-400">
+                Nenhum candidato encontrado para o período selecionado.
               </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-4 xl:grid-cols-6">
+                {analytics.processFunnelBlocks.map((block, index) => {
+                  if (block.type === 'stage') {
+                    return (
+                      <FunnelStageCard
+                        key={`${block.type}-${index}`}
+                        index={index + 1}
+                        title={block.title}
+                        color={block.color}
+                        count={block.count}
+                        parentCount={index === 0 ? totalCohort : totalCohort}
+                        totalCount={totalCohort}
+                        onOpen={() => handleOpenCandidatesDetailModal(block.title, block.candidates, 'total')}
+                        withdrawalNote={
+                          block.withdrawalNote
+                            ? {
+                                label: block.withdrawalNote.label,
+                                count: block.withdrawalNote.count,
+                                helperText: 'Foram aprovados nesta etapa, mas não seguiram o processo.',
+                                onOpen: () =>
+                                  handleOpenCandidatesDetailModal(
+                                    `Desistências em "${block.title}"`,
+                                    block.withdrawalNote?.candidates || [],
+                                    'withdrawn',
+                                  ),
+                              }
+                            : undefined
+                        }
+                      />
+                    );
+                  }
 
-              <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-                {middleRowBlocks.map((block, index) =>
-                  block.type === 'stage' ? (
+                  return (
                     <FunnelStageCard
-                      key={`${block.type}-middle-${index}`}
-                      title={block.title}
-                      color={block.color}
-                      count={block.count}
-                      parentCount={totalCohort}
-                      totalCount={totalCohort}
-                      onOpen={() => handleOpenCandidatesDetailModal(block.title, block.candidates, 'total')}
-                      compact
-                      withdrawalNote={
-                        block.withdrawalNote
-                          ? {
-                              label: block.withdrawalNote.label,
-                              count: block.withdrawalNote.count,
-                              helperText: 'Foram aprovados nesta etapa, mas não seguiram o processo.',
-                              onOpen: () =>
-                                handleOpenCandidatesDetailModal(
-                                  `Desistências em "${block.title}"`,
-                                  block.withdrawalNote?.candidates || [],
-                                  'withdrawn',
-                                ),
-                            }
-                          : undefined
-                      }
-                    />
-                  ) : (
-                    <FunnelStageCard
-                      key={`${block.type}-middle-${index}`}
+                      key={`${block.type}-${index}`}
+                      index={index + 1}
                       title={block.title}
                       color={block.color}
                       count={block.count}
@@ -914,18 +1077,15 @@ const HiringMetrics = () => {
                       onOpen={() => handleOpenCandidatesDetailModal(block.title, block.candidates, 'total')}
                       breakdownRows={[
                         {
-                          label: 'Ainda nesta etapa',
-                          helperText: `Continuam em ${block.title}`,
+                          label: block.current.label,
+                          helperText: 'Ainda nesta etapa',
                           count: block.current.count,
                           onOpen: () => handleOpenCandidatesDetailModal(`${block.title} · Ainda nesta etapa`, block.current.candidates, 'total'),
                           tone: 'blue',
                         },
                         {
                           label: block.positive.label,
-                          helperText:
-                            block.positive.withdrawalNote && block.positive.withdrawalNote.count > 0
-                              ? `${block.positive.count} total, ${block.positive.withdrawalNote.count} desistiram`
-                              : 'Avançaram',
+                          helperText: 'Seguem para próxima',
                           count: block.positive.count,
                           onOpen: () =>
                             handleOpenCandidatesDetailModal(
@@ -933,56 +1093,61 @@ const HiringMetrics = () => {
                               block.positive.candidates,
                               'total',
                             ),
-                          tone: 'green',
+                          tone: block.color === 'purple' ? 'purple' : block.color === 'yellow' ? 'orange' : 'green',
                         },
                         {
                           label: block.negative.label,
-                          helperText: 'Seguiram para este caminho',
+                          helperText: 'Não avançaram',
                           count: block.negative.count,
                           onOpen: () => handleOpenCandidatesDetailModal(block.negative.label, block.negative.candidates, 'total'),
                           tone: 'red',
                         },
                       ]}
                     />
-                  ),
-                )}
+                  );
+                })}
               </div>
+            )}
+          </section>
 
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                {lastRowBlocks.map((block, index) =>
-                  block.type === 'stage' ? (
-                    <FunnelStageCard
-                      key={`${block.type}-bottom-${index}`}
-                      title={block.title}
-                      color={block.color}
-                      count={block.count}
-                      parentCount={totalCohort}
-                      totalCount={totalCohort}
-                      onClick={() => handleOpenCandidatesDetailModal(block.title, block.candidates, 'total')}
-                      onOpen={() => handleOpenCandidatesDetailModal(block.title, block.candidates, 'total')}
-                      compact
-                      withdrawalNote={
-                        block.withdrawalNote
-                          ? {
-                              label: block.withdrawalNote.label,
-                              count: block.withdrawalNote.count,
-                              helperText: 'Foram aprovados nesta etapa, mas não seguiram o processo.',
-                              onOpen: () =>
-                                handleOpenCandidatesDetailModal(
-                                  `Desistências em "${block.title}"`,
-                                  block.withdrawalNote?.candidates || [],
-                                  'withdrawn',
-                                ),
-                            }
-                          : undefined
-                      }
-                    />
-                  ) : null,
-                )}
-              </div>
-            </div>
-          )}
-        </section>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
+            <SummaryMetricCard
+              title="Total no Funil"
+              value={String(analytics.summary.totalCandidates)}
+              subtitle="Base analisada"
+              color="blue"
+              icon={Users}
+            />
+            <SummaryMetricCard
+              title="Total Contratados"
+              value={String(analytics.summary.contractedCount)}
+              subtitle="Fechamento final"
+              color="green"
+              icon={CheckCircle2}
+            />
+            <SummaryMetricCard
+              title="Conversão Geral"
+              value={`${analytics.summary.conversionRate.toFixed(2)}%`}
+              subtitle="Do início ao fim"
+              color="purple"
+              icon={TrendingUp}
+            />
+            <SummaryMetricCard
+              title="Tempo Médio Total"
+              value={`${analytics.summary.averageProcessDays} dias`}
+              subtitle="Tempo médio"
+              color="amber"
+              icon={Clock3}
+            />
+            <SummaryMetricCard
+              title="Total de Desistências"
+              value={`${analytics.summary.withdrawnCount}`}
+              subtitle={`${analytics.summary.totalCandidates > 0 ? `${((analytics.summary.withdrawnCount / analytics.summary.totalCandidates) * 100).toFixed(2)}%` : '0%'}`}
+              color="red"
+              icon={XCircle}
+            />
+          </div>
+        </>
       )}
 
       {activeSection === 'withdrawals' && (
