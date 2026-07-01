@@ -254,21 +254,21 @@ const FunnelStageCard: React.FC<FunnelStageCardProps> = ({
   const percentOfTotal = totalCount > 0 ? Math.round((count / totalCount) * 100) : 0;
 
   return (
-    <div className={`rounded-2xl border ${style.border} ${style.bg} ${compact ? 'p-3' : 'p-4'} shadow-sm`}>
+    <div className={`rounded-2xl border ${style.border} ${style.bg} ${compact ? 'p-4' : 'p-5'} shadow-sm transition hover:shadow-md`}>
       <button onClick={onOpen} className="w-full text-left">
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-start gap-3">
-            <span className={`mt-0.5 flex ${compact ? 'h-8 w-8' : 'h-9 w-9'} flex-shrink-0 items-center justify-center rounded-xl ${style.iconBg}`}>
-              <BarChart3 className={`${compact ? 'h-3.5 w-3.5' : 'h-4 w-4'} ${style.text}`} />
+            <span className={`mt-0.5 flex ${compact ? 'h-9 w-9' : 'h-10 w-10'} flex-shrink-0 items-center justify-center rounded-xl ${style.iconBg}`}>
+              <BarChart3 className={`${compact ? 'h-4 w-4' : 'h-5 w-5'} ${style.text}`} />
             </span>
             <div className="min-w-0">
-              <h3 className={`${compact ? 'text-xs' : 'text-sm'} font-bold leading-tight ${style.text}`}>{title}</h3>
+              <h3 className={`${compact ? 'text-xs sm:text-sm' : 'text-sm'} font-bold leading-tight ${style.text}`}>{title}</h3>
+              <div className={`mt-2 font-black tracking-tight text-gray-900 dark:text-white ${compact ? 'text-3xl sm:text-4xl' : 'text-4xl sm:text-5xl'}`}>
+                {count}
+              </div>
               <div className="mt-2 flex flex-wrap items-center gap-2">
-                <span className={`rounded-full px-2.5 py-1 ${compact ? 'text-[11px]' : 'text-xs'} font-bold ${style.badge}`}>
-                  {count} candidatos
-                </span>
                 {parentCount > 0 && (
-                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                  <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${style.badge}`}>
                     de {parentCount}
                   </span>
                 )}
@@ -292,7 +292,7 @@ const FunnelStageCard: React.FC<FunnelStageCardProps> = ({
       )}
 
       {breakdownRows && breakdownRows.length > 0 && (
-        <div className="mt-3 grid grid-cols-1 gap-2">
+        <div className="mt-4 grid grid-cols-1 gap-2">
           {breakdownRows.map((row) => (
             <BreakdownRow key={row.label} row={row} />
           ))}
@@ -958,6 +958,7 @@ const HiringMetrics = () => {
                       count={block.count}
                       parentCount={totalCohort}
                       totalCount={totalCohort}
+                      onClick={() => handleOpenCandidatesDetailModal(block.title, block.candidates, 'total')}
                       onOpen={() => handleOpenCandidatesDetailModal(block.title, block.candidates, 'total')}
                       compact
                       withdrawalNote={
