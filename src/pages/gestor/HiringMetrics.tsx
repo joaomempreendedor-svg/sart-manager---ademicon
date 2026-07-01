@@ -164,6 +164,11 @@ interface FunnelStageCardProps {
   totalCount: number;
   onOpen: () => void;
   breakdownRows?: BranchBreakdownRow[];
+  footerNote?: {
+    label: string;
+    count: number;
+    onOpen: () => void;
+  };
 }
 
 const BreakdownRow: React.FC<{ row: BranchBreakdownRow }> = ({ row }) => {
@@ -198,7 +203,7 @@ const BreakdownRow: React.FC<{ row: BranchBreakdownRow }> = ({ row }) => {
 };
 
 const FunnelStageCard: React.FC<FunnelStageCardProps> = ({
-  title, color, count, parentCount, totalCount, onOpen, breakdownRows,
+  title, color, count, parentCount, totalCount, onOpen, breakdownRows, footerNote,
 }) => {
   const style = STAGE_CARD_STYLES[color] || STAGE_CARD_STYLES.gray;
   const percentOfTotal = totalCount > 0 ? Math.round((count / totalCount) * 100) : 0;
@@ -233,6 +238,23 @@ const FunnelStageCard: React.FC<FunnelStageCardProps> = ({
               <BreakdownRow key={row.label} row={row} />
             ))}
           </div>
+        )}
+
+        {footerNote && (
+          <button
+            onClick={footerNote.onOpen}
+            className="mt-3 flex w-full items-center justify-between rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-left transition hover:opacity-90 dark:border-rose-800 dark:bg-rose-900/20"
+          >
+            <div className="min-w-0">
+              <div className="text-[11px] font-bold text-rose-700 dark:text-rose-300">{footerNote.label}</div>
+              <div className="mt-0.5 text-[10px] text-rose-600/80 dark:text-rose-300/80">
+                Informação complementar desta etapa
+              </div>
+            </div>
+            <span className="ml-3 flex-shrink-0 text-sm font-black text-rose-700 dark:text-rose-300">
+              {footerNote.count}
+            </span>
+          </button>
         )}
       </div>
 
@@ -362,16 +384,11 @@ const HiringMetrics = () => {
       const parentColumn = columnsByKey.get(item.parentStageKey);
       const withdrawnAtParent = buildWithdrawnAtStage(item.parentStageKey);
 
-      const withdrawnIds = new Set(withdrawnAtParent.map((candidate) => candidate.id));
       const currentCandidates: Candidate[] = [];
       const positiveCandidates: Candidate[] = [];
       const negativeCandidates: Candidate[] = [];
 
       parentMetric.candidates.forEach((candidate) => {
-        if (withdrawnIds.has(candidate.id)) {
-          return;
-        }
-
         const currentStageKey = getCandidateStageKey(candidate);
 
         if (currentStageKey === item.parentStageKey) {
@@ -554,7 +571,7 @@ const HiringMetrics = () => {
               <BarChart3 className="mr-2 h-4 w-4" />Filtros da análise
             </h3>
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              No funil, o período filtra pela data de <strong>cadastro</strong> do candidato. Agora todos os cards também mostram quantos desistiram exatamente naquela etapa.
+              No funil, o período filtra pela data de <strong>cadastro</strong> do candidato. Os totais principais continuam mostrando quem passou pela etapa, e a linha “Desistiu aqui” aparece como informação complementar da mesma etapa.
             </p>
           </div>
           {(searchTerm || filterStartDate || filterEndDate) && (
@@ -649,15 +666,11 @@ const HiringMetrics = () => {
                       parentCount={index === 0 ? 0 : totalCohort}
                       totalCount={totalCohort}
                       onOpen={() => handleOpenCandidatesDetailModal(block.title, block.candidates, 'total')}
-                      breakdownRows={[
-                        {
-                          label: 'Desistiu aqui',
-                          helperText: `Saíram durante ${block.title}`,
-                          count: block.withdrawn.count,
-                          onOpen: () => handleOpenCandidatesDetailModal(`Desistiu em "${block.title}"`, block.withdrawn.candidates, 'withdrawn'),
-                          tone: 'rose',
-                        },
-                      ]}
+                      footerNote={{
+                        label: 'Desistiu aqui',
+                        count: block.withdrawn.count,
+                        onOpen: () => handleOpenCandidatesDetailModal(`Desistiu em "${block.title}"`, block.withdrawn.candidates, 'withdrawn'),
+                      }}
                     />
                   ) : (
                     <FunnelStageCard
@@ -684,13 +697,6 @@ const HiringMetrics = () => {
                           tone: 'green',
                         },
                         {
-                          label: 'Desistiu aqui',
-                          helperText: `Saíram durante ${block.title}`,
-                          count: block.withdrawn.count,
-                          onOpen: () => handleOpenCandidatesDetailModal(`Desistiu em "${block.title}"`, block.withdrawn.candidates, 'withdrawn'),
-                          tone: 'rose',
-                        },
-                        {
                           label: block.negative.label,
                           helperText: 'Seguiram para este caminho',
                           count: block.negative.count,
@@ -698,6 +704,11 @@ const HiringMetrics = () => {
                           tone: 'red',
                         },
                       ]}
+                      footerNote={{
+                        label: 'Desistiu aqui',
+                        count: block.withdrawn.count,
+                        onOpen: () => handleOpenCandidatesDetailModal(`Desistiu em "${block.title}"`, block.withdrawn.candidates, 'withdrawn'),
+                      }}
                     />
                   )
                 ))}
