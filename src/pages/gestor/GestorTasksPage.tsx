@@ -1,6 +1,6 @@
 import React from 'react';
 import { GestorTasksSection } from '@/components/gestor/GestorTasksSection';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Settings2 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 
 export const GestorTasksPage = () => {
@@ -15,12 +15,17 @@ export const GestorTasksPage = () => {
   }
 
   return (
-    <div className="p-4 sm:p-8 max-w-4xl mx-auto pb-20">
+    <div className="p-4 sm:p-8 max-w-6xl mx-auto pb-20">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Minhas Tarefas Pessoais</h1>
-        <p className="text-gray-500 dark:text-gray-400">Gerencie suas tarefas diárias e recorrentes.</p>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+          <Settings2 className="w-6 h-6 text-brand-500" />
+          Configurar tarefas do gestor
+        </h1>
+        <p className="text-gray-500 dark:text-gray-400">
+          Cadastre, edite e organize suas tarefas; no dashboard aparecem só as atividades do dia.
+        </p>
       </div>
-      <GestorTasksSection />
+      <GestorTasksSection mode="config" />
     </div>
   );
 };

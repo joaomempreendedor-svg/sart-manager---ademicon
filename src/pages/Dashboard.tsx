@@ -4,7 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import {
   Loader2, DollarSign, Star, FileText, Video, FileStack,
   UserSearch, Users, TrendingUp, TrendingDown, CheckCircle2, Clock,
-  UserCheck, UserX, ArrowUpRight, BarChart3, Calendar, Briefcase, ListTodo
+  UserCheck, UserX, ArrowUpRight, BarChart3, Calendar, Briefcase, ListTodo, Settings2
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { GestorTasksSection } from '@/components/gestor/GestorTasksSection';
@@ -122,16 +122,16 @@ export const Dashboard = () => {
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-black text-gray-900 dark:text-white flex items-center gap-2">
               <ListTodo className="w-5 h-5 text-brand-500" />
-              Meu checklist principal
+              Atividades do dia
             </h2>
             <button
               onClick={() => navigate('/gestor/tasks')}
               className="text-xs font-bold text-brand-600 dark:text-brand-400 flex items-center gap-1 hover:underline"
             >
-              Abrir página completa <ArrowUpRight className="w-3 h-3" />
+              Configurar tarefas <Settings2 className="w-3 h-3" />
             </button>
           </div>
-          <GestorTasksSection compact />
+          <GestorTasksSection compact mode="dashboard" />
         </section>
 
         {(metrics.interviewsToday > 0 || metrics.pendingInterview > 0) && (

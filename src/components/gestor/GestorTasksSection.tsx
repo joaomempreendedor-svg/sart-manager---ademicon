@@ -20,6 +20,7 @@ import {
   ChevronDown,
   ChevronUp,
   ArrowRightCircle,
+  Settings2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,9 +39,13 @@ const formatDate = (date: Date) => date.toISOString().split('T')[0];
 
 interface GestorTasksSectionProps {
   compact?: boolean;
+  mode?: 'dashboard' | 'config';
 }
 
-export const GestorTasksSection: React.FC<GestorTasksSectionProps> = ({ compact = false }) => {
+export const GestorTasksSection: React.FC<GestorTasksSectionProps> = ({
+  compact = false,
+  mode = 'config',
+}) => {
   const { user } = useAuth();
   const {
     gestorTasks,
@@ -72,8 +77,8 @@ export const GestorTasksSection: React.FC<GestorTasksSectionProps> = ({ compact 
   const [rescheduleDate, setRescheduleDate] = useState('');
   const [isRescheduling, setIsRescheduling] = useState(false);
 
-  const VISIBLE_TASK_LIMIT = compact ? 5 : 3;
   const today = formatDate(new Date());
+  const isDashboardMode = mode === 'dashboard';
 
   const sortedTasks = useMemo(() => {
     return [...gestorTasks].sort((a, b) => {
@@ -99,9 +104,21 @@ export const GestorTasksSection: React.FC<GestorTasksSectionProps> = ({ compact 
     });
   }, [gestorTasks, gestorTaskCompletions, user?.id, today, isGestorTaskDueOnDate]);
 
-  const tasksToDisplay = useMemo(() => {
-    return showAllTasks ? sortedTasks : sortedTasks.slice(0, VISIBLE_TASK_LIMIT);
-  }, [sortedTasks, showAllTasks]);
+  const dashboardTasks = useMemo(() => {
+    return sortedTasks.filter(task => {
+      const isRecurring = task.recurrence_pattern && task.recurrence_pattern.type !== 'none';
+      const isDueToday = isGestorTaskDueOnDate(task, today);
+      const isOverdue = !isRecurring && !task.is_completed && !!task.due_date && task.due_date < today;
+      return isDueToday || isOverdue;
+    });
+  }, [sortedTasks, today, isGestorTaskDueOnDate]);
+
+  const configVisibleLimit = compact ? 5 : 6;
+  const tasksToDisplay = isDashboardMode
+    ? dashboardTasks
+    : showAllTasks
+      ? sortedTasks
+      : sortedTasks.slice(0, configVisibleLimit);
 
   const handleAddTask = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -273,119 +290,131 @@ export const GestorTasksSection: React.FC<GestorTasksSectionProps> = ({ compact 
   return (
     <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl shadow-sm flex flex-col overflow-hidden">
       <div className="px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex items-center space-x-2 bg-brand-50 dark:bg-brand-900/20">
-        <ListTodo className="w-5 h-5 text-brand-600 dark:text-brand-400" />
-        <h2 className="text-lg font-semibold text-brand-800 dark:text-brand-300">Minhas Tarefas ({gestorTasks.length})</h2>
+        {isDashboardMode ? (
+          <ListTodo className="w-5 h-5 text-brand-600 dark:text-brand-400" />
+        ) : (
+          <Settings2 className="w-5 h-5 text-brand-600 dark:text-brand-400" />
+        )}
+        <h2 className="text-lg font-semibold text-brand-800 dark:text-brand-300">
+          {isDashboardMode ? `Atividades de hoje (${dashboardTasks.length})` : `Configurar tarefas (${gestorTasks.length})`}
+        </h2>
       </div>
 
-      <div className={`p-4 ${compact ? 'grid grid-cols-1 xl:grid-cols-[1.1fr_1.4fr] gap-4' : 'grid grid-cols-1 md:grid-cols-2 gap-4'}`}>
-        <div className="space-y-3">
-          <h3 className="text-md font-semibold text-gray-900 dark:text-white">
-            {editingTask ? 'Editar tarefa' : 'Adicionar nova tarefa'}
-          </h3>
+      <div className={`p-4 ${!isDashboardMode ? 'grid grid-cols-1 md:grid-cols-2 gap-4' : ''}`}>
+        {!isDashboardMode && (
+          <div className="space-y-3">
+            <h3 className="text-md font-semibold text-gray-900 dark:text-white">
+              {editingTask ? 'Editar tarefa' : 'Adicionar nova tarefa'}
+            </h3>
 
-          <form onSubmit={editingTask ? handleUpdateTask : handleAddTask} className="space-y-3">
-            <div>
-              <Label htmlFor="taskTitle">Título da tarefa *</Label>
-              <Input
-                id="taskTitle"
-                value={editingTask ? editTaskTitle : newTaskTitle}
-                onChange={(e) => (editingTask ? setEditTaskTitle(e.target.value) : setNewTaskTitle(e.target.value))}
-                required
-                className="dark:bg-slate-700 dark:text-white dark:border-slate-600"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="taskDescription">Descrição</Label>
-              <Textarea
-                id="taskDescription"
-                value={editingTask ? editTaskDescription : newTaskDescription}
-                onChange={(e) => (editingTask ? setEditTaskDescription(e.target.value) : setNewTaskDescription(e.target.value))}
-                rows={compact ? 2 : 3}
-                className="dark:bg-slate-700 dark:text-white dark:border-slate-600"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="taskDueDate">Data</Label>
-              <Input
-                id="taskDueDate"
-                type="date"
-                value={editingTask ? editTaskDueDate : newTaskDueDate}
-                onChange={(e) => (editingTask ? setEditTaskDueDate(e.target.value) : setNewTaskDueDate(e.target.value))}
-                className="dark:bg-slate-700 dark:text-white dark:border-slate-600"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="recurrenceType">Recorrência</Label>
-              <Select
-                value={editingTask ? editTaskRecurrenceType : newTaskRecurrenceType}
-                onValueChange={(value: 'none' | 'daily' | 'every_x_days') => {
-                  if (editingTask) {
-                    setEditTaskRecurrenceType(value);
-                    if (value === 'none') setEditTaskRecurrenceInterval(undefined);
-                    else if (value === 'daily') setEditTaskRecurrenceInterval(1);
-                    else setEditTaskRecurrenceInterval(2);
-                  } else {
-                    setNewTaskRecurrenceType(value);
-                    if (value === 'none') setNewTaskRecurrenceInterval(undefined);
-                    else if (value === 'daily') setNewTaskRecurrenceInterval(1);
-                    else setNewTaskRecurrenceInterval(2);
-                  }
-                }}
-              >
-                <SelectTrigger className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
-                  <SelectValue placeholder="Nenhuma" />
-                </SelectTrigger>
-                <SelectContent className="bg-white text-gray-900 dark:bg-slate-800 dark:text-white dark:border-slate-700">
-                  <SelectItem value="none">Nenhuma</SelectItem>
-                  <SelectItem value="daily">Diária</SelectItem>
-                  <SelectItem value="every_x_days">A cada X dias</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {(editingTask ? editTaskRecurrenceType === 'every_x_days' : newTaskRecurrenceType === 'every_x_days') && (
+            <form onSubmit={editingTask ? handleUpdateTask : handleAddTask} className="space-y-3">
               <div>
-                <Label htmlFor="recurrenceInterval">Repetir a cada (dias) *</Label>
+                <Label htmlFor="taskTitle">Título da tarefa *</Label>
                 <Input
-                  id="recurrenceInterval"
-                  type="number"
-                  min="2"
-                  value={editingTask ? editTaskRecurrenceInterval || '' : newTaskRecurrenceInterval || ''}
-                  onChange={(e) => {
-                    const value = parseInt(e.target.value, 10);
-                    if (editingTask) setEditTaskRecurrenceInterval(isNaN(value) ? undefined : value);
-                    else setNewTaskRecurrenceInterval(isNaN(value) ? undefined : value);
-                  }}
-                  className="dark:bg-slate-700 dark:text-white dark:border-slate-600"
-                  placeholder="Ex: 3"
+                  id="taskTitle"
+                  value={editingTask ? editTaskTitle : newTaskTitle}
+                  onChange={(e) => (editingTask ? setEditTaskTitle(e.target.value) : setNewTaskTitle(e.target.value))}
                   required
+                  className="dark:bg-slate-700 dark:text-white dark:border-slate-600"
                 />
               </div>
-            )}
 
-            <div className="flex gap-2 flex-col sm:flex-row">
-              <Button type="submit" disabled={isAddingTask || isUpdatingTask} className="bg-brand-600 hover:bg-brand-700 text-white flex-1">
-                {isAddingTask || isUpdatingTask ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : editingTask ? <Save className="w-4 h-4 mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
-                {editingTask ? 'Salvar edição' : 'Adicionar tarefa'}
-              </Button>
+              <div>
+                <Label htmlFor="taskDescription">Descrição</Label>
+                <Textarea
+                  id="taskDescription"
+                  value={editingTask ? editTaskDescription : newTaskDescription}
+                  onChange={(e) => (editingTask ? setEditTaskDescription(e.target.value) : setNewTaskDescription(e.target.value))}
+                  rows={3}
+                  className="dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                />
+              </div>
 
-              {editingTask && (
-                <Button type="button" variant="outline" onClick={() => setEditingTask(null)} className="dark:bg-slate-700 dark:text-white dark:border-slate-600 flex-1">
-                  <X className="w-4 h-4 mr-2" /> Cancelar
-                </Button>
+              <div>
+                <Label htmlFor="taskDueDate">Data</Label>
+                <Input
+                  id="taskDueDate"
+                  type="date"
+                  value={editingTask ? editTaskDueDate : newTaskDueDate}
+                  onChange={(e) => (editingTask ? setEditTaskDueDate(e.target.value) : setNewTaskDueDate(e.target.value))}
+                  className="dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="recurrenceType">Recorrência</Label>
+                <Select
+                  value={editingTask ? editTaskRecurrenceType : newTaskRecurrenceType}
+                  onValueChange={(value: 'none' | 'daily' | 'every_x_days') => {
+                    if (editingTask) {
+                      setEditTaskRecurrenceType(value);
+                      if (value === 'none') setEditTaskRecurrenceInterval(undefined);
+                      else if (value === 'daily') setEditTaskRecurrenceInterval(1);
+                      else setEditTaskRecurrenceInterval(2);
+                    } else {
+                      setNewTaskRecurrenceType(value);
+                      if (value === 'none') setNewTaskRecurrenceInterval(undefined);
+                      else if (value === 'daily') setNewTaskRecurrenceInterval(1);
+                      else setNewTaskRecurrenceInterval(2);
+                    }
+                  }}
+                >
+                  <SelectTrigger className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
+                    <SelectValue placeholder="Nenhuma" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white text-gray-900 dark:bg-slate-800 dark:text-white dark:border-slate-700">
+                    <SelectItem value="none">Nenhuma</SelectItem>
+                    <SelectItem value="daily">Diária</SelectItem>
+                    <SelectItem value="every_x_days">A cada X dias</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {(editingTask ? editTaskRecurrenceType === 'every_x_days' : newTaskRecurrenceType === 'every_x_days') && (
+                <div>
+                  <Label htmlFor="recurrenceInterval">Repetir a cada (dias) *</Label>
+                  <Input
+                    id="recurrenceInterval"
+                    type="number"
+                    min="2"
+                    value={editingTask ? editTaskRecurrenceInterval || '' : newTaskRecurrenceInterval || ''}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value, 10);
+                      if (editingTask) setEditTaskRecurrenceInterval(isNaN(value) ? undefined : value);
+                      else setNewTaskRecurrenceInterval(isNaN(value) ? undefined : value);
+                    }}
+                    className="dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                    placeholder="Ex: 3"
+                    required
+                  />
+                </div>
               )}
-            </div>
-          </form>
-        </div>
 
-        <div className="space-y-3">
-          <h3 className="text-md font-semibold text-gray-900 dark:text-white">Checklist de tarefas ({sortedTasks.length})</h3>
+              <div className="flex gap-2 flex-col sm:flex-row">
+                <Button type="submit" disabled={isAddingTask || isUpdatingTask} className="bg-brand-600 hover:bg-brand-700 text-white flex-1">
+                  {isAddingTask || isUpdatingTask ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : editingTask ? <Save className="w-4 h-4 mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
+                  {editingTask ? 'Salvar edição' : 'Adicionar tarefa'}
+                </Button>
+
+                {editingTask && (
+                  <Button type="button" variant="outline" onClick={() => setEditingTask(null)} className="dark:bg-slate-700 dark:text-white dark:border-slate-600 flex-1">
+                    <X className="w-4 h-4 mr-2" /> Cancelar
+                  </Button>
+                )}
+              </div>
+            </form>
+          </div>
+        )}
+
+        <div className={`space-y-3 ${!isDashboardMode ? '' : 'w-full'}`}>
+          <h3 className="text-md font-semibold text-gray-900 dark:text-white">
+            {isDashboardMode ? 'Checklist do dia' : `Tarefas cadastradas (${sortedTasks.length})`}
+          </h3>
 
           {tasksToDisplay.length === 0 ? (
-            <p className="text-center text-gray-500 dark:text-gray-400 py-6">Nenhuma tarefa cadastrada.</p>
+            <p className="text-center text-gray-500 dark:text-gray-400 py-6">
+              {isDashboardMode ? 'Nenhuma atividade para hoje.' : 'Nenhuma tarefa cadastrada.'}
+            </p>
           ) : (
             <>
               <div className="space-y-2">
@@ -470,12 +499,16 @@ export const GestorTasksSection: React.FC<GestorTasksSectionProps> = ({ compact 
                           <Button variant="ghost" size="icon" onClick={() => openReschedule(task)} className="text-gray-400 hover:text-amber-600" title="Jogar para outra data">
                             <ArrowRightCircle className="w-4 h-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" onClick={() => startEditingTask(task)} className="text-gray-400 hover:text-brand-600" title="Editar tarefa">
-                            <Edit2 className="w-4 h-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleDeleteTask(task.id)} className="text-gray-400 hover:text-red-600" title="Excluir tarefa">
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
+                          {!isDashboardMode && (
+                            <>
+                              <Button variant="ghost" size="icon" onClick={() => startEditingTask(task)} className="text-gray-400 hover:text-brand-600" title="Editar tarefa">
+                                <Edit2 className="w-4 h-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" onClick={() => handleDeleteTask(task.id)} className="text-gray-400 hover:text-red-600" title="Excluir tarefa">
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </>
+                          )}
                         </div>
                       </div>
 
@@ -512,7 +545,7 @@ export const GestorTasksSection: React.FC<GestorTasksSectionProps> = ({ compact 
                 })}
               </div>
 
-              {sortedTasks.length > VISIBLE_TASK_LIMIT && (
+              {!isDashboardMode && sortedTasks.length > configVisibleLimit && (
                 <div className="mt-4 text-center">
                   <Button
                     variant="ghost"
@@ -525,7 +558,7 @@ export const GestorTasksSection: React.FC<GestorTasksSectionProps> = ({ compact 
                       </>
                     ) : (
                       <>
-                        <ChevronDown className="w-4 h-4 mr-1" /> Ver mais ({sortedTasks.length - VISIBLE_TASK_LIMIT} mais)
+                        <ChevronDown className="w-4 h-4 mr-1" /> Ver mais ({sortedTasks.length - configVisibleLimit} mais)
                       </>
                     )}
                   </Button>

@@ -20,6 +20,7 @@ import {
   FileText,
   Users,
   CheckSquare,
+  ListTodo,
 } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
@@ -65,6 +66,7 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({
 
   const allLinks = [
     { to: dashboardPath, icon: LayoutDashboard, label: 'Dashboard', roles: ['GESTOR', 'ADMIN', 'SECRETARIA'], section: 'main' },
+    { to: `${baseRoute}/tasks`, icon: ListTodo, label: 'Configurar Tarefas', roles: ['GESTOR', 'ADMIN'], section: 'main' },
     { to: `${baseRoute}/hiring-pipeline`, icon: UserSearch, label: 'Contratação', roles: ['GESTOR', 'ADMIN', 'SECRETARIA'], section: 'main' },
     { to: `${baseRoute}/team-config`, icon: Users, label: 'Gestão de Equipe', roles: ['GESTOR', 'ADMIN'], section: 'main' },
     { to: `${baseRoute}/commissions`, icon: Banknote, label: 'Comissões', roles: ['GESTOR', 'ADMIN'], section: 'main' },
