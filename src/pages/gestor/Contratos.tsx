@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { FileText, Loader2, Trash2, Upload, Search, Download, FileSignature } from 'lucide-react';
@@ -77,8 +78,7 @@ export const Contratos = () => {
   };
 
   const getPublicUrl = (filePath: string) => {
-    const baseUrl = 'https://jhhlktqhrdiashyjgbad.supabase.co/storage/v1/object/public/contratos';
-    return `${baseUrl}/${filePath}`;
+    return supabase.storage.from('contratos').getPublicUrl(filePath).data.publicUrl;
   };
 
   if (isDataLoading) {
