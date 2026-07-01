@@ -232,9 +232,6 @@ const FunnelStageCard: React.FC<FunnelStageCardProps> = ({
             {breakdownRows.map((row) => (
               <BreakdownRow key={row.label} row={row} />
             ))}
-            <div className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-[10px] font-medium leading-relaxed text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
-              As linhas abaixo somam exatamente o total mostrado no topo.
-            </div>
           </div>
         )}
       </div>
@@ -318,6 +315,17 @@ const HiringMetrics = () => {
       }
     }
 
+    const isWithdrawnCandidate = (candidate: Candidate) => {
+      return !!candidate.withdrawalStageKey || !!candidate.reprovadoDate || !!candidate.withdrawalReason || !!candidate.withdrawalReasonOption;
+    };
+
+    const buildWithdrawnAtStage = (stageKey: HiringPipelineStageKey) => {
+      return candidatesCreatedInPeriod.filter((candidate) => {
+        if (!isWithdrawnCandidate(candidate)) return false;
+        return candidate.withdrawalStageKey === stageKey;
+      });
+    };
+
     const buildCohortStageMetric = (stageKey: HiringPipelineStageKey): StageMetric => {
       const column = columnsByKey.get(stageKey);
       const stageCandidates = candidatesCreatedInPeriod.filter((candidate) => candidateHasReachedStage(candidate, stageKey));
@@ -330,20 +338,11 @@ const HiringMetrics = () => {
       };
     };
 
-    const isWithdrawnCandidate = (candidate: Candidate) => {
-      return !!candidate.withdrawalStageKey || !!candidate.reprovadoDate || !!candidate.withdrawalReason || !!candidate.withdrawalReasonOption;
-    };
-
-    const buildWithdrawnAtStage = (stageKey: HiringPipelineStageKey) => {
-      return candidatesCreatedInPeriod.filter((candidate) => {
-        if (!isWithdrawnCandidate(candidate)) return false;
-        return candidate.withdrawalStageKey === stageKey;
-      });
-    };
-
     const processFunnelBlocks = FUNNEL_LAYOUT.map((item) => {
       if (item.type === 'stage') {
         const metric = buildCohortStageMetric(item.stageKey);
+        const withdrawnAtStage = buildWithdrawnAtStage(item.stageKey);
+
         return {
           type: 'stage' as const,
           stageKey: item.stageKey,
@@ -351,6 +350,11 @@ const HiringMetrics = () => {
           color: metric.color,
           count: metric.count,
           candidates: metric.candidates,
+          withdrawn: {
+            label: 'Desistiu aqui',
+            count: withdrawnAtStage.length,
+            candidates: withdrawnAtStage,
+          },
         };
       }
 
@@ -550,7 +554,7 @@ const HiringMetrics = () => {
               <BarChart3 className="mr-2 h-4 w-4" />Filtros da análise
             </h3>
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              No funil, o período filtra pela data de <strong>cadastro</strong> do candidato. Nos cards com divisão, o número grande mostra o total da etapa e as linhas abaixo explicam exatamente como esse total foi distribuído.
+              No funil, o período filtra pela data de <strong>cadastro</strong> do candidato. Agora todos os cards também mostram quantos desistiram exatamente naquela etapa.
             </p>
           </div>
           {(searchTerm || filterStartDate || filterEndDate) && (
@@ -645,6 +649,15 @@ const HiringMetrics = () => {
                       parentCount={index === 0 ? 0 : totalCohort}
                       totalCount={totalCohort}
                       onOpen={() => handleOpenCandidatesDetailModal(block.title, block.candidates, 'total')}
+                      breakdownRows={[
+                        {
+                          label: 'Desistiu aqui',
+                          helperText: `Saíram durante ${block.title}`,
+                          count: block.withdrawn.count,
+                          onOpen: () => handleOpenCandidatesDetailModal(`Desistiu em "${block.title}"`, block.withdrawn.candidates, 'withdrawn'),
+                          tone: 'rose',
+                        },
+                      ]}
                     />
                   ) : (
                     <FunnelStageCard
