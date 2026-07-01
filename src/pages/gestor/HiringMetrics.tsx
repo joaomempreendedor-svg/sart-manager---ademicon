@@ -233,7 +233,7 @@ const FunnelStageCard: React.FC<FunnelStageCardProps> = ({
               <BreakdownRow key={row.label} row={row} />
             ))}
             <div className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-[10px] font-medium leading-relaxed text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
-              As linhas abaixo explicam para onde foram as pessoas deste card.
+              As linhas abaixo somam exatamente o total mostrado no topo.
             </div>
           </div>
         )}
@@ -352,24 +352,37 @@ const HiringMetrics = () => {
       }
 
       const parentMetric = buildCohortStageMetric(item.parentStageKey);
-      const positiveMetric = buildCohortStageMetric(item.positiveStageKey);
-      const negativeMetric = buildCohortStageMetric(item.negativeStageKey);
       const parentColumn = columnsByKey.get(item.parentStageKey);
-
       const withdrawnAtParent = buildWithdrawnAtStage(item.parentStageKey);
-      const currentCandidates = parentMetric.candidates.filter((candidate) => {
-        const currentStageKey = getCandidateStageKey(candidate);
-        return currentStageKey === item.parentStageKey;
-      });
 
-      const positiveCandidates = positiveMetric.candidates.filter((candidate) => {
-        const currentStageKey = getCandidateStageKey(candidate);
-        return currentStageKey === item.positiveStageKey;
-      });
+      const withdrawnIds = new Set(withdrawnAtParent.map((candidate) => candidate.id));
+      const currentCandidates: Candidate[] = [];
+      const positiveCandidates: Candidate[] = [];
+      const negativeCandidates: Candidate[] = [];
 
-      const negativeCandidates = negativeMetric.candidates.filter((candidate) => {
+      parentMetric.candidates.forEach((candidate) => {
         const currentStageKey = getCandidateStageKey(candidate);
-        return currentStageKey === item.negativeStageKey;
+
+        if (withdrawnIds.has(candidate.id)) {
+          return;
+        }
+
+        if (currentStageKey === item.parentStageKey) {
+          currentCandidates.push(candidate);
+          return;
+        }
+
+        if (candidateHasReachedStage(candidate, item.positiveStageKey)) {
+          positiveCandidates.push(candidate);
+          return;
+        }
+
+        if (candidateHasReachedStage(candidate, item.negativeStageKey)) {
+          negativeCandidates.push(candidate);
+          return;
+        }
+
+        currentCandidates.push(candidate);
       });
 
       return {
@@ -654,7 +667,7 @@ const HiringMetrics = () => {
                         },
                         {
                           label: block.positive.label,
-                          helperText: 'Avançaram para o próximo resultado positivo',
+                          helperText: 'Avançaram para este caminho',
                           count: block.positive.count,
                           onOpen: () => handleOpenCandidatesDetailModal(block.positive.label, block.positive.candidates, 'total'),
                           tone: 'green',
@@ -668,7 +681,7 @@ const HiringMetrics = () => {
                         },
                         {
                           label: block.negative.label,
-                          helperText: 'Seguiram para o resultado negativo desta etapa',
+                          helperText: 'Seguiram para este caminho',
                           count: block.negative.count,
                           onOpen: () => handleOpenCandidatesDetailModal(block.negative.label, block.negative.candidates, 'total'),
                           tone: 'red',
