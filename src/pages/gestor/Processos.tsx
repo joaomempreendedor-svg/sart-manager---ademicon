@@ -283,7 +283,7 @@ export const Processos = () => {
                     <option value="audio">Áudios</option>
                     <option value="link">Links</option>
                   </select>
-                </div>
+                                    <option value="doc">Documentos Word</option>
               </div>
               {hasActiveFilters && (
                 <div className="mt-4 text-right">
