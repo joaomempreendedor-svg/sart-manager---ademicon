@@ -17,6 +17,8 @@ import {
   CalendarPlus,
   Repeat,
   CalendarDays,
+  ChevronLeft,
+  ChevronRight,
   ChevronDown,
   ChevronUp,
   ArrowRightCircle,
@@ -80,6 +82,19 @@ export const GestorTasksSection: React.FC<GestorTasksSectionProps> = ({
   const today = formatDate(new Date());
   const isDashboardMode = mode === 'dashboard';
 
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const formattedSelectedDate = useMemo(() => formatDate(selectedDate), [selectedDate]);
+  const displayDateLabel = useMemo(() =>
+    selectedDate.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }),
+  [selectedDate]);
+  const navigateDay = (offset: number) => {
+    setSelectedDate(prev => {
+      const newDate = new Date(prev);
+      newDate.setDate(prev.getDate() + offset);
+      return newDate;
+    });
+  };
+
   const sortedTasks = useMemo(() => {
     return [...gestorTasks].sort((a, b) => {
       const aIsRecurring = a.recurrence_pattern && a.recurrence_pattern.type !== 'none';
@@ -106,12 +121,15 @@ export const GestorTasksSection: React.FC<GestorTasksSectionProps> = ({
 
   const dashboardTasks = useMemo(() => {
     return sortedTasks.filter(task => {
-      const isRecurring = task.recurrence_pattern && task.recurrence_pattern.type !== 'none';
-      const isDueToday = isGestorTaskDueOnDate(task, today);
-      const isOverdue = !isRecurring && !task.is_completed && !!task.due_date && task.due_date < today;
-      return isDueToday || isOverdue;
+      const isDueOnDate = isGestorTaskDueOnDate(task, formattedSelectedDate);
+      if (formattedSelectedDate === today) {
+        const isRecurring = task.recurrence_pattern && task.recurrence_pattern.type !== 'none';
+        const isOverdue = !isRecurring && !task.is_completed && !!task.due_date && task.due_date < today;
+        return isDueOnDate || isOverdue;
+      }
+      return isDueOnDate;
     });
-  }, [sortedTasks, today, isGestorTaskDueOnDate]);
+  }, [sortedTasks, formattedSelectedDate, today, isGestorTaskDueOnDate]);
 
   const configVisibleLimit = compact ? 5 : 6;
   const tasksToDisplay = isDashboardMode
@@ -228,11 +246,12 @@ export const GestorTasksSection: React.FC<GestorTasksSectionProps> = ({
   const handleToggleCompletion = async (task: GestorTask) => {
     if (!user) return;
     try {
+      const completionDate = isDashboardMode ? formattedSelectedDate : today;
       const isRecurring = task.recurrence_pattern && task.recurrence_pattern.type !== 'none';
-      const isCompletedToday = isRecurring && gestorTaskCompletions.some(c => c.gestor_task_id === task.id && c.user_id === user?.id && c.date === today && c.done);
-      const nextDoneState = isRecurring ? !isCompletedToday : !task.is_completed;
+      const isCompletedOnDate = isRecurring && gestorTaskCompletions.some(c => c.gestor_task_id === task.id && c.user_id === user?.id && c.date === completionDate && c.done);
+      const nextDoneState = isRecurring ? !isCompletedOnDate : !task.is_completed;
 
-      await toggleGestorTaskCompletion(task.id, nextDoneState, today);
+      await toggleGestorTaskCompletion(task.id, nextDoneState, completionDate);
       toast.success(`Tarefa ${nextDoneState ? 'concluída' : 'marcada como pendente'}!`);
     } catch (error) {
       console.error('Failed to toggle task completion:', error);
@@ -261,7 +280,7 @@ export const GestorTasksSection: React.FC<GestorTasksSectionProps> = ({
 
   const openReschedule = (task: GestorTask) => {
     setRescheduleTaskId(task.id);
-    setRescheduleDate(task.due_date || today);
+    setRescheduleDate(task.due_date || (isDashboardMode ? formattedSelectedDate : today));
   };
 
   const cancelReschedule = () => {
@@ -290,15 +309,36 @@ export const GestorTasksSection: React.FC<GestorTasksSectionProps> = ({
 
   return (
     <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl shadow-sm flex flex-col overflow-hidden">
-      <div className="px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex items-center space-x-2 bg-brand-50 dark:bg-brand-900/20">
-        {isDashboardMode ? (
-          <ListTodo className="w-5 h-5 text-brand-600 dark:text-brand-400" />
-        ) : (
-          <Settings2 className="w-5 h-5 text-brand-600 dark:text-brand-400" />
+      <div className="px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between bg-brand-50 dark:bg-brand-900/20">
+        <div className="flex items-center space-x-2">
+          {isDashboardMode ? (
+            <ListTodo className="w-5 h-5 text-brand-600 dark:text-brand-400" />
+          ) : (
+            <Settings2 className="w-5 h-5 text-brand-600 dark:text-brand-400" />
+          )}
+          {isDashboardMode ? (
+            <div className="flex items-center space-x-1">
+              <button onClick={() => navigateDay(-1)} className="p-1 rounded-full hover:bg-brand-100 dark:hover:bg-brand-800 text-brand-600 dark:text-brand-400">
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              <h2 className="text-lg font-semibold text-brand-800 dark:text-brand-300 capitalize">
+                {displayDateLabel}
+              </h2>
+              <button onClick={() => navigateDay(1)} className="p-1 rounded-full hover:bg-brand-100 dark:hover:bg-brand-800 text-brand-600 dark:text-brand-400">
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            </div>
+          ) : (
+            <h2 className="text-lg font-semibold text-brand-800 dark:text-brand-300">
+              Configurar tarefas ({gestorTasks.length})
+            </h2>
+          )}
+        </div>
+        {isDashboardMode && (
+          <span className="text-sm font-semibold text-brand-600 dark:text-brand-400">
+            {dashboardTasks.length} tarefa{dashboardTasks.length !== 1 ? 's' : ''}
+          </span>
         )}
-        <h2 className="text-lg font-semibold text-brand-800 dark:text-brand-300">
-          {isDashboardMode ? `Atividades de hoje (${dashboardTasks.length})` : `Configurar tarefas (${gestorTasks.length})`}
-        </h2>
       </div>
 
       <div className={`p-4 ${!isDashboardMode ? 'grid grid-cols-1 md:grid-cols-2 gap-4' : ''}`}>
@@ -414,16 +454,16 @@ export const GestorTasksSection: React.FC<GestorTasksSectionProps> = ({
 
           {tasksToDisplay.length === 0 ? (
             <p className="text-center text-gray-500 dark:text-gray-400 py-6">
-              {isDashboardMode ? 'Nenhuma atividade para hoje.' : 'Nenhuma tarefa cadastrada.'}
+              {isDashboardMode ? `Nenhuma atividade para ${formattedSelectedDate === today ? 'hoje' : 'este dia'}.` : 'Nenhuma tarefa cadastrada.'}
             </p>
           ) : (
             <>
               <div className="space-y-2">
                 {tasksToDisplay.map(task => {
                   const isRecurring = task.recurrence_pattern && task.recurrence_pattern.type !== 'none';
-                  const isCompletedToday = isRecurring && gestorTaskCompletions.some(c => c.gestor_task_id === task.id && c.user_id === user?.id && c.date === today && c.done);
-                  const isVisuallyCompleted = isRecurring ? isCompletedToday : task.is_completed;
-                  const isDueToday = isGestorTaskDueOnDate(task, today);
+                  const isCompletedOnDate = isRecurring && gestorTaskCompletions.some(c => c.gestor_task_id === task.id && c.user_id === user?.id && c.date === (isDashboardMode ? formattedSelectedDate : today) && c.done);
+                  const isVisuallyCompleted = isRecurring ? isCompletedOnDate : task.is_completed;
+                  const isDueOnDate = isGestorTaskDueOnDate(task, isDashboardMode ? formattedSelectedDate : today);
                   const isOverdue = !isRecurring && !task.is_completed && task.due_date && new Date(task.due_date + 'T00:00:00') < new Date(today + 'T00:00:00');
 
                   let itemClasses = 'flex items-start space-x-2 p-3 rounded-xl border group flex-col';
@@ -434,7 +474,7 @@ export const GestorTasksSection: React.FC<GestorTasksSectionProps> = ({
                     itemClasses += ' bg-green-100 dark:bg-green-900/30 border-green-300 dark:border-green-700';
                     titleClasses += ' line-through text-gray-500 dark:text-gray-400';
                     descriptionClasses += ' line-through text-gray-500 dark:text-gray-400';
-                  } else if (isDueToday || isOverdue) {
+                  } else if (isDueOnDate || isOverdue) {
                     itemClasses += ' bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800';
                     titleClasses += ' text-red-800 dark:text-red-200';
                     descriptionClasses += ' text-red-700 dark:text-red-300';
@@ -460,7 +500,8 @@ export const GestorTasksSection: React.FC<GestorTasksSectionProps> = ({
                           <p className={titleClasses}>
                             {task.title}
                             {isOverdue && !isVisuallyCompleted && <span className="ml-2 text-[10px] font-bold uppercase bg-red-100 text-red-600 px-1.5 py-0.5 rounded">Atrasada</span>}
-                            {isDueToday && !isVisuallyCompleted && <span className="ml-2 text-[10px] font-bold uppercase bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded">Hoje</span>}
+                            {isDueOnDate && !isOverdue && !isVisuallyCompleted && isDashboardMode && formattedSelectedDate === today && <span className="ml-2 text-[10px] font-bold uppercase bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded">Hoje</span>}
+                            {isDueOnDate && !isOverdue && !isVisuallyCompleted && isDashboardMode && formattedSelectedDate !== today && <span className="ml-2 text-[10px] font-bold uppercase bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded">Vence</span>}
                           </p>
 
                           {task.description && <p className={descriptionClasses}>{task.description}</p>}
@@ -482,9 +523,9 @@ export const GestorTasksSection: React.FC<GestorTasksSectionProps> = ({
                                   {task.recurrence_pattern?.type === 'daily' ? 'Diária' : `A cada ${task.recurrence_pattern?.interval} dias`}
                                 </span>
                               )}
-                              {isDueToday && (
+                              {isDueOnDate && !isOverdue && (
                                 <span className="flex items-center text-red-600 dark:text-red-400 font-medium">
-                                  <Clock className="w-3 h-3 mr-1" /> Vence hoje
+                                  <Clock className="w-3 h-3 mr-1" /> {isDashboardMode && formattedSelectedDate !== today ? `Vence em ${new Date(formattedSelectedDate + 'T00:00:00').toLocaleDateString('pt-BR')}` : 'Vence hoje'}
                                 </span>
                               )}
                             </div>
