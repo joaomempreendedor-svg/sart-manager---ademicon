@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useApp } from '@/context/AppContext';
-import { toast } from 'sonner'; // Using Sonner for toasts
+import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -82,6 +82,7 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
     if (file.type.startsWith('image/')) return 'image';
     if (file.type.startsWith('video/')) return 'video';
     if (file.type.startsWith('audio/')) return 'audio';
+    if (file.type === 'application/msword' || file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') return 'doc';
     return 'pdf';
   };
 
@@ -109,7 +110,7 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
   const handleCoverFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 5 * 1024 * 1024) { // 5MB limit for cover
+      if (file.size > 5 * 1024 * 1024) {
         toast.error("A imagem de capa não pode exceder 5MB.");
         return;
       }
@@ -219,6 +220,8 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
         return <Video className="w-10 h-10 text-blue-500" />;
       case 'audio':
         return <Music className="w-10 h-10 text-purple-500" />;
+      case 'doc':
+        return <FileText className="w-10 h-10 text-blue-700" />;
       default:
         return <FileText className="w-10 h-10 text-gray-500" />;
     }
@@ -355,6 +358,7 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
                            att.file_type === 'video' ? <Video className="w-5 h-5 text-blue-500" /> :
                            att.file_type === 'audio' ? <Music className="w-5 h-5 text-purple-500" /> :
                            att.file_type === 'link' ? <LinkIcon className="w-5 h-5 text-blue-500" /> :
+                           att.file_type === 'doc' ? <FileText className="w-5 h-5 text-blue-700" /> :
                            <FileText className="w-5 h-5 text-brand-500" />}
                           <span className="text-sm text-gray-700 dark:text-gray-300 truncate font-medium">{att.file_name || att.file_url}</span>
                         </div>
@@ -385,7 +389,7 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
                       type="file" 
                       className="hidden" 
                       multiple 
-                      accept="image/*,application/pdf,video/*,audio/*" 
+                      accept="image/*,application/pdf,video/*,audio/*,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" 
                       onChange={handleFileChange} 
                       ref={fileInputRef}
                     />
