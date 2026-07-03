@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { useApp } from '@/context/AppContext';
 import { Process } from '@/types';
 import { Loader2, FileText, Plus, Search, Edit2, Trash2, Eye, Filter, RotateCcw, CalendarDays, Image as ImageIcon, Video, Music, Link as LinkIcon, Grid, List, LayoutDashboard, BarChart3, Clock, Paperclip } from 'lucide-react';
-import { toast } from 'sonner'; // Using Sonner for toasts
+import { toast } from 'sonner';
 import { ProcessModal } from '@/components/gestor/ProcessModal';
 import { ProcessViewModal } from '@/components/gestor/ProcessViewModal';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -21,9 +21,9 @@ export const Processos = () => {
 
   const [filterStartDate, setFilterStartDate] = useState('');
   const [filterEndDate, setFilterEndDate] = useState('');
-    const [filterType, setFilterType] = useState<'all' | 'image' | 'pdf' | 'video' | 'audio' | 'link' | 'text' | 'doc'>('all');
+  const [filterType, setFilterType] = useState<'all' | 'image' | 'pdf' | 'video' | 'audio' | 'link' | 'text' | 'doc'>('all');
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid'); // New state for view mode
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   const debouncedSearchTerm = useDebouncedCallback((value: string) => {
     setSearchTerm(value);
@@ -90,7 +90,7 @@ export const Processos = () => {
     if (filterType !== 'all') {
       currentProcesses = currentProcesses.filter(p => {
         if (filterType === 'text') {
-          return p.content && !p.attachments?.length; // Only text content, no attachments
+          return p.content && !p.attachments?.length;
         }
         return p.attachments?.some(att => att.file_type === filterType);
       });
@@ -115,7 +115,8 @@ export const Processos = () => {
       case 'video': return <Video className="w-4 h-4" />;
       case 'audio': return <Music className="w-4 h-4" />;
       case 'link': return <LinkIcon className="w-4 h-4" />;
-            case 'doc': return <FileText className="w-4 h-4" />;
+      case 'doc': return <FileText className="w-4 h-4" />;
+      case 'text': return <LayoutDashboard className="w-4 h-4" />;
       default: return <FileText className="w-4 h-4" />;
     }
   };
@@ -282,8 +283,9 @@ export const Processos = () => {
                     <option value="video">Vídeos</option>
                     <option value="audio">Áudios</option>
                     <option value="link">Links</option>
+                    <option value="doc">Documentos Word</option>
                   </select>
-                                    <option value="doc">Documentos Word</option>
+                </div>
               </div>
               {hasActiveFilters && (
                 <div className="mt-4 text-right">
