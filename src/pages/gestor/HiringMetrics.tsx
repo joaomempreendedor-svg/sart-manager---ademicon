@@ -1,4 +1,3 @@
-Aqui está o arquivo completo com as alterações:
 
 ```tsx
 import React, { useMemo, useState } from 'react';
