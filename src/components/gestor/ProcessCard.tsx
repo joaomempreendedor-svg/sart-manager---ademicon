@@ -24,7 +24,20 @@ const getProcessIcon = (process: Process) => {
     case 'video': return <Video className="w-8 h-8 text-blue-500" />;
     case 'audio': return <Music className="w-8 h-8 text-purple-500" />;
     case 'link': return <LinkIcon className="w-8 h-8 text-blue-400" />;
+    const getProcessIcon = (process: Process) => {
+  const hasAttachments = process.attachments && process.attachments.length > 0;
+  if (!hasAttachments) return <FileText className="w-8 h-8 text-brand-500" />;
+  
+  const firstType = process.attachments![0].file_type;
+  switch (firstType) {
+    case 'image': return <ImageIcon className="w-8 h-8 text-green-500" />;
+    case 'video': return <Video className="w-8 h-8 text-blue-500" />;
+    case 'audio': return <Music className="w-8 h-8 text-purple-500" />;
+    case 'link': return <LinkIcon className="w-8 h-8 text-blue-400" />;
+    case 'doc': return <FileText className="w-8 h-8 text-blue-700" />;
     default: return <FileText className="w-8 h-8 text-brand-500" />;
+  }
+};
   }
 };
 
