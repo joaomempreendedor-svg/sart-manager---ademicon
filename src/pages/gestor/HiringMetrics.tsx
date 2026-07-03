@@ -1,3 +1,6 @@
+Aqui está o arquivo completo com as alterações:
+
+```tsx
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -369,7 +372,7 @@ const FunnelStageCard: React.FC<FunnelStageCardProps> = ({
             <BreakdownRow
               row={{
                 label: 'Seguem para próxima',
-                count,
+                count: count - (withdrawalNote?.count || 0),
                 onOpen,
                 tone: color === 'red' ? 'red' : color === 'green' ? 'green' : color === 'purple' ? 'purple' : color === 'yellow' ? 'orange' : 'blue',
               }}
@@ -1085,7 +1088,9 @@ const HiringMetrics = () => {
                         },
                         {
                           label: block.positive.label,
-                          helperText: 'Seguem para próxima',
+                          helperText: block.positive.withdrawalNote?.count
+                            ? `${block.positive.count} aprovados, ${block.positive.withdrawalNote.count} desistiram`
+                            : 'Seguem para próxima',
                           count: block.positive.count,
                           onOpen: () =>
                             handleOpenCandidatesDetailModal(
@@ -1095,6 +1100,22 @@ const HiringMetrics = () => {
                             ),
                           tone: block.color === 'purple' ? 'purple' : block.color === 'yellow' ? 'orange' : 'green',
                         },
+                        ...(block.positive.withdrawalNote?.count
+                          ? [
+                              {
+                                label: 'Desistiram',
+                                helperText: `Dos ${block.positive.count} ${block.positive.label.toLowerCase()}`,
+                                count: block.positive.withdrawalNote.count,
+                                onOpen: () =>
+                                  handleOpenCandidatesDetailModal(
+                                    `Desistências em "${block.title}"`,
+                                    block.positive.withdrawalNote?.candidates || [],
+                                    'withdrawn',
+                                  ),
+                                tone: 'red' as const,
+                              } as BranchBreakdownRow,
+                            ]
+                          : []),
                         {
                           label: block.negative.label,
                           helperText: 'Não avançaram',
@@ -1293,3 +1314,4 @@ const HiringMetrics = () => {
 };
 
 export default HiringMetrics;
+```
