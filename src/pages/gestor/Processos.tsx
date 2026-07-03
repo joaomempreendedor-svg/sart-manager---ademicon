@@ -21,7 +21,7 @@ export const Processos = () => {
 
   const [filterStartDate, setFilterStartDate] = useState('');
   const [filterEndDate, setFilterEndDate] = useState('');
-  const [filterType, setFilterType] = useState<'all' | 'image' | 'pdf' | 'video' | 'audio' | 'link' | 'text'>('all');
+    const [filterType, setFilterType] = useState<'all' | 'image' | 'pdf' | 'video' | 'audio' | 'link' | 'text' | 'doc'>('all');
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid'); // New state for view mode
 
