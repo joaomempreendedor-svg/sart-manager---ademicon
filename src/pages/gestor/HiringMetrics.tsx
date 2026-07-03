@@ -663,24 +663,12 @@ const HiringMetrics = () => {
         count: parentMetric.count,
         candidates: parentMetric.candidates,
         current: {
-          label: 'Novos nesta etapa',
+          label: 'Ainda nessa etapa',
           count: uniqueById(currentCandidates).length,
           candidates: uniqueById(currentCandidates),
         },
         positive: {
-          label: item.positiveStageKey === 'compareceu-entrevista'
-            ? 'Compareceram'
-            : item.positiveStageKey === 'aprovado-gestor'
-            ? 'Aprovados'
-            : item.positiveStageKey === 'documentacao-enviada'
-            ? 'Enviadas'
-            : item.positiveStageKey === 'onboarding-finalizado'
-            ? 'Finalizados'
-            : item.positiveStageKey === 'integracao-compareceu'
-            ? 'Compareceram'
-            : item.positiveStageKey === 'contrato-assinado'
-            ? 'Contratados'
-            : getHiringStageLabel(item.positiveStageKey),
+          label: getHiringStageLabel(item.positiveStageKey),
           count: uniquePositiveCandidates.length,
           candidates: uniquePositiveCandidates,
           withdrawalNote: showPositiveWithdrawalNote
@@ -692,19 +680,7 @@ const HiringMetrics = () => {
             : null,
         },
         negative: {
-          label: item.negativeStageKey === 'faltou-entrevista'
-            ? 'Desistências'
-            : item.negativeStageKey === 'reprovado-gestor'
-            ? 'Reprovados'
-            : item.negativeStageKey === 'documentacao-nao-enviada'
-            ? 'Recusadas'
-            : item.negativeStageKey === 'onboarding-nao-finalizado'
-            ? 'Não concluíram'
-            : item.negativeStageKey === 'integracao-nao-compareceu'
-            ? 'Faltaram'
-            : item.negativeStageKey === 'contrato-nao-assinado'
-            ? 'Desistências'
-            : getHiringStageLabel(item.negativeStageKey),
+          label: getHiringStageLabel(item.negativeStageKey),
           count: uniqueById(negativeCandidates).length,
           candidates: uniqueById(negativeCandidates),
         },
@@ -1086,7 +1062,7 @@ const HiringMetrics = () => {
                         {
                           label: block.positive.label,
                           helperText: block.positive.withdrawalNote?.count
-                            ? `${block.positive.count} aprovados, ${block.positive.withdrawalNote.count} desistiram`
+                            ? `${block.positive.count} ${block.positive.label.toLowerCase()}, ${block.positive.withdrawalNote.count} desistiram`
                             : 'Seguem para próxima',
                           count: block.positive.count,
                           onOpen: () =>
@@ -1097,22 +1073,6 @@ const HiringMetrics = () => {
                             ),
                           tone: block.color === 'purple' ? 'purple' : block.color === 'yellow' ? 'orange' : 'green',
                         },
-                        ...(block.positive.withdrawalNote?.count
-                          ? [
-                              {
-                                label: 'Desistiram',
-                                helperText: `Dos ${block.positive.count} ${block.positive.label.toLowerCase()}`,
-                                count: block.positive.withdrawalNote.count,
-                                onOpen: () =>
-                                  handleOpenCandidatesDetailModal(
-                                    `Desistências em "${block.title}"`,
-                                    block.positive.withdrawalNote?.candidates || [],
-                                    'withdrawn',
-                                  ),
-                                tone: 'red' as const,
-                              } as BranchBreakdownRow,
-                            ]
-                          : []),
                         {
                           label: block.negative.label,
                           helperText: 'Não avançaram',
