@@ -610,7 +610,7 @@ export interface ProcessAttachment {
   id: string;
   process_id: string;
   file_url: string;
-  file_type: 'image' | 'pdf' | 'video' | 'audio' | 'link';
+  file_type: 'image' | 'pdf' | 'video' | 'audio' | 'link' | 'doc';
   file_name?: string;
   created_at: string;
 }
@@ -624,7 +624,7 @@ export interface Process {
   type: string;
   cover_url?: string | null;
   file_url?: string;
-  file_type?: 'image' | 'pdf' | 'video' | 'audio' | 'link';
+  file_type?: 'image' | 'pdf' | 'video' | 'audio' | 'link' | 'doc';
   created_at: string;
   updated_at: string;
   attachments?: ProcessAttachment[];
