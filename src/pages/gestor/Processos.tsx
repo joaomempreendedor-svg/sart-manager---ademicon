@@ -115,7 +115,7 @@ export const Processos = () => {
       case 'video': return <Video className="w-4 h-4" />;
       case 'audio': return <Music className="w-4 h-4" />;
       case 'link': return <LinkIcon className="w-4 h-4" />;
-      case 'text': return <LayoutDashboard className="w-4 h-4" />; // Using a generic icon for text-only
+            case 'doc': return <FileText className="w-4 h-4" />;
       default: return <FileText className="w-4 h-4" />;
     }
   };
