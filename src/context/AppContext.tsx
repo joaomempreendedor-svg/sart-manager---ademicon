@@ -552,12 +552,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return newProcess;
   }, [user]);
 
-  const updateProcess = useCallback(async (id: string, updates: Partial<Process>, filesToAdd?: { file: File, type: string }[], linksToAdd?: { url: string, type: string }[], coverFile?: File) => {
+const updateProcess = useCallback(async (id: string, updates: Partial<Process>, filesToAdd?: { file: File, type: string }[], linksToAdd?: { url: string, type: string }[], coverFile?: File) => {
     if (!user) throw new Error("User not authenticated.");
     const updatesPayload: Partial<Process> = {
       title: updates.title,
       description: updates.description,
       content: updates.content,
+      type: updates.type,
     };
     if (coverFile) {
       const formData = new FormData();
