@@ -10,7 +10,7 @@ import { ProcessCard } from '@/components/gestor/ProcessCard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
 import { formatRelativeDate } from '@/utils/dateUtils';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 
 export const Processos = () => {
   const { processes, addProcess, updateProcess, deleteProcess, isDataLoading } = useApp();
