@@ -1,7 +1,7 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useApp } from '@/context/AppContext';
 import { Process } from '@/types';
-import { Loader2, FileText, Plus, Search, Edit2, Trash2, Eye, Filter, RotateCcw, CalendarDays, Image as ImageIcon, Video, Music, Link as LinkIcon, Grid, List, LayoutDashboard, BarChart3, Clock, Paperclip } from 'lucide-react';
+import { Loader2, FileText, Plus, Search, Edit2, Trash2, Eye, Filter, RotateCcw, CalendarDays, Image as ImageIcon, Video, Music, Link as LinkIcon, Grid, List, LayoutDashboard, BarChart3, Clock, Paperclip, Settings, X, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { ProcessModal } from '@/components/gestor/ProcessModal';
 import { ProcessViewModal } from '@/components/gestor/ProcessViewModal';
@@ -10,6 +10,7 @@ import { ProcessCard } from '@/components/gestor/ProcessCard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
 import { formatRelativeDate } from '@/utils/dateUtils';
+import { supabase } from '@/lib/supabase';
 
 export const Processos = () => {
   const { processes, addProcess, updateProcess, deleteProcess, isDataLoading } = useApp();
@@ -26,10 +27,59 @@ export const Processos = () => {
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
+  const CATEGORIES_KEY = 'manager_process_categories';
+  const defaultCategories = ['Contratação', 'Prospecção'];
+
+  const [allCategories, setAllCategories] = useState<string[]>(() => {
+    const stored = localStorage.getItem(CATEGORIES_KEY);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch {}
+    }
+    return defaultCategories;
+  });
+
+  useEffect(() => {
+    localStorage.setItem(CATEGORIES_KEY, JSON.stringify(allCategories));
+  }, [allCategories]);
+
+  const addCategory = (name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    if (allCategories.includes(trimmed)) {
+      toast.error('Categoria já existe');
+      return;
+    }
+    setAllCategories(prev => [...prev, trimmed]);
+  };
+
+  const renameCategory = async (oldName: string, newName: string) => {
+    const trimmed = newName.trim();
+    if (!trimmed || trimmed === oldName) return;
+    if (allCategories.includes(trimmed)) {
+      toast.error('Categoria já existe');
+      return;
+    }
+    setAllCategories(prev => prev.map(c => c === oldName ? trimmed : c));
+    await supabase.from('processes').update({ type: trimmed }).eq('type', oldName);
+  };
+
+  const deleteCategory = (name: string) => {
+    setAllCategories(prev => prev.filter(c => c !== name));
+    if (categoryFilter === name) setCategoryFilter('all');
+  };
+
+  const [isManagingCategories, setIsManagingCategories] = useState(false);
+  const [editingCategoryIndex, setEditingCategoryIndex] = useState<number | null>(null);
+  const [editingCategoryValue, setEditingCategoryValue] = useState('');
+  const [newCategoryName, setNewCategoryName] = useState('');
+
   const categories = useMemo(() => {
     const cats = new Set(processes.map(p => p.type).filter(Boolean));
-    return ['Contratação', 'Prospecção'].filter(c => cats.has(c));
-  }, [processes]);
+    return allCategories.filter(c => cats.has(c));
+  }, [processes, allCategories]);
 
   const debouncedSearchTerm = useDebouncedCallback((value: string) => {
     setSearchTerm(value);
@@ -229,26 +279,108 @@ export const Processos = () => {
       </motion.div>
 
       {/* Category Tabs */}
-      <div className="flex space-x-2 mb-4 overflow-x-auto">
+      <div className="flex space-x-2 mb-4 overflow-x-auto items-center">
         <button
           onClick={() => setCategoryFilter('all')}
           className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition ${categoryFilter === 'all' ? 'bg-brand-500 text-white shadow-md' : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700'}`}
         >
           Todas
         </button>
+        {allCategories.map(cat => (
+          <button
+            key={cat}
+            onClick={() => setCategoryFilter(cat)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition ${categoryFilter === cat ? 'bg-brand-500 text-white shadow-md' : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700'}`}
+          >
+            {cat}
+          </button>
+        ))}
         <button
-          onClick={() => setCategoryFilter('Contratação')}
-          className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition ${categoryFilter === 'Contratação' ? 'bg-brand-500 text-white shadow-md' : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700'}`}
+          onClick={() => { setIsManagingCategories(!isManagingCategories); setEditingCategoryIndex(null); setNewCategoryName(''); }}
+          className={`p-2 rounded-lg transition ml-auto ${isManagingCategories ? 'bg-brand-500 text-white shadow-md' : 'bg-white dark:bg-slate-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700'}`}
+          title="Gerenciar Categorias"
         >
-          Contratação
-        </button>
-        <button
-          onClick={() => setCategoryFilter('Prospecção')}
-          className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition ${categoryFilter === 'Prospecção' ? 'bg-brand-500 text-white shadow-md' : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700'}`}
-        >
-          Prospecção
+          <Settings className="w-4 h-4" />
         </button>
       </div>
+
+      {/* Category Manager */}
+      <AnimatePresence>
+        {isManagingCategories && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3, ease: "easeInOut" }}
+            className="overflow-hidden mb-6"
+          >
+            <div className="bg-white dark:bg-slate-800 p-5 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm space-y-3">
+              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Gerenciar Categorias</h3>
+              <div className="flex space-x-2">
+                <input
+                  type="text"
+                  value={newCategoryName}
+                  onChange={e => setNewCategoryName(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { addCategory(newCategoryName); setNewCategoryName(''); } }}
+                  placeholder="Nova categoria..."
+                  className="flex-1 px-3 py-1.5 border border-gray-300 dark:border-slate-600 rounded-lg text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500"
+                />
+                <button
+                  onClick={() => { addCategory(newCategoryName); setNewCategoryName(''); }}
+                  className="px-3 py-1.5 bg-brand-500 text-white rounded-lg text-sm hover:bg-brand-600 transition"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {allCategories.map((cat, idx) => (
+                  <div key={cat} className="flex items-center justify-between bg-gray-50 dark:bg-slate-700/50 px-3 py-2 rounded-lg">
+                    {editingCategoryIndex === idx ? (
+                      <div className="flex items-center space-x-2 flex-1">
+                        <input
+                          type="text"
+                          value={editingCategoryValue}
+                          onChange={e => setEditingCategoryValue(e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') { renameCategory(cat, editingCategoryValue); }
+                            if (e.key === 'Escape') setEditingCategoryIndex(null);
+                          }}
+                          className="flex-1 px-2 py-1 border border-brand-500 rounded text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500"
+                          autoFocus
+                        />
+                        <button onClick={() => renameCategory(cat, editingCategoryValue)} className="p-1 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded">
+                          <Check className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => setEditingCategoryIndex(null)} className="p-1 text-gray-400 hover:bg-gray-200 dark:hover:bg-slate-600 rounded">
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <span className="text-sm text-gray-700 dark:text-gray-200">{cat}</span>
+                        <div className="flex items-center space-x-1">
+                          <button
+                            onClick={() => { setEditingCategoryIndex(idx); setEditingCategoryValue(cat); }}
+                            className="p-1 text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => deleteCategory(cat)}
+                            className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Filters and Search */}
       <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm space-y-4 mb-6">
@@ -382,6 +514,7 @@ export const Processos = () => {
         onClose={() => setIsEditModalOpen(false)}
         process={selectedProcess}
         onSave={handleSaveProcess}
+        categories={allCategories}
       />
       <ProcessViewModal
         isOpen={isViewModalOpen}
