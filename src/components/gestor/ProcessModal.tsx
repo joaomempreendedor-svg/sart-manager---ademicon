@@ -26,8 +26,12 @@ interface ProcessModalProps {
   isOpen: boolean;
   onClose: () => void;
   process: Process | null;
-  onSave: (processData: Omit<Process, 'id' | 'user_id' | 'created_at' | 'updated_at'> | Process, filesToAdd?: { file: File, type: string }[], linksToAdd?: { url: string, type: string }[], coverFile?: File) => Promise<void>;
-}
+  interface ProcessModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  process: Process | null;
+  onSave: (processData: ..., filesToAdd?: ..., linksToAdd?: ..., coverFile?: File) => Promise<void>;
+  categories?: string[];
 
 const PROCESS_CATEGORIES = ['Contratação', 'Prospecção'] as const;
 
