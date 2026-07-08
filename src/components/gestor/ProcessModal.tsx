@@ -26,14 +26,9 @@ interface ProcessModalProps {
   isOpen: boolean;
   onClose: () => void;
   process: Process | null;
-  interface ProcessModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  process: Process | null;
-  onSave: (processData: ..., filesToAdd?: ..., linksToAdd?: ..., coverFile?: File) => Promise<void>;
+  onSave: (processData: Omit<Process, 'id' | 'user_id' | 'created_at' | 'updated_at'> | Process, filesToAdd?: { file: File, type: string }[], linksToAdd?: { url: string, type: string }[], coverFile?: File) => Promise<void>;
   categories?: string[];
-
-const PROCESS_CATEGORIES = ['Contratação', 'Prospecção'] as const;
+}
 
 const MAX_FILE_SIZE_MB = 500;
 
@@ -46,7 +41,7 @@ const formSchema = z.object({
 
 type FormData = z.infer<typeof formSchema>;
 
-export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, process, onSave }) => {
+export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, process, onSave, categories }) => {
   const { deleteProcessAttachment } = useApp();
   const [filesToAdd, setFilesToAdd] = useState<{ file: File, type: string, preview: string }[]>([]);
   const [linksToAdd, setLinksToAdd] = useState<string[]>([]);
@@ -328,7 +323,7 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
                   {...register('type')}
                   className="w-full p-2 border rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-white border-gray-300 dark:border-slate-600"
                 >
-                  {PROCESS_CATEGORIES.map(cat => (
+                  {(categories ?? ['Contratação', 'Prospecção']).map(cat => (
                     <option key={cat} value={cat}>{cat}</option>
                   ))}
                 </select>
