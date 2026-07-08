@@ -29,12 +29,15 @@ interface ProcessModalProps {
   onSave: (processData: Omit<Process, 'id' | 'user_id' | 'created_at' | 'updated_at'> | Process, filesToAdd?: { file: File, type: string }[], linksToAdd?: { url: string, type: string }[], coverFile?: File) => Promise<void>;
 }
 
+const PROCESS_CATEGORIES = ['Contratação', 'Prospecção'] as const;
+
 const MAX_FILE_SIZE_MB = 500;
 
 const formSchema = z.object({
   title: z.string().min(1, "O título é obrigatório."),
   description: z.string().optional(),
   content: z.string().optional(),
+  type: z.string().min(1, "A categoria é obrigatória."),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -58,6 +61,7 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
       title: '',
       description: '',
       content: '',
+      type: 'Contratação',
     },
   });
 
@@ -67,6 +71,7 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
         title: process?.title || '',
         description: process?.description || '',
         content: process?.content || '',
+        type: process?.type || 'Contratação',
       });
       setFilesToAdd([]);
       setLinksToAdd([]);
@@ -189,7 +194,7 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
         title: data.title.trim(),
         description: data.description?.trim() || undefined,
         content: data.content?.trim() || undefined,
-        type: 'Documento',
+        type: data.type,
       };
 
       if (isCoverRemoved) {
@@ -310,6 +315,25 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
               <motion.div 
                 initial={{ opacity: 0, y: 10 }} 
                 animate={{ opacity: 1, y: 0 }} 
+                transition={{ duration: 0.3, delay: 0.25 }}
+                className="space-y-2"
+              >
+                <Label htmlFor="type">Categoria</Label>
+                <select
+                  id="type"
+                  {...register('type')}
+                  className="w-full p-2 border rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-white border-gray-300 dark:border-slate-600"
+                >
+                  {PROCESS_CATEGORIES.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+                {errors.type && <p className="text-red-500 text-xs mt-1">{errors.type.message}</p>}
+              </motion.div>
+
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }} 
+                animate={{ opacity: 1, y: 0 }} 
                 transition={{ duration: 0.3, delay: 0.3 }}
                 className="border-t border-gray-200 dark:border-slate-700 pt-6"
               >
@@ -358,7 +382,6 @@ export const ProcessModal: React.FC<ProcessModalProps> = ({ isOpen, onClose, pro
                            att.file_type === 'video' ? <Video className="w-5 h-5 text-blue-500" /> :
                            att.file_type === 'audio' ? <Music className="w-5 h-5 text-purple-500" /> :
                            att.file_type === 'link' ? <LinkIcon className="w-5 h-5 text-blue-500" /> :
-                           att.file_type === 'doc' ? <FileText className="w-5 h-5 text-blue-700" /> :
                            <FileText className="w-5 h-5 text-brand-500" />}
                           <span className="text-sm text-gray-700 dark:text-gray-300 truncate font-medium">{att.file_name || att.file_url}</span>
                         </div>
