@@ -3,7 +3,7 @@ import { Process } from '@/types';
 import { FileText, Image as ImageIcon, Video, Music, Link as LinkIcon, MoreVertical, Trash2, Edit2, Eye, Paperclip, Clock, Check } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { formatRelativeDate } from '@/utils/dateUtils';
-import { toast } from 'sonner'; // Importar toast para notificações
+import { toast } from 'sonner';
 import { getYouTubeThumbnail } from '@/utils/videoUtils';
 
 interface ProcessCardProps {
@@ -11,20 +11,10 @@ interface ProcessCardProps {
   onView: (process: Process) => void;
   onEdit: (process: Process) => void;
   onDelete: (e: React.MouseEvent, process: Process) => void;
-  index: number; // For stagger animation
+  index: number;
 }
 
 const getProcessIcon = (process: Process) => {
-  const hasAttachments = process.attachments && process.attachments.length > 0;
-  if (!hasAttachments) return <FileText className="w-8 h-8 text-brand-500" />;
-  
-  const firstType = process.attachments![0].file_type;
-  switch (firstType) {
-    case 'image': return <ImageIcon className="w-8 h-8 text-green-500" />;
-    case 'video': return <Video className="w-8 h-8 text-blue-500" />;
-    case 'audio': return <Music className="w-8 h-8 text-purple-500" />;
-    case 'link': return <LinkIcon className="w-8 h-8 text-blue-400" />;
-    const getProcessIcon = (process: Process) => {
   const hasAttachments = process.attachments && process.attachments.length > 0;
   if (!hasAttachments) return <FileText className="w-8 h-8 text-brand-500" />;
   
@@ -38,29 +28,23 @@ const getProcessIcon = (process: Process) => {
     default: return <FileText className="w-8 h-8 text-brand-500" />;
   }
 };
-  }
-};
 
 const getThumbnail = (process: Process): { type: 'image' | 'video', url: string } | undefined => {
-  // Prioridade 0: Imagem de capa explícita
   if (process.cover_url) {
     return { type: 'image', url: process.cover_url };
   }
 
   if (!process.attachments || process.attachments.length === 0) return undefined;
 
-  // Prioridade 1: Anexo de imagem
   const imageAttachment = process.attachments.find(att => att.file_type === 'image');
   if (imageAttachment) return { type: 'image', url: imageAttachment.file_url };
 
-  // Prioridade 2: Thumbnail de vídeo do YouTube
   const videoLinkAttachment = process.attachments.find(att => att.file_type === 'link' && att.file_url.includes('youtu'));
   if (videoLinkAttachment) {
     const thumbnailUrl = getYouTubeThumbnail(videoLinkAttachment.file_url);
     if (thumbnailUrl) return { type: 'image', url: thumbnailUrl };
   }
 
-  // Prioridade 3: Arquivo de vídeo direto
   const videoFileAttachment = process.attachments.find(att => att.file_type === 'video');
   if (videoFileAttachment) {
     return { type: 'video', url: videoFileAttachment.file_url };
@@ -92,7 +76,7 @@ export const ProcessCard: React.FC<ProcessCardProps> = ({ process, onView, onEdi
   const shareableLink = `${window.location.origin}${window.location.pathname}#/public-process/${process.id}`;
 
   const handleCopyLink = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Evita que o clique no botão abra o modal de visualização
+    e.stopPropagation();
     navigator.clipboard.writeText(shareableLink);
     setCopiedLink(true);
     toast.success("Link copiado para a área de transferência!");
@@ -162,9 +146,16 @@ export const ProcessCard: React.FC<ProcessCardProps> = ({ process, onView, onEdi
       </div>
 
       <div className="p-4">
-        <h3 className="font-bold text-lg text-gray-900 dark:text-white group-hover:text-brand-600 transition-colors line-clamp-2" title={process.title}>
-          {process.title}
-        </h3>
+        <div className="flex items-start justify-between">
+          <h3 className="font-bold text-lg text-gray-900 dark:text-white group-hover:text-brand-600 transition-colors line-clamp-2 flex-1" title={process.title}>
+            {process.title}
+          </h3>
+          {process.type && (
+            <span className="ml-2 text-[10px] uppercase font-bold text-brand-600 bg-brand-50 dark:bg-brand-900/20 px-2 py-0.5 rounded-full whitespace-nowrap shrink-0">
+              {process.type}
+            </span>
+          )}
+        </div>
         {process.description && (
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">
             {process.description}
