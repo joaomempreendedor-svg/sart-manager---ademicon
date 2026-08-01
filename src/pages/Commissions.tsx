@@ -137,6 +137,10 @@ export const Commissions = () => {
   const [isRangeModalOpen, setIsRangeModalOpen] = useState(false);
   const [selectedCommissionForRange, setSelectedCommissionForRange] = useState<Commission | null>(null);
 
+  const [isQuickPayModalOpen, setIsQuickPayModalOpen] = useState(false);
+  const [quickPayCommission, setQuickPayCommission] = useState<Commission | null>(null);
+  const [quickPayInstallment, setQuickPayInstallment] = useState<string>('');
+
   const [reportMonth, setReportMonth] = useState(new Date().toISOString().slice(0, 7));
   const [reportConsultant, setReportConsultant] = useState<string[]>([]);
   const [reportManager, setReportManager] = useState<string[]>([]);
@@ -225,6 +229,9 @@ export const Commissions = () => {
     setCommissionToEdit(null);
     setIsRangeModalOpen(false);
     setSelectedCommissionForRange(null);
+    setIsQuickPayModalOpen(false);
+    setQuickPayCommission(null);
+    setQuickPayInstallment('');
   }, [activeTab]);
 
   const parseCurrency = (value: string) => parseFloat(value.replace(/\./g, '').replace(',', '.')) || 0;
@@ -603,6 +610,49 @@ export const Commissions = () => {
       setCalculatedCompetence(calculateCompetenceMonth(today));
     } else {
       await updateInstallmentStatus(commissionId, installmentNumber, newStatus);
+    }
+  };
+
+  const getQuickPayDate = () => {
+    const today = new Date().toISOString().split('T')[0];
+    const sorted = [...cutoffPeriods].sort((a, b) => a.startDate.localeCompare(b.startDate));
+    const active = sorted.find(p => today >= p.startDate && today <= p.endDate);
+    if (active) return active.endDate;
+    const next = sorted.find(p => today <= p.startDate);
+    if (next) return next.endDate;
+    const last = sorted[sorted.length - 1];
+    if (last) return last.endDate;
+    return today;
+  };
+
+  const getNextPendingInstallment = (commission: Commission) => {
+    const pending = Object.entries(commission.installmentDetails)
+      .filter(([, info]) => info.status === 'Pendente')
+      .map(([num]) => parseInt(num, 10))
+      .sort((a, b) => a - b);
+    return pending.length > 0 ? String(pending[0]) : '';
+  };
+
+  const handleQuickPay = async () => {
+    if (!quickPayCommission) return;
+    const num = parseInt(quickPayInstallment, 10);
+    if (!num || num < 1 || num > 15) {
+      toast.error('Selecione o número da parcela.');
+      return;
+    }
+    if (!paymentDate) {
+      toast.error('Selecione a data de pagamento.');
+      return;
+    }
+    try {
+      await updateInstallmentStatus(quickPayCommission.db_id!, num, 'Pago', paymentDate, quickPayCommission.type);
+      setIsQuickPayModalOpen(false);
+      setQuickPayCommission(null);
+      setQuickPayInstallment('');
+      setPaymentDate('');
+      setCalculatedCompetence('');
+    } catch (error: any) {
+      toast.error(error.message || 'Erro ao marcar parcela como paga.');
     }
   };
 
@@ -1412,6 +1462,20 @@ export const Commissions = () => {
                                   </button>
                                 )}
                                 <button
+                                  onClick={() => {
+                                    setQuickPayCommission(c);
+                                    setQuickPayInstallment(getNextPendingInstallment(c));
+                                    setPaymentDate(getQuickPayDate());
+                                    setCalculatedCompetence(calculateCompetenceMonth(getQuickPayDate()));
+                                    setIsQuickPayModalOpen(true);
+                                  }}
+                                  className="flex items-center gap-1 px-3 py-2 rounded-lg bg-green-600 text-white font-medium text-xs shadow-sm hover:bg-green-700 transition"
+                                  title="Confirmar Pagamento de Parcela"
+                                >
+                                  <DollarSign className="w-4 h-4" />
+                                  <span>Pagar</span>
+                                </button>
+                                <button
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setSelectedCommissionForRange(c);
@@ -1644,6 +1708,33 @@ export const Commissions = () => {
           commission={selectedCommissionForRange}
           onSaveRange={handleSaveInstallmentRange}
         />
+      )}
+
+      {isQuickPayModalOpen && quickPayCommission && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onKeyDown={(e) => { if (e.key === 'Enter') handleQuickPay(); }}>
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-xl max-w-sm w-full shadow-lg">
+            <h3 className="text-lg font-bold mb-1 text-gray-900 dark:text-white">Confirmar Pagamento</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">{quickPayCommission.clientName}</p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Número da Parcela</label>
+                <input type="number" min={1} max={15} autoFocus value={quickPayInstallment} onChange={(e) => setQuickPayInstallment(e.target.value)} placeholder="Ex: 3" className="w-full p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-gray-900 dark:text-white" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Data de Pagamento</label>
+                <input type="date" value={paymentDate} onChange={(e) => { setPaymentDate(e.target.value); setCalculatedCompetence(calculateCompetenceMonth(e.target.value)); }} className="w-full p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-gray-900 dark:text-white" />
+              </div>
+              <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg text-center">
+                <p className="text-xs text-purple-800 dark:text-purple-300 font-medium">Mês de Competência Calculado</p>
+                <p className="font-bold text-purple-900 dark:text-purple-100">{calculatedCompetence ? formatMonthYear(calculatedCompetence) : '...'}</p>
+              </div>
+            </div>
+            <div className="flex gap-2 mt-6">
+              <button onClick={handleQuickPay} className="flex-1 bg-green-600 text-white py-2 rounded hover:bg-green-700 transition font-medium">Confirmar</button>
+              <button onClick={() => { setIsQuickPayModalOpen(false); setQuickPayCommission(null); setQuickPayInstallment(''); setPaymentDate(''); setCalculatedCompetence(''); }} className="flex-1 bg-gray-200 dark:bg-slate-600 text-gray-800 dark:text-gray-200 py-2 rounded hover:bg-gray-300 dark:hover:bg-slate-500 transition font-medium">Cancelar</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
