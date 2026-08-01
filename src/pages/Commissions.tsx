@@ -1421,10 +1421,16 @@ export const Commissions = () => {
                         'Cancelado': 'bg-gray-100 text-gray-800 dark:bg-slate-700 dark:text-gray-300'
                       };
                       const progressColor = progressPercent === 100 ? 'bg-green-500' : progressPercent > 50 ? 'bg-blue-500' : 'bg-yellow-500';
+                      const rowBgColor: Record<CommissionStatus, string> = {
+                        'Em Andamento': 'bg-yellow-50 dark:bg-yellow-900/20',
+                        'Atraso': 'bg-red-50 dark:bg-red-900/20',
+                        'Concluído': 'bg-green-50 dark:bg-green-900/20',
+                        'Cancelado': 'bg-gray-50 dark:bg-slate-800'
+                      };
 
                       return (
                         <React.Fragment key={c.db_id}>
-                          <tr className="hover:bg-gray-50 dark:hover:bg-slate-700/30 transition">
+                          <tr className={`${rowBgColor[status]} hover:bg-gray-50 dark:hover:bg-slate-700/30 transition`}>
                             <td className="px-4 py-3 align-top"><div className="text-sm font-medium text-gray-900 dark:text-white">{new Date(c.date + 'T00:00:00').toLocaleDateString('pt-BR')}</div><div className="text-xs text-gray-500">{new Date(c.date + 'T00:00:00').toLocaleDateString('pt-BR', { weekday: 'long' })}</div></td>
                             <td className="px-4 py-3 align-top"><div className="font-bold text-gray-900 dark:text-white flex items-center">{c.clientName}{c.angelName && <span title={`Anjo: ${c.angelName}`}><Crown className="ml-2 h-3.5 w-3.5 text-yellow-500" /></span>}</div><div className="text-xs text-gray-500">{c.group} / {c.quota} <span className={`ml-2 text-xs px-2 py-0.5 rounded-full ${c.type === 'Imóvel' ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300' : 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300'}`}>{c.type === 'Imóvel' ? '🏠' : '🚗'} {c.type}</span></div></td>
                             <td className="px-4 py-3 align-top text-xs space-y-1">
@@ -1510,7 +1516,7 @@ export const Commissions = () => {
                             </td>
                           </tr>
                           {expandedRow === c.db_id && (
-                            <tr className="bg-gray-50 dark:bg-slate-800">
+                            <tr className={`${rowBgColor[status]}`}>
                               <td colSpan={6} className="p-4">
                                 <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
                                   {Object.entries(c.installmentDetails).map(([num, info]) => {
